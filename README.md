@@ -306,7 +306,7 @@ bun test
 
 ### CLI
 
-When `ELIZA_AGENT_MODE=cli` or `both`, the runtime starts a full-screen terminal UI with a live activity feed, response pane, runtime snapshot sidebar, live transport rail, execution/delegation panel, command assist, hotkeys, and command input. Use `bun run start --plain-cli` if you want the simpler line-based fallback.
+When `ELIZA_AGENT_MODE=cli` or `both`, the runtime starts a full-screen terminal UI with a live activity feed, response pane, runtime snapshot sidebar, live transport rail, execution/delegation panel, command assist, hotkeys, event-driven updates, and command input. Use `bun run start --plain-cli` if you want the simpler line-based fallback.
 
 Quick shortcuts:
 
@@ -319,6 +319,7 @@ Quick shortcuts:
 - `F8` runtime plugins
 - `Esc` focus input
 - `Tab` complete the top suggested command
+- `Ctrl-P` open the command palette
 - `Ctrl-R` refresh runtime panels
 - `Ctrl-L` clear the activity feed
 

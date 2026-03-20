@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import {
   appendFileSync,
   existsSync,
@@ -282,6 +283,7 @@ interface GatewayRuntimeStatus {
 }
 
 export class GatewayRunner {
+  private readonly events = new EventEmitter();
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
   private readonly traceLog: GatewayTraceRecord[] = [];
   private readonly inboxLog: GatewayInboxRecord[] = [];
@@ -2198,6 +2200,24 @@ export class GatewayRunner {
     if (this.traceLog.length > 200) {
       this.traceLog.splice(0, this.traceLog.length - 200);
     }
+    this.events.emit("update", {
+      kind: entry.kind,
+      platform: entry.platform,
+      detail: entry.detail,
+    });
+  }
+
+  onUpdate(
+    listener: (event: {
+      kind: GatewayTraceRecord["kind"];
+      platform: GatewayTraceRecord["platform"];
+      detail: string;
+    }) => void,
+  ): () => void {
+    this.events.on("update", listener);
+    return () => {
+      this.events.off("update", listener);
+    };
   }
 
   private writeRuntimeStatus(): void {

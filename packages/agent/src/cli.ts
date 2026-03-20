@@ -479,6 +479,7 @@ function renderFooter(
 
 async function startTui(context: AppContext): Promise<void> {
   const state: CliState = { activeSessionId: "cli:local-user" };
+  const unsubscribers: Array<() => void> = [];
   const screen = blessed.screen({
     smartCSR: true,
     fullUnicode: true,
@@ -647,6 +648,67 @@ async function startTui(context: AppContext): Promise<void> {
     },
   });
 
+  const paletteOverlay = blessed.box({
+    parent: screen,
+    top: "center",
+    left: "center",
+    width: "72%",
+    height: "68%",
+    hidden: true,
+    tags: true,
+    border: "line",
+    label: " Command Palette ",
+    style: {
+      fg: "white",
+      bg: "black",
+      border: { fg: "magenta" },
+      label: { fg: "magenta", bold: true },
+    },
+  });
+
+  const paletteInput = blessed.textbox({
+    parent: paletteOverlay,
+    top: 0,
+    left: 0,
+    width: "100%-2",
+    height: 3,
+    inputOnFocus: true,
+    border: "line",
+    label: " Search ",
+    style: {
+      border: { fg: "yellow" },
+      label: { fg: "yellow", bold: true },
+      focus: {
+        border: { fg: "green" },
+      },
+    },
+  });
+
+  const paletteList = blessed.list({
+    parent: paletteOverlay,
+    top: 3,
+    left: 0,
+    width: "100%-2",
+    height: "100%-4",
+    border: "line",
+    label: " Matches ",
+    keys: true,
+    mouse: true,
+    vi: true,
+    tags: true,
+    style: {
+      border: { fg: "cyan" },
+      selected: {
+        bg: "blue",
+        fg: "white",
+      },
+      item: {
+        fg: "white",
+      },
+    },
+    items: [],
+  });
+
   const inputBox = blessed.textbox({
     parent: screen,
     bottom: 1,
@@ -685,9 +747,54 @@ async function startTui(context: AppContext): Promise<void> {
 
   let busy = false;
   let queueDepth = 0;
+  let paletteSelectionIndex = 0;
   const commandHistory: string[] = [];
   let historyIndex = 0;
   const pendingCommands: string[] = [];
+  let paletteOpen = false;
+  const focusables: blessed.Widgets.BlessedElement[] = [
+    activity,
+    response,
+    sidebar,
+    transportBox,
+    executionBox,
+    assistBox,
+    inputBox,
+  ];
+  let focusIndex = focusables.length - 1;
+
+  function focusAt(index: number): void {
+    focusIndex = (index + focusables.length) % focusables.length;
+    focusables[focusIndex]?.focus();
+    screen.render();
+  }
+
+  function renderPaletteItems(query: string): string[] {
+    return suggestCommands(query, 12).map(
+      (entry) =>
+        `{bold}${entry.command}{/bold} {gray-fg}[${entry.category}]{/}`,
+    );
+  }
+
+  function openPalette(initialValue = ""): void {
+    paletteOpen = true;
+    paletteOverlay.show();
+    paletteInput.setValue(initialValue);
+    paletteList.setItems(renderPaletteItems(initialValue));
+    paletteSelectionIndex = 0;
+    paletteList.select(0);
+    paletteInput.focus();
+    screen.render();
+  }
+
+  function closePalette(): void {
+    paletteOpen = false;
+    paletteOverlay.hide();
+    paletteInput.clearValue();
+    paletteList.setItems([]);
+    inputBox.focus();
+    screen.render();
+  }
 
   function setInputValue(value: string): void {
     inputBox.setValue(value);
@@ -825,10 +932,90 @@ async function startTui(context: AppContext): Promise<void> {
     screen.render();
   });
 
+  paletteInput.on("keypress", () => {
+    const query = paletteInput.getValue();
+    paletteList.setItems(renderPaletteItems(query));
+    paletteSelectionIndex = 0;
+    paletteList.select(0);
+    screen.render();
+  });
+
+  paletteInput.key("enter", () => {
+    const selected = suggestCommands(paletteInput.getValue(), 1)[0];
+    if (!selected) {
+      return;
+    }
+    closePalette();
+    queueCommand(selected.command);
+  });
+
+  paletteList.key("enter", () => {
+    const selected = suggestCommands(paletteInput.getValue(), 12)[
+      paletteSelectionIndex
+    ];
+    if (!selected) {
+      return;
+    }
+    closePalette();
+    queueCommand(selected.command);
+  });
+
+  paletteList.on("select item", (_, index) => {
+    paletteSelectionIndex = index;
+    const selected = suggestCommands(paletteInput.getValue(), 12)[index];
+    if (!selected) {
+      return;
+    }
+    closePalette();
+    queueCommand(selected.command);
+  });
+  for (const key of ["up", "down", "j", "k"]) {
+    paletteList.key(key, () => {
+      const suggestions = suggestCommands(paletteInput.getValue(), 12);
+      const current = suggestions[paletteSelectionIndex];
+      if (!current) {
+        paletteSelectionIndex = 0;
+        paletteList.select(0);
+        screen.render();
+        return;
+      }
+      const nextIndex =
+        key === "up" || key === "k"
+          ? Math.max(0, paletteSelectionIndex - 1)
+          : Math.min(suggestions.length - 1, paletteSelectionIndex + 1);
+      paletteSelectionIndex = nextIndex;
+      paletteList.select(nextIndex);
+      screen.render();
+    });
+  }
+
   screen.key(["q", "C-c"], () => {
     screen.destroy();
   });
+  screen.key(["C-p"], () => {
+    openPalette(inputBox.getValue());
+  });
+  screen.key(["tab"], () => {
+    if (paletteOpen) {
+      paletteList.focus();
+      screen.render();
+      return;
+    }
+    focusAt(focusIndex + 1);
+  });
+  screen.key(["S-tab"], () => {
+    if (paletteOpen) {
+      paletteInput.focus();
+      screen.render();
+      return;
+    }
+    focusAt(focusIndex - 1);
+  });
   screen.key(["escape"], () => {
+    if (paletteOpen) {
+      closePalette();
+      return;
+    }
     inputBox.focus();
     screen.render();
   });
@@ -848,6 +1035,26 @@ async function startTui(context: AppContext): Promise<void> {
     activity.scroll(8);
     screen.render();
   });
+  screen.key(["enter"], () => {
+    if (screen.focused === sidebar) {
+      queueCommand("/sessions list");
+      return;
+    }
+    if (screen.focused === transportBox) {
+      queueCommand("/gateway readiness");
+      return;
+    }
+    if (screen.focused === executionBox) {
+      queueCommand("/execution status");
+      return;
+    }
+    if (screen.focused === assistBox) {
+      const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
+      if (suggestion) {
+        queueCommand(suggestion.command);
+      }
+    }
+  });
 
   const hotkeys: Array<[string[], string]> = [
     [["f2"], "/status"],
@@ -865,9 +1072,38 @@ async function startTui(context: AppContext): Promise<void> {
     });
   }
 
-  const refreshTimer = setInterval(() => {
-    void refreshPanels();
-  }, 4_000);
+  unsubscribers.push(
+    context.gateway.onUpdate((event) => {
+      appendActivity(
+        event.platform === "gateway" ? "gw" : event.platform,
+        truncate(event.detail, 160),
+        event.kind === "reject" ? "warning" : "info",
+      );
+      void refreshPanels();
+    }),
+  );
+  unsubscribers.push(
+    context.services.terminal.onUpdate((event) => {
+      appendActivity(
+        "exec",
+        `${event.detail} -> ${event.exitCode}`,
+        event.exitCode === 0 ? "success" : "warning",
+      );
+      void refreshPanels();
+    }),
+  );
+  unsubscribers.push(
+    context.services.delegation.onUpdate((event) => {
+      appendActivity("task", truncate(event.detail, 160), "info");
+      void refreshPanels();
+    }),
+  );
+  unsubscribers.push(
+    context.services.sessions.onActivity((event) => {
+      appendActivity("mem", truncate(event.detail, 160), "agent");
+      void refreshPanels();
+    }),
+  );
 
   appendActivity(
     "boot",
@@ -892,7 +1128,9 @@ async function startTui(context: AppContext): Promise<void> {
 
   await new Promise<void>((resolve) => {
     screen.on("destroy", () => {
-      clearInterval(refreshTimer);
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe();
+      }
       resolve();
     });
   });

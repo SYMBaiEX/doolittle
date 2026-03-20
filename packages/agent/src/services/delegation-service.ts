@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DelegationTaskRecord } from "@/types";
@@ -116,6 +117,7 @@ function durationMs(
 export class DelegationService {
   private readonly filePath: string;
   private readonly workersDir: string;
+  private readonly events = new EventEmitter();
   private activeExecutions = 0;
 
   constructor(baseDir: string) {
@@ -186,6 +188,7 @@ export class DelegationService {
       }
     }
     this.write(store);
+    this.emitUpdate("created", task);
     return task;
   }
 
@@ -661,7 +664,22 @@ export class DelegationService {
     mutate(task);
     task.updatedAt = new Date().toISOString();
     this.write(store);
+    this.emitUpdate("updated", task);
     return task;
+  }
+
+  onUpdate(
+    listener: (event: {
+      kind: "created" | "updated";
+      taskId: string;
+      status: DelegationTaskRecord["status"];
+      detail: string;
+    }) => void,
+  ): () => void {
+    this.events.on("update", listener);
+    return () => {
+      this.events.off("update", listener);
+    };
   }
 
   private propagateChildNote(parentId: string, note: string): void {
@@ -752,6 +770,18 @@ export class DelegationService {
 
   private write(store: DelegationStore): void {
     writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+  }
+
+  private emitUpdate(
+    kind: "created" | "updated",
+    task: DelegationTaskRecord,
+  ): void {
+    this.events.emit("update", {
+      kind,
+      taskId: task.id,
+      status: task.status,
+      detail: `${task.title} (${task.status})`,
+    });
   }
 
   getWorkerPaths(id: string): { inputPath: string; outputPath: string } {
