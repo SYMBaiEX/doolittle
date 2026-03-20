@@ -1,0 +1,136 @@
+import { config as loadEnv } from "dotenv";
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { z } from "zod";
+import type { EnvConfig } from "@/types";
+
+loadEnv();
+
+const schema = z.object({
+  ELIZA_AGENT_NAME: z.string().default("Eliza Agent"),
+  ELIZA_AGENT_MODE: z.enum(["api", "cli", "both"]).default("both"),
+  ELIZA_AGENT_HOST: z.string().default("0.0.0.0"),
+  ELIZA_AGENT_PORT: z.coerce.number().int().positive().default(3000),
+  ELIZA_AGENT_DATA_DIR: z.string().default(".eliza-agent"),
+  ELIZA_AGENT_SKILLS_DIR: z.string().default("./skills"),
+  ELIZA_AGENT_TIMEZONE: z.string().default("America/Chicago"),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().default("https://api.openai.com/v1"),
+  OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
+  OPENAI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.4),
+  OPENAI_MAX_TOKENS: z.coerce.number().int().positive().default(1200),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_BASE_URL: z.string().optional(),
+  ANTHROPIC_SMALL_MODEL: z.string().default("claude-3-5-haiku-20241022"),
+  ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4-20250514"),
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_API_ROOT: z.string().optional(),
+  TELEGRAM_ALLOWED_CHATS: z.string().optional(),
+  DISCORD_BOT_TOKEN: z.string().optional(),
+  SLACK_WEBHOOK_URL: z.string().optional(),
+  SLACK_SIGNING_SECRET: z.string().optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  ELIZA_AGENT_EXECUTION_BACKEND: z.enum(["local", "docker", "ssh"]).default("local"),
+  ELIZA_AGENT_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
+  ELIZA_AGENT_DOCKER_NETWORK: z.string().default("host"),
+  ELIZA_AGENT_DOCKER_WORKSPACE_PATH: z.string().default("/workspace"),
+  ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH: z
+    .string()
+    .default("PATH,HOME,OPENAI_API_KEY,ANTHROPIC_API_KEY"),
+  ELIZA_AGENT_SSH_HOST: z.string().optional(),
+  ELIZA_AGENT_SSH_USER: z.string().optional(),
+  ELIZA_AGENT_SSH_PATH: z.string().optional(),
+  ELIZA_AGENT_SSH_PORT: z.coerce.number().int().positive().default(22),
+  ELIZA_AGENT_SSH_KEY_PATH: z.string().optional(),
+  ELIZA_AGENT_SSH_STRICT_HOST_KEY_CHECKING: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  ELIZA_AGENT_MEMORY_CHAR_LIMIT: z.coerce.number().int().positive().default(2200),
+  ELIZA_AGENT_USER_CHAR_LIMIT: z.coerce.number().int().positive().default(1375),
+  ELIZA_AGENT_SESSION_SEARCH_LIMIT: z.coerce.number().int().positive().default(6),
+  ELIZA_AGENT_CRON_TICK_SECONDS: z.coerce.number().int().positive().default(30),
+  ELIZA_AGENT_CRON_OUTPUT_DIR: z.string().default(".eliza-agent/cron-output"),
+  ELIZA_AGENT_GATEWAY_DATA_DIR: z.string().default(".eliza-agent/gateway"),
+  ELIZA_AGENT_HOOKS_DIR: z.string().default(".eliza-agent/hooks"),
+  ELIZA_AGENT_WORKSPACE_DIR: z.string().default("."),
+  ELIZA_AGENT_ALLOW_ALL_USERS: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  ELIZA_AGENT_PAIRING_MODE: z.enum(["pair", "deny", "allow"]).default("pair"),
+  MCP_SERVER_COMMAND: z.string().optional(),
+  MCP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+});
+
+export function loadConfig(): EnvConfig {
+  const values = schema.parse(process.env);
+  const dataDir = resolve(values.ELIZA_AGENT_DATA_DIR);
+  const skillsDir = resolve(values.ELIZA_AGENT_SKILLS_DIR);
+  const cronOutputDir = resolve(values.ELIZA_AGENT_CRON_OUTPUT_DIR);
+  const gatewayDataDir = resolve(values.ELIZA_AGENT_GATEWAY_DATA_DIR);
+  const hooksDir = resolve(values.ELIZA_AGENT_HOOKS_DIR);
+  const workspaceDir = resolve(values.ELIZA_AGENT_WORKSPACE_DIR);
+
+  mkdirSync(dataDir, { recursive: true });
+  mkdirSync(skillsDir, { recursive: true });
+  mkdirSync(cronOutputDir, { recursive: true });
+  mkdirSync(gatewayDataDir, { recursive: true });
+  mkdirSync(hooksDir, { recursive: true });
+
+  return {
+    agentName: values.ELIZA_AGENT_NAME,
+    mode: values.ELIZA_AGENT_MODE,
+    host: values.ELIZA_AGENT_HOST,
+    port: values.ELIZA_AGENT_PORT,
+    dataDir,
+    skillsDir,
+    timezone: values.ELIZA_AGENT_TIMEZONE,
+    openAiApiKey: values.OPENAI_API_KEY,
+    openAiBaseUrl: values.OPENAI_BASE_URL,
+    openAiModel: values.OPENAI_MODEL,
+    openAiTemperature: values.OPENAI_TEMPERATURE,
+    openAiMaxTokens: values.OPENAI_MAX_TOKENS,
+    anthropicApiKey: values.ANTHROPIC_API_KEY,
+    anthropicBaseUrl: values.ANTHROPIC_BASE_URL,
+    anthropicSmallModel: values.ANTHROPIC_SMALL_MODEL,
+    anthropicLargeModel: values.ANTHROPIC_LARGE_MODEL,
+    telegramBotToken: values.TELEGRAM_BOT_TOKEN,
+    telegramApiRoot: values.TELEGRAM_API_ROOT,
+    telegramAllowedChats: values.TELEGRAM_ALLOWED_CHATS,
+    discordBotToken: values.DISCORD_BOT_TOKEN,
+    slackWebhookUrl: values.SLACK_WEBHOOK_URL,
+    slackSigningSecret: values.SLACK_SIGNING_SECRET,
+    whatsappAccessToken: values.WHATSAPP_ACCESS_TOKEN,
+    whatsappPhoneNumberId: values.WHATSAPP_PHONE_NUMBER_ID,
+    whatsappVerifyToken: values.WHATSAPP_VERIFY_TOKEN,
+    executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND,
+    dockerImage: values.ELIZA_AGENT_DOCKER_IMAGE,
+    dockerNetwork: values.ELIZA_AGENT_DOCKER_NETWORK,
+    dockerWorkspacePath: values.ELIZA_AGENT_DOCKER_WORKSPACE_PATH,
+    dockerEnvPassthrough: values.ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    sshHost: values.ELIZA_AGENT_SSH_HOST,
+    sshUser: values.ELIZA_AGENT_SSH_USER,
+    sshPath: values.ELIZA_AGENT_SSH_PATH,
+    sshPort: values.ELIZA_AGENT_SSH_PORT,
+    sshKeyPath: values.ELIZA_AGENT_SSH_KEY_PATH,
+    sshStrictHostKeyChecking: values.ELIZA_AGENT_SSH_STRICT_HOST_KEY_CHECKING,
+    mcpServerCommand: values.MCP_SERVER_COMMAND,
+    mcpTimeoutMs: values.MCP_TIMEOUT_MS,
+    memoryCharLimit: values.ELIZA_AGENT_MEMORY_CHAR_LIMIT,
+    userCharLimit: values.ELIZA_AGENT_USER_CHAR_LIMIT,
+    sessionSearchLimit: values.ELIZA_AGENT_SESSION_SEARCH_LIMIT,
+    cronTickSeconds: values.ELIZA_AGENT_CRON_TICK_SECONDS,
+    cronOutputDir,
+    gatewayDataDir,
+    hooksDir,
+    workspaceDir,
+    allowAllUsers: values.ELIZA_AGENT_ALLOW_ALL_USERS,
+    pairingDefaultMode: values.ELIZA_AGENT_PAIRING_MODE,
+  };
+}
