@@ -24,6 +24,7 @@ import { ToolsService } from "./tools-service";
 import { WebService } from "./web-service";
 import { WorkspaceService } from "./workspace-service";
 import { SkillSynthesisService } from "./skill-synthesis-service";
+import { UserProfileService } from "./user-profile-service";
 
 export interface AppServices {
   memory: MemoryService;
@@ -50,6 +51,7 @@ export interface AppServices {
   media: MediaService;
   trajectories: TrajectoryService;
   skillSynthesis: SkillSynthesisService;
+  userProfiles: UserProfileService;
 }
 
 export function createServices(
@@ -174,6 +176,7 @@ export function createServices(
     media: new MediaService(config.workspaceDir),
     trajectories: new TrajectoryService(join(config.dataDir, "trajectories"), sessions),
     skillSynthesis: new SkillSynthesisService(config.skillsDir),
+    userProfiles: new UserProfileService(join(config.dataDir, "profiles")),
     settings,
   };
 }

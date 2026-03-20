@@ -362,6 +362,23 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/profiles/users") {
+        const userId = url.searchParams.get("userId");
+        return json({
+          profiles: userId ? [context.services.userProfiles.get(userId)] : context.services.userProfiles.list(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/profiles/users/note") {
+        const body = (await request.json()) as { userId?: string; note?: string; source?: string };
+        if (!body.userId || !body.note) {
+          return json({ error: "userId and note are required" }, 400);
+        }
+        return json({
+          profile: context.services.userProfiles.addNote(body.userId, body.note, body.source),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/personality") {
         const body = (await request.json()) as { id: string };
         return json({
