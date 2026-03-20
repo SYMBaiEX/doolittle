@@ -1,0 +1,7 @@
+{
+  "name": "@eliza-agent/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Primary Eliza Agent application package."
+}

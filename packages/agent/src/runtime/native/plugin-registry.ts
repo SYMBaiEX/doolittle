@@ -17,7 +17,7 @@ import { createShellPlugin } from "@elizaos/plugin-shell";
 import sqlPlugin from "@elizaos/plugin-sql";
 import telegramPlugin from "@elizaos/plugin-telegram";
 import { createTrajectoryLoggerPlugin } from "@elizaos/plugin-trajectory-logger";
-import { createElizaAgentPlugin } from "@/plugins/eliza-agent-plugin";
+import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types";
 import {

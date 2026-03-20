@@ -458,7 +458,7 @@ export class OperatorService {
   private loadPackageMetadata(): PackageMetadata {
     const packagePath = resolve(
       dirname(new URL(import.meta.url).pathname),
-      "../../package.json",
+      "../../../../package.json",
     );
     return JSON.parse(readFileSync(packagePath, "utf8")) as PackageMetadata;
   }

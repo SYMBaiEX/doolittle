@@ -28,7 +28,7 @@ function makeSettings(): RuntimeSettings {
     execution: {
       backend: "local",
       remoteSyncMode: "mirror",
-      remoteSyncInclude: ["src/**", "skills/**"],
+      remoteSyncInclude: ["packages/agent/src/**", "packages/skills/**"],
       remoteSyncExclude: [".git", ".eliza-agent", "node_modules"],
       remoteArtifactPaths: [
         ".eliza-agent/remote-artifacts",
@@ -342,7 +342,9 @@ describe("TerminalService", () => {
         "eliza-agent-workspace",
       );
       expect(daytonaPreview.cloud?.syncPlan.mode).toBe("snapshot");
-      expect(daytonaPreview.cloud?.syncPlan.include).toContain("src/**");
+      expect(daytonaPreview.cloud?.syncPlan.include).toContain(
+        "packages/agent/src/**",
+      );
       expect(daytonaPreview.cloudSnapshot?.event).toBe("preview");
       expect(daytonaPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
       expect(daytonaPreview.cloud?.snapshot).toBe("snapshot-dev");
