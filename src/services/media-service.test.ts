@@ -60,4 +60,34 @@ describe("MediaService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("extracts readable previews from html and csv documents", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-docs-"));
+    const service = new MediaService(root);
+    const htmlPath = join(root, "page.html");
+    const csvPath = join(root, "table.csv");
+
+    try {
+      writeFileSync(
+        htmlPath,
+        "<html><head><title>Doc</title></head><body><h1>Heading</h1><p>Paragraph</p></body></html>",
+      );
+      const htmlInspection = service.inspect("page.html");
+      expect(htmlInspection.kind).toBe("document");
+      expect(htmlInspection.textPreview).toContain("Heading");
+      expect(htmlInspection.textPreview).toContain("Paragraph");
+      expect(htmlInspection.detail).toContain("words");
+
+      writeFileSync(csvPath, "name,value\nalpha,1\nbeta,2\ngamma,3");
+      const csvInspection = service.inspect("table.csv");
+      expect(csvInspection.kind).toBe("document");
+      expect(csvInspection.textPreview).toContain("name,value");
+      expect(csvInspection.textPreview).toContain("alpha,1");
+      expect(csvInspection.lineCount).toBe(4);
+      expect(csvInspection.wordCount).toBeGreaterThan(0);
+      expect(csvInspection.contentHash).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

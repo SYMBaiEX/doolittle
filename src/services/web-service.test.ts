@@ -51,6 +51,34 @@ describe("WebService", () => {
     }
   });
 
+  it("extracts page metadata and structured line breaks", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-meta-"));
+    const service = new WebService(
+      () => ({
+        provider: "basic",
+        command: "lightpanda",
+        obeyRobots: true,
+      }),
+      root,
+    );
+
+    try {
+      const page = await service.fetchText(
+        "data:text/html,<html><head><title>Meta</title><meta name='description' content='Useful summary'><link rel='canonical' href='https://example.com/meta'></head><body><h1>Alpha</h1><p>Beta</p><img src='hero.png'><p>Gamma</p></body></html>",
+      );
+      expect(page.title).toBe("Meta");
+      expect(page.metaDescription).toBe("Useful summary");
+      expect(page.canonicalUrl).toBe("https://example.com/meta");
+      expect(page.imageCount).toBe(1);
+      expect(page.contentLength).toBeGreaterThan(0);
+      expect(page.lineCount).toBeGreaterThan(1);
+      expect(page.text).toContain("Alpha");
+      expect(page.text).toContain("\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("creates screenshot artifacts in fallback mode", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-shot-"));
     const service = new WebService(
@@ -64,7 +92,7 @@ describe("WebService", () => {
 
     try {
       const path = await service.screenshot(
-        "data:text/html,<html><head><title>Shot</title></head><body><p>Artifact</p></body></html>",
+        "data:text/html,<html><head><title>Shot</title><meta name='description' content='Screenshot summary'><link rel='canonical' href='https://example.com/shot'></head><body><p>Artifact</p><img src='hero.png'></body></html>",
       );
       const content = readFileSync(path, "utf8");
       const metadata = readFileSync(path.replace(/\.md$/u, ".json"), "utf8");
@@ -72,7 +100,10 @@ describe("WebService", () => {
       expect(content).toContain("Source: data:text/html");
       expect(content).toContain("Artifact");
       expect(content).toContain("Content type:");
+      expect(content).toContain("Images:");
       expect(existsSync(path.replace(/\.md$/u, ".json"))).toBe(true);
+      expect(content).toContain("Description:");
+      expect(content).toContain("Canonical:");
       expect(metadata).toContain("\"contentHash\"");
     } finally {
       rmSync(root, { recursive: true, force: true });

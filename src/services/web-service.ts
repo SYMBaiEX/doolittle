@@ -25,14 +25,18 @@ interface BrowserStatus {
 interface WebPageSnapshot {
   url: string;
   title?: string;
+  metaDescription?: string;
+  canonicalUrl?: string;
   text: string;
   provider: "lightpanda" | "basic";
   mode: "browser" | "fallback";
   renderedAt: string;
   contentType: string;
+  contentLength: number;
   wordCount: number;
   lineCount: number;
   linkCount: number;
+  imageCount: number;
   headingCount: number;
   contentHash: string;
 }
@@ -72,34 +76,58 @@ async function commandExists(binary: string): Promise<boolean> {
   return result.exitCode === 0;
 }
 
-function extractReadableText(html: string): { title?: string; text: string } {
+function extractReadableText(html: string): {
+  title?: string;
+  metaDescription?: string;
+  canonicalUrl?: string;
+  text: string;
+} {
   const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/isu);
+  const descriptionMatch = html.match(
+    /<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["'][^>]*>/isu,
+  );
+  const canonicalMatch = html.match(
+    /<link[^>]+rel=["']canonical["'][^>]+href=["'](.*?)["'][^>]*>/isu,
+  );
   const text = html
+    .replace(/<\/(p|div|section|article|li|h[1-6]|br)>/giu, "\n")
     .replace(/<script[\s\S]*?<\/script>/giu, " ")
     .replace(/<style[\s\S]*?<\/style>/giu, " ")
     .replace(/<[^>]+>/gu, " ")
-    .replace(/\s+/gu, " ")
+    .split(/\n/u)
+    .map((line) => line.replace(/\s+/gu, " ").trim())
+    .filter(Boolean)
+    .join("\n")
     .trim();
 
   return {
     title: titleMatch?.[1]?.trim(),
+    metaDescription: descriptionMatch?.[1]?.trim(),
+    canonicalUrl: canonicalMatch?.[1]?.trim(),
     text: text.slice(0, 20_000),
   };
 }
 
-function buildPageMetrics(html: string, text: string): Omit<WebPageSnapshot, "url" | "title" | "text" | "provider" | "mode" | "renderedAt"> {
+function buildPageMetrics(
+  html: string,
+  text: string,
+): Omit<WebPageSnapshot, "url" | "title" | "metaDescription" | "canonicalUrl" | "text" | "provider" | "mode" | "renderedAt"> {
   const contentType = "text/html";
   const wordCount = text ? text.split(/\s+/u).filter(Boolean).length : 0;
-  const lineCount = text ? text.split(/\n/u).length : 0;
+  const lineCount = text ? text.split(/\n/u).filter((line) => line.trim().length > 0).length : 0;
   const linkCount = (html.match(/<a\b/giu) ?? []).length;
+  const imageCount = (html.match(/<img\b/giu) ?? []).length;
   const headingCount = (html.match(/<h[1-6]\b/giu) ?? []).length;
+  const contentLength = Buffer.byteLength(html, "utf8");
   const contentHash = createHash("sha256").update(html).digest("hex").slice(0, 16);
 
   return {
     contentType,
+    contentLength,
     wordCount,
     lineCount,
     linkCount,
+    imageCount,
     headingCount,
     contentHash,
   };
@@ -120,17 +148,26 @@ function writeArtifact(
     `Mode: ${page.mode}`,
     `Rendered at: ${page.renderedAt}`,
     `Content type: ${page.contentType}`,
+    `Content length: ${page.contentLength}`,
     `Words: ${page.wordCount}`,
     `Lines: ${page.lineCount}`,
     `Links: ${page.linkCount}`,
+    `Images: ${page.imageCount}`,
     `Headings: ${page.headingCount}`,
     `Hash: ${page.contentHash}`,
-    "",
-    ...notes,
-    "",
-    page.text,
-  ].join("\n");
-  writeFileSync(filePath, content, "utf8");
+  ];
+
+  if (page.metaDescription) {
+    content.push(`Description: ${page.metaDescription}`);
+  }
+
+  if (page.canonicalUrl) {
+    content.push(`Canonical: ${page.canonicalUrl}`);
+  }
+
+  content.push("", ...notes, "", page.text);
+
+  writeFileSync(filePath, content.join("\n"), "utf8");
 
   const metadataPath = filePath.replace(/\.md$/u, ".json");
   writeFileSync(
