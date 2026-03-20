@@ -38,8 +38,9 @@ describe("GatewayRunner", () => {
         sessions: new SessionService(join(root, "sessions")),
         userProfiles: new UserProfileService(join(root, "profiles")),
       },
+      gateway: undefined as never,
       runtime: {} as never,
-    } as AppContext;
+    } as unknown as AppContext;
     const runner = new GatewayRunner(context);
 
     try {
@@ -48,7 +49,7 @@ describe("GatewayRunner", () => {
         platform: "api",
         userId: "user-1",
         roomId: "room-1",
-        text: "/status",
+        text: "/user list",
       });
       const traces = runner.trace(10);
       const health = await runner.health();
