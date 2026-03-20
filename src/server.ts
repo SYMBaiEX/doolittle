@@ -535,11 +535,28 @@ export function startApiServer(context: AppContext): void {
         if (!body.path) {
           return json({ error: "path is required" }, 400);
         }
-        const analysis = context.services.media.analyze(body.path, body.focus ?? "auto");
         return json({
-          analysis,
-          response: await runModelAnalysisTurn(context, analysis.prompt, `media-${analysis.focus}`, {
-            personalityId: context.services.personalities.getActive().id,
+          analysis: await context.services.media.analyzeWithModel(body.path, body.focus ?? "auto"),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/media/generate") {
+        const body = (await request.json()) as {
+          prompt?: string;
+          name?: string;
+          size?: string;
+          style?: string;
+          focus?: string;
+        };
+        if (!body.prompt) {
+          return json({ error: "prompt is required" }, 400);
+        }
+        return json({
+          generation: await context.services.media.generateImage(body.prompt, {
+            name: body.name,
+            size: body.size,
+            style: body.style,
+            focus: body.focus,
           }),
         });
       }
@@ -1022,6 +1039,10 @@ export function startApiServer(context: AppContext): void {
           sessionId?: string;
           role?: "user" | "assistant" | "system";
           label?: string;
+          purpose?: string;
+          tags?: string[];
+          mode?: "dataset" | "research" | "evaluation" | "rl";
+          notes?: string;
         };
         return json({
           path: context.services.trajectories.exportDataset({
@@ -1029,6 +1050,10 @@ export function startApiServer(context: AppContext): void {
             sessionId: body.sessionId,
             role: body.role,
             label: body.label,
+            purpose: body.purpose,
+            tags: body.tags,
+            mode: body.mode,
+            notes: body.notes,
           }),
         });
       }
@@ -1039,6 +1064,10 @@ export function startApiServer(context: AppContext): void {
           sessionId?: string;
           role?: "user" | "assistant" | "system";
           label?: string;
+          purpose?: string;
+          tags?: string[];
+          mode?: "dataset" | "research" | "evaluation" | "rl";
+          notes?: string;
         };
         return json(
           context.services.trajectories.exportFilteredBundle({
@@ -1046,6 +1075,10 @@ export function startApiServer(context: AppContext): void {
             sessionId: body.sessionId,
             role: body.role,
             label: body.label,
+            purpose: body.purpose,
+            tags: body.tags,
+            mode: body.mode,
+            notes: body.notes,
           }),
         );
       }
@@ -1121,19 +1154,71 @@ export function startApiServer(context: AppContext): void {
           sessionId?: string;
           role?: "user" | "assistant" | "system";
           label?: string;
+          purpose?: string;
+          tags?: string[];
+          mode?: "dataset" | "research" | "evaluation" | "rl";
+          notes?: string;
         };
-        const analysis = context.services.trajectories.analyze({
-          limit: body.limit ?? 200,
-          sessionId: body.sessionId,
-          role: body.role,
-          label: body.label,
-        });
         return json({
-          analysis,
-          response: await runModelAnalysisTurn(context, analysis.prompt, "trajectory-research", {
-            personalityId: context.services.personalities.getActive().id,
+          analysis: context.services.trajectories.analyze({
+            limit: body.limit ?? 200,
+            sessionId: body.sessionId,
+            role: body.role,
+            label: body.label,
+            purpose: body.purpose,
+            tags: body.tags,
+            mode: body.mode,
+            notes: body.notes,
           }),
         });
+      }
+
+      if (request.method === "POST" && url.pathname === "/trajectories/evaluate") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          limit?: number;
+          sessionId?: string;
+          role?: "user" | "assistant" | "system";
+          label?: string;
+          rubric?: string[];
+          tags?: string[];
+          purpose?: string;
+          notes?: string;
+          mode?: "dataset" | "research" | "evaluation" | "rl";
+        };
+        return json({
+          evaluation: await context.services.trajectories.evaluate({
+            limit: body.limit ?? 200,
+            sessionId: body.sessionId,
+            role: body.role,
+            label: body.label,
+            rubric: body.rubric,
+            tags: body.tags,
+            purpose: body.purpose,
+            notes: body.notes,
+            mode: body.mode,
+          }),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/trajectories/evaluate") {
+        const manifestPath = url.searchParams.get("manifestPath");
+        const label = url.searchParams.get("label");
+        const latest = url.searchParams.get("latest") === "true";
+        if (latest) {
+          const evaluation = await context.services.trajectories.evaluateLatest();
+          return evaluation ? json({ evaluation }) : json({ error: "No trajectory bundles recorded." }, 404);
+        }
+        if (manifestPath) {
+          return json({ evaluation: await context.services.trajectories.evaluateBundle(manifestPath) });
+        }
+        if (label) {
+          const bundle = context.services.trajectories.listBundles(50).find((entry) => entry.label === label);
+          if (!bundle) {
+            return json({ error: "Trajectory bundle not found." }, 404);
+          }
+          return json({ evaluation: await context.services.trajectories.evaluateBundle(bundle.manifestPath) });
+        }
+        return json({ error: "manifestPath, label, or latest=true is required" }, 400);
       }
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {

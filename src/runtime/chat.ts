@@ -28,11 +28,23 @@ function parseTrajectoryArgs(raw: string): {
   sessionId?: string;
   role?: "user" | "assistant" | "system";
   limit?: number;
+  label?: string;
+  purpose?: string;
+  mode?: "dataset" | "research" | "evaluation" | "rl";
+  tags?: string[];
+  notes?: string;
+  rubric?: string[];
 } {
   const options: {
     sessionId?: string;
     role?: "user" | "assistant" | "system";
     limit?: number;
+    label?: string;
+    purpose?: string;
+    mode?: "dataset" | "research" | "evaluation" | "rl";
+    tags?: string[];
+    notes?: string;
+    rubric?: string[];
   } = {};
   for (const token of raw.split(/\s+/u).filter(Boolean)) {
     if (token.startsWith("session:")) {
@@ -47,6 +59,29 @@ function parseTrajectoryArgs(raw: string): {
       if (!Number.isNaN(limit) && limit > 0) {
         options.limit = limit;
       }
+    } else if (token.startsWith("label:")) {
+      options.label = token.replace("label:", "").trim();
+    } else if (token.startsWith("purpose:")) {
+      options.purpose = token.replace("purpose:", "").trim();
+    } else if (token.startsWith("mode:")) {
+      const mode = token.replace("mode:", "").trim();
+      if (mode === "dataset" || mode === "research" || mode === "evaluation" || mode === "rl") {
+        options.mode = mode;
+      }
+    } else if (token.startsWith("tags:") || token.startsWith("tag:")) {
+      options.tags = token
+        .replace(/^tags?:/u, "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    } else if (token.startsWith("notes:")) {
+      options.notes = token.replace("notes:", "").trim();
+    } else if (token.startsWith("rubric:")) {
+      options.rubric = token
+        .replace("rubric:", "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
     }
   }
   return options;
@@ -1295,16 +1330,7 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media analyze <path>";
     }
-    const analysis = context.services.media.analyze(path);
-    const response = await runModelAnalysisTurn(
-      context,
-      analysis.prompt,
-      `media-${analysis.focus}`,
-      {
-        personalityId: context.services.personalities.getActive().id,
-      },
-    );
-    return JSON.stringify({ analysis, response }, null, 2);
+    return JSON.stringify(await context.services.media.analyzeWithModel(path), null, 2);
   }
 
   if (trimmed.startsWith("/media voice ")) {
@@ -1312,16 +1338,7 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media voice <path>";
     }
-    const analysis = context.services.media.voice(path);
-    const response = await runModelAnalysisTurn(
-      context,
-      analysis.prompt,
-      "media-voice",
-      {
-        personalityId: context.services.personalities.getActive().id,
-      },
-    );
-    return JSON.stringify({ analysis, response }, null, 2);
+    return JSON.stringify(await context.services.media.voiceWithModel(path), null, 2);
   }
 
   if (trimmed.startsWith("/media vision ")) {
@@ -1329,16 +1346,15 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media vision <path>";
     }
-    const analysis = context.services.media.vision(path);
-    const response = await runModelAnalysisTurn(
-      context,
-      analysis.prompt,
-      "media-vision",
-      {
-        personalityId: context.services.personalities.getActive().id,
-      },
-    );
-    return JSON.stringify({ analysis, response }, null, 2);
+    return JSON.stringify(await context.services.media.visionWithModel(path), null, 2);
+  }
+
+  if (trimmed.startsWith("/media generate ")) {
+    const prompt = trimmed.replace("/media generate ", "").trim();
+    if (!prompt) {
+      return "Usage: /media generate <prompt>";
+    }
+    return JSON.stringify(await context.services.media.generateImage(prompt), null, 2);
   }
 
   if (trimmed === "/delegate" || trimmed === "/delegate list" || trimmed.startsWith("/delegate list ")) {
@@ -1656,6 +1672,8 @@ async function buildCommandResponse(
     return context.services.trajectories.exportDataset({
       ...options,
       limit: options.limit ?? 200,
+      mode: options.mode ?? "dataset",
+      purpose: options.purpose ?? "trajectory export",
     });
   }
 
@@ -1668,19 +1686,38 @@ async function buildCommandResponse(
       trimmed === "/trajectories analyze"
         ? { limit: 200 }
         : parseTrajectoryArgs(trimmed.replace("/trajectories analyze ", ""));
-    const analysis = context.services.trajectories.analyze({
-      ...options,
-      limit: options.limit ?? 200,
-    });
-    const response = await runModelAnalysisTurn(
-      context,
-      analysis.prompt,
-      "trajectory-research",
-      {
-        personalityId: context.services.personalities.getActive().id,
-      },
+    return JSON.stringify(
+      context.services.trajectories.analyze({
+        ...options,
+        limit: options.limit ?? 200,
+        mode: options.mode ?? "research",
+        purpose: options.purpose ?? "trajectory research",
+        tags: options.tags,
+        notes: options.notes,
+      }),
+      null,
+      2,
     );
-    return JSON.stringify({ analysis, response }, null, 2);
+  }
+
+  if (trimmed === "/trajectories evaluate" || trimmed.startsWith("/trajectories evaluate ")) {
+    const options =
+      trimmed === "/trajectories evaluate"
+        ? { limit: 200 }
+        : parseTrajectoryArgs(trimmed.replace("/trajectories evaluate ", ""));
+    return JSON.stringify(
+      await context.services.trajectories.evaluate({
+        ...options,
+        limit: options.limit ?? 200,
+        mode: options.mode ?? "evaluation",
+        purpose: options.purpose ?? "trajectory evaluation",
+        tags: options.tags,
+        notes: options.notes,
+        rubric: options.rubric,
+      }),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/trajectories bundle ")) {
@@ -1689,6 +1726,10 @@ async function buildCommandResponse(
       context.services.trajectories.exportFilteredBundle({
         ...options,
         limit: options.limit ?? 200,
+        mode: options.mode ?? "research",
+        purpose: options.purpose ?? "trajectory research",
+        tags: options.tags,
+        notes: options.notes,
       }),
       null,
       2,

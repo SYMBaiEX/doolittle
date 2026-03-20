@@ -12,7 +12,7 @@ export async function startCli(context: AppContext): Promise<void> {
   });
 
   output.write(`${context.config.agentName} CLI\n`);
-  output.write('Type "exit" to quit. Try /status, /doctor, /setup checklist, /model status, /execution status, /tools list, /delegate list, /runtime status, /skills list, /memory list memory, /workspace tree, /workspace read <path>, /terminal run <command>, /repo status, /personality list, /context files, /pdf extract <path>, /gateway status, or /pairing pending.\n\n');
+  output.write('Type "exit" to quit. Try /status, /doctor, /setup checklist, /model status, /execution status, /tools list, /delegate list, /runtime status, /skills list, /memory list memory, /workspace tree, /workspace read <path>, /terminal run <command>, /repo status, /personality list, /context files, /pdf extract <path>, /media analyze <path>, /media generate <prompt>, /trajectories evaluate, /gateway status, or /pairing pending.\n\n');
 
   while (true) {
     let line = "";
