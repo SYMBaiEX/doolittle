@@ -397,6 +397,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/browser/compare") {
+        const body = (await request.json()) as { leftUrl?: string; rightUrl?: string };
+        if (!body.leftUrl || !body.rightUrl) {
+          return json({ error: "leftUrl and rightUrl are required" }, 400);
+        }
+        return json({
+          comparison: await context.services.web.compare(body.leftUrl, body.rightUrl),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/web/inspect") {
         const targetUrl = url.searchParams.get("url");
         if (!targetUrl) {
@@ -440,6 +450,16 @@ export function startApiServer(context: AppContext): void {
           path,
           captionPath: media.captionPath,
           captionPreview: media.captionPreview,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/media/bundle") {
+        const path = url.searchParams.get("path");
+        if (!path) {
+          return json({ error: "path is required" }, 400);
+        }
+        return json({
+          bundle: context.services.media.bundle(path),
         });
       }
 

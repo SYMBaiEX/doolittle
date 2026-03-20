@@ -281,8 +281,10 @@ Useful commands:
 - `/browser snapshot https://example.com`
 - `/browser screenshot https://example.com`
 - `/browser capture https://example.com`
+- `/browser compare https://example.com/left :: https://example.com/right`
 - `/media transcript ./recordings/daily-sync.wav`
 - `/media caption ./artifacts/screenshot.png`
+- `/media bundle ./recordings/daily-sync.wav`
 - `/mcp status`
 - `/mcp tools`
 - `/mcp cached`
@@ -351,6 +353,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /browser/inspect`
 - `POST /browser/screenshot`
 - `POST /browser/capture`
+- `POST /browser/compare`
 - `GET /mcp/status`
 - `GET /mcp/tools`
 - `GET /mcp/cached`
@@ -371,6 +374,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /media/inspect`
 - `GET /media/transcript`
 - `GET /media/caption`
+- `GET /media/bundle`
 - `GET /execution/status`
 - `GET /execution/backends`
 - `POST /execution/preview`

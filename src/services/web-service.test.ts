@@ -162,4 +162,33 @@ describe("WebService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("creates a browser comparison bundle between two captures", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-compare-"));
+    const service = new WebService(
+      () => ({
+        provider: "basic",
+        command: "lightpanda",
+        obeyRobots: true,
+      }),
+      root,
+    );
+
+    try {
+      const comparison = await service.compare(
+        "data:text/html,<html><head><title>Left</title><meta name='description' content='Left summary'></head><body><h1>Alpha</h1><p>One</p></body></html>",
+        "data:text/html,<html><head><title>Right</title><meta name='description' content='Right summary'></head><body><h1>Alpha</h1><p>One</p><p>Two</p><img src='hero.png'></body></html>",
+      );
+      expect(comparison.summary.titleChanged).toBe(true);
+      expect(comparison.summary.hashChanged).toBe(true);
+      expect(comparison.summary.wordDelta).toBeGreaterThan(0);
+      expect((await service.status()).lastComparisonAt).toBeDefined();
+      expect(existsSync(comparison.manifestPath)).toBe(true);
+      expect(existsSync(comparison.reportPath)).toBe(true);
+      expect(readFileSync(comparison.reportPath, "utf8")).toContain("Browser Comparison Bundle");
+      expect(readFileSync(comparison.manifestPath, "utf8")).toContain("\"wordDelta\"");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
