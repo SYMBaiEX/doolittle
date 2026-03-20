@@ -1,5 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
+import type { OutboundPlatformMessage } from "@/types";
 import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class SlackPlatformAdapter implements PlatformAdapter {
@@ -35,14 +36,7 @@ export class SlackPlatformAdapter implements PlatformAdapter {
     };
   }
 
-  async send(message: {
-    roomId: string;
-    userId?: string;
-    text: string;
-    threadId?: string;
-    replyToId?: string;
-    metadata?: Record<string, string>;
-  }): Promise<void> {
+  async send(message: OutboundPlatformMessage): Promise<void> {
     if (!this.config.slackWebhookUrl) {
       throw new Error("SLACK_WEBHOOK_URL is not configured.");
     }
@@ -75,6 +69,11 @@ export class SlackPlatformAdapter implements PlatformAdapter {
         mode: "explicit",
       },
       message.text,
+      {
+        threadId: message.threadId,
+        replyToId: message.replyToId,
+        metadata: message.metadata,
+      },
     );
   }
 

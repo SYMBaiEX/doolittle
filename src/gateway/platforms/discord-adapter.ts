@@ -1,5 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
+import type { OutboundPlatformMessage } from "@/types";
 import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class DiscordPlatformAdapter implements PlatformAdapter {
@@ -32,14 +33,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     };
   }
 
-  async send(message: {
-    roomId: string;
-    userId?: string;
-    text: string;
-    threadId?: string;
-    replyToId?: string;
-    metadata?: Record<string, string>;
-  }): Promise<void> {
+  async send(message: OutboundPlatformMessage): Promise<void> {
     if (!this.config.discordBotToken) {
       throw new Error("DISCORD_BOT_TOKEN is not configured.");
     }
@@ -50,6 +44,13 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     if (message.replyToId) {
       payload.message_reference = {
         message_id: message.replyToId,
+        channel_id: message.roomId,
+      };
+    }
+    if (message.threadId) {
+      payload.message_reference = {
+        ...(payload.message_reference as Record<string, unknown>),
+        message_id: message.threadId,
         channel_id: message.roomId,
       };
     }
@@ -78,6 +79,11 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
         mode: "explicit",
       },
       message.text,
+      {
+        threadId: message.threadId,
+        replyToId: message.replyToId,
+        metadata: message.metadata,
+      },
     );
   }
 

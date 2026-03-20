@@ -76,6 +76,46 @@ export function capabilitiesForPlatform(platform: PlatformName): PlatformCapabil
         threads: false,
         metadata: true,
       };
+    case "signal":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: false,
+        metadata: true,
+      };
+    case "matrix":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: true,
+        metadata: true,
+      };
+    case "email":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: false,
+        metadata: true,
+      };
+    case "sms":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: false,
+        replies: true,
+        threads: false,
+        metadata: true,
+      };
     default:
       return {
         inbound: true,

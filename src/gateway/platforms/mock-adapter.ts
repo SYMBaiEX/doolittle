@@ -1,6 +1,6 @@
 import type { DeliveryService } from "@/services/delivery-service";
+import type { OutboundPlatformMessage, PlatformName } from "@/types";
 import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
-import type { PlatformName } from "@/types";
 
 export class MockPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -19,24 +19,18 @@ export class MockPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const capabilities = capabilitiesForPlatform(this.name);
     return {
       platform: this.name,
       status: this.status,
       ready: this.status === "running",
       mode: "mock",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail: "Mock adapter active for local native experience scaffolding.",
+      capabilities,
+      detail: `${this.name} mock adapter active for local native experience scaffolding. Inbound=${capabilities.inbound}, replies=${capabilities.replies}, threads=${capabilities.threads}.`,
     };
   }
 
-  async send(message: {
-    roomId: string;
-    userId?: string;
-    text: string;
-    threadId?: string;
-    replyToId?: string;
-    metadata?: Record<string, string>;
-  }): Promise<void> {
+  async send(message: OutboundPlatformMessage): Promise<void> {
     this.delivery.deliver(
       {
         platform: this.name,
@@ -45,6 +39,11 @@ export class MockPlatformAdapter implements PlatformAdapter {
         mode: "explicit",
       },
       message.text,
+      {
+        threadId: message.threadId,
+        replyToId: message.replyToId,
+        metadata: message.metadata,
+      },
     );
   }
 

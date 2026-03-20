@@ -1,6 +1,7 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
 import { featureMap } from "@/config/feature-map";
+import { normalizeInboundMessage } from "@/gateway/message-normalization";
 import { handleAgentTurn, syncProviderSettings } from "@/runtime/chat";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import type { GatewayConfig, IncomingPlatformMessage, PlatformName } from "@/types";
@@ -417,6 +418,7 @@ export function startApiServer(context: AppContext): void {
           title?: string;
           objective?: string;
           executionMode?: "local" | "delegated";
+          maxAttempts?: number;
         };
         if (!body.title || !body.objective) {
           return json({ error: "title and objective are required" }, 400);
@@ -426,6 +428,7 @@ export function startApiServer(context: AppContext): void {
             title: body.title,
             objective: body.objective,
             executionMode: body.executionMode,
+            maxAttempts: body.maxAttempts,
           }),
         });
       }
@@ -456,6 +459,12 @@ export function startApiServer(context: AppContext): void {
             context,
           );
           return json({ result: response });
+        }
+        if (action === "retry") {
+          return json({ task: context.services.delegation.requeue(id, body.note ?? "Requeued via API.") });
+        }
+        if (action === "cancel") {
+          return json({ task: context.services.delegation.cancel(id, body.note ?? "Cancelled via API.") });
         }
         if (action === "complete") {
           return json({ task: context.services.delegation.complete(id, body.note) });
@@ -795,6 +804,46 @@ export function startApiServer(context: AppContext): void {
           return parsed.response;
         }
         const inbound = parseWhatsAppMessage(parsed.value);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (request.method === "POST" && url.pathname === "/webhooks/signal") {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("signal", body);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (request.method === "POST" && url.pathname === "/webhooks/matrix") {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("matrix", body);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (request.method === "POST" && url.pathname === "/webhooks/email") {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("email", body);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (request.method === "POST" && url.pathname === "/webhooks/sms") {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("sms", body);
         if (!inbound) {
           return json({ ok: true, ignored: true });
         }
