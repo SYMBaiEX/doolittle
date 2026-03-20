@@ -1,11 +1,17 @@
-import type { Memory, Provider, ProviderResult, State } from "@elizaos/core";
-import type { IAgentRuntime } from "@elizaos/core";
+import type {
+  IAgentRuntime,
+  Memory,
+  Provider,
+  ProviderResult,
+  State,
+} from "@elizaos/core";
 import type { AppServices } from "@/services";
 
 export function createAgentContextProvider(services: AppServices): Provider {
   return {
     name: "ELIZA_AGENT_CONTEXT_PROVIDER",
-    description: "Injects memory, skills, and scheduler context into the runtime.",
+    description:
+      "Injects memory, skills, and scheduler context into the runtime.",
     get: async (
       _runtime: IAgentRuntime,
       _message: Memory,
@@ -23,16 +29,22 @@ export function createAgentContextProvider(services: AppServices): Provider {
       const cronSummary = services.cron
         .list()
         .slice(0, 8)
-        .map((job) => `- ${job.name} [${job.status}] next=${job.nextRunAt ?? "n/a"}`)
+        .map(
+          (job) =>
+            `- ${job.name} [${job.status}] next=${job.nextRunAt ?? "n/a"}`,
+        )
         .join("\n");
       const workspaceSummary = services.workspace.summary(18);
       const recentCommands = services.terminal
         .recent(5)
         .map((entry) => `- [${entry.exitCode}] ${entry.command}`)
         .join("\n");
-      const repoSummary = await services.repository.status().catch(
-        (error) => `Repository status unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const repoSummary = await services.repository
+        .status()
+        .catch(
+          (error) =>
+            `Repository status unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        );
       const toolsSummary = services.tools
         .enabled()
         .slice(0, 10)

@@ -4,8 +4,10 @@ import { startApiServer } from "@/server";
 
 async function main(): Promise<void> {
   const context = await getAppContext();
-  const wantsCli = context.config.mode === "cli" || context.config.mode === "both";
-  const wantsApi = context.config.mode === "api" || context.config.mode === "both";
+  const wantsCli =
+    context.config.mode === "cli" || context.config.mode === "both";
+  const wantsApi =
+    context.config.mode === "api" || context.config.mode === "both";
   const cliFlag = Bun.argv.includes("--cli");
   const apiOnlyFlag = Bun.argv.includes("--api-only");
   const gatewayFlag = Bun.argv.includes("--gateway");

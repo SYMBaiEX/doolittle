@@ -18,7 +18,9 @@ const [, , inputPath, outputPath] = process.argv;
 const startedAt = new Date().toISOString();
 
 if (!inputPath || !outputPath) {
-  console.error("Usage: bun run src/runtime/delegate-worker.ts <input-path> <output-path>");
+  console.error(
+    "Usage: bun run src/runtime/delegate-worker.ts <input-path> <output-path>",
+  );
   process.exit(1);
 }
 

@@ -6,8 +6,8 @@ import {
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 export class MatrixPlatformAdapter implements PlatformAdapter {
@@ -34,13 +34,19 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
 
   async start(): Promise<void> {
     this.status =
-      this.config.matrixHomeserver && this.config.matrixAccessToken ? "running" : "stopped";
+      this.config.matrixHomeserver && this.config.matrixAccessToken
+        ? "running"
+        : "stopped";
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
-      this.lifecycle.record("start", "Matrix adapter started with homeserver and access token.");
+      this.lifecycle.record(
+        "start",
+        "Matrix adapter started with homeserver and access token.",
+      );
     } else {
-      this.lastError = "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN are required.";
+      this.lastError =
+        "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN are required.";
       this.lifecycle.record("error", this.lastError);
     }
   }
@@ -84,7 +90,8 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
 
   async send(message: OutboundPlatformMessage) {
     if (!this.config.matrixHomeserver || !this.config.matrixAccessToken) {
-      this.lastError = "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN are required.";
+      this.lastError =
+        "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN are required.";
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
@@ -141,12 +148,17 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
     );
     this.lastDeliveryAt = nowIso();
     this.lastDeliveryId = record.id;
-    this.lifecycle.record("deliver", `Matrix delivery ${record.id} to ${message.roomId}.`);
+    this.lifecycle.record(
+      "deliver",
+      `Matrix delivery ${record.id} to ${message.roomId}.`,
+    );
     return record;
   }
 
   canReceive(): boolean {
-    return Boolean(this.config.matrixHomeserver && this.config.matrixAccessToken);
+    return Boolean(
+      this.config.matrixHomeserver && this.config.matrixAccessToken,
+    );
   }
 
   observe(event: PlatformLifecycleEvent): void {

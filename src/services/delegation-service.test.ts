@@ -38,7 +38,9 @@ describe("DelegationService", () => {
       expect(started.metadata?.owner).toBe("alice");
       expect(started.lastOutputPath).toBe(paths.outputPath);
       expect(started.attempts).toBe(1);
-      expect(started.notes.some((note) => note.startsWith("system: worker started"))).toBe(true);
+      expect(
+        started.notes.some((note) => note.startsWith("system: worker started")),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -59,15 +61,21 @@ describe("DelegationService", () => {
 
       service.markRunning(task.id);
       service.fail(task.id, "First failure");
-      expect(service.pending().some((entry) => entry.id === task.id)).toBe(true);
+      expect(service.pending().some((entry) => entry.id === task.id)).toBe(
+        true,
+      );
 
       const retried = service.requeue(task.id, "Retrying");
       expect(retried.status).toBe("pending");
 
       const cancelled = service.cancel(task.id, "Stop now");
       expect(cancelled.status).toBe("cancelled");
-      expect(service.pending().some((entry) => entry.id === task.id)).toBe(false);
-      expect(cancelled.notes.some((note) => note.startsWith("system: cancelled"))).toBe(true);
+      expect(service.pending().some((entry) => entry.id === task.id)).toBe(
+        false,
+      );
+      expect(
+        cancelled.notes.some((note) => note.startsWith("system: cancelled")),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -107,18 +115,22 @@ describe("DelegationService", () => {
       expect(tree.children[0]?.task.id).toBe(child.id);
       expect(service.listByGroup("browser")).toHaveLength(2);
       expect(service.listByLabel("screenshot")).toHaveLength(1);
-      expect(service.list({ group: "browser", label: "screenshot" })).toHaveLength(1);
+      expect(
+        service.list({ group: "browser", label: "screenshot" }),
+      ).toHaveLength(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
   it("summarizes queue health and supervises queued workers", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delegation-supervision-"));
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-delegation-supervision-"),
+    );
     const service = new DelegationService(root);
 
     try {
-      const pending = service.create({
+      const _pending = service.create({
         title: "Queued Task",
         objective: "Finish the queued task",
         group: "ops",
@@ -151,23 +163,38 @@ describe("DelegationService", () => {
       expect(overview.running).toBe(1);
       expect(overview.activeWorkers).toBe(1);
       expect(overview.aliveWorkers).toBe(1);
-      expect(overview.byGroup.some((entry) => entry.group === "ops")).toBe(true);
-      expect(overview.byLabel.some((entry) => entry.label === "queue")).toBe(true);
-      expect(overview.byProfile.some((entry) => entry.profile === "ops")).toBe(true);
-      expect(overview.byProfile.some((entry) => entry.profile === "research")).toBe(true);
-      expect(overview.byPriority.some((entry) => entry.priority === "high")).toBe(true);
+      expect(overview.byGroup.some((entry) => entry.group === "ops")).toBe(
+        true,
+      );
+      expect(overview.byLabel.some((entry) => entry.label === "queue")).toBe(
+        true,
+      );
+      expect(overview.byProfile.some((entry) => entry.profile === "ops")).toBe(
+        true,
+      );
+      expect(
+        overview.byProfile.some((entry) => entry.profile === "research"),
+      ).toBe(true);
+      expect(
+        overview.byPriority.some((entry) => entry.priority === "high"),
+      ).toBe(true);
 
       const workers = service.workers();
-      expect(workers.some((worker) => worker.id === running.id && worker.alive)).toBe(true);
+      expect(
+        workers.some((worker) => worker.id === running.id && worker.alive),
+      ).toBe(true);
       expect(service.workers(10, { profile: "research" })).toHaveLength(1);
 
       const filtered = service.pending({ group: "ops" });
       expect(filtered).toHaveLength(1);
 
-      const report = await service.superviseQueued(async (task) => `completed: ${task.id}`, {
-        concurrency: 1,
-        filter: { group: "ops" },
-      });
+      const report = await service.superviseQueued(
+        async (task) => `completed: ${task.id}`,
+        {
+          concurrency: 1,
+          filter: { group: "ops" },
+        },
+      );
 
       expect(report.started.length).toBe(1);
       expect(report.completed.length).toBe(1);

@@ -1,15 +1,15 @@
 import { AgentRuntime } from "@elizaos/core";
+import anthropicPlugin from "@elizaos/plugin-anthropic";
 import { openaiPlugin } from "@elizaos/plugin-openai";
 import { pdfPlugin } from "@elizaos/plugin-pdf";
 import sqlPlugin from "@elizaos/plugin-sql";
-import anthropicPlugin from "@elizaos/plugin-anthropic";
 import telegramPlugin from "@elizaos/plugin-telegram";
 import character from "@/character";
 import { loadConfig } from "@/config/env";
 import { featureMap } from "@/config/feature-map";
 import { GatewayRunner } from "@/gateway/gateway-runner";
 import { createElizaAgentPlugin } from "@/plugins/eliza-agent-plugin";
-import { createServices, type AppServices } from "@/services";
+import { type AppServices, createServices } from "@/services";
 import { DocumentsService } from "@/services/documents-service";
 import type { EnvConfig } from "@/types";
 
@@ -22,7 +22,12 @@ export interface AppContext {
 
 let contextPromise: Promise<AppContext> | undefined;
 
-function buildPluginSettings(config: EnvConfig, runtimeSettings: AppServices["settings"]["get"] extends () => infer T ? T : never) {
+function buildPluginSettings(
+  config: EnvConfig,
+  runtimeSettings: AppServices["settings"]["get"] extends () => infer T
+    ? T
+    : never,
+) {
   const settings: Record<string, string> = {
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),
@@ -80,7 +85,11 @@ function buildRuntimePlugins(services: AppServices, config: EnvConfig) {
   return plugins;
 }
 
-function buildCronPrompt(services: AppServices, prompt: string, skillSlugs: string[]): string {
+function buildCronPrompt(
+  services: AppServices,
+  prompt: string,
+  skillSlugs: string[],
+): string {
   if (!skillSlugs.length) {
     return prompt;
   }
@@ -152,9 +161,9 @@ export async function getAppContext(): Promise<AppContext> {
     });
     services.cron.start();
     services.documents = new DocumentsService(runtime, config.workspaceDir);
-    const gatewayService = runtime.getService("eliza_agent_gateway") as
-      | { runner?: GatewayRunner }
-      | null;
+    const gatewayService = runtime.getService("eliza_agent_gateway") as {
+      runner?: GatewayRunner;
+    } | null;
     let gateway = gatewayService?.runner;
     if (!gateway) {
       const gatewayContext = {} as AppContext;

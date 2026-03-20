@@ -16,8 +16,11 @@ export function createCronAction(services: AppServices): Action {
     description:
       "Manages scheduled jobs. Supports `/cron list`, `/cron create <schedule> :: <prompt>`, `/cron pause <id>`, `/cron resume <id>`, `/cron run <id>`, and `/cron remove <id>`.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/cron"));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/cron"));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -26,7 +29,10 @@ export function createCronAction(services: AppServices): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const trimmed = text?.trim() ?? "";
       let response = "";
 
@@ -42,7 +48,9 @@ export function createCronAction(services: AppServices): Action {
           : "No cron jobs configured.";
       } else if (trimmed.startsWith("/cron create ")) {
         const payload = trimmed.replace("/cron create ", "");
-        const [schedule, prompt] = payload.split("::").map((part) => part.trim());
+        const [schedule, prompt] = payload
+          .split("::")
+          .map((part) => part.trim());
         if (!schedule || !prompt) {
           response = "Usage: /cron create <schedule> :: <prompt>";
         } else {
@@ -54,13 +62,19 @@ export function createCronAction(services: AppServices): Action {
           response = `Created cron job ${created.id} with next run ${created.nextRunAt ?? "n/a"}.`;
         }
       } else if (trimmed.startsWith("/cron pause ")) {
-        const job = services.cron.pause(trimmed.replace("/cron pause ", "").trim());
+        const job = services.cron.pause(
+          trimmed.replace("/cron pause ", "").trim(),
+        );
         response = `Paused ${job.id}.`;
       } else if (trimmed.startsWith("/cron resume ")) {
-        const job = services.cron.resume(trimmed.replace("/cron resume ", "").trim());
+        const job = services.cron.resume(
+          trimmed.replace("/cron resume ", "").trim(),
+        );
         response = `Resumed ${job.id}; next run ${job.nextRunAt ?? "n/a"}.`;
       } else if (trimmed.startsWith("/cron run ")) {
-        const job = services.cron.runNow(trimmed.replace("/cron run ", "").trim());
+        const job = services.cron.runNow(
+          trimmed.replace("/cron run ", "").trim(),
+        );
         response = `Marked ${job.id} to run immediately.`;
       } else if (trimmed.startsWith("/cron remove ")) {
         const id = trimmed.replace("/cron remove ", "").trim();

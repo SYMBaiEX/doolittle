@@ -6,14 +6,14 @@ import type {
   ExecutionBackendHealth,
   ExecutionBackendLimits,
   ExecutionBackendName,
+  ExecutionBackendPreview,
   ExecutionCloudArtifactRecord,
   ExecutionCloudProfile,
   ExecutionCloudSession,
   ExecutionCloudSnapshotRecord,
-  ExecutionBackendPreview,
   ExecutionRemoteSyncPlan,
-  TerminalCommandRecord,
   RemoteLifecycleEvent,
+  TerminalCommandRecord,
 } from "@/types";
 import type { RuntimeSettings } from "./settings-service";
 
@@ -34,7 +34,10 @@ class CloudStoreManager {
     }
   }
 
-  touch(profile: ExecutionCloudProfile, patch: Partial<ExecutionCloudSession> = {}): ExecutionCloudSession {
+  touch(
+    profile: ExecutionCloudProfile,
+    patch: Partial<ExecutionCloudSession> = {},
+  ): ExecutionCloudSession {
     const store = this.readStore();
     const session = this.upsertSession(store, profile, patch);
     this.write(store);
@@ -62,7 +65,8 @@ class CloudStoreManager {
     this.upsertSession(store, profile, {
       ...patch,
       state: sessionState,
-      syncState: patch.state === "failed" ? "error" : existing?.syncState ?? "planned",
+      syncState:
+        patch.state === "failed" ? "error" : (existing?.syncState ?? "planned"),
       lastCommandId: patch.commandId ?? existing?.lastCommandId,
       lastCommand: patch.command ?? existing?.lastCommand,
       lastSnapshotAt: now,
@@ -100,7 +104,8 @@ class CloudStoreManager {
     const refreshed = this.findSession(store, profile);
     if (refreshed) {
       refreshed.snapshotCount = (refreshed.snapshotCount ?? 0) + 1;
-      refreshed.artifactCount = (refreshed.artifactCount ?? 0) + snapshot.artifacts.length;
+      refreshed.artifactCount =
+        (refreshed.artifactCount ?? 0) + snapshot.artifacts.length;
       refreshed.syncState = patch.state === "failed" ? "error" : "synced";
       refreshed.lastSnapshotAt = now;
       refreshed.lastSnapshotId = snapshot.snapshotId;
@@ -119,16 +124,23 @@ class CloudStoreManager {
     return this.readStore().snapshots.slice(-limit).reverse();
   }
 
-  listSnapshotsFor(profile: ExecutionCloudProfile, limit = 10): ExecutionCloudSnapshotRecord[] {
+  listSnapshotsFor(
+    profile: ExecutionCloudProfile,
+    limit = 10,
+  ): ExecutionCloudSnapshotRecord[] {
     return this.readStore()
       .snapshots.filter(
-        (snapshot) => snapshot.provider === profile.provider && snapshot.target === profile.target,
+        (snapshot) =>
+          snapshot.provider === profile.provider &&
+          snapshot.target === profile.target,
       )
       .slice(-limit)
       .reverse();
   }
 
-  latestSnapshot(profile: ExecutionCloudProfile): ExecutionCloudSnapshotRecord | undefined {
+  latestSnapshot(
+    profile: ExecutionCloudProfile,
+  ): ExecutionCloudSnapshotRecord | undefined {
     return this.listSnapshotsFor(profile, 1)[0];
   }
 
@@ -137,7 +149,9 @@ class CloudStoreManager {
   }
 
   private readStore(): CloudStore {
-    const store = JSON.parse(readFileSync(this.filePath, "utf8")) as Partial<CloudStore>;
+    const store = JSON.parse(
+      readFileSync(this.filePath, "utf8"),
+    ) as Partial<CloudStore>;
     return {
       sessions: store.sessions ?? [],
       snapshots: store.snapshots ?? [],
@@ -149,9 +163,14 @@ class CloudStoreManager {
     writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
   }
 
-  private findSession(store: CloudStore, profile: ExecutionCloudProfile): ExecutionCloudSession | undefined {
+  private findSession(
+    store: CloudStore,
+    profile: ExecutionCloudProfile,
+  ): ExecutionCloudSession | undefined {
     return store.sessions.find(
-      (session) => session.provider === profile.provider && session.target === profile.target,
+      (session) =>
+        session.provider === profile.provider &&
+        session.target === profile.target,
     );
   }
 
@@ -162,9 +181,12 @@ class CloudStoreManager {
   ): ExecutionCloudSession {
     const now = new Date().toISOString();
     const existingIndex = store.sessions.findIndex(
-      (session) => session.provider === profile.provider && session.target === profile.target,
+      (session) =>
+        session.provider === profile.provider &&
+        session.target === profile.target,
     );
-    const existing = existingIndex >= 0 ? store.sessions[existingIndex] : undefined;
+    const existing =
+      existingIndex >= 0 ? store.sessions[existingIndex] : undefined;
     const session: ExecutionCloudSession = {
       sessionId: existing?.sessionId ?? randomUUID(),
       provider: profile.provider,
@@ -185,7 +207,8 @@ class CloudStoreManager {
       lastStderr: patch.lastStderr ?? existing?.lastStderr,
       lastSnapshotAt: patch.lastSnapshotAt ?? existing?.lastSnapshotAt,
       lastSnapshotId: patch.lastSnapshotId ?? existing?.lastSnapshotId,
-      lastSnapshotSummary: patch.lastSnapshotSummary ?? existing?.lastSnapshotSummary,
+      lastSnapshotSummary:
+        patch.lastSnapshotSummary ?? existing?.lastSnapshotSummary,
       snapshotCount: patch.snapshotCount ?? existing?.snapshotCount ?? 0,
       artifactCount: patch.artifactCount ?? existing?.artifactCount ?? 0,
       syncPlan: profile.syncPlan,
@@ -237,7 +260,10 @@ interface ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview;
-  health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth>;
+  health(
+    settings: RuntimeSettings,
+    workspaceDir: string,
+  ): Promise<ExecutionBackendHealth>;
   run(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
@@ -245,7 +271,10 @@ interface ExecutionBackend {
 }
 
 interface CloudStateAccessor {
-  touch(profile: ExecutionCloudProfile, patch?: Partial<ExecutionCloudSession>): ExecutionCloudSession;
+  touch(
+    profile: ExecutionCloudProfile,
+    patch?: Partial<ExecutionCloudSession>,
+  ): ExecutionCloudSession;
   get(profile: ExecutionCloudProfile): ExecutionCloudSession | undefined;
   capture(
     profile: ExecutionCloudProfile,
@@ -263,7 +292,9 @@ interface CloudStateAccessor {
   ): ExecutionCloudSnapshotRecord;
   listSnapshots(limit?: number): ExecutionCloudSnapshotRecord[];
   listArtifacts(limit?: number): ExecutionCloudArtifactRecord[];
-  latestSnapshot(profile: ExecutionCloudProfile): ExecutionCloudSnapshotRecord | undefined;
+  latestSnapshot(
+    profile: ExecutionCloudProfile,
+  ): ExecutionCloudSnapshotRecord | undefined;
 }
 
 function shellQuote(value: string): string {
@@ -280,7 +311,9 @@ function createCheck(
 }
 
 function renderChecks(checks: DiagnosticCheck[]): string[] {
-  return checks.map((check) => `[${check.status}] ${check.summary}: ${check.detail}`);
+  return checks.map(
+    (check) => `[${check.status}] ${check.summary}: ${check.detail}`,
+  );
 }
 
 async function runCommand(
@@ -330,7 +363,8 @@ function normalizeBackendError(result: TerminalRunResult): TerminalRunResult {
     exitCode: result.exitCode,
     stdout: result.stdout,
     stderr:
-      result.stderr || (result.exitCode === 0 ? "" : "Command failed without stderr output."),
+      result.stderr ||
+      (result.exitCode === 0 ? "" : "Command failed without stderr output."),
     timedOut: result.timedOut,
     durationMs: result.durationMs,
   };
@@ -347,10 +381,16 @@ function sanitizeCommand(command: string): string {
   return trimmed;
 }
 
-async function commandExists(binary: string, timeoutMs = 5_000): Promise<boolean> {
-  const result = await runCommand(["/bin/zsh", "-lc", `command -v ${shellQuote(binary)}`], {
-    timeoutMs,
-  }).catch(() => ({
+async function commandExists(
+  binary: string,
+  timeoutMs = 5_000,
+): Promise<boolean> {
+  const result = await runCommand(
+    ["/bin/zsh", "-lc", `command -v ${shellQuote(binary)}`],
+    {
+      timeoutMs,
+    },
+  ).catch(() => ({
     exitCode: 1,
     stdout: "",
     stderr: "",
@@ -373,7 +413,9 @@ function buildContainerCommand(
   const containerCpuLimit = execution.containerCpuLimit ?? "2";
   const passthroughFlags = execution.dockerEnvPassthrough
     .filter(isValidEnvName)
-    .flatMap((name) => (process.env[name] ? ["-e", `${name}=${process.env[name]}`] : []));
+    .flatMap((name) =>
+      process.env[name] ? ["-e", `${name}=${process.env[name]}`] : [],
+    );
   const readOnlyFlags = containerReadOnlyRoot
     ? [
         "--read-only",
@@ -383,10 +425,7 @@ function buildContainerCommand(
         "/run:rw,mode=755",
       ]
     : [];
-  const engineFlags =
-    engine === "podman"
-      ? ["--userns", "keep-id"]
-      : [];
+  const engineFlags = engine === "podman" ? ["--userns", "keep-id"] : [];
 
   return [
     engine,
@@ -437,7 +476,7 @@ function buildSingularityCommand(
   ];
 }
 
-function buildCliTargetCommand(
+function _buildCliTargetCommand(
   binary: string,
   target: string,
   command: string,
@@ -479,16 +518,34 @@ function buildRemoteSyncPlan(
 ): ExecutionRemoteSyncPlan {
   const execution = settings.execution;
   const mode =
-    provider === "daytona" && execution.daytonaSnapshot ? "snapshot" : execution.remoteSyncMode;
-  const include = execution.remoteSyncInclude.length > 0 ? execution.remoteSyncInclude : ["**/*"];
+    provider === "daytona" && execution.daytonaSnapshot
+      ? "snapshot"
+      : execution.remoteSyncMode;
+  const include =
+    execution.remoteSyncInclude.length > 0
+      ? execution.remoteSyncInclude
+      : ["**/*"];
   const exclude =
     execution.remoteSyncExclude.length > 0
       ? execution.remoteSyncExclude
-      : [".git", ".eliza-agent", "node_modules", "dist", "coverage", ".cache", ".turbo", ".DS_Store"];
+      : [
+          ".git",
+          ".eliza-agent",
+          "node_modules",
+          "dist",
+          "coverage",
+          ".cache",
+          ".turbo",
+          ".DS_Store",
+        ];
   const artifactPaths =
     execution.remoteArtifactPaths.length > 0
       ? execution.remoteArtifactPaths
-      : [".eliza-agent/remote-artifacts", ".eliza-agent/trajectories", ".eliza-agent/cron-output"];
+      : [
+          ".eliza-agent/remote-artifacts",
+          ".eliza-agent/trajectories",
+          ".eliza-agent/cron-output",
+        ];
   const workspaceLabel =
     execution.remoteWorkspaceLabel ||
     `${provider}:${execution.daytonaTarget || execution.modalTarget || "workspace"}`;
@@ -517,8 +574,15 @@ function buildCloudProfile(
 ): ExecutionCloudProfile {
   const execution = settings.execution;
   const remoteWorkspacePath =
-    provider === "daytona" ? execution.daytonaWorkspacePath || workspacePath : execution.modalWorkspacePath || workspacePath;
-  const syncPlan = buildRemoteSyncPlan(provider, settings, workspacePath, remoteWorkspacePath);
+    provider === "daytona"
+      ? execution.daytonaWorkspacePath || workspacePath
+      : execution.modalWorkspacePath || workspacePath;
+  const syncPlan = buildRemoteSyncPlan(
+    provider,
+    settings,
+    workspacePath,
+    remoteWorkspacePath,
+  );
   return provider === "daytona"
     ? {
         provider,
@@ -557,8 +621,10 @@ function buildCloudProfile(
         inspectCommand:
           execution.modalInspectCommand ||
           `modal shell ${execution.modalTarget || "REF"}${
-          execution.modalEnvironment ? ` -e ${execution.modalEnvironment}` : ""
-        } --cmd ${execution.modalShell || "/bin/bash"} -lc "pwd"`,
+            execution.modalEnvironment
+              ? ` -e ${execution.modalEnvironment}`
+              : ""
+          } --cmd ${execution.modalShell || "/bin/bash"} -lc "pwd"`,
       };
 }
 
@@ -573,18 +639,25 @@ function buildCloudRuntimeChecks(
   const cloudProfile = buildCloudProfile(provider, settings, workspaceDir);
   const target =
     provider === "daytona" ? execution.daytonaTarget : execution.modalTarget;
-  const shell = provider === "daytona" ? execution.daytonaShell : execution.modalShell;
+  const shell =
+    provider === "daytona" ? execution.daytonaShell : execution.modalShell;
   const bootstrap =
     provider === "daytona"
       ? execution.daytonaBootstrapCommand
       : execution.modalBootstrapCommand;
   const environment =
-    provider === "daytona" ? execution.daytonaSnapshot : execution.modalEnvironment;
+    provider === "daytona"
+      ? execution.daytonaSnapshot
+      : execution.modalEnvironment;
   const syncPlan = cloudProfile.syncPlan;
   const statusCommand =
-    provider === "daytona" ? execution.daytonaStatusCommand : execution.modalStatusCommand;
+    provider === "daytona"
+      ? execution.daytonaStatusCommand
+      : execution.modalStatusCommand;
   const inspectCommand =
-    provider === "daytona" ? execution.daytonaInspectCommand : execution.modalInspectCommand;
+    provider === "daytona"
+      ? execution.daytonaInspectCommand
+      : execution.modalInspectCommand;
 
   return [
     createCheck(
@@ -599,7 +672,9 @@ function buildCloudRuntimeChecks(
       `${provider}.config.target`,
       target ? "pass" : "fail",
       `${provider} target`,
-      target ? `Execution target configured: ${target}.` : `${provider} target is not configured.`,
+      target
+        ? `Execution target configured: ${target}.`
+        : `${provider} target is not configured.`,
     ),
     createCheck(
       `${provider}.config.shell`,
@@ -643,7 +718,13 @@ function buildCloudRuntimeChecks(
     ),
     createCheck(
       `${provider}.config.environment`,
-      provider === "daytona" ? (environment ? "pass" : "warn") : environment ? "pass" : "warn",
+      provider === "daytona"
+        ? environment
+          ? "pass"
+          : "warn"
+        : environment
+          ? "pass"
+          : "warn",
       `${provider} environment`,
       provider === "daytona"
         ? environment
@@ -809,7 +890,10 @@ function buildHealthLimits(settings: RuntimeSettings): ExecutionBackendLimits {
   };
 }
 
-function buildBootstrapHints(checks: DiagnosticCheck[], fallback: string[]): string[] {
+function buildBootstrapHints(
+  checks: DiagnosticCheck[],
+  fallback: string[],
+): string[] {
   const hints = checks
     .filter((check) => check.status !== "pass")
     .slice(0, 4)
@@ -829,7 +913,9 @@ function buildContainerChecks(
   const envCount = envNames.filter((name) => Boolean(process.env[name])).length;
   const workspaceMountOk = existsSync(workspaceDir);
   const containerRootfs = execution.containerReadOnlyRoot ?? true;
-  const invalidEnvNames = execution.dockerEnvPassthrough.filter((name) => !isValidEnvName(name));
+  const invalidEnvNames = execution.dockerEnvPassthrough.filter(
+    (name) => !isValidEnvName(name),
+  );
 
   return [
     createCheck(
@@ -882,7 +968,9 @@ function buildContainerChecks(
       `${engine}.runtime.userns`,
       engine === "podman" ? "pass" : "warn",
       "Container user namespace",
-      engine === "podman" ? "Podman will use keep-id user namespaces." : "Docker uses the default user namespace mapping.",
+      engine === "podman"
+        ? "Podman will use keep-id user namespaces."
+        : "Docker uses the default user namespace mapping.",
     ),
     createCheck(
       `${engine}.runtime.shell`,
@@ -923,9 +1011,9 @@ function buildContainerPreviewChecks(
     ),
     createCheck(
       `${engine}.preview.rootfs`,
-      execution.containerReadOnlyRoot ?? true ? "pass" : "warn",
+      (execution.containerReadOnlyRoot ?? true) ? "pass" : "warn",
       "Root filesystem",
-      execution.containerReadOnlyRoot ?? true
+      (execution.containerReadOnlyRoot ?? true)
         ? "Root filesystem is planned as read-only."
         : "Root filesystem is planned as writable.",
     ),
@@ -938,7 +1026,11 @@ function buildContainerPreviewChecks(
   ];
 }
 
-function buildSshChecks(settings: RuntimeSettings, runtimeAvailable: boolean, pathExists: boolean): DiagnosticCheck[] {
+function buildSshChecks(
+  settings: RuntimeSettings,
+  runtimeAvailable: boolean,
+  pathExists: boolean,
+): DiagnosticCheck[] {
   const execution = settings.execution;
   const keyConfigured = Boolean(execution.sshKeyPath);
   const keyExists = !execution.sshKeyPath || existsSync(execution.sshKeyPath);
@@ -947,25 +1039,33 @@ function buildSshChecks(settings: RuntimeSettings, runtimeAvailable: boolean, pa
       "ssh.runtime.binary",
       runtimeAvailable ? "pass" : "fail",
       "SSH client availability",
-      runtimeAvailable ? "ssh command is available on this host." : "ssh command is not available on this host.",
+      runtimeAvailable
+        ? "ssh command is available on this host."
+        : "ssh command is not available on this host.",
     ),
     createCheck(
       "ssh.config.host",
       execution.sshHost ? "pass" : "fail",
       "SSH host",
-      execution.sshHost ? `Host configured: ${execution.sshHost}.` : "SSH host is not configured.",
+      execution.sshHost
+        ? `Host configured: ${execution.sshHost}.`
+        : "SSH host is not configured.",
     ),
     createCheck(
       "ssh.config.user",
       execution.sshUser ? "pass" : "fail",
       "SSH user",
-      execution.sshUser ? `User configured: ${execution.sshUser}.` : "SSH user is not configured.",
+      execution.sshUser
+        ? `User configured: ${execution.sshUser}.`
+        : "SSH user is not configured.",
     ),
     createCheck(
       "ssh.config.path",
       execution.sshPath ? "pass" : "fail",
       "Remote workspace",
-      execution.sshPath ? `Remote workspace path: ${execution.sshPath}.` : "Remote workspace path is not configured.",
+      execution.sshPath
+        ? `Remote workspace path: ${execution.sshPath}.`
+        : "Remote workspace path is not configured.",
     ),
     createCheck(
       "ssh.config.key",
@@ -1079,7 +1179,7 @@ function buildSingularityChecks(
   ];
 }
 
-function buildCliRemoteChecks(
+function _buildCliRemoteChecks(
   engine: "daytona" | "modal",
   settings: RuntimeSettings,
   workspaceDir: string,
@@ -1170,13 +1270,20 @@ class LocalExecutionBackend implements ExecutionBackend {
       argv: ["/bin/zsh", "-lc", command],
       diagnostics: renderChecks(checks),
       checks,
-      bootstrap: buildBootstrapHints(checks, ["No bootstrap required for local execution."]),
+      bootstrap: buildBootstrapHints(checks, [
+        "No bootstrap required for local execution.",
+      ]),
     };
   }
 
   async health(settings: RuntimeSettings): Promise<ExecutionBackendHealth> {
     const checks = [
-      createCheck("local.shell", "pass", "Local shell", "Local Bun shell execution is available."),
+      createCheck(
+        "local.shell",
+        "pass",
+        "Local shell",
+        "Local Bun shell execution is available.",
+      ),
       createCheck(
         "local.workspace",
         "pass",
@@ -1206,7 +1313,9 @@ class LocalExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number },
   ): Promise<TerminalRunResult> {
-    return normalizeBackendError(await runCommand(["/bin/zsh", "-lc", command], options));
+    return normalizeBackendError(
+      await runCommand(["/bin/zsh", "-lc", command], options),
+    );
   }
 }
 
@@ -1217,17 +1326,27 @@ class DockerExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
-    const checks = buildContainerPreviewChecks("docker", options.settings, options.cwd);
+    const checks = buildContainerPreviewChecks(
+      "docker",
+      options.settings,
+      options.cwd,
+    );
     return {
       backend: this.name,
       mode: "container",
       engine: "docker",
       ready: false,
-      detail: "Docker execution wraps the workspace in a container with hardened defaults.",
+      detail:
+        "Docker execution wraps the workspace in a container with hardened defaults.",
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command,
-      argv: buildContainerCommand("docker", command, options.cwd, options.settings),
+      argv: buildContainerCommand(
+        "docker",
+        command,
+        options.cwd,
+        options.settings,
+      ),
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
@@ -1237,10 +1356,19 @@ class DockerExecutionBackend implements ExecutionBackend {
     };
   }
 
-  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+  async health(
+    settings: RuntimeSettings,
+    workspaceDir: string,
+  ): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
     const runtimeAvailable = await commandExists("docker", probeTimeoutMs);
-    const runtimeChecks = buildContainerChecks("docker", settings, workspaceDir, runtimeAvailable, false);
+    const runtimeChecks = buildContainerChecks(
+      "docker",
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      false,
+    );
     if (!runtimeAvailable) {
       return {
         backend: this.name,
@@ -1258,9 +1386,12 @@ class DockerExecutionBackend implements ExecutionBackend {
       };
     }
 
-    const version = await runCommand(["docker", "version", "--format", "{{.Server.Version}}"], {
-      timeoutMs: probeTimeoutMs,
-    }).catch(() => ({
+    const version = await runCommand(
+      ["docker", "version", "--format", "{{.Server.Version}}"],
+      {
+        timeoutMs: probeTimeoutMs,
+      },
+    ).catch(() => ({
       exitCode: 1,
       stdout: "",
       stderr: "Docker runtime unavailable.",
@@ -1269,7 +1400,13 @@ class DockerExecutionBackend implements ExecutionBackend {
     }));
 
     if (version.exitCode !== 0) {
-      const failedChecks = buildContainerChecks("docker", settings, workspaceDir, runtimeAvailable, false);
+      const failedChecks = buildContainerChecks(
+        "docker",
+        settings,
+        workspaceDir,
+        runtimeAvailable,
+        false,
+      );
       return {
         backend: this.name,
         mode: "container",
@@ -1297,16 +1434,22 @@ class DockerExecutionBackend implements ExecutionBackend {
       durationMs: 0,
     }));
     const imageAvailable = imageCheck.exitCode === 0;
-    const checks = buildContainerChecks("docker", settings, workspaceDir, runtimeAvailable, imageAvailable);
+    const checks = buildContainerChecks(
+      "docker",
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      imageAvailable,
+    );
     return {
       backend: this.name,
       mode: "container",
       engine: "docker",
       ready: imageAvailable,
-      detail:
-        imageAvailable
-          ? `Docker ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
-          : imageCheck.stderr || `Docker image ${settings.execution.dockerImage} is not available locally.`,
+      detail: imageAvailable
+        ? `Docker ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
+        : imageCheck.stderr ||
+          `Docker image ${settings.execution.dockerImage} is not available locally.`,
       limits: buildHealthLimits(settings),
       diagnostics: renderChecks(checks),
       checks,
@@ -1322,9 +1465,12 @@ class DockerExecutionBackend implements ExecutionBackend {
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
-      await runCommand(buildContainerCommand("docker", command, options.cwd, options.settings), {
-        timeoutMs: options.timeoutMs,
-      }),
+      await runCommand(
+        buildContainerCommand("docker", command, options.cwd, options.settings),
+        {
+          timeoutMs: options.timeoutMs,
+        },
+      ),
     );
   }
 }
@@ -1336,17 +1482,27 @@ class PodmanExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
-    const checks = buildContainerPreviewChecks("podman", options.settings, options.cwd);
+    const checks = buildContainerPreviewChecks(
+      "podman",
+      options.settings,
+      options.cwd,
+    );
     return {
       backend: this.name,
       mode: "container",
       engine: "podman",
       ready: false,
-      detail: "Podman execution mirrors the Docker path with rootless-friendly defaults.",
+      detail:
+        "Podman execution mirrors the Docker path with rootless-friendly defaults.",
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command,
-      argv: buildContainerCommand("podman", command, options.cwd, options.settings),
+      argv: buildContainerCommand(
+        "podman",
+        command,
+        options.cwd,
+        options.settings,
+      ),
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
@@ -1356,10 +1512,19 @@ class PodmanExecutionBackend implements ExecutionBackend {
     };
   }
 
-  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+  async health(
+    settings: RuntimeSettings,
+    workspaceDir: string,
+  ): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
     const runtimeAvailable = await commandExists("podman", probeTimeoutMs);
-    const runtimeChecks = buildContainerChecks("podman", settings, workspaceDir, runtimeAvailable, false);
+    const runtimeChecks = buildContainerChecks(
+      "podman",
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      false,
+    );
     if (!runtimeAvailable) {
       return {
         backend: this.name,
@@ -1388,7 +1553,13 @@ class PodmanExecutionBackend implements ExecutionBackend {
     }));
 
     if (version.exitCode !== 0) {
-      const failedChecks = buildContainerChecks("podman", settings, workspaceDir, runtimeAvailable, false);
+      const failedChecks = buildContainerChecks(
+        "podman",
+        settings,
+        workspaceDir,
+        runtimeAvailable,
+        false,
+      );
       return {
         backend: this.name,
         mode: "container",
@@ -1416,16 +1587,22 @@ class PodmanExecutionBackend implements ExecutionBackend {
       durationMs: 0,
     }));
     const imageAvailable = imageCheck.exitCode === 0;
-    const checks = buildContainerChecks("podman", settings, workspaceDir, runtimeAvailable, imageAvailable);
+    const checks = buildContainerChecks(
+      "podman",
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      imageAvailable,
+    );
     return {
       backend: this.name,
       mode: "container",
       engine: "podman",
       ready: imageAvailable,
-      detail:
-        imageAvailable
-          ? `Podman ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
-          : imageCheck.stderr || `Podman image ${settings.execution.dockerImage} is not available locally.`,
+      detail: imageAvailable
+        ? `Podman ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
+        : imageCheck.stderr ||
+          `Podman image ${settings.execution.dockerImage} is not available locally.`,
       limits: buildHealthLimits(settings),
       diagnostics: renderChecks(checks),
       checks,
@@ -1441,9 +1618,12 @@ class PodmanExecutionBackend implements ExecutionBackend {
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
-      await runCommand(buildContainerCommand("podman", command, options.cwd, options.settings), {
-        timeoutMs: options.timeoutMs,
-      }),
+      await runCommand(
+        buildContainerCommand("podman", command, options.cwd, options.settings),
+        {
+          timeoutMs: options.timeoutMs,
+        },
+      ),
     );
   }
 }
@@ -1496,7 +1676,9 @@ class SshExecutionBackend implements ExecutionBackend {
         limits: buildHealthLimits(settings),
         diagnostics: renderChecks(baseChecks),
         checks: baseChecks,
-        bootstrap: buildBootstrapHints(baseChecks, ["Install the ssh client and verify key/host access."]),
+        bootstrap: buildBootstrapHints(baseChecks, [
+          "Install the ssh client and verify key/host access.",
+        ]),
       };
     }
 
@@ -1511,7 +1693,9 @@ class SshExecutionBackend implements ExecutionBackend {
         limits: buildHealthLimits(settings),
         diagnostics: renderChecks(baseChecks),
         checks: baseChecks,
-        bootstrap: buildBootstrapHints(baseChecks, ["Set ssh host, user, and remote path in runtime settings."]),
+        bootstrap: buildBootstrapHints(baseChecks, [
+          "Set ssh host, user, and remote path in runtime settings.",
+        ]),
       };
     }
 
@@ -1525,7 +1709,9 @@ class SshExecutionBackend implements ExecutionBackend {
         limits: buildHealthLimits(settings),
         diagnostics: renderChecks(baseChecks),
         checks: baseChecks,
-        bootstrap: buildBootstrapHints(baseChecks, [`Create or correct the SSH key path: ${execution.sshKeyPath}.`]),
+        bootstrap: buildBootstrapHints(baseChecks, [
+          `Create or correct the SSH key path: ${execution.sshKeyPath}.`,
+        ]),
       };
     }
 
@@ -1554,11 +1740,10 @@ class SshExecutionBackend implements ExecutionBackend {
       mode: "remote",
       engine: "ssh",
       ready,
-      detail:
-        ready
-          ? `SSH backend ready for ${execution.sshUser}@${execution.sshHost}:${execution.sshPort} (${execution.sshPath}).`
-          : probe.stderr ||
-            `SSH backend could not reach ${execution.sshUser}@${execution.sshHost}:${execution.sshPort}.`,
+      detail: ready
+        ? `SSH backend ready for ${execution.sshUser}@${execution.sshHost}:${execution.sshPort} (${execution.sshPath}).`
+        : probe.stderr ||
+          `SSH backend could not reach ${execution.sshUser}@${execution.sshHost}:${execution.sshPort}.`,
       limits: buildHealthLimits(settings),
       diagnostics: renderChecks(finalChecks),
       checks: finalChecks,
@@ -1580,7 +1765,8 @@ class SshExecutionBackend implements ExecutionBackend {
       return {
         exitCode: 1,
         stdout: "",
-        stderr: "SSH backend requires execution.sshHost, execution.sshUser, and execution.sshPath.",
+        stderr:
+          "SSH backend requires execution.sshHost, execution.sshUser, and execution.sshPath.",
         timedOut: false,
         durationMs: 0,
       };
@@ -1608,13 +1794,19 @@ class SingularityExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
-    const checks = buildSingularityChecks(options.settings, options.cwd, true, Boolean(options.settings.execution.singularityImage));
+    const checks = buildSingularityChecks(
+      options.settings,
+      options.cwd,
+      true,
+      Boolean(options.settings.execution.singularityImage),
+    );
     return {
       backend: this.name,
       mode: "container",
       engine: "singularity",
       ready: false,
-      detail: "Singularity execution binds the workspace into a configured image for hermetic runs.",
+      detail:
+        "Singularity execution binds the workspace into a configured image for hermetic runs.",
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command,
@@ -1628,7 +1820,10 @@ class SingularityExecutionBackend implements ExecutionBackend {
     };
   }
 
-  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+  async health(
+    settings: RuntimeSettings,
+    workspaceDir: string,
+  ): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
     const runtimeAvailable = await commandExists("singularity", probeTimeoutMs);
     const imageAvailable = Boolean(
@@ -1679,9 +1874,12 @@ class SingularityExecutionBackend implements ExecutionBackend {
     }
 
     return normalizeBackendError(
-      await runCommand(buildSingularityCommand(command, options.cwd, options.settings), {
-        timeoutMs: options.timeoutMs,
-      }),
+      await runCommand(
+        buildSingularityCommand(command, options.cwd, options.settings),
+        {
+          timeoutMs: options.timeoutMs,
+        },
+      ),
     );
   }
 }
@@ -1719,7 +1917,13 @@ function buildDaytonaExecArgs(
 function buildDaytonaInfoArgs(settings: RuntimeSettings): string[] {
   const execution = settings.execution;
   const binary = execution.daytonaCommand || "daytona";
-  return [binary, "info", execution.daytonaTarget || "TARGET", "--format", "json"];
+  return [
+    binary,
+    "info",
+    execution.daytonaTarget || "TARGET",
+    "--format",
+    "json",
+  ];
 }
 
 function buildModalShellArgs(
@@ -1758,7 +1962,11 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       lastPreviewAt: new Date().toISOString(),
       lastCommand: sanitizeCommand(command),
     });
-    const checks = buildCloudRuntimePreviewChecks("daytona", options.settings, options.cwd);
+    const checks = buildCloudRuntimePreviewChecks(
+      "daytona",
+      options.settings,
+      options.cwd,
+    );
     const cloudSnapshot = this.cloudState.capture(cloud, {
       event: "preview",
       state: "planned",
@@ -1782,7 +1990,12 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command: sanitizeCommand(command),
-      argv: buildDaytonaExecArgs(options.settings, command, options.cwd, options.timeoutMs),
+      argv: buildDaytonaExecArgs(
+        options.settings,
+        command,
+        options.cwd,
+        options.timeoutMs,
+      ),
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
@@ -1792,7 +2005,10 @@ class DaytonaExecutionBackend implements ExecutionBackend {
     };
   }
 
-  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+  async health(
+    settings: RuntimeSettings,
+    workspaceDir: string,
+  ): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
     const binary = settings.execution.daytonaCommand || "daytona";
     const runtimeAvailable = await commandExists(binary, probeTimeoutMs);
@@ -1802,7 +2018,13 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       lastHealthAt: new Date().toISOString(),
     });
     if (!runtimeAvailable) {
-      const failedChecks = buildCloudRuntimeChecks("daytona", settings, workspaceDir, false, false);
+      const failedChecks = buildCloudRuntimeChecks(
+        "daytona",
+        settings,
+        workspaceDir,
+        false,
+        false,
+      );
       const cloudSnapshot = this.cloudState.capture(cloud, {
         event: "health",
         state: "failed",
@@ -1844,7 +2066,9 @@ class DaytonaExecutionBackend implements ExecutionBackend {
           probeTimeoutMs,
         )
       : buildDaytonaInfoArgs(settings);
-    const info = await runCommand(infoCommand, { timeoutMs: probeTimeoutMs }).catch(() => ({
+    const info = await runCommand(infoCommand, {
+      timeoutMs: probeTimeoutMs,
+    }).catch(() => ({
       exitCode: 1,
       stdout: "",
       stderr: "Daytona info probe failed.",
@@ -1852,7 +2076,12 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       durationMs: 0,
     }));
     const execProbe = await runCommand(
-      buildDaytonaExecArgs(settings, "printf eliza-daytona-ok", workspaceDir, probeTimeoutMs),
+      buildDaytonaExecArgs(
+        settings,
+        "printf eliza-daytona-ok",
+        workspaceDir,
+        probeTimeoutMs,
+      ),
       { timeoutMs: probeTimeoutMs },
     ).catch(() => ({
       exitCode: 1,
@@ -1863,7 +2092,13 @@ class DaytonaExecutionBackend implements ExecutionBackend {
     }));
     const infoOk = info.exitCode === 0;
     const execOk = execProbe.exitCode === 0;
-    const checks = buildCloudRuntimeChecks("daytona", settings, workspaceDir, runtimeAvailable, infoOk && execOk);
+    const checks = buildCloudRuntimeChecks(
+      "daytona",
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      infoOk && execOk,
+    );
     const cloudSnapshot = this.cloudState.capture(cloud, {
       event: "health",
       state: runtimeAvailable && infoOk && execOk ? "ready" : "failed",
@@ -1945,9 +2180,17 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       lastCommand: safeCommand,
     });
     const result = normalizeBackendError(
-      await runCommand(buildDaytonaExecArgs(options.settings, safeCommand, options.cwd, options.timeoutMs), {
-        timeoutMs: options.timeoutMs,
-      }),
+      await runCommand(
+        buildDaytonaExecArgs(
+          options.settings,
+          safeCommand,
+          options.cwd,
+          options.timeoutMs,
+        ),
+        {
+          timeoutMs: options.timeoutMs,
+        },
+      ),
     );
     const cloudSnapshot = this.cloudState.capture(cloud, {
       event: "run",
@@ -1992,7 +2235,11 @@ class ModalExecutionBackend implements ExecutionBackend {
       lastPreviewAt: new Date().toISOString(),
       lastCommand: sanitizeCommand(command),
     });
-    const checks = buildCloudRuntimePreviewChecks("modal", options.settings, options.cwd);
+    const checks = buildCloudRuntimePreviewChecks(
+      "modal",
+      options.settings,
+      options.cwd,
+    );
     const cloudSnapshot = this.cloudState.capture(cloud, {
       event: "preview",
       state: "planned",
@@ -2016,7 +2263,11 @@ class ModalExecutionBackend implements ExecutionBackend {
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command: sanitizeCommand(command),
-      argv: buildModalShellArgs(options.settings, sanitizeCommand(command), options.cwd),
+      argv: buildModalShellArgs(
+        options.settings,
+        sanitizeCommand(command),
+        options.cwd,
+      ),
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
@@ -2028,7 +2279,10 @@ class ModalExecutionBackend implements ExecutionBackend {
     };
   }
 
-  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+  async health(
+    settings: RuntimeSettings,
+    workspaceDir: string,
+  ): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
     const binary = settings.execution.modalCommand || "modal";
     const runtimeAvailable = await commandExists(binary, probeTimeoutMs);
@@ -2038,7 +2292,13 @@ class ModalExecutionBackend implements ExecutionBackend {
       lastHealthAt: new Date().toISOString(),
     });
     if (!runtimeAvailable) {
-      const failedChecks = buildCloudRuntimeChecks("modal", settings, workspaceDir, false, false);
+      const failedChecks = buildCloudRuntimeChecks(
+        "modal",
+        settings,
+        workspaceDir,
+        false,
+        false,
+      );
       const cloudSnapshot = this.cloudState.capture(cloud, {
         event: "health",
         state: "failed",
@@ -2073,9 +2333,15 @@ class ModalExecutionBackend implements ExecutionBackend {
     }
 
     const shellProbeCommand = settings.execution.modalStatusCommand
-      ? buildModalShellArgs(settings, settings.execution.modalStatusCommand, workspaceDir)
+      ? buildModalShellArgs(
+          settings,
+          settings.execution.modalStatusCommand,
+          workspaceDir,
+        )
       : buildModalShellArgs(settings, "printf eliza-modal-ok", workspaceDir);
-    const shellProbe = await runCommand(shellProbeCommand, { timeoutMs: probeTimeoutMs }).catch(() => ({
+    const shellProbe = await runCommand(shellProbeCommand, {
+      timeoutMs: probeTimeoutMs,
+    }).catch(() => ({
       exitCode: 1,
       stdout: "",
       stderr: "Modal shell probe failed.",
@@ -2083,7 +2349,13 @@ class ModalExecutionBackend implements ExecutionBackend {
       durationMs: 0,
     }));
     const shellOk = shellProbe.exitCode === 0;
-    const checks = buildCloudRuntimeChecks("modal", settings, workspaceDir, runtimeAvailable, shellOk);
+    const checks = buildCloudRuntimeChecks(
+      "modal",
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      shellOk,
+    );
     const cloudSnapshot = this.cloudState.capture(cloud, {
       event: "health",
       state: runtimeAvailable && shellOk ? "ready" : "failed",
@@ -2147,9 +2419,12 @@ class ModalExecutionBackend implements ExecutionBackend {
       lastCommand: safeCommand,
     });
     const result = normalizeBackendError(
-      await runCommand(buildModalShellArgs(options.settings, safeCommand, options.cwd), {
-        timeoutMs: options.timeoutMs,
-      }),
+      await runCommand(
+        buildModalShellArgs(options.settings, safeCommand, options.cwd),
+        {
+          timeoutMs: options.timeoutMs,
+        },
+      ),
     );
     const cloudSnapshot = this.cloudState.capture(cloud, {
       event: "run",
@@ -2191,7 +2466,9 @@ export class TerminalService {
   ) {
     mkdirSync(baseDir, { recursive: true });
     this.filePath = join(baseDir, "terminal-history.json");
-    this.cloudState = new CloudStoreManager(join(baseDir, "cloud-sessions.json"));
+    this.cloudState = new CloudStoreManager(
+      join(baseDir, "cloud-sessions.json"),
+    );
     this.backends = new Map<ExecutionBackendName, ExecutionBackend>([
       ["local", new LocalExecutionBackend()],
       ["docker", new DockerExecutionBackend()],
@@ -2206,15 +2483,20 @@ export class TerminalService {
     }
   }
 
-  async run(command: string, timeoutMs?: number): Promise<TerminalCommandRecord> {
+  async run(
+    command: string,
+    timeoutMs?: number,
+  ): Promise<TerminalCommandRecord> {
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
-    const backend = this.backends.get(backendName) ?? this.backends.get("local");
+    const backend =
+      this.backends.get(backendName) ?? this.backends.get("local");
     if (!backend) {
       throw new Error("No execution backend is available.");
     }
     const safeCommand = sanitizeCommand(command);
-    const effectiveTimeoutMs = timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000;
+    const effectiveTimeoutMs =
+      timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000;
     const preview = backend.preview(safeCommand, {
       cwd: this.workspaceDir,
       timeoutMs: effectiveTimeoutMs,
@@ -2228,10 +2510,10 @@ export class TerminalService {
       settings,
     });
     const latestCloudSnapshot = preview.cloud
-      ? this.cloudState.latestSnapshot(preview.cloud) ?? preview.cloudSnapshot
+      ? (this.cloudState.latestSnapshot(preview.cloud) ?? preview.cloudSnapshot)
       : preview.cloudSnapshot;
     const latestCloudSession = preview.cloud
-      ? this.cloudState.get(preview.cloud) ?? preview.cloudSession
+      ? (this.cloudState.get(preview.cloud) ?? preview.cloudSession)
       : preview.cloudSession;
 
     const record: TerminalCommandRecord = {
@@ -2295,7 +2577,8 @@ export class TerminalService {
   preview(command: string, timeoutMs?: number): ExecutionBackendPreview {
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
-    const backend = this.backends.get(backendName) ?? this.backends.get("local");
+    const backend =
+      this.backends.get(backendName) ?? this.backends.get("local");
     if (!backend) {
       throw new Error("No execution backend is available.");
     }

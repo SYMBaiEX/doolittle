@@ -16,8 +16,11 @@ export function createTerminalAction(services: AppServices): Action {
     description:
       "Runs local shell commands and shows recent command history with `/terminal run` and `/terminal recent`.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/terminal"));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/terminal"));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -26,7 +29,10 @@ export function createTerminalAction(services: AppServices): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const trimmed = text?.trim() ?? "";
       let response = "";
 

@@ -71,7 +71,10 @@ export interface PlatformLifecycleEvent {
 }
 
 export interface LifecycleHistory {
-  record(kind: PlatformLifecycleEvent["kind"], detail: string): PlatformLifecycleEvent;
+  record(
+    kind: PlatformLifecycleEvent["kind"],
+    detail: string,
+  ): PlatformLifecycleEvent;
   recent(limit?: number): PlatformLifecycleEvent[];
   total(): number;
 }
@@ -86,7 +89,9 @@ export interface PlatformAdapter {
   observe?(event: PlatformLifecycleEvent): Promise<void> | void;
 }
 
-export type PlatformMessageHandler = (message: IncomingPlatformMessage) => Promise<string>;
+export type PlatformMessageHandler = (
+  message: IncomingPlatformMessage,
+) => Promise<string>;
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -117,7 +122,9 @@ export function createLifecycleHistory(limit = 12): LifecycleHistory {
   };
 }
 
-export function capabilitiesForPlatform(platform: PlatformName): PlatformCapabilitySet {
+export function capabilitiesForPlatform(
+  platform: PlatformName,
+): PlatformCapabilitySet {
   switch (platform) {
     case "telegram":
       return {

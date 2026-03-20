@@ -40,7 +40,9 @@ export class SkillSynthesisService {
     mkdirSync(dir, { recursive: true });
     const path = join(dir, "SKILL.md");
     const index = this.readIndex();
-    const existing = index.skills.find((record) => record.slug === (slug || "generated-skill"));
+    const existing = index.skills.find(
+      (record) => record.slug === (slug || "generated-skill"),
+    );
     const createdAt = existing?.createdAt ?? new Date().toISOString();
     const updatedAt = new Date().toISOString();
     const content = [
@@ -82,7 +84,9 @@ export class SkillSynthesisService {
     writeFileSync(path, content, "utf8");
     this.writeIndex({
       skills: [
-        ...index.skills.filter((record) => record.slug !== (slug || "generated-skill")),
+        ...index.skills.filter(
+          (record) => record.slug !== (slug || "generated-skill"),
+        ),
         {
           slug: slug || "generated-skill",
           title: task.title,
@@ -104,12 +108,14 @@ export class SkillSynthesisService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/gu, "-")
       .replace(/^-+|-+$/gu, "");
-    return existsSync(join(this.generatedDir, slug || "generated-skill", "SKILL.md"));
+    return existsSync(
+      join(this.generatedDir, slug || "generated-skill", "SKILL.md"),
+    );
   }
 
   listGeneratedSkills(limit = 20): GeneratedSkillRecord[] {
-    return this.readIndex().skills
-      .slice()
+    return this.readIndex()
+      .skills.slice()
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, limit);
   }
@@ -123,7 +129,9 @@ export class SkillSynthesisService {
     if (!record) {
       return `Generated skill not found: ${slug}`;
     }
-    const content = existsSync(record.path) ? readFileSync(record.path, "utf8") : "";
+    const content = existsSync(record.path)
+      ? readFileSync(record.path, "utf8")
+      : "";
     return [
       `GENERATED SKILL: ${record.title}`,
       `Slug: ${record.slug}`,
@@ -143,7 +151,11 @@ export class SkillSynthesisService {
       .flatMap((note) => note.split(/\n+/u))
       .map((line) => line.replace(/^(?:-|\*|\d+\.)\s*/u, "").trim())
       .filter((line) => line.length > 0)
-      .filter((line) => /must|should|requires?|important|warning|step|workflow|pattern|repeat|reuse/iu.test(line))
+      .filter((line) =>
+        /must|should|requires?|important|warning|step|workflow|pattern|repeat|reuse/iu.test(
+          line,
+        ),
+      )
       .slice(0, 8);
   }
 
@@ -152,7 +164,9 @@ export class SkillSynthesisService {
       return { skills: [] };
     }
     try {
-      return JSON.parse(readFileSync(this.indexPath, "utf8")) as GeneratedSkillIndex;
+      return JSON.parse(
+        readFileSync(this.indexPath, "utf8"),
+      ) as GeneratedSkillIndex;
     } catch {
       return { skills: [] };
     }

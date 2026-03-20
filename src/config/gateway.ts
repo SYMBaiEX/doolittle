@@ -24,14 +24,20 @@ export function getDefaultGatewayConfig(config: EnvConfig): GatewayConfig {
     "sms",
   ];
 
-  const platformConfigs = {} as Record<PlatformName, GatewayConfig["platforms"][PlatformName]>;
+  const platformConfigs = {} as Record<
+    PlatformName,
+    GatewayConfig["platforms"][PlatformName]
+  >;
   for (const platform of platforms) {
     platformConfigs[platform] = {
       ...basePlatformConfig(),
       enabled: platform === "api" || platform === "cli",
-      allowAllUsers: platform === "api" || platform === "cli" ? true : undefined,
+      allowAllUsers:
+        platform === "api" || platform === "cli" ? true : undefined,
       pairingMode:
-        platform === "api" || platform === "cli" ? "allow" : config.pairingDefaultMode,
+        platform === "api" || platform === "cli"
+          ? "allow"
+          : config.pairingDefaultMode,
     };
   }
 
@@ -56,7 +62,10 @@ export function loadGatewayConfig(config: EnvConfig): GatewayConfig {
   return JSON.parse(raw) as GatewayConfig;
 }
 
-export function saveGatewayConfig(config: EnvConfig, gatewayConfig: GatewayConfig): void {
+export function saveGatewayConfig(
+  config: EnvConfig,
+  gatewayConfig: GatewayConfig,
+): void {
   mkdirSync(config.gatewayDataDir, { recursive: true });
   const path = join(config.gatewayDataDir, "gateway.json");
   writeFileSync(path, JSON.stringify(gatewayConfig, null, 2), "utf8");

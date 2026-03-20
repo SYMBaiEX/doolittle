@@ -24,7 +24,9 @@ describe("McpService", () => {
     expect(result.tools.some((tool) => tool.name === "echo")).toBe(true);
     expect(service.status().discoveredTools).toBe(result.tools.length);
     expect(service.status().cachedToolNames).toContain("echo");
-    expect(service.searchCachedTools("sum").some((tool) => tool.name === "sum")).toBe(true);
+    expect(
+      service.searchCachedTools("sum").some((tool) => tool.name === "sum"),
+    ).toBe(true);
   });
 
   it("invokes a structured tool", async () => {

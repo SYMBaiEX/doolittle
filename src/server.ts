@@ -1,7 +1,8 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { featureMap } from "@/config/feature-map";
+import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
 import { normalizeInboundMessage } from "@/gateway/message-normalization";
+import type { AppContext } from "@/runtime/bootstrap";
 import {
   handleAgentTurn,
   runDelegationTaskInWorker,
@@ -9,8 +10,11 @@ import {
   syncProviderSettings,
 } from "@/runtime/chat";
 import { DiagnosticsService } from "@/services/diagnostics-service";
-import type { GatewayConfig, IncomingPlatformMessage, PlatformName } from "@/types";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import type {
+  GatewayConfig,
+  IncomingPlatformMessage,
+  PlatformName,
+} from "@/types";
 
 type GatewayTraceKind =
   | "receive"
@@ -57,7 +61,9 @@ function verifySlackSignature(
   }
 }
 
-async function parseJsonBody<T>(request: Request): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
+async function parseJsonBody<T>(
+  request: Request,
+): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
   try {
     return {
       ok: true,
@@ -79,12 +85,16 @@ function parseGatewayFilters(url: URL): {
 } {
   const rawLimit = Number(url.searchParams.get("limit") ?? "25");
   const platform = url.searchParams.get("platform") ?? undefined;
-  const sessionId = url.searchParams.get("sessionId") ?? url.searchParams.get("session") ?? undefined;
+  const sessionId =
+    url.searchParams.get("sessionId") ??
+    url.searchParams.get("session") ??
+    undefined;
   const kind = url.searchParams.get("kind") ?? undefined;
   return {
     limit: Number.isNaN(rawLimit) || rawLimit <= 0 ? 25 : rawLimit,
     platform:
-      platform && [
+      platform &&
+      [
         "telegram",
         "discord",
         "slack",
@@ -99,15 +109,16 @@ function parseGatewayFilters(url: URL): {
         : undefined,
     sessionId,
     kind:
-      kind && [
-      "receive",
-      "authorize",
-      "session",
-      "route",
-      "respond",
-      "deliver",
-      "reject",
-      "lifecycle",
+      kind &&
+      [
+        "receive",
+        "authorize",
+        "session",
+        "route",
+        "respond",
+        "deliver",
+        "reject",
+        "lifecycle",
       ].includes(kind)
         ? (kind as GatewayTraceKind)
         : undefined,
@@ -127,22 +138,41 @@ function parseDelegationFilters(url: URL): {
   const rawLimit = Number(url.searchParams.get("limit") ?? "25");
   const priority = url.searchParams.get("priority") ?? undefined;
   const status = url.searchParams.get("status") ?? undefined;
-  const executionMode = url.searchParams.get("executionMode") ?? url.searchParams.get("mode") ?? undefined;
+  const executionMode =
+    url.searchParams.get("executionMode") ??
+    url.searchParams.get("mode") ??
+    undefined;
 
   return {
     limit: Number.isNaN(rawLimit) || rawLimit <= 0 ? 25 : rawLimit,
     group: url.searchParams.get("group") ?? undefined,
     profile: url.searchParams.get("profile") ?? undefined,
-    priority: priority && ["low", "normal", "high"].includes(priority)
-      ? (priority as "low" | "normal" | "high")
-      : undefined,
-    label: url.searchParams.get("label") ?? url.searchParams.get("tag") ?? undefined,
-    parentTaskId: url.searchParams.get("parentTaskId") ?? url.searchParams.get("parent") ?? undefined,
-    status: status && ["pending", "running", "completed", "failed", "cancelled"].includes(status)
-      ? (status as "pending" | "running" | "completed" | "failed" | "cancelled")
-      : undefined,
+    priority:
+      priority && ["low", "normal", "high"].includes(priority)
+        ? (priority as "low" | "normal" | "high")
+        : undefined,
+    label:
+      url.searchParams.get("label") ?? url.searchParams.get("tag") ?? undefined,
+    parentTaskId:
+      url.searchParams.get("parentTaskId") ??
+      url.searchParams.get("parent") ??
+      undefined,
+    status:
+      status &&
+      ["pending", "running", "completed", "failed", "cancelled"].includes(
+        status,
+      )
+        ? (status as
+            | "pending"
+            | "running"
+            | "completed"
+            | "failed"
+            | "cancelled")
+        : undefined,
     executionMode:
-      executionMode === "local" || executionMode === "delegated" ? executionMode : undefined,
+      executionMode === "local" || executionMode === "delegated"
+        ? executionMode
+        : undefined,
   };
 }
 
@@ -228,12 +258,16 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "path is required" }, 400);
         }
         return json({
-          inspection: context.services.operator.inspectMigrationSource(sourcePath),
+          inspection:
+            context.services.operator.inspectMigrationSource(sourcePath),
         });
       }
 
       if (request.method === "POST" && url.pathname === "/migrate/apply") {
-        const body = (await request.json()) as { path?: string; overwrite?: boolean };
+        const body = (await request.json()) as {
+          path?: string;
+          overwrite?: boolean;
+        };
         if (!body.path) {
           return json({ error: "path is required" }, 400);
         }
@@ -245,7 +279,8 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/memory") {
-        const target = url.searchParams.get("target") === "user" ? "user" : "memory";
+        const target =
+          url.searchParams.get("target") === "user" ? "user" : "memory";
         return json({
           target,
           snapshot: context.services.memory.renderSnapshot(target),
@@ -284,7 +319,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "GET" && url.pathname === "/skills/generated/detail") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/skills/generated/detail"
+      ) {
         const slug = url.searchParams.get("slug");
         if (!slug) {
           return json({ error: "slug is required" }, 400);
@@ -395,7 +433,9 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/workspace/tree") {
         const depth = Number(url.searchParams.get("depth") ?? "2");
         return json({
-          entries: context.services.workspace.tree(Number.isNaN(depth) ? 2 : depth),
+          entries: context.services.workspace.tree(
+            Number.isNaN(depth) ? 2 : depth,
+          ),
         });
       }
 
@@ -484,33 +524,58 @@ export function startApiServer(context: AppContext): void {
         const analysis = await context.services.web.analyze(body.url);
         return json({
           analysis,
-          response: await runModelAnalysisTurn(context, analysis.prompt, "browser", {
-            personalityId: context.services.personalities.getActive().id,
-          }),
+          response: await runModelAnalysisTurn(
+            context,
+            analysis.prompt,
+            "browser",
+            {
+              personalityId: context.services.personalities.getActive().id,
+            },
+          ),
         });
       }
 
       if (request.method === "POST" && url.pathname === "/browser/compare") {
-        const body = (await request.json()) as { leftUrl?: string; rightUrl?: string };
+        const body = (await request.json()) as {
+          leftUrl?: string;
+          rightUrl?: string;
+        };
         if (!body.leftUrl || !body.rightUrl) {
           return json({ error: "leftUrl and rightUrl are required" }, 400);
         }
         return json({
-          comparison: await context.services.web.compare(body.leftUrl, body.rightUrl),
+          comparison: await context.services.web.compare(
+            body.leftUrl,
+            body.rightUrl,
+          ),
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/browser/compare/analyze") {
-        const body = (await request.json()) as { leftUrl?: string; rightUrl?: string };
+      if (
+        request.method === "POST" &&
+        url.pathname === "/browser/compare/analyze"
+      ) {
+        const body = (await request.json()) as {
+          leftUrl?: string;
+          rightUrl?: string;
+        };
         if (!body.leftUrl || !body.rightUrl) {
           return json({ error: "leftUrl and rightUrl are required" }, 400);
         }
-        const analysis = await context.services.web.analyzeComparison(body.leftUrl, body.rightUrl);
+        const analysis = await context.services.web.analyzeComparison(
+          body.leftUrl,
+          body.rightUrl,
+        );
         return json({
           analysis,
-          response: await runModelAnalysisTurn(context, analysis.prompt, "browser-comparison", {
-            personalityId: context.services.personalities.getActive().id,
-          }),
+          response: await runModelAnalysisTurn(
+            context,
+            analysis.prompt,
+            "browser-comparison",
+            {
+              personalityId: context.services.personalities.getActive().id,
+            },
+          ),
         });
       }
 
@@ -571,12 +636,18 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/media/analyze") {
-        const body = (await request.json()) as { path?: string; focus?: "auto" | "voice" | "vision" | "research" };
+        const body = (await request.json()) as {
+          path?: string;
+          focus?: "auto" | "voice" | "vision" | "research";
+        };
         if (!body.path) {
           return json({ error: "path is required" }, 400);
         }
         return json({
-          analysis: await context.services.media.analyzeWithModel(body.path, body.focus ?? "auto"),
+          analysis: await context.services.media.analyzeWithModel(
+            body.path,
+            body.focus ?? "auto",
+          ),
         });
       }
 
@@ -591,11 +662,14 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "path is required" }, 400);
         }
         return json({
-          transcription: await context.services.media.transcribeWithModel(body.path, {
-            language: body.language,
-            prompt: body.prompt,
-            name: body.name,
-          }),
+          transcription: await context.services.media.transcribeWithModel(
+            body.path,
+            {
+              language: body.language,
+              prompt: body.prompt,
+              name: body.name,
+            },
+          ),
         });
       }
 
@@ -642,7 +716,10 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/workspace/write") {
-        const body = (await request.json()) as { path?: string; content?: string };
+        const body = (await request.json()) as {
+          path?: string;
+          content?: string;
+        };
         if (!body.path || body.content === undefined) {
           return json({ error: "path and content are required" }, 400);
         }
@@ -664,31 +741,42 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/terminal/run") {
-        const body = (await request.json()) as { command?: string; timeoutMs?: number };
+        const body = (await request.json()) as {
+          command?: string;
+          timeoutMs?: number;
+        };
         if (!body.command) {
           return json({ error: "command is required" }, 400);
         }
         return json({
-          result: await context.services.terminal.run(body.command, body.timeoutMs),
+          result: await context.services.terminal.run(
+            body.command,
+            body.timeoutMs,
+          ),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/delegation/tasks") {
         const filters = parseDelegationFilters(url);
         return json({
-          tasks: context.services.delegation.list({
-            group: filters.group,
-            profile: filters.profile,
-            priority: filters.priority,
-            label: filters.label,
-            parentTaskId: filters.parentTaskId,
-            status: filters.status,
-            executionMode: filters.executionMode,
-          }).slice(0, filters.limit),
+          tasks: context.services.delegation
+            .list({
+              group: filters.group,
+              profile: filters.profile,
+              priority: filters.priority,
+              label: filters.label,
+              parentTaskId: filters.parentTaskId,
+              status: filters.status,
+              executionMode: filters.executionMode,
+            })
+            .slice(0, filters.limit),
         });
       }
 
-      if (request.method === "GET" && url.pathname.startsWith("/delegation/tasks/")) {
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/delegation/tasks/")
+      ) {
         const parts = url.pathname.split("/");
         const id = parts[3];
         const action = parts[4];
@@ -774,7 +862,11 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname.startsWith("/delegation/tasks/") && url.pathname.endsWith("/spawn")) {
+      if (
+        request.method === "POST" &&
+        url.pathname.startsWith("/delegation/tasks/") &&
+        url.pathname.endsWith("/spawn")
+      ) {
         const parts = url.pathname.split("/");
         const id = parts[3];
         if (!id) {
@@ -811,8 +903,13 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/delegation/supervise") {
-        const body = ((await request.json().catch(() => ({}))) ?? {}) as { concurrency?: number };
+      if (
+        request.method === "POST" &&
+        url.pathname === "/delegation/supervise"
+      ) {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          concurrency?: number;
+        };
         const report = await context.services.delegation.superviseQueued(
           async (task) =>
             (
@@ -822,7 +919,9 @@ export function startApiServer(context: AppContext): void {
             ).notes.at(-1) ?? "Delegated worker completed.",
           {
             concurrency:
-              typeof body.concurrency === "number" && body.concurrency > 0 ? body.concurrency : 2,
+              typeof body.concurrency === "number" && body.concurrency > 0
+                ? body.concurrency
+                : 2,
             onComplete: async (task) => {
               context.services.skillSynthesis.synthesizeFromTask(task);
             },
@@ -831,7 +930,10 @@ export function startApiServer(context: AppContext): void {
         return json({ report });
       }
 
-      if (request.method === "POST" && url.pathname.startsWith("/delegation/tasks/")) {
+      if (
+        request.method === "POST" &&
+        url.pathname.startsWith("/delegation/tasks/")
+      ) {
         const parts = url.pathname.split("/");
         const id = parts[3];
         const action = parts[4];
@@ -844,7 +946,9 @@ export function startApiServer(context: AppContext): void {
         }
 
         if (action === "note") {
-          return json({ task: context.services.delegation.addNote(id, body.note ?? "") });
+          return json({
+            task: context.services.delegation.addNote(id, body.note ?? ""),
+          });
         }
         if (action === "run") {
           return json({ task: context.services.delegation.markRunning(id) });
@@ -863,26 +967,40 @@ export function startApiServer(context: AppContext): void {
         }
         if (action === "retry") {
           return json({
-            task: context.services.delegation.requeue(id, body.note ?? "Requeued via API.", {
-              cascadeChildren: body.cascadeChildren,
-            }),
+            task: context.services.delegation.requeue(
+              id,
+              body.note ?? "Requeued via API.",
+              {
+                cascadeChildren: body.cascadeChildren,
+              },
+            ),
           });
         }
         if (action === "cancel") {
           return json({
-            task: context.services.delegation.cancel(id, body.note ?? "Cancelled via API.", {
-              cascadeChildren: body.cascadeChildren,
-            }),
+            task: context.services.delegation.cancel(
+              id,
+              body.note ?? "Cancelled via API.",
+              {
+                cascadeChildren: body.cascadeChildren,
+              },
+            ),
           });
         }
         if (action === "complete") {
-          return json({ task: context.services.delegation.complete(id, body.note) });
+          return json({
+            task: context.services.delegation.complete(id, body.note),
+          });
         }
         if (action === "fail") {
           return json({
-            task: context.services.delegation.fail(id, body.note ?? "Task failed.", {
-              cascadeChildren: body.cascadeChildren,
-            }),
+            task: context.services.delegation.fail(
+              id,
+              body.note ?? "Task failed.",
+              {
+                cascadeChildren: body.cascadeChildren,
+              },
+            ),
           });
         }
 
@@ -923,17 +1041,30 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/profiles/users") {
         const userId = url.searchParams.get("userId");
         return json({
-          profiles: userId ? [context.services.userProfiles.get(userId)] : context.services.userProfiles.list(),
+          profiles: userId
+            ? [context.services.userProfiles.get(userId)]
+            : context.services.userProfiles.list(),
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/profiles/users/note") {
-        const body = (await request.json()) as { userId?: string; note?: string; source?: string };
+      if (
+        request.method === "POST" &&
+        url.pathname === "/profiles/users/note"
+      ) {
+        const body = (await request.json()) as {
+          userId?: string;
+          note?: string;
+          source?: string;
+        };
         if (!body.userId || !body.note) {
           return json({ error: "userId and note are required" }, 400);
         }
         return json({
-          profile: context.services.userProfiles.addNote(body.userId, body.note, body.source),
+          profile: context.services.userProfiles.addNote(
+            body.userId,
+            body.note,
+            body.source,
+          ),
         });
       }
 
@@ -970,17 +1101,26 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/execution/preview") {
-        const body = (await request.json()) as { command?: string; timeoutMs?: number };
+        const body = (await request.json()) as {
+          command?: string;
+          timeoutMs?: number;
+        };
         if (!body.command) {
           return json({ error: "command is required" }, 400);
         }
         return json({
-          preview: context.services.terminal.preview(body.command, body.timeoutMs),
+          preview: context.services.terminal.preview(
+            body.command,
+            body.timeoutMs,
+          ),
         });
       }
 
       if (request.method === "POST" && url.pathname === "/settings") {
-        const body = (await request.json()) as { path: string; value: string | number | boolean };
+        const body = (await request.json()) as {
+          path: string;
+          value: string | number | boolean;
+        };
         const settings = context.services.settings.set(body.path, body.value);
         syncProviderSettings(context, settings);
         return json({
@@ -988,7 +1128,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/documents/pdf/extract") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/documents/pdf/extract"
+      ) {
         const body = (await request.json()) as {
           path?: string;
           base64?: string;
@@ -1009,12 +1152,15 @@ export function startApiServer(context: AppContext): void {
               preserveWhitespace: body.preserveWhitespace,
               cleanContent: body.cleanContent,
             })
-          : await context.services.documents.extractPdfFromBase64(body.base64 as string, {
-              startPage: body.startPage,
-              endPage: body.endPage,
-              preserveWhitespace: body.preserveWhitespace,
-              cleanContent: body.cleanContent,
-            });
+          : await context.services.documents.extractPdfFromBase64(
+              body.base64 as string,
+              {
+                startPage: body.startPage,
+                endPage: body.endPage,
+                preserveWhitespace: body.preserveWhitespace,
+                cleanContent: body.cleanContent,
+              },
+            );
 
         return json({
           text,
@@ -1064,7 +1210,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "PATCH" && url.pathname.startsWith("/cron/jobs/")) {
+      if (
+        request.method === "PATCH" &&
+        url.pathname.startsWith("/cron/jobs/")
+      ) {
         const id = url.pathname.replace("/cron/jobs/", "").trim();
         if (!id) {
           return json({ error: "cron job id is required" }, 400);
@@ -1104,7 +1253,9 @@ export function startApiServer(context: AppContext): void {
         if (!body.taskId) {
           return json({ error: "taskId is required" }, 400);
         }
-        const task = context.services.delegation.list().find((entry) => entry.id === body.taskId);
+        const task = context.services.delegation
+          .list()
+          .find((entry) => entry.id === body.taskId);
         if (!task) {
           return json({ error: "Delegation task not found" }, 404);
         }
@@ -1113,7 +1264,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/trajectories/export") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/export"
+      ) {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           limit?: number;
           sessionId?: string;
@@ -1138,7 +1292,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/trajectories/bundle") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/bundle"
+      ) {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           limit?: number;
           sessionId?: string;
@@ -1163,7 +1320,10 @@ export function startApiServer(context: AppContext): void {
         );
       }
 
-      if (request.method === "POST" && url.pathname === "/trajectories/replay") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/replay"
+      ) {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           manifestPath?: string;
           label?: string;
@@ -1171,7 +1331,9 @@ export function startApiServer(context: AppContext): void {
         };
         if (body.latest) {
           const replay = context.services.trajectories.replayLatest();
-          return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+          return replay
+            ? json({ replay })
+            : json({ error: "No trajectory bundles recorded." }, 404);
         }
         if (!body.manifestPath && !body.label) {
           return json({ error: "manifestPath or label is required" }, 400);
@@ -1179,7 +1341,11 @@ export function startApiServer(context: AppContext): void {
         const bundles = context.services.trajectories.listBundles(50);
         const manifestPath =
           body.manifestPath ??
-          bundles.find((entry) => entry.label === body.label || entry.manifestPath.endsWith(body.label ?? ""))?.manifestPath;
+          bundles.find(
+            (entry) =>
+              entry.label === body.label ||
+              entry.manifestPath.endsWith(body.label ?? ""),
+          )?.manifestPath;
         if (!manifestPath) {
           return json({ error: "Trajectory bundle not found." }, 404);
         }
@@ -1188,7 +1354,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "GET" && url.pathname === "/trajectories/bundles") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/bundles"
+      ) {
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw ? Number(limitRaw) : 20;
         return json({
@@ -1204,7 +1373,9 @@ export function startApiServer(context: AppContext): void {
         const latest = url.searchParams.get("latest") === "true";
         if (latest) {
           const replay = context.services.trajectories.replayLatest();
-          return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+          return replay
+            ? json({ replay })
+            : json({ error: "No trajectory bundles recorded." }, 404);
         }
         if (manifestPath) {
           return json({
@@ -1212,23 +1383,38 @@ export function startApiServer(context: AppContext): void {
           });
         }
         if (label) {
-          const bundle = context.services.trajectories.listBundles(50).find((entry) => entry.label === label);
+          const bundle = context.services.trajectories
+            .listBundles(50)
+            .find((entry) => entry.label === label);
           if (!bundle) {
             return json({ error: "Trajectory bundle not found." }, 404);
           }
           return json({
-            replay: context.services.trajectories.replayBundle(bundle.manifestPath),
+            replay: context.services.trajectories.replayBundle(
+              bundle.manifestPath,
+            ),
           });
         }
-        return json({ error: "manifestPath, label, or latest=true is required" }, 400);
+        return json(
+          { error: "manifestPath, label, or latest=true is required" },
+          400,
+        );
       }
 
-      if (request.method === "GET" && url.pathname === "/trajectories/replay/latest") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/replay/latest"
+      ) {
         const replay = context.services.trajectories.replayLatest();
-        return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+        return replay
+          ? json({ replay })
+          : json({ error: "No trajectory bundles recorded." }, 404);
       }
 
-      if (request.method === "POST" && url.pathname === "/trajectories/analyze") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/analyze"
+      ) {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           limit?: number;
           sessionId?: string;
@@ -1253,7 +1439,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/trajectories/evaluate") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/evaluate"
+      ) {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           limit?: number;
           sessionId?: string;
@@ -1280,7 +1469,10 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/trajectories/package") {
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/package"
+      ) {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           limit?: number;
           sessionId?: string;
@@ -1307,37 +1499,61 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
-      if (request.method === "GET" && url.pathname === "/trajectories/evaluate") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/evaluate"
+      ) {
         const manifestPath = url.searchParams.get("manifestPath");
         const label = url.searchParams.get("label");
         const latest = url.searchParams.get("latest") === "true";
         if (latest) {
-          const evaluation = await context.services.trajectories.evaluateLatest();
-          return evaluation ? json({ evaluation }) : json({ error: "No trajectory bundles recorded." }, 404);
+          const evaluation =
+            await context.services.trajectories.evaluateLatest();
+          return evaluation
+            ? json({ evaluation })
+            : json({ error: "No trajectory bundles recorded." }, 404);
         }
         if (manifestPath) {
-          return json({ evaluation: await context.services.trajectories.evaluateBundle(manifestPath) });
+          return json({
+            evaluation:
+              await context.services.trajectories.evaluateBundle(manifestPath),
+          });
         }
         if (label) {
-          const bundle = context.services.trajectories.listBundles(50).find((entry) => entry.label === label);
+          const bundle = context.services.trajectories
+            .listBundles(50)
+            .find((entry) => entry.label === label);
           if (!bundle) {
             return json({ error: "Trajectory bundle not found." }, 404);
           }
-          return json({ evaluation: await context.services.trajectories.evaluateBundle(bundle.manifestPath) });
+          return json({
+            evaluation: await context.services.trajectories.evaluateBundle(
+              bundle.manifestPath,
+            ),
+          });
         }
-        return json({ error: "manifestPath, label, or latest=true is required" }, 400);
+        return json(
+          { error: "manifestPath, label, or latest=true is required" },
+          400,
+        );
       }
 
-      if (request.method === "GET" && url.pathname === "/trajectories/package") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/package"
+      ) {
         const manifestPath = url.searchParams.get("manifestPath");
         const label = url.searchParams.get("label");
         const latest = url.searchParams.get("latest") === "true";
         if (latest) {
           const packaged = await context.services.trajectories.packageLatest();
-          return packaged ? json({ package: packaged }) : json({ error: "No trajectory bundles recorded." }, 404);
+          return packaged
+            ? json({ package: packaged })
+            : json({ error: "No trajectory bundles recorded." }, 404);
         }
         if (manifestPath) {
-          const bundle = context.services.trajectories.describeBundle(manifestPath);
+          const bundle =
+            context.services.trajectories.describeBundle(manifestPath);
           return json({
             package: await context.services.trajectories.package({
               limit: bundle.limit,
@@ -1352,7 +1568,9 @@ export function startApiServer(context: AppContext): void {
           });
         }
         if (label) {
-          const bundle = context.services.trajectories.listBundles(50).find((entry) => entry.label === label);
+          const bundle = context.services.trajectories
+            .listBundles(50)
+            .find((entry) => entry.label === label);
           if (!bundle) {
             return json({ error: "Trajectory bundle not found." }, 404);
           }
@@ -1369,7 +1587,10 @@ export function startApiServer(context: AppContext): void {
             }),
           });
         }
-        return json({ error: "manifestPath, label, or latest=true is required" }, 400);
+        return json(
+          { error: "manifestPath, label, or latest=true is required" },
+          400,
+        );
       }
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {
@@ -1397,7 +1618,10 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "tool is required" }, 400);
         }
         return json({
-          result: await context.services.mcp.invokeTool(body.tool, body.input ?? {}),
+          result: await context.services.mcp.invokeTool(
+            body.tool,
+            body.input ?? {},
+          ),
         });
       }
 
@@ -1411,7 +1635,10 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as GatewayConfig;
         saveGatewayConfig(context.config, body);
         context.services.gatewayConfig = body;
-        context.services.diagnostics = new DiagnosticsService(context.config, body);
+        context.services.diagnostics = new DiagnosticsService(
+          context.config,
+          body,
+        );
         return json({ ok: true, gateway: body });
       }
 
@@ -1475,7 +1702,9 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/gateway/history") {
         const filters = parseGatewayFilters(url);
-        return json({ history: await context.gateway.history(filters.limit, filters) });
+        return json({
+          history: await context.gateway.history(filters.limit, filters),
+        });
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/state") {
@@ -1632,21 +1861,29 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/pairing/pending") {
-        const platform = url.searchParams.get("platform") as PlatformName | null;
+        const platform = url.searchParams.get(
+          "platform",
+        ) as PlatformName | null;
         return json({
           requests: context.services.pairing.listPending(platform ?? undefined),
         });
       }
 
       if (request.method === "POST" && url.pathname === "/pairing/approve") {
-        const body = (await request.json()) as { platform: PlatformName; code: string };
+        const body = (await request.json()) as {
+          platform: PlatformName;
+          code: string;
+        };
         return json({
           approved: context.services.pairing.approve(body.platform, body.code),
         });
       }
 
       if (request.method === "POST" && url.pathname === "/pairing/deny") {
-        const body = (await request.json()) as { platform: PlatformName; code: string };
+        const body = (await request.json()) as {
+          platform: PlatformName;
+          code: string;
+        };
         return json({
           denied: context.services.pairing.deny(body.platform, body.code),
         });

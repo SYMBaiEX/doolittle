@@ -1,16 +1,29 @@
+import { randomUUID } from "node:crypto";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
-import { randomUUID } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import type {
+  DeliveredMessageRecord,
+  IncomingPlatformMessage,
+  OutboundPlatformMessage,
+  PlatformName,
+  SessionRoute,
+} from "@/types";
 import { authorizeMessage } from "./authorization";
 import {
   capabilitiesForPlatform,
   nowIso,
-  type PlatformLifecycleEvent,
   type PlatformAdapter,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
   type PlatformPresenceState,
 } from "./platforms/base";
 import { DiscordPlatformAdapter } from "./platforms/discord-adapter";
@@ -22,13 +35,6 @@ import { SlackPlatformAdapter } from "./platforms/slack-adapter";
 import { SmsPlatformAdapter } from "./platforms/sms-adapter";
 import { TelegramPlatformAdapter } from "./platforms/telegram-adapter";
 import { WhatsAppPlatformAdapter } from "./platforms/whatsapp-adapter";
-import type {
-  DeliveredMessageRecord,
-  IncomingPlatformMessage,
-  OutboundPlatformMessage,
-  PlatformName,
-  SessionRoute,
-} from "@/types";
 
 const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
   "signal",
@@ -230,7 +236,10 @@ interface GatewayStateSnapshot {
   };
   platforms: GatewayPlatformState[];
   tracesByKind: Array<{ kind: GatewayTraceRecord["kind"]; count: number }>;
-  tracesByPlatform: Array<{ platform: PlatformName | "gateway"; count: number }>;
+  tracesByPlatform: Array<{
+    platform: PlatformName | "gateway";
+    count: number;
+  }>;
   inboxByPlatform: Array<{ platform: PlatformName; count: number }>;
   outboxByPlatform: Array<{ platform: PlatformName; count: number }>;
   attachmentsByPlatform: Array<{ platform: PlatformName; count: number }>;
@@ -245,7 +254,10 @@ export class GatewayRunner {
   private readonly inboxLog: GatewayInboxRecord[] = [];
   private readonly outboxLog: GatewayOutboxRecord[] = [];
   private readonly attachmentLog: GatewayAttachmentRecord[] = [];
-  private readonly platformStates = new Map<PlatformName, GatewayPlatformState>();
+  private readonly platformStates = new Map<
+    PlatformName,
+    GatewayPlatformState
+  >();
   private readonly snapshotDir: string;
   private readonly journalDir: string;
   private readonly snapshotPath: string;
@@ -260,7 +272,10 @@ export class GatewayRunner {
     this.snapshotDir = join(this.context.config.gatewayDataDir, "snapshots");
     this.journalDir = join(this.context.config.gatewayDataDir, "journals");
     this.snapshotPath = join(this.snapshotDir, "gateway-state.json");
-    this.snapshotHistoryPath = join(this.snapshotDir, "gateway-state-history.jsonl");
+    this.snapshotHistoryPath = join(
+      this.snapshotDir,
+      "gateway-state-history.jsonl",
+    );
     this.inboxPath = join(this.journalDir, "gateway-inbox.jsonl");
     this.outboxPath = join(this.journalDir, "gateway-outbox.jsonl");
     this.attachmentsPath = join(this.journalDir, "gateway-attachments.jsonl");
@@ -270,8 +285,12 @@ export class GatewayRunner {
     this.ensureJournalFile(this.outboxPath);
     this.ensureJournalFile(this.attachmentsPath);
     this.inboxLog.push(...this.loadJournal<GatewayInboxRecord>(this.inboxPath));
-    this.outboxLog.push(...this.loadJournal<GatewayOutboxRecord>(this.outboxPath));
-    this.attachmentLog.push(...this.loadJournal<GatewayAttachmentRecord>(this.attachmentsPath));
+    this.outboxLog.push(
+      ...this.loadJournal<GatewayOutboxRecord>(this.outboxPath),
+    );
+    this.attachmentLog.push(
+      ...this.loadJournal<GatewayAttachmentRecord>(this.attachmentsPath),
+    );
   }
 
   private ensureJournalFile(pathname: string): void {
@@ -372,21 +391,32 @@ export class GatewayRunner {
     };
   }
 
-  private syncPlatformStateFromHealth(health: PlatformHealth): GatewayPlatformState {
+  private syncPlatformStateFromHealth(
+    health: PlatformHealth,
+  ): GatewayPlatformState {
     const state = this.ensurePlatformState(health.platform);
     state.status = health.status;
     state.mode = health.mode;
     state.ready = health.ready;
-    state.transportState = this.computeTransportState(health.platform, health.status, health.ready);
+    state.transportState = this.computeTransportState(
+      health.platform,
+      health.status,
+      health.ready,
+    );
     state.detail = health.detail;
     state.sendCount = health.sendCount ?? state.sendCount;
     state.lastDeliveryAt = health.lastDeliveryAt ?? state.lastDeliveryAt;
     state.lastDeliveryId = health.lastDeliveryId ?? state.lastDeliveryId;
-    state.lastOutboundRoomId = health.lastOutboundRoomId ?? state.lastOutboundRoomId;
-    state.lastOutboundUserId = health.lastOutboundUserId ?? state.lastOutboundUserId;
-    state.lastOutboundThreadId = health.lastOutboundThreadId ?? state.lastOutboundThreadId;
-    state.lastOutboundReplyToId = health.lastOutboundReplyToId ?? state.lastOutboundReplyToId;
-    state.lastOutboundMetadataKeys = health.lastOutboundMetadataKeys ?? state.lastOutboundMetadataKeys;
+    state.lastOutboundRoomId =
+      health.lastOutboundRoomId ?? state.lastOutboundRoomId;
+    state.lastOutboundUserId =
+      health.lastOutboundUserId ?? state.lastOutboundUserId;
+    state.lastOutboundThreadId =
+      health.lastOutboundThreadId ?? state.lastOutboundThreadId;
+    state.lastOutboundReplyToId =
+      health.lastOutboundReplyToId ?? state.lastOutboundReplyToId;
+    state.lastOutboundMetadataKeys =
+      health.lastOutboundMetadataKeys ?? state.lastOutboundMetadataKeys;
     state.lastReceivedAt = health.lastReceivedAt ?? state.lastReceivedAt;
     state.lastRoutedAt = health.lastRoutedAt ?? state.lastRoutedAt;
     state.lastRespondedAt = health.lastRespondedAt ?? state.lastRespondedAt;
@@ -472,15 +502,28 @@ export class GatewayRunner {
         state.heartbeatCount += 1;
         state.lastHeartbeatAt = entry.at;
         state.transportState = state.ready ? "live" : state.transportState;
-        state.presence = this.snapshotPresence("online", `${entry.platform} heartbeat`, entry.at);
+        state.presence = this.snapshotPresence(
+          "online",
+          `${entry.platform} heartbeat`,
+          entry.at,
+        );
         break;
       case "reject":
         state.rejectCount += 1;
         state.transportState = state.ready ? "degraded" : "paused";
-        state.presence = this.snapshotPresence("away", `${entry.platform} rejected or paused`, state.lastHeartbeatAt);
+        state.presence = this.snapshotPresence(
+          "away",
+          `${entry.platform} rejected or paused`,
+          state.lastHeartbeatAt,
+        );
         break;
       case "lifecycle":
-        state.transportState = state.status === "running" ? (state.ready ? "live" : "degraded") : "inactive";
+        state.transportState =
+          state.status === "running"
+            ? state.ready
+              ? "live"
+              : "degraded"
+            : "inactive";
         state.presence = this.snapshotPresence(
           state.status === "running" ? "online" : "offline",
           entry.detail,
@@ -492,7 +535,10 @@ export class GatewayRunner {
     }
   }
 
-  private async persistSnapshot(reason: string, snapshot: GatewayHistorySnapshot): Promise<void> {
+  private async persistSnapshot(
+    reason: string,
+    snapshot: GatewayHistorySnapshot,
+  ): Promise<void> {
     const persistedAt = new Date().toISOString();
     const payload = {
       persistedAt,
@@ -510,7 +556,10 @@ export class GatewayRunner {
     );
   }
 
-  private appendJournal<T extends { at: string }>(pathname: string, record: T): T {
+  private appendJournal<T extends { at: string }>(
+    pathname: string,
+    record: T,
+  ): T {
     appendFileSync(pathname, `${JSON.stringify(record)}\n`, "utf8");
     return record;
   }
@@ -527,7 +576,9 @@ export class GatewayRunner {
       return "degraded";
     }
     if (status === "idle") {
-      return LIGHTWEIGHT_WEBHOOK_PLATFORMS.has(platform) ? "booting" : "inactive";
+      return LIGHTWEIGHT_WEBHOOK_PLATFORMS.has(platform)
+        ? "booting"
+        : "inactive";
     }
     return ready ? "paused" : "inactive";
   }
@@ -558,13 +609,19 @@ export class GatewayRunner {
       metadata: Record<string, string>;
     },
   ): GatewayAttachmentRecord[] {
-    const kinds = this.splitAttachmentList(base.metadata.attachmentKinds ?? base.metadata.attachmentKind);
+    const kinds = this.splitAttachmentList(
+      base.metadata.attachmentKinds ?? base.metadata.attachmentKind,
+    );
     const names = this.splitAttachmentList(base.metadata.attachmentNames);
     const urls = this.splitAttachmentList(base.metadata.attachmentUrls);
-    const mimeTypes = this.splitAttachmentList(base.metadata.attachmentMimeTypes);
+    const mimeTypes = this.splitAttachmentList(
+      base.metadata.attachmentMimeTypes,
+    );
     const sizes = this.splitAttachmentList(base.metadata.attachmentSizes);
     const captions = this.splitAttachmentList(base.metadata.attachmentCaptions);
-    const durations = this.splitAttachmentList(base.metadata.attachmentDurationsMs);
+    const durations = this.splitAttachmentList(
+      base.metadata.attachmentDurationsMs,
+    );
     const widths = this.splitAttachmentList(base.metadata.attachmentWidths);
     const heights = this.splitAttachmentList(base.metadata.attachmentHeights);
     const count = Math.max(
@@ -576,7 +633,11 @@ export class GatewayRunner {
     );
 
     return Array.from({ length: count }).map((_, index) => {
-      const attachmentKind = kinds[index] ?? names[index] ?? base.metadata.attachmentType ?? "attachment";
+      const attachmentKind =
+        kinds[index] ??
+        names[index] ??
+        base.metadata.attachmentType ??
+        "attachment";
       const attachment: GatewayAttachmentRecord = {
         attachmentId: `${recordId}:${index + 1}`,
         recordId,
@@ -632,25 +693,39 @@ export class GatewayRunner {
       authorName: message.authorName,
       textPreview: message.text.slice(0, 280),
       attachmentCount: Number(message.metadata?.attachmentCount ?? "0") || 0,
-      attachmentKinds: this.splitAttachmentList(message.metadata?.attachmentKinds),
-      attachmentNames: this.splitAttachmentList(message.metadata?.attachmentNames),
-      attachmentUrls: this.splitAttachmentList(message.metadata?.attachmentUrls),
-      attachmentMimeTypes: this.splitAttachmentList(message.metadata?.attachmentMimeTypes),
+      attachmentKinds: this.splitAttachmentList(
+        message.metadata?.attachmentKinds,
+      ),
+      attachmentNames: this.splitAttachmentList(
+        message.metadata?.attachmentNames,
+      ),
+      attachmentUrls: this.splitAttachmentList(
+        message.metadata?.attachmentUrls,
+      ),
+      attachmentMimeTypes: this.splitAttachmentList(
+        message.metadata?.attachmentMimeTypes,
+      ),
       metadataKeys: Object.keys(message.metadata ?? {}),
       metadata: message.metadata ?? {},
       notes: notes.length > 0 ? notes : undefined,
     };
     this.inboxLog.push(record);
     this.appendJournal(this.inboxPath, record);
-    const attachments = this.extractJournalAttachments("inbox", message.platform, record.recordId, traceId, {
-      sessionId,
-      messageId: message.messageId,
-      userId: message.userId,
-      roomId: message.roomId,
-      threadId: message.threadId,
-      replyToMessageId: message.replyToMessageId,
-      metadata: message.metadata ?? {},
-    });
+    const attachments = this.extractJournalAttachments(
+      "inbox",
+      message.platform,
+      record.recordId,
+      traceId,
+      {
+        sessionId,
+        messageId: message.messageId,
+        userId: message.userId,
+        roomId: message.roomId,
+        threadId: message.threadId,
+        replyToMessageId: message.replyToMessageId,
+        metadata: message.metadata ?? {},
+      },
+    );
     for (const attachment of attachments) {
       this.attachmentLog.push(attachment);
       this.appendJournal(this.attachmentsPath, attachment);
@@ -698,24 +773,38 @@ export class GatewayRunner {
       replyToMessageId: message.replyToId,
       textPreview: message.text.slice(0, 280),
       attachmentCount: Number(message.metadata?.attachmentCount ?? "0") || 0,
-      attachmentKinds: this.splitAttachmentList(message.metadata?.attachmentKinds),
-      attachmentNames: this.splitAttachmentList(message.metadata?.attachmentNames),
-      attachmentUrls: this.splitAttachmentList(message.metadata?.attachmentUrls),
-      attachmentMimeTypes: this.splitAttachmentList(message.metadata?.attachmentMimeTypes),
+      attachmentKinds: this.splitAttachmentList(
+        message.metadata?.attachmentKinds,
+      ),
+      attachmentNames: this.splitAttachmentList(
+        message.metadata?.attachmentNames,
+      ),
+      attachmentUrls: this.splitAttachmentList(
+        message.metadata?.attachmentUrls,
+      ),
+      attachmentMimeTypes: this.splitAttachmentList(
+        message.metadata?.attachmentMimeTypes,
+      ),
       metadataKeys: Object.keys(message.metadata ?? {}),
       metadata: message.metadata ?? {},
     };
     this.outboxLog.push(record);
     this.appendJournal(this.outboxPath, record);
-    const attachments = this.extractJournalAttachments("outbox", platform, record.recordId, traceId, {
-      sessionId,
-      deliveryId: delivery.id,
-      userId: message.userId,
-      roomId: message.roomId,
-      threadId: message.threadId,
-      replyToMessageId: message.replyToId,
-      metadata: message.metadata ?? {},
-    });
+    const attachments = this.extractJournalAttachments(
+      "outbox",
+      platform,
+      record.recordId,
+      traceId,
+      {
+        sessionId,
+        deliveryId: delivery.id,
+        userId: message.userId,
+        roomId: message.roomId,
+        threadId: message.threadId,
+        replyToMessageId: message.replyToId,
+        metadata: message.metadata ?? {},
+      },
+    );
     for (const attachment of attachments) {
       this.attachmentLog.push(attachment);
       this.appendJournal(this.attachmentsPath, attachment);
@@ -740,7 +829,9 @@ export class GatewayRunner {
   }
 
   private async collectReadiness(): Promise<PlatformHealth[]> {
-    const configuredPlatforms = Object.keys(this.context.services.gatewayConfig.platforms) as PlatformName[];
+    const configuredPlatforms = Object.keys(
+      this.context.services.gatewayConfig.platforms,
+    ) as PlatformName[];
     const known = new Set(this.adapters.keys());
     const startedHealth = await Promise.all(
       Array.from(this.adapters.values()).map(async (adapter) => {
@@ -752,7 +843,8 @@ export class GatewayRunner {
     const inactiveHealth: PlatformHealth[] = configuredPlatforms
       .filter((platform) => !known.has(platform))
       .map((platform) => {
-        const mode: PlatformHealth["mode"] = platform === "telegram" ? "native" : "mock";
+        const mode: PlatformHealth["mode"] =
+          platform === "telegram" ? "native" : "mock";
         const inactive = {
           platform,
           status: "stopped" as const,
@@ -788,9 +880,12 @@ export class GatewayRunner {
       lastDeliveryId: health.lastDeliveryId ?? state.lastDeliveryId,
       lastOutboundRoomId: health.lastOutboundRoomId ?? state.lastOutboundRoomId,
       lastOutboundUserId: health.lastOutboundUserId ?? state.lastOutboundUserId,
-      lastOutboundThreadId: health.lastOutboundThreadId ?? state.lastOutboundThreadId,
-      lastOutboundReplyToId: health.lastOutboundReplyToId ?? state.lastOutboundReplyToId,
-      lastOutboundMetadataKeys: health.lastOutboundMetadataKeys ?? state.lastOutboundMetadataKeys,
+      lastOutboundThreadId:
+        health.lastOutboundThreadId ?? state.lastOutboundThreadId,
+      lastOutboundReplyToId:
+        health.lastOutboundReplyToId ?? state.lastOutboundReplyToId,
+      lastOutboundMetadataKeys:
+        health.lastOutboundMetadataKeys ?? state.lastOutboundMetadataKeys,
       lastReceivedAt: health.lastReceivedAt ?? state.lastReceivedAt,
       lastRoutedAt: health.lastRoutedAt ?? state.lastRoutedAt,
       lastRespondedAt: health.lastRespondedAt ?? state.lastRespondedAt,
@@ -815,12 +910,20 @@ export class GatewayRunner {
   ): GatewayStateSnapshot {
     const timestamp = new Date().toISOString();
     const platformSummary = readiness.map((entry) => {
-      const platformTraces = allTraces.filter((trace) => trace.platform === entry.platform);
+      const platformTraces = allTraces.filter(
+        (trace) => trace.platform === entry.platform,
+      );
       const latestTrace = platformTraces.at(-1);
       const state = this.ensurePlatformState(entry.platform);
-      const platformInbox = inbox.filter((record) => record.platform === entry.platform);
-      const platformOutbox = outbox.filter((record) => record.platform === entry.platform);
-      const platformAttachments = attachments.filter((record) => record.platform === entry.platform);
+      const platformInbox = inbox.filter(
+        (record) => record.platform === entry.platform,
+      );
+      const platformOutbox = outbox.filter(
+        (record) => record.platform === entry.platform,
+      );
+      const platformAttachments = attachments.filter(
+        (record) => record.platform === entry.platform,
+      );
       const latestInbox = platformInbox.at(-1);
       const latestOutbox = platformOutbox.at(-1);
       const latestAttachment = platformAttachments.at(-1);
@@ -849,7 +952,8 @@ export class GatewayRunner {
         lastOutboundMetadataKeys: entry.lastOutboundMetadataKeys,
         lastOutboundAt: latestOutbox?.at ?? state.lastOutboundAt,
         lastReceivedAt: entry.lastReceivedAt ?? state.lastReceivedAt,
-        lastInboundAt: latestInbox?.at ?? state.lastInboundAt ?? state.lastReceivedAt,
+        lastInboundAt:
+          latestInbox?.at ?? state.lastInboundAt ?? state.lastReceivedAt,
         lastRoutedAt: entry.lastRoutedAt ?? state.lastRoutedAt,
         lastRespondedAt: entry.lastRespondedAt ?? state.lastRespondedAt,
         lastHeartbeatAt: entry.lastHeartbeatAt ?? state.lastHeartbeatAt,
@@ -877,19 +981,22 @@ export class GatewayRunner {
       running: this.running,
       updatedAt: timestamp,
       reason,
-      heartbeatAt: this.platformStates.size > 0
-        ? Array.from(this.platformStates.values())
-            .map((state) => state.lastHeartbeatAt)
-            .filter(Boolean)
-            .at(-1)
-        : undefined,
+      heartbeatAt:
+        this.platformStates.size > 0
+          ? Array.from(this.platformStates.values())
+              .map((state) => state.lastHeartbeatAt)
+              .filter(Boolean)
+              .at(-1)
+          : undefined,
       snapshotPath: this.snapshotPath,
       historyPath: this.snapshotHistoryPath,
       totals: {
         configuredPlatforms: readiness.length,
-        activeAdapters: readiness.filter((entry) => entry.status === "running").length,
+        activeAdapters: readiness.filter((entry) => entry.status === "running")
+          .length,
         readyAdapters: readiness.filter((entry) => entry.ready).length,
-        nativeAdapters: readiness.filter((entry) => entry.mode === "native").length,
+        nativeAdapters: readiness.filter((entry) => entry.mode === "native")
+          .length,
         mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
         totalTraces: allTraces.length,
         recentTraces: traces.length,
@@ -901,13 +1008,31 @@ export class GatewayRunner {
       },
       platforms: platformSummary,
       tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
-      tracesByPlatform: this.countByPlatform(allTraces, (trace) => trace.platform),
+      tracesByPlatform: this.countByPlatform(
+        allTraces,
+        (trace) => trace.platform,
+      ),
       inboxByPlatform: this.countByPlatform(inbox, (record) => record.platform),
-      outboxByPlatform: this.countByPlatform(outbox, (record) => record.platform),
-      attachmentsByPlatform: this.countByPlatform(attachments, (record) => record.platform),
-      attachmentsByKind: this.countByString(attachments, (record) => record.kind),
-      deliveriesByPlatform: this.countByPlatform(deliveries, (delivery) => delivery.target.platform),
-      sessionsByPlatform: this.countByPlatform(sessions, (session) => session.platform),
+      outboxByPlatform: this.countByPlatform(
+        outbox,
+        (record) => record.platform,
+      ),
+      attachmentsByPlatform: this.countByPlatform(
+        attachments,
+        (record) => record.platform,
+      ),
+      attachmentsByKind: this.countByString(
+        attachments,
+        (record) => record.kind,
+      ),
+      deliveriesByPlatform: this.countByPlatform(
+        deliveries,
+        (delivery) => delivery.target.platform,
+      ),
+      sessionsByPlatform: this.countByPlatform(
+        sessions,
+        (session) => session.platform,
+      ),
     };
   }
 
@@ -917,7 +1042,9 @@ export class GatewayRunner {
     }
 
     const gatewayConfig = loadGatewayConfig(this.context.config);
-    for (const [platform, platformConfig] of Object.entries(gatewayConfig.platforms)) {
+    for (const [platform, platformConfig] of Object.entries(
+      gatewayConfig.platforms,
+    )) {
       if (!platformConfig.enabled) {
         continue;
       }
@@ -1115,13 +1242,9 @@ export class GatewayRunner {
 
     const adapter = this.adapters.get(message.platform);
     if (adapter && !adapter.canReceive()) {
-      this.recordInbox(
-        message,
-        traceId,
-        undefined,
-        "rejected",
-        [`${message.platform} transport is not ready for inbound traffic.`],
-      );
+      this.recordInbox(message, traceId, undefined, "rejected", [
+        `${message.platform} transport is not ready for inbound traffic.`,
+      ]);
       this.pushTrace({
         traceId,
         at: new Date().toISOString(),
@@ -1144,18 +1267,18 @@ export class GatewayRunner {
     }
 
     const gatewayConfig = loadGatewayConfig(this.context.config);
-    const auth = authorizeMessage(message, gatewayConfig, this.context.services.pairing);
+    const auth = authorizeMessage(
+      message,
+      gatewayConfig,
+      this.context.services.pairing,
+    );
     if (!auth.allowed) {
       const response = auth.pairingCode
         ? `Authorization required. Pairing code: ${auth.pairingCode}`
-        : auth.reason ?? "Unauthorized";
-      this.recordInbox(
-        message,
-        traceId,
-        undefined,
-        "rejected",
-        [auth.reason ?? "Authorization failed."],
-      );
+        : (auth.reason ?? "Unauthorized");
+      this.recordInbox(message, traceId, undefined, "rejected", [
+        auth.reason ?? "Authorization failed.",
+      ]);
       this.pushTrace({
         traceId,
         at: new Date().toISOString(),
@@ -1249,7 +1372,7 @@ export class GatewayRunner {
         message: message.text,
         userId: message.userId,
         roomId: session.sessionKey,
-      source: message.platform,
+        source: message.platform,
       },
       this.context,
     );
@@ -1282,7 +1405,14 @@ export class GatewayRunner {
       try {
         const delivery = await adapter.send(outbound);
         deliveryId = delivery.id;
-        this.recordOutbox(message.platform, traceId, session.sessionKey, delivery, outbound, "sent");
+        this.recordOutbox(
+          message.platform,
+          traceId,
+          session.sessionKey,
+          delivery,
+          outbound,
+          "sent",
+        );
         this.pushTrace({
           traceId,
           at: new Date().toISOString(),
@@ -1303,7 +1433,10 @@ export class GatewayRunner {
           detail: `Delivered via ${adapter.name} to ${outbound.roomId} with record ${delivery.id}.`,
         });
       } catch (error) {
-        const detail = error instanceof Error ? error.message : `Delivery via ${adapter.name} failed.`;
+        const detail =
+          error instanceof Error
+            ? error.message
+            : `Delivery via ${adapter.name} failed.`;
         this.pushTrace({
           traceId,
           at: new Date().toISOString(),
@@ -1333,18 +1466,25 @@ export class GatewayRunner {
         {
           threadId: message.threadId,
           replyToId: message.replyToMessageId,
-        metadata: message.metadata,
-      },
+          metadata: message.metadata,
+        },
       );
       deliveryId = delivery.id;
-      this.recordOutbox(message.platform, traceId, session.sessionKey, delivery, {
-        roomId: message.channelId ?? message.roomId,
-        userId: message.userId,
-        text: response,
-        threadId: message.threadId,
-        replyToId: message.replyToMessageId,
-        metadata: message.metadata,
-      }, "fallback");
+      this.recordOutbox(
+        message.platform,
+        traceId,
+        session.sessionKey,
+        delivery,
+        {
+          roomId: message.channelId ?? message.roomId,
+          userId: message.userId,
+          text: response,
+          threadId: message.threadId,
+          replyToId: message.replyToMessageId,
+          metadata: message.metadata,
+        },
+        "fallback",
+      );
       this.pushTrace({
         traceId,
         at: new Date().toISOString(),
@@ -1393,11 +1533,17 @@ export class GatewayRunner {
     return this.filteredTraces(filters).slice(-limit).reverse();
   }
 
-  async state(limit = 20, filters?: GatewayHistoryFilter): Promise<GatewayStateSnapshot> {
+  async state(
+    limit = 20,
+    filters?: GatewayHistoryFilter,
+  ): Promise<GatewayStateSnapshot> {
     return (await this.history(limit, filters)).state;
   }
 
-  async history(limit = 20, filters?: GatewayHistoryFilter): Promise<GatewayHistorySnapshot> {
+  async history(
+    limit = 20,
+    filters?: GatewayHistoryFilter,
+  ): Promise<GatewayHistorySnapshot> {
     return this.snapshotState("history", limit, filters);
   }
 
@@ -1409,7 +1555,10 @@ export class GatewayRunner {
     return this.filteredOutbox(filters).slice(-limit).reverse();
   }
 
-  attachments(limit = 20, filters?: GatewayHistoryFilter): GatewayAttachmentRecord[] {
+  attachments(
+    limit = 20,
+    filters?: GatewayHistoryFilter,
+  ): GatewayAttachmentRecord[] {
     return this.filteredAttachments(filters).slice(-limit).reverse();
   }
 
@@ -1423,7 +1572,9 @@ export class GatewayRunner {
     const traces = allTraces.slice(-limit).reverse();
     const inbox = this.filteredInbox(filters).slice(-limit).reverse();
     const outbox = this.filteredOutbox(filters).slice(-limit).reverse();
-    const attachments = this.filteredAttachments(filters).slice(-limit).reverse();
+    const attachments = this.filteredAttachments(filters)
+      .slice(-limit)
+      .reverse();
     const deliveries = this.recentDeliveries(limit, filters?.platform);
     const sessions = this.recentSessions(limit, filters?.platform);
     const state = this.buildStateSnapshot(
@@ -1482,7 +1633,9 @@ export class GatewayRunner {
     });
   }
 
-  private filteredOutbox(filters?: GatewayHistoryFilter): GatewayOutboxRecord[] {
+  private filteredOutbox(
+    filters?: GatewayHistoryFilter,
+  ): GatewayOutboxRecord[] {
     return this.outboxLog.filter((record) => {
       if (filters?.platform && record.platform !== filters.platform) {
         return false;
@@ -1494,7 +1647,9 @@ export class GatewayRunner {
     });
   }
 
-  private filteredAttachments(filters?: GatewayHistoryFilter): GatewayAttachmentRecord[] {
+  private filteredAttachments(
+    filters?: GatewayHistoryFilter,
+  ): GatewayAttachmentRecord[] {
     return this.attachmentLog.filter((record) => {
       if (filters?.platform && record.platform !== filters.platform) {
         return false;
@@ -1506,9 +1661,16 @@ export class GatewayRunner {
     });
   }
 
-  private recentDeliveries(limit = 20, platform?: PlatformName): DeliveredMessageRecord[] {
-    const records = this.context.services.delivery.recent(Math.max(limit * 4, 50));
-    const filtered = platform ? records.filter((record) => record.target.platform === platform) : records;
+  private recentDeliveries(
+    limit = 20,
+    platform?: PlatformName,
+  ): DeliveredMessageRecord[] {
+    const records = this.context.services.delivery.recent(
+      Math.max(limit * 4, 50),
+    );
+    const filtered = platform
+      ? records.filter((record) => record.target.platform === platform)
+      : records;
     return filtered.slice(0, limit);
   }
 
@@ -1517,7 +1679,9 @@ export class GatewayRunner {
       .list()
       .slice()
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const filtered = platform ? sessions.filter((session) => session.platform === platform) : sessions;
+    const filtered = platform
+      ? sessions.filter((session) => session.platform === platform)
+      : sessions;
     return filtered.slice(0, limit);
   }
 
@@ -1539,7 +1703,10 @@ export class GatewayRunner {
     records: T[],
     selector: (record: T) => GatewayTraceRecord["kind"],
   ): Array<{ kind: GatewayTraceRecord["kind"]; count: number }> {
-    const counts = new Map<GatewayTraceRecord["kind"], { kind: GatewayTraceRecord["kind"]; count: number }>();
+    const counts = new Map<
+      GatewayTraceRecord["kind"],
+      { kind: GatewayTraceRecord["kind"]; count: number }
+    >();
     for (const record of records) {
       const key = selector(record);
       const existing = counts.get(key) ?? { kind: key, count: 0 };
@@ -1564,7 +1731,8 @@ export class GatewayRunner {
   }
 
   private describeInactivePlatform(platform: PlatformName): string {
-    const platformConfig = this.context.services.gatewayConfig.platforms[platform];
+    const platformConfig =
+      this.context.services.gatewayConfig.platforms[platform];
     const capabilities = capabilitiesForPlatform(platform);
     if (!platformConfig.enabled) {
       if (LIGHTWEIGHT_WEBHOOK_PLATFORMS.has(platform)) {

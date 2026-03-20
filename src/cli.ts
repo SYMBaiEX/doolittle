@@ -1,5 +1,5 @@
-import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 
@@ -12,7 +12,9 @@ export async function startCli(context: AppContext): Promise<void> {
   });
 
   output.write(`${context.config.agentName} CLI\n`);
-  output.write('Type "exit" to quit. Try /status, /doctor, /setup checklist, /setup summary, /update preview, /migrate scan, /model status, /execution status, /tools list, /delegate list, /runtime status, /skills list, /memory list memory, /workspace tree, /workspace read <path>, /terminal run <command>, /repo status, /personality list, /context files, /pdf extract <path>, /media analyze <path>, /media transcribe <path>, /media speak <text>, /media generate <prompt>, /trajectories evaluate, /trajectories package, /gateway status, or /pairing pending.\n\n');
+  output.write(
+    'Type "exit" to quit. Try /status, /doctor, /setup checklist, /setup summary, /update preview, /migrate scan, /model status, /execution status, /tools list, /delegate list, /runtime status, /skills list, /memory list memory, /workspace tree, /workspace read <path>, /terminal run <command>, /repo status, /personality list, /context files, /pdf extract <path>, /media analyze <path>, /media transcribe <path>, /media speak <text>, /media generate <prompt>, /trajectories evaluate, /trajectories package, /gateway status, or /pairing pending.\n\n',
+  );
 
   while (true) {
     let line = "";
@@ -74,7 +76,9 @@ export async function startCli(context: AppContext): Promise<void> {
         continue;
       }
       if (line === "/gateway config") {
-        output.write(`\n${JSON.stringify(context.services.gatewayConfig, null, 2)}\n\n`);
+        output.write(
+          `\n${JSON.stringify(context.services.gatewayConfig, null, 2)}\n\n`,
+        );
         continue;
       }
       if (line.startsWith("/pdf extract ")) {
@@ -114,7 +118,10 @@ export async function startCli(context: AppContext): Promise<void> {
       }
       if (line.startsWith("/pairing approve ")) {
         const [, , platform, code] = line.split(/\s+/u);
-        const approved = context.services.pairing.approve(platform as never, code);
+        const approved = context.services.pairing.approve(
+          platform as never,
+          code,
+        );
         output.write(`\n${JSON.stringify(approved, null, 2)}\n\n`);
         continue;
       }
@@ -125,7 +132,9 @@ export async function startCli(context: AppContext): Promise<void> {
         continue;
       }
       if (line === "/hooks list") {
-        output.write(`\n${JSON.stringify(context.services.hooks.list(), null, 2)}\n\n`);
+        output.write(
+          `\n${JSON.stringify(context.services.hooks.list(), null, 2)}\n\n`,
+        );
         continue;
       }
       if (line.startsWith("/hooks add ")) {
@@ -170,7 +179,9 @@ export async function startCli(context: AppContext): Promise<void> {
       );
       output.write(`\n${response}\n\n`);
     } catch (error) {
-      output.write(`\nError: ${error instanceof Error ? error.message : String(error)}\n\n`);
+      output.write(
+        `\nError: ${error instanceof Error ? error.message : String(error)}\n\n`,
+      );
     }
   }
 

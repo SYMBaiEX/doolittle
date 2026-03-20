@@ -1,22 +1,25 @@
+import { randomUUID } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   ChannelType,
   createMessageMemory,
   stringToUuid,
   type UUID,
 } from "@elizaos/core";
-import { randomUUID } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import type { AppContext } from "./bootstrap";
+import type { RuntimeSettings } from "@/services/settings-service";
 import type {
   ChatTurnRequest,
   CronJobRuntimeOverrides,
   MemoryTarget,
   PlatformName,
 } from "@/types";
-import type { RuntimeSettings } from "@/services/settings-service";
+import type { AppContext } from "./bootstrap";
 
-export type AgentExecutionContext = Pick<AppContext, "config" | "services" | "runtime"> & {
+export type AgentExecutionContext = Pick<
+  AppContext,
+  "config" | "services" | "runtime"
+> & {
   gateway?: AppContext["gateway"];
 };
 
@@ -65,7 +68,12 @@ function parseTrajectoryArgs(raw: string): {
       options.purpose = token.replace("purpose:", "").trim();
     } else if (token.startsWith("mode:")) {
       const mode = token.replace("mode:", "").trim();
-      if (mode === "dataset" || mode === "research" || mode === "evaluation" || mode === "rl") {
+      if (
+        mode === "dataset" ||
+        mode === "research" ||
+        mode === "evaluation" ||
+        mode === "rl"
+      ) {
         options.mode = mode;
       }
     } else if (token.startsWith("tags:") || token.startsWith("tag:")) {
@@ -183,18 +191,21 @@ function parseCronSegments(raw: string): {
   }
 
   const [schedule, ...rawOptions] = segments;
-  const options = rawOptions.reduce<Record<string, string>>((accumulator, segment) => {
-    const separator = segment.indexOf(":");
-    if (separator === -1) {
+  const options = rawOptions.reduce<Record<string, string>>(
+    (accumulator, segment) => {
+      const separator = segment.indexOf(":");
+      if (separator === -1) {
+        return accumulator;
+      }
+      const key = segment.slice(0, separator).trim().toLowerCase();
+      const value = segment.slice(separator + 1).trim();
+      if (key && value) {
+        accumulator[key] = value;
+      }
       return accumulator;
-    }
-    const key = segment.slice(0, separator).trim().toLowerCase();
-    const value = segment.slice(separator + 1).trim();
-    if (key && value) {
-      accumulator[key] = value;
-    }
-    return accumulator;
-  }, {});
+    },
+    {},
+  );
 
   return {
     schedule,
@@ -273,18 +284,21 @@ function parseDelegationSegments(raw: string): {
   }
 
   const [head, ...rawOptions] = segments;
-  const options = rawOptions.reduce<Record<string, string>>((accumulator, segment) => {
-    const separator = segment.indexOf(":");
-    if (separator === -1) {
+  const options = rawOptions.reduce<Record<string, string>>(
+    (accumulator, segment) => {
+      const separator = segment.indexOf(":");
+      if (separator === -1) {
+        return accumulator;
+      }
+      const key = segment.slice(0, separator).trim().toLowerCase();
+      const value = segment.slice(separator + 1).trim();
+      if (key && value) {
+        accumulator[key] = value;
+      }
       return accumulator;
-    }
-    const key = segment.slice(0, separator).trim().toLowerCase();
-    const value = segment.slice(separator + 1).trim();
-    if (key && value) {
-      accumulator[key] = value;
-    }
-    return accumulator;
-  }, {});
+    },
+    {},
+  );
 
   return {
     head,
@@ -312,18 +326,21 @@ function parseDelegationSpawnSegments(raw: string): {
   }
 
   const [parentId, ...rawOptions] = segments;
-  const options = rawOptions.reduce<Record<string, string>>((accumulator, segment) => {
-    const separator = segment.indexOf(":");
-    if (separator === -1) {
+  const options = rawOptions.reduce<Record<string, string>>(
+    (accumulator, segment) => {
+      const separator = segment.indexOf(":");
+      if (separator === -1) {
+        return accumulator;
+      }
+      const key = segment.slice(0, separator).trim().toLowerCase();
+      const value = segment.slice(separator + 1).trim();
+      if (key && value) {
+        accumulator[key] = value;
+      }
       return accumulator;
-    }
-    const key = segment.slice(0, separator).trim().toLowerCase();
-    const value = segment.slice(separator + 1).trim();
-    if (key && value) {
-      accumulator[key] = value;
-    }
-    return accumulator;
-  }, {});
+    },
+    {},
+  );
 
   return {
     parentId,
@@ -332,18 +349,22 @@ function parseDelegationSpawnSegments(raw: string): {
   };
 }
 
-function parseDelegationMetadata(value?: string): Record<string, string> | undefined {
+function parseDelegationMetadata(
+  value?: string,
+): Record<string, string> | undefined {
   if (!value) {
     return undefined;
   }
 
-  const metadata = value.split(",").reduce<Record<string, string>>((accumulator, pair) => {
-    const [rawKey, rawValue] = pair.split("=").map((part) => part.trim());
-    if (rawKey && rawValue) {
-      accumulator[rawKey] = rawValue;
-    }
-    return accumulator;
-  }, {});
+  const metadata = value
+    .split(",")
+    .reduce<Record<string, string>>((accumulator, pair) => {
+      const [rawKey, rawValue] = pair.split("=").map((part) => part.trim());
+      if (rawKey && rawValue) {
+        accumulator[rawKey] = rawValue;
+      }
+      return accumulator;
+    }, {});
 
   return Object.keys(metadata).length ? metadata : undefined;
 }
@@ -413,12 +434,18 @@ function parseDelegationFilter(raw: string): {
       continue;
     }
     if (token.startsWith("parent:") || token.startsWith("parentTaskId:")) {
-      options.parentTaskId = token.replace(/^(parent|parentTaskId):/u, "").trim();
+      options.parentTaskId = token
+        .replace(/^(parent|parentTaskId):/u, "")
+        .trim();
       continue;
     }
     if (token.startsWith("status:")) {
       const status = token.replace("status:", "").trim();
-      if (["pending", "running", "completed", "failed", "cancelled"].includes(status)) {
+      if (
+        ["pending", "running", "completed", "failed", "cancelled"].includes(
+          status,
+        )
+      ) {
         options.status = status as NonNullable<typeof options.status>;
       }
       continue;
@@ -431,7 +458,11 @@ function parseDelegationFilter(raw: string): {
     }
   }
 
-  if (!options.concurrency && !Number.isNaN(Number(raw.trim())) && Number(raw.trim()) > 0) {
+  if (
+    !options.concurrency &&
+    !Number.isNaN(Number(raw.trim())) &&
+    Number(raw.trim()) > 0
+  ) {
     options.concurrency = Number(raw.trim());
     options.limit = Number(raw.trim());
   }
@@ -496,7 +527,9 @@ export async function runDelegationTaskInWorker(
   options?: { assumeRunning?: boolean },
 ): Promise<ReturnType<AgentExecutionContext["services"]["delegation"]["get"]>> {
   const task = context.services.delegation.get(taskId);
-  const { inputPath, outputPath } = context.services.delegation.getWorkerPaths(task.id);
+  const { inputPath, outputPath } = context.services.delegation.getWorkerPaths(
+    task.id,
+  );
   writeFileSync(
     inputPath,
     JSON.stringify(
@@ -564,7 +597,8 @@ export async function runDelegationTaskInWorker(
 
   const failedTask = context.services.delegation.fail(
     task.id,
-    parsed.error ?? (stderr.trim() || `Delegated worker failed with exit code ${exitCode}.`),
+    parsed.error ??
+      (stderr.trim() || `Delegated worker failed with exit code ${exitCode}.`),
   );
   context.services.delegation.addNote(
     task.id,
@@ -605,8 +639,14 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/memory")) {
     const target: MemoryTarget =
-      trimmed.includes(" user ") || trimmed.endsWith(" user") ? "user" : "memory";
-    if (trimmed === "/memory" || trimmed === "/memory list" || trimmed === `/memory list ${target}`) {
+      trimmed.includes(" user ") || trimmed.endsWith(" user")
+        ? "user"
+        : "memory";
+    if (
+      trimmed === "/memory" ||
+      trimmed === "/memory list" ||
+      trimmed === `/memory list ${target}`
+    ) {
       return context.services.memory.renderSnapshot(target);
     }
   }
@@ -632,13 +672,19 @@ async function buildCommandResponse(
     if (!note) {
       return "Usage: /user note <text>";
     }
-    return JSON.stringify(context.services.userProfiles.addNote(input.userId, note, input.source), null, 2);
+    return JSON.stringify(
+      context.services.userProfiles.addNote(input.userId, note, input.source),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/skills" || trimmed === "/skills list") {
     const skills = context.services.skills.list();
     return skills.length
-      ? skills.map((skill) => `- ${skill.slug}: ${skill.description}`).join("\n")
+      ? skills
+          .map((skill) => `- ${skill.slug}: ${skill.description}`)
+          .join("\n")
       : "No skills found.";
   }
 
@@ -660,7 +706,9 @@ async function buildCommandResponse(
       return "Usage: /skills generated show <slug>";
     }
     return JSON.stringify(
-      context.services.skillSynthesis.getGeneratedSkill(slug) ?? { error: `Generated skill not found: ${slug}` },
+      context.services.skillSynthesis.getGeneratedSkill(slug) ?? {
+        error: `Generated skill not found: ${slug}`,
+      },
       null,
       2,
     );
@@ -709,7 +757,11 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/session summary") {
-    return JSON.stringify(context.services.sessions.summarize(sessionKey), null, 2);
+    return JSON.stringify(
+      context.services.sessions.summarize(sessionKey),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/session summary ")) {
@@ -717,7 +769,11 @@ async function buildCommandResponse(
     if (!sessionId) {
       return "Usage: /session summary <session-id>";
     }
-    return JSON.stringify(context.services.sessions.summarize(sessionId), null, 2);
+    return JSON.stringify(
+      context.services.sessions.summarize(sessionId),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/cron" || trimmed === "/cron list") {
@@ -765,7 +821,9 @@ async function buildCommandResponse(
   }
 
   if (trimmed.startsWith("/cron show ")) {
-    const job = context.services.cron.get(trimmed.replace("/cron show ", "").trim());
+    const job = context.services.cron.get(
+      trimmed.replace("/cron show ", "").trim(),
+    );
     if (!job) {
       return "Cron job not found.";
     }
@@ -797,17 +855,23 @@ async function buildCommandResponse(
   }
 
   if (trimmed.startsWith("/cron pause ")) {
-    const job = context.services.cron.pause(trimmed.replace("/cron pause ", "").trim());
+    const job = context.services.cron.pause(
+      trimmed.replace("/cron pause ", "").trim(),
+    );
     return `Paused ${job.id}.`;
   }
 
   if (trimmed.startsWith("/cron resume ")) {
-    const job = context.services.cron.resume(trimmed.replace("/cron resume ", "").trim());
+    const job = context.services.cron.resume(
+      trimmed.replace("/cron resume ", "").trim(),
+    );
     return `Resumed ${job.id}; next run ${job.nextRunAt ?? "n/a"}.`;
   }
 
   if (trimmed.startsWith("/cron run ")) {
-    const job = context.services.cron.runNow(trimmed.replace("/cron run ", "").trim());
+    const job = context.services.cron.runNow(
+      trimmed.replace("/cron run ", "").trim(),
+    );
     return `Marked ${job.id} to run immediately.`;
   }
 
@@ -853,7 +917,10 @@ async function buildCommandResponse(
     const results = context.services.workspace.search(query, 20);
     return results.length
       ? results
-          .map((result) => `${result.path}\n${result.matches.map((line) => `  ${line}`).join("\n")}`)
+          .map(
+            (result) =>
+              `${result.path}\n${result.matches.map((line) => `  ${line}`).join("\n")}`,
+          )
           .join("\n\n")
       : "No workspace matches found.";
   }
@@ -893,22 +960,22 @@ async function buildCommandResponse(
     }
     const health = await context.gateway.health();
     return health
-      .map(
-        (entry) => {
-          const lifecycle = [
-            entry.startedAt ? `started=${entry.startedAt}` : undefined,
-            entry.stoppedAt ? `stopped=${entry.stoppedAt}` : undefined,
-            entry.lastSendAt ? `lastSend=${entry.lastSendAt}` : undefined,
-            entry.sendCount !== undefined ? `sends=${entry.sendCount}` : undefined,
-            entry.lastError ? `error=${entry.lastError}` : undefined,
-            `events=${entry.events.length}`,
-            entry.events[0] ? `lastEvent=${entry.events[0].kind}` : undefined,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
-        },
-      )
+      .map((entry) => {
+        const lifecycle = [
+          entry.startedAt ? `started=${entry.startedAt}` : undefined,
+          entry.stoppedAt ? `stopped=${entry.stoppedAt}` : undefined,
+          entry.lastSendAt ? `lastSend=${entry.lastSendAt}` : undefined,
+          entry.sendCount !== undefined
+            ? `sends=${entry.sendCount}`
+            : undefined,
+          entry.lastError ? `error=${entry.lastError}` : undefined,
+          `events=${entry.events.length}`,
+          entry.events[0] ? `lastEvent=${entry.events[0].kind}` : undefined,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
+      })
       .join("\n");
   }
 
@@ -916,15 +983,23 @@ async function buildCommandResponse(
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const filters = parseGatewayFilters(trimmed.replace("/gateway state", "").trim());
-    return JSON.stringify(await context.gateway.state(filters.limit ?? 20, filters), null, 2);
+    const filters = parseGatewayFilters(
+      trimmed.replace("/gateway state", "").trim(),
+    );
+    return JSON.stringify(
+      await context.gateway.state(filters.limit ?? 20, filters),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/gateway trace" || trimmed.startsWith("/gateway trace ")) {
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const filters = parseGatewayFilters(trimmed.replace("/gateway trace", "").trim());
+    const filters = parseGatewayFilters(
+      trimmed.replace("/gateway trace", "").trim(),
+    );
     const traces = context.gateway.trace(filters.limit ?? 20, filters);
     return traces.length
       ? traces
@@ -936,11 +1011,16 @@ async function buildCommandResponse(
       : "No gateway traces recorded.";
   }
 
-  if (trimmed === "/gateway deliveries" || trimmed.startsWith("/gateway deliveries ")) {
+  if (
+    trimmed === "/gateway deliveries" ||
+    trimmed.startsWith("/gateway deliveries ")
+  ) {
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const filters = parseGatewayFilters(trimmed.replace("/gateway deliveries", "").trim());
+    const filters = parseGatewayFilters(
+      trimmed.replace("/gateway deliveries", "").trim(),
+    );
     const history = await context.gateway.history(filters.limit ?? 20, filters);
     const deliveries = history.deliveries;
     return deliveries.length
@@ -953,11 +1033,16 @@ async function buildCommandResponse(
       : "No delivery records found.";
   }
 
-  if (trimmed === "/gateway history" || trimmed.startsWith("/gateway history ")) {
+  if (
+    trimmed === "/gateway history" ||
+    trimmed.startsWith("/gateway history ")
+  ) {
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const filters = parseGatewayFilters(trimmed.replace("/gateway history", "").trim());
+    const filters = parseGatewayFilters(
+      trimmed.replace("/gateway history", "").trim(),
+    );
     const history = await context.gateway.history(filters.limit ?? 20, filters);
     return JSON.stringify(history, null, 2);
   }
@@ -982,14 +1067,18 @@ async function buildCommandResponse(
   if (trimmed === "/execution backends") {
     const health = await context.services.terminal.health();
     return health
-      .map(
-        (entry) => {
-          const passCount = entry.checks.filter((check) => check.status === "pass").length;
-          const warnCount = entry.checks.filter((check) => check.status === "warn").length;
-          const failCount = entry.checks.filter((check) => check.status === "fail").length;
-          return `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms checks=${passCount}/${entry.checks.length} pass ${warnCount} warn ${failCount} fail bootstrap=${entry.bootstrap.length} :: ${entry.detail}`;
-        },
-      )
+      .map((entry) => {
+        const passCount = entry.checks.filter(
+          (check) => check.status === "pass",
+        ).length;
+        const warnCount = entry.checks.filter(
+          (check) => check.status === "warn",
+        ).length;
+        const failCount = entry.checks.filter(
+          (check) => check.status === "fail",
+        ).length;
+        return `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms checks=${passCount}/${entry.checks.length} pass ${warnCount} warn ${failCount} fail bootstrap=${entry.bootstrap.length} :: ${entry.detail}`;
+      })
       .join("\n");
   }
 
@@ -1057,7 +1146,10 @@ async function buildCommandResponse(
       repositoryAvailable: context.services.repository.isRepository(),
     });
     return checks
-      .map((check) => `[${check.status.toUpperCase()}] ${check.summary}: ${check.detail}`)
+      .map(
+        (check) =>
+          `[${check.status.toUpperCase()}] ${check.summary}: ${check.detail}`,
+      )
       .join("\n");
   }
 
@@ -1067,15 +1159,31 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/setup summary") {
-    return JSON.stringify(await context.services.operator.setupSummary(), null, 2);
+    return JSON.stringify(
+      await context.services.operator.setupSummary(),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/update" || trimmed === "/update preview") {
-    return JSON.stringify(await context.services.operator.updatePreview(), null, 2);
+    return JSON.stringify(
+      await context.services.operator.updatePreview(),
+      null,
+      2,
+    );
   }
 
-  if (trimmed === "/migrate" || trimmed === "/migrate scan" || trimmed === "/migration scan") {
-    return JSON.stringify(context.services.operator.migrationSources(), null, 2);
+  if (
+    trimmed === "/migrate" ||
+    trimmed === "/migrate scan" ||
+    trimmed === "/migration scan"
+  ) {
+    return JSON.stringify(
+      context.services.operator.migrationSources(),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/migrate inspect ")) {
@@ -1083,12 +1191,18 @@ async function buildCommandResponse(
     if (!sourcePath) {
       return "Usage: /migrate inspect <path>";
     }
-    return JSON.stringify(context.services.operator.inspectMigrationSource(sourcePath), null, 2);
+    return JSON.stringify(
+      context.services.operator.inspectMigrationSource(sourcePath),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/migrate apply ")) {
     const payload = trimmed.replace("/migrate apply ", "");
-    const [sourcePath, rawFlag] = payload.split("::").map((part) => part.trim());
+    const [sourcePath, rawFlag] = payload
+      .split("::")
+      .map((part) => part.trim());
     if (!sourcePath) {
       return "Usage: /migrate apply <path> :: overwrite=true";
     }
@@ -1172,7 +1286,12 @@ async function buildCommandResponse(
   if (trimmed === "/tools transports") {
     const summary = context.services.tools.summary();
     return summary.transports.length
-      ? summary.transports.map((entry) => `- ${entry.transport}: enabled=${entry.enabled}/${entry.total}`).join("\n")
+      ? summary.transports
+          .map(
+            (entry) =>
+              `- ${entry.transport}: enabled=${entry.enabled}/${entry.total}`,
+          )
+          .join("\n")
       : "No transport metadata available.";
   }
 
@@ -1181,7 +1300,11 @@ async function buildCommandResponse(
     if (!id) {
       return "Usage: /tools show <tool-id>";
     }
-    return JSON.stringify(context.services.tools.get(id) ?? { error: `Tool not found: ${id}` }, null, 2);
+    return JSON.stringify(
+      context.services.tools.get(id) ?? { error: `Tool not found: ${id}` },
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/tools category ")) {
@@ -1192,7 +1315,10 @@ async function buildCommandResponse(
     const tools = context.services.tools.byCategory(category);
     return tools.length
       ? tools
-          .map((tool) => `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.description}`)
+          .map(
+            (tool) =>
+              `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.description}`,
+          )
           .join("\n")
       : `No tools found for category: ${category}`;
   }
@@ -1214,7 +1340,11 @@ async function buildCommandResponse(
     if (!query) {
       return "Usage: /mcp cached search <query>";
     }
-    return JSON.stringify(context.services.mcp.searchCachedTools(query), null, 2);
+    return JSON.stringify(
+      context.services.mcp.searchCachedTools(query),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/mcp cached describe") {
@@ -1224,7 +1354,9 @@ async function buildCommandResponse(
   if (trimmed.startsWith("/mcp cached describe ")) {
     const raw = trimmed.replace("/mcp cached describe ", "").trim();
     const limit = Number(raw);
-    return context.services.mcp.describeCachedTools(Number.isFinite(limit) && limit > 0 ? limit : 20);
+    return context.services.mcp.describeCachedTools(
+      Number.isFinite(limit) && limit > 0 ? limit : 20,
+    );
   }
 
   if (trimmed.startsWith("/mcp describe ")) {
@@ -1246,8 +1378,14 @@ async function buildCommandResponse(
     if (!toolName) {
       return "Usage: /mcp call <toolName> :: <json-input>";
     }
-    const parsedInput = inputRaw ? JSON.parse(inputRaw) as Record<string, unknown> : {};
-    return JSON.stringify(await context.services.mcp.invokeTool(toolName, parsedInput), null, 2);
+    const parsedInput = inputRaw
+      ? (JSON.parse(inputRaw) as Record<string, unknown>)
+      : {};
+    return JSON.stringify(
+      await context.services.mcp.invokeTool(toolName, parsedInput),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/web fetch ")) {
@@ -1307,7 +1445,11 @@ async function buildCommandResponse(
     if (!leftUrl || !rightUrl) {
       return "Usage: /browser compare <left-url> :: <right-url>";
     }
-    return JSON.stringify(await context.services.web.compare(leftUrl, rightUrl), null, 2);
+    return JSON.stringify(
+      await context.services.web.compare(leftUrl, rightUrl),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/browser compare analyze ")) {
@@ -1316,7 +1458,10 @@ async function buildCommandResponse(
     if (!leftUrl || !rightUrl) {
       return "Usage: /browser compare analyze <left-url> :: <right-url>";
     }
-    const analysis = await context.services.web.analyzeComparison(leftUrl, rightUrl);
+    const analysis = await context.services.web.analyzeComparison(
+      leftUrl,
+      rightUrl,
+    );
     const response = await runModelAnalysisTurn(
       context,
       analysis.prompt,
@@ -1365,7 +1510,11 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media analyze <path>";
     }
-    return JSON.stringify(await context.services.media.analyzeWithModel(path), null, 2);
+    return JSON.stringify(
+      await context.services.media.analyzeWithModel(path),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/media transcribe ")) {
@@ -1373,7 +1522,11 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media transcribe <path>";
     }
-    return JSON.stringify(await context.services.media.transcribeWithModel(path), null, 2);
+    return JSON.stringify(
+      await context.services.media.transcribeWithModel(path),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/media speak ")) {
@@ -1381,7 +1534,11 @@ async function buildCommandResponse(
     if (!text) {
       return "Usage: /media speak <text>";
     }
-    return JSON.stringify(await context.services.media.speakWithModel(text), null, 2);
+    return JSON.stringify(
+      await context.services.media.speakWithModel(text),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/media voice ")) {
@@ -1389,7 +1546,11 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media voice <path>";
     }
-    return JSON.stringify(await context.services.media.voiceWithModel(path), null, 2);
+    return JSON.stringify(
+      await context.services.media.voiceWithModel(path),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/media vision ")) {
@@ -1397,7 +1558,11 @@ async function buildCommandResponse(
     if (!path) {
       return "Usage: /media vision <path>";
     }
-    return JSON.stringify(await context.services.media.visionWithModel(path), null, 2);
+    return JSON.stringify(
+      await context.services.media.visionWithModel(path),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/media generate ")) {
@@ -1405,11 +1570,22 @@ async function buildCommandResponse(
     if (!prompt) {
       return "Usage: /media generate <prompt>";
     }
-    return JSON.stringify(await context.services.media.generateImage(prompt), null, 2);
+    return JSON.stringify(
+      await context.services.media.generateImage(prompt),
+      null,
+      2,
+    );
   }
 
-  if (trimmed === "/delegate" || trimmed === "/delegate list" || trimmed.startsWith("/delegate list ")) {
-    const raw = trimmed === "/delegate" || trimmed === "/delegate list" ? "" : trimmed.replace("/delegate list", "").trim();
+  if (
+    trimmed === "/delegate" ||
+    trimmed === "/delegate list" ||
+    trimmed.startsWith("/delegate list ")
+  ) {
+    const raw =
+      trimmed === "/delegate" || trimmed === "/delegate list"
+        ? ""
+        : trimmed.replace("/delegate list", "").trim();
     const filters = raw ? parseDelegationFilter(raw) : {};
     const tasks = context.services.delegation
       .list({
@@ -1437,7 +1613,10 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/delegate queue" || trimmed.startsWith("/delegate queue ")) {
-    const raw = trimmed === "/delegate queue" ? "" : trimmed.replace("/delegate queue", "").trim();
+    const raw =
+      trimmed === "/delegate queue"
+        ? ""
+        : trimmed.replace("/delegate queue", "").trim();
     const filters = raw ? parseDelegationFilter(raw) : {};
     const tasks = context.services.delegation
       .pending({
@@ -1516,19 +1695,27 @@ async function buildCommandResponse(
     return JSON.stringify(context.services.delegation.tree(id), null, 2);
   }
 
-  if (trimmed === "/delegate supervise" || trimmed.startsWith("/delegate supervise ")) {
+  if (
+    trimmed === "/delegate supervise" ||
+    trimmed.startsWith("/delegate supervise ")
+  ) {
     const raw = trimmed.replace("/delegate supervise", "").trim();
     const parsed = parseDelegationFilter(raw);
     const report = await context.services.delegation.superviseQueued(
       async (task) => {
-        const completedTask = await runDelegationTaskInWorker(context, task.id, {
-          assumeRunning: true,
-        });
+        const completedTask = await runDelegationTaskInWorker(
+          context,
+          task.id,
+          {
+            assumeRunning: true,
+          },
+        );
         return completedTask.notes.at(-1) ?? "Delegated worker completed.";
       },
       {
         concurrency:
-          Number.isFinite(parsed.concurrency) && (parsed.concurrency as number) > 0
+          Number.isFinite(parsed.concurrency) &&
+          (parsed.concurrency as number) > 0
             ? (parsed.concurrency as number)
             : 2,
         filter: {
@@ -1544,7 +1731,10 @@ async function buildCommandResponse(
           context.services.skillSynthesis.synthesizeFromTask(task);
         },
         onError: async (task, error) => {
-          context.services.delegation.addNote(task.id, `system: supervision error ${error}`);
+          context.services.delegation.addNote(
+            task.id,
+            `system: supervision error ${error}`,
+          );
         },
       },
     );
@@ -1569,8 +1759,12 @@ async function buildCommandResponse(
           ? parsed.options.priority
           : "normal",
       tags: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
-      labels: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
-      metadata: parseDelegationMetadata(parsed.options.metadata ?? parsed.options.meta),
+      labels: parseDelegationLabels(
+        parsed.options.labels ?? parsed.options.tags,
+      ),
+      metadata: parseDelegationMetadata(
+        parsed.options.metadata ?? parsed.options.meta,
+      ),
       executionMode: "delegated",
     });
     return JSON.stringify(task, null, 2);
@@ -1594,8 +1788,12 @@ async function buildCommandResponse(
           ? parsed.options.priority
           : undefined,
       tags: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
-      labels: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
-      metadata: parseDelegationMetadata(parsed.options.metadata ?? parsed.options.meta),
+      labels: parseDelegationLabels(
+        parsed.options.labels ?? parsed.options.tags,
+      ),
+      metadata: parseDelegationMetadata(
+        parsed.options.metadata ?? parsed.options.meta,
+      ),
       executionMode: "delegated",
     });
     return JSON.stringify(child, null, 2);
@@ -1607,7 +1805,11 @@ async function buildCommandResponse(
     if (!id || !note) {
       return "Usage: /delegate note <id> :: <note>";
     }
-    return JSON.stringify(context.services.delegation.addNote(id, note), null, 2);
+    return JSON.stringify(
+      context.services.delegation.addNote(id, note),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/delegate status ")) {
@@ -1622,34 +1824,57 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate execute ")) {
     const id = trimmed.replace("/delegate execute ", "").trim();
-    return JSON.stringify(await runDelegationTaskInWorker(context, id), null, 2);
+    return JSON.stringify(
+      await runDelegationTaskInWorker(context, id),
+      null,
+      2,
+    );
   }
 
-  if (trimmed === "/delegate execute-queued" || trimmed.startsWith("/delegate execute-queued ")) {
+  if (
+    trimmed === "/delegate execute-queued" ||
+    trimmed.startsWith("/delegate execute-queued ")
+  ) {
     const raw = trimmed.replace("/delegate execute-queued", "").trim();
     const concurrency = raw ? Number(raw) : undefined;
     const report = await context.services.delegation.superviseQueued(
       async (task) => {
-        const completedTask = await runDelegationTaskInWorker(context, task.id, {
-          assumeRunning: true,
-        });
+        const completedTask = await runDelegationTaskInWorker(
+          context,
+          task.id,
+          {
+            assumeRunning: true,
+          },
+        );
         return completedTask.notes.at(-1) ?? "Delegated worker completed.";
       },
       {
-        concurrency: Number.isFinite(concurrency) && (concurrency as number) > 0 ? (concurrency as number) : 2,
+        concurrency:
+          Number.isFinite(concurrency) && (concurrency as number) > 0
+            ? (concurrency as number)
+            : 2,
         onComplete: async (task) => {
           context.services.skillSynthesis.synthesizeFromTask(task);
         },
         onError: async (task, error) => {
-          context.services.delegation.addNote(task.id, `system: queue error ${error}`);
+          context.services.delegation.addNote(
+            task.id,
+            `system: queue error ${error}`,
+          );
         },
       },
     );
     return JSON.stringify(report, null, 2);
   }
 
-  if (trimmed === "/delegate workers" || trimmed.startsWith("/delegate workers ")) {
-    const raw = trimmed === "/delegate workers" ? "" : trimmed.replace("/delegate workers", "").trim();
+  if (
+    trimmed === "/delegate workers" ||
+    trimmed.startsWith("/delegate workers ")
+  ) {
+    const raw =
+      trimmed === "/delegate workers"
+        ? ""
+        : trimmed.replace("/delegate workers", "").trim();
     const filters = raw ? parseDelegationFilter(raw) : {};
     const overview = context.services.delegation.overview();
     const tasks = context.services.delegation.workers(20, {
@@ -1684,7 +1909,11 @@ async function buildCommandResponse(
     if (!id) {
       return "Usage: /delegate retry <id> :: <optional note>";
     }
-    return JSON.stringify(context.services.delegation.requeue(id, note || "Requeued for retry."), null, 2);
+    return JSON.stringify(
+      context.services.delegation.requeue(id, note || "Requeued for retry."),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/delegate cancel ")) {
@@ -1693,7 +1922,11 @@ async function buildCommandResponse(
     if (!id) {
       return "Usage: /delegate cancel <id> :: <optional note>";
     }
-    return JSON.stringify(context.services.delegation.cancel(id, note || "Cancelled by operator."), null, 2);
+    return JSON.stringify(
+      context.services.delegation.cancel(id, note || "Cancelled by operator."),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/delegate complete ")) {
@@ -1702,12 +1935,18 @@ async function buildCommandResponse(
     if (!id) {
       return "Usage: /delegate complete <id> :: <optional note>";
     }
-    return JSON.stringify(context.services.delegation.complete(id, note), null, 2);
+    return JSON.stringify(
+      context.services.delegation.complete(id, note),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/skills synthesize ")) {
     const id = trimmed.replace("/skills synthesize ", "").trim();
-    const task = context.services.delegation.list().find((entry) => entry.id === id);
+    const task = context.services.delegation
+      .list()
+      .find((entry) => entry.id === id);
     if (!task) {
       return `Delegation task not found: ${id}`;
     }
@@ -1719,7 +1958,9 @@ async function buildCommandResponse(
   }
 
   if (trimmed.startsWith("/trajectories export ")) {
-    const options = parseTrajectoryArgs(trimmed.replace("/trajectories export ", ""));
+    const options = parseTrajectoryArgs(
+      trimmed.replace("/trajectories export ", ""),
+    );
     return context.services.trajectories.exportDataset({
       ...options,
       limit: options.limit ?? 200,
@@ -1729,10 +1970,17 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories bundle") {
-    return JSON.stringify(context.services.trajectories.exportBundle(200), null, 2);
+    return JSON.stringify(
+      context.services.trajectories.exportBundle(200),
+      null,
+      2,
+    );
   }
 
-  if (trimmed === "/trajectories analyze" || trimmed.startsWith("/trajectories analyze ")) {
+  if (
+    trimmed === "/trajectories analyze" ||
+    trimmed.startsWith("/trajectories analyze ")
+  ) {
     const options =
       trimmed === "/trajectories analyze"
         ? { limit: 200 }
@@ -1751,7 +1999,10 @@ async function buildCommandResponse(
     );
   }
 
-  if (trimmed === "/trajectories evaluate" || trimmed.startsWith("/trajectories evaluate ")) {
+  if (
+    trimmed === "/trajectories evaluate" ||
+    trimmed.startsWith("/trajectories evaluate ")
+  ) {
     const options =
       trimmed === "/trajectories evaluate"
         ? { limit: 200 }
@@ -1771,7 +2022,10 @@ async function buildCommandResponse(
     );
   }
 
-  if (trimmed === "/trajectories package" || trimmed.startsWith("/trajectories package ")) {
+  if (
+    trimmed === "/trajectories package" ||
+    trimmed.startsWith("/trajectories package ")
+  ) {
     const options =
       trimmed === "/trajectories package"
         ? { limit: 200 }
@@ -1792,7 +2046,9 @@ async function buildCommandResponse(
   }
 
   if (trimmed.startsWith("/trajectories bundle ")) {
-    const options = parseTrajectoryArgs(trimmed.replace("/trajectories bundle ", ""));
+    const options = parseTrajectoryArgs(
+      trimmed.replace("/trajectories bundle ", ""),
+    );
     return JSON.stringify(
       context.services.trajectories.exportFilteredBundle({
         ...options,
@@ -1821,7 +2077,9 @@ async function buildCommandResponse(
 
   if (trimmed === "/trajectories replay latest") {
     const replay = context.services.trajectories.replayLatest();
-    return replay ? JSON.stringify(replay, null, 2) : "No trajectory bundles recorded.";
+    return replay
+      ? JSON.stringify(replay, null, 2)
+      : "No trajectory bundles recorded.";
   }
 
   if (trimmed.startsWith("/trajectories replay ")) {
@@ -1831,19 +2089,31 @@ async function buildCommandResponse(
     }
     if (raw === "latest") {
       const replay = context.services.trajectories.replayLatest();
-      return replay ? JSON.stringify(replay, null, 2) : "No trajectory bundles recorded.";
+      return replay
+        ? JSON.stringify(replay, null, 2)
+        : "No trajectory bundles recorded.";
     }
     const bundles = context.services.trajectories.listBundles(50);
     const bundle = raw.endsWith(".json")
       ? raw
-      : bundles.find((entry) => entry.label === raw || entry.manifestPath.endsWith(raw));
+      : bundles.find(
+          (entry) => entry.label === raw || entry.manifestPath.endsWith(raw),
+        );
     if (typeof bundle === "string") {
-      return JSON.stringify(context.services.trajectories.replayBundle(bundle), null, 2);
+      return JSON.stringify(
+        context.services.trajectories.replayBundle(bundle),
+        null,
+        2,
+      );
     }
     if (!bundle) {
       return `Trajectory bundle not found: ${raw}`;
     }
-    return JSON.stringify(context.services.trajectories.replayBundle(bundle.manifestPath), null, 2);
+    return JSON.stringify(
+      context.services.trajectories.replayBundle(bundle.manifestPath),
+      null,
+      2,
+    );
   }
 
   return undefined;
@@ -1864,7 +2134,11 @@ export async function handleAgentTurn(
   const entityId = stringToUuid(input.userId);
   const sessionId = roomKey;
 
-  context.services.userProfiles.observe(input.userId, input.message, input.source);
+  context.services.userProfiles.observe(
+    input.userId,
+    input.message,
+    input.source,
+  );
 
   context.services.sessions.storeMessage({
     id: randomUUID(),
@@ -1914,7 +2188,10 @@ export async function handleAgentTurn(
   let response = "";
   const personalityBefore = context.services.personalities.getActive();
   const settingsBefore = context.services.settings.get();
-  const settingsDuring = applyRuntimeOverrides(settingsBefore, options?.runtimeOverrides);
+  const settingsDuring = applyRuntimeOverrides(
+    settingsBefore,
+    options?.runtimeOverrides,
+  );
 
   if (
     settingsDuring.model.provider !== settingsBefore.model.provider ||
@@ -1923,11 +2200,23 @@ export async function handleAgentTurn(
     settingsDuring.model.temperature !== settingsBefore.model.temperature ||
     settingsDuring.model.maxTokens !== settingsBefore.model.maxTokens
   ) {
-    context.services.settings.set("model.provider", settingsDuring.model.provider);
+    context.services.settings.set(
+      "model.provider",
+      settingsDuring.model.provider,
+    );
     context.services.settings.set("model.model", settingsDuring.model.model);
-    context.services.settings.set("model.baseUrl", settingsDuring.model.baseUrl);
-    context.services.settings.set("model.temperature", settingsDuring.model.temperature);
-    context.services.settings.set("model.maxTokens", settingsDuring.model.maxTokens);
+    context.services.settings.set(
+      "model.baseUrl",
+      settingsDuring.model.baseUrl,
+    );
+    context.services.settings.set(
+      "model.temperature",
+      settingsDuring.model.temperature,
+    );
+    context.services.settings.set(
+      "model.maxTokens",
+      settingsDuring.model.maxTokens,
+    );
     syncProviderSettings(context, context.services.settings.get());
   }
 
@@ -1957,11 +2246,23 @@ export async function handleAgentTurn(
       settingsDuring.model.temperature !== settingsBefore.model.temperature ||
       settingsDuring.model.maxTokens !== settingsBefore.model.maxTokens
     ) {
-      context.services.settings.set("model.provider", settingsBefore.model.provider);
+      context.services.settings.set(
+        "model.provider",
+        settingsBefore.model.provider,
+      );
       context.services.settings.set("model.model", settingsBefore.model.model);
-      context.services.settings.set("model.baseUrl", settingsBefore.model.baseUrl);
-      context.services.settings.set("model.temperature", settingsBefore.model.temperature);
-      context.services.settings.set("model.maxTokens", settingsBefore.model.maxTokens);
+      context.services.settings.set(
+        "model.baseUrl",
+        settingsBefore.model.baseUrl,
+      );
+      context.services.settings.set(
+        "model.temperature",
+        settingsBefore.model.temperature,
+      );
+      context.services.settings.set(
+        "model.maxTokens",
+        settingsBefore.model.maxTokens,
+      );
       syncProviderSettings(context, context.services.settings.get());
     }
 

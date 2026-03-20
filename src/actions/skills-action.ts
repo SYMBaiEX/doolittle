@@ -13,10 +13,14 @@ export function createSkillsAction(services: AppServices): Action {
   return {
     name: "ELIZA_AGENT_SKILLS",
     similes: ["SKILLS_LIST", "SKILLS_SHOW", "LOAD_SKILL"],
-    description: "Lists or shows available skills via `/skills list` or `/skills show <slug>`.",
+    description:
+      "Lists or shows available skills via `/skills list` or `/skills show <slug>`.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/skills"));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/skills"));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -25,14 +29,19 @@ export function createSkillsAction(services: AppServices): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const trimmed = text?.trim() ?? "";
       let response = "";
 
       if (trimmed === "/skills" || trimmed === "/skills list") {
         const skills = services.skills.list();
         response = skills.length
-          ? skills.map((skill) => `- ${skill.slug}: ${skill.description}`).join("\n")
+          ? skills
+              .map((skill) => `- ${skill.slug}: ${skill.description}`)
+              .join("\n")
           : "No skills found.";
       } else if (trimmed.startsWith("/skills show ")) {
         const slug = trimmed.replace("/skills show ", "").trim();

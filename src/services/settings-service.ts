@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ExecutionBackendName, RemoteArtifactPolicy, RemoteWorkspaceSyncMode } from "@/types";
+import type {
+  ExecutionBackendName,
+  RemoteArtifactPolicy,
+  RemoteWorkspaceSyncMode,
+} from "@/types";
 
 export interface RuntimeSettings {
   model: {
@@ -147,11 +151,17 @@ export class SettingsService {
         parsed.execution.remoteSyncMode = "mirror";
         dirty = true;
       }
-      if (!Array.isArray(execution.remoteSyncInclude) || execution.remoteSyncInclude.length === 0) {
+      if (
+        !Array.isArray(execution.remoteSyncInclude) ||
+        execution.remoteSyncInclude.length === 0
+      ) {
         parsed.execution.remoteSyncInclude = ["**/*"];
         dirty = true;
       }
-      if (!Array.isArray(execution.remoteSyncExclude) || execution.remoteSyncExclude.length === 0) {
+      if (
+        !Array.isArray(execution.remoteSyncExclude) ||
+        execution.remoteSyncExclude.length === 0
+      ) {
         parsed.execution.remoteSyncExclude = [
           ".git",
           ".eliza-agent",
@@ -164,7 +174,10 @@ export class SettingsService {
         ];
         dirty = true;
       }
-      if (!Array.isArray(execution.remoteArtifactPaths) || execution.remoteArtifactPaths.length === 0) {
+      if (
+        !Array.isArray(execution.remoteArtifactPaths) ||
+        execution.remoteArtifactPaths.length === 0
+      ) {
         parsed.execution.remoteArtifactPaths = [
           ".eliza-agent/remote-artifacts",
           ".eliza-agent/trajectories",

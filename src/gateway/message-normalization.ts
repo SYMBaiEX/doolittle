@@ -1,7 +1,11 @@
 import type { IncomingPlatformMessage, PlatformName } from "@/types";
 
-function normalizeMetadata(entries: Array<[string, string | undefined | null]>): Record<string, string> {
-  return Object.fromEntries(entries.filter(([, value]) => Boolean(value))) as Record<string, string>;
+function normalizeMetadata(
+  entries: Array<[string, string | undefined | null]>,
+): Record<string, string> {
+  return Object.fromEntries(
+    entries.filter(([, value]) => Boolean(value)),
+  ) as Record<string, string>;
 }
 
 interface AttachmentDescriptor {
@@ -16,27 +20,62 @@ interface AttachmentDescriptor {
   height?: string;
 }
 
-function joinAttachmentValues(values: Array<string | undefined | null>): string | undefined {
+function joinAttachmentValues(
+  values: Array<string | undefined | null>,
+): string | undefined {
   const filtered = values.filter((value): value is string => Boolean(value));
   return filtered.length > 0 ? filtered.join("|") : undefined;
 }
 
-function attachmentMetadata(descriptors: AttachmentDescriptor[]): Record<string, string> {
+function attachmentMetadata(
+  descriptors: AttachmentDescriptor[],
+): Record<string, string> {
   if (descriptors.length === 0) {
     return {};
   }
 
   return normalizeMetadata([
     ["attachmentCount", String(descriptors.length)],
-    ["attachmentKinds", joinAttachmentValues(descriptors.map((descriptor) => descriptor.kind))],
-    ["attachmentNames", joinAttachmentValues(descriptors.map((descriptor) => descriptor.name))],
-    ["attachmentUrls", joinAttachmentValues(descriptors.map((descriptor) => descriptor.url))],
-    ["attachmentMimeTypes", joinAttachmentValues(descriptors.map((descriptor) => descriptor.mimeType))],
-    ["attachmentSizes", joinAttachmentValues(descriptors.map((descriptor) => descriptor.size))],
-    ["attachmentCaptions", joinAttachmentValues(descriptors.map((descriptor) => descriptor.caption))],
-    ["attachmentDurationsMs", joinAttachmentValues(descriptors.map((descriptor) => descriptor.durationMs))],
-    ["attachmentWidths", joinAttachmentValues(descriptors.map((descriptor) => descriptor.width))],
-    ["attachmentHeights", joinAttachmentValues(descriptors.map((descriptor) => descriptor.height))],
+    [
+      "attachmentKinds",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.kind)),
+    ],
+    [
+      "attachmentNames",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.name)),
+    ],
+    [
+      "attachmentUrls",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.url)),
+    ],
+    [
+      "attachmentMimeTypes",
+      joinAttachmentValues(
+        descriptors.map((descriptor) => descriptor.mimeType),
+      ),
+    ],
+    [
+      "attachmentSizes",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.size)),
+    ],
+    [
+      "attachmentCaptions",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.caption)),
+    ],
+    [
+      "attachmentDurationsMs",
+      joinAttachmentValues(
+        descriptors.map((descriptor) => descriptor.durationMs),
+      ),
+    ],
+    [
+      "attachmentWidths",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.width)),
+    ],
+    [
+      "attachmentHeights",
+      joinAttachmentValues(descriptors.map((descriptor) => descriptor.height)),
+    ],
   ]);
 }
 
@@ -72,20 +111,55 @@ function parseTelegramMessage(body: unknown): IncomingPlatformMessage | null {
       message_id?: number;
       text?: string;
       chat?: { id?: number | string; type?: string; title?: string };
-      from?: { id?: number | string; username?: string; first_name?: string; last_name?: string };
+      from?: {
+        id?: number | string;
+        username?: string;
+        first_name?: string;
+        last_name?: string;
+      };
       reply_to_message?: { message_id?: number };
       date?: number;
       photo?: Array<{ file_id?: string; file_unique_id?: string }>;
-      document?: { file_id?: string; file_name?: string; mime_type?: string; file_size?: number };
-      video?: { file_id?: string; mime_type?: string; file_name?: string; file_size?: number };
-      voice?: { file_id?: string; mime_type?: string; duration?: number; file_size?: number };
-      audio?: { file_id?: string; mime_type?: string; file_name?: string; duration?: number; file_size?: number };
-      animation?: { file_id?: string; mime_type?: string; file_name?: string; file_size?: number };
+      document?: {
+        file_id?: string;
+        file_name?: string;
+        mime_type?: string;
+        file_size?: number;
+      };
+      video?: {
+        file_id?: string;
+        mime_type?: string;
+        file_name?: string;
+        file_size?: number;
+      };
+      voice?: {
+        file_id?: string;
+        mime_type?: string;
+        duration?: number;
+        file_size?: number;
+      };
+      audio?: {
+        file_id?: string;
+        mime_type?: string;
+        file_name?: string;
+        duration?: number;
+        file_size?: number;
+      };
+      animation?: {
+        file_id?: string;
+        mime_type?: string;
+        file_name?: string;
+        file_size?: number;
+      };
       sticker?: { file_id?: string; emoji?: string; is_animated?: boolean };
     };
   };
 
-  if (!payload.message?.text || payload.message.chat?.id === undefined || payload.message.from?.id === undefined) {
+  if (
+    !payload.message?.text ||
+    payload.message.chat?.id === undefined ||
+    payload.message.from?.id === undefined
+  ) {
     return null;
   }
 
@@ -102,19 +176,27 @@ function parseTelegramMessage(body: unknown): IncomingPlatformMessage | null {
   if (payload.message.document?.file_id) {
     attachments.push({
       kind: "document",
-      name: payload.message.document.file_name ?? `telegram-document-${payload.message.message_id ?? "unknown"}`,
+      name:
+        payload.message.document.file_name ??
+        `telegram-document-${payload.message.message_id ?? "unknown"}`,
       url: payload.message.document.file_id,
       mimeType: payload.message.document.mime_type,
-      size: payload.message.document.file_size ? String(payload.message.document.file_size) : undefined,
+      size: payload.message.document.file_size
+        ? String(payload.message.document.file_size)
+        : undefined,
     });
   }
   if (payload.message.video?.file_id) {
     attachments.push({
       kind: "video",
-      name: payload.message.video.file_name ?? `telegram-video-${payload.message.message_id ?? "unknown"}`,
+      name:
+        payload.message.video.file_name ??
+        `telegram-video-${payload.message.message_id ?? "unknown"}`,
       url: payload.message.video.file_id,
       mimeType: payload.message.video.mime_type,
-      size: payload.message.video.file_size ? String(payload.message.video.file_size) : undefined,
+      size: payload.message.video.file_size
+        ? String(payload.message.video.file_size)
+        : undefined,
     });
   }
   if (payload.message.voice?.file_id) {
@@ -123,35 +205,53 @@ function parseTelegramMessage(body: unknown): IncomingPlatformMessage | null {
       name: `telegram-voice-${payload.message.message_id ?? "unknown"}`,
       url: payload.message.voice.file_id,
       mimeType: payload.message.voice.mime_type,
-      durationMs: payload.message.voice.duration ? String(payload.message.voice.duration * 1000) : undefined,
-      size: payload.message.voice.file_size ? String(payload.message.voice.file_size) : undefined,
+      durationMs: payload.message.voice.duration
+        ? String(payload.message.voice.duration * 1000)
+        : undefined,
+      size: payload.message.voice.file_size
+        ? String(payload.message.voice.file_size)
+        : undefined,
     });
   }
   if (payload.message.audio?.file_id) {
     attachments.push({
       kind: "audio",
-      name: payload.message.audio.file_name ?? `telegram-audio-${payload.message.message_id ?? "unknown"}`,
+      name:
+        payload.message.audio.file_name ??
+        `telegram-audio-${payload.message.message_id ?? "unknown"}`,
       url: payload.message.audio.file_id,
       mimeType: payload.message.audio.mime_type,
-      durationMs: payload.message.audio.duration ? String(payload.message.audio.duration * 1000) : undefined,
-      size: payload.message.audio.file_size ? String(payload.message.audio.file_size) : undefined,
+      durationMs: payload.message.audio.duration
+        ? String(payload.message.audio.duration * 1000)
+        : undefined,
+      size: payload.message.audio.file_size
+        ? String(payload.message.audio.file_size)
+        : undefined,
     });
   }
   if (payload.message.animation?.file_id) {
     attachments.push({
       kind: "animation",
-      name: payload.message.animation.file_name ?? `telegram-animation-${payload.message.message_id ?? "unknown"}`,
+      name:
+        payload.message.animation.file_name ??
+        `telegram-animation-${payload.message.message_id ?? "unknown"}`,
       url: payload.message.animation.file_id,
       mimeType: payload.message.animation.mime_type,
-      size: payload.message.animation.file_size ? String(payload.message.animation.file_size) : undefined,
+      size: payload.message.animation.file_size
+        ? String(payload.message.animation.file_size)
+        : undefined,
     });
   }
   if (payload.message.sticker?.file_id) {
     attachments.push({
       kind: "sticker",
-      name: payload.message.sticker.emoji ?? `telegram-sticker-${payload.message.message_id ?? "unknown"}`,
+      name:
+        payload.message.sticker.emoji ??
+        `telegram-sticker-${payload.message.message_id ?? "unknown"}`,
       url: payload.message.sticker.file_id,
-      mimeType: payload.message.sticker.is_animated ? "image/webp+animated" : "image/webp",
+      mimeType: payload.message.sticker.is_animated
+        ? "image/webp+animated"
+        : "image/webp",
     });
   }
 
@@ -164,19 +264,32 @@ function parseTelegramMessage(body: unknown): IncomingPlatformMessage | null {
     threadId: payload.message.reply_to_message?.message_id
       ? String(payload.message.reply_to_message.message_id)
       : undefined,
-    messageId: payload.message.message_id ? String(payload.message.message_id) : undefined,
+    messageId: payload.message.message_id
+      ? String(payload.message.message_id)
+      : undefined,
     replyToMessageId: payload.message.reply_to_message?.message_id
       ? String(payload.message.reply_to_message.message_id)
       : undefined,
     channelType: payload.message.chat.type,
     authorName:
       payload.message.from.username ??
-      ([payload.message.from.first_name, payload.message.from.last_name].filter(Boolean).join(" ").trim() || undefined),
-    timestamp: payload.message.date ? new Date(payload.message.date * 1000).toISOString() : undefined,
+      ([payload.message.from.first_name, payload.message.from.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+        undefined),
+    timestamp: payload.message.date
+      ? new Date(payload.message.date * 1000).toISOString()
+      : undefined,
     metadata: normalizeMetadata([
       ["chatTitle", payload.message.chat.title],
       ["chatType", payload.message.chat.type],
-      ["messageId", payload.message.message_id ? String(payload.message.message_id) : undefined],
+      [
+        "messageId",
+        payload.message.message_id
+          ? String(payload.message.message_id)
+          : undefined,
+      ],
       [
         "replyToMessageId",
         payload.message.reply_to_message?.message_id
@@ -189,7 +302,8 @@ function parseTelegramMessage(body: unknown): IncomingPlatformMessage | null {
           ([payload.message.from.first_name, payload.message.from.last_name]
             .filter(Boolean)
             .join(" ")
-            .trim() || undefined),
+            .trim() ||
+            undefined),
       ],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
@@ -218,7 +332,12 @@ function parseDiscordMessage(body: unknown): IncomingPlatformMessage | null {
     }>;
   };
 
-  if (!payload.content || !payload.channel_id || !payload.author?.id || payload.author.bot) {
+  if (
+    !payload.content ||
+    !payload.channel_id ||
+    !payload.author?.id ||
+    payload.author.bot
+  ) {
     return null;
   }
 
@@ -256,7 +375,10 @@ function parseDiscordMessage(body: unknown): IncomingPlatformMessage | null {
     metadata: normalizeMetadata([
       ["authorUsername", payload.author.username],
       ["guildId", payload.guild_id],
-      ["messageType", typeof payload.type === "number" ? String(payload.type) : undefined],
+      [
+        "messageType",
+        typeof payload.type === "number" ? String(payload.type) : undefined,
+      ],
       ["threadId", payload.thread_id ?? payload.message_reference?.message_id],
       ["replyToMessageId", payload.message_reference?.message_id],
       ...Object.entries(attachmentMetadata(attachments)),
@@ -347,10 +469,25 @@ function parseWhatsAppMessage(body: unknown): IncomingPlatformMessage | null {
             timestamp?: string;
             context?: { id?: string };
             text?: { body?: string };
-            image?: { caption?: string; mime_type?: string; id?: string; sha256?: string };
-            video?: { caption?: string; mime_type?: string; id?: string; sha256?: string };
+            image?: {
+              caption?: string;
+              mime_type?: string;
+              id?: string;
+              sha256?: string;
+            };
+            video?: {
+              caption?: string;
+              mime_type?: string;
+              id?: string;
+              sha256?: string;
+            };
             audio?: { mime_type?: string; id?: string; sha256?: string };
-            document?: { filename?: string; mime_type?: string; id?: string; sha256?: string };
+            document?: {
+              filename?: string;
+              mime_type?: string;
+              id?: string;
+              sha256?: string;
+            };
             sticker?: { id?: string; sha256?: string };
           }>;
         };
@@ -367,7 +504,8 @@ function parseWhatsAppMessage(body: unknown): IncomingPlatformMessage | null {
   if (message.image?.id) {
     attachments.push({
       kind: "image",
-      name: message.image.caption ?? `whatsapp-image-${message.id ?? "unknown"}`,
+      name:
+        message.image.caption ?? `whatsapp-image-${message.id ?? "unknown"}`,
       url: message.image.id,
       mimeType: message.image.mime_type,
     });
@@ -375,7 +513,8 @@ function parseWhatsAppMessage(body: unknown): IncomingPlatformMessage | null {
   if (message.video?.id) {
     attachments.push({
       kind: "video",
-      name: message.video.caption ?? `whatsapp-video-${message.id ?? "unknown"}`,
+      name:
+        message.video.caption ?? `whatsapp-video-${message.id ?? "unknown"}`,
       url: message.video.id,
       mimeType: message.video.mime_type,
     });
@@ -391,7 +530,9 @@ function parseWhatsAppMessage(body: unknown): IncomingPlatformMessage | null {
   if (message.document?.id) {
     attachments.push({
       kind: "document",
-      name: message.document.filename ?? `whatsapp-document-${message.id ?? "unknown"}`,
+      name:
+        message.document.filename ??
+        `whatsapp-document-${message.id ?? "unknown"}`,
       url: message.document.id,
       mimeType: message.document.mime_type,
     });

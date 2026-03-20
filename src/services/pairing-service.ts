@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import type {
   PairingAllowlistEntry,
   PairingRequestRecord,
@@ -29,12 +29,16 @@ export class PairingService {
 
   listPending(platform?: PlatformName): PairingRequestRecord[] {
     return this.read().requests.filter(
-      (request) => request.status === "pending" && (!platform || request.platform === platform),
+      (request) =>
+        request.status === "pending" &&
+        (!platform || request.platform === platform),
     );
   }
 
   listAllowlist(platform?: PlatformName): PairingAllowlistEntry[] {
-    return this.read().allowlist.filter((entry) => !platform || entry.platform === platform);
+    return this.read().allowlist.filter(
+      (entry) => !platform || entry.platform === platform,
+    );
   }
 
   isAllowed(platform: PlatformName, userId: string): boolean {
@@ -77,7 +81,9 @@ export class PairingService {
         request.status === "pending",
     );
     if (!record) {
-      throw new Error(`No pending pairing request found for ${platform} code ${code}.`);
+      throw new Error(
+        `No pending pairing request found for ${platform} code ${code}.`,
+      );
     }
 
     record.status = "approved";
@@ -85,7 +91,8 @@ export class PairingService {
 
     if (
       !store.allowlist.some(
-        (entry) => entry.platform === record.platform && entry.userId === record.userId,
+        (entry) =>
+          entry.platform === record.platform && entry.userId === record.userId,
       )
     ) {
       store.allowlist.push({
@@ -107,7 +114,9 @@ export class PairingService {
         request.status === "pending",
     );
     if (!record) {
-      throw new Error(`No pending pairing request found for ${platform} code ${code}.`);
+      throw new Error(
+        `No pending pairing request found for ${platform} code ${code}.`,
+      );
     }
 
     record.status = "denied";
@@ -126,7 +135,9 @@ export class PairingService {
 
   clearPending(): void {
     const store = this.read();
-    store.requests = store.requests.filter((request) => request.status !== "pending");
+    store.requests = store.requests.filter(
+      (request) => request.status !== "pending",
+    );
     this.write(store);
   }
 

@@ -3,29 +3,29 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { EnvConfig } from "@/types";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
-import { DeliveryService } from "./delivery-service";
 import { DelegationService } from "./delegation-service";
+import { DeliveryService } from "./delivery-service";
 import { DiagnosticsService } from "./diagnostics-service";
 import { DocumentsService } from "./documents-service";
 import { GatewaySessionService } from "./gateway-session-service";
 import { HooksService } from "./hooks-service";
+import { McpService } from "./mcp-service";
 import { MediaService } from "./media-service";
 import { MemoryService } from "./memory-service";
-import { McpService } from "./mcp-service";
 import { OperatorService } from "./operator-service";
 import { PairingService } from "./pairing-service";
 import { PersonalityService } from "./personality-service";
 import { RepositoryService } from "./repository-service";
 import { SessionService } from "./session-service";
 import { SettingsService } from "./settings-service";
+import { SkillSynthesisService } from "./skill-synthesis-service";
 import { SkillsService } from "./skills-service";
 import { TerminalService } from "./terminal-service";
-import { TrajectoryService } from "./trajectory-service";
 import { ToolsService } from "./tools-service";
+import { TrajectoryService } from "./trajectory-service";
+import { UserProfileService } from "./user-profile-service";
 import { WebService } from "./web-service";
 import { WorkspaceService } from "./workspace-service";
-import { SkillSynthesisService } from "./skill-synthesis-service";
-import { UserProfileService } from "./user-profile-service";
 
 export interface AppServices {
   memory: MemoryService;
@@ -138,13 +138,22 @@ export function createServices(
   if (!currentSettings.execution.remoteSyncMode) {
     settings.set("execution.remoteSyncMode", config.remoteSyncMode);
   }
-  if (!currentSettings.execution.remoteSyncInclude?.length && config.remoteSyncInclude.length) {
+  if (
+    !currentSettings.execution.remoteSyncInclude?.length &&
+    config.remoteSyncInclude.length
+  ) {
     settings.set("execution.remoteSyncInclude", config.remoteSyncInclude);
   }
-  if (!currentSettings.execution.remoteSyncExclude?.length && config.remoteSyncExclude.length) {
+  if (
+    !currentSettings.execution.remoteSyncExclude?.length &&
+    config.remoteSyncExclude.length
+  ) {
     settings.set("execution.remoteSyncExclude", config.remoteSyncExclude);
   }
-  if (!currentSettings.execution.remoteArtifactPaths?.length && config.remoteArtifactPaths.length) {
+  if (
+    !currentSettings.execution.remoteArtifactPaths?.length &&
+    config.remoteArtifactPaths.length
+  ) {
     settings.set("execution.remoteArtifactPaths", config.remoteArtifactPaths);
   }
   if (!currentSettings.execution.remoteArtifactPolicy) {
@@ -156,7 +165,10 @@ export function createServices(
   if (!currentSettings.execution.dockerWorkspacePath) {
     settings.set("execution.dockerWorkspacePath", config.dockerWorkspacePath);
   }
-  if (!currentSettings.execution.dockerEnvPassthrough?.length && config.dockerEnvPassthrough.length) {
+  if (
+    !currentSettings.execution.dockerEnvPassthrough?.length &&
+    config.dockerEnvPassthrough.length
+  ) {
     settings.set("execution.dockerEnvPassthrough", config.dockerEnvPassthrough);
   }
   if (!currentSettings.execution.singularityImage && config.singularityImage) {
@@ -171,20 +183,38 @@ export function createServices(
   if (!currentSettings.execution.daytonaShell && config.daytonaShell) {
     settings.set("execution.daytonaShell", config.daytonaShell);
   }
-  if (!currentSettings.execution.daytonaWorkspacePath && config.daytonaWorkspacePath) {
+  if (
+    !currentSettings.execution.daytonaWorkspacePath &&
+    config.daytonaWorkspacePath
+  ) {
     settings.set("execution.daytonaWorkspacePath", config.daytonaWorkspacePath);
   }
   if (!currentSettings.execution.daytonaSnapshot && config.daytonaSnapshot) {
     settings.set("execution.daytonaSnapshot", config.daytonaSnapshot);
   }
-  if (!currentSettings.execution.daytonaBootstrapCommand && config.daytonaBootstrapCommand) {
-    settings.set("execution.daytonaBootstrapCommand", config.daytonaBootstrapCommand);
+  if (
+    !currentSettings.execution.daytonaBootstrapCommand &&
+    config.daytonaBootstrapCommand
+  ) {
+    settings.set(
+      "execution.daytonaBootstrapCommand",
+      config.daytonaBootstrapCommand,
+    );
   }
-  if (!currentSettings.execution.daytonaStatusCommand && config.daytonaStatusCommand) {
+  if (
+    !currentSettings.execution.daytonaStatusCommand &&
+    config.daytonaStatusCommand
+  ) {
     settings.set("execution.daytonaStatusCommand", config.daytonaStatusCommand);
   }
-  if (!currentSettings.execution.daytonaInspectCommand && config.daytonaInspectCommand) {
-    settings.set("execution.daytonaInspectCommand", config.daytonaInspectCommand);
+  if (
+    !currentSettings.execution.daytonaInspectCommand &&
+    config.daytonaInspectCommand
+  ) {
+    settings.set(
+      "execution.daytonaInspectCommand",
+      config.daytonaInspectCommand,
+    );
   }
   if (!currentSettings.execution.modalTarget && config.modalTarget) {
     settings.set("execution.modalTarget", config.modalTarget);
@@ -195,38 +225,74 @@ export function createServices(
   if (!currentSettings.execution.modalShell && config.modalShell) {
     settings.set("execution.modalShell", config.modalShell);
   }
-  if (!currentSettings.execution.modalWorkspacePath && config.modalWorkspacePath) {
+  if (
+    !currentSettings.execution.modalWorkspacePath &&
+    config.modalWorkspacePath
+  ) {
     settings.set("execution.modalWorkspacePath", config.modalWorkspacePath);
   }
   if (!currentSettings.execution.modalEnvironment && config.modalEnvironment) {
     settings.set("execution.modalEnvironment", config.modalEnvironment);
   }
-  if (!currentSettings.execution.modalBootstrapCommand && config.modalBootstrapCommand) {
-    settings.set("execution.modalBootstrapCommand", config.modalBootstrapCommand);
+  if (
+    !currentSettings.execution.modalBootstrapCommand &&
+    config.modalBootstrapCommand
+  ) {
+    settings.set(
+      "execution.modalBootstrapCommand",
+      config.modalBootstrapCommand,
+    );
   }
-  if (!currentSettings.execution.modalStatusCommand && config.modalStatusCommand) {
+  if (
+    !currentSettings.execution.modalStatusCommand &&
+    config.modalStatusCommand
+  ) {
     settings.set("execution.modalStatusCommand", config.modalStatusCommand);
   }
-  if (!currentSettings.execution.modalInspectCommand && config.modalInspectCommand) {
+  if (
+    !currentSettings.execution.modalInspectCommand &&
+    config.modalInspectCommand
+  ) {
     settings.set("execution.modalInspectCommand", config.modalInspectCommand);
   }
-  if (!currentSettings.execution.commandTimeoutMs && config.executionCommandTimeoutMs) {
-    settings.set("execution.commandTimeoutMs", config.executionCommandTimeoutMs);
+  if (
+    !currentSettings.execution.commandTimeoutMs &&
+    config.executionCommandTimeoutMs
+  ) {
+    settings.set(
+      "execution.commandTimeoutMs",
+      config.executionCommandTimeoutMs,
+    );
   }
-  if (!currentSettings.execution.healthTimeoutMs && config.executionHealthTimeoutMs) {
+  if (
+    !currentSettings.execution.healthTimeoutMs &&
+    config.executionHealthTimeoutMs
+  ) {
     settings.set("execution.healthTimeoutMs", config.executionHealthTimeoutMs);
   }
-  if (!currentSettings.execution.containerCpuLimit && config.containerCpuLimit) {
+  if (
+    !currentSettings.execution.containerCpuLimit &&
+    config.containerCpuLimit
+  ) {
     settings.set("execution.containerCpuLimit", config.containerCpuLimit);
   }
-  if (!currentSettings.execution.containerMemoryLimit && config.containerMemoryLimit) {
+  if (
+    !currentSettings.execution.containerMemoryLimit &&
+    config.containerMemoryLimit
+  ) {
     settings.set("execution.containerMemoryLimit", config.containerMemoryLimit);
   }
-  if (!currentSettings.execution.containerPidsLimit && config.containerPidsLimit) {
+  if (
+    !currentSettings.execution.containerPidsLimit &&
+    config.containerPidsLimit
+  ) {
     settings.set("execution.containerPidsLimit", config.containerPidsLimit);
   }
   if (currentSettings.execution.containerReadOnlyRoot === undefined) {
-    settings.set("execution.containerReadOnlyRoot", config.containerReadOnlyRoot);
+    settings.set(
+      "execution.containerReadOnlyRoot",
+      config.containerReadOnlyRoot,
+    );
   }
   if (!currentSettings.execution.sshPort) {
     settings.set("execution.sshPort", config.sshPort);
@@ -234,8 +300,14 @@ export function createServices(
   if (!currentSettings.execution.sshKeyPath && config.sshKeyPath) {
     settings.set("execution.sshKeyPath", config.sshKeyPath);
   }
-  if (!currentSettings.execution.sshStrictHostKeyChecking && config.sshStrictHostKeyChecking) {
-    settings.set("execution.sshStrictHostKeyChecking", config.sshStrictHostKeyChecking);
+  if (
+    !currentSettings.execution.sshStrictHostKeyChecking &&
+    config.sshStrictHostKeyChecking
+  ) {
+    settings.set(
+      "execution.sshStrictHostKeyChecking",
+      config.sshStrictHostKeyChecking,
+    );
   }
   if (!currentSettings.mcp.serverCommand && config.mcpServerCommand) {
     settings.set("mcp.serverCommand", config.mcpServerCommand);
@@ -263,7 +335,10 @@ export function createServices(
     anthropicBaseUrl: string | undefined;
     openAiImageModel: string | undefined;
   } => ({
-    provider: settings.get().model.provider as "openai" | "anthropic" | "offline",
+    provider: settings.get().model.provider as
+      | "openai"
+      | "anthropic"
+      | "offline",
     model: settings.get().model.model,
     baseUrl: settings.get().model.baseUrl,
     temperature: settings.get().model.temperature,
@@ -288,7 +363,9 @@ export function createServices(
     ),
     pairing: new PairingService(join(config.gatewayDataDir, "pairing")),
     hooks: new HooksService(config.hooksDir),
-    gatewaySessions: new GatewaySessionService(join(config.gatewayDataDir, "sessions")),
+    gatewaySessions: new GatewaySessionService(
+      join(config.gatewayDataDir, "sessions"),
+    ),
     delivery: new DeliveryService(join(config.gatewayDataDir, "delivery")),
     documents: new DocumentsService(
       runtime ?? ({} as ConstructorParameters<typeof DocumentsService>[0]),
@@ -298,8 +375,10 @@ export function createServices(
     personalities: new PersonalityService(config.dataDir),
     contextFiles: new ContextFilesService(config.workspaceDir),
     workspace: new WorkspaceService(config.workspaceDir),
-    terminal: new TerminalService(join(config.dataDir, "terminal"), config.workspaceDir, () =>
-      settings.get(),
+    terminal: new TerminalService(
+      join(config.dataDir, "terminal"),
+      config.workspaceDir,
+      () => settings.get(),
     ),
     repository,
     diagnostics,
@@ -316,7 +395,11 @@ export function createServices(
       }),
       join(config.dataDir, "web"),
     ),
-    media: new MediaService(config.workspaceDir, join(config.dataDir, "media"), getModelContext),
+    media: new MediaService(
+      config.workspaceDir,
+      join(config.dataDir, "media"),
+      getModelContext,
+    ),
     trajectories: new TrajectoryService(
       join(config.dataDir, "trajectories"),
       sessions,

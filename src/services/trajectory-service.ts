@@ -128,34 +128,59 @@ export class TrajectoryService {
 
   exportDataset(options: TrajectoryExportOptions = {}): string {
     const messages = this.collect(options);
-    const label = this.slug(options.label ?? options.sessionId ?? options.role ?? "recent");
+    const label = this.slug(
+      options.label ?? options.sessionId ?? options.role ?? "recent",
+    );
     const path = join(this.baseDir, `trajectory-${Date.now()}-${label}.jsonl`);
     const jsonl = messages.map((message) => JSON.stringify(message)).join("\n");
     writeFileSync(path, jsonl, "utf8");
     return path;
   }
 
-  exportBundle(limit = 100): { dataPath: string; manifestPath: string; summaryPath: string } {
+  exportBundle(limit = 100): {
+    dataPath: string;
+    manifestPath: string;
+    summaryPath: string;
+  } {
     return this.exportFilteredBundle({ limit });
   }
 
-  exportFilteredBundle(
-    options: TrajectoryExportOptions = {},
-  ): { dataPath: string; manifestPath: string; summaryPath: string } {
+  exportFilteredBundle(options: TrajectoryExportOptions = {}): {
+    dataPath: string;
+    manifestPath: string;
+    summaryPath: string;
+  } {
     const messages = this.collect(options);
-    const label = this.slug(options.label ?? options.sessionId ?? options.role ?? "recent");
+    const label = this.slug(
+      options.label ?? options.sessionId ?? options.role ?? "recent",
+    );
     const stamp = Date.now();
     const dataPath = join(this.baseDir, `trajectory-${stamp}-${label}.jsonl`);
-    const manifestPath = join(this.baseDir, `trajectory-${stamp}-${label}-manifest.json`);
-    const summaryPath = join(this.baseDir, `trajectory-${stamp}-${label}-summary.md`);
+    const manifestPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-manifest.json`,
+    );
+    const summaryPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-summary.md`,
+    );
 
-    writeFileSync(dataPath, messages.map((message) => JSON.stringify(message)).join("\n"), "utf8");
+    writeFileSync(
+      dataPath,
+      messages.map((message) => JSON.stringify(message)).join("\n"),
+      "utf8",
+    );
 
-    const roleCounts = messages.reduce<Record<string, number>>((counts, message) => {
-      counts[message.role] = (counts[message.role] ?? 0) + 1;
-      return counts;
-    }, {});
-    const sessions = Array.from(new Set(messages.map((message) => message.sessionId)));
+    const roleCounts = messages.reduce<Record<string, number>>(
+      (counts, message) => {
+        counts[message.role] = (counts[message.role] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    const sessions = Array.from(
+      new Set(messages.map((message) => message.sessionId)),
+    );
 
     writeFileSync(
       manifestPath,
@@ -201,10 +226,14 @@ export class TrajectoryService {
         `- Filters: session=${options.sessionId ?? "any"}, role=${options.role ?? "any"}, limit=${options.limit ?? 100}`,
         "",
         "## Role Counts",
-        ...Object.entries(roleCounts).map(([role, count]) => `- ${role}: ${count}`),
+        ...Object.entries(roleCounts).map(
+          ([role, count]) => `- ${role}: ${count}`,
+        ),
         "",
         "## Sessions",
-        ...(sessions.length ? sessions.map((sessionId) => `- ${sessionId}`) : ["- (none)"]),
+        ...(sessions.length
+          ? sessions.map((sessionId) => `- ${sessionId}`)
+          : ["- (none)"]),
       ].join("\n"),
       "utf8",
     );
@@ -235,7 +264,9 @@ export class TrajectoryService {
     };
   }
 
-  async evaluate(options: TrajectoryExportOptions = {}): Promise<TrajectoryEvaluationBundle> {
+  async evaluate(
+    options: TrajectoryExportOptions = {},
+  ): Promise<TrajectoryEvaluationBundle> {
     const evaluationMode = this.normalizeEvaluationMode(options.mode);
     const analysis = this.analyze({
       ...options,
@@ -267,8 +298,13 @@ export class TrajectoryService {
   ): Promise<TrajectoryEvaluationBundle> {
     const bundle = this.describeBundle(manifestPath);
     const replay = options.replay ?? this.replayBundle(manifestPath);
-    const evaluationMode = this.normalizeEvaluationMode(options.mode ?? bundle.mode);
-    const heuristics = this.scoreReplay(replay, options.rubric ?? options.tags ?? []);
+    const evaluationMode = this.normalizeEvaluationMode(
+      options.mode ?? bundle.mode,
+    );
+    const heuristics = this.scoreReplay(
+      replay,
+      options.rubric ?? options.tags ?? [],
+    );
     const prompt =
       options.prompt ??
       this.buildAnalysisPrompt(replay, {
@@ -277,18 +313,31 @@ export class TrajectoryService {
         tags: options.tags ?? bundle.tags ?? [],
         label: bundle.label,
       });
-    const response = await this.requestModelText(prompt, this.getModelContext?.(), {
-      focus: evaluationMode,
-      replay,
-      score: heuristics.score,
-      findings: heuristics.findings,
-      recommendations: heuristics.recommendations,
-    });
+    const response = await this.requestModelText(
+      prompt,
+      this.getModelContext?.(),
+      {
+        focus: evaluationMode,
+        replay,
+        score: heuristics.score,
+        findings: heuristics.findings,
+        recommendations: heuristics.recommendations,
+      },
+    );
     const stamp = Date.now();
     const label = this.slug(`${bundle.label}-evaluation`);
-    const evaluationPath = join(this.baseDir, `trajectory-${stamp}-${label}.evaluation.json`);
-    const reportPath = join(this.baseDir, `trajectory-${stamp}-${label}-evaluation.md`);
-    const responsePath = join(this.baseDir, `trajectory-${stamp}-${label}-evaluation-response.md`);
+    const evaluationPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}.evaluation.json`,
+    );
+    const reportPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-evaluation.md`,
+    );
+    const responsePath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-evaluation-response.md`,
+    );
 
     writeFileSync(
       evaluationPath,
@@ -323,13 +372,17 @@ export class TrajectoryService {
         ...(options.tags?.length || bundle.tags?.length
           ? [`- Tags: ${(options.tags ?? bundle.tags ?? []).join(", ")}`]
           : []),
-        ...(options.rubric?.length ? [`- Rubric: ${options.rubric.join(", ")}`] : []),
+        ...(options.rubric?.length
+          ? [`- Rubric: ${options.rubric.join(", ")}`]
+          : []),
         "",
         "## Highlights",
         ...((options.highlights ?? []) || []).map((entry) => `- ${entry}`),
         "",
         "## Findings",
-        ...(heuristics.findings.length ? heuristics.findings.map((entry) => `- ${entry}`) : ["- none"]),
+        ...(heuristics.findings.length
+          ? heuristics.findings.map((entry) => `- ${entry}`)
+          : ["- none"]),
         "",
         "## Recommendations",
         ...(heuristics.recommendations.length
@@ -382,15 +435,25 @@ export class TrajectoryService {
       prompt: analysis.prompt,
       highlights: analysis.highlights,
       mode: this.normalizeEvaluationMode(options.mode ?? analysis.mode),
-      purpose: analysis.purpose ?? options.purpose ?? "trajectory research package",
+      purpose:
+        analysis.purpose ?? options.purpose ?? "trajectory research package",
       tags: options.tags ?? analysis.tags,
       rubric: options.rubric,
     });
     const stamp = Date.now();
     const label = this.slug(`${analysis.bundle.label}-package`);
-    const packageManifestPath = join(this.baseDir, `trajectory-${stamp}-${label}-package.json`);
-    const reportPath = join(this.baseDir, `trajectory-${stamp}-${label}-package.md`);
-    const responsePath = join(this.baseDir, `trajectory-${stamp}-${label}-package-response.md`);
+    const packageManifestPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-package.json`,
+    );
+    const reportPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-package.md`,
+    );
+    const responsePath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-package-response.md`,
+    );
     const response = evaluation.response ?? evaluation.reportPath;
 
     writeFileSync(
@@ -437,7 +500,9 @@ export class TrajectoryService {
         `- Focus: ${analysis.focus}`,
         `- Purpose: ${analysis.purpose ?? options.purpose ?? "trajectory research package"}`,
         `- Mode: ${analysis.mode ?? options.mode ?? "research"}`,
-        ...(analysis.tags?.length ? [`- Tags: ${analysis.tags.join(", ")}`] : []),
+        ...(analysis.tags?.length
+          ? [`- Tags: ${analysis.tags.join(", ")}`]
+          : []),
         "",
         "## Export Bundle",
         `- Manifest: ${analysis.bundle.manifestPath}`,
@@ -451,7 +516,9 @@ export class TrajectoryService {
         "",
         "## Analysis",
         `- Prompt: ${analysis.prompt.slice(0, 280)}`,
-        ...(analysis.highlights.length ? analysis.highlights.map((entry) => `- ${entry}`) : ["- none"]),
+        ...(analysis.highlights.length
+          ? analysis.highlights.map((entry) => `- ${entry}`)
+          : ["- none"]),
         "",
         "## Evaluation",
         `- Score: ${evaluation.score}/100`,
@@ -499,12 +566,20 @@ export class TrajectoryService {
   }
 
   replayBundle(manifestPath: string): TrajectoryReplayResult {
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry;
+    const manifest = JSON.parse(
+      readFileSync(manifestPath, "utf8"),
+    ) as TrajectoryBundleEntry;
     const records = this.readRecords(manifest.dataPath);
     const stamp = Date.now();
     const label = this.slug(`${manifest.label}-replay`);
-    const replayPath = join(this.baseDir, `trajectory-${stamp}-${label}.replay.json`);
-    const replaySummaryPath = join(this.baseDir, `trajectory-${stamp}-${label}-replay.md`);
+    const replayPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}.replay.json`,
+    );
+    const replaySummaryPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-replay.md`,
+    );
     const replayPreview = records.slice(0, 20);
 
     writeFileSync(
@@ -581,17 +656,26 @@ export class TrajectoryService {
     return readdirSync(this.baseDir)
       .filter((file) => file.endsWith("-manifest.json"))
       .map((file) => join(this.baseDir, file))
-      .map((manifestPath) => JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry)
+      .map(
+        (manifestPath) =>
+          JSON.parse(
+            readFileSync(manifestPath, "utf8"),
+          ) as TrajectoryBundleEntry,
+      )
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit);
   }
 
   describeBundle(manifestPath: string): TrajectoryBundleEntry {
-    return JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry;
+    return JSON.parse(
+      readFileSync(manifestPath, "utf8"),
+    ) as TrajectoryBundleEntry;
   }
 
   private collect(options: TrajectoryExportOptions): TrajectoryRecord[] {
-    const messages = this.sessions.recent(options.limit ?? 100) as TrajectoryRecord[];
+    const messages = this.sessions.recent(
+      options.limit ?? 100,
+    ) as TrajectoryRecord[];
     return messages.filter((message) => {
       if (options.sessionId && message.sessionId !== options.sessionId) {
         return false;
@@ -624,10 +708,14 @@ export class TrajectoryService {
     return [
       `Messages: ${bundle.messageCount}`,
       `Sessions: ${bundle.sessionCount}`,
-      `Role counts: ${Object.entries(bundle.roleCounts)
-        .map(([role, count]) => `${role}=${count}`)
-        .join(", ") || "none"}`,
-      ...(bundle.sessions.length ? [`Sessions: ${bundle.sessions.join(", ")}`] : ["Sessions: none"]),
+      `Role counts: ${
+        Object.entries(bundle.roleCounts)
+          .map(([role, count]) => `${role}=${count}`)
+          .join(", ") || "none"
+      }`,
+      ...(bundle.sessions.length
+        ? [`Sessions: ${bundle.sessions.join(", ")}`]
+        : ["Sessions: none"]),
     ];
   }
 
@@ -636,7 +724,9 @@ export class TrajectoryService {
     options: TrajectoryExportOptions = {},
   ): string {
     const preview = bundle.replayPreview
-      .map((message) => `[${message.role}] ${message.sessionId}: ${message.text}`)
+      .map(
+        (message) => `[${message.role}] ${message.sessionId}: ${message.text}`,
+      )
       .join("\n");
 
     return [
@@ -655,10 +745,14 @@ export class TrajectoryService {
       `Filters: session=${bundle.filters?.sessionId ?? "any"}, role=${bundle.filters?.role ?? "any"}`,
       "",
       "Role counts:",
-      ...Object.entries(bundle.roleCounts).map(([role, count]) => `- ${role}: ${count}`),
+      ...Object.entries(bundle.roleCounts).map(
+        ([role, count]) => `- ${role}: ${count}`,
+      ),
       "",
       "Sessions:",
-      ...(bundle.sessions.length ? bundle.sessions.map((sessionId) => `- ${sessionId}`) : ["- none"]),
+      ...(bundle.sessions.length
+        ? bundle.sessions.map((sessionId) => `- ${sessionId}`)
+        : ["- none"]),
       "",
       "Replay preview:",
       preview.slice(0, 2400) || "(empty)",
@@ -688,12 +782,22 @@ export class TrajectoryService {
     const canUseOpenAi = Boolean(context?.openAiApiKey);
     const canUseAnthropic = Boolean(context?.anthropicApiKey);
 
-    if (!context || context.provider === "offline" || (!canUseOpenAi && !canUseAnthropic)) {
+    if (
+      !context ||
+      context.provider === "offline" ||
+      (!canUseOpenAi && !canUseAnthropic)
+    ) {
       return [
         `Offline trajectory analysis for ${metadata.focus}.`,
-        metadata.replay ? `Messages: ${metadata.replay.messageCount}` : undefined,
-        typeof metadata.score === "number" ? `Score: ${metadata.score}` : undefined,
-        metadata.findings?.length ? `Findings: ${metadata.findings.join("; ")}` : undefined,
+        metadata.replay
+          ? `Messages: ${metadata.replay.messageCount}`
+          : undefined,
+        typeof metadata.score === "number"
+          ? `Score: ${metadata.score}`
+          : undefined,
+        metadata.findings?.length
+          ? `Findings: ${metadata.findings.join("; ")}`
+          : undefined,
         metadata.recommendations?.length
           ? `Recommendations: ${metadata.recommendations.join("; ")}`
           : undefined,
@@ -704,7 +808,10 @@ export class TrajectoryService {
         .join("\n");
     }
 
-    if ((context.provider === "anthropic" && canUseAnthropic) || (!canUseOpenAi && canUseAnthropic)) {
+    if (
+      (context.provider === "anthropic" && canUseAnthropic) ||
+      (!canUseOpenAi && canUseAnthropic)
+    ) {
       const headers: Record<string, string> = {
         "content-type": "application/json",
         "anthropic-version": "2023-06-01",
@@ -712,31 +819,41 @@ export class TrajectoryService {
       if (context.anthropicApiKey) {
         headers["x-api-key"] = context.anthropicApiKey;
       }
-      const response = await fetch(`${context.anthropicBaseUrl ?? context.baseUrl}/messages`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: context.model,
-          max_tokens: context.maxTokens,
-          temperature: context.temperature,
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-        }),
-      });
+      const response = await fetch(
+        `${context.anthropicBaseUrl ?? context.baseUrl}/messages`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: context.model,
+            max_tokens: context.maxTokens,
+            temperature: context.temperature,
+            messages: [
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+          }),
+        },
+      );
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error(`Anthropic request failed (${response.status}): ${body}`);
+        throw new Error(
+          `Anthropic request failed (${response.status}): ${body}`,
+        );
       }
 
       const data = (await response.json()) as {
         content?: Array<{ text?: string }>;
       };
-      return data.content?.map((entry) => entry.text ?? "").join("").trim() || "No response returned.";
+      return (
+        data.content
+          ?.map((entry) => entry.text ?? "")
+          .join("")
+          .trim() || "No response returned."
+      );
     }
 
     if (!canUseOpenAi) {
@@ -764,14 +881,18 @@ export class TrajectoryService {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`OpenAI-compatible request failed (${response.status}): ${body}`);
+      throw new Error(
+        `OpenAI-compatible request failed (${response.status}): ${body}`,
+      );
     }
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
 
-    return data.choices?.[0]?.message?.content?.trim() ?? "No response returned.";
+    return (
+      data.choices?.[0]?.message?.content?.trim() ?? "No response returned."
+    );
   }
 
   private scoreReplay(
@@ -792,7 +913,9 @@ export class TrajectoryService {
       findings.push("Multiple sessions are represented in the bundle.");
     } else {
       findings.push("The bundle is concentrated in a single session.");
-      recommendations.push("Collect more session diversity for broader training coverage.");
+      recommendations.push(
+        "Collect more session diversity for broader training coverage.",
+      );
     }
 
     const roleKinds = Object.keys(replay.roleCounts).length;
@@ -800,30 +923,51 @@ export class TrajectoryService {
       score += 15;
       findings.push("Both user and assistant roles are present in the replay.");
     } else {
-      recommendations.push("Include both sides of the conversation for better supervision signal.");
+      recommendations.push(
+        "Include both sides of the conversation for better supervision signal.",
+      );
     }
 
     const averageLength = replay.replayPreview.length
-      ? replay.replayPreview.reduce((sum, message) => sum + message.text.length, 0) / replay.replayPreview.length
+      ? replay.replayPreview.reduce(
+          (sum, message) => sum + message.text.length,
+          0,
+        ) / replay.replayPreview.length
       : 0;
     if (averageLength > 30) {
       score += 10;
     } else {
-      recommendations.push("Use fuller message content so the dataset carries clearer task intent.");
+      recommendations.push(
+        "Use fuller message content so the dataset carries clearer task intent.",
+      );
     }
 
-    const lowerText = replay.replayPreview.map((message) => message.text.toLowerCase()).join(" ");
-    const rubricHits = rubric.filter((token) => token && lowerText.includes(token.toLowerCase()));
+    const lowerText = replay.replayPreview
+      .map((message) => message.text.toLowerCase())
+      .join(" ");
+    const rubricHits = rubric.filter(
+      (token) => token && lowerText.includes(token.toLowerCase()),
+    );
     if (rubricHits.length) {
       score += Math.min(20, rubricHits.length * 5);
       findings.push(`Rubric coverage observed for: ${rubricHits.join(", ")}.`);
     } else if (rubric.length) {
-      recommendations.push(`Capture scenarios that mention: ${rubric.join(", ")}.`);
+      recommendations.push(
+        `Capture scenarios that mention: ${rubric.join(", ")}.`,
+      );
     }
 
     score = Math.max(0, Math.min(100, score));
     const grade: "A" | "B" | "C" | "D" | "F" =
-      score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+      score >= 90
+        ? "A"
+        : score >= 80
+          ? "B"
+          : score >= 70
+            ? "C"
+            : score >= 60
+              ? "D"
+              : "F";
 
     if (!findings.length) {
       findings.push("The replay bundle is structured and readable.");

@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import type { DeliveredMessageRecord, DeliveryTarget } from "@/types";
 
 interface DeliveryStore {

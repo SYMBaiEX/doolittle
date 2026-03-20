@@ -32,7 +32,9 @@ describe("GatewayRunner", () => {
       services: {
         gatewayConfig,
         pairing: new PairingService(join(root, "pairing")),
-        gatewaySessions: new GatewaySessionService(join(root, "gateway-sessions")),
+        gatewaySessions: new GatewaySessionService(
+          join(root, "gateway-sessions"),
+        ),
         delivery: new DeliveryService(join(root, "delivery")),
         hooks: new HooksService(join(root, "hooks")),
         sessions: new SessionService(join(root, "sessions")),
@@ -55,7 +57,8 @@ describe("GatewayRunner", () => {
           attachmentCount: "2",
           attachmentKinds: "image|document",
           attachmentNames: "Eliza Snapshot|Eliza Briefing.pdf",
-          attachmentUrls: "https://example.com/snapshot.png|https://example.com/briefing.pdf",
+          attachmentUrls:
+            "https://example.com/snapshot.png|https://example.com/briefing.pdf",
           attachmentMimeTypes: "image/png|application/pdf",
         },
       });
@@ -74,20 +77,51 @@ describe("GatewayRunner", () => {
       expect(result.traceId).toBeDefined();
       expect(result.sessionId).toBeDefined();
       expect(result.deliveryId).toBeDefined();
-      expect(traces.some((trace) => trace.traceId === result.traceId && trace.kind === "deliver")).toBe(true);
-      expect(history.deliveries.some((delivery) => delivery.id === result.deliveryId)).toBe(true);
-      expect(history.traces.some((trace) => trace.traceId === result.traceId)).toBe(true);
+      expect(
+        traces.some(
+          (trace) =>
+            trace.traceId === result.traceId && trace.kind === "deliver",
+        ),
+      ).toBe(true);
+      expect(
+        history.deliveries.some(
+          (delivery) => delivery.id === result.deliveryId,
+        ),
+      ).toBe(true);
+      expect(
+        history.traces.some((trace) => trace.traceId === result.traceId),
+      ).toBe(true);
       expect(history.traces.some((trace) => trace.kind === "route")).toBe(true);
-      expect(history.inbox.some((record) => record.platform === "api")).toBe(true);
-      expect(history.outbox.some((record) => record.platform === "api")).toBe(true);
-      expect(history.attachments.some((record) => record.platform === "api")).toBe(true);
-      expect(history.readiness.some((entry) => entry.platform === "api")).toBe(true);
-      expect(apiTraces.some((trace) => trace.traceId === result.traceId)).toBe(true);
-      expect(inbox.some((record) => record.sessionId === result.sessionId)).toBe(true);
-      expect(outbox.some((record) => record.sessionId === result.sessionId)).toBe(true);
-      expect(attachments.some((record) => record.sessionId === result.sessionId)).toBe(true);
-      expect(state.platforms.some((entry) => entry.platform === "api")).toBe(true);
-      const apiState = state.platforms.find((entry) => entry.platform === "api");
+      expect(history.inbox.some((record) => record.platform === "api")).toBe(
+        true,
+      );
+      expect(history.outbox.some((record) => record.platform === "api")).toBe(
+        true,
+      );
+      expect(
+        history.attachments.some((record) => record.platform === "api"),
+      ).toBe(true);
+      expect(history.readiness.some((entry) => entry.platform === "api")).toBe(
+        true,
+      );
+      expect(apiTraces.some((trace) => trace.traceId === result.traceId)).toBe(
+        true,
+      );
+      expect(
+        inbox.some((record) => record.sessionId === result.sessionId),
+      ).toBe(true);
+      expect(
+        outbox.some((record) => record.sessionId === result.sessionId),
+      ).toBe(true);
+      expect(
+        attachments.some((record) => record.sessionId === result.sessionId),
+      ).toBe(true);
+      expect(state.platforms.some((entry) => entry.platform === "api")).toBe(
+        true,
+      );
+      const apiState = state.platforms.find(
+        (entry) => entry.platform === "api",
+      );
       expect(apiState?.lastOutboundRoomId).toBe("room-1");
       expect(apiState?.lastOutboundUserId).toBe("user-1");
       expect(apiState?.receiveCount).toBeGreaterThan(0);
@@ -112,31 +146,59 @@ describe("GatewayRunner", () => {
       expect(state.totals.inboxMessages).toBeGreaterThan(0);
       expect(state.totals.outboxMessages).toBeGreaterThan(0);
       expect(state.totals.attachmentRecords).toBeGreaterThan(0);
-      expect(state.tracesByKind.some((entry) => entry.kind === "route")).toBe(true);
-      expect(state.tracesByPlatform.some((entry) => entry.platform === "api")).toBe(true);
-      expect(state.inboxByPlatform.some((entry) => entry.platform === "api")).toBe(true);
-      expect(state.outboxByPlatform.some((entry) => entry.platform === "api")).toBe(true);
-      expect(state.attachmentsByPlatform.some((entry) => entry.platform === "api")).toBe(true);
-      expect(state.attachmentsByKind.some((entry) => entry.kind === "image")).toBe(true);
+      expect(state.tracesByKind.some((entry) => entry.kind === "route")).toBe(
+        true,
+      );
+      expect(
+        state.tracesByPlatform.some((entry) => entry.platform === "api"),
+      ).toBe(true);
+      expect(
+        state.inboxByPlatform.some((entry) => entry.platform === "api"),
+      ).toBe(true);
+      expect(
+        state.outboxByPlatform.some((entry) => entry.platform === "api"),
+      ).toBe(true);
+      expect(
+        state.attachmentsByPlatform.some((entry) => entry.platform === "api"),
+      ).toBe(true);
+      expect(
+        state.attachmentsByKind.some((entry) => entry.kind === "image"),
+      ).toBe(true);
       expect(state.totals.recentDeliveries).toBeGreaterThan(0);
-      expect(state.deliveriesByPlatform.some((entry) => entry.platform === "api")).toBe(true);
+      expect(
+        state.deliveriesByPlatform.some((entry) => entry.platform === "api"),
+      ).toBe(true);
       expect(state.heartbeatAt).toBeDefined();
       expect(state.reason).toBe("history");
       expect(existsSync(state.snapshotPath)).toBe(true);
       expect(existsSync(state.historyPath)).toBe(true);
-      expect(existsSync(join(root, "gateway", "journals", "gateway-inbox.jsonl"))).toBe(true);
-      expect(existsSync(join(root, "gateway", "journals", "gateway-outbox.jsonl"))).toBe(true);
-      expect(existsSync(join(root, "gateway", "journals", "gateway-attachments.jsonl"))).toBe(true);
+      expect(
+        existsSync(join(root, "gateway", "journals", "gateway-inbox.jsonl")),
+      ).toBe(true);
+      expect(
+        existsSync(join(root, "gateway", "journals", "gateway-outbox.jsonl")),
+      ).toBe(true);
+      expect(
+        existsSync(
+          join(root, "gateway", "journals", "gateway-attachments.jsonl"),
+        ),
+      ).toBe(true);
       const snapshot = JSON.parse(readFileSync(state.snapshotPath, "utf8")) as {
         reason?: string;
         state?: { heartbeatAt?: string };
       };
       expect(snapshot.reason).toBe("health");
       expect(snapshot.state?.heartbeatAt).toBeDefined();
-      expect(heartbeatState.platforms.some((entry) => entry.platform === "api")).toBe(true);
+      expect(
+        heartbeatState.platforms.some((entry) => entry.platform === "api"),
+      ).toBe(true);
       expect(apiHealth?.events.length ?? 0).toBeGreaterThan(0);
-      expect(apiHealth?.events.some((event) => event.kind === "heartbeat")).toBe(true);
-      expect(apiHealth?.events.some((event) => event.kind === "health")).toBe(true);
+      expect(
+        apiHealth?.events.some((event) => event.kind === "heartbeat"),
+      ).toBe(true);
+      expect(apiHealth?.events.some((event) => event.kind === "health")).toBe(
+        true,
+      );
       expect(apiHealth?.presence?.status).toBeDefined();
     } finally {
       await runner.stop();

@@ -5,8 +5,8 @@ import {
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 export class MockPlatformAdapter implements PlatformAdapter {

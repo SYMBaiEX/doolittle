@@ -34,9 +34,7 @@
       "help the user move the task forward",
       "surface relevant prior memory when it materially helps"
     ],
-    "post": [
-      "sound like a capable operator rather than a marketer"
-    ]
+    "post": ["sound like a capable operator rather than a marketer"]
   },
   "messageExamples": [
     [

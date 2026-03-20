@@ -1,6 +1,6 @@
-import { config as loadEnv } from "dotenv";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 import type { EnvConfig } from "@/types";
 
@@ -38,27 +38,45 @@ const schema = z.object({
   MATRIX_ACCESS_TOKEN: z.string().optional(),
   EMAIL_SEND_COMMAND: z.string().optional(),
   SMS_SEND_COMMAND: z.string().optional(),
-  ELIZA_AGENT_BROWSER_PROVIDER: z.enum(["lightpanda", "basic"]).default("lightpanda"),
+  ELIZA_AGENT_BROWSER_PROVIDER: z
+    .enum(["lightpanda", "basic"])
+    .default("lightpanda"),
   ELIZA_AGENT_BROWSER_COMMAND: z.string().default("lightpanda"),
   ELIZA_AGENT_BROWSER_CDP_URL: z.string().optional(),
   ELIZA_AGENT_BROWSER_OBEY_ROBOTS: z
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  ELIZA_AGENT_REMOTE_SYNC_MODE: z.enum(["mirror", "snapshot"]).default("mirror"),
+  ELIZA_AGENT_REMOTE_SYNC_MODE: z
+    .enum(["mirror", "snapshot"])
+    .default("mirror"),
   ELIZA_AGENT_REMOTE_SYNC_INCLUDE: z.string().default("**/*"),
   ELIZA_AGENT_REMOTE_SYNC_EXCLUDE: z
     .string()
-    .default(".git,.eliza-agent,node_modules,dist,coverage,.cache,.turbo,.DS_Store"),
+    .default(
+      ".git,.eliza-agent,node_modules,dist,coverage,.cache,.turbo,.DS_Store",
+    ),
   ELIZA_AGENT_REMOTE_ARTIFACT_PATHS: z
     .string()
-    .default(".eliza-agent/remote-artifacts,.eliza-agent/trajectories,.eliza-agent/cron-output"),
+    .default(
+      ".eliza-agent/remote-artifacts,.eliza-agent/trajectories,.eliza-agent/cron-output",
+    ),
   ELIZA_AGENT_REMOTE_ARTIFACT_POLICY: z
     .enum(["metadata-only", "allowlisted"])
     .default("metadata-only"),
-  ELIZA_AGENT_REMOTE_WORKSPACE_LABEL: z.string().default("eliza-agent-workspace"),
+  ELIZA_AGENT_REMOTE_WORKSPACE_LABEL: z
+    .string()
+    .default("eliza-agent-workspace"),
   ELIZA_AGENT_EXECUTION_BACKEND: z
-    .enum(["local", "docker", "podman", "ssh", "singularity", "daytona", "modal"])
+    .enum([
+      "local",
+      "docker",
+      "podman",
+      "ssh",
+      "singularity",
+      "daytona",
+      "modal",
+    ])
     .default("local"),
   ELIZA_AGENT_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
   ELIZA_AGENT_DOCKER_NETWORK: z.string().default("host"),
@@ -83,11 +101,23 @@ const schema = z.object({
   ELIZA_AGENT_MODAL_BOOTSTRAP_COMMAND: z.string().optional(),
   ELIZA_AGENT_MODAL_STATUS_COMMAND: z.string().optional(),
   ELIZA_AGENT_MODAL_INSPECT_COMMAND: z.string().optional(),
-  ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
-  ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
+  ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30_000),
+  ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5_000),
   ELIZA_AGENT_CONTAINER_CPU_LIMIT: z.string().default("2"),
   ELIZA_AGENT_CONTAINER_MEMORY_LIMIT: z.string().default("2g"),
-  ELIZA_AGENT_CONTAINER_PIDS_LIMIT: z.coerce.number().int().positive().default(256),
+  ELIZA_AGENT_CONTAINER_PIDS_LIMIT: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(256),
   ELIZA_AGENT_CONTAINER_READ_ONLY_ROOT: z
     .enum(["true", "false"])
     .default("true")
@@ -101,9 +131,17 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
-  ELIZA_AGENT_MEMORY_CHAR_LIMIT: z.coerce.number().int().positive().default(2200),
+  ELIZA_AGENT_MEMORY_CHAR_LIMIT: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(2200),
   ELIZA_AGENT_USER_CHAR_LIMIT: z.coerce.number().int().positive().default(1375),
-  ELIZA_AGENT_SESSION_SEARCH_LIMIT: z.coerce.number().int().positive().default(6),
+  ELIZA_AGENT_SESSION_SEARCH_LIMIT: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(6),
   ELIZA_AGENT_CRON_TICK_SECONDS: z.coerce.number().int().positive().default(30),
   ELIZA_AGENT_CRON_OUTPUT_DIR: z.string().default(".eliza-agent/cron-output"),
   ELIZA_AGENT_GATEWAY_DATA_DIR: z.string().default(".eliza-agent/gateway"),
@@ -170,16 +208,13 @@ export function loadConfig(): EnvConfig {
     browserCdpUrl: values.ELIZA_AGENT_BROWSER_CDP_URL,
     browserObeyRobots: values.ELIZA_AGENT_BROWSER_OBEY_ROBOTS,
     remoteSyncMode: values.ELIZA_AGENT_REMOTE_SYNC_MODE,
-    remoteSyncInclude: values.ELIZA_AGENT_REMOTE_SYNC_INCLUDE
-      .split(",")
+    remoteSyncInclude: values.ELIZA_AGENT_REMOTE_SYNC_INCLUDE.split(",")
       .map((value) => value.trim())
       .filter(Boolean),
-    remoteSyncExclude: values.ELIZA_AGENT_REMOTE_SYNC_EXCLUDE
-      .split(",")
+    remoteSyncExclude: values.ELIZA_AGENT_REMOTE_SYNC_EXCLUDE.split(",")
       .map((value) => value.trim())
       .filter(Boolean),
-    remoteArtifactPaths: values.ELIZA_AGENT_REMOTE_ARTIFACT_PATHS
-      .split(",")
+    remoteArtifactPaths: values.ELIZA_AGENT_REMOTE_ARTIFACT_PATHS.split(",")
       .map((value) => value.trim())
       .filter(Boolean),
     remoteArtifactPolicy: values.ELIZA_AGENT_REMOTE_ARTIFACT_POLICY,
@@ -188,8 +223,7 @@ export function loadConfig(): EnvConfig {
     dockerImage: values.ELIZA_AGENT_DOCKER_IMAGE,
     dockerNetwork: values.ELIZA_AGENT_DOCKER_NETWORK,
     dockerWorkspacePath: values.ELIZA_AGENT_DOCKER_WORKSPACE_PATH,
-    dockerEnvPassthrough: values.ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH
-      .split(",")
+    dockerEnvPassthrough: values.ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH.split(",")
       .map((value) => value.trim())
       .filter(Boolean),
     singularityImage: values.ELIZA_AGENT_SINGULARITY_IMAGE,

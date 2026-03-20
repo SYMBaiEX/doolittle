@@ -14,7 +14,7 @@ describe("CommandPlatformAdapter", () => {
       [
         "#!/bin/sh",
         "set -eu",
-        "printf 'sent:%s:%s' \"$ELIZA_AGENT_PLATFORM\" \"$ELIZA_AGENT_ROOM_ID\"",
+        'printf \'sent:%s:%s\' "$ELIZA_AGENT_PLATFORM" "$ELIZA_AGENT_ROOM_ID"',
       ].join("\n"),
       "utf8",
     );

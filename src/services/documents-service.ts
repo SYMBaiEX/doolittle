@@ -14,7 +14,10 @@ export class DocumentsService {
     private readonly workspaceDir: string,
   ) {}
 
-  async extractPdfFromPath(path: string, options: PdfExtractOptions = {}): Promise<string> {
+  async extractPdfFromPath(
+    path: string,
+    options: PdfExtractOptions = {},
+  ): Promise<string> {
     const resolvedPath = resolve(this.workspaceDir, path);
     const buffer = readFileSync(resolvedPath);
     return this.extractPdfFromBuffer(buffer, options);
@@ -34,7 +37,10 @@ export class DocumentsService {
   ): Promise<string> {
     const { PdfService } = await import("@elizaos/plugin-pdf");
     const pdfService = new PdfService(this.runtime as never);
-    const result = await pdfService.convertPdfToTextWithOptions(pdfBuffer, options);
+    const result = await pdfService.convertPdfToTextWithOptions(
+      pdfBuffer,
+      options,
+    );
     if (!result.success) {
       throw new Error(result.error ?? "PDF extraction failed.");
     }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DiagnosticsService } from "./diagnostics-service";
 import type { EnvConfig, GatewayConfig } from "@/types";
+import { DiagnosticsService } from "./diagnostics-service";
 
 function buildConfig(root: string): EnvConfig {
   const dataDir = join(root, ".eliza-agent");
@@ -135,7 +135,10 @@ function buildGatewayConfig(): GatewayConfig {
 describe("DiagnosticsService", () => {
   it("reports richer operator checks and setup checklist hints", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-diagnostics-"));
-    const service = new DiagnosticsService(buildConfig(root), buildGatewayConfig());
+    const service = new DiagnosticsService(
+      buildConfig(root),
+      buildGatewayConfig(),
+    );
 
     try {
       const checks = await service.run({
@@ -149,18 +152,32 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "data.exists")).toBe(true);
       expect(checks.some((check) => check.id === "cron.output")).toBe(true);
       expect(checks.some((check) => check.id === "gateway.data")).toBe(true);
-      expect(checks.some((check) => check.id === "execution.remote.sync")).toBe(true);
-      expect(checks.some((check) => check.id === "execution.remote.artifacts")).toBe(true);
-      expect(checks.some((check) => check.id === "mcp.bridge" && check.status === "warn")).toBe(
+      expect(checks.some((check) => check.id === "execution.remote.sync")).toBe(
         true,
       );
+      expect(
+        checks.some((check) => check.id === "execution.remote.artifacts"),
+      ).toBe(true);
+      expect(
+        checks.some(
+          (check) => check.id === "mcp.bridge" && check.status === "warn",
+        ),
+      ).toBe(true);
 
       const checklist = await service.setupChecklist();
-      expect(checklist.some((item) => item.includes("MCP_SERVER_COMMAND"))).toBe(true);
-      expect(checklist.some((item) => item.includes("ELIZA_AGENT_REMOTE_SYNC_INCLUDE"))).toBe(true);
-      expect(checklist.some((item) => item.includes("Validate docker runtime access"))).toBe(
-        true,
-      );
+      expect(
+        checklist.some((item) => item.includes("MCP_SERVER_COMMAND")),
+      ).toBe(true);
+      expect(
+        checklist.some((item) =>
+          item.includes("ELIZA_AGENT_REMOTE_SYNC_INCLUDE"),
+        ),
+      ).toBe(true);
+      expect(
+        checklist.some((item) =>
+          item.includes("Validate docker runtime access"),
+        ),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

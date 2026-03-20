@@ -12,8 +12,8 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import type { EnvConfig } from "@/types";
-import { DiagnosticsService } from "./diagnostics-service";
-import { RepositoryService } from "./repository-service";
+import type { DiagnosticsService } from "./diagnostics-service";
+import type { RepositoryService } from "./repository-service";
 
 interface PackageMetadata {
   name: string;
@@ -56,7 +56,10 @@ export interface MigrationSourceSummary {
 export interface MigrationInspection {
   rootPath: string;
   exists: boolean;
-  files: Array<{ path: string; kind: "context" | "memory" | "persona" | "skill" | "other" }>;
+  files: Array<{
+    path: string;
+    kind: "context" | "memory" | "persona" | "skill" | "other";
+  }>;
   skillCount: number;
   contextCount: number;
 }
@@ -88,10 +91,26 @@ export class OperatorService {
     return {
       version: this.version(),
       directories: [
-        { label: "workspace", path: this.config.workspaceDir, exists: existsSync(this.config.workspaceDir) },
-        { label: "data", path: this.config.dataDir, exists: existsSync(this.config.dataDir) },
-        { label: "skills", path: this.config.skillsDir, exists: existsSync(this.config.skillsDir) },
-        { label: "gateway", path: this.config.gatewayDataDir, exists: existsSync(this.config.gatewayDataDir) },
+        {
+          label: "workspace",
+          path: this.config.workspaceDir,
+          exists: existsSync(this.config.workspaceDir),
+        },
+        {
+          label: "data",
+          path: this.config.dataDir,
+          exists: existsSync(this.config.dataDir),
+        },
+        {
+          label: "skills",
+          path: this.config.skillsDir,
+          exists: existsSync(this.config.skillsDir),
+        },
+        {
+          label: "gateway",
+          path: this.config.gatewayDataDir,
+          exists: existsSync(this.config.gatewayDataDir),
+        },
       ],
       providers: [
         {
@@ -113,21 +132,30 @@ export class OperatorService {
         {
           id: "telegram",
           ready: Boolean(this.config.telegramBotToken),
-          detail: this.config.telegramBotToken ? "Telegram token configured." : "Missing TELEGRAM_BOT_TOKEN.",
+          detail: this.config.telegramBotToken
+            ? "Telegram token configured."
+            : "Missing TELEGRAM_BOT_TOKEN.",
         },
         {
           id: "discord",
           ready: Boolean(this.config.discordBotToken),
-          detail: this.config.discordBotToken ? "Discord token configured." : "Missing DISCORD_BOT_TOKEN.",
+          detail: this.config.discordBotToken
+            ? "Discord token configured."
+            : "Missing DISCORD_BOT_TOKEN.",
         },
         {
           id: "slack",
           ready: Boolean(this.config.slackWebhookUrl),
-          detail: this.config.slackWebhookUrl ? "Slack webhook configured." : "Missing SLACK_WEBHOOK_URL.",
+          detail: this.config.slackWebhookUrl
+            ? "Slack webhook configured."
+            : "Missing SLACK_WEBHOOK_URL.",
         },
         {
           id: "whatsapp",
-          ready: Boolean(this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId),
+          ready: Boolean(
+            this.config.whatsappAccessToken &&
+              this.config.whatsappPhoneNumberId,
+          ),
           detail:
             this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId
               ? "WhatsApp delivery credentials configured."
@@ -136,7 +164,9 @@ export class OperatorService {
         {
           id: "signal",
           ready: Boolean(this.config.signalCliCommand),
-          detail: this.config.signalCliCommand ? "Signal CLI command configured." : "Missing SIGNAL_CLI_COMMAND.",
+          detail: this.config.signalCliCommand
+            ? "Signal CLI command configured."
+            : "Missing SIGNAL_CLI_COMMAND.",
         },
       ],
       checklist: await this.diagnostics.setupChecklist(),
@@ -145,7 +175,9 @@ export class OperatorService {
 
   async updatePreview(): Promise<UpdatePreview> {
     const repositoryAvailable = this.repository.isRepository();
-    const status = repositoryAvailable ? await this.repository.status() : "(workspace is not inside a git repository)";
+    const status = repositoryAvailable
+      ? await this.repository.status()
+      : "(workspace is not inside a git repository)";
     const recentCommits = repositoryAvailable
       ? await this.repository.recentCommits(8)
       : "(no git history available)";
@@ -225,11 +257,16 @@ export class OperatorService {
       exists: true,
       files,
       skillCount: files.filter((entry) => entry.kind === "skill").length,
-      contextCount: files.filter((entry) => entry.kind === "context" || entry.kind === "persona").length,
+      contextCount: files.filter(
+        (entry) => entry.kind === "context" || entry.kind === "persona",
+      ).length,
     };
   }
 
-  applyMigration(sourcePath: string, options?: { overwrite?: boolean }): MigrationResult {
+  applyMigration(
+    sourcePath: string,
+    options?: { overwrite?: boolean },
+  ): MigrationResult {
     const overwrite = options?.overwrite ?? false;
     const inspection = this.inspectMigrationSource(sourcePath);
     if (!inspection.exists) {
@@ -300,10 +337,15 @@ export class OperatorService {
       description: this.packageMetadata.description,
       bun: Bun.version,
       dependencies: {
-        "@elizaos/core": this.packageMetadata.dependencies?.["@elizaos/core"] ?? "unknown",
-        "elizaos": this.packageMetadata.dependencies?.elizaos ?? "unknown",
-        "@elizaos/plugin-openai": this.packageMetadata.dependencies?.["@elizaos/plugin-openai"] ?? "unknown",
-        "@elizaos/plugin-anthropic": this.packageMetadata.dependencies?.["@elizaos/plugin-anthropic"] ?? "unknown",
+        "@elizaos/core":
+          this.packageMetadata.dependencies?.["@elizaos/core"] ?? "unknown",
+        elizaos: this.packageMetadata.dependencies?.elizaos ?? "unknown",
+        "@elizaos/plugin-openai":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-openai"] ??
+          "unknown",
+        "@elizaos/plugin-anthropic":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-anthropic"] ??
+          "unknown",
       },
     };
   }
@@ -327,7 +369,10 @@ export class OperatorService {
   }
 
   private loadPackageMetadata(): PackageMetadata {
-    const packagePath = resolve(dirname(new URL(import.meta.url).pathname), "../../package.json");
+    const packagePath = resolve(
+      dirname(new URL(import.meta.url).pathname),
+      "../../package.json",
+    );
     return JSON.parse(readFileSync(packagePath, "utf8")) as PackageMetadata;
   }
 }

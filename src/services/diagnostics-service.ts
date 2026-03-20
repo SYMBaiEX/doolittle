@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
+import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
-import type { EnvConfig, DiagnosticCheck, GatewayConfig } from "@/types";
+import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 
 export class DiagnosticsService {
   constructor(
@@ -27,7 +26,9 @@ export class DiagnosticsService {
 
     checks.push({
       id: "workspace.writeable",
-      status: (await this.isWritable(this.config.workspaceDir)) ? "pass" : "fail",
+      status: (await this.isWritable(this.config.workspaceDir))
+        ? "pass"
+        : "fail",
       summary: "Workspace write access",
       detail: this.config.workspaceDir,
     });
@@ -56,7 +57,9 @@ export class DiagnosticsService {
     checks.push({
       id: "provider.configured",
       status:
-        this.config.openAiApiKey || this.config.anthropicApiKey ? "pass" : "warn",
+        this.config.openAiApiKey || this.config.anthropicApiKey
+          ? "pass"
+          : "warn",
       summary: "Model provider credentials",
       detail:
         this.config.openAiApiKey || this.config.anthropicApiKey
@@ -88,28 +91,31 @@ export class DiagnosticsService {
       id: "gateway.platforms",
       status: enabledPlatforms.length > 0 ? "pass" : "warn",
       summary: "Enabled gateway platforms",
-      detail: enabledPlatforms.length ? enabledPlatforms.join(", ") : "No gateway platforms enabled.",
+      detail: enabledPlatforms.length
+        ? enabledPlatforms.join(", ")
+        : "No gateway platforms enabled.",
     });
 
     checks.push({
       id: "telegram.readiness",
       status:
-        this.gatewayConfig.platforms.telegram.enabled && !this.config.telegramBotToken
+        this.gatewayConfig.platforms.telegram.enabled &&
+        !this.config.telegramBotToken
           ? "fail"
           : this.config.telegramBotToken
             ? "pass"
             : "warn",
       summary: "Telegram transport readiness",
-      detail:
-        this.config.telegramBotToken
-          ? "Telegram token configured."
-          : "TELEGRAM_BOT_TOKEN is not configured.",
+      detail: this.config.telegramBotToken
+        ? "Telegram token configured."
+        : "TELEGRAM_BOT_TOKEN is not configured.",
     });
 
     checks.push({
       id: "discord.readiness",
       status:
-        this.gatewayConfig.platforms.discord.enabled && !this.config.discordBotToken
+        this.gatewayConfig.platforms.discord.enabled &&
+        !this.config.discordBotToken
           ? "fail"
           : this.config.discordBotToken
             ? "pass"
@@ -163,7 +169,8 @@ export class DiagnosticsService {
     checks.push({
       id: "signal.readiness",
       status:
-        this.gatewayConfig.platforms.signal.enabled && !this.config.signalCliCommand
+        this.gatewayConfig.platforms.signal.enabled &&
+        !this.config.signalCliCommand
           ? "fail"
           : this.config.signalCliCommand
             ? "pass"
@@ -193,7 +200,8 @@ export class DiagnosticsService {
     checks.push({
       id: "email.readiness",
       status:
-        this.gatewayConfig.platforms.email.enabled && !this.config.emailSendCommand
+        this.gatewayConfig.platforms.email.enabled &&
+        !this.config.emailSendCommand
           ? "fail"
           : this.config.emailSendCommand
             ? "pass"
@@ -339,7 +347,8 @@ export class DiagnosticsService {
     checks.push({
       id: "browser.backend",
       status:
-        this.config.browserProvider === "lightpanda" && !this.config.browserCommand
+        this.config.browserProvider === "lightpanda" &&
+        !this.config.browserCommand
           ? "fail"
           : "pass",
       summary: "Browser backend configuration",
@@ -353,16 +362,14 @@ export class DiagnosticsService {
       id: "execution.remote.sync",
       status: this.config.remoteSyncInclude.length > 0 ? "pass" : "warn",
       summary: "Remote workspace sync planning",
-      detail:
-        `Mode=${this.config.remoteSyncMode}; include=${this.config.remoteSyncInclude.join(", ") || "none"}; exclude=${this.config.remoteSyncExclude.join(", ") || "none"}; workspace label=${this.config.remoteWorkspaceLabel}.`,
+      detail: `Mode=${this.config.remoteSyncMode}; include=${this.config.remoteSyncInclude.join(", ") || "none"}; exclude=${this.config.remoteSyncExclude.join(", ") || "none"}; workspace label=${this.config.remoteWorkspaceLabel}.`,
     });
 
     checks.push({
       id: "execution.remote.artifacts",
       status: this.config.remoteArtifactPaths.length > 0 ? "pass" : "warn",
       summary: "Remote artifact policy",
-      detail:
-        `Policy=${this.config.remoteArtifactPolicy}; artifact paths=${this.config.remoteArtifactPaths.join(", ") || "none"}; snapshots persist metadata only.`,
+      detail: `Policy=${this.config.remoteArtifactPolicy}; artifact paths=${this.config.remoteArtifactPaths.join(", ") || "none"}; snapshots persist metadata only.`,
     });
 
     checks.push({
@@ -387,10 +394,14 @@ export class DiagnosticsService {
     ];
 
     if (!this.config.telegramBotToken) {
-      steps.push("Set TELEGRAM_BOT_TOKEN before enabling the Telegram gateway path.");
+      steps.push(
+        "Set TELEGRAM_BOT_TOKEN before enabling the Telegram gateway path.",
+      );
     }
     if (!this.config.discordBotToken) {
-      steps.push("Set DISCORD_BOT_TOKEN before enabling the Discord gateway path.");
+      steps.push(
+        "Set DISCORD_BOT_TOKEN before enabling the Discord gateway path.",
+      );
     }
     if (!this.config.slackWebhookUrl || !this.config.slackSigningSecret) {
       steps.push(
@@ -407,13 +418,19 @@ export class DiagnosticsService {
       );
     }
     if (!this.config.signalCliCommand) {
-      steps.push("Set SIGNAL_CLI_COMMAND before enabling the Signal gateway path.");
+      steps.push(
+        "Set SIGNAL_CLI_COMMAND before enabling the Signal gateway path.",
+      );
     }
     if (!this.config.matrixHomeserver || !this.config.matrixAccessToken) {
-      steps.push("Set MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN before enabling the Matrix gateway path.");
+      steps.push(
+        "Set MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN before enabling the Matrix gateway path.",
+      );
     }
     if (!this.config.emailSendCommand) {
-      steps.push("Set EMAIL_SEND_COMMAND before enabling the Email gateway path.");
+      steps.push(
+        "Set EMAIL_SEND_COMMAND before enabling the Email gateway path.",
+      );
     }
     if (!this.config.smsSendCommand) {
       steps.push("Set SMS_SEND_COMMAND before enabling the SMS gateway path.");
@@ -451,25 +468,39 @@ export class DiagnosticsService {
         `Validate ${this.config.executionBackend} runtime access and run /execution status before relying on remote or containerized execution.`,
       );
     }
-    if (this.config.executionBackend === "singularity" && !this.config.singularityImage) {
+    if (
+      this.config.executionBackend === "singularity" &&
+      !this.config.singularityImage
+    ) {
       steps.push(
         "Set ELIZA_AGENT_SINGULARITY_IMAGE before relying on the Singularity execution backend.",
       );
     }
-    if (this.config.executionBackend === "daytona" && !this.config.daytonaTarget) {
+    if (
+      this.config.executionBackend === "daytona" &&
+      !this.config.daytonaTarget
+    ) {
       steps.push(
         "Set ELIZA_AGENT_DAYTONA_TARGET before relying on the Daytona execution backend.",
       );
     }
-    if (this.config.executionBackend === "daytona" && !this.config.daytonaWorkspacePath) {
+    if (
+      this.config.executionBackend === "daytona" &&
+      !this.config.daytonaWorkspacePath
+    ) {
       steps.push(
         "Set ELIZA_AGENT_DAYTONA_WORKSPACE_PATH before relying on the Daytona execution backend.",
       );
     }
     if (!this.config.daytonaShell) {
-      steps.push("Set ELIZA_AGENT_DAYTONA_SHELL to choose the shell used inside Daytona sandboxes.");
+      steps.push(
+        "Set ELIZA_AGENT_DAYTONA_SHELL to choose the shell used inside Daytona sandboxes.",
+      );
     }
-    if (this.config.executionBackend === "daytona" && !this.config.daytonaSnapshot) {
+    if (
+      this.config.executionBackend === "daytona" &&
+      !this.config.daytonaSnapshot
+    ) {
       steps.push(
         "Optionally set ELIZA_AGENT_DAYTONA_SNAPSHOT if you want Daytona execution to anchor to a named sandbox snapshot.",
       );
@@ -484,13 +515,18 @@ export class DiagnosticsService {
         "Set ELIZA_AGENT_MODAL_TARGET before relying on the Modal execution backend.",
       );
     }
-    if (this.config.executionBackend === "modal" && !this.config.modalWorkspacePath) {
+    if (
+      this.config.executionBackend === "modal" &&
+      !this.config.modalWorkspacePath
+    ) {
       steps.push(
         "Set ELIZA_AGENT_MODAL_WORKSPACE_PATH before relying on the Modal execution backend.",
       );
     }
     if (!this.config.modalShell) {
-      steps.push("Set ELIZA_AGENT_MODAL_SHELL to choose the shell used inside Modal sandboxes.");
+      steps.push(
+        "Set ELIZA_AGENT_MODAL_SHELL to choose the shell used inside Modal sandboxes.",
+      );
     }
     if (!this.config.modalEnvironment) {
       steps.push(

@@ -55,7 +55,9 @@ export class SkillsService {
       .map((line) => line.trim())
       .find((line) => line.startsWith("#"));
 
-    return heading ? heading.replace(/^#+\s*/u, "") : fallbackPath.split("/").at(-2) ?? "Untitled Skill";
+    return heading
+      ? heading.replace(/^#+\s*/u, "")
+      : (fallbackPath.split("/").at(-2) ?? "Untitled Skill");
   }
 
   private extractDescription(content: string): string {
