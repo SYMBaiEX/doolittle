@@ -84,13 +84,13 @@ eliza-agent/
 | Workspace context files | [`src/services/context-files-service.ts`](./src/services/context-files-service.ts) |
 | Runtime settings and model config | [`src/services/settings-service.ts`](./src/services/settings-service.ts) |
 | Browser inspection, capture, and model-backed analysis | [`src/services/web-service.ts`](./src/services/web-service.ts) + `/browser` commands |
-| Media inspection, model-assisted analysis, and image generation | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
-| Trajectory research bundles, replay, and evaluation | [`src/services/trajectory-service.ts`](./src/services/trajectory-service.ts) + `/trajectories` commands |
+| Media inspection, model-assisted analysis, transcription, speech synthesis, and image generation | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
+| Trajectory research bundles, replay, packaging, and evaluation | [`src/services/trajectory-service.ts`](./src/services/trajectory-service.ts) + `/trajectories` commands |
 | PDF extraction | [`src/services/documents-service.ts`](./src/services/documents-service.ts) + `@elizaos/plugin-pdf` |
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, and cloud sandbox profile paths |
+| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, remote sync planning, snapshot history, and cloud sandbox profile paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
@@ -200,6 +200,12 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_MODAL_BOOTSTRAP_COMMAND` | Optional bootstrap command run before Modal user commands. |
 | `ELIZA_AGENT_MODAL_STATUS_COMMAND` | Optional Modal status command used for explicit remote inspection. |
 | `ELIZA_AGENT_MODAL_INSPECT_COMMAND` | Optional Modal inspect command used to override the synthesized shell inspection command. |
+| `ELIZA_AGENT_REMOTE_SYNC_MODE` | Remote workspace planning mode for Daytona and Modal runs: `mirror` or `snapshot`. |
+| `ELIZA_AGENT_REMOTE_SYNC_INCLUDE` | Comma-separated allowlist of workspace paths to mirror or snapshot metadata for remote runs. |
+| `ELIZA_AGENT_REMOTE_SYNC_EXCLUDE` | Comma-separated denylist of workspace paths excluded from remote sync planning. |
+| `ELIZA_AGENT_REMOTE_ARTIFACT_PATHS` | Comma-separated remote artifact paths tracked as metadata-only operator snapshots. |
+| `ELIZA_AGENT_REMOTE_ARTIFACT_POLICY` | Remote artifact handling policy: `metadata-only` or `allowlisted`. |
+| `ELIZA_AGENT_REMOTE_WORKSPACE_LABEL` | Human-readable label used in remote execution snapshots and cloud session history. |
 | `ELIZA_AGENT_SSH_HOST` | Remote SSH host for execution. |
 | `ELIZA_AGENT_SSH_USER` | Remote SSH user for execution. |
 | `ELIZA_AGENT_SSH_PATH` | Remote workspace path for SSH execution. |
@@ -347,6 +353,8 @@ Useful commands:
 - `/trajectories analyze session:room-123 role:user limit:50`
 - `/trajectories evaluate`
 - `/trajectories evaluate session:room-123 role:user limit:50 rubric:memory,skills`
+- `/trajectories package`
+- `/trajectories package session:room-123 role:user limit:50 rubric:memory,skills`
 - `/trajectories replay latest`
 - `/context files`
 - `/status`
@@ -355,6 +363,8 @@ Useful commands:
 - `/setup checklist`
 - `/web fetch https://example.com`
 - `/media inspect ./characters/eliza-agent.character.json`
+- `/media transcribe ./recordings/daily-sync.wav`
+- `/media speak Eliza Agent is ready for the next workspace pass.`
 - `/pdf extract ./path/to/file.pdf`
 - `/workspace tree`
 - `/workspace read package.json`
@@ -422,6 +432,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /media/caption`
 - `GET /media/bundle`
 - `POST /media/analyze`
+- `POST /media/transcribe`
+- `POST /media/speak`
 - `GET /execution/status`
 - `GET /execution/backends`
 - `POST /execution/preview`
@@ -444,6 +456,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /repo/diff`
 - `GET /repo/log`
 - `POST /documents/pdf/extract`
+- `POST /trajectories/package`
+- `GET /trajectories/package`
 - `GET /deliveries`
 - `GET /sessions/gateway`
 - `GET /personality`

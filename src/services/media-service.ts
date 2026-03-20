@@ -65,6 +65,37 @@ export interface MediaModelAnalysisBundle {
   provider: string;
 }
 
+export interface MediaTranscriptionBundle {
+  inspection: MediaInspection;
+  bundle: MediaBundle;
+  prompt: string;
+  transcriptText: string;
+  transcriptPath: string;
+  promptPath: string;
+  manifestPath: string;
+  reportPath: string;
+  responsePath?: string;
+  response?: string;
+  model?: string;
+  provider?: string;
+  source: "openai" | "anthropic" | "sidecar" | "offline";
+}
+
+export interface MediaSpeechBundle {
+  prompt: string;
+  refinedText: string;
+  promptPath: string;
+  manifestPath: string;
+  reportPath: string;
+  artifactPath: string;
+  artifactKind: "mp3" | "svg";
+  response?: string;
+  responsePath?: string;
+  model?: string;
+  provider?: string;
+  voice?: string;
+}
+
 export interface MediaGenerationBundle {
   prompt: string;
   refinedPrompt: string;
@@ -378,6 +409,203 @@ export class MediaService {
     return this.analyzeWithModel(path, "vision");
   }
 
+  async transcribe(
+    path: string,
+    options: {
+      language?: string;
+      prompt?: string;
+      name?: string;
+    } = {},
+  ): Promise<MediaTranscriptionBundle> {
+    const inspection = this.inspect(path);
+    const bundle = this.bundle(path);
+    const modelContext = this.getModelContext?.();
+    const stamp = Date.now();
+    const label = this.slugifyText(
+      options.name ?? `${inspection.basename}-${inspection.contentHash ?? "transcript"}`,
+    );
+    const promptPath = join(this.outputDir, `media-${stamp}-${label}-transcription-prompt.md`);
+    const manifestPath = join(this.outputDir, `media-${stamp}-${label}-transcription.json`);
+    const reportPath = join(this.outputDir, `media-${stamp}-${label}-transcription.md`);
+    const transcriptPath = join(this.outputDir, `media-${stamp}-${label}-transcript.txt`);
+    const responsePath = join(this.outputDir, `media-${stamp}-${label}-transcription-response.txt`);
+    const prompt = [
+      "Create a concise Eliza Agent transcript or spoken-content summary for the attached media.",
+      "Prefer exact transcription when the provider supports it; otherwise return a best-effort plain-text transcript.",
+      "Keep the output readable and free of filler.",
+      "",
+      `Path: ${inspection.path}`,
+      `Kind: ${inspection.kind}`,
+      `MIME: ${inspection.mimeType}`,
+      `Duration: ${inspection.durationMs ? `${Math.round(inspection.durationMs / 1000)}s` : "unknown"}`,
+      inspection.transcriptPreview ? `Existing transcript sidecar preview: ${inspection.transcriptPreview}` : undefined,
+      inspection.captionPreview ? `Existing caption sidecar preview: ${inspection.captionPreview}` : undefined,
+      "",
+      "Signals:",
+      ...this.buildSignals(inspection).map((signal) => `- ${signal}`),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    let transcriptText = "";
+    let response = "";
+    let source: MediaTranscriptionBundle["source"] = "offline";
+
+    if (modelContext?.provider === "openai" && modelContext.openAiApiKey && inspection.exists && !inspection.isDirectory) {
+      try {
+        const fileBytes = readFileSync(inspection.path);
+        const form = new FormData();
+        form.append("model", modelContext.model);
+        form.append(
+          "file",
+          new Blob([fileBytes], { type: inspection.mimeType || "application/octet-stream" }),
+          inspection.basename,
+        );
+        if (options.language) {
+          form.append("language", options.language);
+        }
+        form.append("prompt", options.prompt ?? prompt);
+        const transcriptionResponse = await fetch(`${modelContext.baseUrl}/audio/transcriptions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${modelContext.openAiApiKey}`,
+          },
+          body: form,
+        });
+
+        if (!transcriptionResponse.ok) {
+          const body = await transcriptionResponse.text();
+          throw new Error(`OpenAI transcription failed (${transcriptionResponse.status}): ${body}`);
+        }
+
+        const data = (await transcriptionResponse.json()) as {
+          text?: string;
+        };
+        transcriptText = data.text?.trim() ?? "";
+        response = transcriptText;
+        source = "openai";
+      } catch (error) {
+        response = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    if (!transcriptText && inspection.transcriptPath && existsSync(inspection.transcriptPath)) {
+      transcriptText = readFileSync(inspection.transcriptPath, "utf8").trim();
+      source = "sidecar";
+      response = `Used existing transcript sidecar at ${inspection.transcriptPath}.`;
+    }
+
+    if (!transcriptText && modelContext?.provider === "anthropic" && modelContext.anthropicApiKey) {
+      try {
+        transcriptText = await this.requestModelText(prompt, modelContext, {
+          focus: "voice",
+          inspection,
+          signals: this.buildSignals(inspection),
+        });
+        source = "anthropic";
+        response = "Generated a best-effort provider-backed transcript summary.";
+      } catch (error) {
+        response = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    if (!transcriptText) {
+      transcriptText = [
+        `Eliza Agent offline transcript for ${inspection.basename}.`,
+        inspection.transcriptPreview ? `Transcript sidecar preview: ${inspection.transcriptPreview}` : undefined,
+        inspection.captionPreview ? `Caption sidecar preview: ${inspection.captionPreview}` : undefined,
+        inspection.detail,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      response = "Generated an offline transcript fallback.";
+    }
+
+    writeFileSync(transcriptPath, `${transcriptText.trim()}\n`, "utf8");
+    writeFileSync(
+      promptPath,
+      [
+        `# Transcription Prompt`,
+        "",
+        `Source path: ${inspection.path}`,
+        `Provider: ${modelContext?.provider ?? "offline"}`,
+        `Model: ${modelContext?.model ?? "offline"}`,
+        `Source: ${source}`,
+        "",
+        prompt,
+      ].join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          createdAt: nowIso(),
+          inspection,
+          bundle,
+          prompt,
+          transcriptText,
+          transcriptPath,
+          provider: modelContext?.provider ?? "offline",
+          model: modelContext?.model ?? "offline",
+          source,
+          response,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    writeFileSync(
+      reportPath,
+      [
+        `# Transcription: ${inspection.basename}`,
+        "",
+        `- Provider: ${modelContext?.provider ?? "offline"}`,
+        `- Model: ${modelContext?.model ?? "offline"}`,
+        `- Source: ${source}`,
+        `- Bundle manifest: ${bundle.manifestPath}`,
+        `- Transcript artifact: ${transcriptPath}`,
+        "",
+        "## Transcript",
+        transcriptText,
+        "",
+        "## Prompt",
+        prompt,
+        "",
+        "## Response",
+        response,
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      inspection,
+      bundle,
+      prompt,
+      transcriptText,
+      transcriptPath,
+      promptPath,
+      manifestPath,
+      reportPath,
+      responsePath,
+      response,
+      model: modelContext?.model ?? "offline",
+      provider: modelContext?.provider ?? "offline",
+      source,
+    };
+  }
+
+  async transcribeWithModel(
+    path: string,
+    options: {
+      language?: string;
+      prompt?: string;
+      name?: string;
+    } = {},
+  ): Promise<MediaTranscriptionBundle> {
+    return this.transcribe(path, options);
+  }
+
   async generateImage(
     prompt: string,
     options: {
@@ -488,6 +716,176 @@ export class MediaService {
       model: modelContext?.openAiImageModel ?? modelContext?.model,
       provider: modelContext?.provider,
     };
+  }
+
+  async speak(
+    text: string,
+    options: {
+      name?: string;
+      voice?: string;
+      format?: "mp3" | "svg";
+      speed?: number;
+    } = {},
+  ): Promise<MediaSpeechBundle> {
+    const modelContext = this.getModelContext?.();
+    const stamp = Date.now();
+    const label = this.slugifyText(options.name ?? text);
+    const promptPath = join(this.outputDir, `media-${stamp}-${label}-speech-prompt.md`);
+    const manifestPath = join(this.outputDir, `media-${stamp}-${label}-speech.json`);
+    const reportPath = join(this.outputDir, `media-${stamp}-${label}-speech.md`);
+    const voice = options.voice ?? "alloy";
+    let refinedText = text;
+    try {
+      refinedText = await this.requestModelText(
+        [
+          "Rewrite the following text into a concise, speakable Eliza Agent narration.",
+          "Keep the Eliza branding intact and remove unnecessary filler.",
+          `Voice: ${voice}`,
+          options.speed ? `Speed: ${options.speed}` : undefined,
+          "",
+          text,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        modelContext,
+        {
+          focus: "voice",
+        },
+      );
+    } catch {
+      refinedText = text;
+    }
+    const script = refinedText || text;
+    const responsePath = join(this.outputDir, `media-${stamp}-${label}-speech-response.txt`);
+    let artifactPath = join(this.outputDir, `media-${stamp}-${label}-speech.svg`);
+    let artifactKind: "mp3" | "svg" = "svg";
+    let response = "Generated an offline Eliza Agent speech concept artifact.";
+    const preferredFormat = options.format ?? "mp3";
+
+    if (preferredFormat !== "svg" && modelContext?.provider === "openai" && modelContext.openAiApiKey) {
+      try {
+        const synthResponse = await fetch(`${modelContext.baseUrl}/audio/speech`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${modelContext.openAiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: modelContext.model,
+            input: script,
+            voice,
+            response_format: "mp3",
+            speed: options.speed,
+          }),
+        });
+
+        if (!synthResponse.ok) {
+          const body = await synthResponse.text();
+          throw new Error(`OpenAI speech synthesis failed (${synthResponse.status}): ${body}`);
+        }
+
+        const bytes = Buffer.from(await synthResponse.arrayBuffer());
+        artifactPath = join(this.outputDir, `media-${stamp}-${label}-speech.mp3`);
+        artifactKind = "mp3";
+        writeFileSync(artifactPath, bytes);
+        response = `Generated provider-native speech audio at ${artifactPath}.`;
+      } catch (error) {
+        response = error instanceof Error ? error.message : String(error);
+        artifactPath = join(this.outputDir, `media-${stamp}-${label}-speech.svg`);
+        artifactKind = "svg";
+        writeFileSync(artifactPath, this.renderSpeechSvg(script, voice, options.speed), "utf8");
+      }
+    } else {
+      writeFileSync(artifactPath, this.renderSpeechSvg(script, voice, options.speed), "utf8");
+    }
+
+    writeFileSync(
+      promptPath,
+      [
+        `# Speech Prompt`,
+        "",
+        `Provider: ${modelContext?.provider ?? "offline"}`,
+        `Model: ${modelContext?.model ?? "offline"}`,
+        `Voice: ${voice}`,
+        options.speed ? `Speed: ${options.speed}` : undefined,
+        "",
+        text,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          createdAt: nowIso(),
+          prompt: text,
+          refinedText,
+          script,
+          voice,
+          speed: options.speed,
+          provider: modelContext?.provider ?? "offline",
+          model: modelContext?.model ?? "offline",
+          artifactPath,
+          artifactKind,
+          responsePath,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    writeFileSync(
+      reportPath,
+      [
+        `# Speech Generation`,
+        "",
+        `- Provider: ${modelContext?.provider ?? "offline"}`,
+        `- Model: ${modelContext?.model ?? "offline"}`,
+        `- Voice: ${voice}`,
+        `- Artifact: ${artifactPath}`,
+        `- Kind: ${artifactKind}`,
+        "",
+        "## Source Text",
+        text,
+        "",
+        "## Refined Narration",
+        script,
+        "",
+        "## Response",
+        response,
+      ].join("\n"),
+      "utf8",
+    );
+    writeFileSync(responsePath, response, "utf8");
+
+    return {
+      prompt: text,
+      refinedText: script,
+      promptPath,
+      manifestPath,
+      reportPath,
+      artifactPath,
+      artifactKind,
+      response,
+      responsePath,
+      model: modelContext?.model ?? "offline",
+      provider: modelContext?.provider ?? "offline",
+      voice,
+    };
+  }
+
+  async speakWithModel(
+    text: string,
+    options: {
+      name?: string;
+      voice?: string;
+      format?: "mp3" | "svg";
+      speed?: number;
+    } = {},
+  ): Promise<MediaSpeechBundle> {
+    return this.speak(text, options);
   }
 
   private detectKind(
@@ -1029,6 +1427,35 @@ export class MediaService {
   <rect width="${width}" height="${height}" fill="url(#bg)"/>
   <rect x="24" y="24" width="${width - 48}" height="${height - 48}" rx="24" fill="rgba(15, 23, 42, 0.72)" stroke="#60a5fa" stroke-width="2"/>
   <text x="32" y="52" fill="#93c5fd" font-family="ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="700">Eliza Agent Browserless Image Concept</text>
+  ${rows}
+</svg>`;
+  }
+
+  private renderSpeechSvg(text: string, voice: string, speed?: number): string {
+    const excerpt = text.replace(/\s+/gu, " ").slice(0, 220);
+    const rows = [
+      `Voice: ${voice}`,
+      speed ? `Speed: ${speed}` : "Speed: default",
+      `Narration: ${excerpt}`,
+      "Generated from the configured speech pipeline or offline fallback.",
+    ]
+      .map(
+        (line, index) =>
+          `<text x="32" y="${90 + index * 44}" fill="#e5eefc" font-family="ui-monospace, SFMono-Regular, monospace" font-size="20">${this.escapeXml(line)}</text>`,
+      )
+      .join("");
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#081120"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="652" rx="24" fill="rgba(15, 23, 42, 0.76)" stroke="#7dd3fc" stroke-width="2"/>
+  <text x="32" y="52" fill="#93c5fd" font-family="ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="700">Eliza Agent Speech Concept</text>
   ${rows}
 </svg>`;
   }

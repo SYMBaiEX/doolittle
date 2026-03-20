@@ -1333,6 +1333,22 @@ async function buildCommandResponse(
     return JSON.stringify(await context.services.media.analyzeWithModel(path), null, 2);
   }
 
+  if (trimmed.startsWith("/media transcribe ")) {
+    const path = trimmed.replace("/media transcribe ", "").trim();
+    if (!path) {
+      return "Usage: /media transcribe <path>";
+    }
+    return JSON.stringify(await context.services.media.transcribeWithModel(path), null, 2);
+  }
+
+  if (trimmed.startsWith("/media speak ")) {
+    const text = trimmed.replace("/media speak ", "").trim();
+    if (!text) {
+      return "Usage: /media speak <text>";
+    }
+    return JSON.stringify(await context.services.media.speakWithModel(text), null, 2);
+  }
+
   if (trimmed.startsWith("/media voice ")) {
     const path = trimmed.replace("/media voice ", "").trim();
     if (!path) {
@@ -1711,6 +1727,26 @@ async function buildCommandResponse(
         limit: options.limit ?? 200,
         mode: options.mode ?? "evaluation",
         purpose: options.purpose ?? "trajectory evaluation",
+        tags: options.tags,
+        notes: options.notes,
+        rubric: options.rubric,
+      }),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/trajectories package" || trimmed.startsWith("/trajectories package ")) {
+    const options =
+      trimmed === "/trajectories package"
+        ? { limit: 200 }
+        : parseTrajectoryArgs(trimmed.replace("/trajectories package ", ""));
+    return JSON.stringify(
+      await context.services.trajectories.package({
+        ...options,
+        limit: options.limit ?? 200,
+        mode: options.mode ?? "research",
+        purpose: options.purpose ?? "trajectory research package",
         tags: options.tags,
         notes: options.notes,
         rubric: options.rubric,
