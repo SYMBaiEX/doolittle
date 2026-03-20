@@ -1327,7 +1327,9 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "userId is required" }, 400);
         }
         return json({
-          card: context.services.userProfiles.renderCards(userId),
+          card:
+            nativeServices.rolodex?.card(userId) ??
+            context.services.userProfiles.renderCards(userId),
         });
       }
 
@@ -1341,14 +1343,20 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "userId and query are required" }, 400);
         }
         return json({
-          hits: context.services.userProfiles.recall(userId, query),
+          hits:
+            nativeServices.rolodex?.recall(userId, query) ??
+            context.services.userProfiles.recall(userId, query),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/profiles/agent") {
         return json({
-          profile: context.services.userProfiles.getAgent(),
-          card: context.services.userProfiles.renderAgent(),
+          profile:
+            nativeServices.rolodex?.agentProfile() ??
+            context.services.userProfiles.getAgent(),
+          card:
+            nativeServices.rolodex?.agentProfile() ??
+            context.services.userProfiles.renderAgent(),
         });
       }
 
@@ -1365,11 +1373,18 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "userId and note are required" }, 400);
         }
         return json({
-          profile: context.services.userProfiles.addNote(
-            body.userId,
-            body.note,
-            body.source,
-          ),
+          profile:
+            nativeServices.rolodex?.remember(
+              body.userId,
+              "note",
+              body.note,
+              body.source,
+            ) ??
+            context.services.userProfiles.addNote(
+              body.userId,
+              body.note,
+              body.source,
+            ),
         });
       }
 
@@ -1394,12 +1409,19 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "userId, kind, and value are required" }, 400);
         }
         return json({
-          profile: context.services.userProfiles.remember(
-            body.userId,
-            body.kind,
-            body.value,
-            body.source,
-          ),
+          profile:
+            nativeServices.rolodex?.remember(
+              body.userId,
+              body.kind,
+              body.value,
+              body.source,
+            ) ??
+            context.services.userProfiles.remember(
+              body.userId,
+              body.kind,
+              body.value,
+              body.source,
+            ),
         });
       }
 
@@ -1434,10 +1456,9 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "note is required" }, 400);
         }
         return json({
-          profile: context.services.userProfiles.observeAgent(
-            body.note,
-            body.source,
-          ),
+          profile:
+            nativeServices.rolodex?.observeAgent(body.note, body.source) ??
+            context.services.userProfiles.observeAgent(body.note, body.source),
         });
       }
 
