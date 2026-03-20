@@ -32,6 +32,11 @@ const schema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  SIGNAL_CLI_COMMAND: z.string().optional(),
+  MATRIX_HOMESERVER: z.string().optional(),
+  MATRIX_ACCESS_TOKEN: z.string().optional(),
+  EMAIL_SEND_COMMAND: z.string().optional(),
+  SMS_SEND_COMMAND: z.string().optional(),
   ELIZA_AGENT_BROWSER_PROVIDER: z.enum(["lightpanda", "basic"]).default("lightpanda"),
   ELIZA_AGENT_BROWSER_COMMAND: z.string().default("lightpanda"),
   ELIZA_AGENT_BROWSER_CDP_URL: z.string().optional(),
@@ -40,7 +45,7 @@ const schema = z.object({
     .default("true")
     .transform((value) => value === "true"),
   ELIZA_AGENT_EXECUTION_BACKEND: z
-    .enum(["local", "docker", "podman", "ssh"])
+    .enum(["local", "docker", "podman", "ssh", "singularity"])
     .default("local"),
   ELIZA_AGENT_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
   ELIZA_AGENT_DOCKER_NETWORK: z.string().default("host"),
@@ -48,6 +53,7 @@ const schema = z.object({
   ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH: z
     .string()
     .default("PATH,HOME,OPENAI_API_KEY,ANTHROPIC_API_KEY"),
+  ELIZA_AGENT_SINGULARITY_IMAGE: z.string().default(""),
   ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   ELIZA_AGENT_CONTAINER_CPU_LIMIT: z.string().default("2"),
@@ -124,6 +130,11 @@ export function loadConfig(): EnvConfig {
     whatsappAccessToken: values.WHATSAPP_ACCESS_TOKEN,
     whatsappPhoneNumberId: values.WHATSAPP_PHONE_NUMBER_ID,
     whatsappVerifyToken: values.WHATSAPP_VERIFY_TOKEN,
+    signalCliCommand: values.SIGNAL_CLI_COMMAND,
+    matrixHomeserver: values.MATRIX_HOMESERVER,
+    matrixAccessToken: values.MATRIX_ACCESS_TOKEN,
+    emailSendCommand: values.EMAIL_SEND_COMMAND,
+    smsSendCommand: values.SMS_SEND_COMMAND,
     browserProvider: values.ELIZA_AGENT_BROWSER_PROVIDER,
     browserCommand: values.ELIZA_AGENT_BROWSER_COMMAND,
     browserCdpUrl: values.ELIZA_AGENT_BROWSER_CDP_URL,
@@ -136,6 +147,7 @@ export function loadConfig(): EnvConfig {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
+    singularityImage: values.ELIZA_AGENT_SINGULARITY_IMAGE,
     executionCommandTimeoutMs: values.ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS,
     executionHealthTimeoutMs: values.ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS,
     containerCpuLimit: values.ELIZA_AGENT_CONTAINER_CPU_LIMIT,

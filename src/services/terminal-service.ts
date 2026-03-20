@@ -178,6 +178,24 @@ function buildContainerCommand(
   ];
 }
 
+function buildSingularityCommand(
+  command: string,
+  cwd: string,
+  settings: RuntimeSettings,
+): string[] {
+  const execution = settings.execution;
+  return [
+    "singularity",
+    "exec",
+    "--bind",
+    `${cwd}:${execution.dockerWorkspacePath}`,
+    execution.singularityImage,
+    "/bin/sh",
+    "-lc",
+    command,
+  ];
+}
+
 function buildSshBaseArgs(settings: RuntimeSettings): string[] {
   const execution = settings.execution;
   const keyFlags =
@@ -451,6 +469,49 @@ function buildSshPreviewChecks(settings: RuntimeSettings): DiagnosticCheck[] {
       execution.sshKeyPath
         ? `SSH key path ${execution.sshKeyPath} will be used when available.`
         : "No SSH key path configured.",
+    ),
+  ];
+}
+
+function buildSingularityChecks(
+  settings: RuntimeSettings,
+  workspaceDir: string,
+  runtimeAvailable: boolean,
+  imageAvailable: boolean,
+): DiagnosticCheck[] {
+  const execution = settings.execution;
+  return [
+    createCheck(
+      "singularity.runtime.binary",
+      runtimeAvailable ? "pass" : "fail",
+      "Singularity availability",
+      runtimeAvailable
+        ? "singularity command is available on this host."
+        : "singularity command is not available on this host.",
+    ),
+    createCheck(
+      "singularity.config.image",
+      execution.singularityImage ? (imageAvailable ? "pass" : "warn") : "fail",
+      "Singularity image",
+      execution.singularityImage
+        ? imageAvailable
+          ? `Image configured: ${execution.singularityImage}.`
+          : `Configured image was not found locally: ${execution.singularityImage}.`
+        : "execution.singularityImage is not configured.",
+    ),
+    createCheck(
+      "singularity.workspace.mount",
+      existsSync(workspaceDir) ? "pass" : "warn",
+      "Workspace bind mount",
+      existsSync(workspaceDir)
+        ? `${workspaceDir} will bind to ${execution.dockerWorkspacePath}.`
+        : `Workspace directory ${workspaceDir} is not present.`,
+    ),
+    createCheck(
+      "singularity.runtime.shell",
+      "pass",
+      "Container shell",
+      "Commands execute through /bin/sh -lc inside the Singularity image.",
     ),
   ];
 }
@@ -926,6 +987,91 @@ class SshExecutionBackend implements ExecutionBackend {
   }
 }
 
+class SingularityExecutionBackend implements ExecutionBackend {
+  readonly name = "singularity" as const;
+
+  preview(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): ExecutionBackendPreview {
+    const checks = buildSingularityChecks(options.settings, options.cwd, true, Boolean(options.settings.execution.singularityImage));
+    return {
+      backend: this.name,
+      mode: "container",
+      engine: "singularity",
+      ready: false,
+      detail: "Singularity execution binds the workspace into a configured image for hermetic runs.",
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      command,
+      argv: buildSingularityCommand(command, options.cwd, options.settings),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        "Install Singularity or Apptainer on the host.",
+        "Set execution.singularityImage to a valid local image before using this backend.",
+      ]),
+    };
+  }
+
+  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+    const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
+    const runtimeAvailable = await commandExists("singularity", probeTimeoutMs);
+    const imageAvailable = Boolean(
+      settings.execution.singularityImage &&
+        (existsSync(settings.execution.singularityImage) ||
+          settings.execution.singularityImage.includes("://")),
+    );
+    const checks = buildSingularityChecks(
+      settings,
+      workspaceDir,
+      runtimeAvailable,
+      imageAvailable,
+    );
+
+    return {
+      backend: this.name,
+      mode: "container",
+      engine: "singularity",
+      ready: runtimeAvailable && imageAvailable,
+      detail:
+        runtimeAvailable && imageAvailable
+          ? `Singularity ready with image ${settings.execution.singularityImage}.`
+          : !runtimeAvailable
+            ? "singularity command is not available."
+            : `Singularity image is not configured or missing: ${settings.execution.singularityImage || "n/a"}.`,
+      limits: buildHealthLimits(settings),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        "Install Singularity or Apptainer and confirm the binary is on PATH.",
+        "Provide a local SIF image path or supported remote image reference.",
+      ]),
+    };
+  }
+
+  async run(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): Promise<TerminalRunResult> {
+    if (!options.settings.execution.singularityImage) {
+      return {
+        exitCode: 1,
+        stdout: "",
+        stderr: "Singularity backend requires execution.singularityImage.",
+        timedOut: false,
+        durationMs: 0,
+      };
+    }
+
+    return normalizeBackendError(
+      await runCommand(buildSingularityCommand(command, options.cwd, options.settings), {
+        timeoutMs: options.timeoutMs,
+      }),
+    );
+  }
+}
+
 export class TerminalService {
   private readonly filePath: string;
   private readonly backends = new Map<ExecutionBackendName, ExecutionBackend>([
@@ -933,6 +1079,7 @@ export class TerminalService {
     ["docker", new DockerExecutionBackend()],
     ["podman", new PodmanExecutionBackend()],
     ["ssh", new SshExecutionBackend()],
+    ["singularity", new SingularityExecutionBackend()],
   ]);
 
   constructor(

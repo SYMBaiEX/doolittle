@@ -21,6 +21,7 @@ export interface RuntimeSettings {
     dockerNetwork: string;
     dockerWorkspacePath: string;
     dockerEnvPassthrough: string[];
+    singularityImage: string;
     commandTimeoutMs?: number;
     healthTimeoutMs?: number;
     containerCpuLimit?: string;
@@ -69,6 +70,7 @@ export class SettingsService {
         dockerNetwork: "host",
         dockerWorkspacePath: "/workspace",
         dockerEnvPassthrough: ["PATH", "HOME"],
+        singularityImage: "",
         commandTimeoutMs: 30_000,
         healthTimeoutMs: 5_000,
         containerCpuLimit: "2",
@@ -94,6 +96,10 @@ export class SettingsService {
       }
       if (!Array.isArray(execution.dockerEnvPassthrough)) {
         parsed.execution.dockerEnvPassthrough = ["PATH", "HOME"];
+        dirty = true;
+      }
+      if (execution.singularityImage === undefined) {
+        parsed.execution.singularityImage = "";
         dirty = true;
       }
       if (execution.commandTimeoutMs === undefined) {

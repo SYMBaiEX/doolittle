@@ -24,6 +24,7 @@ function makeSettings(): RuntimeSettings {
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],
+      singularityImage: "",
       commandTimeoutMs: 30_000,
       healthTimeoutMs: 5_000,
       containerCpuLimit: "2",
@@ -150,6 +151,7 @@ describe("TerminalService", () => {
       expect(local?.diagnostics.length).toBeGreaterThan(0);
       expect(local?.checks.length).toBeGreaterThan(0);
       expect(health.some((entry) => entry.backend === "podman")).toBe(true);
+      expect(health.some((entry) => entry.backend === "singularity")).toBe(true);
       expect(health.find((entry) => entry.backend === "docker")?.mode).toBe("container");
     } finally {
       rmSync(root, { recursive: true, force: true });
