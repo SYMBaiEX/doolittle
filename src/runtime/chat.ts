@@ -62,19 +62,33 @@ async function runDelegationTaskInWorker(
     ok: boolean;
     output?: string;
     error?: string;
+    workerPid?: number;
+    startedAt?: string;
+    completedAt?: string;
+    durationMs?: number;
   };
 
   if (exitCode === 0 && parsed.ok) {
-    return context.services.delegation.complete(
+    const completedTask = context.services.delegation.complete(
       task.id,
       parsed.output ?? (stdout.trim() || "Worker finished without output."),
     );
+    context.services.delegation.addNote(
+      task.id,
+      `system: worker report pid=${parsed.workerPid ?? proc.pid} duration=${parsed.durationMs ?? "n/a"}ms output=${outputPath}`,
+    );
+    return completedTask;
   }
 
-  return context.services.delegation.fail(
+  const failedTask = context.services.delegation.fail(
     task.id,
     parsed.error ?? (stderr.trim() || `Delegated worker failed with exit code ${exitCode}.`),
   );
+  context.services.delegation.addNote(
+    task.id,
+    `system: worker failure pid=${parsed.workerPid ?? proc.pid} duration=${parsed.durationMs ?? "n/a"}ms output=${outputPath}`,
+  );
+  return failedTask;
 }
 
 export function syncProviderSettings(
@@ -305,8 +319,18 @@ async function buildCommandResponse(
     const health = await context.gateway.health();
     return health
       .map(
-        (entry) =>
-          `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound} :: ${entry.detail}`,
+        (entry) => {
+          const lifecycle = [
+            entry.startedAt ? `started=${entry.startedAt}` : undefined,
+            entry.stoppedAt ? `stopped=${entry.stoppedAt}` : undefined,
+            entry.lastSendAt ? `lastSend=${entry.lastSendAt}` : undefined,
+            entry.sendCount !== undefined ? `sends=${entry.sendCount}` : undefined,
+            entry.lastError ? `error=${entry.lastError}` : undefined,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
+        },
       )
       .join("\n");
   }
@@ -326,6 +350,16 @@ async function buildCommandResponse(
       null,
       2,
     );
+  }
+
+  if (trimmed === "/execution backends") {
+    const health = await context.services.terminal.health();
+    return health
+      .map(
+        (entry) =>
+          `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} :: ${entry.detail}`,
+      )
+      .join("\n");
   }
 
   if (trimmed.startsWith("/execution set ")) {
@@ -468,6 +502,11 @@ async function buildCommandResponse(
     return JSON.stringify(await context.services.web.fetchText(url), null, 2);
   }
 
+  if (trimmed.startsWith("/browser inspect ")) {
+    const url = trimmed.replace("/browser inspect ", "").trim();
+    return JSON.stringify(await context.services.web.inspect(url), null, 2);
+  }
+
   if (trimmed.startsWith("/browser snapshot ")) {
     const url = trimmed.replace("/browser snapshot ", "").trim();
     return await context.services.web.snapshot(url);
@@ -481,6 +520,11 @@ async function buildCommandResponse(
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
     return await context.services.web.snapshot(url);
+  }
+
+  if (trimmed.startsWith("/web inspect ")) {
+    const url = trimmed.replace("/web inspect ", "").trim();
+    return JSON.stringify(await context.services.web.inspect(url), null, 2);
   }
 
   if (trimmed.startsWith("/media inspect ")) {
@@ -500,6 +544,10 @@ async function buildCommandResponse(
       : "No delegation tasks recorded.";
   }
 
+  if (trimmed === "/delegate overview") {
+    return JSON.stringify(context.services.delegation.overview(), null, 2);
+  }
+
   if (trimmed === "/delegate queue") {
     const tasks = context.services.delegation.pending().slice(0, 20);
     return tasks.length
@@ -510,6 +558,27 @@ async function buildCommandResponse(
           )
           .join("\n")
       : "No queued delegation tasks.";
+  }
+
+  if (trimmed === "/delegate supervise" || trimmed.startsWith("/delegate supervise ")) {
+    const raw = trimmed.replace("/delegate supervise", "").trim();
+    const concurrency = raw ? Number(raw) : undefined;
+    const report = await context.services.delegation.superviseQueued(
+      async (task) => {
+        const completedTask = await runDelegationTaskInWorker(context, task.id);
+        return completedTask.notes.at(-1) ?? "Delegated worker completed.";
+      },
+      {
+        concurrency: Number.isFinite(concurrency) && (concurrency as number) > 0 ? (concurrency as number) : 2,
+        onComplete: async (task) => {
+          context.services.skillSynthesis.synthesizeFromTask(task);
+        },
+        onError: async (task, error) => {
+          context.services.delegation.addNote(task.id, `system: supervision error ${error}`);
+        },
+      },
+    );
+    return JSON.stringify(report, null, 2);
   }
 
   if (trimmed.startsWith("/delegate create ")) {
@@ -550,37 +619,43 @@ async function buildCommandResponse(
     return JSON.stringify(await runDelegationTaskInWorker(context, id), null, 2);
   }
 
-  if (trimmed === "/delegate execute-queued") {
-    const completed = await context.services.delegation.executeQueued(
+  if (trimmed === "/delegate execute-queued" || trimmed.startsWith("/delegate execute-queued ")) {
+    const raw = trimmed.replace("/delegate execute-queued", "").trim();
+    const concurrency = raw ? Number(raw) : undefined;
+    const report = await context.services.delegation.superviseQueued(
       async (task) => {
         const completedTask = await runDelegationTaskInWorker(context, task.id);
         return completedTask.notes.at(-1) ?? "Delegated worker completed.";
       },
       {
-        concurrency: 2,
+        concurrency: Number.isFinite(concurrency) && (concurrency as number) > 0 ? (concurrency as number) : 2,
         onComplete: async (task) => {
           context.services.skillSynthesis.synthesizeFromTask(task);
         },
+        onError: async (task, error) => {
+          context.services.delegation.addNote(task.id, `system: queue error ${error}`);
+        },
       },
     );
-    return completed.length
-      ? completed.map((task) => `- ${task.title} [${task.status}]`).join("\n")
-      : "No pending delegation tasks to execute.";
+    return JSON.stringify(report, null, 2);
   }
 
   if (trimmed === "/delegate workers") {
-    const tasks = context.services.delegation
-      .list()
-      .filter((task) => task.workerMode === "process" || task.workerPid || task.lastOutputPath)
-      .slice(0, 20);
-    return tasks.length
-      ? tasks
-          .map(
-            (task) =>
-              `- ${task.id} [${task.status}] pid=${task.workerPid ?? "none"} output=${task.lastOutputPath ?? "n/a"}`,
-          )
-          .join("\n")
-      : "No delegated worker tasks recorded.";
+    const overview = context.services.delegation.overview();
+    const tasks = context.services.delegation.workers(20);
+    const lines = [
+      `Workers: active=${overview.activeWorkers} alive=${overview.aliveWorkers} stalled=${overview.stalledWorkers} running=${overview.running} pending=${overview.pending} completed=${overview.completed} failed=${overview.failed}`,
+      "",
+      tasks.length
+        ? tasks
+            .map(
+              (task) =>
+                `- ${task.id} [${task.status}] ${task.title}\n  pid=${task.workerPid ?? "none"} alive=${task.alive} stalled=${task.stalled} attempts=${task.attempts}/${task.maxAttempts} remaining=${task.attemptsRemaining}${task.durationMs !== undefined ? ` duration=${task.durationMs}ms` : ""}\n  output=${task.lastOutputPath ?? "n/a"}`,
+            )
+            .join("\n\n")
+        : "No delegated worker tasks recorded.",
+    ];
+    return lines.join("\n");
   }
 
   if (trimmed.startsWith("/delegate retry ")) {

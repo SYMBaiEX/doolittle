@@ -1,4 +1,6 @@
 export type MemoryTarget = "memory" | "user";
+export type ExecutionBackendName = "local" | "docker" | "podman" | "ssh";
+export type ExecutionBackendMode = "local" | "container" | "remote";
 
 export interface EnvConfig {
   agentName: string;
@@ -267,7 +269,7 @@ export interface WorkspaceEntry {
 export interface TerminalCommandRecord {
   id: string;
   command: string;
-  backend: "local" | "docker" | "ssh";
+  backend: ExecutionBackendName;
   cwd: string;
   exitCode: number;
   stdout: string;
@@ -284,7 +286,9 @@ export interface DiagnosticCheck {
 }
 
 export interface ExecutionBackendHealth {
-  backend: "local" | "docker" | "ssh";
+  backend: ExecutionBackendName;
+  mode: ExecutionBackendMode;
+  engine?: "docker" | "podman" | "ssh";
   ready: boolean;
   detail: string;
 }

@@ -61,6 +61,8 @@ describe("TerminalService", () => {
       const health = await service.health();
       const local = health.find((entry) => entry.backend === "local");
       expect(local?.ready).toBe(true);
+      expect(health.some((entry) => entry.backend === "podman")).toBe(true);
+      expect(health.find((entry) => entry.backend === "docker")?.mode).toBe("container");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

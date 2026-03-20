@@ -258,11 +258,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/delegation/overview") {
+        return json({
+          overview: context.services.delegation.overview(),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/delegation/workers") {
         return json({
-          tasks: context.services.delegation
-            .list()
-            .filter((task) => task.workerMode === "process" || task.workerPid || task.lastOutputPath),
+          overview: context.services.delegation.overview(),
+          workers: context.services.delegation.workers(50),
         });
       }
 
@@ -284,6 +289,32 @@ export function startApiServer(context: AppContext): void {
             maxAttempts: body.maxAttempts,
           }),
         });
+      }
+
+      if (request.method === "POST" && url.pathname === "/delegation/supervise") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as { concurrency?: number };
+        const report = await context.services.delegation.superviseQueued(
+          async (task) => {
+            const response = await handleAgentTurn(
+              {
+                message: `/delegate execute ${task.id}`,
+                userId: "api-delegation",
+                roomId: "api-delegation",
+                source: "api",
+              },
+              context,
+            );
+            return response;
+          },
+          {
+            concurrency:
+              typeof body.concurrency === "number" && body.concurrency > 0 ? body.concurrency : 2,
+            onComplete: async (task) => {
+              context.services.skillSynthesis.synthesizeFromTask(task);
+            },
+          },
+        );
+        return json({ report });
       }
 
       if (request.method === "POST" && url.pathname.startsWith("/delegation/tasks/")) {
@@ -401,6 +432,12 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/execution/status") {
         return json({
           active: context.services.settings.get().execution,
+          backends: await context.services.terminal.health(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/execution/backends") {
+        return json({
           backends: await context.services.terminal.health(),
         });
       }
