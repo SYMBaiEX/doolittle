@@ -8,6 +8,7 @@ interface WorkerPayload {
 }
 
 const [, , inputPath, outputPath] = process.argv;
+const startedAt = new Date().toISOString();
 
 if (!inputPath || !outputPath) {
   console.error("Usage: bun run src/runtime/delegate-worker.ts <input-path> <output-path>");
@@ -32,6 +33,11 @@ async function main(): Promise<void> {
     JSON.stringify(
       {
         ok: true,
+        taskId: payload.taskId,
+        workerPid: process.pid,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - Date.parse(startedAt),
         output: result,
       },
       null,
@@ -48,6 +54,10 @@ main().catch((error) => {
     JSON.stringify(
       {
         ok: false,
+        workerPid: process.pid,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - Date.parse(startedAt),
         error: message,
       },
       null,
