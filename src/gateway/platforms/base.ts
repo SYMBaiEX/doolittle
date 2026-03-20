@@ -8,6 +8,7 @@ import type {
 export interface PlatformCapabilitySet {
   inbound: boolean;
   outbound: boolean;
+  edits: boolean;
   pairing: boolean;
   attachments: boolean;
   replies: boolean;
@@ -63,6 +64,7 @@ export interface PlatformLifecycleEvent {
     | "session"
     | "route"
     | "respond"
+    | "edit"
     | "heartbeat"
     | "reject"
     | "pair"
@@ -85,6 +87,10 @@ export interface PlatformAdapter {
   stop(): Promise<void>;
   health(): Promise<PlatformHealth>;
   send(message: OutboundPlatformMessage): Promise<DeliveredMessageRecord>;
+  edit?(
+    delivery: DeliveredMessageRecord,
+    message: OutboundPlatformMessage,
+  ): Promise<DeliveredMessageRecord>;
   canReceive(): boolean;
   observe?(event: PlatformLifecycleEvent): Promise<void> | void;
 }
@@ -130,6 +136,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: true,
         pairing: true,
         attachments: true,
         replies: true,
@@ -140,6 +147,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: true,
         pairing: true,
         attachments: true,
         replies: true,
@@ -150,6 +158,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: false,
         replies: true,
@@ -160,6 +169,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: true,
         replies: true,
@@ -170,6 +180,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: true,
         replies: true,
@@ -180,6 +191,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: true,
         replies: true,
@@ -190,6 +202,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: true,
         replies: true,
@@ -200,6 +213,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: false,
         replies: true,
@@ -210,6 +224,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: true,
         replies: true,
@@ -220,6 +235,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: false,
         attachments: false,
         replies: false,
@@ -230,6 +246,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: false,
         pairing: true,
         attachments: true,
         replies: true,
@@ -240,6 +257,7 @@ export function capabilitiesForPlatform(
       return {
         inbound: true,
         outbound: true,
+        edits: true,
         pairing: true,
         attachments: false,
         replies: false,

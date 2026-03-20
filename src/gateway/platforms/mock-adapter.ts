@@ -101,6 +101,30 @@ export class MockPlatformAdapter implements PlatformAdapter {
     return record;
   }
 
+  async edit(
+    delivery: ReturnType<DeliveryService["deliver"]>,
+    message: OutboundPlatformMessage,
+  ) {
+    this.lastSendAt = nowIso();
+    this.lastOutboundRoomId = message.roomId;
+    this.lastOutboundUserId = message.userId;
+    this.lastOutboundThreadId = message.threadId;
+    this.lastOutboundReplyToId = message.replyToId;
+    this.lastOutboundMetadataKeys = Object.keys(message.metadata ?? {});
+    const updated = this.delivery.update(delivery.id, message.text, {
+      threadId: message.threadId,
+      replyToId: message.replyToId,
+      metadata: message.metadata,
+    });
+    this.lastDeliveryAt = nowIso();
+    this.lastDeliveryId = updated.id;
+    this.lifecycle.record(
+      "edit",
+      `Updated mock delivery ${updated.id} in ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
+    );
+    return updated;
+  }
+
   canReceive(): boolean {
     return true;
   }

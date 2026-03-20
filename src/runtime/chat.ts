@@ -102,6 +102,7 @@ type GatewayTraceKind =
   | "route"
   | "respond"
   | "deliver"
+  | "update"
   | "heartbeat"
   | "reject"
   | "lifecycle";
@@ -166,6 +167,7 @@ function parseGatewayFilters(raw: string): {
           "route",
           "respond",
           "deliver",
+          "update",
           "heartbeat",
           "reject",
           "lifecycle",
@@ -1055,7 +1057,7 @@ async function buildCommandResponse(
         ]
           .filter(Boolean)
           .join(" ");
-        return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
+        return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound} edits=${entry.capabilities.edits}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
       })
       .join("\n");
   }
@@ -1098,6 +1100,50 @@ async function buildCommandResponse(
       return "Gateway runtime is not attached to this execution context.";
     }
     return JSON.stringify(context.gateway.runtimeStatus(), null, 2);
+  }
+
+  if (trimmed.startsWith("/gateway edit ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const payload = trimmed.replace("/gateway edit ", "").trim();
+    const [left, text] = payload.split("::").map((part) => part.trim());
+    if (!left || !text) {
+      return "Usage: /gateway edit <delivery-id> :: <text>";
+    }
+    const updated = await context.gateway.editDelivery(left, text);
+    return JSON.stringify(updated, null, 2);
+  }
+
+  if (trimmed.startsWith("/gateway progressive ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const payload = trimmed.replace("/gateway progressive ", "").trim();
+    const [left, right] = payload.split("::").map((part) => part.trim());
+    if (!left || !right) {
+      return "Usage: /gateway progressive <platform> <room-id> :: <part-one> => <part-two> [=> <part-three>]";
+    }
+    const [platform, roomId] = left.split(/\s+/u);
+    if (!platform || !roomId) {
+      return "Usage: /gateway progressive <platform> <room-id> :: <part-one> => <part-two> [=> <part-three>]";
+    }
+    const parts = right
+      .split("=>")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length < 2) {
+      return "Progressive delivery requires at least two message parts.";
+    }
+    const delivery = await context.gateway.sendProgressive(
+      {
+        platform: platform as PlatformName,
+        roomId,
+        userId: input.userId,
+      },
+      parts,
+    );
+    return JSON.stringify(delivery, null, 2);
   }
 
   if (trimmed === "/voice" || trimmed === "/voice status") {

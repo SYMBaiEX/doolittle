@@ -23,6 +23,7 @@ type GatewayTraceKind =
   | "route"
   | "respond"
   | "deliver"
+  | "update"
   | "heartbeat"
   | "reject"
   | "lifecycle";
@@ -121,6 +122,7 @@ function parseGatewayFilters(url: URL): {
         "route",
         "respond",
         "deliver",
+        "update",
         "heartbeat",
         "reject",
         "lifecycle",
@@ -1908,6 +1910,81 @@ export function startApiServer(context: AppContext): void {
         }
         const result = await context.gateway.receive(parsed.value);
         return json(result, result.ok ? 200 : 403);
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/gateway/message/edit"
+      ) {
+        const parsed = await parseJsonBody<{
+          deliveryId?: string;
+          text?: string;
+          threadId?: string;
+          replyToId?: string;
+          metadata?: Record<string, string>;
+        }>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        if (!parsed.value.deliveryId || !parsed.value.text) {
+          return json({ error: "deliveryId and text are required." }, 400);
+        }
+        return json({
+          delivery: await context.gateway.editDelivery(
+            parsed.value.deliveryId,
+            parsed.value.text,
+            {
+              threadId: parsed.value.threadId,
+              replyToId: parsed.value.replyToId,
+              metadata: parsed.value.metadata,
+            },
+          ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/gateway/message/progressive"
+      ) {
+        const parsed = await parseJsonBody<{
+          platform?: PlatformName;
+          roomId?: string;
+          userId?: string;
+          threadId?: string;
+          replyToId?: string;
+          metadata?: Record<string, string>;
+          parts?: string[];
+        }>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        if (
+          !parsed.value.platform ||
+          !parsed.value.roomId ||
+          !parsed.value.parts ||
+          parsed.value.parts.length < 2
+        ) {
+          return json(
+            {
+              error:
+                "platform, roomId, and at least two message parts are required.",
+            },
+            400,
+          );
+        }
+        return json({
+          delivery: await context.gateway.sendProgressive(
+            {
+              platform: parsed.value.platform,
+              roomId: parsed.value.roomId,
+              userId: parsed.value.userId,
+              threadId: parsed.value.threadId,
+              replyToId: parsed.value.replyToId,
+              metadata: parsed.value.metadata,
+            },
+            parsed.value.parts,
+          ),
+        });
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/telegram") {

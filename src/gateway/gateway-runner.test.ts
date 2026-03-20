@@ -214,9 +214,31 @@ describe("GatewayRunner", () => {
         metadata: { source: "test" },
         platforms: ["api"],
       });
+      const progressive = await runner.sendProgressive(
+        {
+          platform: "api",
+          roomId: "room-progressive",
+          userId: "user-1",
+        },
+        ["draft update", "refined update", "final update"],
+      );
+      const edited = await runner.editDelivery(progressive.id, "edited again", {
+        metadata: { revision: "4" },
+      });
+      const refreshed = context.services.delivery.get(progressive.id);
       expect(homeDeliveries.length).toBe(1);
       expect(homeDeliveries[0]?.text).toBe("home-bound message");
       expect(homeDeliveries[0]?.metadata?.source).toBe("test");
+      expect(progressive.text).toBe("final update");
+      expect(edited.text).toBe("edited again");
+      expect(edited.editCount).toBeGreaterThanOrEqual(1);
+      expect(refreshed?.metadata?.revision).toBe("4");
+      expect(runner.trace(20).some((trace) => trace.kind === "update")).toBe(
+        true,
+      );
+      expect(
+        runner.outbox(20).some((record) => record.status === "edited"),
+      ).toBe(true);
       expect(
         state.platforms.some((entry) => entry.platform === "mattermost"),
       ).toBe(true);

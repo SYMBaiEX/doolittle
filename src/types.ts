@@ -303,6 +303,9 @@ export interface DeliveredMessageRecord {
   replyToId?: string;
   metadata?: Record<string, string>;
   createdAt: string;
+  updatedAt?: string;
+  editOfId?: string;
+  editCount?: number;
 }
 
 export interface HookDefinition {

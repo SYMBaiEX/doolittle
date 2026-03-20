@@ -32,4 +32,38 @@ describe("DeliveryService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("updates an existing delivery record in place", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delivery-test-"));
+    const service = new DeliveryService(root);
+
+    try {
+      const record = service.deliver(
+        {
+          platform: "telegram",
+          channelId: "room-1",
+          userId: "user-1",
+          mode: "explicit",
+        },
+        "draft message",
+        {
+          metadata: { phase: "draft" },
+        },
+      );
+
+      const updated = service.update(record.id, "final message", {
+        metadata: { phase: "final" },
+      });
+
+      expect(updated.id).toBe(record.id);
+      expect(updated.text).toBe("final message");
+      expect(updated.metadata?.phase).toBe("final");
+      expect(updated.updatedAt).toBeDefined();
+      expect(updated.editOfId).toBe(record.id);
+      expect(updated.editCount).toBe(1);
+      expect(service.recent(1)[0]?.text).toBe("final message");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

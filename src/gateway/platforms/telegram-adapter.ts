@@ -115,9 +115,9 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
           },
         );
 
+    const bodyText = await response.text();
     if (!response.ok) {
-      const body = await response.text();
-      this.lastError = `Telegram send failed (${response.status}): ${body}`;
+      this.lastError = `Telegram send failed (${response.status}): ${bodyText}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
@@ -141,7 +141,7 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       {
         threadId: message.threadId,
         replyToId: message.replyToId,
-        metadata: message.metadata,
+        metadata: this.withTelegramMessageMetadata(message.metadata, bodyText),
       },
     );
     this.lastDeliveryAt = nowIso();
@@ -151,6 +151,75 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       `Telegram delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
     );
     return record;
+  }
+
+  async edit(
+    delivery: Awaited<ReturnType<TelegramPlatformAdapter["send"]>>,
+    message: OutboundPlatformMessage,
+  ) {
+    if (!this.config.telegramBotToken) {
+      this.lastError = "TELEGRAM_BOT_TOKEN is not configured.";
+      this.lifecycle.record("error", this.lastError);
+      throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+    }
+
+    const chatId = delivery.metadata?.platformRoomId ?? message.roomId;
+    const telegramMessageId =
+      delivery.metadata?.platformMessageId ?? message.replyToId;
+    if (!chatId || !telegramMessageId) {
+      throw new Error(
+        "Telegram edit requires a stored platformRoomId and platformMessageId.",
+      );
+    }
+
+    const apiRoot = this.config.telegramApiRoot ?? "https://api.telegram.org";
+    const response = await fetch(
+      `${apiRoot}/bot${this.config.telegramBotToken}/editMessageText`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: Number(telegramMessageId) || telegramMessageId,
+          text: message.text,
+        }),
+      },
+    );
+    const bodyText = await response.text();
+    if (!response.ok) {
+      this.lastError = `Telegram edit failed (${response.status}): ${bodyText}`;
+      this.lifecycle.record("error", this.lastError);
+      throw new Error(this.lastError);
+    }
+
+    this.sendCount += 1;
+    this.lastSendAt = nowIso();
+    this.lastError = undefined;
+    this.lastOutboundRoomId = message.roomId;
+    this.lastOutboundUserId = message.userId;
+    this.lastOutboundThreadId = message.threadId;
+    this.lastOutboundReplyToId = message.replyToId;
+    this.lastOutboundMetadataKeys = Object.keys(message.metadata ?? {});
+    const updated = this.delivery.update(delivery.id, message.text, {
+      threadId: message.threadId,
+      replyToId: message.replyToId,
+      metadata: this.withTelegramMessageMetadata(
+        {
+          ...(delivery.metadata ?? {}),
+          ...(message.metadata ?? {}),
+        },
+        bodyText,
+      ),
+    });
+    this.lastDeliveryAt = nowIso();
+    this.lastDeliveryId = updated.id;
+    this.lifecycle.record(
+      "edit",
+      `Telegram delivery ${updated.id} edited in ${message.roomId}.`,
+    );
+    return updated;
   }
 
   private resolveVoiceAttachment(
@@ -185,6 +254,42 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       method: "POST",
       body: form,
     });
+  }
+
+  private withTelegramMessageMetadata(
+    metadata: Record<string, string> | undefined,
+    bodyText: string,
+  ): Record<string, string> {
+    const parsed = this.parseTelegramResponse(bodyText);
+    return {
+      ...(metadata ?? {}),
+      ...(parsed.messageId ? { platformMessageId: parsed.messageId } : {}),
+      ...(parsed.chatId ? { platformRoomId: parsed.chatId } : {}),
+    };
+  }
+
+  private parseTelegramResponse(bodyText: string): {
+    messageId?: string;
+    chatId?: string;
+  } {
+    try {
+      const parsed = JSON.parse(bodyText) as {
+        result?: {
+          message_id?: number | string;
+          chat?: { id?: number | string };
+        };
+      };
+      return {
+        messageId: parsed.result?.message_id
+          ? String(parsed.result.message_id)
+          : undefined,
+        chatId: parsed.result?.chat?.id
+          ? String(parsed.result.chat.id)
+          : undefined,
+      };
+    } catch {
+      return {};
+    }
   }
 
   canReceive(): boolean {

@@ -122,8 +122,9 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
           },
         );
 
+    const bodyText = await response.text();
     if (!response.ok) {
-      this.lastError = `Discord send failed (${response.status}): ${await response.text()}`;
+      this.lastError = `Discord send failed (${response.status}): ${bodyText}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
@@ -147,7 +148,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       {
         threadId: message.threadId,
         replyToId: message.replyToId,
-        metadata: message.metadata,
+        metadata: this.withDiscordMessageMetadata(message.metadata, bodyText),
       },
     );
     this.lastDeliveryAt = nowIso();
@@ -157,6 +158,73 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       `Discord delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
     );
     return record;
+  }
+
+  async edit(
+    delivery: Awaited<ReturnType<DiscordPlatformAdapter["send"]>>,
+    message: OutboundPlatformMessage,
+  ) {
+    if (!this.config.discordBotToken) {
+      this.lastError = "DISCORD_BOT_TOKEN is not configured.";
+      this.lifecycle.record("error", this.lastError);
+      throw new Error("DISCORD_BOT_TOKEN is not configured.");
+    }
+
+    const channelId = delivery.metadata?.platformRoomId ?? message.roomId;
+    const discordMessageId =
+      delivery.metadata?.platformMessageId ?? message.replyToId;
+    if (!channelId || !discordMessageId) {
+      throw new Error(
+        "Discord edit requires a stored platformRoomId and platformMessageId.",
+      );
+    }
+
+    const response = await fetch(
+      `https://discord.com/api/v10/channels/${channelId}/messages/${discordMessageId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${this.config.discordBotToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          content: message.text,
+        }),
+      },
+    );
+    const bodyText = await response.text();
+    if (!response.ok) {
+      this.lastError = `Discord edit failed (${response.status}): ${bodyText}`;
+      this.lifecycle.record("error", this.lastError);
+      throw new Error(this.lastError);
+    }
+
+    this.sendCount += 1;
+    this.lastSendAt = nowIso();
+    this.lastError = undefined;
+    this.lastOutboundRoomId = message.roomId;
+    this.lastOutboundUserId = message.userId;
+    this.lastOutboundThreadId = message.threadId;
+    this.lastOutboundReplyToId = message.replyToId;
+    this.lastOutboundMetadataKeys = Object.keys(message.metadata ?? {});
+    const updated = this.delivery.update(delivery.id, message.text, {
+      threadId: message.threadId,
+      replyToId: message.replyToId,
+      metadata: this.withDiscordMessageMetadata(
+        {
+          ...(delivery.metadata ?? {}),
+          ...(message.metadata ?? {}),
+        },
+        bodyText,
+      ),
+    });
+    this.lastDeliveryAt = nowIso();
+    this.lastDeliveryId = updated.id;
+    this.lifecycle.record(
+      "edit",
+      `Discord delivery ${updated.id} edited in ${channelId}.`,
+    );
+    return updated;
   }
 
   private resolveVoiceAttachment(
@@ -190,6 +258,36 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
         body: form,
       },
     );
+  }
+
+  private withDiscordMessageMetadata(
+    metadata: Record<string, string> | undefined,
+    bodyText: string,
+  ): Record<string, string> {
+    const parsed = this.parseDiscordResponse(bodyText);
+    return {
+      ...(metadata ?? {}),
+      ...(parsed.messageId ? { platformMessageId: parsed.messageId } : {}),
+      ...(parsed.channelId ? { platformRoomId: parsed.channelId } : {}),
+    };
+  }
+
+  private parseDiscordResponse(bodyText: string): {
+    messageId?: string;
+    channelId?: string;
+  } {
+    try {
+      const parsed = JSON.parse(bodyText) as {
+        id?: string;
+        channel_id?: string;
+      };
+      return {
+        messageId: parsed.id,
+        channelId: parsed.channel_id,
+      };
+    } catch {
+      return {};
+    }
   }
 
   canReceive(): boolean {

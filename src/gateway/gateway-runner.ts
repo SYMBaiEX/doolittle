@@ -70,6 +70,7 @@ interface GatewayTraceRecord {
     | "route"
     | "respond"
     | "deliver"
+    | "update"
     | "heartbeat"
     | "reject"
     | "lifecycle";
@@ -117,7 +118,7 @@ interface GatewayOutboxRecord {
   platform: PlatformName;
   sessionId?: string;
   traceId: string;
-  status: "sent" | "fallback" | "rejected";
+  status: "sent" | "fallback" | "rejected" | "edited";
   deliveryId?: string;
   userId?: string;
   roomId: string;
@@ -529,6 +530,17 @@ export class GatewayRunner {
         state.lastDeliveryId = entry.deliveryId ?? state.lastDeliveryId;
         state.lastOutboundAt = entry.at;
         state.transportState = state.ready ? "live" : "degraded";
+        break;
+      case "update":
+        state.lastDeliveryAt = entry.at;
+        state.lastDeliveryId = entry.deliveryId ?? state.lastDeliveryId;
+        state.lastOutboundAt = entry.at;
+        state.transportState = state.ready ? "live" : "degraded";
+        state.presence = this.snapshotPresence(
+          "online",
+          `Updating delivery on ${entry.platform}`,
+          state.lastHeartbeatAt,
+        );
         break;
       case "heartbeat":
         state.heartbeatCount += 1;
@@ -1680,6 +1692,163 @@ export class GatewayRunner {
     return deliveries;
   }
 
+  async editDelivery(
+    deliveryId: string,
+    text: string,
+    options?: {
+      metadata?: Record<string, string>;
+      threadId?: string;
+      replyToId?: string;
+    },
+  ): Promise<DeliveredMessageRecord> {
+    const delivery = this.context.services.delivery.get(deliveryId);
+    if (!delivery) {
+      throw new Error(`Delivery ${deliveryId} was not found.`);
+    }
+
+    const platform = delivery.target.platform;
+    const traceId = randomUUID();
+    const session = this.outboxLog
+      .slice()
+      .reverse()
+      .find((record) => record.deliveryId === deliveryId);
+    const message = this.buildOutboundMessageFromDelivery(delivery, text, {
+      metadata: options?.metadata,
+      threadId: options?.threadId,
+      replyToId: options?.replyToId,
+    });
+    const adapter = this.adapters.get(platform);
+    const updated = adapter?.edit
+      ? await adapter.edit(delivery, message)
+      : this.context.services.delivery.update(delivery.id, message.text, {
+          threadId: message.threadId,
+          replyToId: message.replyToId,
+          metadata: {
+            ...(delivery.metadata ?? {}),
+            ...(message.metadata ?? {}),
+            editedLocally: "true",
+          },
+        });
+
+    this.recordOutbox(
+      platform,
+      traceId,
+      session?.sessionId,
+      updated,
+      message,
+      "edited",
+    );
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "update",
+      platform,
+      detail: `Updated delivery ${deliveryId} on ${platform}.`,
+      sessionId: session?.sessionId,
+      userId: message.userId,
+      roomId: message.roomId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToId,
+      deliveryId: updated.id,
+      metadataKeys: Object.keys(updated.metadata ?? {}),
+    });
+    await this.observeAdapter(platform, {
+      at: new Date().toISOString(),
+      kind: "edit",
+      detail: `Updated delivery ${deliveryId} on ${platform}.`,
+    });
+    await this.snapshotState("edit", 20);
+    return updated;
+  }
+
+  async sendProgressive(
+    target: {
+      platform: PlatformName;
+      roomId: string;
+      userId?: string;
+      threadId?: string;
+      replyToId?: string;
+      metadata?: Record<string, string>;
+    },
+    parts: string[],
+  ): Promise<DeliveredMessageRecord> {
+    const [first, ...rest] = parts.map((part) => part.trim()).filter(Boolean);
+    if (!first) {
+      throw new Error(
+        "Progressive delivery requires at least one message part.",
+      );
+    }
+
+    const adapter = this.adapters.get(target.platform);
+    const traceId = randomUUID();
+    const initialMessage: OutboundPlatformMessage = {
+      roomId: target.roomId,
+      userId: target.userId,
+      text: first,
+      threadId: target.threadId,
+      replyToId: target.replyToId,
+      metadata: {
+        ...(target.metadata ?? {}),
+        progressive: "true",
+        progressiveStep: "1",
+        progressiveTotal: String(rest.length + 1),
+      },
+    };
+    let delivery = adapter
+      ? await adapter.send(initialMessage)
+      : this.context.services.delivery.deliver(
+          {
+            platform: target.platform,
+            channelId: target.roomId,
+            userId: target.userId,
+            mode: "explicit",
+          },
+          initialMessage.text,
+          {
+            threadId: initialMessage.threadId,
+            replyToId: initialMessage.replyToId,
+            metadata: initialMessage.metadata,
+          },
+        );
+
+    this.recordOutbox(
+      target.platform,
+      traceId,
+      undefined,
+      delivery,
+      initialMessage,
+      adapter ? "sent" : "fallback",
+    );
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "deliver",
+      platform: target.platform,
+      detail: `Started progressive delivery ${delivery.id} on ${target.platform}.`,
+      userId: target.userId,
+      roomId: target.roomId,
+      threadId: target.threadId,
+      replyToMessageId: target.replyToId,
+      deliveryId: delivery.id,
+      metadataKeys: Object.keys(delivery.metadata ?? {}),
+    });
+
+    for (const [index, part] of rest.entries()) {
+      delivery = await this.editDelivery(delivery.id, part, {
+        threadId: target.threadId,
+        replyToId: target.replyToId,
+        metadata: {
+          ...(target.metadata ?? {}),
+          progressive: "true",
+          progressiveStep: String(index + 2),
+          progressiveTotal: String(rest.length + 1),
+        },
+      });
+    }
+
+    return delivery;
+  }
+
   async health(): Promise<Array<PlatformHealth>> {
     const snapshot = await this.snapshotState("health", 20);
     return snapshot.readiness;
@@ -1948,6 +2117,28 @@ export class GatewayRunner {
         },
       };
     }
+  }
+
+  private buildOutboundMessageFromDelivery(
+    delivery: DeliveredMessageRecord,
+    text: string,
+    options?: {
+      metadata?: Record<string, string>;
+      threadId?: string;
+      replyToId?: string;
+    },
+  ): OutboundPlatformMessage {
+    return {
+      roomId: delivery.target.channelId ?? delivery.target.userId ?? "unknown",
+      userId: delivery.target.userId,
+      text,
+      threadId: options?.threadId ?? delivery.threadId,
+      replyToId: options?.replyToId ?? delivery.replyToId,
+      metadata: {
+        ...(delivery.metadata ?? {}),
+        ...(options?.metadata ?? {}),
+      },
+    };
   }
 
   private describeInactivePlatform(platform: PlatformName): string {

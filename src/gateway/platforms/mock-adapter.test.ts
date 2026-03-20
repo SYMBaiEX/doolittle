@@ -21,11 +21,22 @@ describe("MockPlatformAdapter", () => {
         replyToId: "reply-1",
         metadata: { source: "test" },
       });
+      const edited = await adapter.edit?.(record, {
+        roomId: "room-1",
+        userId: "user-1",
+        text: "hello again",
+        threadId: "thread-1",
+        replyToId: "reply-1",
+        metadata: { source: "edit" },
+      });
       const health = await adapter.health();
 
       expect(record.threadId).toBe("thread-1");
       expect(record.replyToId).toBe("reply-1");
       expect(record.metadata?.source).toBe("test");
+      expect(edited?.text).toBe("hello again");
+      expect(edited?.metadata?.source).toBe("edit");
+      expect(edited?.editCount).toBe(1);
       expect(health.lastDeliveryId).toBe(record.id);
       expect(health.lastDeliveryAt).toBeDefined();
       expect(health.lastOutboundRoomId).toBe("room-1");
@@ -36,6 +47,7 @@ describe("MockPlatformAdapter", () => {
       expect(health.events.some((event) => event.kind === "deliver")).toBe(
         true,
       );
+      expect(health.events.some((event) => event.kind === "edit")).toBe(true);
       expect(health.events.some((event) => event.kind === "health")).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });

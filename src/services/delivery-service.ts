@@ -49,6 +49,45 @@ export class DeliveryService {
     return this.read().messages.slice(-limit).reverse();
   }
 
+  get(deliveryId: string): DeliveredMessageRecord | undefined {
+    return this.read().messages.find((record) => record.id === deliveryId);
+  }
+
+  update(
+    deliveryId: string,
+    text: string,
+    extras?: {
+      threadId?: string;
+      replyToId?: string;
+      metadata?: Record<string, string>;
+    },
+  ): DeliveredMessageRecord {
+    const store = this.read();
+    const existing = store.messages.find((record) => record.id === deliveryId);
+    if (!existing) {
+      throw new Error(`Delivery ${deliveryId} was not found.`);
+    }
+
+    const record: DeliveredMessageRecord = {
+      ...existing,
+      text,
+      threadId: extras?.threadId ?? existing.threadId,
+      replyToId: extras?.replyToId ?? existing.replyToId,
+      metadata: {
+        ...(existing.metadata ?? {}),
+        ...(extras?.metadata ?? {}),
+      },
+      updatedAt: new Date().toISOString(),
+      editOfId: existing.editOfId ?? existing.id,
+      editCount: (existing.editCount ?? 0) + 1,
+    };
+
+    const index = store.messages.findIndex((entry) => entry.id === deliveryId);
+    store.messages[index] = record;
+    this.write(store);
+    return record;
+  }
+
   private read(): DeliveryStore {
     const raw = readFileSync(this.filePath, "utf8");
     return JSON.parse(raw) as DeliveryStore;
