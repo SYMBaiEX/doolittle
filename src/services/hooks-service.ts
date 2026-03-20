@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import type { HookDefinition, HookInvocation } from "@/types";
 
 interface HooksStore {
@@ -8,7 +8,10 @@ interface HooksStore {
   invocations: HookInvocation[];
 }
 
-function renderTemplate(template: string, payload: Record<string, unknown>): string {
+function renderTemplate(
+  template: string,
+  payload: Record<string, unknown>,
+): string {
   return template.replace(/\{\{([^}]+)\}\}/gu, (_, rawKey: string) => {
     const key = rawKey.trim();
     const value = payload[key];
@@ -48,9 +51,14 @@ export class HooksService {
     this.write(store);
   }
 
-  async emit(event: string, payload: Record<string, unknown>): Promise<HookInvocation[]> {
+  async emit(
+    event: string,
+    payload: Record<string, unknown>,
+  ): Promise<HookInvocation[]> {
     const store = this.read();
-    const matches = store.hooks.filter((hook) => hook.enabled && hook.event === event);
+    const matches = store.hooks.filter(
+      (hook) => hook.enabled && hook.event === event,
+    );
     const invocations = matches.map((hook) => ({
       hookId: hook.id,
       event,

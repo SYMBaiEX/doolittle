@@ -1,8 +1,7 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-import { afterEach, describe, expect, it } from "bun:test";
 
 import type { EnvConfig, GatewayConfig } from "@/types";
 import { DiagnosticsService } from "./diagnostics-service";
@@ -154,8 +153,12 @@ describe("OperatorService", () => {
     const update = await service.updatePreview();
 
     expect(setup.version.name).toBe("eliza-agent");
-    expect(setup.providers.some((entry) => entry.id === "openai" && entry.ready)).toBe(true);
-    expect(setup.transports.some((entry) => entry.id === "telegram" && entry.ready)).toBe(true);
+    expect(
+      setup.providers.some((entry) => entry.id === "openai" && entry.ready),
+    ).toBe(true);
+    expect(
+      setup.transports.some((entry) => entry.id === "telegram" && entry.ready),
+    ).toBe(true);
     expect(setup.checklist.length).toBeGreaterThan(0);
     expect(update.version.version).toBeTruthy();
     expect(update.recommendedSteps.length).toBeGreaterThan(0);
@@ -174,15 +177,23 @@ describe("OperatorService", () => {
     mkdirSync(join(source, "skills", "sample-skill"), { recursive: true });
     writeFileSync(join(source, "AGENTS.md"), "# Imported guidance\n", "utf8");
     writeFileSync(join(source, "MEMORY.md"), "Remember this.\n", "utf8");
-    writeFileSync(join(source, "skills", "sample-skill", "SKILL.md"), "# Skill\n", "utf8");
+    writeFileSync(
+      join(source, "skills", "sample-skill", "SKILL.md"),
+      "# Skill\n",
+      "utf8",
+    );
 
     const inspection = service.inspectMigrationSource(source);
     expect(inspection.exists).toBe(true);
     expect(inspection.skillCount).toBe(1);
 
     const result = service.applyMigration(source);
-    expect(result.importedFiles.some((entry) => entry.endsWith("AGENTS.md"))).toBe(true);
-    expect(result.importedSkills.some((entry) => entry.endsWith("sample-skill"))).toBe(true);
+    expect(
+      result.importedFiles.some((entry) => entry.endsWith("AGENTS.md")),
+    ).toBe(true);
+    expect(
+      result.importedSkills.some((entry) => entry.endsWith("sample-skill")),
+    ).toBe(true);
     expect(result.reportPath).toContain("migration-");
   });
 });

@@ -13,7 +13,12 @@ import type { MemoryTarget } from "@/types";
 function parseMemoryCommand(text: string):
   | { action: "list"; target: MemoryTarget }
   | { action: "add"; target: MemoryTarget; content: string }
-  | { action: "replace"; target: MemoryTarget; oldText: string; content: string }
+  | {
+      action: "replace";
+      target: MemoryTarget;
+      oldText: string;
+      content: string;
+    }
   | { action: "remove"; target: MemoryTarget; oldText: string }
   | undefined {
   const trimmed = text.trim();
@@ -47,7 +52,9 @@ function parseMemoryCommand(text: string):
     };
   }
 
-  const removeMatch = trimmed.match(/^\/memory\s+remove\s+(memory|user)\s+(.+)$/u);
+  const removeMatch = trimmed.match(
+    /^\/memory\s+remove\s+(memory|user)\s+(.+)$/u,
+  );
   if (removeMatch) {
     return {
       action: "remove",
@@ -66,8 +73,11 @@ export function createMemoryAction(services: AppServices): Action {
     description:
       "Manages persistent memory stores. Understands `/memory list|add|replace|remove` commands.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/memory"));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/memory"));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -76,7 +86,10 @@ export function createMemoryAction(services: AppServices): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const command = text ? parseMemoryCommand(text) : undefined;
 
       if (!command) {
@@ -92,7 +105,11 @@ export function createMemoryAction(services: AppServices): Action {
       } else if (command.action === "add") {
         response = services.memory.add(command.target, command.content);
       } else if (command.action === "replace") {
-        response = services.memory.replace(command.target, command.oldText, command.content);
+        response = services.memory.replace(
+          command.target,
+          command.oldText,
+          command.content,
+        );
       } else {
         response = services.memory.remove(command.target, command.oldText);
       }

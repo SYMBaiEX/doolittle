@@ -7,7 +7,11 @@ import { CronService } from "./cron-service";
 describe("CronService", () => {
   it("creates jobs with skills and runtime overrides", () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-cron-"));
-    const service = new CronService(join(root, "data"), join(root, "output"), 30);
+    const service = new CronService(
+      join(root, "data"),
+      join(root, "output"),
+      30,
+    );
 
     try {
       const job = service.create({
@@ -25,7 +29,10 @@ describe("CronService", () => {
         },
       });
 
-      expect(job.skills).toEqual(["automation/reports", "productivity/repo-ops"]);
+      expect(job.skills).toEqual([
+        "automation/reports",
+        "productivity/repo-ops",
+      ]);
       expect(job.runtime?.model).toBe("gpt-4.1-mini");
       expect(job.runtime?.personalityId).toBe("focused");
       expect(job.nextRunAt).toBeDefined();
@@ -37,7 +44,11 @@ describe("CronService", () => {
 
   it("updates existing jobs and can clear runtime overrides", () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-cron-update-"));
-    const service = new CronService(join(root, "data"), join(root, "output"), 30);
+    const service = new CronService(
+      join(root, "data"),
+      join(root, "output"),
+      30,
+    );
 
     try {
       const job = service.create({

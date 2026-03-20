@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WebService } from "./web-service";
@@ -104,7 +104,7 @@ describe("WebService", () => {
       expect(existsSync(path.replace(/\.md$/u, ".json"))).toBe(true);
       expect(content).toContain("Description:");
       expect(content).toContain("Canonical:");
-      expect(metadata).toContain("\"contentHash\"");
+      expect(metadata).toContain('"contentHash"');
       expect(existsSync(path.replace(/\.md$/u, ".svg"))).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -155,9 +155,15 @@ describe("WebService", () => {
       expect(capture.page.title).toBe("Capture");
       expect(existsSync(capture.manifestPath)).toBe(true);
       expect(existsSync(capture.reportPath)).toBe(true);
-      expect(readFileSync(capture.reportPath, "utf8")).toContain("Browser Capture Bundle");
-      expect(readFileSync(capture.manifestPath, "utf8")).toContain("\"snapshotPath\"");
-      expect(readFileSync(capture.manifestPath, "utf8")).toContain("\"screenshotSvgPath\"");
+      expect(readFileSync(capture.reportPath, "utf8")).toContain(
+        "Browser Capture Bundle",
+      );
+      expect(readFileSync(capture.manifestPath, "utf8")).toContain(
+        '"snapshotPath"',
+      );
+      expect(readFileSync(capture.manifestPath, "utf8")).toContain(
+        '"screenshotSvgPath"',
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -185,8 +191,12 @@ describe("WebService", () => {
       expect((await service.status()).lastComparisonAt).toBeDefined();
       expect(existsSync(comparison.manifestPath)).toBe(true);
       expect(existsSync(comparison.reportPath)).toBe(true);
-      expect(readFileSync(comparison.reportPath, "utf8")).toContain("Browser Comparison Bundle");
-      expect(readFileSync(comparison.manifestPath, "utf8")).toContain("\"wordDelta\"");
+      expect(readFileSync(comparison.reportPath, "utf8")).toContain(
+        "Browser Comparison Bundle",
+      );
+      expect(readFileSync(comparison.manifestPath, "utf8")).toContain(
+        '"wordDelta"',
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -218,7 +228,9 @@ describe("WebService", () => {
   });
 
   it("builds a model-ready browser comparison analysis brief", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-compare-analyze-"));
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-web-compare-analyze-"),
+    );
     const service = new WebService(
       () => ({
         provider: "basic",

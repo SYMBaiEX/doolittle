@@ -1,13 +1,12 @@
-import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage } from "@/types";
+import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
   capabilitiesForPlatform,
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 export class DiscordPlatformAdapter implements PlatformAdapter {
@@ -37,7 +36,10 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
-      this.lifecycle.record("start", "Discord adapter started with configured bot token.");
+      this.lifecycle.record(
+        "start",
+        "Discord adapter started with configured bot token.",
+      );
     } else {
       this.lastError = "DISCORD_BOT_TOKEN is not configured.";
       this.lifecycle.record("error", this.lastError);

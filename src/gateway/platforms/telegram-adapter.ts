@@ -1,13 +1,12 @@
-import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage } from "@/types";
+import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
   capabilitiesForPlatform,
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 export class TelegramPlatformAdapter implements PlatformAdapter {
@@ -42,7 +41,10 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     this.status = "running";
     this.startedAt = nowIso();
     this.lastError = undefined;
-    this.lifecycle.record("start", "Telegram adapter started with configured bot token.");
+    this.lifecycle.record(
+      "start",
+      "Telegram adapter started with configured bot token.",
+    );
   }
 
   async stop(): Promise<void> {
@@ -100,7 +102,10 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
           chat_id: message.roomId,
           text: message.text,
           ...(message.replyToId
-            ? { reply_to_message_id: Number(message.replyToId) || message.replyToId }
+            ? {
+                reply_to_message_id:
+                  Number(message.replyToId) || message.replyToId,
+              }
             : {}),
         }),
       },

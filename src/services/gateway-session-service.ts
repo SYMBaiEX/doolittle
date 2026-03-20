@@ -25,7 +25,9 @@ export class GatewaySessionService {
       message.userId,
       message.threadId ?? message.replyToMessageId ?? "root",
     ].join(":");
-    const existing = store.sessions.find((session) => session.sessionKey === sessionKey);
+    const existing = store.sessions.find(
+      (session) => session.sessionKey === sessionKey,
+    );
     if (existing) {
       existing.updatedAt = new Date().toISOString();
       this.write(store);

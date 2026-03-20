@@ -7,9 +7,10 @@ import { MediaService } from "./media-service";
 const ONE_BY_ONE_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5X4nQAAAAASUVORK5CYII=";
 const ONE_SECOND_WAV = Buffer.from([
-  0x52,0x49,0x46,0x46,0x6c,0x3e,0x00,0x00,0x57,0x41,0x56,0x45,0x66,0x6d,0x74,0x20,
-  0x10,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x40,0x1f,0x00,0x00,0x80,0x3e,0x00,0x00,
-  0x02,0x00,0x10,0x00,0x64,0x61,0x74,0x61,0x40,0x3e,0x00,0x00,
+  0x52, 0x49, 0x46, 0x46, 0x6c, 0x3e, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45, 0x66,
+  0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x40, 0x1f,
+  0x00, 0x00, 0x80, 0x3e, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74,
+  0x61, 0x40, 0x3e, 0x00, 0x00,
 ]);
 
 describe("MediaService", () => {
@@ -127,7 +128,10 @@ describe("MediaService", () => {
 
     try {
       writeFileSync(audioPath, ONE_SECOND_WAV);
-      writeFileSync(transcriptPath, "This is a transcript sidecar for a voice memo.");
+      writeFileSync(
+        transcriptPath,
+        "This is a transcript sidecar for a voice memo.",
+      );
       const inspection = service.inspect("memo.wav");
       expect(inspection.kind).toBe("audio");
       expect(inspection.durationMs).toBeGreaterThanOrEqual(900);
@@ -146,7 +150,10 @@ describe("MediaService", () => {
 
     try {
       writeFileSync(imagePath, Buffer.from(ONE_BY_ONE_PNG, "base64"));
-      writeFileSync(captionPath, "A minimal placeholder scene used for screenshot regression checks.");
+      writeFileSync(
+        captionPath,
+        "A minimal placeholder scene used for screenshot regression checks.",
+      );
       const inspection = service.inspect("scene.png");
       expect(inspection.captionPath).toBe(captionPath);
       expect(inspection.captionPreview).toContain("screenshot regression");
@@ -164,17 +171,24 @@ describe("MediaService", () => {
 
     try {
       writeFileSync(audioPath, ONE_SECOND_WAV);
-      writeFileSync(transcriptPath, "Meeting transcript content for the bundle report.");
+      writeFileSync(
+        transcriptPath,
+        "Meeting transcript content for the bundle report.",
+      );
       writeFileSync(captionPath, "Caption sidecar for the bundle report.");
 
       const bundle = service.bundle("meeting.wav");
       expect(bundle.inspection.kind).toBe("audio");
-      expect(bundle.relatedFiles.some((entry) => entry.endsWith("meeting.transcript.txt"))).toBe(
-        true,
-      );
-      expect(bundle.relatedFiles.some((entry) => entry.endsWith("meeting.caption.txt"))).toBe(
-        true,
-      );
+      expect(
+        bundle.relatedFiles.some((entry) =>
+          entry.endsWith("meeting.transcript.txt"),
+        ),
+      ).toBe(true);
+      expect(
+        bundle.relatedFiles.some((entry) =>
+          entry.endsWith("meeting.caption.txt"),
+        ),
+      ).toBe(true);
       expect(bundle.reportPath).toContain("media-");
       expect(bundle.manifestPath).toContain("media-");
       expect(existsSync(bundle.reportPath)).toBe(true);
@@ -194,9 +208,15 @@ describe("MediaService", () => {
 
     try {
       writeFileSync(audioPath, ONE_SECOND_WAV);
-      writeFileSync(transcriptPath, "Voice memo transcript about a launch plan and next steps.");
+      writeFileSync(
+        transcriptPath,
+        "Voice memo transcript about a launch plan and next steps.",
+      );
       writeFileSync(imagePath, Buffer.from(ONE_BY_ONE_PNG, "base64"));
-      writeFileSync(captionPath, "A small sample image used for visual analysis.");
+      writeFileSync(
+        captionPath,
+        "A small sample image used for visual analysis.",
+      );
 
       const audioAnalysis = service.analyze("voice.wav");
       expect(audioAnalysis.focus).toBe("voice");
@@ -208,7 +228,9 @@ describe("MediaService", () => {
       expect(imageAnalysis.focus).toBe("vision");
       expect(imageAnalysis.prompt).toContain("vision or image");
       expect(imageAnalysis.prompt).toContain("concise, actionable analysis");
-      expect(imageAnalysis.signals.some((signal) => signal.startsWith("Caption: "))).toBe(true);
+      expect(
+        imageAnalysis.signals.some((signal) => signal.startsWith("Caption: ")),
+      ).toBe(true);
       expect(existsSync(audioAnalysis.bundle.manifestPath)).toBe(true);
       expect(existsSync(imageAnalysis.bundle.reportPath)).toBe(true);
     } finally {
@@ -238,39 +260,47 @@ describe("MediaService", () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-audio-native-"));
     const originalFetch = globalThis.fetch;
     const requests: string[] = [];
-    const service = new MediaService(
-      root,
-      join(root, "media"),
-      () => ({
-        provider: "openai",
-        model: "gpt-4.1-mini",
-        baseUrl: "https://example.invalid/v1",
-        temperature: 0.2,
-        maxTokens: 128,
-        openAiApiKey: "test-key",
-        openAiImageModel: "gpt-image-1",
-      }),
-    );
+    const service = new MediaService(root, join(root, "media"), () => ({
+      provider: "openai",
+      model: "gpt-4.1-mini",
+      baseUrl: "https://example.invalid/v1",
+      temperature: 0.2,
+      maxTokens: 128,
+      openAiApiKey: "test-key",
+      openAiImageModel: "gpt-image-1",
+    }));
     const audioPath = join(root, "briefing.wav");
 
     try {
-      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      globalThis.fetch = (async (
+        input: RequestInfo | URL,
+        _init?: RequestInit,
+      ) => {
         const url = typeof input === "string" ? input : input.toString();
         requests.push(url);
         if (url.includes("/audio/transcriptions")) {
-          return new Response(JSON.stringify({ text: "Eliza Agent transcript from provider audio." }), {
-            status: 200,
-          });
+          return new Response(
+            JSON.stringify({
+              text: "Eliza Agent transcript from provider audio.",
+            }),
+            {
+              status: 200,
+            },
+          );
         }
         if (url.includes("/audio/speech")) {
-          return new Response(Buffer.from("ID3eliza-agent-speech"), { status: 200 });
+          return new Response(Buffer.from("ID3eliza-agent-speech"), {
+            status: 200,
+          });
         }
         throw new Error(`Unexpected fetch: ${url}`);
       }) as typeof fetch;
 
       writeFileSync(audioPath, ONE_SECOND_WAV);
       const transcription = await service.transcribeWithModel("briefing.wav");
-      const speech = await service.speakWithModel("Eliza Agent speaks with clarity.");
+      const speech = await service.speakWithModel(
+        "Eliza Agent speaks with clarity.",
+      );
 
       expect(transcription.source).toBe("openai");
       expect(transcription.transcriptText).toContain("provider audio");
@@ -280,8 +310,12 @@ describe("MediaService", () => {
       expect(speech.artifactKind).toBe("mp3");
       expect(existsSync(speech.artifactPath)).toBe(true);
       expect(existsSync(speech.reportPath)).toBe(true);
-      expect(requests.some((entry) => entry.includes("/audio/transcriptions"))).toBe(true);
-      expect(requests.some((entry) => entry.includes("/audio/speech"))).toBe(true);
+      expect(
+        requests.some((entry) => entry.includes("/audio/transcriptions")),
+      ).toBe(true);
+      expect(requests.some((entry) => entry.includes("/audio/speech"))).toBe(
+        true,
+      );
     } finally {
       globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });
@@ -293,7 +327,9 @@ describe("MediaService", () => {
     const service = new MediaService(root);
 
     try {
-      const generation = await service.generateImage("a luminous skyline over the Eliza workspace");
+      const generation = await service.generateImage(
+        "a luminous skyline over the Eliza workspace",
+      );
       expect(generation.artifactKind).toBe("svg");
       expect(generation.artifactPath.endsWith(".svg")).toBe(true);
       expect(existsSync(generation.artifactPath)).toBe(true);
@@ -309,29 +345,30 @@ describe("MediaService", () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-provider-"));
     const originalFetch = globalThis.fetch;
     const requests: string[] = [];
-    const service = new MediaService(
-      root,
-      join(root, "media"),
-      () => ({
-        provider: "openai",
-        model: "gpt-4.1-mini",
-        baseUrl: "https://example.invalid/v1",
-        temperature: 0.2,
-        maxTokens: 128,
-        openAiApiKey: "test-key",
-        openAiImageModel: "gpt-image-1",
-      }),
-    );
+    const service = new MediaService(root, join(root, "media"), () => ({
+      provider: "openai",
+      model: "gpt-4.1-mini",
+      baseUrl: "https://example.invalid/v1",
+      temperature: 0.2,
+      maxTokens: 128,
+      openAiApiKey: "test-key",
+      openAiImageModel: "gpt-image-1",
+    }));
     const audioPath = join(root, "voice.wav");
 
     try {
-      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      globalThis.fetch = (async (
+        input: RequestInfo | URL,
+        _init?: RequestInit,
+      ) => {
         const url = typeof input === "string" ? input : input.toString();
         requests.push(url);
         if (url.includes("/chat/completions")) {
           return new Response(
             JSON.stringify({
-              choices: [{ message: { content: "Model-backed media summary." } }],
+              choices: [
+                { message: { content: "Model-backed media summary." } },
+              ],
             }),
             { status: 200 },
           );
@@ -349,13 +386,19 @@ describe("MediaService", () => {
 
       writeFileSync(audioPath, ONE_SECOND_WAV);
       const analysis = await service.analyzeWithModel("voice.wav");
-      const generation = await service.generateImage("A compact dashboard icon");
+      const generation = await service.generateImage(
+        "A compact dashboard icon",
+      );
 
       expect(analysis.response).toContain("Model-backed media summary");
       expect(generation.artifactKind).toBe("png");
       expect(existsSync(generation.artifactPath)).toBe(true);
-      expect(requests.some((entry) => entry.includes("/chat/completions"))).toBe(true);
-      expect(requests.some((entry) => entry.includes("/images/generations"))).toBe(true);
+      expect(
+        requests.some((entry) => entry.includes("/chat/completions")),
+      ).toBe(true);
+      expect(
+        requests.some((entry) => entry.includes("/images/generations")),
+      ).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });

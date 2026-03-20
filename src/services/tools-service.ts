@@ -89,7 +89,8 @@ export class ToolsService {
       id: "web.fetch",
       name: "Web Fetch",
       category: "documents",
-      description: "Fetch and extract readable text from a URL through the configured browser backend.",
+      description:
+        "Fetch and extract readable text from a URL through the configured browser backend.",
       enabled: true,
       transport: "service",
     },
@@ -113,7 +114,8 @@ export class ToolsService {
       id: "browser.screenshot",
       name: "Browser Screenshot",
       category: "documents",
-      description: "Create a lightweight screenshot artifact placeholder for a URL.",
+      description:
+        "Create a lightweight screenshot artifact placeholder for a URL.",
       enabled: true,
       transport: "service",
     },
@@ -121,7 +123,8 @@ export class ToolsService {
       id: "browser.capture",
       name: "Browser Capture Bundle",
       category: "documents",
-      description: "Create a reusable bundle with snapshot, screenshot, report, and manifest artifacts for a URL.",
+      description:
+        "Create a reusable bundle with snapshot, screenshot, report, and manifest artifacts for a URL.",
       enabled: true,
       transport: "service",
     },
@@ -129,7 +132,8 @@ export class ToolsService {
       id: "browser.analyze",
       name: "Browser Analyze",
       category: "documents",
-      description: "Create a model-backed analysis brief for a browser capture.",
+      description:
+        "Create a model-backed analysis brief for a browser capture.",
       enabled: true,
       transport: "service",
     },
@@ -137,7 +141,8 @@ export class ToolsService {
       id: "browser.compare",
       name: "Browser Compare",
       category: "documents",
-      description: "Compare two captures and emit a diff-style browser report bundle.",
+      description:
+        "Compare two captures and emit a diff-style browser report bundle.",
       enabled: true,
       transport: "service",
     },
@@ -145,7 +150,8 @@ export class ToolsService {
       id: "browser.compare.analyze",
       name: "Browser Compare Analyze",
       category: "documents",
-      description: "Create a model-backed analysis brief for a browser comparison bundle.",
+      description:
+        "Create a model-backed analysis brief for a browser comparison bundle.",
       enabled: true,
       transport: "service",
     },
@@ -161,7 +167,8 @@ export class ToolsService {
       id: "media.analyze",
       name: "Media Analyze",
       category: "documents",
-      description: "Create a model-backed analysis brief for audio, image, or document media.",
+      description:
+        "Create a model-backed analysis brief for audio, image, or document media.",
       enabled: true,
       transport: "service",
     },
@@ -169,7 +176,8 @@ export class ToolsService {
       id: "media.voice",
       name: "Media Voice",
       category: "documents",
-      description: "Create a voice-focused model-backed analysis brief for audio or video media.",
+      description:
+        "Create a voice-focused model-backed analysis brief for audio or video media.",
       enabled: true,
       transport: "service",
     },
@@ -177,7 +185,8 @@ export class ToolsService {
       id: "media.transcribe",
       name: "Media Transcribe",
       category: "documents",
-      description: "Create a provider-native transcription or best-effort transcript bundle for audio and video media.",
+      description:
+        "Create a provider-native transcription or best-effort transcript bundle for audio and video media.",
       enabled: true,
       transport: "service",
     },
@@ -185,7 +194,8 @@ export class ToolsService {
       id: "media.speak",
       name: "Media Speak",
       category: "documents",
-      description: "Generate provider-native Eliza Agent speech audio or an offline speech concept bundle.",
+      description:
+        "Generate provider-native Eliza Agent speech audio or an offline speech concept bundle.",
       enabled: true,
       transport: "service",
     },
@@ -193,7 +203,8 @@ export class ToolsService {
       id: "media.vision",
       name: "Media Vision",
       category: "documents",
-      description: "Create a vision-focused model-backed analysis brief for image media.",
+      description:
+        "Create a vision-focused model-backed analysis brief for image media.",
       enabled: true,
       transport: "service",
     },
@@ -201,7 +212,8 @@ export class ToolsService {
       id: "media.bundle",
       name: "Media Bundle",
       category: "documents",
-      description: "Package a media file with its sidecars and extracted metadata into a reusable report bundle.",
+      description:
+        "Package a media file with its sidecars and extracted metadata into a reusable report bundle.",
       enabled: true,
       transport: "service",
     },
@@ -209,7 +221,8 @@ export class ToolsService {
       id: "media.generate",
       name: "Media Generate",
       category: "documents",
-      description: "Generate a model-assisted image concept artifact from a prompt.",
+      description:
+        "Generate a model-assisted image concept artifact from a prompt.",
       enabled: true,
       transport: "service",
     },
@@ -241,7 +254,8 @@ export class ToolsService {
       id: "automation.trajectory.analyze",
       name: "Trajectory Analyze",
       category: "automation",
-      description: "Create a model-backed research brief from a trajectory bundle.",
+      description:
+        "Create a model-backed research brief from a trajectory bundle.",
       enabled: true,
       transport: "service",
     },
@@ -249,7 +263,8 @@ export class ToolsService {
       id: "automation.trajectory.evaluate",
       name: "Trajectory Evaluate",
       category: "automation",
-      description: "Score a trajectory bundle and emit a research evaluation report.",
+      description:
+        "Score a trajectory bundle and emit a research evaluation report.",
       enabled: true,
       transport: "service",
     },
@@ -257,7 +272,8 @@ export class ToolsService {
       id: "automation.trajectory.package",
       name: "Trajectory Package",
       category: "automation",
-      description: "Package export, replay, analysis, and evaluation artifacts into a reusable research bundle.",
+      description:
+        "Package export, replay, analysis, and evaluation artifacts into a reusable research bundle.",
       enabled: true,
       transport: "service",
     },
@@ -265,7 +281,8 @@ export class ToolsService {
       id: "skills.synthesize",
       name: "Skill Synthesis",
       category: "automation",
-      description: "Create draft reusable skills from completed delegated work.",
+      description:
+        "Create draft reusable skills from completed delegated work.",
       enabled: true,
       transport: "service",
     },
@@ -293,7 +310,7 @@ export class ToolsService {
                     : ""
                 }.`
               : "Structured MCP bridge is available but not configured.",
-        }
+          }
         : tool,
     );
   }
@@ -308,7 +325,13 @@ export class ToolsService {
       return this.list();
     }
     return this.list().filter((tool) =>
-      [tool.id, tool.name, tool.category, tool.description, tool.transport ?? ""]
+      [
+        tool.id,
+        tool.name,
+        tool.category,
+        tool.description,
+        tool.transport ?? "",
+      ]
         .join(" ")
         .toLowerCase()
         .includes(normalized),
@@ -324,31 +347,41 @@ export class ToolsService {
   }
 
   grouped(): Record<string, ToolDefinition[]> {
-    return this.list().reduce<Record<string, ToolDefinition[]>>((groups, tool) => {
-      groups[tool.category] ??= [];
-      groups[tool.category].push(tool);
-      return groups;
-    }, {});
+    return this.list().reduce<Record<string, ToolDefinition[]>>(
+      (groups, tool) => {
+        groups[tool.category] ??= [];
+        groups[tool.category].push(tool);
+        return groups;
+      },
+      {},
+    );
   }
 
   summary(): ToolRegistrySummary {
     const tools = this.list();
     const enabled = tools.filter((tool) => tool.enabled);
-    const transportMap = tools.reduce<Map<string, ToolDefinition[]>>((map, tool) => {
-      const key = tool.transport ?? "service";
-      map.set(key, [...(map.get(key) ?? []), tool]);
-      return map;
-    }, new Map());
-    const transports = Array.from(transportMap.entries()).map(([transport, entries]) => ({
-      transport,
-      total: entries.length,
-      enabled: entries.filter((tool) => tool.enabled).length,
-    }));
-    const categories = Object.entries(this.grouped()).map(([category, entries]) => ({
-      category,
-      total: entries.length,
-      enabled: entries.filter((tool) => tool.enabled).length,
-    }));
+    const transportMap = tools.reduce<Map<string, ToolDefinition[]>>(
+      (map, tool) => {
+        const key = tool.transport ?? "service";
+        map.set(key, [...(map.get(key) ?? []), tool]);
+        return map;
+      },
+      new Map(),
+    );
+    const transports = Array.from(transportMap.entries()).map(
+      ([transport, entries]) => ({
+        transport,
+        total: entries.length,
+        enabled: entries.filter((tool) => tool.enabled).length,
+      }),
+    );
+    const categories = Object.entries(this.grouped()).map(
+      ([category, entries]) => ({
+        category,
+        total: entries.length,
+        enabled: entries.filter((tool) => tool.enabled).length,
+      }),
+    );
     const dynamic = this.getDynamicState();
     return {
       total: tools.length,

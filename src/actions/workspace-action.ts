@@ -12,12 +12,20 @@ import type { AppServices } from "@/services";
 export function createWorkspaceAction(services: AppServices): Action {
   return {
     name: "ELIZA_AGENT_WORKSPACE",
-    similes: ["WORKSPACE_TREE", "WORKSPACE_READ", "WORKSPACE_SEARCH", "WORKSPACE_WRITE"],
+    similes: [
+      "WORKSPACE_TREE",
+      "WORKSPACE_READ",
+      "WORKSPACE_SEARCH",
+      "WORKSPACE_WRITE",
+    ],
     description:
       "Explores and edits the local workspace with `/workspace tree|read|search|write` commands.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/workspace"));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/workspace"));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -26,14 +34,19 @@ export function createWorkspaceAction(services: AppServices): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const trimmed = text?.trim() ?? "";
       let response = "";
 
       if (trimmed === "/workspace" || trimmed === "/workspace tree") {
         response = services.workspace.summary(40);
       } else if (trimmed.startsWith("/workspace read ")) {
-        response = services.workspace.read(trimmed.replace("/workspace read ", "").trim());
+        response = services.workspace.read(
+          trimmed.replace("/workspace read ", "").trim(),
+        );
       } else if (trimmed.startsWith("/workspace search ")) {
         const query = trimmed.replace("/workspace search ", "").trim();
         const results = services.workspace.search(query, 20);

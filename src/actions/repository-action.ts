@@ -16,8 +16,11 @@ export function createRepositoryAction(services: AppServices): Action {
     description:
       "Inspects repository state with `/repo status`, `/repo diff`, and `/repo log`.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/repo"));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/repo"));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -26,7 +29,10 @@ export function createRepositoryAction(services: AppServices): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const trimmed = text?.trim() ?? "";
       let response = "";
 

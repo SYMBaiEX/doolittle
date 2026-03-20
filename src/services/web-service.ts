@@ -1,5 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 interface BrowserConfig {
@@ -144,13 +144,19 @@ function escapeXml(value: string): string {
     .replaceAll("'", "&apos;");
 }
 
-function extractReadableText(content: string, contentType = "text/html"): {
+function extractReadableText(
+  content: string,
+  contentType = "text/html",
+): {
   title?: string;
   metaDescription?: string;
   canonicalUrl?: string;
   text: string;
 } {
-  if (!/html|xhtml|xml|svg/i.test(contentType) && !/<[a-z][\s\S]*>/iu.test(content)) {
+  if (
+    !/html|xhtml|xml|svg/i.test(contentType) &&
+    !/<[a-z][\s\S]*>/iu.test(content)
+  ) {
     const text = content
       .replace(/\r\n/gu, "\n")
       .split(/\n/u)
@@ -195,14 +201,29 @@ function buildPageMetrics(
   html: string,
   text: string,
   contentType: string,
-): Omit<WebPageSnapshot, "url" | "title" | "metaDescription" | "canonicalUrl" | "text" | "provider" | "mode" | "renderedAt"> {
+): Omit<
+  WebPageSnapshot,
+  | "url"
+  | "title"
+  | "metaDescription"
+  | "canonicalUrl"
+  | "text"
+  | "provider"
+  | "mode"
+  | "renderedAt"
+> {
   const wordCount = text ? text.split(/\s+/u).filter(Boolean).length : 0;
-  const lineCount = text ? text.split(/\n/u).filter((line) => line.trim().length > 0).length : 0;
+  const lineCount = text
+    ? text.split(/\n/u).filter((line) => line.trim().length > 0).length
+    : 0;
   const linkCount = (html.match(/<a\b/giu) ?? []).length;
   const imageCount = (html.match(/<img\b/giu) ?? []).length;
   const headingCount = (html.match(/<h[1-6]\b/giu) ?? []).length;
   const contentLength = Buffer.byteLength(html, "utf8");
-  const contentHash = createHash("sha256").update(html).digest("hex").slice(0, 16);
+  const contentHash = createHash("sha256")
+    .update(html)
+    .digest("hex")
+    .slice(0, 16);
 
   return {
     contentType,
@@ -218,7 +239,9 @@ function buildPageMetrics(
 
 function createScreenshotSvg(page: WebPageSnapshot, notes: string[]): string {
   const title = page.title ?? page.url;
-  const excerpt = (page.text || page.metaDescription || "").replace(/\s+/gu, " ").slice(0, 240);
+  const excerpt = (page.text || page.metaDescription || "")
+    .replace(/\s+/gu, " ")
+    .slice(0, 240);
   const lines = [
     `Page: ${title}`,
     `URL: ${page.url}`,
@@ -253,7 +276,7 @@ function writeArtifact(
 ): { markdownPath: string; jsonPath: string; svgPath?: string } {
   const filePath = join(outputDir, `${prefix}-${Date.now()}.md`);
   const content = [
-    `# ${prefix === "screenshot" ? "Browser Screenshot" : page.title ?? page.url}`,
+    `# ${prefix === "screenshot" ? "Browser Screenshot" : (page.title ?? page.url)}`,
     "",
     `Source: ${page.url}`,
     `Provider: ${page.provider}`,
@@ -296,9 +319,7 @@ function writeArtifact(
   );
 
   const svgPath =
-    prefix === "screenshot"
-      ? filePath.replace(/\.md$/u, ".svg")
-      : undefined;
+    prefix === "screenshot" ? filePath.replace(/\.md$/u, ".svg") : undefined;
   if (svgPath) {
     writeFileSync(svgPath, createScreenshotSvg(page, notes), "utf8");
   }
@@ -306,13 +327,15 @@ function writeArtifact(
 }
 
 function slugifyUrl(url: string): string {
-  return url
-    .replace(/^https?:\/\//u, "")
-    .replace(/^data:/u, "data-")
-    .replace(/[^a-z0-9]+/giu, "-")
-    .replace(/^-+|-+$/gu, "")
-    .slice(0, 72)
-    .toLowerCase() || "capture";
+  return (
+    url
+      .replace(/^https?:\/\//u, "")
+      .replace(/^data:/u, "data-")
+      .replace(/[^a-z0-9]+/giu, "-")
+      .replace(/^-+|-+$/gu, "")
+      .slice(0, 72)
+      .toLowerCase() || "capture"
+  );
 }
 
 function compareSnapshotMetrics(left: WebPageSnapshot, right: WebPageSnapshot) {
@@ -386,11 +409,18 @@ export class WebService {
 
   async fetchText(url: string): Promise<WebPageSnapshot> {
     const config = this.getConfig();
-    if (config.provider === "lightpanda" && (await commandExists(config.command))) {
+    if (
+      config.provider === "lightpanda" &&
+      (await commandExists(config.command))
+    ) {
       try {
         const fetched = await this.fetchWithLightpanda(url, config);
         const readable = extractReadableText(fetched.body, fetched.contentType);
-        const metrics = buildPageMetrics(fetched.body, readable.text, fetched.contentType);
+        const metrics = buildPageMetrics(
+          fetched.body,
+          readable.text,
+          fetched.contentType,
+        );
         this.lastFetchedAt = nowIso();
         this.lastError = undefined;
         return {
@@ -410,7 +440,11 @@ export class WebService {
     try {
       const fetched = await this.fetchWithBasic(url);
       const readable = extractReadableText(fetched.body, fetched.contentType);
-      const metrics = buildPageMetrics(fetched.body, readable.text, fetched.contentType);
+      const metrics = buildPageMetrics(
+        fetched.body,
+        readable.text,
+        fetched.contentType,
+      );
       this.lastFetchedAt = nowIso();
       this.lastError = undefined;
       return {
@@ -429,46 +463,31 @@ export class WebService {
 
   async snapshot(url: string): Promise<string> {
     const page = await this.fetchText(url);
-    const artifact = writeArtifact(
-      this.outputDir,
-      "snapshot",
-      page,
-      [
-        "This artifact captures readable text extracted from the page.",
-        "It is suitable for search, diffing, and long-form analysis.",
-      ],
-    );
+    const artifact = writeArtifact(this.outputDir, "snapshot", page, [
+      "This artifact captures readable text extracted from the page.",
+      "It is suitable for search, diffing, and long-form analysis.",
+    ]);
     this.lastSnapshotAt = nowIso();
     return artifact.markdownPath;
   }
 
   async screenshot(url: string): Promise<string> {
     const page = await this.fetchText(url);
-    const artifact = writeArtifact(
-      this.outputDir,
-      "screenshot",
-      page,
-      [
-        "This is a lightweight screenshot artifact placeholder.",
-        "When a pixel-level browser capture is available, this file can be replaced with a real image artifact.",
-        `Captured from ${page.provider} in ${page.mode} mode.`,
-      ],
-    );
+    const artifact = writeArtifact(this.outputDir, "screenshot", page, [
+      "This is a lightweight screenshot artifact placeholder.",
+      "When a pixel-level browser capture is available, this file can be replaced with a real image artifact.",
+      `Captured from ${page.provider} in ${page.mode} mode.`,
+    ]);
     this.lastScreenshotAt = nowIso();
     return artifact.markdownPath;
   }
 
   async inspect(url: string): Promise<BrowserInspection> {
     const page = await this.fetchText(url);
-    const snapshotArtifact = writeArtifact(
-      this.outputDir,
-      "snapshot",
-      page,
-      [
-        "This artifact captures readable text extracted from the page.",
-        "It is suitable for search, diffing, and long-form analysis.",
-      ],
-    );
+    const snapshotArtifact = writeArtifact(this.outputDir, "snapshot", page, [
+      "This artifact captures readable text extracted from the page.",
+      "It is suitable for search, diffing, and long-form analysis.",
+    ]);
     const screenshotArtifact = writeArtifact(
       this.outputDir,
       "screenshot",
@@ -485,7 +504,9 @@ export class WebService {
       page,
       snapshotPath: snapshotArtifact.markdownPath,
       screenshotPath: screenshotArtifact.markdownPath,
-      screenshotSvgPath: screenshotArtifact.svgPath ?? screenshotArtifact.markdownPath.replace(/\.md$/u, ".svg"),
+      screenshotSvgPath:
+        screenshotArtifact.svgPath ??
+        screenshotArtifact.markdownPath.replace(/\.md$/u, ".svg"),
       status: await this.status(),
     };
   }
@@ -534,7 +555,9 @@ export class WebService {
         `- Manifest: ${manifestPath}`,
         "",
         "## Preview",
-        (inspection.page.metaDescription ?? inspection.page.text.slice(0, 1200)) || "(empty)",
+        (inspection.page.metaDescription ??
+          inspection.page.text.slice(0, 1200)) ||
+          "(empty)",
       ].join("\n"),
       "utf8",
     );
@@ -559,12 +582,18 @@ export class WebService {
     };
   }
 
-  async compare(leftUrl: string, rightUrl: string): Promise<BrowserComparisonBundle> {
+  async compare(
+    leftUrl: string,
+    rightUrl: string,
+  ): Promise<BrowserComparisonBundle> {
     const left = await this.capture(leftUrl);
     const right = await this.capture(rightUrl);
     const stamp = Date.now();
     const slug = `${slugifyUrl(leftUrl)}-vs-${slugifyUrl(rightUrl)}`;
-    const manifestPath = join(this.outputDir, `comparison-${stamp}-${slug}.json`);
+    const manifestPath = join(
+      this.outputDir,
+      `comparison-${stamp}-${slug}.json`,
+    );
     const reportPath = join(this.outputDir, `comparison-${stamp}-${slug}.md`);
     const summary = compareSnapshotMetrics(left.page, right.page);
     this.lastComparisonAt = nowIso();
@@ -626,10 +655,12 @@ export class WebService {
         `- Comparison manifest: ${manifestPath}`,
         "",
         "## Left Preview",
-        (left.page.metaDescription ?? left.page.text.slice(0, 900)) || "(empty)",
+        (left.page.metaDescription ?? left.page.text.slice(0, 900)) ||
+          "(empty)",
         "",
         "## Right Preview",
-        (right.page.metaDescription ?? right.page.text.slice(0, 900)) || "(empty)",
+        (right.page.metaDescription ?? right.page.text.slice(0, 900)) ||
+          "(empty)",
       ].join("\n"),
       "utf8",
     );
@@ -657,10 +688,14 @@ export class WebService {
     };
   }
 
-  private async fetchWithBasic(url: string): Promise<{ body: string; contentType: string }> {
+  private async fetchWithBasic(
+    url: string,
+  ): Promise<{ body: string; contentType: string }> {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Web fetch failed (${response.status}): ${await response.text()}`);
+      throw new Error(
+        `Web fetch failed (${response.status}): ${await response.text()}`,
+      );
     }
     return {
       body: await response.text(),
@@ -681,7 +716,10 @@ export class WebService {
 
     const result = await runCommand(args, 20_000);
     if (result.exitCode !== 0) {
-      throw new Error(result.stderr || `Lightpanda fetch failed with exit code ${result.exitCode}.`);
+      throw new Error(
+        result.stderr ||
+          `Lightpanda fetch failed with exit code ${result.exitCode}.`,
+      );
     }
 
     return {
@@ -704,10 +742,17 @@ export class WebService {
     ].filter(Boolean) as string[];
   }
 
-  private buildAnalysisPrompt(capture: BrowserCaptureBundle, focus: BrowserAnalysisFocus): string {
+  private buildAnalysisPrompt(
+    capture: BrowserCaptureBundle,
+    focus: BrowserAnalysisFocus,
+  ): string {
     const page = capture.page;
     const intent =
-      focus === "vision" ? "vision-style analysis" : focus === "research" ? "research analysis" : "browser analysis";
+      focus === "vision"
+        ? "vision-style analysis"
+        : focus === "research"
+          ? "research analysis"
+          : "browser analysis";
 
     return [
       `You are reviewing a browser capture for Eliza Agent and should provide concise, actionable ${intent}.`,
@@ -739,7 +784,9 @@ export class WebService {
     ].join("\n");
   }
 
-  private buildComparisonHighlights(comparison: BrowserComparisonBundle): string[] {
+  private buildComparisonHighlights(
+    comparison: BrowserComparisonBundle,
+  ): string[] {
     return [
       `Left title: ${comparison.left.page.title ?? "n/a"}`,
       `Right title: ${comparison.right.page.title ?? "n/a"}`,
@@ -757,7 +804,11 @@ export class WebService {
     focus: BrowserAnalysisFocus,
   ): string {
     const intent =
-      focus === "vision" ? "vision-style comparison" : focus === "research" ? "research comparison" : "browser comparison";
+      focus === "vision"
+        ? "vision-style comparison"
+        : focus === "research"
+          ? "research comparison"
+          : "browser comparison";
 
     return [
       `You are comparing two browser captures for Eliza Agent and should provide concise, actionable ${intent}.`,
@@ -784,10 +835,14 @@ export class WebService {
       `- Comparison manifest: ${comparison.manifestPath}`,
       "",
       "Left preview:",
-      (comparison.left.page.metaDescription ?? comparison.left.page.text.slice(0, 1200)) || "(empty)",
+      (comparison.left.page.metaDescription ??
+        comparison.left.page.text.slice(0, 1200)) ||
+        "(empty)",
       "",
       "Right preview:",
-      (comparison.right.page.metaDescription ?? comparison.right.page.text.slice(0, 1200)) || "(empty)",
+      (comparison.right.page.metaDescription ??
+        comparison.right.page.text.slice(0, 1200)) ||
+        "(empty)",
     ].join("\n");
   }
 }

@@ -12,7 +12,10 @@ describe("SkillSynthesisService", () => {
       id: "task-1",
       title: "Browser Capture Workflow",
       objective: "Capture browser snapshots and screenshots for a URL.",
-      notes: ["Keep screenshots lightweight.", "Important: record the canonical URL."],
+      notes: [
+        "Keep screenshots lightweight.",
+        "Important: record the canonical URL.",
+      ],
       status: "completed" as const,
       executionMode: "delegated" as const,
       workerMode: "process" as const,
@@ -37,7 +40,9 @@ describe("SkillSynthesisService", () => {
       expect(generated[0]?.slug).toBe("browser-capture-workflow");
       expect(generated[0]?.signalCount).toBeGreaterThan(0);
       expect(service.hasGeneratedSkill(task)).toBe(true);
-      expect(service.describeGeneratedSkill("browser-capture-workflow")).toContain("GENERATED SKILL");
+      expect(
+        service.describeGeneratedSkill("browser-capture-workflow"),
+      ).toContain("GENERATED SKILL");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import type {
   AutomationRunRecord,
   CronJobRecord,
@@ -107,7 +107,10 @@ export class CronService {
   resume(id: string): CronJobRecord {
     return this.update(id, (job) => {
       job.status = "active";
-      job.nextRunAt = this.computeNextRun(job.schedule, new Date())?.toISOString();
+      job.nextRunAt = this.computeNextRun(
+        job.schedule,
+        new Date(),
+      )?.toISOString();
       job.updatedAt = new Date().toISOString();
     });
   }
@@ -151,7 +154,10 @@ export class CronService {
         job.schedule = input.schedule;
         job.oneShot = !input.schedule.trim().startsWith("every ");
         if (job.status === "active") {
-          job.nextRunAt = this.computeNextRun(job.schedule, new Date())?.toISOString();
+          job.nextRunAt = this.computeNextRun(
+            job.schedule,
+            new Date(),
+          )?.toISOString();
         }
       }
       if (input.skills !== undefined) {
@@ -207,7 +213,10 @@ export class CronService {
     }
   }
 
-  private update(id: string, mutate: (job: CronJobRecord) => void): CronJobRecord {
+  private update(
+    id: string,
+    mutate: (job: CronJobRecord) => void,
+  ): CronJobRecord {
     const jobs = this.readJobs();
     const job = jobs.find((candidate) => candidate.id === id);
     if (!job) {
@@ -287,10 +296,16 @@ export class CronService {
     if (runtime.baseUrl?.trim()) {
       normalized.baseUrl = runtime.baseUrl.trim();
     }
-    if (typeof runtime.temperature === "number" && !Number.isNaN(runtime.temperature)) {
+    if (
+      typeof runtime.temperature === "number" &&
+      !Number.isNaN(runtime.temperature)
+    ) {
       normalized.temperature = runtime.temperature;
     }
-    if (typeof runtime.maxTokens === "number" && Number.isFinite(runtime.maxTokens)) {
+    if (
+      typeof runtime.maxTokens === "number" &&
+      Number.isFinite(runtime.maxTokens)
+    ) {
       normalized.maxTokens = Math.max(1, Math.trunc(runtime.maxTokens));
     }
     if (runtime.personalityId?.trim()) {
@@ -340,7 +355,8 @@ export class CronService {
   }
 
   private computeNextCronOccurrence(expression: string, from: Date): Date {
-    const [minuteExpr, hourExpr, dayExpr, monthExpr, weekdayExpr] = expression.split(/\s+/u);
+    const [minuteExpr, hourExpr, dayExpr, monthExpr, weekdayExpr] =
+      expression.split(/\s+/u);
     const probe = new Date(from.getTime());
     probe.setSeconds(0, 0);
     probe.setMinutes(probe.getMinutes() + 1);
@@ -358,10 +374,17 @@ export class CronService {
       probe.setMinutes(probe.getMinutes() + 1);
     }
 
-    throw new Error(`Could not compute next run for cron expression "${expression}".`);
+    throw new Error(
+      `Could not compute next run for cron expression "${expression}".`,
+    );
   }
 
-  private matchesField(value: number, expression: string, min: number, max: number): boolean {
+  private matchesField(
+    value: number,
+    expression: string,
+    min: number,
+    max: number,
+  ): boolean {
     if (expression === "*") {
       return true;
     }

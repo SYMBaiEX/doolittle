@@ -65,7 +65,9 @@ export class McpService {
     const result = await this.run(["--help"], 5_000);
     this.lastProbeAt = new Date().toISOString();
     if (!result.ok) {
-      this.lastError = result.output || `MCP command failed with exit code ${result.exitCode}.`;
+      this.lastError =
+        result.output ||
+        `MCP command failed with exit code ${result.exitCode}.`;
     } else {
       this.lastError = undefined;
     }
@@ -73,7 +75,8 @@ export class McpService {
       ok: result.ok,
       detail: result.ok
         ? result.output || "MCP command responded successfully."
-        : result.output || `MCP command failed with exit code ${result.exitCode}.`,
+        : result.output ||
+          `MCP command failed with exit code ${result.exitCode}.`,
     };
   }
 
@@ -117,7 +120,7 @@ export class McpService {
           name,
           description: descriptionParts.join(" - ") || "MCP-discovered tool.",
         } satisfies McpToolDefinition;
-    });
+      });
 
     this.discoveredTools = tools;
     this.lastDiscoveryAt = new Date().toISOString();
@@ -137,13 +140,19 @@ export class McpService {
     const result = await this.run(args);
     this.lastInvocationAt = new Date().toISOString();
     if (!result.ok) {
-      this.lastError = result.output || `MCP command failed with exit code ${result.exitCode}.`;
+      this.lastError =
+        result.output ||
+        `MCP command failed with exit code ${result.exitCode}.`;
     } else {
       this.lastError = undefined;
     }
     return {
       ok: result.ok,
-      output: result.output || (result.ok ? "(empty)" : `MCP command failed with exit code ${result.exitCode}.`),
+      output:
+        result.output ||
+        (result.ok
+          ? "(empty)"
+          : `MCP command failed with exit code ${result.exitCode}.`),
     };
   }
 
@@ -158,14 +167,20 @@ export class McpService {
     const result = await this.run(["call-tool", name, JSON.stringify(input)]);
     this.lastInvocationAt = new Date().toISOString();
     if (!result.ok) {
-      this.lastError = result.output || `MCP command failed with exit code ${result.exitCode}.`;
+      this.lastError =
+        result.output ||
+        `MCP command failed with exit code ${result.exitCode}.`;
     } else {
       this.lastError = undefined;
     }
     return {
       ok: result.ok,
       tool: name,
-      output: result.output || (result.ok ? "(empty)" : `MCP command failed with exit code ${result.exitCode}.`),
+      output:
+        result.output ||
+        (result.ok
+          ? "(empty)"
+          : `MCP command failed with exit code ${result.exitCode}.`),
     };
   }
 
@@ -197,7 +212,9 @@ export class McpService {
           .map(
             (tool) =>
               `- ${tool.name}${tool.description ? `\n  ${tool.description}` : ""}${
-                tool.inputSchema ? `\n  schema=${JSON.stringify(tool.inputSchema)}` : ""
+                tool.inputSchema
+                  ? `\n  schema=${JSON.stringify(tool.inputSchema)}`
+                  : ""
               }`,
           )
           .join("\n\n")
@@ -212,13 +229,18 @@ export class McpService {
     return [
       `MCP TOOL: ${tool.name}`,
       tool.description ? `Description: ${tool.description}` : undefined,
-      tool.inputSchema ? `Schema: ${JSON.stringify(tool.inputSchema, null, 2)}` : undefined,
+      tool.inputSchema
+        ? `Schema: ${JSON.stringify(tool.inputSchema, null, 2)}`
+        : undefined,
     ]
       .filter(Boolean)
       .join("\n");
   }
 
-  private async run(args: string[], overrideTimeoutMs?: number): Promise<McpCommandResult> {
+  private async run(
+    args: string[],
+    overrideTimeoutMs?: number,
+  ): Promise<McpCommandResult> {
     const settings = this.getSettings();
     if (!settings.serverCommand) {
       this.lastError = "MCP_SERVER_COMMAND is not configured.";
@@ -234,7 +256,10 @@ export class McpService {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const timer = setTimeout(() => proc.kill(), overrideTimeoutMs ?? settings.timeoutMs);
+    const timer = setTimeout(
+      () => proc.kill(),
+      overrideTimeoutMs ?? settings.timeoutMs,
+    );
     const [stdout, stderr, exitCode] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
@@ -256,18 +281,34 @@ export class McpService {
       }
       return parsed
         .flatMap((entry) => {
-          if (entry && typeof entry === "object" && "tools" in entry && Array.isArray((entry as Record<string, unknown>).tools)) {
-            return (entry as Record<string, unknown>).tools as Record<string, unknown>[];
+          if (
+            entry &&
+            typeof entry === "object" &&
+            "tools" in entry &&
+            Array.isArray((entry as Record<string, unknown>).tools)
+          ) {
+            return (entry as Record<string, unknown>).tools as Record<
+              string,
+              unknown
+            >[];
           }
           return [entry];
         })
-        .filter((entry) => entry && typeof entry === "object" && "name" in entry)
+        .filter(
+          (entry) => entry && typeof entry === "object" && "name" in entry,
+        )
         .map((entry) => ({
           name: String((entry as Record<string, unknown>).name),
-          description: String((entry as Record<string, unknown>).description ?? "MCP-discovered tool."),
+          description: String(
+            (entry as Record<string, unknown>).description ??
+              "MCP-discovered tool.",
+          ),
           inputSchema:
             typeof (entry as Record<string, unknown>).inputSchema === "object"
-              ? ((entry as Record<string, unknown>).inputSchema as Record<string, unknown>)
+              ? ((entry as Record<string, unknown>).inputSchema as Record<
+                  string,
+                  unknown
+                >)
               : undefined,
         }));
     } catch {

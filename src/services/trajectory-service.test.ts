@@ -45,7 +45,9 @@ describe("TrajectoryService", () => {
       });
 
       const jsonl = readFileSync(bundle.dataPath, "utf8").trim().split("\n");
-      const manifest = JSON.parse(readFileSync(bundle.manifestPath, "utf8")) as {
+      const manifest = JSON.parse(
+        readFileSync(bundle.manifestPath, "utf8"),
+      ) as {
         manifestPath: string;
         messageCount: number;
         sessionCount: number;
@@ -82,8 +84,12 @@ describe("TrajectoryService", () => {
       expect(replay.replayCount).toBe(2);
       expect(replay.replayPreview).toHaveLength(2);
       expect(replay.replayPath).toContain("replay");
-      expect(readFileSync(replay.replaySummaryPath, "utf8")).toContain("Trajectory Replay: replay-fixture");
-      expect(service.describeBundle(bundle.manifestPath).label).toBe("replay-fixture");
+      expect(readFileSync(replay.replaySummaryPath, "utf8")).toContain(
+        "Trajectory Replay: replay-fixture",
+      );
+      expect(service.describeBundle(bundle.manifestPath).label).toBe(
+        "replay-fixture",
+      );
 
       const analysis = service.analyze({
         limit: 10,
@@ -96,7 +102,9 @@ describe("TrajectoryService", () => {
       expect(analysis.focus).toBe("research");
       expect(analysis.prompt).toContain("research analysis");
       expect(analysis.prompt).toContain("session-a");
-      expect(analysis.highlights.some((line) => line.includes("Messages: 2"))).toBe(true);
+      expect(
+        analysis.highlights.some((line) => line.includes("Messages: 2")),
+      ).toBe(true);
       expect(analysis.replay.replayCount).toBe(2);
 
       const evaluation = await service.evaluateBundle(bundle.manifestPath, {
@@ -105,8 +113,12 @@ describe("TrajectoryService", () => {
       expect(evaluation.score).toBeGreaterThan(0);
       expect(evaluation.reportPath).toContain("evaluation");
       expect(evaluation.evaluationPath).toContain("evaluation");
-      expect(readFileSync(evaluation.reportPath, "utf8")).toContain("Trajectory Evaluation");
-      expect(readFileSync(evaluation.responsePath ?? "", "utf8")).toContain("Offline trajectory analysis");
+      expect(readFileSync(evaluation.reportPath, "utf8")).toContain(
+        "Trajectory Evaluation",
+      );
+      expect(readFileSync(evaluation.responsePath ?? "", "utf8")).toContain(
+        "Offline trajectory analysis",
+      );
 
       const packageBundle = await service.package({
         limit: 10,
@@ -121,7 +133,9 @@ describe("TrajectoryService", () => {
       expect(packageBundle.bundle.label).toBe("replay-fixture");
       expect(packageBundle.evaluation.score).toBeGreaterThan(0);
       expect(packageBundle.packageManifestPath).toContain("package");
-      expect(readFileSync(packageBundle.reportPath, "utf8")).toContain("Trajectory Research Package");
+      expect(readFileSync(packageBundle.reportPath, "utf8")).toContain(
+        "Trajectory Research Package",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

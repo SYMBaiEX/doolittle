@@ -105,7 +105,9 @@ export class MemoryService {
       throw new Error(`No memory entry matched "${needle}".`);
     }
     if (matches.length > 1) {
-      throw new Error(`Multiple memory entries matched "${needle}". Use a more specific substring.`);
+      throw new Error(
+        `Multiple memory entries matched "${needle}". Use a more specific substring.`,
+      );
     }
     return matches[0].index;
   }

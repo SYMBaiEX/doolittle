@@ -54,7 +54,9 @@ export class PersonalityService {
 
   getActive(): PersonalityProfile {
     const store = this.read();
-    return profiles.find((profile) => profile.id === store.activeId) ?? profiles[0];
+    return (
+      profiles.find((profile) => profile.id === store.activeId) ?? profiles[0]
+    );
   }
 
   setActive(id: string): PersonalityProfile {

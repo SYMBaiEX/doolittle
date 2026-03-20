@@ -44,7 +44,10 @@ export class WorkspaceService {
     return resolvedPath;
   }
 
-  search(query: string, maxResults = 25): Array<{ path: string; matches: string[] }> {
+  search(
+    query: string,
+    maxResults = 25,
+  ): Array<{ path: string; matches: string[] }> {
     const lowerQuery = query.toLowerCase();
     const results: Array<{ path: string; matches: string[] }> = [];
 
@@ -88,7 +91,10 @@ export class WorkspaceService {
     }
 
     return entries
-      .map((entry) => `${"  ".repeat(entry.depth)}- ${entry.path}${entry.type === "directory" ? "/" : ""}`)
+      .map(
+        (entry) =>
+          `${"  ".repeat(entry.depth)}- ${entry.path}${entry.type === "directory" ? "/" : ""}`,
+      )
       .join("\n");
   }
 
@@ -102,14 +108,19 @@ export class WorkspaceService {
       return;
     }
 
-    const dirEntries = readdirSync(currentDir).sort((left, right) => left.localeCompare(right));
+    const dirEntries = readdirSync(currentDir).sort((left, right) =>
+      left.localeCompare(right),
+    );
     for (const name of dirEntries) {
       if (ignoredNames.has(name)) {
         continue;
       }
 
       const absolutePath = join(currentDir, name);
-      const relativePath = relative(this.workspaceDir, absolutePath).replaceAll("\\", "/");
+      const relativePath = relative(this.workspaceDir, absolutePath).replaceAll(
+        "\\",
+        "/",
+      );
       const stat = statSync(absolutePath);
 
       if (stat.isDirectory()) {
@@ -133,11 +144,20 @@ export class WorkspaceService {
   private resolvePath(path: string): string {
     const trimmed = path.trim();
     const resolvedPath = resolve(
-      trimmed.startsWith(this.workspaceDir) ? trimmed : join(this.workspaceDir, trimmed),
+      trimmed.startsWith(this.workspaceDir)
+        ? trimmed
+        : join(this.workspaceDir, trimmed),
     );
-    const normalizedWorkspace = normalize(this.workspaceDir.endsWith(sep) ? this.workspaceDir : `${this.workspaceDir}${sep}`);
+    const normalizedWorkspace = normalize(
+      this.workspaceDir.endsWith(sep)
+        ? this.workspaceDir
+        : `${this.workspaceDir}${sep}`,
+    );
 
-    if (resolvedPath !== this.workspaceDir && !resolvedPath.startsWith(normalizedWorkspace)) {
+    if (
+      resolvedPath !== this.workspaceDir &&
+      !resolvedPath.startsWith(normalizedWorkspace)
+    ) {
       throw new Error("Path must stay inside the configured workspace.");
     }
 

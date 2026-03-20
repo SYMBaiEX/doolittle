@@ -468,7 +468,8 @@ export interface ExecutionRemoteArtifactRecord {
   updatedAt: string;
 }
 
-export interface ExecutionCloudArtifactRecord extends ExecutionRemoteArtifactRecord {}
+export interface ExecutionCloudArtifactRecord
+  extends ExecutionRemoteArtifactRecord {}
 
 export interface ExecutionCloudSnapshotRecord {
   snapshotId: string;
@@ -526,7 +527,14 @@ export interface McpToolDefinition {
 export interface ToolDefinition {
   id: string;
   name: string;
-  category: "workspace" | "terminal" | "repository" | "documents" | "gateway" | "automation" | "mcp";
+  category:
+    | "workspace"
+    | "terminal"
+    | "repository"
+    | "documents"
+    | "gateway"
+    | "automation"
+    | "mcp";
   description: string;
   enabled: boolean;
   transport?: "native" | "service" | "adapter";

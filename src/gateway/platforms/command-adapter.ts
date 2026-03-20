@@ -5,8 +5,8 @@ import {
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 async function runShellCommand(
@@ -124,7 +124,8 @@ export class CommandPlatformAdapter implements PlatformAdapter {
 
     if (result.exitCode !== 0) {
       this.lastError =
-        result.stderr || `${this.name} command adapter failed with exit code ${result.exitCode}.`;
+        result.stderr ||
+        `${this.name} command adapter failed with exit code ${result.exitCode}.`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

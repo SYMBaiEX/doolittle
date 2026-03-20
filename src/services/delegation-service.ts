@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import type { DelegationTaskRecord } from "@/types";
 
 interface DelegationStore {
@@ -98,7 +98,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function durationMs(startedAt?: string, completedAt?: string): number | undefined {
+function durationMs(
+  startedAt?: string,
+  completedAt?: string,
+): number | undefined {
   if (!startedAt) {
     return undefined;
   }
@@ -172,7 +175,9 @@ export class DelegationService {
     };
     store.tasks.push(task);
     if (input.parentTaskId) {
-      const parent = store.tasks.find((entry) => entry.id === input.parentTaskId);
+      const parent = store.tasks.find(
+        (entry) => entry.id === input.parentTaskId,
+      );
       if (parent) {
         parent.childTaskIds ??= [];
         parent.childTaskIds.push(task.id);
@@ -184,7 +189,10 @@ export class DelegationService {
     return task;
   }
 
-  spawnChild(parentId: string, input: DelegationSpawnInput): DelegationTaskRecord {
+  spawnChild(
+    parentId: string,
+    input: DelegationSpawnInput,
+  ): DelegationTaskRecord {
     const parent = this.get(parentId);
     return this.create({
       ...input,
@@ -194,7 +202,10 @@ export class DelegationService {
       profile: input.profile ?? parent.profile,
       priority: input.priority ?? parent.priority ?? "normal",
       tags: this.mergeLists(parent.tags, input.tags),
-      labels: this.mergeLists(parent.labels ?? parent.tags, input.labels ?? input.tags),
+      labels: this.mergeLists(
+        parent.labels ?? parent.tags,
+        input.labels ?? input.tags,
+      ),
       metadata: {
         ...(parent.metadata ?? {}),
         ...(input.metadata ?? {}),
@@ -221,12 +232,13 @@ export class DelegationService {
   }
 
   pending(filter?: DelegationTaskFilter): DelegationTaskRecord[] {
-    return this.read().tasks
-      .filter((task) => this.matchesFilter(task, filter))
+    return this.read()
+      .tasks.filter((task) => this.matchesFilter(task, filter))
       .filter(
         (task) =>
           task.status === "pending" ||
-          (task.status === "failed" && (task.attempts ?? 0) < (task.maxAttempts ?? 3)),
+          (task.status === "failed" &&
+            (task.attempts ?? 0) < (task.maxAttempts ?? 3)),
       )
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
@@ -270,7 +282,11 @@ export class DelegationService {
     });
   }
 
-  fail(id: string, note: string, options?: { cascadeChildren?: boolean }): DelegationTaskRecord {
+  fail(
+    id: string,
+    note: string,
+    options?: { cascadeChildren?: boolean },
+  ): DelegationTaskRecord {
     const failedTask = this.update(id, (task) => {
       task.status = "failed";
       task.workerPid = undefined;
@@ -302,9 +318,13 @@ export class DelegationService {
     });
     if (options?.cascadeChildren !== false) {
       for (const child of this.listChildren(id)) {
-        this.cancel(child.id, note ?? `Cancelled because parent ${id} was cancelled.`, {
-          cascadeChildren: true,
-        });
+        this.cancel(
+          child.id,
+          note ?? `Cancelled because parent ${id} was cancelled.`,
+          {
+            cascadeChildren: true,
+          },
+        );
       }
     }
     return cancelledTask;
@@ -318,20 +338,27 @@ export class DelegationService {
     const requeuedTask = this.update(id, (task) => {
       task.status = "pending";
       task.workerPid = undefined;
-      task.workerMode = task.executionMode === "delegated" ? "process" : "inline";
+      task.workerMode =
+        task.executionMode === "delegated" ? "process" : "inline";
       task.startedAt = undefined;
       task.completedAt = undefined;
       task.lastOutputPath = undefined;
       if (note) {
         task.notes.push(note);
       }
-      task.notes.push(`system: requeued with ${task.maxAttempts ?? 3} max attempts`);
+      task.notes.push(
+        `system: requeued with ${task.maxAttempts ?? 3} max attempts`,
+      );
     });
     if (options?.cascadeChildren) {
       for (const child of this.listChildren(id)) {
-        this.requeue(child.id, note ?? `Requeued because parent ${id} was requeued.`, {
-          cascadeChildren: true,
-        });
+        this.requeue(
+          child.id,
+          note ?? `Requeued because parent ${id} was requeued.`,
+          {
+            cascadeChildren: true,
+          },
+        );
       }
     }
     return requeuedTask;
@@ -369,10 +396,19 @@ export class DelegationService {
           acc.retryable += 1;
         }
         if (task.profile) {
-          profileCounts.set(task.profile, (profileCounts.get(task.profile) ?? 0) + 1);
+          profileCounts.set(
+            task.profile,
+            (profileCounts.get(task.profile) ?? 0) + 1,
+          );
         }
-        priorityCounts.set(task.priority ?? "normal", (priorityCounts.get(task.priority ?? "normal") ?? 0) + 1);
-        groupCounts.set(task.group ?? task.profile ?? "default", (groupCounts.get(task.group ?? task.profile ?? "default") ?? 0) + 1);
+        priorityCounts.set(
+          task.priority ?? "normal",
+          (priorityCounts.get(task.priority ?? "normal") ?? 0) + 1,
+        );
+        groupCounts.set(
+          task.group ?? task.profile ?? "default",
+          (groupCounts.get(task.group ?? task.profile ?? "default") ?? 0) + 1,
+        );
         for (const label of task.labels ?? task.tags ?? []) {
           labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
         }
@@ -403,24 +439,36 @@ export class DelegationService {
 
     counts.byProfile = Array.from(profileCounts.entries())
       .map(([profile, count]) => ({ profile, count }))
-      .sort((left, right) => right.count - left.count || left.profile.localeCompare(right.profile));
+      .sort(
+        (left, right) =>
+          right.count - left.count || left.profile.localeCompare(right.profile),
+      );
     counts.byPriority = Array.from(priorityCounts.entries())
       .map(([priority, count]) => ({ priority, count }))
-      .sort((left, right) => right.count - left.count || left.priority.localeCompare(right.priority));
+      .sort(
+        (left, right) =>
+          right.count - left.count ||
+          left.priority.localeCompare(right.priority),
+      );
     counts.byGroup = Array.from(groupCounts.entries())
       .map(([group, count]) => ({ group, count }))
-      .sort((left, right) => right.count - left.count || left.group.localeCompare(right.group));
+      .sort(
+        (left, right) =>
+          right.count - left.count || left.group.localeCompare(right.group),
+      );
     counts.byLabel = Array.from(labelCounts.entries())
       .map(([label, count]) => ({ label, count }))
-      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+      .sort(
+        (left, right) =>
+          right.count - left.count || left.label.localeCompare(right.label),
+      );
 
     return counts;
   }
 
   workers(limit = 20, filter?: DelegationTaskFilter): DelegationWorkerStatus[] {
     return this.read()
-      .tasks
-      .filter((task) => this.matchesFilter(task, filter))
+      .tasks.filter((task) => this.matchesFilter(task, filter))
       .filter(
         (task) =>
           task.status === "running" ||
@@ -431,8 +479,13 @@ export class DelegationService {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, limit)
       .map((task) => {
-        const alive = task.workerPid ? this.isProcessAlive(task.workerPid) : false;
-        const attemptsRemaining = Math.max(0, (task.maxAttempts ?? 3) - (task.attempts ?? 0));
+        const alive = task.workerPid
+          ? this.isProcessAlive(task.workerPid)
+          : false;
+        const attemptsRemaining = Math.max(
+          0,
+          (task.maxAttempts ?? 3) - (task.attempts ?? 0),
+        );
         return {
           id: task.id,
           title: task.title,
@@ -469,7 +522,10 @@ export class DelegationService {
       concurrency?: number;
       filter?: DelegationTaskFilter;
       onComplete?: (task: DelegationTaskRecord) => Promise<void> | void;
-      onError?: (task: DelegationTaskRecord, error: string) => Promise<void> | void;
+      onError?: (
+        task: DelegationTaskRecord,
+        error: string,
+      ) => Promise<void> | void;
     },
   ): Promise<DelegationSupervisionReport> {
     const concurrency = Math.max(1, options?.concurrency ?? 2);
@@ -478,7 +534,8 @@ export class DelegationService {
       .tasks.filter(
         (task) =>
           task.status === "pending" ||
-          (task.status === "failed" && (task.attempts ?? 0) < (task.maxAttempts ?? 3)),
+          (task.status === "failed" &&
+            (task.attempts ?? 0) < (task.maxAttempts ?? 3)),
       )
       .filter((task) => !this.matchesFilter(task, options?.filter))
       .map((task) => ({
@@ -500,7 +557,8 @@ export class DelegationService {
           completed.push(completedTask.id);
           await options?.onComplete?.(completedTask);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           failed.push({ id: task.id, error: message });
           const failedTask = this.fail(task.id, message);
           await options?.onError?.(failedTask, message);
@@ -594,11 +652,17 @@ export class DelegationService {
     }
   }
 
-  private matchesFilter(task: DelegationTaskRecord, filter?: DelegationTaskFilter): boolean {
+  private matchesFilter(
+    task: DelegationTaskRecord,
+    filter?: DelegationTaskFilter,
+  ): boolean {
     if (!filter) {
       return true;
     }
-    if (filter.group && (task.group ?? task.profile ?? "default") !== filter.group) {
+    if (
+      filter.group &&
+      (task.group ?? task.profile ?? "default") !== filter.group
+    ) {
       return false;
     }
     if (filter.profile && task.profile !== filter.profile) {
@@ -631,7 +695,9 @@ export class DelegationService {
     );
   }
 
-  private normalizeMetadata(metadata?: Record<string, string>): Record<string, string> | undefined {
+  private normalizeMetadata(
+    metadata?: Record<string, string>,
+  ): Record<string, string> | undefined {
     if (!metadata) {
       return undefined;
     }
@@ -654,7 +720,10 @@ export class DelegationService {
   private mergeLists(...lists: Array<string[] | undefined>): string[] {
     return Array.from(
       new Set(
-        lists.flatMap((list) => list ?? []).map((value) => value.trim()).filter(Boolean),
+        lists
+          .flatMap((list) => list ?? [])
+          .map((value) => value.trim())
+          .filter(Boolean),
       ),
     );
   }
@@ -686,5 +755,4 @@ export class DelegationService {
       return false;
     }
   }
-
 }

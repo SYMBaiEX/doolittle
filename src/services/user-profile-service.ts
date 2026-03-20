@@ -14,11 +14,14 @@ function unique(items: string[]): string[] {
   return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
 }
 
-function matchSingle(observation: string, expression: RegExp): string | undefined {
+function matchSingle(
+  observation: string,
+  expression: RegExp,
+): string | undefined {
   return observation.match(expression)?.[1]?.trim();
 }
 
-function matchMany(observation: string, expression: RegExp): string[] {
+function _matchMany(observation: string, expression: RegExp): string[] {
   return Array.from(observation.matchAll(expression))
     .map((match) => match[1]?.trim() ?? "")
     .filter(Boolean);
@@ -55,11 +58,15 @@ export class UserProfileService {
   }
 
   list(): UserProfileRecord[] {
-    return this.read().profiles.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return this.read()
+      .profiles.slice()
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
   get(userId: string): UserProfileRecord {
-    const existing = this.read().profiles.find((profile) => profile.userId === userId);
+    const existing = this.read().profiles.find(
+      (profile) => profile.userId === userId,
+    );
     return (
       existing ?? {
         userId,
@@ -91,7 +98,10 @@ export class UserProfileService {
         observation,
         /\b(?:i prefer|i like|i usually use)\s+(.+?)(?:[.!?]|$)/iu,
       );
-      const fact = matchSingle(observation, /\b(?:my name is|i am|i'm)\s+(.+?)(?:[.!?]|$)/iu);
+      const fact = matchSingle(
+        observation,
+        /\b(?:my name is|i am|i'm)\s+(.+?)(?:[.!?]|$)/iu,
+      );
       const alias = matchSingle(
         observation,
         /\b(?:you can call me|call me|i go by)\s+(.+?)(?:[.!?]|$)/iu,
@@ -123,13 +133,18 @@ export class UserProfileService {
         profile.goals = unique([...(profile.goals ?? []), goal]);
       }
       if (toolSignals.length) {
-        profile.toolPreferences = unique([...(profile.toolPreferences ?? []), ...toolSignals]);
+        profile.toolPreferences = unique([
+          ...(profile.toolPreferences ?? []),
+          ...toolSignals,
+        ]);
       }
       if (workStyle && workStyle.length < 180) {
         profile.workStyle = unique([...(profile.workStyle ?? []), workStyle]);
       }
       if (
-        /remember|save this|important|note that|keep in mind/iu.test(observation) &&
+        /remember|save this|important|note that|keep in mind/iu.test(
+          observation,
+        ) &&
         observation.length < 240
       ) {
         profile.notes = unique([...profile.notes, observation]);
@@ -147,10 +162,14 @@ export class UserProfileService {
       `Source: ${profile.lastSource ?? "unknown"}`,
       "",
       "Preferences",
-      ...(profile.preferences.length ? profile.preferences.map((item) => `- ${item}`) : ["- (none)"]),
+      ...(profile.preferences.length
+        ? profile.preferences.map((item) => `- ${item}`)
+        : ["- (none)"]),
       "",
       "Goals",
-      ...((profile.goals ?? []).length ? (profile.goals ?? []).map((item) => `- ${item}`) : ["- (none)"]),
+      ...((profile.goals ?? []).length
+        ? (profile.goals ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
       "",
       "Tools",
       ...((profile.toolPreferences ?? []).length
@@ -163,19 +182,30 @@ export class UserProfileService {
         : ["- (none)"]),
       "",
       "Aliases",
-      ...((profile.aliases ?? []).length ? (profile.aliases ?? []).map((item) => `- ${item}`) : ["- (none)"]),
+      ...((profile.aliases ?? []).length
+        ? (profile.aliases ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
       "",
       "Facts",
-      ...(profile.facts.length ? profile.facts.map((item) => `- ${item}`) : ["- (none)"]),
+      ...(profile.facts.length
+        ? profile.facts.map((item) => `- ${item}`)
+        : ["- (none)"]),
       "",
       "Notes",
-      ...(profile.notes.length ? profile.notes.map((item) => `- ${item}`) : ["- (none)"]),
+      ...(profile.notes.length
+        ? profile.notes.map((item) => `- ${item}`)
+        : ["- (none)"]),
     ].join("\n");
   }
 
-  private update(userId: string, mutate: (profile: UserProfileRecord) => void): UserProfileRecord {
+  private update(
+    userId: string,
+    mutate: (profile: UserProfileRecord) => void,
+  ): UserProfileRecord {
     const store = this.read();
-    const existingIndex = store.profiles.findIndex((profile) => profile.userId === userId);
+    const existingIndex = store.profiles.findIndex(
+      (profile) => profile.userId === userId,
+    );
     const base =
       existingIndex >= 0
         ? store.profiles[existingIndex]

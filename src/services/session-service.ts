@@ -1,7 +1,11 @@
 import { Database } from "bun:sqlite";
-import { dirname, join } from "node:path";
 import { mkdirSync } from "node:fs";
-import type { SessionSearchResult, SessionSummary, StoredMessage } from "@/types";
+import { dirname, join } from "node:path";
+import type {
+  SessionSearchResult,
+  SessionSummary,
+  StoredMessage,
+} from "@/types";
 
 export class SessionService {
   private readonly db: Database;
@@ -133,11 +137,11 @@ export class SessionService {
         `,
       )
       .all(limit) as Array<{
-        sessionId: string;
-        messageCount: number;
-        startedAt?: string;
-        endedAt?: string;
-      }>;
+      sessionId: string;
+      messageCount: number;
+      startedAt?: string;
+      endedAt?: string;
+    }>;
 
     return rows.map((row) => {
       const summary = this.summarize(row.sessionId, 6);

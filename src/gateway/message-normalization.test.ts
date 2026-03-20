@@ -8,11 +8,21 @@ describe("normalizeInboundMessage", () => {
         message_id: 42,
         text: "hello telegram",
         chat: { id: 1001, type: "group", title: "Team Chat" },
-        from: { id: 7, username: "agent", first_name: "Eliza", last_name: "Agent" },
+        from: {
+          id: 7,
+          username: "agent",
+          first_name: "Eliza",
+          last_name: "Agent",
+        },
         reply_to_message: { message_id: 12 },
         date: 1710000000,
         photo: [{ file_id: "photo-1" }, { file_id: "photo-2" }],
-        document: { file_id: "doc-1", file_name: "briefing.pdf", mime_type: "application/pdf", file_size: 2048 },
+        document: {
+          file_id: "doc-1",
+          file_name: "briefing.pdf",
+          mime_type: "application/pdf",
+          file_size: 2048,
+        },
       },
     });
 
@@ -93,7 +103,11 @@ describe("normalizeInboundMessage", () => {
                     timestamp: "1710000001",
                     context: { id: "wamid-parent" },
                     text: { body: "hello whatsapp" },
-                    image: { caption: "receipt", mime_type: "image/png", id: "media-1" },
+                    image: {
+                      caption: "receipt",
+                      mime_type: "image/png",
+                      id: "media-1",
+                    },
                   },
                 ],
               },

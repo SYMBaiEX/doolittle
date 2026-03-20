@@ -1,13 +1,12 @@
-import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage } from "@/types";
+import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
   capabilitiesForPlatform,
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 export class SlackPlatformAdapter implements PlatformAdapter {
@@ -34,11 +33,16 @@ export class SlackPlatformAdapter implements PlatformAdapter {
 
   async start(): Promise<void> {
     this.status =
-      this.config.slackWebhookUrl && this.config.slackSigningSecret ? "running" : "stopped";
+      this.config.slackWebhookUrl && this.config.slackSigningSecret
+        ? "running"
+        : "stopped";
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
-      this.lifecycle.record("start", "Slack adapter started with webhook and signing secret.");
+      this.lifecycle.record(
+        "start",
+        "Slack adapter started with webhook and signing secret.",
+      );
     } else {
       this.lastError = !this.config.slackWebhookUrl
         ? "SLACK_WEBHOOK_URL is not configured."
@@ -146,7 +150,9 @@ export class SlackPlatformAdapter implements PlatformAdapter {
   }
 
   canReceive(): boolean {
-    return Boolean(this.config.slackWebhookUrl && this.config.slackSigningSecret);
+    return Boolean(
+      this.config.slackWebhookUrl && this.config.slackSigningSecret,
+    );
   }
 
   observe(event: PlatformLifecycleEvent): void {

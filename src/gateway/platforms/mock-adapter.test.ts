@@ -33,7 +33,9 @@ describe("MockPlatformAdapter", () => {
       expect(health.lastOutboundReplyToId).toBe("reply-1");
       expect(health.lastOutboundMetadataKeys).toEqual(["source"]);
       expect(health.events.some((event) => event.kind === "start")).toBe(true);
-      expect(health.events.some((event) => event.kind === "deliver")).toBe(true);
+      expect(health.events.some((event) => event.kind === "deliver")).toBe(
+        true,
+      );
       expect(health.events.some((event) => event.kind === "health")).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });

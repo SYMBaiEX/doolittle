@@ -1,9 +1,13 @@
-import type { Action, Evaluator, GenerateTextParams, IAgentRuntime, Plugin, Provider, Service } from "@elizaos/core";
-import { ModelType, Service as ElizaService } from "@elizaos/core";
-import type { AppContext } from "@/runtime/bootstrap";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types";
+import type {
+  Action,
+  Evaluator,
+  GenerateTextParams,
+  IAgentRuntime,
+  Plugin,
+  Provider,
+  Service,
+} from "@elizaos/core";
+import { Service as ElizaService, ModelType } from "@elizaos/core";
 import { createCronAction } from "@/actions/cron-action";
 import { createMemoryAction } from "@/actions/memory-action";
 import { createRepositoryAction } from "@/actions/repository-action";
@@ -14,6 +18,10 @@ import { createWorkspaceAction } from "@/actions/workspace-action";
 import { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
 import { GatewayRunner } from "@/gateway/gateway-runner";
 import { createAgentContextProvider } from "@/providers/agent-context-provider";
+import type { AppContext } from "@/runtime/bootstrap";
+import type { AgentExecutionContext } from "@/runtime/chat";
+import type { AppServices } from "@/services";
+import type { EnvConfig } from "@/types";
 
 function createOpenAiBackedTextModel(config: EnvConfig) {
   return async (
@@ -22,9 +30,9 @@ function createOpenAiBackedTextModel(config: EnvConfig) {
   ): Promise<string> => {
     const runtimeSettingsRaw =
       runtime && typeof runtime === "object" && "getSetting" in runtime
-        ? await (runtime as { getSetting: (key: string) => Promise<unknown> }).getSetting(
-            "runtimeSettings",
-          )
+        ? await (
+            runtime as { getSetting: (key: string) => Promise<unknown> }
+          ).getSetting("runtimeSettings")
         : undefined;
     const runtimeSettings =
       typeof runtimeSettingsRaw === "string"
@@ -74,14 +82,18 @@ function createOpenAiBackedTextModel(config: EnvConfig) {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`OpenAI-compatible request failed (${response.status}): ${body}`);
+      throw new Error(
+        `OpenAI-compatible request failed (${response.status}): ${body}`,
+      );
     }
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
 
-    return data.choices?.[0]?.message?.content?.trim() ?? "No response returned.";
+    return (
+      data.choices?.[0]?.message?.content?.trim() ?? "No response returned."
+    );
   };
 }
 
@@ -99,10 +111,6 @@ export function createElizaAgentPlugin(
       "Manages the Eliza Agent gateway lifecycle and platform routing.";
 
     runner!: GatewayRunner;
-
-    constructor(runtime?: IAgentRuntime) {
-      super(runtime);
-    }
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
       const context = {} as AppContext;
@@ -195,7 +203,8 @@ export function createElizaAgentPlugin(
   const evaluators: Evaluator[] = [createMemoryNudgeEvaluator(services)];
   const plugin: Plugin = {
     name: "eliza-agent-runtime",
-    description: "Persistent memory, skills, search, and scheduling for Eliza Agent on ElizaOS.",
+    description:
+      "Persistent memory, skills, search, and scheduling for Eliza Agent on ElizaOS.",
     actions,
     providers,
     evaluators,

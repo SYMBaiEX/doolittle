@@ -45,7 +45,9 @@ export class RepositoryService {
     ]);
 
     if (exitCode !== 0) {
-      throw new Error(stderr.trim() || `Command failed with exit code ${exitCode}.`);
+      throw new Error(
+        stderr.trim() || `Command failed with exit code ${exitCode}.`,
+      );
     }
 
     return stdout.trim() || "(no output)";

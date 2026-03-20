@@ -9,14 +9,21 @@ import type {
 } from "@elizaos/core";
 import type { AppServices } from "@/services";
 
-export function createSessionSearchAction(services: AppServices, limit: number): Action {
+export function createSessionSearchAction(
+  services: AppServices,
+  limit: number,
+): Action {
   return {
     name: "ELIZA_AGENT_SESSION_SEARCH",
     similes: ["SEARCH_SESSIONS", "LOOK_UP_HISTORY"],
-    description: "Searches persisted conversation history with `/search <query>`.",
+    description:
+      "Searches persisted conversation history with `/search <query>`.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
-      return Boolean(text && text.trim().startsWith("/search "));
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
+      return Boolean(text?.trim().startsWith("/search "));
     },
     handler: async (
       _runtime: IAgentRuntime,
@@ -25,7 +32,10 @@ export function createSessionSearchAction(services: AppServices, limit: number):
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = typeof message.content === "string" ? message.content : message.content?.text;
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content?.text;
       const query = text?.replace("/search", "").trim() ?? "";
       const matches = services.sessions.search(query, limit);
       const response = matches.length

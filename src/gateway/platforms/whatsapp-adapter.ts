@@ -1,13 +1,12 @@
-import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage } from "@/types";
+import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
   capabilitiesForPlatform,
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
-  type PlatformLifecycleEvent,
   type PlatformHealth,
+  type PlatformLifecycleEvent,
 } from "./base";
 
 export class WhatsAppPlatformAdapter implements PlatformAdapter {
@@ -42,7 +41,10 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
-      this.lifecycle.record("start", "WhatsApp adapter started with Graph API credentials.");
+      this.lifecycle.record(
+        "start",
+        "WhatsApp adapter started with Graph API credentials.",
+      );
     } else {
       this.lastError = !this.config.whatsappAccessToken
         ? "WHATSAPP_ACCESS_TOKEN is not configured."
@@ -93,7 +95,10 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
   }
 
   async send(message: OutboundPlatformMessage) {
-    if (!this.config.whatsappAccessToken || !this.config.whatsappPhoneNumberId) {
+    if (
+      !this.config.whatsappAccessToken ||
+      !this.config.whatsappPhoneNumberId
+    ) {
       this.lastError = "WhatsApp credentials are not configured.";
       this.lifecycle.record("error", this.lastError);
       throw new Error("WhatsApp credentials are not configured.");
