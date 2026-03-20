@@ -3,6 +3,7 @@ import { loadGatewayConfig } from "@/config/gateway";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import { AcpService } from "./acp-service";
+import { ApiTransportService } from "./api-transport-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
 import { DelegationService } from "./delegation-service";
@@ -34,6 +35,7 @@ import { WebService } from "./web-service";
 import { WorkspaceService } from "./workspace-service";
 
 export interface AppServices {
+  apiTransport: ApiTransportService;
   nativeRegistry: NativeServiceRegistry;
   memory: MemoryService;
   skills: SkillsService;
@@ -324,6 +326,7 @@ export function createServices(
     settings.set("mcp.timeoutMs", config.mcpTimeoutMs);
   }
   const sessions = new SessionService(config.dataDir);
+  const apiTransport = new ApiTransportService(join(config.dataDir, "api"));
   const nativePluginCatalog = getNativePluginCatalog(config);
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
@@ -372,6 +375,7 @@ export function createServices(
   });
 
   return {
+    apiTransport,
     nativeRegistry: createNativeServiceRegistry(),
     memory: new MemoryService(config.dataDir, {
       memory: config.memoryCharLimit,
