@@ -2,7 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
 import { featureMap } from "@/config/feature-map";
 import { normalizeInboundMessage } from "@/gateway/message-normalization";
-import { handleAgentTurn, syncProviderSettings } from "@/runtime/chat";
+import { handleAgentTurn, runDelegationTaskInWorker, syncProviderSettings } from "@/runtime/chat";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import type { GatewayConfig, IncomingPlatformMessage, PlatformName } from "@/types";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -190,6 +190,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/browser/inspect") {
+        const targetUrl = url.searchParams.get("url");
+        if (!targetUrl) {
+          return json({ error: "url is required" }, 400);
+        }
+        return json({
+          inspection: await context.services.web.inspect(targetUrl),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/web/snapshot") {
         const body = (await request.json()) as { url?: string };
         if (!body.url) {
@@ -207,6 +217,16 @@ export function startApiServer(context: AppContext): void {
         }
         return json({
           path: await context.services.web.screenshot(body.url),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/web/inspect") {
+        const targetUrl = url.searchParams.get("url");
+        if (!targetUrl) {
+          return json({ error: "url is required" }, 400);
+        }
+        return json({
+          inspection: await context.services.web.inspect(targetUrl),
         });
       }
 
@@ -294,18 +314,12 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "POST" && url.pathname === "/delegation/supervise") {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as { concurrency?: number };
         const report = await context.services.delegation.superviseQueued(
-          async (task) => {
-            const response = await handleAgentTurn(
-              {
-                message: `/delegate execute ${task.id}`,
-                userId: "api-delegation",
-                roomId: "api-delegation",
-                source: "api",
-              },
-              context,
-            );
-            return response;
-          },
+          async (task) =>
+            (
+              await runDelegationTaskInWorker(context, task.id, {
+                assumeRunning: true,
+              })
+            ).notes.at(-1) ?? "Delegated worker completed.",
           {
             concurrency:
               typeof body.concurrency === "number" && body.concurrency > 0 ? body.concurrency : 2,

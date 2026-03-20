@@ -18,9 +18,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-async function runDelegationTaskInWorker(
+export async function runDelegationTaskInWorker(
   context: AgentExecutionContext,
   taskId: string,
+  options?: { assumeRunning?: boolean },
 ): Promise<ReturnType<AgentExecutionContext["services"]["delegation"]["get"]>> {
   const task = context.services.delegation.get(taskId);
   const { inputPath, outputPath } = context.services.delegation.getWorkerPaths(task.id);
@@ -44,7 +45,9 @@ async function runDelegationTaskInWorker(
     stdout: "pipe",
     stderr: "pipe",
   });
-  context.services.delegation.markRunning(task.id);
+  if (!options?.assumeRunning) {
+    context.services.delegation.markRunning(task.id);
+  }
   context.services.delegation.markWorkerStarted(task.id, {
     pid: proc.pid,
     mode: "process",
@@ -565,7 +568,9 @@ async function buildCommandResponse(
     const concurrency = raw ? Number(raw) : undefined;
     const report = await context.services.delegation.superviseQueued(
       async (task) => {
-        const completedTask = await runDelegationTaskInWorker(context, task.id);
+        const completedTask = await runDelegationTaskInWorker(context, task.id, {
+          assumeRunning: true,
+        });
         return completedTask.notes.at(-1) ?? "Delegated worker completed.";
       },
       {
@@ -624,7 +629,9 @@ async function buildCommandResponse(
     const concurrency = raw ? Number(raw) : undefined;
     const report = await context.services.delegation.superviseQueued(
       async (task) => {
-        const completedTask = await runDelegationTaskInWorker(context, task.id);
+        const completedTask = await runDelegationTaskInWorker(context, task.id, {
+          assumeRunning: true,
+        });
         return completedTask.notes.at(-1) ?? "Delegated worker completed.";
       },
       {

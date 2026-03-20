@@ -18,6 +18,9 @@ export interface MediaInspection {
   wordCount?: number;
   width?: number;
   height?: number;
+  pageCount?: number;
+  title?: string;
+  author?: string;
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -89,8 +92,12 @@ export class MediaService {
     const imageDimensions =
       kind === "image" ? this.readImageDimensions(resolvedPath, extension) : undefined;
     const contentHash = this.hashFile(resolvedPath);
-    const textMetadata =
-      kind === "document" ? this.readTextMetadata(resolvedPath, extension) : undefined;
+    const structuredMetadata =
+      kind === "document"
+        ? extension === ".pdf"
+          ? this.readPdfMetadata(resolvedPath)
+          : this.readTextMetadata(resolvedPath, extension)
+        : undefined;
 
     return {
       path: resolvedPath,
@@ -103,15 +110,20 @@ export class MediaService {
       isDirectory: false,
       detail: imageDimensions
         ? `Image file detected with dimensions ${imageDimensions.width}x${imageDimensions.height}.`
-        : textMetadata
-          ? `Detected as ${kind} (${mimeType}) with ${textMetadata.wordCount} words across ${textMetadata.lineCount} lines.`
+        : structuredMetadata
+          ? extension === ".pdf"
+            ? `PDF detected${structuredMetadata.pageCount ? ` with about ${structuredMetadata.pageCount} pages` : ""}${structuredMetadata.title ? ` titled ${structuredMetadata.title}` : ""}.`
+            : `Detected as ${kind} (${mimeType}) with ${structuredMetadata.wordCount} words across ${structuredMetadata.lineCount} lines.`
           : `Detected as ${kind} (${mimeType}).`,
       contentHash,
-      textPreview: textMetadata?.preview,
-      lineCount: textMetadata?.lineCount,
-      wordCount: textMetadata?.wordCount,
+      textPreview: structuredMetadata?.preview,
+      lineCount: structuredMetadata?.lineCount,
+      wordCount: structuredMetadata?.wordCount,
       width: imageDimensions?.width,
       height: imageDimensions?.height,
+      pageCount: structuredMetadata?.pageCount,
+      title: structuredMetadata?.title,
+      author: structuredMetadata?.author,
     };
   }
 
@@ -239,7 +251,7 @@ export class MediaService {
   private readTextMetadata(
     path: string,
     extension: string,
-  ): { preview: string; lineCount: number; wordCount: number } | undefined {
+  ): { preview: string; lineCount: number; wordCount: number; pageCount?: number; title?: string; author?: string } | undefined {
     if (![".txt", ".md", ".json", ".csv", ".html", ".htm", ".yaml", ".yml", ".toml", ".xml"].includes(extension)) {
       return undefined;
     }
@@ -252,6 +264,32 @@ export class MediaService {
       preview,
       lineCount,
       wordCount,
+    };
+  }
+
+  private readPdfMetadata(
+    path: string,
+  ): { preview: string; lineCount?: number; wordCount?: number; pageCount?: number; title?: string; author?: string } | undefined {
+    const bytes = readFileSync(path);
+    if (bytes.subarray(0, 4).toString("ascii") !== "%PDF") {
+      return undefined;
+    }
+
+    const text = bytes.toString("latin1", 0, Math.min(bytes.length, 64_000));
+    const title = text.match(/\/Title\s*\(([^)]{1,200})\)/iu)?.[1];
+    const author = text.match(/\/Author\s*\(([^)]{1,200})\)/iu)?.[1];
+    const pageCount = (text.match(/\/Type\s*\/Page\b/gu) ?? []).length || undefined;
+    const preview = text
+      .replace(/[^\x09\x0a\x0d\x20-\x7e]+/gu, " ")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 512);
+
+    return {
+      preview,
+      pageCount,
+      title,
+      author,
     };
   }
 

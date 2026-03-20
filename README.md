@@ -83,6 +83,8 @@ eliza-agent/
 | Personality profiles | [`src/services/personality-service.ts`](./src/services/personality-service.ts) |
 | Workspace context files | [`src/services/context-files-service.ts`](./src/services/context-files-service.ts) |
 | Runtime settings and model config | [`src/services/settings-service.ts`](./src/services/settings-service.ts) |
+| Browser inspection and artifacts | [`src/services/web-service.ts`](./src/services/web-service.ts) + `/browser` commands |
+| Media inspection and PDF metadata | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
 | PDF extraction | [`src/services/documents-service.ts`](./src/services/documents-service.ts) + `@elizaos/plugin-pdf` |
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
@@ -251,6 +253,7 @@ Useful commands:
 - `/tools list`
 - `/browser status`
 - `/browser fetch https://example.com`
+- `/browser inspect https://example.com`
 - `/browser snapshot https://example.com`
 - `/browser screenshot https://example.com`
 - `/mcp status`
@@ -258,6 +261,7 @@ Useful commands:
 - `/mcp invoke list-tools`
 - `/mcp call sum :: {"a":3,"b":4}`
 - `/web snapshot https://example.com`
+- `/web inspect https://example.com`
 - `/delegate list`
 - `/delegate create Research spike :: validate a Discord transport adapter`
 - `/delegate execute <task-id>`

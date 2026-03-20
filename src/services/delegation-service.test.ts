@@ -28,6 +28,7 @@ describe("DelegationService", () => {
       expect(started.workerMode).toBe("process");
       expect(started.lastOutputPath).toBe(paths.outputPath);
       expect(started.attempts).toBe(1);
+      expect(started.notes.some((note) => note.startsWith("system: worker started"))).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -55,6 +56,54 @@ describe("DelegationService", () => {
       const cancelled = service.cancel(task.id, "Stop now");
       expect(cancelled.status).toBe("cancelled");
       expect(service.pending().some((entry) => entry.id === task.id)).toBe(false);
+      expect(cancelled.notes.some((note) => note.startsWith("system: cancelled"))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("summarizes queue health and supervises queued workers", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delegation-supervision-"));
+    const service = new DelegationService(root);
+
+    try {
+      const pending = service.create({
+        title: "Queued Task",
+        objective: "Finish the queued task",
+        executionMode: "delegated",
+        maxAttempts: 2,
+      });
+      const running = service.create({
+        title: "Running Task",
+        objective: "Keep this task running",
+        executionMode: "delegated",
+      });
+
+      service.markRunning(running.id);
+      service.markWorkerStarted(running.id, {
+        pid: process.pid,
+        mode: "process",
+        outputPath: service.getWorkerPaths(running.id).outputPath,
+      });
+
+      const overview = service.overview();
+      expect(overview.total).toBe(2);
+      expect(overview.pending).toBe(1);
+      expect(overview.running).toBe(1);
+      expect(overview.activeWorkers).toBe(1);
+      expect(overview.aliveWorkers).toBe(1);
+
+      const workers = service.workers();
+      expect(workers.some((worker) => worker.id === running.id && worker.alive)).toBe(true);
+
+      const report = await service.superviseQueued(async (task) => `completed: ${task.id}`, {
+        concurrency: 1,
+      });
+
+      expect(report.started.length).toBe(1);
+      expect(report.completed.length).toBe(1);
+      expect(report.failed.length).toBe(0);
+      expect(report.overview.completed).toBeGreaterThanOrEqual(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

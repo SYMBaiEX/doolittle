@@ -21,6 +21,11 @@ export interface PlatformHealth {
   mode: "native" | "mock";
   capabilities: PlatformCapabilitySet;
   detail: string;
+  startedAt?: string;
+  stoppedAt?: string;
+  lastSendAt?: string;
+  sendCount?: number;
+  lastError?: string;
 }
 
 export interface PlatformAdapter {
@@ -33,6 +38,10 @@ export interface PlatformAdapter {
 }
 
 export type PlatformMessageHandler = (message: IncomingPlatformMessage) => Promise<string>;
+
+export function nowIso(): string {
+  return new Date().toISOString();
+}
 
 export function capabilitiesForPlatform(platform: PlatformName): PlatformCapabilitySet {
   switch (platform) {

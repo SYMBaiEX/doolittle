@@ -43,6 +43,14 @@ export function createAgentContextProvider(services: AppServices): Provider {
         .slice(0, 5)
         .map((task) => `- ${task.title} [${task.status}]`)
         .join("\n");
+      const delegationOverview = services.delegation.overview();
+      const delegationWorkers = services.delegation
+        .workers(5)
+        .map(
+          (worker) =>
+            `- ${worker.title} [${worker.status}] alive=${worker.alive} stalled=${worker.stalled} attempts=${worker.attempts}/${worker.maxAttempts}`,
+        )
+        .join("\n");
       const userProfiles = services.userProfiles
         .list()
         .slice(0, 5)
@@ -84,6 +92,12 @@ export function createAgentContextProvider(services: AppServices): Provider {
         "",
         "DELEGATION TASKS",
         delegationSummary || "(none)",
+        "",
+        "DELEGATION OVERVIEW",
+        JSON.stringify(delegationOverview, null, 2),
+        "",
+        "DELEGATION WORKERS",
+        delegationWorkers || "(none)",
         "",
         "USER PROFILES",
         userProfiles || "(none)",

@@ -1,10 +1,15 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage } from "@/types";
-import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
+import { capabilitiesForPlatform, nowIso, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class DiscordPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
+  private startedAt?: string;
+  private stoppedAt?: string;
+  private lastSendAt?: string;
+  private sendCount = 0;
+  private lastError?: string;
 
   constructor(
     public readonly name: PlatformName,
@@ -14,10 +19,17 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
 
   async start(): Promise<void> {
     this.status = this.config.discordBotToken ? "running" : "stopped";
+    if (this.status === "running") {
+      this.startedAt = nowIso();
+      this.lastError = undefined;
+    } else {
+      this.lastError = "DISCORD_BOT_TOKEN is not configured.";
+    }
   }
 
   async stop(): Promise<void> {
     this.status = "stopped";
+    this.stoppedAt = nowIso();
   }
 
   async health(): Promise<PlatformHealth> {
@@ -28,13 +40,19 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       mode: "native",
       capabilities: capabilitiesForPlatform(this.name),
       detail: this.config.discordBotToken
-        ? "Discord bot token configured; replies, threads, and attachments are supported."
+        ? `Discord bot token configured; replies, threads, and attachments are supported. Sends=${this.sendCount}.`
         : "DISCORD_BOT_TOKEN is not configured.",
+      startedAt: this.startedAt,
+      stoppedAt: this.stoppedAt,
+      lastSendAt: this.lastSendAt,
+      sendCount: this.sendCount,
+      lastError: this.lastError,
     };
   }
 
   async send(message: OutboundPlatformMessage): Promise<void> {
     if (!this.config.discordBotToken) {
+      this.lastError = "DISCORD_BOT_TOKEN is not configured.";
       throw new Error("DISCORD_BOT_TOKEN is not configured.");
     }
 
@@ -68,9 +86,13 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     );
 
     if (!response.ok) {
-      throw new Error(`Discord send failed (${response.status}): ${await response.text()}`);
+      this.lastError = `Discord send failed (${response.status}): ${await response.text()}`;
+      throw new Error(this.lastError);
     }
 
+    this.sendCount += 1;
+    this.lastSendAt = nowIso();
+    this.lastError = undefined;
     this.delivery.deliver(
       {
         platform: this.name,

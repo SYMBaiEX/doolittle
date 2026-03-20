@@ -105,6 +105,33 @@ describe("WebService", () => {
       expect(content).toContain("Description:");
       expect(content).toContain("Canonical:");
       expect(metadata).toContain("\"contentHash\"");
+      expect(existsSync(path.replace(/\.md$/u, ".svg"))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("inspects a page and emits both browser artifacts", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-inspect-"));
+    const service = new WebService(
+      () => ({
+        provider: "basic",
+        command: "lightpanda",
+        obeyRobots: true,
+      }),
+      root,
+    );
+
+    try {
+      const inspection = await service.inspect(
+        "data:text/html,<html><head><title>Inspect</title><meta name='description' content='Inspect summary'></head><body><h1>Alpha</h1><p>Beta</p></body></html>",
+      );
+      expect(inspection.page.title).toBe("Inspect");
+      expect(inspection.snapshotPath).toContain("snapshot-");
+      expect(inspection.screenshotPath).toContain("screenshot-");
+      expect(existsSync(inspection.screenshotSvgPath)).toBe(true);
+      expect(inspection.status.lastSnapshotAt).toBeDefined();
+      expect(inspection.status.lastScreenshotAt).toBeDefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

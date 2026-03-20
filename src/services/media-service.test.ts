@@ -90,4 +90,27 @@ describe("MediaService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("detects best-effort pdf metadata", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-pdf-"));
+    const service = new MediaService(root);
+    const pdfPath = join(root, "briefing.pdf");
+
+    try {
+      writeFileSync(
+        pdfPath,
+        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Count 2 >>\nendobj\n3 0 obj\n<< /Title (Hermes Briefing) /Author (Eliza Agent) >>\nendobj\n4 0 obj\n<< /Type /Page >>\nendobj\n5 0 obj\n<< /Type /Page >>\nendobj\n%%EOF",
+        "latin1",
+      );
+      const inspection = service.inspect("briefing.pdf");
+      expect(inspection.kind).toBe("document");
+      expect(inspection.detail).toContain("PDF detected");
+      expect(inspection.pageCount).toBeGreaterThanOrEqual(2);
+      expect(inspection.title).toBe("Hermes Briefing");
+      expect(inspection.author).toBe("Eliza Agent");
+      expect(inspection.textPreview).toContain("Hermes Briefing");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
