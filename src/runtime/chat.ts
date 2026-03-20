@@ -659,6 +659,7 @@ async function buildCommandResponse(
   const { message } = input;
   const trimmed = message.trim();
   const sessionKey = input.roomId ?? `room:${input.userId}`;
+  const nativeServices = getNativeServices(context.runtime);
 
   if (trimmed.startsWith("/memory")) {
     const target: MemoryTarget =
@@ -679,11 +680,23 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/user card" || trimmed === "/profiles card") {
-    return context.services.userProfiles.renderCards(input.userId);
+    return JSON.stringify(
+      nativeServices.rolodex?.card(input.userId) ?? {
+        rendered: context.services.userProfiles.renderCards(input.userId),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/agent profile") {
-    return context.services.userProfiles.renderAgent();
+    return JSON.stringify(
+      nativeServices.rolodex?.agentProfile() ?? {
+        rendered: context.services.userProfiles.renderAgent(),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/user recall ")) {
@@ -692,7 +705,8 @@ async function buildCommandResponse(
       return "Usage: /user recall <query>";
     }
     return JSON.stringify(
-      context.services.userProfiles.recall(input.userId, query),
+      nativeServices.rolodex?.recall(input.userId, query) ??
+        context.services.userProfiles.recall(input.userId, query),
       null,
       2,
     );
@@ -716,7 +730,13 @@ async function buildCommandResponse(
       return "Usage: /user note <text>";
     }
     return JSON.stringify(
-      context.services.userProfiles.addNote(input.userId, note, input.source),
+      nativeServices.rolodex?.remember(
+        input.userId,
+        "note",
+        note,
+        input.source,
+      ) ??
+        context.services.userProfiles.addNote(input.userId, note, input.source),
       null,
       2,
     );
@@ -756,19 +776,25 @@ async function buildCommandResponse(
       return "Usage: /user remember <preference|fact|goal|context|constraint|note|memory> :: <text>";
     }
     return JSON.stringify(
-      context.services.userProfiles.remember(
+      nativeServices.rolodex?.remember(
         input.userId,
-        kind as
-          | "preference"
-          | "fact"
-          | "goal"
-          | "context"
-          | "constraint"
-          | "note"
-          | "memory",
+        kind,
         value,
         input.source,
-      ),
+      ) ??
+        context.services.userProfiles.remember(
+          input.userId,
+          kind as
+            | "preference"
+            | "fact"
+            | "goal"
+            | "context"
+            | "constraint"
+            | "note"
+            | "memory",
+          value,
+          input.source,
+        ),
       null,
       2,
     );
@@ -780,7 +806,8 @@ async function buildCommandResponse(
       return "Usage: /agent observe <text>";
     }
     return JSON.stringify(
-      context.services.userProfiles.observeAgent(note, input.source),
+      nativeServices.rolodex?.observeAgent(note, input.source) ??
+        context.services.userProfiles.observeAgent(note, input.source),
       null,
       2,
     );

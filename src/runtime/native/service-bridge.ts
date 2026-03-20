@@ -68,9 +68,12 @@ interface NativePluginManagerService {
   categories(): unknown;
 }
 
-type RuntimeLike = Pick<IAgentRuntime, "getService">;
+type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
 
 function service<T>(runtime: RuntimeLike, name: string): T | undefined {
+  if (typeof runtime.getService !== "function") {
+    return undefined;
+  }
   return (runtime.getService(name) as T | null) ?? undefined;
 }
 
