@@ -1,6 +1,6 @@
 # Eliza Agent
 
-Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built around a focused Eliza runtime. The goal of this repo is not to pull in every plugin in the Eliza ecosystem; it is to provide a smaller, inspectable surface for character-driven runtime behavior, persistent memory, session recall, skill discovery, scheduled automations, local CLI access, and a network API.
+Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built around a focused Eliza runtime. It now uses a native ElizaOS workspace layout with a mix of official packages, vendored official-compatible packages, and Eliza Agent product plugins so the runtime stays aligned with the Eliza ecosystem without giving up the broader operator platform this repo already built.
 
 ## Versioning note
 
@@ -19,7 +19,7 @@ The published `elizaos` package is a CLI/examples wrapper, while the actual agen
 - `@elizaos/core: "latest"` for the runtime used by the Bun application
 - `@elizaos/plugin-sql: "alpha"` because, on March 19, 2026, that tag was the compatible 2.0 line for runtime initialization alongside `@elizaos/core@latest`
 
-The platform-specific features that do not have a single clean ElizaOS equivalent are implemented here as custom ElizaOS actions, providers, evaluators, and Bun-native services.
+The platform-specific features that do not have a single clean ElizaOS equivalent are implemented here as custom ElizaOS actions, providers, evaluators, and Bun-native services. Official packages that were close but not yet compatible on the current runtime line are vendored under `packages/elizaos-official/*` and patched locally.
 
 ## File tree
 
@@ -29,6 +29,22 @@ eliza-agent/
 ├── README.md
 ├── biome.json
 ├── package.json
+├── packages/
+│   └── elizaos-official/
+│       ├── compat/
+│       ├── plugin-agent-orchestrator/
+│       ├── plugin-agent-skills/
+│       ├── plugin-coding-agent/
+│       ├── plugin-cron/
+│       ├── plugin-discord/
+│       ├── plugin-experience/
+│       ├── plugin-knowledge/
+│       ├── plugin-local-embedding/
+│       ├── plugin-personality/
+│       ├── plugin-plugin-manager/
+│       ├── plugin-rolodex/
+│       ├── plugin-shell/
+│       └── plugin-trajectory-logger/
 ├── tsconfig.json
 ├── characters/
 │   └── eliza-agent.character.json
@@ -54,11 +70,16 @@ eliza-agent/
     │   └── agent-context-provider.ts
     ├── runtime/
     │   ├── bootstrap.ts
+    │   └── native/
+    │       ├── autonomous-stack.ts
+    │       ├── plugin-catalog.ts
+    │       └── plugin-registry.ts
     │   └── chat.ts
     └── services/
         ├── cron-service.ts
         ├── index.ts
         ├── memory-service.ts
+        ├── native-service-registry.ts
         ├── session-service.ts
         └── skills-service.ts
 ```
@@ -68,7 +89,7 @@ eliza-agent/
 | Platform capability | Eliza Agent implementation |
 |---|---|
 | Persona / system prompt | `characters/eliza-agent.character.json` + [`src/character.ts`](./src/character.ts) |
-| Agent runtime | `AgentRuntime` from `@elizaos/core` |
+| Agent runtime | `AgentRuntime` from `@elizaos/core` with declarative native plugin assembly in [`src/runtime/native/plugin-registry.ts`](./src/runtime/native/plugin-registry.ts) |
 | Model provider routing | Official ElizaOS OpenAI and Anthropic plugins, with local offline fallback in [`src/plugins/eliza-agent-plugin.ts`](./src/plugins/eliza-agent-plugin.ts) |
 | MEMORY.md and USER.md | [`src/services/memory-service.ts`](./src/services/memory-service.ts) |
 | Session search | [`src/services/session-service.ts`](./src/services/session-service.ts) + `/search` command |
@@ -92,6 +113,7 @@ eliza-agent/
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
 | Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, remote sync planning, snapshot history, and cloud sandbox profile paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
+| Native plugin inventory | [`src/runtime/native/plugin-catalog.ts`](./src/runtime/native/plugin-catalog.ts) + `/plugins native` + `GET /runtime/plugins` |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
 | Memory nudges / persistence hints | [`src/evaluators/memory-nudge-evaluator.ts`](./src/evaluators/memory-nudge-evaluator.ts) |
@@ -99,7 +121,7 @@ eliza-agent/
 
 ## Plugin inventory
 
-The initial build intentionally stays small:
+The runtime now uses a wider native ElizaOS stack:
 
 - `@elizaos/core`
   - Core runtime, message pipeline, character model, action/provider/evaluator contracts.
@@ -113,10 +135,16 @@ The initial build intentionally stays small:
   - Required ElizaOS database adapter for runtime initialization and local persistent state.
 - `@elizaos/plugin-telegram`
   - Official Telegram transport plugin, enabled only when Telegram credentials are configured.
+- `@elizaos/autonomous`
+  - First-party architectural reference package used selectively for native stack alignment.
+- `@elizaos/skills`
+  - First-party skills package used as part of the native ElizaOS workspace alignment.
+- vendored official-compatible packages in `packages/elizaos-official/*`
+  - Local workspace packages that preserve official ElizaOS package names while patching compatibility to the current runtime line for Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
 - `elizaos`
   - Requested dist-tag package channel for the ElizaOS umbrella package.
 - `eliza-agent-runtime` custom plugin
-  - Adds the platform memory, scheduler, session search, skill inventory behavior, runtime-managed service classes for gateway/scheduler lifecycle, and offline local fallback behavior when no provider plugin is configured.
+  - Adds the Eliza Agent product layer: gateway/session orchestration, scheduler lifecycle, session search, skill inventory behavior, and offline local fallback behavior when no provider plugin is configured.
 
 This codebase now includes the core runtime plus the surrounding application services needed for a broader agent platform: gateway configuration, pairing, hooks, session routing, and delivery persistence. Additional transport-specific implementations can be layered on top of the same abstractions without changing the core architecture.
 
