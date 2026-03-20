@@ -5,6 +5,7 @@ import {
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
+  type PlatformLifecycleEvent,
   type PlatformHealth,
 } from "./base";
 
@@ -102,5 +103,9 @@ export class MockPlatformAdapter implements PlatformAdapter {
 
   canReceive(): boolean {
     return true;
+  }
+
+  observe(event: PlatformLifecycleEvent): void {
+    this.lifecycle.record(event.kind, event.detail);
   }
 }

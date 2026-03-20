@@ -6,6 +6,7 @@ import {
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
+  type PlatformLifecycleEvent,
   type PlatformHealth,
 } from "./base";
 
@@ -146,5 +147,12 @@ export class SlackPlatformAdapter implements PlatformAdapter {
 
   canReceive(): boolean {
     return Boolean(this.config.slackWebhookUrl && this.config.slackSigningSecret);
+  }
+
+  observe(event: PlatformLifecycleEvent): void {
+    this.lifecycle.record(event.kind, event.detail);
+    if (event.kind === "error" || event.kind === "reject") {
+      this.lastError = event.detail;
+    }
   }
 }

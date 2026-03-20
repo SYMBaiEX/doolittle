@@ -36,7 +36,15 @@ const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
 interface GatewayTraceRecord {
   traceId: string;
   at: string;
-  kind: "receive" | "authorize" | "session" | "respond" | "deliver" | "reject" | "lifecycle";
+  kind:
+    | "receive"
+    | "authorize"
+    | "session"
+    | "route"
+    | "respond"
+    | "deliver"
+    | "reject"
+    | "lifecycle";
   platform: PlatformName | "gateway";
   detail: string;
   sessionId?: string;
@@ -72,6 +80,10 @@ interface GatewayPlatformState {
   eventCount: number;
   lastEventAt?: string;
   lastEventKind?: PlatformLifecycleEvent["kind"];
+  traceCount: number;
+  lastTraceAt?: string;
+  lastTraceKind?: GatewayTraceRecord["kind"];
+  lastTraceDetail?: string;
 }
 
 interface GatewayHistorySnapshot {
@@ -90,12 +102,14 @@ interface GatewayStateSnapshot {
     readyAdapters: number;
     nativeAdapters: number;
     mockAdapters: number;
+    totalTraces: number;
     recentTraces: number;
     recentDeliveries: number;
     recentSessions: number;
   };
   platforms: GatewayPlatformState[];
   tracesByKind: Array<{ kind: GatewayTraceRecord["kind"]; count: number }>;
+  tracesByPlatform: Array<{ platform: PlatformName | "gateway"; count: number }>;
   deliveriesByPlatform: Array<{ platform: PlatformName; count: number }>;
   sessionsByPlatform: Array<{ platform: PlatformName; count: number }>;
 }
@@ -106,6 +120,17 @@ export class GatewayRunner {
   private running = false;
 
   constructor(private readonly context: AppContext) {}
+
+  private async observeAdapter(
+    platform: PlatformName,
+    event: PlatformLifecycleEvent,
+  ): Promise<void> {
+    const adapter = this.adapters.get(platform);
+    if (!adapter?.observe) {
+      return;
+    }
+    await adapter.observe(event);
+  }
 
   async start(): Promise<void> {
     if (this.running) {
@@ -237,6 +262,11 @@ export class GatewayRunner {
       replyToMessageId: message.replyToMessageId,
       metadataKeys: Object.keys(message.metadata ?? {}),
     });
+    await this.observeAdapter(message.platform, {
+      at: new Date().toISOString(),
+      kind: "receive",
+      detail: `Inbound message received for ${message.platform} with metadata keys ${Object.keys(message.metadata ?? {}).join(",") || "none"}.`,
+    });
 
     const adapter = this.adapters.get(message.platform);
     if (adapter && !adapter.canReceive()) {
@@ -248,6 +278,11 @@ export class GatewayRunner {
         detail: `${message.platform} transport is not ready for inbound traffic.`,
         userId: message.userId,
         roomId: message.roomId,
+      });
+      await this.observeAdapter(message.platform, {
+        at: new Date().toISOString(),
+        kind: "reject",
+        detail: `${message.platform} transport is not ready for inbound traffic.`,
       });
       return {
         ok: false,
@@ -271,6 +306,11 @@ export class GatewayRunner {
         userId: message.userId,
         roomId: message.roomId,
       });
+      await this.observeAdapter(message.platform, {
+        at: new Date().toISOString(),
+        kind: "reject",
+        detail: `Authorization failed for ${message.platform}: ${auth.reason ?? "unauthorized"}.`,
+      });
 
       await this.context.services.hooks.emit("gateway:unauthorized", {
         platform: message.platform,
@@ -289,6 +329,20 @@ export class GatewayRunner {
     this.pushTrace({
       traceId,
       at: new Date().toISOString(),
+      kind: "authorize",
+      platform: message.platform,
+      detail: `Authorization succeeded for ${message.platform}.`,
+      sessionId: session.sessionKey,
+      userId: message.userId,
+      roomId: message.roomId,
+      messageId: message.messageId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToMessageId,
+      metadataKeys: Object.keys(session.metadata ?? {}),
+    });
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
       kind: "session",
       platform: message.platform,
       detail: `Session resolved to ${session.sessionKey}.`,
@@ -299,6 +353,30 @@ export class GatewayRunner {
       threadId: message.threadId,
       replyToMessageId: message.replyToMessageId,
       metadataKeys: Object.keys(session.metadata ?? {}),
+    });
+    await this.observeAdapter(message.platform, {
+      at: new Date().toISOString(),
+      kind: "authorize",
+      detail: `${message.platform} authorization succeeded for session ${session.sessionKey}.`,
+    });
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "route",
+      platform: message.platform,
+      detail: `Inbound ${message.platform} traffic routed to session ${session.sessionKey}.`,
+      sessionId: session.sessionKey,
+      userId: message.userId,
+      roomId: message.roomId,
+      messageId: message.messageId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToMessageId,
+      metadataKeys: Object.keys(session.metadata ?? {}),
+    });
+    await this.observeAdapter(message.platform, {
+      at: new Date().toISOString(),
+      kind: "route",
+      detail: `Inbound ${message.platform} traffic routed to session ${session.sessionKey}.`,
     });
     await this.context.services.hooks.emit("session:start", {
       platform: message.platform,
@@ -311,7 +389,7 @@ export class GatewayRunner {
         message: message.text,
         userId: message.userId,
         roomId: session.sessionKey,
-        source: message.platform,
+      source: message.platform,
       },
       this.context,
     );
@@ -325,6 +403,11 @@ export class GatewayRunner {
       userId: message.userId,
       roomId: message.roomId,
     });
+    await this.observeAdapter(message.platform, {
+      at: new Date().toISOString(),
+      kind: "respond",
+      detail: `Agent produced a response for ${message.platform} in session ${session.sessionKey}.`,
+    });
 
     let deliveryId: string | undefined;
     if (adapter) {
@@ -336,22 +419,47 @@ export class GatewayRunner {
         replyToId: message.messageId ?? message.replyToMessageId,
         metadata: message.metadata,
       };
-      const delivery = await adapter.send(outbound);
-      deliveryId = delivery.id;
-      this.pushTrace({
-        traceId,
-        at: new Date().toISOString(),
-        kind: "deliver",
-        platform: message.platform,
-        detail: `Delivered via ${adapter.name} to ${outbound.roomId} with record ${delivery.id}.`,
-        sessionId: session.sessionKey,
-        userId: message.userId,
-        roomId: message.roomId,
-        threadId: outbound.threadId,
-        replyToMessageId: outbound.replyToId,
-        deliveryId: delivery.id,
-        metadataKeys: Object.keys(delivery.metadata ?? {}),
-      });
+      try {
+        const delivery = await adapter.send(outbound);
+        deliveryId = delivery.id;
+        this.pushTrace({
+          traceId,
+          at: new Date().toISOString(),
+          kind: "deliver",
+          platform: message.platform,
+          detail: `Delivered via ${adapter.name} to ${outbound.roomId} with record ${delivery.id}.`,
+          sessionId: session.sessionKey,
+          userId: message.userId,
+          roomId: message.roomId,
+          threadId: outbound.threadId,
+          replyToMessageId: outbound.replyToId,
+          deliveryId: delivery.id,
+          metadataKeys: Object.keys(delivery.metadata ?? {}),
+        });
+        await this.observeAdapter(message.platform, {
+          at: new Date().toISOString(),
+          kind: "deliver",
+          detail: `Delivered via ${adapter.name} to ${outbound.roomId} with record ${delivery.id}.`,
+        });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : `Delivery via ${adapter.name} failed.`;
+        this.pushTrace({
+          traceId,
+          at: new Date().toISOString(),
+          kind: "reject",
+          platform: message.platform,
+          detail,
+          sessionId: session.sessionKey,
+          userId: message.userId,
+          roomId: message.roomId,
+        });
+        await this.observeAdapter(message.platform, {
+          at: new Date().toISOString(),
+          kind: "reject",
+          detail,
+        });
+        throw error;
+      }
     } else {
       const delivery = this.context.services.delivery.deliver(
         {
@@ -381,6 +489,11 @@ export class GatewayRunner {
         replyToMessageId: message.replyToMessageId,
         deliveryId: delivery.id,
         metadataKeys: Object.keys(delivery.metadata ?? {}),
+      });
+      await this.observeAdapter(message.platform, {
+        at: new Date().toISOString(),
+        kind: "deliver",
+        detail: `Delivered via fallback history with record ${delivery.id}.`,
       });
     }
 
@@ -436,7 +549,8 @@ export class GatewayRunner {
 
   async history(limit = 20, filters?: GatewayHistoryFilter): Promise<GatewayHistorySnapshot> {
     const readiness = await this.health();
-    const traces = this.trace(limit, filters);
+    const allTraces = this.filteredTraces(filters);
+    const traces = allTraces.slice(-limit).reverse();
     const deliveries = this.recentDeliveries(limit, filters?.platform);
     const sessions = this.recentSessions(limit, filters?.platform);
     return {
@@ -444,17 +558,21 @@ export class GatewayRunner {
       traces,
       deliveries,
       sessions,
-      state: this.buildStateSnapshot(readiness, traces, deliveries, sessions),
+      state: this.buildStateSnapshot(readiness, allTraces, traces, deliveries, sessions),
     };
   }
 
   private buildStateSnapshot(
     readiness: PlatformHealth[],
+    allTraces: GatewayTraceRecord[],
     traces: GatewayTraceRecord[],
     deliveries: DeliveredMessageRecord[],
     sessions: SessionRoute[],
   ): GatewayStateSnapshot {
-    const platformSummary = readiness.map((entry) => ({
+    const platformSummary = readiness.map((entry) => {
+      const platformTraces = allTraces.filter((trace) => trace.platform === entry.platform);
+      const latestTrace = platformTraces.at(-1);
+      return {
       platform: entry.platform,
       status: entry.status,
       mode: entry.mode,
@@ -471,7 +589,12 @@ export class GatewayRunner {
       eventCount: entry.events.length,
       lastEventAt: entry.events[0]?.at,
       lastEventKind: entry.events[0]?.kind,
-    }));
+      traceCount: platformTraces.length,
+      lastTraceAt: latestTrace?.at,
+      lastTraceKind: latestTrace?.kind,
+      lastTraceDetail: latestTrace?.detail,
+      };
+    });
 
     return {
       running: this.running,
@@ -481,12 +604,14 @@ export class GatewayRunner {
         readyAdapters: readiness.filter((entry) => entry.ready).length,
         nativeAdapters: readiness.filter((entry) => entry.mode === "native").length,
         mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
+        totalTraces: allTraces.length,
         recentTraces: traces.length,
         recentDeliveries: deliveries.length,
         recentSessions: sessions.length,
       },
       platforms: platformSummary,
-      tracesByKind: this.countByKind(traces, (trace) => trace.kind),
+      tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
+      tracesByPlatform: this.countByPlatform(allTraces, (trace) => trace.platform),
       deliveriesByPlatform: this.countByPlatform(deliveries, (delivery) => delivery.target.platform),
       sessionsByPlatform: this.countByPlatform(sessions, (session) => session.platform),
     };
@@ -522,11 +647,11 @@ export class GatewayRunner {
     return filtered.slice(0, limit);
   }
 
-  private countByPlatform<T>(
+  private countByPlatform<T, K extends PlatformName | "gateway">(
     records: T[],
-    selector: (record: T) => PlatformName,
-  ): Array<{ platform: PlatformName; count: number }> {
-    const counts = new Map<PlatformName, { platform: PlatformName; count: number }>();
+    selector: (record: T) => K,
+  ): Array<{ platform: K; count: number }> {
+    const counts = new Map<K, { platform: K; count: number }>();
     for (const record of records) {
       const key = selector(record);
       const existing = counts.get(key) ?? { platform: key, count: 0 };
