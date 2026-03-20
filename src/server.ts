@@ -525,15 +525,47 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/trajectories/export") {
-        const body = ((await request.json().catch(() => ({}))) ?? {}) as { limit?: number };
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          limit?: number;
+          sessionId?: string;
+          role?: "user" | "assistant" | "system";
+          label?: string;
+        };
         return json({
-          path: context.services.trajectories.exportRecent(body.limit ?? 200),
+          path: context.services.trajectories.exportDataset({
+            limit: body.limit ?? 200,
+            sessionId: body.sessionId,
+            role: body.role,
+            label: body.label,
+          }),
         });
       }
 
       if (request.method === "POST" && url.pathname === "/trajectories/bundle") {
-        const body = ((await request.json().catch(() => ({}))) ?? {}) as { limit?: number };
-        return json(context.services.trajectories.exportBundle(body.limit ?? 200));
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          limit?: number;
+          sessionId?: string;
+          role?: "user" | "assistant" | "system";
+          label?: string;
+        };
+        return json(
+          context.services.trajectories.exportFilteredBundle({
+            limit: body.limit ?? 200,
+            sessionId: body.sessionId,
+            role: body.role,
+            label: body.label,
+          }),
+        );
+      }
+
+      if (request.method === "GET" && url.pathname === "/trajectories/bundles") {
+        const limitRaw = url.searchParams.get("limit");
+        const limit = limitRaw ? Number(limitRaw) : 20;
+        return json({
+          bundles: context.services.trajectories.listBundles(
+            !Number.isNaN(limit) && limit > 0 ? limit : 20,
+          ),
+        });
       }
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {

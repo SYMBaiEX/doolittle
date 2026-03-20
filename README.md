@@ -267,8 +267,11 @@ Useful commands:
 - `/delegate execute <task-id>`
 - `/delegate execute-queued`
 - `/skills synthesize <task-id>`
+- `/trajectories list`
 - `/trajectories export`
+- `/trajectories export session:room-123 role:user limit:50`
 - `/trajectories bundle`
+- `/trajectories bundle session:room-123`
 - `/context files`
 - `/status`
 - `/runtime status`
@@ -341,6 +344,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /cron/jobs`
 - `GET /cron/runs`
 - `POST /skills/synthesize`
+- `GET /trajectories/bundles`
 - `POST /trajectories/export`
 - `POST /trajectories/bundle`
 - `GET /gateway/config`

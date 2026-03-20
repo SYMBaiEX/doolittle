@@ -18,6 +18,34 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function parseTrajectoryArgs(raw: string): {
+  sessionId?: string;
+  role?: "user" | "assistant" | "system";
+  limit?: number;
+} {
+  const options: {
+    sessionId?: string;
+    role?: "user" | "assistant" | "system";
+    limit?: number;
+  } = {};
+  for (const token of raw.split(/\s+/u).filter(Boolean)) {
+    if (token.startsWith("session:")) {
+      options.sessionId = token.replace("session:", "").trim();
+    } else if (token.startsWith("role:")) {
+      const role = token.replace("role:", "").trim();
+      if (role === "user" || role === "assistant" || role === "system") {
+        options.role = role;
+      }
+    } else if (token.startsWith("limit:")) {
+      const limit = Number(token.replace("limit:", "").trim());
+      if (!Number.isNaN(limit) && limit > 0) {
+        options.limit = limit;
+      }
+    }
+  }
+  return options;
+}
+
 export async function runDelegationTaskInWorker(
   context: AgentExecutionContext,
   taskId: string,
@@ -705,8 +733,40 @@ async function buildCommandResponse(
     return context.services.trajectories.exportRecent(200);
   }
 
+  if (trimmed.startsWith("/trajectories export ")) {
+    const options = parseTrajectoryArgs(trimmed.replace("/trajectories export ", ""));
+    return context.services.trajectories.exportDataset({
+      ...options,
+      limit: options.limit ?? 200,
+    });
+  }
+
   if (trimmed === "/trajectories bundle") {
     return JSON.stringify(context.services.trajectories.exportBundle(200), null, 2);
+  }
+
+  if (trimmed.startsWith("/trajectories bundle ")) {
+    const options = parseTrajectoryArgs(trimmed.replace("/trajectories bundle ", ""));
+    return JSON.stringify(
+      context.services.trajectories.exportFilteredBundle({
+        ...options,
+        limit: options.limit ?? 200,
+      }),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/trajectories list") {
+    const bundles = context.services.trajectories.listBundles(10);
+    return bundles.length
+      ? bundles
+          .map(
+            (bundle) =>
+              `- ${bundle.label} [${bundle.createdAt}] messages=${bundle.messageCount} sessions=${bundle.sessionCount} filters=session:${bundle.filters?.sessionId ?? "any"} role:${bundle.filters?.role ?? "any"}\n  data=${bundle.dataPath}`,
+          )
+          .join("\n\n")
+      : "No trajectory bundles recorded.";
   }
 
   return undefined;
