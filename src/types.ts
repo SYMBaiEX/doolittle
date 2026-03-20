@@ -26,6 +26,10 @@ export interface EnvConfig {
   whatsappAccessToken?: string;
   whatsappPhoneNumberId?: string;
   whatsappVerifyToken?: string;
+  browserProvider: "lightpanda" | "basic";
+  browserCommand: string;
+  browserCdpUrl?: string;
+  browserObeyRobots: boolean;
   executionBackend: "local" | "docker" | "ssh";
   dockerImage: string;
   dockerNetwork: string;

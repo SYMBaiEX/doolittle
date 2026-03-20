@@ -52,6 +52,11 @@ export const featureMap: FeatureMapping[] = [
     notes: "Publishes a first-class tool inventory, supports structured MCP tool discovery, and invokes MCP tools through a local bridge command.",
   },
   {
+    platformCapability: "Browser-backed web retrieval",
+    elizaImplementation: "Web service with Lightpanda-first browser backend",
+    notes: "Uses Lightpanda as the default browser backend with graceful fallback to basic HTTP fetch mode when the browser runtime is unavailable.",
+  },
+  {
     platformCapability: "Delegation task tracking",
     elizaImplementation: "Delegation service + `/delegate` command family",
     notes: "Tracks local and delegated task records so multi-agent orchestration can grow on top of a durable queue.",
