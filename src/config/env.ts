@@ -39,7 +39,9 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  ELIZA_AGENT_EXECUTION_BACKEND: z.enum(["local", "docker", "ssh"]).default("local"),
+  ELIZA_AGENT_EXECUTION_BACKEND: z
+    .enum(["local", "docker", "podman", "ssh"])
+    .default("local"),
   ELIZA_AGENT_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
   ELIZA_AGENT_DOCKER_NETWORK: z.string().default("host"),
   ELIZA_AGENT_DOCKER_WORKSPACE_PATH: z.string().default("/workspace"),
@@ -117,7 +119,7 @@ export function loadConfig(): EnvConfig {
     browserCommand: values.ELIZA_AGENT_BROWSER_COMMAND,
     browserCdpUrl: values.ELIZA_AGENT_BROWSER_CDP_URL,
     browserObeyRobots: values.ELIZA_AGENT_BROWSER_OBEY_ROBOTS,
-    executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND,
+    executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND as EnvConfig["executionBackend"],
     dockerImage: values.ELIZA_AGENT_DOCKER_IMAGE,
     dockerNetwork: values.ELIZA_AGENT_DOCKER_NETWORK,
     dockerWorkspacePath: values.ELIZA_AGENT_DOCKER_WORKSPACE_PATH,

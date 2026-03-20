@@ -87,7 +87,7 @@ eliza-agent/
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with Docker and SSH runtime settings, probes, and invocation paths |
+| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, and SSH runtime settings, probes, and invocation paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
@@ -164,10 +164,10 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_BROWSER_COMMAND` | Local Lightpanda command used for browser-backed fetch flows. |
 | `ELIZA_AGENT_BROWSER_CDP_URL` | Optional CDP endpoint reserved for deeper browser automation work. |
 | `ELIZA_AGENT_BROWSER_OBEY_ROBOTS` | Enables Lightpanda robot-policy aware fetching when supported. |
-| `ELIZA_AGENT_DOCKER_IMAGE` | Container image used for Docker-backed execution. |
-| `ELIZA_AGENT_DOCKER_NETWORK` | Docker network mode for execution containers. |
-| `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path used inside Docker execution containers. |
-| `ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH` | Comma-separated env vars forwarded into Docker execution containers. |
+| `ELIZA_AGENT_DOCKER_IMAGE` | Container image used for Docker or Podman execution. |
+| `ELIZA_AGENT_DOCKER_NETWORK` | Container network mode for Docker or Podman execution. |
+| `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path used inside Docker or Podman execution containers. |
+| `ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH` | Comma-separated env vars forwarded into Docker or Podman execution containers. |
 | `ELIZA_AGENT_SSH_HOST` | Remote SSH host for execution. |
 | `ELIZA_AGENT_SSH_USER` | Remote SSH user for execution. |
 | `ELIZA_AGENT_SSH_PATH` | Remote workspace path for SSH execution. |
@@ -244,7 +244,9 @@ Useful commands:
 - `/model status`
 - `/model set model gpt-4.1-mini`
 - `/execution status`
+- `/execution backends`
 - `/execution set backend docker`
+- `/execution set backend podman`
 - `/config show`
 - `/tools list`
 - `/browser status`
@@ -315,6 +317,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /web/snapshot`
 - `GET /media/inspect`
 - `GET /execution/status`
+- `GET /execution/backends`
 - `GET /terminal/history`
 - `POST /terminal/run`
 - `GET /delegation/tasks`

@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExecutionBackendHealth, TerminalCommandRecord } from "@/types";
+import type {
+  ExecutionBackendHealth,
+  ExecutionBackendName,
+  TerminalCommandRecord,
+} from "@/types";
 import type { RuntimeSettings } from "./settings-service";
 
 interface TerminalStore {
@@ -15,7 +19,7 @@ interface TerminalRunResult {
 }
 
 interface ExecutionBackend {
-  readonly name: "local" | "docker" | "ssh";
+  readonly name: ExecutionBackendName;
   health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth>;
   run(
     command: string,
@@ -75,7 +79,8 @@ async function commandExists(binary: string): Promise<boolean> {
   return result.exitCode === 0;
 }
 
-function buildDockerCommand(
+function buildContainerCommand(
+  engine: "docker" | "podman",
   command: string,
   cwd: string,
   settings: RuntimeSettings,
@@ -86,7 +91,7 @@ function buildDockerCommand(
   );
 
   return [
-    "docker",
+    engine,
     "run",
     "--rm",
     "--init",
@@ -125,6 +130,7 @@ class LocalExecutionBackend implements ExecutionBackend {
   async health(): Promise<ExecutionBackendHealth> {
     return {
       backend: this.name,
+      mode: "local",
       ready: true,
       detail: "Local Bun shell execution is available.",
     };
@@ -145,6 +151,8 @@ class DockerExecutionBackend implements ExecutionBackend {
     if (!(await commandExists("docker"))) {
       return {
         backend: this.name,
+        mode: "container",
+        engine: "docker",
         ready: false,
         detail: "Docker command not available.",
       };
@@ -161,6 +169,8 @@ class DockerExecutionBackend implements ExecutionBackend {
     if (version.exitCode !== 0) {
       return {
         backend: this.name,
+        mode: "container",
+        engine: "docker",
         ready: false,
         detail: version.stderr || "Docker runtime unavailable.",
       };
@@ -177,6 +187,8 @@ class DockerExecutionBackend implements ExecutionBackend {
 
     return {
       backend: this.name,
+      mode: "container",
+      engine: "docker",
       ready: imageCheck.exitCode === 0,
       detail:
         imageCheck.exitCode === 0
@@ -190,7 +202,72 @@ class DockerExecutionBackend implements ExecutionBackend {
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
-      await runCommand(buildDockerCommand(command, options.cwd, options.settings), {
+      await runCommand(buildContainerCommand("docker", command, options.cwd, options.settings), {
+        timeoutMs: options.timeoutMs,
+      }),
+    );
+  }
+}
+
+class PodmanExecutionBackend implements ExecutionBackend {
+  readonly name = "podman" as const;
+
+  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+    if (!(await commandExists("podman"))) {
+      return {
+        backend: this.name,
+        mode: "container",
+        engine: "podman",
+        ready: false,
+        detail: "Podman command not available.",
+      };
+    }
+
+    const version = await runCommand(["podman", "--version"], {
+      timeoutMs: 5_000,
+    }).catch(() => ({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Podman runtime unavailable.",
+    }));
+
+    if (version.exitCode !== 0) {
+      return {
+        backend: this.name,
+        mode: "container",
+        engine: "podman",
+        ready: false,
+        detail: version.stderr || "Podman runtime unavailable.",
+      };
+    }
+
+    const imageCheck = await runCommand(
+      ["podman", "image", "inspect", settings.execution.dockerImage],
+      { timeoutMs: 5_000 },
+    ).catch(() => ({
+      exitCode: 1,
+      stdout: "",
+      stderr: `Podman image ${settings.execution.dockerImage} is not available locally.`,
+    }));
+
+    return {
+      backend: this.name,
+      mode: "container",
+      engine: "podman",
+      ready: imageCheck.exitCode === 0,
+      detail:
+        imageCheck.exitCode === 0
+          ? `Podman ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
+          : imageCheck.stderr || `Podman image ${settings.execution.dockerImage} is not available locally.`,
+    };
+  }
+
+  async run(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): Promise<TerminalRunResult> {
+    return normalizeBackendError(
+      await runCommand(buildContainerCommand("podman", command, options.cwd, options.settings), {
         timeoutMs: options.timeoutMs,
       }),
     );
@@ -204,6 +281,8 @@ class SshExecutionBackend implements ExecutionBackend {
     if (!(await commandExists("ssh"))) {
       return {
         backend: this.name,
+        mode: "remote",
+        engine: "ssh",
         ready: false,
         detail: "SSH command not available.",
       };
@@ -213,6 +292,8 @@ class SshExecutionBackend implements ExecutionBackend {
     if (!execution.sshHost || !execution.sshUser || !execution.sshPath) {
       return {
         backend: this.name,
+        mode: "remote",
+        engine: "ssh",
         ready: false,
         detail:
           "SSH backend requires execution.sshHost, execution.sshUser, and execution.sshPath.",
@@ -237,6 +318,8 @@ class SshExecutionBackend implements ExecutionBackend {
 
     return {
       backend: this.name,
+      mode: "remote",
+      engine: "ssh",
       ready: probe.exitCode === 0,
       detail:
         probe.exitCode === 0
@@ -276,9 +359,10 @@ class SshExecutionBackend implements ExecutionBackend {
 
 export class TerminalService {
   private readonly filePath: string;
-  private readonly backends = new Map<"local" | "docker" | "ssh", ExecutionBackend>([
+  private readonly backends = new Map<ExecutionBackendName, ExecutionBackend>([
     ["local", new LocalExecutionBackend()],
     ["docker", new DockerExecutionBackend()],
+    ["podman", new PodmanExecutionBackend()],
     ["ssh", new SshExecutionBackend()],
   ]);
 
@@ -296,7 +380,7 @@ export class TerminalService {
 
   async run(command: string, timeoutMs = 30_000): Promise<TerminalCommandRecord> {
     const settings = this.getSettings();
-    const backendName = settings.execution.backend;
+    const backendName = settings.execution.backend as ExecutionBackendName;
     const backend = this.backends.get(backendName) ?? this.backends.get("local");
     if (!backend) {
       throw new Error("No execution backend is available.");
