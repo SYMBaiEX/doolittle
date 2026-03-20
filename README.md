@@ -392,6 +392,12 @@ Useful commands:
 - `/gateway receive telegram user42 room42 :: hello there`
 - `/gateway status`
 - `/platforms`
+- `/voice status`
+- `/voice on`
+- `/voice tts`
+- `/voice join`
+- `/voice leave`
+- `/sethome`
 - `/gateway inbox`
 - `/gateway outbox`
 - `/gateway attachments`
@@ -487,6 +493,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /trajectories/package`
 - `GET /deliveries`
 - `GET /sessions/gateway`
+- `GET /sessions/gateway/home?platform=telegram`
 - `GET /personality`
 - `POST /personality`
 - `GET /context/files`
@@ -517,6 +524,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /gateway/start`
 - `POST /gateway/stop`
 - `POST /gateway/message`
+- `POST /sessions/gateway/voice`
+- `POST /sessions/gateway/home`
 - `POST /webhooks/telegram`
 - `POST /webhooks/discord`
 - `POST /webhooks/slack`
