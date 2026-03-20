@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MediaService } from "./media-service";
@@ -150,6 +150,35 @@ describe("MediaService", () => {
       const inspection = service.inspect("scene.png");
       expect(inspection.captionPath).toBe(captionPath);
       expect(inspection.captionPreview).toContain("screenshot regression");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("creates a reusable media bundle with related sidecars", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-bundle-"));
+    const service = new MediaService(root);
+    const audioPath = join(root, "meeting.wav");
+    const transcriptPath = join(root, "meeting.transcript.txt");
+    const captionPath = join(root, "meeting.caption.txt");
+
+    try {
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      writeFileSync(transcriptPath, "Meeting transcript content for the bundle report.");
+      writeFileSync(captionPath, "Caption sidecar for the bundle report.");
+
+      const bundle = service.bundle("meeting.wav");
+      expect(bundle.inspection.kind).toBe("audio");
+      expect(bundle.relatedFiles.some((entry) => entry.endsWith("meeting.transcript.txt"))).toBe(
+        true,
+      );
+      expect(bundle.relatedFiles.some((entry) => entry.endsWith("meeting.caption.txt"))).toBe(
+        true,
+      );
+      expect(bundle.reportPath).toContain("media-");
+      expect(bundle.manifestPath).toContain("media-");
+      expect(existsSync(bundle.reportPath)).toBe(true);
+      expect(existsSync(bundle.manifestPath)).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

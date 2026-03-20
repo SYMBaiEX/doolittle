@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, extname, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { basename, extname, join, resolve } from "node:path";
 
 export interface MediaInspection {
   path: string;
@@ -26,6 +26,13 @@ export interface MediaInspection {
   transcriptPreview?: string;
   captionPath?: string;
   captionPreview?: string;
+}
+
+export interface MediaBundle {
+  inspection: MediaInspection;
+  manifestPath: string;
+  reportPath: string;
+  relatedFiles: string[];
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -56,8 +63,22 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   ".xml": "application/xml",
 };
 
+function slugifyPath(path: string): string {
+  return path
+    .replace(/^[./\\]+/u, "")
+    .replace(/[^a-z0-9]+/giu, "-")
+    .replace(/^-+|-+$/gu, "")
+    .slice(0, 72)
+    .toLowerCase() || "media";
+}
+
 export class MediaService {
-  constructor(private readonly workspaceDir: string) {}
+  constructor(
+    private readonly workspaceDir: string,
+    private readonly outputDir = ".eliza-agent/media",
+  ) {
+    mkdirSync(this.outputDir, { recursive: true });
+  }
 
   inspect(path: string): MediaInspection {
     const resolvedPath = resolve(this.workspaceDir, path);
@@ -139,6 +160,64 @@ export class MediaService {
       transcriptPreview: sidecars.transcriptPreview,
       captionPath: sidecars.captionPath,
       captionPreview: sidecars.captionPreview,
+    };
+  }
+
+  bundle(path: string): MediaBundle {
+    const inspection = this.inspect(path);
+    const stamp = Date.now();
+    const slug = slugifyPath(path);
+    const manifestPath = join(this.outputDir, `media-${stamp}-${slug}.json`);
+    const reportPath = join(this.outputDir, `media-${stamp}-${slug}.md`);
+    const relatedFiles = this.relatedFiles(inspection.path);
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          inspection,
+          relatedFiles,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      reportPath,
+      [
+        `# Media Bundle`,
+        "",
+        `Path: ${inspection.path}`,
+        `Kind: ${inspection.kind}`,
+        `MIME: ${inspection.mimeType}`,
+        `Exists: ${inspection.exists}`,
+        `Size: ${inspection.sizeBytes}`,
+        ...(inspection.width && inspection.height ? [`Dimensions: ${inspection.width}x${inspection.height}`] : []),
+        ...(inspection.durationMs ? [`Duration: ${Math.round(inspection.durationMs / 1000)}s`] : []),
+        ...(inspection.title ? [`Title: ${inspection.title}`] : []),
+        ...(inspection.author ? [`Author: ${inspection.author}`] : []),
+        ...(inspection.pageCount ? [`Pages: ${inspection.pageCount}`] : []),
+        "",
+        "## Sidecars",
+        `- Transcript: ${inspection.transcriptPath ?? "none"}`,
+        `- Caption: ${inspection.captionPath ?? "none"}`,
+        "",
+        "## Related Files",
+        ...(relatedFiles.length ? relatedFiles.map((entry) => `- ${entry}`) : ["- none"]),
+        "",
+        "## Preview",
+        inspection.transcriptPreview ?? inspection.captionPreview ?? inspection.textPreview ?? inspection.detail,
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      inspection,
+      manifestPath,
+      reportPath,
+      relatedFiles,
     };
   }
 
@@ -364,6 +443,21 @@ export class MediaService {
 
   private readSidecarPreview(path: string): string {
     return this.buildPreview(readFileSync(path, "utf8"), extname(path).toLowerCase());
+  }
+
+  private relatedFiles(resolvedPath: string): string[] {
+    const extension = extname(resolvedPath);
+    const basePath = resolvedPath.slice(0, resolvedPath.length - extension.length);
+    const candidates = [
+      `${basePath}.txt`,
+      `${basePath}.md`,
+      `${basePath}.caption.txt`,
+      `${basePath}.alt.txt`,
+      `${basePath}.transcript.txt`,
+      `${basePath}.srt`,
+      `${basePath}.vtt`,
+    ];
+    return candidates.filter((candidate) => candidate !== resolvedPath && existsSync(candidate));
   }
 
   private buildPreview(content: string, extension: string): string {

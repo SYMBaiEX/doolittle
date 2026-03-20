@@ -219,6 +219,147 @@ function parseCronDelivery(value?: string): "origin" | "local" | undefined {
   return undefined;
 }
 
+function parseDelegationSegments(raw: string): {
+  head: string;
+  objective: string;
+  options: Record<string, string>;
+} | null {
+  const [left, objective] = raw.split("::").map((part) => part.trim());
+  if (!left || !objective) {
+    return null;
+  }
+
+  const segments = left
+    .split("|")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (!segments.length) {
+    return null;
+  }
+
+  const [head, ...rawOptions] = segments;
+  const options = rawOptions.reduce<Record<string, string>>((accumulator, segment) => {
+    const separator = segment.indexOf(":");
+    if (separator === -1) {
+      return accumulator;
+    }
+    const key = segment.slice(0, separator).trim().toLowerCase();
+    const value = segment.slice(separator + 1).trim();
+    if (key && value) {
+      accumulator[key] = value;
+    }
+    return accumulator;
+  }, {});
+
+  return {
+    head,
+    objective,
+    options,
+  };
+}
+
+function parseDelegationMetadata(value?: string): Record<string, string> | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const metadata = value.split(",").reduce<Record<string, string>>((accumulator, pair) => {
+    const [rawKey, rawValue] = pair.split("=").map((part) => part.trim());
+    if (rawKey && rawValue) {
+      accumulator[rawKey] = rawValue;
+    }
+    return accumulator;
+  }, {});
+
+  return Object.keys(metadata).length ? metadata : undefined;
+}
+
+function parseDelegationLabels(value?: string): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const labels = value
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean);
+
+  return labels.length ? labels : [];
+}
+
+function parseDelegationFilter(raw: string): {
+  limit?: number;
+  concurrency?: number;
+  group?: string;
+  profile?: string;
+  priority?: "low" | "normal" | "high";
+  label?: string;
+  parentTaskId?: string;
+  status?: "pending" | "running" | "completed" | "failed" | "cancelled";
+  executionMode?: "local" | "delegated";
+} {
+  const options: {
+    limit?: number;
+    concurrency?: number;
+    group?: string;
+    profile?: string;
+    priority?: "low" | "normal" | "high";
+    label?: string;
+    parentTaskId?: string;
+    status?: "pending" | "running" | "completed" | "failed" | "cancelled";
+    executionMode?: "local" | "delegated";
+  } = {};
+
+  for (const token of raw.split(/\s+/u).filter(Boolean)) {
+    if (token.startsWith("limit:") || token.startsWith("concurrency:")) {
+      const value = Number(token.replace(/^(limit|concurrency):/u, ""));
+      if (!Number.isNaN(value) && value > 0) {
+        options.concurrency = value;
+        options.limit = value;
+      }
+      continue;
+    }
+    if (token.startsWith("group:")) {
+      options.group = token.replace("group:", "").trim();
+      continue;
+    }
+    if (token.startsWith("profile:")) {
+      options.profile = token.replace("profile:", "").trim();
+      continue;
+    }
+    if (token.startsWith("priority:")) {
+      const priority = token.replace("priority:", "").trim();
+      if (priority === "low" || priority === "normal" || priority === "high") {
+        options.priority = priority;
+      }
+      continue;
+    }
+    if (token.startsWith("label:") || token.startsWith("tag:")) {
+      options.label = token.replace(/^(label|tag):/u, "").trim();
+      continue;
+    }
+    if (token.startsWith("parent:") || token.startsWith("parentTaskId:")) {
+      options.parentTaskId = token.replace(/^(parent|parentTaskId):/u, "").trim();
+      continue;
+    }
+    if (token.startsWith("status:")) {
+      const status = token.replace("status:", "").trim();
+      if (["pending", "running", "completed", "failed", "cancelled"].includes(status)) {
+        options.status = status as NonNullable<typeof options.status>;
+      }
+      continue;
+    }
+    if (token.startsWith("mode:") || token.startsWith("execution:")) {
+      const executionMode = token.replace(/^(mode|execution):/u, "").trim();
+      if (executionMode === "local" || executionMode === "delegated") {
+        options.executionMode = executionMode;
+      }
+    }
+  }
+
+  return options;
+}
+
 function applyRuntimeOverrides(
   settings: RuntimeSettings,
   runtime?: CronJobRuntimeOverrides,
@@ -253,9 +394,13 @@ export async function runDelegationTaskInWorker(
       {
         taskId: task.id,
         objective: task.objective,
+        group: task.group,
         profile: task.profile,
         priority: task.priority,
         tags: task.tags,
+        labels: task.labels,
+        metadata: task.metadata,
+        parentTaskId: task.parentTaskId,
       },
       null,
       2,
@@ -995,6 +1140,15 @@ async function buildCommandResponse(
     return JSON.stringify(await context.services.web.capture(url), null, 2);
   }
 
+  if (trimmed.startsWith("/browser compare ")) {
+    const payload = trimmed.replace("/browser compare ", "");
+    const [leftUrl, rightUrl] = payload.split("::").map((part) => part.trim());
+    if (!leftUrl || !rightUrl) {
+      return "Usage: /browser compare <left-url> :: <right-url>";
+    }
+    return JSON.stringify(await context.services.web.compare(leftUrl, rightUrl), null, 2);
+  }
+
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
     return await context.services.web.snapshot(url);
@@ -1022,13 +1176,18 @@ async function buildCommandResponse(
     return inspection.captionPreview ?? "No caption sidecar detected.";
   }
 
+  if (trimmed.startsWith("/media bundle ")) {
+    const path = trimmed.replace("/media bundle ", "").trim();
+    return JSON.stringify(context.services.media.bundle(path), null, 2);
+  }
+
   if (trimmed === "/delegate" || trimmed === "/delegate list") {
     const tasks = context.services.delegation.list().slice(0, 20);
     return tasks.length
       ? tasks
           .map(
             (task) =>
-              `- ${task.id} ${task.title} [${task.status}] mode=${task.executionMode}/${task.workerMode ?? "inline"} priority=${task.priority ?? "normal"} profile=${task.profile ?? "default"} attempts=${task.attempts ?? 0}${task.workerPid ? ` pid=${task.workerPid}` : ""}\n  tags=${task.tags?.join(",") || "none"}\n  ${task.objective}`,
+              `- ${task.id} ${task.title} [${task.status}] mode=${task.executionMode}/${task.workerMode ?? "inline"} group=${task.group ?? task.profile ?? "default"} priority=${task.priority ?? "normal"} profile=${task.profile ?? "default"} attempts=${task.attempts ?? 0}${task.workerPid ? ` pid=${task.workerPid}` : ""}\n  labels=${task.labels?.join(",") || task.tags?.join(",") || "none"}\n  parent=${task.parentTaskId ?? "root"} children=${task.childTaskIds?.length ?? 0}\n  ${task.objective}`,
           )
           .join("\n")
       : "No delegation tasks recorded.";
@@ -1050,9 +1209,65 @@ async function buildCommandResponse(
       : "No queued delegation tasks.";
   }
 
+  if (trimmed.startsWith("/delegate group ")) {
+    const group = trimmed.replace("/delegate group ", "").trim();
+    if (!group) {
+      return "Usage: /delegate group <group-name>";
+    }
+    const tasks = context.services.delegation.listByGroup(group);
+    return tasks.length
+      ? tasks
+          .map(
+            (task) =>
+              `- ${task.id} ${task.title} [${task.status}] profile=${task.profile ?? "default"} labels=${task.labels?.join(",") || "none"}\n  ${task.objective}`,
+          )
+          .join("\n\n")
+      : `No delegation tasks found for group ${group}.`;
+  }
+
+  if (trimmed.startsWith("/delegate label ")) {
+    const label = trimmed.replace("/delegate label ", "").trim();
+    if (!label) {
+      return "Usage: /delegate label <label>";
+    }
+    const tasks = context.services.delegation.listByLabel(label);
+    return tasks.length
+      ? tasks
+          .map(
+            (task) =>
+              `- ${task.id} ${task.title} [${task.status}] group=${task.group ?? task.profile ?? "default"}\n  ${task.objective}`,
+          )
+          .join("\n\n")
+      : `No delegation tasks found for label ${label}.`;
+  }
+
+  if (trimmed.startsWith("/delegate children ")) {
+    const id = trimmed.replace("/delegate children ", "").trim();
+    if (!id) {
+      return "Usage: /delegate children <parent-id>";
+    }
+    const tasks = context.services.delegation.listChildren(id);
+    return tasks.length
+      ? tasks
+          .map(
+            (task) =>
+              `- ${task.id} ${task.title} [${task.status}] group=${task.group ?? task.profile ?? "default"} parent=${task.parentTaskId ?? "root"}\n  labels=${task.labels?.join(",") || task.tags?.join(",") || "none"}\n  ${task.objective}`,
+          )
+          .join("\n\n")
+      : `No child delegation tasks found for ${id}.`;
+  }
+
+  if (trimmed.startsWith("/delegate tree ")) {
+    const id = trimmed.replace("/delegate tree ", "").trim();
+    if (!id) {
+      return "Usage: /delegate tree <task-id>";
+    }
+    return JSON.stringify(context.services.delegation.tree(id), null, 2);
+  }
+
   if (trimmed === "/delegate supervise" || trimmed.startsWith("/delegate supervise ")) {
     const raw = trimmed.replace("/delegate supervise", "").trim();
-    const concurrency = raw ? Number(raw) : undefined;
+    const parsed = parseDelegationFilter(raw);
     const report = await context.services.delegation.superviseQueued(
       async (task) => {
         const completedTask = await runDelegationTaskInWorker(context, task.id, {
@@ -1061,7 +1276,19 @@ async function buildCommandResponse(
         return completedTask.notes.at(-1) ?? "Delegated worker completed.";
       },
       {
-        concurrency: Number.isFinite(concurrency) && (concurrency as number) > 0 ? (concurrency as number) : 2,
+        concurrency:
+          Number.isFinite(parsed.concurrency) && (parsed.concurrency as number) > 0
+            ? (parsed.concurrency as number)
+            : 2,
+        filter: {
+          group: parsed.group,
+          profile: parsed.profile,
+          priority: parsed.priority,
+          label: parsed.label,
+          parentTaskId: parsed.parentTaskId,
+          status: parsed.status,
+          executionMode: parsed.executionMode,
+        },
         onComplete: async (task) => {
           context.services.skillSynthesis.synthesizeFromTask(task);
         },
@@ -1075,40 +1302,54 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate create ")) {
     const payload = trimmed.replace("/delegate create ", "");
-    const [left, objective] = payload.split("::").map((part) => part.trim());
-    const segments = left?.split("|").map((part) => part.trim()).filter(Boolean) ?? [];
-    const [title, ...options] = segments;
-    if (!title || !objective) {
-      return "Usage: /delegate create <title> | profile:research | priority:high | tags:browser,voice :: <objective>";
+    const parsed = parseDelegationSegments(payload);
+    if (!parsed) {
+      return "Usage: /delegate create <title> | group:research | profile:research | priority:high | labels:browser,voice | metadata:owner=alice :: <objective>";
     }
-    const parsedOptions = options.reduce<Record<string, string>>((accumulator, segment) => {
-      const separator = segment.indexOf(":");
-      if (separator === -1) {
-        return accumulator;
-      }
-      const key = segment.slice(0, separator).trim().toLowerCase();
-      const value = segment.slice(separator + 1).trim();
-      if (key && value) {
-        accumulator[key] = value;
-      }
-      return accumulator;
-    }, {});
     const task = context.services.delegation.create({
-      title,
-      objective,
-      profile: parsedOptions.profile,
+      title: parsed.head,
+      objective: parsed.objective,
+      group: parsed.options.group,
+      profile: parsed.options.profile,
       priority:
-        parsedOptions.priority === "low" ||
-        parsedOptions.priority === "normal" ||
-        parsedOptions.priority === "high"
-          ? parsedOptions.priority
+        parsed.options.priority === "low" ||
+        parsed.options.priority === "normal" ||
+        parsed.options.priority === "high"
+          ? parsed.options.priority
           : "normal",
-      tags: parsedOptions.tags
-        ? parsedOptions.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
-        : [],
+      tags: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
+      labels: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
+      metadata: parseDelegationMetadata(parsed.options.metadata ?? parsed.options.meta),
       executionMode: "delegated",
     });
     return JSON.stringify(task, null, 2);
+  }
+
+  if (trimmed.startsWith("/delegate spawn ")) {
+    const payload = trimmed.replace("/delegate spawn ", "");
+    const [parentPart, rest] = payload.split("::");
+    const parentId = parentPart.split("|")[0]?.trim();
+    const parsed = rest ? parseDelegationSegments(`spawn | ${parentPart.split("|").slice(1).join("|")} :: ${rest}`) : null;
+    if (!parentId || !parsed) {
+      return "Usage: /delegate spawn <parent-id> | title:Child Task | group:research | profile:research | priority:high | labels:browser :: <objective>";
+    }
+    const child = context.services.delegation.spawnChild(parentId, {
+      title: parsed.head,
+      objective: parsed.objective,
+      group: parsed.options.group,
+      profile: parsed.options.profile,
+      priority:
+        parsed.options.priority === "low" ||
+        parsed.options.priority === "normal" ||
+        parsed.options.priority === "high"
+          ? parsed.options.priority
+          : undefined,
+      tags: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
+      labels: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
+      metadata: parseDelegationMetadata(parsed.options.metadata ?? parsed.options.meta),
+      executionMode: "delegated",
+    });
+    return JSON.stringify(child, null, 2);
   }
 
   if (trimmed.startsWith("/delegate note ")) {
@@ -1163,6 +1404,8 @@ async function buildCommandResponse(
     const tasks = context.services.delegation.workers(20);
     const lines = [
       `Workers: active=${overview.activeWorkers} alive=${overview.aliveWorkers} stalled=${overview.stalledWorkers} running=${overview.running} pending=${overview.pending} completed=${overview.completed} failed=${overview.failed}`,
+      `Groups: ${overview.byGroup.map((entry) => `${entry.group}=${entry.count}`).join(", ") || "none"}`,
+      `Labels: ${overview.byLabel.map((entry) => `${entry.label}=${entry.count}`).join(", ") || "none"}`,
       "",
       tasks.length
         ? tasks
