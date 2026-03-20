@@ -279,7 +279,16 @@ interface GatewayRuntimeStatus {
   startedAt?: string;
   stoppedAt?: string;
   lastHeartbeatAt?: string;
+  lastSupervisionAt?: string;
+  supervisionEvents: number;
   adapters: PlatformName[];
+}
+
+interface GatewaySupervisionRecord {
+  at: string;
+  platform: PlatformName | "gateway";
+  action: "health" | "restart" | "recover" | "watch" | "skip";
+  detail: string;
 }
 
 export class GatewayRunner {
@@ -298,14 +307,18 @@ export class GatewayRunner {
   private readonly snapshotPath: string;
   private readonly snapshotHistoryPath: string;
   private readonly runtimeStatusPath: string;
+  private readonly supervisionPath: string;
   private readonly inboxPath: string;
   private readonly outboxPath: string;
   private readonly attachmentsPath: string;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private supervisionInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private startedAt?: string;
   private stoppedAt?: string;
   private lastHeartbeatAt?: string;
+  private lastSupervisionAt?: string;
+  private readonly supervisionLog: GatewaySupervisionRecord[] = [];
 
   private resolveNativeMessagingPlugin(platform: PlatformName) {
     const suffix = `.${platform}`;
@@ -323,6 +336,7 @@ export class GatewayRunner {
       "gateway-state-history.jsonl",
     );
     this.runtimeStatusPath = join(this.snapshotDir, "gateway-runtime.json");
+    this.supervisionPath = join(this.journalDir, "gateway-supervision.jsonl");
     this.inboxPath = join(this.journalDir, "gateway-inbox.jsonl");
     this.outboxPath = join(this.journalDir, "gateway-outbox.jsonl");
     this.attachmentsPath = join(this.journalDir, "gateway-attachments.jsonl");
@@ -331,12 +345,16 @@ export class GatewayRunner {
     this.ensureJournalFile(this.inboxPath);
     this.ensureJournalFile(this.outboxPath);
     this.ensureJournalFile(this.attachmentsPath);
+    this.ensureJournalFile(this.supervisionPath);
     this.inboxLog.push(...this.loadJournal<GatewayInboxRecord>(this.inboxPath));
     this.outboxLog.push(
       ...this.loadJournal<GatewayOutboxRecord>(this.outboxPath),
     );
     this.attachmentLog.push(
       ...this.loadJournal<GatewayAttachmentRecord>(this.attachmentsPath),
+    );
+    this.supervisionLog.push(
+      ...this.loadJournal<GatewaySupervisionRecord>(this.supervisionPath),
     );
   }
 
@@ -1155,7 +1173,14 @@ export class GatewayRunner {
       }, 60_000);
       this.heartbeatInterval.unref?.();
     }
+    if (!this.supervisionInterval) {
+      this.supervisionInterval = setInterval(() => {
+        void this.supervise("interval");
+      }, 45_000);
+      this.supervisionInterval.unref?.();
+    }
     await this.heartbeat("startup");
+    await this.supervise("startup");
   }
 
   private createAdapter(platform: PlatformName): PlatformAdapter {
@@ -1245,6 +1270,10 @@ export class GatewayRunner {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
+    if (this.supervisionInterval) {
+      clearInterval(this.supervisionInterval);
+      this.supervisionInterval = null;
+    }
 
     for (const [platform, adapter] of this.adapters.entries()) {
       await adapter.stop();
@@ -1322,8 +1351,71 @@ export class GatewayRunner {
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastHeartbeatAt: this.lastHeartbeatAt,
+      lastSupervisionAt: this.lastSupervisionAt,
+      supervisionEvents: this.supervisionLog.length,
       adapters: Array.from(this.adapters.keys()),
     };
+  }
+
+  async supervise(reason = "manual"): Promise<GatewaySupervisionRecord[]> {
+    const records: GatewaySupervisionRecord[] = [];
+    for (const [platform, adapter] of this.adapters.entries()) {
+      const health = await adapter.health();
+      if (health.ready) {
+        records.push(
+          this.recordSupervision(
+            platform,
+            "health",
+            `${platform} healthy during ${reason}.`,
+          ),
+        );
+        if (platform === "homeassistant") {
+          records.push(
+            this.recordSupervision(
+              platform,
+              "watch",
+              `Home Assistant watcher cycle acknowledged during ${reason}.`,
+            ),
+          );
+        }
+        continue;
+      }
+
+      if (health.status === "running" || health.status === "idle") {
+        try {
+          await adapter.stop();
+          await adapter.start();
+          records.push(
+            this.recordSupervision(
+              platform,
+              "restart",
+              `${platform} adapter restart attempted during ${reason}.`,
+            ),
+          );
+        } catch (error) {
+          records.push(
+            this.recordSupervision(
+              platform,
+              "recover",
+              `${platform} recovery failed during ${reason}: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+          );
+        }
+      } else {
+        records.push(
+          this.recordSupervision(
+            platform,
+            "skip",
+            `${platform} supervision skipped during ${reason}; adapter status ${health.status}.`,
+          ),
+        );
+      }
+    }
+
+    this.lastSupervisionAt = new Date().toISOString();
+    this.writeRuntimeStatus();
+    await this.snapshotState(`supervise:${reason}`, 20);
+    return records;
   }
 
   async receive(message: IncomingPlatformMessage): Promise<{
@@ -1914,6 +2006,43 @@ export class GatewayRunner {
     return this.filteredAttachments(filters).slice(-limit).reverse();
   }
 
+  supervision(limit = 20): GatewaySupervisionRecord[] {
+    return this.supervisionLog.slice(-limit).reverse();
+  }
+
+  async replayInbox(recordId: string): Promise<{
+    ok: boolean;
+    response: string;
+    pairingCode?: string;
+    traceId?: string;
+    sessionId?: string;
+    deliveryId?: string;
+  }> {
+    const record = this.inboxLog.find((entry) => entry.recordId === recordId);
+    if (!record) {
+      throw new Error(`Inbox record ${recordId} was not found.`);
+    }
+
+    return this.receive({
+      platform: record.platform,
+      userId: record.userId,
+      roomId: record.roomId,
+      text: record.textPreview,
+      channelId: record.channelId,
+      threadId: record.threadId,
+      messageId: record.messageId,
+      replyToMessageId: record.replyToMessageId,
+      channelType: record.channelType,
+      authorName: record.authorName,
+      timestamp: record.at,
+      metadata: {
+        ...(record.metadata ?? {}),
+        replayedFromRecordId: record.recordId,
+        replayedAt: new Date().toISOString(),
+      },
+    });
+  }
+
   private async snapshotState(
     reason: string,
     limit = 20,
@@ -2205,6 +2334,30 @@ export class GatewayRunner {
       platform: entry.platform,
       detail: entry.detail,
     });
+  }
+
+  private recordSupervision(
+    platform: PlatformName | "gateway",
+    action: GatewaySupervisionRecord["action"],
+    detail: string,
+  ): GatewaySupervisionRecord {
+    const record: GatewaySupervisionRecord = {
+      at: new Date().toISOString(),
+      platform,
+      action,
+      detail,
+    };
+    this.supervisionLog.push(record);
+    if (this.supervisionLog.length > 200) {
+      this.supervisionLog.splice(0, this.supervisionLog.length - 200);
+    }
+    this.appendJournal(this.supervisionPath, record);
+    this.events.emit("update", {
+      kind: "lifecycle",
+      platform,
+      detail,
+    });
+    return record;
   }
 
   onUpdate(

@@ -73,6 +73,8 @@ describe("GatewayRunner", () => {
       const runtimeStatus = runner.runtimeStatus();
       const health = await runner.health();
       const apiHealth = health.find((entry) => entry.platform === "api");
+      const supervision = await runner.supervise("test");
+      const replayTarget = runner.inbox(10).at(0);
 
       expect(result.ok).toBe(true);
       expect(result.traceId).toBeDefined();
@@ -188,7 +190,7 @@ describe("GatewayRunner", () => {
         reason?: string;
         state?: { heartbeatAt?: string };
       };
-      expect(snapshot.reason).toBe("health");
+      expect(snapshot.reason?.startsWith("supervise:")).toBe(true);
       expect(snapshot.state?.heartbeatAt).toBeDefined();
       expect(runtimeStatus.pid).toBeGreaterThan(0);
       expect(runtimeStatus.adapters).toContain("api");
@@ -203,9 +205,17 @@ describe("GatewayRunner", () => {
         true,
       );
       expect(apiHealth?.presence?.status).toBeDefined();
+      expect(supervision.length).toBeGreaterThan(0);
+      expect(runner.supervision(10).length).toBeGreaterThan(0);
       if (!result.sessionId) {
         throw new Error("Expected a gateway session id.");
       }
+      if (!replayTarget) {
+        throw new Error("Expected a replay target.");
+      }
+      const replay = await runner.replayInbox(replayTarget.recordId);
+      expect(replay.ok).toBe(true);
+      expect(replay.traceId).toBeDefined();
       context.services.gatewaySessions.markHome(result.sessionId, {
         isHome: true,
         label: "Primary API",

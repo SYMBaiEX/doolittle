@@ -56,6 +56,31 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function sse(events: Array<{ event: string; data: unknown }>): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const entry of events) {
+        controller.enqueue(
+          encoder.encode(
+            `event: ${entry.event}\ndata: ${JSON.stringify(entry.data)}\n\n`,
+          ),
+        );
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+      "access-control-allow-origin": "*",
+    },
+  });
+}
+
 function verifySlackSignature(
   rawBody: string,
   timestamp: string | null,
@@ -253,6 +278,26 @@ export function startApiServer(context: AppContext): void {
           grouped: groupNativePluginCatalog(catalog),
           serviceRegistry: context.services.nativeRegistry,
         });
+      }
+
+      if (request.method === "GET" && url.pathname === "/v1/responses") {
+        return json({
+          data: context.services.apiTransport.list(
+            Number(url.searchParams.get("limit") ?? "25"),
+          ),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/v1/responses/")
+      ) {
+        const id = url.pathname.replace("/v1/responses/", "").trim();
+        const record = context.services.apiTransport.get(id);
+        if (!record) {
+          return json({ error: "Response not found." }, 404);
+        }
+        return json(record);
       }
 
       if (request.method === "GET" && url.pathname === "/platforms") {
@@ -2370,6 +2415,44 @@ export function startApiServer(context: AppContext): void {
         return json(result, result.ok ? 200 : 403);
       }
 
+      if (request.method === "POST" && url.pathname === "/gateway/replay") {
+        const parsed = await parseJsonBody<{ recordId?: string }>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        if (!parsed.value.recordId) {
+          return json({ error: "recordId is required" }, 400);
+        }
+        return json({
+          result: await context.gateway.replayInbox(parsed.value.recordId),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/gateway/supervise") {
+        return json({
+          records: await context.gateway.supervise("api"),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/gateway/supervision") {
+        return json({
+          records: context.gateway.supervision(
+            Number(url.searchParams.get("limit") ?? "25"),
+          ),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/gateway/journal") {
+        const filters = parseGatewayFilters(url);
+        return json({
+          traces: context.gateway.trace(filters.limit, filters),
+          inbox: context.gateway.inbox(filters.limit, filters),
+          outbox: context.gateway.outbox(filters.limit, filters),
+          attachments: context.gateway.attachments(filters.limit, filters),
+          supervision: context.gateway.supervision(filters.limit),
+        });
+      }
+
       if (
         request.method === "POST" &&
         url.pathname === "/gateway/message/edit"
@@ -2693,6 +2776,91 @@ export function startApiServer(context: AppContext): void {
           response,
           character: context.config.agentName,
         });
+      }
+
+      if (request.method === "POST" && url.pathname === "/v1/responses") {
+        const body = (await request.json()) as {
+          input?: string | Array<{ role?: string; content?: string }>;
+          previous_response_id?: string;
+          stream?: boolean;
+          user?: string;
+          metadata?: Record<string, string>;
+        };
+
+        const inputText = Array.isArray(body.input)
+          ? body.input
+              .map((entry) => entry.content ?? "")
+              .filter(Boolean)
+              .join("\n")
+          : body.input;
+
+        if (!inputText) {
+          return json({ error: "input is required" }, 400);
+        }
+
+        const userId = body.user ?? "api-user";
+        const roomId = context.services.apiTransport.resolveRoomId(
+          body.previous_response_id,
+          userId,
+        );
+        const result = await context.gateway.receive({
+          platform: "api",
+          userId,
+          roomId,
+          text: inputText,
+          messageId: `api-msg-${Date.now()}`,
+          replyToMessageId: body.previous_response_id,
+          metadata: {
+            ...(body.metadata ?? {}),
+            apiTransport: "responses",
+          },
+        });
+        const record = context.services.apiTransport.create({
+          input: inputText,
+          outputText: result.response,
+          userId,
+          roomId,
+          previousResponseId: body.previous_response_id,
+          metadata: {
+            ...(body.metadata ?? {}),
+            traceId: result.traceId ?? "",
+            deliveryId: result.deliveryId ?? "",
+          },
+        });
+        const responsePayload = {
+          id: record.id,
+          object: "response",
+          created_at: record.createdAt,
+          previous_response_id: record.previousResponseId,
+          output_text: record.outputText,
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: record.outputText }],
+            },
+          ],
+          room_id: record.roomId,
+        };
+
+        if (body.stream) {
+          return sse([
+            {
+              event: "response.created",
+              data: { id: record.id, room_id: record.roomId },
+            },
+            {
+              event: "response.output_text.delta",
+              data: { id: record.id, delta: record.outputText },
+            },
+            {
+              event: "response.completed",
+              data: responsePayload,
+            },
+          ]);
+        }
+
+        return json(responsePayload);
       }
 
       return json({ error: "Not found" }, 404);
