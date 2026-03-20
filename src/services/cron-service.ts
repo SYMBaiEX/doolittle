@@ -66,6 +66,10 @@ export class CronService {
     return this.readRuns().slice(-limit).reverse();
   }
 
+  runs(limit = 25): AutomationRunRecord[] {
+    return this.recentRuns(limit);
+  }
+
   create(input: {
     name: string;
     prompt: string;
@@ -98,14 +102,14 @@ export class CronService {
   }
 
   pause(id: string): CronJobRecord {
-    return this.update(id, (job) => {
+    return this.mutate(id, (job) => {
       job.status = "paused";
       job.updatedAt = new Date().toISOString();
     });
   }
 
   resume(id: string): CronJobRecord {
-    return this.update(id, (job) => {
+    return this.mutate(id, (job) => {
       job.status = "active";
       job.nextRunAt = this.computeNextRun(
         job.schedule,
@@ -116,7 +120,7 @@ export class CronService {
   }
 
   runNow(id: string): CronJobRecord {
-    return this.update(id, (job) => {
+    return this.mutate(id, (job) => {
       job.nextRunAt = new Date().toISOString();
       job.updatedAt = new Date().toISOString();
     });
@@ -143,7 +147,7 @@ export class CronService {
       clearRuntime?: boolean;
     },
   ): CronJobRecord {
-    return this.update(id, (job) => {
+    return this.mutate(id, (job) => {
       if (input.name !== undefined) {
         job.name = input.name;
       }
@@ -173,6 +177,13 @@ export class CronService {
       }
       job.updatedAt = new Date().toISOString();
     });
+  }
+
+  update(
+    id: string,
+    input: Parameters<CronService["updateConfig"]>[1],
+  ): CronJobRecord {
+    return this.updateConfig(id, input);
   }
 
   async tick(): Promise<void> {
@@ -213,7 +224,7 @@ export class CronService {
     }
   }
 
-  private update(
+  private mutate(
     id: string,
     mutate: (job: CronJobRecord) => void,
   ): CronJobRecord {

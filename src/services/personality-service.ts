@@ -52,6 +52,10 @@ export class PersonalityService {
     return profiles;
   }
 
+  get(id: string): PersonalityProfile | undefined {
+    return profiles.find((profile) => profile.id === id);
+  }
+
   getActive(): PersonalityProfile {
     const store = this.read();
     return (
@@ -66,6 +70,10 @@ export class PersonalityService {
     }
     this.write({ activeId: profile.id });
     return profile;
+  }
+
+  activeId(): string {
+    return this.getActive().id;
   }
 
   private read(): PersonalityStore {

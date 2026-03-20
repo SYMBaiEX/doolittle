@@ -133,6 +133,14 @@ export class UserProfileService {
     return this.read().agent;
   }
 
+  card(userId: string): string {
+    return this.renderCards(userId);
+  }
+
+  agentProfile(): string {
+    return this.renderAgent();
+  }
+
   seedAgent(seed: {
     name?: string;
     goals?: string[];

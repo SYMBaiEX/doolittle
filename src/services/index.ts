@@ -13,6 +13,10 @@ import { HooksService } from "./hooks-service";
 import { McpService } from "./mcp-service";
 import { MediaService } from "./media-service";
 import { MemoryService } from "./memory-service";
+import {
+  createNativeServiceRegistry,
+  type NativeServiceRegistry,
+} from "./native-service-registry";
 import { OperatorService } from "./operator-service";
 import { PairingService } from "./pairing-service";
 import { PersonalityService } from "./personality-service";
@@ -29,6 +33,7 @@ import { WebService } from "./web-service";
 import { WorkspaceService } from "./workspace-service";
 
 export interface AppServices {
+  nativeRegistry: NativeServiceRegistry;
   memory: MemoryService;
   skills: SkillsService;
   sessions: SessionService;
@@ -355,6 +360,7 @@ export function createServices(
   });
 
   return {
+    nativeRegistry: createNativeServiceRegistry(),
     memory: new MemoryService(config.dataDir, {
       memory: config.memoryCharLimit,
       user: config.userCharLimit,

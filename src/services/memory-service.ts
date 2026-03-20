@@ -62,6 +62,32 @@ export class MemoryService {
     return "Memory entry added.";
   }
 
+  remember(
+    target: MemoryTarget,
+    input: { text: string; source?: string },
+  ): {
+    ok: boolean;
+    stored: string;
+    totalLength: number;
+    truncated: boolean;
+  } {
+    const entry = input.source
+      ? `[${input.source}] ${input.text.trim()}`
+      : input.text.trim();
+    const stored = this.add(target, entry);
+    const snapshot = this.read(target);
+    return {
+      ok: true,
+      stored,
+      totalLength: snapshot.length,
+      truncated: false,
+    };
+  }
+
+  read(target: MemoryTarget = "memory"): string {
+    return this.list(target).join(ENTRY_DELIMITER);
+  }
+
   replace(target: MemoryTarget, oldText: string, nextText: string): string {
     const entries = this.list(target);
     const index = this.findUniqueEntryIndex(entries, oldText);

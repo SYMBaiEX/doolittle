@@ -607,6 +607,24 @@ export class DelegationService {
     return report.completed.map((id) => this.get(id));
   }
 
+  queueSummary(): DelegationOverview {
+    return this.overview();
+  }
+
+  supervise(
+    runner: Parameters<DelegationService["superviseQueued"]>[0],
+    options?: Parameters<DelegationService["superviseQueued"]>[1],
+  ): Promise<DelegationSupervisionReport> {
+    return this.superviseQueued(runner, options);
+  }
+
+  runQueued(
+    runner: Parameters<DelegationService["executeQueued"]>[0],
+    options?: Parameters<DelegationService["executeQueued"]>[1],
+  ): Promise<DelegationTaskRecord[]> {
+    return this.executeQueued(runner, options);
+  }
+
   listByGroup(group: string): DelegationTaskRecord[] {
     return this.list({ group });
   }

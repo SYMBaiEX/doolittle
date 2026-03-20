@@ -80,6 +80,10 @@ export class SessionService {
       .all(limit) as SessionSearchResult[];
   }
 
+  latest(limit: number): SessionSearchResult[] {
+    return this.recent(limit);
+  }
+
   summarize(sessionId: string, limit = 12): SessionSummary {
     const rows = this.db
       .query(
