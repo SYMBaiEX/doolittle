@@ -215,4 +215,96 @@ describe("MediaService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("creates model-assisted analysis artifacts with the offline fallback", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-analysis-"));
+    const service = new MediaService(root);
+    const audioPath = join(root, "briefing.wav");
+
+    try {
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      const analysis = await service.analyzeWithModel("briefing.wav");
+      expect(analysis.analysis.focus).toBe("voice");
+      expect(analysis.response).toContain("Offline analysis");
+      expect(existsSync(analysis.reportPath)).toBe(true);
+      expect(existsSync(analysis.responsePath)).toBe(true);
+      expect(existsSync(analysis.manifestPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("generates a fallback svg concept image without a provider", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-image-"));
+    const service = new MediaService(root);
+
+    try {
+      const generation = await service.generateImage("a luminous skyline over the Eliza workspace");
+      expect(generation.artifactKind).toBe("svg");
+      expect(generation.artifactPath.endsWith(".svg")).toBe(true);
+      expect(existsSync(generation.artifactPath)).toBe(true);
+      expect(existsSync(generation.promptPath)).toBe(true);
+      expect(existsSync(generation.reportPath)).toBe(true);
+      expect(existsSync(generation.manifestPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses a configured provider for model-assisted media flows", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-provider-"));
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    const service = new MediaService(
+      root,
+      join(root, "media"),
+      () => ({
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        baseUrl: "https://example.invalid/v1",
+        temperature: 0.2,
+        maxTokens: 128,
+        openAiApiKey: "test-key",
+        openAiImageModel: "gpt-image-1",
+      }),
+    );
+    const audioPath = join(root, "voice.wav");
+
+    try {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString();
+        requests.push(url);
+        if (url.includes("/chat/completions")) {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Model-backed media summary." } }],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes("/images/generations")) {
+          return new Response(
+            JSON.stringify({
+              data: [{ b64_json: ONE_BY_ONE_PNG }],
+            }),
+            { status: 200 },
+          );
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as typeof fetch;
+
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      const analysis = await service.analyzeWithModel("voice.wav");
+      const generation = await service.generateImage("A compact dashboard icon");
+
+      expect(analysis.response).toContain("Model-backed media summary");
+      expect(generation.artifactKind).toBe("png");
+      expect(existsSync(generation.artifactPath)).toBe(true);
+      expect(requests.some((entry) => entry.includes("/chat/completions"))).toBe(true);
+      expect(requests.some((entry) => entry.includes("/images/generations"))).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

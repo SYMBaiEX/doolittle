@@ -35,12 +35,48 @@ export interface MediaBundle {
   relatedFiles: string[];
 }
 
+interface MediaModelContext {
+  provider: "openai" | "anthropic" | "offline";
+  model: string;
+  baseUrl: string;
+  temperature: number;
+  maxTokens: number;
+  openAiApiKey?: string;
+  anthropicApiKey?: string;
+  anthropicBaseUrl?: string;
+  openAiImageModel?: string;
+}
+
 export interface MediaAnalysisBundle {
   focus: "voice" | "vision" | "research";
   inspection: MediaInspection;
   bundle: MediaBundle;
   prompt: string;
   signals: string[];
+}
+
+export interface MediaModelAnalysisBundle {
+  analysis: MediaAnalysisBundle;
+  response: string;
+  responsePath: string;
+  reportPath: string;
+  manifestPath: string;
+  model: string;
+  provider: string;
+}
+
+export interface MediaGenerationBundle {
+  prompt: string;
+  refinedPrompt: string;
+  promptPath: string;
+  manifestPath: string;
+  reportPath: string;
+  artifactPath: string;
+  artifactKind: "png" | "svg";
+  response?: string;
+  responsePath?: string;
+  model?: string;
+  provider?: string;
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -80,10 +116,15 @@ function slugifyPath(path: string): string {
     .toLowerCase() || "media";
 }
 
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 export class MediaService {
   constructor(
     private readonly workspaceDir: string,
     private readonly outputDir = ".eliza-agent/media",
+    private readonly getModelContext?: () => MediaModelContext,
   ) {
     mkdirSync(this.outputDir, { recursive: true });
   }
@@ -256,6 +297,197 @@ export class MediaService {
 
   vision(path: string): MediaAnalysisBundle {
     return this.analyze(path, "vision");
+  }
+
+  async analyzeWithModel(
+    path: string,
+    focus: "auto" | "voice" | "vision" | "research" = "auto",
+  ): Promise<MediaModelAnalysisBundle> {
+    const analysis = this.analyze(path, focus);
+    const modelContext = this.getModelContext?.();
+    const stamp = Date.now();
+    const slug = this.slugifyText(
+      `${analysis.focus}-${analysis.inspection.basename}-${analysis.inspection.contentHash ?? "analysis"}`,
+    );
+    const manifestPath = join(this.outputDir, `media-${stamp}-${slug}-analysis.json`);
+    const reportPath = join(this.outputDir, `media-${stamp}-${slug}-analysis.md`);
+    const responsePath = join(this.outputDir, `media-${stamp}-${slug}-analysis-response.md`);
+    const response = await this.requestModelText(analysis.prompt, modelContext, {
+      focus: analysis.focus,
+      inspection: analysis.inspection,
+      signals: analysis.signals,
+    });
+
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          createdAt: nowIso(),
+          analysis,
+          response,
+          provider: modelContext?.provider ?? "offline",
+          model: modelContext?.model ?? "offline",
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      reportPath,
+      [
+        `# Media Analysis: ${analysis.inspection.basename}`,
+        "",
+        `- Focus: ${analysis.focus}`,
+        `- Provider: ${modelContext?.provider ?? "offline"}`,
+        `- Model: ${modelContext?.model ?? "offline"}`,
+        `- Bundle manifest: ${analysis.bundle.manifestPath}`,
+        `- Bundle report: ${analysis.bundle.reportPath}`,
+        "",
+        "## Signals",
+        ...(analysis.signals.length ? analysis.signals.map((signal) => `- ${signal}`) : ["- none"]),
+        "",
+        "## Prompt",
+        analysis.prompt,
+        "",
+        "## Response",
+        response,
+      ].join("\n"),
+      "utf8",
+    );
+
+    writeFileSync(responsePath, response, "utf8");
+
+    return {
+      analysis,
+      response,
+      responsePath,
+      reportPath,
+      manifestPath,
+      model: modelContext?.model ?? "offline",
+      provider: modelContext?.provider ?? "offline",
+    };
+  }
+
+  async voiceWithModel(path: string): Promise<MediaModelAnalysisBundle> {
+    return this.analyzeWithModel(path, "voice");
+  }
+
+  async visionWithModel(path: string): Promise<MediaModelAnalysisBundle> {
+    return this.analyzeWithModel(path, "vision");
+  }
+
+  async generateImage(
+    prompt: string,
+    options: {
+      name?: string;
+      size?: string;
+      style?: string;
+      focus?: string;
+    } = {},
+  ): Promise<MediaGenerationBundle> {
+    const modelContext = this.getModelContext?.();
+    const stamp = Date.now();
+    const label = this.slugifyText(options.name ?? prompt);
+    const promptPath = join(this.outputDir, `media-${stamp}-${label}-prompt.md`);
+    const manifestPath = join(this.outputDir, `media-${stamp}-${label}-generation.json`);
+    const reportPath = join(this.outputDir, `media-${stamp}-${label}-generation.md`);
+    const refinedPrompt = await this.requestModelText(
+      [
+        "Create a concise image-generation brief for Eliza Agent.",
+        "Return a compact prompt that captures subject, style, composition, and palette.",
+        `Source prompt: ${prompt}`,
+        options.style ? `Style: ${options.style}` : undefined,
+        options.focus ? `Focus: ${options.focus}` : undefined,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      modelContext,
+      {
+        focus: "vision",
+      },
+    );
+    const generation = await this.requestImageGeneration(refinedPrompt || prompt, modelContext, {
+      size: options.size,
+    });
+    const artifactPath = generation?.path ?? join(this.outputDir, `media-${stamp}-${label}.svg`);
+    const artifactKind = generation?.kind ?? "svg";
+    const response = generation?.response;
+    const responsePath = generation?.responsePath;
+
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          createdAt: nowIso(),
+          prompt,
+          refinedPrompt,
+          options,
+          provider: modelContext?.provider ?? "offline",
+          model: modelContext?.openAiImageModel ?? modelContext?.model ?? "offline",
+          artifactPath,
+          artifactKind,
+          responsePath,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      promptPath,
+      [
+        `# Image Prompt`,
+        "",
+        `Original prompt: ${prompt}`,
+        options.style ? `Style: ${options.style}` : undefined,
+        options.focus ? `Focus: ${options.focus}` : undefined,
+        "",
+        "## Refined Prompt",
+        refinedPrompt || prompt,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      "utf8",
+    );
+
+    writeFileSync(
+      reportPath,
+      [
+        `# Image Generation`,
+        "",
+        `- Provider: ${modelContext?.provider ?? "offline"}`,
+        `- Model: ${modelContext?.openAiImageModel ?? modelContext?.model ?? "offline"}`,
+        `- Artifact: ${artifactPath}`,
+        `- Kind: ${artifactKind}`,
+        "",
+        "## Original Prompt",
+        prompt,
+        "",
+        "## Refined Prompt",
+        refinedPrompt || prompt,
+        "",
+        response ? "## Model Response" : "## Mode",
+        response ?? "Generated locally as an SVG concept artifact.",
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      prompt,
+      refinedPrompt: refinedPrompt || prompt,
+      promptPath,
+      manifestPath,
+      reportPath,
+      artifactPath,
+      artifactKind,
+      response,
+      responsePath,
+      model: modelContext?.openAiImageModel ?? modelContext?.model,
+      provider: modelContext?.provider,
+    };
   }
 
   private detectKind(
@@ -588,6 +820,232 @@ export class MediaService {
     ]
       .filter((line) => line !== undefined)
       .join("\n");
+  }
+
+  private async requestModelText(
+    prompt: string,
+    context: MediaModelContext | undefined,
+    metadata: { focus: string; inspection?: MediaInspection; signals?: string[] },
+  ): Promise<string> {
+    const canUseOpenAi = Boolean(context?.openAiApiKey);
+    const canUseAnthropic = Boolean(context?.anthropicApiKey);
+
+    if (!context || context.provider === "offline" || (!canUseOpenAi && !canUseAnthropic)) {
+      return [
+        `Offline analysis for ${metadata.focus}.`,
+        metadata.inspection ? `Kind: ${metadata.inspection.kind}` : undefined,
+        metadata.inspection?.textPreview ? `Preview: ${metadata.inspection.textPreview}` : undefined,
+        metadata.inspection?.transcriptPreview ? `Transcript: ${metadata.inspection.transcriptPreview}` : undefined,
+        metadata.inspection?.captionPreview ? `Caption: ${metadata.inspection.captionPreview}` : undefined,
+        ...(metadata.signals?.length ? [`Signals: ${metadata.signals.join("; ")}`] : []),
+        "",
+        prompt.slice(0, 1200),
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    if ((context.provider === "anthropic" && canUseAnthropic) || (!canUseOpenAi && canUseAnthropic)) {
+      const response = await fetch(`${context.anthropicBaseUrl ?? context.baseUrl}/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": context.anthropicApiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: context.model,
+          max_tokens: context.maxTokens,
+          temperature: context.temperature,
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Anthropic request failed (${response.status}): ${body}`);
+      }
+
+      const data = (await response.json()) as {
+        content?: Array<{ text?: string }>;
+      };
+      return data.content?.map((entry) => entry.text ?? "").join("").trim() || "No response returned.";
+    }
+
+    if (!canUseOpenAi) {
+      return prompt.slice(0, 1200);
+    }
+
+    const response = await fetch(`${context.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${context.openAiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: context.model,
+        temperature: context.temperature,
+        max_tokens: context.maxTokens,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`OpenAI-compatible request failed (${response.status}): ${body}`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    return data.choices?.[0]?.message?.content?.trim() ?? "No response returned.";
+  }
+
+  private async requestImageGeneration(
+    prompt: string,
+    context: MediaModelContext | undefined,
+    options: { size?: string },
+  ): Promise<{ path: string; responsePath?: string; response?: string; kind: "png" | "svg" } | undefined> {
+    const fallbackPath = join(this.outputDir, `media-${Date.now()}-${this.slugifyText(prompt)}.svg`);
+    if (!context || !context.openAiApiKey) {
+      writeFileSync(fallbackPath, this.renderGenerationSvg(prompt, options.size ?? "1024x1024"), "utf8");
+      return {
+        path: fallbackPath,
+        kind: "svg",
+      };
+    }
+
+    const imageModel = context.openAiImageModel ?? context.model;
+    const response = await fetch(`${context.baseUrl}/images/generations`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${context.openAiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: imageModel,
+        prompt,
+        size: options.size ?? "1024x1024",
+        response_format: "b64_json",
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Image generation failed (${response.status}): ${body}`);
+    }
+
+    const data = (await response.json()) as {
+      data?: Array<{ b64_json?: string; url?: string }>;
+    };
+    const generated = data.data?.[0];
+    if (!generated) {
+      return undefined;
+    }
+
+    if (generated.b64_json) {
+      const path = join(this.outputDir, `media-${Date.now()}-${this.slugifyText(prompt)}.png`);
+      writeFileSync(path, Buffer.from(generated.b64_json, "base64"));
+      return {
+        path,
+        kind: "png",
+      };
+    }
+
+    if (generated.url) {
+      const path = fallbackPath;
+      writeFileSync(
+        path,
+        this.renderGenerationSvg(prompt, options.size ?? "1024x1024", [`Generated image URL: ${generated.url}`]),
+        "utf8",
+      );
+      const responsePath = join(this.outputDir, `media-${Date.now()}-${this.slugifyText(prompt)}.json`);
+      writeFileSync(
+        responsePath,
+        JSON.stringify(
+          {
+            prompt,
+            url: generated.url,
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      return {
+        path,
+        kind: "svg",
+        response: generated.url,
+        responsePath,
+      };
+    }
+
+    writeFileSync(fallbackPath, this.renderGenerationSvg(prompt, options.size ?? "1024x1024"), "utf8");
+    return {
+      path: fallbackPath,
+      kind: "svg",
+    };
+  }
+
+  private renderGenerationSvg(prompt: string, size: string, notes: string[] = []): string {
+    const excerpt = prompt.replace(/\s+/gu, " ").slice(0, 220);
+    const width = 1200;
+    const height = 700;
+    const lines = [
+      "Eliza Agent Image Concept",
+      `Prompt: ${excerpt}`,
+      `Size: ${size}`,
+      ...(notes.length ? notes : ["Generated from the configured image pipeline or offline fallback."]),
+    ];
+    const rows = lines
+      .map(
+        (line, index) =>
+          `<text x="32" y="${80 + index * 42}" fill="#e5eefc" font-family="ui-monospace, SFMono-Regular, monospace" font-size="20">${this.escapeXml(line)}</text>`,
+      )
+      .join("");
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="${width}" height="${height}" fill="url(#bg)"/>
+  <rect x="24" y="24" width="${width - 48}" height="${height - 48}" rx="24" fill="rgba(15, 23, 42, 0.72)" stroke="#60a5fa" stroke-width="2"/>
+  <text x="32" y="52" fill="#93c5fd" font-family="ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="700">Eliza Agent Browserless Image Concept</text>
+  ${rows}
+</svg>`;
+  }
+
+  private escapeXml(value: string): string {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&apos;");
+  }
+
+  private slugifyText(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "media";
   }
 
   private hashFile(path: string): string {

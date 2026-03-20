@@ -421,12 +421,15 @@ describe("TerminalService", () => {
     settings.execution.daytonaSnapshot = "snapshot-dev";
     settings.execution.daytonaBootstrapCommand = "mkdir -p .eliza-agent";
     settings.execution.daytonaStatusCommand = "daytona info sandbox-dev --format json";
+    settings.execution.daytonaInspectCommand = "daytona info sandbox-dev --format json";
     settings.execution.modalTarget = "sandbox-prod";
     settings.execution.modalCommand = "modal";
     settings.execution.modalShell = "/bin/zsh";
+    settings.execution.modalWorkspacePath = "/workspace/remote";
     settings.execution.modalEnvironment = "sandbox-prod-env";
     settings.execution.modalBootstrapCommand = "mkdir -p .eliza-agent";
     settings.execution.modalStatusCommand = "modal shell sandbox-prod --cmd pwd";
+    settings.execution.modalInspectCommand = "modal shell sandbox-prod --cmd pwd";
     const service = new TerminalService(fakeData, root, () => settings);
 
     try {

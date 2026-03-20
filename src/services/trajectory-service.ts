@@ -10,6 +10,11 @@ interface TrajectoryFilters {
 interface TrajectoryExportOptions extends TrajectoryFilters {
   limit?: number;
   label?: string;
+  purpose?: string;
+  mode?: "dataset" | "research" | "evaluation" | "rl";
+  tags?: string[];
+  notes?: string;
+  rubric?: string[];
 }
 
 interface TrajectoryRecord {
@@ -25,6 +30,10 @@ interface TrajectoryBundleEntry {
   summaryPath?: string;
   createdAt: string;
   label: string;
+  purpose?: string;
+  mode?: "dataset" | "research" | "evaluation" | "rl";
+  tags?: string[];
+  notes?: string;
   limit: number;
   filters?: {
     sessionId?: string | null;
@@ -49,17 +58,51 @@ interface TrajectoryReplayResult extends TrajectoryBundleEntry {
 }
 
 export interface TrajectoryAnalysisBundle {
-  focus: "research";
+  focus: "dataset" | "research" | "evaluation" | "rl";
   bundle: TrajectoryBundleEntry;
   replay: TrajectoryReplayResult;
   prompt: string;
   highlights: string[];
+  purpose?: string;
+  mode?: "dataset" | "research" | "evaluation" | "rl";
+  tags?: string[];
+}
+
+export interface TrajectoryEvaluationBundle {
+  focus: "dataset" | "research" | "rl" | "evaluation";
+  bundle: TrajectoryBundleEntry;
+  replay: TrajectoryReplayResult;
+  prompt: string;
+  highlights: string[];
+  purpose?: string;
+  mode?: "dataset" | "research" | "evaluation" | "rl";
+  tags?: string[];
+  score: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+  findings: string[];
+  recommendations: string[];
+  evaluationPath: string;
+  reportPath: string;
+  response?: string;
+  responsePath?: string;
+}
+
+interface TrajectoryModelContext {
+  provider: "openai" | "anthropic" | "offline";
+  model: string;
+  baseUrl: string;
+  temperature: number;
+  maxTokens: number;
+  openAiApiKey?: string;
+  anthropicApiKey?: string;
+  anthropicBaseUrl?: string;
 }
 
 export class TrajectoryService {
   constructor(
     private readonly baseDir: string,
     private readonly sessions: SessionService,
+    private readonly getModelContext?: () => TrajectoryModelContext,
   ) {
     mkdirSync(baseDir, { recursive: true });
   }
@@ -105,6 +148,10 @@ export class TrajectoryService {
         {
           createdAt: new Date().toISOString(),
           label,
+          purpose: options.purpose ?? "trajectory export",
+          mode: options.mode ?? "dataset",
+          tags: options.tags ?? [],
+          notes: options.notes,
           limit: options.limit ?? 100,
           manifestPath,
           filters: {
@@ -130,6 +177,10 @@ export class TrajectoryService {
         `# Trajectory Bundle: ${label}`,
         "",
         `- Created: ${new Date().toISOString()}`,
+        `- Mode: ${options.mode ?? "dataset"}`,
+        `- Purpose: ${options.purpose ?? "trajectory export"}`,
+        ...(options.tags?.length ? [`- Tags: ${options.tags.join(", ")}`] : []),
+        ...(options.notes ? [`- Notes: ${options.notes}`] : []),
         `- Messages: ${messages.length}`,
         `- Sessions: ${sessions.length}`,
         `- Filters: session=${options.sessionId ?? "any"}, role=${options.role ?? "any"}, limit=${options.limit ?? 100}`,
@@ -150,9 +201,11 @@ export class TrajectoryService {
     const bundle = this.exportFilteredBundle({
       ...options,
       limit: options.limit ?? 200,
+      mode: options.mode ?? "research",
+      purpose: options.purpose ?? "trajectory research",
     });
     const replay = this.replayBundle(bundle.manifestPath);
-    const prompt = this.buildAnalysisPrompt(replay);
+    const prompt = this.buildAnalysisPrompt(replay, options);
     const highlights = this.buildHighlights(replay);
 
     return {
@@ -161,6 +214,139 @@ export class TrajectoryService {
       replay,
       prompt,
       highlights,
+      purpose: options.purpose ?? "trajectory research",
+      mode: options.mode ?? "research",
+      tags: options.tags,
+    };
+  }
+
+  async evaluate(options: TrajectoryExportOptions = {}): Promise<TrajectoryEvaluationBundle> {
+    const analysis = this.analyze({
+      ...options,
+      mode: options.mode ?? "evaluation",
+      purpose: options.purpose ?? "trajectory evaluation",
+    });
+    return this.evaluateBundle(analysis.bundle.manifestPath, {
+      ...options,
+      replay: analysis.replay,
+      prompt: analysis.prompt,
+      highlights: analysis.highlights,
+      mode: analysis.mode,
+      purpose: analysis.purpose,
+      tags: analysis.tags,
+    });
+  }
+
+  async evaluateBundle(
+    manifestPath: string,
+    options: {
+      rubric?: string[];
+      tags?: string[];
+      replay?: TrajectoryReplayResult;
+      prompt?: string;
+      highlights?: string[];
+      mode?: "dataset" | "research" | "evaluation" | "rl";
+      purpose?: string;
+    } = {},
+  ): Promise<TrajectoryEvaluationBundle> {
+    const bundle = this.describeBundle(manifestPath);
+    const replay = options.replay ?? this.replayBundle(manifestPath);
+    const heuristics = this.scoreReplay(replay, options.rubric ?? options.tags ?? []);
+    const prompt =
+      options.prompt ??
+      this.buildAnalysisPrompt(replay, {
+        mode: options.mode ?? bundle.mode ?? "evaluation",
+        purpose: options.purpose ?? bundle.purpose ?? "trajectory evaluation",
+        tags: options.tags ?? bundle.tags ?? [],
+        label: bundle.label,
+      });
+    const response = await this.requestModelText(prompt, this.getModelContext?.(), {
+      focus: options.mode ?? "evaluation",
+      replay,
+      score: heuristics.score,
+      findings: heuristics.findings,
+      recommendations: heuristics.recommendations,
+    });
+    const stamp = Date.now();
+    const label = this.slug(`${bundle.label}-evaluation`);
+    const evaluationPath = join(this.baseDir, `trajectory-${stamp}-${label}.evaluation.json`);
+    const reportPath = join(this.baseDir, `trajectory-${stamp}-${label}-evaluation.md`);
+    const responsePath = join(this.baseDir, `trajectory-${stamp}-${label}-evaluation-response.md`);
+
+    writeFileSync(
+      evaluationPath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          bundle,
+          replay,
+          score: heuristics.score,
+          grade: heuristics.grade,
+          findings: heuristics.findings,
+          recommendations: heuristics.recommendations,
+          rubric: options.rubric ?? [],
+          tags: options.tags ?? [],
+          response,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      reportPath,
+      [
+        `# Trajectory Evaluation: ${bundle.label}`,
+        "",
+        `- Score: ${heuristics.score}/100`,
+        `- Grade: ${heuristics.grade}`,
+        `- Focus: ${options.mode ?? bundle.mode ?? "evaluation"}`,
+        `- Purpose: ${options.purpose ?? bundle.purpose ?? "trajectory evaluation"}`,
+        ...(options.tags?.length || bundle.tags?.length
+          ? [`- Tags: ${(options.tags ?? bundle.tags ?? []).join(", ")}`]
+          : []),
+        ...(options.rubric?.length ? [`- Rubric: ${options.rubric.join(", ")}`] : []),
+        "",
+        "## Highlights",
+        ...((options.highlights ?? []) || []).map((entry) => `- ${entry}`),
+        "",
+        "## Findings",
+        ...(heuristics.findings.length ? heuristics.findings.map((entry) => `- ${entry}`) : ["- none"]),
+        "",
+        "## Recommendations",
+        ...(heuristics.recommendations.length
+          ? heuristics.recommendations.map((entry) => `- ${entry}`)
+          : ["- none"]),
+        "",
+        "## Prompt",
+        prompt,
+        "",
+        "## Response",
+        response,
+      ].join("\n"),
+      "utf8",
+    );
+
+    writeFileSync(responsePath, response, "utf8");
+
+    return {
+      focus: options.mode ?? "evaluation",
+      bundle,
+      replay,
+      prompt,
+      highlights: options.highlights ?? this.buildHighlights(replay),
+      purpose: options.purpose ?? bundle.purpose,
+      mode: options.mode ?? bundle.mode,
+      tags: options.tags ?? bundle.tags,
+      score: heuristics.score,
+      grade: heuristics.grade,
+      findings: heuristics.findings,
+      recommendations: heuristics.recommendations,
+      evaluationPath,
+      reportPath,
+      response,
+      responsePath,
     };
   }
 
@@ -231,6 +417,18 @@ export class TrajectoryService {
     return this.replayBundle(latest.manifestPath);
   }
 
+  evaluateLatest(): Promise<TrajectoryEvaluationBundle | undefined> {
+    const latest = this.listBundles(1)[0];
+    if (!latest) {
+      return Promise.resolve(undefined);
+    }
+    return this.evaluateBundle(latest.manifestPath, {
+      mode: latest.mode ?? "evaluation",
+      purpose: latest.purpose ?? "trajectory evaluation",
+      tags: latest.tags ?? [],
+    });
+  }
+
   listBundles(limit = 20): TrajectoryBundleEntry[] {
     return readdirSync(this.baseDir)
       .filter((file) => file.endsWith("-manifest.json"))
@@ -285,7 +483,10 @@ export class TrajectoryService {
     ];
   }
 
-  private buildAnalysisPrompt(bundle: TrajectoryReplayResult): string {
+  private buildAnalysisPrompt(
+    bundle: TrajectoryReplayResult,
+    options: TrajectoryExportOptions = {},
+  ): string {
     const preview = bundle.replayPreview
       .map((message) => `[${message.role}] ${message.sessionId}: ${message.text}`)
       .join("\n");
@@ -297,6 +498,10 @@ export class TrajectoryService {
       "",
       `Label: ${bundle.label}`,
       `Created: ${bundle.createdAt}`,
+      `Mode: ${bundle.mode ?? options.mode ?? "research"}`,
+      `Purpose: ${bundle.purpose ?? options.purpose ?? "trajectory research"}`,
+      ...(bundle.tags?.length ? [`Tags: ${bundle.tags.join(", ")}`] : []),
+      ...(bundle.notes ? [`Notes: ${bundle.notes}`] : []),
       `Messages: ${bundle.messageCount}`,
       `Sessions: ${bundle.sessionCount}`,
       `Filters: session=${bundle.filters?.sessionId ?? "any"}, role=${bundle.filters?.role ?? "any"}`,
@@ -310,5 +515,167 @@ export class TrajectoryService {
       "Replay preview:",
       preview.slice(0, 2400) || "(empty)",
     ].join("\n");
+  }
+
+  private async requestModelText(
+    prompt: string,
+    context: TrajectoryModelContext | undefined,
+    metadata: {
+      focus: string;
+      replay?: TrajectoryReplayResult;
+      score?: number;
+      findings?: string[];
+      recommendations?: string[];
+    },
+  ): Promise<string> {
+    const canUseOpenAi = Boolean(context?.openAiApiKey);
+    const canUseAnthropic = Boolean(context?.anthropicApiKey);
+
+    if (!context || context.provider === "offline" || (!canUseOpenAi && !canUseAnthropic)) {
+      return [
+        `Offline trajectory analysis for ${metadata.focus}.`,
+        metadata.replay ? `Messages: ${metadata.replay.messageCount}` : undefined,
+        typeof metadata.score === "number" ? `Score: ${metadata.score}` : undefined,
+        metadata.findings?.length ? `Findings: ${metadata.findings.join("; ")}` : undefined,
+        metadata.recommendations?.length
+          ? `Recommendations: ${metadata.recommendations.join("; ")}`
+          : undefined,
+        "",
+        prompt.slice(0, 1600),
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    if ((context.provider === "anthropic" && canUseAnthropic) || (!canUseOpenAi && canUseAnthropic)) {
+      const response = await fetch(`${context.anthropicBaseUrl ?? context.baseUrl}/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": context.anthropicApiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: context.model,
+          max_tokens: context.maxTokens,
+          temperature: context.temperature,
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Anthropic request failed (${response.status}): ${body}`);
+      }
+
+      const data = (await response.json()) as {
+        content?: Array<{ text?: string }>;
+      };
+      return data.content?.map((entry) => entry.text ?? "").join("").trim() || "No response returned.";
+    }
+
+    if (!canUseOpenAi) {
+      return prompt.slice(0, 1600);
+    }
+
+    const response = await fetch(`${context.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${context.openAiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: context.model,
+        temperature: context.temperature,
+        max_tokens: context.maxTokens,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`OpenAI-compatible request failed (${response.status}): ${body}`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    return data.choices?.[0]?.message?.content?.trim() ?? "No response returned.";
+  }
+
+  private scoreReplay(
+    replay: TrajectoryReplayResult,
+    rubric: string[],
+  ): {
+    score: number;
+    grade: "A" | "B" | "C" | "D" | "F";
+    findings: string[];
+    recommendations: string[];
+  } {
+    const findings: string[] = [];
+    const recommendations: string[] = [];
+    let score = Math.min(50, replay.messageCount * 4);
+
+    if (replay.sessionCount > 1) {
+      score += 15;
+      findings.push("Multiple sessions are represented in the bundle.");
+    } else {
+      findings.push("The bundle is concentrated in a single session.");
+      recommendations.push("Collect more session diversity for broader training coverage.");
+    }
+
+    const roleKinds = Object.keys(replay.roleCounts).length;
+    if (roleKinds >= 2) {
+      score += 15;
+      findings.push("Both user and assistant roles are present in the replay.");
+    } else {
+      recommendations.push("Include both sides of the conversation for better supervision signal.");
+    }
+
+    const averageLength = replay.replayPreview.length
+      ? replay.replayPreview.reduce((sum, message) => sum + message.text.length, 0) / replay.replayPreview.length
+      : 0;
+    if (averageLength > 30) {
+      score += 10;
+    } else {
+      recommendations.push("Use fuller message content so the dataset carries clearer task intent.");
+    }
+
+    const lowerText = replay.replayPreview.map((message) => message.text.toLowerCase()).join(" ");
+    const rubricHits = rubric.filter((token) => token && lowerText.includes(token.toLowerCase()));
+    if (rubricHits.length) {
+      score += Math.min(20, rubricHits.length * 5);
+      findings.push(`Rubric coverage observed for: ${rubricHits.join(", ")}.`);
+    } else if (rubric.length) {
+      recommendations.push(`Capture scenarios that mention: ${rubric.join(", ")}.`);
+    }
+
+    score = Math.max(0, Math.min(100, score));
+    const grade: "A" | "B" | "C" | "D" | "F" =
+      score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+
+    if (!findings.length) {
+      findings.push("The replay bundle is structured and readable.");
+    }
+
+    return {
+      score,
+      grade,
+      findings,
+      recommendations: recommendations.length
+        ? recommendations
+        : ["No major issues were detected in this replay bundle."],
+    };
   }
 }

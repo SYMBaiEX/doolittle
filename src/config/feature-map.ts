@@ -57,6 +57,16 @@ export const featureMap: FeatureMapping[] = [
     notes: "Uses Lightpanda as the default browser backend with graceful fallback to basic HTTP fetch mode, plus richer page metadata, structured snapshots, and screenshot artifacts with metadata sidecars.",
   },
   {
+    platformCapability: "Model-assisted media analysis and generation",
+    elizaImplementation: "Media service with analysis, voice, vision, and image generation bundles",
+    notes: "Creates model-assisted reports for audio, image, and document artifacts and can emit concept image bundles when the image provider is available or fall back to SVG concept output.",
+  },
+  {
+    platformCapability: "Trajectory export and evaluation",
+    elizaImplementation: "Trajectory service with dataset, research, and evaluation bundle flows",
+    notes: "Packages session histories with purpose, mode, tags, and notes metadata, then scores bundles with heuristic and model-assisted evaluation reports.",
+  },
+  {
     platformCapability: "Delegation task tracking",
     elizaImplementation: "Delegation service + `/delegate` command family",
     notes: "Tracks local and delegated task records so multi-agent orchestration can grow on top of a durable queue.",
