@@ -18,6 +18,13 @@ import type {
   PlatformName,
 } from "@/types";
 
+const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+]);
+
 export class GatewayRunner {
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
   private running = false;
@@ -195,12 +202,33 @@ export class GatewayRunner {
         ready: false,
         mode: platform === "telegram" ? "native" : "mock",
         capabilities: capabilitiesForPlatform(platform),
-        detail: this.context.services.gatewayConfig.platforms[platform].enabled
-          ? "Platform is enabled but the adapter is not running."
-          : ["signal", "matrix", "email", "sms"].includes(platform)
-            ? "Lightweight webhook-normalized support is available for this platform."
-            : "Platform is disabled in gateway configuration.",
+        detail: this.describeInactivePlatform(platform),
       }));
     return [...startedHealth, ...inactiveHealth];
+  }
+
+  private describeInactivePlatform(platform: PlatformName): string {
+    const platformConfig = this.context.services.gatewayConfig.platforms[platform];
+    const capabilities = capabilitiesForPlatform(platform);
+    if (!platformConfig.enabled) {
+      if (LIGHTWEIGHT_WEBHOOK_PLATFORMS.has(platform)) {
+        return "Lightweight webhook-normalized routing is available when enabled; messages are session-routed and retained in delivery history even without a native adapter.";
+      }
+      return "Platform is disabled in gateway configuration.";
+    }
+
+    const capabilitySummary = [
+      capabilities.inbound ? "inbound" : null,
+      capabilities.outbound ? "outbound" : null,
+      capabilities.replies ? "replies" : null,
+      capabilities.threads ? "threads" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    if (LIGHTWEIGHT_WEBHOOK_PLATFORMS.has(platform)) {
+      return `Lightweight webhook-normalized support is active for ${platform}; ${capabilitySummary} are routed through shared session and delivery history.`;
+    }
+
+    return `Platform is enabled but the adapter is not running; ${capabilitySummary} remain queued until a native adapter starts.`;
   }
 }

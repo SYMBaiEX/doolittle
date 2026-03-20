@@ -56,153 +56,6 @@ async function parseJsonBody<T>(request: Request): Promise<{ ok: true; value: T 
   }
 }
 
-function parseSlackEvent(body: {
-  challenge?: string;
-  event?: {
-    type?: string;
-    subtype?: string;
-    text?: string;
-    channel?: string;
-    user?: string;
-    ts?: string;
-    thread_ts?: string;
-    channel_type?: string;
-  };
-}): IncomingPlatformMessage | null {
-  if (
-    body.event?.type !== "message" ||
-    body.event.subtype === "bot_message" ||
-    !body.event.text ||
-    !body.event.channel ||
-    !body.event.user
-  ) {
-    return null;
-  }
-
-  return {
-    platform: "slack",
-    userId: body.event.user,
-    roomId: body.event.channel,
-    text: body.event.text,
-    channelId: body.event.channel,
-    messageId: body.event.ts,
-    threadId: body.event.thread_ts,
-    channelType: body.event.channel_type,
-    metadata: {
-      eventType: body.event.type,
-      ...(body.event.subtype ? { subtype: body.event.subtype } : {}),
-    },
-  };
-}
-
-function parseDiscordMessage(body: {
-  content?: string;
-  channel_id?: string;
-  id?: string;
-  author?: { id?: string; username?: string; bot?: boolean };
-  message_reference?: { message_id?: string };
-  guild_id?: string;
-  type?: number;
-}): IncomingPlatformMessage | null {
-  if (!body.content || !body.channel_id || !body.author?.id || body.author.bot) {
-    return null;
-  }
-
-  return {
-    platform: "discord",
-    userId: body.author.id,
-    roomId: body.channel_id,
-    text: body.content,
-    channelId: body.channel_id,
-    messageId: body.id,
-    replyToMessageId: body.message_reference?.message_id,
-    metadata: {
-      ...(body.author.username ? { authorUsername: body.author.username } : {}),
-      ...(body.guild_id ? { guildId: body.guild_id } : {}),
-      ...(typeof body.type === "number" ? { messageType: String(body.type) } : {}),
-    },
-  };
-}
-
-function parseTelegramMessage(body: {
-  message?: {
-    message_id?: number;
-    text?: string;
-    chat?: { id?: number | string; type?: string; title?: string };
-    from?: { id?: number | string; username?: string; first_name?: string; last_name?: string };
-    reply_to_message?: { message_id?: number };
-    date?: number;
-  };
-}): IncomingPlatformMessage | null {
-  if (!body.message?.text || body.message.chat?.id === undefined || body.message.from?.id === undefined) {
-    return null;
-  }
-
-  return {
-    platform: "telegram",
-    userId: String(body.message.from.id),
-    roomId: String(body.message.chat.id),
-    text: body.message.text,
-    channelId: String(body.message.chat.id),
-    threadId: body.message.reply_to_message?.message_id
-      ? String(body.message.reply_to_message.message_id)
-      : undefined,
-    messageId: body.message.message_id ? String(body.message.message_id) : undefined,
-    replyToMessageId: body.message.reply_to_message?.message_id
-      ? String(body.message.reply_to_message.message_id)
-      : undefined,
-    channelType: body.message.chat.type,
-    authorName:
-      body.message.from.username ??
-      (
-        [body.message.from.first_name, body.message.from.last_name]
-          .filter(Boolean)
-          .join(" ")
-          .trim() || undefined
-      ),
-    timestamp: body.message.date ? new Date(body.message.date * 1000).toISOString() : undefined,
-    metadata: {
-      ...(body.message.chat.title ? { chatTitle: body.message.chat.title } : {}),
-      ...(body.message.chat.type ? { chatType: body.message.chat.type } : {}),
-    },
-  };
-}
-
-function parseWhatsAppMessage(body: {
-  entry?: Array<{
-    changes?: Array<{
-      value?: {
-        messages?: Array<{
-          id?: string;
-          from?: string;
-          timestamp?: string;
-          context?: { id?: string };
-          text?: { body?: string };
-        }>;
-      };
-    }>;
-  }>;
-}): IncomingPlatformMessage | null {
-  const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message?.from || !message.text?.body) {
-    return null;
-  }
-
-  return {
-    platform: "whatsapp",
-    userId: message.from,
-    roomId: message.from,
-    text: message.text.body,
-    channelId: message.from,
-    messageId: message.id,
-    replyToMessageId: message.context?.id,
-    timestamp: message.timestamp,
-    metadata: {
-      ...(message.context?.id ? { replyToId: message.context.id } : {}),
-    },
-  };
-}
-
 export function startApiServer(context: AppContext): void {
   Bun.serve({
     hostname: context.config.host,
@@ -688,17 +541,11 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/telegram") {
-        const parsed = await parseJsonBody<{
-          message?: {
-            text?: string;
-            chat?: { id?: number | string };
-            from?: { id?: number | string };
-          };
-        }>(request);
-        if (!parsed.ok) {
-          return parsed.response;
+        const body = (await request.json().catch(() => null)) as unknown;
+        if (!body) {
+          return json({ error: "Invalid JSON body." }, 400);
         }
-        const inbound = parseTelegramMessage(parsed.value);
+        const inbound = normalizeInboundMessage("telegram", body);
         if (!inbound) {
           return json({ ok: true, ignored: true });
         }
@@ -707,19 +554,11 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/discord") {
-        const parsed = await parseJsonBody<{
-          content?: string;
-          channel_id?: string;
-          id?: string;
-          author?: { id?: string; username?: string; bot?: boolean };
-          message_reference?: { message_id?: string };
-          guild_id?: string;
-          type?: number;
-        }>(request);
-        if (!parsed.ok) {
-          return parsed.response;
+        const body = (await request.json().catch(() => null)) as unknown;
+        if (!body) {
+          return json({ error: "Invalid JSON body." }, 400);
         }
-        const inbound = parseDiscordMessage(parsed.value);
+        const inbound = normalizeInboundMessage("discord", body);
         if (!inbound) {
           return json({ ok: true, ignored: true });
         }
@@ -742,16 +581,7 @@ export function startApiServer(context: AppContext): void {
 
         let body: {
           challenge?: string;
-          event?: {
-            type?: string;
-            subtype?: string;
-            text?: string;
-            channel?: string;
-            user?: string;
-            ts?: string;
-            thread_ts?: string;
-            channel_type?: string;
-          };
+          event?: unknown;
         };
         try {
           body = JSON.parse(rawBody) as typeof body;
@@ -761,7 +591,7 @@ export function startApiServer(context: AppContext): void {
         if (body.challenge) {
           return json({ challenge: body.challenge });
         }
-        const inbound = parseSlackEvent(body);
+        const inbound = normalizeInboundMessage("slack", body);
         if (!inbound) {
           return json({ ok: true, ignored: true });
         }
@@ -785,25 +615,11 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/whatsapp") {
-        const parsed = await parseJsonBody<{
-          entry?: Array<{
-            changes?: Array<{
-              value?: {
-                messages?: Array<{
-                  id?: string;
-                  from?: string;
-                  timestamp?: string;
-                  context?: { id?: string };
-                  text?: { body?: string };
-                }>;
-              };
-            }>;
-          }>;
-        }>(request);
-        if (!parsed.ok) {
-          return parsed.response;
+        const body = (await request.json().catch(() => null)) as unknown;
+        if (!body) {
+          return json({ error: "Invalid JSON body." }, 400);
         }
-        const inbound = parseWhatsAppMessage(parsed.value);
+        const inbound = normalizeInboundMessage("whatsapp", body);
         if (!inbound) {
           return json({ ok: true, ignored: true });
         }
