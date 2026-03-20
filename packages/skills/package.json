@@ -2,14 +2,20 @@
   "name": "@eliza-agent/skills",
   "version": "0.1.0",
   "private": true,
-  "description": "Local Eliza Agent skills workspace.",
+  "description": "Eliza Agent skills workspace for identity, memory, transport, execution, media, and research families.",
   "type": "module",
   "keywords": [
     "eliza-agent",
     "skills",
+    "identity",
+    "memory",
     "browser",
     "media",
     "platform",
-    "research"
+    "delegation",
+    "mcp",
+    "research",
+    "voice",
+    "vision"
   ]
 }

@@ -13,7 +13,7 @@ Eliza Agent is organized as a Bun workspace monorepo.
   - local Eliza Agent product plugins
 - `packages/skills`
   - local Eliza Agent skill content and generated skills
-  - organized by category for discoverability (`productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)
+  - organized by category for discoverability (`identity/`, `memory/`, `productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)
 - `packages/characters`
   - character definitions and persona data
 - `packages/elizaos-official/*`
