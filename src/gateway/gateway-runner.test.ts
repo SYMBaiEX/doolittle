@@ -52,6 +52,7 @@ describe("GatewayRunner", () => {
         text: "/user list",
       });
       const traces = runner.trace(10);
+      const history = await runner.history(10);
       const health = await runner.health();
       const apiHealth = health.find((entry) => entry.platform === "api");
 
@@ -60,6 +61,9 @@ describe("GatewayRunner", () => {
       expect(result.sessionId).toBeDefined();
       expect(result.deliveryId).toBeDefined();
       expect(traces.some((trace) => trace.traceId === result.traceId && trace.kind === "deliver")).toBe(true);
+      expect(history.deliveries.some((delivery) => delivery.id === result.deliveryId)).toBe(true);
+      expect(history.traces.some((trace) => trace.traceId === result.traceId)).toBe(true);
+      expect(history.readiness.some((entry) => entry.platform === "api")).toBe(true);
       expect(apiHealth?.events.length ?? 0).toBeGreaterThan(0);
       expect(apiHealth?.events.some((event) => event.kind === "health")).toBe(true);
     } finally {

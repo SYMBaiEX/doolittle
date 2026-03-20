@@ -72,6 +72,21 @@ describe("TerminalService", () => {
     }
   });
 
+  it("previews backend execution without running commands", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-preview-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+
+    try {
+      const preview = service.preview("printf 'preview-ok'");
+      expect(preview.command).toBe("printf 'preview-ok'");
+      expect(preview.argv.at(-1)).toBe("printf 'preview-ok'");
+      expect(preview.bootstrap.length).toBeGreaterThan(0);
+      expect(preview.diagnostics.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("reports local backend health", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-health-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
@@ -82,6 +97,8 @@ describe("TerminalService", () => {
       expect(local?.ready).toBe(true);
       expect(local?.limits.commandTimeoutMs).toBe(30_000);
       expect(local?.limits.containerReadOnlyRoot).toBe(true);
+      expect(local?.bootstrap.length).toBeGreaterThan(0);
+      expect(local?.diagnostics.length).toBeGreaterThan(0);
       expect(health.some((entry) => entry.backend === "podman")).toBe(true);
       expect(health.find((entry) => entry.backend === "docker")?.mode).toBe("container");
     } finally {

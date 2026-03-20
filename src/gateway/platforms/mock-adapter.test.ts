@@ -26,8 +26,10 @@ describe("MockPlatformAdapter", () => {
       expect(record.threadId).toBe("thread-1");
       expect(record.replyToId).toBe("reply-1");
       expect(record.metadata?.source).toBe("test");
+      expect(health.lastDeliveryId).toBe(record.id);
+      expect(health.lastDeliveryAt).toBeDefined();
       expect(health.events.some((event) => event.kind === "start")).toBe(true);
-      expect(health.events.some((event) => event.kind === "send")).toBe(true);
+      expect(health.events.some((event) => event.kind === "deliver")).toBe(true);
       expect(health.events.some((event) => event.kind === "health")).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });

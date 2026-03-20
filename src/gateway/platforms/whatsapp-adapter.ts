@@ -14,6 +14,8 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
   private startedAt?: string;
   private stoppedAt?: string;
   private lastSendAt?: string;
+  private lastDeliveryAt?: string;
+  private lastDeliveryId?: string;
   private sendCount = 0;
   private lastError?: string;
   private readonly lifecycle = createLifecycleHistory();
@@ -71,6 +73,8 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
+      lastDeliveryAt: this.lastDeliveryAt,
+      lastDeliveryId: this.lastDeliveryId,
       sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
@@ -129,8 +133,10 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
         metadata: message.metadata,
       },
     );
+    this.lastDeliveryAt = nowIso();
+    this.lastDeliveryId = record.id;
     this.lifecycle.record(
-      "send",
+      "deliver",
       `WhatsApp delivery ${record.id} to ${message.roomId}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
     );
     return record;

@@ -25,6 +25,8 @@ export interface PlatformHealth {
   startedAt?: string;
   stoppedAt?: string;
   lastSendAt?: string;
+  lastDeliveryAt?: string;
+  lastDeliveryId?: string;
   sendCount?: number;
   lastError?: string;
   events: PlatformLifecycleEvent[];
@@ -32,7 +34,7 @@ export interface PlatformHealth {
 
 export interface PlatformLifecycleEvent {
   at: string;
-  kind: "start" | "stop" | "send" | "error" | "health";
+  kind: "start" | "stop" | "send" | "deliver" | "error" | "health";
   detail: string;
 }
 
