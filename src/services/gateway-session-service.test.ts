@@ -19,6 +19,8 @@ describe("GatewaySessionService", () => {
 
       const voiceOnly = service.setVoiceMode(session.sessionKey, "voice_only");
       expect(voiceOnly.voiceMode).toBe("voice_only");
+      expect(voiceOnly.voiceUpdatedAt).toBeDefined();
+      expect(voiceOnly.voiceUpdatedReason).toBe("voice-mode:voice_only");
 
       const joined = service.setVoiceChannel(
         session.sessionKey,
@@ -26,6 +28,7 @@ describe("GatewaySessionService", () => {
       );
       expect(joined.voiceChannelId).toBe("voice-room-1");
       expect(joined.voiceChannelState).toBe("connected");
+      expect(joined.voiceUpdatedReason).toBe("voice-channel:join:voice-room-1");
 
       const home = service.markHome(session.sessionKey, {
         isHome: true,
@@ -33,6 +36,7 @@ describe("GatewaySessionService", () => {
       });
       expect(home.isHome).toBe(true);
       expect(home.homeLabel).toBe("Primary Telegram");
+      expect(home.homeUpdatedAt).toBeDefined();
 
       const homes = service.homeForPlatform("telegram");
       expect(homes).toHaveLength(1);
@@ -40,6 +44,10 @@ describe("GatewaySessionService", () => {
 
       const left = service.setVoiceChannel(session.sessionKey);
       expect(left.voiceChannelState).toBe("disconnected");
+      expect(left.voiceUpdatedReason).toBe("voice-channel:leave");
+      expect(service.inspect(session.sessionKey).sessionKey).toBe(
+        session.sessionKey,
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

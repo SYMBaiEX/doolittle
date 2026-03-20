@@ -1159,8 +1159,11 @@ async function buildCommandResponse(
         voiceMode: session.voiceMode ?? "off",
         voiceChannelId: session.voiceChannelId ?? null,
         voiceChannelState: session.voiceChannelState ?? "disconnected",
+        voiceUpdatedAt: session.voiceUpdatedAt ?? null,
+        voiceUpdatedReason: session.voiceUpdatedReason ?? null,
         isHome: session.isHome ?? false,
         homeLabel: session.homeLabel ?? null,
+        homeUpdatedAt: session.homeUpdatedAt ?? null,
       },
       null,
       2,
@@ -1213,6 +1216,26 @@ async function buildCommandResponse(
       label: input.source ? `${input.source} home` : "home",
     });
     return JSON.stringify(session, null, 2);
+  }
+
+  if (trimmed === "/sessions gateway") {
+    return JSON.stringify(context.services.gatewaySessions.list(), null, 2);
+  }
+
+  if (trimmed.startsWith("/sessions gateway expire ")) {
+    const value = Number(
+      trimmed.replace("/sessions gateway expire ", "").trim(),
+    );
+    if (Number.isNaN(value) || value <= 0) {
+      return "Usage: /sessions gateway expire <minutes>";
+    }
+    return JSON.stringify(
+      {
+        expired: context.services.gatewaySessions.expireOlderThan(value),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/gateway trace" || trimmed.startsWith("/gateway trace ")) {

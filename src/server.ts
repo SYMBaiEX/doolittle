@@ -1048,8 +1048,32 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/sessions/gateway") {
+        const sessionKey = url.searchParams.get("sessionKey");
+        if (sessionKey) {
+          const session = context.services.gatewaySessions.get(sessionKey);
+          if (!session) {
+            return json({ error: "session not found" }, 404);
+          }
+          return json({ session });
+        }
         return json({
           sessions: context.services.gatewaySessions.list(),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/sessions/gateway/expire"
+      ) {
+        const body = (await request.json()) as {
+          minutes?: number;
+        };
+        const minutes = Number(body.minutes ?? 0);
+        if (Number.isNaN(minutes) || minutes <= 0) {
+          return json({ error: "minutes must be a positive number" }, 400);
+        }
+        return json({
+          expired: context.services.gatewaySessions.expireOlderThan(minutes),
         });
       }
 
@@ -1066,6 +1090,21 @@ export function startApiServer(context: AppContext): void {
         return json({
           sessions: context.services.gatewaySessions.homeForPlatform(platform),
         });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/sessions/gateway/voice"
+      ) {
+        const sessionKey = url.searchParams.get("sessionKey");
+        if (!sessionKey) {
+          return json({ error: "sessionKey is required" }, 400);
+        }
+        const session = context.services.gatewaySessions.get(sessionKey);
+        if (!session) {
+          return json({ error: "session not found" }, 404);
+        }
+        return json({ session });
       }
 
       if (

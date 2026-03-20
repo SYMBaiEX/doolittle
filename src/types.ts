@@ -273,8 +273,11 @@ export interface SessionRoute {
   voiceMode?: "off" | "voice_only" | "all";
   voiceChannelId?: string;
   voiceChannelState?: "disconnected" | "connected";
+  voiceUpdatedAt?: string;
+  voiceUpdatedReason?: string;
   isHome?: boolean;
   homeLabel?: string;
+  homeUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

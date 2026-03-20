@@ -34,7 +34,10 @@ function createSessionRoute(message: IncomingPlatformMessage): SessionRoute {
     metadata: message.metadata,
     voiceMode: "off",
     voiceChannelState: "disconnected",
+    voiceUpdatedAt: nowIso(),
+    voiceUpdatedReason: "session-created",
     isHome: false,
+    homeUpdatedAt: nowIso(),
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
@@ -45,7 +48,10 @@ function normalizeSessionRoute(route: SessionRoute): SessionRoute {
     ...route,
     voiceMode: route.voiceMode ?? "off",
     voiceChannelState: route.voiceChannelState ?? "disconnected",
+    voiceUpdatedAt: route.voiceUpdatedAt ?? route.updatedAt,
+    voiceUpdatedReason: route.voiceUpdatedReason ?? "session-updated",
     isHome: route.isHome ?? false,
+    homeUpdatedAt: route.homeUpdatedAt ?? route.updatedAt,
   };
 }
 
@@ -115,6 +121,8 @@ export class GatewaySessionService {
       if (mode === "off" && !session.voiceChannelId) {
         session.voiceChannelState = "disconnected";
       }
+      session.voiceUpdatedAt = nowIso();
+      session.voiceUpdatedReason = `voice-mode:${mode}`;
     });
   }
 
@@ -122,6 +130,10 @@ export class GatewaySessionService {
     return this.update(sessionKey, (session) => {
       session.voiceChannelId = channelId;
       session.voiceChannelState = channelId ? "connected" : "disconnected";
+      session.voiceUpdatedAt = nowIso();
+      session.voiceUpdatedReason = channelId
+        ? `voice-channel:join:${channelId}`
+        : "voice-channel:leave";
     });
   }
 
@@ -142,7 +154,16 @@ export class GatewaySessionService {
       }
       session.isHome = options?.isHome ?? true;
       session.homeLabel = options?.label ?? session.homeLabel;
+      session.homeUpdatedAt = nowIso();
     });
+  }
+
+  inspect(sessionKey: string): SessionRoute {
+    const session = this.get(sessionKey);
+    if (!session) {
+      throw new Error(`Gateway session not found: ${sessionKey}`);
+    }
+    return session;
   }
 
   homeForPlatform(platform: PlatformName): SessionRoute[] {
