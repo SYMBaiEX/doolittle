@@ -9,6 +9,7 @@ async function main(): Promise<void> {
   const wantsApi =
     context.config.mode === "api" || context.config.mode === "both";
   const cliFlag = Bun.argv.includes("--cli");
+  const plainCliFlag = Bun.argv.includes("--plain-cli");
   const apiOnlyFlag = Bun.argv.includes("--api-only");
   const gatewayFlag = Bun.argv.includes("--gateway");
 
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
     console.log(`${context.config.agentName} gateway started.`);
   }
 
-  if ((wantsCli && process.stdin.isTTY) || cliFlag) {
+  if ((wantsCli && process.stdin.isTTY) || cliFlag || plainCliFlag) {
     await startCli(context);
   } else if (!wantsApi && !apiOnlyFlag) {
     console.log(
