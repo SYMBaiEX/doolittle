@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 
 export interface MediaInspection {
@@ -139,12 +145,14 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 function slugifyPath(path: string): string {
-  return path
-    .replace(/^[./\\]+/u, "")
-    .replace(/[^a-z0-9]+/giu, "-")
-    .replace(/^-+|-+$/gu, "")
-    .slice(0, 72)
-    .toLowerCase() || "media";
+  return (
+    path
+      .replace(/^[./\\]+/u, "")
+      .replace(/[^a-z0-9]+/giu, "-")
+      .replace(/^-+|-+$/gu, "")
+      .slice(0, 72)
+      .toLowerCase() || "media"
+  );
 }
 
 function nowIso(): string {
@@ -196,8 +204,13 @@ export class MediaService {
 
     const kind = this.detectKind(extension);
     const imageDimensions =
-      kind === "image" ? this.readImageDimensions(resolvedPath, extension) : undefined;
-    const audioMetadata = kind === "audio" ? this.readAudioMetadata(resolvedPath, extension) : undefined;
+      kind === "image"
+        ? this.readImageDimensions(resolvedPath, extension)
+        : undefined;
+    const audioMetadata =
+      kind === "audio"
+        ? this.readAudioMetadata(resolvedPath, extension)
+        : undefined;
     const contentHash = this.hashFile(resolvedPath);
     const structuredMetadata =
       kind === "document"
@@ -221,11 +234,11 @@ export class MediaService {
         ? `Image file detected with dimensions ${imageDimensions.width}x${imageDimensions.height}.`
         : audioMetadata?.durationMs
           ? `Audio file detected with duration about ${Math.round(audioMetadata.durationMs / 1000)}s.`
-        : structuredMetadata
-          ? extension === ".pdf"
-            ? `PDF detected${structuredMetadata.pageCount ? ` with about ${structuredMetadata.pageCount} pages` : ""}${structuredMetadata.title ? ` titled ${structuredMetadata.title}` : ""}.`
-            : `Detected as ${kind} (${mimeType}) with ${structuredMetadata.wordCount} words across ${structuredMetadata.lineCount} lines.`
-          : `Detected as ${kind} (${mimeType}).`,
+          : structuredMetadata
+            ? extension === ".pdf"
+              ? `PDF detected${structuredMetadata.pageCount ? ` with about ${structuredMetadata.pageCount} pages` : ""}${structuredMetadata.title ? ` titled ${structuredMetadata.title}` : ""}.`
+              : `Detected as ${kind} (${mimeType}) with ${structuredMetadata.wordCount} words across ${structuredMetadata.lineCount} lines.`
+            : `Detected as ${kind} (${mimeType}).`,
       contentHash,
       textPreview: structuredMetadata?.preview,
       lineCount: structuredMetadata?.lineCount,
@@ -274,8 +287,12 @@ export class MediaService {
         `MIME: ${inspection.mimeType}`,
         `Exists: ${inspection.exists}`,
         `Size: ${inspection.sizeBytes}`,
-        ...(inspection.width && inspection.height ? [`Dimensions: ${inspection.width}x${inspection.height}`] : []),
-        ...(inspection.durationMs ? [`Duration: ${Math.round(inspection.durationMs / 1000)}s`] : []),
+        ...(inspection.width && inspection.height
+          ? [`Dimensions: ${inspection.width}x${inspection.height}`]
+          : []),
+        ...(inspection.durationMs
+          ? [`Duration: ${Math.round(inspection.durationMs / 1000)}s`]
+          : []),
         ...(inspection.title ? [`Title: ${inspection.title}`] : []),
         ...(inspection.author ? [`Author: ${inspection.author}`] : []),
         ...(inspection.pageCount ? [`Pages: ${inspection.pageCount}`] : []),
@@ -285,10 +302,15 @@ export class MediaService {
         `- Caption: ${inspection.captionPath ?? "none"}`,
         "",
         "## Related Files",
-        ...(relatedFiles.length ? relatedFiles.map((entry) => `- ${entry}`) : ["- none"]),
+        ...(relatedFiles.length
+          ? relatedFiles.map((entry) => `- ${entry}`)
+          : ["- none"]),
         "",
         "## Preview",
-        inspection.transcriptPreview ?? inspection.captionPreview ?? inspection.textPreview ?? inspection.detail,
+        inspection.transcriptPreview ??
+          inspection.captionPreview ??
+          inspection.textPreview ??
+          inspection.detail,
       ].join("\n"),
       "utf8",
     );
@@ -301,7 +323,10 @@ export class MediaService {
     };
   }
 
-  analyze(path: string, focus: "auto" | "voice" | "vision" | "research" = "auto"): MediaAnalysisBundle {
+  analyze(
+    path: string,
+    focus: "auto" | "voice" | "vision" | "research" = "auto",
+  ): MediaAnalysisBundle {
     const inspection = this.inspect(path);
     const bundle = this.bundle(path);
     const inferredFocus =
@@ -340,14 +365,27 @@ export class MediaService {
     const slug = this.slugifyText(
       `${analysis.focus}-${analysis.inspection.basename}-${analysis.inspection.contentHash ?? "analysis"}`,
     );
-    const manifestPath = join(this.outputDir, `media-${stamp}-${slug}-analysis.json`);
-    const reportPath = join(this.outputDir, `media-${stamp}-${slug}-analysis.md`);
-    const responsePath = join(this.outputDir, `media-${stamp}-${slug}-analysis-response.md`);
-    const response = await this.requestModelText(analysis.prompt, modelContext, {
-      focus: analysis.focus,
-      inspection: analysis.inspection,
-      signals: analysis.signals,
-    });
+    const manifestPath = join(
+      this.outputDir,
+      `media-${stamp}-${slug}-analysis.json`,
+    );
+    const reportPath = join(
+      this.outputDir,
+      `media-${stamp}-${slug}-analysis.md`,
+    );
+    const responsePath = join(
+      this.outputDir,
+      `media-${stamp}-${slug}-analysis-response.md`,
+    );
+    const response = await this.requestModelText(
+      analysis.prompt,
+      modelContext,
+      {
+        focus: analysis.focus,
+        inspection: analysis.inspection,
+        signals: analysis.signals,
+      },
+    );
 
     writeFileSync(
       manifestPath,
@@ -377,7 +415,9 @@ export class MediaService {
         `- Bundle report: ${analysis.bundle.reportPath}`,
         "",
         "## Signals",
-        ...(analysis.signals.length ? analysis.signals.map((signal) => `- ${signal}`) : ["- none"]),
+        ...(analysis.signals.length
+          ? analysis.signals.map((signal) => `- ${signal}`)
+          : ["- none"]),
         "",
         "## Prompt",
         analysis.prompt,
@@ -422,13 +462,29 @@ export class MediaService {
     const modelContext = this.getModelContext?.();
     const stamp = Date.now();
     const label = this.slugifyText(
-      options.name ?? `${inspection.basename}-${inspection.contentHash ?? "transcript"}`,
+      options.name ??
+        `${inspection.basename}-${inspection.contentHash ?? "transcript"}`,
     );
-    const promptPath = join(this.outputDir, `media-${stamp}-${label}-transcription-prompt.md`);
-    const manifestPath = join(this.outputDir, `media-${stamp}-${label}-transcription.json`);
-    const reportPath = join(this.outputDir, `media-${stamp}-${label}-transcription.md`);
-    const transcriptPath = join(this.outputDir, `media-${stamp}-${label}-transcript.txt`);
-    const responsePath = join(this.outputDir, `media-${stamp}-${label}-transcription-response.txt`);
+    const promptPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-transcription-prompt.md`,
+    );
+    const manifestPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-transcription.json`,
+    );
+    const reportPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-transcription.md`,
+    );
+    const transcriptPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-transcript.txt`,
+    );
+    const responsePath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-transcription-response.txt`,
+    );
     const prompt = [
       "Create a concise Eliza Agent transcript or spoken-content summary for the attached media.",
       "Prefer exact transcription when the provider supports it; otherwise return a best-effort plain-text transcript.",
@@ -438,8 +494,12 @@ export class MediaService {
       `Kind: ${inspection.kind}`,
       `MIME: ${inspection.mimeType}`,
       `Duration: ${inspection.durationMs ? `${Math.round(inspection.durationMs / 1000)}s` : "unknown"}`,
-      inspection.transcriptPreview ? `Existing transcript sidecar preview: ${inspection.transcriptPreview}` : undefined,
-      inspection.captionPreview ? `Existing caption sidecar preview: ${inspection.captionPreview}` : undefined,
+      inspection.transcriptPreview
+        ? `Existing transcript sidecar preview: ${inspection.transcriptPreview}`
+        : undefined,
+      inspection.captionPreview
+        ? `Existing caption sidecar preview: ${inspection.captionPreview}`
+        : undefined,
       "",
       "Signals:",
       ...this.buildSignals(inspection).map((signal) => `- ${signal}`),
@@ -450,31 +510,43 @@ export class MediaService {
     let response = "";
     let source: MediaTranscriptionBundle["source"] = "offline";
 
-    if (modelContext?.provider === "openai" && modelContext.openAiApiKey && inspection.exists && !inspection.isDirectory) {
+    if (
+      modelContext?.provider === "openai" &&
+      modelContext.openAiApiKey &&
+      inspection.exists &&
+      !inspection.isDirectory
+    ) {
       try {
         const fileBytes = readFileSync(inspection.path);
         const form = new FormData();
         form.append("model", modelContext.model);
         form.append(
           "file",
-          new Blob([fileBytes], { type: inspection.mimeType || "application/octet-stream" }),
+          new Blob([fileBytes], {
+            type: inspection.mimeType || "application/octet-stream",
+          }),
           inspection.basename,
         );
         if (options.language) {
           form.append("language", options.language);
         }
         form.append("prompt", options.prompt ?? prompt);
-        const transcriptionResponse = await fetch(`${modelContext.baseUrl}/audio/transcriptions`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${modelContext.openAiApiKey}`,
+        const transcriptionResponse = await fetch(
+          `${modelContext.baseUrl}/audio/transcriptions`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${modelContext.openAiApiKey}`,
+            },
+            body: form,
           },
-          body: form,
-        });
+        );
 
         if (!transcriptionResponse.ok) {
           const body = await transcriptionResponse.text();
-          throw new Error(`OpenAI transcription failed (${transcriptionResponse.status}): ${body}`);
+          throw new Error(
+            `OpenAI transcription failed (${transcriptionResponse.status}): ${body}`,
+          );
         }
 
         const data = (await transcriptionResponse.json()) as {
@@ -488,13 +560,21 @@ export class MediaService {
       }
     }
 
-    if (!transcriptText && inspection.transcriptPath && existsSync(inspection.transcriptPath)) {
+    if (
+      !transcriptText &&
+      inspection.transcriptPath &&
+      existsSync(inspection.transcriptPath)
+    ) {
       transcriptText = readFileSync(inspection.transcriptPath, "utf8").trim();
       source = "sidecar";
       response = `Used existing transcript sidecar at ${inspection.transcriptPath}.`;
     }
 
-    if (!transcriptText && modelContext?.provider === "anthropic" && modelContext.anthropicApiKey) {
+    if (
+      !transcriptText &&
+      modelContext?.provider === "anthropic" &&
+      modelContext.anthropicApiKey
+    ) {
       try {
         transcriptText = await this.requestModelText(prompt, modelContext, {
           focus: "voice",
@@ -502,7 +582,8 @@ export class MediaService {
           signals: this.buildSignals(inspection),
         });
         source = "anthropic";
-        response = "Generated a best-effort provider-backed transcript summary.";
+        response =
+          "Generated a best-effort provider-backed transcript summary.";
       } catch (error) {
         response = error instanceof Error ? error.message : String(error);
       }
@@ -511,8 +592,12 @@ export class MediaService {
     if (!transcriptText) {
       transcriptText = [
         `Eliza Agent offline transcript for ${inspection.basename}.`,
-        inspection.transcriptPreview ? `Transcript sidecar preview: ${inspection.transcriptPreview}` : undefined,
-        inspection.captionPreview ? `Caption sidecar preview: ${inspection.captionPreview}` : undefined,
+        inspection.transcriptPreview
+          ? `Transcript sidecar preview: ${inspection.transcriptPreview}`
+          : undefined,
+        inspection.captionPreview
+          ? `Caption sidecar preview: ${inspection.captionPreview}`
+          : undefined,
         inspection.detail,
       ]
         .filter(Boolean)
@@ -618,9 +703,18 @@ export class MediaService {
     const modelContext = this.getModelContext?.();
     const stamp = Date.now();
     const label = this.slugifyText(options.name ?? prompt);
-    const promptPath = join(this.outputDir, `media-${stamp}-${label}-prompt.md`);
-    const manifestPath = join(this.outputDir, `media-${stamp}-${label}-generation.json`);
-    const reportPath = join(this.outputDir, `media-${stamp}-${label}-generation.md`);
+    const promptPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-prompt.md`,
+    );
+    const manifestPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-generation.json`,
+    );
+    const reportPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-generation.md`,
+    );
     const refinedPrompt = await this.requestModelText(
       [
         "Create a concise image-generation brief for Eliza Agent.",
@@ -636,10 +730,15 @@ export class MediaService {
         focus: "vision",
       },
     );
-    const generation = await this.requestImageGeneration(refinedPrompt || prompt, modelContext, {
-      size: options.size,
-    });
-    const artifactPath = generation?.path ?? join(this.outputDir, `media-${stamp}-${label}.svg`);
+    const generation = await this.requestImageGeneration(
+      refinedPrompt || prompt,
+      modelContext,
+      {
+        size: options.size,
+      },
+    );
+    const artifactPath =
+      generation?.path ?? join(this.outputDir, `media-${stamp}-${label}.svg`);
     const artifactKind = generation?.kind ?? "svg";
     const response = generation?.response;
     const responsePath = generation?.responsePath;
@@ -653,7 +752,8 @@ export class MediaService {
           refinedPrompt,
           options,
           provider: modelContext?.provider ?? "offline",
-          model: modelContext?.openAiImageModel ?? modelContext?.model ?? "offline",
+          model:
+            modelContext?.openAiImageModel ?? modelContext?.model ?? "offline",
           artifactPath,
           artifactKind,
           responsePath,
@@ -730,9 +830,18 @@ export class MediaService {
     const modelContext = this.getModelContext?.();
     const stamp = Date.now();
     const label = this.slugifyText(options.name ?? text);
-    const promptPath = join(this.outputDir, `media-${stamp}-${label}-speech-prompt.md`);
-    const manifestPath = join(this.outputDir, `media-${stamp}-${label}-speech.json`);
-    const reportPath = join(this.outputDir, `media-${stamp}-${label}-speech.md`);
+    const promptPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-speech-prompt.md`,
+    );
+    const manifestPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-speech.json`,
+    );
+    const reportPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-speech.md`,
+    );
     const voice = options.voice ?? "alloy";
     let refinedText = text;
     try {
@@ -756,47 +865,76 @@ export class MediaService {
       refinedText = text;
     }
     const script = refinedText || text;
-    const responsePath = join(this.outputDir, `media-${stamp}-${label}-speech-response.txt`);
-    let artifactPath = join(this.outputDir, `media-${stamp}-${label}-speech.svg`);
+    const responsePath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-speech-response.txt`,
+    );
+    let artifactPath = join(
+      this.outputDir,
+      `media-${stamp}-${label}-speech.svg`,
+    );
     let artifactKind: "mp3" | "svg" = "svg";
     let response = "Generated an offline Eliza Agent speech concept artifact.";
     const preferredFormat = options.format ?? "mp3";
 
-    if (preferredFormat !== "svg" && modelContext?.provider === "openai" && modelContext.openAiApiKey) {
+    if (
+      preferredFormat !== "svg" &&
+      modelContext?.provider === "openai" &&
+      modelContext.openAiApiKey
+    ) {
       try {
-        const synthResponse = await fetch(`${modelContext.baseUrl}/audio/speech`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${modelContext.openAiApiKey}`,
-            "Content-Type": "application/json",
+        const synthResponse = await fetch(
+          `${modelContext.baseUrl}/audio/speech`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${modelContext.openAiApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: modelContext.model,
+              input: script,
+              voice,
+              response_format: "mp3",
+              speed: options.speed,
+            }),
           },
-          body: JSON.stringify({
-            model: modelContext.model,
-            input: script,
-            voice,
-            response_format: "mp3",
-            speed: options.speed,
-          }),
-        });
+        );
 
         if (!synthResponse.ok) {
           const body = await synthResponse.text();
-          throw new Error(`OpenAI speech synthesis failed (${synthResponse.status}): ${body}`);
+          throw new Error(
+            `OpenAI speech synthesis failed (${synthResponse.status}): ${body}`,
+          );
         }
 
         const bytes = Buffer.from(await synthResponse.arrayBuffer());
-        artifactPath = join(this.outputDir, `media-${stamp}-${label}-speech.mp3`);
+        artifactPath = join(
+          this.outputDir,
+          `media-${stamp}-${label}-speech.mp3`,
+        );
         artifactKind = "mp3";
         writeFileSync(artifactPath, bytes);
         response = `Generated provider-native speech audio at ${artifactPath}.`;
       } catch (error) {
         response = error instanceof Error ? error.message : String(error);
-        artifactPath = join(this.outputDir, `media-${stamp}-${label}-speech.svg`);
+        artifactPath = join(
+          this.outputDir,
+          `media-${stamp}-${label}-speech.svg`,
+        );
         artifactKind = "svg";
-        writeFileSync(artifactPath, this.renderSpeechSvg(script, voice, options.speed), "utf8");
+        writeFileSync(
+          artifactPath,
+          this.renderSpeechSvg(script, voice, options.speed),
+          "utf8",
+        );
       }
     } else {
-      writeFileSync(artifactPath, this.renderSpeechSvg(script, voice, options.speed), "utf8");
+      writeFileSync(
+        artifactPath,
+        this.renderSpeechSvg(script, voice, options.speed),
+        "utf8",
+      );
     }
 
     writeFileSync(
@@ -891,7 +1029,9 @@ export class MediaService {
   private detectKind(
     extension: string,
   ): "image" | "audio" | "video" | "document" | "unknown" {
-    if ([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].includes(extension)) {
+    if (
+      [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].includes(extension)
+    ) {
       return "image";
     }
     if ([".mp3", ".wav", ".m4a", ".ogg"].includes(extension)) {
@@ -900,7 +1040,21 @@ export class MediaService {
     if ([".mp4", ".mov", ".webm", ".avi"].includes(extension)) {
       return "video";
     }
-    if ([".pdf", ".txt", ".md", ".json", ".csv", ".html", ".htm", ".yaml", ".yml", ".toml", ".xml"].includes(extension)) {
+    if (
+      [
+        ".pdf",
+        ".txt",
+        ".md",
+        ".json",
+        ".csv",
+        ".html",
+        ".htm",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".xml",
+      ].includes(extension)
+    ) {
       return "document";
     }
     return "unknown";
@@ -926,7 +1080,10 @@ export class MediaService {
           height: bytes.readUInt16LE(8),
         };
       }
-      if (bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP") {
+      if (
+        bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+        bytes.subarray(8, 12).toString("ascii") === "WEBP"
+      ) {
         const chunkType = bytes.subarray(12, 16).toString("ascii");
         if (chunkType === "VP8X" && bytes.length >= 30) {
           return {
@@ -969,7 +1126,9 @@ export class MediaService {
     return undefined;
   }
 
-  private readJpegDimensions(bytes: Buffer): { width: number; height: number } | undefined {
+  private readJpegDimensions(
+    bytes: Buffer,
+  ): { width: number; height: number } | undefined {
     if (bytes.length < 4 || bytes.readUInt16BE(0) !== 0xffd8) {
       return undefined;
     }
@@ -995,7 +1154,9 @@ export class MediaService {
         break;
       }
 
-      const sofMarkers = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb]);
+      const sofMarkers = new Set([
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb,
+      ]);
       if (sofMarkers.has(marker) && offset + 9 < bytes.length) {
         return {
           height: bytes.readUInt16BE(offset + 5),
@@ -1012,15 +1173,39 @@ export class MediaService {
   private readTextMetadata(
     path: string,
     extension: string,
-  ): { preview: string; lineCount: number; wordCount: number; pageCount?: number; title?: string; author?: string } | undefined {
-    if (![".txt", ".md", ".json", ".csv", ".html", ".htm", ".yaml", ".yml", ".toml", ".xml"].includes(extension)) {
+  ):
+    | {
+        preview: string;
+        lineCount: number;
+        wordCount: number;
+        pageCount?: number;
+        title?: string;
+        author?: string;
+      }
+    | undefined {
+    if (
+      ![
+        ".txt",
+        ".md",
+        ".json",
+        ".csv",
+        ".html",
+        ".htm",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".xml",
+      ].includes(extension)
+    ) {
       return undefined;
     }
 
     const content = readFileSync(path, "utf8");
     const preview = this.buildPreview(content, extension);
     const lineCount = content ? content.split(/\r?\n/u).length : 0;
-    const wordCount = content ? content.split(/\s+/u).filter(Boolean).length : 0;
+    const wordCount = content
+      ? content.split(/\s+/u).filter(Boolean).length
+      : 0;
     return {
       preview,
       lineCount,
@@ -1028,9 +1213,16 @@ export class MediaService {
     };
   }
 
-  private readPdfMetadata(
-    path: string,
-  ): { preview: string; lineCount?: number; wordCount?: number; pageCount?: number; title?: string; author?: string } | undefined {
+  private readPdfMetadata(path: string):
+    | {
+        preview: string;
+        lineCount?: number;
+        wordCount?: number;
+        pageCount?: number;
+        title?: string;
+        author?: string;
+      }
+    | undefined {
     const bytes = readFileSync(path);
     if (bytes.subarray(0, 4).toString("ascii") !== "%PDF") {
       return undefined;
@@ -1039,9 +1231,10 @@ export class MediaService {
     const text = bytes.toString("latin1", 0, Math.min(bytes.length, 64_000));
     const title = text.match(/\/Title\s*\(([^)]{1,200})\)/iu)?.[1];
     const author = text.match(/\/Author\s*\(([^)]{1,200})\)/iu)?.[1];
-    const pageCount = (text.match(/\/Type\s*\/Page\b/gu) ?? []).length || undefined;
+    const pageCount =
+      (text.match(/\/Type\s*\/Page\b/gu) ?? []).length || undefined;
     const preview = text
-      .replace(/[^\x09\x0a\x0d\x20-\x7e]+/gu, " ")
+      .replace(/[^\t\n\r -~]+/gu, " ")
       .replace(/\s+/gu, " ")
       .trim()
       .slice(0, 512);
@@ -1087,34 +1280,62 @@ export class MediaService {
     captionPreview?: string;
   } {
     const extension = extname(resolvedPath);
-    const basePath = resolvedPath.slice(0, resolvedPath.length - extension.length);
+    const basePath = resolvedPath.slice(
+      0,
+      resolvedPath.length - extension.length,
+    );
     const transcriptCandidates =
       kind === "audio" || kind === "video"
-        ? [`${basePath}.txt`, `${basePath}.md`, `${basePath}.transcript.txt`, `${basePath}.srt`, `${basePath}.vtt`]
+        ? [
+            `${basePath}.txt`,
+            `${basePath}.md`,
+            `${basePath}.transcript.txt`,
+            `${basePath}.srt`,
+            `${basePath}.vtt`,
+          ]
         : [];
     const captionCandidates =
       kind === "image"
-        ? [`${basePath}.txt`, `${basePath}.md`, `${basePath}.caption.txt`, `${basePath}.alt.txt`]
+        ? [
+            `${basePath}.txt`,
+            `${basePath}.md`,
+            `${basePath}.caption.txt`,
+            `${basePath}.alt.txt`,
+          ]
         : [];
 
-    const transcriptPath = transcriptCandidates.find((candidate) => existsSync(candidate));
-    const captionPath = captionCandidates.find((candidate) => existsSync(candidate));
+    const transcriptPath = transcriptCandidates.find((candidate) =>
+      existsSync(candidate),
+    );
+    const captionPath = captionCandidates.find((candidate) =>
+      existsSync(candidate),
+    );
 
     return {
       transcriptPath,
-      transcriptPreview: transcriptPath ? this.readSidecarPreview(transcriptPath) : undefined,
+      transcriptPreview: transcriptPath
+        ? this.readSidecarPreview(transcriptPath)
+        : undefined,
       captionPath,
-      captionPreview: captionPath ? this.readSidecarPreview(captionPath) : undefined,
+      captionPreview: captionPath
+        ? this.readSidecarPreview(captionPath)
+        : undefined,
     };
   }
 
   private readSidecarPreview(path: string): string {
-    return this.buildPreview(readFileSync(path, "utf8"), extname(path).toLowerCase());
+    return this.buildPreview(
+      readFileSync(path, "utf8"),
+      extname(path).toLowerCase(),
+    );
   }
 
   private relatedFiles(resolvedPath: string): string[] {
     const extension = extname(resolvedPath);
-    const basePath = resolvedPath.slice(0, resolvedPath.length - extension.length);
+    const basePath = resolvedPath.slice(
+      0,
+      resolvedPath.length - extension.length,
+    );
     const candidates = [
       `${basePath}.txt`,
       `${basePath}.md`,
@@ -1124,7 +1345,9 @@ export class MediaService {
       `${basePath}.srt`,
       `${basePath}.vtt`,
     ];
-    return candidates.filter((candidate) => candidate !== resolvedPath && existsSync(candidate));
+    return candidates.filter(
+      (candidate) => candidate !== resolvedPath && existsSync(candidate),
+    );
   }
 
   private buildPreview(content: string, extension: string): string {
@@ -1149,7 +1372,12 @@ export class MediaService {
       return sample.slice(0, 512);
     }
 
-    if (extension === ".yaml" || extension === ".yml" || extension === ".toml" || extension === ".xml") {
+    if (
+      extension === ".yaml" ||
+      extension === ".yml" ||
+      extension === ".toml" ||
+      extension === ".xml"
+    ) {
       return trimmed.slice(0, 512);
     }
 
@@ -1162,12 +1390,18 @@ export class MediaService {
       `MIME: ${inspection.mimeType}`,
       `Exists: ${inspection.exists}`,
       `Size: ${inspection.sizeBytes}`,
-      inspection.width && inspection.height ? `Dimensions: ${inspection.width}x${inspection.height}` : undefined,
-      inspection.durationMs ? `Duration: ${Math.round(inspection.durationMs / 1000)}s` : undefined,
+      inspection.width && inspection.height
+        ? `Dimensions: ${inspection.width}x${inspection.height}`
+        : undefined,
+      inspection.durationMs
+        ? `Duration: ${Math.round(inspection.durationMs / 1000)}s`
+        : undefined,
       inspection.pageCount ? `Pages: ${inspection.pageCount}` : undefined,
       inspection.title ? `Title: ${inspection.title}` : undefined,
       inspection.author ? `Author: ${inspection.author}` : undefined,
-      inspection.transcriptPath ? `Transcript: ${inspection.transcriptPath}` : undefined,
+      inspection.transcriptPath
+        ? `Transcript: ${inspection.transcriptPath}`
+        : undefined,
       inspection.captionPath ? `Caption: ${inspection.captionPath}` : undefined,
     ].filter(Boolean) as string[];
   }
@@ -1178,7 +1412,11 @@ export class MediaService {
     focus: "voice" | "vision" | "research",
   ): string {
     const kindLabel =
-      focus === "voice" ? "voice or audio" : focus === "vision" ? "vision or image" : "research";
+      focus === "voice"
+        ? "voice or audio"
+        : focus === "vision"
+          ? "vision or image"
+          : "research";
     const contentPreview =
       inspection.transcriptPreview ??
       inspection.captionPreview ??
@@ -1195,13 +1433,21 @@ export class MediaService {
       `MIME: ${inspection.mimeType}`,
       `Exists: ${inspection.exists}`,
       `Size bytes: ${inspection.sizeBytes}`,
-      inspection.width && inspection.height ? `Dimensions: ${inspection.width}x${inspection.height}` : undefined,
-      inspection.durationMs ? `Duration: ${Math.round(inspection.durationMs / 1000)}s` : undefined,
+      inspection.width && inspection.height
+        ? `Dimensions: ${inspection.width}x${inspection.height}`
+        : undefined,
+      inspection.durationMs
+        ? `Duration: ${Math.round(inspection.durationMs / 1000)}s`
+        : undefined,
       inspection.pageCount ? `Pages: ${inspection.pageCount}` : undefined,
       inspection.title ? `Title: ${inspection.title}` : undefined,
       inspection.author ? `Author: ${inspection.author}` : undefined,
-      inspection.transcriptPath ? `Transcript sidecar: ${inspection.transcriptPath}` : undefined,
-      inspection.captionPath ? `Caption sidecar: ${inspection.captionPath}` : undefined,
+      inspection.transcriptPath
+        ? `Transcript sidecar: ${inspection.transcriptPath}`
+        : undefined,
+      inspection.captionPath
+        ? `Caption sidecar: ${inspection.captionPath}`
+        : undefined,
       "",
       "Signals:",
       ...this.buildSignals(inspection).map((signal) => `- ${signal}`),
@@ -1211,7 +1457,9 @@ export class MediaService {
       `- Report: ${bundle.reportPath}`,
       "",
       "Related files:",
-      ...(bundle.relatedFiles.length ? bundle.relatedFiles.map((entry) => `- ${entry}`) : ["- none"]),
+      ...(bundle.relatedFiles.length
+        ? bundle.relatedFiles.map((entry) => `- ${entry}`)
+        : ["- none"]),
       "",
       "Preview:",
       contentPreview.slice(0, 2400) || "(empty)",
@@ -1223,19 +1471,35 @@ export class MediaService {
   private async requestModelText(
     prompt: string,
     context: MediaModelContext | undefined,
-    metadata: { focus: string; inspection?: MediaInspection; signals?: string[] },
+    metadata: {
+      focus: string;
+      inspection?: MediaInspection;
+      signals?: string[];
+    },
   ): Promise<string> {
     const canUseOpenAi = Boolean(context?.openAiApiKey);
     const canUseAnthropic = Boolean(context?.anthropicApiKey);
 
-    if (!context || context.provider === "offline" || (!canUseOpenAi && !canUseAnthropic)) {
+    if (
+      !context ||
+      context.provider === "offline" ||
+      (!canUseOpenAi && !canUseAnthropic)
+    ) {
       return [
         `Offline analysis for ${metadata.focus}.`,
         metadata.inspection ? `Kind: ${metadata.inspection.kind}` : undefined,
-        metadata.inspection?.textPreview ? `Preview: ${metadata.inspection.textPreview}` : undefined,
-        metadata.inspection?.transcriptPreview ? `Transcript: ${metadata.inspection.transcriptPreview}` : undefined,
-        metadata.inspection?.captionPreview ? `Caption: ${metadata.inspection.captionPreview}` : undefined,
-        ...(metadata.signals?.length ? [`Signals: ${metadata.signals.join("; ")}`] : []),
+        metadata.inspection?.textPreview
+          ? `Preview: ${metadata.inspection.textPreview}`
+          : undefined,
+        metadata.inspection?.transcriptPreview
+          ? `Transcript: ${metadata.inspection.transcriptPreview}`
+          : undefined,
+        metadata.inspection?.captionPreview
+          ? `Caption: ${metadata.inspection.captionPreview}`
+          : undefined,
+        ...(metadata.signals?.length
+          ? [`Signals: ${metadata.signals.join("; ")}`]
+          : []),
         "",
         prompt.slice(0, 1200),
       ]
@@ -1243,7 +1507,10 @@ export class MediaService {
         .join("\n");
     }
 
-    if ((context.provider === "anthropic" && canUseAnthropic) || (!canUseOpenAi && canUseAnthropic)) {
+    if (
+      (context.provider === "anthropic" && canUseAnthropic) ||
+      (!canUseOpenAi && canUseAnthropic)
+    ) {
       const headers: Record<string, string> = {
         "content-type": "application/json",
         "anthropic-version": "2023-06-01",
@@ -1251,31 +1518,41 @@ export class MediaService {
       if (context.anthropicApiKey) {
         headers["x-api-key"] = context.anthropicApiKey;
       }
-      const response = await fetch(`${context.anthropicBaseUrl ?? context.baseUrl}/messages`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: context.model,
-          max_tokens: context.maxTokens,
-          temperature: context.temperature,
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-        }),
-      });
+      const response = await fetch(
+        `${context.anthropicBaseUrl ?? context.baseUrl}/messages`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: context.model,
+            max_tokens: context.maxTokens,
+            temperature: context.temperature,
+            messages: [
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+          }),
+        },
+      );
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error(`Anthropic request failed (${response.status}): ${body}`);
+        throw new Error(
+          `Anthropic request failed (${response.status}): ${body}`,
+        );
       }
 
       const data = (await response.json()) as {
         content?: Array<{ text?: string }>;
       };
-      return data.content?.map((entry) => entry.text ?? "").join("").trim() || "No response returned.";
+      return (
+        data.content
+          ?.map((entry) => entry.text ?? "")
+          .join("")
+          .trim() || "No response returned."
+      );
     }
 
     if (!canUseOpenAi) {
@@ -1303,24 +1580,43 @@ export class MediaService {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`OpenAI-compatible request failed (${response.status}): ${body}`);
+      throw new Error(
+        `OpenAI-compatible request failed (${response.status}): ${body}`,
+      );
     }
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
 
-    return data.choices?.[0]?.message?.content?.trim() ?? "No response returned.";
+    return (
+      data.choices?.[0]?.message?.content?.trim() ?? "No response returned."
+    );
   }
 
   private async requestImageGeneration(
     prompt: string,
     context: MediaModelContext | undefined,
     options: { size?: string },
-  ): Promise<{ path: string; responsePath?: string; response?: string; kind: "png" | "svg" } | undefined> {
-    const fallbackPath = join(this.outputDir, `media-${Date.now()}-${this.slugifyText(prompt)}.svg`);
+  ): Promise<
+    | {
+        path: string;
+        responsePath?: string;
+        response?: string;
+        kind: "png" | "svg";
+      }
+    | undefined
+  > {
+    const fallbackPath = join(
+      this.outputDir,
+      `media-${Date.now()}-${this.slugifyText(prompt)}.svg`,
+    );
     if (!context || !context.openAiApiKey) {
-      writeFileSync(fallbackPath, this.renderGenerationSvg(prompt, options.size ?? "1024x1024"), "utf8");
+      writeFileSync(
+        fallbackPath,
+        this.renderGenerationSvg(prompt, options.size ?? "1024x1024"),
+        "utf8",
+      );
       return {
         path: fallbackPath,
         kind: "svg",
@@ -1356,7 +1652,10 @@ export class MediaService {
     }
 
     if (generated.b64_json) {
-      const path = join(this.outputDir, `media-${Date.now()}-${this.slugifyText(prompt)}.png`);
+      const path = join(
+        this.outputDir,
+        `media-${Date.now()}-${this.slugifyText(prompt)}.png`,
+      );
       writeFileSync(path, Buffer.from(generated.b64_json, "base64"));
       return {
         path,
@@ -1368,10 +1667,15 @@ export class MediaService {
       const path = fallbackPath;
       writeFileSync(
         path,
-        this.renderGenerationSvg(prompt, options.size ?? "1024x1024", [`Generated image URL: ${generated.url}`]),
+        this.renderGenerationSvg(prompt, options.size ?? "1024x1024", [
+          `Generated image URL: ${generated.url}`,
+        ]),
         "utf8",
       );
-      const responsePath = join(this.outputDir, `media-${Date.now()}-${this.slugifyText(prompt)}.json`);
+      const responsePath = join(
+        this.outputDir,
+        `media-${Date.now()}-${this.slugifyText(prompt)}.json`,
+      );
       writeFileSync(
         responsePath,
         JSON.stringify(
@@ -1392,14 +1696,22 @@ export class MediaService {
       };
     }
 
-    writeFileSync(fallbackPath, this.renderGenerationSvg(prompt, options.size ?? "1024x1024"), "utf8");
+    writeFileSync(
+      fallbackPath,
+      this.renderGenerationSvg(prompt, options.size ?? "1024x1024"),
+      "utf8",
+    );
     return {
       path: fallbackPath,
       kind: "svg",
     };
   }
 
-  private renderGenerationSvg(prompt: string, size: string, notes: string[] = []): string {
+  private renderGenerationSvg(
+    prompt: string,
+    size: string,
+    notes: string[] = [],
+  ): string {
     const excerpt = prompt.replace(/\s+/gu, " ").slice(0, 220);
     const width = 1200;
     const height = 700;
@@ -1407,7 +1719,11 @@ export class MediaService {
       "Eliza Agent Image Concept",
       `Prompt: ${excerpt}`,
       `Size: ${size}`,
-      ...(notes.length ? notes : ["Generated from the configured image pipeline or offline fallback."]),
+      ...(notes.length
+        ? notes
+        : [
+            "Generated from the configured image pipeline or offline fallback.",
+          ]),
     ];
     const rows = lines
       .map(
@@ -1470,12 +1786,14 @@ export class MediaService {
   }
 
   private slugifyText(value: string): string {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "media";
+    return (
+      value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48) || "media"
+    );
   }
 
   private hashFile(path: string): string {

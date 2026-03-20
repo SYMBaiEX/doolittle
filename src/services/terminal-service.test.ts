@@ -1,9 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TerminalService } from "./terminal-service";
 import type { RuntimeSettings } from "./settings-service";
+import { TerminalService } from "./terminal-service";
 
 function makeSettings(): RuntimeSettings {
   return {
@@ -114,7 +121,11 @@ describe("TerminalService", () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-preview-"));
     const settings = makeSettings();
     settings.execution.backend = "docker";
-    const service = new TerminalService(join(root, "data"), root, () => settings);
+    const service = new TerminalService(
+      join(root, "data"),
+      root,
+      () => settings,
+    );
 
     try {
       const preview = service.preview("printf 'preview-ok'");
@@ -127,14 +138,18 @@ describe("TerminalService", () => {
       expect(preview.argv).toContain("/bin/sh");
       expect(preview.argv.at(-1)).toBe("printf 'preview-ok'");
       expect(preview.bootstrap.length).toBeGreaterThan(0);
-      expect(preview.checks.some((check) => check.id === "docker.preview.generated")).toBe(true);
+      expect(
+        preview.checks.some((check) => check.id === "docker.preview.generated"),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
   it("previews ssh execution with explicit key and remote shell hardening", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-ssh-preview-"));
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-terminal-ssh-preview-"),
+    );
     const keyPath = join(root, "id_ed25519");
     writeExecutable(keyPath, "dummy-key");
     const settings = makeSettings();
@@ -145,7 +160,11 @@ describe("TerminalService", () => {
     settings.execution.sshPort = 2222;
     settings.execution.sshKeyPath = keyPath;
     settings.execution.sshStrictHostKeyChecking = true;
-    const service = new TerminalService(join(root, "data"), root, () => settings);
+    const service = new TerminalService(
+      join(root, "data"),
+      root,
+      () => settings,
+    );
 
     try {
       const preview = service.preview("git status --short");
@@ -155,7 +174,9 @@ describe("TerminalService", () => {
       expect(preview.argv).toContain("IdentitiesOnly=yes");
       expect(preview.argv).toContain("PreferredAuthentications=publickey");
       expect(preview.argv.at(-1)).toContain("exec sh -lc");
-      expect(preview.checks.some((check) => check.id === "ssh.preview.generated")).toBe(true);
+      expect(
+        preview.checks.some((check) => check.id === "ssh.preview.generated"),
+      ).toBe(true);
       expect(preview.bootstrap.length).toBeGreaterThan(0);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -176,17 +197,23 @@ describe("TerminalService", () => {
       expect(local?.diagnostics.length).toBeGreaterThan(0);
       expect(local?.checks.length).toBeGreaterThan(0);
       expect(health.some((entry) => entry.backend === "podman")).toBe(true);
-      expect(health.some((entry) => entry.backend === "singularity")).toBe(true);
+      expect(health.some((entry) => entry.backend === "singularity")).toBe(
+        true,
+      );
       expect(health.some((entry) => entry.backend === "daytona")).toBe(true);
       expect(health.some((entry) => entry.backend === "modal")).toBe(true);
-      expect(health.find((entry) => entry.backend === "docker")?.mode).toBe("container");
+      expect(health.find((entry) => entry.backend === "docker")?.mode).toBe(
+        "container",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
   it("surfaces container and ssh health through structured checks", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-health-backends-"));
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-terminal-health-backends-"),
+    );
     const fakeBin = join(root, "bin");
     const fakeData = join(root, "data");
     mkdirSync(fakeBin, { recursive: true });
@@ -196,7 +223,7 @@ describe("TerminalService", () => {
       [
         "#!/bin/sh",
         "set -eu",
-        'case "${1:-}" in',
+        `case "\${1:-}" in`,
         "  version)",
         "    printf '24.0.0\\n'",
         "    ;;",
@@ -213,7 +240,7 @@ describe("TerminalService", () => {
       [
         "#!/bin/sh",
         "set -eu",
-        'case "${1:-}" in',
+        `case "\${1:-}" in`,
         "  --version)",
         "    printf 'Podman 5.0.0\\n'",
         "    ;;",
@@ -230,10 +257,10 @@ describe("TerminalService", () => {
       [
         "#!/bin/sh",
         "set -eu",
-        'if [ "${1:-}" = "-o" ] || [ "${1:-}" = "-p" ] || [ "${1:-}" = "-i" ]; then',
+        `if [ "\${1:-}" = "-o" ] || [ "\${1:-}" = "-p" ] || [ "\${1:-}" = "-i" ]; then`,
         "  exit 0",
         "fi",
-        'if [ "${1:-}" = "root@example.internal" ] || [ "${2:-}" = "root@example.internal" ] || [ "${3:-}" = "root@example.internal" ]; then',
+        `if [ "\${1:-}" = "root@example.internal" ] || [ "\${2:-}" = "root@example.internal" ] || [ "\${3:-}" = "root@example.internal" ]; then`,
         "  exit 0",
         "fi",
         "exit 0",
@@ -258,13 +285,23 @@ describe("TerminalService", () => {
       const podman = health.find((entry) => entry.backend === "podman");
       const ssh = health.find((entry) => entry.backend === "ssh");
       expect(docker?.checks.length).toBeGreaterThan(0);
-      expect(docker?.checks.some((check) => check.id === "docker.runtime.binary")).toBe(true);
-      expect(docker?.checks.some((check) => check.id === "docker.runtime.image")).toBe(true);
+      expect(
+        docker?.checks.some((check) => check.id === "docker.runtime.binary"),
+      ).toBe(true);
+      expect(
+        docker?.checks.some((check) => check.id === "docker.runtime.image"),
+      ).toBe(true);
       expect(podman?.checks.length).toBeGreaterThan(0);
-      expect(podman?.checks.some((check) => check.id === "podman.runtime.binary")).toBe(true);
-      expect(podman?.checks.some((check) => check.id === "podman.runtime.image")).toBe(true);
+      expect(
+        podman?.checks.some((check) => check.id === "podman.runtime.binary"),
+      ).toBe(true);
+      expect(
+        podman?.checks.some((check) => check.id === "podman.runtime.image"),
+      ).toBe(true);
       expect(ssh?.checks.length).toBeGreaterThan(0);
-      expect(ssh?.checks.some((check) => check.id === "ssh.config.key")).toBe(true);
+      expect(ssh?.checks.some((check) => check.id === "ssh.config.key")).toBe(
+        true,
+      );
       expect(ssh?.bootstrap.length).toBeGreaterThan(0);
     } finally {
       process.env.PATH = originalPath;
@@ -273,16 +310,24 @@ describe("TerminalService", () => {
   });
 
   it("previews daytona and modal execution with explicit targets", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-cloud-preview-"));
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-terminal-cloud-preview-"),
+    );
     const settings = makeSettings();
     settings.execution.backend = "daytona";
     settings.execution.daytonaTarget = "sandbox-dev";
     settings.execution.daytonaCommand = "daytona";
     settings.execution.daytonaShell = "/bin/bash";
     settings.execution.daytonaSnapshot = "snapshot-dev";
-    settings.execution.daytonaBootstrapCommand = "test -d .eliza-agent || mkdir -p .eliza-agent";
-    settings.execution.daytonaStatusCommand = "daytona info sandbox-dev --format json";
-    const daytonaService = new TerminalService(join(root, "daytona-data"), root, () => settings);
+    settings.execution.daytonaBootstrapCommand =
+      "test -d .eliza-agent || mkdir -p .eliza-agent";
+    settings.execution.daytonaStatusCommand =
+      "daytona info sandbox-dev --format json";
+    const daytonaService = new TerminalService(
+      join(root, "daytona-data"),
+      root,
+      () => settings,
+    );
 
     try {
       const daytonaPreview = daytonaService.preview("git status --short");
@@ -293,30 +338,54 @@ describe("TerminalService", () => {
       expect(daytonaPreview.engine).toBe("daytona");
       expect(daytonaPreview.cloud?.provider).toBe("daytona");
       expect(daytonaPreview.cloud?.workspacePath).toBe("/workspace");
-      expect(daytonaPreview.cloud?.workspaceLabel).toBe("eliza-agent-workspace");
+      expect(daytonaPreview.cloud?.workspaceLabel).toBe(
+        "eliza-agent-workspace",
+      );
       expect(daytonaPreview.cloud?.syncPlan.mode).toBe("snapshot");
       expect(daytonaPreview.cloud?.syncPlan.include).toContain("src/**");
       expect(daytonaPreview.cloudSnapshot?.event).toBe("preview");
       expect(daytonaPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
       expect(daytonaPreview.cloud?.snapshot).toBe("snapshot-dev");
-      expect(daytonaPreview.cloud?.bootstrapCommand).toContain("mkdir -p .eliza-agent");
-      expect(daytonaPreview.cloud?.statusCommand).toContain("daytona info sandbox-dev");
-      expect(daytonaPreview.cloud?.inspectCommand).toContain("daytona info sandbox-dev");
+      expect(daytonaPreview.cloud?.bootstrapCommand).toContain(
+        "mkdir -p .eliza-agent",
+      );
+      expect(daytonaPreview.cloud?.statusCommand).toContain(
+        "daytona info sandbox-dev",
+      );
+      expect(daytonaPreview.cloud?.inspectCommand).toContain(
+        "daytona info sandbox-dev",
+      );
       expect(daytonaPreview.cloudSession?.provider).toBe("daytona");
       expect(daytonaPreview.cloudSession?.target).toBe("sandbox-dev");
       const daytonaState = JSON.parse(
         readFileSync(join(root, "daytona-data", "cloud-sessions.json"), "utf8"),
-      ) as { sessions?: Array<{ provider?: string; target?: string; state?: string }> };
-      expect(daytonaState.sessions?.some((session) => session.provider === "daytona")).toBe(true);
+      ) as {
+        sessions?: Array<{
+          provider?: string;
+          target?: string;
+          state?: string;
+        }>;
+      };
+      expect(
+        daytonaState.sessions?.some(
+          (session) => session.provider === "daytona",
+        ),
+      ).toBe(true);
 
       settings.execution.backend = "modal";
       settings.execution.modalTarget = "sandbox-prod";
       settings.execution.modalCommand = "modal";
       settings.execution.modalShell = "/bin/zsh";
       settings.execution.modalEnvironment = "sandbox-prod-env";
-      settings.execution.modalBootstrapCommand = "test -d .eliza-agent || mkdir -p .eliza-agent";
-      settings.execution.modalStatusCommand = "modal shell sandbox-prod --cmd pwd";
-      const modalService = new TerminalService(join(root, "modal-data"), root, () => settings);
+      settings.execution.modalBootstrapCommand =
+        "test -d .eliza-agent || mkdir -p .eliza-agent";
+      settings.execution.modalStatusCommand =
+        "modal shell sandbox-prod --cmd pwd";
+      const modalService = new TerminalService(
+        join(root, "modal-data"),
+        root,
+        () => settings,
+      );
       const modalPreview = modalService.preview("pwd");
       expect(modalPreview.argv[0]).toBe("modal");
       expect(modalPreview.argv).toContain("shell");
@@ -333,21 +402,35 @@ describe("TerminalService", () => {
       expect(modalPreview.cloud?.syncPlan.mode).toBe("mirror");
       expect(modalPreview.cloudSnapshot?.event).toBe("preview");
       expect(modalPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
-      expect(modalPreview.cloud?.bootstrapCommand).toContain("mkdir -p .eliza-agent");
-      expect(modalPreview.cloud?.inspectCommand).toContain("modal shell sandbox-prod");
+      expect(modalPreview.cloud?.bootstrapCommand).toContain(
+        "mkdir -p .eliza-agent",
+      );
+      expect(modalPreview.cloud?.inspectCommand).toContain(
+        "modal shell sandbox-prod",
+      );
       expect(modalPreview.cloudSession?.provider).toBe("modal");
       expect(modalPreview.cloudSession?.target).toBe("sandbox-prod");
       const modalState = JSON.parse(
         readFileSync(join(root, "modal-data", "cloud-sessions.json"), "utf8"),
-      ) as { sessions?: Array<{ provider?: string; target?: string; state?: string }> };
-      expect(modalState.sessions?.some((session) => session.provider === "modal")).toBe(true);
+      ) as {
+        sessions?: Array<{
+          provider?: string;
+          target?: string;
+          state?: string;
+        }>;
+      };
+      expect(
+        modalState.sessions?.some((session) => session.provider === "modal"),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
   it("probes daytona and modal cloud backends with sandbox-aware checks", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-cloud-health-"));
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-terminal-cloud-health-"),
+    );
     const fakeBin = join(root, "bin");
     const fakeData = join(root, "data");
     mkdirSync(fakeBin, { recursive: true });
@@ -357,24 +440,24 @@ describe("TerminalService", () => {
       [
         "#!/bin/sh",
         "set -eu",
-        'case "${1:-}" in',
+        `case "\${1:-}" in`,
         "  info)",
-        "    printf '{\"name\":\"sandbox-dev\",\"status\":\"ready\"}\\n'",
+        '    printf \'{"name":"sandbox-dev","status":"ready"}\\n\'',
         "    ;;",
         "  exec)",
         "    shift 3",
-        '    if [ "${1:-}" = "--cwd" ]; then',
+        `    if [ "\${1:-}" = "--cwd" ]; then`,
         "      shift 2",
         "    fi",
-        '    if [ "${1:-}" = "--timeout" ]; then',
+        `    if [ "\${1:-}" = "--timeout" ]; then`,
         "      shift 2",
         "    fi",
-        '    if [ "${1:-}" = "--" ]; then',
+        `    if [ "\${1:-}" = "--" ]; then`,
         "      shift",
         "      shift",
         "      shift",
         "    fi",
-        '    if [ "${1:-}" = "-lc" ]; then',
+        `    if [ "\${1:-}" = "-lc" ]; then`,
         "      shift",
         "      shift",
         "    fi",
@@ -400,16 +483,16 @@ describe("TerminalService", () => {
       [
         "#!/bin/sh",
         "set -eu",
-        'case "${1:-}" in',
+        `case "\${1:-}" in`,
         "  shell)",
         "    shift",
-        "    if [ \"${1:-}\" = \"sandbox-prod\" ]; then",
+        `    if [ "\${1:-}" = "sandbox-prod" ]; then`,
         "      shift",
         "    fi",
-        '    if [ "${1:-}" = "-e" ]; then',
+        `    if [ "\${1:-}" = "-e" ]; then`,
         "      shift 2",
         "    fi",
-        '    if [ "${1:-}" = "--cmd" ]; then',
+        `    if [ "\${1:-}" = "--cmd" ]; then`,
         "      shift 2",
         "    fi",
         '    case "$*" in',
@@ -438,16 +521,20 @@ describe("TerminalService", () => {
     settings.execution.daytonaShell = "/bin/bash";
     settings.execution.daytonaSnapshot = "snapshot-dev";
     settings.execution.daytonaBootstrapCommand = "mkdir -p .eliza-agent";
-    settings.execution.daytonaStatusCommand = "daytona info sandbox-dev --format json";
-    settings.execution.daytonaInspectCommand = "daytona info sandbox-dev --format json";
+    settings.execution.daytonaStatusCommand =
+      "daytona info sandbox-dev --format json";
+    settings.execution.daytonaInspectCommand =
+      "daytona info sandbox-dev --format json";
     settings.execution.modalTarget = "sandbox-prod";
     settings.execution.modalCommand = "modal";
     settings.execution.modalShell = "/bin/zsh";
     settings.execution.modalWorkspacePath = "/workspace/remote";
     settings.execution.modalEnvironment = "sandbox-prod-env";
     settings.execution.modalBootstrapCommand = "mkdir -p .eliza-agent";
-    settings.execution.modalStatusCommand = "modal shell sandbox-prod --cmd pwd";
-    settings.execution.modalInspectCommand = "modal shell sandbox-prod --cmd pwd";
+    settings.execution.modalStatusCommand =
+      "modal shell sandbox-prod --cmd pwd";
+    settings.execution.modalInspectCommand =
+      "modal shell sandbox-prod --cmd pwd";
     const service = new TerminalService(fakeData, root, () => settings);
 
     try {
@@ -463,11 +550,23 @@ describe("TerminalService", () => {
       expect(daytona?.cloudSnapshot?.summary).toContain("Daytona");
       expect(daytona?.cloudSession?.snapshotCount).toBeGreaterThan(0);
       expect(daytona?.cloudSession?.lastSnapshotSummary).toContain("Daytona");
-      expect(daytona?.checks.some((check) => check.id === "daytona.config.status")).toBe(true);
-      expect(daytona?.checks.some((check) => check.id === "daytona.config.sync.plan")).toBe(true);
-      expect(daytona?.checks.some((check) => check.id === "daytona.config.inspect")).toBe(true);
-      expect(daytona?.checks.some((check) => check.id === "daytona.runtime.binary")).toBe(true);
-      expect(daytona?.checks.some((check) => check.id === "daytona.runtime.probe")).toBe(true);
+      expect(
+        daytona?.checks.some((check) => check.id === "daytona.config.status"),
+      ).toBe(true);
+      expect(
+        daytona?.checks.some(
+          (check) => check.id === "daytona.config.sync.plan",
+        ),
+      ).toBe(true);
+      expect(
+        daytona?.checks.some((check) => check.id === "daytona.config.inspect"),
+      ).toBe(true);
+      expect(
+        daytona?.checks.some((check) => check.id === "daytona.runtime.binary"),
+      ).toBe(true);
+      expect(
+        daytona?.checks.some((check) => check.id === "daytona.runtime.probe"),
+      ).toBe(true);
       expect(daytona?.bootstrap.length).toBeGreaterThan(0);
       expect(daytona?.cloudArtifacts?.length).toBeGreaterThan(0);
       expect(modal).toBeDefined();
@@ -479,11 +578,21 @@ describe("TerminalService", () => {
       expect(modal?.cloudSnapshot?.summary).toContain("Modal");
       expect(modal?.cloudSession?.snapshotCount).toBeGreaterThan(0);
       expect(modal?.cloudSession?.lastSnapshotSummary).toContain("Modal");
-      expect(modal?.checks.some((check) => check.id === "modal.config.status")).toBe(true);
-      expect(modal?.checks.some((check) => check.id === "modal.config.sync.plan")).toBe(true);
-      expect(modal?.checks.some((check) => check.id === "modal.config.inspect")).toBe(true);
-      expect(modal?.checks.some((check) => check.id === "modal.runtime.binary")).toBe(true);
-      expect(modal?.checks.some((check) => check.id === "modal.runtime.probe")).toBe(true);
+      expect(
+        modal?.checks.some((check) => check.id === "modal.config.status"),
+      ).toBe(true);
+      expect(
+        modal?.checks.some((check) => check.id === "modal.config.sync.plan"),
+      ).toBe(true);
+      expect(
+        modal?.checks.some((check) => check.id === "modal.config.inspect"),
+      ).toBe(true);
+      expect(
+        modal?.checks.some((check) => check.id === "modal.runtime.binary"),
+      ).toBe(true);
+      expect(
+        modal?.checks.some((check) => check.id === "modal.runtime.probe"),
+      ).toBe(true);
       expect(modal?.bootstrap.length).toBeGreaterThan(0);
       expect(modal?.cloudArtifacts?.length).toBeGreaterThan(0);
       expect(service.cloudSnapshots(2).length).toBeGreaterThan(0);
