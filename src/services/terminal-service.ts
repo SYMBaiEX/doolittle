@@ -196,6 +196,15 @@ function buildSingularityCommand(
   ];
 }
 
+function buildCliTargetCommand(
+  binary: string,
+  target: string,
+  command: string,
+  cwd: string,
+): string[] {
+  return [binary, "exec", target, "--cwd", cwd, "--", "/bin/sh", "-lc", command];
+}
+
 function buildSshBaseArgs(settings: RuntimeSettings): string[] {
   const execution = settings.execution;
   const keyFlags =
@@ -512,6 +521,57 @@ function buildSingularityChecks(
       "pass",
       "Container shell",
       "Commands execute through /bin/sh -lc inside the Singularity image.",
+    ),
+  ];
+}
+
+function buildCliRemoteChecks(
+  engine: "daytona" | "modal",
+  settings: RuntimeSettings,
+  workspaceDir: string,
+  runtimeAvailable: boolean,
+): DiagnosticCheck[] {
+  const target =
+    engine === "daytona"
+      ? settings.execution.daytonaTarget
+      : settings.execution.modalTarget;
+  const command =
+    engine === "daytona"
+      ? settings.execution.daytonaCommand
+      : settings.execution.modalCommand;
+
+  return [
+    createCheck(
+      `${engine}.runtime.binary`,
+      runtimeAvailable ? "pass" : "fail",
+      `${engine} CLI availability`,
+      runtimeAvailable
+        ? `${engine} command is available on this host.`
+        : `${engine} command is not available on this host.`,
+    ),
+    createCheck(
+      `${engine}.config.target`,
+      target ? "pass" : "fail",
+      `${engine} target`,
+      target
+        ? `Execution target configured: ${target}.`
+        : `${engine} target is not configured.`,
+    ),
+    createCheck(
+      `${engine}.config.command`,
+      command ? "pass" : "warn",
+      `${engine} CLI command`,
+      command
+        ? `Using configured CLI command "${command}".`
+        : `Defaulting to "${engine}" as the CLI command.`,
+    ),
+    createCheck(
+      `${engine}.workspace.cwd`,
+      existsSync(workspaceDir) ? "pass" : "warn",
+      "Workspace path",
+      existsSync(workspaceDir)
+        ? `Workspace path ${workspaceDir} will be forwarded to ${engine}.`
+        : `Workspace directory ${workspaceDir} is not present.`,
     ),
   ];
 }
@@ -1072,6 +1132,89 @@ class SingularityExecutionBackend implements ExecutionBackend {
   }
 }
 
+class CliRemoteExecutionBackend implements ExecutionBackend {
+  constructor(
+    readonly name: "daytona" | "modal",
+    private readonly getBinary: (settings: RuntimeSettings) => string,
+    private readonly getTarget: (settings: RuntimeSettings) => string,
+  ) {}
+
+  preview(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): ExecutionBackendPreview {
+    const binary = this.getBinary(options.settings);
+    const target = this.getTarget(options.settings);
+    const checks = buildCliRemoteChecks(this.name, options.settings, options.cwd, true);
+    return {
+      backend: this.name,
+      mode: "remote",
+      engine: this.name,
+      ready: false,
+      detail: `${this.name} execution uses a CLI-managed remote sandbox target.`,
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      command,
+      argv: buildCliTargetCommand(binary, target || "TARGET", command, options.cwd),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        `Install the ${binary} CLI and authenticate it locally.`,
+        `Configure execution.${this.name}Target before selecting the ${this.name} backend.`,
+      ]),
+    };
+  }
+
+  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+    const binary = this.getBinary(settings);
+    const target = this.getTarget(settings);
+    const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
+    const runtimeAvailable = await commandExists(binary, probeTimeoutMs);
+    const checks = buildCliRemoteChecks(this.name, settings, workspaceDir, runtimeAvailable);
+    return {
+      backend: this.name,
+      mode: "remote",
+      engine: this.name,
+      ready: runtimeAvailable && Boolean(target),
+      detail:
+        runtimeAvailable && target
+          ? `${this.name} backend is configured for target ${target}.`
+          : !runtimeAvailable
+            ? `${binary} command is not available.`
+            : `${this.name} target is not configured.`,
+      limits: buildHealthLimits(settings),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        `Authenticate the ${binary} CLI and verify remote sandbox access.`,
+        `Set execution.${this.name}Target to the desired persistent sandbox or environment.`,
+      ]),
+    };
+  }
+
+  async run(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): Promise<TerminalRunResult> {
+    const binary = this.getBinary(options.settings);
+    const target = this.getTarget(options.settings);
+    if (!target) {
+      return {
+        exitCode: 1,
+        stdout: "",
+        stderr: `${this.name} backend requires a configured target.`,
+        timedOut: false,
+        durationMs: 0,
+      };
+    }
+    return normalizeBackendError(
+      await runCommand(buildCliTargetCommand(binary, target, command, options.cwd), {
+        timeoutMs: options.timeoutMs,
+      }),
+    );
+  }
+}
+
 export class TerminalService {
   private readonly filePath: string;
   private readonly backends = new Map<ExecutionBackendName, ExecutionBackend>([
@@ -1080,6 +1223,22 @@ export class TerminalService {
     ["podman", new PodmanExecutionBackend()],
     ["ssh", new SshExecutionBackend()],
     ["singularity", new SingularityExecutionBackend()],
+    [
+      "daytona",
+      new CliRemoteExecutionBackend(
+        "daytona",
+        (settings) => settings.execution.daytonaCommand || "daytona",
+        (settings) => settings.execution.daytonaTarget,
+      ),
+    ],
+    [
+      "modal",
+      new CliRemoteExecutionBackend(
+        "modal",
+        (settings) => settings.execution.modalCommand || "modal",
+        (settings) => settings.execution.modalTarget,
+      ),
+    ],
   ]);
 
   constructor(

@@ -22,6 +22,10 @@ export interface RuntimeSettings {
     dockerWorkspacePath: string;
     dockerEnvPassthrough: string[];
     singularityImage: string;
+    daytonaTarget: string;
+    daytonaCommand: string;
+    modalTarget: string;
+    modalCommand: string;
     commandTimeoutMs?: number;
     healthTimeoutMs?: number;
     containerCpuLimit?: string;
@@ -71,6 +75,10 @@ export class SettingsService {
         dockerWorkspacePath: "/workspace",
         dockerEnvPassthrough: ["PATH", "HOME"],
         singularityImage: "",
+        daytonaTarget: "",
+        daytonaCommand: "",
+        modalTarget: "",
+        modalCommand: "",
         commandTimeoutMs: 30_000,
         healthTimeoutMs: 5_000,
         containerCpuLimit: "2",
@@ -100,6 +108,22 @@ export class SettingsService {
       }
       if (execution.singularityImage === undefined) {
         parsed.execution.singularityImage = "";
+        dirty = true;
+      }
+      if (execution.daytonaTarget === undefined) {
+        parsed.execution.daytonaTarget = "";
+        dirty = true;
+      }
+      if (execution.daytonaCommand === undefined) {
+        parsed.execution.daytonaCommand = "";
+        dirty = true;
+      }
+      if (execution.modalTarget === undefined) {
+        parsed.execution.modalTarget = "";
+        dirty = true;
+      }
+      if (execution.modalCommand === undefined) {
+        parsed.execution.modalCommand = "";
         dirty = true;
       }
       if (execution.commandTimeoutMs === undefined) {

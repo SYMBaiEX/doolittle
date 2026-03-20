@@ -107,6 +107,38 @@ function parseGatewayFilters(url: URL): {
   };
 }
 
+function parseDelegationFilters(url: URL): {
+  limit: number;
+  group?: string;
+  profile?: string;
+  priority?: "low" | "normal" | "high";
+  label?: string;
+  parentTaskId?: string;
+  status?: "pending" | "running" | "completed" | "failed" | "cancelled";
+  executionMode?: "local" | "delegated";
+} {
+  const rawLimit = Number(url.searchParams.get("limit") ?? "25");
+  const priority = url.searchParams.get("priority") ?? undefined;
+  const status = url.searchParams.get("status") ?? undefined;
+  const executionMode = url.searchParams.get("executionMode") ?? url.searchParams.get("mode") ?? undefined;
+
+  return {
+    limit: Number.isNaN(rawLimit) || rawLimit <= 0 ? 25 : rawLimit,
+    group: url.searchParams.get("group") ?? undefined,
+    profile: url.searchParams.get("profile") ?? undefined,
+    priority: priority && ["low", "normal", "high"].includes(priority)
+      ? (priority as "low" | "normal" | "high")
+      : undefined,
+    label: url.searchParams.get("label") ?? url.searchParams.get("tag") ?? undefined,
+    parentTaskId: url.searchParams.get("parentTaskId") ?? url.searchParams.get("parent") ?? undefined,
+    status: status && ["pending", "running", "completed", "failed", "cancelled"].includes(status)
+      ? (status as "pending" | "running" | "completed" | "failed" | "cancelled")
+      : undefined,
+    executionMode:
+      executionMode === "local" || executionMode === "delegated" ? executionMode : undefined,
+  };
+}
+
 export function startApiServer(context: AppContext): void {
   Bun.serve({
     hostname: context.config.host,
@@ -496,9 +528,42 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/delegation/tasks") {
+        const filters = parseDelegationFilters(url);
         return json({
-          tasks: context.services.delegation.list(),
+          tasks: context.services.delegation.list({
+            group: filters.group,
+            profile: filters.profile,
+            priority: filters.priority,
+            label: filters.label,
+            parentTaskId: filters.parentTaskId,
+            status: filters.status,
+            executionMode: filters.executionMode,
+          }).slice(0, filters.limit),
         });
+      }
+
+      if (request.method === "GET" && url.pathname.startsWith("/delegation/tasks/")) {
+        const parts = url.pathname.split("/");
+        const id = parts[3];
+        const action = parts[4];
+        if (!id) {
+          return json({ error: "task id is required" }, 400);
+        }
+        if (!action) {
+          return json({
+            task: context.services.delegation.get(id),
+          });
+        }
+        if (action === "children") {
+          return json({
+            children: context.services.delegation.listChildren(id),
+          });
+        }
+        if (action === "tree") {
+          return json({
+            tree: context.services.delegation.tree(id),
+          });
+        }
       }
 
       if (request.method === "GET" && url.pathname === "/delegation/overview") {
@@ -507,10 +572,27 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/delegation/groups") {
+        const overview = context.services.delegation.overview();
+        return json({
+          groups: overview.byGroup,
+          labels: overview.byLabel,
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/delegation/workers") {
+        const filters = parseDelegationFilters(url);
         return json({
           overview: context.services.delegation.overview(),
-          workers: context.services.delegation.workers(50),
+          workers: context.services.delegation.workers(filters.limit, {
+            group: filters.group,
+            profile: filters.profile,
+            priority: filters.priority,
+            label: filters.label,
+            parentTaskId: filters.parentTaskId,
+            status: filters.status,
+            executionMode: filters.executionMode,
+          }),
         });
       }
 
@@ -518,9 +600,12 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as {
           title?: string;
           objective?: string;
+          group?: string;
           profile?: string;
           priority?: "low" | "normal" | "high";
           tags?: string[];
+          labels?: string[];
+          metadata?: Record<string, string>;
           executionMode?: "local" | "delegated";
           maxAttempts?: number;
         };
@@ -531,9 +616,49 @@ export function startApiServer(context: AppContext): void {
           task: context.services.delegation.create({
             title: body.title,
             objective: body.objective,
+            group: body.group,
             profile: body.profile,
             priority: body.priority,
-            tags: body.tags,
+            tags: body.tags ?? body.labels,
+            labels: body.labels ?? body.tags,
+            metadata: body.metadata,
+            executionMode: body.executionMode,
+            maxAttempts: body.maxAttempts,
+          }),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname.startsWith("/delegation/tasks/") && url.pathname.endsWith("/spawn")) {
+        const parts = url.pathname.split("/");
+        const id = parts[3];
+        if (!id) {
+          return json({ error: "task id is required" }, 400);
+        }
+        const body = (await request.json()) as {
+          title?: string;
+          objective?: string;
+          group?: string;
+          profile?: string;
+          priority?: "low" | "normal" | "high";
+          tags?: string[];
+          labels?: string[];
+          metadata?: Record<string, string>;
+          executionMode?: "local" | "delegated";
+          maxAttempts?: number;
+        };
+        if (!body.objective) {
+          return json({ error: "objective is required" }, 400);
+        }
+        return json({
+          task: context.services.delegation.spawnChild(id, {
+            title: body.title ?? "Child task",
+            objective: body.objective,
+            group: body.group,
+            profile: body.profile,
+            priority: body.priority,
+            tags: body.tags ?? body.labels,
+            labels: body.labels ?? body.tags,
+            metadata: body.metadata,
             executionMode: body.executionMode,
             maxAttempts: body.maxAttempts,
           }),
@@ -564,7 +689,10 @@ export function startApiServer(context: AppContext): void {
         const parts = url.pathname.split("/");
         const id = parts[3];
         const action = parts[4];
-        const body = ((await request.json().catch(() => ({}))) ?? {}) as { note?: string };
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          note?: string;
+          cascadeChildren?: boolean;
+        };
         if (!id || !action) {
           return json({ error: "task id and action are required" }, 400);
         }
@@ -588,17 +716,27 @@ export function startApiServer(context: AppContext): void {
           return json({ result: response });
         }
         if (action === "retry") {
-          return json({ task: context.services.delegation.requeue(id, body.note ?? "Requeued via API.") });
+          return json({
+            task: context.services.delegation.requeue(id, body.note ?? "Requeued via API.", {
+              cascadeChildren: body.cascadeChildren,
+            }),
+          });
         }
         if (action === "cancel") {
-          return json({ task: context.services.delegation.cancel(id, body.note ?? "Cancelled via API.") });
+          return json({
+            task: context.services.delegation.cancel(id, body.note ?? "Cancelled via API.", {
+              cascadeChildren: body.cascadeChildren,
+            }),
+          });
         }
         if (action === "complete") {
           return json({ task: context.services.delegation.complete(id, body.note) });
         }
         if (action === "fail") {
           return json({
-            task: context.services.delegation.fail(id, body.note ?? "Task failed."),
+            task: context.services.delegation.fail(id, body.note ?? "Task failed.", {
+              cascadeChildren: body.cascadeChildren,
+            }),
           });
         }
 

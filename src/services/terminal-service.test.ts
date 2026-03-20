@@ -25,6 +25,10 @@ function makeSettings(): RuntimeSettings {
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],
       singularityImage: "",
+      daytonaTarget: "",
+      daytonaCommand: "",
+      modalTarget: "",
+      modalCommand: "",
       commandTimeoutMs: 30_000,
       healthTimeoutMs: 5_000,
       containerCpuLimit: "2",
@@ -152,6 +156,8 @@ describe("TerminalService", () => {
       expect(local?.checks.length).toBeGreaterThan(0);
       expect(health.some((entry) => entry.backend === "podman")).toBe(true);
       expect(health.some((entry) => entry.backend === "singularity")).toBe(true);
+      expect(health.some((entry) => entry.backend === "daytona")).toBe(true);
+      expect(health.some((entry) => entry.backend === "modal")).toBe(true);
       expect(health.find((entry) => entry.backend === "docker")?.mode).toBe("container");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -241,6 +247,33 @@ describe("TerminalService", () => {
       expect(ssh?.bootstrap.length).toBeGreaterThan(0);
     } finally {
       process.env.PATH = originalPath;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("previews daytona and modal execution with explicit targets", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-cloud-preview-"));
+    const settings = makeSettings();
+    settings.execution.backend = "daytona";
+    settings.execution.daytonaTarget = "sandbox-dev";
+    settings.execution.daytonaCommand = "daytona";
+    const daytonaService = new TerminalService(join(root, "daytona-data"), root, () => settings);
+
+    try {
+      const daytonaPreview = daytonaService.preview("git status --short");
+      expect(daytonaPreview.argv[0]).toBe("daytona");
+      expect(daytonaPreview.argv).toContain("sandbox-dev");
+      expect(daytonaPreview.engine).toBe("daytona");
+
+      settings.execution.backend = "modal";
+      settings.execution.modalTarget = "sandbox-prod";
+      settings.execution.modalCommand = "modal";
+      const modalService = new TerminalService(join(root, "modal-data"), root, () => settings);
+      const modalPreview = modalService.preview("pwd");
+      expect(modalPreview.argv[0]).toBe("modal");
+      expect(modalPreview.argv).toContain("sandbox-prod");
+      expect(modalPreview.engine).toBe("modal");
+    } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });

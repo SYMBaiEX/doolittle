@@ -255,6 +255,34 @@ export class DiagnosticsService {
     });
 
     checks.push({
+      id: "daytona.readiness",
+      status:
+        this.config.executionBackend === "daytona" && !this.config.daytonaTarget
+          ? "fail"
+          : this.config.daytonaTarget
+            ? "pass"
+            : "warn",
+      summary: "Daytona execution readiness",
+      detail: this.config.daytonaTarget
+        ? `Daytona target configured: ${this.config.daytonaTarget}.`
+        : "ELIZA_AGENT_DAYTONA_TARGET is not configured.",
+    });
+
+    checks.push({
+      id: "modal.readiness",
+      status:
+        this.config.executionBackend === "modal" && !this.config.modalTarget
+          ? "fail"
+          : this.config.modalTarget
+            ? "pass"
+            : "warn",
+      summary: "Modal execution readiness",
+      detail: this.config.modalTarget
+        ? `Modal target configured: ${this.config.modalTarget}.`
+        : "ELIZA_AGENT_MODAL_TARGET is not configured.",
+    });
+
+    checks.push({
       id: "browser.backend",
       status:
         this.config.browserProvider === "lightpanda" && !this.config.browserCommand
@@ -338,6 +366,16 @@ export class DiagnosticsService {
     if (this.config.executionBackend === "singularity" && !this.config.singularityImage) {
       steps.push(
         "Set ELIZA_AGENT_SINGULARITY_IMAGE before relying on the Singularity execution backend.",
+      );
+    }
+    if (this.config.executionBackend === "daytona" && !this.config.daytonaTarget) {
+      steps.push(
+        "Set ELIZA_AGENT_DAYTONA_TARGET before relying on the Daytona execution backend.",
+      );
+    }
+    if (this.config.executionBackend === "modal" && !this.config.modalTarget) {
+      steps.push(
+        "Set ELIZA_AGENT_MODAL_TARGET before relying on the Modal execution backend.",
       );
     }
 

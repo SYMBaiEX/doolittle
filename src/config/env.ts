@@ -45,7 +45,7 @@ const schema = z.object({
     .default("true")
     .transform((value) => value === "true"),
   ELIZA_AGENT_EXECUTION_BACKEND: z
-    .enum(["local", "docker", "podman", "ssh", "singularity"])
+    .enum(["local", "docker", "podman", "ssh", "singularity", "daytona", "modal"])
     .default("local"),
   ELIZA_AGENT_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
   ELIZA_AGENT_DOCKER_NETWORK: z.string().default("host"),
@@ -54,6 +54,10 @@ const schema = z.object({
     .string()
     .default("PATH,HOME,OPENAI_API_KEY,ANTHROPIC_API_KEY"),
   ELIZA_AGENT_SINGULARITY_IMAGE: z.string().default(""),
+  ELIZA_AGENT_DAYTONA_TARGET: z.string().optional(),
+  ELIZA_AGENT_DAYTONA_COMMAND: z.string().optional(),
+  ELIZA_AGENT_MODAL_TARGET: z.string().optional(),
+  ELIZA_AGENT_MODAL_COMMAND: z.string().optional(),
   ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   ELIZA_AGENT_CONTAINER_CPU_LIMIT: z.string().default("2"),
@@ -148,6 +152,10 @@ export function loadConfig(): EnvConfig {
       .map((value) => value.trim())
       .filter(Boolean),
     singularityImage: values.ELIZA_AGENT_SINGULARITY_IMAGE,
+    daytonaTarget: values.ELIZA_AGENT_DAYTONA_TARGET,
+    daytonaCommand: values.ELIZA_AGENT_DAYTONA_COMMAND,
+    modalTarget: values.ELIZA_AGENT_MODAL_TARGET,
+    modalCommand: values.ELIZA_AGENT_MODAL_COMMAND,
     executionCommandTimeoutMs: values.ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS,
     executionHealthTimeoutMs: values.ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS,
     containerCpuLimit: values.ELIZA_AGENT_CONTAINER_CPU_LIMIT,

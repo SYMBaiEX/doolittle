@@ -258,6 +258,45 @@ function parseDelegationSegments(raw: string): {
   };
 }
 
+function parseDelegationSpawnSegments(raw: string): {
+  parentId: string;
+  objective: string;
+  options: Record<string, string>;
+} | null {
+  const [left, objective] = raw.split("::").map((part) => part.trim());
+  if (!left || !objective) {
+    return null;
+  }
+
+  const segments = left
+    .split("|")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (!segments.length) {
+    return null;
+  }
+
+  const [parentId, ...rawOptions] = segments;
+  const options = rawOptions.reduce<Record<string, string>>((accumulator, segment) => {
+    const separator = segment.indexOf(":");
+    if (separator === -1) {
+      return accumulator;
+    }
+    const key = segment.slice(0, separator).trim().toLowerCase();
+    const value = segment.slice(separator + 1).trim();
+    if (key && value) {
+      accumulator[key] = value;
+    }
+    return accumulator;
+  }, {});
+
+  return {
+    parentId,
+    objective,
+    options,
+  };
+}
+
 function parseDelegationMetadata(value?: string): Record<string, string> | undefined {
   if (!value) {
     return undefined;
@@ -355,6 +394,11 @@ function parseDelegationFilter(raw: string): {
         options.executionMode = executionMode;
       }
     }
+  }
+
+  if (!options.concurrency && !Number.isNaN(Number(raw.trim())) && Number(raw.trim()) > 0) {
+    options.concurrency = Number(raw.trim());
+    options.limit = Number(raw.trim());
   }
 
   return options;
@@ -1181,8 +1225,20 @@ async function buildCommandResponse(
     return JSON.stringify(context.services.media.bundle(path), null, 2);
   }
 
-  if (trimmed === "/delegate" || trimmed === "/delegate list") {
-    const tasks = context.services.delegation.list().slice(0, 20);
+  if (trimmed === "/delegate" || trimmed === "/delegate list" || trimmed.startsWith("/delegate list ")) {
+    const raw = trimmed === "/delegate" || trimmed === "/delegate list" ? "" : trimmed.replace("/delegate list", "").trim();
+    const filters = raw ? parseDelegationFilter(raw) : {};
+    const tasks = context.services.delegation
+      .list({
+        group: filters.group,
+        profile: filters.profile,
+        priority: filters.priority,
+        label: filters.label,
+        parentTaskId: filters.parentTaskId,
+        status: filters.status,
+        executionMode: filters.executionMode,
+      })
+      .slice(0, 20);
     return tasks.length
       ? tasks
           .map(
@@ -1197,8 +1253,20 @@ async function buildCommandResponse(
     return JSON.stringify(context.services.delegation.overview(), null, 2);
   }
 
-  if (trimmed === "/delegate queue") {
-    const tasks = context.services.delegation.pending().slice(0, 20);
+  if (trimmed === "/delegate queue" || trimmed.startsWith("/delegate queue ")) {
+    const raw = trimmed === "/delegate queue" ? "" : trimmed.replace("/delegate queue", "").trim();
+    const filters = raw ? parseDelegationFilter(raw) : {};
+    const tasks = context.services.delegation
+      .pending({
+        group: filters.group,
+        profile: filters.profile,
+        priority: filters.priority,
+        label: filters.label,
+        parentTaskId: filters.parentTaskId,
+        status: filters.status,
+        executionMode: filters.executionMode,
+      })
+      .slice(0, 20);
     return tasks.length
       ? tasks
           .map(
@@ -1327,14 +1395,12 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate spawn ")) {
     const payload = trimmed.replace("/delegate spawn ", "");
-    const [parentPart, rest] = payload.split("::");
-    const parentId = parentPart.split("|")[0]?.trim();
-    const parsed = rest ? parseDelegationSegments(`spawn | ${parentPart.split("|").slice(1).join("|")} :: ${rest}`) : null;
-    if (!parentId || !parsed) {
+    const parsed = parseDelegationSpawnSegments(payload);
+    if (!parsed) {
       return "Usage: /delegate spawn <parent-id> | title:Child Task | group:research | profile:research | priority:high | labels:browser :: <objective>";
     }
-    const child = context.services.delegation.spawnChild(parentId, {
-      title: parsed.head,
+    const child = context.services.delegation.spawnChild(parsed.parentId, {
+      title: parsed.options.title ?? `${parsed.parentId} child`,
       objective: parsed.objective,
       group: parsed.options.group,
       profile: parsed.options.profile,
@@ -1399,9 +1465,19 @@ async function buildCommandResponse(
     return JSON.stringify(report, null, 2);
   }
 
-  if (trimmed === "/delegate workers") {
+  if (trimmed === "/delegate workers" || trimmed.startsWith("/delegate workers ")) {
+    const raw = trimmed === "/delegate workers" ? "" : trimmed.replace("/delegate workers", "").trim();
+    const filters = raw ? parseDelegationFilter(raw) : {};
     const overview = context.services.delegation.overview();
-    const tasks = context.services.delegation.workers(20);
+    const tasks = context.services.delegation.workers(20, {
+      group: filters.group,
+      profile: filters.profile,
+      priority: filters.priority,
+      label: filters.label,
+      parentTaskId: filters.parentTaskId,
+      status: filters.status,
+      executionMode: filters.executionMode,
+    });
     const lines = [
       `Workers: active=${overview.activeWorkers} alive=${overview.aliveWorkers} stalled=${overview.stalledWorkers} running=${overview.running} pending=${overview.pending} completed=${overview.completed} failed=${overview.failed}`,
       `Groups: ${overview.byGroup.map((entry) => `${entry.group}=${entry.count}`).join(", ") || "none"}`,

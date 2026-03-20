@@ -11,9 +11,14 @@ interface DelegationWorkerStatus {
   id: string;
   title: string;
   objective: string;
+  group?: string;
   profile?: string;
   priority?: DelegationTaskRecord["priority"];
   tags?: string[];
+  labels?: string[];
+  metadata?: Record<string, string>;
+  parentTaskId?: string;
+  childTaskIds?: string[];
   status: DelegationTaskRecord["status"];
   executionMode: DelegationTaskRecord["executionMode"];
   workerMode: DelegationTaskRecord["workerMode"];
@@ -48,6 +53,36 @@ interface DelegationOverview {
   concurrency: number;
   byProfile: Array<{ profile: string; count: number }>;
   byPriority: Array<{ priority: string; count: number }>;
+  byGroup: Array<{ group: string; count: number }>;
+  byLabel: Array<{ label: string; count: number }>;
+}
+
+interface DelegationTaskFilter {
+  group?: string;
+  profile?: string;
+  priority?: DelegationTaskRecord["priority"];
+  label?: string;
+  parentTaskId?: string;
+  status?: DelegationTaskRecord["status"];
+  executionMode?: DelegationTaskRecord["executionMode"];
+}
+
+interface DelegationTaskTree {
+  task: DelegationTaskRecord;
+  children: DelegationTaskTree[];
+}
+
+interface DelegationSpawnInput {
+  title: string;
+  objective: string;
+  group?: string;
+  profile?: string;
+  priority?: DelegationTaskRecord["priority"];
+  tags?: string[];
+  labels?: string[];
+  metadata?: Record<string, string>;
+  executionMode?: "local" | "delegated";
+  maxAttempts?: number;
 }
 
 interface DelegationSupervisionReport {
@@ -90,28 +125,42 @@ export class DelegationService {
     }
   }
 
-  list(): DelegationTaskRecord[] {
-    return this.read().tasks.slice().reverse();
+  list(filter?: DelegationTaskFilter): DelegationTaskRecord[] {
+    return this.read()
+      .tasks.filter((task) => this.matchesFilter(task, filter))
+      .slice()
+      .reverse();
   }
 
   create(input: {
     title: string;
     objective: string;
+    group?: string;
     profile?: string;
     priority?: "low" | "normal" | "high";
     tags?: string[];
+    labels?: string[];
+    metadata?: Record<string, string>;
+    parentTaskId?: string;
     executionMode?: "local" | "delegated";
     maxAttempts?: number;
   }): DelegationTaskRecord {
     const store = this.read();
     const now = nowIso();
+    const labels = this.normalizeLabels(input.labels ?? input.tags);
+    const metadata = this.normalizeMetadata(input.metadata);
     const task: DelegationTaskRecord = {
       id: randomUUID(),
       title: input.title,
       objective: input.objective,
+      group: input.group?.trim() || input.profile?.trim() || undefined,
       profile: input.profile?.trim() || undefined,
       priority: input.priority ?? "normal",
-      tags: input.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [],
+      tags: labels,
+      labels,
+      metadata,
+      parentTaskId: input.parentTaskId,
+      childTaskIds: [],
       status: "pending",
       executionMode: input.executionMode ?? "local",
       workerMode: input.executionMode === "delegated" ? "process" : "inline",
@@ -122,8 +171,39 @@ export class DelegationService {
       updatedAt: now,
     };
     store.tasks.push(task);
+    if (input.parentTaskId) {
+      const parent = store.tasks.find((entry) => entry.id === input.parentTaskId);
+      if (parent) {
+        parent.childTaskIds ??= [];
+        parent.childTaskIds.push(task.id);
+        parent.updatedAt = now;
+        parent.notes.push(`system: spawned child task ${task.id}`);
+      }
+    }
     this.write(store);
     return task;
+  }
+
+  spawnChild(parentId: string, input: DelegationSpawnInput): DelegationTaskRecord {
+    const parent = this.get(parentId);
+    return this.create({
+      ...input,
+      title: input.title || `${parent.title} child`,
+      objective: input.objective,
+      group: input.group ?? parent.group ?? parent.profile ?? parent.title,
+      profile: input.profile ?? parent.profile,
+      priority: input.priority ?? parent.priority ?? "normal",
+      tags: this.mergeLists(parent.tags, input.tags),
+      labels: this.mergeLists(parent.labels ?? parent.tags, input.labels ?? input.tags),
+      metadata: {
+        ...(parent.metadata ?? {}),
+        ...(input.metadata ?? {}),
+        parentTaskId: parent.id,
+      },
+      parentTaskId: parent.id,
+      executionMode: input.executionMode ?? "delegated",
+      maxAttempts: input.maxAttempts,
+    });
   }
 
   addNote(id: string, note: string): DelegationTaskRecord {
@@ -140,8 +220,9 @@ export class DelegationService {
     return task;
   }
 
-  pending(): DelegationTaskRecord[] {
+  pending(filter?: DelegationTaskFilter): DelegationTaskRecord[] {
     return this.read().tasks
+      .filter((task) => this.matchesFilter(task, filter))
       .filter(
         (task) =>
           task.status === "pending" ||
@@ -189,8 +270,8 @@ export class DelegationService {
     });
   }
 
-  fail(id: string, note: string): DelegationTaskRecord {
-    return this.update(id, (task) => {
+  fail(id: string, note: string, options?: { cascadeChildren?: boolean }): DelegationTaskRecord {
+    const failedTask = this.update(id, (task) => {
       task.status = "failed";
       task.workerPid = undefined;
       task.completedAt = nowIso();
@@ -199,10 +280,18 @@ export class DelegationService {
         `system: failed after ${task.attempts ?? 0}/${task.maxAttempts ?? 3} attempts at ${task.completedAt}`,
       );
     });
+    if (options?.cascadeChildren) {
+      this.propagateChildNote(id, `system: parent task failed: ${note}`);
+    }
+    return failedTask;
   }
 
-  cancel(id: string, note?: string): DelegationTaskRecord {
-    return this.update(id, (task) => {
+  cancel(
+    id: string,
+    note?: string,
+    options?: { cascadeChildren?: boolean },
+  ): DelegationTaskRecord {
+    const cancelledTask = this.update(id, (task) => {
       task.status = "cancelled";
       task.workerPid = undefined;
       task.completedAt = nowIso();
@@ -211,10 +300,22 @@ export class DelegationService {
       }
       task.notes.push(`system: cancelled at ${task.completedAt}`);
     });
+    if (options?.cascadeChildren !== false) {
+      for (const child of this.listChildren(id)) {
+        this.cancel(child.id, note ?? `Cancelled because parent ${id} was cancelled.`, {
+          cascadeChildren: true,
+        });
+      }
+    }
+    return cancelledTask;
   }
 
-  requeue(id: string, note?: string): DelegationTaskRecord {
-    return this.update(id, (task) => {
+  requeue(
+    id: string,
+    note?: string,
+    options?: { cascadeChildren?: boolean },
+  ): DelegationTaskRecord {
+    const requeuedTask = this.update(id, (task) => {
       task.status = "pending";
       task.workerPid = undefined;
       task.workerMode = task.executionMode === "delegated" ? "process" : "inline";
@@ -226,12 +327,22 @@ export class DelegationService {
       }
       task.notes.push(`system: requeued with ${task.maxAttempts ?? 3} max attempts`);
     });
+    if (options?.cascadeChildren) {
+      for (const child of this.listChildren(id)) {
+        this.requeue(child.id, note ?? `Requeued because parent ${id} was requeued.`, {
+          cascadeChildren: true,
+        });
+      }
+    }
+    return requeuedTask;
   }
 
   overview(): DelegationOverview {
     const tasks = this.read().tasks;
     const profileCounts = new Map<string, number>();
     const priorityCounts = new Map<string, number>();
+    const groupCounts = new Map<string, number>();
+    const labelCounts = new Map<string, number>();
     const counts = tasks.reduce<DelegationOverview>(
       (acc, task) => {
         acc.total += 1;
@@ -261,6 +372,10 @@ export class DelegationService {
           profileCounts.set(task.profile, (profileCounts.get(task.profile) ?? 0) + 1);
         }
         priorityCounts.set(task.priority ?? "normal", (priorityCounts.get(task.priority ?? "normal") ?? 0) + 1);
+        groupCounts.set(task.group ?? task.profile ?? "default", (groupCounts.get(task.group ?? task.profile ?? "default") ?? 0) + 1);
+        for (const label of task.labels ?? task.tags ?? []) {
+          labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+        }
         return acc;
       },
       {
@@ -281,6 +396,8 @@ export class DelegationService {
         concurrency: this.activeExecutions,
         byProfile: [],
         byPriority: [],
+        byGroup: [],
+        byLabel: [],
       },
     );
 
@@ -290,13 +407,20 @@ export class DelegationService {
     counts.byPriority = Array.from(priorityCounts.entries())
       .map(([priority, count]) => ({ priority, count }))
       .sort((left, right) => right.count - left.count || left.priority.localeCompare(right.priority));
+    counts.byGroup = Array.from(groupCounts.entries())
+      .map(([group, count]) => ({ group, count }))
+      .sort((left, right) => right.count - left.count || left.group.localeCompare(right.group));
+    counts.byLabel = Array.from(labelCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
 
     return counts;
   }
 
-  workers(limit = 20): DelegationWorkerStatus[] {
+  workers(limit = 20, filter?: DelegationTaskFilter): DelegationWorkerStatus[] {
     return this.read()
       .tasks
+      .filter((task) => this.matchesFilter(task, filter))
       .filter(
         (task) =>
           task.status === "running" ||
@@ -313,9 +437,14 @@ export class DelegationService {
           id: task.id,
           title: task.title,
           objective: task.objective,
+          group: task.group,
           profile: task.profile,
           priority: task.priority,
           tags: task.tags ?? [],
+          labels: task.labels ?? task.tags ?? [],
+          metadata: task.metadata ?? {},
+          parentTaskId: task.parentTaskId,
+          childTaskIds: task.childTaskIds ?? [],
           status: task.status,
           executionMode: task.executionMode,
           workerMode: task.workerMode,
@@ -338,16 +467,27 @@ export class DelegationService {
     runner: (task: DelegationTaskRecord) => Promise<string>,
     options?: {
       concurrency?: number;
+      filter?: DelegationTaskFilter;
       onComplete?: (task: DelegationTaskRecord) => Promise<void> | void;
       onError?: (task: DelegationTaskRecord, error: string) => Promise<void> | void;
     },
   ): Promise<DelegationSupervisionReport> {
     const concurrency = Math.max(1, options?.concurrency ?? 2);
-    const queue = this.pending();
+    const queue = this.pending(options?.filter);
+    const skipped = this.read()
+      .tasks.filter(
+        (task) =>
+          task.status === "pending" ||
+          (task.status === "failed" && (task.attempts ?? 0) < (task.maxAttempts ?? 3)),
+      )
+      .filter((task) => !this.matchesFilter(task, options?.filter))
+      .map((task) => ({
+        id: task.id,
+        reason: "Filtered out by the current supervision selector.",
+      }));
     const started: string[] = [];
     const completed: string[] = [];
     const failed: { id: string; error: string }[] = [];
-    const skipped: { id: string; reason: string }[] = [];
     const inflight = new Set<Promise<void>>();
 
     const launchTask = (task: DelegationTaskRecord): Promise<void> => {
@@ -399,10 +539,38 @@ export class DelegationService {
 
   async executeQueued(
     runner: (task: DelegationTaskRecord) => Promise<string>,
-    options?: { concurrency?: number; onComplete?: (task: DelegationTaskRecord) => Promise<void> | void },
+    options?: {
+      concurrency?: number;
+      filter?: DelegationTaskFilter;
+      onComplete?: (task: DelegationTaskRecord) => Promise<void> | void;
+    },
   ): Promise<DelegationTaskRecord[]> {
     const report = await this.superviseQueued(runner, options);
     return report.completed.map((id) => this.get(id));
+  }
+
+  listByGroup(group: string): DelegationTaskRecord[] {
+    return this.list({ group });
+  }
+
+  listByLabel(label: string): DelegationTaskRecord[] {
+    return this.list({ label });
+  }
+
+  listByProfile(profile: string): DelegationTaskRecord[] {
+    return this.list({ profile });
+  }
+
+  listChildren(parentTaskId: string): DelegationTaskRecord[] {
+    return this.list({ parentTaskId });
+  }
+
+  tree(id: string): DelegationTaskTree {
+    const task = this.get(id);
+    return {
+      task,
+      children: this.listChildren(id).map((child) => this.tree(child.id)),
+    };
   }
 
   private update(
@@ -418,6 +586,77 @@ export class DelegationService {
     task.updatedAt = new Date().toISOString();
     this.write(store);
     return task;
+  }
+
+  private propagateChildNote(parentId: string, note: string): void {
+    for (const child of this.listChildren(parentId)) {
+      this.addNote(child.id, note);
+    }
+  }
+
+  private matchesFilter(task: DelegationTaskRecord, filter?: DelegationTaskFilter): boolean {
+    if (!filter) {
+      return true;
+    }
+    if (filter.group && (task.group ?? task.profile ?? "default") !== filter.group) {
+      return false;
+    }
+    if (filter.profile && task.profile !== filter.profile) {
+      return false;
+    }
+    if (filter.priority && task.priority !== filter.priority) {
+      return false;
+    }
+    if (filter.parentTaskId && task.parentTaskId !== filter.parentTaskId) {
+      return false;
+    }
+    if (filter.status && task.status !== filter.status) {
+      return false;
+    }
+    if (filter.executionMode && task.executionMode !== filter.executionMode) {
+      return false;
+    }
+    if (filter.label) {
+      const labels = task.labels ?? task.tags ?? [];
+      if (!labels.includes(filter.label)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private normalizeLabels(labels?: string[]): string[] {
+    return Array.from(
+      new Set((labels ?? []).map((label) => label.trim()).filter(Boolean)),
+    );
+  }
+
+  private normalizeMetadata(metadata?: Record<string, string>): Record<string, string> | undefined {
+    if (!metadata) {
+      return undefined;
+    }
+
+    const normalized = Object.entries(metadata).reduce<Record<string, string>>(
+      (accumulator, [key, value]) => {
+        const normalizedKey = key.trim();
+        const normalizedValue = value.trim();
+        if (normalizedKey && normalizedValue) {
+          accumulator[normalizedKey] = normalizedValue;
+        }
+        return accumulator;
+      },
+      {},
+    );
+
+    return Object.keys(normalized).length ? normalized : undefined;
+  }
+
+  private mergeLists(...lists: Array<string[] | undefined>): string[] {
+    return Array.from(
+      new Set(
+        lists.flatMap((list) => list ?? []).map((value) => value.trim()).filter(Boolean),
+      ),
+    );
   }
 
   private read(): DelegationStore {
@@ -448,7 +687,4 @@ export class DelegationService {
     }
   }
 
-  listByProfile(profile: string): DelegationTaskRecord[] {
-    return this.list().filter((task) => task.profile === profile);
-  }
 }
