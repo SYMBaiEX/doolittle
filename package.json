@@ -13,6 +13,9 @@
     "packages/elizaos-official/*"
   ],
   "scripts": {
+    "bootstrap": "bun run scripts/bootstrap.ts",
+    "bootstrap:check": "bun run scripts/bootstrap.ts --check",
+    "install:deps": "bash scripts/install.sh",
     "dev": "bun --watch packages/agent/src/index.ts",
     "start": "bun run packages/agent/src/index.ts",
     "build": "bun build ./packages/agent/src/index.ts --target bun --outdir dist --external sharp",

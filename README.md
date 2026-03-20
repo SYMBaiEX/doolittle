@@ -30,7 +30,7 @@ The platform-specific features that do not have a single clean ElizaOS equivalen
 - `packages/plugins`
   - local Eliza Agent product plugins
 - `packages/skills`
-  - local skill documents and generated skills
+  - local Eliza Agent skill documents and generated skills, organized by category
 - `packages/characters`
   - local character definitions
 - `packages/elizaos-official/*`
@@ -113,6 +113,20 @@ eliza-agent/
 | Delegation queue | [`packages/agent/src/services/delegation-service.ts`](./packages/agent/src/services/delegation-service.ts) + `/delegate` commands |
 | Memory nudges / persistence hints | [`packages/agent/src/evaluators/memory-nudge-evaluator.ts`](./packages/agent/src/evaluators/memory-nudge-evaluator.ts) |
 | Shared task context | [`packages/agent/src/providers/agent-context-provider.ts`](./packages/agent/src/providers/agent-context-provider.ts) |
+
+## Skills discovery
+
+Curated skill docs live under [`packages/skills`](./packages/skills) and are grouped by category for easier browsing:
+
+- `productivity/`
+- `automation/`
+- `platform/`
+- `browser/`
+- `media/`
+- `research/`
+- `generated/`
+
+The category index is documented in [`packages/skills/README.md`](./packages/skills/README.md).
 
 ## Plugin inventory
 
@@ -261,7 +275,25 @@ Copy `.env.example` to `.env` and fill in what you need.
 ### Install
 
 ```bash
-bun install
+bash scripts/install.sh
+```
+
+This Bun-first installer:
+
+- runs `bun install`
+- creates `.env` from `.env.example` when it does not already exist
+- seeds the local workspace directories used by the agent runtime
+
+If you only want to re-run the workspace bootstrap step, use:
+
+```bash
+bun run bootstrap
+```
+
+If you want a non-mutating check of the bootstrap state, use:
+
+```bash
+bun run bootstrap:check
 ```
 
 Verified in this repo: `bun install` resolved successfully with `elizaos@latest`, `@elizaos/core@latest`, and `@elizaos/plugin-sql@alpha`.

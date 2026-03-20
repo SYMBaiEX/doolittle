@@ -12,7 +12,8 @@ Eliza Agent is organized as a Bun workspace monorepo.
 - `packages/plugins`
   - local Eliza Agent product plugins
 - `packages/skills`
-  - local skill content and generated skills
+  - local Eliza Agent skill content and generated skills
+  - organized by category for discoverability (`productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)
 - `packages/characters`
   - character definitions and persona data
 - `packages/elizaos-official/*`
@@ -38,6 +39,22 @@ Run the workspace quality pass from the repo root:
 
 ```bash
 bun run check
+```
+
+## Bootstrap flow
+
+For a fresh clone, use the Bun-first installer wrapper:
+
+```bash
+bash scripts/install.sh
+```
+
+That script installs workspace dependencies, creates `.env` from `.env.example` if needed, and seeds the local runtime directories under `.eliza-agent/`.
+
+If you only need the bootstrap step again:
+
+```bash
+bun run bootstrap
 ```
 
 Useful workspace commands:
