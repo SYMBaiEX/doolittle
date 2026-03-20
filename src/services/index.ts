@@ -116,6 +116,24 @@ export function createServices(
   if (!currentSettings.execution.dockerEnvPassthrough?.length && config.dockerEnvPassthrough.length) {
     settings.set("execution.dockerEnvPassthrough", config.dockerEnvPassthrough);
   }
+  if (!currentSettings.execution.commandTimeoutMs && config.executionCommandTimeoutMs) {
+    settings.set("execution.commandTimeoutMs", config.executionCommandTimeoutMs);
+  }
+  if (!currentSettings.execution.healthTimeoutMs && config.executionHealthTimeoutMs) {
+    settings.set("execution.healthTimeoutMs", config.executionHealthTimeoutMs);
+  }
+  if (!currentSettings.execution.containerCpuLimit && config.containerCpuLimit) {
+    settings.set("execution.containerCpuLimit", config.containerCpuLimit);
+  }
+  if (!currentSettings.execution.containerMemoryLimit && config.containerMemoryLimit) {
+    settings.set("execution.containerMemoryLimit", config.containerMemoryLimit);
+  }
+  if (!currentSettings.execution.containerPidsLimit && config.containerPidsLimit) {
+    settings.set("execution.containerPidsLimit", config.containerPidsLimit);
+  }
+  if (currentSettings.execution.containerReadOnlyRoot === undefined) {
+    settings.set("execution.containerReadOnlyRoot", config.containerReadOnlyRoot);
+  }
   if (!currentSettings.execution.sshPort) {
     settings.set("execution.sshPort", config.sshPort);
   }

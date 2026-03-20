@@ -14,9 +14,11 @@ import { SlackPlatformAdapter } from "./platforms/slack-adapter";
 import { TelegramPlatformAdapter } from "./platforms/telegram-adapter";
 import { WhatsAppPlatformAdapter } from "./platforms/whatsapp-adapter";
 import type {
+  DeliveredMessageRecord,
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   PlatformName,
+  SessionRoute,
 } from "@/types";
 
 const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
@@ -40,6 +42,13 @@ interface GatewayTraceRecord {
   replyToMessageId?: string;
   deliveryId?: string;
   metadataKeys?: string[];
+}
+
+interface GatewayHistorySnapshot {
+  readiness: PlatformHealth[];
+  traces: GatewayTraceRecord[];
+  deliveries: DeliveredMessageRecord[];
+  sessions: SessionRoute[];
 }
 
 export class GatewayRunner {
@@ -342,6 +351,20 @@ export class GatewayRunner {
 
   trace(limit = 20): GatewayTraceRecord[] {
     return this.traceLog.slice(-limit).reverse();
+  }
+
+  async history(limit = 20): Promise<GatewayHistorySnapshot> {
+    const readiness = await this.health();
+    return {
+      readiness,
+      traces: this.trace(limit),
+      deliveries: this.context.services.delivery.recent(limit),
+      sessions: this.context.services.gatewaySessions
+        .list()
+        .slice()
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, limit),
+    };
   }
 
   private describeInactivePlatform(platform: PlatformName): string {
