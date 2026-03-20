@@ -97,6 +97,15 @@ export interface SessionSummary {
   preview: string[];
 }
 
+export interface CronJobRuntimeOverrides {
+  provider?: string;
+  model?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxTokens?: number;
+  personalityId?: string;
+}
+
 export interface CronJobRecord {
   id: string;
   name: string;
@@ -104,6 +113,7 @@ export interface CronJobRecord {
   schedule: string;
   delivery: "origin" | "local";
   skills: string[];
+  runtime?: CronJobRuntimeOverrides;
   status: "active" | "paused";
   oneShot: boolean;
   lastRunAt?: string;

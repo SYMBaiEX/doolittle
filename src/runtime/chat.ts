@@ -8,7 +8,13 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AppContext } from "./bootstrap";
-import type { ChatTurnRequest, MemoryTarget, PlatformName } from "@/types";
+import type {
+  ChatTurnRequest,
+  CronJobRuntimeOverrides,
+  MemoryTarget,
+  PlatformName,
+} from "@/types";
+import type { RuntimeSettings } from "@/services/settings-service";
 
 export type AgentExecutionContext = Pick<AppContext, "config" | "services" | "runtime"> & {
   gateway?: AppContext["gateway"];
@@ -121,6 +127,117 @@ function parseGatewayFilters(raw: string): {
   }
 
   return options;
+}
+
+function parseCronSegments(raw: string): {
+  schedule: string;
+  prompt: string;
+  options: Record<string, string>;
+} | null {
+  const [left, prompt] = raw.split("::").map((part) => part.trim());
+  if (!left || !prompt) {
+    return null;
+  }
+
+  const segments = left
+    .split("|")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (!segments.length) {
+    return null;
+  }
+
+  const [schedule, ...rawOptions] = segments;
+  const options = rawOptions.reduce<Record<string, string>>((accumulator, segment) => {
+    const separator = segment.indexOf(":");
+    if (separator === -1) {
+      return accumulator;
+    }
+    const key = segment.slice(0, separator).trim().toLowerCase();
+    const value = segment.slice(separator + 1).trim();
+    if (key && value) {
+      accumulator[key] = value;
+    }
+    return accumulator;
+  }, {});
+
+  return {
+    schedule,
+    prompt,
+    options,
+  };
+}
+
+function parseCronRuntimeOptions(
+  options: Record<string, string>,
+): CronJobRuntimeOverrides | undefined {
+  const runtime: CronJobRuntimeOverrides = {};
+
+  if (options.provider) {
+    runtime.provider = options.provider;
+  }
+  if (options.model) {
+    runtime.model = options.model;
+  }
+  if (options.base || options.baseurl) {
+    runtime.baseUrl = options.base ?? options.baseurl;
+  }
+  if (options.temperature) {
+    const temperature = Number(options.temperature);
+    if (!Number.isNaN(temperature)) {
+      runtime.temperature = temperature;
+    }
+  }
+  if (options.maxtokens) {
+    const maxTokens = Number(options.maxtokens);
+    if (!Number.isNaN(maxTokens)) {
+      runtime.maxTokens = maxTokens;
+    }
+  }
+  if (options.personality) {
+    runtime.personalityId = options.personality;
+  }
+
+  return Object.keys(runtime).length ? runtime : undefined;
+}
+
+function parseCronSkills(value?: string): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const skills = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return skills.length ? skills : [];
+}
+
+function parseCronDelivery(value?: string): "origin" | "local" | undefined {
+  if (value === "origin" || value === "local") {
+    return value;
+  }
+  return undefined;
+}
+
+function applyRuntimeOverrides(
+  settings: RuntimeSettings,
+  runtime?: CronJobRuntimeOverrides,
+): RuntimeSettings {
+  if (!runtime) {
+    return settings;
+  }
+
+  return {
+    ...settings,
+    model: {
+      ...settings.model,
+      provider: runtime.provider ?? settings.model.provider,
+      model: runtime.model ?? settings.model.model,
+      baseUrl: runtime.baseUrl ?? settings.model.baseUrl,
+      temperature: runtime.temperature ?? settings.model.temperature,
+      maxTokens: runtime.maxTokens ?? settings.model.maxTokens,
+    },
+  };
 }
 
 export async function runDelegationTaskInWorker(
@@ -352,7 +469,7 @@ async function buildCommandResponse(
       ? jobs
           .map(
             (job) =>
-              `- ${job.id} ${job.name} [${job.status}] schedule="${job.schedule}" next=${job.nextRunAt ?? "n/a"}`,
+              `- ${job.id} ${job.name} [${job.status}] schedule="${job.schedule}" next=${job.nextRunAt ?? "n/a"} skills=${job.skills.join(",") || "none"} model=${job.runtime?.model ?? "default"} personality=${job.runtime?.personalityId ?? "active"}`,
           )
           .join("\n")
       : "No cron jobs configured.";
@@ -372,18 +489,54 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/cron create ")) {
     const payload = trimmed.replace("/cron create ", "");
-    const [schedule, prompt] = payload.split("::").map((part) => part.trim());
-    if (!schedule || !prompt) {
-      return "Usage: /cron create <schedule> :: <prompt>";
+    const parsed = parseCronSegments(payload);
+    if (!parsed) {
+      return "Usage: /cron create <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-4.1-mini :: <prompt>";
     }
 
     const created = context.services.cron.create({
-      name: `job-${Date.now()}`,
-      schedule,
-      prompt,
-      delivery: input.source === "cron" ? "local" : "origin",
+      name: parsed.options.name ?? `job-${Date.now()}`,
+      schedule: parsed.schedule,
+      prompt: parsed.prompt,
+      skills: parseCronSkills(parsed.options.skills),
+      runtime: parseCronRuntimeOptions(parsed.options),
+      delivery:
+        parseCronDelivery(parsed.options.delivery) ??
+        (input.source === "cron" ? "local" : "origin"),
     });
     return `Created cron job ${created.id} with next run ${created.nextRunAt ?? "n/a"}.`;
+  }
+
+  if (trimmed.startsWith("/cron show ")) {
+    const job = context.services.cron.get(trimmed.replace("/cron show ", "").trim());
+    if (!job) {
+      return "Cron job not found.";
+    }
+    return JSON.stringify(job, null, 2);
+  }
+
+  if (trimmed.startsWith("/cron update ")) {
+    const payload = trimmed.replace("/cron update ", "").trim();
+    const firstSpace = payload.indexOf(" ");
+    if (firstSpace === -1) {
+      return "Usage: /cron update <job-id> <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-4.1-mini :: <prompt>";
+    }
+    const id = payload.slice(0, firstSpace).trim();
+    const rest = payload.slice(firstSpace + 1).trim();
+    const parsed = parseCronSegments(rest);
+    if (!id || !parsed) {
+      return "Usage: /cron update <job-id> <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-4.1-mini :: <prompt>";
+    }
+    const updated = context.services.cron.updateConfig(id, {
+      name: parsed.options.name,
+      schedule: parsed.schedule,
+      prompt: parsed.prompt,
+      skills: parseCronSkills(parsed.options.skills),
+      runtime: parseCronRuntimeOptions(parsed.options),
+      clearRuntime: parsed.options.runtime === "default",
+      delivery: parseCronDelivery(parsed.options.delivery),
+    });
+    return `Updated cron job ${updated.id}; next run ${updated.nextRunAt ?? "n/a"}.`;
   }
 
   if (trimmed.startsWith("/cron pause ")) {
@@ -1088,6 +1241,10 @@ async function buildCommandResponse(
 export async function handleAgentTurn(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
+  options?: {
+    runtimeOverrides?: CronJobRuntimeOverrides;
+    personalityId?: string;
+  },
 ): Promise<string> {
   const responseFromCommandLayer = await buildCommandResponse(input, context);
   const roomKey = input.roomId ?? `room:${input.userId}`;
@@ -1144,17 +1301,66 @@ export async function handleAgentTurn(
   });
 
   let response = "";
+  const personalityBefore = context.services.personalities.getActive();
+  const settingsBefore = context.services.settings.get();
+  const settingsDuring = applyRuntimeOverrides(settingsBefore, options?.runtimeOverrides);
 
-  await context.runtime.messageService?.handleMessage(
-    context.runtime,
-    memory,
-    async (content) => {
-      if (content?.text) {
-        response += content.text;
-      }
-      return [];
-    },
-  );
+  if (
+    settingsDuring.model.provider !== settingsBefore.model.provider ||
+    settingsDuring.model.model !== settingsBefore.model.model ||
+    settingsDuring.model.baseUrl !== settingsBefore.model.baseUrl ||
+    settingsDuring.model.temperature !== settingsBefore.model.temperature ||
+    settingsDuring.model.maxTokens !== settingsBefore.model.maxTokens
+  ) {
+    context.services.settings.set("model.provider", settingsDuring.model.provider);
+    context.services.settings.set("model.model", settingsDuring.model.model);
+    context.services.settings.set("model.baseUrl", settingsDuring.model.baseUrl);
+    context.services.settings.set("model.temperature", settingsDuring.model.temperature);
+    context.services.settings.set("model.maxTokens", settingsDuring.model.maxTokens);
+    syncProviderSettings(context, context.services.settings.get());
+  }
+
+  if (
+    options?.personalityId &&
+    options.personalityId !== personalityBefore.id
+  ) {
+    context.services.personalities.setActive(options.personalityId);
+  }
+
+  try {
+    await context.runtime.messageService?.handleMessage(
+      context.runtime,
+      memory,
+      async (content) => {
+        if (content?.text) {
+          response += content.text;
+        }
+        return [];
+      },
+    );
+  } finally {
+    if (
+      settingsDuring.model.provider !== settingsBefore.model.provider ||
+      settingsDuring.model.model !== settingsBefore.model.model ||
+      settingsDuring.model.baseUrl !== settingsBefore.model.baseUrl ||
+      settingsDuring.model.temperature !== settingsBefore.model.temperature ||
+      settingsDuring.model.maxTokens !== settingsBefore.model.maxTokens
+    ) {
+      context.services.settings.set("model.provider", settingsBefore.model.provider);
+      context.services.settings.set("model.model", settingsBefore.model.model);
+      context.services.settings.set("model.baseUrl", settingsBefore.model.baseUrl);
+      context.services.settings.set("model.temperature", settingsBefore.model.temperature);
+      context.services.settings.set("model.maxTokens", settingsBefore.model.maxTokens);
+      syncProviderSettings(context, context.services.settings.get());
+    }
+
+    if (
+      options?.personalityId &&
+      options.personalityId !== personalityBefore.id
+    ) {
+      context.services.personalities.setActive(personalityBefore.id);
+    }
+  }
 
   const finalResponse =
     response.trim() || "The runtime completed without producing a response.";
