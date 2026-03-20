@@ -4,9 +4,17 @@ export type ExecutionBackendName =
   | "docker"
   | "podman"
   | "ssh"
-  | "singularity";
+  | "singularity"
+  | "daytona"
+  | "modal";
 export type ExecutionBackendMode = "local" | "container" | "remote";
-export type ExecutionBackendEngine = "docker" | "podman" | "ssh" | "singularity";
+export type ExecutionBackendEngine =
+  | "docker"
+  | "podman"
+  | "ssh"
+  | "singularity"
+  | "daytona"
+  | "modal";
 
 export interface EnvConfig {
   agentName: string;
@@ -49,6 +57,10 @@ export interface EnvConfig {
   dockerWorkspacePath: string;
   dockerEnvPassthrough: string[];
   singularityImage: string;
+  daytonaTarget?: string;
+  daytonaCommand?: string;
+  modalTarget?: string;
+  modalCommand?: string;
   executionCommandTimeoutMs: number;
   executionHealthTimeoutMs: number;
   containerCpuLimit: string;
@@ -387,9 +399,14 @@ export interface DelegationTaskRecord {
   id: string;
   title: string;
   objective: string;
+  group?: string;
   profile?: string;
   priority?: "low" | "normal" | "high";
   tags?: string[];
+  labels?: string[];
+  metadata?: Record<string, string>;
+  parentTaskId?: string;
+  childTaskIds?: string[];
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   executionMode: "local" | "delegated";
   workerMode?: "inline" | "process";

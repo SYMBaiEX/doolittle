@@ -5,9 +5,13 @@ import { handleAgentTurn } from "./chat";
 interface WorkerPayload {
   taskId: string;
   objective: string;
+  group?: string;
   profile?: string;
   priority?: "low" | "normal" | "high";
   tags?: string[];
+  labels?: string[];
+  metadata?: Record<string, string>;
+  parentTaskId?: string;
 }
 
 const [, , inputPath, outputPath] = process.argv;
@@ -24,9 +28,17 @@ async function main(): Promise<void> {
   const result = await handleAgentTurn(
     {
       message: [
+        payload.group ? `Group: ${payload.group}` : "",
         payload.profile ? `Delegation profile: ${payload.profile}` : "",
         payload.priority ? `Priority: ${payload.priority}` : "",
         payload.tags?.length ? `Tags: ${payload.tags.join(", ")}` : "",
+        payload.labels?.length ? `Labels: ${payload.labels.join(", ")}` : "",
+        payload.parentTaskId ? `Parent task: ${payload.parentTaskId}` : "",
+        payload.metadata && Object.keys(payload.metadata).length
+          ? `Metadata: ${Object.entries(payload.metadata)
+              .map(([key, value]) => `${key}=${value}`)
+              .join(", ")}`
+          : "",
         payload.objective,
       ]
         .filter(Boolean)

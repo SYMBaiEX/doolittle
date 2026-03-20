@@ -89,7 +89,7 @@ eliza-agent/
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, and Singularity runtime settings, probes, preview, and bootstrap paths |
+| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, and bootstrap paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
@@ -182,6 +182,10 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path used inside Docker or Podman execution containers. |
 | `ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH` | Comma-separated env vars forwarded into Docker or Podman execution containers. |
 | `ELIZA_AGENT_SINGULARITY_IMAGE` | Local SIF path or remote image reference used for Singularity execution. |
+| `ELIZA_AGENT_DAYTONA_TARGET` | Target Daytona sandbox or workspace used for remote execution. |
+| `ELIZA_AGENT_DAYTONA_COMMAND` | Optional Daytona CLI command override. |
+| `ELIZA_AGENT_MODAL_TARGET` | Target Modal sandbox or environment used for remote execution. |
+| `ELIZA_AGENT_MODAL_COMMAND` | Optional Modal CLI command override. |
 | `ELIZA_AGENT_SSH_HOST` | Remote SSH host for execution. |
 | `ELIZA_AGENT_SSH_USER` | Remote SSH user for execution. |
 | `ELIZA_AGENT_SSH_PATH` | Remote workspace path for SSH execution. |
@@ -270,6 +274,8 @@ Useful commands:
 - `/execution set backend docker`
 - `/execution set backend podman`
 - `/execution set backend singularity`
+- `/execution set backend daytona`
+- `/execution set backend modal`
 - `/config show`
 - `/tools list`
 - `/tools summary`
@@ -295,10 +301,22 @@ Useful commands:
 - `/web snapshot https://example.com`
 - `/web inspect https://example.com`
 - `/delegate list`
+- `/delegate list group:browser`
 - `/delegate create Research spike :: validate a Discord transport adapter`
-- `/delegate create Vision batch | profile:research | priority:high | tags:browser,media :: inspect screenshots and summarize visual regressions`
+- `/delegate create Vision batch | group:browser | profile:research | priority:high | labels:browser,media | metadata:owner=agent :: inspect screenshots and summarize visual regressions`
+- `/delegate spawn <parent-id> | title:Browser child | group:browser | profile:research | labels:screenshot :: refine the capture workflow`
+- `/delegate tree <task-id>`
+- `/delegate group browser`
+- `/delegate label screenshot`
+- `/delegate children <task-id>`
 - `/delegate execute <task-id>`
 - `/delegate execute-queued`
+- `/delegate supervise group:browser concurrency:3`
+- `/delegate overview`
+- `/delegate queue label:queue`
+- `/delegate workers profile:research`
+- `/delegate retry <task-id> :: retry with updated context`
+- `/delegate cancel <task-id> :: stop the branch`
 - `/skills synthesize <task-id>`
 - `/trajectories list`
 - `/trajectories export`
@@ -381,7 +399,17 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /terminal/history`
 - `POST /terminal/run`
 - `GET /delegation/tasks`
+- `GET /delegation/tasks?group=browser&label=screenshot`
 - `POST /delegation/tasks`
+- `GET /delegation/tasks/:id`
+- `GET /delegation/tasks/:id/children`
+- `GET /delegation/tasks/:id/tree`
+- `POST /delegation/tasks/:id/spawn`
+- `GET /delegation/groups`
+- `GET /delegation/overview`
+- `GET /delegation/workers`
+- `GET /delegation/workers?profile=research&label=queue`
+- `POST /delegation/supervise`
 - `POST /delegation/tasks/:id/:action`
 - `GET /repo/status`
 - `GET /repo/diff`

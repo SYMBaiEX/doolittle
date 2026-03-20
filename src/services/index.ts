@@ -89,6 +89,10 @@ export function createServices(
       dockerWorkspacePath: config.dockerWorkspacePath,
       dockerEnvPassthrough: config.dockerEnvPassthrough,
       singularityImage: config.singularityImage,
+      daytonaTarget: config.daytonaTarget ?? "",
+      daytonaCommand: config.daytonaCommand ?? "",
+      modalTarget: config.modalTarget ?? "",
+      modalCommand: config.modalCommand ?? "",
       commandTimeoutMs: config.executionCommandTimeoutMs,
       healthTimeoutMs: config.executionHealthTimeoutMs,
       containerCpuLimit: config.containerCpuLimit,
@@ -119,6 +123,18 @@ export function createServices(
   }
   if (!currentSettings.execution.singularityImage && config.singularityImage) {
     settings.set("execution.singularityImage", config.singularityImage);
+  }
+  if (!currentSettings.execution.daytonaTarget && config.daytonaTarget) {
+    settings.set("execution.daytonaTarget", config.daytonaTarget);
+  }
+  if (!currentSettings.execution.daytonaCommand && config.daytonaCommand) {
+    settings.set("execution.daytonaCommand", config.daytonaCommand);
+  }
+  if (!currentSettings.execution.modalTarget && config.modalTarget) {
+    settings.set("execution.modalTarget", config.modalTarget);
+  }
+  if (!currentSettings.execution.modalCommand && config.modalCommand) {
+    settings.set("execution.modalCommand", config.modalCommand);
   }
   if (!currentSettings.execution.commandTimeoutMs && config.executionCommandTimeoutMs) {
     settings.set("execution.commandTimeoutMs", config.executionCommandTimeoutMs);
