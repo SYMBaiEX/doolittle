@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.eliza-agent/
+.eliza/
+cache/
+*.log
