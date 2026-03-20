@@ -32,6 +32,13 @@ const schema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  ELIZA_AGENT_BROWSER_PROVIDER: z.enum(["lightpanda", "basic"]).default("lightpanda"),
+  ELIZA_AGENT_BROWSER_COMMAND: z.string().default("lightpanda"),
+  ELIZA_AGENT_BROWSER_CDP_URL: z.string().optional(),
+  ELIZA_AGENT_BROWSER_OBEY_ROBOTS: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
   ELIZA_AGENT_EXECUTION_BACKEND: z.enum(["local", "docker", "ssh"]).default("local"),
   ELIZA_AGENT_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
   ELIZA_AGENT_DOCKER_NETWORK: z.string().default("host"),
@@ -106,6 +113,10 @@ export function loadConfig(): EnvConfig {
     whatsappAccessToken: values.WHATSAPP_ACCESS_TOKEN,
     whatsappPhoneNumberId: values.WHATSAPP_PHONE_NUMBER_ID,
     whatsappVerifyToken: values.WHATSAPP_VERIFY_TOKEN,
+    browserProvider: values.ELIZA_AGENT_BROWSER_PROVIDER,
+    browserCommand: values.ELIZA_AGENT_BROWSER_COMMAND,
+    browserCdpUrl: values.ELIZA_AGENT_BROWSER_CDP_URL,
+    browserObeyRobots: values.ELIZA_AGENT_BROWSER_OBEY_ROBOTS,
     executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND,
     dockerImage: values.ELIZA_AGENT_DOCKER_IMAGE,
     dockerNetwork: values.ELIZA_AGENT_DOCKER_NETWORK,

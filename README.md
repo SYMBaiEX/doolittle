@@ -160,6 +160,10 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `WHATSAPP_ACCESS_TOKEN` | Enables outbound WhatsApp Graph API delivery. |
 | `WHATSAPP_PHONE_NUMBER_ID` | Target sender identity for WhatsApp Graph API sends. |
 | `WHATSAPP_VERIFY_TOKEN` | Verifies WhatsApp webhook subscription handshakes. |
+| `ELIZA_AGENT_BROWSER_PROVIDER` | Browser backend selection. Defaults to `lightpanda`, with `basic` available as a fallback. |
+| `ELIZA_AGENT_BROWSER_COMMAND` | Local Lightpanda command used for browser-backed fetch flows. |
+| `ELIZA_AGENT_BROWSER_CDP_URL` | Optional CDP endpoint reserved for deeper browser automation work. |
+| `ELIZA_AGENT_BROWSER_OBEY_ROBOTS` | Enables Lightpanda robot-policy aware fetching when supported. |
 | `ELIZA_AGENT_DOCKER_IMAGE` | Container image used for Docker-backed execution. |
 | `ELIZA_AGENT_DOCKER_NETWORK` | Docker network mode for execution containers. |
 | `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path used inside Docker execution containers. |
@@ -243,6 +247,9 @@ Useful commands:
 - `/execution set backend docker`
 - `/config show`
 - `/tools list`
+- `/browser status`
+- `/browser fetch https://example.com`
+- `/browser snapshot https://example.com`
 - `/mcp status`
 - `/mcp tools`
 - `/mcp invoke list-tools`
@@ -290,6 +297,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /memory?target=memory|user`
 - `GET /skills`
 - `GET /tools`
+- `GET /browser/status`
 - `GET /mcp/status`
 - `GET /mcp/tools`
 - `POST /mcp/probe`

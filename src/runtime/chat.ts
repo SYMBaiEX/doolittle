@@ -374,6 +374,20 @@ async function buildCommandResponse(
     return JSON.stringify(await context.services.web.fetchText(url), null, 2);
   }
 
+  if (trimmed === "/browser" || trimmed === "/browser status") {
+    return JSON.stringify(await context.services.web.status(), null, 2);
+  }
+
+  if (trimmed.startsWith("/browser fetch ")) {
+    const url = trimmed.replace("/browser fetch ", "").trim();
+    return JSON.stringify(await context.services.web.fetchText(url), null, 2);
+  }
+
+  if (trimmed.startsWith("/browser snapshot ")) {
+    const url = trimmed.replace("/browser snapshot ", "").trim();
+    return await context.services.web.snapshot(url);
+  }
+
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
     return await context.services.web.snapshot(url);

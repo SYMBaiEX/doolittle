@@ -162,7 +162,15 @@ export function createServices(
     tools,
     mcp,
     delegation: new DelegationService(join(config.dataDir, "delegation")),
-    web: new WebService(),
+    web: new WebService(
+      () => ({
+        provider: config.browserProvider,
+        command: config.browserCommand,
+        cdpUrl: config.browserCdpUrl,
+        obeyRobots: config.browserObeyRobots,
+      }),
+      join(config.dataDir, "web"),
+    ),
     media: new MediaService(config.workspaceDir),
     trajectories: new TrajectoryService(join(config.dataDir, "trajectories"), sessions),
     skillSynthesis: new SkillSynthesisService(config.skillsDir),

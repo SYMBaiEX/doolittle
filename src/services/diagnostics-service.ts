@@ -175,6 +175,19 @@ export class DiagnosticsService {
       detail: "Execution layer supports local, Docker, and SSH backends with readiness reporting.",
     });
 
+    checks.push({
+      id: "browser.backend",
+      status:
+        this.config.browserProvider === "lightpanda" && !this.config.browserCommand
+          ? "fail"
+          : "pass",
+      summary: "Browser backend configuration",
+      detail:
+        this.config.browserProvider === "lightpanda"
+          ? `Lightpanda is configured as the default browser backend via ${this.config.browserCommand}.`
+          : "Basic HTTP fetch mode is configured as the browser fallback.",
+    });
+
     return checks;
   }
 
@@ -205,6 +218,11 @@ export class DiagnosticsService {
     ) {
       steps.push(
         "Set WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN before enabling the WhatsApp gateway path.",
+      );
+    }
+    if (this.config.browserProvider === "lightpanda") {
+      steps.push(
+        "Install Lightpanda or set ELIZA_AGENT_BROWSER_PROVIDER=basic if you want browser tasks to fall back to plain HTTP fetch mode.",
       );
     }
 

@@ -169,6 +169,12 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/browser/status") {
+        return json({
+          browser: await context.services.web.status(),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/web/snapshot") {
         const body = (await request.json()) as { url?: string };
         if (!body.url) {
