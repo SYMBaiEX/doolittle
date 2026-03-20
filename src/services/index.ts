@@ -84,6 +84,12 @@ export function createServices(
     },
     execution: {
       backend: config.executionBackend,
+      remoteSyncMode: config.remoteSyncMode,
+      remoteSyncInclude: config.remoteSyncInclude,
+      remoteSyncExclude: config.remoteSyncExclude,
+      remoteArtifactPaths: config.remoteArtifactPaths,
+      remoteArtifactPolicy: config.remoteArtifactPolicy,
+      remoteWorkspaceLabel: config.remoteWorkspaceLabel,
       dockerImage: config.dockerImage,
       dockerNetwork: config.dockerNetwork,
       dockerWorkspacePath: config.dockerWorkspacePath,
@@ -126,6 +132,24 @@ export function createServices(
   const currentSettings = settings.get();
   if (!currentSettings.execution.dockerNetwork) {
     settings.set("execution.dockerNetwork", config.dockerNetwork);
+  }
+  if (!currentSettings.execution.remoteSyncMode) {
+    settings.set("execution.remoteSyncMode", config.remoteSyncMode);
+  }
+  if (!currentSettings.execution.remoteSyncInclude?.length && config.remoteSyncInclude.length) {
+    settings.set("execution.remoteSyncInclude", config.remoteSyncInclude);
+  }
+  if (!currentSettings.execution.remoteSyncExclude?.length && config.remoteSyncExclude.length) {
+    settings.set("execution.remoteSyncExclude", config.remoteSyncExclude);
+  }
+  if (!currentSettings.execution.remoteArtifactPaths?.length && config.remoteArtifactPaths.length) {
+    settings.set("execution.remoteArtifactPaths", config.remoteArtifactPaths);
+  }
+  if (!currentSettings.execution.remoteArtifactPolicy) {
+    settings.set("execution.remoteArtifactPolicy", config.remoteArtifactPolicy);
+  }
+  if (!currentSettings.execution.remoteWorkspaceLabel) {
+    settings.set("execution.remoteWorkspaceLabel", config.remoteWorkspaceLabel);
   }
   if (!currentSettings.execution.dockerWorkspacePath) {
     settings.set("execution.dockerWorkspacePath", config.dockerWorkspacePath);

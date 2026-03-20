@@ -6,10 +6,14 @@ import type {
   ExecutionBackendHealth,
   ExecutionBackendLimits,
   ExecutionBackendName,
+  ExecutionCloudArtifactRecord,
   ExecutionCloudProfile,
   ExecutionCloudSession,
+  ExecutionCloudSnapshotRecord,
   ExecutionBackendPreview,
+  ExecutionRemoteSyncPlan,
   TerminalCommandRecord,
+  RemoteLifecycleEvent,
 } from "@/types";
 import type { RuntimeSettings } from "./settings-service";
 
@@ -19,17 +23,143 @@ interface TerminalStore {
 
 interface CloudStore {
   sessions: ExecutionCloudSession[];
+  snapshots: ExecutionCloudSnapshotRecord[];
+  artifacts: ExecutionCloudArtifactRecord[];
 }
 
 class CloudStoreManager {
   constructor(private readonly filePath: string) {
     if (!existsSync(filePath)) {
-      this.write({ sessions: [] });
+      this.write({ sessions: [], snapshots: [], artifacts: [] });
     }
   }
 
   touch(profile: ExecutionCloudProfile, patch: Partial<ExecutionCloudSession> = {}): ExecutionCloudSession {
     const store = this.readStore();
+    const session = this.upsertSession(store, profile, patch);
+    this.write(store);
+    return session;
+  }
+
+  capture(
+    profile: ExecutionCloudProfile,
+    patch: {
+      event: RemoteLifecycleEvent;
+      state: ExecutionCloudSession["state"];
+      cwd: string;
+      summary: string;
+      commandId?: string;
+      command?: string;
+      lastExitCode?: number;
+      lastStdout?: string;
+      lastStderr?: string;
+    },
+  ): ExecutionCloudSnapshotRecord {
+    const store = this.readStore();
+    const now = new Date().toISOString();
+    const existing = this.findSession(store, profile);
+    const sessionState = patch.state === "planned" ? "idle" : patch.state;
+    this.upsertSession(store, profile, {
+      ...patch,
+      state: sessionState,
+      syncState: patch.state === "failed" ? "error" : existing?.syncState ?? "planned",
+      lastCommandId: patch.commandId ?? existing?.lastCommandId,
+      lastCommand: patch.command ?? existing?.lastCommand,
+      lastSnapshotAt: now,
+      lastSnapshotId: patch.commandId ?? existing?.lastSnapshotId,
+      lastSnapshotSummary: patch.summary,
+    });
+    const snapshot: ExecutionCloudSnapshotRecord = {
+      snapshotId: randomUUID(),
+      provider: profile.provider,
+      target: profile.target,
+      workspaceLabel: profile.workspaceLabel,
+      event: patch.event,
+      state: patch.state,
+      summary: patch.summary,
+      commandId: patch.commandId,
+      command: patch.command,
+      cwd: patch.cwd,
+      workspacePath: profile.workspacePath,
+      syncPlan: profile.syncPlan,
+      artifacts: this.buildArtifactManifest(profile, now),
+      createdAt: now,
+      updatedAt: now,
+      lastExitCode: patch.lastExitCode,
+      lastStdout: patch.lastStdout,
+      lastStderr: patch.lastStderr,
+    };
+    store.snapshots.push(snapshot);
+    if (store.snapshots.length > 40) {
+      store.snapshots = store.snapshots.slice(-40);
+    }
+    store.artifacts.push(...snapshot.artifacts);
+    if (store.artifacts.length > 100) {
+      store.artifacts = store.artifacts.slice(-100);
+    }
+    const refreshed = this.findSession(store, profile);
+    if (refreshed) {
+      refreshed.snapshotCount = (refreshed.snapshotCount ?? 0) + 1;
+      refreshed.artifactCount = (refreshed.artifactCount ?? 0) + snapshot.artifacts.length;
+      refreshed.syncState = patch.state === "failed" ? "error" : "synced";
+      refreshed.lastSnapshotAt = now;
+      refreshed.lastSnapshotId = snapshot.snapshotId;
+      refreshed.lastSnapshotSummary = snapshot.summary;
+      refreshed.updatedAt = now;
+    }
+    this.write(store);
+    return snapshot;
+  }
+
+  get(profile: ExecutionCloudProfile): ExecutionCloudSession | undefined {
+    return this.findSession(this.readStore(), profile);
+  }
+
+  listSnapshots(limit = 10): ExecutionCloudSnapshotRecord[] {
+    return this.readStore().snapshots.slice(-limit).reverse();
+  }
+
+  listSnapshotsFor(profile: ExecutionCloudProfile, limit = 10): ExecutionCloudSnapshotRecord[] {
+    return this.readStore()
+      .snapshots.filter(
+        (snapshot) => snapshot.provider === profile.provider && snapshot.target === profile.target,
+      )
+      .slice(-limit)
+      .reverse();
+  }
+
+  latestSnapshot(profile: ExecutionCloudProfile): ExecutionCloudSnapshotRecord | undefined {
+    return this.listSnapshotsFor(profile, 1)[0];
+  }
+
+  listArtifacts(limit = 10): ExecutionCloudArtifactRecord[] {
+    return this.readStore().artifacts.slice(-limit).reverse();
+  }
+
+  private readStore(): CloudStore {
+    const store = JSON.parse(readFileSync(this.filePath, "utf8")) as Partial<CloudStore>;
+    return {
+      sessions: store.sessions ?? [],
+      snapshots: store.snapshots ?? [],
+      artifacts: store.artifacts ?? [],
+    };
+  }
+
+  private write(store: CloudStore): void {
+    writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+  }
+
+  private findSession(store: CloudStore, profile: ExecutionCloudProfile): ExecutionCloudSession | undefined {
+    return store.sessions.find(
+      (session) => session.provider === profile.provider && session.target === profile.target,
+    );
+  }
+
+  private upsertSession(
+    store: CloudStore,
+    profile: ExecutionCloudProfile,
+    patch: Partial<ExecutionCloudSession> = {},
+  ): ExecutionCloudSession {
     const now = new Date().toISOString();
     const existingIndex = store.sessions.findIndex(
       (session) => session.provider === profile.provider && session.target === profile.target,
@@ -41,6 +171,8 @@ class CloudStoreManager {
       target: profile.target,
       profile,
       state: patch.state ?? existing?.state ?? "idle",
+      syncState: patch.syncState ?? existing?.syncState ?? "planned",
+      workspaceLabel: profile.workspaceLabel,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       lastHealthAt: patch.lastHealthAt ?? existing?.lastHealthAt,
@@ -51,6 +183,12 @@ class CloudStoreManager {
       lastExitCode: patch.lastExitCode ?? existing?.lastExitCode,
       lastStdout: patch.lastStdout ?? existing?.lastStdout,
       lastStderr: patch.lastStderr ?? existing?.lastStderr,
+      lastSnapshotAt: patch.lastSnapshotAt ?? existing?.lastSnapshotAt,
+      lastSnapshotId: patch.lastSnapshotId ?? existing?.lastSnapshotId,
+      lastSnapshotSummary: patch.lastSnapshotSummary ?? existing?.lastSnapshotSummary,
+      snapshotCount: patch.snapshotCount ?? existing?.snapshotCount ?? 0,
+      artifactCount: patch.artifactCount ?? existing?.artifactCount ?? 0,
+      syncPlan: profile.syncPlan,
     };
     if (existingIndex >= 0) {
       store.sessions[existingIndex] = session;
@@ -60,22 +198,28 @@ class CloudStoreManager {
     if (store.sessions.length > 20) {
       store.sessions = store.sessions.slice(-20);
     }
-    this.write(store);
     return session;
   }
 
-  get(profile: ExecutionCloudProfile): ExecutionCloudSession | undefined {
-    return this.readStore().sessions.find(
-      (session) => session.provider === profile.provider && session.target === profile.target,
-    );
-  }
-
-  private readStore(): CloudStore {
-    return JSON.parse(readFileSync(this.filePath, "utf8")) as CloudStore;
-  }
-
-  private write(store: CloudStore): void {
-    writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+  private buildArtifactManifest(
+    profile: ExecutionCloudProfile,
+    now: string,
+  ): ExecutionCloudArtifactRecord[] {
+    return profile.artifactPaths.map((path, index) => ({
+      artifactId: randomUUID(),
+      provider: profile.provider,
+      target: profile.target,
+      workspaceLabel: profile.workspaceLabel,
+      path,
+      kind: index === 0 ? "manifest" : "report",
+      status: "planned",
+      detail:
+        profile.artifactPolicy === "metadata-only"
+          ? "Metadata-only remote artifact reference. No file contents are copied or persisted."
+          : "Allowlisted remote artifact reference. The runtime only persists metadata and references.",
+      createdAt: now,
+      updatedAt: now,
+    }));
   }
 }
 
@@ -103,6 +247,23 @@ interface ExecutionBackend {
 interface CloudStateAccessor {
   touch(profile: ExecutionCloudProfile, patch?: Partial<ExecutionCloudSession>): ExecutionCloudSession;
   get(profile: ExecutionCloudProfile): ExecutionCloudSession | undefined;
+  capture(
+    profile: ExecutionCloudProfile,
+    patch: {
+      event: RemoteLifecycleEvent;
+      state: ExecutionCloudSession["state"];
+      cwd: string;
+      summary: string;
+      commandId?: string;
+      command?: string;
+      lastExitCode?: number;
+      lastStdout?: string;
+      lastStderr?: string;
+    },
+  ): ExecutionCloudSnapshotRecord;
+  listSnapshots(limit?: number): ExecutionCloudSnapshotRecord[];
+  listArtifacts(limit?: number): ExecutionCloudArtifactRecord[];
+  latestSnapshot(profile: ExecutionCloudProfile): ExecutionCloudSnapshotRecord | undefined;
 }
 
 function shellQuote(value: string): string {
@@ -310,21 +471,67 @@ function buildCloudCommandScript(
   return parts.join(" && ");
 }
 
+function buildRemoteSyncPlan(
+  provider: "daytona" | "modal",
+  settings: RuntimeSettings,
+  localWorkspacePath: string,
+  remoteWorkspacePath: string,
+): ExecutionRemoteSyncPlan {
+  const execution = settings.execution;
+  const mode =
+    provider === "daytona" && execution.daytonaSnapshot ? "snapshot" : execution.remoteSyncMode;
+  const include = execution.remoteSyncInclude.length > 0 ? execution.remoteSyncInclude : ["**/*"];
+  const exclude =
+    execution.remoteSyncExclude.length > 0
+      ? execution.remoteSyncExclude
+      : [".git", ".eliza-agent", "node_modules", "dist", "coverage", ".cache", ".turbo", ".DS_Store"];
+  const artifactPaths =
+    execution.remoteArtifactPaths.length > 0
+      ? execution.remoteArtifactPaths
+      : [".eliza-agent/remote-artifacts", ".eliza-agent/trajectories", ".eliza-agent/cron-output"];
+  const workspaceLabel =
+    execution.remoteWorkspaceLabel ||
+    `${provider}:${execution.daytonaTarget || execution.modalTarget || "workspace"}`;
+  return {
+    mode,
+    localWorkspacePath,
+    remoteWorkspacePath,
+    workspaceLabel,
+    include,
+    exclude,
+    artifactPaths,
+    artifactPolicy: execution.remoteArtifactPolicy,
+    safetyNotes: [
+      "Eliza Agent persists remote lifecycle snapshots as metadata only.",
+      "No remote file contents are copied into local state by the execution control plane.",
+      `Artifact paths are tracked for operator visibility under ${workspaceLabel}.`,
+    ],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 function buildCloudProfile(
   provider: "daytona" | "modal",
   settings: RuntimeSettings,
   workspacePath: string,
 ): ExecutionCloudProfile {
   const execution = settings.execution;
+  const remoteWorkspacePath =
+    provider === "daytona" ? execution.daytonaWorkspacePath || workspacePath : execution.modalWorkspacePath || workspacePath;
+  const syncPlan = buildRemoteSyncPlan(provider, settings, workspacePath, remoteWorkspacePath);
   return provider === "daytona"
     ? {
         provider,
         target: execution.daytonaTarget,
         shell: execution.daytonaShell || "/bin/sh",
-        workspacePath: execution.daytonaWorkspacePath || workspacePath,
+        workspacePath: remoteWorkspacePath,
         state: "persistent-sandbox",
         commandStyle: "exec",
         envPassthrough: execution.dockerEnvPassthrough.filter(isValidEnvName),
+        workspaceLabel: syncPlan.workspaceLabel,
+        syncPlan,
+        artifactPolicy: execution.remoteArtifactPolicy,
+        artifactPaths: syncPlan.artifactPaths,
         snapshot: execution.daytonaSnapshot || undefined,
         bootstrapCommand: execution.daytonaBootstrapCommand || undefined,
         statusCommand: execution.daytonaStatusCommand || undefined,
@@ -336,10 +543,14 @@ function buildCloudProfile(
         provider,
         target: execution.modalTarget,
         shell: execution.modalShell || "/bin/bash",
-        workspacePath: execution.modalWorkspacePath || workspacePath,
+        workspacePath: remoteWorkspacePath,
         state: "interactive-shell",
         commandStyle: "shell",
         envPassthrough: execution.dockerEnvPassthrough.filter(isValidEnvName),
+        workspaceLabel: syncPlan.workspaceLabel,
+        syncPlan,
+        artifactPolicy: execution.remoteArtifactPolicy,
+        artifactPaths: syncPlan.artifactPaths,
         environment: execution.modalEnvironment || undefined,
         bootstrapCommand: execution.modalBootstrapCommand || undefined,
         statusCommand: execution.modalStatusCommand || undefined,
@@ -369,6 +580,7 @@ function buildCloudRuntimeChecks(
       : execution.modalBootstrapCommand;
   const environment =
     provider === "daytona" ? execution.daytonaSnapshot : execution.modalEnvironment;
+  const syncPlan = cloudProfile.syncPlan;
   const statusCommand =
     provider === "daytona" ? execution.daytonaStatusCommand : execution.modalStatusCommand;
   const inspectCommand =
@@ -442,6 +654,18 @@ function buildCloudRuntimeChecks(
           : "No explicit Modal environment configured; the active profile will be used.",
     ),
     createCheck(
+      `${provider}.config.sync.plan`,
+      syncPlan.include.length > 0 ? "pass" : "warn",
+      `${provider} sync planning`,
+      `Mode=${syncPlan.mode}; include=${syncPlan.include.join(", ")}; exclude=${syncPlan.exclude.join(", ")}; workspace label=${syncPlan.workspaceLabel}.`,
+    ),
+    createCheck(
+      `${provider}.config.artifacts`,
+      syncPlan.artifactPaths.length > 0 ? "pass" : "warn",
+      `${provider} artifact policy`,
+      `Artifact policy=${syncPlan.artifactPolicy}; remote snapshots are metadata-only and track ${syncPlan.artifactPaths.join(", ")}.`,
+    ),
+    createCheck(
       `${provider}.workspace.cwd`,
       existsSync(workspaceDir) ? "pass" : "warn",
       "Workspace path",
@@ -503,6 +727,18 @@ function buildCloudRuntimePreviewChecks(
       cloudProfile.environment
         ? `${provider === "daytona" ? "Daytona snapshot" : "Modal environment"} configured as ${cloudProfile.environment}.`
         : "No explicit cloud environment configured.",
+    ),
+    createCheck(
+      `${provider}.preview.sync.plan`,
+      cloudProfile.syncPlan.include.length > 0 ? "pass" : "warn",
+      "Remote sync plan",
+      `Mode=${cloudProfile.syncPlan.mode}; local=${cloudProfile.syncPlan.localWorkspacePath}; remote=${cloudProfile.syncPlan.remoteWorkspacePath}; label=${cloudProfile.workspaceLabel}.`,
+    ),
+    createCheck(
+      `${provider}.preview.artifacts`,
+      cloudProfile.syncPlan.artifactPaths.length > 0 ? "pass" : "warn",
+      "Artifact policy",
+      `Artifact policy=${cloudProfile.syncPlan.artifactPolicy}; artifacts=${cloudProfile.syncPlan.artifactPaths.join(", ")}.`,
     ),
     createCheck(
       `${provider}.preview.inspect`,
@@ -1523,12 +1759,23 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       lastCommand: sanitizeCommand(command),
     });
     const checks = buildCloudRuntimePreviewChecks("daytona", options.settings, options.cwd);
+    const cloudSnapshot = this.cloudState.capture(cloud, {
+      event: "preview",
+      state: "planned",
+      cwd: options.cwd,
+      summary: `Daytona preview planned for ${cloud.target || "TARGET"} using ${cloud.workspaceLabel}.`,
+      command: sanitizeCommand(command),
+    });
+    const refreshedSession = this.cloudState.get(cloud) ?? cloudSession;
     return {
       backend: this.name,
       mode: "remote",
       engine: this.name,
       cloud,
-      cloudSession,
+      cloudSession: refreshedSession,
+      cloudSnapshot,
+      cloudArtifacts: cloudSnapshot.artifacts,
+      cloudSyncPlan: cloud.syncPlan,
       target: cloud.target,
       ready: Boolean(cloud.target && cloud.workspacePath),
       detail: `Daytona execution uses a persistent sandbox target (${cloud.target || "TARGET"}) with snapshot-aware workspace execution.`,
@@ -1556,12 +1803,26 @@ class DaytonaExecutionBackend implements ExecutionBackend {
     });
     if (!runtimeAvailable) {
       const failedChecks = buildCloudRuntimeChecks("daytona", settings, workspaceDir, false, false);
+      const cloudSnapshot = this.cloudState.capture(cloud, {
+        event: "health",
+        state: "failed",
+        cwd: workspaceDir,
+        summary: `Daytona CLI ${binary} is not available for ${cloud.workspaceLabel}.`,
+        commandId: binary,
+        command: binary,
+        lastExitCode: 1,
+        lastStderr: `${binary} command is not available.`,
+      });
+      const refreshedSession = this.cloudState.get(cloud) ?? cloudSession;
       return {
         backend: this.name,
         mode: "remote",
         engine: this.name,
         cloud,
-        cloudSession,
+        cloudSession: refreshedSession,
+        cloudSnapshot,
+        cloudArtifacts: cloudSnapshot.artifacts,
+        cloudSyncPlan: cloud.syncPlan,
         target: cloud.target,
         ready: false,
         detail: `${binary} command is not available.`,
@@ -1603,6 +1864,21 @@ class DaytonaExecutionBackend implements ExecutionBackend {
     const infoOk = info.exitCode === 0;
     const execOk = execProbe.exitCode === 0;
     const checks = buildCloudRuntimeChecks("daytona", settings, workspaceDir, runtimeAvailable, infoOk && execOk);
+    const cloudSnapshot = this.cloudState.capture(cloud, {
+      event: "health",
+      state: runtimeAvailable && infoOk && execOk ? "ready" : "failed",
+      cwd: workspaceDir,
+      summary:
+        runtimeAvailable && infoOk && execOk
+          ? `Daytona health probe succeeded for ${cloud.target || "TARGET"} (${cloud.workspaceLabel}).`
+          : `Daytona health probe failed for ${cloud.target || "TARGET"} (${cloud.workspaceLabel}).`,
+      commandId: infoCommand.join(" "),
+      command: infoCommand.join(" "),
+      lastExitCode: infoOk && execOk ? 0 : 1,
+      lastStdout: `${info.stdout || ""}\n${execProbe.stdout || ""}`.trim(),
+      lastStderr: `${info.stderr || ""}\n${execProbe.stderr || ""}`.trim(),
+    });
+    const refreshedSession = this.cloudState.get(cloud) ?? cloudSession;
     let infoSummary = "available";
     if (info.stdout) {
       try {
@@ -1624,7 +1900,10 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       mode: "remote",
       engine: this.name,
       cloud,
-      cloudSession,
+      cloudSession: refreshedSession,
+      cloudSnapshot,
+      cloudArtifacts: cloudSnapshot.artifacts,
+      cloudSyncPlan: cloud.syncPlan,
       target: cloud.target,
       ready: runtimeAvailable && infoOk && execOk,
       detail:
@@ -1670,6 +1949,20 @@ class DaytonaExecutionBackend implements ExecutionBackend {
         timeoutMs: options.timeoutMs,
       }),
     );
+    const cloudSnapshot = this.cloudState.capture(cloud, {
+      event: "run",
+      state: result.exitCode === 0 ? "ready" : "failed",
+      cwd: options.cwd,
+      summary:
+        result.exitCode === 0
+          ? `Daytona command completed successfully for ${cloud.workspaceLabel}.`
+          : `Daytona command failed for ${cloud.workspaceLabel} with exit code ${result.exitCode}.`,
+      command: safeCommand,
+      commandId: cloudSession.lastCommandId,
+      lastExitCode: result.exitCode,
+      lastStdout: result.stdout,
+      lastStderr: result.stderr,
+    });
     this.cloudState.touch(cloud, {
       state: result.exitCode === 0 ? "ready" : "failed",
       lastRunAt: new Date().toISOString(),
@@ -1679,6 +1972,7 @@ class DaytonaExecutionBackend implements ExecutionBackend {
       lastStdout: result.stdout,
       lastStderr: result.stderr,
     });
+    void cloudSnapshot;
     return result;
   }
 }
@@ -1699,12 +1993,23 @@ class ModalExecutionBackend implements ExecutionBackend {
       lastCommand: sanitizeCommand(command),
     });
     const checks = buildCloudRuntimePreviewChecks("modal", options.settings, options.cwd);
+    const cloudSnapshot = this.cloudState.capture(cloud, {
+      event: "preview",
+      state: "planned",
+      cwd: options.cwd,
+      summary: `Modal preview planned for ${cloud.target || "REF"} using ${cloud.workspaceLabel}.`,
+      command: sanitizeCommand(command),
+    });
+    const refreshedSession = this.cloudState.get(cloud) ?? cloudSession;
     return {
       backend: this.name,
       mode: "remote",
       engine: this.name,
       cloud,
-      cloudSession,
+      cloudSession: refreshedSession,
+      cloudSnapshot,
+      cloudArtifacts: cloudSnapshot.artifacts,
+      cloudSyncPlan: cloud.syncPlan,
       target: cloud.target,
       ready: Boolean(cloud.target && cloud.workspacePath),
       detail: `Modal execution uses a shell session against target ${cloud.target || "REF"} with explicit environment selection${cloud.environment ? ` (${cloud.environment})` : ""}.`,
@@ -1734,12 +2039,26 @@ class ModalExecutionBackend implements ExecutionBackend {
     });
     if (!runtimeAvailable) {
       const failedChecks = buildCloudRuntimeChecks("modal", settings, workspaceDir, false, false);
+      const cloudSnapshot = this.cloudState.capture(cloud, {
+        event: "health",
+        state: "failed",
+        cwd: workspaceDir,
+        summary: `Modal CLI ${binary} is not available for ${cloud.workspaceLabel}.`,
+        commandId: binary,
+        command: binary,
+        lastExitCode: 1,
+        lastStderr: `${binary} command is not available.`,
+      });
+      const refreshedSession = this.cloudState.get(cloud) ?? cloudSession;
       return {
         backend: this.name,
         mode: "remote",
         engine: this.name,
         cloud,
-        cloudSession,
+        cloudSession: refreshedSession,
+        cloudSnapshot,
+        cloudArtifacts: cloudSnapshot.artifacts,
+        cloudSyncPlan: cloud.syncPlan,
         target: cloud.target,
         ready: false,
         detail: `${binary} command is not available.`,
@@ -1765,12 +2084,30 @@ class ModalExecutionBackend implements ExecutionBackend {
     }));
     const shellOk = shellProbe.exitCode === 0;
     const checks = buildCloudRuntimeChecks("modal", settings, workspaceDir, runtimeAvailable, shellOk);
+    const cloudSnapshot = this.cloudState.capture(cloud, {
+      event: "health",
+      state: runtimeAvailable && shellOk ? "ready" : "failed",
+      cwd: workspaceDir,
+      summary:
+        runtimeAvailable && shellOk
+          ? `Modal health probe succeeded for ${cloud.target || "REF"} (${cloud.workspaceLabel}).`
+          : `Modal health probe failed for ${cloud.target || "REF"} (${cloud.workspaceLabel}).`,
+      commandId: shellProbeCommand.join(" "),
+      command: shellProbeCommand.join(" "),
+      lastExitCode: shellOk ? 0 : 1,
+      lastStdout: shellProbe.stdout,
+      lastStderr: shellProbe.stderr,
+    });
+    const refreshedSession = this.cloudState.get(cloud) ?? cloudSession;
     return {
       backend: this.name,
       mode: "remote",
       engine: this.name,
       cloud,
-      cloudSession,
+      cloudSession: refreshedSession,
+      cloudSnapshot,
+      cloudArtifacts: cloudSnapshot.artifacts,
+      cloudSyncPlan: cloud.syncPlan,
       target: cloud.target,
       ready: runtimeAvailable && shellOk,
       detail:
@@ -1814,6 +2151,20 @@ class ModalExecutionBackend implements ExecutionBackend {
         timeoutMs: options.timeoutMs,
       }),
     );
+    const cloudSnapshot = this.cloudState.capture(cloud, {
+      event: "run",
+      state: result.exitCode === 0 ? "ready" : "failed",
+      cwd: options.cwd,
+      summary:
+        result.exitCode === 0
+          ? `Modal command completed successfully for ${cloud.workspaceLabel}.`
+          : `Modal command failed for ${cloud.workspaceLabel} with exit code ${result.exitCode}.`,
+      command: safeCommand,
+      commandId: cloudSession.lastCommandId,
+      lastExitCode: result.exitCode,
+      lastStdout: result.stdout,
+      lastStderr: result.stderr,
+    });
     this.cloudState.touch(cloud, {
       state: result.exitCode === 0 ? "ready" : "failed",
       lastRunAt: new Date().toISOString(),
@@ -1823,6 +2174,7 @@ class ModalExecutionBackend implements ExecutionBackend {
       lastStdout: result.stdout,
       lastStderr: result.stderr,
     });
+    void cloudSnapshot;
     return result;
   }
 }
@@ -1875,6 +2227,12 @@ export class TerminalService {
       timeoutMs: effectiveTimeoutMs,
       settings,
     });
+    const latestCloudSnapshot = preview.cloud
+      ? this.cloudState.latestSnapshot(preview.cloud) ?? preview.cloudSnapshot
+      : preview.cloudSnapshot;
+    const latestCloudSession = preview.cloud
+      ? this.cloudState.get(preview.cloud) ?? preview.cloudSession
+      : preview.cloudSession;
 
     const record: TerminalCommandRecord = {
       id: randomUUID(),
@@ -1883,7 +2241,10 @@ export class TerminalService {
       backendMode: preview.mode,
       backendEngine: preview.engine,
       cloud: preview.cloud,
-      cloudSession: preview.cloudSession,
+      cloudSession: latestCloudSession,
+      cloudSnapshot: latestCloudSnapshot,
+      cloudArtifacts: latestCloudSnapshot?.artifacts ?? preview.cloudArtifacts,
+      cloudSyncPlan: preview.cloudSyncPlan,
       executionTarget: preview.target ?? preview.cloud?.target,
       executionSessionId: preview.cloudSession?.sessionId,
       executionProfile: preview.cloud,
@@ -1907,6 +2268,9 @@ export class TerminalService {
         lastExitCode: record.exitCode,
         lastStdout: record.stdout,
         lastStderr: record.stderr,
+        lastSnapshotId: latestCloudSnapshot?.snapshotId,
+        lastSnapshotAt: latestCloudSnapshot?.createdAt,
+        lastSnapshotSummary: latestCloudSnapshot?.summary,
       });
     }
 
@@ -1945,6 +2309,14 @@ export class TerminalService {
 
   recent(limit = 10): TerminalCommandRecord[] {
     return this.read().commands.slice(-limit).reverse();
+  }
+
+  cloudSnapshots(limit = 10): ExecutionCloudSnapshotRecord[] {
+    return this.cloudState.listSnapshots(limit);
+  }
+
+  cloudArtifacts(limit = 10): ExecutionCloudArtifactRecord[] {
+    return this.cloudState.listArtifacts(limit);
   }
 
   private read(): TerminalStore {

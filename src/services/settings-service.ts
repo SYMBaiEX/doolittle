@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ExecutionBackendName } from "@/types";
+import type { ExecutionBackendName, RemoteArtifactPolicy, RemoteWorkspaceSyncMode } from "@/types";
 
 export interface RuntimeSettings {
   model: {
@@ -17,6 +17,12 @@ export interface RuntimeSettings {
   };
   execution: {
     backend: ExecutionBackendName;
+    remoteSyncMode: RemoteWorkspaceSyncMode;
+    remoteSyncInclude: string[];
+    remoteSyncExclude: string[];
+    remoteArtifactPaths: string[];
+    remoteArtifactPolicy: RemoteArtifactPolicy;
+    remoteWorkspaceLabel: string;
     dockerImage: string;
     dockerNetwork: string;
     dockerWorkspacePath: string;
@@ -82,6 +88,25 @@ export class SettingsService {
     if (!execution) {
       parsed.execution = {
         backend: "local",
+        remoteSyncMode: "mirror",
+        remoteSyncInclude: ["**/*"],
+        remoteSyncExclude: [
+          ".git",
+          ".eliza-agent",
+          "node_modules",
+          "dist",
+          "coverage",
+          ".cache",
+          ".turbo",
+          ".DS_Store",
+        ],
+        remoteArtifactPaths: [
+          ".eliza-agent/remote-artifacts",
+          ".eliza-agent/trajectories",
+          ".eliza-agent/cron-output",
+        ],
+        remoteArtifactPolicy: "metadata-only",
+        remoteWorkspaceLabel: "eliza-agent-workspace",
         dockerImage: "oven/bun:latest",
         dockerNetwork: "host",
         dockerWorkspacePath: "/workspace",
@@ -118,6 +143,43 @@ export class SettingsService {
       };
       dirty = true;
     } else {
+      if (execution.remoteSyncMode === undefined) {
+        parsed.execution.remoteSyncMode = "mirror";
+        dirty = true;
+      }
+      if (!Array.isArray(execution.remoteSyncInclude) || execution.remoteSyncInclude.length === 0) {
+        parsed.execution.remoteSyncInclude = ["**/*"];
+        dirty = true;
+      }
+      if (!Array.isArray(execution.remoteSyncExclude) || execution.remoteSyncExclude.length === 0) {
+        parsed.execution.remoteSyncExclude = [
+          ".git",
+          ".eliza-agent",
+          "node_modules",
+          "dist",
+          "coverage",
+          ".cache",
+          ".turbo",
+          ".DS_Store",
+        ];
+        dirty = true;
+      }
+      if (!Array.isArray(execution.remoteArtifactPaths) || execution.remoteArtifactPaths.length === 0) {
+        parsed.execution.remoteArtifactPaths = [
+          ".eliza-agent/remote-artifacts",
+          ".eliza-agent/trajectories",
+          ".eliza-agent/cron-output",
+        ];
+        dirty = true;
+      }
+      if (execution.remoteArtifactPolicy === undefined) {
+        parsed.execution.remoteArtifactPolicy = "metadata-only";
+        dirty = true;
+      }
+      if (execution.remoteWorkspaceLabel === undefined) {
+        parsed.execution.remoteWorkspaceLabel = "eliza-agent-workspace";
+        dirty = true;
+      }
       if (execution.dockerNetwork === undefined) {
         parsed.execution.dockerNetwork = "host";
         dirty = true;

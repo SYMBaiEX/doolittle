@@ -11,6 +11,8 @@ describe("normalizeInboundMessage", () => {
         from: { id: 7, username: "agent", first_name: "Eliza", last_name: "Agent" },
         reply_to_message: { message_id: 12 },
         date: 1710000000,
+        photo: [{ file_id: "photo-1" }, { file_id: "photo-2" }],
+        document: { file_id: "doc-1", file_name: "briefing.pdf", mime_type: "application/pdf", file_size: 2048 },
       },
     });
 
@@ -19,6 +21,10 @@ describe("normalizeInboundMessage", () => {
     expect(message?.replyToMessageId).toBe("12");
     expect(message?.metadata?.chatTitle).toBe("Team Chat");
     expect(message?.metadata?.messageId).toBe("42");
+    expect(message?.metadata?.attachmentCount).toBe("2");
+    expect(message?.metadata?.attachmentKinds).toContain("photo");
+    expect(message?.metadata?.attachmentKinds).toContain("document");
+    expect(message?.metadata?.attachmentNames).toContain("briefing.pdf");
   });
 
   it("normalizes discord messages", () => {
@@ -30,6 +36,17 @@ describe("normalizeInboundMessage", () => {
       message_reference: { message_id: "msg-0" },
       guild_id: "guild-1",
       type: 0,
+      attachments: [
+        {
+          id: "att-1",
+          filename: "capture.png",
+          url: "https://cdn.example.com/capture.png",
+          content_type: "image/png",
+          size: 1024,
+          width: 400,
+          height: 300,
+        },
+      ],
     });
 
     expect(message?.platform).toBe("discord");
@@ -37,6 +54,9 @@ describe("normalizeInboundMessage", () => {
     expect(message?.replyToMessageId).toBe("msg-0");
     expect(message?.metadata?.guildId).toBe("guild-1");
     expect(message?.metadata?.threadId).toBe("msg-0");
+    expect(message?.metadata?.attachmentCount).toBe("1");
+    expect(message?.metadata?.attachmentKinds).toBe("image");
+    expect(message?.metadata?.attachmentNames).toBe("capture.png");
   });
 
   it("normalizes slack messages", () => {
@@ -73,6 +93,7 @@ describe("normalizeInboundMessage", () => {
                     timestamp: "1710000001",
                     context: { id: "wamid-parent" },
                     text: { body: "hello whatsapp" },
+                    image: { caption: "receipt", mime_type: "image/png", id: "media-1" },
                   },
                 ],
               },
@@ -87,6 +108,9 @@ describe("normalizeInboundMessage", () => {
     expect(message?.replyToMessageId).toBe("wamid-parent");
     expect(message?.metadata?.replyToId).toBe("wamid-parent");
     expect(message?.metadata?.messageId).toBe("wamid-1");
+    expect(message?.metadata?.attachmentCount).toBe("1");
+    expect(message?.metadata?.attachmentKinds).toBe("image");
+    expect(message?.metadata?.attachmentNames).toBe("receipt");
   });
 
   it("normalizes signal messages", () => {

@@ -350,6 +350,22 @@ export class DiagnosticsService {
     });
 
     checks.push({
+      id: "execution.remote.sync",
+      status: this.config.remoteSyncInclude.length > 0 ? "pass" : "warn",
+      summary: "Remote workspace sync planning",
+      detail:
+        `Mode=${this.config.remoteSyncMode}; include=${this.config.remoteSyncInclude.join(", ") || "none"}; exclude=${this.config.remoteSyncExclude.join(", ") || "none"}; workspace label=${this.config.remoteWorkspaceLabel}.`,
+    });
+
+    checks.push({
+      id: "execution.remote.artifacts",
+      status: this.config.remoteArtifactPaths.length > 0 ? "pass" : "warn",
+      summary: "Remote artifact policy",
+      detail:
+        `Policy=${this.config.remoteArtifactPolicy}; artifact paths=${this.config.remoteArtifactPaths.join(", ") || "none"}; snapshots persist metadata only.`,
+    });
+
+    checks.push({
       id: "mcp.bridge",
       status: this.config.mcpServerCommand ? "pass" : "warn",
       summary: "MCP bridge configuration",
@@ -405,6 +421,24 @@ export class DiagnosticsService {
     if (this.config.browserProvider === "lightpanda") {
       steps.push(
         "Install Lightpanda or set ELIZA_AGENT_BROWSER_PROVIDER=basic if you want browser tasks to fall back to plain HTTP fetch mode.",
+      );
+    }
+    steps.push(
+      "Review ELIZA_AGENT_REMOTE_SYNC_MODE, ELIZA_AGENT_REMOTE_SYNC_INCLUDE, ELIZA_AGENT_REMOTE_SYNC_EXCLUDE, ELIZA_AGENT_REMOTE_ARTIFACT_PATHS, and ELIZA_AGENT_REMOTE_ARTIFACT_POLICY so Daytona and Modal snapshots stay metadata-only and operator-visible.",
+    );
+    if (!this.config.remoteSyncInclude.length) {
+      steps.push(
+        "Set ELIZA_AGENT_REMOTE_SYNC_INCLUDE and ELIZA_AGENT_REMOTE_SYNC_EXCLUDE to describe which paths should be mirrored or snapshotted for remote workspaces.",
+      );
+    }
+    if (!this.config.remoteArtifactPaths.length) {
+      steps.push(
+        "Set ELIZA_AGENT_REMOTE_ARTIFACT_PATHS if you want operator-visible artifact metadata recorded for Daytona and Modal runs.",
+      );
+    }
+    if (!this.config.remoteWorkspaceLabel) {
+      steps.push(
+        "Set ELIZA_AGENT_REMOTE_WORKSPACE_LABEL so remote lifecycle snapshots have a stable operator-facing label.",
       );
     }
     if (!this.config.mcpServerCommand) {

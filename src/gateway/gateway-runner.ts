@@ -2,7 +2,7 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync, appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { authorizeMessage } from "./authorization";
 import {
@@ -62,6 +62,82 @@ interface GatewayTraceRecord {
   metadataKeys?: string[];
 }
 
+interface GatewayInboxRecord {
+  recordId: string;
+  at: string;
+  platform: PlatformName;
+  sessionId?: string;
+  traceId: string;
+  status: "received" | "accepted" | "rejected";
+  userId: string;
+  roomId: string;
+  channelId?: string;
+  threadId?: string;
+  messageId?: string;
+  replyToMessageId?: string;
+  channelType?: string;
+  authorName?: string;
+  textPreview: string;
+  attachmentCount: number;
+  attachmentKinds: string[];
+  attachmentNames: string[];
+  attachmentUrls: string[];
+  attachmentMimeTypes: string[];
+  metadataKeys: string[];
+  metadata: Record<string, string>;
+  notes?: string[];
+}
+
+interface GatewayOutboxRecord {
+  recordId: string;
+  at: string;
+  platform: PlatformName;
+  sessionId?: string;
+  traceId: string;
+  status: "sent" | "fallback" | "rejected";
+  deliveryId?: string;
+  userId?: string;
+  roomId: string;
+  threadId?: string;
+  replyToMessageId?: string;
+  textPreview: string;
+  attachmentCount: number;
+  attachmentKinds: string[];
+  attachmentNames: string[];
+  attachmentUrls: string[];
+  attachmentMimeTypes: string[];
+  metadataKeys: string[];
+  metadata: Record<string, string>;
+  notes?: string[];
+}
+
+interface GatewayAttachmentRecord {
+  attachmentId: string;
+  recordId: string;
+  at: string;
+  direction: "inbox" | "outbox";
+  platform: PlatformName;
+  sessionId?: string;
+  traceId: string;
+  deliveryId?: string;
+  messageId?: string;
+  userId?: string;
+  roomId: string;
+  threadId?: string;
+  replyToMessageId?: string;
+  kind: string;
+  name?: string;
+  url?: string;
+  mimeType?: string;
+  size?: string;
+  caption?: string;
+  durationMs?: string;
+  width?: string;
+  height?: string;
+  metadataKeys: string[];
+  metadata: Record<string, string>;
+}
+
 interface GatewayHistoryFilter {
   platform?: PlatformName;
   kind?: GatewayTraceRecord["kind"];
@@ -73,6 +149,7 @@ interface GatewayPlatformState {
   status: PlatformHealth["status"];
   mode: PlatformHealth["mode"];
   ready: boolean;
+  transportState: "inactive" | "booting" | "live" | "degraded" | "paused";
   detail: string;
   presence: PlatformPresenceState;
   sendCount: number;
@@ -90,13 +167,20 @@ interface GatewayPlatformState {
   lastOutboundThreadId?: string;
   lastOutboundReplyToId?: string;
   lastOutboundMetadataKeys?: string[];
+  lastOutboundAt?: string;
   lastReceivedAt?: string;
+  lastInboundAt?: string;
   lastRoutedAt?: string;
   lastRespondedAt?: string;
   lastHeartbeatAt?: string;
   lastSessionId?: string;
   lastRoomId?: string;
   lastUserId?: string;
+  lastAttachmentAt?: string;
+  lastAttachmentKind?: string;
+  inboxCount: number;
+  outboxCount: number;
+  attachmentCount: number;
   eventCount: number;
   lastEventAt?: string;
   lastEventKind?: PlatformLifecycleEvent["kind"];
@@ -115,6 +199,9 @@ interface GatewayHistorySnapshot {
   historyPath: string;
   readiness: PlatformHealth[];
   traces: GatewayTraceRecord[];
+  inbox: GatewayInboxRecord[];
+  outbox: GatewayOutboxRecord[];
+  attachments: GatewayAttachmentRecord[];
   deliveries: DeliveredMessageRecord[];
   sessions: SessionRoute[];
   state: GatewayStateSnapshot;
@@ -135,12 +222,19 @@ interface GatewayStateSnapshot {
     mockAdapters: number;
     totalTraces: number;
     recentTraces: number;
+    inboxMessages: number;
+    outboxMessages: number;
+    attachmentRecords: number;
     recentDeliveries: number;
     recentSessions: number;
   };
   platforms: GatewayPlatformState[];
   tracesByKind: Array<{ kind: GatewayTraceRecord["kind"]; count: number }>;
   tracesByPlatform: Array<{ platform: PlatformName | "gateway"; count: number }>;
+  inboxByPlatform: Array<{ platform: PlatformName; count: number }>;
+  outboxByPlatform: Array<{ platform: PlatformName; count: number }>;
+  attachmentsByPlatform: Array<{ platform: PlatformName; count: number }>;
+  attachmentsByKind: Array<{ kind: string; count: number }>;
   deliveriesByPlatform: Array<{ platform: PlatformName; count: number }>;
   sessionsByPlatform: Array<{ platform: PlatformName; count: number }>;
 }
@@ -148,18 +242,64 @@ interface GatewayStateSnapshot {
 export class GatewayRunner {
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
   private readonly traceLog: GatewayTraceRecord[] = [];
+  private readonly inboxLog: GatewayInboxRecord[] = [];
+  private readonly outboxLog: GatewayOutboxRecord[] = [];
+  private readonly attachmentLog: GatewayAttachmentRecord[] = [];
   private readonly platformStates = new Map<PlatformName, GatewayPlatformState>();
   private readonly snapshotDir: string;
+  private readonly journalDir: string;
   private readonly snapshotPath: string;
   private readonly snapshotHistoryPath: string;
+  private readonly inboxPath: string;
+  private readonly outboxPath: string;
+  private readonly attachmentsPath: string;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
   constructor(private readonly context: AppContext) {
     this.snapshotDir = join(this.context.config.gatewayDataDir, "snapshots");
+    this.journalDir = join(this.context.config.gatewayDataDir, "journals");
     this.snapshotPath = join(this.snapshotDir, "gateway-state.json");
     this.snapshotHistoryPath = join(this.snapshotDir, "gateway-state-history.jsonl");
+    this.inboxPath = join(this.journalDir, "gateway-inbox.jsonl");
+    this.outboxPath = join(this.journalDir, "gateway-outbox.jsonl");
+    this.attachmentsPath = join(this.journalDir, "gateway-attachments.jsonl");
     mkdirSync(this.snapshotDir, { recursive: true });
+    mkdirSync(this.journalDir, { recursive: true });
+    this.ensureJournalFile(this.inboxPath);
+    this.ensureJournalFile(this.outboxPath);
+    this.ensureJournalFile(this.attachmentsPath);
+    this.inboxLog.push(...this.loadJournal<GatewayInboxRecord>(this.inboxPath));
+    this.outboxLog.push(...this.loadJournal<GatewayOutboxRecord>(this.outboxPath));
+    this.attachmentLog.push(...this.loadJournal<GatewayAttachmentRecord>(this.attachmentsPath));
+  }
+
+  private ensureJournalFile(pathname: string): void {
+    if (!existsSync(pathname)) {
+      writeFileSync(pathname, "", "utf8");
+    }
+  }
+
+  private loadJournal<T>(pathname: string): T[] {
+    if (!existsSync(pathname)) {
+      return [];
+    }
+
+    const raw = readFileSync(pathname, "utf8").trim();
+    if (!raw) {
+      return [];
+    }
+
+    return raw
+      .split("\n")
+      .map((line) => {
+        try {
+          return JSON.parse(line) as T;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is T => Boolean(entry));
   }
 
   private async observeAdapter(
@@ -188,6 +328,7 @@ export class GatewayRunner {
       status: "stopped",
       mode: "mock",
       ready: false,
+      transportState: "inactive",
       detail: `${platform} transport has not been initialized yet.`,
       presence,
       sendCount: 0,
@@ -197,6 +338,20 @@ export class GatewayRunner {
       heartbeatCount: 0,
       authorizeCount: 0,
       rejectCount: 0,
+      lastReceivedAt: undefined,
+      lastInboundAt: undefined,
+      lastOutboundAt: undefined,
+      lastRoutedAt: undefined,
+      lastRespondedAt: undefined,
+      lastHeartbeatAt: undefined,
+      lastSessionId: undefined,
+      lastRoomId: undefined,
+      lastUserId: undefined,
+      lastAttachmentAt: undefined,
+      lastAttachmentKind: undefined,
+      inboxCount: 0,
+      outboxCount: 0,
+      attachmentCount: 0,
       eventCount: 0,
       traceCount: 0,
     };
@@ -222,6 +377,7 @@ export class GatewayRunner {
     state.status = health.status;
     state.mode = health.mode;
     state.ready = health.ready;
+    state.transportState = this.computeTransportState(health.platform, health.status, health.ready);
     state.detail = health.detail;
     state.sendCount = health.sendCount ?? state.sendCount;
     state.lastDeliveryAt = health.lastDeliveryAt ?? state.lastDeliveryAt;
@@ -264,6 +420,8 @@ export class GatewayRunner {
       case "receive":
         state.receiveCount += 1;
         state.lastReceivedAt = entry.at;
+        state.lastInboundAt = entry.at;
+        state.transportState = state.ready ? "live" : "degraded";
         state.presence = this.snapshotPresence(
           "online",
           `Receiving traffic on ${entry.platform}`,
@@ -297,6 +455,7 @@ export class GatewayRunner {
       case "respond":
         state.respondCount += 1;
         state.lastRespondedAt = entry.at;
+        state.transportState = state.ready ? "live" : "degraded";
         state.presence = this.snapshotPresence(
           "online",
           `Responding through ${entry.platform}`,
@@ -306,17 +465,22 @@ export class GatewayRunner {
       case "deliver":
         state.lastDeliveryAt = entry.at;
         state.lastDeliveryId = entry.deliveryId ?? state.lastDeliveryId;
+        state.lastOutboundAt = entry.at;
+        state.transportState = state.ready ? "live" : "degraded";
         break;
       case "heartbeat":
         state.heartbeatCount += 1;
         state.lastHeartbeatAt = entry.at;
+        state.transportState = state.ready ? "live" : state.transportState;
         state.presence = this.snapshotPresence("online", `${entry.platform} heartbeat`, entry.at);
         break;
       case "reject":
         state.rejectCount += 1;
+        state.transportState = state.ready ? "degraded" : "paused";
         state.presence = this.snapshotPresence("away", `${entry.platform} rejected or paused`, state.lastHeartbeatAt);
         break;
       case "lifecycle":
+        state.transportState = state.status === "running" ? (state.ready ? "live" : "degraded") : "inactive";
         state.presence = this.snapshotPresence(
           state.status === "running" ? "online" : "offline",
           entry.detail,
@@ -344,6 +508,235 @@ export class GatewayRunner {
       })}\n`,
       "utf8",
     );
+  }
+
+  private appendJournal<T extends { at: string }>(pathname: string, record: T): T {
+    appendFileSync(pathname, `${JSON.stringify(record)}\n`, "utf8");
+    return record;
+  }
+
+  private computeTransportState(
+    platform: PlatformName,
+    status: PlatformHealth["status"],
+    ready: boolean,
+  ): GatewayPlatformState["transportState"] {
+    if (status === "running" && ready) {
+      return "live";
+    }
+    if (status === "running") {
+      return "degraded";
+    }
+    if (status === "idle") {
+      return LIGHTWEIGHT_WEBHOOK_PLATFORMS.has(platform) ? "booting" : "inactive";
+    }
+    return ready ? "paused" : "inactive";
+  }
+
+  private splitAttachmentList(value?: string): string[] {
+    if (!value) {
+      return [];
+    }
+    return value
+      .split(/[|,]/g)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  private extractJournalAttachments(
+    direction: "inbox" | "outbox",
+    platform: PlatformName,
+    recordId: string,
+    traceId: string,
+    base: {
+      sessionId?: string;
+      deliveryId?: string;
+      messageId?: string;
+      userId?: string;
+      roomId: string;
+      threadId?: string;
+      replyToMessageId?: string;
+      metadata: Record<string, string>;
+    },
+  ): GatewayAttachmentRecord[] {
+    const kinds = this.splitAttachmentList(base.metadata.attachmentKinds ?? base.metadata.attachmentKind);
+    const names = this.splitAttachmentList(base.metadata.attachmentNames);
+    const urls = this.splitAttachmentList(base.metadata.attachmentUrls);
+    const mimeTypes = this.splitAttachmentList(base.metadata.attachmentMimeTypes);
+    const sizes = this.splitAttachmentList(base.metadata.attachmentSizes);
+    const captions = this.splitAttachmentList(base.metadata.attachmentCaptions);
+    const durations = this.splitAttachmentList(base.metadata.attachmentDurationsMs);
+    const widths = this.splitAttachmentList(base.metadata.attachmentWidths);
+    const heights = this.splitAttachmentList(base.metadata.attachmentHeights);
+    const count = Math.max(
+      Number(base.metadata.attachmentCount ?? "0") || 0,
+      kinds.length,
+      names.length,
+      urls.length,
+      mimeTypes.length,
+    );
+
+    return Array.from({ length: count }).map((_, index) => {
+      const attachmentKind = kinds[index] ?? names[index] ?? base.metadata.attachmentType ?? "attachment";
+      const attachment: GatewayAttachmentRecord = {
+        attachmentId: `${recordId}:${index + 1}`,
+        recordId,
+        at: new Date().toISOString(),
+        direction,
+        platform,
+        sessionId: base.sessionId,
+        traceId,
+        deliveryId: base.deliveryId,
+        messageId: base.messageId,
+        userId: base.userId,
+        roomId: base.roomId,
+        threadId: base.threadId,
+        replyToMessageId: base.replyToMessageId,
+        kind: attachmentKind,
+        name: names[index] ?? base.metadata.attachmentName,
+        url: urls[index] ?? base.metadata.attachmentUrl,
+        mimeType: mimeTypes[index] ?? base.metadata.attachmentMimeType,
+        size: sizes[index] ?? base.metadata.attachmentSize,
+        caption: captions[index] ?? base.metadata.attachmentCaption,
+        durationMs: durations[index] ?? base.metadata.attachmentDurationMs,
+        width: widths[index] ?? base.metadata.attachmentWidth,
+        height: heights[index] ?? base.metadata.attachmentHeight,
+        metadataKeys: Object.keys(base.metadata),
+        metadata: base.metadata,
+      };
+      return attachment;
+    });
+  }
+
+  private recordInbox(
+    message: IncomingPlatformMessage,
+    traceId: string,
+    sessionId?: string,
+    status: GatewayInboxRecord["status"] = "received",
+    notes: string[] = [],
+  ): GatewayInboxRecord {
+    const at = new Date().toISOString();
+    const record: GatewayInboxRecord = {
+      recordId: randomUUID(),
+      at,
+      platform: message.platform,
+      sessionId,
+      traceId,
+      status,
+      userId: message.userId,
+      roomId: message.roomId,
+      channelId: message.channelId,
+      threadId: message.threadId,
+      messageId: message.messageId,
+      replyToMessageId: message.replyToMessageId,
+      channelType: message.channelType,
+      authorName: message.authorName,
+      textPreview: message.text.slice(0, 280),
+      attachmentCount: Number(message.metadata?.attachmentCount ?? "0") || 0,
+      attachmentKinds: this.splitAttachmentList(message.metadata?.attachmentKinds),
+      attachmentNames: this.splitAttachmentList(message.metadata?.attachmentNames),
+      attachmentUrls: this.splitAttachmentList(message.metadata?.attachmentUrls),
+      attachmentMimeTypes: this.splitAttachmentList(message.metadata?.attachmentMimeTypes),
+      metadataKeys: Object.keys(message.metadata ?? {}),
+      metadata: message.metadata ?? {},
+      notes: notes.length > 0 ? notes : undefined,
+    };
+    this.inboxLog.push(record);
+    this.appendJournal(this.inboxPath, record);
+    const attachments = this.extractJournalAttachments("inbox", message.platform, record.recordId, traceId, {
+      sessionId,
+      messageId: message.messageId,
+      userId: message.userId,
+      roomId: message.roomId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToMessageId,
+      metadata: message.metadata ?? {},
+    });
+    for (const attachment of attachments) {
+      this.attachmentLog.push(attachment);
+      this.appendJournal(this.attachmentsPath, attachment);
+    }
+    this.ensurePlatformState(message.platform).inboxCount += 1;
+    const state = this.ensurePlatformState(message.platform);
+    state.lastInboundAt = at;
+    state.lastReceivedAt = at;
+    state.transportState =
+      status === "accepted"
+        ? state.ready
+          ? "live"
+          : "degraded"
+        : status === "rejected"
+          ? "paused"
+          : state.transportState;
+    if (attachments.length > 0) {
+      state.attachmentCount += attachments.length;
+      state.lastAttachmentAt = at;
+      state.lastAttachmentKind = attachments.at(-1)?.kind;
+    }
+    return record;
+  }
+
+  private recordOutbox(
+    platform: PlatformName,
+    traceId: string,
+    sessionId: string | undefined,
+    delivery: DeliveredMessageRecord,
+    message: OutboundPlatformMessage,
+    status: GatewayOutboxRecord["status"],
+  ): GatewayOutboxRecord {
+    const at = new Date().toISOString();
+    const record: GatewayOutboxRecord = {
+      recordId: randomUUID(),
+      at,
+      platform,
+      sessionId,
+      traceId,
+      status,
+      deliveryId: delivery.id,
+      userId: message.userId,
+      roomId: message.roomId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToId,
+      textPreview: message.text.slice(0, 280),
+      attachmentCount: Number(message.metadata?.attachmentCount ?? "0") || 0,
+      attachmentKinds: this.splitAttachmentList(message.metadata?.attachmentKinds),
+      attachmentNames: this.splitAttachmentList(message.metadata?.attachmentNames),
+      attachmentUrls: this.splitAttachmentList(message.metadata?.attachmentUrls),
+      attachmentMimeTypes: this.splitAttachmentList(message.metadata?.attachmentMimeTypes),
+      metadataKeys: Object.keys(message.metadata ?? {}),
+      metadata: message.metadata ?? {},
+    };
+    this.outboxLog.push(record);
+    this.appendJournal(this.outboxPath, record);
+    const attachments = this.extractJournalAttachments("outbox", platform, record.recordId, traceId, {
+      sessionId,
+      deliveryId: delivery.id,
+      userId: message.userId,
+      roomId: message.roomId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToId,
+      metadata: message.metadata ?? {},
+    });
+    for (const attachment of attachments) {
+      this.attachmentLog.push(attachment);
+      this.appendJournal(this.attachmentsPath, attachment);
+    }
+    const state = this.ensurePlatformState(platform);
+    state.outboxCount += 1;
+    state.lastOutboundRoomId = message.roomId;
+    state.lastOutboundUserId = message.userId;
+    state.lastOutboundThreadId = message.threadId;
+    state.lastOutboundReplyToId = message.replyToId;
+    state.lastOutboundMetadataKeys = Object.keys(message.metadata ?? {});
+    if (attachments.length > 0) {
+      state.attachmentCount += attachments.length;
+      state.lastAttachmentAt = at;
+      state.lastAttachmentKind = attachments.at(-1)?.kind;
+    }
+    state.lastOutboundAt = at;
+    state.lastDeliveryAt = at;
+    state.lastDeliveryId = delivery.id;
+    state.transportState = state.ready ? "live" : "degraded";
+    return record;
   }
 
   private async collectReadiness(): Promise<PlatformHealth[]> {
@@ -413,6 +806,9 @@ export class GatewayRunner {
     readiness: PlatformHealth[],
     allTraces: GatewayTraceRecord[],
     traces: GatewayTraceRecord[],
+    inbox: GatewayInboxRecord[],
+    outbox: GatewayOutboxRecord[],
+    attachments: GatewayAttachmentRecord[],
     deliveries: DeliveredMessageRecord[],
     sessions: SessionRoute[],
     reason: string,
@@ -422,11 +818,18 @@ export class GatewayRunner {
       const platformTraces = allTraces.filter((trace) => trace.platform === entry.platform);
       const latestTrace = platformTraces.at(-1);
       const state = this.ensurePlatformState(entry.platform);
+      const platformInbox = inbox.filter((record) => record.platform === entry.platform);
+      const platformOutbox = outbox.filter((record) => record.platform === entry.platform);
+      const platformAttachments = attachments.filter((record) => record.platform === entry.platform);
+      const latestInbox = platformInbox.at(-1);
+      const latestOutbox = platformOutbox.at(-1);
+      const latestAttachment = platformAttachments.at(-1);
       return {
         platform: entry.platform,
         status: entry.status,
         mode: entry.mode,
         ready: entry.ready,
+        transportState: state.transportState,
         detail: entry.detail,
         presence: entry.presence ?? state.presence,
         lastError: state.lastError,
@@ -444,13 +847,20 @@ export class GatewayRunner {
         lastOutboundThreadId: entry.lastOutboundThreadId,
         lastOutboundReplyToId: entry.lastOutboundReplyToId,
         lastOutboundMetadataKeys: entry.lastOutboundMetadataKeys,
+        lastOutboundAt: latestOutbox?.at ?? state.lastOutboundAt,
         lastReceivedAt: entry.lastReceivedAt ?? state.lastReceivedAt,
+        lastInboundAt: latestInbox?.at ?? state.lastInboundAt ?? state.lastReceivedAt,
         lastRoutedAt: entry.lastRoutedAt ?? state.lastRoutedAt,
         lastRespondedAt: entry.lastRespondedAt ?? state.lastRespondedAt,
         lastHeartbeatAt: entry.lastHeartbeatAt ?? state.lastHeartbeatAt,
         lastSessionId: state.lastSessionId,
         lastRoomId: state.lastRoomId,
         lastUserId: state.lastUserId,
+        lastAttachmentAt: latestAttachment?.at ?? state.lastAttachmentAt,
+        lastAttachmentKind: latestAttachment?.kind ?? state.lastAttachmentKind,
+        inboxCount: platformInbox.length,
+        outboxCount: platformOutbox.length,
+        attachmentCount: platformAttachments.length,
         eventCount: entry.events.length,
         lastEventAt: entry.events[0]?.at,
         lastEventKind: entry.events[0]?.kind,
@@ -483,12 +893,19 @@ export class GatewayRunner {
         mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
         totalTraces: allTraces.length,
         recentTraces: traces.length,
+        inboxMessages: inbox.length,
+        outboxMessages: outbox.length,
+        attachmentRecords: attachments.length,
         recentDeliveries: deliveries.length,
         recentSessions: sessions.length,
       },
       platforms: platformSummary,
       tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
       tracesByPlatform: this.countByPlatform(allTraces, (trace) => trace.platform),
+      inboxByPlatform: this.countByPlatform(inbox, (record) => record.platform),
+      outboxByPlatform: this.countByPlatform(outbox, (record) => record.platform),
+      attachmentsByPlatform: this.countByPlatform(attachments, (record) => record.platform),
+      attachmentsByKind: this.countByString(attachments, (record) => record.kind),
       deliveriesByPlatform: this.countByPlatform(deliveries, (delivery) => delivery.target.platform),
       sessionsByPlatform: this.countByPlatform(sessions, (session) => session.platform),
     };
@@ -698,6 +1115,13 @@ export class GatewayRunner {
 
     const adapter = this.adapters.get(message.platform);
     if (adapter && !adapter.canReceive()) {
+      this.recordInbox(
+        message,
+        traceId,
+        undefined,
+        "rejected",
+        [`${message.platform} transport is not ready for inbound traffic.`],
+      );
       this.pushTrace({
         traceId,
         at: new Date().toISOString(),
@@ -725,6 +1149,13 @@ export class GatewayRunner {
       const response = auth.pairingCode
         ? `Authorization required. Pairing code: ${auth.pairingCode}`
         : auth.reason ?? "Unauthorized";
+      this.recordInbox(
+        message,
+        traceId,
+        undefined,
+        "rejected",
+        [auth.reason ?? "Authorization failed."],
+      );
       this.pushTrace({
         traceId,
         at: new Date().toISOString(),
@@ -806,6 +1237,7 @@ export class GatewayRunner {
       kind: "route",
       detail: `Inbound ${message.platform} traffic routed to session ${session.sessionKey}.`,
     });
+    this.recordInbox(message, traceId, session.sessionKey, "accepted");
     await this.context.services.hooks.emit("session:start", {
       platform: message.platform,
       userId: message.userId,
@@ -850,6 +1282,7 @@ export class GatewayRunner {
       try {
         const delivery = await adapter.send(outbound);
         deliveryId = delivery.id;
+        this.recordOutbox(message.platform, traceId, session.sessionKey, delivery, outbound, "sent");
         this.pushTrace({
           traceId,
           at: new Date().toISOString(),
@@ -900,10 +1333,18 @@ export class GatewayRunner {
         {
           threadId: message.threadId,
           replyToId: message.replyToMessageId,
-          metadata: message.metadata,
-        },
+        metadata: message.metadata,
+      },
       );
       deliveryId = delivery.id;
+      this.recordOutbox(message.platform, traceId, session.sessionKey, delivery, {
+        roomId: message.channelId ?? message.roomId,
+        userId: message.userId,
+        text: response,
+        threadId: message.threadId,
+        replyToId: message.replyToMessageId,
+        metadata: message.metadata,
+      }, "fallback");
       this.pushTrace({
         traceId,
         at: new Date().toISOString(),
@@ -960,6 +1401,18 @@ export class GatewayRunner {
     return this.snapshotState("history", limit, filters);
   }
 
+  inbox(limit = 20, filters?: GatewayHistoryFilter): GatewayInboxRecord[] {
+    return this.filteredInbox(filters).slice(-limit).reverse();
+  }
+
+  outbox(limit = 20, filters?: GatewayHistoryFilter): GatewayOutboxRecord[] {
+    return this.filteredOutbox(filters).slice(-limit).reverse();
+  }
+
+  attachments(limit = 20, filters?: GatewayHistoryFilter): GatewayAttachmentRecord[] {
+    return this.filteredAttachments(filters).slice(-limit).reverse();
+  }
+
   private async snapshotState(
     reason: string,
     limit = 20,
@@ -968,9 +1421,22 @@ export class GatewayRunner {
     const readiness = await this.collectReadiness();
     const allTraces = this.filteredTraces(filters);
     const traces = allTraces.slice(-limit).reverse();
+    const inbox = this.filteredInbox(filters).slice(-limit).reverse();
+    const outbox = this.filteredOutbox(filters).slice(-limit).reverse();
+    const attachments = this.filteredAttachments(filters).slice(-limit).reverse();
     const deliveries = this.recentDeliveries(limit, filters?.platform);
     const sessions = this.recentSessions(limit, filters?.platform);
-    const state = this.buildStateSnapshot(readiness, allTraces, traces, deliveries, sessions, reason);
+    const state = this.buildStateSnapshot(
+      readiness,
+      allTraces,
+      traces,
+      inbox,
+      outbox,
+      attachments,
+      deliveries,
+      sessions,
+      reason,
+    );
     const snapshot: GatewayHistorySnapshot = {
       updatedAt: state.updatedAt,
       reason,
@@ -978,6 +1444,9 @@ export class GatewayRunner {
       historyPath: this.snapshotHistoryPath,
       readiness,
       traces,
+      inbox,
+      outbox,
+      attachments,
       deliveries,
       sessions,
       state,
@@ -995,6 +1464,42 @@ export class GatewayRunner {
         return false;
       }
       if (filters?.sessionId && trace.sessionId !== filters.sessionId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private filteredInbox(filters?: GatewayHistoryFilter): GatewayInboxRecord[] {
+    return this.inboxLog.filter((record) => {
+      if (filters?.platform && record.platform !== filters.platform) {
+        return false;
+      }
+      if (filters?.sessionId && record.sessionId !== filters.sessionId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private filteredOutbox(filters?: GatewayHistoryFilter): GatewayOutboxRecord[] {
+    return this.outboxLog.filter((record) => {
+      if (filters?.platform && record.platform !== filters.platform) {
+        return false;
+      }
+      if (filters?.sessionId && record.sessionId !== filters.sessionId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private filteredAttachments(filters?: GatewayHistoryFilter): GatewayAttachmentRecord[] {
+    return this.attachmentLog.filter((record) => {
+      if (filters?.platform && record.platform !== filters.platform) {
+        return false;
+      }
+      if (filters?.sessionId && record.sessionId !== filters.sessionId) {
         return false;
       }
       return true;
@@ -1035,6 +1540,20 @@ export class GatewayRunner {
     selector: (record: T) => GatewayTraceRecord["kind"],
   ): Array<{ kind: GatewayTraceRecord["kind"]; count: number }> {
     const counts = new Map<GatewayTraceRecord["kind"], { kind: GatewayTraceRecord["kind"]; count: number }>();
+    for (const record of records) {
+      const key = selector(record);
+      const existing = counts.get(key) ?? { kind: key, count: 0 };
+      existing.count += 1;
+      counts.set(key, existing);
+    }
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+  }
+
+  private countByString<T>(
+    records: T[],
+    selector: (record: T) => string,
+  ): Array<{ kind: string; count: number }> {
+    const counts = new Map<string, { kind: string; count: number }>();
     for (const record of records) {
       const key = selector(record);
       const existing = counts.get(key) ?? { kind: key, count: 0 };

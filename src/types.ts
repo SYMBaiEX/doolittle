@@ -15,6 +15,9 @@ export type ExecutionBackendEngine =
   | "singularity"
   | "daytona"
   | "modal";
+export type RemoteWorkspaceSyncMode = "mirror" | "snapshot";
+export type RemoteArtifactPolicy = "metadata-only" | "allowlisted";
+export type RemoteLifecycleEvent = "preview" | "health" | "run";
 
 export interface EnvConfig {
   agentName: string;
@@ -52,6 +55,12 @@ export interface EnvConfig {
   browserCommand: string;
   browserCdpUrl?: string;
   browserObeyRobots: boolean;
+  remoteSyncMode: RemoteWorkspaceSyncMode;
+  remoteSyncInclude: string[];
+  remoteSyncExclude: string[];
+  remoteArtifactPaths: string[];
+  remoteArtifactPolicy: RemoteArtifactPolicy;
+  remoteWorkspaceLabel: string;
   executionBackend: ExecutionBackendName;
   dockerImage: string;
   dockerNetwork: string;
@@ -354,6 +363,9 @@ export interface TerminalCommandRecord {
   startedAt: string;
   completedAt: string;
   preview?: ExecutionBackendPreview;
+  cloudSnapshot?: ExecutionCloudSnapshotRecord;
+  cloudArtifacts?: ExecutionRemoteArtifactRecord[];
+  cloudSyncPlan?: ExecutionRemoteSyncPlan;
 }
 
 export interface DiagnosticCheck {
@@ -370,6 +382,9 @@ export interface ExecutionBackendHealth {
   target?: string;
   cloud?: ExecutionCloudProfile;
   cloudSession?: ExecutionCloudSession;
+  cloudSnapshot?: ExecutionCloudSnapshotRecord;
+  cloudArtifacts?: ExecutionRemoteArtifactRecord[];
+  cloudSyncPlan?: ExecutionRemoteSyncPlan;
   ready: boolean;
   detail: string;
   limits: ExecutionBackendLimits;
@@ -385,6 +400,9 @@ export interface ExecutionBackendPreview {
   target?: string;
   cloud?: ExecutionCloudProfile;
   cloudSession?: ExecutionCloudSession;
+  cloudSnapshot?: ExecutionCloudSnapshotRecord;
+  cloudArtifacts?: ExecutionRemoteArtifactRecord[];
+  cloudSyncPlan?: ExecutionRemoteSyncPlan;
   ready: boolean;
   detail: string;
   cwd: string;
@@ -413,6 +431,10 @@ export interface ExecutionCloudProfile {
   state: "persistent-sandbox" | "interactive-shell";
   commandStyle: "exec" | "shell";
   envPassthrough: string[];
+  workspaceLabel: string;
+  syncPlan: ExecutionRemoteSyncPlan;
+  artifactPolicy: RemoteArtifactPolicy;
+  artifactPaths: string[];
   snapshot?: string;
   environment?: string;
   bootstrapCommand?: string;
@@ -420,12 +442,63 @@ export interface ExecutionCloudProfile {
   inspectCommand?: string;
 }
 
+export interface ExecutionRemoteSyncPlan {
+  mode: RemoteWorkspaceSyncMode;
+  localWorkspacePath: string;
+  remoteWorkspacePath: string;
+  workspaceLabel: string;
+  include: string[];
+  exclude: string[];
+  artifactPaths: string[];
+  artifactPolicy: RemoteArtifactPolicy;
+  safetyNotes: string[];
+  generatedAt: string;
+}
+
+export interface ExecutionRemoteArtifactRecord {
+  artifactId: string;
+  provider: "daytona" | "modal";
+  target: string;
+  workspaceLabel: string;
+  path: string;
+  kind: "manifest" | "checkpoint" | "report";
+  status: "planned" | "available" | "missing";
+  detail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExecutionCloudArtifactRecord extends ExecutionRemoteArtifactRecord {}
+
+export interface ExecutionCloudSnapshotRecord {
+  snapshotId: string;
+  provider: "daytona" | "modal";
+  target: string;
+  workspaceLabel: string;
+  event: RemoteLifecycleEvent;
+  state: "planned" | "idle" | "ready" | "running" | "failed";
+  summary: string;
+  commandId?: string;
+  command?: string;
+  cwd: string;
+  workspacePath: string;
+  syncPlan: ExecutionRemoteSyncPlan;
+  artifacts: ExecutionRemoteArtifactRecord[];
+  createdAt: string;
+  updatedAt: string;
+  lastExitCode?: number;
+  lastStdout?: string;
+  lastStderr?: string;
+}
+
 export interface ExecutionCloudSession {
   sessionId: string;
   provider: "daytona" | "modal";
   target: string;
   profile: ExecutionCloudProfile;
-  state: "idle" | "ready" | "running" | "failed";
+  state: "planned" | "idle" | "ready" | "running" | "failed";
+  syncState: "planned" | "synced" | "stale" | "error";
+  workspaceLabel: string;
   createdAt: string;
   updatedAt: string;
   lastHealthAt?: string;
@@ -436,6 +509,12 @@ export interface ExecutionCloudSession {
   lastExitCode?: number;
   lastStdout?: string;
   lastStderr?: string;
+  lastSnapshotAt?: string;
+  lastSnapshotId?: string;
+  lastSnapshotSummary?: string;
+  snapshotCount: number;
+  artifactCount: number;
+  syncPlan: ExecutionRemoteSyncPlan;
 }
 
 export interface McpToolDefinition {

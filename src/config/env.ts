@@ -45,6 +45,18 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
+  ELIZA_AGENT_REMOTE_SYNC_MODE: z.enum(["mirror", "snapshot"]).default("mirror"),
+  ELIZA_AGENT_REMOTE_SYNC_INCLUDE: z.string().default("**/*"),
+  ELIZA_AGENT_REMOTE_SYNC_EXCLUDE: z
+    .string()
+    .default(".git,.eliza-agent,node_modules,dist,coverage,.cache,.turbo,.DS_Store"),
+  ELIZA_AGENT_REMOTE_ARTIFACT_PATHS: z
+    .string()
+    .default(".eliza-agent/remote-artifacts,.eliza-agent/trajectories,.eliza-agent/cron-output"),
+  ELIZA_AGENT_REMOTE_ARTIFACT_POLICY: z
+    .enum(["metadata-only", "allowlisted"])
+    .default("metadata-only"),
+  ELIZA_AGENT_REMOTE_WORKSPACE_LABEL: z.string().default("eliza-agent-workspace"),
   ELIZA_AGENT_EXECUTION_BACKEND: z
     .enum(["local", "docker", "podman", "ssh", "singularity", "daytona", "modal"])
     .default("local"),
@@ -157,6 +169,21 @@ export function loadConfig(): EnvConfig {
     browserCommand: values.ELIZA_AGENT_BROWSER_COMMAND,
     browserCdpUrl: values.ELIZA_AGENT_BROWSER_CDP_URL,
     browserObeyRobots: values.ELIZA_AGENT_BROWSER_OBEY_ROBOTS,
+    remoteSyncMode: values.ELIZA_AGENT_REMOTE_SYNC_MODE,
+    remoteSyncInclude: values.ELIZA_AGENT_REMOTE_SYNC_INCLUDE
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    remoteSyncExclude: values.ELIZA_AGENT_REMOTE_SYNC_EXCLUDE
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    remoteArtifactPaths: values.ELIZA_AGENT_REMOTE_ARTIFACT_PATHS
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    remoteArtifactPolicy: values.ELIZA_AGENT_REMOTE_ARTIFACT_POLICY,
+    remoteWorkspaceLabel: values.ELIZA_AGENT_REMOTE_WORKSPACE_LABEL,
     executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND,
     dockerImage: values.ELIZA_AGENT_DOCKER_IMAGE,
     dockerNetwork: values.ELIZA_AGENT_DOCKER_NETWORK,

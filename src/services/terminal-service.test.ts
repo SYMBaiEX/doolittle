@@ -20,6 +20,15 @@ function makeSettings(): RuntimeSettings {
     },
     execution: {
       backend: "local",
+      remoteSyncMode: "mirror",
+      remoteSyncInclude: ["src/**", "skills/**"],
+      remoteSyncExclude: [".git", ".eliza-agent", "node_modules"],
+      remoteArtifactPaths: [
+        ".eliza-agent/remote-artifacts",
+        ".eliza-agent/trajectories",
+      ],
+      remoteArtifactPolicy: "metadata-only",
+      remoteWorkspaceLabel: "eliza-agent-workspace",
       dockerImage: "oven/bun:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
@@ -284,6 +293,11 @@ describe("TerminalService", () => {
       expect(daytonaPreview.engine).toBe("daytona");
       expect(daytonaPreview.cloud?.provider).toBe("daytona");
       expect(daytonaPreview.cloud?.workspacePath).toBe("/workspace");
+      expect(daytonaPreview.cloud?.workspaceLabel).toBe("eliza-agent-workspace");
+      expect(daytonaPreview.cloud?.syncPlan.mode).toBe("snapshot");
+      expect(daytonaPreview.cloud?.syncPlan.include).toContain("src/**");
+      expect(daytonaPreview.cloudSnapshot?.event).toBe("preview");
+      expect(daytonaPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
       expect(daytonaPreview.cloud?.snapshot).toBe("snapshot-dev");
       expect(daytonaPreview.cloud?.bootstrapCommand).toContain("mkdir -p .eliza-agent");
       expect(daytonaPreview.cloud?.statusCommand).toContain("daytona info sandbox-dev");
@@ -315,6 +329,10 @@ describe("TerminalService", () => {
       expect(modalPreview.cloud?.provider).toBe("modal");
       expect(modalPreview.cloud?.workspacePath).toBe("/workspace");
       expect(modalPreview.cloud?.environment).toBe("sandbox-prod-env");
+      expect(modalPreview.cloud?.workspaceLabel).toBe("eliza-agent-workspace");
+      expect(modalPreview.cloud?.syncPlan.mode).toBe("mirror");
+      expect(modalPreview.cloudSnapshot?.event).toBe("preview");
+      expect(modalPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
       expect(modalPreview.cloud?.bootstrapCommand).toContain("mkdir -p .eliza-agent");
       expect(modalPreview.cloud?.inspectCommand).toContain("modal shell sandbox-prod");
       expect(modalPreview.cloudSession?.provider).toBe("modal");
@@ -441,21 +459,35 @@ describe("TerminalService", () => {
       expect(daytona?.cloud?.snapshot).toBe("snapshot-dev");
       expect(daytona?.cloudSession?.provider).toBe("daytona");
       expect(daytona?.cloudSession?.sessionId).toBeTruthy();
+      expect(daytona?.cloudSnapshot?.event).toBe("health");
+      expect(daytona?.cloudSnapshot?.summary).toContain("Daytona");
+      expect(daytona?.cloudSession?.snapshotCount).toBeGreaterThan(0);
+      expect(daytona?.cloudSession?.lastSnapshotSummary).toContain("Daytona");
       expect(daytona?.checks.some((check) => check.id === "daytona.config.status")).toBe(true);
+      expect(daytona?.checks.some((check) => check.id === "daytona.config.sync.plan")).toBe(true);
       expect(daytona?.checks.some((check) => check.id === "daytona.config.inspect")).toBe(true);
       expect(daytona?.checks.some((check) => check.id === "daytona.runtime.binary")).toBe(true);
       expect(daytona?.checks.some((check) => check.id === "daytona.runtime.probe")).toBe(true);
       expect(daytona?.bootstrap.length).toBeGreaterThan(0);
+      expect(daytona?.cloudArtifacts?.length).toBeGreaterThan(0);
       expect(modal).toBeDefined();
       expect(modal?.cloud?.provider).toBe("modal");
       expect(modal?.cloud?.environment).toBe("sandbox-prod-env");
       expect(modal?.cloudSession?.provider).toBe("modal");
       expect(modal?.cloudSession?.sessionId).toBeTruthy();
+      expect(modal?.cloudSnapshot?.event).toBe("health");
+      expect(modal?.cloudSnapshot?.summary).toContain("Modal");
+      expect(modal?.cloudSession?.snapshotCount).toBeGreaterThan(0);
+      expect(modal?.cloudSession?.lastSnapshotSummary).toContain("Modal");
       expect(modal?.checks.some((check) => check.id === "modal.config.status")).toBe(true);
+      expect(modal?.checks.some((check) => check.id === "modal.config.sync.plan")).toBe(true);
       expect(modal?.checks.some((check) => check.id === "modal.config.inspect")).toBe(true);
       expect(modal?.checks.some((check) => check.id === "modal.runtime.binary")).toBe(true);
       expect(modal?.checks.some((check) => check.id === "modal.runtime.probe")).toBe(true);
       expect(modal?.bootstrap.length).toBeGreaterThan(0);
+      expect(modal?.cloudArtifacts?.length).toBeGreaterThan(0);
+      expect(service.cloudSnapshots(2).length).toBeGreaterThan(0);
+      expect(service.cloudArtifacts(2).length).toBeGreaterThan(0);
     } finally {
       process.env.PATH = originalPath;
       rmSync(root, { recursive: true, force: true });

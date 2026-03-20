@@ -53,6 +53,16 @@ function buildConfig(root: string): EnvConfig {
     browserCommand: "lightpanda",
     browserCdpUrl: undefined,
     browserObeyRobots: true,
+    remoteSyncMode: "mirror",
+    remoteSyncInclude: ["**/*"],
+    remoteSyncExclude: [".git", ".eliza-agent", "node_modules"],
+    remoteArtifactPaths: [
+      ".eliza-agent/remote-artifacts",
+      ".eliza-agent/trajectories",
+      ".eliza-agent/cron-output",
+    ],
+    remoteArtifactPolicy: "metadata-only",
+    remoteWorkspaceLabel: "eliza-agent-workspace",
     executionBackend: "docker",
     dockerImage: "oven/bun:latest",
     dockerNetwork: "host",
@@ -139,12 +149,15 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "data.exists")).toBe(true);
       expect(checks.some((check) => check.id === "cron.output")).toBe(true);
       expect(checks.some((check) => check.id === "gateway.data")).toBe(true);
+      expect(checks.some((check) => check.id === "execution.remote.sync")).toBe(true);
+      expect(checks.some((check) => check.id === "execution.remote.artifacts")).toBe(true);
       expect(checks.some((check) => check.id === "mcp.bridge" && check.status === "warn")).toBe(
         true,
       );
 
       const checklist = await service.setupChecklist();
       expect(checklist.some((item) => item.includes("MCP_SERVER_COMMAND"))).toBe(true);
+      expect(checklist.some((item) => item.includes("ELIZA_AGENT_REMOTE_SYNC_INCLUDE"))).toBe(true);
       expect(checklist.some((item) => item.includes("Validate docker runtime access"))).toBe(
         true,
       );

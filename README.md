@@ -381,11 +381,14 @@ Useful commands:
 - `/gateway trace platform:telegram limit:10`
 - `/gateway receive telegram user42 room42 :: hello there`
 - `/gateway status`
+- `/gateway inbox`
+- `/gateway outbox`
+- `/gateway attachments`
 - `/pairing pending`
 - `/hooks add gateway:startup startup-log :: Gateway started for {{platforms}}`
 - `/hooks recent`
 
-Gateway observability is route-aware: `/gateway/state` includes per-platform trace counts plus the last route/respond/deliver/reject activity, and `/gateway/trace` accepts `kind=route` alongside the other lifecycle filters.
+Gateway observability is route-aware and attachment-aware: `/gateway/state` includes per-platform trace counts plus the last route/respond/deliver/reject activity, inbox/outbox journaling, attachment counts, and live transport readiness semantics, while `/gateway/trace` accepts `kind=route` alongside the other lifecycle filters.
 
 ### HTTP API
 
@@ -483,6 +486,9 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /gateway/state`
 - `GET /gateway/trace`
 - `GET /gateway/deliveries`
+- `GET /gateway/inbox`
+- `GET /gateway/outbox`
+- `GET /gateway/attachments`
 - `GET /gateway/history`
 - `POST /gateway/start`
 - `POST /gateway/stop`
