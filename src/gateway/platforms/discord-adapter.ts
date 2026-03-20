@@ -1,6 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { PlatformAdapter, PlatformHealth } from "./base";
+import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class DiscordPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -23,23 +23,38 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     return {
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && Boolean(this.config.discordBotToken),
+      ready: this.status === "running" && this.canReceive(),
       mode: "native",
-      capabilities: {
-        inbound: true,
-        outbound: true,
-        pairing: true,
-        attachments: true,
-      },
+      capabilities: capabilitiesForPlatform(this.name),
       detail: this.config.discordBotToken
-        ? "Discord bot token configured."
+        ? "Discord bot token configured; replies, threads, and attachments are supported."
         : "DISCORD_BOT_TOKEN is not configured.",
     };
   }
 
-  async send(message: { roomId: string; userId?: string; text: string }): Promise<void> {
+  async send(message: {
+    roomId: string;
+    userId?: string;
+    text: string;
+    threadId?: string;
+    replyToId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<void> {
     if (!this.config.discordBotToken) {
       throw new Error("DISCORD_BOT_TOKEN is not configured.");
+    }
+
+    const payload: Record<string, unknown> = {
+      content: message.text,
+    };
+    if (message.replyToId) {
+      payload.message_reference = {
+        message_id: message.replyToId,
+        channel_id: message.roomId,
+      };
+    }
+    if (message.threadId) {
+      payload.thread_name = message.threadId;
     }
 
     const response = await fetch(
@@ -50,9 +65,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
           Authorization: `Bot ${this.config.discordBotToken}`,
           "content-type": "application/json",
         },
-        body: JSON.stringify({
-          content: message.text,
-        }),
+        body: JSON.stringify(payload),
       },
     );
 

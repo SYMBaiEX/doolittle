@@ -1,6 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { PlatformAdapter, PlatformHealth } from "./base";
+import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class SlackPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -12,7 +12,8 @@ export class SlackPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status = this.config.slackWebhookUrl ? "running" : "stopped";
+    this.status =
+      this.config.slackWebhookUrl && this.config.slackSigningSecret ? "running" : "stopped";
   }
 
   async stop(): Promise<void> {
@@ -23,31 +24,43 @@ export class SlackPlatformAdapter implements PlatformAdapter {
     return {
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && Boolean(this.config.slackWebhookUrl),
+      ready: this.status === "running" && this.canReceive(),
       mode: "native",
-      capabilities: {
-        inbound: true,
-        outbound: true,
-        pairing: true,
-        attachments: false,
-      },
+      capabilities: capabilitiesForPlatform(this.name),
       detail: this.config.slackWebhookUrl
-        ? "Slack webhook configured."
+        ? this.config.slackSigningSecret
+          ? "Slack webhook and signing secret configured; threaded replies are supported."
+          : "SLACK_SIGNING_SECRET is not configured."
         : "SLACK_WEBHOOK_URL is not configured.",
     };
   }
 
-  async send(message: { roomId: string; userId?: string; text: string }): Promise<void> {
+  async send(message: {
+    roomId: string;
+    userId?: string;
+    text: string;
+    threadId?: string;
+    replyToId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<void> {
     if (!this.config.slackWebhookUrl) {
       throw new Error("SLACK_WEBHOOK_URL is not configured.");
+    }
+
+    const payload: Record<string, unknown> = {
+      text: message.text,
+    };
+    if (message.threadId) {
+      payload.thread_ts = message.threadId;
+    }
+    if (message.replyToId) {
+      payload.thread_ts = message.replyToId;
     }
 
     const response = await fetch(this.config.slackWebhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        text: message.text,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -66,6 +79,6 @@ export class SlackPlatformAdapter implements PlatformAdapter {
   }
 
   canReceive(): boolean {
-    return Boolean(this.config.slackWebhookUrl);
+    return Boolean(this.config.slackWebhookUrl && this.config.slackSigningSecret);
   }
 }

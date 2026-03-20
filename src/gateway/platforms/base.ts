@@ -1,10 +1,17 @@
-import type { IncomingPlatformMessage, PlatformName } from "@/types";
+import type {
+  IncomingPlatformMessage,
+  OutboundPlatformMessage,
+  PlatformName,
+} from "@/types";
 
 export interface PlatformCapabilitySet {
   inbound: boolean;
   outbound: boolean;
   pairing: boolean;
   attachments: boolean;
+  replies: boolean;
+  threads: boolean;
+  metadata: boolean;
 }
 
 export interface PlatformHealth {
@@ -21,8 +28,63 @@ export interface PlatformAdapter {
   start(): Promise<void>;
   stop(): Promise<void>;
   health(): Promise<PlatformHealth>;
-  send(message: { roomId: string; userId?: string; text: string }): Promise<void>;
+  send(message: OutboundPlatformMessage): Promise<void>;
   canReceive(): boolean;
 }
 
 export type PlatformMessageHandler = (message: IncomingPlatformMessage) => Promise<string>;
+
+export function capabilitiesForPlatform(platform: PlatformName): PlatformCapabilitySet {
+  switch (platform) {
+    case "telegram":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: true,
+        metadata: true,
+      };
+    case "discord":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: true,
+        metadata: true,
+      };
+    case "slack":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: false,
+        replies: true,
+        threads: true,
+        metadata: true,
+      };
+    case "whatsapp":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: false,
+        metadata: true,
+      };
+    default:
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: false,
+        replies: false,
+        threads: false,
+        metadata: false,
+      };
+  }
+}

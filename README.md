@@ -250,6 +250,7 @@ Useful commands:
 - `/browser status`
 - `/browser fetch https://example.com`
 - `/browser snapshot https://example.com`
+- `/browser screenshot https://example.com`
 - `/mcp status`
 - `/mcp tools`
 - `/mcp invoke list-tools`
@@ -298,6 +299,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /skills`
 - `GET /tools`
 - `GET /browser/status`
+- `POST /browser/screenshot`
 - `GET /mcp/status`
 - `GET /mcp/tools`
 - `POST /mcp/probe`

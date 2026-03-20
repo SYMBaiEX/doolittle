@@ -5,6 +5,8 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { randomUUID } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { AppContext } from "./bootstrap";
 import type { ChatTurnRequest, MemoryTarget } from "@/types";
 
@@ -14,6 +16,65 @@ export type AgentExecutionContext = Pick<AppContext, "config" | "services" | "ru
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+async function runDelegationTaskInWorker(
+  context: AgentExecutionContext,
+  taskId: string,
+): Promise<ReturnType<AgentExecutionContext["services"]["delegation"]["get"]>> {
+  const task = context.services.delegation.get(taskId);
+  const { inputPath, outputPath } = context.services.delegation.getWorkerPaths(task.id);
+  writeFileSync(
+    inputPath,
+    JSON.stringify(
+      {
+        taskId: task.id,
+        objective: task.objective,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  const workerEntry = join(import.meta.dir, "delegate-worker.ts");
+  const proc = Bun.spawn({
+    cmd: ["bun", "run", workerEntry, inputPath, outputPath],
+    cwd: context.config.workspaceDir,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  context.services.delegation.markRunning(task.id);
+  context.services.delegation.markWorkerStarted(task.id, {
+    pid: proc.pid,
+    mode: "process",
+    outputPath,
+  });
+
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+
+  const rawOutput = readFileSync(outputPath, "utf8");
+  const parsed = JSON.parse(rawOutput) as {
+    ok: boolean;
+    output?: string;
+    error?: string;
+  };
+
+  if (exitCode === 0 && parsed.ok) {
+    return context.services.delegation.complete(
+      task.id,
+      parsed.output ?? stdout.trim() || "Worker finished without output.",
+    );
+  }
+
+  return context.services.delegation.fail(
+    task.id,
+    parsed.error ?? stderr.trim() || `Delegated worker failed with exit code ${exitCode}.`,
+  );
 }
 
 export function syncProviderSettings(
@@ -388,6 +449,11 @@ async function buildCommandResponse(
     return await context.services.web.snapshot(url);
   }
 
+  if (trimmed.startsWith("/browser screenshot ")) {
+    const url = trimmed.replace("/browser screenshot ", "").trim();
+    return await context.services.web.screenshot(url);
+  }
+
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
     return await context.services.web.snapshot(url);
@@ -404,7 +470,7 @@ async function buildCommandResponse(
       ? tasks
           .map(
             (task) =>
-              `- ${task.id} ${task.title} [${task.status}] mode=${task.executionMode}\n  ${task.objective}`,
+              `- ${task.id} ${task.title} [${task.status}] mode=${task.executionMode}/${task.workerMode ?? "inline"} attempts=${task.attempts ?? 0}${task.workerPid ? ` pid=${task.workerPid}` : ""}\n  ${task.objective}`,
           )
           .join("\n")
       : "No delegation tasks recorded.";
@@ -440,31 +506,15 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate execute ")) {
     const id = trimmed.replace("/delegate execute ", "").trim();
-    const task = context.services.delegation.markRunning(id);
-    const result = await handleAgentTurn(
-      {
-        message: task.objective,
-        userId: `delegate:${id}`,
-        roomId: `delegate:${id}`,
-        source: "delegate",
-      },
-      context,
-    );
-    return JSON.stringify(context.services.delegation.complete(id, result), null, 2);
+    return JSON.stringify(await runDelegationTaskInWorker(context, id), null, 2);
   }
 
   if (trimmed === "/delegate execute-queued") {
     const completed = await context.services.delegation.executeQueued(
-      async (task) =>
-        handleAgentTurn(
-          {
-            message: task.objective,
-            userId: `delegate:${task.id}`,
-            roomId: `delegate:${task.id}`,
-            source: "delegate",
-          },
-          context,
-        ),
+      async (task) => {
+        const completedTask = await runDelegationTaskInWorker(context, task.id);
+        return completedTask.notes.at(-1) ?? "Delegated worker completed.";
+      },
       {
         concurrency: 2,
         onComplete: async (task) => {
@@ -475,6 +525,21 @@ async function buildCommandResponse(
     return completed.length
       ? completed.map((task) => `- ${task.title} [${task.status}]`).join("\n")
       : "No pending delegation tasks to execute.";
+  }
+
+  if (trimmed === "/delegate workers") {
+    const tasks = context.services.delegation
+      .list()
+      .filter((task) => task.workerMode === "process" || task.workerPid || task.lastOutputPath)
+      .slice(0, 20);
+    return tasks.length
+      ? tasks
+          .map(
+            (task) =>
+              `- ${task.id} [${task.status}] pid=${task.workerPid ?? "none"} output=${task.lastOutputPath ?? "n/a"}`,
+          )
+          .join("\n")
+      : "No delegated worker tasks recorded.";
   }
 
   if (trimmed.startsWith("/delegate complete ")) {

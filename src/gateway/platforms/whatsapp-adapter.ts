@@ -1,6 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { PlatformAdapter, PlatformHealth } from "./base";
+import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class WhatsAppPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -13,7 +13,9 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
 
   async start(): Promise<void> {
     this.status =
-      this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId
+      this.config.whatsappAccessToken &&
+      this.config.whatsappPhoneNumberId &&
+      this.config.whatsappVerifyToken
         ? "running"
         : "stopped";
   }
@@ -31,21 +33,33 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
       status: this.status,
       ready,
       mode: "native",
-      capabilities: {
-        inbound: true,
-        outbound: true,
-        pairing: true,
-        attachments: true,
-      },
+      capabilities: capabilitiesForPlatform(this.name),
       detail: ready
-        ? "WhatsApp Graph API credentials configured."
-        : "WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are required.",
+        ? "WhatsApp Graph API credentials configured; replies are carried through message context."
+        : "WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN are required.",
     };
   }
 
-  async send(message: { roomId: string; userId?: string; text: string }): Promise<void> {
+  async send(message: {
+    roomId: string;
+    userId?: string;
+    text: string;
+    threadId?: string;
+    replyToId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<void> {
     if (!this.config.whatsappAccessToken || !this.config.whatsappPhoneNumberId) {
       throw new Error("WhatsApp credentials are not configured.");
+    }
+
+    const payload: Record<string, unknown> = {
+      messaging_product: "whatsapp",
+      to: message.roomId,
+      type: "text",
+      text: { body: message.text },
+    };
+    if (message.replyToId) {
+      payload.context = { message_id: message.replyToId };
     }
 
     const response = await fetch(
@@ -56,12 +70,7 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
           Authorization: `Bearer ${this.config.whatsappAccessToken}`,
           "content-type": "application/json",
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: message.roomId,
-          type: "text",
-          text: { body: message.text },
-        }),
+        body: JSON.stringify(payload),
       },
     );
 
@@ -81,6 +90,10 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
   }
 
   canReceive(): boolean {
-    return Boolean(this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId);
+    return Boolean(
+      this.config.whatsappAccessToken &&
+        this.config.whatsappPhoneNumberId &&
+        this.config.whatsappVerifyToken,
+    );
   }
 }

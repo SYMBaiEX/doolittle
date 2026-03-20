@@ -1,5 +1,5 @@
 import type { DeliveryService } from "@/services/delivery-service";
-import type { PlatformAdapter, PlatformHealth } from "./base";
+import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 import type { PlatformName } from "@/types";
 
 export class MockPlatformAdapter implements PlatformAdapter {
@@ -24,17 +24,19 @@ export class MockPlatformAdapter implements PlatformAdapter {
       status: this.status,
       ready: this.status === "running",
       mode: "mock",
-      capabilities: {
-        inbound: true,
-        outbound: true,
-        pairing: true,
-        attachments: false,
-      },
+      capabilities: capabilitiesForPlatform(this.name),
       detail: "Mock adapter active for local native experience scaffolding.",
     };
   }
 
-  async send(message: { roomId: string; userId?: string; text: string }): Promise<void> {
+  async send(message: {
+    roomId: string;
+    userId?: string;
+    text: string;
+    threadId?: string;
+    replyToId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<void> {
     this.delivery.deliver(
       {
         platform: this.name,

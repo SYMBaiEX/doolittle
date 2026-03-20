@@ -23,7 +23,7 @@ export class GatewaySessionService {
       message.platform,
       message.roomId,
       message.userId,
-      message.threadId ?? "root",
+      message.threadId ?? message.replyToMessageId ?? "root",
     ].join(":");
     const existing = store.sessions.find((session) => session.sessionKey === sessionKey);
     if (existing) {
@@ -39,6 +39,10 @@ export class GatewaySessionService {
       platform: message.platform,
       channelId: message.channelId,
       threadId: message.threadId,
+      messageId: message.messageId,
+      replyToMessageId: message.replyToMessageId,
+      channelType: message.channelType,
+      authorName: message.authorName,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
