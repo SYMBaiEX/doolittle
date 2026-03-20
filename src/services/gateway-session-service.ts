@@ -43,6 +43,7 @@ export class GatewaySessionService {
       replyToMessageId: message.replyToMessageId,
       channelType: message.channelType,
       authorName: message.authorName,
+      metadata: message.metadata,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
