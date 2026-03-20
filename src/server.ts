@@ -9,6 +9,10 @@ import {
   runModelAnalysisTurn,
   syncProviderSettings,
 } from "@/runtime/chat";
+import {
+  getNativePluginCatalog,
+  groupNativePluginCatalog,
+} from "@/runtime/native/plugin-catalog";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import type {
   GatewayConfig,
@@ -210,6 +214,7 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/runtime/status") {
         const settings = context.services.settings.get();
+        const catalog = getNativePluginCatalog(context.config);
         return json({
           provider: settings.model.provider,
           model: settings.model.model,
@@ -220,6 +225,20 @@ export function startApiServer(context: AppContext): void {
             telegram: Boolean(context.config.telegramBotToken),
           },
           gateway: context.services.gatewayConfig,
+          native: {
+            catalog,
+            grouped: groupNativePluginCatalog(catalog),
+            serviceRegistry: context.services.nativeRegistry,
+          },
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/plugins") {
+        const catalog = getNativePluginCatalog(context.config);
+        return json({
+          catalog,
+          grouped: groupNativePluginCatalog(catalog),
+          serviceRegistry: context.services.nativeRegistry,
         });
       }
 

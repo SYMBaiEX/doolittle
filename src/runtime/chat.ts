@@ -7,6 +7,10 @@ import {
   stringToUuid,
   type UUID,
 } from "@elizaos/core";
+import {
+  getNativePluginCatalog,
+  groupNativePluginCatalog,
+} from "@/runtime/native/plugin-catalog";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
   ChatTurnRequest,
@@ -1471,6 +1475,19 @@ async function buildCommandResponse(
       {
         active: settings,
         backends: health,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime plugins" || trimmed === "/plugins native") {
+    const catalog = getNativePluginCatalog(context.config);
+    return JSON.stringify(
+      {
+        catalog,
+        grouped: groupNativePluginCatalog(catalog),
+        serviceRegistry: context.services.nativeRegistry,
       },
       null,
       2,
