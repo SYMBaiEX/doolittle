@@ -407,6 +407,32 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/media/transcript") {
+        const path = url.searchParams.get("path");
+        if (!path) {
+          return json({ error: "path is required" }, 400);
+        }
+        const media = context.services.media.inspect(path);
+        return json({
+          path,
+          transcriptPath: media.transcriptPath,
+          transcriptPreview: media.transcriptPreview,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/media/caption") {
+        const path = url.searchParams.get("path");
+        if (!path) {
+          return json({ error: "path is required" }, 400);
+        }
+        const media = context.services.media.inspect(path);
+        return json({
+          path,
+          captionPath: media.captionPath,
+          captionPreview: media.captionPreview,
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/workspace/write") {
         const body = (await request.json()) as { path?: string; content?: string };
         if (!body.path || body.content === undefined) {
@@ -462,6 +488,9 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as {
           title?: string;
           objective?: string;
+          profile?: string;
+          priority?: "low" | "normal" | "high";
+          tags?: string[];
           executionMode?: "local" | "delegated";
           maxAttempts?: number;
         };
@@ -472,6 +501,9 @@ export function startApiServer(context: AppContext): void {
           task: context.services.delegation.create({
             title: body.title,
             objective: body.objective,
+            profile: body.profile,
+            priority: body.priority,
+            tags: body.tags,
             executionMode: body.executionMode,
             maxAttempts: body.maxAttempts,
           }),

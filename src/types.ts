@@ -387,6 +387,9 @@ export interface DelegationTaskRecord {
   id: string;
   title: string;
   objective: string;
+  profile?: string;
+  priority?: "low" | "normal" | "high";
+  tags?: string[];
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   executionMode: "local" | "delegated";
   workerMode?: "inline" | "process";

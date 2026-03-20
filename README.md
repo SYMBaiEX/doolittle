@@ -280,6 +280,8 @@ Useful commands:
 - `/browser inspect https://example.com`
 - `/browser snapshot https://example.com`
 - `/browser screenshot https://example.com`
+- `/media transcript ./recordings/daily-sync.wav`
+- `/media caption ./artifacts/screenshot.png`
 - `/mcp status`
 - `/mcp tools`
 - `/mcp cached`
@@ -291,6 +293,7 @@ Useful commands:
 - `/web inspect https://example.com`
 - `/delegate list`
 - `/delegate create Research spike :: validate a Discord transport adapter`
+- `/delegate create Vision batch | profile:research | priority:high | tags:browser,media :: inspect screenshots and summarize visual regressions`
 - `/delegate execute <task-id>`
 - `/delegate execute-queued`
 - `/skills synthesize <task-id>`
@@ -364,6 +367,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /web/fetch`
 - `POST /web/snapshot`
 - `GET /media/inspect`
+- `GET /media/transcript`
+- `GET /media/caption`
 - `GET /execution/status`
 - `GET /execution/backends`
 - `POST /execution/preview`

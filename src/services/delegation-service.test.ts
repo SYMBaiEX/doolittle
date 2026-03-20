@@ -13,6 +13,9 @@ describe("DelegationService", () => {
       const task = service.create({
         title: "Worker Task",
         objective: "Run in a worker process",
+        profile: "research",
+        priority: "high",
+        tags: ["browser", "voice"],
         executionMode: "delegated",
       });
       const paths = service.getWorkerPaths(task.id);
@@ -26,6 +29,9 @@ describe("DelegationService", () => {
 
       expect(started.workerPid).toBe(12345);
       expect(started.workerMode).toBe("process");
+      expect(started.profile).toBe("research");
+      expect(started.priority).toBe("high");
+      expect(started.tags).toEqual(["browser", "voice"]);
       expect(started.lastOutputPath).toBe(paths.outputPath);
       expect(started.attempts).toBe(1);
       expect(started.notes.some((note) => note.startsWith("system: worker started"))).toBe(true);
@@ -70,12 +76,16 @@ describe("DelegationService", () => {
       const pending = service.create({
         title: "Queued Task",
         objective: "Finish the queued task",
+        profile: "ops",
+        priority: "high",
         executionMode: "delegated",
         maxAttempts: 2,
       });
       const running = service.create({
         title: "Running Task",
         objective: "Keep this task running",
+        profile: "research",
+        priority: "normal",
         executionMode: "delegated",
       });
 
@@ -92,6 +102,9 @@ describe("DelegationService", () => {
       expect(overview.running).toBe(1);
       expect(overview.activeWorkers).toBe(1);
       expect(overview.aliveWorkers).toBe(1);
+      expect(overview.byProfile.some((entry) => entry.profile === "ops")).toBe(true);
+      expect(overview.byProfile.some((entry) => entry.profile === "research")).toBe(true);
+      expect(overview.byPriority.some((entry) => entry.priority === "high")).toBe(true);
 
       const workers = service.workers();
       expect(workers.some((worker) => worker.id === running.id && worker.alive)).toBe(true);

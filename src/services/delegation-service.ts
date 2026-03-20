@@ -11,6 +11,9 @@ interface DelegationWorkerStatus {
   id: string;
   title: string;
   objective: string;
+  profile?: string;
+  priority?: DelegationTaskRecord["priority"];
+  tags?: string[];
   status: DelegationTaskRecord["status"];
   executionMode: DelegationTaskRecord["executionMode"];
   workerMode: DelegationTaskRecord["workerMode"];
@@ -43,6 +46,8 @@ interface DelegationOverview {
   aliveWorkers: number;
   stalledWorkers: number;
   concurrency: number;
+  byProfile: Array<{ profile: string; count: number }>;
+  byPriority: Array<{ priority: string; count: number }>;
 }
 
 interface DelegationSupervisionReport {
@@ -92,6 +97,9 @@ export class DelegationService {
   create(input: {
     title: string;
     objective: string;
+    profile?: string;
+    priority?: "low" | "normal" | "high";
+    tags?: string[];
     executionMode?: "local" | "delegated";
     maxAttempts?: number;
   }): DelegationTaskRecord {
@@ -101,6 +109,9 @@ export class DelegationService {
       id: randomUUID(),
       title: input.title,
       objective: input.objective,
+      profile: input.profile?.trim() || undefined,
+      priority: input.priority ?? "normal",
+      tags: input.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [],
       status: "pending",
       executionMode: input.executionMode ?? "local",
       workerMode: input.executionMode === "delegated" ? "process" : "inline",
@@ -219,7 +230,9 @@ export class DelegationService {
 
   overview(): DelegationOverview {
     const tasks = this.read().tasks;
-    const counts = tasks.reduce(
+    const profileCounts = new Map<string, number>();
+    const priorityCounts = new Map<string, number>();
+    const counts = tasks.reduce<DelegationOverview>(
       (acc, task) => {
         acc.total += 1;
         acc[task.status] += 1;
@@ -244,6 +257,10 @@ export class DelegationService {
         ) {
           acc.retryable += 1;
         }
+        if (task.profile) {
+          profileCounts.set(task.profile, (profileCounts.get(task.profile) ?? 0) + 1);
+        }
+        priorityCounts.set(task.priority ?? "normal", (priorityCounts.get(task.priority ?? "normal") ?? 0) + 1);
         return acc;
       },
       {
@@ -262,8 +279,17 @@ export class DelegationService {
         aliveWorkers: 0,
         stalledWorkers: 0,
         concurrency: this.activeExecutions,
-      } satisfies DelegationOverview,
+        byProfile: [],
+        byPriority: [],
+      },
     );
+
+    counts.byProfile = Array.from(profileCounts.entries())
+      .map(([profile, count]) => ({ profile, count }))
+      .sort((left, right) => right.count - left.count || left.profile.localeCompare(right.profile));
+    counts.byPriority = Array.from(priorityCounts.entries())
+      .map(([priority, count]) => ({ priority, count }))
+      .sort((left, right) => right.count - left.count || left.priority.localeCompare(right.priority));
 
     return counts;
   }
@@ -287,6 +313,9 @@ export class DelegationService {
           id: task.id,
           title: task.title,
           objective: task.objective,
+          profile: task.profile,
+          priority: task.priority,
+          tags: task.tags ?? [],
           status: task.status,
           executionMode: task.executionMode,
           workerMode: task.workerMode,
@@ -417,5 +446,9 @@ export class DelegationService {
     } catch {
       return false;
     }
+  }
+
+  listByProfile(profile: string): DelegationTaskRecord[] {
+    return this.list().filter((task) => task.profile === profile);
   }
 }
