@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@elizaos-official/compat": "file:../compat",
-    "@elizaos/core": "latest"
+    "@elizaos/core": "alpha"
   }
 }

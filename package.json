@@ -28,8 +28,8 @@
     "workspace:plugins": "bun run packages/agent/src/index.ts --help"
   },
   "dependencies": {
-    "@elizaos/autonomous": "latest",
-    "@elizaos/core": "latest",
+    "@elizaos/autonomous": "alpha",
+    "@elizaos/core": "alpha",
     "@elizaos/plugin-agent-orchestrator": "workspace:*",
     "@elizaos/plugin-agent-skills": "workspace:*",
     "@elizaos/plugin-anthropic": "alpha",
@@ -48,10 +48,10 @@
     "@elizaos/plugin-sql": "alpha",
     "@elizaos/plugin-telegram": "alpha",
     "@elizaos/plugin-trajectory-logger": "workspace:*",
-    "@elizaos/skills": "latest",
+    "@elizaos/skills": "alpha",
     "cron-parser": "^5.2.0",
     "dotenv": "^17.2.3",
-    "elizaos": "latest",
+    "elizaos": "alpha",
     "zod": "^4.3.6"
   },
   "devDependencies": {

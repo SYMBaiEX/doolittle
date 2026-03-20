@@ -1,6 +1,7 @@
 import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
+import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 
 export class DiagnosticsService {
@@ -46,6 +47,7 @@ export class DiagnosticsService {
       "packages",
       "elizaos-official",
     );
+    const nativeAudit = getNativePackageAudit(this.config);
     checks.push({
       id: "native.workspace",
       status: existsSync(nativeWorkspacePath) ? "pass" : "warn",
@@ -78,6 +80,25 @@ export class DiagnosticsService {
         this.config.openAiApiKey || this.config.anthropicApiKey
           ? "At least one provider key is present."
           : "No OpenAI or Anthropic API key is configured. Runtime will stay in offline fallback mode.",
+    });
+
+    checks.push({
+      id: "native.runtime-line",
+      status: nativeAudit.runtime.alpha === "2.0.0-alpha.81" ? "pass" : "warn",
+      summary: "Alpha Eliza runtime line",
+      detail: `alpha=${nativeAudit.runtime.alpha} latest=${nativeAudit.runtime.latest}`,
+    });
+
+    checks.push({
+      id: "native.package-alignment",
+      status:
+        nativeAudit.summary.alphaOnly > 0 ||
+        nativeAudit.summary.workspaceOnly > 0 ||
+        nativeAudit.summary.vendored > 0
+          ? "warn"
+          : "pass",
+      summary: "Native package compatibility audit",
+      detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} alphaOnly=${nativeAudit.summary.alphaOnly} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
     });
 
     checks.push({

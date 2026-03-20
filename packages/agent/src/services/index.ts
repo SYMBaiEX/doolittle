@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
+import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import { AcpService } from "./acp-service";
@@ -328,6 +329,7 @@ export function createServices(
   const sessions = new SessionService(config.dataDir);
   const apiTransport = new ApiTransportService(join(config.dataDir, "api"));
   const nativePluginCatalog = getNativePluginCatalog(config);
+  const nativePackageAudit = getNativePackageAudit(config);
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
   const acp = new AcpService(config, () => tools.list());
@@ -348,6 +350,11 @@ export function createServices(
       (entry) => entry.source === "vendored",
     ).length,
     nativeCatalog: nativePluginCatalog,
+    nativeRuntimeLatest: nativePackageAudit.runtime.latest,
+    nativeRuntimeAlpha: nativePackageAudit.runtime.alpha,
+    nativeAlignedPackages: nativePackageAudit.summary.aligned,
+    nativeAlphaOnlyPackages: nativePackageAudit.summary.alphaOnly,
+    nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
   }));
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";

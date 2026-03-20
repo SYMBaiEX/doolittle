@@ -4,20 +4,21 @@ Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a worksp
 
 ## Versioning note
 
-On March 19, 2026, npm reports:
+On March 20, 2026, npm reports:
 
 - `elizaos@latest` → `2.0.0-alpha.77`
-- `elizaos@alpha` → `2.0.0-alpha.76`
+- `elizaos@alpha` → `2.0.0-alpha.81`
 
-This project therefore uses the `latest` dist-tag for the `elizaos` umbrella package and `@elizaos/core`, instead of hardcoding `2.0.0-alpha.77`.
+This project now uses the explicit `alpha` dist-tag for the core ElizaOS runtime packages so the repo intentionally tracks the leading alpha line instead of relying on `latest` to remain alpha-backed.
 
 ## Why this shape
 
 The published `elizaos` package is a CLI/examples wrapper, while the actual agent runtime comes from `@elizaos/core`. This repo includes both:
 
-- `elizaos: "latest"` to satisfy the requested package channel
-- `@elizaos/core: "latest"` for the runtime used by the Bun application
-- `@elizaos/plugin-sql: "alpha"` because, on March 19, 2026, that tag was the compatible 2.0 line for runtime initialization alongside `@elizaos/core@latest`
+- `elizaos: "alpha"` for the umbrella package
+- `@elizaos/core: "alpha"` for the runtime used by the Bun application
+- `@elizaos/autonomous: "alpha"` and `@elizaos/skills: "alpha"` to keep the first-party native alignment packages on the same runtime channel
+- `@elizaos/plugin-sql: "alpha"` and other compatible official plugins on `alpha` where that is the correct 2.x line
 
 The platform-specific features that do not have a single clean ElizaOS equivalent are implemented here as custom ElizaOS actions, providers, evaluators, and Bun-native services. Official packages that were close but not yet compatible on the current runtime line are vendored under `packages/elizaos-official/*` and patched locally.
 

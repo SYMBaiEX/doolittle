@@ -11,6 +11,7 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
+import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import type { DiagnosticsService } from "./diagnostics-service";
@@ -34,6 +35,14 @@ export interface OperatorVersionSummary {
     enabled: number;
     official: number;
     vendored: number;
+  };
+  nativePackages: {
+    runtimeLatest: string;
+    runtimeAlpha: string;
+    aligned: number;
+    vendored: number;
+    alphaOnly: number;
+    workspaceOnly: number;
   };
 }
 
@@ -410,6 +419,7 @@ export class OperatorService {
 
   version(): OperatorVersionSummary {
     const nativePlugins = getNativePluginCatalog(this.config);
+    const nativePackages = getNativePackageAudit(this.config);
     return {
       name: this.packageMetadata.name,
       version: this.packageMetadata.version,
@@ -433,6 +443,14 @@ export class OperatorService {
           .length,
         vendored: nativePlugins.filter((entry) => entry.source === "vendored")
           .length,
+      },
+      nativePackages: {
+        runtimeLatest: nativePackages.runtime.latest,
+        runtimeAlpha: nativePackages.runtime.alpha,
+        aligned: nativePackages.summary.aligned,
+        vendored: nativePackages.summary.vendored,
+        alphaOnly: nativePackages.summary.alphaOnly,
+        workspaceOnly: nativePackages.summary.workspaceOnly,
       },
     };
   }

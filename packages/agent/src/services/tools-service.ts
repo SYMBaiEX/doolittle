@@ -16,6 +16,11 @@ interface ToolRegistryDynamicState {
     enabled: boolean;
     notes: string;
   }>;
+  nativeRuntimeLatest?: string;
+  nativeRuntimeAlpha?: string;
+  nativeAlignedPackages?: number;
+  nativeAlphaOnlyPackages?: number;
+  nativeWorkspaceOnlyPackages?: number;
 }
 
 interface ToolRegistrySummary {
@@ -57,6 +62,11 @@ export class ToolsService {
       nativeOfficialPlugins: 0,
       nativeVendoredPlugins: 0,
       nativeCatalog: [],
+      nativeRuntimeLatest: "unknown",
+      nativeRuntimeAlpha: "unknown",
+      nativeAlignedPackages: 0,
+      nativeAlphaOnlyPackages: 0,
+      nativeWorkspaceOnlyPackages: 0,
     }),
   ) {}
 
@@ -294,6 +304,15 @@ export class ToolsService {
       transport: "native",
     },
     {
+      id: "packages.native",
+      name: "Native Package Audit",
+      category: "runtime",
+      description:
+        "Inspect latest-line ElizaOS package compatibility across official, alpha-only, vendored, and workspace-bound packages.",
+      enabled: true,
+      transport: "native",
+    },
+    {
       id: "automation.cron",
       name: "Cron Automation",
       category: "automation",
@@ -375,7 +394,12 @@ export class ToolsService {
               ...tool,
               description: `Native ElizaOS stack includes ${dynamic.nativePluginsEnabled ?? 0}/${dynamic.nativePluginsTotal ?? 0} enabled plugin definitions, with ${dynamic.nativeOfficialPlugins ?? 0} official and ${dynamic.nativeVendoredPlugins ?? 0} vendored packages.`,
             }
-          : tool,
+          : tool.id === "packages.native"
+            ? {
+                ...tool,
+                description: `Latest runtime=${dynamic.nativeRuntimeLatest ?? "unknown"} alpha=${dynamic.nativeRuntimeAlpha ?? "unknown"} aligned=${dynamic.nativeAlignedPackages ?? 0} alphaOnly=${dynamic.nativeAlphaOnlyPackages ?? 0} workspaceOnly=${dynamic.nativeWorkspaceOnlyPackages ?? 0}.`,
+              }
+            : tool,
     );
     const pluginTools =
       dynamic.nativeCatalog?.map<ToolDefinition>((plugin) => ({

@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-plugin-manager",
-  "version": "2.0.0-alpha.77-patched.0",
+  "version": "2.0.0-alpha.81-patched.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@elizaos-official/compat": "file:../compat",
-    "@elizaos/core": "latest"
+    "@elizaos/core": "alpha"
   }
 }
