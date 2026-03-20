@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -2455,6 +2456,7 @@ class ModalExecutionBackend implements ExecutionBackend {
 }
 
 export class TerminalService {
+  private readonly events = new EventEmitter();
   private readonly filePath: string;
   private readonly cloudState: CloudStoreManager;
   private readonly backends: Map<ExecutionBackendName, ExecutionBackend>;
@@ -2562,7 +2564,29 @@ export class TerminalService {
       store.commands = store.commands.slice(-100);
     }
     this.write(store);
+    this.events.emit("update", {
+      kind: "command",
+      commandId: record.id,
+      backend: record.backend,
+      exitCode: record.exitCode,
+      detail: `${record.backend} ${record.command.slice(0, 120)}`,
+    });
     return record;
+  }
+
+  onUpdate(
+    listener: (event: {
+      kind: "command";
+      commandId: string;
+      backend: ExecutionBackendName;
+      exitCode: number;
+      detail: string;
+    }) => void,
+  ): () => void {
+    this.events.on("update", listener);
+    return () => {
+      this.events.off("update", listener);
+    };
   }
 
   async health(): Promise<ExecutionBackendHealth[]> {

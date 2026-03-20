@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { EventEmitter } from "node:events";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type {
@@ -10,6 +11,7 @@ import type {
 
 export class SessionService {
   private readonly db: Database;
+  private readonly events = new EventEmitter();
 
   constructor(baseDir: string) {
     const dbPath = join(baseDir, "state.db");
@@ -51,6 +53,27 @@ export class SessionService {
         message.text,
         message.createdAt,
       );
+
+    this.events.emit("activity", {
+      kind: "message",
+      sessionId: message.sessionId,
+      role: message.role,
+      detail: `[${message.role}] ${message.text.slice(0, 160)}`,
+    });
+  }
+
+  onActivity(
+    listener: (event: {
+      kind: "message";
+      sessionId: string;
+      role: StoredMessage["role"];
+      detail: string;
+    }) => void,
+  ): () => void {
+    this.events.on("activity", listener);
+    return () => {
+      this.events.off("activity", listener);
+    };
   }
 
   search(query: string, limit: number): SessionSearchResult[] {
