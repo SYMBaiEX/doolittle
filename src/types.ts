@@ -264,6 +264,10 @@ export interface UserProfileRecord {
   preferences: string[];
   facts: string[];
   notes: string[];
+  aliases?: string[];
+  goals?: string[];
+  toolPreferences?: string[];
+  workStyle?: string[];
   lastSource?: string;
   lastSeenAt: string;
   updatedAt: string;
@@ -307,6 +311,22 @@ export interface ExecutionBackendHealth {
   ready: boolean;
   detail: string;
   limits: ExecutionBackendLimits;
+  diagnostics: string[];
+  bootstrap: string[];
+}
+
+export interface ExecutionBackendPreview {
+  backend: ExecutionBackendName;
+  mode: ExecutionBackendMode;
+  engine?: "docker" | "podman" | "ssh";
+  ready: boolean;
+  detail: string;
+  cwd: string;
+  timeoutMs: number;
+  command: string;
+  argv: string[];
+  diagnostics: string[];
+  bootstrap: string[];
 }
 
 export interface ExecutionBackendLimits {

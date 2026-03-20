@@ -14,6 +14,35 @@ function unique(items: string[]): string[] {
   return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
 }
 
+function matchSingle(observation: string, expression: RegExp): string | undefined {
+  return observation.match(expression)?.[1]?.trim();
+}
+
+function matchMany(observation: string, expression: RegExp): string[] {
+  return Array.from(observation.matchAll(expression))
+    .map((match) => match[1]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+function detectTools(observation: string): string[] {
+  const known = [
+    "Bun",
+    "Docker",
+    "Podman",
+    "SSH",
+    "Lightpanda",
+    "Claude",
+    "OpenAI",
+    "Anthropic",
+    "Telegram",
+    "Discord",
+    "Slack",
+    "WhatsApp",
+  ];
+  const lower = observation.toLowerCase();
+  return known.filter((tool) => lower.includes(tool.toLowerCase()));
+}
+
 export class UserProfileService {
   private readonly filePath: string;
 
@@ -37,6 +66,10 @@ export class UserProfileService {
         preferences: [],
         facts: [],
         notes: [],
+        aliases: [],
+        goals: [],
+        toolPreferences: [],
+        workStyle: [],
         lastSeenAt: nowIso(),
         updatedAt: nowIso(),
       }
@@ -54,18 +87,46 @@ export class UserProfileService {
     const observation = message.trim();
     return this.update(userId, (profile) => {
       const lower = observation.toLowerCase();
-      const preference = observation.match(/\b(?:i prefer|i like|i usually use)\s+(.+?)(?:[.!?]|$)/iu);
-      const fact = observation.match(/\b(?:my name is|i am|i'm)\s+(.+?)(?:[.!?]|$)/iu);
+      const preference = matchSingle(
+        observation,
+        /\b(?:i prefer|i like|i usually use)\s+(.+?)(?:[.!?]|$)/iu,
+      );
+      const fact = matchSingle(observation, /\b(?:my name is|i am|i'm)\s+(.+?)(?:[.!?]|$)/iu);
+      const alias = matchSingle(
+        observation,
+        /\b(?:you can call me|call me|i go by)\s+(.+?)(?:[.!?]|$)/iu,
+      );
+      const goal = matchSingle(
+        observation,
+        /\b(?:my goal is|i want to|i need to|help me)\s+(.+?)(?:[.!?]|$)/iu,
+      );
+      const toolSignals = detectTools(observation);
+      const workStyle = matchSingle(
+        observation,
+        /\b(?:i work best with|i prefer updates that are|i want responses that are)\s+(.+?)(?:[.!?]|$)/iu,
+      );
 
-      if (preference?.[1] && preference[1].length < 160) {
-        profile.preferences = unique([...profile.preferences, preference[1]]);
+      if (preference && preference.length < 160) {
+        profile.preferences = unique([...profile.preferences, preference]);
       }
-      if (fact?.[1] && fact[1].length < 160) {
+      if (fact && fact.length < 160) {
         if (lower.startsWith("my name is")) {
-          profile.displayName = fact[1].trim();
+          profile.displayName = fact.trim();
         } else {
-          profile.facts = unique([...profile.facts, fact[1]]);
+          profile.facts = unique([...profile.facts, fact]);
         }
+      }
+      if (alias && alias.length < 100) {
+        profile.aliases = unique([...(profile.aliases ?? []), alias]);
+      }
+      if (goal && goal.length < 180) {
+        profile.goals = unique([...(profile.goals ?? []), goal]);
+      }
+      if (toolSignals.length) {
+        profile.toolPreferences = unique([...(profile.toolPreferences ?? []), ...toolSignals]);
+      }
+      if (workStyle && workStyle.length < 180) {
+        profile.workStyle = unique([...(profile.workStyle ?? []), workStyle]);
       }
       if (
         /remember|save this|important|note that|keep in mind/iu.test(observation) &&
@@ -88,6 +149,22 @@ export class UserProfileService {
       "Preferences",
       ...(profile.preferences.length ? profile.preferences.map((item) => `- ${item}`) : ["- (none)"]),
       "",
+      "Goals",
+      ...((profile.goals ?? []).length ? (profile.goals ?? []).map((item) => `- ${item}`) : ["- (none)"]),
+      "",
+      "Tools",
+      ...((profile.toolPreferences ?? []).length
+        ? (profile.toolPreferences ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Work Style",
+      ...((profile.workStyle ?? []).length
+        ? (profile.workStyle ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Aliases",
+      ...((profile.aliases ?? []).length ? (profile.aliases ?? []).map((item) => `- ${item}`) : ["- (none)"]),
+      "",
       "Facts",
       ...(profile.facts.length ? profile.facts.map((item) => `- ${item}`) : ["- (none)"]),
       "",
@@ -107,6 +184,10 @@ export class UserProfileService {
             preferences: [],
             facts: [],
             notes: [],
+            aliases: [],
+            goals: [],
+            toolPreferences: [],
+            workStyle: [],
             lastSeenAt: nowIso(),
             updatedAt: nowIso(),
           };
@@ -116,6 +197,10 @@ export class UserProfileService {
       preferences: [...base.preferences],
       facts: [...base.facts],
       notes: [...base.notes],
+      aliases: [...(base.aliases ?? [])],
+      goals: [...(base.goals ?? [])],
+      toolPreferences: [...(base.toolPreferences ?? [])],
+      workStyle: [...(base.workStyle ?? [])],
       lastSeenAt: nowIso(),
       updatedAt: nowIso(),
     };
