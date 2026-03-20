@@ -3,6 +3,7 @@ import { createInterface } from "node:readline/promises";
 import blessed from "blessed";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
+import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 
 interface CliState {
@@ -75,6 +76,7 @@ function buildHelpText(agentName: string): string {
     "  Esc              Focus command input",
     "  Ctrl-L           Clear activity feed",
     "  Ctrl-R           Refresh status panels",
+    "  Tab              Complete the top suggested command",
     "  PageUp/PageDown  Scroll activity",
     "  Up/Down          Command history in input",
     "",
@@ -94,6 +96,94 @@ function buildHelpText(agentName: string): string {
     "  /media analyze ./recordings/demo.wav",
     "  /delegate create Research spike :: validate a transport path",
     "  /trajectories ingest gateway label:review limit:100",
+  ].join("\n");
+}
+
+function renderTransportContent(context: AppContext): string {
+  const traces = context.gateway.trace(6);
+  const inbox = context.gateway.inbox(3);
+  const sessions = context.services.gatewaySessions.list().slice(0, 4);
+
+  return [
+    "{bold}Recent Gateway Traces{/}",
+    ...(traces.length
+      ? traces.map(
+          (trace) =>
+            `- ${trace.platform}:${trace.kind} ${truncate(trace.detail ?? trace.traceId, 34)}`,
+        )
+      : ["{gray-fg}No recent trace activity.{/}"]),
+    "",
+    "{bold}Recent Inbox{/}",
+    ...(inbox.length
+      ? inbox.map(
+          (entry) => `- ${entry.platform} ${truncate(entry.textPreview, 32)}`,
+        )
+      : ["{gray-fg}No inbound messages recorded.{/}"]),
+    "",
+    "{bold}Gateway Sessions{/}",
+    ...(sessions.length
+      ? sessions.map(
+          (entry) =>
+            `- ${entry.platform} ${truncate(entry.roomId ?? entry.sessionKey, 26)}${
+              entry.voiceMode ? " {cyan-fg}[voice]{/}" : ""
+            }`,
+        )
+      : ["{gray-fg}No active gateway sessions.{/}"]),
+  ].join("\n");
+}
+
+async function renderExecutionContent(context: AppContext): Promise<string> {
+  const health = await context.services.terminal.health();
+  const recent = context.services.terminal.recent(4);
+  const delegation = context.services.delegation.overview();
+
+  return [
+    "{bold}Execution Backends{/}",
+    ...health
+      .slice(0, 4)
+      .map(
+        (entry) =>
+          `- ${entry.backend} ${
+            entry.ready ? "{green-fg}ready{/}" : "{red-fg}blocked{/}"
+          }`,
+      ),
+    "",
+    "{bold}Recent Commands{/}",
+    ...(recent.length
+      ? recent.map(
+          (entry) =>
+            `- ${entry.backend} ${truncate(
+              entry.command,
+              32,
+            )} (${entry.exitCode})`,
+        )
+      : ["{gray-fg}No command history yet.{/}"]),
+    "",
+    "{bold}Delegation{/}",
+    `Pending: ${delegation.pending}`,
+    `Running: ${delegation.running}`,
+    `Workers: ${delegation.activeWorkers}`,
+  ].join("\n");
+}
+
+function renderSuggestionsContent(inputValue: string): string {
+  const suggestions = suggestCommands(inputValue, 6);
+  const title = inputValue.trim()
+    ? `{bold}Suggestions for{/} {cyan-fg}${truncate(inputValue, 24)}{/}`
+    : "{bold}Suggested Commands{/}";
+
+  return [
+    title,
+    "",
+    ...suggestions.map(
+      (entry, index) =>
+        `${index === 0 ? "{green-fg}*{/} " : "- "}${entry.command}\n  {gray-fg}${entry.description}{/}`,
+    ),
+    "",
+    "{bold}Categories{/}",
+    ...Array.from(
+      new Set(COMMAND_CATALOG.slice(0, 8).map((entry) => entry.category)),
+    ).map((category) => `- ${category}`),
   ].join("\n");
 }
 
@@ -372,31 +462,6 @@ function renderStatusContent(context: AppContext, state: CliState): string {
   ].join("\n");
 }
 
-function renderCommandPalette(): string {
-  return [
-    "{bold}Quick Launch{/}",
-    "F2  status",
-    "F3  tools summary",
-    "F4  delegate overview",
-    "F5  gateway readiness",
-    "F6  sessions list",
-    "F7  doctor",
-    "F8  runtime plugins",
-    "",
-    "{bold}Flow{/}",
-    "Esc  focus input",
-    "Ctrl-R refresh",
-    "Ctrl-L clear feed",
-    "PgUp/PgDn scroll",
-    "",
-    "{bold}Power Commands{/}",
-    "/browser capture <url>",
-    "/media generate <prompt>",
-    "/delegate supervise ...",
-    "/trajectories ingest gateway",
-  ].join("\n");
-}
-
 function renderFooter(
   context: AppContext,
   busy: boolean,
@@ -406,6 +471,7 @@ function renderFooter(
     `${context.config.agentName} TUI`,
     busy ? "{yellow-fg}processing{/}" : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
+    "{magenta-fg}Tab{/} complete",
     "Esc input",
     "q quit",
   ].join("  |  ");
@@ -490,7 +556,7 @@ async function startTui(context: AppContext): Promise<void> {
     top: 3,
     left: "68%",
     width: "32%",
-    height: "55%",
+    height: "30%",
     label: " Runtime Snapshot ",
     tags: true,
     border: "line",
@@ -509,15 +575,68 @@ async function startTui(context: AppContext): Promise<void> {
     },
   });
 
-  blessed.box({
+  const transportBox = blessed.box({
     parent: screen,
-    top: "55%+3",
+    top: "30%+3",
     left: "68%",
     width: "32%",
-    height: "15%-1",
-    label: " Hotkeys ",
+    height: "22%",
+    label: " Live Transport ",
     tags: true,
     border: "line",
+    scrollable: true,
+    alwaysScroll: true,
+    mouse: true,
+    keys: true,
+    vi: true,
+    padding: {
+      left: 1,
+      right: 1,
+    },
+    style: {
+      border: { fg: "cyan" },
+      label: { fg: "cyan", bold: true },
+    },
+  });
+
+  const executionBox = blessed.box({
+    parent: screen,
+    top: "52%+3",
+    left: "68%",
+    width: "32%",
+    height: "18%",
+    label: " Execution + Queue ",
+    tags: true,
+    border: "line",
+    scrollable: true,
+    alwaysScroll: true,
+    mouse: true,
+    keys: true,
+    vi: true,
+    padding: {
+      left: 1,
+      right: 1,
+    },
+    style: {
+      border: { fg: "green" },
+      label: { fg: "green", bold: true },
+    },
+  });
+
+  const assistBox = blessed.box({
+    parent: screen,
+    top: "70%+3",
+    left: "68%",
+    width: "32%",
+    height: "18%-1",
+    label: " Command Assist ",
+    tags: true,
+    border: "line",
+    scrollable: true,
+    alwaysScroll: true,
+    mouse: true,
+    keys: true,
+    vi: true,
     padding: {
       left: 1,
       right: 1,
@@ -526,7 +645,6 @@ async function startTui(context: AppContext): Promise<void> {
       border: { fg: "yellow" },
       label: { fg: "yellow", bold: true },
     },
-    content: renderCommandPalette(),
   });
 
   const inputBox = blessed.textbox({
@@ -573,6 +691,7 @@ async function startTui(context: AppContext): Promise<void> {
 
   function setInputValue(value: string): void {
     inputBox.setValue(value);
+    assistBox.setContent(renderSuggestionsContent(value));
     screen.render();
   }
 
@@ -588,6 +707,9 @@ async function startTui(context: AppContext): Promise<void> {
 
   async function refreshPanels(): Promise<void> {
     sidebar.setContent(renderStatusContent(context, state));
+    transportBox.setContent(renderTransportContent(context));
+    executionBox.setContent(await renderExecutionContent(context));
+    assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
     footer.setContent(renderFooter(context, busy, queueDepth));
     screen.render();
   }
@@ -634,6 +756,7 @@ async function startTui(context: AppContext): Promise<void> {
       busy = false;
       await refreshPanels();
       inputBox.clearValue();
+      assistBox.setContent(renderSuggestionsContent(""));
       inputBox.focus();
       screen.render();
       void processQueue();
@@ -659,6 +782,7 @@ async function startTui(context: AppContext): Promise<void> {
     pendingCommands.push(trimmed);
     queueDepth = pendingCommands.length;
     inputBox.clearValue();
+    assistBox.setContent(renderSuggestionsContent(""));
     inputBox.focus();
     screen.render();
     void processQueue();
@@ -686,6 +810,19 @@ async function startTui(context: AppContext): Promise<void> {
     }
     historyIndex = Math.min(commandHistory.length, historyIndex + 1);
     setInputValue(commandHistory[historyIndex] ?? "");
+  });
+
+  inputBox.key("tab", () => {
+    const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
+    if (!suggestion) {
+      return;
+    }
+    setInputValue(suggestion.command);
+  });
+
+  inputBox.on("keypress", () => {
+    assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+    screen.render();
   });
 
   screen.key(["q", "C-c"], () => {
@@ -739,9 +876,15 @@ async function startTui(context: AppContext): Promise<void> {
   );
   appendActivity(
     "tip",
-    "Use F3 for tool inventory, F5 for gateway readiness, and F8 for native plugin visibility.",
+    "Use Tab for command completion, F5 for transport readiness, and watch the live transport rail for gateway activity.",
     "info",
   );
+  response.setContent(
+    "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
+  );
+  transportBox.setContent(renderTransportContent(context));
+  executionBox.setContent(await renderExecutionContent(context));
+  assistBox.setContent(renderSuggestionsContent(""));
 
   await refreshPanels();
   inputBox.focus();
