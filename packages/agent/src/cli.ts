@@ -16,6 +16,14 @@ interface CliExecutionResult {
   shouldExit?: boolean;
 }
 
+interface CliExecutionHooks {
+  onStream?: (event: {
+    source: "stdout" | "stderr";
+    chunk: string;
+    command: string;
+  }) => void;
+}
+
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -191,6 +199,7 @@ async function executeCliInput(
   line: string,
   context: AppContext,
   state: CliState,
+  hooks?: CliExecutionHooks,
 ): Promise<CliExecutionResult> {
   const trimmed = line.trim();
 
@@ -344,6 +353,38 @@ async function executeCliInput(
     return {
       text: `Resumed session ${target.title ?? target.sessionId}.`,
       tone: "success",
+    };
+  }
+
+  if (trimmed.startsWith("/terminal run ")) {
+    const command = trimmed.replace("/terminal run ", "").trim();
+    if (!command) {
+      return { text: "Usage: /terminal run <command>", tone: "warning" };
+    }
+    const result = await context.services.terminal.runStreamingLocal(command, {
+      onStdout: (chunk) => {
+        hooks?.onStream?.({
+          source: "stdout",
+          chunk,
+          command,
+        });
+      },
+      onStderr: (chunk) => {
+        hooks?.onStream?.({
+          source: "stderr",
+          chunk,
+          command,
+        });
+      },
+    });
+    return {
+      text: [
+        `Command: ${result.command}`,
+        `Exit: ${result.exitCode}`,
+        `STDOUT:\n${result.stdout || "(empty)"}`,
+        `STDERR:\n${result.stderr || "(empty)"}`,
+      ].join("\n"),
+      tone: result.exitCode === 0 ? "success" : "warning",
     };
   }
 
@@ -709,6 +750,56 @@ async function startTui(context: AppContext): Promise<void> {
     items: [],
   });
 
+  const composerOverlay = blessed.box({
+    parent: screen,
+    top: "center",
+    left: "center",
+    width: "78%",
+    height: "72%",
+    hidden: true,
+    tags: true,
+    border: "line",
+    label: " Multiline Composer ",
+    style: {
+      fg: "white",
+      bg: "black",
+      border: { fg: "green" },
+      label: { fg: "green", bold: true },
+    },
+  });
+
+  const composer = blessed.textarea({
+    parent: composerOverlay,
+    top: 0,
+    left: 0,
+    width: "100%-2",
+    height: "100%-4",
+    inputOnFocus: true,
+    keys: true,
+    mouse: true,
+    vi: true,
+    border: "line",
+    label: " Compose (Ctrl-S submit, Esc close) ",
+    style: {
+      border: { fg: "green" },
+      label: { fg: "green", bold: true },
+      focus: {
+        border: { fg: "yellow" },
+      },
+    },
+  });
+
+  blessed.box({
+    parent: composerOverlay,
+    bottom: 0,
+    left: 1,
+    width: "100%-4",
+    height: 1,
+    tags: true,
+    content:
+      "{gray-fg}Use this for long prompts, multiline shell commands, and batched research requests.{/}",
+  });
+
   const inputBox = blessed.textbox({
     parent: screen,
     bottom: 1,
@@ -748,6 +839,7 @@ async function startTui(context: AppContext): Promise<void> {
   let busy = false;
   let queueDepth = 0;
   let paletteSelectionIndex = 0;
+  let composerOpen = false;
   const commandHistory: string[] = [];
   let historyIndex = 0;
   const pendingCommands: string[] = [];
@@ -792,6 +884,22 @@ async function startTui(context: AppContext): Promise<void> {
     paletteOverlay.hide();
     paletteInput.clearValue();
     paletteList.setItems([]);
+    inputBox.focus();
+    screen.render();
+  }
+
+  function openComposer(initialValue = ""): void {
+    composerOpen = true;
+    composerOverlay.show();
+    composer.setValue(initialValue);
+    composer.focus();
+    screen.render();
+  }
+
+  function closeComposer(): void {
+    composerOpen = false;
+    composerOverlay.hide();
+    composer.clearValue();
     inputBox.focus();
     screen.render();
   }
@@ -842,7 +950,32 @@ async function startTui(context: AppContext): Promise<void> {
     appendActivity("cmd", `{white-fg}${line}{/}`, "info");
 
     try {
-      const result = await executeCliInput(line, context, state);
+      const result = await executeCliInput(line, context, state, {
+        onStream: ({ source, chunk, command }) => {
+          const lines = chunk
+            .split(/\r?\n/gu)
+            .map((entry) => entry.trim())
+            .filter(Boolean);
+          if (!lines.length) {
+            return;
+          }
+          for (const lineChunk of lines) {
+            appendActivity(
+              source === "stdout" ? "out+" : "err+",
+              truncate(`${command}: ${lineChunk}`, 180),
+              source === "stdout" ? "agent" : "warning",
+            );
+          }
+          const streamed = lines.join("\n");
+          const current = response.getContent();
+          response.setContent(
+            current?.trim()
+              ? `${current}\n${source.toUpperCase()}: ${streamed}`
+              : `${source.toUpperCase()}: ${streamed}`,
+          );
+          screen.render();
+        },
+      });
       if (result.text) {
         response.setContent(result.text);
         appendActivity(
@@ -932,6 +1065,16 @@ async function startTui(context: AppContext): Promise<void> {
     screen.render();
   });
 
+  composer.key("C-s", () => {
+    const value = composer.getValue();
+    closeComposer();
+    queueCommand(value);
+  });
+
+  composer.key("escape", () => {
+    closeComposer();
+  });
+
   paletteInput.on("keypress", () => {
     const query = paletteInput.getValue();
     paletteList.setItems(renderPaletteItems(query));
@@ -995,7 +1138,16 @@ async function startTui(context: AppContext): Promise<void> {
   screen.key(["C-p"], () => {
     openPalette(inputBox.getValue());
   });
+  screen.key(["C-e"], () => {
+    if (paletteOpen) {
+      return;
+    }
+    openComposer(inputBox.getValue());
+  });
   screen.key(["tab"], () => {
+    if (composerOpen) {
+      return;
+    }
     if (paletteOpen) {
       paletteList.focus();
       screen.render();
@@ -1004,6 +1156,9 @@ async function startTui(context: AppContext): Promise<void> {
     focusAt(focusIndex + 1);
   });
   screen.key(["S-tab"], () => {
+    if (composerOpen) {
+      return;
+    }
     if (paletteOpen) {
       paletteInput.focus();
       screen.render();
@@ -1012,6 +1167,10 @@ async function startTui(context: AppContext): Promise<void> {
     focusAt(focusIndex - 1);
   });
   screen.key(["escape"], () => {
+    if (composerOpen) {
+      closeComposer();
+      return;
+    }
     if (paletteOpen) {
       closePalette();
       return;
@@ -1112,7 +1271,7 @@ async function startTui(context: AppContext): Promise<void> {
   );
   appendActivity(
     "tip",
-    "Use Tab for command completion, F5 for transport readiness, and watch the live transport rail for gateway activity.",
+    "Use Ctrl-E for multiline compose, Tab for command completion, and streamed local terminal output will appear live in the feed.",
     "info",
   );
   response.setContent(

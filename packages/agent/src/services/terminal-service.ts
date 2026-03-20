@@ -359,6 +359,91 @@ async function runCommand(
   }
 }
 
+async function runCommandStreaming(
+  cmd: string[],
+  options: {
+    cwd?: string;
+    timeoutMs: number;
+    onStdout?: (chunk: string) => void;
+    onStderr?: (chunk: string) => void;
+  },
+): Promise<TerminalRunResult> {
+  const startedAt = Date.now();
+  const proc = Bun.spawn({
+    cmd,
+    cwd: options.cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  let timedOut = false;
+  let stdout = "";
+  let stderr = "";
+  const timer = setTimeout(() => {
+    timedOut = true;
+    proc.kill();
+  }, options.timeoutMs);
+
+  const readStream = async (
+    stream: ReadableStream<Uint8Array> | null,
+    onChunk?: (chunk: string) => void,
+    sink?: (chunk: string) => void,
+  ): Promise<void> => {
+    if (!stream) {
+      return;
+    }
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        const chunk = decoder.decode(value, { stream: true });
+        if (!chunk) {
+          continue;
+        }
+        sink?.(chunk);
+        onChunk?.(chunk);
+      }
+      const finalChunk = decoder.decode();
+      if (finalChunk) {
+        sink?.(finalChunk);
+        onChunk?.(finalChunk);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
+  try {
+    const [exitCode] = await Promise.all([
+      proc.exited,
+      readStream(proc.stdout, options.onStdout, (chunk) => {
+        stdout += chunk;
+      }),
+      readStream(proc.stderr, options.onStderr, (chunk) => {
+        stderr += chunk;
+      }),
+    ]);
+    const durationMs = Date.now() - startedAt;
+    return {
+      exitCode: timedOut ? 124 : exitCode,
+      stdout: stdout.trim(),
+      stderr:
+        stderr.trim() ||
+        (timedOut
+          ? `Command timed out after ${options.timeoutMs}ms (${durationMs}ms elapsed).`
+          : ""),
+      timedOut,
+      durationMs,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function normalizeBackendError(result: TerminalRunResult): TerminalRunResult {
   return {
     exitCode: result.exitCode,
@@ -2557,6 +2642,84 @@ export class TerminalService {
         lastSnapshotSummary: latestCloudSnapshot?.summary,
       });
     }
+
+    const store = this.read();
+    store.commands.push(record);
+    if (store.commands.length > 100) {
+      store.commands = store.commands.slice(-100);
+    }
+    this.write(store);
+    this.events.emit("update", {
+      kind: "command",
+      commandId: record.id,
+      backend: record.backend,
+      exitCode: record.exitCode,
+      detail: `${record.backend} ${record.command.slice(0, 120)}`,
+    });
+    return record;
+  }
+
+  async runStreamingLocal(
+    command: string,
+    callbacks?: {
+      onStdout?: (chunk: string) => void;
+      onStderr?: (chunk: string) => void;
+    },
+    timeoutMs?: number,
+  ): Promise<TerminalCommandRecord> {
+    const settings = this.getSettings();
+    const backendName = settings.execution.backend as ExecutionBackendName;
+    if (backendName !== "local") {
+      return this.run(command, timeoutMs);
+    }
+
+    const safeCommand = sanitizeCommand(command);
+    const effectiveTimeoutMs =
+      timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000;
+    const backend = this.backends.get("local");
+    if (!backend) {
+      throw new Error("No local execution backend is available.");
+    }
+    const preview = backend.preview(safeCommand, {
+      cwd: this.workspaceDir,
+      timeoutMs: effectiveTimeoutMs,
+      settings,
+    });
+    const startedAt = new Date().toISOString();
+    const result = normalizeBackendError(
+      await runCommandStreaming(["/bin/zsh", "-lc", safeCommand], {
+        cwd: this.workspaceDir,
+        timeoutMs: effectiveTimeoutMs,
+        onStdout: callbacks?.onStdout,
+        onStderr: callbacks?.onStderr,
+      }),
+    );
+
+    const record: TerminalCommandRecord = {
+      id: randomUUID(),
+      command: safeCommand,
+      backend: "local",
+      backendMode: preview.mode,
+      backendEngine: preview.engine,
+      cloud: preview.cloud,
+      cloudSession: preview.cloudSession,
+      cloudSnapshot: preview.cloudSnapshot,
+      cloudArtifacts: preview.cloudArtifacts,
+      cloudSyncPlan: preview.cloudSyncPlan,
+      executionTarget: preview.target ?? preview.cloud?.target,
+      executionSessionId: preview.cloudSession?.sessionId,
+      executionProfile: preview.cloud,
+      cwd: this.workspaceDir,
+      timeoutMs: effectiveTimeoutMs,
+      timedOut: result.timedOut,
+      durationMs: result.durationMs,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      preview,
+    };
 
     const store = this.read();
     store.commands.push(record);
