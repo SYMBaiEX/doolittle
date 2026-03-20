@@ -1093,6 +1093,13 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/gateway runtime") {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    return JSON.stringify(context.gateway.runtimeStatus(), null, 2);
+  }
+
   if (trimmed === "/voice" || trimmed === "/voice status") {
     const session = context.services.gatewaySessions.get(sessionKey);
     if (!session) {

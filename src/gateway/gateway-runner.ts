@@ -265,6 +265,16 @@ interface GatewayStateSnapshot {
   sessionsByPlatform: Array<{ platform: PlatformName; count: number }>;
 }
 
+interface GatewayRuntimeStatus {
+  pid: number;
+  running: boolean;
+  updatedAt: string;
+  startedAt?: string;
+  stoppedAt?: string;
+  lastHeartbeatAt?: string;
+  adapters: PlatformName[];
+}
+
 export class GatewayRunner {
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
   private readonly traceLog: GatewayTraceRecord[] = [];
@@ -279,11 +289,15 @@ export class GatewayRunner {
   private readonly journalDir: string;
   private readonly snapshotPath: string;
   private readonly snapshotHistoryPath: string;
+  private readonly runtimeStatusPath: string;
   private readonly inboxPath: string;
   private readonly outboxPath: string;
   private readonly attachmentsPath: string;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private startedAt?: string;
+  private stoppedAt?: string;
+  private lastHeartbeatAt?: string;
 
   constructor(private readonly context: AppContext) {
     this.snapshotDir = join(this.context.config.gatewayDataDir, "snapshots");
@@ -293,6 +307,7 @@ export class GatewayRunner {
       this.snapshotDir,
       "gateway-state-history.jsonl",
     );
+    this.runtimeStatusPath = join(this.snapshotDir, "gateway-runtime.json");
     this.inboxPath = join(this.journalDir, "gateway-inbox.jsonl");
     this.outboxPath = join(this.journalDir, "gateway-outbox.jsonl");
     this.attachmentsPath = join(this.journalDir, "gateway-attachments.jsonl");
@@ -1089,6 +1104,9 @@ export class GatewayRunner {
     }
 
     this.running = true;
+    this.startedAt = new Date().toISOString();
+    this.stoppedAt = undefined;
+    this.writeRuntimeStatus();
     await this.context.services.hooks.emit("gateway:startup", {
       platforms: Array.from(this.adapters.keys()).join(","),
     });
@@ -1213,6 +1231,8 @@ export class GatewayRunner {
       detail: "Gateway stopped and all adapters were shut down.",
     });
     this.running = false;
+    this.stoppedAt = new Date().toISOString();
+    this.writeRuntimeStatus();
     await this.context.services.hooks.emit("gateway:shutdown", {
       status: "stopped",
     });
@@ -1222,6 +1242,7 @@ export class GatewayRunner {
 
   async heartbeat(reason = "heartbeat"): Promise<GatewayStateSnapshot> {
     const heartbeatAt = new Date().toISOString();
+    this.lastHeartbeatAt = heartbeatAt;
     for (const platform of this.adapters.keys()) {
       const detail = `${platform} transport heartbeat at ${heartbeatAt}.`;
       this.pushTrace({
@@ -1249,8 +1270,21 @@ export class GatewayRunner {
       status: this.running ? "running" : "stopped",
       adapters: String(this.adapters.size),
     });
+    this.writeRuntimeStatus();
     const snapshot = await this.snapshotState(reason, 20);
     return snapshot.state;
+  }
+
+  runtimeStatus(): GatewayRuntimeStatus {
+    return {
+      pid: process.pid,
+      running: this.running,
+      updatedAt: new Date().toISOString(),
+      startedAt: this.startedAt,
+      stoppedAt: this.stoppedAt,
+      lastHeartbeatAt: this.lastHeartbeatAt,
+      adapters: Array.from(this.adapters.keys()),
+    };
   }
 
   async receive(message: IncomingPlatformMessage): Promise<{
@@ -1948,5 +1982,13 @@ export class GatewayRunner {
     if (this.traceLog.length > 200) {
       this.traceLog.splice(0, this.traceLog.length - 200);
     }
+  }
+
+  private writeRuntimeStatus(): void {
+    writeFileSync(
+      this.runtimeStatusPath,
+      JSON.stringify(this.runtimeStatus(), null, 2),
+      "utf8",
+    );
   }
 }

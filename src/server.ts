@@ -1885,6 +1885,12 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/gateway/runtime") {
+        return json({
+          runtime: context.gateway.runtimeStatus(),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/gateway/start") {
         await context.gateway.start();
         return json({ ok: true });

@@ -388,6 +388,7 @@ Useful commands:
 - `/gateway start`
 - `/gateway config`
 - `/gateway state`
+- `/gateway runtime`
 - `/gateway trace platform:telegram limit:10`
 - `/gateway receive telegram user42 room42 :: hello there`
 - `/gateway status`
@@ -514,6 +515,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /gateway/config`
 - `POST /gateway/config`
 - `GET /gateway/health`
+- `GET /gateway/runtime`
 - `GET /gateway/state`
 - `GET /gateway/trace`
 - `GET /gateway/deliveries`

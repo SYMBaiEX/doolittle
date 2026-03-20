@@ -70,6 +70,7 @@ describe("GatewayRunner", () => {
       const apiTraces = runner.trace(10, { platform: "api" });
       const state = await runner.state(10, { platform: "api" });
       const heartbeatState = await runner.heartbeat("manual");
+      const runtimeStatus = runner.runtimeStatus();
       const health = await runner.health();
       const apiHealth = health.find((entry) => entry.platform === "api");
 
@@ -189,6 +190,8 @@ describe("GatewayRunner", () => {
       };
       expect(snapshot.reason).toBe("health");
       expect(snapshot.state?.heartbeatAt).toBeDefined();
+      expect(runtimeStatus.pid).toBeGreaterThan(0);
+      expect(runtimeStatus.adapters).toContain("api");
       expect(
         heartbeatState.platforms.some((entry) => entry.platform === "api"),
       ).toBe(true);
