@@ -241,6 +241,17 @@ export interface PersonalityProfile {
   systemAddendum: string;
 }
 
+export interface UserProfileRecord {
+  userId: string;
+  displayName?: string;
+  preferences: string[];
+  facts: string[];
+  notes: string[];
+  lastSource?: string;
+  lastSeenAt: string;
+  updatedAt: string;
+}
+
 export interface ContextDocument {
   name: string;
   path: string;

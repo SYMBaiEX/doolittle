@@ -43,6 +43,14 @@ export function createAgentContextProvider(services: AppServices): Provider {
         .slice(0, 5)
         .map((task) => `- ${task.title} [${task.status}]`)
         .join("\n");
+      const userProfiles = services.userProfiles
+        .list()
+        .slice(0, 5)
+        .map(
+          (profile) =>
+            `- ${profile.displayName ?? profile.userId}: prefs=${profile.preferences.length} facts=${profile.facts.length} notes=${profile.notes.length}`,
+        )
+        .join("\n");
 
       const text = [
         memorySnapshot,
@@ -76,6 +84,9 @@ export function createAgentContextProvider(services: AppServices): Provider {
         "",
         "DELEGATION TASKS",
         delegationSummary || "(none)",
+        "",
+        "USER PROFILES",
+        userProfiles || "(none)",
       ].join("\n");
 
       return {

@@ -114,6 +114,30 @@ async function buildCommandResponse(
     }
   }
 
+  if (trimmed === "/user" || trimmed === "/user profile") {
+    return context.services.userProfiles.render(input.userId);
+  }
+
+  if (trimmed === "/user list") {
+    const profiles = context.services.userProfiles.list().slice(0, 20);
+    return profiles.length
+      ? profiles
+          .map(
+            (profile) =>
+              `- ${profile.displayName ?? profile.userId}: prefs=${profile.preferences.length} facts=${profile.facts.length} notes=${profile.notes.length}`,
+          )
+          .join("\n")
+      : "No user profiles recorded.";
+  }
+
+  if (trimmed.startsWith("/user note ")) {
+    const note = trimmed.replace("/user note ", "").trim();
+    if (!note) {
+      return "Usage: /user note <text>";
+    }
+    return JSON.stringify(context.services.userProfiles.addNote(input.userId, note, input.source), null, 2);
+  }
+
   if (trimmed === "/skills" || trimmed === "/skills list") {
     const skills = context.services.skills.list();
     return skills.length
@@ -616,6 +640,8 @@ export async function handleAgentTurn(
   const worldId = stringToUuid("eliza-agent-world");
   const entityId = stringToUuid(input.userId);
   const sessionId = roomKey;
+
+  context.services.userProfiles.observe(input.userId, input.message, input.source);
 
   context.services.sessions.storeMessage({
     id: randomUUID(),
