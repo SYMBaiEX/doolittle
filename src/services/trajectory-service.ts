@@ -221,9 +221,10 @@ export class TrajectoryService {
   }
 
   async evaluate(options: TrajectoryExportOptions = {}): Promise<TrajectoryEvaluationBundle> {
+    const evaluationMode = this.normalizeEvaluationMode(options.mode);
     const analysis = this.analyze({
       ...options,
-      mode: options.mode ?? "evaluation",
+      mode: evaluationMode,
       purpose: options.purpose ?? "trajectory evaluation",
     });
     return this.evaluateBundle(analysis.bundle.manifestPath, {
@@ -231,7 +232,7 @@ export class TrajectoryService {
       replay: analysis.replay,
       prompt: analysis.prompt,
       highlights: analysis.highlights,
-      mode: analysis.mode,
+      mode: evaluationMode,
       purpose: analysis.purpose,
       tags: analysis.tags,
     });
@@ -251,17 +252,18 @@ export class TrajectoryService {
   ): Promise<TrajectoryEvaluationBundle> {
     const bundle = this.describeBundle(manifestPath);
     const replay = options.replay ?? this.replayBundle(manifestPath);
+    const evaluationMode = this.normalizeEvaluationMode(options.mode ?? bundle.mode);
     const heuristics = this.scoreReplay(replay, options.rubric ?? options.tags ?? []);
     const prompt =
       options.prompt ??
       this.buildAnalysisPrompt(replay, {
-        mode: options.mode ?? bundle.mode ?? "evaluation",
+        mode: evaluationMode,
         purpose: options.purpose ?? bundle.purpose ?? "trajectory evaluation",
         tags: options.tags ?? bundle.tags ?? [],
         label: bundle.label,
       });
     const response = await this.requestModelText(prompt, this.getModelContext?.(), {
-      focus: options.mode ?? "evaluation",
+      focus: evaluationMode,
       replay,
       score: heuristics.score,
       findings: heuristics.findings,
@@ -301,7 +303,7 @@ export class TrajectoryService {
         "",
         `- Score: ${heuristics.score}/100`,
         `- Grade: ${heuristics.grade}`,
-        `- Focus: ${options.mode ?? bundle.mode ?? "evaluation"}`,
+        `- Focus: ${evaluationMode}`,
         `- Purpose: ${options.purpose ?? bundle.purpose ?? "trajectory evaluation"}`,
         ...(options.tags?.length || bundle.tags?.length
           ? [`- Tags: ${(options.tags ?? bundle.tags ?? []).join(", ")}`]
@@ -331,13 +333,13 @@ export class TrajectoryService {
     writeFileSync(responsePath, response, "utf8");
 
     return {
-      focus: options.mode ?? "evaluation",
+      focus: evaluationMode,
       bundle,
       replay,
       prompt,
       highlights: options.highlights ?? this.buildHighlights(replay),
       purpose: options.purpose ?? bundle.purpose,
-      mode: options.mode ?? bundle.mode,
+      mode: evaluationMode,
       tags: options.tags ?? bundle.tags,
       score: heuristics.score,
       grade: heuristics.grade,
@@ -423,7 +425,7 @@ export class TrajectoryService {
       return Promise.resolve(undefined);
     }
     return this.evaluateBundle(latest.manifestPath, {
-      mode: latest.mode ?? "evaluation",
+      mode: this.normalizeEvaluationMode(latest.mode),
       purpose: latest.purpose ?? "trajectory evaluation",
       tags: latest.tags ?? [],
     });
@@ -517,6 +519,15 @@ export class TrajectoryService {
     ].join("\n");
   }
 
+  private normalizeEvaluationMode(
+    mode?: TrajectoryExportOptions["mode"],
+  ): "research" | "rl" | "evaluation" {
+    if (mode === "research" || mode === "rl") {
+      return mode;
+    }
+    return "evaluation";
+  }
+
   private async requestModelText(
     prompt: string,
     context: TrajectoryModelContext | undefined,
@@ -548,13 +559,16 @@ export class TrajectoryService {
     }
 
     if ((context.provider === "anthropic" && canUseAnthropic) || (!canUseOpenAi && canUseAnthropic)) {
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        "anthropic-version": "2023-06-01",
+      };
+      if (context.anthropicApiKey) {
+        headers["x-api-key"] = context.anthropicApiKey;
+      }
       const response = await fetch(`${context.anthropicBaseUrl ?? context.baseUrl}/messages`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": context.anthropicApiKey,
-          "anthropic-version": "2023-06-01",
-        },
+        headers,
         body: JSON.stringify({
           model: context.model,
           max_tokens: context.maxTokens,
