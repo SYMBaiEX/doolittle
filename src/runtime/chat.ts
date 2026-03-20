@@ -573,8 +573,12 @@ async function buildCommandResponse(
     const health = await context.services.terminal.health();
     return health
       .map(
-        (entry) =>
-          `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms diagnostics=${entry.diagnostics.length} bootstrap=${entry.bootstrap.length} :: ${entry.detail}`,
+        (entry) => {
+          const passCount = entry.checks.filter((check) => check.status === "pass").length;
+          const warnCount = entry.checks.filter((check) => check.status === "warn").length;
+          const failCount = entry.checks.filter((check) => check.status === "fail").length;
+          return `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms checks=${passCount}/${entry.checks.length} pass ${warnCount} warn ${failCount} fail bootstrap=${entry.bootstrap.length} :: ${entry.detail}`;
+        },
       )
       .join("\n");
   }
@@ -584,7 +588,7 @@ async function buildCommandResponse(
     return health
       .map(
         (entry) =>
-          `- ${entry.backend}\n  bootstrap:\n${entry.bootstrap.map((item) => `    - ${item}`).join("\n")}\n  diagnostics:\n${entry.diagnostics.map((item) => `    - ${item}`).join("\n")}`,
+          `- ${entry.backend}\n  checks:\n${entry.checks.map((check) => `    - [${check.status}] ${check.summary}: ${check.detail}`).join("\n")}\n  bootstrap:\n${entry.bootstrap.map((item) => `    - ${item}`).join("\n")}`,
       )
       .join("\n\n");
   }
@@ -658,7 +662,7 @@ async function buildCommandResponse(
       ? commands
           .map(
             (entry) =>
-              `- [${entry.exitCode}] ${entry.command}\n  stdout=${entry.stdout.slice(0, 160) || "(empty)"}\n  stderr=${entry.stderr.slice(0, 160) || "(empty)"}`,
+              `- [${entry.exitCode}] ${entry.command}\n  backend=${entry.backend} mode=${entry.backendMode ?? "n/a"} engine=${entry.backendEngine ?? "n/a"} timeout=${entry.timeoutMs ?? "n/a"}ms duration=${entry.durationMs ?? "n/a"}ms timedOut=${entry.timedOut ? "yes" : "no"}\n  stdout=${entry.stdout.slice(0, 160) || "(empty)"}\n  stderr=${entry.stderr.slice(0, 160) || "(empty)"}`,
           )
           .join("\n")
       : "No terminal commands recorded.";

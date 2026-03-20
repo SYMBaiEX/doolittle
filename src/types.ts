@@ -289,12 +289,18 @@ export interface TerminalCommandRecord {
   id: string;
   command: string;
   backend: ExecutionBackendName;
+  backendMode?: ExecutionBackendMode;
+  backendEngine?: "docker" | "podman" | "ssh";
   cwd: string;
+  timeoutMs?: number;
+  timedOut?: boolean;
+  durationMs?: number;
   exitCode: number;
   stdout: string;
   stderr: string;
   startedAt: string;
   completedAt: string;
+  preview?: ExecutionBackendPreview;
 }
 
 export interface DiagnosticCheck {
@@ -312,6 +318,7 @@ export interface ExecutionBackendHealth {
   detail: string;
   limits: ExecutionBackendLimits;
   diagnostics: string[];
+  checks: DiagnosticCheck[];
   bootstrap: string[];
 }
 
@@ -326,6 +333,7 @@ export interface ExecutionBackendPreview {
   command: string;
   argv: string[];
   diagnostics: string[];
+  checks: DiagnosticCheck[];
   bootstrap: string[];
 }
 

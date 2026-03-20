@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
+  DiagnosticCheck,
   ExecutionBackendHealth,
   ExecutionBackendLimits,
   ExecutionBackendName,
@@ -18,6 +19,8 @@ interface TerminalRunResult {
   exitCode: number;
   stdout: string;
   stderr: string;
+  timedOut: boolean;
+  durationMs: number;
 }
 
 interface ExecutionBackend {
@@ -37,10 +40,24 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
+function createCheck(
+  id: string,
+  status: DiagnosticCheck["status"],
+  summary: string,
+  detail: string,
+): DiagnosticCheck {
+  return { id, status, summary, detail };
+}
+
+function renderChecks(checks: DiagnosticCheck[]): string[] {
+  return checks.map((check) => `[${check.status}] ${check.summary}: ${check.detail}`);
+}
+
 async function runCommand(
   cmd: string[],
   options: { cwd?: string; timeoutMs: number },
 ): Promise<TerminalRunResult> {
+  const startedAt = Date.now();
   const proc = Bun.spawn({
     cmd,
     cwd: options.cwd,
@@ -60,13 +77,18 @@ async function runCommand(
       new Response(proc.stderr).text(),
       proc.exited,
     ]);
+    const durationMs = Date.now() - startedAt;
 
     return {
       exitCode: timedOut ? 124 : exitCode,
       stdout: stdout.trim(),
       stderr:
         stderr.trim() ||
-        (timedOut ? `Command timed out after ${options.timeoutMs}ms.` : ""),
+        (timedOut
+          ? `Command timed out after ${options.timeoutMs}ms (${durationMs}ms elapsed).`
+          : ""),
+      timedOut,
+      durationMs,
     };
   } finally {
     clearTimeout(timer);
@@ -79,6 +101,8 @@ function normalizeBackendError(result: TerminalRunResult): TerminalRunResult {
     stdout: result.stdout,
     stderr:
       result.stderr || (result.exitCode === 0 ? "" : "Command failed without stderr output."),
+    timedOut: result.timedOut,
+    durationMs: result.durationMs,
   };
 }
 
@@ -89,6 +113,8 @@ async function commandExists(binary: string, timeoutMs = 5_000): Promise<boolean
     exitCode: 1,
     stdout: "",
     stderr: "",
+    timedOut: false,
+    durationMs: 0,
   }));
   return result.exitCode === 0;
 }
@@ -104,9 +130,9 @@ function buildContainerCommand(
   const containerPidsLimit = execution.containerPidsLimit ?? 256;
   const containerMemoryLimit = execution.containerMemoryLimit ?? "2g";
   const containerCpuLimit = execution.containerCpuLimit ?? "2";
-  const passthroughFlags = execution.dockerEnvPassthrough.flatMap((name) =>
-    process.env[name] ? ["-e", `${name}=${process.env[name]}`] : [],
-  );
+  const passthroughFlags = execution.dockerEnvPassthrough
+    .filter(isValidEnvName)
+    .flatMap((name) => (process.env[name] ? ["-e", `${name}=${process.env[name]}`] : []));
   const readOnlyFlags = containerReadOnlyRoot
     ? [
         "--read-only",
@@ -146,7 +172,7 @@ function buildContainerCommand(
     ...engineFlags,
     ...passthroughFlags,
     execution.dockerImage,
-    "/bin/zsh",
+    "/bin/sh",
     "-lc",
     command,
   ];
@@ -156,7 +182,14 @@ function buildSshBaseArgs(settings: RuntimeSettings): string[] {
   const execution = settings.execution;
   const keyFlags =
     execution.sshKeyPath && existsSync(execution.sshKeyPath)
-      ? ["-i", execution.sshKeyPath]
+      ? [
+          "-i",
+          execution.sshKeyPath,
+          "-o",
+          "IdentitiesOnly=yes",
+          "-o",
+          "PreferredAuthentications=publickey",
+        ]
       : [];
   return [
     "-o",
@@ -179,6 +212,10 @@ function buildSshBaseArgs(settings: RuntimeSettings): string[] {
   ];
 }
 
+function isValidEnvName(name: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+}
+
 function buildHealthLimits(settings: RuntimeSettings): ExecutionBackendLimits {
   const execution = settings.execution;
   return {
@@ -191,33 +228,230 @@ function buildHealthLimits(settings: RuntimeSettings): ExecutionBackendLimits {
   };
 }
 
-function buildContainerDiagnostics(
+function buildBootstrapHints(checks: DiagnosticCheck[], fallback: string[]): string[] {
+  const hints = checks
+    .filter((check) => check.status !== "pass")
+    .slice(0, 4)
+    .map((check) => `${check.summary}: ${check.detail}`);
+  return hints.length > 0 ? hints : fallback;
+}
+
+function buildContainerChecks(
   engine: "docker" | "podman",
   settings: RuntimeSettings,
   workspaceDir: string,
-): string[] {
+  runtimeAvailable: boolean,
+  imageAvailable: boolean,
+): DiagnosticCheck[] {
   const execution = settings.execution;
-  const envCount = execution.dockerEnvPassthrough.filter((name) => Boolean(process.env[name])).length;
+  const envNames = execution.dockerEnvPassthrough.filter(isValidEnvName);
+  const envCount = envNames.filter((name) => Boolean(process.env[name])).length;
+  const workspaceMountOk = existsSync(workspaceDir);
+  const containerRootfs = execution.containerReadOnlyRoot ?? true;
+  const invalidEnvNames = execution.dockerEnvPassthrough.filter((name) => !isValidEnvName(name));
+
   return [
-    `engine=${engine}`,
-    `image=${execution.dockerImage}`,
-    `network=${execution.dockerNetwork}`,
-    `workspace=${workspaceDir} -> ${execution.dockerWorkspacePath}`,
-    `rootfs=${execution.containerReadOnlyRoot ?? true ? "read-only" : "writable"}`,
-    `limits=cpus:${execution.containerCpuLimit ?? "2"} memory:${execution.containerMemoryLimit ?? "2g"} pids:${execution.containerPidsLimit ?? 256}`,
-    `envPassthrough=${envCount}/${execution.dockerEnvPassthrough.length}`,
-    engine === "podman" ? "userns=keep-id" : "userns=default",
+    createCheck(
+      `${engine}.runtime.binary`,
+      runtimeAvailable ? "pass" : "fail",
+      `${engine} runtime binary`,
+      runtimeAvailable
+        ? `${engine} command is available on this host.`
+        : `${engine} command is not available on this host.`,
+    ),
+    createCheck(
+      `${engine}.runtime.image`,
+      imageAvailable ? "pass" : "fail",
+      `${engine} image availability`,
+      imageAvailable
+        ? `Image ${execution.dockerImage} is available locally.`
+        : `Image ${execution.dockerImage} is not available locally.`,
+    ),
+    createCheck(
+      `${engine}.workspace.mount`,
+      workspaceMountOk ? "pass" : "warn",
+      "Workspace mount",
+      workspaceMountOk
+        ? `${workspaceDir} can be mounted at ${execution.dockerWorkspacePath}.`
+        : `Workspace directory ${workspaceDir} is not present.`,
+    ),
+    createCheck(
+      `${engine}.sandbox.rootfs`,
+      containerRootfs ? "pass" : "warn",
+      "Read-only container root",
+      containerRootfs
+        ? "Container root filesystem will be read-only."
+        : "Container root filesystem is writable.",
+    ),
+    createCheck(
+      `${engine}.sandbox.limits`,
+      "pass",
+      "Container resource limits",
+      `cpus=${execution.containerCpuLimit ?? "2"} memory=${execution.containerMemoryLimit ?? "2g"} pids=${execution.containerPidsLimit ?? 256}`,
+    ),
+    createCheck(
+      `${engine}.sandbox.env`,
+      invalidEnvNames.length === 0 && envNames.length > 0 ? "pass" : "warn",
+      "Environment passthrough",
+      invalidEnvNames.length === 0
+        ? `Forwarding ${envCount}/${execution.dockerEnvPassthrough.length} configured env vars.`
+        : `Ignoring invalid env names: ${invalidEnvNames.join(", ")}.`,
+    ),
+    createCheck(
+      `${engine}.runtime.userns`,
+      engine === "podman" ? "pass" : "warn",
+      "Container user namespace",
+      engine === "podman" ? "Podman will use keep-id user namespaces." : "Docker uses the default user namespace mapping.",
+    ),
+    createCheck(
+      `${engine}.runtime.shell`,
+      "pass",
+      "Container shell",
+      "Commands execute through /bin/sh -lc for portability.",
+    ),
   ];
 }
 
-function buildSshDiagnostics(settings: RuntimeSettings): string[] {
+function buildContainerPreviewChecks(
+  engine: "docker" | "podman",
+  settings: RuntimeSettings,
+  workspaceDir: string,
+): DiagnosticCheck[] {
+  const execution = settings.execution;
+  const workspaceMountOk = existsSync(workspaceDir);
+  return [
+    createCheck(
+      `${engine}.preview.generated`,
+      "pass",
+      `${engine} preview`,
+      `Execution will run with the ${engine} backend using ${execution.dockerImage}.`,
+    ),
+    createCheck(
+      `${engine}.preview.command`,
+      "pass",
+      "Container command",
+      "Commands execute through /bin/sh -lc inside the container.",
+    ),
+    createCheck(
+      `${engine}.preview.workspace`,
+      workspaceMountOk ? "pass" : "warn",
+      "Workspace mount",
+      workspaceMountOk
+        ? `${workspaceDir} will mount at ${execution.dockerWorkspacePath}.`
+        : `Workspace directory ${workspaceDir} is not present.`,
+    ),
+    createCheck(
+      `${engine}.preview.rootfs`,
+      execution.containerReadOnlyRoot ?? true ? "pass" : "warn",
+      "Root filesystem",
+      execution.containerReadOnlyRoot ?? true
+        ? "Root filesystem is planned as read-only."
+        : "Root filesystem is planned as writable.",
+    ),
+    createCheck(
+      `${engine}.preview.limits`,
+      "pass",
+      "Resource limits",
+      `cpus=${execution.containerCpuLimit ?? "2"} memory=${execution.containerMemoryLimit ?? "2g"} pids=${execution.containerPidsLimit ?? 256}`,
+    ),
+  ];
+}
+
+function buildSshChecks(settings: RuntimeSettings, runtimeAvailable: boolean, pathExists: boolean): DiagnosticCheck[] {
+  const execution = settings.execution;
+  const keyConfigured = Boolean(execution.sshKeyPath);
+  const keyExists = !execution.sshKeyPath || existsSync(execution.sshKeyPath);
+  return [
+    createCheck(
+      "ssh.runtime.binary",
+      runtimeAvailable ? "pass" : "fail",
+      "SSH client availability",
+      runtimeAvailable ? "ssh command is available on this host." : "ssh command is not available on this host.",
+    ),
+    createCheck(
+      "ssh.config.host",
+      execution.sshHost ? "pass" : "fail",
+      "SSH host",
+      execution.sshHost ? `Host configured: ${execution.sshHost}.` : "SSH host is not configured.",
+    ),
+    createCheck(
+      "ssh.config.user",
+      execution.sshUser ? "pass" : "fail",
+      "SSH user",
+      execution.sshUser ? `User configured: ${execution.sshUser}.` : "SSH user is not configured.",
+    ),
+    createCheck(
+      "ssh.config.path",
+      execution.sshPath ? "pass" : "fail",
+      "Remote workspace",
+      execution.sshPath ? `Remote workspace path: ${execution.sshPath}.` : "Remote workspace path is not configured.",
+    ),
+    createCheck(
+      "ssh.config.key",
+      keyConfigured && keyExists ? "pass" : keyConfigured ? "fail" : "warn",
+      "SSH key",
+      keyConfigured
+        ? keyExists
+          ? `SSH key found at ${execution.sshKeyPath}.`
+          : `SSH key path does not exist: ${execution.sshKeyPath}.`
+        : "No SSH private key configured.",
+    ),
+    createCheck(
+      "ssh.runtime.probe",
+      pathExists ? "pass" : "fail",
+      "Remote workspace probe",
+      pathExists
+        ? `Remote workspace ${execution.sshPath} is reachable.`
+        : `Remote workspace ${execution.sshPath || "?"} is not reachable.`,
+    ),
+    createCheck(
+      "ssh.runtime.shell",
+      "pass",
+      "Remote shell",
+      "Commands execute through sh -lc for portability on the remote host.",
+    ),
+    createCheck(
+      "ssh.runtime.strictHostKeyChecking",
+      execution.sshStrictHostKeyChecking ? "pass" : "warn",
+      "Host key verification",
+      execution.sshStrictHostKeyChecking
+        ? "Strict host key checking is enabled."
+        : "Strict host key checking is disabled for this session.",
+    ),
+  ];
+}
+
+function buildSshPreviewChecks(settings: RuntimeSettings): DiagnosticCheck[] {
   const execution = settings.execution;
   return [
-    `host=${execution.sshUser || "?"}@${execution.sshHost || "?"}:${execution.sshPort}`,
-    `path=${execution.sshPath || "?"}`,
-    `key=${execution.sshKeyPath || "(none)"}`,
-    `strictHostKeyChecking=${execution.sshStrictHostKeyChecking ? "yes" : "no"}`,
-    "transport=ssh",
+    createCheck(
+      "ssh.preview.generated",
+      "pass",
+      "SSH preview",
+      `Execution will run against ${execution.sshUser || "?"}@${execution.sshHost || "?"}.`,
+    ),
+    createCheck(
+      "ssh.preview.shell",
+      "pass",
+      "Remote shell",
+      "Commands execute through sh -lc on the remote host.",
+    ),
+    createCheck(
+      "ssh.preview.path",
+      execution.sshPath ? "pass" : "warn",
+      "Remote workspace",
+      execution.sshPath
+        ? `Remote workspace ${execution.sshPath} will be used.`
+        : "Remote workspace path is not configured.",
+    ),
+    createCheck(
+      "ssh.preview.key",
+      execution.sshKeyPath ? "pass" : "warn",
+      "SSH key",
+      execution.sshKeyPath
+        ? `SSH key path ${execution.sshKeyPath} will be used when available.`
+        : "No SSH key path configured.",
+    ),
   ];
 }
 
@@ -228,6 +462,28 @@ class LocalExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
+    const checks = [
+      createCheck(
+        "local.shell",
+        "pass",
+        "Local shell",
+        "Local commands execute through /bin/zsh -lc on the host.",
+      ),
+      createCheck(
+        "local.workspace",
+        existsSync(options.cwd) ? "pass" : "warn",
+        "Workspace availability",
+        existsSync(options.cwd)
+          ? `Workspace ${options.cwd} is available.`
+          : `Workspace ${options.cwd} is not present.`,
+      ),
+      createCheck(
+        "local.timeout",
+        "pass",
+        "Command timeout",
+        `Timeout budget set to ${options.timeoutMs}ms.`,
+      ),
+    ];
     return {
       backend: this.name,
       mode: "local",
@@ -237,20 +493,37 @@ class LocalExecutionBackend implements ExecutionBackend {
       timeoutMs: options.timeoutMs,
       command,
       argv: ["/bin/zsh", "-lc", command],
-      diagnostics: ["Local execution uses the current workspace and the host shell."],
-      bootstrap: ["No bootstrap required for local execution."],
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, ["No bootstrap required for local execution."]),
     };
   }
 
   async health(settings: RuntimeSettings): Promise<ExecutionBackendHealth> {
+    const checks = [
+      createCheck("local.shell", "pass", "Local shell", "Local Bun shell execution is available."),
+      createCheck(
+        "local.workspace",
+        "pass",
+        "Workspace availability",
+        "Commands run inside the current workspace directory.",
+      ),
+      createCheck(
+        "local.timeout",
+        "pass",
+        "Command timeout",
+        `Default timeout budget is ${buildHealthLimits(settings).commandTimeoutMs}ms.`,
+      ),
+    ];
     return {
       backend: this.name,
       mode: "local",
       ready: true,
       detail: "Local Bun shell execution is available.",
       limits: buildHealthLimits(settings),
-      diagnostics: ["Local execution is the fallback when container and remote backends are unavailable."],
-      bootstrap: ["No bootstrap required."],
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, ["No bootstrap required."]),
     };
   }
 
@@ -269,6 +542,7 @@ class DockerExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
+    const checks = buildContainerPreviewChecks("docker", options.settings, options.cwd);
     return {
       backend: this.name,
       mode: "container",
@@ -279,17 +553,20 @@ class DockerExecutionBackend implements ExecutionBackend {
       timeoutMs: options.timeoutMs,
       command,
       argv: buildContainerCommand("docker", command, options.cwd, options.settings),
-      diagnostics: buildContainerDiagnostics("docker", options.settings, options.cwd),
-      bootstrap: [
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
         `Ensure docker is installed and the image ${options.settings.execution.dockerImage} is available.`,
         `Mount workspace ${options.cwd} at ${options.settings.execution.dockerWorkspacePath}.`,
-      ],
+      ]),
     };
   }
 
   async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
-    if (!(await commandExists("docker", probeTimeoutMs))) {
+    const runtimeAvailable = await commandExists("docker", probeTimeoutMs);
+    const runtimeChecks = buildContainerChecks("docker", settings, workspaceDir, runtimeAvailable, false);
+    if (!runtimeAvailable) {
       return {
         backend: this.name,
         mode: "container",
@@ -297,11 +574,12 @@ class DockerExecutionBackend implements ExecutionBackend {
         ready: false,
         detail: "Docker command not available.",
         limits: buildHealthLimits(settings),
-        diagnostics: buildContainerDiagnostics("docker", settings, workspaceDir),
-        bootstrap: [
+        diagnostics: renderChecks(runtimeChecks),
+        checks: runtimeChecks,
+        bootstrap: buildBootstrapHints(runtimeChecks, [
           "Install Docker and make sure the daemon is running.",
           `Pull or build the image ${settings.execution.dockerImage}.`,
-        ],
+        ]),
       };
     }
 
@@ -311,9 +589,12 @@ class DockerExecutionBackend implements ExecutionBackend {
       exitCode: 1,
       stdout: "",
       stderr: "Docker runtime unavailable.",
+      timedOut: false,
+      durationMs: 0,
     }));
 
     if (version.exitCode !== 0) {
+      const failedChecks = buildContainerChecks("docker", settings, workspaceDir, runtimeAvailable, false);
       return {
         backend: this.name,
         mode: "container",
@@ -321,11 +602,12 @@ class DockerExecutionBackend implements ExecutionBackend {
         ready: false,
         detail: version.stderr || "Docker runtime unavailable.",
         limits: buildHealthLimits(settings),
-        diagnostics: buildContainerDiagnostics("docker", settings, workspaceDir),
-        bootstrap: [
+        diagnostics: renderChecks(failedChecks),
+        checks: failedChecks,
+        bootstrap: buildBootstrapHints(failedChecks, [
           "Verify the Docker daemon is healthy and reachable from this host.",
           `Ensure the image ${settings.execution.dockerImage} exists locally.`,
-        ],
+        ]),
       };
     }
 
@@ -336,25 +618,29 @@ class DockerExecutionBackend implements ExecutionBackend {
       exitCode: 1,
       stdout: "",
       stderr: `Docker image ${settings.execution.dockerImage} is not available locally.`,
+      timedOut: false,
+      durationMs: 0,
     }));
-
-      return {
-        backend: this.name,
-        mode: "container",
-        engine: "docker",
-        ready: imageCheck.exitCode === 0,
-        detail:
-          imageCheck.exitCode === 0
-            ? `Docker ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
-            : imageCheck.stderr || `Docker image ${settings.execution.dockerImage} is not available locally.`,
-        limits: buildHealthLimits(settings),
-        diagnostics: buildContainerDiagnostics("docker", settings, workspaceDir),
-        bootstrap: [
-          `Confirm workspace mount ${workspaceDir} -> ${settings.execution.dockerWorkspacePath}.`,
-          `Use ${settings.execution.containerReadOnlyRoot ? "read-only" : "writable"} root filesystem.`,
-        ],
-      };
-    }
+    const imageAvailable = imageCheck.exitCode === 0;
+    const checks = buildContainerChecks("docker", settings, workspaceDir, runtimeAvailable, imageAvailable);
+    return {
+      backend: this.name,
+      mode: "container",
+      engine: "docker",
+      ready: imageAvailable,
+      detail:
+        imageAvailable
+          ? `Docker ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
+          : imageCheck.stderr || `Docker image ${settings.execution.dockerImage} is not available locally.`,
+      limits: buildHealthLimits(settings),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        `Confirm workspace mount ${workspaceDir} -> ${settings.execution.dockerWorkspacePath}.`,
+        `Use ${settings.execution.containerReadOnlyRoot ? "read-only" : "writable"} root filesystem.`,
+      ]),
+    };
+  }
 
   async run(
     command: string,
@@ -375,6 +661,7 @@ class PodmanExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
+    const checks = buildContainerPreviewChecks("podman", options.settings, options.cwd);
     return {
       backend: this.name,
       mode: "container",
@@ -385,17 +672,20 @@ class PodmanExecutionBackend implements ExecutionBackend {
       timeoutMs: options.timeoutMs,
       command,
       argv: buildContainerCommand("podman", command, options.cwd, options.settings),
-      diagnostics: buildContainerDiagnostics("podman", options.settings, options.cwd),
-      bootstrap: [
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
         `Ensure podman is installed and the image ${options.settings.execution.dockerImage} is available.`,
         `Mount workspace ${options.cwd} at ${options.settings.execution.dockerWorkspacePath}.`,
-      ],
+      ]),
     };
   }
 
   async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
-    if (!(await commandExists("podman", probeTimeoutMs))) {
+    const runtimeAvailable = await commandExists("podman", probeTimeoutMs);
+    const runtimeChecks = buildContainerChecks("podman", settings, workspaceDir, runtimeAvailable, false);
+    if (!runtimeAvailable) {
       return {
         backend: this.name,
         mode: "container",
@@ -403,11 +693,12 @@ class PodmanExecutionBackend implements ExecutionBackend {
         ready: false,
         detail: "Podman command not available.",
         limits: buildHealthLimits(settings),
-        diagnostics: buildContainerDiagnostics("podman", settings, workspaceDir),
-        bootstrap: [
+        diagnostics: renderChecks(runtimeChecks),
+        checks: runtimeChecks,
+        bootstrap: buildBootstrapHints(runtimeChecks, [
           "Install Podman and make sure the rootless runtime is healthy.",
           `Pull or build the image ${settings.execution.dockerImage}.`,
-        ],
+        ]),
       };
     }
 
@@ -417,9 +708,12 @@ class PodmanExecutionBackend implements ExecutionBackend {
       exitCode: 1,
       stdout: "",
       stderr: "Podman runtime unavailable.",
+      timedOut: false,
+      durationMs: 0,
     }));
 
     if (version.exitCode !== 0) {
+      const failedChecks = buildContainerChecks("podman", settings, workspaceDir, runtimeAvailable, false);
       return {
         backend: this.name,
         mode: "container",
@@ -427,11 +721,12 @@ class PodmanExecutionBackend implements ExecutionBackend {
         ready: false,
         detail: version.stderr || "Podman runtime unavailable.",
         limits: buildHealthLimits(settings),
-        diagnostics: buildContainerDiagnostics("podman", settings, workspaceDir),
-        bootstrap: [
+        diagnostics: renderChecks(failedChecks),
+        checks: failedChecks,
+        bootstrap: buildBootstrapHints(failedChecks, [
           "Verify the Podman runtime is healthy and reachable from this host.",
           `Ensure the image ${settings.execution.dockerImage} exists locally.`,
-        ],
+        ]),
       };
     }
 
@@ -442,25 +737,29 @@ class PodmanExecutionBackend implements ExecutionBackend {
       exitCode: 1,
       stdout: "",
       stderr: `Podman image ${settings.execution.dockerImage} is not available locally.`,
+      timedOut: false,
+      durationMs: 0,
     }));
-
-      return {
-        backend: this.name,
-        mode: "container",
-        engine: "podman",
-        ready: imageCheck.exitCode === 0,
-        detail:
-          imageCheck.exitCode === 0
-            ? `Podman ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
-            : imageCheck.stderr || `Podman image ${settings.execution.dockerImage} is not available locally.`,
-        limits: buildHealthLimits(settings),
-        diagnostics: buildContainerDiagnostics("podman", settings, workspaceDir),
-        bootstrap: [
-          `Confirm workspace mount ${workspaceDir} -> ${settings.execution.dockerWorkspacePath}.`,
-          `Use ${settings.execution.containerReadOnlyRoot ? "read-only" : "writable"} root filesystem.`,
-        ],
-      };
-    }
+    const imageAvailable = imageCheck.exitCode === 0;
+    const checks = buildContainerChecks("podman", settings, workspaceDir, runtimeAvailable, imageAvailable);
+    return {
+      backend: this.name,
+      mode: "container",
+      engine: "podman",
+      ready: imageAvailable,
+      detail:
+        imageAvailable
+          ? `Podman ready (${version.stdout || "unknown version"}) with image ${settings.execution.dockerImage} for workspace ${workspaceDir}.`
+          : imageCheck.stderr || `Podman image ${settings.execution.dockerImage} is not available locally.`,
+      limits: buildHealthLimits(settings),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        `Confirm workspace mount ${workspaceDir} -> ${settings.execution.dockerWorkspacePath}.`,
+        `Use ${settings.execution.containerReadOnlyRoot ? "read-only" : "writable"} root filesystem.`,
+      ]),
+    };
+  }
 
   async run(
     command: string,
@@ -482,6 +781,7 @@ class SshExecutionBackend implements ExecutionBackend {
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
     const execution = options.settings.execution;
+    const checks = buildSshPreviewChecks(options.settings);
     return {
       backend: this.name,
       mode: "remote",
@@ -495,18 +795,23 @@ class SshExecutionBackend implements ExecutionBackend {
         "ssh",
         ...buildSshBaseArgs(options.settings),
         `${execution.sshUser || "?"}@${execution.sshHost || "?"}`,
-        `cd ${shellQuote(execution.sshPath || "UNKNOWN")} && sh -lc ${shellQuote(command)}`,
+        `cd ${shellQuote(execution.sshPath || "UNKNOWN")} && exec sh -lc ${shellQuote(command)}`,
       ],
-      diagnostics: buildSshDiagnostics(options.settings),
-      bootstrap: [
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
         `Ensure SSH access to ${execution.sshHost || "the remote host"} is working.`,
         `Ensure the remote workspace ${execution.sshPath || "UNKNOWN"} exists.`,
-      ],
+      ]),
     };
   }
 
   async health(settings: RuntimeSettings): Promise<ExecutionBackendHealth> {
-    if (!(await commandExists("ssh", settings.execution.healthTimeoutMs ?? 5_000))) {
+    const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
+    const runtimeAvailable = await commandExists("ssh", probeTimeoutMs);
+    const execution = settings.execution;
+    const baseChecks = buildSshChecks(settings, runtimeAvailable, false);
+    if (!runtimeAvailable) {
       return {
         backend: this.name,
         mode: "remote",
@@ -514,12 +819,12 @@ class SshExecutionBackend implements ExecutionBackend {
         ready: false,
         detail: "SSH command not available.",
         limits: buildHealthLimits(settings),
-        diagnostics: buildSshDiagnostics(settings),
-        bootstrap: ["Install the ssh client and verify key/host access."],
+        diagnostics: renderChecks(baseChecks),
+        checks: baseChecks,
+        bootstrap: buildBootstrapHints(baseChecks, ["Install the ssh client and verify key/host access."]),
       };
     }
 
-    const execution = settings.execution;
     if (!execution.sshHost || !execution.sshUser || !execution.sshPath) {
       return {
         backend: this.name,
@@ -529,8 +834,9 @@ class SshExecutionBackend implements ExecutionBackend {
         detail:
           "SSH backend requires execution.sshHost, execution.sshUser, and execution.sshPath.",
         limits: buildHealthLimits(settings),
-        diagnostics: buildSshDiagnostics(settings),
-        bootstrap: ["Set ssh host, user, and remote path in runtime settings."],
+        diagnostics: renderChecks(baseChecks),
+        checks: baseChecks,
+        bootstrap: buildBootstrapHints(baseChecks, ["Set ssh host, user, and remote path in runtime settings."]),
       };
     }
 
@@ -542,8 +848,9 @@ class SshExecutionBackend implements ExecutionBackend {
         ready: false,
         detail: `SSH key path does not exist: ${execution.sshKeyPath}.`,
         limits: buildHealthLimits(settings),
-        diagnostics: buildSshDiagnostics(settings),
-        bootstrap: [`Create or correct the SSH key path: ${execution.sshKeyPath}.`],
+        diagnostics: renderChecks(baseChecks),
+        checks: baseChecks,
+        bootstrap: buildBootstrapHints(baseChecks, [`Create or correct the SSH key path: ${execution.sshKeyPath}.`]),
       };
     }
 
@@ -561,28 +868,33 @@ class SshExecutionBackend implements ExecutionBackend {
       exitCode: 1,
       stdout: "",
       stderr: "SSH command unavailable or remote host unreachable.",
+      timedOut: false,
+      durationMs: 0,
     }));
+    const ready = probe.exitCode === 0;
+    const finalChecks = buildSshChecks(settings, runtimeAvailable, ready);
 
-      return {
-        backend: this.name,
-        mode: "remote",
-        engine: "ssh",
-        ready: probe.exitCode === 0,
-        detail:
-          probe.exitCode === 0
-            ? `SSH backend ready for ${execution.sshUser}@${execution.sshHost}:${execution.sshPort} (${execution.sshPath}).`
-            : probe.stderr ||
+    return {
+      backend: this.name,
+      mode: "remote",
+      engine: "ssh",
+      ready,
+      detail:
+        ready
+          ? `SSH backend ready for ${execution.sshUser}@${execution.sshHost}:${execution.sshPort} (${execution.sshPath}).`
+          : probe.stderr ||
             `SSH backend could not reach ${execution.sshUser}@${execution.sshHost}:${execution.sshPort}.`,
-        limits: buildHealthLimits(settings),
-        diagnostics: buildSshDiagnostics(settings),
-        bootstrap: [
-          `Verify remote path ${execution.sshPath} exists and is writable if needed.`,
-          execution.sshStrictHostKeyChecking
-            ? "Host key checking is enabled."
-            : "Host key checking is disabled for this session.",
-        ],
-      };
-    }
+      limits: buildHealthLimits(settings),
+      diagnostics: renderChecks(finalChecks),
+      checks: finalChecks,
+      bootstrap: buildBootstrapHints(finalChecks, [
+        `Verify remote path ${execution.sshPath} exists and is writable if needed.`,
+        execution.sshStrictHostKeyChecking
+          ? "Host key checking is enabled."
+          : "Host key checking is disabled for this session.",
+      ]),
+    };
+  }
 
   async run(
     command: string,
@@ -594,10 +906,12 @@ class SshExecutionBackend implements ExecutionBackend {
         exitCode: 1,
         stdout: "",
         stderr: "SSH backend requires execution.sshHost, execution.sshUser, and execution.sshPath.",
+        timedOut: false,
+        durationMs: 0,
       };
     }
 
-    const remoteCommand = `cd ${shellQuote(execution.sshPath)} && sh -lc ${shellQuote(command)}`;
+    const remoteCommand = `cd ${shellQuote(execution.sshPath)} && exec sh -lc ${shellQuote(command)}`;
     return normalizeBackendError(
       await runCommand(
         [
@@ -640,11 +954,17 @@ export class TerminalService {
     if (!backend) {
       throw new Error("No execution backend is available.");
     }
+    const effectiveTimeoutMs = timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000;
+    const preview = backend.preview(command, {
+      cwd: this.workspaceDir,
+      timeoutMs: effectiveTimeoutMs,
+      settings,
+    });
 
     const startedAt = new Date().toISOString();
     const result = await backend.run(command, {
       cwd: this.workspaceDir,
-      timeoutMs: timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000,
+      timeoutMs: effectiveTimeoutMs,
       settings,
     });
 
@@ -652,12 +972,18 @@ export class TerminalService {
       id: randomUUID(),
       command,
       backend: backend.name,
+      backendMode: preview.mode,
+      backendEngine: preview.engine,
       cwd: this.workspaceDir,
+      timeoutMs: effectiveTimeoutMs,
+      timedOut: result.timedOut,
+      durationMs: result.durationMs,
       exitCode: result.exitCode,
       stdout: result.stdout,
       stderr: result.stderr,
       startedAt,
       completedAt: new Date().toISOString(),
+      preview,
     };
 
     const store = this.read();
