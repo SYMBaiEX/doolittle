@@ -39,6 +39,13 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   ".txt": "text/plain",
   ".md": "text/markdown",
   ".json": "application/json",
+  ".csv": "text/csv",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".yaml": "application/x-yaml",
+  ".yml": "application/x-yaml",
+  ".toml": "application/toml",
+  ".xml": "application/xml",
 };
 
 export class MediaService {
@@ -120,7 +127,7 @@ export class MediaService {
     if ([".mp4", ".mov", ".webm", ".avi"].includes(extension)) {
       return "video";
     }
-    if ([".pdf", ".txt", ".md", ".json"].includes(extension)) {
+    if ([".pdf", ".txt", ".md", ".json", ".csv", ".html", ".htm", ".yaml", ".yml", ".toml", ".xml"].includes(extension)) {
       return "document";
     }
     return "unknown";
@@ -233,19 +240,48 @@ export class MediaService {
     path: string,
     extension: string,
   ): { preview: string; lineCount: number; wordCount: number } | undefined {
-    if (![".txt", ".md", ".json"].includes(extension)) {
+    if (![".txt", ".md", ".json", ".csv", ".html", ".htm", ".yaml", ".yml", ".toml", ".xml"].includes(extension)) {
       return undefined;
     }
 
     const content = readFileSync(path, "utf8");
-    const preview = content.slice(0, 512).trim();
-    const lineCount = content ? content.split(/\n/u).length : 0;
+    const preview = this.buildPreview(content, extension);
+    const lineCount = content ? content.split(/\r?\n/u).length : 0;
     const wordCount = content ? content.split(/\s+/u).filter(Boolean).length : 0;
     return {
       preview,
       lineCount,
       wordCount,
     };
+  }
+
+  private buildPreview(content: string, extension: string): string {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    if (extension === ".html" || extension === ".htm") {
+      const text = trimmed
+        .replace(/<script[\s\S]*?<\/script>/giu, " ")
+        .replace(/<style[\s\S]*?<\/style>/giu, " ")
+        .replace(/<[^>]+>/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim();
+      return text.slice(0, 512);
+    }
+
+    if (extension === ".csv") {
+      const [header, ...rows] = trimmed.split(/\r?\n/u);
+      const sample = [header, ...rows.slice(0, 2)].join("\n");
+      return sample.slice(0, 512);
+    }
+
+    if (extension === ".yaml" || extension === ".yml" || extension === ".toml" || extension === ".xml") {
+      return trimmed.slice(0, 512);
+    }
+
+    return trimmed.slice(0, 512);
   }
 
   private hashFile(path: string): string {
