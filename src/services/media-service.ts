@@ -846,13 +846,16 @@ export class MediaService {
     }
 
     if ((context.provider === "anthropic" && canUseAnthropic) || (!canUseOpenAi && canUseAnthropic)) {
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        "anthropic-version": "2023-06-01",
+      };
+      if (context.anthropicApiKey) {
+        headers["x-api-key"] = context.anthropicApiKey;
+      }
       const response = await fetch(`${context.anthropicBaseUrl ?? context.baseUrl}/messages`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": context.anthropicApiKey,
-          "anthropic-version": "2023-06-01",
-        },
+        headers,
         body: JSON.stringify({
           model: context.model,
           max_tokens: context.maxTokens,
