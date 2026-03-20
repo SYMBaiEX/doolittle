@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import type { ExecutionBackendName } from "@/types";
+
 export interface RuntimeSettings {
   model: {
     provider: string;
@@ -14,7 +16,7 @@ export interface RuntimeSettings {
     mirrorResponsesToHistory: boolean;
   };
   execution: {
-    backend: "local" | "docker" | "ssh";
+    backend: ExecutionBackendName;
     dockerImage: string;
     dockerNetwork: string;
     dockerWorkspacePath: string;
