@@ -1,10 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { UserProfileRecord } from "@/types";
+import type { AgentIdentityRecord, UserProfileRecord } from "@/types";
 
 interface UserProfileStore {
   profiles: UserProfileRecord[];
+  agent: AgentIdentityRecord;
 }
+
+type RememberKind =
+  | "preference"
+  | "fact"
+  | "goal"
+  | "context"
+  | "constraint"
+  | "note"
+  | "memory";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -21,12 +31,6 @@ function matchSingle(
   return observation.match(expression)?.[1]?.trim();
 }
 
-function _matchMany(observation: string, expression: RegExp): string[] {
-  return Array.from(observation.matchAll(expression))
-    .map((match) => match[1]?.trim() ?? "")
-    .filter(Boolean);
-}
-
 function detectTools(observation: string): string[] {
   const known = [
     "Bun",
@@ -41,9 +45,44 @@ function detectTools(observation: string): string[] {
     "Discord",
     "Slack",
     "WhatsApp",
+    "Matrix",
+    "Signal",
+    "Mattermost",
+    "Home Assistant",
+    "DingTalk",
   ];
   const lower = observation.toLowerCase();
   return known.filter((tool) => lower.includes(tool.toLowerCase()));
+}
+
+function createDefaultAgentIdentity(): AgentIdentityRecord {
+  return {
+    name: "Eliza Agent",
+    notes: [],
+    goals: [],
+    strengths: [],
+    workStyle: [],
+    updatedAt: nowIso(),
+  };
+}
+
+function createEmptyProfile(userId: string): UserProfileRecord {
+  return {
+    userId,
+    memoryMode: "hybrid",
+    preferences: [],
+    facts: [],
+    notes: [],
+    aliases: [],
+    goals: [],
+    projectContext: [],
+    constraints: [],
+    explicitMemories: [],
+    toolPreferences: [],
+    workStyle: [],
+    lastSeenAt: nowIso(),
+    updatedAt: nowIso(),
+  };
 }
 
 export class UserProfileService {
@@ -53,7 +92,10 @@ export class UserProfileService {
     mkdirSync(baseDir, { recursive: true });
     this.filePath = join(baseDir, "user-profiles.json");
     if (!existsSync(this.filePath)) {
-      this.write({ profiles: [] });
+      this.write({
+        profiles: [],
+        agent: createDefaultAgentIdentity(),
+      });
     }
   }
 
@@ -67,25 +109,66 @@ export class UserProfileService {
     const existing = this.read().profiles.find(
       (profile) => profile.userId === userId,
     );
-    return (
-      existing ?? {
-        userId,
-        preferences: [],
-        facts: [],
-        notes: [],
-        aliases: [],
-        goals: [],
-        toolPreferences: [],
-        workStyle: [],
-        lastSeenAt: nowIso(),
-        updatedAt: nowIso(),
-      }
-    );
+    return existing ? { ...existing } : createEmptyProfile(userId);
+  }
+
+  getAgent(): AgentIdentityRecord {
+    return this.read().agent;
+  }
+
+  setMode(
+    userId: string,
+    mode: UserProfileRecord["memoryMode"],
+  ): UserProfileRecord {
+    return this.update(userId, (profile) => {
+      profile.memoryMode = mode ?? "hybrid";
+    });
   }
 
   addNote(userId: string, note: string, source?: string): UserProfileRecord {
+    return this.remember(userId, "note", note, source);
+  }
+
+  remember(
+    userId: string,
+    kind: RememberKind,
+    value: string,
+    source?: string,
+  ): UserProfileRecord {
+    const nextValue = value.trim();
     return this.update(userId, (profile) => {
-      profile.notes = unique([...profile.notes, note]);
+      switch (kind) {
+        case "preference":
+          profile.preferences = unique([...profile.preferences, nextValue]);
+          break;
+        case "fact":
+          profile.facts = unique([...profile.facts, nextValue]);
+          break;
+        case "goal":
+          profile.goals = unique([...(profile.goals ?? []), nextValue]);
+          break;
+        case "context":
+          profile.projectContext = unique([
+            ...(profile.projectContext ?? []),
+            nextValue,
+          ]);
+          break;
+        case "constraint":
+          profile.constraints = unique([
+            ...(profile.constraints ?? []),
+            nextValue,
+          ]);
+          break;
+        case "memory":
+          profile.explicitMemories = unique([
+            ...(profile.explicitMemories ?? []),
+            nextValue,
+          ]);
+          break;
+        default:
+          profile.notes = unique([...profile.notes, nextValue]);
+          break;
+      }
       profile.lastSource = source ?? profile.lastSource;
     });
   }
@@ -110,6 +193,14 @@ export class UserProfileService {
         observation,
         /\b(?:my goal is|i want to|i need to|help me)\s+(.+?)(?:[.!?]|$)/iu,
       );
+      const projectContext = matchSingle(
+        observation,
+        /\b(?:we are building|we're building|this project is|the current project is)\s+(.+?)(?:[.!?]|$)/iu,
+      );
+      const constraint = matchSingle(
+        observation,
+        /\b(?:do not|don't|must not|cannot|can't)\s+(.+?)(?:[.!?]|$)/iu,
+      );
       const toolSignals = detectTools(observation);
       const workStyle = matchSingle(
         observation,
@@ -132,6 +223,18 @@ export class UserProfileService {
       if (goal && goal.length < 180) {
         profile.goals = unique([...(profile.goals ?? []), goal]);
       }
+      if (projectContext && projectContext.length < 220) {
+        profile.projectContext = unique([
+          ...(profile.projectContext ?? []),
+          projectContext,
+        ]);
+      }
+      if (constraint && constraint.length < 220) {
+        profile.constraints = unique([
+          ...(profile.constraints ?? []),
+          constraint,
+        ]);
+      }
       if (toolSignals.length) {
         profile.toolPreferences = unique([
           ...(profile.toolPreferences ?? []),
@@ -147,10 +250,42 @@ export class UserProfileService {
         ) &&
         observation.length < 240
       ) {
-        profile.notes = unique([...profile.notes, observation]);
+        profile.explicitMemories = unique([
+          ...(profile.explicitMemories ?? []),
+          observation,
+        ]);
       }
 
       profile.lastSource = source ?? profile.lastSource;
+    });
+  }
+
+  observeAgent(note: string, source?: string): AgentIdentityRecord {
+    const observation = note.trim();
+    return this.updateAgent((agent) => {
+      const goal = matchSingle(
+        observation,
+        /\b(?:goal|objective|mission)\s*:\s*(.+)$/iu,
+      );
+      const strength = matchSingle(
+        observation,
+        /\b(?:strength|specialty|best at)\s*:\s*(.+)$/iu,
+      );
+      const workStyle = matchSingle(
+        observation,
+        /\b(?:style|work style|voice)\s*:\s*(.+)$/iu,
+      );
+
+      if (goal) {
+        agent.goals = unique([...agent.goals, goal]);
+      } else if (strength) {
+        agent.strengths = unique([...agent.strengths, strength]);
+      } else if (workStyle) {
+        agent.workStyle = unique([...agent.workStyle, workStyle]);
+      } else {
+        agent.notes = unique([...agent.notes, observation]);
+      }
+      agent.lastSource = source ?? agent.lastSource;
     });
   }
 
@@ -158,6 +293,7 @@ export class UserProfileService {
     const profile = this.get(userId);
     return [
       `USER PROFILE: ${profile.displayName ?? profile.userId}`,
+      `Memory mode: ${profile.memoryMode ?? "hybrid"}`,
       `Last seen: ${profile.lastSeenAt}`,
       `Source: ${profile.lastSource ?? "unknown"}`,
       "",
@@ -169,6 +305,16 @@ export class UserProfileService {
       "Goals",
       ...((profile.goals ?? []).length
         ? (profile.goals ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Project Context",
+      ...((profile.projectContext ?? []).length
+        ? (profile.projectContext ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Constraints",
+      ...((profile.constraints ?? []).length
+        ? (profile.constraints ?? []).map((item) => `- ${item}`)
         : ["- (none)"]),
       "",
       "Tools",
@@ -191,11 +337,49 @@ export class UserProfileService {
         ? profile.facts.map((item) => `- ${item}`)
         : ["- (none)"]),
       "",
+      "Explicit Memories",
+      ...((profile.explicitMemories ?? []).length
+        ? (profile.explicitMemories ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
       "Notes",
       ...(profile.notes.length
         ? profile.notes.map((item) => `- ${item}`)
         : ["- (none)"]),
     ].join("\n");
+  }
+
+  renderAgent(): string {
+    const agent = this.getAgent();
+    return [
+      `AGENT PROFILE: ${agent.name}`,
+      `Updated: ${agent.updatedAt}`,
+      `Source: ${agent.lastSource ?? "unknown"}`,
+      "",
+      "Goals",
+      ...(agent.goals.length
+        ? agent.goals.map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Strengths",
+      ...(agent.strengths.length
+        ? agent.strengths.map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Work Style",
+      ...(agent.workStyle.length
+        ? agent.workStyle.map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Notes",
+      ...(agent.notes.length
+        ? agent.notes.map((item) => `- ${item}`)
+        : ["- (none)"]),
+    ].join("\n");
+  }
+
+  renderCards(userId: string): string {
+    return `${this.render(userId)}\n\n${this.renderAgent()}`;
   }
 
   private update(
@@ -209,26 +393,19 @@ export class UserProfileService {
     const base =
       existingIndex >= 0
         ? store.profiles[existingIndex]
-        : {
-            userId,
-            preferences: [],
-            facts: [],
-            notes: [],
-            aliases: [],
-            goals: [],
-            toolPreferences: [],
-            workStyle: [],
-            lastSeenAt: nowIso(),
-            updatedAt: nowIso(),
-          };
+        : createEmptyProfile(userId);
 
     const next: UserProfileRecord = {
       ...base,
+      memoryMode: base.memoryMode ?? "hybrid",
       preferences: [...base.preferences],
       facts: [...base.facts],
       notes: [...base.notes],
       aliases: [...(base.aliases ?? [])],
       goals: [...(base.goals ?? [])],
+      projectContext: [...(base.projectContext ?? [])],
+      constraints: [...(base.constraints ?? [])],
+      explicitMemories: [...(base.explicitMemories ?? [])],
       toolPreferences: [...(base.toolPreferences ?? [])],
       workStyle: [...(base.workStyle ?? [])],
       lastSeenAt: nowIso(),
@@ -246,8 +423,50 @@ export class UserProfileService {
     return next;
   }
 
+  private updateAgent(
+    mutate: (agent: AgentIdentityRecord) => void,
+  ): AgentIdentityRecord {
+    const store = this.read();
+    const next: AgentIdentityRecord = {
+      ...store.agent,
+      notes: [...store.agent.notes],
+      goals: [...store.agent.goals],
+      strengths: [...store.agent.strengths],
+      workStyle: [...store.agent.workStyle],
+      updatedAt: nowIso(),
+    };
+    mutate(next);
+    store.agent = next;
+    this.write(store);
+    return next;
+  }
+
   private read(): UserProfileStore {
-    return JSON.parse(readFileSync(this.filePath, "utf8")) as UserProfileStore;
+    const parsed = JSON.parse(
+      readFileSync(this.filePath, "utf8"),
+    ) as Partial<UserProfileStore>;
+    return {
+      profiles: (parsed.profiles ?? []).map((profile) => ({
+        ...createEmptyProfile(profile.userId),
+        ...profile,
+        memoryMode: profile.memoryMode ?? "hybrid",
+        aliases: profile.aliases ?? [],
+        goals: profile.goals ?? [],
+        projectContext: profile.projectContext ?? [],
+        constraints: profile.constraints ?? [],
+        explicitMemories: profile.explicitMemories ?? [],
+        toolPreferences: profile.toolPreferences ?? [],
+        workStyle: profile.workStyle ?? [],
+      })),
+      agent: {
+        ...createDefaultAgentIdentity(),
+        ...(parsed.agent ?? {}),
+        notes: parsed.agent?.notes ?? [],
+        goals: parsed.agent?.goals ?? [],
+        strengths: parsed.agent?.strengths ?? [],
+        workStyle: parsed.agent?.workStyle ?? [],
+      },
+    };
   }
 
   private write(store: UserProfileStore): void {

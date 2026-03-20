@@ -14,6 +14,13 @@ export const featureMap: FeatureMapping[] = [
       "Preserves bounded memory snapshots and explicit user profile separation.",
   },
   {
+    platformCapability: "Cross-session user and agent profile memory",
+    elizaImplementation:
+      "User profile service with explicit memories, dual profile cards, and operator APIs",
+    notes:
+      "Tracks preferences, goals, project context, constraints, explicit memories, and a first-class Eliza Agent identity profile for cross-session operator continuity.",
+  },
+  {
     platformCapability: "Session search across prior conversations",
     elizaImplementation: "Custom SQLite session service + `/search` command",
     notes: "Implements searchable message history for cross-session recall.",

@@ -76,4 +76,56 @@ describe("UserProfileService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("supports explicit memories, mode switches, and agent profile cards", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-user-profile-cards-"));
+    const service = new UserProfileService(root);
+
+    try {
+      service.remember(
+        "user-3",
+        "context",
+        "We are shipping the gateway pass.",
+      );
+      service.remember(
+        "user-3",
+        "constraint",
+        "Do not mention legacy branding.",
+      );
+      service.remember("user-3", "memory", "Use Bun as the default toolchain.");
+      service.setMode("user-3", "local");
+      service.observeAgent(
+        "goal: keep Eliza Agent native and operator-friendly",
+        "cli",
+      );
+      service.observeAgent(
+        "strength: strong Bun and TypeScript execution flows",
+        "cli",
+      );
+
+      const profile = service.get("user-3");
+      const agent = service.getAgent();
+      const card = service.renderCards("user-3");
+
+      expect(profile.memoryMode).toBe("local");
+      expect(profile.projectContext).toContain(
+        "We are shipping the gateway pass.",
+      );
+      expect(profile.constraints).toContain("Do not mention legacy branding.");
+      expect(profile.explicitMemories).toContain(
+        "Use Bun as the default toolchain.",
+      );
+      expect(
+        agent.goals.some((entry) => entry.includes("Eliza Agent native")),
+      ).toBe(true);
+      expect(
+        agent.strengths.some((entry) => entry.includes("TypeScript execution")),
+      ).toBe(true);
+      expect(card).toContain("AGENT PROFILE");
+      expect(card).toContain("Explicit Memories");
+      expect(card).toContain("Project Context");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

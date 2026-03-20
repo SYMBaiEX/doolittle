@@ -326,15 +326,29 @@ export interface PersonalityProfile {
 export interface UserProfileRecord {
   userId: string;
   displayName?: string;
+  memoryMode?: "local" | "hybrid";
   preferences: string[];
   facts: string[];
   notes: string[];
   aliases?: string[];
   goals?: string[];
+  projectContext?: string[];
+  constraints?: string[];
+  explicitMemories?: string[];
   toolPreferences?: string[];
   workStyle?: string[];
   lastSource?: string;
   lastSeenAt: string;
+  updatedAt: string;
+}
+
+export interface AgentIdentityRecord {
+  name: string;
+  notes: string[];
+  goals: string[];
+  strengths: string[];
+  workStyle: string[];
+  lastSource?: string;
   updatedAt: string;
 }
 
