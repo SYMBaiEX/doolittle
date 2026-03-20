@@ -387,6 +387,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/browser/capture") {
+        const body = (await request.json()) as { url?: string };
+        if (!body.url) {
+          return json({ error: "url is required" }, 400);
+        }
+        return json({
+          capture: await context.services.web.capture(body.url),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/web/inspect") {
         const targetUrl = url.searchParams.get("url");
         if (!targetUrl) {

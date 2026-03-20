@@ -118,6 +118,14 @@ export class ToolsService {
       transport: "service",
     },
     {
+      id: "browser.capture",
+      name: "Browser Capture Bundle",
+      category: "documents",
+      description: "Create a reusable bundle with snapshot, screenshot, report, and manifest artifacts for a URL.",
+      enabled: true,
+      transport: "service",
+    },
+    {
       id: "media.inspect",
       name: "Media Inspect",
       category: "documents",

@@ -53,6 +53,16 @@ interface BrowserInspection {
   status: BrowserStatus;
 }
 
+interface BrowserCaptureBundle {
+  page: WebPageSnapshot;
+  snapshotPath: string;
+  screenshotPath: string;
+  screenshotSvgPath: string;
+  manifestPath: string;
+  reportPath: string;
+  status: BrowserStatus;
+}
+
 async function runCommand(
   cmd: string[],
   timeoutMs: number,
@@ -262,6 +272,16 @@ function writeArtifact(
   return { markdownPath: filePath, jsonPath: metadataPath, svgPath };
 }
 
+function slugifyUrl(url: string): string {
+  return url
+    .replace(/^https?:\/\//u, "")
+    .replace(/^data:/u, "data-")
+    .replace(/[^a-z0-9]+/giu, "-")
+    .replace(/^-+|-+$/gu, "")
+    .slice(0, 72)
+    .toLowerCase() || "capture";
+}
+
 export class WebService {
   private lastFetchedAt?: string;
   private lastSnapshotAt?: string;
@@ -418,6 +438,62 @@ export class WebService {
       screenshotPath: screenshotArtifact.markdownPath,
       screenshotSvgPath: screenshotArtifact.svgPath ?? screenshotArtifact.markdownPath.replace(/\.md$/u, ".svg"),
       status: await this.status(),
+    };
+  }
+
+  async capture(url: string): Promise<BrowserCaptureBundle> {
+    const inspection = await this.inspect(url);
+    const stamp = Date.now();
+    const slug = slugifyUrl(url);
+    const manifestPath = join(this.outputDir, `capture-${stamp}-${slug}.json`);
+    const reportPath = join(this.outputDir, `capture-${stamp}-${slug}.md`);
+
+    const manifest = {
+      url,
+      createdAt: new Date().toISOString(),
+      page: inspection.page,
+      artifacts: {
+        snapshotPath: inspection.snapshotPath,
+        screenshotPath: inspection.screenshotPath,
+        screenshotSvgPath: inspection.screenshotSvgPath,
+      },
+      status: inspection.status,
+    };
+
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+    writeFileSync(
+      reportPath,
+      [
+        `# Browser Capture Bundle`,
+        "",
+        `URL: ${inspection.page.url}`,
+        `Title: ${inspection.page.title ?? "n/a"}`,
+        `Provider: ${inspection.page.provider}`,
+        `Mode: ${inspection.page.mode}`,
+        `Rendered at: ${inspection.page.renderedAt}`,
+        `Words: ${inspection.page.wordCount}`,
+        `Lines: ${inspection.page.lineCount}`,
+        `Links: ${inspection.page.linkCount}`,
+        `Images: ${inspection.page.imageCount}`,
+        `Headings: ${inspection.page.headingCount}`,
+        `Hash: ${inspection.page.contentHash}`,
+        "",
+        "## Artifacts",
+        `- Snapshot: ${inspection.snapshotPath}`,
+        `- Screenshot: ${inspection.screenshotPath}`,
+        `- Screenshot SVG: ${inspection.screenshotSvgPath}`,
+        `- Manifest: ${manifestPath}`,
+        "",
+        "## Preview",
+        (inspection.page.metaDescription ?? inspection.page.text.slice(0, 1200)) || "(empty)",
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      ...inspection,
+      manifestPath,
+      reportPath,
     };
   }
 

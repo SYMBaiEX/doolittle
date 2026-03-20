@@ -990,6 +990,11 @@ async function buildCommandResponse(
     return await context.services.web.screenshot(url);
   }
 
+  if (trimmed.startsWith("/browser capture ")) {
+    const url = trimmed.replace("/browser capture ", "").trim();
+    return JSON.stringify(await context.services.web.capture(url), null, 2);
+  }
+
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
     return await context.services.web.snapshot(url);

@@ -136,4 +136,30 @@ describe("WebService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("creates a reusable browser capture bundle with manifest and report", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-capture-"));
+    const service = new WebService(
+      () => ({
+        provider: "basic",
+        command: "lightpanda",
+        obeyRobots: true,
+      }),
+      root,
+    );
+
+    try {
+      const capture = await service.capture(
+        "data:text/html,<html><head><title>Capture</title><meta name='description' content='Capture summary'></head><body><h1>Alpha</h1><p>Beta</p><img src='hero.png'></body></html>",
+      );
+      expect(capture.page.title).toBe("Capture");
+      expect(existsSync(capture.manifestPath)).toBe(true);
+      expect(existsSync(capture.reportPath)).toBe(true);
+      expect(readFileSync(capture.reportPath, "utf8")).toContain("Browser Capture Bundle");
+      expect(readFileSync(capture.manifestPath, "utf8")).toContain("\"snapshotPath\"");
+      expect(readFileSync(capture.manifestPath, "utf8")).toContain("\"screenshotSvgPath\"");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

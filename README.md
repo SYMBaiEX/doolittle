@@ -280,6 +280,7 @@ Useful commands:
 - `/browser inspect https://example.com`
 - `/browser snapshot https://example.com`
 - `/browser screenshot https://example.com`
+- `/browser capture https://example.com`
 - `/media transcript ./recordings/daily-sync.wav`
 - `/media caption ./artifacts/screenshot.png`
 - `/mcp status`
@@ -349,6 +350,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /browser/status`
 - `GET /browser/inspect`
 - `POST /browser/screenshot`
+- `POST /browser/capture`
 - `GET /mcp/status`
 - `GET /mcp/tools`
 - `GET /mcp/cached`
