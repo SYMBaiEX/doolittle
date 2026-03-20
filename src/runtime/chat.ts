@@ -662,6 +662,14 @@ async function buildCommandResponse(
     return context.services.userProfiles.render(input.userId);
   }
 
+  if (trimmed === "/user card" || trimmed === "/profiles card") {
+    return context.services.userProfiles.renderCards(input.userId);
+  }
+
+  if (trimmed === "/agent profile") {
+    return context.services.userProfiles.renderAgent();
+  }
+
   if (trimmed === "/user list") {
     const profiles = context.services.userProfiles.list().slice(0, 20);
     return profiles.length
@@ -681,6 +689,70 @@ async function buildCommandResponse(
     }
     return JSON.stringify(
       context.services.userProfiles.addNote(input.userId, note, input.source),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/user mode ")) {
+    const mode = trimmed.replace("/user mode ", "").trim();
+    if (mode !== "local" && mode !== "hybrid") {
+      return "Usage: /user mode <local|hybrid>";
+    }
+    return JSON.stringify(
+      context.services.userProfiles.setMode(input.userId, mode),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/user remember ")) {
+    const payload = trimmed.replace("/user remember ", "");
+    const [kindRaw, ...valueParts] = payload.split("::");
+    const kind = kindRaw?.trim();
+    const value = valueParts.join("::").trim();
+    if (!kind || !value) {
+      return "Usage: /user remember <preference|fact|goal|context|constraint|note|memory> :: <text>";
+    }
+    if (
+      ![
+        "preference",
+        "fact",
+        "goal",
+        "context",
+        "constraint",
+        "note",
+        "memory",
+      ].includes(kind)
+    ) {
+      return "Usage: /user remember <preference|fact|goal|context|constraint|note|memory> :: <text>";
+    }
+    return JSON.stringify(
+      context.services.userProfiles.remember(
+        input.userId,
+        kind as
+          | "preference"
+          | "fact"
+          | "goal"
+          | "context"
+          | "constraint"
+          | "note"
+          | "memory",
+        value,
+        input.source,
+      ),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/agent observe ")) {
+    const note = trimmed.replace("/agent observe ", "").trim();
+    if (!note) {
+      return "Usage: /agent observe <text>";
+    }
+    return JSON.stringify(
+      context.services.userProfiles.observeAgent(note, input.source),
       null,
       2,
     );

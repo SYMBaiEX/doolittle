@@ -1067,6 +1067,23 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/profiles/users/card") {
+        const userId = url.searchParams.get("userId");
+        if (!userId) {
+          return json({ error: "userId is required" }, 400);
+        }
+        return json({
+          card: context.services.userProfiles.renderCards(userId),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/profiles/agent") {
+        return json({
+          profile: context.services.userProfiles.getAgent(),
+          card: context.services.userProfiles.renderAgent(),
+        });
+      }
+
       if (
         request.method === "POST" &&
         url.pathname === "/profiles/users/note"
@@ -1082,6 +1099,74 @@ export function startApiServer(context: AppContext): void {
         return json({
           profile: context.services.userProfiles.addNote(
             body.userId,
+            body.note,
+            body.source,
+          ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/profiles/users/remember"
+      ) {
+        const body = (await request.json()) as {
+          userId?: string;
+          kind?:
+            | "preference"
+            | "fact"
+            | "goal"
+            | "context"
+            | "constraint"
+            | "note"
+            | "memory";
+          value?: string;
+          source?: string;
+        };
+        if (!body.userId || !body.kind || !body.value) {
+          return json({ error: "userId, kind, and value are required" }, 400);
+        }
+        return json({
+          profile: context.services.userProfiles.remember(
+            body.userId,
+            body.kind,
+            body.value,
+            body.source,
+          ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/profiles/users/mode"
+      ) {
+        const body = (await request.json()) as {
+          userId?: string;
+          mode?: "local" | "hybrid";
+        };
+        if (!body.userId || (body.mode !== "local" && body.mode !== "hybrid")) {
+          return json({ error: "userId and mode are required" }, 400);
+        }
+        return json({
+          profile: context.services.userProfiles.setMode(
+            body.userId,
+            body.mode,
+          ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/profiles/agent/observe"
+      ) {
+        const body = (await request.json()) as {
+          note?: string;
+          source?: string;
+        };
+        if (!body.note) {
+          return json({ error: "note is required" }, 400);
+        }
+        return json({
+          profile: context.services.userProfiles.observeAgent(
             body.note,
             body.source,
           ),

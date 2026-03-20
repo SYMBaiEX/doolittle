@@ -278,6 +278,11 @@ Useful commands:
 - `/sessions list`
 - `/session summary`
 - `/search <query>`
+- `/user profile`
+- `/user card`
+- `/user mode hybrid`
+- `/user remember context :: we are shipping the final parity pass`
+- `/agent profile`
 - `/cron list`
 - `/cron create every 2h | name:deploy-review | skills:automation/reports | personality:focused | model:gpt-4.1-mini :: summarize recent deployment logs`
 - `/cron show <job-id>`
@@ -407,6 +412,9 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /memory?target=memory|user`
 - `GET /sessions`
 - `GET /sessions/summary`
+- `GET /profiles/users`
+- `GET /profiles/users/card?userId=user-123`
+- `GET /profiles/agent`
 - `GET /skills`
 - `GET /skills/generated`
 - `GET /tools`
@@ -436,6 +444,10 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /migrate/sources`
 - `GET /migrate/inspect?path=/path/to/source`
 - `POST /migrate/apply`
+- `POST /profiles/users/note`
+- `POST /profiles/users/remember`
+- `POST /profiles/users/mode`
+- `POST /profiles/agent/observe`
 - `GET /workspace/tree`
 - `GET /workspace/read`
 - `GET /workspace/search`
