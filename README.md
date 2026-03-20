@@ -249,7 +249,9 @@ Useful commands:
 - `/session summary`
 - `/search <query>`
 - `/cron list`
-- `/cron create every 2h :: summarize recent deployment logs`
+- `/cron create every 2h | name:deploy-review | skills:automation/reports | personality:focused | model:gpt-4.1-mini :: summarize recent deployment logs`
+- `/cron show <job-id>`
+- `/cron update <job-id> every 4h | delivery:local | runtime:default :: refresh release notes`
 - `/cron runs`
 - `/personality list`
 - `/personality set autonomous`
@@ -376,6 +378,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /settings`
 - `GET /cron/jobs`
 - `GET /cron/runs`
+- `POST /cron/jobs`
+- `PATCH /cron/jobs/:id`
 - `POST /skills/synthesize`
 - `GET /trajectories/bundles`
 - `POST /trajectories/export`

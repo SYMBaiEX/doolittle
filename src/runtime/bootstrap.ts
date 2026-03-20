@@ -80,6 +80,34 @@ function buildRuntimePlugins(services: AppServices, config: EnvConfig) {
   return plugins;
 }
 
+function buildCronPrompt(services: AppServices, prompt: string, skillSlugs: string[]): string {
+  if (!skillSlugs.length) {
+    return prompt;
+  }
+
+  const loadedSkills = skillSlugs
+    .map((slug) => services.skills.get(slug))
+    .filter((skill): skill is NonNullable<typeof skill> => Boolean(skill));
+
+  if (!loadedSkills.length) {
+    return prompt;
+  }
+
+  const skillContext = loadedSkills
+    .map(
+      (skill) =>
+        `## Skill: ${skill.title}\nslug=${skill.slug}\npath=${skill.path}\n\n${skill.content.trim()}`,
+    )
+    .join("\n\n");
+
+  return [
+    "Use the following installed Eliza Agent skills as execution guidance when relevant.",
+    skillContext,
+    "Task:",
+    prompt,
+  ].join("\n\n");
+}
+
 export async function getAppContext(): Promise<AppContext> {
   if (contextPromise) {
     return contextPromise;
@@ -106,7 +134,7 @@ export async function getAppContext(): Promise<AppContext> {
       const { handleAgentTurn } = await import("@/runtime/chat");
       return handleAgentTurn(
         {
-          message: job.prompt,
+          message: buildCronPrompt(services, job.prompt, job.skills),
           userId: "cron",
           roomId: `cron:${job.id}`,
           source: "cron",
@@ -115,6 +143,10 @@ export async function getAppContext(): Promise<AppContext> {
           config,
           services,
           runtime,
+        },
+        {
+          runtimeOverrides: job.runtime,
+          personalityId: job.runtime?.personalityId,
         },
       );
     });

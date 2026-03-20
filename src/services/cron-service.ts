@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { AutomationRunRecord, CronJobRecord } from "@/types";
+import type {
+  AutomationRunRecord,
+  CronJobRecord,
+  CronJobRuntimeOverrides,
+} from "@/types";
 
 type CronExecutor = (job: CronJobRecord) => Promise<string>;
 
@@ -68,6 +72,7 @@ export class CronService {
     schedule: string;
     skills?: string[];
     delivery?: "origin" | "local";
+    runtime?: CronJobRuntimeOverrides;
   }): CronJobRecord {
     const jobs = this.readJobs();
     const now = new Date();
@@ -79,6 +84,7 @@ export class CronService {
       schedule: input.schedule,
       delivery: input.delivery ?? "local",
       skills: input.skills ?? [],
+      runtime: this.normalizeRuntime(input.runtime),
       status: "active",
       oneShot: !input.schedule.trim().startsWith("every "),
       nextRunAt: firstRun?.toISOString(),
@@ -116,6 +122,51 @@ export class CronService {
   remove(id: string): void {
     const nextJobs = this.readJobs().filter((job) => job.id !== id);
     this.writeJobs(nextJobs);
+  }
+
+  get(id: string): CronJobRecord | undefined {
+    return this.readJobs().find((job) => job.id === id);
+  }
+
+  updateConfig(
+    id: string,
+    input: {
+      name?: string;
+      prompt?: string;
+      schedule?: string;
+      skills?: string[];
+      delivery?: "origin" | "local";
+      runtime?: CronJobRuntimeOverrides;
+      clearRuntime?: boolean;
+    },
+  ): CronJobRecord {
+    return this.update(id, (job) => {
+      if (input.name !== undefined) {
+        job.name = input.name;
+      }
+      if (input.prompt !== undefined) {
+        job.prompt = input.prompt;
+      }
+      if (input.schedule !== undefined) {
+        job.schedule = input.schedule;
+        job.oneShot = !input.schedule.trim().startsWith("every ");
+        if (job.status === "active") {
+          job.nextRunAt = this.computeNextRun(job.schedule, new Date())?.toISOString();
+        }
+      }
+      if (input.skills !== undefined) {
+        job.skills = input.skills;
+      }
+      if (input.delivery !== undefined) {
+        job.delivery = input.delivery;
+      }
+      if (input.clearRuntime) {
+        job.runtime = undefined;
+      } else if (input.runtime !== undefined) {
+        job.runtime = this.normalizeRuntime(input.runtime);
+      }
+      job.updatedAt = new Date().toISOString();
+    });
   }
 
   async tick(): Promise<void> {
@@ -217,6 +268,36 @@ export class CronService {
       return;
     }
     this.writeRuns(runs);
+  }
+
+  private normalizeRuntime(
+    runtime?: CronJobRuntimeOverrides,
+  ): CronJobRuntimeOverrides | undefined {
+    if (!runtime) {
+      return undefined;
+    }
+
+    const normalized: CronJobRuntimeOverrides = {};
+    if (runtime.provider?.trim()) {
+      normalized.provider = runtime.provider.trim();
+    }
+    if (runtime.model?.trim()) {
+      normalized.model = runtime.model.trim();
+    }
+    if (runtime.baseUrl?.trim()) {
+      normalized.baseUrl = runtime.baseUrl.trim();
+    }
+    if (typeof runtime.temperature === "number" && !Number.isNaN(runtime.temperature)) {
+      normalized.temperature = runtime.temperature;
+    }
+    if (typeof runtime.maxTokens === "number" && Number.isFinite(runtime.maxTokens)) {
+      normalized.maxTokens = Math.max(1, Math.trunc(runtime.maxTokens));
+    }
+    if (runtime.personalityId?.trim()) {
+      normalized.personalityId = runtime.personalityId.trim();
+    }
+
+    return Object.keys(normalized).length ? normalized : undefined;
   }
 
   private computeNextRun(schedule: string, from: Date): Date | undefined {

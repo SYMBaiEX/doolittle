@@ -687,6 +687,72 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/cron/jobs") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          name?: string;
+          prompt?: string;
+          schedule?: string;
+          skills?: string[];
+          delivery?: "origin" | "local";
+          runtime?: {
+            provider?: string;
+            model?: string;
+            baseUrl?: string;
+            temperature?: number;
+            maxTokens?: number;
+            personalityId?: string;
+          };
+        };
+        if (!body.schedule || !body.prompt) {
+          return json({ error: "schedule and prompt are required" }, 400);
+        }
+        return json({
+          job: context.services.cron.create({
+            name: body.name ?? `job-${Date.now()}`,
+            schedule: body.schedule,
+            prompt: body.prompt,
+            skills: body.skills ?? [],
+            delivery: body.delivery ?? "local",
+            runtime: body.runtime,
+          }),
+        });
+      }
+
+      if (request.method === "PATCH" && url.pathname.startsWith("/cron/jobs/")) {
+        const id = url.pathname.replace("/cron/jobs/", "").trim();
+        if (!id) {
+          return json({ error: "cron job id is required" }, 400);
+        }
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          name?: string;
+          prompt?: string;
+          schedule?: string;
+          skills?: string[];
+          delivery?: "origin" | "local";
+          clearRuntime?: boolean;
+          runtime?: {
+            provider?: string;
+            model?: string;
+            baseUrl?: string;
+            temperature?: number;
+            maxTokens?: number;
+            personalityId?: string;
+          };
+        };
+
+        return json({
+          job: context.services.cron.updateConfig(id, {
+            name: body.name,
+            prompt: body.prompt,
+            schedule: body.schedule,
+            skills: body.skills,
+            delivery: body.delivery,
+            clearRuntime: body.clearRuntime,
+            runtime: body.runtime,
+          }),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/skills/synthesize") {
         const body = (await request.json()) as { taskId?: string };
         if (!body.taskId) {
