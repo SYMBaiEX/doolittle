@@ -33,6 +33,27 @@ export class DiagnosticsService {
     });
 
     checks.push({
+      id: "data.exists",
+      status: existsSync(this.config.dataDir) ? "pass" : "fail",
+      summary: "Agent data directory",
+      detail: this.config.dataDir,
+    });
+
+    checks.push({
+      id: "cron.output",
+      status: existsSync(this.config.cronOutputDir) ? "pass" : "warn",
+      summary: "Automation artifact directory",
+      detail: this.config.cronOutputDir,
+    });
+
+    checks.push({
+      id: "gateway.data",
+      status: existsSync(this.config.gatewayDataDir) ? "pass" : "warn",
+      summary: "Gateway state directory",
+      detail: this.config.gatewayDataDir,
+    });
+
+    checks.push({
       id: "provider.configured",
       status:
         this.config.openAiApiKey || this.config.anthropicApiKey ? "pass" : "warn",
@@ -172,7 +193,7 @@ export class DiagnosticsService {
       id: "execution.backends",
       status: "pass",
       summary: "Execution backend model",
-      detail: "Execution layer supports local, Docker, and SSH backends with readiness reporting.",
+      detail: `Execution layer supports ${this.config.executionBackend} as the active backend with timeout=${this.config.executionCommandTimeoutMs}ms and health timeout=${this.config.executionHealthTimeoutMs}ms.`,
     });
 
     checks.push({
@@ -186,6 +207,15 @@ export class DiagnosticsService {
         this.config.browserProvider === "lightpanda"
           ? `Lightpanda is configured as the default browser backend via ${this.config.browserCommand}.`
           : "Basic HTTP fetch mode is configured as the browser fallback.",
+    });
+
+    checks.push({
+      id: "mcp.bridge",
+      status: this.config.mcpServerCommand ? "pass" : "warn",
+      summary: "MCP bridge configuration",
+      detail: this.config.mcpServerCommand
+        ? `MCP bridge command configured: ${this.config.mcpServerCommand}`
+        : "MCP_SERVER_COMMAND is not configured.",
     });
 
     return checks;
@@ -223,6 +253,16 @@ export class DiagnosticsService {
     if (this.config.browserProvider === "lightpanda") {
       steps.push(
         "Install Lightpanda or set ELIZA_AGENT_BROWSER_PROVIDER=basic if you want browser tasks to fall back to plain HTTP fetch mode.",
+      );
+    }
+    if (!this.config.mcpServerCommand) {
+      steps.push(
+        "Set MCP_SERVER_COMMAND if you want MCP-backed tool discovery and invocation.",
+      );
+    }
+    if (this.config.executionBackend !== "local") {
+      steps.push(
+        `Validate ${this.config.executionBackend} runtime access and run /execution status before relying on remote or containerized execution.`,
       );
     }
 
