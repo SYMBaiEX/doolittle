@@ -42,6 +42,7 @@ describe("TrajectoryService", () => {
 
       const jsonl = readFileSync(bundle.dataPath, "utf8").trim().split("\n");
       const manifest = JSON.parse(readFileSync(bundle.manifestPath, "utf8")) as {
+        manifestPath: string;
         messageCount: number;
         sessionCount: number;
         filters: { sessionId: string | null };
@@ -57,8 +58,13 @@ describe("TrajectoryService", () => {
       expect(manifest.filters.sessionId).toBe("session-a");
       expect(manifest.roleCounts.user).toBe(1);
       expect(manifest.roleCounts.assistant).toBe(1);
+      expect(manifest.manifestPath).toBe(bundle.manifestPath);
       expect(summary).toContain("Trajectory Bundle: replay-fixture");
       expect(summary).toContain("session-a");
+
+      const bundles = service.listBundles();
+      expect(bundles).toHaveLength(1);
+      expect(bundles[0]?.dataPath).toBe(bundle.dataPath);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

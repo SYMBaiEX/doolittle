@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SessionService } from "./session-service";
 
@@ -17,6 +17,23 @@ interface TrajectoryRecord {
   createdAt: string;
   role: "user" | "assistant" | "system";
   text: string;
+}
+
+interface TrajectoryBundleEntry {
+  manifestPath: string;
+  dataPath: string;
+  summaryPath?: string;
+  createdAt: string;
+  label: string;
+  limit: number;
+  filters?: {
+    sessionId?: string | null;
+    role?: "user" | "assistant" | "system" | null;
+  };
+  messageCount: number;
+  sessionCount: number;
+  sessions: string[];
+  roleCounts: Record<string, number>;
 }
 
 export class TrajectoryService {
@@ -69,6 +86,7 @@ export class TrajectoryService {
           createdAt: new Date().toISOString(),
           label,
           limit: options.limit ?? 100,
+          manifestPath,
           filters: {
             sessionId: options.sessionId ?? null,
             role: options.role ?? null,
@@ -106,6 +124,15 @@ export class TrajectoryService {
     );
 
     return { dataPath, manifestPath, summaryPath };
+  }
+
+  listBundles(limit = 20): TrajectoryBundleEntry[] {
+    return readdirSync(this.baseDir)
+      .filter((file) => file.endsWith("-manifest.json"))
+      .map((file) => join(this.baseDir, file))
+      .map((manifestPath) => JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
   }
 
   private collect(options: TrajectoryExportOptions): TrajectoryRecord[] {
