@@ -14,13 +14,15 @@
     "types": ["bun-types"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["packages/agent/src/*"],
+      "@plugins/*": ["packages/plugins/*"],
+      "@characters/*": ["packages/characters/*"]
     }
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts",
-    "characters/**/*.json",
+    "packages/agent/src/**/*.ts",
+    "packages/agent/src/**/*.d.ts",
+    "packages/characters/**/*.json",
     "packages/**/*.ts"
   ]
 }

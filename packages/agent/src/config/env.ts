@@ -12,7 +12,7 @@ const schema = z.object({
   ELIZA_AGENT_HOST: z.string().default("0.0.0.0"),
   ELIZA_AGENT_PORT: z.coerce.number().int().positive().default(3000),
   ELIZA_AGENT_DATA_DIR: z.string().default(".eliza-agent"),
-  ELIZA_AGENT_SKILLS_DIR: z.string().default("./skills"),
+  ELIZA_AGENT_SKILLS_DIR: z.string().default("./packages/skills"),
   ELIZA_AGENT_TIMEZONE: z.string().default("America/Chicago"),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_BASE_URL: z.string().default("https://api.openai.com/v1"),

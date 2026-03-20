@@ -5,7 +5,7 @@ export const featureMap: FeatureMapping[] = [
     platformCapability: "Persona and system behavior",
     elizaImplementation: "ElizaOS character definition",
     notes:
-      "Mapped into a dedicated `character.json` plus `src/character.ts` bootstrap.",
+      "Mapped into a dedicated `character.json` plus `packages/agent/src/character.ts` bootstrap.",
   },
   {
     platformCapability: "Persistent MEMORY.md and USER.md stores",

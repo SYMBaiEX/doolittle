@@ -1,0 +1,7 @@
+{
+  "name": "@eliza-agent/skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Eliza Agent skills workspace.",
+  "type": "module"
+}

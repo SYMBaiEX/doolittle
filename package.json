@@ -6,19 +6,23 @@
   "packageManager": "bun@1.3.11",
   "description": "Monorepo for the Bun-first ElizaOS-native Eliza Agent platform and vendored official workspace packages.",
   "workspaces": [
+    "packages/agent",
+    "packages/plugins",
+    "packages/skills",
+    "packages/characters",
     "packages/elizaos-official/*"
   ],
   "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "start": "bun run src/index.ts",
-    "build": "bun build ./src/index.ts --target bun --outdir dist --external sharp",
+    "dev": "bun --watch packages/agent/src/index.ts",
+    "start": "bun run packages/agent/src/index.ts",
+    "build": "bun build ./packages/agent/src/index.ts --target bun --outdir dist --external sharp",
     "lint": "bunx @biomejs/biome check --write .",
     "lint:check": "bunx @biomejs/biome check .",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "check": "bun run lint:check && bun run typecheck && bun test && bun run build",
-    "workspace:list": "find packages/elizaos-official -maxdepth 1 -mindepth 1 -type d | sort",
-    "workspace:plugins": "bun run src/index.ts --help"
+    "workspace:list": "find packages -maxdepth 2 -mindepth 1 -type f -name package.json | sort",
+    "workspace:plugins": "bun run packages/agent/src/index.ts --help"
   },
   "dependencies": {
     "@elizaos/autonomous": "latest",
