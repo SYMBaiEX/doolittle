@@ -7,6 +7,15 @@ import { DiagnosticsService } from "@/services/diagnostics-service";
 import type { GatewayConfig, IncomingPlatformMessage, PlatformName } from "@/types";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+type GatewayTraceKind =
+  | "receive"
+  | "authorize"
+  | "session"
+  | "respond"
+  | "deliver"
+  | "reject"
+  | "lifecycle";
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,
@@ -54,6 +63,48 @@ async function parseJsonBody<T>(request: Request): Promise<{ ok: true; value: T 
       response: json({ error: "Invalid JSON body." }, 400),
     };
   }
+}
+
+function parseGatewayFilters(url: URL): {
+  limit: number;
+  platform?: PlatformName;
+  sessionId?: string;
+  kind?: GatewayTraceKind;
+} {
+  const rawLimit = Number(url.searchParams.get("limit") ?? "25");
+  const platform = url.searchParams.get("platform") ?? undefined;
+  const sessionId = url.searchParams.get("sessionId") ?? url.searchParams.get("session") ?? undefined;
+  const kind = url.searchParams.get("kind") ?? undefined;
+  return {
+    limit: Number.isNaN(rawLimit) || rawLimit <= 0 ? 25 : rawLimit,
+    platform:
+      platform && [
+        "telegram",
+        "discord",
+        "slack",
+        "whatsapp",
+        "signal",
+        "matrix",
+        "email",
+        "sms",
+        "api",
+      ].includes(platform)
+        ? (platform as PlatformName)
+        : undefined,
+    sessionId,
+    kind:
+      kind && [
+        "receive",
+        "authorize",
+        "session",
+        "respond",
+        "deliver",
+        "reject",
+        "lifecycle",
+      ].includes(kind)
+        ? (kind as GatewayTraceKind)
+        : undefined,
+  };
 }
 
 export function startApiServer(context: AppContext): void {
@@ -794,40 +845,44 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/gateway/health") {
         const readiness = await context.gateway.health();
+        const history = await context.gateway.history(25);
         return json({
           health: readiness,
           readiness,
-          traces: context.gateway.trace(25),
-          deliveries: context.services.delivery.recent(25),
+          state: history.state,
+          traces: history.traces,
+          deliveries: history.deliveries,
           sessions: context.services.gatewaySessions.list(),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/trace") {
-        const limit = Number(url.searchParams.get("limit") ?? "25");
+        const filters = parseGatewayFilters(url);
+        const history = await context.gateway.history(filters.limit, filters);
         return json({
-          traces: context.gateway.trace(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
+          traces: history.traces,
+          state: history.state,
         });
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/deliveries") {
-        const limit = Number(url.searchParams.get("limit") ?? "25");
+        const filters = parseGatewayFilters(url);
+        const history = await context.gateway.history(filters.limit, filters);
         return json({
-          deliveries: context.services.delivery.recent(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
+          deliveries: history.deliveries,
+          state: history.state,
         });
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/history") {
-        const limit = Number(url.searchParams.get("limit") ?? "25");
-        return json({
-          history: await context.gateway.history(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
-        });
+        const filters = parseGatewayFilters(url);
+        return json({ history: await context.gateway.history(filters.limit, filters) });
       }
 
-      if (request.method === "GET" && url.pathname === "/gateway/trace") {
-        const limit = Number(url.searchParams.get("limit") ?? "25");
+      if (request.method === "GET" && url.pathname === "/gateway/state") {
+        const filters = parseGatewayFilters(url);
         return json({
-          traces: context.gateway.trace(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
+          state: await context.gateway.state(filters.limit, filters),
         });
       }
 

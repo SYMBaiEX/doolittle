@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AppContext } from "./bootstrap";
-import type { ChatTurnRequest, MemoryTarget } from "@/types";
+import type { ChatTurnRequest, MemoryTarget, PlatformName } from "@/types";
 
 export type AgentExecutionContext = Pick<AppContext, "config" | "services" | "runtime"> & {
   gateway?: AppContext["gateway"];
@@ -43,6 +43,83 @@ function parseTrajectoryArgs(raw: string): {
       }
     }
   }
+  return options;
+}
+
+type GatewayTraceKind =
+  | "receive"
+  | "authorize"
+  | "session"
+  | "respond"
+  | "deliver"
+  | "reject"
+  | "lifecycle";
+
+function parseGatewayFilters(raw: string): {
+  limit?: number;
+  platform?: PlatformName;
+  sessionId?: string;
+  kind?: GatewayTraceKind;
+} {
+  const options: {
+    limit?: number;
+    platform?: PlatformName;
+    sessionId?: string;
+    kind?: GatewayTraceKind;
+  } = {};
+
+  for (const token of raw.split(/\s+/u).filter(Boolean)) {
+    if (token.startsWith("limit:")) {
+      const limit = Number(token.replace("limit:", "").trim());
+      if (!Number.isNaN(limit) && limit > 0) {
+        options.limit = limit;
+      }
+      continue;
+    }
+
+    if (token.startsWith("platform:")) {
+      const platform = token.replace("platform:", "").trim();
+      if (
+        [
+          "telegram",
+          "discord",
+          "slack",
+          "whatsapp",
+          "signal",
+          "matrix",
+          "email",
+          "sms",
+          "api",
+        ].includes(platform)
+      ) {
+        options.platform = platform as PlatformName;
+      }
+      continue;
+    }
+
+    if (token.startsWith("session:") || token.startsWith("sessionId:")) {
+      options.sessionId = token.replace(/^session(Id)?:/, "").trim();
+      continue;
+    }
+
+    if (token.startsWith("kind:")) {
+      const kind = token.replace("kind:", "").trim();
+      if (
+        [
+          "receive",
+          "authorize",
+          "session",
+          "respond",
+          "deliver",
+          "reject",
+          "lifecycle",
+        ].includes(kind)
+      ) {
+        options.kind = kind as GatewayTraceKind;
+      }
+    }
+  }
+
   return options;
 }
 
@@ -425,15 +502,20 @@ async function buildCommandResponse(
       .join("\n");
   }
 
+  if (trimmed === "/gateway state" || trimmed.startsWith("/gateway state ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const filters = parseGatewayFilters(trimmed.replace("/gateway state", "").trim());
+    return JSON.stringify(await context.gateway.state(filters.limit ?? 20, filters), null, 2);
+  }
+
   if (trimmed === "/gateway trace" || trimmed.startsWith("/gateway trace ")) {
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const raw = trimmed.replace("/gateway trace", "").trim();
-    const limit = raw ? Number(raw) : undefined;
-    const traces = context.gateway.trace(
-      Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20,
-    );
+    const filters = parseGatewayFilters(trimmed.replace("/gateway trace", "").trim());
+    const traces = context.gateway.trace(filters.limit ?? 20, filters);
     return traces.length
       ? traces
           .map(
@@ -448,11 +530,9 @@ async function buildCommandResponse(
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const raw = trimmed.replace("/gateway deliveries", "").trim();
-    const limit = raw ? Number(raw) : undefined;
-    const deliveries = context.services.delivery.recent(
-      Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20,
-    );
+    const filters = parseGatewayFilters(trimmed.replace("/gateway deliveries", "").trim());
+    const history = await context.gateway.history(filters.limit ?? 20, filters);
+    const deliveries = history.deliveries;
     return deliveries.length
       ? deliveries
           .map(
@@ -467,11 +547,8 @@ async function buildCommandResponse(
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    const raw = trimmed.replace("/gateway history", "").trim();
-    const limit = raw ? Number(raw) : undefined;
-    const history = await context.gateway.history(
-      Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20,
-    );
+    const filters = parseGatewayFilters(trimmed.replace("/gateway history", "").trim());
+    const history = await context.gateway.history(filters.limit ?? 20, filters);
     return JSON.stringify(history, null, 2);
   }
 
