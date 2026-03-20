@@ -161,6 +161,64 @@ export class DiagnosticsService {
     });
 
     checks.push({
+      id: "signal.readiness",
+      status:
+        this.gatewayConfig.platforms.signal.enabled && !this.config.signalCliCommand
+          ? "fail"
+          : this.config.signalCliCommand
+            ? "pass"
+            : "warn",
+      summary: "Signal transport readiness",
+      detail: this.config.signalCliCommand
+        ? "Signal CLI command configured."
+        : "SIGNAL_CLI_COMMAND is not configured.",
+    });
+
+    checks.push({
+      id: "matrix.readiness",
+      status:
+        this.gatewayConfig.platforms.matrix.enabled &&
+        !(this.config.matrixHomeserver && this.config.matrixAccessToken)
+          ? "fail"
+          : this.config.matrixHomeserver && this.config.matrixAccessToken
+            ? "pass"
+            : "warn",
+      summary: "Matrix transport readiness",
+      detail:
+        this.config.matrixHomeserver && this.config.matrixAccessToken
+          ? "Matrix homeserver and access token configured."
+          : "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN should both be configured.",
+    });
+
+    checks.push({
+      id: "email.readiness",
+      status:
+        this.gatewayConfig.platforms.email.enabled && !this.config.emailSendCommand
+          ? "fail"
+          : this.config.emailSendCommand
+            ? "pass"
+            : "warn",
+      summary: "Email transport readiness",
+      detail: this.config.emailSendCommand
+        ? "Email send command configured."
+        : "EMAIL_SEND_COMMAND is not configured.",
+    });
+
+    checks.push({
+      id: "sms.readiness",
+      status:
+        this.gatewayConfig.platforms.sms.enabled && !this.config.smsSendCommand
+          ? "fail"
+          : this.config.smsSendCommand
+            ? "pass"
+            : "warn",
+      summary: "SMS transport readiness",
+      detail: this.config.smsSendCommand
+        ? "SMS send command configured."
+        : "SMS_SEND_COMMAND is not configured.",
+    });
+
+    checks.push({
       id: "repository.available",
       status: input.repositoryAvailable ? "pass" : "warn",
       summary: "Repository inspection",
@@ -250,6 +308,18 @@ export class DiagnosticsService {
         "Set WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN before enabling the WhatsApp gateway path.",
       );
     }
+    if (!this.config.signalCliCommand) {
+      steps.push("Set SIGNAL_CLI_COMMAND before enabling the Signal gateway path.");
+    }
+    if (!this.config.matrixHomeserver || !this.config.matrixAccessToken) {
+      steps.push("Set MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN before enabling the Matrix gateway path.");
+    }
+    if (!this.config.emailSendCommand) {
+      steps.push("Set EMAIL_SEND_COMMAND before enabling the Email gateway path.");
+    }
+    if (!this.config.smsSendCommand) {
+      steps.push("Set SMS_SEND_COMMAND before enabling the SMS gateway path.");
+    }
     if (this.config.browserProvider === "lightpanda") {
       steps.push(
         "Install Lightpanda or set ELIZA_AGENT_BROWSER_PROVIDER=basic if you want browser tasks to fall back to plain HTTP fetch mode.",
@@ -263,6 +333,11 @@ export class DiagnosticsService {
     if (this.config.executionBackend !== "local") {
       steps.push(
         `Validate ${this.config.executionBackend} runtime access and run /execution status before relying on remote or containerized execution.`,
+      );
+    }
+    if (this.config.executionBackend === "singularity" && !this.config.singularityImage) {
+      steps.push(
+        "Set ELIZA_AGENT_SINGULARITY_IMAGE before relying on the Singularity execution backend.",
       );
     }
 

@@ -1,6 +1,12 @@
 export type MemoryTarget = "memory" | "user";
-export type ExecutionBackendName = "local" | "docker" | "podman" | "ssh";
+export type ExecutionBackendName =
+  | "local"
+  | "docker"
+  | "podman"
+  | "ssh"
+  | "singularity";
 export type ExecutionBackendMode = "local" | "container" | "remote";
+export type ExecutionBackendEngine = "docker" | "podman" | "ssh" | "singularity";
 
 export interface EnvConfig {
   agentName: string;
@@ -28,6 +34,11 @@ export interface EnvConfig {
   whatsappAccessToken?: string;
   whatsappPhoneNumberId?: string;
   whatsappVerifyToken?: string;
+  signalCliCommand?: string;
+  matrixHomeserver?: string;
+  matrixAccessToken?: string;
+  emailSendCommand?: string;
+  smsSendCommand?: string;
   browserProvider: "lightpanda" | "basic";
   browserCommand: string;
   browserCdpUrl?: string;
@@ -37,6 +48,7 @@ export interface EnvConfig {
   dockerNetwork: string;
   dockerWorkspacePath: string;
   dockerEnvPassthrough: string[];
+  singularityImage: string;
   executionCommandTimeoutMs: number;
   executionHealthTimeoutMs: number;
   containerCpuLimit: string;
@@ -300,7 +312,7 @@ export interface TerminalCommandRecord {
   command: string;
   backend: ExecutionBackendName;
   backendMode?: ExecutionBackendMode;
-  backendEngine?: "docker" | "podman" | "ssh";
+  backendEngine?: ExecutionBackendEngine;
   cwd: string;
   timeoutMs?: number;
   timedOut?: boolean;
@@ -323,7 +335,7 @@ export interface DiagnosticCheck {
 export interface ExecutionBackendHealth {
   backend: ExecutionBackendName;
   mode: ExecutionBackendMode;
-  engine?: "docker" | "podman" | "ssh";
+  engine?: ExecutionBackendEngine;
   ready: boolean;
   detail: string;
   limits: ExecutionBackendLimits;
@@ -335,7 +347,7 @@ export interface ExecutionBackendHealth {
 export interface ExecutionBackendPreview {
   backend: ExecutionBackendName;
   mode: ExecutionBackendMode;
-  engine?: "docker" | "podman" | "ssh";
+  engine?: ExecutionBackendEngine;
   ready: boolean;
   detail: string;
   cwd: string;

@@ -89,7 +89,7 @@ eliza-agent/
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, and SSH runtime settings, probes, preview, and bootstrap paths |
+| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, and Singularity runtime settings, probes, preview, and bootstrap paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
@@ -162,11 +162,16 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `WHATSAPP_ACCESS_TOKEN` | Enables outbound WhatsApp Graph API delivery. |
 | `WHATSAPP_PHONE_NUMBER_ID` | Target sender identity for WhatsApp Graph API sends. |
 | `WHATSAPP_VERIFY_TOKEN` | Verifies WhatsApp webhook subscription handshakes. |
+| `SIGNAL_CLI_COMMAND` | Local command used for Signal outbound delivery and mirrored inbound continuity. |
+| `MATRIX_HOMESERVER` | Matrix homeserver base URL used for outbound room messaging. |
+| `MATRIX_ACCESS_TOKEN` | Matrix access token used for outbound room messaging. |
+| `EMAIL_SEND_COMMAND` | Local command used for outbound email delivery. |
+| `SMS_SEND_COMMAND` | Local command used for outbound SMS delivery. |
 | `ELIZA_AGENT_BROWSER_PROVIDER` | Browser backend selection. Defaults to `lightpanda`, with `basic` available as a fallback. |
 | `ELIZA_AGENT_BROWSER_COMMAND` | Local Lightpanda command used for browser-backed fetch flows. |
 | `ELIZA_AGENT_BROWSER_CDP_URL` | Optional CDP endpoint reserved for deeper browser automation work. |
 | `ELIZA_AGENT_BROWSER_OBEY_ROBOTS` | Enables Lightpanda robot-policy aware fetching when supported. |
-| `ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS` | Default command timeout for local, Docker, Podman, and SSH execution. |
+| `ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS` | Default command timeout for local, Docker, Podman, SSH, and Singularity execution. |
 | `ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS` | Timeout used when probing backend health. |
 | `ELIZA_AGENT_CONTAINER_CPU_LIMIT` | CPU limit applied to Docker and Podman execution containers. |
 | `ELIZA_AGENT_CONTAINER_MEMORY_LIMIT` | Memory limit applied to Docker and Podman execution containers. |
@@ -176,6 +181,7 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_DOCKER_NETWORK` | Container network mode for Docker or Podman execution. |
 | `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path used inside Docker or Podman execution containers. |
 | `ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH` | Comma-separated env vars forwarded into Docker or Podman execution containers. |
+| `ELIZA_AGENT_SINGULARITY_IMAGE` | Local SIF path or remote image reference used for Singularity execution. |
 | `ELIZA_AGENT_SSH_HOST` | Remote SSH host for execution. |
 | `ELIZA_AGENT_SSH_USER` | Remote SSH user for execution. |
 | `ELIZA_AGENT_SSH_PATH` | Remote workspace path for SSH execution. |
@@ -263,6 +269,7 @@ Useful commands:
 - `/execution preview git status --short`
 - `/execution set backend docker`
 - `/execution set backend podman`
+- `/execution set backend singularity`
 - `/config show`
 - `/tools list`
 - `/tools summary`
@@ -400,6 +407,10 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /webhooks/telegram`
 - `POST /webhooks/discord`
 - `POST /webhooks/slack`
+- `POST /webhooks/signal`
+- `POST /webhooks/matrix`
+- `POST /webhooks/email`
+- `POST /webhooks/sms`
 - `GET /webhooks/whatsapp`
 - `POST /webhooks/whatsapp`
 - `GET /pairing/pending`

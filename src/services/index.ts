@@ -88,6 +88,7 @@ export function createServices(
       dockerNetwork: config.dockerNetwork,
       dockerWorkspacePath: config.dockerWorkspacePath,
       dockerEnvPassthrough: config.dockerEnvPassthrough,
+      singularityImage: config.singularityImage,
       commandTimeoutMs: config.executionCommandTimeoutMs,
       healthTimeoutMs: config.executionHealthTimeoutMs,
       containerCpuLimit: config.containerCpuLimit,
@@ -115,6 +116,9 @@ export function createServices(
   }
   if (!currentSettings.execution.dockerEnvPassthrough?.length && config.dockerEnvPassthrough.length) {
     settings.set("execution.dockerEnvPassthrough", config.dockerEnvPassthrough);
+  }
+  if (!currentSettings.execution.singularityImage && config.singularityImage) {
+    settings.set("execution.singularityImage", config.singularityImage);
   }
   if (!currentSettings.execution.commandTimeoutMs && config.executionCommandTimeoutMs) {
     settings.set("execution.commandTimeoutMs", config.executionCommandTimeoutMs);

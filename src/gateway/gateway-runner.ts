@@ -10,8 +10,12 @@ import {
   type PlatformHealth,
 } from "./platforms/base";
 import { DiscordPlatformAdapter } from "./platforms/discord-adapter";
+import { EmailPlatformAdapter } from "./platforms/email-adapter";
+import { MatrixPlatformAdapter } from "./platforms/matrix-adapter";
 import { MockPlatformAdapter } from "./platforms/mock-adapter";
+import { SignalPlatformAdapter } from "./platforms/signal-adapter";
 import { SlackPlatformAdapter } from "./platforms/slack-adapter";
+import { SmsPlatformAdapter } from "./platforms/sms-adapter";
 import { TelegramPlatformAdapter } from "./platforms/telegram-adapter";
 import { WhatsAppPlatformAdapter } from "./platforms/whatsapp-adapter";
 import type {
@@ -151,6 +155,34 @@ export class GatewayRunner {
     }
     if (platform === "whatsapp") {
       return new WhatsAppPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "signal") {
+      return new SignalPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "matrix") {
+      return new MatrixPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "email") {
+      return new EmailPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "sms") {
+      return new SmsPlatformAdapter(
         platform,
         this.context.config,
         this.context.services.delivery,
