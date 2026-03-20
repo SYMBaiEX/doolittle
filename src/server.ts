@@ -2,7 +2,12 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
 import { featureMap } from "@/config/feature-map";
 import { normalizeInboundMessage } from "@/gateway/message-normalization";
-import { handleAgentTurn, runDelegationTaskInWorker, syncProviderSettings } from "@/runtime/chat";
+import {
+  handleAgentTurn,
+  runDelegationTaskInWorker,
+  runModelAnalysisTurn,
+  syncProviderSettings,
+} from "@/runtime/chat";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import type { GatewayConfig, IncomingPlatformMessage, PlatformName } from "@/types";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -11,6 +16,7 @@ type GatewayTraceKind =
   | "receive"
   | "authorize"
   | "session"
+  | "route"
   | "respond"
   | "deliver"
   | "reject"
@@ -94,13 +100,14 @@ function parseGatewayFilters(url: URL): {
     sessionId,
     kind:
       kind && [
-        "receive",
-        "authorize",
-        "session",
-        "respond",
-        "deliver",
-        "reject",
-        "lifecycle",
+      "receive",
+      "authorize",
+      "session",
+      "route",
+      "respond",
+      "deliver",
+      "reject",
+      "lifecycle",
       ].includes(kind)
         ? (kind as GatewayTraceKind)
         : undefined,
@@ -429,6 +436,20 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/browser/analyze") {
+        const body = (await request.json()) as { url?: string };
+        if (!body.url) {
+          return json({ error: "url is required" }, 400);
+        }
+        const analysis = await context.services.web.analyze(body.url);
+        return json({
+          analysis,
+          response: await runModelAnalysisTurn(context, analysis.prompt, "browser", {
+            personalityId: context.services.personalities.getActive().id,
+          }),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/browser/compare") {
         const body = (await request.json()) as { leftUrl?: string; rightUrl?: string };
         if (!body.leftUrl || !body.rightUrl) {
@@ -436,6 +457,20 @@ export function startApiServer(context: AppContext): void {
         }
         return json({
           comparison: await context.services.web.compare(body.leftUrl, body.rightUrl),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/browser/compare/analyze") {
+        const body = (await request.json()) as { leftUrl?: string; rightUrl?: string };
+        if (!body.leftUrl || !body.rightUrl) {
+          return json({ error: "leftUrl and rightUrl are required" }, 400);
+        }
+        const analysis = await context.services.web.analyzeComparison(body.leftUrl, body.rightUrl);
+        return json({
+          analysis,
+          response: await runModelAnalysisTurn(context, analysis.prompt, "browser-comparison", {
+            personalityId: context.services.personalities.getActive().id,
+          }),
         });
       }
 
@@ -492,6 +527,20 @@ export function startApiServer(context: AppContext): void {
         }
         return json({
           bundle: context.services.media.bundle(path),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/media/analyze") {
+        const body = (await request.json()) as { path?: string; focus?: "auto" | "voice" | "vision" | "research" };
+        if (!body.path) {
+          return json({ error: "path is required" }, 400);
+        }
+        const analysis = context.services.media.analyze(body.path, body.focus ?? "auto");
+        return json({
+          analysis,
+          response: await runModelAnalysisTurn(context, analysis.prompt, `media-${analysis.focus}`, {
+            personalityId: context.services.personalities.getActive().id,
+          }),
         });
       }
 
@@ -1064,6 +1113,27 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/trajectories/replay/latest") {
         const replay = context.services.trajectories.replayLatest();
         return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+      }
+
+      if (request.method === "POST" && url.pathname === "/trajectories/analyze") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          limit?: number;
+          sessionId?: string;
+          role?: "user" | "assistant" | "system";
+          label?: string;
+        };
+        const analysis = context.services.trajectories.analyze({
+          limit: body.limit ?? 200,
+          sessionId: body.sessionId,
+          role: body.role,
+          label: body.label,
+        });
+        return json({
+          analysis,
+          response: await runModelAnalysisTurn(context, analysis.prompt, "trajectory-research", {
+            personalityId: context.services.personalities.getActive().id,
+          }),
+        });
       }
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {

@@ -6,6 +6,7 @@ import {
   createLifecycleHistory,
   nowIso,
   type PlatformAdapter,
+  type PlatformLifecycleEvent,
   type PlatformHealth,
 } from "./base";
 
@@ -145,5 +146,12 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
 
   canReceive(): boolean {
     return Boolean(this.config.telegramBotToken);
+  }
+
+  observe(event: PlatformLifecycleEvent): void {
+    this.lifecycle.record(event.kind, event.detail);
+    if (event.kind === "error" || event.kind === "reject") {
+      this.lastError = event.detail;
+    }
   }
 }

@@ -351,6 +351,8 @@ Useful commands:
 - `/hooks add gateway:startup startup-log :: Gateway started for {{platforms}}`
 - `/hooks recent`
 
+Gateway observability is route-aware: `/gateway/state` includes per-platform trace counts plus the last route/respond/deliver/reject activity, and `/gateway/trace` accepts `kind=route` alongside the other lifecycle filters.
+
 ### HTTP API
 
 When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:

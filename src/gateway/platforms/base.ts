@@ -15,6 +15,13 @@ export interface PlatformCapabilitySet {
   metadata: boolean;
 }
 
+export interface PlatformPresenceState {
+  status: "online" | "away" | "offline";
+  activity: string;
+  lastHeartbeatAt?: string;
+  lastPresenceChangeAt?: string;
+}
+
 export interface PlatformHealth {
   platform: PlatformName;
   status: "idle" | "running" | "stopped";
@@ -32,14 +39,34 @@ export interface PlatformHealth {
   lastOutboundThreadId?: string;
   lastOutboundReplyToId?: string;
   lastOutboundMetadataKeys?: string[];
+  lastReceivedAt?: string;
+  lastRoutedAt?: string;
+  lastRespondedAt?: string;
+  lastHeartbeatAt?: string;
   sendCount?: number;
   lastError?: string;
+  presence?: PlatformPresenceState;
   events: PlatformLifecycleEvent[];
 }
 
 export interface PlatformLifecycleEvent {
   at: string;
-  kind: "start" | "stop" | "send" | "deliver" | "error" | "health";
+  kind:
+    | "start"
+    | "stop"
+    | "send"
+    | "deliver"
+    | "error"
+    | "health"
+    | "receive"
+    | "authorize"
+    | "session"
+    | "route"
+    | "respond"
+    | "heartbeat"
+    | "reject"
+    | "pair"
+    | "attach";
   detail: string;
 }
 
@@ -56,6 +83,7 @@ export interface PlatformAdapter {
   health(): Promise<PlatformHealth>;
   send(message: OutboundPlatformMessage): Promise<DeliveredMessageRecord>;
   canReceive(): boolean;
+  observe?(event: PlatformLifecycleEvent): Promise<void> | void;
 }
 
 export type PlatformMessageHandler = (message: IncomingPlatformMessage) => Promise<string>;
