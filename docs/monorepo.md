@@ -5,8 +5,16 @@ Eliza Agent is organized as a Bun workspace monorepo.
 ## Workspace roles
 
 - root package
-  - the primary Eliza Agent application package
-  - owns the runtime, CLI, API, gateway, docs, characters, skills, and product-specific services
+  - workspace manifest, shared scripts, root docs, and top-level toolchain config
+- `packages/agent`
+  - the primary Eliza Agent application source
+  - runtime, CLI, API, gateway, and product-specific services
+- `packages/plugins`
+  - local Eliza Agent product plugins
+- `packages/skills`
+  - local skill content and generated skills
+- `packages/characters`
+  - character definitions and persona data
 - `packages/elizaos-official/*`
   - vendored official-compatible ElizaOS packages
   - preserve upstream package names where practical
@@ -14,7 +22,7 @@ Eliza Agent is organized as a Bun workspace monorepo.
 
 ## Boundary rules
 
-- keep product behavior in `src/`
+- keep product behavior in `packages/agent/src/`
   - gateway orchestration
   - operator flows
   - ACP surfaces

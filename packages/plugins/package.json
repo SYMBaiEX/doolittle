@@ -1,0 +1,7 @@
+{
+  "name": "@eliza-agent/plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Eliza Agent product plugins."
+}

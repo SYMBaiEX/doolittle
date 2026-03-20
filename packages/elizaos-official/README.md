@@ -6,7 +6,7 @@ This workspace folder contains vendored official-compatible ElizaOS packages tha
 
 - preserve official package names where possible
 - keep compatibility fixes close to the upstream package boundary
-- avoid scattering runtime-line shims across the product code in `src/`
+- avoid scattering runtime-line shims across the product code in `packages/agent/src/`
 
 ## Packages here
 
@@ -27,4 +27,4 @@ This workspace folder contains vendored official-compatible ElizaOS packages tha
 
 ## Working rule
 
-If a behavior is specific to Eliza Agent as a product, keep it in the root application package. If the change is purely about making an official ElizaOS package work on the current runtime line, keep it here.
+If a behavior is specific to Eliza Agent as a product, keep it in `packages/agent/src/` or the adjacent monorepo packages. If the change is purely about making an official ElizaOS package work on the current runtime line, keep it here.

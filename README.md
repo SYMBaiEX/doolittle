@@ -1,6 +1,6 @@
 # Eliza Agent
 
-Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a workspace monorepo. The root package is the Eliza Agent application, while `packages/elizaos-official/*` contains vendored official-compatible ElizaOS packages so the runtime stays aligned with the ecosystem without giving up the broader operator platform this repo already built.
+Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a workspace monorepo. The root package is the workspace manifest and shared toolchain layer, while the product code lives under `packages/agent`, local product plugins live under `packages/plugins`, characters live under `packages/characters`, skills live under `packages/skills`, and `packages/elizaos-official/*` contains vendored official-compatible ElizaOS packages.
 
 ## Versioning note
 
@@ -24,8 +24,15 @@ The platform-specific features that do not have a single clean ElizaOS equivalen
 ## Monorepo layout
 
 - root package
-  - primary Eliza Agent application package
-  - runtime, CLI, API, gateway, docs, characters, skills, and product-specific services
+  - workspace manifest, shared scripts, docs, and toolchain config
+- `packages/agent`
+  - primary Eliza Agent application source
+- `packages/plugins`
+  - local Eliza Agent product plugins
+- `packages/skills`
+  - local skill documents and generated skills
+- `packages/characters`
+  - local character definitions
 - `packages/elizaos-official/*`
   - vendored official-compatible ElizaOS packages patched to the current runtime line
 
@@ -43,6 +50,16 @@ eliza-agent/
 │   └── monorepo.md
 ├── package.json
 ├── packages/
+│   ├── agent/
+│   │   └── src/
+│   ├── characters/
+│   │   └── eliza-agent.character.json
+│   ├── plugins/
+│   │   └── eliza-agent-plugin.ts
+│   ├── skills/
+│   │   ├── automation/
+│   │   ├── generated/
+│   │   └── productivity/
 │   └── elizaos-official/
 │       ├── README.md
 │       ├── compat/
@@ -60,78 +77,42 @@ eliza-agent/
 │       ├── plugin-shell/
 │       └── plugin-trajectory-logger/
 ├── tsconfig.json
-├── characters/
-│   └── eliza-agent.character.json
-└── src/
-    ├── character.ts
-    ├── cli.ts
-    ├── index.ts
-    ├── server.ts
-    ├── types.ts
-    ├── actions/
-    │   ├── cron-action.ts
-    │   ├── memory-action.ts
-    │   ├── session-search-action.ts
-    │   └── skills-action.ts
-    ├── config/
-    │   ├── env.ts
-    │   └── feature-map.ts
-    ├── evaluators/
-    │   └── memory-nudge-evaluator.ts
-    ├── plugins/
-    │   └── eliza-agent-plugin.ts
-    ├── providers/
-    │   └── agent-context-provider.ts
-    ├── runtime/
-    │   ├── bootstrap.ts
-    │   └── native/
-    │       ├── autonomous-stack.ts
-    │       ├── plugin-catalog.ts
-    │       └── plugin-registry.ts
-    │   └── chat.ts
-    └── services/
-        ├── cron-service.ts
-        ├── index.ts
-        ├── memory-service.ts
-        ├── native-service-registry.ts
-        ├── session-service.ts
-        └── skills-service.ts
 ```
 
 ## Capabilities
 
 | Platform capability | Eliza Agent implementation |
 |---|---|
-| Persona / system prompt | `characters/eliza-agent.character.json` + [`src/character.ts`](./src/character.ts) |
-| Agent runtime | `AgentRuntime` from `@elizaos/core` with declarative native plugin assembly in [`src/runtime/native/plugin-registry.ts`](./src/runtime/native/plugin-registry.ts) |
-| Model provider routing | Official ElizaOS OpenAI and Anthropic plugins, with local offline fallback in [`src/plugins/eliza-agent-plugin.ts`](./src/plugins/eliza-agent-plugin.ts) |
-| MEMORY.md and USER.md | [`src/services/memory-service.ts`](./src/services/memory-service.ts) |
-| Session search | [`src/services/session-service.ts`](./src/services/session-service.ts) + `/search` command |
-| Skills browsing | [`src/services/skills-service.ts`](./src/services/skills-service.ts) + `/skills` command |
-| Cron / scheduled runs | [`src/services/cron-service.ts`](./src/services/cron-service.ts) + `/cron` command family |
-| CLI entrypoint | [`src/cli.ts`](./src/cli.ts) |
-| API server | [`src/server.ts`](./src/server.ts) with Bun's native HTTP server |
-| Gateway runner | [`src/gateway/gateway-runner.ts`](./src/gateway/gateway-runner.ts) |
-| Pairing and allowlists | [`src/services/pairing-service.ts`](./src/services/pairing-service.ts) |
-| Hooks and event logs | [`src/services/hooks-service.ts`](./src/services/hooks-service.ts) |
-| Delivery routing | [`src/services/delivery-service.ts`](./src/services/delivery-service.ts) |
-| Personality profiles | [`src/services/personality-service.ts`](./src/services/personality-service.ts) |
-| Workspace context files | [`src/services/context-files-service.ts`](./src/services/context-files-service.ts) |
-| Runtime settings and model config | [`src/services/settings-service.ts`](./src/services/settings-service.ts) |
-| Browser inspection, capture, and model-backed analysis | [`src/services/web-service.ts`](./src/services/web-service.ts) + `/browser` commands |
-| Media inspection, model-assisted analysis, transcription, speech synthesis, and image generation | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
-| Trajectory research bundles, replay, packaging, and evaluation | [`src/services/trajectory-service.ts`](./src/services/trajectory-service.ts) + `/trajectories` commands |
-| PDF extraction | [`src/services/documents-service.ts`](./src/services/documents-service.ts) + `@elizaos/plugin-pdf` |
-| Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
-| Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
-| Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, remote sync planning, snapshot history, and cloud sandbox profile paths |
-| Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
-| Native plugin inventory | [`src/runtime/native/plugin-catalog.ts`](./src/runtime/native/plugin-catalog.ts) + `/plugins native` + `GET /runtime/plugins` |
-| MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
-| Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
-| Memory nudges / persistence hints | [`src/evaluators/memory-nudge-evaluator.ts`](./src/evaluators/memory-nudge-evaluator.ts) |
-| Shared task context | [`src/providers/agent-context-provider.ts`](./src/providers/agent-context-provider.ts) |
+| Persona / system prompt | `packages/characters/eliza-agent.character.json` + [`packages/agent/src/character.ts`](./packages/agent/src/character.ts) |
+| Agent runtime | `AgentRuntime` from `@elizaos/core` with declarative native plugin assembly in [`packages/agent/src/runtime/native/plugin-registry.ts`](./packages/agent/src/runtime/native/plugin-registry.ts) |
+| Model provider routing | Official ElizaOS OpenAI and Anthropic plugins, with local offline fallback in [`packages/plugins/eliza-agent-plugin.ts`](./packages/plugins/eliza-agent-plugin.ts) |
+| MEMORY.md and USER.md | [`packages/agent/src/services/memory-service.ts`](./packages/agent/src/services/memory-service.ts) |
+| Session search | [`packages/agent/src/services/session-service.ts`](./packages/agent/src/services/session-service.ts) + `/search` command |
+| Skills browsing | [`packages/agent/src/services/skills-service.ts`](./packages/agent/src/services/skills-service.ts) + `/skills` command |
+| Cron / scheduled runs | [`packages/agent/src/services/cron-service.ts`](./packages/agent/src/services/cron-service.ts) + `/cron` command family |
+| CLI entrypoint | [`packages/agent/src/cli.ts`](./packages/agent/src/cli.ts) |
+| API server | [`packages/agent/src/server.ts`](./packages/agent/src/server.ts) with Bun's native HTTP server |
+| Gateway runner | [`packages/agent/src/gateway/gateway-runner.ts`](./packages/agent/src/gateway/gateway-runner.ts) |
+| Pairing and allowlists | [`packages/agent/src/services/pairing-service.ts`](./packages/agent/src/services/pairing-service.ts) |
+| Hooks and event logs | [`packages/agent/src/services/hooks-service.ts`](./packages/agent/src/services/hooks-service.ts) |
+| Delivery routing | [`packages/agent/src/services/delivery-service.ts`](./packages/agent/src/services/delivery-service.ts) |
+| Personality profiles | [`packages/agent/src/services/personality-service.ts`](./packages/agent/src/services/personality-service.ts) |
+| Workspace context files | [`packages/agent/src/services/context-files-service.ts`](./packages/agent/src/services/context-files-service.ts) |
+| Runtime settings and model config | [`packages/agent/src/services/settings-service.ts`](./packages/agent/src/services/settings-service.ts) |
+| Browser inspection, capture, and model-backed analysis | [`packages/agent/src/services/web-service.ts`](./packages/agent/src/services/web-service.ts) + `/browser` commands |
+| Media inspection, model-assisted analysis, transcription, speech synthesis, and image generation | [`packages/agent/src/services/media-service.ts`](./packages/agent/src/services/media-service.ts) + `/media` commands |
+| Trajectory research bundles, replay, packaging, and evaluation | [`packages/agent/src/services/trajectory-service.ts`](./packages/agent/src/services/trajectory-service.ts) + `/trajectories` commands |
+| PDF extraction | [`packages/agent/src/services/documents-service.ts`](./packages/agent/src/services/documents-service.ts) + `@elizaos/plugin-pdf` |
+| Workspace exploration | [`packages/agent/src/services/workspace-service.ts`](./packages/agent/src/services/workspace-service.ts) + `/workspace` commands |
+| Local terminal execution | [`packages/agent/src/services/terminal-service.ts`](./packages/agent/src/services/terminal-service.ts) + `/terminal` commands |
+| Repository inspection | [`packages/agent/src/services/repository-service.ts`](./packages/agent/src/services/repository-service.ts) + `/repo` commands |
+| Execution backend control | [`packages/agent/src/services/terminal-service.ts`](./packages/agent/src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, remote sync planning, snapshot history, and cloud sandbox profile paths |
+| Tool registry | [`packages/agent/src/services/tools-service.ts`](./packages/agent/src/services/tools-service.ts) + `/tools` commands |
+| Native plugin inventory | [`packages/agent/src/runtime/native/plugin-catalog.ts`](./packages/agent/src/runtime/native/plugin-catalog.ts) + `/plugins native` + `GET /runtime/plugins` |
+| MCP bridge | [`packages/agent/src/services/mcp-service.ts`](./packages/agent/src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
+| Delegation queue | [`packages/agent/src/services/delegation-service.ts`](./packages/agent/src/services/delegation-service.ts) + `/delegate` commands |
+| Memory nudges / persistence hints | [`packages/agent/src/evaluators/memory-nudge-evaluator.ts`](./packages/agent/src/evaluators/memory-nudge-evaluator.ts) |
+| Shared task context | [`packages/agent/src/providers/agent-context-provider.ts`](./packages/agent/src/providers/agent-context-provider.ts) |
 
 ## Plugin inventory
 
@@ -442,7 +423,7 @@ Useful commands:
 - `/migrate inspect /path/to/legacy-agent-home`
 - `/migrate apply /path/to/legacy-agent-home :: overwrite=true`
 - `/web fetch https://example.com`
-- `/media inspect ./characters/eliza-agent.character.json`
+- `/media inspect ./packages/characters/eliza-agent.character.json`
 - `/media transcribe ./recordings/daily-sync.wav`
 - `/media speak Eliza Agent is ready for the next workspace pass.`
 - `/pdf extract ./path/to/file.pdf`
