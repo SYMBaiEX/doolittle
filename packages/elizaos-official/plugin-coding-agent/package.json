@@ -1,0 +1,13 @@
+{
+  "name": "@elizaos/plugin-coding-agent",
+  "version": "0.1.0-next.1-patched.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos-official/compat": "file:../compat",
+    "@elizaos/core": "latest"
+  }
+}

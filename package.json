@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Bun-first ElizaOS agent platform built in TypeScript.",
+  "workspaces": [
+    "packages/elizaos-official/*"
+  ],
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun run src/index.ts",
@@ -14,12 +17,27 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@elizaos/autonomous": "latest",
     "@elizaos/core": "latest",
+    "@elizaos/plugin-agent-orchestrator": "workspace:*",
+    "@elizaos/plugin-agent-skills": "workspace:*",
     "@elizaos/plugin-anthropic": "alpha",
+    "@elizaos/plugin-coding-agent": "workspace:*",
+    "@elizaos/plugin-cron": "workspace:*",
+    "@elizaos/plugin-discord": "workspace:*",
+    "@elizaos/plugin-experience": "workspace:*",
+    "@elizaos/plugin-knowledge": "workspace:*",
+    "@elizaos/plugin-local-embedding": "workspace:*",
     "@elizaos/plugin-openai": "alpha",
     "@elizaos/plugin-pdf": "alpha",
+    "@elizaos/plugin-personality": "workspace:*",
+    "@elizaos/plugin-plugin-manager": "workspace:*",
+    "@elizaos/plugin-rolodex": "workspace:*",
+    "@elizaos/plugin-shell": "workspace:*",
     "@elizaos/plugin-sql": "alpha",
     "@elizaos/plugin-telegram": "alpha",
+    "@elizaos/plugin-trajectory-logger": "workspace:*",
+    "@elizaos/skills": "latest",
     "cron-parser": "^5.2.0",
     "dotenv": "^17.2.3",
     "elizaos": "latest",

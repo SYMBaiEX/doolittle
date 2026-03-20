@@ -1,0 +1,13 @@
+{
+  "name": "@elizaos/plugin-agent-orchestrator",
+  "version": "0.3.16-patched.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos-official/compat": "file:../compat",
+    "@elizaos/core": "latest"
+  }
+}

@@ -17,5 +17,10 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "characters/**/*.json"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "characters/**/*.json",
+    "packages/**/*.ts"
+  ]
 }

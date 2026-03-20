@@ -5,3 +5,4 @@ dist/
 .eliza/
 cache/
 *.log
+skills/generated/index.json

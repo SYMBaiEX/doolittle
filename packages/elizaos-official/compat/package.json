@@ -1,0 +1,12 @@
+{
+  "name": "@elizaos-official/compat",
+  "version": "2.0.0-alpha.77-patched.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos/core": "latest"
+  }
+}
