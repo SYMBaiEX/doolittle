@@ -6,6 +6,11 @@ import { MediaService } from "./media-service";
 
 const ONE_BY_ONE_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5X4nQAAAAASUVORK5CYII=";
+const ONE_SECOND_WAV = Buffer.from([
+  0x52,0x49,0x46,0x46,0x6c,0x3e,0x00,0x00,0x57,0x41,0x56,0x45,0x66,0x6d,0x74,0x20,
+  0x10,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x40,0x1f,0x00,0x00,0x80,0x3e,0x00,0x00,
+  0x02,0x00,0x10,0x00,0x64,0x61,0x74,0x61,0x40,0x3e,0x00,0x00,
+]);
 
 describe("MediaService", () => {
   it("returns missing-file metadata without throwing", () => {
@@ -109,6 +114,42 @@ describe("MediaService", () => {
       expect(inspection.title).toBe("Doolittle Briefing");
       expect(inspection.author).toBe("Eliza Agent");
       expect(inspection.textPreview).toContain("Doolittle Briefing");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects audio duration and transcript sidecars", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-audio-"));
+    const service = new MediaService(root);
+    const audioPath = join(root, "memo.wav");
+    const transcriptPath = join(root, "memo.transcript.txt");
+
+    try {
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      writeFileSync(transcriptPath, "This is a transcript sidecar for a voice memo.");
+      const inspection = service.inspect("memo.wav");
+      expect(inspection.kind).toBe("audio");
+      expect(inspection.durationMs).toBeGreaterThanOrEqual(900);
+      expect(inspection.transcriptPath).toBe(transcriptPath);
+      expect(inspection.transcriptPreview).toContain("voice memo");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects image caption sidecars", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-caption-"));
+    const service = new MediaService(root);
+    const imagePath = join(root, "scene.png");
+    const captionPath = join(root, "scene.caption.txt");
+
+    try {
+      writeFileSync(imagePath, Buffer.from(ONE_BY_ONE_PNG, "base64"));
+      writeFileSync(captionPath, "A minimal placeholder scene used for screenshot regression checks.");
+      const inspection = service.inspect("scene.png");
+      expect(inspection.captionPath).toBe(captionPath);
+      expect(inspection.captionPreview).toContain("screenshot regression");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

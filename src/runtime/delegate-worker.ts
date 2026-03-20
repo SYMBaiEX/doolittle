@@ -5,6 +5,9 @@ import { handleAgentTurn } from "./chat";
 interface WorkerPayload {
   taskId: string;
   objective: string;
+  profile?: string;
+  priority?: "low" | "normal" | "high";
+  tags?: string[];
 }
 
 const [, , inputPath, outputPath] = process.argv;
@@ -20,7 +23,14 @@ async function main(): Promise<void> {
   const context = await getAppContext();
   const result = await handleAgentTurn(
     {
-      message: payload.objective,
+      message: [
+        payload.profile ? `Delegation profile: ${payload.profile}` : "",
+        payload.priority ? `Priority: ${payload.priority}` : "",
+        payload.tags?.length ? `Tags: ${payload.tags.join(", ")}` : "",
+        payload.objective,
+      ]
+        .filter(Boolean)
+        .join("\n"),
       userId: `delegate:${payload.taskId}`,
       roomId: `delegate:${payload.taskId}`,
       source: "delegate-worker",

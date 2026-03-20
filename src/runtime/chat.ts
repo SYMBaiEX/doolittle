@@ -253,6 +253,9 @@ export async function runDelegationTaskInWorker(
       {
         taskId: task.id,
         objective: task.objective,
+        profile: task.profile,
+        priority: task.priority,
+        tags: task.tags,
       },
       null,
       2,
@@ -1002,13 +1005,25 @@ async function buildCommandResponse(
     return JSON.stringify(context.services.media.inspect(path), null, 2);
   }
 
+  if (trimmed.startsWith("/media transcript ")) {
+    const path = trimmed.replace("/media transcript ", "").trim();
+    const inspection = context.services.media.inspect(path);
+    return inspection.transcriptPreview ?? "No transcript sidecar detected.";
+  }
+
+  if (trimmed.startsWith("/media caption ")) {
+    const path = trimmed.replace("/media caption ", "").trim();
+    const inspection = context.services.media.inspect(path);
+    return inspection.captionPreview ?? "No caption sidecar detected.";
+  }
+
   if (trimmed === "/delegate" || trimmed === "/delegate list") {
     const tasks = context.services.delegation.list().slice(0, 20);
     return tasks.length
       ? tasks
           .map(
             (task) =>
-              `- ${task.id} ${task.title} [${task.status}] mode=${task.executionMode}/${task.workerMode ?? "inline"} attempts=${task.attempts ?? 0}${task.workerPid ? ` pid=${task.workerPid}` : ""}\n  ${task.objective}`,
+              `- ${task.id} ${task.title} [${task.status}] mode=${task.executionMode}/${task.workerMode ?? "inline"} priority=${task.priority ?? "normal"} profile=${task.profile ?? "default"} attempts=${task.attempts ?? 0}${task.workerPid ? ` pid=${task.workerPid}` : ""}\n  tags=${task.tags?.join(",") || "none"}\n  ${task.objective}`,
           )
           .join("\n")
       : "No delegation tasks recorded.";
@@ -1055,13 +1070,37 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate create ")) {
     const payload = trimmed.replace("/delegate create ", "");
-    const [title, objective] = payload.split("::").map((part) => part.trim());
+    const [left, objective] = payload.split("::").map((part) => part.trim());
+    const segments = left?.split("|").map((part) => part.trim()).filter(Boolean) ?? [];
+    const [title, ...options] = segments;
     if (!title || !objective) {
-      return "Usage: /delegate create <title> :: <objective>";
+      return "Usage: /delegate create <title> | profile:research | priority:high | tags:browser,voice :: <objective>";
     }
+    const parsedOptions = options.reduce<Record<string, string>>((accumulator, segment) => {
+      const separator = segment.indexOf(":");
+      if (separator === -1) {
+        return accumulator;
+      }
+      const key = segment.slice(0, separator).trim().toLowerCase();
+      const value = segment.slice(separator + 1).trim();
+      if (key && value) {
+        accumulator[key] = value;
+      }
+      return accumulator;
+    }, {});
     const task = context.services.delegation.create({
       title,
       objective,
+      profile: parsedOptions.profile,
+      priority:
+        parsedOptions.priority === "low" ||
+        parsedOptions.priority === "normal" ||
+        parsedOptions.priority === "high"
+          ? parsedOptions.priority
+          : "normal",
+      tags: parsedOptions.tags
+        ? parsedOptions.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        : [],
       executionMode: "delegated",
     });
     return JSON.stringify(task, null, 2);
@@ -1124,7 +1163,7 @@ async function buildCommandResponse(
         ? tasks
             .map(
               (task) =>
-                `- ${task.id} [${task.status}] ${task.title}\n  pid=${task.workerPid ?? "none"} alive=${task.alive} stalled=${task.stalled} attempts=${task.attempts}/${task.maxAttempts} remaining=${task.attemptsRemaining}${task.durationMs !== undefined ? ` duration=${task.durationMs}ms` : ""}\n  output=${task.lastOutputPath ?? "n/a"}`,
+                `- ${task.id} [${task.status}] ${task.title}\n  pid=${task.workerPid ?? "none"} alive=${task.alive} stalled=${task.stalled} attempts=${task.attempts}/${task.maxAttempts} remaining=${task.attemptsRemaining}${task.durationMs !== undefined ? ` duration=${task.durationMs}ms` : ""}\n  profile=${task.profile ?? "default"} priority=${task.priority ?? "normal"} tags=${task.tags?.join(",") || "none"}\n  output=${task.lastOutputPath ?? "n/a"}`,
             )
             .join("\n\n")
         : "No delegated worker tasks recorded.",

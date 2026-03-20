@@ -21,6 +21,11 @@ export interface MediaInspection {
   pageCount?: number;
   title?: string;
   author?: string;
+  durationMs?: number;
+  transcriptPath?: string;
+  transcriptPreview?: string;
+  captionPath?: string;
+  captionPreview?: string;
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -91,6 +96,7 @@ export class MediaService {
     const kind = this.detectKind(extension);
     const imageDimensions =
       kind === "image" ? this.readImageDimensions(resolvedPath, extension) : undefined;
+    const audioMetadata = kind === "audio" ? this.readAudioMetadata(resolvedPath, extension) : undefined;
     const contentHash = this.hashFile(resolvedPath);
     const structuredMetadata =
       kind === "document"
@@ -98,6 +104,8 @@ export class MediaService {
           ? this.readPdfMetadata(resolvedPath)
           : this.readTextMetadata(resolvedPath, extension)
         : undefined;
+
+    const sidecars = this.readSidecars(resolvedPath, kind);
 
     return {
       path: resolvedPath,
@@ -110,6 +118,8 @@ export class MediaService {
       isDirectory: false,
       detail: imageDimensions
         ? `Image file detected with dimensions ${imageDimensions.width}x${imageDimensions.height}.`
+        : audioMetadata?.durationMs
+          ? `Audio file detected with duration about ${Math.round(audioMetadata.durationMs / 1000)}s.`
         : structuredMetadata
           ? extension === ".pdf"
             ? `PDF detected${structuredMetadata.pageCount ? ` with about ${structuredMetadata.pageCount} pages` : ""}${structuredMetadata.title ? ` titled ${structuredMetadata.title}` : ""}.`
@@ -124,6 +134,11 @@ export class MediaService {
       pageCount: structuredMetadata?.pageCount,
       title: structuredMetadata?.title,
       author: structuredMetadata?.author,
+      durationMs: audioMetadata?.durationMs,
+      transcriptPath: sidecars.transcriptPath,
+      transcriptPreview: sidecars.transcriptPreview,
+      captionPath: sidecars.captionPath,
+      captionPreview: sidecars.captionPreview,
     };
   }
 
@@ -291,6 +306,64 @@ export class MediaService {
       title,
       author,
     };
+  }
+
+  private readAudioMetadata(
+    path: string,
+    extension: string,
+  ): { durationMs?: number } | undefined {
+    const bytes = readFileSync(path);
+
+    if (extension === ".wav" && bytes.length >= 44) {
+      const riff = bytes.subarray(0, 4).toString("ascii");
+      const wave = bytes.subarray(8, 12).toString("ascii");
+      if (riff === "RIFF" && wave === "WAVE") {
+        const byteRate = bytes.readUInt32LE(28);
+        const dataSize = bytes.readUInt32LE(40);
+        if (byteRate > 0 && dataSize >= 0) {
+          return {
+            durationMs: Math.round((dataSize / byteRate) * 1000),
+          };
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private readSidecars(
+    resolvedPath: string,
+    kind: MediaInspection["kind"],
+  ): {
+    transcriptPath?: string;
+    transcriptPreview?: string;
+    captionPath?: string;
+    captionPreview?: string;
+  } {
+    const extension = extname(resolvedPath);
+    const basePath = resolvedPath.slice(0, resolvedPath.length - extension.length);
+    const transcriptCandidates =
+      kind === "audio" || kind === "video"
+        ? [`${basePath}.txt`, `${basePath}.md`, `${basePath}.transcript.txt`, `${basePath}.srt`, `${basePath}.vtt`]
+        : [];
+    const captionCandidates =
+      kind === "image"
+        ? [`${basePath}.txt`, `${basePath}.md`, `${basePath}.caption.txt`, `${basePath}.alt.txt`]
+        : [];
+
+    const transcriptPath = transcriptCandidates.find((candidate) => existsSync(candidate));
+    const captionPath = captionCandidates.find((candidate) => existsSync(candidate));
+
+    return {
+      transcriptPath,
+      transcriptPreview: transcriptPath ? this.readSidecarPreview(transcriptPath) : undefined,
+      captionPath,
+      captionPreview: captionPath ? this.readSidecarPreview(captionPath) : undefined,
+    };
+  }
+
+  private readSidecarPreview(path: string): string {
+    return this.buildPreview(readFileSync(path, "utf8"), extname(path).toLowerCase());
   }
 
   private buildPreview(content: string, extension: string): string {
