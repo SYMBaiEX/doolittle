@@ -27,6 +27,7 @@ export interface EnvConfig {
   openAiApiKey?: string;
   openAiBaseUrl: string;
   openAiModel: string;
+  openAiImageModel?: string;
   openAiTemperature: number;
   openAiMaxTokens: number;
   anthropicApiKey?: string;
@@ -59,8 +60,20 @@ export interface EnvConfig {
   singularityImage: string;
   daytonaTarget?: string;
   daytonaCommand?: string;
+  daytonaShell?: string;
+  daytonaWorkspacePath?: string;
+  daytonaSnapshot?: string;
+  daytonaBootstrapCommand?: string;
+  daytonaStatusCommand?: string;
+  daytonaInspectCommand?: string;
   modalTarget?: string;
   modalCommand?: string;
+  modalShell?: string;
+  modalWorkspacePath?: string;
+  modalEnvironment?: string;
+  modalBootstrapCommand?: string;
+  modalStatusCommand?: string;
+  modalInspectCommand?: string;
   executionCommandTimeoutMs: number;
   executionHealthTimeoutMs: number;
   containerCpuLimit: string;
@@ -325,6 +338,12 @@ export interface TerminalCommandRecord {
   backend: ExecutionBackendName;
   backendMode?: ExecutionBackendMode;
   backendEngine?: ExecutionBackendEngine;
+  target?: string;
+  cloud?: ExecutionCloudProfile;
+  cloudSession?: ExecutionCloudSession;
+  executionTarget?: string;
+  executionSessionId?: string;
+  executionProfile?: ExecutionCloudProfile;
   cwd: string;
   timeoutMs?: number;
   timedOut?: boolean;
@@ -348,6 +367,9 @@ export interface ExecutionBackendHealth {
   backend: ExecutionBackendName;
   mode: ExecutionBackendMode;
   engine?: ExecutionBackendEngine;
+  target?: string;
+  cloud?: ExecutionCloudProfile;
+  cloudSession?: ExecutionCloudSession;
   ready: boolean;
   detail: string;
   limits: ExecutionBackendLimits;
@@ -360,6 +382,9 @@ export interface ExecutionBackendPreview {
   backend: ExecutionBackendName;
   mode: ExecutionBackendMode;
   engine?: ExecutionBackendEngine;
+  target?: string;
+  cloud?: ExecutionCloudProfile;
+  cloudSession?: ExecutionCloudSession;
   ready: boolean;
   detail: string;
   cwd: string;
@@ -378,6 +403,39 @@ export interface ExecutionBackendLimits {
   containerMemoryLimit: string;
   containerPidsLimit: number;
   containerReadOnlyRoot: boolean;
+}
+
+export interface ExecutionCloudProfile {
+  provider: "daytona" | "modal";
+  target: string;
+  shell: string;
+  workspacePath: string;
+  state: "persistent-sandbox" | "interactive-shell";
+  commandStyle: "exec" | "shell";
+  envPassthrough: string[];
+  snapshot?: string;
+  environment?: string;
+  bootstrapCommand?: string;
+  statusCommand?: string;
+  inspectCommand?: string;
+}
+
+export interface ExecutionCloudSession {
+  sessionId: string;
+  provider: "daytona" | "modal";
+  target: string;
+  profile: ExecutionCloudProfile;
+  state: "idle" | "ready" | "running" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  lastHealthAt?: string;
+  lastPreviewAt?: string;
+  lastRunAt?: string;
+  lastCommandId?: string;
+  lastCommand?: string;
+  lastExitCode?: number;
+  lastStdout?: string;
+  lastStderr?: string;
 }
 
 export interface McpToolDefinition {

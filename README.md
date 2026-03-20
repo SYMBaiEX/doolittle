@@ -84,8 +84,8 @@ eliza-agent/
 | Workspace context files | [`src/services/context-files-service.ts`](./src/services/context-files-service.ts) |
 | Runtime settings and model config | [`src/services/settings-service.ts`](./src/services/settings-service.ts) |
 | Browser inspection, capture, and model-backed analysis | [`src/services/web-service.ts`](./src/services/web-service.ts) + `/browser` commands |
-| Media inspection, voice/vision analysis, and PDF metadata | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
-| Trajectory research bundles and replay | [`src/services/trajectory-service.ts`](./src/services/trajectory-service.ts) + `/trajectories` commands |
+| Media inspection, model-assisted analysis, and image generation | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
+| Trajectory research bundles, replay, and evaluation | [`src/services/trajectory-service.ts`](./src/services/trajectory-service.ts) + `/trajectories` commands |
 | PDF extraction | [`src/services/documents-service.ts`](./src/services/documents-service.ts) + `@elizaos/plugin-pdf` |
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
@@ -138,6 +138,7 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `OPENAI_API_KEY` | API key for the official ElizaOS OpenAI plugin. Optional if you use Anthropic or stay in offline bootstrap mode. |
 | `OPENAI_BASE_URL` | Base URL for the OpenAI-compatible endpoint used by the OpenAI plugin and fallback adapter. |
 | `OPENAI_MODEL` | Default OpenAI model name used to seed runtime settings. |
+| `OPENAI_IMAGE_MODEL` | Optional OpenAI image model used for model-backed image generation. |
 | `OPENAI_TEMPERATURE` | Default completion temperature. |
 | `OPENAI_MAX_TOKENS` | Default completion output cap. |
 | `ANTHROPIC_API_KEY` | API key for the official ElizaOS Anthropic plugin. |
@@ -186,15 +187,19 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_DAYTONA_TARGET` | Target Daytona sandbox or workspace used for remote execution. |
 | `ELIZA_AGENT_DAYTONA_COMMAND` | Optional Daytona CLI command override. |
 | `ELIZA_AGENT_DAYTONA_SHELL` | Shell used inside Daytona sandboxes for command execution. |
+| `ELIZA_AGENT_DAYTONA_WORKSPACE_PATH` | Remote workspace path used inside Daytona sandboxes. |
 | `ELIZA_AGENT_DAYTONA_SNAPSHOT` | Optional Daytona snapshot anchor used to describe the sandbox image state. |
 | `ELIZA_AGENT_DAYTONA_BOOTSTRAP_COMMAND` | Optional bootstrap command run before Daytona user commands. |
 | `ELIZA_AGENT_DAYTONA_STATUS_COMMAND` | Optional Daytona status command used for explicit remote inspection. |
+| `ELIZA_AGENT_DAYTONA_INSPECT_COMMAND` | Optional Daytona inspect command used to override the synthesized sandbox inspection command. |
 | `ELIZA_AGENT_MODAL_TARGET` | Target Modal sandbox or environment used for remote execution. |
 | `ELIZA_AGENT_MODAL_COMMAND` | Optional Modal CLI command override. |
 | `ELIZA_AGENT_MODAL_SHELL` | Shell used inside Modal sandboxes for command execution. |
+| `ELIZA_AGENT_MODAL_WORKSPACE_PATH` | Remote workspace path used inside Modal sandboxes. |
 | `ELIZA_AGENT_MODAL_ENVIRONMENT` | Optional Modal environment name used with `modal shell -e`. |
 | `ELIZA_AGENT_MODAL_BOOTSTRAP_COMMAND` | Optional bootstrap command run before Modal user commands. |
 | `ELIZA_AGENT_MODAL_STATUS_COMMAND` | Optional Modal status command used for explicit remote inspection. |
+| `ELIZA_AGENT_MODAL_INSPECT_COMMAND` | Optional Modal inspect command used to override the synthesized shell inspection command. |
 | `ELIZA_AGENT_SSH_HOST` | Remote SSH host for execution. |
 | `ELIZA_AGENT_SSH_USER` | Remote SSH user for execution. |
 | `ELIZA_AGENT_SSH_PATH` | Remote workspace path for SSH execution. |
@@ -305,6 +310,7 @@ Useful commands:
 - `/media analyze ./recordings/daily-sync.wav`
 - `/media voice ./recordings/daily-sync.wav`
 - `/media vision ./artifacts/screenshot.png`
+- `/media generate a cinematic dusk skyline over the Eliza Agent workspace`
 - `/mcp status`
 - `/mcp tools`
 - `/mcp cached`
@@ -339,6 +345,8 @@ Useful commands:
 - `/trajectories bundle session:room-123`
 - `/trajectories analyze`
 - `/trajectories analyze session:room-123 role:user limit:50`
+- `/trajectories evaluate`
+- `/trajectories evaluate session:room-123 role:user limit:50 rubric:memory,skills`
 - `/trajectories replay latest`
 - `/context files`
 - `/status`

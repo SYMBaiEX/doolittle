@@ -59,7 +59,7 @@ export function createServices(
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
 ): AppServices {
   const gatewayConfig = loadGatewayConfig(config);
-  const provider = config.anthropicApiKey
+  const provider: "anthropic" | "openai" | "offline" = config.anthropicApiKey
     ? "anthropic"
     : config.openAiApiKey
       ? "openai"
@@ -91,8 +91,20 @@ export function createServices(
       singularityImage: config.singularityImage,
       daytonaTarget: config.daytonaTarget ?? "",
       daytonaCommand: config.daytonaCommand ?? "",
+      daytonaShell: config.daytonaShell ?? "/bin/sh",
+      daytonaWorkspacePath: config.daytonaWorkspacePath ?? "/workspace",
+      daytonaSnapshot: config.daytonaSnapshot ?? "",
+      daytonaBootstrapCommand: config.daytonaBootstrapCommand ?? "",
+      daytonaStatusCommand: config.daytonaStatusCommand ?? "",
+      daytonaInspectCommand: config.daytonaInspectCommand ?? "",
       modalTarget: config.modalTarget ?? "",
       modalCommand: config.modalCommand ?? "",
+      modalShell: config.modalShell ?? "/bin/bash",
+      modalWorkspacePath: config.modalWorkspacePath ?? "/workspace",
+      modalEnvironment: config.modalEnvironment ?? "",
+      modalBootstrapCommand: config.modalBootstrapCommand ?? "",
+      modalStatusCommand: config.modalStatusCommand ?? "",
+      modalInspectCommand: config.modalInspectCommand ?? "",
       commandTimeoutMs: config.executionCommandTimeoutMs,
       healthTimeoutMs: config.executionHealthTimeoutMs,
       containerCpuLimit: config.containerCpuLimit,
@@ -130,11 +142,47 @@ export function createServices(
   if (!currentSettings.execution.daytonaCommand && config.daytonaCommand) {
     settings.set("execution.daytonaCommand", config.daytonaCommand);
   }
+  if (!currentSettings.execution.daytonaShell && config.daytonaShell) {
+    settings.set("execution.daytonaShell", config.daytonaShell);
+  }
+  if (!currentSettings.execution.daytonaWorkspacePath && config.daytonaWorkspacePath) {
+    settings.set("execution.daytonaWorkspacePath", config.daytonaWorkspacePath);
+  }
+  if (!currentSettings.execution.daytonaSnapshot && config.daytonaSnapshot) {
+    settings.set("execution.daytonaSnapshot", config.daytonaSnapshot);
+  }
+  if (!currentSettings.execution.daytonaBootstrapCommand && config.daytonaBootstrapCommand) {
+    settings.set("execution.daytonaBootstrapCommand", config.daytonaBootstrapCommand);
+  }
+  if (!currentSettings.execution.daytonaStatusCommand && config.daytonaStatusCommand) {
+    settings.set("execution.daytonaStatusCommand", config.daytonaStatusCommand);
+  }
+  if (!currentSettings.execution.daytonaInspectCommand && config.daytonaInspectCommand) {
+    settings.set("execution.daytonaInspectCommand", config.daytonaInspectCommand);
+  }
   if (!currentSettings.execution.modalTarget && config.modalTarget) {
     settings.set("execution.modalTarget", config.modalTarget);
   }
   if (!currentSettings.execution.modalCommand && config.modalCommand) {
     settings.set("execution.modalCommand", config.modalCommand);
+  }
+  if (!currentSettings.execution.modalShell && config.modalShell) {
+    settings.set("execution.modalShell", config.modalShell);
+  }
+  if (!currentSettings.execution.modalWorkspacePath && config.modalWorkspacePath) {
+    settings.set("execution.modalWorkspacePath", config.modalWorkspacePath);
+  }
+  if (!currentSettings.execution.modalEnvironment && config.modalEnvironment) {
+    settings.set("execution.modalEnvironment", config.modalEnvironment);
+  }
+  if (!currentSettings.execution.modalBootstrapCommand && config.modalBootstrapCommand) {
+    settings.set("execution.modalBootstrapCommand", config.modalBootstrapCommand);
+  }
+  if (!currentSettings.execution.modalStatusCommand && config.modalStatusCommand) {
+    settings.set("execution.modalStatusCommand", config.modalStatusCommand);
+  }
+  if (!currentSettings.execution.modalInspectCommand && config.modalInspectCommand) {
+    settings.set("execution.modalInspectCommand", config.modalInspectCommand);
   }
   if (!currentSettings.execution.commandTimeoutMs && config.executionCommandTimeoutMs) {
     settings.set("execution.commandTimeoutMs", config.executionCommandTimeoutMs);
@@ -175,6 +223,27 @@ export function createServices(
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
   }));
+  const getModelContext = (): {
+    provider: "openai" | "anthropic" | "offline";
+    model: string;
+    baseUrl: string;
+    temperature: number;
+    maxTokens: number;
+    openAiApiKey: string | undefined;
+    anthropicApiKey: string | undefined;
+    anthropicBaseUrl: string | undefined;
+    openAiImageModel: string | undefined;
+  } => ({
+    provider: settings.get().model.provider as "openai" | "anthropic" | "offline",
+    model: settings.get().model.model,
+    baseUrl: settings.get().model.baseUrl,
+    temperature: settings.get().model.temperature,
+    maxTokens: settings.get().model.maxTokens,
+    openAiApiKey: config.openAiApiKey,
+    anthropicApiKey: config.anthropicApiKey,
+    anthropicBaseUrl: config.anthropicBaseUrl,
+    openAiImageModel: config.openAiImageModel,
+  });
 
   return {
     memory: new MemoryService(config.dataDir, {
@@ -217,8 +286,12 @@ export function createServices(
       }),
       join(config.dataDir, "web"),
     ),
-    media: new MediaService(config.workspaceDir),
-    trajectories: new TrajectoryService(join(config.dataDir, "trajectories"), sessions),
+    media: new MediaService(config.workspaceDir, join(config.dataDir, "media"), getModelContext),
+    trajectories: new TrajectoryService(
+      join(config.dataDir, "trajectories"),
+      sessions,
+      getModelContext,
+    ),
     skillSynthesis: new SkillSynthesisService(config.skillsDir),
     userProfiles: new UserProfileService(join(config.dataDir, "profiles")),
     settings,

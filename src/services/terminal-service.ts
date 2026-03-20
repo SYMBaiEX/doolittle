@@ -6,6 +6,8 @@ import type {
   ExecutionBackendHealth,
   ExecutionBackendLimits,
   ExecutionBackendName,
+  ExecutionCloudProfile,
+  ExecutionCloudSession,
   ExecutionBackendPreview,
   TerminalCommandRecord,
 } from "@/types";
@@ -13,6 +15,68 @@ import type { RuntimeSettings } from "./settings-service";
 
 interface TerminalStore {
   commands: TerminalCommandRecord[];
+}
+
+interface CloudStore {
+  sessions: ExecutionCloudSession[];
+}
+
+class CloudStoreManager {
+  constructor(private readonly filePath: string) {
+    if (!existsSync(filePath)) {
+      this.write({ sessions: [] });
+    }
+  }
+
+  touch(profile: ExecutionCloudProfile, patch: Partial<ExecutionCloudSession> = {}): ExecutionCloudSession {
+    const store = this.readStore();
+    const now = new Date().toISOString();
+    const existingIndex = store.sessions.findIndex(
+      (session) => session.provider === profile.provider && session.target === profile.target,
+    );
+    const existing = existingIndex >= 0 ? store.sessions[existingIndex] : undefined;
+    const session: ExecutionCloudSession = {
+      sessionId: existing?.sessionId ?? randomUUID(),
+      provider: profile.provider,
+      target: profile.target,
+      profile,
+      state: patch.state ?? existing?.state ?? "idle",
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      lastHealthAt: patch.lastHealthAt ?? existing?.lastHealthAt,
+      lastPreviewAt: patch.lastPreviewAt ?? existing?.lastPreviewAt,
+      lastRunAt: patch.lastRunAt ?? existing?.lastRunAt,
+      lastCommandId: patch.lastCommandId ?? existing?.lastCommandId,
+      lastCommand: patch.lastCommand ?? existing?.lastCommand,
+      lastExitCode: patch.lastExitCode ?? existing?.lastExitCode,
+      lastStdout: patch.lastStdout ?? existing?.lastStdout,
+      lastStderr: patch.lastStderr ?? existing?.lastStderr,
+    };
+    if (existingIndex >= 0) {
+      store.sessions[existingIndex] = session;
+    } else {
+      store.sessions.push(session);
+    }
+    if (store.sessions.length > 20) {
+      store.sessions = store.sessions.slice(-20);
+    }
+    this.write(store);
+    return session;
+  }
+
+  get(profile: ExecutionCloudProfile): ExecutionCloudSession | undefined {
+    return this.readStore().sessions.find(
+      (session) => session.provider === profile.provider && session.target === profile.target,
+    );
+  }
+
+  private readStore(): CloudStore {
+    return JSON.parse(readFileSync(this.filePath, "utf8")) as CloudStore;
+  }
+
+  private write(store: CloudStore): void {
+    writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+  }
 }
 
 interface TerminalRunResult {
@@ -34,6 +98,11 @@ interface ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): Promise<TerminalRunResult>;
+}
+
+interface CloudStateAccessor {
+  touch(profile: ExecutionCloudProfile, patch?: Partial<ExecutionCloudSession>): ExecutionCloudSession;
+  get(profile: ExecutionCloudProfile): ExecutionCloudSession | undefined;
 }
 
 function shellQuote(value: string): string {
@@ -104,6 +173,17 @@ function normalizeBackendError(result: TerminalRunResult): TerminalRunResult {
     timedOut: result.timedOut,
     durationMs: result.durationMs,
   };
+}
+
+function sanitizeCommand(command: string): string {
+  const trimmed = command.trim();
+  if (!trimmed) {
+    throw new Error("Command must not be empty.");
+  }
+  if (trimmed.includes("\u0000")) {
+    throw new Error("Command contains unsupported NUL bytes.");
+  }
+  return trimmed;
 }
 
 async function commandExists(binary: string, timeoutMs = 5_000): Promise<boolean> {
@@ -201,8 +281,246 @@ function buildCliTargetCommand(
   target: string,
   command: string,
   cwd: string,
+  shell = "/bin/sh",
 ): string[] {
-  return [binary, "exec", target, "--cwd", cwd, "--", "/bin/sh", "-lc", command];
+  return [binary, "exec", target, "--cwd", cwd, "--", shell, "-lc", command];
+}
+
+function buildCloudCommandScript(
+  command: string,
+  workspacePath: string,
+  settings: RuntimeSettings,
+  options: {
+    shell: string;
+    bootstrapCommand?: string;
+  },
+): string {
+  const execution = settings.execution;
+  const envAssignments = execution.dockerEnvPassthrough
+    .filter(isValidEnvName)
+    .filter((name) => process.env[name] !== undefined)
+    .map((name) => `${name}=${shellQuote(process.env[name] ?? "")}`);
+  const parts = [
+    "set -eu",
+    `cd ${shellQuote(workspacePath)}`,
+    envAssignments.length > 0 ? `export ${envAssignments.join(" ")}` : "",
+    options.bootstrapCommand ? options.bootstrapCommand : "",
+    command,
+  ].filter(Boolean);
+  return parts.join(" && ");
+}
+
+function buildCloudProfile(
+  provider: "daytona" | "modal",
+  settings: RuntimeSettings,
+  workspacePath: string,
+): ExecutionCloudProfile {
+  const execution = settings.execution;
+  return provider === "daytona"
+    ? {
+        provider,
+        target: execution.daytonaTarget,
+        shell: execution.daytonaShell || "/bin/sh",
+        workspacePath: execution.daytonaWorkspacePath || workspacePath,
+        state: "persistent-sandbox",
+        commandStyle: "exec",
+        envPassthrough: execution.dockerEnvPassthrough.filter(isValidEnvName),
+        snapshot: execution.daytonaSnapshot || undefined,
+        bootstrapCommand: execution.daytonaBootstrapCommand || undefined,
+        statusCommand: execution.daytonaStatusCommand || undefined,
+        inspectCommand:
+          execution.daytonaInspectCommand ||
+          `daytona info ${execution.daytonaTarget || "TARGET"} --format json`,
+      }
+    : {
+        provider,
+        target: execution.modalTarget,
+        shell: execution.modalShell || "/bin/bash",
+        workspacePath: execution.modalWorkspacePath || workspacePath,
+        state: "interactive-shell",
+        commandStyle: "shell",
+        envPassthrough: execution.dockerEnvPassthrough.filter(isValidEnvName),
+        environment: execution.modalEnvironment || undefined,
+        bootstrapCommand: execution.modalBootstrapCommand || undefined,
+        statusCommand: execution.modalStatusCommand || undefined,
+        inspectCommand:
+          execution.modalInspectCommand ||
+          `modal shell ${execution.modalTarget || "REF"}${
+          execution.modalEnvironment ? ` -e ${execution.modalEnvironment}` : ""
+        } --cmd ${execution.modalShell || "/bin/bash"} -lc "pwd"`,
+      };
+}
+
+function buildCloudRuntimeChecks(
+  provider: "daytona" | "modal",
+  settings: RuntimeSettings,
+  workspaceDir: string,
+  runtimeAvailable: boolean,
+  targetReachable: boolean,
+): DiagnosticCheck[] {
+  const execution = settings.execution;
+  const cloudProfile = buildCloudProfile(provider, settings, workspaceDir);
+  const target =
+    provider === "daytona" ? execution.daytonaTarget : execution.modalTarget;
+  const shell = provider === "daytona" ? execution.daytonaShell : execution.modalShell;
+  const bootstrap =
+    provider === "daytona"
+      ? execution.daytonaBootstrapCommand
+      : execution.modalBootstrapCommand;
+  const environment =
+    provider === "daytona" ? execution.daytonaSnapshot : execution.modalEnvironment;
+  const statusCommand =
+    provider === "daytona" ? execution.daytonaStatusCommand : execution.modalStatusCommand;
+  const inspectCommand =
+    provider === "daytona" ? execution.daytonaInspectCommand : execution.modalInspectCommand;
+
+  return [
+    createCheck(
+      `${provider}.runtime.binary`,
+      runtimeAvailable ? "pass" : "fail",
+      `${provider} CLI availability`,
+      runtimeAvailable
+        ? `${provider} command is available on this host.`
+        : `${provider} command is not available on this host.`,
+    ),
+    createCheck(
+      `${provider}.config.target`,
+      target ? "pass" : "fail",
+      `${provider} target`,
+      target ? `Execution target configured: ${target}.` : `${provider} target is not configured.`,
+    ),
+    createCheck(
+      `${provider}.config.shell`,
+      shell ? "pass" : "warn",
+      `${provider} shell`,
+      shell
+        ? `Remote shell configured as ${shell}.`
+        : `No explicit shell configured; using ${provider === "daytona" ? "/bin/sh" : "/bin/bash"}.`,
+    ),
+    createCheck(
+      `${provider}.config.workspace`,
+      cloudProfile.workspacePath ? "pass" : "fail",
+      `${provider} workspace`,
+      cloudProfile.workspacePath
+        ? `Remote workspace path configured as ${cloudProfile.workspacePath}.`
+        : "Remote workspace path is not configured.",
+    ),
+    createCheck(
+      `${provider}.config.bootstrap`,
+      bootstrap ? "pass" : "warn",
+      `${provider} bootstrap`,
+      bootstrap
+        ? `Bootstrap command configured: ${bootstrap}.`
+        : `No bootstrap command configured; commands will execute directly.`,
+    ),
+    createCheck(
+      `${provider}.config.status`,
+      statusCommand ? "pass" : "warn",
+      `${provider} status probe`,
+      statusCommand
+        ? `Status command configured: ${statusCommand}.`
+        : `No explicit status command configured; ${provider === "daytona" ? "daytona info" : "modal shell"} will be used as the probe.`,
+    ),
+    createCheck(
+      `${provider}.config.inspect`,
+      inspectCommand ? "pass" : "warn",
+      `${provider} inspect command`,
+      inspectCommand
+        ? `Inspect command configured: ${inspectCommand}.`
+        : `No explicit inspect command configured; the backend will synthesize one against ${cloudProfile.workspacePath}.`,
+    ),
+    createCheck(
+      `${provider}.config.environment`,
+      provider === "daytona" ? (environment ? "pass" : "warn") : environment ? "pass" : "warn",
+      `${provider} environment`,
+      provider === "daytona"
+        ? environment
+          ? `Daytona snapshot configured: ${environment}.`
+          : "No Daytona snapshot configured; live sandbox state will be used."
+        : environment
+          ? `Modal environment configured: ${environment}.`
+          : "No explicit Modal environment configured; the active profile will be used.",
+    ),
+    createCheck(
+      `${provider}.workspace.cwd`,
+      existsSync(workspaceDir) ? "pass" : "warn",
+      "Workspace path",
+      existsSync(workspaceDir)
+        ? `Workspace path ${workspaceDir} will be forwarded to ${provider} and staged at ${cloudProfile.workspacePath}.`
+        : `Workspace directory ${workspaceDir} is not present.`,
+    ),
+    createCheck(
+      `${provider}.runtime.probe`,
+      targetReachable ? "pass" : "fail",
+      "Sandbox probe",
+      targetReachable
+        ? `${provider} sandbox probe completed successfully.`
+        : `${provider} sandbox probe did not complete successfully.`,
+    ),
+  ];
+}
+
+function buildCloudRuntimePreviewChecks(
+  provider: "daytona" | "modal",
+  settings: RuntimeSettings,
+  workspaceDir: string,
+): DiagnosticCheck[] {
+  const execution = settings.execution;
+  const cloudProfile = buildCloudProfile(provider, settings, workspaceDir);
+  return [
+    createCheck(
+      `${provider}.preview.generated`,
+      "pass",
+      `${provider} preview`,
+      `${provider} will run as a ${cloudProfile.state} using ${provider === "daytona" ? execution.daytonaTarget : execution.modalTarget}.`,
+    ),
+    createCheck(
+      `${provider}.preview.shell`,
+      "pass",
+      "Remote shell",
+      `Commands execute through ${cloudProfile.shell} inside the remote sandbox.`,
+    ),
+    createCheck(
+      `${provider}.preview.workspace.path`,
+      cloudProfile.workspacePath ? "pass" : "warn",
+      "Remote workspace",
+      cloudProfile.workspacePath
+        ? `Remote workspace path configured as ${cloudProfile.workspacePath}.`
+        : "Remote workspace path is not configured.",
+    ),
+    createCheck(
+      `${provider}.preview.bootstrap`,
+      cloudProfile.bootstrapCommand ? "pass" : "warn",
+      "Bootstrap command",
+      cloudProfile.bootstrapCommand
+        ? `A bootstrap command will run before the user command.`
+        : "No bootstrap command configured.",
+    ),
+    createCheck(
+      `${provider}.preview.environment`,
+      cloudProfile.environment ? "pass" : "warn",
+      "Cloud environment",
+      cloudProfile.environment
+        ? `${provider === "daytona" ? "Daytona snapshot" : "Modal environment"} configured as ${cloudProfile.environment}.`
+        : "No explicit cloud environment configured.",
+    ),
+    createCheck(
+      `${provider}.preview.inspect`,
+      cloudProfile.inspectCommand ? "pass" : "warn",
+      "Inspect command",
+      cloudProfile.inspectCommand
+        ? `Inspect command configured as ${cloudProfile.inspectCommand}.`
+        : "No inspect command configured.",
+    ),
+    createCheck(
+      `${provider}.preview.workspace.mount`,
+      existsSync(workspaceDir) ? "pass" : "warn",
+      "Workspace mount",
+      existsSync(workspaceDir)
+        ? `${workspaceDir} will be staged into ${cloudProfile.workspacePath} inside the remote sandbox.`
+        : `Workspace directory ${workspaceDir} is not present.`,
+    ),
+  ];
 }
 
 function buildSshBaseArgs(settings: RuntimeSettings): string[] {
@@ -1132,62 +1450,197 @@ class SingularityExecutionBackend implements ExecutionBackend {
   }
 }
 
-class CliRemoteExecutionBackend implements ExecutionBackend {
-  constructor(
-    readonly name: "daytona" | "modal",
-    private readonly getBinary: (settings: RuntimeSettings) => string,
-    private readonly getTarget: (settings: RuntimeSettings) => string,
-  ) {}
+function buildDaytonaExecArgs(
+  settings: RuntimeSettings,
+  command: string,
+  cwd: string,
+  timeoutMs: number,
+): string[] {
+  const execution = settings.execution;
+  const binary = execution.daytonaCommand || "daytona";
+  const shell = execution.daytonaShell || "/bin/sh";
+  const workspacePath = execution.daytonaWorkspacePath || cwd || "/workspace";
+  const script = buildCloudCommandScript(command, workspacePath, settings, {
+    shell,
+    bootstrapCommand: execution.daytonaBootstrapCommand || undefined,
+  });
+  const timeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1000));
+  return [
+    binary,
+    "exec",
+    execution.daytonaTarget || "TARGET",
+    "--cwd",
+    workspacePath,
+    "--timeout",
+    String(timeoutSeconds),
+    "--",
+    shell,
+    "-lc",
+    script,
+  ];
+}
+
+function buildDaytonaInfoArgs(settings: RuntimeSettings): string[] {
+  const execution = settings.execution;
+  const binary = execution.daytonaCommand || "daytona";
+  return [binary, "info", execution.daytonaTarget || "TARGET", "--format", "json"];
+}
+
+function buildModalShellArgs(
+  settings: RuntimeSettings,
+  command: string,
+  cwd: string,
+): string[] {
+  const execution = settings.execution;
+  const binary = execution.modalCommand || "modal";
+  const shell = execution.modalShell || "/bin/bash";
+  const workspacePath = execution.modalWorkspacePath || cwd || "/workspace";
+  const script = buildCloudCommandScript(command, workspacePath, settings, {
+    shell,
+    bootstrapCommand: execution.modalBootstrapCommand || undefined,
+  });
+  const args = [binary, "shell", execution.modalTarget || "REF"];
+  if (execution.modalEnvironment) {
+    args.push("-e", execution.modalEnvironment);
+  }
+  args.push("--cmd", `${shell} -lc ${shellQuote(script)}`);
+  return args;
+}
+
+class DaytonaExecutionBackend implements ExecutionBackend {
+  readonly name = "daytona" as const;
+
+  constructor(private readonly cloudState: CloudStateAccessor) {}
 
   preview(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
-    const binary = this.getBinary(options.settings);
-    const target = this.getTarget(options.settings);
-    const checks = buildCliRemoteChecks(this.name, options.settings, options.cwd, true);
+    const cloud = buildCloudProfile("daytona", options.settings, options.cwd);
+    const cloudSession = this.cloudState.touch(cloud, {
+      state: "idle",
+      lastPreviewAt: new Date().toISOString(),
+      lastCommand: sanitizeCommand(command),
+    });
+    const checks = buildCloudRuntimePreviewChecks("daytona", options.settings, options.cwd);
     return {
       backend: this.name,
       mode: "remote",
       engine: this.name,
-      ready: false,
-      detail: `${this.name} execution uses a CLI-managed remote sandbox target.`,
+      cloud,
+      cloudSession,
+      target: cloud.target,
+      ready: Boolean(cloud.target && cloud.workspacePath),
+      detail: `Daytona execution uses a persistent sandbox target (${cloud.target || "TARGET"}) with snapshot-aware workspace execution.`,
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
-      command,
-      argv: buildCliTargetCommand(binary, target || "TARGET", command, options.cwd),
+      command: sanitizeCommand(command),
+      argv: buildDaytonaExecArgs(options.settings, command, options.cwd, options.timeoutMs),
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
-        `Install the ${binary} CLI and authenticate it locally.`,
-        `Configure execution.${this.name}Target before selecting the ${this.name} backend.`,
+        `Install the ${options.settings.execution.daytonaCommand || "daytona"} CLI and authenticate it locally.`,
+        `Confirm access to the sandbox target ${cloud.target || "TARGET"}.`,
       ]),
     };
   }
 
   async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
-    const binary = this.getBinary(settings);
-    const target = this.getTarget(settings);
     const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
+    const binary = settings.execution.daytonaCommand || "daytona";
     const runtimeAvailable = await commandExists(binary, probeTimeoutMs);
-    const checks = buildCliRemoteChecks(this.name, settings, workspaceDir, runtimeAvailable);
+    const cloud = buildCloudProfile("daytona", settings, workspaceDir);
+    const cloudSession = this.cloudState.touch(cloud, {
+      state: runtimeAvailable && Boolean(cloud.target) ? "ready" : "failed",
+      lastHealthAt: new Date().toISOString(),
+    });
+    if (!runtimeAvailable) {
+      const failedChecks = buildCloudRuntimeChecks("daytona", settings, workspaceDir, false, false);
+      return {
+        backend: this.name,
+        mode: "remote",
+        engine: this.name,
+        cloud,
+        cloudSession,
+        target: cloud.target,
+        ready: false,
+        detail: `${binary} command is not available.`,
+        limits: buildHealthLimits(settings),
+        diagnostics: renderChecks(failedChecks),
+        checks: failedChecks,
+        bootstrap: buildBootstrapHints(failedChecks, [
+          `Install the ${binary} CLI and authenticate it locally.`,
+          "Use daytona info to confirm the sandbox target is reachable.",
+        ]),
+      };
+    }
+
+    const infoCommand = settings.execution.daytonaStatusCommand
+      ? buildDaytonaExecArgs(
+          settings,
+          settings.execution.daytonaStatusCommand,
+          workspaceDir,
+          probeTimeoutMs,
+        )
+      : buildDaytonaInfoArgs(settings);
+    const info = await runCommand(infoCommand, { timeoutMs: probeTimeoutMs }).catch(() => ({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Daytona info probe failed.",
+      timedOut: false,
+      durationMs: 0,
+    }));
+    const execProbe = await runCommand(
+      buildDaytonaExecArgs(settings, "printf eliza-daytona-ok", workspaceDir, probeTimeoutMs),
+      { timeoutMs: probeTimeoutMs },
+    ).catch(() => ({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Daytona sandbox probe failed.",
+      timedOut: false,
+      durationMs: 0,
+    }));
+    const infoOk = info.exitCode === 0;
+    const execOk = execProbe.exitCode === 0;
+    const checks = buildCloudRuntimeChecks("daytona", settings, workspaceDir, runtimeAvailable, infoOk && execOk);
+    let infoSummary = "available";
+    if (info.stdout) {
+      try {
+        const parsed = JSON.parse(info.stdout) as Record<string, unknown>;
+        infoSummary =
+          typeof parsed.name === "string"
+            ? parsed.name
+            : typeof parsed.id === "string"
+              ? parsed.id
+              : typeof parsed.status === "string"
+                ? parsed.status
+                : infoSummary;
+      } catch {
+        infoSummary = "available";
+      }
+    }
     return {
       backend: this.name,
       mode: "remote",
       engine: this.name,
-      ready: runtimeAvailable && Boolean(target),
+      cloud,
+      cloudSession,
+      target: cloud.target,
+      ready: runtimeAvailable && infoOk && execOk,
       detail:
-        runtimeAvailable && target
-          ? `${this.name} backend is configured for target ${target}.`
-          : !runtimeAvailable
-            ? `${binary} command is not available.`
-            : `${this.name} target is not configured.`,
+        runtimeAvailable && infoOk && execOk
+          ? `Daytona ready for target ${cloud.target} (${infoSummary}) with snapshot ${cloud.snapshot || "live"} and workspace ${workspaceDir}.`
+          : !infoOk
+            ? info.stderr || "Daytona info probe failed."
+            : execProbe.stderr || "Daytona sandbox probe failed.",
       limits: buildHealthLimits(settings),
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
-        `Authenticate the ${binary} CLI and verify remote sandbox access.`,
-        `Set execution.${this.name}Target to the desired persistent sandbox or environment.`,
+        `Use daytona info ${cloud.target || "TARGET"} --format json to inspect the sandbox state.`,
+        cloud.snapshot
+          ? `Confirm snapshot ${cloud.snapshot} is available for the sandbox target.`
+          : "Add a Daytona snapshot reference if you want the backend anchored to a known image state.",
       ]),
     };
   }
@@ -1196,50 +1649,188 @@ class CliRemoteExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): Promise<TerminalRunResult> {
-    const binary = this.getBinary(options.settings);
-    const target = this.getTarget(options.settings);
-    if (!target) {
+    const cloud = buildCloudProfile("daytona", options.settings, options.cwd);
+    const safeCommand = sanitizeCommand(command);
+    if (!cloud.target) {
       return {
         exitCode: 1,
         stdout: "",
-        stderr: `${this.name} backend requires a configured target.`,
+        stderr: "Daytona backend requires execution.daytonaTarget.",
         timedOut: false,
         durationMs: 0,
       };
     }
-    return normalizeBackendError(
-      await runCommand(buildCliTargetCommand(binary, target, command, options.cwd), {
+    const cloudSession = this.cloudState.touch(cloud, {
+      state: "running",
+      lastRunAt: new Date().toISOString(),
+      lastCommand: safeCommand,
+    });
+    const result = normalizeBackendError(
+      await runCommand(buildDaytonaExecArgs(options.settings, safeCommand, options.cwd, options.timeoutMs), {
         timeoutMs: options.timeoutMs,
       }),
     );
+    this.cloudState.touch(cloud, {
+      state: result.exitCode === 0 ? "ready" : "failed",
+      lastRunAt: new Date().toISOString(),
+      lastCommandId: cloudSession.lastCommandId,
+      lastCommand: safeCommand,
+      lastExitCode: result.exitCode,
+      lastStdout: result.stdout,
+      lastStderr: result.stderr,
+    });
+    return result;
+  }
+}
+
+class ModalExecutionBackend implements ExecutionBackend {
+  readonly name = "modal" as const;
+
+  constructor(private readonly cloudState: CloudStateAccessor) {}
+
+  preview(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): ExecutionBackendPreview {
+    const cloud = buildCloudProfile("modal", options.settings, options.cwd);
+    const cloudSession = this.cloudState.touch(cloud, {
+      state: "idle",
+      lastPreviewAt: new Date().toISOString(),
+      lastCommand: sanitizeCommand(command),
+    });
+    const checks = buildCloudRuntimePreviewChecks("modal", options.settings, options.cwd);
+    return {
+      backend: this.name,
+      mode: "remote",
+      engine: this.name,
+      cloud,
+      cloudSession,
+      target: cloud.target,
+      ready: Boolean(cloud.target && cloud.workspacePath),
+      detail: `Modal execution uses a shell session against target ${cloud.target || "REF"} with explicit environment selection${cloud.environment ? ` (${cloud.environment})` : ""}.`,
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      command: sanitizeCommand(command),
+      argv: buildModalShellArgs(options.settings, sanitizeCommand(command), options.cwd),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        `Install the ${options.settings.execution.modalCommand || "modal"} CLI and authenticate it locally.`,
+        cloud.environment
+          ? `Confirm Modal environment ${cloud.environment} is available for shell sessions.`
+          : "Set a Modal environment if your workspace has multiple environments.",
+      ]),
+    };
+  }
+
+  async health(settings: RuntimeSettings, workspaceDir: string): Promise<ExecutionBackendHealth> {
+    const probeTimeoutMs = settings.execution.healthTimeoutMs ?? 5_000;
+    const binary = settings.execution.modalCommand || "modal";
+    const runtimeAvailable = await commandExists(binary, probeTimeoutMs);
+    const cloud = buildCloudProfile("modal", settings, workspaceDir);
+    const cloudSession = this.cloudState.touch(cloud, {
+      state: runtimeAvailable && Boolean(cloud.target) ? "ready" : "failed",
+      lastHealthAt: new Date().toISOString(),
+    });
+    if (!runtimeAvailable) {
+      const failedChecks = buildCloudRuntimeChecks("modal", settings, workspaceDir, false, false);
+      return {
+        backend: this.name,
+        mode: "remote",
+        engine: this.name,
+        cloud,
+        cloudSession,
+        target: cloud.target,
+        ready: false,
+        detail: `${binary} command is not available.`,
+        limits: buildHealthLimits(settings),
+        diagnostics: renderChecks(failedChecks),
+        checks: failedChecks,
+        bootstrap: buildBootstrapHints(failedChecks, [
+          `Install the ${binary} CLI and authenticate it locally.`,
+          "Use modal shell to confirm the target is reachable.",
+        ]),
+      };
+    }
+
+    const shellProbeCommand = settings.execution.modalStatusCommand
+      ? buildModalShellArgs(settings, settings.execution.modalStatusCommand, workspaceDir)
+      : buildModalShellArgs(settings, "printf eliza-modal-ok", workspaceDir);
+    const shellProbe = await runCommand(shellProbeCommand, { timeoutMs: probeTimeoutMs }).catch(() => ({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Modal shell probe failed.",
+      timedOut: false,
+      durationMs: 0,
+    }));
+    const shellOk = shellProbe.exitCode === 0;
+    const checks = buildCloudRuntimeChecks("modal", settings, workspaceDir, runtimeAvailable, shellOk);
+    return {
+      backend: this.name,
+      mode: "remote",
+      engine: this.name,
+      cloud,
+      cloudSession,
+      target: cloud.target,
+      ready: runtimeAvailable && shellOk,
+      detail:
+        runtimeAvailable && shellOk
+          ? `Modal ready for target ${cloud.target} using ${cloud.shell} and environment ${cloud.environment || "default profile"}.`
+          : shellProbe.stderr || "Modal shell probe failed.",
+      limits: buildHealthLimits(settings),
+      diagnostics: renderChecks(checks),
+      checks,
+      bootstrap: buildBootstrapHints(checks, [
+        `Use modal shell ${cloud.target || "REF"} --cmd ${cloud.shell} to verify the remote shell.`,
+        cloud.environment
+          ? `Bind the shell to Modal environment ${cloud.environment}.`
+          : "Set a Modal environment if the workspace has multiple environments.",
+      ]),
+    };
+  }
+
+  async run(
+    command: string,
+    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+  ): Promise<TerminalRunResult> {
+    const cloud = buildCloudProfile("modal", options.settings, options.cwd);
+    const safeCommand = sanitizeCommand(command);
+    if (!cloud.target) {
+      return {
+        exitCode: 1,
+        stdout: "",
+        stderr: "Modal backend requires execution.modalTarget.",
+        timedOut: false,
+        durationMs: 0,
+      };
+    }
+    const cloudSession = this.cloudState.touch(cloud, {
+      state: "running",
+      lastRunAt: new Date().toISOString(),
+      lastCommand: safeCommand,
+    });
+    const result = normalizeBackendError(
+      await runCommand(buildModalShellArgs(options.settings, safeCommand, options.cwd), {
+        timeoutMs: options.timeoutMs,
+      }),
+    );
+    this.cloudState.touch(cloud, {
+      state: result.exitCode === 0 ? "ready" : "failed",
+      lastRunAt: new Date().toISOString(),
+      lastCommandId: cloudSession.lastCommandId,
+      lastCommand: safeCommand,
+      lastExitCode: result.exitCode,
+      lastStdout: result.stdout,
+      lastStderr: result.stderr,
+    });
+    return result;
   }
 }
 
 export class TerminalService {
   private readonly filePath: string;
-  private readonly backends = new Map<ExecutionBackendName, ExecutionBackend>([
-    ["local", new LocalExecutionBackend()],
-    ["docker", new DockerExecutionBackend()],
-    ["podman", new PodmanExecutionBackend()],
-    ["ssh", new SshExecutionBackend()],
-    ["singularity", new SingularityExecutionBackend()],
-    [
-      "daytona",
-      new CliRemoteExecutionBackend(
-        "daytona",
-        (settings) => settings.execution.daytonaCommand || "daytona",
-        (settings) => settings.execution.daytonaTarget,
-      ),
-    ],
-    [
-      "modal",
-      new CliRemoteExecutionBackend(
-        "modal",
-        (settings) => settings.execution.modalCommand || "modal",
-        (settings) => settings.execution.modalTarget,
-      ),
-    ],
-  ]);
+  private readonly cloudState: CloudStoreManager;
+  private readonly backends: Map<ExecutionBackendName, ExecutionBackend>;
 
   constructor(
     baseDir: string,
@@ -1248,6 +1839,16 @@ export class TerminalService {
   ) {
     mkdirSync(baseDir, { recursive: true });
     this.filePath = join(baseDir, "terminal-history.json");
+    this.cloudState = new CloudStoreManager(join(baseDir, "cloud-sessions.json"));
+    this.backends = new Map<ExecutionBackendName, ExecutionBackend>([
+      ["local", new LocalExecutionBackend()],
+      ["docker", new DockerExecutionBackend()],
+      ["podman", new PodmanExecutionBackend()],
+      ["ssh", new SshExecutionBackend()],
+      ["singularity", new SingularityExecutionBackend()],
+      ["daytona", new DaytonaExecutionBackend(this.cloudState)],
+      ["modal", new ModalExecutionBackend(this.cloudState)],
+    ]);
     if (!existsSync(this.filePath)) {
       this.write({ commands: [] });
     }
@@ -1260,15 +1861,16 @@ export class TerminalService {
     if (!backend) {
       throw new Error("No execution backend is available.");
     }
+    const safeCommand = sanitizeCommand(command);
     const effectiveTimeoutMs = timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000;
-    const preview = backend.preview(command, {
+    const preview = backend.preview(safeCommand, {
       cwd: this.workspaceDir,
       timeoutMs: effectiveTimeoutMs,
       settings,
     });
 
     const startedAt = new Date().toISOString();
-    const result = await backend.run(command, {
+    const result = await backend.run(safeCommand, {
       cwd: this.workspaceDir,
       timeoutMs: effectiveTimeoutMs,
       settings,
@@ -1276,10 +1878,15 @@ export class TerminalService {
 
     const record: TerminalCommandRecord = {
       id: randomUUID(),
-      command,
+      command: safeCommand,
       backend: backend.name,
       backendMode: preview.mode,
       backendEngine: preview.engine,
+      cloud: preview.cloud,
+      cloudSession: preview.cloudSession,
+      executionTarget: preview.target ?? preview.cloud?.target,
+      executionSessionId: preview.cloudSession?.sessionId,
+      executionProfile: preview.cloud,
       cwd: this.workspaceDir,
       timeoutMs: effectiveTimeoutMs,
       timedOut: result.timedOut,
@@ -1291,6 +1898,17 @@ export class TerminalService {
       completedAt: new Date().toISOString(),
       preview,
     };
+    if (record.cloud?.provider && record.cloudSession) {
+      this.cloudState.touch(record.cloud, {
+        state: record.exitCode === 0 ? "ready" : "failed",
+        lastCommandId: record.id,
+        lastRunAt: record.completedAt,
+        lastCommand: record.command,
+        lastExitCode: record.exitCode,
+        lastStdout: record.stdout,
+        lastStderr: record.stderr,
+      });
+    }
 
     const store = this.read();
     store.commands.push(record);
@@ -1318,7 +1936,7 @@ export class TerminalService {
       throw new Error("No execution backend is available.");
     }
 
-    return backend.preview(command, {
+    return backend.preview(sanitizeCommand(command), {
       cwd: this.workspaceDir,
       timeoutMs: timeoutMs ?? settings.execution.commandTimeoutMs ?? 30_000,
       settings,

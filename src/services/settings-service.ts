@@ -24,8 +24,20 @@ export interface RuntimeSettings {
     singularityImage: string;
     daytonaTarget: string;
     daytonaCommand: string;
+    daytonaShell: string;
+    daytonaWorkspacePath: string;
+    daytonaSnapshot: string;
+    daytonaBootstrapCommand: string;
+    daytonaStatusCommand: string;
+    daytonaInspectCommand: string;
     modalTarget: string;
     modalCommand: string;
+    modalShell: string;
+    modalWorkspacePath: string;
+    modalEnvironment: string;
+    modalBootstrapCommand: string;
+    modalStatusCommand: string;
+    modalInspectCommand: string;
     commandTimeoutMs?: number;
     healthTimeoutMs?: number;
     containerCpuLimit?: string;
@@ -77,8 +89,20 @@ export class SettingsService {
         singularityImage: "",
         daytonaTarget: "",
         daytonaCommand: "",
+        daytonaShell: "/bin/sh",
+        daytonaWorkspacePath: "/workspace",
+        daytonaSnapshot: "",
+        daytonaBootstrapCommand: "",
+        daytonaStatusCommand: "",
+        daytonaInspectCommand: "",
         modalTarget: "",
         modalCommand: "",
+        modalShell: "/bin/bash",
+        modalWorkspacePath: "/workspace",
+        modalEnvironment: "",
+        modalBootstrapCommand: "",
+        modalStatusCommand: "",
+        modalInspectCommand: "",
         commandTimeoutMs: 30_000,
         healthTimeoutMs: 5_000,
         containerCpuLimit: "2",
@@ -118,12 +142,60 @@ export class SettingsService {
         parsed.execution.daytonaCommand = "";
         dirty = true;
       }
+      if (execution.daytonaShell === undefined) {
+        parsed.execution.daytonaShell = "/bin/sh";
+        dirty = true;
+      }
+      if (execution.daytonaWorkspacePath === undefined) {
+        parsed.execution.daytonaWorkspacePath = "/workspace";
+        dirty = true;
+      }
+      if (execution.daytonaSnapshot === undefined) {
+        parsed.execution.daytonaSnapshot = "";
+        dirty = true;
+      }
+      if (execution.daytonaBootstrapCommand === undefined) {
+        parsed.execution.daytonaBootstrapCommand = "";
+        dirty = true;
+      }
+      if (execution.daytonaStatusCommand === undefined) {
+        parsed.execution.daytonaStatusCommand = "";
+        dirty = true;
+      }
+      if (execution.daytonaInspectCommand === undefined) {
+        parsed.execution.daytonaInspectCommand = "";
+        dirty = true;
+      }
       if (execution.modalTarget === undefined) {
         parsed.execution.modalTarget = "";
         dirty = true;
       }
       if (execution.modalCommand === undefined) {
         parsed.execution.modalCommand = "";
+        dirty = true;
+      }
+      if (execution.modalShell === undefined) {
+        parsed.execution.modalShell = "/bin/bash";
+        dirty = true;
+      }
+      if (execution.modalWorkspacePath === undefined) {
+        parsed.execution.modalWorkspacePath = "/workspace";
+        dirty = true;
+      }
+      if (execution.modalEnvironment === undefined) {
+        parsed.execution.modalEnvironment = "";
+        dirty = true;
+      }
+      if (execution.modalBootstrapCommand === undefined) {
+        parsed.execution.modalBootstrapCommand = "";
+        dirty = true;
+      }
+      if (execution.modalStatusCommand === undefined) {
+        parsed.execution.modalStatusCommand = "";
+        dirty = true;
+      }
+      if (execution.modalInspectCommand === undefined) {
+        parsed.execution.modalInspectCommand = "";
         dirty = true;
       }
       if (execution.commandTimeoutMs === undefined) {

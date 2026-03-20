@@ -264,8 +264,35 @@ export class DiagnosticsService {
             : "warn",
       summary: "Daytona execution readiness",
       detail: this.config.daytonaTarget
-        ? `Daytona target configured: ${this.config.daytonaTarget}.`
+        ? `Daytona sandbox target configured: ${this.config.daytonaTarget}. Shell=${this.config.daytonaCommand || "daytona"} ${this.config.daytonaShell || "/bin/sh"} workspace=${this.config.daytonaWorkspacePath || "/workspace"}${this.config.daytonaSnapshot ? ` snapshot=${this.config.daytonaSnapshot}` : ""}.`
         : "ELIZA_AGENT_DAYTONA_TARGET is not configured.",
+    });
+
+    checks.push({
+      id: "daytona.shell",
+      status: this.config.daytonaShell ? "pass" : "warn",
+      summary: "Daytona shell strategy",
+      detail: this.config.daytonaShell
+        ? `Daytona commands execute through ${this.config.daytonaShell} with an info probe and exec path.`
+        : "Daytona shell strategy is not configured.",
+    });
+
+    checks.push({
+      id: "daytona.snapshot",
+      status: this.config.daytonaSnapshot ? "pass" : "warn",
+      summary: "Daytona snapshot reference",
+      detail: this.config.daytonaSnapshot
+        ? `Daytona snapshot configured: ${this.config.daytonaSnapshot}.`
+        : "No Daytona snapshot reference configured; the backend will use the live sandbox target.",
+    });
+
+    checks.push({
+      id: "daytona.inspect",
+      status: this.config.daytonaInspectCommand ? "pass" : "warn",
+      summary: "Daytona inspect command",
+      detail: this.config.daytonaInspectCommand
+        ? `Daytona inspect command configured: ${this.config.daytonaInspectCommand}.`
+        : "Daytona inspect command will be synthesized from the configured target.",
     });
 
     checks.push({
@@ -278,8 +305,35 @@ export class DiagnosticsService {
             : "warn",
       summary: "Modal execution readiness",
       detail: this.config.modalTarget
-        ? `Modal target configured: ${this.config.modalTarget}.`
+        ? `Modal shell target configured: ${this.config.modalTarget}. Shell=${this.config.modalCommand || "modal"} ${this.config.modalShell || "/bin/bash"} workspace=${this.config.modalWorkspacePath || "/workspace"}${this.config.modalEnvironment ? ` env=${this.config.modalEnvironment}` : ""}.`
         : "ELIZA_AGENT_MODAL_TARGET is not configured.",
+    });
+
+    checks.push({
+      id: "modal.shell",
+      status: this.config.modalShell ? "pass" : "warn",
+      summary: "Modal shell strategy",
+      detail: this.config.modalShell
+        ? `Modal shell runs commands through ${this.config.modalShell} and can be bound to ${this.config.modalEnvironment || "the active profile"}.`
+        : "Modal shell strategy is not configured.",
+    });
+
+    checks.push({
+      id: "modal.environment",
+      status: this.config.modalEnvironment ? "pass" : "warn",
+      summary: "Modal environment selection",
+      detail: this.config.modalEnvironment
+        ? `Modal environment configured: ${this.config.modalEnvironment}.`
+        : "No explicit Modal environment configured; the active profile will be used.",
+    });
+
+    checks.push({
+      id: "modal.inspect",
+      status: this.config.modalInspectCommand ? "pass" : "warn",
+      summary: "Modal inspect command",
+      detail: this.config.modalInspectCommand
+        ? `Modal inspect command configured: ${this.config.modalInspectCommand}.`
+        : "Modal inspect command will be synthesized from the configured target.",
     });
 
     checks.push({
@@ -373,9 +427,45 @@ export class DiagnosticsService {
         "Set ELIZA_AGENT_DAYTONA_TARGET before relying on the Daytona execution backend.",
       );
     }
+    if (this.config.executionBackend === "daytona" && !this.config.daytonaWorkspacePath) {
+      steps.push(
+        "Set ELIZA_AGENT_DAYTONA_WORKSPACE_PATH before relying on the Daytona execution backend.",
+      );
+    }
+    if (!this.config.daytonaShell) {
+      steps.push("Set ELIZA_AGENT_DAYTONA_SHELL to choose the shell used inside Daytona sandboxes.");
+    }
+    if (this.config.executionBackend === "daytona" && !this.config.daytonaSnapshot) {
+      steps.push(
+        "Optionally set ELIZA_AGENT_DAYTONA_SNAPSHOT if you want Daytona execution to anchor to a named sandbox snapshot.",
+      );
+    }
+    if (!this.config.daytonaInspectCommand) {
+      steps.push(
+        "Optionally set ELIZA_AGENT_DAYTONA_INSPECT_COMMAND if you want to override the synthesized Daytona sandbox inspect command.",
+      );
+    }
     if (this.config.executionBackend === "modal" && !this.config.modalTarget) {
       steps.push(
         "Set ELIZA_AGENT_MODAL_TARGET before relying on the Modal execution backend.",
+      );
+    }
+    if (this.config.executionBackend === "modal" && !this.config.modalWorkspacePath) {
+      steps.push(
+        "Set ELIZA_AGENT_MODAL_WORKSPACE_PATH before relying on the Modal execution backend.",
+      );
+    }
+    if (!this.config.modalShell) {
+      steps.push("Set ELIZA_AGENT_MODAL_SHELL to choose the shell used inside Modal sandboxes.");
+    }
+    if (!this.config.modalEnvironment) {
+      steps.push(
+        "Optionally set ELIZA_AGENT_MODAL_ENVIRONMENT so Modal shells bind to an explicit environment instead of the active profile.",
+      );
+    }
+    if (!this.config.modalInspectCommand) {
+      steps.push(
+        "Optionally set ELIZA_AGENT_MODAL_INSPECT_COMMAND if you want to override the synthesized Modal shell inspect command.",
       );
     }
 
