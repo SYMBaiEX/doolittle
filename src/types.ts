@@ -163,7 +163,7 @@ export interface CronJobRecord {
   name: string;
   prompt: string;
   schedule: string;
-  delivery: "origin" | "local";
+  delivery: "origin" | "local" | "home";
   skills: string[];
   runtime?: CronJobRuntimeOverrides;
   status: "active" | "paused";

@@ -1435,14 +1435,14 @@ export class GatewayRunner {
 
     let deliveryId: string | undefined;
     if (adapter) {
-      const outbound: OutboundPlatformMessage = {
+      const outbound = await this.buildOutboundResponse(session, message, {
         roomId: message.channelId ?? message.roomId,
         userId: message.userId,
         text: response,
         threadId: message.threadId ?? session.threadId,
         replyToId: message.messageId ?? message.replyToMessageId,
         metadata: message.metadata,
-      };
+      });
       try {
         const delivery = await adapter.send(outbound);
         deliveryId = delivery.id;
@@ -1496,18 +1496,26 @@ export class GatewayRunner {
         throw error;
       }
     } else {
+      const outbound = await this.buildOutboundResponse(session, message, {
+        roomId: message.channelId ?? message.roomId,
+        userId: message.userId,
+        text: response,
+        threadId: message.threadId,
+        replyToId: message.replyToMessageId,
+        metadata: message.metadata,
+      });
       const delivery = this.context.services.delivery.deliver(
         {
           platform: message.platform,
-          channelId: message.channelId ?? message.roomId,
+          channelId: outbound.roomId,
           userId: message.userId,
           mode: "origin",
         },
-        response,
+        outbound.text,
         {
-          threadId: message.threadId,
-          replyToId: message.replyToMessageId,
-          metadata: message.metadata,
+          threadId: outbound.threadId,
+          replyToId: outbound.replyToId,
+          metadata: outbound.metadata,
         },
       );
       deliveryId = delivery.id;
@@ -1516,14 +1524,7 @@ export class GatewayRunner {
         traceId,
         session.sessionKey,
         delivery,
-        {
-          roomId: message.channelId ?? message.roomId,
-          userId: message.userId,
-          text: response,
-          threadId: message.threadId,
-          replyToId: message.replyToMessageId,
-          metadata: message.metadata,
-        },
+        outbound,
         "fallback",
       );
       this.pushTrace({
@@ -1563,6 +1564,86 @@ export class GatewayRunner {
       sessionId: session.sessionKey,
       deliveryId,
     };
+  }
+
+  async sendToHomes(
+    text: string,
+    options?: {
+      metadata?: Record<string, string>;
+      platforms?: PlatformName[];
+      name?: string;
+    },
+  ): Promise<DeliveredMessageRecord[]> {
+    const deliveries: DeliveredMessageRecord[] = [];
+    const platforms = options?.platforms?.length
+      ? new Set(options.platforms)
+      : null;
+    const homeSessions = this.context.services.gatewaySessions
+      .list()
+      .filter(
+        (session) =>
+          session.isHome &&
+          (!platforms || platforms.has(session.platform)) &&
+          (session.channelId ?? session.roomId),
+      );
+
+    for (const session of homeSessions) {
+      const traceId = randomUUID();
+      const outbound = await this.buildOutboundForSession(
+        session,
+        {
+          roomId: session.channelId ?? session.roomId,
+          userId: session.userId,
+          text,
+          threadId: session.threadId,
+          replyToId: session.replyToMessageId,
+          metadata: options?.metadata,
+        },
+        options?.name ?? "home-delivery",
+      );
+      const adapter = this.adapters.get(session.platform);
+      const delivery = adapter
+        ? await adapter.send(outbound)
+        : this.context.services.delivery.deliver(
+            {
+              platform: session.platform,
+              channelId: outbound.roomId,
+              userId: session.userId,
+              mode: "home",
+            },
+            outbound.text,
+            {
+              threadId: outbound.threadId,
+              replyToId: outbound.replyToId,
+              metadata: outbound.metadata,
+            },
+          );
+      deliveries.push(delivery);
+      this.recordOutbox(
+        session.platform,
+        traceId,
+        session.sessionKey,
+        delivery,
+        outbound,
+        adapter ? "sent" : "fallback",
+      );
+      this.pushTrace({
+        traceId,
+        at: new Date().toISOString(),
+        kind: "deliver",
+        platform: session.platform,
+        detail: `Delivered to home channel ${outbound.roomId} with record ${delivery.id}.`,
+        sessionId: session.sessionKey,
+        userId: session.userId,
+        roomId: session.roomId,
+        threadId: outbound.threadId,
+        replyToMessageId: outbound.replyToId,
+        deliveryId: delivery.id,
+        metadataKeys: Object.keys(delivery.metadata ?? {}),
+      });
+    }
+
+    return deliveries;
   }
 
   async health(): Promise<Array<PlatformHealth>> {
@@ -1769,6 +1850,70 @@ export class GatewayRunner {
       counts.set(key, existing);
     }
     return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+  }
+
+  private isVoiceMessage(message: IncomingPlatformMessage): boolean {
+    const kinds = (message.metadata?.attachmentKinds ?? "")
+      .split("|")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
+    return kinds.some((kind) => kind === "voice" || kind === "audio");
+  }
+
+  private async buildOutboundResponse(
+    session: SessionRoute,
+    message: IncomingPlatformMessage,
+    outbound: OutboundPlatformMessage,
+  ): Promise<OutboundPlatformMessage> {
+    const voiceMode = session.voiceMode ?? "off";
+    const shouldSpeak =
+      voiceMode === "all" ||
+      (voiceMode === "voice_only" && this.isVoiceMessage(message));
+    if (!shouldSpeak) {
+      return outbound;
+    }
+    return this.buildOutboundForSession(session, outbound, "voice-reply");
+  }
+
+  private async buildOutboundForSession(
+    session: SessionRoute,
+    outbound: OutboundPlatformMessage,
+    speechName: string,
+  ): Promise<OutboundPlatformMessage> {
+    const voiceMode = session.voiceMode ?? "off";
+    if (voiceMode === "off") {
+      return outbound;
+    }
+
+    try {
+      const speech = await this.context.services.media.speak(outbound.text, {
+        name: `${session.platform}-${speechName}`,
+      });
+      const attachmentName = speech.artifactPath.split("/").at(-1) ?? "speech";
+      return {
+        ...outbound,
+        metadata: {
+          ...(outbound.metadata ?? {}),
+          voiceMode,
+          audioAsVoice: "true",
+          attachmentCount: "1",
+          attachmentKinds: "voice",
+          attachmentNames: attachmentName,
+          attachmentUrls: speech.artifactPath,
+          attachmentMimeTypes:
+            speech.artifactKind === "mp3" ? "audio/mpeg" : "image/svg+xml",
+        },
+      };
+    } catch {
+      return {
+        ...outbound,
+        metadata: {
+          ...(outbound.metadata ?? {}),
+          voiceMode,
+          audioAsVoice: "true",
+        },
+      };
+    }
   }
 
   private describeInactivePlatform(platform: PlatformName): string {

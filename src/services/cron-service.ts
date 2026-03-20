@@ -71,7 +71,7 @@ export class CronService {
     prompt: string;
     schedule: string;
     skills?: string[];
-    delivery?: "origin" | "local";
+    delivery?: "origin" | "local" | "home";
     runtime?: CronJobRuntimeOverrides;
   }): CronJobRecord {
     const jobs = this.readJobs();
@@ -138,7 +138,7 @@ export class CronService {
       prompt?: string;
       schedule?: string;
       skills?: string[];
-      delivery?: "origin" | "local";
+      delivery?: "origin" | "local" | "home";
       runtime?: CronJobRuntimeOverrides;
       clearRuntime?: boolean;
     },

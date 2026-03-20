@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
@@ -106,17 +107,20 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       };
     }
 
-    const response = await fetch(
-      `https://discord.com/api/v10/channels/${message.roomId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${this.config.discordBotToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
-    );
+    const voicePath = this.resolveVoiceAttachment(message.metadata);
+    const response = voicePath
+      ? await this.sendVoiceMessage(message, payload, voicePath)
+      : await fetch(
+          `https://discord.com/api/v10/channels/${message.roomId}/messages`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bot ${this.config.discordBotToken}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          },
+        );
 
     if (!response.ok) {
       this.lastError = `Discord send failed (${response.status}): ${await response.text()}`;
@@ -153,6 +157,39 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       `Discord delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
     );
     return record;
+  }
+
+  private resolveVoiceAttachment(
+    metadata?: Record<string, string>,
+  ): string | undefined {
+    if (metadata?.audioAsVoice !== "true") {
+      return undefined;
+    }
+    const firstPath = metadata.attachmentUrls?.split("|").find(Boolean)?.trim();
+    if (!firstPath || !existsSync(firstPath)) {
+      return undefined;
+    }
+    return firstPath;
+  }
+
+  private async sendVoiceMessage(
+    message: OutboundPlatformMessage,
+    payload: Record<string, unknown>,
+    voicePath: string,
+  ): Promise<Response> {
+    const form = new FormData();
+    form.set("payload_json", JSON.stringify(payload));
+    form.set("files[0]", Bun.file(voicePath), voicePath.split("/").at(-1));
+    return fetch(
+      `https://discord.com/api/v10/channels/${message.roomId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${this.config.discordBotToken}`,
+        },
+        body: form,
+      },
+    );
   }
 
   canReceive(): boolean {

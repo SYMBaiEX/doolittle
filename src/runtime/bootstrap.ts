@@ -117,6 +117,18 @@ function buildCronPrompt(
   ].join("\n\n");
 }
 
+function formatCronDeliverySummary(
+  count: number,
+  delivery: "origin" | "local" | "home",
+): string {
+  if (delivery !== "home") {
+    return "";
+  }
+  return count > 0
+    ? `\n\nDelivered to ${count} home channel${count === 1 ? "" : "s"}.`
+    : "\n\nNo home channels are configured yet for delivery.";
+}
+
 export async function getAppContext(): Promise<AppContext> {
   if (contextPromise) {
     return contextPromise;
@@ -139,9 +151,23 @@ export async function getAppContext(): Promise<AppContext> {
     });
 
     await runtime.initialize();
+    services.documents = new DocumentsService(runtime, config.workspaceDir);
+    const gatewayService = runtime.getService("eliza_agent_gateway") as {
+      runner?: GatewayRunner;
+    } | null;
+    let gateway = gatewayService?.runner;
+    if (!gateway) {
+      const gatewayContext = {} as AppContext;
+      gateway = new GatewayRunner(gatewayContext);
+      gatewayContext.config = config;
+      gatewayContext.services = services;
+      gatewayContext.runtime = runtime;
+      gatewayContext.gateway = gateway;
+    }
+
     services.cron.setExecutor(async (job) => {
       const { handleAgentTurn } = await import("@/runtime/chat");
-      return handleAgentTurn(
+      const output = await handleAgentTurn(
         {
           message: buildCronPrompt(services, job.prompt, job.skills),
           userId: "cron",
@@ -158,21 +184,19 @@ export async function getAppContext(): Promise<AppContext> {
           personalityId: job.runtime?.personalityId,
         },
       );
+      if (job.delivery === "home") {
+        const deliveries = await gateway.sendToHomes(output, {
+          metadata: {
+            cronJobId: job.id,
+            cronJobName: job.name,
+          },
+          name: job.name,
+        });
+        return `${output}${formatCronDeliverySummary(deliveries.length, job.delivery)}`;
+      }
+      return output;
     });
     services.cron.start();
-    services.documents = new DocumentsService(runtime, config.workspaceDir);
-    const gatewayService = runtime.getService("eliza_agent_gateway") as {
-      runner?: GatewayRunner;
-    } | null;
-    let gateway = gatewayService?.runner;
-    if (!gateway) {
-      const gatewayContext = {} as AppContext;
-      gateway = new GatewayRunner(gatewayContext);
-      gatewayContext.config = config;
-      gatewayContext.services = services;
-      gatewayContext.runtime = runtime;
-      gatewayContext.gateway = gateway;
-    }
 
     return {
       config,

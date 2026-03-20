@@ -34,7 +34,7 @@ export const featureMap: FeatureMapping[] = [
     platformCapability: "Scheduled automations and cron jobs",
     elizaImplementation: "Custom cron service + `/cron` command family",
     notes:
-      "Supports intervals, one-shot delays, and 5-field cron expressions with persistent job storage.",
+      "Supports intervals, one-shot delays, and 5-field cron expressions with persistent job storage, local artifact persistence, and home-channel delivery routing.",
   },
   {
     platformCapability: "Workspace exploration and file access",

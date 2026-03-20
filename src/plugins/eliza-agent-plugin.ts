@@ -152,10 +152,14 @@ export function createElizaAgentPlugin(
         services,
         runtime: runtime as never,
       };
+      const gatewayService = runtime.getService("eliza_agent_gateway") as {
+        runner?: GatewayRunner;
+      } | null;
+      const gateway = gatewayService?.runner;
 
       services.cron.setExecutor(async (job) => {
         const { handleAgentTurn } = await import("@/runtime/chat");
-        return handleAgentTurn(
+        const output = await handleAgentTurn(
           {
             message: job.prompt,
             userId: "cron",
@@ -164,6 +168,19 @@ export function createElizaAgentPlugin(
           },
           executionContext,
         );
+        if (job.delivery === "home" && gateway) {
+          const deliveries = await gateway.sendToHomes(output, {
+            metadata: {
+              cronJobId: job.id,
+              cronJobName: job.name,
+            },
+            name: job.name,
+          });
+          return deliveries.length > 0
+            ? `${output}\n\nDelivered to ${deliveries.length} home channel${deliveries.length === 1 ? "" : "s"}.`
+            : `${output}\n\nNo home channels are configured yet for delivery.`;
+        }
+        return output;
       });
 
       services.cron.start();
