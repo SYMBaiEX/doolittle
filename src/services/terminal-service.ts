@@ -2594,6 +2594,23 @@ export class TerminalService {
     return this.read().commands.slice(-limit).reverse();
   }
 
+  getHistory(limit = 10): TerminalCommandRecord[] {
+    return this.recent(limit);
+  }
+
+  async status(): Promise<{
+    configured: ExecutionBackendName;
+    preview: ExecutionBackendPreview;
+    health: ExecutionBackendHealth[];
+  }> {
+    const settings = this.getSettings();
+    return {
+      configured: settings.execution.backend as ExecutionBackendName,
+      preview: this.preview("printf 'eliza-agent-status'"),
+      health: await this.health(),
+    };
+  }
+
   cloudSnapshots(limit = 10): ExecutionCloudSnapshotRecord[] {
     return this.cloudState.listSnapshots(limit);
   }

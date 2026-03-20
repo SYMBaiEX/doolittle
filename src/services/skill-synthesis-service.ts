@@ -103,6 +103,10 @@ export class SkillSynthesisService {
     return path;
   }
 
+  synthesize(task: DelegationTaskRecord): string {
+    return this.synthesizeFromTask(task);
+  }
+
   hasGeneratedSkill(task: DelegationTaskRecord): boolean {
     const slug = task.title
       .toLowerCase()

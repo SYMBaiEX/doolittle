@@ -218,6 +218,14 @@ export class TrajectoryService {
     return this.exportFilteredBundle({ limit });
   }
 
+  exportLatest(): {
+    dataPath: string;
+    manifestPath: string;
+    summaryPath: string;
+  } {
+    return this.exportBundle(100);
+  }
+
   exportFilteredBundle(options: TrajectoryExportOptions = {}): {
     dataPath: string;
     manifestPath: string;

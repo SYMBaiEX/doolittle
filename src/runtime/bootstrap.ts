@@ -1,14 +1,10 @@
 import { AgentRuntime } from "@elizaos/core";
-import anthropicPlugin from "@elizaos/plugin-anthropic";
-import { openaiPlugin } from "@elizaos/plugin-openai";
-import { pdfPlugin } from "@elizaos/plugin-pdf";
-import sqlPlugin from "@elizaos/plugin-sql";
-import telegramPlugin from "@elizaos/plugin-telegram";
 import character from "@/character";
 import { loadConfig } from "@/config/env";
 import { featureMap } from "@/config/feature-map";
 import { GatewayRunner } from "@/gateway/gateway-runner";
-import { createElizaAgentPlugin } from "@/plugins/eliza-agent-plugin";
+import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
+import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { type AppServices, createServices } from "@/services";
 import { DocumentsService } from "@/services/documents-service";
 import type { EnvConfig } from "@/types";
@@ -24,6 +20,7 @@ let contextPromise: Promise<AppContext> | undefined;
 
 function buildPluginSettings(
   config: EnvConfig,
+  services: AppServices,
   runtimeSettings: AppServices["settings"]["get"] extends () => infer T
     ? T
     : never,
@@ -31,6 +28,8 @@ function buildPluginSettings(
   const settings: Record<string, string> = {
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),
+    nativeServiceRegistry: JSON.stringify(services.nativeRegistry),
+    autonomousAlignment: JSON.stringify(describeAutonomousAlignment()),
     OPENAI_BASE_URL: config.openAiBaseUrl,
     OPENAI_SMALL_MODEL: runtimeSettings.model.model,
     OPENAI_LARGE_MODEL: runtimeSettings.model.model,
@@ -63,26 +62,6 @@ function buildPluginSettings(
   }
 
   return settings;
-}
-
-function buildRuntimePlugins(services: AppServices, config: EnvConfig) {
-  const plugins = [sqlPlugin, pdfPlugin];
-
-  if (config.openAiApiKey) {
-    plugins.push(openaiPlugin);
-  }
-
-  if (config.anthropicApiKey) {
-    plugins.push(anthropicPlugin);
-  }
-
-  if (config.telegramBotToken) {
-    plugins.push(telegramPlugin);
-  }
-
-  plugins.push(createElizaAgentPlugin(services, config));
-
-  return plugins;
 }
 
 function buildCronPrompt(
@@ -138,16 +117,18 @@ export async function getAppContext(): Promise<AppContext> {
     const config = loadConfig();
     const services = createServices(config);
     const runtimeSettings = services.settings.get();
+    const nativePluginAssembly = buildNativePluginAssembly(services, config);
     const runtime = new AgentRuntime({
       character: {
         ...character,
         name: config.agentName,
         settings: {
           ...(character.settings ?? {}),
-          ...buildPluginSettings(config, runtimeSettings),
+          ...buildPluginSettings(config, services, runtimeSettings),
+          nativePluginCatalog: JSON.stringify(nativePluginAssembly.catalog),
         },
       },
-      plugins: buildRuntimePlugins(services, config),
+      plugins: nativePluginAssembly.all,
     });
 
     await runtime.initialize();
@@ -157,11 +138,12 @@ export async function getAppContext(): Promise<AppContext> {
     } | null;
     let gateway = gatewayService?.runner;
     if (!gateway) {
-      const gatewayContext = {} as AppContext;
+      const gatewayContext = {
+        config,
+        services,
+        runtime,
+      } as AppContext;
       gateway = new GatewayRunner(gatewayContext);
-      gatewayContext.config = config;
-      gatewayContext.services = services;
-      gatewayContext.runtime = runtime;
       gatewayContext.gateway = gateway;
     }
 

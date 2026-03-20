@@ -31,6 +31,13 @@ export class DocumentsService {
     return this.extractPdfFromBuffer(buffer, options);
   }
 
+  async extractPdf(
+    path: string,
+    options: PdfExtractOptions = {},
+  ): Promise<string> {
+    return this.extractPdfFromPath(path, options);
+  }
+
   private async extractPdfFromBuffer(
     pdfBuffer: Buffer,
     options: PdfExtractOptions,
