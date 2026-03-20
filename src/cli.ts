@@ -6,6 +6,7 @@ import { handleAgentTurn } from "@/runtime/chat";
 export async function startCli(context: AppContext): Promise<void> {
   const rl = createInterface({ input, output });
   let closed = false;
+  let activeSessionId = "cli:local-user";
 
   rl.on("close", () => {
     closed = true;
@@ -167,12 +168,40 @@ export async function startCli(context: AppContext): Promise<void> {
         );
         continue;
       }
+      if (line === "/resume") {
+        const titled = context.services.sessions.listTitled(10);
+        output.write(
+          `\n${
+            titled.length
+              ? titled
+                  .map(
+                    (session) =>
+                      `- ${session.title ?? "(untitled)"}\n  session=${session.sessionId} messages=${session.messageCount} ended=${session.endedAt ?? "n/a"}`,
+                  )
+                  .join("\n")
+              : "No titled sessions are available yet. Use /title <name> to name the current session."
+          }\n\n`,
+        );
+        continue;
+      }
+      if (line.startsWith("/resume ")) {
+        const query = line.replace("/resume ", "").trim();
+        const target = context.services.sessions.resolveByTitle(query);
+        const detail = target
+          ? (() => {
+              activeSessionId = target.sessionId;
+              return `Resumed session ${target.title ?? target.sessionId}.`;
+            })()
+          : `Session not found for title: ${query}`;
+        output.write(`\n${detail}\n\n`);
+        continue;
+      }
 
       const response = await handleAgentTurn(
         {
           message: line,
           userId: "local-user",
-          roomId: "cli:local-user",
+          roomId: activeSessionId,
           source: "cli",
         },
         context,

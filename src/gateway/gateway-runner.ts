@@ -1458,7 +1458,7 @@ export class GatewayRunner {
       {
         message: message.text,
         userId: message.userId,
-        roomId: session.sessionKey,
+        roomId: session.activeAgentSessionId ?? session.sessionKey,
         source: message.platform,
       },
       this.context,

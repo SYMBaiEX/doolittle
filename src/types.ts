@@ -153,6 +153,21 @@ export interface SessionSummary {
   preview: string[];
 }
 
+export interface SessionUsageSummary {
+  sessionId: string;
+  title?: string;
+  continuityKey?: string;
+  messageCount: number;
+  userMessages: number;
+  assistantMessages: number;
+  systemMessages: number;
+  startedAt?: string;
+  endedAt?: string;
+  characterCount: number;
+  estimatedTokens: number;
+  lastPreview?: string;
+}
+
 export interface CronJobRuntimeOverrides {
   provider?: string;
   model?: string;
@@ -264,6 +279,7 @@ export interface IncomingPlatformMessage {
 
 export interface SessionRoute {
   sessionKey: string;
+  activeAgentSessionId?: string;
   roomId: string;
   userId: string;
   platform: PlatformName;

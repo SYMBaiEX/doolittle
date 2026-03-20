@@ -59,4 +59,44 @@ describe("SessionService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("resolves titled sessions and reports usage", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-session-usage-"));
+    const service = new SessionService(root);
+
+    try {
+      service.storeMessage({
+        id: "u1",
+        sessionId: "cli:local-user",
+        roomId: "cli:local-user",
+        entityId: "user:1",
+        role: "user",
+        text: "Hello there",
+        createdAt: "2026-03-20T00:00:00.000Z",
+      });
+      service.storeMessage({
+        id: "a1",
+        sessionId: "cli:local-user",
+        roomId: "cli:local-user",
+        entityId: "assistant:1",
+        role: "assistant",
+        text: "General Kenobi",
+        createdAt: "2026-03-20T00:00:01.000Z",
+      });
+
+      service.rename("cli:local-user", "Main Session");
+
+      const resolved = service.resolveByTitle("main session");
+      expect(resolved?.sessionId).toBe("cli:local-user");
+      expect(service.listTitled(5)[0]?.title).toBe("Main Session");
+
+      const usage = service.usage("cli:local-user");
+      expect(usage.messageCount).toBe(2);
+      expect(usage.userMessages).toBe(1);
+      expect(usage.assistantMessages).toBe(1);
+      expect(usage.estimatedTokens).toBeGreaterThan(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

@@ -46,6 +46,7 @@ function createSessionRoute(message: IncomingPlatformMessage): SessionRoute {
 function normalizeSessionRoute(route: SessionRoute): SessionRoute {
   return {
     ...route,
+    activeAgentSessionId: route.activeAgentSessionId ?? route.sessionKey,
     voiceMode: route.voiceMode ?? "off",
     voiceChannelState: route.voiceChannelState ?? "disconnected",
     voiceUpdatedAt: route.voiceUpdatedAt ?? route.updatedAt,
@@ -164,6 +165,16 @@ export class GatewaySessionService {
       throw new Error(`Gateway session not found: ${sessionKey}`);
     }
     return session;
+  }
+
+  setActiveAgentSession(
+    sessionKey: string,
+    activeAgentSessionId?: string,
+  ): SessionRoute {
+    return this.update(sessionKey, (session) => {
+      session.activeAgentSessionId =
+        activeAgentSessionId?.trim() || session.sessionKey;
+    });
   }
 
   homeForPlatform(platform: PlatformName): SessionRoute[] {

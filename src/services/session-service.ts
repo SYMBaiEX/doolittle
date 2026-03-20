@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import type {
   SessionSearchResult,
   SessionSummary,
+  SessionUsageSummary,
   StoredMessage,
 } from "@/types";
 
@@ -158,6 +159,100 @@ export class SessionService {
         endedAt: row.endedAt,
       };
     });
+  }
+
+  listTitled(limit: number): SessionSummary[] {
+    const rows = this.db
+      .query(
+        `
+          SELECT session_id as sessionId
+          FROM session_metadata
+          WHERE title IS NOT NULL AND TRIM(title) != ''
+          ORDER BY updated_at DESC
+          LIMIT ?1
+        `,
+      )
+      .all(limit) as Array<{ sessionId: string }>;
+    return rows.map((row) => this.summarize(row.sessionId, 6));
+  }
+
+  resolveByTitle(query: string): SessionSummary | undefined {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return undefined;
+    }
+    const exact = this.db
+      .query(
+        `
+          SELECT session_id as sessionId
+          FROM session_metadata
+          WHERE LOWER(title) = ?1
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `,
+      )
+      .get(normalized) as { sessionId: string } | null;
+    if (exact?.sessionId) {
+      return this.summarize(exact.sessionId, 6);
+    }
+    const fuzzy = this.db
+      .query(
+        `
+          SELECT session_id as sessionId
+          FROM session_metadata
+          WHERE LOWER(title) LIKE ?1
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `,
+      )
+      .get(`%${normalized}%`) as { sessionId: string } | null;
+    return fuzzy?.sessionId ? this.summarize(fuzzy.sessionId, 6) : undefined;
+  }
+
+  usage(sessionId: string): SessionUsageSummary {
+    const rows = this.db
+      .query(
+        `
+          SELECT created_at as createdAt, role, text
+          FROM messages
+          WHERE session_id = ?1
+          ORDER BY created_at ASC
+        `,
+      )
+      .all(sessionId) as Array<{
+      createdAt: string;
+      role: "user" | "assistant" | "system";
+      text: string;
+    }>;
+
+    const metadata = this.metadata(sessionId);
+    const characterCount = rows.reduce((sum, row) => sum + row.text.length, 0);
+    const counts = rows.reduce(
+      (acc, row) => {
+        acc[row.role] += 1;
+        return acc;
+      },
+      {
+        user: 0,
+        assistant: 0,
+        system: 0,
+      },
+    );
+
+    return {
+      sessionId,
+      title: metadata?.title,
+      continuityKey: metadata?.continuityKey,
+      messageCount: rows.length,
+      userMessages: counts.user,
+      assistantMessages: counts.assistant,
+      systemMessages: counts.system,
+      startedAt: rows[0]?.createdAt,
+      endedAt: rows.at(-1)?.createdAt,
+      characterCount,
+      estimatedTokens: Math.ceil(characterCount / 4),
+      lastPreview: rows.at(-1)?.text.slice(0, 200),
+    };
   }
 
   rename(sessionId: string, title: string): SessionSummary {
