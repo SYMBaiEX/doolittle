@@ -1066,6 +1066,41 @@ async function buildCommandResponse(
     return checklist.map((item, index) => `${index + 1}. ${item}`).join("\n");
   }
 
+  if (trimmed === "/setup summary") {
+    return JSON.stringify(await context.services.operator.setupSummary(), null, 2);
+  }
+
+  if (trimmed === "/update" || trimmed === "/update preview") {
+    return JSON.stringify(await context.services.operator.updatePreview(), null, 2);
+  }
+
+  if (trimmed === "/migrate" || trimmed === "/migrate scan" || trimmed === "/migration scan") {
+    return JSON.stringify(context.services.operator.migrationSources(), null, 2);
+  }
+
+  if (trimmed.startsWith("/migrate inspect ")) {
+    const sourcePath = trimmed.replace("/migrate inspect ", "").trim();
+    if (!sourcePath) {
+      return "Usage: /migrate inspect <path>";
+    }
+    return JSON.stringify(context.services.operator.inspectMigrationSource(sourcePath), null, 2);
+  }
+
+  if (trimmed.startsWith("/migrate apply ")) {
+    const payload = trimmed.replace("/migrate apply ", "");
+    const [sourcePath, rawFlag] = payload.split("::").map((part) => part.trim());
+    if (!sourcePath) {
+      return "Usage: /migrate apply <path> :: overwrite=true";
+    }
+    return JSON.stringify(
+      context.services.operator.applyMigration(sourcePath, {
+        overwrite: rawFlag === "overwrite=true",
+      }),
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/terminal" || trimmed === "/terminal recent") {
     const commands = context.services.terminal.recent(10);
     return commands.length

@@ -12,6 +12,7 @@ import { HooksService } from "./hooks-service";
 import { MediaService } from "./media-service";
 import { MemoryService } from "./memory-service";
 import { McpService } from "./mcp-service";
+import { OperatorService } from "./operator-service";
 import { PairingService } from "./pairing-service";
 import { PersonalityService } from "./personality-service";
 import { RepositoryService } from "./repository-service";
@@ -44,6 +45,7 @@ export interface AppServices {
   terminal: TerminalService;
   repository: RepositoryService;
   diagnostics: DiagnosticsService;
+  operator: OperatorService;
   tools: ToolsService;
   mcp: McpService;
   delegation: DelegationService;
@@ -243,6 +245,9 @@ export function createServices(
   }
   const sessions = new SessionService(config.dataDir);
   const mcp = new McpService(() => settings.get().mcp);
+  const repository = new RepositoryService(config.workspaceDir);
+  const diagnostics = new DiagnosticsService(config, gatewayConfig);
+  const operator = new OperatorService(config, diagnostics, repository);
   const tools = new ToolsService(() => ({
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
@@ -296,8 +301,9 @@ export function createServices(
     terminal: new TerminalService(join(config.dataDir, "terminal"), config.workspaceDir, () =>
       settings.get(),
     ),
-    repository: new RepositoryService(config.workspaceDir),
-    diagnostics: new DiagnosticsService(config, gatewayConfig),
+    repository,
+    diagnostics,
+    operator,
     tools,
     mcp,
     delegation: new DelegationService(join(config.dataDir, "delegation")),
