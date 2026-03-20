@@ -2,13 +2,21 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { authorizeMessage } from "./authorization";
-import type { PlatformAdapter, PlatformHealth } from "./platforms/base";
+import {
+  capabilitiesForPlatform,
+  type PlatformAdapter,
+  type PlatformHealth,
+} from "./platforms/base";
 import { DiscordPlatformAdapter } from "./platforms/discord-adapter";
 import { MockPlatformAdapter } from "./platforms/mock-adapter";
 import { SlackPlatformAdapter } from "./platforms/slack-adapter";
 import { TelegramPlatformAdapter } from "./platforms/telegram-adapter";
 import { WhatsAppPlatformAdapter } from "./platforms/whatsapp-adapter";
-import type { IncomingPlatformMessage, PlatformName } from "@/types";
+import type {
+  IncomingPlatformMessage,
+  OutboundPlatformMessage,
+  PlatformName,
+} from "@/types";
 
 export class GatewayRunner {
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
@@ -132,11 +140,15 @@ export class GatewayRunner {
     );
 
     if (adapter) {
-      await adapter.send({
+      const outbound: OutboundPlatformMessage = {
         roomId: message.channelId ?? message.roomId,
         userId: message.userId,
         text: response,
-      });
+        threadId: message.threadId ?? session.threadId,
+        replyToId: message.messageId ?? message.replyToMessageId,
+        metadata: message.metadata,
+      };
+      await adapter.send(outbound);
     } else {
       this.context.services.delivery.deliver(
         {
@@ -177,12 +189,7 @@ export class GatewayRunner {
         status: "stopped",
         ready: false,
         mode: platform === "telegram" ? "native" : "mock",
-        capabilities: {
-          inbound: true,
-          outbound: true,
-          pairing: true,
-          attachments: platform === "telegram",
-        },
+        capabilities: capabilitiesForPlatform(platform),
         detail: this.context.services.gatewayConfig.platforms[platform].enabled
           ? "Platform is enabled but the adapter is not running."
           : "Platform is disabled in gateway configuration.",

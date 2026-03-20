@@ -168,6 +168,11 @@ export interface IncomingPlatformMessage {
   text: string;
   channelId?: string;
   threadId?: string;
+  messageId?: string;
+  replyToMessageId?: string;
+  channelType?: string;
+  authorName?: string;
+  timestamp?: string;
   metadata?: Record<string, string>;
 }
 
@@ -178,6 +183,10 @@ export interface SessionRoute {
   platform: PlatformName;
   channelId?: string;
   threadId?: string;
+  messageId?: string;
+  replyToMessageId?: string;
+  channelType?: string;
+  authorName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -187,6 +196,15 @@ export interface DeliveryTarget {
   channelId?: string;
   userId?: string;
   mode: "origin" | "home" | "explicit" | "local";
+}
+
+export interface OutboundPlatformMessage {
+  roomId: string;
+  userId?: string;
+  text: string;
+  threadId?: string;
+  replyToId?: string;
+  metadata?: Record<string, string>;
 }
 
 export interface DeliveredMessageRecord {
@@ -277,6 +295,11 @@ export interface DelegationTaskRecord {
   objective: string;
   status: "pending" | "running" | "completed" | "failed";
   executionMode: "local" | "delegated";
+  workerMode?: "inline" | "process";
+  workerPid?: number;
+  attempts?: number;
+  startedAt?: string;
+  lastOutputPath?: string;
   notes: string[];
   createdAt: string;
   updatedAt: string;

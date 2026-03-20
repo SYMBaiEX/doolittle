@@ -1,6 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { PlatformAdapter, PlatformHealth } from "./base";
+import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class TelegramPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -28,21 +28,23 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     return {
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && Boolean(this.config.telegramBotToken),
+      ready: this.status === "running" && this.canReceive(),
       mode: "native",
-      capabilities: {
-        inbound: true,
-        outbound: true,
-        pairing: true,
-        attachments: true,
-      },
+      capabilities: capabilitiesForPlatform(this.name),
       detail: this.config.telegramBotToken
-        ? "Telegram token configured."
+        ? "Telegram token configured; replies and threaded session routing are enabled."
         : "Telegram token missing.",
     };
   }
 
-  async send(message: { roomId: string; userId?: string; text: string }): Promise<void> {
+  async send(message: {
+    roomId: string;
+    userId?: string;
+    text: string;
+    threadId?: string;
+    replyToId?: string;
+    metadata?: Record<string, string>;
+  }): Promise<void> {
     if (!this.config.telegramBotToken) {
       throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
     }
@@ -58,6 +60,9 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
         body: JSON.stringify({
           chat_id: message.roomId,
           text: message.text,
+          ...(message.replyToId
+            ? { reply_to_message_id: Number(message.replyToId) || message.replyToId }
+            : {}),
         }),
       },
     );

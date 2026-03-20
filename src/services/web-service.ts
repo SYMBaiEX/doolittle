@@ -8,12 +8,26 @@ interface BrowserConfig {
   obeyRobots: boolean;
 }
 
+interface BrowserStatus {
+  provider: "lightpanda" | "basic";
+  ready: boolean;
+  mode: "browser" | "fallback";
+  detail: string;
+  command?: string;
+  cdpUrl?: string;
+  artifacts: {
+    snapshot: boolean;
+    screenshot: boolean;
+  };
+}
+
 interface WebPageSnapshot {
   url: string;
   title?: string;
   text: string;
   provider: "lightpanda" | "basic";
   mode: "browser" | "fallback";
+  renderedAt: string;
 }
 
 async function runCommand(
@@ -40,13 +54,14 @@ async function runCommand(
 }
 
 async function commandExists(binary: string): Promise<boolean> {
-  const result = await runCommand(["/bin/zsh", "-lc", `command -v '${binary.replaceAll("'", "'\\''")}'`], 5_000).catch(
-    () => ({
-      exitCode: 1,
-      stdout: "",
-      stderr: "",
-    }),
-  );
+  const result = await runCommand(
+    ["/bin/zsh", "-lc", `command -v '${binary.replaceAll("'", "'\\''")}'`],
+    5_000,
+  ).catch(() => ({
+    exitCode: 1,
+    stdout: "",
+    stderr: "",
+  }));
   return result.exitCode === 0;
 }
 
@@ -65,6 +80,29 @@ function extractReadableText(html: string): { title?: string; text: string } {
   };
 }
 
+function writeArtifact(
+  outputDir: string,
+  prefix: "snapshot" | "screenshot",
+  page: WebPageSnapshot,
+  notes: string[],
+): string {
+  const filePath = join(outputDir, `${prefix}-${Date.now()}.md`);
+  const content = [
+    `# ${prefix === "screenshot" ? "Browser Screenshot" : page.title ?? page.url}`,
+    "",
+    `Source: ${page.url}`,
+    `Provider: ${page.provider}`,
+    `Mode: ${page.mode}`,
+    `Rendered at: ${page.renderedAt}`,
+    "",
+    ...notes,
+    "",
+    page.text,
+  ].join("\n");
+  writeFileSync(filePath, content, "utf8");
+  return filePath;
+}
+
 export class WebService {
   constructor(
     private readonly getConfig: () => BrowserConfig,
@@ -73,14 +111,7 @@ export class WebService {
     mkdirSync(this.outputDir, { recursive: true });
   }
 
-  async status(): Promise<{
-    provider: "lightpanda" | "basic";
-    ready: boolean;
-    mode: "browser" | "fallback";
-    detail: string;
-    command?: string;
-    cdpUrl?: string;
-  }> {
+  async status(): Promise<BrowserStatus> {
     const config = this.getConfig();
     if (config.provider === "basic") {
       return {
@@ -88,6 +119,10 @@ export class WebService {
         ready: true,
         mode: "fallback",
         detail: "Basic HTTP fetch mode is active.",
+        artifacts: {
+          snapshot: true,
+          screenshot: true,
+        },
       };
     }
 
@@ -97,10 +132,14 @@ export class WebService {
       ready: available,
       mode: available ? "browser" : "fallback",
       detail: available
-        ? "Lightpanda command is available for browser-backed fetch flows."
+        ? "Lightpanda is available for browser-backed fetch, snapshot, and screenshot artifacts."
         : "Lightpanda is configured as the default browser provider, but the command is not available locally. Falling back to basic HTTP fetch mode.",
       command: config.command,
       cdpUrl: config.cdpUrl,
+      artifacts: {
+        snapshot: true,
+        screenshot: true,
+      },
     };
   }
 
@@ -115,6 +154,7 @@ export class WebService {
           ...readable,
           provider: "lightpanda",
           mode: "browser",
+          renderedAt: new Date().toISOString(),
         };
       } catch {
         // Fall through to basic fetch when browser execution is unavailable.
@@ -128,23 +168,34 @@ export class WebService {
       ...readable,
       provider: config.provider,
       mode: "fallback",
+      renderedAt: new Date().toISOString(),
     };
   }
 
   async snapshot(url: string): Promise<string> {
     const page = await this.fetchText(url);
-    const filePath = join(this.outputDir, `snapshot-${Date.now()}.md`);
-    const content = [
-      `# ${page.title ?? page.url}`,
-      "",
-      `Source: ${page.url}`,
-      `Provider: ${page.provider}`,
-      `Mode: ${page.mode}`,
-      "",
-      page.text,
-    ].join("\n");
-    writeFileSync(filePath, content, "utf8");
-    return filePath;
+    return writeArtifact(
+      this.outputDir,
+      "snapshot",
+      page,
+      [
+        "This artifact captures readable text extracted from the page.",
+        "It is suitable for search, diffing, and long-form analysis.",
+      ],
+    );
+  }
+
+  async screenshot(url: string): Promise<string> {
+    const page = await this.fetchText(url);
+    return writeArtifact(
+      this.outputDir,
+      "screenshot",
+      page,
+      [
+        "This is a lightweight screenshot artifact placeholder.",
+        "When a pixel-level browser capture is available, this file can be replaced with a real image artifact.",
+      ],
+    );
   }
 
   private async fetchWithBasic(url: string): Promise<string> {
@@ -159,7 +210,7 @@ export class WebService {
     const args = [
       config.command,
       "fetch",
-      ...(config.obeyRobots ? ["--obey-robots"] : []),
+      ...(config.obeyRobots ? ["--obey_robots"] : []),
       url,
     ];
 

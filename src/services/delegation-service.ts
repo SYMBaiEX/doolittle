@@ -9,11 +9,14 @@ interface DelegationStore {
 
 export class DelegationService {
   private readonly filePath: string;
+  private readonly workersDir: string;
   private activeExecutions = 0;
 
   constructor(baseDir: string) {
     mkdirSync(baseDir, { recursive: true });
     this.filePath = join(baseDir, "delegation-tasks.json");
+    this.workersDir = join(baseDir, "workers");
+    mkdirSync(this.workersDir, { recursive: true });
     if (!existsSync(this.filePath)) {
       this.write({ tasks: [] });
     }
@@ -36,6 +39,8 @@ export class DelegationService {
       objective: input.objective,
       status: "pending",
       executionMode: input.executionMode ?? "local",
+      workerMode: input.executionMode === "delegated" ? "process" : "inline",
+      attempts: 0,
       notes: [],
       createdAt: now,
       updatedAt: now,
@@ -51,9 +56,36 @@ export class DelegationService {
     });
   }
 
+  get(id: string): DelegationTaskRecord {
+    const task = this.read().tasks.find((entry) => entry.id === id);
+    if (!task) {
+      throw new Error(`Delegation task not found: ${id}`);
+    }
+    return task;
+  }
+
+  pending(): DelegationTaskRecord[] {
+    return this.read().tasks.filter((task) => task.status === "pending");
+  }
+
   markRunning(id: string): DelegationTaskRecord {
     return this.update(id, (task) => {
       task.status = "running";
+      task.startedAt = new Date().toISOString();
+      task.attempts = (task.attempts ?? 0) + 1;
+    });
+  }
+
+  markWorkerStarted(
+    id: string,
+    worker: { pid?: number; mode?: "inline" | "process"; outputPath?: string },
+  ): DelegationTaskRecord {
+    return this.update(id, (task) => {
+      task.workerPid = worker.pid;
+      task.workerMode = worker.mode ?? task.workerMode ?? "process";
+      if (worker.outputPath) {
+        task.lastOutputPath = worker.outputPath;
+      }
     });
   }
 
@@ -61,6 +93,7 @@ export class DelegationService {
     return this.update(id, (task) => {
       task.status = "completed";
       task.completedAt = new Date().toISOString();
+      task.workerPid = undefined;
       if (note) {
         task.notes.push(note);
       }
@@ -70,6 +103,7 @@ export class DelegationService {
   fail(id: string, note: string): DelegationTaskRecord {
     return this.update(id, (task) => {
       task.status = "failed";
+      task.workerPid = undefined;
       task.notes.push(note);
     });
   }
@@ -131,5 +165,12 @@ export class DelegationService {
 
   private write(store: DelegationStore): void {
     writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+  }
+
+  getWorkerPaths(id: string): { inputPath: string; outputPath: string } {
+    return {
+      inputPath: join(this.workersDir, `${id}-input.json`),
+      outputPath: join(this.workersDir, `${id}-output.json`),
+    };
   }
 }

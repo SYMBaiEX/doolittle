@@ -74,6 +74,22 @@ export class ToolsService {
       transport: "service",
     },
     {
+      id: "browser.snapshot",
+      name: "Browser Snapshot",
+      category: "documents",
+      description: "Create a text snapshot artifact for a URL.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "browser.screenshot",
+      name: "Browser Screenshot",
+      category: "documents",
+      description: "Create a lightweight screenshot artifact placeholder for a URL.",
+      enabled: true,
+      transport: "service",
+    },
+    {
       id: "media.inspect",
       name: "Media Inspect",
       category: "documents",

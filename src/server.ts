@@ -41,6 +41,166 @@ function verifySlackSignature(
   }
 }
 
+async function parseJsonBody<T>(request: Request): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
+  try {
+    return {
+      ok: true,
+      value: (await request.json()) as T,
+    };
+  } catch {
+    return {
+      ok: false,
+      response: json({ error: "Invalid JSON body." }, 400),
+    };
+  }
+}
+
+function parseSlackEvent(body: {
+  challenge?: string;
+  event?: {
+    type?: string;
+    subtype?: string;
+    text?: string;
+    channel?: string;
+    user?: string;
+    ts?: string;
+    thread_ts?: string;
+    channel_type?: string;
+  };
+}): IncomingPlatformMessage | null {
+  if (
+    body.event?.type !== "message" ||
+    body.event.subtype === "bot_message" ||
+    !body.event.text ||
+    !body.event.channel ||
+    !body.event.user
+  ) {
+    return null;
+  }
+
+  return {
+    platform: "slack",
+    userId: body.event.user,
+    roomId: body.event.channel,
+    text: body.event.text,
+    channelId: body.event.channel,
+    messageId: body.event.ts,
+    threadId: body.event.thread_ts,
+    channelType: body.event.channel_type,
+    metadata: {
+      eventType: body.event.type,
+      ...(body.event.subtype ? { subtype: body.event.subtype } : {}),
+    },
+  };
+}
+
+function parseDiscordMessage(body: {
+  content?: string;
+  channel_id?: string;
+  id?: string;
+  author?: { id?: string; username?: string; bot?: boolean };
+  message_reference?: { message_id?: string };
+  guild_id?: string;
+  type?: number;
+}): IncomingPlatformMessage | null {
+  if (!body.content || !body.channel_id || !body.author?.id || body.author.bot) {
+    return null;
+  }
+
+  return {
+    platform: "discord",
+    userId: body.author.id,
+    roomId: body.channel_id,
+    text: body.content,
+    channelId: body.channel_id,
+    messageId: body.id,
+    replyToMessageId: body.message_reference?.message_id,
+    metadata: {
+      ...(body.author.username ? { authorUsername: body.author.username } : {}),
+      ...(body.guild_id ? { guildId: body.guild_id } : {}),
+      ...(typeof body.type === "number" ? { messageType: String(body.type) } : {}),
+    },
+  };
+}
+
+function parseTelegramMessage(body: {
+  message?: {
+    message_id?: number;
+    text?: string;
+    chat?: { id?: number | string; type?: string; title?: string };
+    from?: { id?: number | string; username?: string; first_name?: string; last_name?: string };
+    reply_to_message?: { message_id?: number };
+    date?: number;
+  };
+}): IncomingPlatformMessage | null {
+  if (!body.message?.text || body.message.chat?.id === undefined || body.message.from?.id === undefined) {
+    return null;
+  }
+
+  return {
+    platform: "telegram",
+    userId: String(body.message.from.id),
+    roomId: String(body.message.chat.id),
+    text: body.message.text,
+    channelId: String(body.message.chat.id),
+    threadId: body.message.reply_to_message?.message_id
+      ? String(body.message.reply_to_message.message_id)
+      : undefined,
+    messageId: body.message.message_id ? String(body.message.message_id) : undefined,
+    replyToMessageId: body.message.reply_to_message?.message_id
+      ? String(body.message.reply_to_message.message_id)
+      : undefined,
+    channelType: body.message.chat.type,
+    authorName:
+      body.message.from.username ??
+      [body.message.from.first_name, body.message.from.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      undefined,
+    timestamp: body.message.date ? new Date(body.message.date * 1000).toISOString() : undefined,
+    metadata: {
+      ...(body.message.chat.title ? { chatTitle: body.message.chat.title } : {}),
+      ...(body.message.chat.type ? { chatType: body.message.chat.type } : {}),
+    },
+  };
+}
+
+function parseWhatsAppMessage(body: {
+  entry?: Array<{
+    changes?: Array<{
+      value?: {
+        messages?: Array<{
+          id?: string;
+          from?: string;
+          timestamp?: string;
+          context?: { id?: string };
+          text?: { body?: string };
+        }>;
+      };
+    }>;
+  }>;
+}): IncomingPlatformMessage | null {
+  const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  if (!message?.from || !message.text?.body) {
+    return null;
+  }
+
+  return {
+    platform: "whatsapp",
+    userId: message.from,
+    roomId: message.from,
+    text: message.text.body,
+    channelId: message.from,
+    messageId: message.id,
+    replyToMessageId: message.context?.id,
+    timestamp: message.timestamp,
+    metadata: {
+      ...(message.context?.id ? { replyToId: message.context.id } : {}),
+    },
+  };
+}
+
 export function startApiServer(context: AppContext): void {
   Bun.serve({
     hostname: context.config.host,
@@ -185,6 +345,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/browser/screenshot") {
+        const body = (await request.json()) as { url?: string };
+        if (!body.url) {
+          return json({ error: "url is required" }, 400);
+        }
+        return json({
+          path: await context.services.web.screenshot(body.url),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/media/inspect") {
         const path = url.searchParams.get("path");
         if (!path) {
@@ -233,6 +403,14 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/delegation/workers") {
+        return json({
+          tasks: context.services.delegation
+            .list()
+            .filter((task) => task.workerMode === "process" || task.workerPid || task.lastOutputPath),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/delegation/tasks") {
         const body = (await request.json()) as {
           title?: string;
@@ -265,6 +443,18 @@ export function startApiServer(context: AppContext): void {
         }
         if (action === "run") {
           return json({ task: context.services.delegation.markRunning(id) });
+        }
+        if (action === "execute") {
+          const response = await handleAgentTurn(
+            {
+              message: `/delegate execute ${id}`,
+              userId: "api-delegation",
+              roomId: "api-delegation",
+              source: "api",
+            },
+            context,
+          );
+          return json({ result: response });
         }
         if (action === "complete") {
           return json({ task: context.services.delegation.complete(id, body.note) });
@@ -485,42 +675,42 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/telegram") {
-        const body = (await request.json()) as {
+        const parsed = await parseJsonBody<{
           message?: {
             text?: string;
             chat?: { id?: number | string };
             from?: { id?: number | string };
           };
-        };
-        if (!body.message?.text || !body.message.chat?.id || !body.message.from?.id) {
+        }>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        const inbound = parseTelegramMessage(parsed.value);
+        if (!inbound) {
           return json({ ok: true, ignored: true });
         }
-        const result = await context.gateway.receive({
-          platform: "telegram",
-          userId: String(body.message.from.id),
-          roomId: String(body.message.chat.id),
-          text: body.message.text,
-          channelId: String(body.message.chat.id),
-        });
+        const result = await context.gateway.receive(inbound);
         return json(result, result.ok ? 200 : 403);
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/discord") {
-        const body = (await request.json()) as {
+        const parsed = await parseJsonBody<{
           content?: string;
           channel_id?: string;
-          author?: { id?: string };
-        };
-        if (!body.content || !body.channel_id || !body.author?.id) {
+          id?: string;
+          author?: { id?: string; username?: string; bot?: boolean };
+          message_reference?: { message_id?: string };
+          guild_id?: string;
+          type?: number;
+        }>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        const inbound = parseDiscordMessage(parsed.value);
+        if (!inbound) {
           return json({ ok: true, ignored: true });
         }
-        const result = await context.gateway.receive({
-          platform: "discord",
-          userId: body.author.id,
-          roomId: body.channel_id,
-          text: body.content,
-          channelId: body.channel_id,
-        });
+        const result = await context.gateway.receive(inbound);
         return json(result, result.ok ? 200 : 403);
       }
 
@@ -537,33 +727,32 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "Invalid Slack signature." }, 403);
         }
 
-        const body = JSON.parse(rawBody) as {
+        let body: {
           challenge?: string;
           event?: {
             type?: string;
+            subtype?: string;
             text?: string;
             channel?: string;
             user?: string;
+            ts?: string;
+            thread_ts?: string;
+            channel_type?: string;
           };
         };
+        try {
+          body = JSON.parse(rawBody) as typeof body;
+        } catch {
+          return json({ error: "Invalid JSON body." }, 400);
+        }
         if (body.challenge) {
           return json({ challenge: body.challenge });
         }
-        if (
-          body.event?.type !== "message" ||
-          !body.event.text ||
-          !body.event.channel ||
-          !body.event.user
-        ) {
+        const inbound = parseSlackEvent(body);
+        if (!inbound) {
           return json({ ok: true, ignored: true });
         }
-        const result = await context.gateway.receive({
-          platform: "slack",
-          userId: body.event.user,
-          roomId: body.event.channel,
-          text: body.event.text,
-          channelId: body.event.channel,
-        });
+        const result = await context.gateway.receive(inbound);
         return json(result, result.ok ? 200 : 403);
       }
 
@@ -583,29 +772,29 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/webhooks/whatsapp") {
-        const body = (await request.json()) as {
+        const parsed = await parseJsonBody<{
           entry?: Array<{
             changes?: Array<{
               value?: {
                 messages?: Array<{
+                  id?: string;
                   from?: string;
+                  timestamp?: string;
+                  context?: { id?: string };
                   text?: { body?: string };
                 }>;
               };
             }>;
           }>;
-        };
-        const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-        if (!message?.from || !message.text?.body) {
+        }>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        const inbound = parseWhatsAppMessage(parsed.value);
+        if (!inbound) {
           return json({ ok: true, ignored: true });
         }
-        const result = await context.gateway.receive({
-          platform: "whatsapp",
-          userId: message.from,
-          roomId: message.from,
-          text: message.text.body,
-          channelId: message.from,
-        });
+        const result = await context.gateway.receive(inbound);
         return json(result, result.ok ? 200 : 403);
       }
 
