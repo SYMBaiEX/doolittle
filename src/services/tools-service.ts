@@ -1,11 +1,34 @@
 import type { ToolDefinition } from "@/types";
 
+interface ToolRegistryDynamicState {
+  mcpEnabled: boolean;
+  discoveredMcpTools: number;
+  discoveredMcpToolNames?: string[];
+}
+
+interface ToolRegistrySummary {
+  total: number;
+  enabled: number;
+  disabled: number;
+  categories: Array<{
+    category: string;
+    total: number;
+    enabled: number;
+  }>;
+  mcp: {
+    enabled: boolean;
+    discoveredTools: number;
+    discoveredToolNames: string[];
+  };
+}
+
 export class ToolsService {
   constructor(
-    private readonly getDynamicState: () => {
-      mcpEnabled: boolean;
-      discoveredMcpTools: number;
-    } = () => ({ mcpEnabled: false, discoveredMcpTools: 0 }),
+    private readonly getDynamicState: () => ToolRegistryDynamicState = () => ({
+      mcpEnabled: false,
+      discoveredMcpTools: 0,
+      discoveredMcpToolNames: [],
+    }),
   ) {}
 
   private readonly tools: ToolDefinition[] = [
@@ -147,14 +170,56 @@ export class ToolsService {
             ...tool,
             enabled: dynamic.mcpEnabled,
             description: dynamic.mcpEnabled
-              ? `Structured MCP bridge enabled with ${dynamic.discoveredMcpTools} discovered tool(s).`
+              ? `Structured MCP bridge enabled with ${dynamic.discoveredMcpTools} discovered tool(s)${
+                  dynamic.discoveredMcpToolNames?.length
+                    ? `: ${dynamic.discoveredMcpToolNames.slice(0, 5).join(", ")}`
+                    : ""
+                }.`
               : "Structured MCP bridge is available but not configured.",
-          }
+        }
         : tool,
     );
   }
 
   enabled(): ToolDefinition[] {
     return this.list().filter((tool) => tool.enabled);
+  }
+
+  get(id: string): ToolDefinition | undefined {
+    return this.list().find((tool) => tool.id === id);
+  }
+
+  byCategory(category: string): ToolDefinition[] {
+    return this.list().filter((tool) => tool.category === category);
+  }
+
+  grouped(): Record<string, ToolDefinition[]> {
+    return this.list().reduce<Record<string, ToolDefinition[]>>((groups, tool) => {
+      groups[tool.category] ??= [];
+      groups[tool.category].push(tool);
+      return groups;
+    }, {});
+  }
+
+  summary(): ToolRegistrySummary {
+    const tools = this.list();
+    const enabled = tools.filter((tool) => tool.enabled);
+    const categories = Object.entries(this.grouped()).map(([category, entries]) => ({
+      category,
+      total: entries.length,
+      enabled: entries.filter((tool) => tool.enabled).length,
+    }));
+    const dynamic = this.getDynamicState();
+    return {
+      total: tools.length,
+      enabled: enabled.length,
+      disabled: tools.length - enabled.length,
+      categories,
+      mcp: {
+        enabled: dynamic.mcpEnabled,
+        discoveredTools: dynamic.discoveredMcpTools,
+        discoveredToolNames: dynamic.discoveredMcpToolNames ?? [],
+      },
+    };
   }
 }

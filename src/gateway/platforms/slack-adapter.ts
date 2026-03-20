@@ -1,7 +1,13 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage } from "@/types";
-import { capabilitiesForPlatform, nowIso, type PlatformAdapter, type PlatformHealth } from "./base";
+import {
+  capabilitiesForPlatform,
+  createLifecycleHistory,
+  nowIso,
+  type PlatformAdapter,
+  type PlatformHealth,
+} from "./base";
 
 export class SlackPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -10,6 +16,7 @@ export class SlackPlatformAdapter implements PlatformAdapter {
   private lastSendAt?: string;
   private sendCount = 0;
   private lastError?: string;
+  private readonly lifecycle = createLifecycleHistory();
 
   constructor(
     public readonly name: PlatformName,
@@ -23,19 +30,26 @@ export class SlackPlatformAdapter implements PlatformAdapter {
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
+      this.lifecycle.record("start", "Slack adapter started with webhook and signing secret.");
     } else {
       this.lastError = !this.config.slackWebhookUrl
         ? "SLACK_WEBHOOK_URL is not configured."
         : "SLACK_SIGNING_SECRET is not configured.";
+      this.lifecycle.record("error", this.lastError);
     }
   }
 
   async stop(): Promise<void> {
     this.status = "stopped";
     this.stoppedAt = nowIso();
+    this.lifecycle.record("stop", "Slack adapter stopped.");
   }
 
   async health(): Promise<PlatformHealth> {
+    this.lifecycle.record(
+      "health",
+      `Slack health check: status=${this.status} sends=${this.sendCount} ready=${this.status === "running" && this.canReceive()}.`,
+    );
     return {
       platform: this.name,
       status: this.status,
@@ -52,12 +66,14 @@ export class SlackPlatformAdapter implements PlatformAdapter {
       lastSendAt: this.lastSendAt,
       sendCount: this.sendCount,
       lastError: this.lastError,
+      events: this.lifecycle.recent(6),
     };
   }
 
-  async send(message: OutboundPlatformMessage): Promise<void> {
+  async send(message: OutboundPlatformMessage) {
     if (!this.config.slackWebhookUrl) {
       this.lastError = "SLACK_WEBHOOK_URL is not configured.";
+      this.lifecycle.record("error", this.lastError);
       throw new Error("SLACK_WEBHOOK_URL is not configured.");
     }
 
@@ -79,13 +95,14 @@ export class SlackPlatformAdapter implements PlatformAdapter {
 
     if (!response.ok) {
       this.lastError = `Slack send failed (${response.status}): ${await response.text()}`;
+      this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
 
     this.sendCount += 1;
     this.lastSendAt = nowIso();
     this.lastError = undefined;
-    this.delivery.deliver(
+    const record = this.delivery.deliver(
       {
         platform: this.name,
         channelId: message.roomId,
@@ -99,6 +116,11 @@ export class SlackPlatformAdapter implements PlatformAdapter {
         metadata: message.metadata,
       },
     );
+    this.lifecycle.record(
+      "send",
+      `Slack delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
+    );
+    return record;
   }
 
   canReceive(): boolean {

@@ -36,6 +36,18 @@ interface TrajectoryBundleEntry {
   roleCounts: Record<string, number>;
 }
 
+interface TrajectoryReplayResult extends TrajectoryBundleEntry {
+  replayPath: string;
+  replaySummaryPath: string;
+  replayCount: number;
+  replayPreview: Array<{
+    sessionId: string;
+    createdAt: string;
+    role: "user" | "assistant" | "system";
+    text: string;
+  }>;
+}
+
 export class TrajectoryService {
   constructor(
     private readonly baseDir: string,
@@ -126,6 +138,73 @@ export class TrajectoryService {
     return { dataPath, manifestPath, summaryPath };
   }
 
+  replayBundle(manifestPath: string): TrajectoryReplayResult {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry;
+    const records = this.readRecords(manifest.dataPath);
+    const stamp = Date.now();
+    const label = this.slug(`${manifest.label}-replay`);
+    const replayPath = join(this.baseDir, `trajectory-${stamp}-${label}.replay.json`);
+    const replaySummaryPath = join(this.baseDir, `trajectory-${stamp}-${label}-replay.md`);
+    const replayPreview = records.slice(0, 20);
+
+    writeFileSync(
+      replayPath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          sourceManifestPath: manifest.manifestPath,
+          sourceDataPath: manifest.dataPath,
+          replayCount: records.length,
+          sessions: manifest.sessions,
+          roleCounts: manifest.roleCounts,
+          replayPreview,
+          messages: records,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      replaySummaryPath,
+      [
+        `# Trajectory Replay: ${manifest.label}`,
+        "",
+        `- Source manifest: ${manifest.manifestPath}`,
+        `- Source data: ${manifest.dataPath}`,
+        `- Replay file: ${replayPath}`,
+        `- Messages: ${records.length}`,
+        `- Sessions: ${manifest.sessions.length}`,
+        "",
+        "## Replay Preview",
+        ...(replayPreview.length
+          ? replayPreview.map(
+              (message) =>
+                `- [${message.role}] ${message.sessionId} @ ${message.createdAt}: ${message.text}`,
+            )
+          : ["- (none)"]),
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      ...manifest,
+      replayPath,
+      replaySummaryPath,
+      replayCount: records.length,
+      replayPreview,
+    };
+  }
+
+  replayLatest(): TrajectoryReplayResult | undefined {
+    const latest = this.listBundles(1)[0];
+    if (!latest) {
+      return undefined;
+    }
+    return this.replayBundle(latest.manifestPath);
+  }
+
   listBundles(limit = 20): TrajectoryBundleEntry[] {
     return readdirSync(this.baseDir)
       .filter((file) => file.endsWith("-manifest.json"))
@@ -133,6 +212,10 @@ export class TrajectoryService {
       .map((manifestPath) => JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit);
+  }
+
+  describeBundle(manifestPath: string): TrajectoryBundleEntry {
+    return JSON.parse(readFileSync(manifestPath, "utf8")) as TrajectoryBundleEntry;
   }
 
   private collect(options: TrajectoryExportOptions): TrajectoryRecord[] {
@@ -155,5 +238,13 @@ export class TrajectoryService {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 48);
+  }
+
+  private readRecords(dataPath: string): TrajectoryRecord[] {
+    const raw = readFileSync(dataPath, "utf8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    return raw.map((line) => JSON.parse(line) as TrajectoryRecord);
   }
 }

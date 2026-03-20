@@ -1,6 +1,7 @@
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
+import { randomUUID } from "node:crypto";
 import { authorizeMessage } from "./authorization";
 import {
   capabilitiesForPlatform,
@@ -25,8 +26,25 @@ const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
   "sms",
 ]);
 
+interface GatewayTraceRecord {
+  traceId: string;
+  at: string;
+  kind: "receive" | "authorize" | "session" | "respond" | "deliver" | "reject" | "lifecycle";
+  platform: PlatformName | "gateway";
+  detail: string;
+  sessionId?: string;
+  userId?: string;
+  roomId?: string;
+  messageId?: string;
+  threadId?: string;
+  replyToMessageId?: string;
+  deliveryId?: string;
+  metadataKeys?: string[];
+}
+
 export class GatewayRunner {
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
+  private readonly traceLog: GatewayTraceRecord[] = [];
   private running = false;
 
   constructor(private readonly context: AppContext) {}
@@ -45,6 +63,13 @@ export class GatewayRunner {
       const adapter = this.createAdapter(platform as PlatformName);
       await adapter.start();
       this.adapters.set(platform as PlatformName, adapter);
+      this.pushTrace({
+        traceId: randomUUID(),
+        at: new Date().toISOString(),
+        kind: "lifecycle",
+        platform: platform as PlatformName,
+        detail: `Adapter started for ${platform}.`,
+      });
     }
 
     this.running = true;
@@ -90,6 +115,13 @@ export class GatewayRunner {
     for (const adapter of this.adapters.values()) {
       await adapter.stop();
     }
+    this.pushTrace({
+      traceId: randomUUID(),
+      at: new Date().toISOString(),
+      kind: "lifecycle",
+      platform: "gateway",
+      detail: "Gateway stopped and all adapters were shut down.",
+    });
     this.adapters.clear();
     this.running = false;
     await this.context.services.hooks.emit("gateway:shutdown", {
@@ -101,12 +133,40 @@ export class GatewayRunner {
     ok: boolean;
     response: string;
     pairingCode?: string;
+    traceId?: string;
+    sessionId?: string;
+    deliveryId?: string;
   }> {
+    const traceId = randomUUID();
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "receive",
+      platform: message.platform,
+      detail: `Inbound message received for ${message.platform}.`,
+      userId: message.userId,
+      roomId: message.roomId,
+      messageId: message.messageId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToMessageId,
+      metadataKeys: Object.keys(message.metadata ?? {}),
+    });
+
     const adapter = this.adapters.get(message.platform);
     if (adapter && !adapter.canReceive()) {
+      this.pushTrace({
+        traceId,
+        at: new Date().toISOString(),
+        kind: "reject",
+        platform: message.platform,
+        detail: `${message.platform} transport is not ready for inbound traffic.`,
+        userId: message.userId,
+        roomId: message.roomId,
+      });
       return {
         ok: false,
         response: `${message.platform} transport is not ready for inbound traffic.`,
+        traceId,
       };
     }
 
@@ -116,6 +176,15 @@ export class GatewayRunner {
       const response = auth.pairingCode
         ? `Authorization required. Pairing code: ${auth.pairingCode}`
         : auth.reason ?? "Unauthorized";
+      this.pushTrace({
+        traceId,
+        at: new Date().toISOString(),
+        kind: "authorize",
+        platform: message.platform,
+        detail: `Authorization failed for ${message.platform}: ${auth.reason ?? "unauthorized"}.`,
+        userId: message.userId,
+        roomId: message.roomId,
+      });
 
       await this.context.services.hooks.emit("gateway:unauthorized", {
         platform: message.platform,
@@ -126,10 +195,25 @@ export class GatewayRunner {
         ok: false,
         response,
         pairingCode: auth.pairingCode,
+        traceId,
       };
     }
 
     const session = this.context.services.gatewaySessions.resolve(message);
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "session",
+      platform: message.platform,
+      detail: `Session resolved to ${session.sessionKey}.`,
+      sessionId: session.sessionKey,
+      userId: message.userId,
+      roomId: message.roomId,
+      messageId: message.messageId,
+      threadId: message.threadId,
+      replyToMessageId: message.replyToMessageId,
+      metadataKeys: Object.keys(session.metadata ?? {}),
+    });
     await this.context.services.hooks.emit("session:start", {
       platform: message.platform,
       userId: message.userId,
@@ -145,7 +229,18 @@ export class GatewayRunner {
       },
       this.context,
     );
+    this.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "respond",
+      platform: message.platform,
+      detail: `Agent produced a response for ${message.platform}.`,
+      sessionId: session.sessionKey,
+      userId: message.userId,
+      roomId: message.roomId,
+    });
 
+    let deliveryId: string | undefined;
     if (adapter) {
       const outbound: OutboundPlatformMessage = {
         roomId: message.channelId ?? message.roomId,
@@ -155,9 +250,24 @@ export class GatewayRunner {
         replyToId: message.messageId ?? message.replyToMessageId,
         metadata: message.metadata,
       };
-      await adapter.send(outbound);
+      const delivery = await adapter.send(outbound);
+      deliveryId = delivery.id;
+      this.pushTrace({
+        traceId,
+        at: new Date().toISOString(),
+        kind: "deliver",
+        platform: message.platform,
+        detail: `Delivered via ${adapter.name} to ${outbound.roomId} with record ${delivery.id}.`,
+        sessionId: session.sessionKey,
+        userId: message.userId,
+        roomId: message.roomId,
+        threadId: outbound.threadId,
+        replyToMessageId: outbound.replyToId,
+        deliveryId: delivery.id,
+        metadataKeys: Object.keys(delivery.metadata ?? {}),
+      });
     } else {
-      this.context.services.delivery.deliver(
+      const delivery = this.context.services.delivery.deliver(
         {
           platform: message.platform,
           channelId: message.channelId ?? message.roomId,
@@ -171,6 +281,21 @@ export class GatewayRunner {
           metadata: message.metadata,
         },
       );
+      deliveryId = delivery.id;
+      this.pushTrace({
+        traceId,
+        at: new Date().toISOString(),
+        kind: "deliver",
+        platform: message.platform,
+        detail: `Delivered via fallback history with record ${delivery.id}.`,
+        sessionId: session.sessionKey,
+        userId: message.userId,
+        roomId: message.roomId,
+        threadId: message.threadId,
+        replyToMessageId: message.replyToMessageId,
+        deliveryId: delivery.id,
+        metadataKeys: Object.keys(delivery.metadata ?? {}),
+      });
     }
 
     await this.context.services.hooks.emit("agent:end", {
@@ -183,12 +308,13 @@ export class GatewayRunner {
     return {
       ok: true,
       response,
+      traceId,
+      sessionId: session.sessionKey,
+      deliveryId,
     };
   }
 
-  async health(): Promise<
-    Array<PlatformHealth>
-  > {
+  async health(): Promise<Array<PlatformHealth>> {
     const configuredPlatforms = Object.keys(this.context.services.gatewayConfig.platforms) as PlatformName[];
     const known = new Set(this.adapters.keys());
     const startedHealth = await Promise.all(
@@ -203,8 +329,19 @@ export class GatewayRunner {
         mode: platform === "telegram" ? "native" : "mock",
         capabilities: capabilitiesForPlatform(platform),
         detail: this.describeInactivePlatform(platform),
+        events: [
+          {
+            at: new Date().toISOString(),
+            kind: "health",
+            detail: this.describeInactivePlatform(platform),
+          },
+        ],
       }));
     return [...startedHealth, ...inactiveHealth];
+  }
+
+  trace(limit = 20): GatewayTraceRecord[] {
+    return this.traceLog.slice(-limit).reverse();
   }
 
   private describeInactivePlatform(platform: PlatformName): string {
@@ -230,5 +367,12 @@ export class GatewayRunner {
     }
 
     return `Platform is enabled but the adapter is not running; ${capabilitySummary} remain queued until a native adapter starts.`;
+  }
+
+  private pushTrace(entry: GatewayTraceRecord): void {
+    this.traceLog.push(entry);
+    if (this.traceLog.length > 200) {
+      this.traceLog.splice(0, this.traceLog.length - 200);
+    }
   }
 }

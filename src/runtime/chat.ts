@@ -150,6 +150,7 @@ async function buildCommandResponse(
 ): Promise<string | undefined> {
   const { message } = input;
   const trimmed = message.trim();
+  const sessionKey = input.roomId ?? `room:${input.userId}`;
 
   if (trimmed.startsWith("/memory")) {
     const target: MemoryTarget =
@@ -190,6 +191,30 @@ async function buildCommandResponse(
       : "No skills found.";
   }
 
+  if (trimmed === "/skills generated" || trimmed === "/skills generated list") {
+    const generated = context.services.skillSynthesis.listGeneratedSkills();
+    return generated.length
+      ? generated
+          .map(
+            (skill) =>
+              `- ${skill.slug} [${skill.updatedAt}] notes=${skill.noteCount}\n  ${skill.title}\n  ${skill.path}`,
+          )
+          .join("\n\n")
+      : "No generated skills recorded.";
+  }
+
+  if (trimmed.startsWith("/skills generated show ")) {
+    const slug = trimmed.replace("/skills generated show ", "").trim();
+    if (!slug) {
+      return "Usage: /skills generated show <slug>";
+    }
+    return JSON.stringify(
+      context.services.skillSynthesis.getGeneratedSkill(slug) ?? { error: `Generated skill not found: ${slug}` },
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/skills show ")) {
     const slug = trimmed.replace("/skills show ", "").trim();
     const skill = context.services.skills.get(slug);
@@ -210,6 +235,30 @@ async function buildCommandResponse(
           )
           .join("\n")
       : "No prior session matches found.";
+  }
+
+  if (trimmed === "/sessions" || trimmed === "/sessions list") {
+    const sessions = context.services.sessions.listSessions(10);
+    return sessions.length
+      ? sessions
+          .map(
+            (session) =>
+              `- ${session.sessionId} messages=${session.messageCount} started=${session.startedAt ?? "n/a"} ended=${session.endedAt ?? "n/a"} participants=${session.participants.join(",") || "none"}`,
+          )
+          .join("\n")
+      : "No sessions recorded.";
+  }
+
+  if (trimmed === "/session summary") {
+    return JSON.stringify(context.services.sessions.summarize(sessionKey), null, 2);
+  }
+
+  if (trimmed.startsWith("/session summary ")) {
+    const sessionId = trimmed.replace("/session summary ", "").trim();
+    if (!sessionId) {
+      return "Usage: /session summary <session-id>";
+    }
+    return JSON.stringify(context.services.sessions.summarize(sessionId), null, 2);
   }
 
   if (trimmed === "/cron" || trimmed === "/cron list") {
@@ -357,6 +406,8 @@ async function buildCommandResponse(
             entry.lastSendAt ? `lastSend=${entry.lastSendAt}` : undefined,
             entry.sendCount !== undefined ? `sends=${entry.sendCount}` : undefined,
             entry.lastError ? `error=${entry.lastError}` : undefined,
+            `events=${entry.events.length}`,
+            entry.events[0] ? `lastEvent=${entry.events[0].kind}` : undefined,
           ]
             .filter(Boolean)
             .join(" ");
@@ -364,6 +415,25 @@ async function buildCommandResponse(
         },
       )
       .join("\n");
+  }
+
+  if (trimmed === "/gateway trace" || trimmed.startsWith("/gateway trace ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const raw = trimmed.replace("/gateway trace", "").trim();
+    const limit = raw ? Number(raw) : undefined;
+    const traces = context.gateway.trace(
+      Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20,
+    );
+    return traces.length
+      ? traces
+          .map(
+            (trace) =>
+              `- [${trace.kind}] ${trace.platform} ${trace.detail}\n  trace=${trace.traceId} session=${trace.sessionId ?? "n/a"} delivery=${trace.deliveryId ?? "n/a"}${trace.messageId ? ` message=${trace.messageId}` : ""}${trace.threadId ? ` thread=${trace.threadId}` : ""}${trace.replyToMessageId ? ` replyTo=${trace.replyToMessageId}` : ""}`,
+          )
+          .join("\n\n")
+      : "No gateway traces recorded.";
   }
 
   if (trimmed === "/model" || trimmed === "/model status") {
@@ -388,7 +458,7 @@ async function buildCommandResponse(
     return health
       .map(
         (entry) =>
-          `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} :: ${entry.detail}`,
+          `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms :: ${entry.detail}`,
       )
       .join("\n");
   }
@@ -496,12 +566,49 @@ async function buildCommandResponse(
       .join("\n");
   }
 
+  if (trimmed === "/tools summary" || trimmed === "/tools registry") {
+    return JSON.stringify(context.services.tools.summary(), null, 2);
+  }
+
+  if (trimmed.startsWith("/tools show ")) {
+    const id = trimmed.replace("/tools show ", "").trim();
+    if (!id) {
+      return "Usage: /tools show <tool-id>";
+    }
+    return JSON.stringify(context.services.tools.get(id) ?? { error: `Tool not found: ${id}` }, null, 2);
+  }
+
+  if (trimmed.startsWith("/tools category ")) {
+    const category = trimmed.replace("/tools category ", "").trim();
+    if (!category) {
+      return "Usage: /tools category <category>";
+    }
+    const tools = context.services.tools.byCategory(category);
+    return tools.length
+      ? tools
+          .map((tool) => `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.description}`)
+          .join("\n")
+      : `No tools found for category: ${category}`;
+  }
+
   if (trimmed === "/mcp" || trimmed === "/mcp status") {
     return JSON.stringify(context.services.mcp.status(), null, 2);
   }
 
   if (trimmed === "/mcp tools") {
     return JSON.stringify(await context.services.mcp.discoverTools(), null, 2);
+  }
+
+  if (trimmed === "/mcp cached") {
+    return JSON.stringify(context.services.mcp.getCachedTools(), null, 2);
+  }
+
+  if (trimmed.startsWith("/mcp describe ")) {
+    const name = trimmed.replace("/mcp describe ", "").trim();
+    if (!name) {
+      return "Usage: /mcp describe <tool-name>";
+    }
+    return context.services.mcp.describeTool(name);
   }
 
   if (trimmed.startsWith("/mcp invoke ")) {
@@ -767,6 +874,33 @@ async function buildCommandResponse(
           )
           .join("\n\n")
       : "No trajectory bundles recorded.";
+  }
+
+  if (trimmed === "/trajectories replay latest") {
+    const replay = context.services.trajectories.replayLatest();
+    return replay ? JSON.stringify(replay, null, 2) : "No trajectory bundles recorded.";
+  }
+
+  if (trimmed.startsWith("/trajectories replay ")) {
+    const raw = trimmed.replace("/trajectories replay ", "").trim();
+    if (!raw) {
+      return "Usage: /trajectories replay <manifest-path|bundle-label|latest>";
+    }
+    if (raw === "latest") {
+      const replay = context.services.trajectories.replayLatest();
+      return replay ? JSON.stringify(replay, null, 2) : "No trajectory bundles recorded.";
+    }
+    const bundles = context.services.trajectories.listBundles(50);
+    const bundle = raw.endsWith(".json")
+      ? raw
+      : bundles.find((entry) => entry.label === raw || entry.manifestPath.endsWith(raw));
+    if (typeof bundle === "string") {
+      return JSON.stringify(context.services.trajectories.replayBundle(bundle), null, 2);
+    }
+    if (!bundle) {
+      return `Trajectory bundle not found: ${raw}`;
+    }
+    return JSON.stringify(context.services.trajectories.replayBundle(bundle.manifestPath), null, 2);
   }
 
   return undefined;

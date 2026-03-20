@@ -65,6 +65,12 @@ describe("TrajectoryService", () => {
       const bundles = service.listBundles();
       expect(bundles).toHaveLength(1);
       expect(bundles[0]?.dataPath).toBe(bundle.dataPath);
+
+      const replay = service.replayBundle(bundle.manifestPath);
+      expect(replay.replayCount).toBe(2);
+      expect(replay.replayPreview).toHaveLength(2);
+      expect(replay.replayPath).toContain("replay");
+      expect(readFileSync(replay.replaySummaryPath, "utf8")).toContain("Trajectory Replay: replay-fixture");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

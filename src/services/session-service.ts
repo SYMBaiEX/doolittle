@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { dirname, join } from "node:path";
 import { mkdirSync } from "node:fs";
-import type { SessionSearchResult, StoredMessage } from "@/types";
+import type { SessionSearchResult, SessionSummary, StoredMessage } from "@/types";
 
 export class SessionService {
   private readonly db: Database;
@@ -73,6 +73,81 @@ export class SessionService {
         `,
       )
       .all(limit) as SessionSearchResult[];
+  }
+
+  summarize(sessionId: string, limit = 12): SessionSummary {
+    const rows = this.db
+      .query(
+        `
+          SELECT session_id as sessionId, created_at as createdAt, role, text
+          FROM messages
+          WHERE session_id = ?1
+          ORDER BY created_at ASC
+          LIMIT ?2
+        `,
+      )
+      .all(sessionId, limit) as SessionSearchResult[];
+
+    if (!rows.length) {
+      return {
+        sessionId,
+        messageCount: 0,
+        participants: [],
+        preview: [],
+      };
+    }
+
+    const total = this.db
+      .query(
+        `
+          SELECT COUNT(*) as count
+          FROM messages
+          WHERE session_id = ?1
+        `,
+      )
+      .get(sessionId) as { count: number };
+
+    return {
+      sessionId,
+      messageCount: total.count,
+      startedAt: rows[0]?.createdAt,
+      endedAt: rows.at(-1)?.createdAt,
+      participants: Array.from(new Set(rows.map((row) => row.role))),
+      preview: rows.map((row) => `[${row.role}] ${row.text.slice(0, 200)}`),
+    };
+  }
+
+  listSessions(limit: number): SessionSummary[] {
+    const rows = this.db
+      .query(
+        `
+          SELECT
+            session_id as sessionId,
+            COUNT(*) as messageCount,
+            MIN(created_at) as startedAt,
+            MAX(created_at) as endedAt
+          FROM messages
+          GROUP BY session_id
+          ORDER BY endedAt DESC
+          LIMIT ?1
+        `,
+      )
+      .all(limit) as Array<{
+        sessionId: string;
+        messageCount: number;
+        startedAt?: string;
+        endedAt?: string;
+      }>;
+
+    return rows.map((row) => {
+      const summary = this.summarize(row.sessionId, 6);
+      return {
+        ...summary,
+        messageCount: row.messageCount,
+        startedAt: row.startedAt,
+        endedAt: row.endedAt,
+      };
+    });
   }
 
   private migrate(): void {

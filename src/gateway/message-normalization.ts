@@ -67,6 +67,21 @@ function parseTelegramMessage(body: unknown): IncomingPlatformMessage | null {
     metadata: normalizeMetadata([
       ["chatTitle", payload.message.chat.title],
       ["chatType", payload.message.chat.type],
+      ["messageId", payload.message.message_id ? String(payload.message.message_id) : undefined],
+      [
+        "replyToMessageId",
+        payload.message.reply_to_message?.message_id
+          ? String(payload.message.reply_to_message.message_id)
+          : undefined,
+      ],
+      [
+        "authorName",
+        payload.message.from.username ??
+          ([payload.message.from.first_name, payload.message.from.last_name]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || undefined),
+      ],
     ]),
   };
 }
@@ -100,6 +115,8 @@ function parseDiscordMessage(body: unknown): IncomingPlatformMessage | null {
       ["authorUsername", payload.author.username],
       ["guildId", payload.guild_id],
       ["messageType", typeof payload.type === "number" ? String(payload.type) : undefined],
+      ["threadId", payload.thread_id ?? payload.message_reference?.message_id],
+      ["replyToMessageId", payload.message_reference?.message_id],
     ]),
   };
 }
@@ -141,6 +158,9 @@ function parseSlackMessage(body: unknown): IncomingPlatformMessage | null {
     metadata: normalizeMetadata([
       ["eventType", payload.event.type],
       ["subtype", payload.event.subtype],
+      ["channelType", payload.event.channel_type],
+      ["threadTs", payload.event.thread_ts],
+      ["messageId", payload.event.ts],
     ]),
   };
 }
@@ -176,7 +196,11 @@ function parseWhatsAppMessage(body: unknown): IncomingPlatformMessage | null {
     messageId: message.id,
     replyToMessageId: message.context?.id,
     timestamp: message.timestamp,
-    metadata: normalizeMetadata([["replyToId", message.context?.id]]),
+    metadata: normalizeMetadata([
+      ["replyToId", message.context?.id],
+      ["messageId", message.id],
+      ["timestamp", message.timestamp],
+    ]),
   };
 }
 
@@ -211,7 +235,12 @@ function parseSignalMessage(body: unknown): IncomingPlatformMessage | null {
     messageId: payload.message_id,
     replyToMessageId: payload.reply_to,
     timestamp: payload.timestamp,
-    metadata: normalizeMetadata([["transport", "signal"]]),
+    metadata: normalizeMetadata([
+      ["transport", "signal"],
+      ["threadId", payload.thread_id ?? payload.reply_to],
+      ["replyToMessageId", payload.reply_to],
+      ["messageId", payload.message_id],
+    ]),
   };
 }
 
@@ -240,7 +269,11 @@ function parseMatrixMessage(body: unknown): IncomingPlatformMessage | null {
     messageId: payload.event_id,
     replyToMessageId: payload.relates_to?.event_id,
     timestamp: payload.timestamp,
-    metadata: normalizeMetadata([["transport", "matrix"]]),
+    metadata: normalizeMetadata([
+      ["transport", "matrix"],
+      ["messageId", payload.event_id],
+      ["replyToMessageId", payload.relates_to?.event_id],
+    ]),
   };
 }
 
@@ -272,7 +305,12 @@ function parseEmailMessage(body: unknown): IncomingPlatformMessage | null {
     replyToMessageId: payload.in_reply_to,
     timestamp: payload.timestamp,
     authorName: payload.sender_name,
-    metadata: normalizeMetadata([["subject", payload.subject], ["transport", "email"]]),
+    metadata: normalizeMetadata([
+      ["subject", payload.subject],
+      ["transport", "email"],
+      ["messageId", payload.message_id],
+      ["replyToMessageId", payload.in_reply_to],
+    ]),
   };
 }
 
@@ -302,6 +340,10 @@ function parseSmsMessage(body: unknown): IncomingPlatformMessage | null {
     replyToMessageId: payload.OriginalRepliedMessageSid,
     timestamp: payload.Timestamp,
     authorName: payload.ProfileName,
-    metadata: normalizeMetadata([["transport", "sms"]]),
+    metadata: normalizeMetadata([
+      ["transport", "sms"],
+      ["messageId", payload.MessageSid ?? payload.SmsSid],
+      ["replyToMessageId", payload.OriginalRepliedMessageSid],
+    ]),
   };
 }

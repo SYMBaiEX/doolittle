@@ -1,7 +1,13 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage } from "@/types";
-import { capabilitiesForPlatform, nowIso, type PlatformAdapter, type PlatformHealth } from "./base";
+import {
+  capabilitiesForPlatform,
+  createLifecycleHistory,
+  nowIso,
+  type PlatformAdapter,
+  type PlatformHealth,
+} from "./base";
 
 export class TelegramPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -10,6 +16,7 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
   private lastSendAt?: string;
   private sendCount = 0;
   private lastError?: string;
+  private readonly lifecycle = createLifecycleHistory();
 
   constructor(
     public readonly name: PlatformName,
@@ -27,14 +34,20 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     this.status = "running";
     this.startedAt = nowIso();
     this.lastError = undefined;
+    this.lifecycle.record("start", "Telegram adapter started with configured bot token.");
   }
 
   async stop(): Promise<void> {
     this.status = "stopped";
     this.stoppedAt = nowIso();
+    this.lifecycle.record("stop", "Telegram adapter stopped.");
   }
 
   async health(): Promise<PlatformHealth> {
+    this.lifecycle.record(
+      "health",
+      `Telegram health check: status=${this.status} sends=${this.sendCount} ready=${this.status === "running" && this.canReceive()}.`,
+    );
     return {
       platform: this.name,
       status: this.status,
@@ -49,12 +62,14 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       lastSendAt: this.lastSendAt,
       sendCount: this.sendCount,
       lastError: this.lastError,
+      events: this.lifecycle.recent(6),
     };
   }
 
-  async send(message: OutboundPlatformMessage): Promise<void> {
+  async send(message: OutboundPlatformMessage) {
     if (!this.config.telegramBotToken) {
       this.lastError = "TELEGRAM_BOT_TOKEN is not configured.";
+      this.lifecycle.record("error", this.lastError);
       throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
     }
 
@@ -79,13 +94,14 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     if (!response.ok) {
       const body = await response.text();
       this.lastError = `Telegram send failed (${response.status}): ${body}`;
+      this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
 
     this.sendCount += 1;
     this.lastSendAt = nowIso();
     this.lastError = undefined;
-    this.delivery.deliver(
+    const record = this.delivery.deliver(
       {
         platform: this.name,
         channelId: message.roomId,
@@ -99,6 +115,11 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
         metadata: message.metadata,
       },
     );
+    this.lifecycle.record(
+      "send",
+      `Telegram delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
+    );
+    return record;
   }
 
   canReceive(): boolean {

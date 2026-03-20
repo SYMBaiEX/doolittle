@@ -18,6 +18,7 @@ describe("normalizeInboundMessage", () => {
     expect(message?.roomId).toBe("1001");
     expect(message?.replyToMessageId).toBe("12");
     expect(message?.metadata?.chatTitle).toBe("Team Chat");
+    expect(message?.metadata?.messageId).toBe("42");
   });
 
   it("normalizes discord messages", () => {
@@ -35,6 +36,7 @@ describe("normalizeInboundMessage", () => {
     expect(message?.roomId).toBe("chan-1");
     expect(message?.replyToMessageId).toBe("msg-0");
     expect(message?.metadata?.guildId).toBe("guild-1");
+    expect(message?.metadata?.threadId).toBe("msg-0");
   });
 
   it("normalizes slack messages", () => {
@@ -54,6 +56,7 @@ describe("normalizeInboundMessage", () => {
     expect(message?.roomId).toBe("C123");
     expect(message?.threadId).toBe("1710000000.000050");
     expect(message?.metadata?.eventType).toBe("message");
+    expect(message?.metadata?.channelType).toBe("channel");
   });
 
   it("normalizes whatsapp messages", () => {
@@ -83,6 +86,7 @@ describe("normalizeInboundMessage", () => {
     expect(message?.roomId).toBe("15555550123");
     expect(message?.replyToMessageId).toBe("wamid-parent");
     expect(message?.metadata?.replyToId).toBe("wamid-parent");
+    expect(message?.metadata?.messageId).toBe("wamid-1");
   });
 
   it("normalizes signal messages", () => {

@@ -23,11 +23,13 @@ describe("McpService", () => {
     expect(result.tools.length).toBeGreaterThan(0);
     expect(result.tools.some((tool) => tool.name === "echo")).toBe(true);
     expect(service.status().discoveredTools).toBe(result.tools.length);
+    expect(service.status().cachedToolNames).toContain("echo");
   });
 
   it("invokes a structured tool", async () => {
     const result = await service.invokeTool("sum", { a: 2, b: 5 });
     expect(result.ok).toBe(true);
     expect(result.output).toContain("7");
+    expect(service.describeTool("sum")).toContain("MCP TOOL: sum");
   });
 });

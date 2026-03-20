@@ -24,6 +24,12 @@ function makeSettings(): RuntimeSettings {
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],
+      commandTimeoutMs: 30_000,
+      healthTimeoutMs: 5_000,
+      containerCpuLimit: "2",
+      containerMemoryLimit: "2g",
+      containerPidsLimit: 256,
+      containerReadOnlyRoot: true,
       sshHost: "",
       sshUser: "",
       sshPath: "",
@@ -53,6 +59,19 @@ describe("TerminalService", () => {
     }
   });
 
+  it("reports command timeouts cleanly", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-timeout-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+
+    try {
+      const result = await service.run("sleep 1", 25);
+      expect(result.exitCode).toBe(124);
+      expect(result.stderr).toContain("timed out");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("reports local backend health", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-health-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
@@ -61,6 +80,8 @@ describe("TerminalService", () => {
       const health = await service.health();
       const local = health.find((entry) => entry.backend === "local");
       expect(local?.ready).toBe(true);
+      expect(local?.limits.commandTimeoutMs).toBe(30_000);
+      expect(local?.limits.containerReadOnlyRoot).toBe(true);
       expect(health.some((entry) => entry.backend === "podman")).toBe(true);
       expect(health.find((entry) => entry.backend === "docker")?.mode).toBe("container");
     } finally {

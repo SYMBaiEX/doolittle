@@ -1,7 +1,13 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage } from "@/types";
-import { capabilitiesForPlatform, nowIso, type PlatformAdapter, type PlatformHealth } from "./base";
+import {
+  capabilitiesForPlatform,
+  createLifecycleHistory,
+  nowIso,
+  type PlatformAdapter,
+  type PlatformHealth,
+} from "./base";
 
 export class DiscordPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -10,6 +16,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
   private lastSendAt?: string;
   private sendCount = 0;
   private lastError?: string;
+  private readonly lifecycle = createLifecycleHistory();
 
   constructor(
     public readonly name: PlatformName,
@@ -22,17 +29,24 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
+      this.lifecycle.record("start", "Discord adapter started with configured bot token.");
     } else {
       this.lastError = "DISCORD_BOT_TOKEN is not configured.";
+      this.lifecycle.record("error", this.lastError);
     }
   }
 
   async stop(): Promise<void> {
     this.status = "stopped";
     this.stoppedAt = nowIso();
+    this.lifecycle.record("stop", "Discord adapter stopped.");
   }
 
   async health(): Promise<PlatformHealth> {
+    this.lifecycle.record(
+      "health",
+      `Discord health check: status=${this.status} sends=${this.sendCount} ready=${this.status === "running" && this.canReceive()}.`,
+    );
     return {
       platform: this.name,
       status: this.status,
@@ -47,12 +61,14 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       lastSendAt: this.lastSendAt,
       sendCount: this.sendCount,
       lastError: this.lastError,
+      events: this.lifecycle.recent(6),
     };
   }
 
-  async send(message: OutboundPlatformMessage): Promise<void> {
+  async send(message: OutboundPlatformMessage) {
     if (!this.config.discordBotToken) {
       this.lastError = "DISCORD_BOT_TOKEN is not configured.";
+      this.lifecycle.record("error", this.lastError);
       throw new Error("DISCORD_BOT_TOKEN is not configured.");
     }
 
@@ -87,13 +103,14 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
 
     if (!response.ok) {
       this.lastError = `Discord send failed (${response.status}): ${await response.text()}`;
+      this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
 
     this.sendCount += 1;
     this.lastSendAt = nowIso();
     this.lastError = undefined;
-    this.delivery.deliver(
+    const record = this.delivery.deliver(
       {
         platform: this.name,
         channelId: message.roomId,
@@ -107,6 +124,11 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
         metadata: message.metadata,
       },
     );
+    this.lifecycle.record(
+      "send",
+      `Discord delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
+    );
+    return record;
   }
 
   canReceive(): boolean {

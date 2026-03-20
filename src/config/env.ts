@@ -48,6 +48,15 @@ const schema = z.object({
   ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH: z
     .string()
     .default("PATH,HOME,OPENAI_API_KEY,ANTHROPIC_API_KEY"),
+  ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
+  ELIZA_AGENT_CONTAINER_CPU_LIMIT: z.string().default("2"),
+  ELIZA_AGENT_CONTAINER_MEMORY_LIMIT: z.string().default("2g"),
+  ELIZA_AGENT_CONTAINER_PIDS_LIMIT: z.coerce.number().int().positive().default(256),
+  ELIZA_AGENT_CONTAINER_READ_ONLY_ROOT: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
   ELIZA_AGENT_SSH_HOST: z.string().optional(),
   ELIZA_AGENT_SSH_USER: z.string().optional(),
   ELIZA_AGENT_SSH_PATH: z.string().optional(),
@@ -119,7 +128,7 @@ export function loadConfig(): EnvConfig {
     browserCommand: values.ELIZA_AGENT_BROWSER_COMMAND,
     browserCdpUrl: values.ELIZA_AGENT_BROWSER_CDP_URL,
     browserObeyRobots: values.ELIZA_AGENT_BROWSER_OBEY_ROBOTS,
-    executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND as EnvConfig["executionBackend"],
+    executionBackend: values.ELIZA_AGENT_EXECUTION_BACKEND,
     dockerImage: values.ELIZA_AGENT_DOCKER_IMAGE,
     dockerNetwork: values.ELIZA_AGENT_DOCKER_NETWORK,
     dockerWorkspacePath: values.ELIZA_AGENT_DOCKER_WORKSPACE_PATH,
@@ -127,6 +136,12 @@ export function loadConfig(): EnvConfig {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
+    executionCommandTimeoutMs: values.ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS,
+    executionHealthTimeoutMs: values.ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS,
+    containerCpuLimit: values.ELIZA_AGENT_CONTAINER_CPU_LIMIT,
+    containerMemoryLimit: values.ELIZA_AGENT_CONTAINER_MEMORY_LIMIT,
+    containerPidsLimit: values.ELIZA_AGENT_CONTAINER_PIDS_LIMIT,
+    containerReadOnlyRoot: values.ELIZA_AGENT_CONTAINER_READ_ONLY_ROOT,
     sshHost: values.ELIZA_AGENT_SSH_HOST,
     sshUser: values.ELIZA_AGENT_SSH_USER,
     sshPath: values.ELIZA_AGENT_SSH_PATH,

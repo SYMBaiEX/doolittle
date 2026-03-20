@@ -1,7 +1,13 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage } from "@/types";
-import { capabilitiesForPlatform, nowIso, type PlatformAdapter, type PlatformHealth } from "./base";
+import {
+  capabilitiesForPlatform,
+  createLifecycleHistory,
+  nowIso,
+  type PlatformAdapter,
+  type PlatformHealth,
+} from "./base";
 
 export class WhatsAppPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -10,6 +16,7 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
   private lastSendAt?: string;
   private sendCount = 0;
   private lastError?: string;
+  private readonly lifecycle = createLifecycleHistory();
 
   constructor(
     public readonly name: PlatformName,
@@ -27,23 +34,30 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
     if (this.status === "running") {
       this.startedAt = nowIso();
       this.lastError = undefined;
+      this.lifecycle.record("start", "WhatsApp adapter started with Graph API credentials.");
     } else {
       this.lastError = !this.config.whatsappAccessToken
         ? "WHATSAPP_ACCESS_TOKEN is not configured."
         : !this.config.whatsappPhoneNumberId
           ? "WHATSAPP_PHONE_NUMBER_ID is not configured."
           : "WHATSAPP_VERIFY_TOKEN is not configured.";
+      this.lifecycle.record("error", this.lastError);
     }
   }
 
   async stop(): Promise<void> {
     this.status = "stopped";
     this.stoppedAt = nowIso();
+    this.lifecycle.record("stop", "WhatsApp adapter stopped.");
   }
 
   async health(): Promise<PlatformHealth> {
     const ready = Boolean(
       this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId,
+    );
+    this.lifecycle.record(
+      "health",
+      `WhatsApp health check: status=${this.status} sends=${this.sendCount} ready=${ready}.`,
     );
     return {
       platform: this.name,
@@ -59,12 +73,14 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
       lastSendAt: this.lastSendAt,
       sendCount: this.sendCount,
       lastError: this.lastError,
+      events: this.lifecycle.recent(6),
     };
   }
 
-  async send(message: OutboundPlatformMessage): Promise<void> {
+  async send(message: OutboundPlatformMessage) {
     if (!this.config.whatsappAccessToken || !this.config.whatsappPhoneNumberId) {
       this.lastError = "WhatsApp credentials are not configured.";
+      this.lifecycle.record("error", this.lastError);
       throw new Error("WhatsApp credentials are not configured.");
     }
 
@@ -92,13 +108,14 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
 
     if (!response.ok) {
       this.lastError = `WhatsApp send failed (${response.status}): ${await response.text()}`;
+      this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }
 
     this.sendCount += 1;
     this.lastSendAt = nowIso();
     this.lastError = undefined;
-    this.delivery.deliver(
+    const record = this.delivery.deliver(
       {
         platform: this.name,
         channelId: message.roomId,
@@ -112,6 +129,11 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
         metadata: message.metadata,
       },
     );
+    this.lifecycle.record(
+      "send",
+      `WhatsApp delivery ${record.id} to ${message.roomId}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
+    );
+    return record;
   }
 
   canReceive(): boolean {

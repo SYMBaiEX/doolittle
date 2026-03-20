@@ -1,6 +1,12 @@
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage, PlatformName } from "@/types";
-import { capabilitiesForPlatform, nowIso, type PlatformAdapter, type PlatformHealth } from "./base";
+import {
+  capabilitiesForPlatform,
+  createLifecycleHistory,
+  nowIso,
+  type PlatformAdapter,
+  type PlatformHealth,
+} from "./base";
 
 export class MockPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -8,6 +14,7 @@ export class MockPlatformAdapter implements PlatformAdapter {
   private stoppedAt?: string;
   private lastSendAt?: string;
   private sendCount = 0;
+  private readonly lifecycle = createLifecycleHistory();
 
   constructor(
     public readonly name: PlatformName,
@@ -17,15 +24,21 @@ export class MockPlatformAdapter implements PlatformAdapter {
   async start(): Promise<void> {
     this.status = "running";
     this.startedAt = nowIso();
+    this.lifecycle.record("start", `${this.name} mock adapter started.`);
   }
 
   async stop(): Promise<void> {
     this.status = "stopped";
     this.stoppedAt = nowIso();
+    this.lifecycle.record("stop", `${this.name} mock adapter stopped.`);
   }
 
   async health(): Promise<PlatformHealth> {
     const capabilities = capabilitiesForPlatform(this.name);
+    this.lifecycle.record(
+      "health",
+      `${this.name} mock adapter health check: status=${this.status} sends=${this.sendCount}.`,
+    );
     return {
       platform: this.name,
       status: this.status,
@@ -37,13 +50,15 @@ export class MockPlatformAdapter implements PlatformAdapter {
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
       sendCount: this.sendCount,
+      lastError: undefined,
+      events: this.lifecycle.recent(6),
     };
   }
 
-  async send(message: OutboundPlatformMessage): Promise<void> {
+  async send(message: OutboundPlatformMessage) {
     this.sendCount += 1;
     this.lastSendAt = nowIso();
-    this.delivery.deliver(
+    const record = this.delivery.deliver(
       {
         platform: this.name,
         channelId: message.roomId,
@@ -57,6 +72,11 @@ export class MockPlatformAdapter implements PlatformAdapter {
         metadata: message.metadata,
       },
     );
+    this.lifecycle.record(
+      "send",
+      `Recorded mock delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
+    );
+    return record;
   }
 
   canReceive(): boolean {

@@ -166,6 +166,12 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_BROWSER_COMMAND` | Local Lightpanda command used for browser-backed fetch flows. |
 | `ELIZA_AGENT_BROWSER_CDP_URL` | Optional CDP endpoint reserved for deeper browser automation work. |
 | `ELIZA_AGENT_BROWSER_OBEY_ROBOTS` | Enables Lightpanda robot-policy aware fetching when supported. |
+| `ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS` | Default command timeout for local, Docker, Podman, and SSH execution. |
+| `ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS` | Timeout used when probing backend health. |
+| `ELIZA_AGENT_CONTAINER_CPU_LIMIT` | CPU limit applied to Docker and Podman execution containers. |
+| `ELIZA_AGENT_CONTAINER_MEMORY_LIMIT` | Memory limit applied to Docker and Podman execution containers. |
+| `ELIZA_AGENT_CONTAINER_PIDS_LIMIT` | PIDs limit applied to Docker and Podman execution containers. |
+| `ELIZA_AGENT_CONTAINER_READ_ONLY_ROOT` | Enables a read-only container root with writable tmpfs mounts for `/tmp` and `/run`. |
 | `ELIZA_AGENT_DOCKER_IMAGE` | Container image used for Docker or Podman execution. |
 | `ELIZA_AGENT_DOCKER_NETWORK` | Container network mode for Docker or Podman execution. |
 | `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path used inside Docker or Podman execution containers. |
@@ -237,6 +243,8 @@ Useful commands:
 - `/skills show <slug>`
 - `/memory list memory`
 - `/memory add user <text>`
+- `/sessions list`
+- `/session summary`
 - `/search <query>`
 - `/cron list`
 - `/cron create every 2h :: summarize recent deployment logs`
@@ -305,6 +313,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /features`
 - `GET /runtime/status`
 - `GET /memory?target=memory|user`
+- `GET /sessions`
+- `GET /sessions/summary`
 - `GET /skills`
 - `GET /tools`
 - `GET /browser/status`

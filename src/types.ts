@@ -32,11 +32,17 @@ export interface EnvConfig {
   browserCommand: string;
   browserCdpUrl?: string;
   browserObeyRobots: boolean;
-  executionBackend: "local" | "docker" | "ssh";
+  executionBackend: ExecutionBackendName;
   dockerImage: string;
   dockerNetwork: string;
   dockerWorkspacePath: string;
   dockerEnvPassthrough: string[];
+  executionCommandTimeoutMs: number;
+  executionHealthTimeoutMs: number;
+  containerCpuLimit: string;
+  containerMemoryLimit: string;
+  containerPidsLimit: number;
+  containerReadOnlyRoot: boolean;
   sshHost?: string;
   sshUser?: string;
   sshPath?: string;
@@ -80,6 +86,15 @@ export interface SessionSearchResult {
   createdAt: string;
   role: "user" | "assistant" | "system";
   text: string;
+}
+
+export interface SessionSummary {
+  sessionId: string;
+  messageCount: number;
+  startedAt?: string;
+  endedAt?: string;
+  participants: Array<"user" | "assistant" | "system">;
+  preview: string[];
 }
 
 export interface CronJobRecord {
@@ -291,6 +306,16 @@ export interface ExecutionBackendHealth {
   engine?: "docker" | "podman" | "ssh";
   ready: boolean;
   detail: string;
+  limits: ExecutionBackendLimits;
+}
+
+export interface ExecutionBackendLimits {
+  commandTimeoutMs: number;
+  healthTimeoutMs: number;
+  containerCpuLimit: string;
+  containerMemoryLimit: string;
+  containerPidsLimit: number;
+  containerReadOnlyRoot: boolean;
 }
 
 export interface McpToolDefinition {

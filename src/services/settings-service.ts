@@ -21,6 +21,12 @@ export interface RuntimeSettings {
     dockerNetwork: string;
     dockerWorkspacePath: string;
     dockerEnvPassthrough: string[];
+    commandTimeoutMs?: number;
+    healthTimeoutMs?: number;
+    containerCpuLimit?: string;
+    containerMemoryLimit?: string;
+    containerPidsLimit?: number;
+    containerReadOnlyRoot?: boolean;
     sshHost: string;
     sshUser: string;
     sshPath: string;
@@ -63,6 +69,12 @@ export class SettingsService {
         dockerNetwork: "host",
         dockerWorkspacePath: "/workspace",
         dockerEnvPassthrough: ["PATH", "HOME"],
+        commandTimeoutMs: 30_000,
+        healthTimeoutMs: 5_000,
+        containerCpuLimit: "2",
+        containerMemoryLimit: "2g",
+        containerPidsLimit: 256,
+        containerReadOnlyRoot: true,
         sshHost: "",
         sshUser: "",
         sshPath: "",
@@ -82,6 +94,30 @@ export class SettingsService {
       }
       if (!Array.isArray(execution.dockerEnvPassthrough)) {
         parsed.execution.dockerEnvPassthrough = ["PATH", "HOME"];
+        dirty = true;
+      }
+      if (execution.commandTimeoutMs === undefined) {
+        parsed.execution.commandTimeoutMs = 30_000;
+        dirty = true;
+      }
+      if (execution.healthTimeoutMs === undefined) {
+        parsed.execution.healthTimeoutMs = 5_000;
+        dirty = true;
+      }
+      if (execution.containerCpuLimit === undefined) {
+        parsed.execution.containerCpuLimit = "2";
+        dirty = true;
+      }
+      if (execution.containerMemoryLimit === undefined) {
+        parsed.execution.containerMemoryLimit = "2g";
+        dirty = true;
+      }
+      if (execution.containerPidsLimit === undefined) {
+        parsed.execution.containerPidsLimit = 256;
+        dirty = true;
+      }
+      if (execution.containerReadOnlyRoot === undefined) {
+        parsed.execution.containerReadOnlyRoot = true;
         dirty = true;
       }
       if (execution.sshPath === undefined) {

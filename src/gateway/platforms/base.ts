@@ -1,4 +1,5 @@
 import type {
+  DeliveredMessageRecord,
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   PlatformName,
@@ -26,6 +27,19 @@ export interface PlatformHealth {
   lastSendAt?: string;
   sendCount?: number;
   lastError?: string;
+  events: PlatformLifecycleEvent[];
+}
+
+export interface PlatformLifecycleEvent {
+  at: string;
+  kind: "start" | "stop" | "send" | "error" | "health";
+  detail: string;
+}
+
+export interface LifecycleHistory {
+  record(kind: PlatformLifecycleEvent["kind"], detail: string): PlatformLifecycleEvent;
+  recent(limit?: number): PlatformLifecycleEvent[];
+  total(): number;
 }
 
 export interface PlatformAdapter {
@@ -33,7 +47,7 @@ export interface PlatformAdapter {
   start(): Promise<void>;
   stop(): Promise<void>;
   health(): Promise<PlatformHealth>;
-  send(message: OutboundPlatformMessage): Promise<void>;
+  send(message: OutboundPlatformMessage): Promise<DeliveredMessageRecord>;
   canReceive(): boolean;
 }
 
@@ -41,6 +55,31 @@ export type PlatformMessageHandler = (message: IncomingPlatformMessage) => Promi
 
 export function nowIso(): string {
   return new Date().toISOString();
+}
+
+export function createLifecycleHistory(limit = 12): LifecycleHistory {
+  const events: PlatformLifecycleEvent[] = [];
+
+  return {
+    record(kind, detail) {
+      const event = {
+        at: nowIso(),
+        kind,
+        detail,
+      };
+      events.push(event);
+      if (events.length > limit) {
+        events.splice(0, events.length - limit);
+      }
+      return event;
+    },
+    recent(recentLimit = limit) {
+      return events.slice(-recentLimit).reverse();
+    },
+    total() {
+      return events.length;
+    },
+  };
 }
 
 export function capabilitiesForPlatform(platform: PlatformName): PlatformCapabilitySet {

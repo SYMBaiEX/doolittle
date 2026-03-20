@@ -122,15 +122,68 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/sessions") {
+        const limitRaw = url.searchParams.get("limit");
+        const limit = limitRaw ? Number(limitRaw) : 20;
+        return json({
+          sessions: context.services.sessions.listSessions(
+            !Number.isNaN(limit) && limit > 0 ? limit : 20,
+          ),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/sessions/summary") {
+        const sessionId = url.searchParams.get("sessionId");
+        if (!sessionId) {
+          return json({ error: "sessionId is required" }, 400);
+        }
+        return json({
+          summary: context.services.sessions.summarize(sessionId),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/skills") {
         return json({
           skills: context.services.skills.list(),
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/skills/generated") {
+        return json({
+          skills: context.services.skillSynthesis.listGeneratedSkills(),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/tools") {
         return json({
           tools: context.services.tools.list(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/tools/summary") {
+        return json({
+          summary: context.services.tools.summary(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/tools/category") {
+        const category = url.searchParams.get("name");
+        if (!category) {
+          return json({ error: "name is required" }, 400);
+        }
+        return json({
+          category,
+          tools: context.services.tools.byCategory(category),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/tools/detail") {
+        const id = url.searchParams.get("id");
+        if (!id) {
+          return json({ error: "id is required" }, 400);
+        }
+        return json({
+          tool: context.services.tools.get(id),
         });
       }
 
@@ -143,6 +196,23 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/mcp/tools") {
         return json({
           discovery: await context.services.mcp.discoverTools(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/mcp/cached") {
+        return json({
+          tools: context.services.mcp.getCachedTools(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/mcp/tool") {
+        const name = url.searchParams.get("name");
+        if (!name) {
+          return json({ error: "name is required" }, 400);
+        }
+        return json({
+          tool: context.services.mcp.getTool(name) ?? null,
+          detail: context.services.mcp.describeTool(name),
         });
       }
 
@@ -558,6 +628,31 @@ export function startApiServer(context: AppContext): void {
         );
       }
 
+      if (request.method === "POST" && url.pathname === "/trajectories/replay") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          manifestPath?: string;
+          label?: string;
+          latest?: boolean;
+        };
+        if (body.latest) {
+          const replay = context.services.trajectories.replayLatest();
+          return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+        }
+        if (!body.manifestPath && !body.label) {
+          return json({ error: "manifestPath or label is required" }, 400);
+        }
+        const bundles = context.services.trajectories.listBundles(50);
+        const manifestPath =
+          body.manifestPath ??
+          bundles.find((entry) => entry.label === body.label || entry.manifestPath.endsWith(body.label ?? ""))?.manifestPath;
+        if (!manifestPath) {
+          return json({ error: "Trajectory bundle not found." }, 404);
+        }
+        return json({
+          replay: context.services.trajectories.replayBundle(manifestPath),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/trajectories/bundles") {
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw ? Number(limitRaw) : 20;
@@ -566,6 +661,31 @@ export function startApiServer(context: AppContext): void {
             !Number.isNaN(limit) && limit > 0 ? limit : 20,
           ),
         });
+      }
+
+      if (request.method === "GET" && url.pathname === "/trajectories/replay") {
+        const manifestPath = url.searchParams.get("manifestPath");
+        const label = url.searchParams.get("label");
+        const latest = url.searchParams.get("latest") === "true";
+        if (latest) {
+          const replay = context.services.trajectories.replayLatest();
+          return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+        }
+        if (manifestPath) {
+          return json({
+            replay: context.services.trajectories.replayBundle(manifestPath),
+          });
+        }
+        if (label) {
+          const bundle = context.services.trajectories.listBundles(50).find((entry) => entry.label === label);
+          if (!bundle) {
+            return json({ error: "Trajectory bundle not found." }, 404);
+          }
+          return json({
+            replay: context.services.trajectories.replayBundle(bundle.manifestPath),
+          });
+        }
+        return json({ error: "manifestPath, label, or latest=true is required" }, 400);
       }
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {
@@ -616,8 +736,16 @@ export function startApiServer(context: AppContext): void {
         return json({
           health: readiness,
           readiness,
+          traces: context.gateway.trace(25),
           sessions: context.services.gatewaySessions.list(),
           deliveries: context.services.delivery.recent(20),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/gateway/trace") {
+        const limit = Number(url.searchParams.get("limit") ?? "25");
+        return json({
+          traces: context.gateway.trace(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
         });
       }
 
