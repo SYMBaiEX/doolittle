@@ -51,6 +51,12 @@ export interface EnvConfig {
   matrixAccessToken?: string;
   emailSendCommand?: string;
   smsSendCommand?: string;
+  mattermostUrl?: string;
+  mattermostToken?: string;
+  homeAssistantUrl?: string;
+  homeAssistantToken?: string;
+  dingtalkWebhookUrl?: string;
+  dingtalkAccessToken?: string;
   browserProvider: "lightpanda" | "basic";
   browserCommand: string;
   browserCdpUrl?: string;
@@ -200,7 +206,10 @@ export type PlatformName =
   | "signal"
   | "matrix"
   | "email"
-  | "sms";
+  | "sms"
+  | "mattermost"
+  | "homeassistant"
+  | "dingtalk";
 
 export interface GatewayPlatformConfig {
   enabled: boolean;

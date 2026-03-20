@@ -227,6 +227,54 @@ export class DiagnosticsService {
     });
 
     checks.push({
+      id: "mattermost.readiness",
+      status:
+        this.gatewayConfig.platforms.mattermost.enabled &&
+        !(this.config.mattermostUrl && this.config.mattermostToken)
+          ? "fail"
+          : this.config.mattermostUrl && this.config.mattermostToken
+            ? "pass"
+            : "warn",
+      summary: "Mattermost transport readiness",
+      detail:
+        this.config.mattermostUrl && this.config.mattermostToken
+          ? "Mattermost server URL and token configured."
+          : "MATTERMOST_URL and MATTERMOST_TOKEN should both be configured.",
+    });
+
+    checks.push({
+      id: "homeassistant.readiness",
+      status:
+        this.gatewayConfig.platforms.homeassistant.enabled &&
+        !(this.config.homeAssistantUrl && this.config.homeAssistantToken)
+          ? "fail"
+          : this.config.homeAssistantUrl && this.config.homeAssistantToken
+            ? "pass"
+            : "warn",
+      summary: "Home Assistant transport readiness",
+      detail:
+        this.config.homeAssistantUrl && this.config.homeAssistantToken
+          ? "Home Assistant API URL and token configured."
+          : "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN should both be configured.",
+    });
+
+    checks.push({
+      id: "dingtalk.readiness",
+      status:
+        this.gatewayConfig.platforms.dingtalk.enabled &&
+        !(this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken)
+          ? "fail"
+          : this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken
+            ? "pass"
+            : "warn",
+      summary: "DingTalk transport readiness",
+      detail:
+        this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken
+          ? "DingTalk webhook URL or access token configured."
+          : "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN should be configured.",
+    });
+
+    checks.push({
       id: "repository.available",
       status: input.repositoryAvailable ? "pass" : "warn",
       summary: "Repository inspection",

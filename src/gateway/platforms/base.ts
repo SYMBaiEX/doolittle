@@ -206,6 +206,36 @@ export function capabilitiesForPlatform(
         threads: false,
         metadata: true,
       };
+    case "mattermost":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: true,
+        metadata: true,
+      };
+    case "homeassistant":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: false,
+        attachments: false,
+        replies: false,
+        threads: false,
+        metadata: true,
+      };
+    case "dingtalk":
+      return {
+        inbound: true,
+        outbound: true,
+        pairing: true,
+        attachments: true,
+        replies: true,
+        threads: true,
+        metadata: true,
+      };
     default:
       return {
         inbound: true,

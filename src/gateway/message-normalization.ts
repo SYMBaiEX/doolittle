@@ -100,6 +100,12 @@ export function normalizeInboundMessage(
       return parseEmailMessage(body);
     case "sms":
       return parseSmsMessage(body);
+    case "mattermost":
+      return parseMattermostMessage(body);
+    case "homeassistant":
+      return parseHomeAssistantMessage(body);
+    case "dingtalk":
+      return parseDingtalkMessage(body);
     default:
       return null;
   }
@@ -805,6 +811,120 @@ function parseSmsMessage(body: unknown): IncomingPlatformMessage | null {
       ["messageId", payload.MessageSid ?? payload.SmsSid],
       ["replyToMessageId", payload.OriginalRepliedMessageSid],
       ...Object.entries(attachmentMetadata(attachments)),
+    ]),
+  };
+}
+
+function parseMattermostMessage(body: unknown): IncomingPlatformMessage | null {
+  const payload = body as {
+    post?: {
+      id?: string;
+      message?: string;
+      channel_id?: string;
+      root_id?: string;
+      user_id?: string;
+      props?: Record<string, unknown>;
+      file_ids?: string[];
+    };
+    sender_name?: string;
+    channel_name?: string;
+    team_domain?: string;
+  };
+
+  if (
+    !payload.post?.message ||
+    !payload.post.channel_id ||
+    !payload.post.user_id
+  ) {
+    return null;
+  }
+
+  return {
+    platform: "mattermost",
+    userId: payload.post.user_id,
+    roomId: payload.post.channel_id,
+    text: payload.post.message,
+    threadId: payload.post.root_id,
+    replyToMessageId: payload.post.root_id,
+    messageId: payload.post.id,
+    metadata: normalizeMetadata([
+      ["authorName", payload.sender_name],
+      ["channelName", payload.channel_name],
+      ["teamDomain", payload.team_domain],
+      ["fileIds", payload.post.file_ids?.join("|")],
+      ["propKeys", Object.keys(payload.post.props ?? {}).join("|")],
+    ]),
+  };
+}
+
+function parseHomeAssistantMessage(
+  body: unknown,
+): IncomingPlatformMessage | null {
+  const payload = body as {
+    event?: {
+      event_type?: string;
+      data?: {
+        message?: string;
+        channel?: string;
+        user_id?: string;
+        thread_id?: string;
+        reply_to_id?: string;
+      };
+      context?: {
+        id?: string;
+        user_id?: string;
+      };
+    };
+  };
+
+  const data = payload.event?.data;
+  if (!data?.message || !data.channel) {
+    return null;
+  }
+
+  return {
+    platform: "homeassistant",
+    userId: data.user_id ?? payload.event?.context?.user_id ?? "homeassistant",
+    roomId: data.channel,
+    text: data.message,
+    threadId: data.thread_id,
+    replyToMessageId: data.reply_to_id,
+    messageId: payload.event?.context?.id,
+    metadata: normalizeMetadata([
+      ["eventType", payload.event?.event_type],
+      ["contextId", payload.event?.context?.id],
+    ]),
+  };
+}
+
+function parseDingtalkMessage(body: unknown): IncomingPlatformMessage | null {
+  const payload = body as {
+    text?: { content?: string };
+    senderId?: string;
+    senderNick?: string;
+    conversationId?: string;
+    msgId?: string;
+    sessionWebhookExpiredTime?: number | string;
+  };
+
+  if (!payload.text?.content || !payload.senderId || !payload.conversationId) {
+    return null;
+  }
+
+  return {
+    platform: "dingtalk",
+    userId: payload.senderId,
+    roomId: payload.conversationId,
+    text: payload.text.content,
+    messageId: payload.msgId,
+    metadata: normalizeMetadata([
+      ["authorName", payload.senderNick],
+      [
+        "sessionWebhookExpiredTime",
+        payload.sessionWebhookExpiredTime
+          ? String(payload.sessionWebhookExpiredTime)
+          : undefined,
+      ],
     ]),
   };
 }

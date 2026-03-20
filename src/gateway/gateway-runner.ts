@@ -26,9 +26,12 @@ import {
   type PlatformLifecycleEvent,
   type PlatformPresenceState,
 } from "./platforms/base";
+import { DingtalkPlatformAdapter } from "./platforms/dingtalk-adapter";
 import { DiscordPlatformAdapter } from "./platforms/discord-adapter";
 import { EmailPlatformAdapter } from "./platforms/email-adapter";
+import { HomeAssistantPlatformAdapter } from "./platforms/homeassistant-adapter";
 import { MatrixPlatformAdapter } from "./platforms/matrix-adapter";
+import { MattermostPlatformAdapter } from "./platforms/mattermost-adapter";
 import { MockPlatformAdapter } from "./platforms/mock-adapter";
 import { SignalPlatformAdapter } from "./platforms/signal-adapter";
 import { SlackPlatformAdapter } from "./platforms/slack-adapter";
@@ -41,6 +44,20 @@ const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
   "matrix",
   "email",
   "sms",
+]);
+
+const NATIVE_PLATFORM_ADAPTERS = new Set<PlatformName>([
+  "telegram",
+  "discord",
+  "slack",
+  "whatsapp",
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+  "mattermost",
+  "homeassistant",
+  "dingtalk",
 ]);
 
 interface GatewayTraceRecord {
@@ -843,8 +860,11 @@ export class GatewayRunner {
     const inactiveHealth: PlatformHealth[] = configuredPlatforms
       .filter((platform) => !known.has(platform))
       .map((platform) => {
-        const mode: PlatformHealth["mode"] =
-          platform === "telegram" ? "native" : "mock";
+        const mode: PlatformHealth["mode"] = NATIVE_PLATFORM_ADAPTERS.has(
+          platform,
+        )
+          ? "native"
+          : "mock";
         const inactive = {
           platform,
           status: "stopped" as const,
@@ -1133,6 +1153,27 @@ export class GatewayRunner {
     }
     if (platform === "sms") {
       return new SmsPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "mattermost") {
+      return new MattermostPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "homeassistant") {
+      return new HomeAssistantPlatformAdapter(
+        platform,
+        this.context.config,
+        this.context.services.delivery,
+      );
+    }
+    if (platform === "dingtalk") {
+      return new DingtalkPlatformAdapter(
         platform,
         this.context.config,
         this.context.services.delivery,

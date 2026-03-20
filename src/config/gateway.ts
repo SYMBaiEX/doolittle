@@ -22,6 +22,9 @@ export function getDefaultGatewayConfig(config: EnvConfig): GatewayConfig {
     "matrix",
     "email",
     "sms",
+    "mattermost",
+    "homeassistant",
+    "dingtalk",
   ];
 
   const platformConfigs = {} as Record<
@@ -52,14 +55,24 @@ export function getDefaultGatewayConfig(config: EnvConfig): GatewayConfig {
 export function loadGatewayConfig(config: EnvConfig): GatewayConfig {
   mkdirSync(config.gatewayDataDir, { recursive: true });
   const path = join(config.gatewayDataDir, "gateway.json");
+  const defaults = getDefaultGatewayConfig(config);
   if (!existsSync(path)) {
-    const defaults = getDefaultGatewayConfig(config);
     writeFileSync(path, JSON.stringify(defaults, null, 2), "utf8");
     return defaults;
   }
 
   const raw = readFileSync(path, "utf8");
-  return JSON.parse(raw) as GatewayConfig;
+  const parsed = JSON.parse(raw) as Partial<GatewayConfig>;
+  const merged: GatewayConfig = {
+    ...defaults,
+    ...parsed,
+    platforms: {
+      ...defaults.platforms,
+      ...(parsed.platforms ?? {}),
+    },
+  };
+  writeFileSync(path, JSON.stringify(merged, null, 2), "utf8");
+  return merged;
 }
 
 export function saveGatewayConfig(
