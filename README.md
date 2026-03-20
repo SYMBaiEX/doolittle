@@ -83,13 +83,14 @@ eliza-agent/
 | Personality profiles | [`src/services/personality-service.ts`](./src/services/personality-service.ts) |
 | Workspace context files | [`src/services/context-files-service.ts`](./src/services/context-files-service.ts) |
 | Runtime settings and model config | [`src/services/settings-service.ts`](./src/services/settings-service.ts) |
-| Browser inspection and artifacts | [`src/services/web-service.ts`](./src/services/web-service.ts) + `/browser` commands |
-| Media inspection and PDF metadata | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
+| Browser inspection, capture, and model-backed analysis | [`src/services/web-service.ts`](./src/services/web-service.ts) + `/browser` commands |
+| Media inspection, voice/vision analysis, and PDF metadata | [`src/services/media-service.ts`](./src/services/media-service.ts) + `/media` commands |
+| Trajectory research bundles and replay | [`src/services/trajectory-service.ts`](./src/services/trajectory-service.ts) + `/trajectories` commands |
 | PDF extraction | [`src/services/documents-service.ts`](./src/services/documents-service.ts) + `@elizaos/plugin-pdf` |
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, and bootstrap paths |
+| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, and cloud sandbox profile paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
@@ -184,8 +185,16 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_SINGULARITY_IMAGE` | Local SIF path or remote image reference used for Singularity execution. |
 | `ELIZA_AGENT_DAYTONA_TARGET` | Target Daytona sandbox or workspace used for remote execution. |
 | `ELIZA_AGENT_DAYTONA_COMMAND` | Optional Daytona CLI command override. |
+| `ELIZA_AGENT_DAYTONA_SHELL` | Shell used inside Daytona sandboxes for command execution. |
+| `ELIZA_AGENT_DAYTONA_SNAPSHOT` | Optional Daytona snapshot anchor used to describe the sandbox image state. |
+| `ELIZA_AGENT_DAYTONA_BOOTSTRAP_COMMAND` | Optional bootstrap command run before Daytona user commands. |
+| `ELIZA_AGENT_DAYTONA_STATUS_COMMAND` | Optional Daytona status command used for explicit remote inspection. |
 | `ELIZA_AGENT_MODAL_TARGET` | Target Modal sandbox or environment used for remote execution. |
 | `ELIZA_AGENT_MODAL_COMMAND` | Optional Modal CLI command override. |
+| `ELIZA_AGENT_MODAL_SHELL` | Shell used inside Modal sandboxes for command execution. |
+| `ELIZA_AGENT_MODAL_ENVIRONMENT` | Optional Modal environment name used with `modal shell -e`. |
+| `ELIZA_AGENT_MODAL_BOOTSTRAP_COMMAND` | Optional bootstrap command run before Modal user commands. |
+| `ELIZA_AGENT_MODAL_STATUS_COMMAND` | Optional Modal status command used for explicit remote inspection. |
 | `ELIZA_AGENT_SSH_HOST` | Remote SSH host for execution. |
 | `ELIZA_AGENT_SSH_USER` | Remote SSH user for execution. |
 | `ELIZA_AGENT_SSH_PATH` | Remote workspace path for SSH execution. |
@@ -287,10 +296,15 @@ Useful commands:
 - `/browser snapshot https://example.com`
 - `/browser screenshot https://example.com`
 - `/browser capture https://example.com`
+- `/browser analyze https://example.com`
 - `/browser compare https://example.com/left :: https://example.com/right`
+- `/browser compare analyze https://example.com/left :: https://example.com/right`
 - `/media transcript ./recordings/daily-sync.wav`
 - `/media caption ./artifacts/screenshot.png`
 - `/media bundle ./recordings/daily-sync.wav`
+- `/media analyze ./recordings/daily-sync.wav`
+- `/media voice ./recordings/daily-sync.wav`
+- `/media vision ./artifacts/screenshot.png`
 - `/mcp status`
 - `/mcp tools`
 - `/mcp cached`
@@ -323,6 +337,8 @@ Useful commands:
 - `/trajectories export session:room-123 role:user limit:50`
 - `/trajectories bundle`
 - `/trajectories bundle session:room-123`
+- `/trajectories analyze`
+- `/trajectories analyze session:room-123 role:user limit:50`
 - `/trajectories replay latest`
 - `/context files`
 - `/status`
@@ -373,7 +389,9 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /browser/inspect`
 - `POST /browser/screenshot`
 - `POST /browser/capture`
+- `POST /browser/analyze`
 - `POST /browser/compare`
+- `POST /browser/compare/analyze`
 - `GET /mcp/status`
 - `GET /mcp/tools`
 - `GET /mcp/cached`
@@ -395,6 +413,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /media/transcript`
 - `GET /media/caption`
 - `GET /media/bundle`
+- `POST /media/analyze`
 - `GET /execution/status`
 - `GET /execution/backends`
 - `POST /execution/preview`
@@ -432,6 +451,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /trajectories/bundles`
 - `POST /trajectories/export`
 - `POST /trajectories/bundle`
+- `POST /trajectories/analyze`
 - `POST /trajectories/replay`
 - `GET /trajectories/replay`
 - `GET /trajectories/replay/latest`

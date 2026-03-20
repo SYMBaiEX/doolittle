@@ -425,6 +425,36 @@ function applyRuntimeOverrides(
   };
 }
 
+export async function runModelAnalysisTurn(
+  context: AgentExecutionContext,
+  prompt: string,
+  label: string,
+  options?: {
+    userId?: string;
+    roomId?: string;
+    personalityId?: string;
+    runtimeOverrides?: CronJobRuntimeOverrides;
+  },
+): Promise<string> {
+  return handleAgentTurn(
+    {
+      message: prompt,
+      userId: options?.userId ?? `analysis:${label}`,
+      roomId: options?.roomId ?? `analysis:${label}`,
+      source: "analysis",
+    },
+    context,
+    options?.personalityId
+      ? {
+          personalityId: options.personalityId,
+          runtimeOverrides: options.runtimeOverrides,
+        }
+      : {
+          runtimeOverrides: options?.runtimeOverrides,
+        },
+  );
+}
+
 export async function runDelegationTaskInWorker(
   context: AgentExecutionContext,
   taskId: string,
@@ -1184,6 +1214,23 @@ async function buildCommandResponse(
     return JSON.stringify(await context.services.web.capture(url), null, 2);
   }
 
+  if (trimmed.startsWith("/browser analyze ")) {
+    const url = trimmed.replace("/browser analyze ", "").trim();
+    if (!url) {
+      return "Usage: /browser analyze <url>";
+    }
+    const analysis = await context.services.web.analyze(url);
+    const response = await runModelAnalysisTurn(
+      context,
+      analysis.prompt,
+      "browser",
+      {
+        personalityId: context.services.personalities.getActive().id,
+      },
+    );
+    return JSON.stringify({ analysis, response }, null, 2);
+  }
+
   if (trimmed.startsWith("/browser compare ")) {
     const payload = trimmed.replace("/browser compare ", "");
     const [leftUrl, rightUrl] = payload.split("::").map((part) => part.trim());
@@ -1191,6 +1238,24 @@ async function buildCommandResponse(
       return "Usage: /browser compare <left-url> :: <right-url>";
     }
     return JSON.stringify(await context.services.web.compare(leftUrl, rightUrl), null, 2);
+  }
+
+  if (trimmed.startsWith("/browser compare analyze ")) {
+    const payload = trimmed.replace("/browser compare analyze ", "");
+    const [leftUrl, rightUrl] = payload.split("::").map((part) => part.trim());
+    if (!leftUrl || !rightUrl) {
+      return "Usage: /browser compare analyze <left-url> :: <right-url>";
+    }
+    const analysis = await context.services.web.analyzeComparison(leftUrl, rightUrl);
+    const response = await runModelAnalysisTurn(
+      context,
+      analysis.prompt,
+      "browser-comparison",
+      {
+        personalityId: context.services.personalities.getActive().id,
+      },
+    );
+    return JSON.stringify({ analysis, response }, null, 2);
   }
 
   if (trimmed.startsWith("/web snapshot ")) {
@@ -1223,6 +1288,57 @@ async function buildCommandResponse(
   if (trimmed.startsWith("/media bundle ")) {
     const path = trimmed.replace("/media bundle ", "").trim();
     return JSON.stringify(context.services.media.bundle(path), null, 2);
+  }
+
+  if (trimmed.startsWith("/media analyze ")) {
+    const path = trimmed.replace("/media analyze ", "").trim();
+    if (!path) {
+      return "Usage: /media analyze <path>";
+    }
+    const analysis = context.services.media.analyze(path);
+    const response = await runModelAnalysisTurn(
+      context,
+      analysis.prompt,
+      `media-${analysis.focus}`,
+      {
+        personalityId: context.services.personalities.getActive().id,
+      },
+    );
+    return JSON.stringify({ analysis, response }, null, 2);
+  }
+
+  if (trimmed.startsWith("/media voice ")) {
+    const path = trimmed.replace("/media voice ", "").trim();
+    if (!path) {
+      return "Usage: /media voice <path>";
+    }
+    const analysis = context.services.media.voice(path);
+    const response = await runModelAnalysisTurn(
+      context,
+      analysis.prompt,
+      "media-voice",
+      {
+        personalityId: context.services.personalities.getActive().id,
+      },
+    );
+    return JSON.stringify({ analysis, response }, null, 2);
+  }
+
+  if (trimmed.startsWith("/media vision ")) {
+    const path = trimmed.replace("/media vision ", "").trim();
+    if (!path) {
+      return "Usage: /media vision <path>";
+    }
+    const analysis = context.services.media.vision(path);
+    const response = await runModelAnalysisTurn(
+      context,
+      analysis.prompt,
+      "media-vision",
+      {
+        personalityId: context.services.personalities.getActive().id,
+      },
+    );
+    return JSON.stringify({ analysis, response }, null, 2);
   }
 
   if (trimmed === "/delegate" || trimmed === "/delegate list" || trimmed.startsWith("/delegate list ")) {
@@ -1545,6 +1661,26 @@ async function buildCommandResponse(
 
   if (trimmed === "/trajectories bundle") {
     return JSON.stringify(context.services.trajectories.exportBundle(200), null, 2);
+  }
+
+  if (trimmed === "/trajectories analyze" || trimmed.startsWith("/trajectories analyze ")) {
+    const options =
+      trimmed === "/trajectories analyze"
+        ? { limit: 200 }
+        : parseTrajectoryArgs(trimmed.replace("/trajectories analyze ", ""));
+    const analysis = context.services.trajectories.analyze({
+      ...options,
+      limit: options.limit ?? 200,
+    });
+    const response = await runModelAnalysisTurn(
+      context,
+      analysis.prompt,
+      "trajectory-research",
+      {
+        personalityId: context.services.personalities.getActive().id,
+      },
+    );
+    return JSON.stringify({ analysis, response }, null, 2);
   }
 
   if (trimmed.startsWith("/trajectories bundle ")) {

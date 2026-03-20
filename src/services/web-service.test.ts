@@ -191,4 +191,55 @@ describe("WebService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("builds a model-ready browser analysis brief", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-analyze-"));
+    const service = new WebService(
+      () => ({
+        provider: "basic",
+        command: "lightpanda",
+        obeyRobots: true,
+      }),
+      root,
+    );
+
+    try {
+      const analysis = await service.analyze(
+        "data:text/html,<html><head><title>Analyze</title><meta name='description' content='Analyze summary'></head><body><h1>Alpha</h1><p>Beta</p></body></html>",
+      );
+      expect(analysis.focus).toBe("vision");
+      expect(analysis.prompt).toContain("vision-style analysis");
+      expect(analysis.prompt).toContain("Analyze summary");
+      expect(analysis.highlights).toContain("Title: Analyze");
+      expect(existsSync(analysis.capture.manifestPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("builds a model-ready browser comparison analysis brief", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-compare-analyze-"));
+    const service = new WebService(
+      () => ({
+        provider: "basic",
+        command: "lightpanda",
+        obeyRobots: true,
+      }),
+      root,
+    );
+
+    try {
+      const analysis = await service.analyzeComparison(
+        "data:text/html,<html><head><title>Left</title></head><body><p>One</p></body></html>",
+        "data:text/html,<html><head><title>Right</title></head><body><p>One</p><p>Two</p></body></html>",
+      );
+      expect(analysis.focus).toBe("research");
+      expect(analysis.prompt).toContain("research comparison");
+      expect(analysis.prompt).toContain("Word delta");
+      expect(analysis.highlights).toContain("Title changed: true");
+      expect(existsSync(analysis.comparison.manifestPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

@@ -48,6 +48,14 @@ interface TrajectoryReplayResult extends TrajectoryBundleEntry {
   }>;
 }
 
+export interface TrajectoryAnalysisBundle {
+  focus: "research";
+  bundle: TrajectoryBundleEntry;
+  replay: TrajectoryReplayResult;
+  prompt: string;
+  highlights: string[];
+}
+
 export class TrajectoryService {
   constructor(
     private readonly baseDir: string,
@@ -136,6 +144,24 @@ export class TrajectoryService {
     );
 
     return { dataPath, manifestPath, summaryPath };
+  }
+
+  analyze(options: TrajectoryExportOptions = {}): TrajectoryAnalysisBundle {
+    const bundle = this.exportFilteredBundle({
+      ...options,
+      limit: options.limit ?? 200,
+    });
+    const replay = this.replayBundle(bundle.manifestPath);
+    const prompt = this.buildAnalysisPrompt(replay);
+    const highlights = this.buildHighlights(replay);
+
+    return {
+      focus: "research",
+      bundle: this.describeBundle(bundle.manifestPath),
+      replay,
+      prompt,
+      highlights,
+    };
   }
 
   replayBundle(manifestPath: string): TrajectoryReplayResult {
@@ -246,5 +272,43 @@ export class TrajectoryService {
       .map((line) => line.trim())
       .filter(Boolean);
     return raw.map((line) => JSON.parse(line) as TrajectoryRecord);
+  }
+
+  private buildHighlights(bundle: TrajectoryReplayResult): string[] {
+    return [
+      `Messages: ${bundle.messageCount}`,
+      `Sessions: ${bundle.sessionCount}`,
+      `Role counts: ${Object.entries(bundle.roleCounts)
+        .map(([role, count]) => `${role}=${count}`)
+        .join(", ") || "none"}`,
+      ...(bundle.sessions.length ? [`Sessions: ${bundle.sessions.join(", ")}`] : ["Sessions: none"]),
+    ];
+  }
+
+  private buildAnalysisPrompt(bundle: TrajectoryReplayResult): string {
+    const preview = bundle.replayPreview
+      .map((message) => `[${message.role}] ${message.sessionId}: ${message.text}`)
+      .join("\n");
+
+    return [
+      "You are reviewing a trajectory bundle for Eliza Agent and should provide concise, actionable research analysis.",
+      "Identify recurring intents, reusable skills, failure modes, and data/replay patterns that could be turned into training or skill synthesis inputs.",
+      "Keep the response short and structured: summary, patterns, recommendations.",
+      "",
+      `Label: ${bundle.label}`,
+      `Created: ${bundle.createdAt}`,
+      `Messages: ${bundle.messageCount}`,
+      `Sessions: ${bundle.sessionCount}`,
+      `Filters: session=${bundle.filters?.sessionId ?? "any"}, role=${bundle.filters?.role ?? "any"}`,
+      "",
+      "Role counts:",
+      ...Object.entries(bundle.roleCounts).map(([role, count]) => `- ${role}: ${count}`),
+      "",
+      "Sessions:",
+      ...(bundle.sessions.length ? bundle.sessions.map((sessionId) => `- ${sessionId}`) : ["- none"]),
+      "",
+      "Replay preview:",
+      preview.slice(0, 2400) || "(empty)",
+    ].join("\n");
   }
 }

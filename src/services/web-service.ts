@@ -80,6 +80,22 @@ interface BrowserComparisonBundle {
   };
 }
 
+type BrowserAnalysisFocus = "browser" | "vision" | "research";
+
+interface BrowserAnalysisBundle {
+  focus: BrowserAnalysisFocus;
+  capture: BrowserCaptureBundle;
+  prompt: string;
+  highlights: string[];
+}
+
+interface BrowserComparisonAnalysisBundle {
+  focus: BrowserAnalysisFocus;
+  comparison: BrowserComparisonBundle;
+  prompt: string;
+  highlights: string[];
+}
+
 async function runCommand(
   cmd: string[],
   timeoutMs: number,
@@ -530,6 +546,19 @@ export class WebService {
     };
   }
 
+  async analyze(
+    url: string,
+    focus: BrowserAnalysisFocus = "vision",
+  ): Promise<BrowserAnalysisBundle> {
+    const capture = await this.capture(url);
+    return {
+      focus,
+      capture,
+      prompt: this.buildAnalysisPrompt(capture, focus),
+      highlights: this.buildHighlights(capture.page),
+    };
+  }
+
   async compare(leftUrl: string, rightUrl: string): Promise<BrowserComparisonBundle> {
     const left = await this.capture(leftUrl);
     const right = await this.capture(rightUrl);
@@ -614,6 +643,20 @@ export class WebService {
     };
   }
 
+  async analyzeComparison(
+    leftUrl: string,
+    rightUrl: string,
+    focus: BrowserAnalysisFocus = "research",
+  ): Promise<BrowserComparisonAnalysisBundle> {
+    const comparison = await this.compare(leftUrl, rightUrl);
+    return {
+      focus,
+      comparison,
+      prompt: this.buildComparisonPrompt(comparison, focus),
+      highlights: this.buildComparisonHighlights(comparison),
+    };
+  }
+
   private async fetchWithBasic(url: string): Promise<{ body: string; contentType: string }> {
     const response = await fetch(url);
     if (!response.ok) {
@@ -645,5 +688,106 @@ export class WebService {
       body: result.stdout,
       contentType: "text/html; charset=utf-8",
     };
+  }
+
+  private buildHighlights(page: WebPageSnapshot): string[] {
+    return [
+      page.title ? `Title: ${page.title}` : undefined,
+      page.metaDescription ? `Description: ${page.metaDescription}` : undefined,
+      page.canonicalUrl ? `Canonical: ${page.canonicalUrl}` : undefined,
+      `Provider: ${page.provider}/${page.mode}`,
+      `Content: ${page.contentType}`,
+      `Words: ${page.wordCount}`,
+      `Links: ${page.linkCount}`,
+      `Images: ${page.imageCount}`,
+      `Headings: ${page.headingCount}`,
+    ].filter(Boolean) as string[];
+  }
+
+  private buildAnalysisPrompt(capture: BrowserCaptureBundle, focus: BrowserAnalysisFocus): string {
+    const page = capture.page;
+    const intent =
+      focus === "vision" ? "vision-style analysis" : focus === "research" ? "research analysis" : "browser analysis";
+
+    return [
+      `You are reviewing a browser capture for Eliza Agent and should provide concise, actionable ${intent}.`,
+      `Focus on layout, hierarchy, important content, likely user intent, and any risks or missing details.`,
+      `Keep the response short and structured: summary, signals, recommendations.`,
+      "",
+      `URL: ${page.url}`,
+      `Title: ${page.title ?? "n/a"}`,
+      `Description: ${page.metaDescription ?? "n/a"}`,
+      `Canonical: ${page.canonicalUrl ?? "n/a"}`,
+      `Provider: ${page.provider}`,
+      `Mode: ${page.mode}`,
+      `Content type: ${page.contentType}`,
+      `Words: ${page.wordCount}`,
+      `Links: ${page.linkCount}`,
+      `Images: ${page.imageCount}`,
+      `Headings: ${page.headingCount}`,
+      `Content hash: ${page.contentHash}`,
+      "",
+      "Artifacts:",
+      `- Snapshot: ${capture.snapshotPath}`,
+      `- Screenshot: ${capture.screenshotPath}`,
+      `- Screenshot SVG: ${capture.screenshotSvgPath}`,
+      `- Manifest: ${capture.manifestPath}`,
+      `- Report: ${capture.reportPath}`,
+      "",
+      "Readable text preview:",
+      page.text.slice(0, 2400) || "(empty)",
+    ].join("\n");
+  }
+
+  private buildComparisonHighlights(comparison: BrowserComparisonBundle): string[] {
+    return [
+      `Left title: ${comparison.left.page.title ?? "n/a"}`,
+      `Right title: ${comparison.right.page.title ?? "n/a"}`,
+      `Title changed: ${comparison.summary.titleChanged}`,
+      `Hash changed: ${comparison.summary.hashChanged}`,
+      `Word delta: ${comparison.summary.wordDelta}`,
+      `Link delta: ${comparison.summary.linkDelta}`,
+      `Image delta: ${comparison.summary.imageDelta}`,
+      `Heading delta: ${comparison.summary.headingDelta}`,
+    ];
+  }
+
+  private buildComparisonPrompt(
+    comparison: BrowserComparisonBundle,
+    focus: BrowserAnalysisFocus,
+  ): string {
+    const intent =
+      focus === "vision" ? "vision-style comparison" : focus === "research" ? "research comparison" : "browser comparison";
+
+    return [
+      `You are comparing two browser captures for Eliza Agent and should provide concise, actionable ${intent}.`,
+      `Highlight visual or semantic changes, likely user-facing impact, and any regression risks.`,
+      `Keep the response short and structured: summary, change list, recommendations.`,
+      "",
+      `Left URL: ${comparison.left.page.url}`,
+      `Right URL: ${comparison.right.page.url}`,
+      `Left title: ${comparison.left.page.title ?? "n/a"}`,
+      `Right title: ${comparison.right.page.title ?? "n/a"}`,
+      `Left hash: ${comparison.left.page.contentHash}`,
+      `Right hash: ${comparison.right.page.contentHash}`,
+      `Title changed: ${comparison.summary.titleChanged}`,
+      `Hash changed: ${comparison.summary.hashChanged}`,
+      `Word delta: ${comparison.summary.wordDelta}`,
+      `Link delta: ${comparison.summary.linkDelta}`,
+      `Image delta: ${comparison.summary.imageDelta}`,
+      `Heading delta: ${comparison.summary.headingDelta}`,
+      "",
+      "Artifacts:",
+      `- Left snapshot: ${comparison.left.snapshotPath}`,
+      `- Right snapshot: ${comparison.right.snapshotPath}`,
+      `- Comparison report: ${comparison.reportPath}`,
+      `- Comparison manifest: ${comparison.manifestPath}`,
+      "",
+      "Left preview:",
+      (comparison.left.page.metaDescription ?? comparison.left.page.text.slice(0, 1200)) || "(empty)",
+      "",
+      "Right preview:",
+      (comparison.right.page.metaDescription ?? comparison.right.page.text.slice(0, 1200)) || "(empty)",
+    ].join("\n");
   }
 }

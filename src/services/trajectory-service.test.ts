@@ -72,6 +72,17 @@ describe("TrajectoryService", () => {
       expect(replay.replayPath).toContain("replay");
       expect(readFileSync(replay.replaySummaryPath, "utf8")).toContain("Trajectory Replay: replay-fixture");
       expect(service.describeBundle(bundle.manifestPath).label).toBe("replay-fixture");
+
+      const analysis = service.analyze({
+        limit: 10,
+        sessionId: "session-a",
+        label: "Replay Fixture",
+      });
+      expect(analysis.focus).toBe("research");
+      expect(analysis.prompt).toContain("research analysis");
+      expect(analysis.prompt).toContain("session-a");
+      expect(analysis.highlights.some((line) => line.includes("Messages: 2"))).toBe(true);
+      expect(analysis.replay.replayCount).toBe(2);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

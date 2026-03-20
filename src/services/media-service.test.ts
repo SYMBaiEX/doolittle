@@ -183,4 +183,36 @@ describe("MediaService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("builds model-ready analysis briefs for audio and image media", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-analyze-"));
+    const service = new MediaService(root);
+    const audioPath = join(root, "voice.wav");
+    const transcriptPath = join(root, "voice.transcript.txt");
+    const imagePath = join(root, "scene.png");
+    const captionPath = join(root, "scene.caption.txt");
+
+    try {
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      writeFileSync(transcriptPath, "Voice memo transcript about a launch plan and next steps.");
+      writeFileSync(imagePath, Buffer.from(ONE_BY_ONE_PNG, "base64"));
+      writeFileSync(captionPath, "A small sample image used for visual analysis.");
+
+      const audioAnalysis = service.analyze("voice.wav");
+      expect(audioAnalysis.focus).toBe("voice");
+      expect(audioAnalysis.prompt).toContain("voice or audio");
+      expect(audioAnalysis.prompt).toContain("Voice memo transcript");
+      expect(audioAnalysis.signals).toContain("Kind: audio");
+
+      const imageAnalysis = service.vision("scene.png");
+      expect(imageAnalysis.focus).toBe("vision");
+      expect(imageAnalysis.prompt).toContain("vision or image");
+      expect(imageAnalysis.prompt).toContain("concise, actionable analysis");
+      expect(imageAnalysis.signals.some((signal) => signal.startsWith("Caption: "))).toBe(true);
+      expect(existsSync(audioAnalysis.bundle.manifestPath)).toBe(true);
+      expect(existsSync(imageAnalysis.bundle.reportPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

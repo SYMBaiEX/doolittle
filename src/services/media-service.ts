@@ -35,6 +35,14 @@ export interface MediaBundle {
   relatedFiles: string[];
 }
 
+export interface MediaAnalysisBundle {
+  focus: "voice" | "vision" | "research";
+  inspection: MediaInspection;
+  bundle: MediaBundle;
+  prompt: string;
+  signals: string[];
+}
+
 const MIME_BY_EXTENSION: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -219,6 +227,35 @@ export class MediaService {
       reportPath,
       relatedFiles,
     };
+  }
+
+  analyze(path: string, focus: "auto" | "voice" | "vision" | "research" = "auto"): MediaAnalysisBundle {
+    const inspection = this.inspect(path);
+    const bundle = this.bundle(path);
+    const inferredFocus =
+      focus === "auto"
+        ? inspection.kind === "audio" || inspection.kind === "video"
+          ? "voice"
+          : inspection.kind === "image"
+            ? "vision"
+            : "research"
+        : focus;
+
+    return {
+      focus: inferredFocus,
+      inspection,
+      bundle,
+      prompt: this.buildAnalysisPrompt(inspection, bundle, inferredFocus),
+      signals: this.buildSignals(inspection),
+    };
+  }
+
+  voice(path: string): MediaAnalysisBundle {
+    return this.analyze(path, "voice");
+  }
+
+  vision(path: string): MediaAnalysisBundle {
+    return this.analyze(path, "vision");
   }
 
   private detectKind(
@@ -487,6 +524,70 @@ export class MediaService {
     }
 
     return trimmed.slice(0, 512);
+  }
+
+  private buildSignals(inspection: MediaInspection): string[] {
+    return [
+      `Kind: ${inspection.kind}`,
+      `MIME: ${inspection.mimeType}`,
+      `Exists: ${inspection.exists}`,
+      `Size: ${inspection.sizeBytes}`,
+      inspection.width && inspection.height ? `Dimensions: ${inspection.width}x${inspection.height}` : undefined,
+      inspection.durationMs ? `Duration: ${Math.round(inspection.durationMs / 1000)}s` : undefined,
+      inspection.pageCount ? `Pages: ${inspection.pageCount}` : undefined,
+      inspection.title ? `Title: ${inspection.title}` : undefined,
+      inspection.author ? `Author: ${inspection.author}` : undefined,
+      inspection.transcriptPath ? `Transcript: ${inspection.transcriptPath}` : undefined,
+      inspection.captionPath ? `Caption: ${inspection.captionPath}` : undefined,
+    ].filter(Boolean) as string[];
+  }
+
+  private buildAnalysisPrompt(
+    inspection: MediaInspection,
+    bundle: MediaBundle,
+    focus: "voice" | "vision" | "research",
+  ): string {
+    const kindLabel =
+      focus === "voice" ? "voice or audio" : focus === "vision" ? "vision or image" : "research";
+    const contentPreview =
+      inspection.transcriptPreview ??
+      inspection.captionPreview ??
+      inspection.textPreview ??
+      inspection.detail;
+
+    return [
+      `You are reviewing a ${kindLabel} artifact for Eliza Agent and should provide concise, actionable analysis.`,
+      `Focus on the content's meaning, any missing context, and useful downstream actions.`,
+      `Keep the response short and structured: summary, signals, recommendations.`,
+      "",
+      `Path: ${inspection.path}`,
+      `Kind: ${inspection.kind}`,
+      `MIME: ${inspection.mimeType}`,
+      `Exists: ${inspection.exists}`,
+      `Size bytes: ${inspection.sizeBytes}`,
+      inspection.width && inspection.height ? `Dimensions: ${inspection.width}x${inspection.height}` : undefined,
+      inspection.durationMs ? `Duration: ${Math.round(inspection.durationMs / 1000)}s` : undefined,
+      inspection.pageCount ? `Pages: ${inspection.pageCount}` : undefined,
+      inspection.title ? `Title: ${inspection.title}` : undefined,
+      inspection.author ? `Author: ${inspection.author}` : undefined,
+      inspection.transcriptPath ? `Transcript sidecar: ${inspection.transcriptPath}` : undefined,
+      inspection.captionPath ? `Caption sidecar: ${inspection.captionPath}` : undefined,
+      "",
+      "Signals:",
+      ...this.buildSignals(inspection).map((signal) => `- ${signal}`),
+      "",
+      "Bundle artifacts:",
+      `- Manifest: ${bundle.manifestPath}`,
+      `- Report: ${bundle.reportPath}`,
+      "",
+      "Related files:",
+      ...(bundle.relatedFiles.length ? bundle.relatedFiles.map((entry) => `- ${entry}`) : ["- none"]),
+      "",
+      "Preview:",
+      contentPreview.slice(0, 2400) || "(empty)",
+    ]
+      .filter((line) => line !== undefined)
+      .join("\n");
   }
 
   private hashFile(path: string): string {
