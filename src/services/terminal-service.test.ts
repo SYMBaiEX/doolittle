@@ -1,0 +1,68 @@
+import { describe, expect, it } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { TerminalService } from "./terminal-service";
+import type { RuntimeSettings } from "./settings-service";
+
+function makeSettings(): RuntimeSettings {
+  return {
+    model: {
+      provider: "offline",
+      model: "local",
+      baseUrl: "http://localhost",
+      temperature: 0.2,
+      maxTokens: 400,
+    },
+    gateway: {
+      sessionTimeoutMinutes: 120,
+      mirrorResponsesToHistory: true,
+    },
+    execution: {
+      backend: "local",
+      dockerImage: "oven/bun:latest",
+      dockerNetwork: "host",
+      dockerWorkspacePath: "/workspace",
+      dockerEnvPassthrough: ["PATH", "HOME"],
+      sshHost: "",
+      sshUser: "",
+      sshPath: "",
+      sshPort: 22,
+      sshKeyPath: "",
+      sshStrictHostKeyChecking: false,
+    },
+    mcp: {
+      serverCommand: "",
+      timeoutMs: 5_000,
+    },
+  };
+}
+
+describe("TerminalService", () => {
+  it("runs local commands and records them", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-test-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+
+    try {
+      const result = await service.run("printf 'terminal-ok'");
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("terminal-ok");
+      expect(service.recent(1)[0]?.command).toBe("printf 'terminal-ok'");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports local backend health", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-health-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+
+    try {
+      const health = await service.health();
+      const local = health.find((entry) => entry.backend === "local");
+      expect(local?.ready).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
