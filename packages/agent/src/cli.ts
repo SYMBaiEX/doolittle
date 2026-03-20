@@ -4,6 +4,7 @@ import blessed from "blessed";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
+import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 
 interface CliState {
@@ -23,6 +24,8 @@ interface CliExecutionHooks {
     command: string;
   }) => void;
 }
+
+type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
 
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
@@ -84,6 +87,8 @@ function buildHelpText(agentName: string): string {
     "  Esc              Focus command input",
     "  Ctrl-L           Clear activity feed",
     "  Ctrl-R           Refresh status panels",
+    "  Ctrl-G           Open control deck quick actions",
+    "  Alt-1..Alt-4     Switch control deck mode",
     "  Tab              Complete the top suggested command",
     "  PageUp/PageDown  Scroll activity",
     "  Up/Down          Command history in input",
@@ -96,6 +101,10 @@ function buildHelpText(agentName: string): string {
     "  F6  /sessions list",
     "  F7  /doctor",
     "  F8  /runtime plugins",
+    "  F9  /runtime ecosystem",
+    "  F10 /gateway history limit:10",
+    "  F11 /gateway supervision",
+    "  F12 /responses list",
     "",
     "Examples:",
     "  /skills list",
@@ -104,6 +113,74 @@ function buildHelpText(agentName: string): string {
     "  /media analyze ./recordings/demo.wav",
     "  /delegate create Research spike :: validate a transport path",
     "  /trajectories ingest gateway label:review limit:100",
+  ].join("\n");
+}
+
+function renderEcosystemContent(context: AppContext): string {
+  const audit = getNativePackageAudit(context.config);
+  const latest = audit.runtime.latest;
+  const alpha = audit.runtime.alpha;
+
+  return [
+    "{bold}Runtime Line{/}",
+    `Latest: {cyan-fg}${latest}{/}`,
+    `Alpha: {green-fg}${alpha}{/}`,
+    "",
+    "{bold}Package Audit{/}",
+    `Aligned: ${audit.packages.filter((entry) => entry.compatibility === "aligned").length}`,
+    `Alpha-only: ${audit.packages.filter((entry) => entry.compatibility === "alpha-only").length}`,
+    `Vendored: ${audit.packages.filter((entry) => entry.compatibility === "vendored-by-design").length}`,
+    `Workspace-only: ${audit.packages.filter((entry) => entry.compatibility === "workspace-only").length}`,
+    "",
+    "{bold}Priority Packages{/}",
+    ...audit.packages
+      .slice(0, 6)
+      .map(
+        (entry) =>
+          `- ${entry.packageName} {gray-fg}[${entry.compatibility}] ${entry.currentTag}{/}`,
+      ),
+  ].join("\n");
+}
+
+async function renderGatewayOpsContent(context: AppContext): Promise<string> {
+  const history = await context.gateway.history(6);
+  const supervision = context.gateway.supervision(4);
+  const latestInbox = history.inbox.at(0);
+
+  return [
+    "{bold}Gateway Journal{/}",
+    `Traces: ${history.traces.length}`,
+    `Inbox: ${history.inbox.length}`,
+    `Deliveries: ${history.deliveries.length}`,
+    `Attachments: ${history.attachments.length}`,
+    "",
+    "{bold}Supervision{/}",
+    ...(supervision.length
+      ? supervision.map(
+          (record) =>
+            `- ${record.at.slice(11, 19)} ${truncate(record.detail, 30)}`,
+        )
+      : ["{gray-fg}No supervision records yet.{/}"]),
+    "",
+    "{bold}Replay Target{/}",
+    latestInbox
+      ? `Latest inbox: ${latestInbox.recordId}\n- ${latestInbox.platform} ${truncate(latestInbox.textPreview, 30)}`
+      : "{gray-fg}No inbox records available.{/}",
+  ].join("\n");
+}
+
+function renderResponsesContent(context: AppContext): string {
+  const responses = context.services.apiTransport.list(5);
+  return [
+    "{bold}Responses API{/}",
+    `Records: ${responses.length}`,
+    "",
+    ...(responses.length
+      ? responses.map(
+          (entry) =>
+            `- ${entry.id}\n  room=${truncate(entry.roomId, 20)} prev=${entry.previousResponseId ?? "n/a"}`,
+        )
+      : ["{gray-fg}No responses recorded yet.{/}"]),
   ].join("\n");
 }
 
@@ -229,6 +306,15 @@ async function executeCliInput(
     const health = await context.gateway.health();
     return { text: formatJson(health), tone: "info" };
   }
+  if (trimmed === "/runtime ecosystem" || trimmed === "/plugins ecosystem") {
+    return {
+      text: formatJson({
+        runtime: getNativePackageAudit(context.config).runtime,
+        audit: getNativePackageAudit(context.config),
+      }),
+      tone: "info",
+    };
+  }
   if (trimmed === "/runtime status") {
     return {
       text: formatJson({
@@ -249,6 +335,47 @@ async function executeCliInput(
       text: formatJson(context.services.gatewayConfig),
       tone: "info",
     };
+  }
+  if (trimmed === "/gateway supervision") {
+    return {
+      text: formatJson(context.gateway.supervision(20)),
+      tone: "info",
+    };
+  }
+  if (trimmed === "/gateway journal") {
+    const history = await context.gateway.history(10);
+    return { text: formatJson(history), tone: "info" };
+  }
+  if (trimmed.startsWith("/gateway replay ")) {
+    const raw = trimmed.replace("/gateway replay ", "").trim();
+    const target =
+      raw === "latest" ? context.gateway.inbox(1).at(0)?.recordId : raw;
+    if (!target) {
+      return {
+        text: "No gateway inbox records available to replay.",
+        tone: "warning",
+      };
+    }
+    return {
+      text: formatJson(await context.gateway.replayInbox(target)),
+      tone: "success",
+    };
+  }
+  if (trimmed === "/responses list") {
+    return {
+      text: formatJson(context.services.apiTransport.list(20)),
+      tone: "info",
+    };
+  }
+  if (trimmed.startsWith("/responses show ")) {
+    const id = trimmed.replace("/responses show ", "").trim();
+    if (!id) {
+      return { text: "Usage: /responses show <id>", tone: "warning" };
+    }
+    const record = context.services.apiTransport.get(id);
+    return record
+      ? { text: formatJson(record), tone: "info" }
+      : { text: `Response ${id} not found.`, tone: "warning" };
   }
   if (trimmed.startsWith("/pdf extract ")) {
     const path = trimmed.replace("/pdf extract ", "").trim();
@@ -458,6 +585,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
 function renderStatusContent(context: AppContext, state: CliState): string {
   const settings = context.services.settings.get();
   const plugins = getNativePluginCatalog(context.config);
+  const audit = getNativePackageAudit(context.config);
   const sessions = context.services.sessions.listSessions(6);
   const delegation = context.services.delegation.overview();
   const gatewaySessions = context.services.gatewaySessions.list();
@@ -494,6 +622,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `Enabled: ${plugins.filter((entry) => entry.enabled).length}/${plugins.length}`,
     `Official: ${plugins.filter((entry) => entry.source === "official").length}`,
     `Vendored: ${plugins.filter((entry) => entry.source === "vendored").length}`,
+    `Alpha: ${audit.runtime.alpha}`,
     "",
     "{bold}Recent Sessions{/}",
     ...sessions.slice(0, 4).map((entry) => {
@@ -838,6 +967,7 @@ async function startTui(context: AppContext): Promise<void> {
 
   let busy = false;
   let queueDepth = 0;
+  let controlDeckMode: ControlDeckMode = "assist";
   let paletteSelectionIndex = 0;
   let composerOpen = false;
   const commandHistory: string[] = [];
@@ -910,6 +1040,36 @@ async function startTui(context: AppContext): Promise<void> {
     screen.render();
   }
 
+  function controlDeckLabel(mode: ControlDeckMode): string {
+    switch (mode) {
+      case "ecosystem":
+        return " Control Deck · Ecosystem ";
+      case "gateway":
+        return " Control Deck · Gateway ";
+      case "responses":
+        return " Control Deck · Responses ";
+      default:
+        return " Control Deck · Assist ";
+    }
+  }
+
+  async function renderControlDeck(mode: ControlDeckMode): Promise<void> {
+    assistBox.setLabel(controlDeckLabel(mode));
+    if (mode === "ecosystem") {
+      assistBox.setContent(renderEcosystemContent(context));
+      return;
+    }
+    if (mode === "gateway") {
+      assistBox.setContent(await renderGatewayOpsContent(context));
+      return;
+    }
+    if (mode === "responses") {
+      assistBox.setContent(renderResponsesContent(context));
+      return;
+    }
+    assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+  }
+
   function appendActivity(
     kind: string,
     message: string,
@@ -924,7 +1084,7 @@ async function startTui(context: AppContext): Promise<void> {
     sidebar.setContent(renderStatusContent(context, state));
     transportBox.setContent(renderTransportContent(context));
     executionBox.setContent(await renderExecutionContent(context));
-    assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+    await renderControlDeck(controlDeckMode);
     footer.setContent(renderFooter(context, busy, queueDepth));
     screen.render();
   }
@@ -996,7 +1156,9 @@ async function startTui(context: AppContext): Promise<void> {
       busy = false;
       await refreshPanels();
       inputBox.clearValue();
-      assistBox.setContent(renderSuggestionsContent(""));
+      if (controlDeckMode === "assist") {
+        assistBox.setContent(renderSuggestionsContent(""));
+      }
       inputBox.focus();
       screen.render();
       void processQueue();
@@ -1022,7 +1184,9 @@ async function startTui(context: AppContext): Promise<void> {
     pendingCommands.push(trimmed);
     queueDepth = pendingCommands.length;
     inputBox.clearValue();
-    assistBox.setContent(renderSuggestionsContent(""));
+    if (controlDeckMode === "assist") {
+      assistBox.setContent(renderSuggestionsContent(""));
+    }
     inputBox.focus();
     screen.render();
     void processQueue();
@@ -1061,8 +1225,10 @@ async function startTui(context: AppContext): Promise<void> {
   });
 
   inputBox.on("keypress", () => {
-    assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
-    screen.render();
+    if (controlDeckMode === "assist") {
+      assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+      screen.render();
+    }
   });
 
   composer.key("C-s", () => {
@@ -1138,6 +1304,10 @@ async function startTui(context: AppContext): Promise<void> {
   screen.key(["C-p"], () => {
     openPalette(inputBox.getValue());
   });
+  screen.key(["C-g"], () => {
+    controlDeckMode = "gateway";
+    void refreshPanels();
+  });
   screen.key(["C-e"], () => {
     if (paletteOpen) {
       return;
@@ -1186,6 +1356,22 @@ async function startTui(context: AppContext): Promise<void> {
   screen.key(["C-r"], () => {
     void refreshPanels();
   });
+  screen.key(["M-1"], () => {
+    controlDeckMode = "assist";
+    void refreshPanels();
+  });
+  screen.key(["M-2"], () => {
+    controlDeckMode = "ecosystem";
+    void refreshPanels();
+  });
+  screen.key(["M-3"], () => {
+    controlDeckMode = "gateway";
+    void refreshPanels();
+  });
+  screen.key(["M-4"], () => {
+    controlDeckMode = "responses";
+    void refreshPanels();
+  });
   screen.key(["pageup"], () => {
     activity.scroll(-8);
     screen.render();
@@ -1208,10 +1394,22 @@ async function startTui(context: AppContext): Promise<void> {
       return;
     }
     if (screen.focused === assistBox) {
-      const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
-      if (suggestion) {
-        queueCommand(suggestion.command);
+      if (controlDeckMode === "assist") {
+        const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
+        if (suggestion) {
+          queueCommand(suggestion.command);
+        }
+        return;
       }
+      if (controlDeckMode === "ecosystem") {
+        queueCommand("/runtime ecosystem");
+        return;
+      }
+      if (controlDeckMode === "gateway") {
+        queueCommand("/gateway supervision");
+        return;
+      }
+      queueCommand("/responses list");
     }
   });
 
@@ -1223,6 +1421,10 @@ async function startTui(context: AppContext): Promise<void> {
     [["f6"], "/sessions list"],
     [["f7"], "/doctor"],
     [["f8"], "/runtime plugins"],
+    [["f9"], "/runtime ecosystem"],
+    [["f10"], "/gateway history limit:10"],
+    [["f11"], "/gateway supervision"],
+    [["f12"], "/responses list"],
   ];
 
   for (const [keys, command] of hotkeys) {
@@ -1263,6 +1465,16 @@ async function startTui(context: AppContext): Promise<void> {
       void refreshPanels();
     }),
   );
+  unsubscribers.push(
+    context.services.apiTransport.onUpdate((event) => {
+      appendActivity(
+        "api",
+        `${event.record.id} ${truncate(event.record.outputText, 120)}`,
+        "agent",
+      );
+      void refreshPanels();
+    }),
+  );
 
   appendActivity(
     "boot",
@@ -1279,7 +1491,7 @@ async function startTui(context: AppContext): Promise<void> {
   );
   transportBox.setContent(renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));
-  assistBox.setContent(renderSuggestionsContent(""));
+  await renderControlDeck(controlDeckMode);
 
   await refreshPanels();
   inputBox.focus();

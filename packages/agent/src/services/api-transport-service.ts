@@ -17,6 +17,11 @@ interface ApiTransportStore {
   responses: ApiResponseRecord[];
 }
 
+interface ApiTransportUpdateEvent {
+  type: "create";
+  record: ApiResponseRecord;
+}
+
 export interface ApiTransportCreateInput {
   input: string;
   outputText: string;
@@ -29,6 +34,9 @@ export interface ApiTransportCreateInput {
 export class ApiTransportService {
   private readonly storePath: string;
   private readonly maxRecords = 300;
+  private readonly listeners = new Set<
+    (event: ApiTransportUpdateEvent) => void
+  >();
 
   constructor(rootDir: string) {
     mkdirSync(rootDir, { recursive: true });
@@ -58,6 +66,10 @@ export class ApiTransportService {
       store.responses = store.responses.slice(-this.maxRecords);
     }
     this.write(store);
+    this.emit({
+      type: "create",
+      record,
+    });
     return record;
   }
 
@@ -79,6 +91,13 @@ export class ApiTransportService {
     return `api:${fallbackUserId ?? "user"}`;
   }
 
+  onUpdate(listener: (event: ApiTransportUpdateEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
   private read(): ApiTransportStore {
     const raw = JSON.parse(
       readFileSync(this.storePath, "utf8"),
@@ -90,5 +109,11 @@ export class ApiTransportService {
 
   private write(store: ApiTransportStore): void {
     writeFileSync(this.storePath, JSON.stringify(store, null, 2), "utf8");
+  }
+
+  private emit(event: ApiTransportUpdateEvent): void {
+    for (const listener of this.listeners) {
+      listener(event);
+    }
   }
 }

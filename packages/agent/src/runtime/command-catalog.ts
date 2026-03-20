@@ -41,6 +41,11 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "List native ElizaOS plugin inventory and source.",
   },
   {
+    command: "/runtime ecosystem",
+    category: "runtime",
+    description: "Show alpha-channel package alignment and native audit data.",
+  },
+  {
     command: "/sessions list",
     category: "runtime",
     description: "List recent titled and active sessions.",
@@ -71,9 +76,34 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show persisted gateway runtime lifecycle state.",
   },
   {
+    command: "/gateway trace limit:20",
+    category: "gateway",
+    description: "Inspect recent gateway trace events with filtering support.",
+  },
+  {
+    command: "/gateway history limit:10",
+    category: "gateway",
+    description: "Show the full gateway journal snapshot for recent events.",
+  },
+  {
+    command: "/gateway supervision",
+    category: "gateway",
+    description: "Inspect daemon-style gateway supervision records.",
+  },
+  {
+    command: "/gateway replay latest",
+    category: "gateway",
+    description: "Replay the most recent inbox record through the gateway.",
+  },
+  {
     command: "/sessions gateway",
     category: "gateway",
     description: "List gateway-routed sessions and voice state.",
+  },
+  {
+    command: "/responses list",
+    category: "gateway",
+    description: "List recent stateful API transport responses.",
   },
   {
     command: "/pairing pending",
