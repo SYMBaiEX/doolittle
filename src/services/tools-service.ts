@@ -5,6 +5,10 @@ interface ToolRegistryDynamicState {
   discoveredMcpTools: number;
   discoveredMcpToolNames?: string[];
   acpEnabled?: boolean;
+  nativePluginsTotal?: number;
+  nativePluginsEnabled?: number;
+  nativeOfficialPlugins?: number;
+  nativeVendoredPlugins?: number;
 }
 
 interface ToolRegistrySummary {
@@ -26,6 +30,12 @@ interface ToolRegistrySummary {
     discoveredTools: number;
     discoveredToolNames: string[];
   };
+  native: {
+    total: number;
+    enabled: number;
+    official: number;
+    vendored: number;
+  };
 }
 
 export class ToolsService {
@@ -35,6 +45,10 @@ export class ToolsService {
       discoveredMcpTools: 0,
       discoveredMcpToolNames: [],
       acpEnabled: false,
+      nativePluginsTotal: 0,
+      nativePluginsEnabled: 0,
+      nativeOfficialPlugins: 0,
+      nativeVendoredPlugins: 0,
     }),
   ) {}
 
@@ -263,6 +277,15 @@ export class ToolsService {
       transport: "service",
     },
     {
+      id: "plugins.native",
+      name: "Native Plugin Inventory",
+      category: "runtime",
+      description:
+        "Inspect the native ElizaOS plugin catalog, grouped categories, and service registry alignment.",
+      enabled: true,
+      transport: "native",
+    },
+    {
       id: "automation.cron",
       name: "Cron Automation",
       category: "automation",
@@ -339,7 +362,12 @@ export class ToolsService {
                 }.`
               : "Structured MCP bridge is available but not configured.",
           }
-        : tool,
+        : tool.id === "plugins.native"
+          ? {
+              ...tool,
+              description: `Native ElizaOS stack includes ${dynamic.nativePluginsEnabled ?? 0}/${dynamic.nativePluginsTotal ?? 0} enabled plugin definitions, with ${dynamic.nativeOfficialPlugins ?? 0} official and ${dynamic.nativeVendoredPlugins ?? 0} vendored packages.`,
+            }
+          : tool,
     );
   }
 
@@ -421,6 +449,12 @@ export class ToolsService {
         enabled: dynamic.mcpEnabled,
         discoveredTools: dynamic.discoveredMcpTools,
         discoveredToolNames: dynamic.discoveredMcpToolNames ?? [],
+      },
+      native: {
+        total: dynamic.nativePluginsTotal ?? 0,
+        enabled: dynamic.nativePluginsEnabled ?? 0,
+        official: dynamic.nativeOfficialPlugins ?? 0,
+        vendored: dynamic.nativeVendoredPlugins ?? 0,
       },
     };
   }

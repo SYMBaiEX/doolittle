@@ -11,6 +11,7 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import type { DiagnosticsService } from "./diagnostics-service";
 import type { RepositoryService } from "./repository-service";
@@ -28,6 +29,12 @@ export interface OperatorVersionSummary {
   description?: string;
   bun: string;
   dependencies: Record<string, string>;
+  nativePlugins: {
+    total: number;
+    enabled: number;
+    official: number;
+    vendored: number;
+  };
 }
 
 export interface SetupSummary {
@@ -35,6 +42,7 @@ export interface SetupSummary {
   directories: Array<{ label: string; path: string; exists: boolean }>;
   providers: Array<{ id: string; ready: boolean; detail: string }>;
   transports: Array<{ id: string; ready: boolean; detail: string }>;
+  nativeServices: Array<{ group: string; services: string[] }>;
   checklist: string[];
 }
 
@@ -177,6 +185,46 @@ export class OperatorService {
           detail: this.config.signalCliCommand
             ? "Signal CLI command configured."
             : "Missing SIGNAL_CLI_COMMAND.",
+        },
+      ],
+      nativeServices: [
+        {
+          group: "officialBacked",
+          services: [
+            "documents",
+            "mcp",
+            "acp",
+            "web",
+            "media",
+            "userProfiles",
+            "personalities",
+            "skills",
+            "skillSynthesis",
+            "trajectories",
+          ],
+        },
+        {
+          group: "customEliza",
+          services: [
+            "memory",
+            "sessions",
+            "cron",
+            "workspace",
+            "terminal",
+            "repository",
+            "gatewaySessions",
+            "delivery",
+            "pairing",
+            "hooks",
+            "contextFiles",
+            "settings",
+            "tools",
+            "diagnostics",
+          ],
+        },
+        {
+          group: "productOrchestration",
+          services: ["operator", "gatewayConfig", "delegation"],
         },
       ],
       checklist: await this.diagnostics.setupChecklist(),
@@ -361,6 +409,7 @@ export class OperatorService {
   }
 
   version(): OperatorVersionSummary {
+    const nativePlugins = getNativePluginCatalog(this.config);
     return {
       name: this.packageMetadata.name,
       version: this.packageMetadata.version,
@@ -376,6 +425,14 @@ export class OperatorService {
         "@elizaos/plugin-anthropic":
           this.packageMetadata.dependencies?.["@elizaos/plugin-anthropic"] ??
           "unknown",
+      },
+      nativePlugins: {
+        total: nativePlugins.length,
+        enabled: nativePlugins.filter((entry) => entry.enabled).length,
+        official: nativePlugins.filter((entry) => entry.source === "official")
+          .length,
+        vendored: nativePlugins.filter((entry) => entry.source === "vendored")
+          .length,
       },
     };
   }

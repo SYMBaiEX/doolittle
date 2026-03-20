@@ -1,5 +1,6 @@
 import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
+import { join } from "node:path";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 
 export class DiagnosticsService {
@@ -38,6 +39,18 @@ export class DiagnosticsService {
       status: existsSync(this.config.dataDir) ? "pass" : "fail",
       summary: "Agent data directory",
       detail: this.config.dataDir,
+    });
+
+    const nativeWorkspacePath = join(
+      this.config.workspaceDir,
+      "packages",
+      "elizaos-official",
+    );
+    checks.push({
+      id: "native.workspace",
+      status: existsSync(nativeWorkspacePath) ? "pass" : "warn",
+      summary: "Native Eliza workspace packages",
+      detail: nativeWorkspacePath,
     });
 
     checks.push({
@@ -445,6 +458,7 @@ export class DiagnosticsService {
     const steps = [
       "Copy .env.example to .env and fill in at least one provider key.",
       "Choose a primary provider: OpenAI or Anthropic.",
+      "Run bun install so the vendored native Eliza workspace packages resolve before booting the runtime.",
       "Add workspace context files like AGENTS.md or MISSION.md if you want persistent operator guidance.",
       "Enable gateway platforms in gateway.json only after their credentials are configured.",
       "Run /doctor after configuration changes.",

@@ -621,6 +621,7 @@ export interface ToolDefinition {
     | "gateway"
     | "automation"
     | "mcp"
+    | "runtime"
     | "protocol";
   description: string;
   enabled: boolean;

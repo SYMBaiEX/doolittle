@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import { AcpService } from "./acp-service";
 import { ContextFilesService } from "./context-files-service";
@@ -323,6 +324,7 @@ export function createServices(
     settings.set("mcp.timeoutMs", config.mcpTimeoutMs);
   }
   const sessions = new SessionService(config.dataDir);
+  const nativePluginCatalog = getNativePluginCatalog(config);
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
   const acp = new AcpService(config, () => tools.list());
@@ -333,6 +335,15 @@ export function createServices(
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
     acpEnabled: acp.status().enabled,
+    nativePluginsTotal: nativePluginCatalog.length,
+    nativePluginsEnabled: nativePluginCatalog.filter((entry) => entry.enabled)
+      .length,
+    nativeOfficialPlugins: nativePluginCatalog.filter(
+      (entry) => entry.source === "official",
+    ).length,
+    nativeVendoredPlugins: nativePluginCatalog.filter(
+      (entry) => entry.source === "vendored",
+    ).length,
   }));
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";

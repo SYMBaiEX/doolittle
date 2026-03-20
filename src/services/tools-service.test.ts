@@ -7,6 +7,10 @@ describe("ToolsService", () => {
       mcpEnabled: true,
       discoveredMcpTools: 2,
       discoveredMcpToolNames: ["sum", "echo"],
+      nativePluginsTotal: 10,
+      nativePluginsEnabled: 8,
+      nativeOfficialPlugins: 4,
+      nativeVendoredPlugins: 5,
     }));
 
     const summary = service.summary();
@@ -14,6 +18,9 @@ describe("ToolsService", () => {
     expect(summary.enabled).toBeGreaterThan(0);
     expect(summary.mcp.enabled).toBe(true);
     expect(summary.mcp.discoveredToolNames).toContain("sum");
+    expect(summary.native.total).toBe(10);
+    expect(summary.native.official).toBe(4);
+    expect(summary.native.vendored).toBe(5);
 
     const browserTools = service.byCategory("documents");
     expect(browserTools.some((tool) => tool.id === "browser.status")).toBe(
@@ -69,5 +76,6 @@ describe("ToolsService", () => {
     const bridge = service.get("mcp.bridge");
     expect(bridge?.enabled).toBe(true);
     expect(bridge?.description).toContain("2 discovered tool(s)");
+    expect(service.get("plugins.native")?.description).toContain("8/10");
   });
 });
