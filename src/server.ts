@@ -153,11 +153,12 @@ function parseTelegramMessage(body: {
     channelType: body.message.chat.type,
     authorName:
       body.message.from.username ??
-      [body.message.from.first_name, body.message.from.last_name]
-        .filter(Boolean)
-        .join(" ")
-        .trim() ||
-      undefined,
+      (
+        [body.message.from.first_name, body.message.from.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || undefined
+      ),
     timestamp: body.message.date ? new Date(body.message.date * 1000).toISOString() : undefined,
     metadata: {
       ...(body.message.chat.title ? { chatTitle: body.message.chat.title } : {}),
@@ -669,8 +670,11 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "POST" && url.pathname === "/gateway/message") {
-        const body = (await request.json()) as IncomingPlatformMessage;
-        const result = await context.gateway.receive(body);
+        const parsed = await parseJsonBody<IncomingPlatformMessage>(request);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        const result = await context.gateway.receive(parsed.value);
         return json(result, result.ok ? 200 : 403);
       }
 

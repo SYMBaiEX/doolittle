@@ -67,13 +67,13 @@ async function runDelegationTaskInWorker(
   if (exitCode === 0 && parsed.ok) {
     return context.services.delegation.complete(
       task.id,
-      parsed.output ?? stdout.trim() || "Worker finished without output.",
+      parsed.output ?? (stdout.trim() || "Worker finished without output."),
     );
   }
 
   return context.services.delegation.fail(
     task.id,
-    parsed.error ?? stderr.trim() || `Delegated worker failed with exit code ${exitCode}.`,
+    parsed.error ?? (stderr.trim() || `Delegated worker failed with exit code ${exitCode}.`),
   );
 }
 

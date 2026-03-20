@@ -53,9 +53,6 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
         channel_id: message.roomId,
       };
     }
-    if (message.threadId) {
-      payload.thread_name = message.threadId;
-    }
 
     const response = await fetch(
       `https://discord.com/api/v10/channels/${message.roomId}/messages`,
