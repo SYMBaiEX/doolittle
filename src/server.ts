@@ -23,6 +23,7 @@ type GatewayTraceKind =
   | "route"
   | "respond"
   | "deliver"
+  | "heartbeat"
   | "reject"
   | "lifecycle";
 
@@ -103,6 +104,9 @@ function parseGatewayFilters(url: URL): {
         "matrix",
         "email",
         "sms",
+        "mattermost",
+        "homeassistant",
+        "dingtalk",
         "api",
       ].includes(platform)
         ? (platform as PlatformName)
@@ -117,6 +121,7 @@ function parseGatewayFilters(url: URL): {
         "route",
         "respond",
         "deliver",
+        "heartbeat",
         "reject",
         "lifecycle",
       ].includes(kind)
@@ -213,6 +218,21 @@ export function startApiServer(context: AppContext): void {
             telegram: Boolean(context.config.telegramBotToken),
           },
           gateway: context.services.gatewayConfig,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/platforms") {
+        if (!context.gateway) {
+          return json(
+            {
+              error:
+                "Gateway runtime is not attached to this execution context.",
+            },
+            503,
+          );
+        }
+        return json({
+          platforms: (await context.gateway.state(50)).platforms,
         });
       }
 
@@ -1853,6 +1873,42 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "POST" && url.pathname === "/webhooks/sms") {
         const body = (await request.json().catch(() => null)) as unknown;
         const inbound = normalizeInboundMessage("sms", body);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/webhooks/mattermost"
+      ) {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("mattermost", body);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/webhooks/homeassistant"
+      ) {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("homeassistant", body);
+        if (!inbound) {
+          return json({ ok: true, ignored: true });
+        }
+        const result = await context.gateway.receive(inbound);
+        return json(result, result.ok ? 200 : 403);
+      }
+
+      if (request.method === "POST" && url.pathname === "/webhooks/dingtalk") {
+        const body = (await request.json().catch(() => null)) as unknown;
+        const inbound = normalizeInboundMessage("dingtalk", body);
         if (!inbound) {
           return json({ ok: true, ignored: true });
         }

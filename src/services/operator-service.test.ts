@@ -25,6 +25,13 @@ const gatewayConfig: GatewayConfig = {
     matrix: { enabled: false, allowAllUsers: true, allowedUserIds: [] },
     email: { enabled: false, allowAllUsers: true, allowedUserIds: [] },
     sms: { enabled: false, allowAllUsers: true, allowedUserIds: [] },
+    mattermost: { enabled: false, allowAllUsers: true, allowedUserIds: [] },
+    homeassistant: {
+      enabled: false,
+      allowAllUsers: true,
+      allowedUserIds: [],
+    },
+    dingtalk: { enabled: false, allowAllUsers: true, allowedUserIds: [] },
   },
 };
 
@@ -71,6 +78,12 @@ function makeConfig(root: string): EnvConfig {
     matrixAccessToken: undefined,
     emailSendCommand: undefined,
     smsSendCommand: undefined,
+    mattermostUrl: undefined,
+    mattermostToken: undefined,
+    homeAssistantUrl: undefined,
+    homeAssistantToken: undefined,
+    dingtalkWebhookUrl: undefined,
+    dingtalkAccessToken: undefined,
     browserProvider: "basic",
     browserCommand: "lightpanda",
     browserCdpUrl: undefined,

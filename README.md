@@ -386,6 +386,7 @@ Useful commands:
 - `/gateway trace platform:telegram limit:10`
 - `/gateway receive telegram user42 room42 :: hello there`
 - `/gateway status`
+- `/platforms`
 - `/gateway inbox`
 - `/gateway outbox`
 - `/gateway attachments`
@@ -402,6 +403,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /health`
 - `GET /features`
 - `GET /runtime/status`
+- `GET /platforms`
 - `GET /memory?target=memory|user`
 - `GET /sessions`
 - `GET /sessions/summary`
@@ -510,6 +512,9 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /webhooks/matrix`
 - `POST /webhooks/email`
 - `POST /webhooks/sms`
+- `POST /webhooks/mattermost`
+- `POST /webhooks/homeassistant`
+- `POST /webhooks/dingtalk`
 - `GET /webhooks/whatsapp`
 - `POST /webhooks/whatsapp`
 - `GET /pairing/pending`

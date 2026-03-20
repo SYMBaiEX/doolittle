@@ -200,6 +200,15 @@ describe("GatewayRunner", () => {
         true,
       );
       expect(apiHealth?.presence?.status).toBeDefined();
+      expect(
+        state.platforms.some((entry) => entry.platform === "mattermost"),
+      ).toBe(true);
+      expect(
+        state.platforms.some((entry) => entry.platform === "homeassistant"),
+      ).toBe(true);
+      expect(
+        state.platforms.some((entry) => entry.platform === "dingtalk"),
+      ).toBe(true);
     } finally {
       await runner.stop();
       rmSync(root, { recursive: true, force: true });

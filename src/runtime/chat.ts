@@ -99,8 +99,10 @@ type GatewayTraceKind =
   | "receive"
   | "authorize"
   | "session"
+  | "route"
   | "respond"
   | "deliver"
+  | "heartbeat"
   | "reject"
   | "lifecycle";
 
@@ -138,6 +140,9 @@ function parseGatewayFilters(raw: string): {
           "matrix",
           "email",
           "sms",
+          "mattermost",
+          "homeassistant",
+          "dingtalk",
           "api",
         ].includes(platform)
       ) {
@@ -158,8 +163,10 @@ function parseGatewayFilters(raw: string): {
           "receive",
           "authorize",
           "session",
+          "route",
           "respond",
           "deliver",
+          "heartbeat",
           "reject",
           "lifecycle",
         ].includes(kind)
@@ -975,6 +982,25 @@ async function buildCommandResponse(
           .filter(Boolean)
           .join(" ");
         return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
+      })
+      .join("\n");
+  }
+
+  if (trimmed === "/platforms" || trimmed === "/platforms status") {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const state = await context.gateway.state(50);
+    return state.platforms
+      .map((entry) => {
+        const counters = [
+          `send=${entry.sendCount}`,
+          `recv=${entry.receiveCount}`,
+          `route=${entry.routeCount}`,
+          `resp=${entry.respondCount}`,
+          `events=${entry.eventCount}`,
+        ].join(" ");
+        return `- ${entry.platform} [${entry.transportState}] ready=${entry.ready} mode=${entry.mode} presence=${entry.presence.status}${entry.lastEventKind ? ` last=${entry.lastEventKind}` : ""} ${counters} :: ${entry.detail}`;
       })
       .join("\n");
   }

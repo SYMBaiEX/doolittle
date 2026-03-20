@@ -13,7 +13,7 @@ export async function startCli(context: AppContext): Promise<void> {
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
-    'Type "exit" to quit. Try /status, /doctor, /setup checklist, /setup summary, /update preview, /migrate scan, /model status, /execution status, /tools list, /delegate list, /runtime status, /skills list, /memory list memory, /workspace tree, /workspace read <path>, /terminal run <command>, /repo status, /personality list, /context files, /pdf extract <path>, /media analyze <path>, /media transcribe <path>, /media speak <text>, /media generate <prompt>, /trajectories evaluate, /trajectories package, /gateway status, or /pairing pending.\n\n',
+    'Type "exit" to quit. Try /status, /doctor, /setup checklist, /setup summary, /update preview, /migrate scan, /model status, /execution status, /tools list, /delegate list, /runtime status, /skills list, /memory list memory, /workspace tree, /workspace read <path>, /terminal run <command>, /repo status, /personality list, /context files, /pdf extract <path>, /media analyze <path>, /media transcribe <path>, /media speak <text>, /media generate <prompt>, /trajectories evaluate, /trajectories package, /gateway status, /platforms, or /pairing pending.\n\n',
   );
 
   while (true) {
