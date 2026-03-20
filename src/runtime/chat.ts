@@ -12,7 +12,11 @@ import {
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
 import {
+  createEffectiveDelegationTask,
+  getEffectiveDelegationQueue,
+  getEffectiveDelegationTasks,
   getEffectivePersonalityList,
+  getEffectivePluginManagerInventory,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkills,
@@ -1283,8 +1287,14 @@ async function buildCommandResponse(
       return "Gateway runtime is not attached to this execution context.";
     }
     const health = await context.gateway.health();
-    return health
-      .map((entry) => {
+    const pluginLines = groupNativePluginCatalog(
+      getNativePluginCatalog(context.config),
+    ).messaging.map(
+      (entry) =>
+        `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
+    );
+    return [
+      ...health.map((entry) => {
         const lifecycle = [
           entry.startedAt ? `started=${entry.startedAt}` : undefined,
           entry.stoppedAt ? `stopped=${entry.stoppedAt}` : undefined,
@@ -1299,8 +1309,9 @@ async function buildCommandResponse(
           .filter(Boolean)
           .join(" ");
         return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound} edits=${entry.capabilities.edits}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
-      })
-      .join("\n");
+      }),
+      ...pluginLines,
+    ].join("\n");
   }
 
   if (trimmed === "/platforms" || trimmed === "/platforms status") {
@@ -1308,18 +1319,24 @@ async function buildCommandResponse(
       return "Gateway runtime is not attached to this execution context.";
     }
     const state = await context.gateway.state(50);
-    return state.platforms
-      .map((entry) => {
-        const counters = [
-          `send=${entry.sendCount}`,
-          `recv=${entry.receiveCount}`,
-          `route=${entry.routeCount}`,
-          `resp=${entry.respondCount}`,
-          `events=${entry.eventCount}`,
-        ].join(" ");
-        return `- ${entry.platform} [${entry.transportState}] ready=${entry.ready} mode=${entry.mode} presence=${entry.presence.status}${entry.lastEventKind ? ` last=${entry.lastEventKind}` : ""} ${counters} :: ${entry.detail}`;
-      })
-      .join("\n");
+    const messagingCatalog = groupNativePluginCatalog(
+      getNativePluginCatalog(context.config),
+    ).messaging;
+    const platformLines = state.platforms.map((entry) => {
+      const counters = [
+        `send=${entry.sendCount}`,
+        `recv=${entry.receiveCount}`,
+        `route=${entry.routeCount}`,
+        `resp=${entry.respondCount}`,
+        `events=${entry.eventCount}`,
+      ].join(" ");
+      return `- ${entry.platform} [${entry.transportState}] ready=${entry.ready} mode=${entry.mode} presence=${entry.presence.status}${entry.lastEventKind ? ` last=${entry.lastEventKind}` : ""} ${counters} :: ${entry.detail}`;
+    });
+    const pluginLines = messagingCatalog.map(
+      (entry) =>
+        `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
+    );
+    return [...platformLines, ...pluginLines].join("\n");
   }
 
   if (trimmed === "/gateway state" || trimmed.startsWith("/gateway state ")) {
@@ -1340,7 +1357,16 @@ async function buildCommandResponse(
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
-    return JSON.stringify(context.gateway.runtimeStatus(), null, 2);
+    return JSON.stringify(
+      {
+        runtime: context.gateway.runtimeStatus(),
+        messagingPlugins: groupNativePluginCatalog(
+          getNativePluginCatalog(context.config),
+        ).messaging,
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/gateway edit ")) {
@@ -1562,6 +1588,7 @@ async function buildCommandResponse(
         catalog,
         grouped: groupNativePluginCatalog(catalog),
         serviceRegistry: context.services.nativeRegistry,
+        pluginManager: getEffectivePluginManagerInventory(context.runtime),
       },
       null,
       2,
@@ -1790,13 +1817,18 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/tools" || trimmed === "/tools list") {
-    return context.services.tools
+    const pluginInventory = getEffectivePluginManagerInventory(context.runtime);
+    const toolLines = context.services.tools
       .list()
       .map(
         (tool) =>
           `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.category}: ${tool.description}`,
-      )
-      .join("\n");
+      );
+    const pluginLines =
+      pluginInventory?.plugins.map(
+        (plugin) => `- native ${JSON.stringify(plugin)}`,
+      ) ?? [];
+    return [...toolLines, ...pluginLines].join("\n");
   }
 
   if (trimmed.startsWith("/tools search ")) {
@@ -1816,7 +1848,16 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/tools summary" || trimmed === "/tools registry") {
-    return JSON.stringify(context.services.tools.summary(), null, 2);
+    return JSON.stringify(
+      {
+        ...context.services.tools.summary(),
+        nativePluginManager: getEffectivePluginManagerInventory(
+          context.runtime,
+        ),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/tools transports") {
@@ -2180,6 +2221,23 @@ async function buildCommandResponse(
         ? ""
         : trimmed.replace("/delegate list", "").trim();
     const filters = raw ? parseDelegationFilter(raw) : {};
+    const nativeTasks = getEffectiveDelegationTasks(
+      context.runtime,
+      context.services,
+    );
+    if (
+      !filters.group &&
+      !filters.profile &&
+      !filters.priority &&
+      !filters.label &&
+      !filters.parentTaskId &&
+      !filters.status &&
+      !filters.executionMode &&
+      Array.isArray(nativeTasks) &&
+      nativeTasks.length
+    ) {
+      return JSON.stringify(nativeTasks.slice(0, 20), null, 2);
+    }
     const tasks = context.services.delegation
       .list({
         group: filters.group,
@@ -2202,13 +2260,21 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/delegate overview") {
-    return JSON.stringify(context.services.delegation.overview(), null, 2);
+    return JSON.stringify(
+      {
+        local: context.services.delegation.overview(),
+        native: getEffectiveDelegationQueue(context.runtime, context.services),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/delegate queue" || trimmed.startsWith("/delegate queue ")) {
-    const nativeQueue = getNativeServices(
+    const nativeQueue = getEffectiveDelegationQueue(
       context.runtime,
-    ).agentOrchestrator?.queue();
+      context.services,
+    );
     if (trimmed === "/delegate queue" && nativeQueue) {
       return JSON.stringify(nativeQueue, null, 2);
     }
@@ -2346,26 +2412,32 @@ async function buildCommandResponse(
     if (!parsed) {
       return "Usage: /delegate create <title> | group:research | profile:research | priority:high | labels:browser,voice | metadata:owner=alice :: <objective>";
     }
-    const task = context.services.delegation.create({
-      title: parsed.head,
-      objective: parsed.objective,
-      group: parsed.options.group,
-      profile: parsed.options.profile,
-      priority:
-        parsed.options.priority === "low" ||
-        parsed.options.priority === "normal" ||
-        parsed.options.priority === "high"
-          ? parsed.options.priority
-          : "normal",
-      tags: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
-      labels: parseDelegationLabels(
-        parsed.options.labels ?? parsed.options.tags,
-      ),
-      metadata: parseDelegationMetadata(
-        parsed.options.metadata ?? parsed.options.meta,
-      ),
-      executionMode: "delegated",
-    });
+    const task = createEffectiveDelegationTask(
+      context.runtime,
+      context.services,
+      {
+        title: parsed.head,
+        objective: parsed.objective,
+        group: parsed.options.group,
+        profile: parsed.options.profile,
+        priority:
+          parsed.options.priority === "low" ||
+          parsed.options.priority === "normal" ||
+          parsed.options.priority === "high"
+            ? parsed.options.priority
+            : "normal",
+        tags: parseDelegationLabels(
+          parsed.options.labels ?? parsed.options.tags,
+        ),
+        labels: parseDelegationLabels(
+          parsed.options.labels ?? parsed.options.tags,
+        ),
+        metadata: parseDelegationMetadata(
+          parsed.options.metadata ?? parsed.options.meta,
+        ),
+        executionMode: "delegated",
+      },
+    );
     return JSON.stringify(task, null, 2);
   }
 

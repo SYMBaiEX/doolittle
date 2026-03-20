@@ -68,6 +68,19 @@ interface NativePluginManagerService {
   categories(): unknown;
 }
 
+interface EffectiveDelegationCreateInput {
+  title: string;
+  objective: string;
+  metadata?: Record<string, unknown>;
+  group?: string;
+  profile?: string;
+  priority?: "low" | "normal" | "high";
+  labels?: string[];
+  tags?: string[];
+  executionMode?: "local" | "delegated";
+  maxAttempts?: number;
+}
+
 type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
 
 function service<T>(runtime: RuntimeLike, name: string): T | undefined {
@@ -149,4 +162,79 @@ export async function getEffectiveShellStatus(
     (await getNativeServices(runtime).shell?.status()) ??
     services.terminal.status()
   );
+}
+
+export function getEffectiveDelegationTasks(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.tasks() ??
+    services.delegation.list()
+  );
+}
+
+export function getEffectiveDelegationQueue(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.queue() ??
+    services.delegation.queueSummary()
+  );
+}
+
+export function createEffectiveDelegationTask(
+  runtime: RuntimeLike,
+  services: AppServices,
+  input: EffectiveDelegationCreateInput,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.createTask(
+      input.title,
+      input.objective,
+      {
+        group: input.group,
+        profile: input.profile,
+        priority: input.priority,
+        labels: input.labels ?? input.tags,
+        tags: input.tags ?? input.labels,
+        executionMode: input.executionMode,
+        maxAttempts: input.maxAttempts,
+        ...input.metadata,
+      },
+    ) ??
+    services.delegation.create({
+      title: input.title,
+      objective: input.objective,
+      group: input.group,
+      profile: input.profile,
+      priority: input.priority,
+      labels: input.labels ?? input.tags,
+      tags: input.tags ?? input.labels,
+      metadata: input.metadata
+        ? Object.fromEntries(
+            Object.entries(input.metadata).map(([key, value]) => [
+              key,
+              String(value),
+            ]),
+          )
+        : undefined,
+      executionMode: input.executionMode,
+      maxAttempts: input.maxAttempts,
+    })
+  );
+}
+
+export function getEffectivePluginManagerInventory(
+  runtime: RuntimeLike,
+): { plugins: unknown[]; categories: unknown } | null {
+  const pluginManager = getNativeServices(runtime).pluginManager;
+  if (!pluginManager) {
+    return null;
+  }
+  return {
+    plugins: pluginManager.list(),
+    categories: pluginManager.categories(),
+  };
 }
