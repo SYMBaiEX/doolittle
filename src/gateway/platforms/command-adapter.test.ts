@@ -40,6 +40,9 @@ describe("CommandPlatformAdapter", () => {
       expect(record.metadata?.commandStdout).toBe("sent:signal:room-1");
       expect(health.ready).toBe(true);
       expect(health.mode).toBe("native");
+      expect(health.lastOutboundRoomId).toBe("room-1");
+      expect(health.lastOutboundUserId).toBe("user-1");
+      expect(health.lastOutboundMetadataKeys).toContain("commandStdout");
     } finally {
       await adapter.stop();
       rmSync(root, { recursive: true, force: true });

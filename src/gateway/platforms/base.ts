@@ -27,6 +27,11 @@ export interface PlatformHealth {
   lastSendAt?: string;
   lastDeliveryAt?: string;
   lastDeliveryId?: string;
+  lastOutboundRoomId?: string;
+  lastOutboundUserId?: string;
+  lastOutboundThreadId?: string;
+  lastOutboundReplyToId?: string;
+  lastOutboundMetadataKeys?: string[];
   sendCount?: number;
   lastError?: string;
   events: PlatformLifecycleEvent[];
