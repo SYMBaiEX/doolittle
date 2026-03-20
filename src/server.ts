@@ -14,7 +14,11 @@ import {
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
 import {
+  createEffectiveDelegationTask,
+  getEffectiveDelegationQueue,
+  getEffectiveDelegationTasks,
   getEffectivePersonalityList,
+  getEffectivePluginManagerInventory,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkills,
@@ -417,6 +421,9 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/tools") {
         return json({
           tools: context.services.tools.list(),
+          nativePluginManager: getEffectivePluginManagerInventory(
+            context.runtime,
+          ),
         });
       }
 
@@ -433,6 +440,9 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/tools/summary") {
         return json({
           summary: context.services.tools.summary(),
+          nativePluginManager: getEffectivePluginManagerInventory(
+            context.runtime,
+          ),
         });
       }
 
@@ -913,6 +923,24 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/delegation/tasks") {
         const filters = parseDelegationFilters(url);
+        const nativeTasks = getEffectiveDelegationTasks(
+          context.runtime,
+          context.services,
+        );
+        if (
+          !filters.group &&
+          !filters.profile &&
+          !filters.priority &&
+          !filters.label &&
+          !filters.parentTaskId &&
+          !filters.status &&
+          !filters.executionMode &&
+          Array.isArray(nativeTasks)
+        ) {
+          return json({
+            tasks: nativeTasks.slice(0, filters.limit),
+          });
+        }
         return json({
           tasks: context.services.delegation
             .list({
@@ -957,7 +985,13 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/delegation/overview") {
         return json({
-          overview: context.services.delegation.overview(),
+          overview: {
+            local: context.services.delegation.overview(),
+            native: getEffectiveDelegationQueue(
+              context.runtime,
+              context.services,
+            ),
+          },
         });
       }
 
@@ -1002,18 +1036,22 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "title and objective are required" }, 400);
         }
         return json({
-          task: context.services.delegation.create({
-            title: body.title,
-            objective: body.objective,
-            group: body.group,
-            profile: body.profile,
-            priority: body.priority,
-            tags: body.tags ?? body.labels,
-            labels: body.labels ?? body.tags,
-            metadata: body.metadata,
-            executionMode: body.executionMode,
-            maxAttempts: body.maxAttempts,
-          }),
+          task: createEffectiveDelegationTask(
+            context.runtime,
+            context.services,
+            {
+              title: body.title,
+              objective: body.objective,
+              group: body.group,
+              profile: body.profile,
+              priority: body.priority,
+              tags: body.tags ?? body.labels,
+              labels: body.labels ?? body.tags,
+              metadata: body.metadata,
+              executionMode: body.executionMode,
+              maxAttempts: body.maxAttempts,
+            },
+          ),
         });
       }
 
@@ -2235,6 +2273,9 @@ export function startApiServer(context: AppContext): void {
         return json({
           health: readiness,
           readiness,
+          messagingPlugins: groupNativePluginCatalog(
+            getNativePluginCatalog(context.config),
+          ).messaging,
           state: history.state,
           traces: history.traces,
           inbox: history.inbox,
@@ -2304,6 +2345,9 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/gateway/runtime") {
         return json({
           runtime: context.gateway.runtimeStatus(),
+          messagingPlugins: groupNativePluginCatalog(
+            getNativePluginCatalog(context.config),
+          ).messaging,
         });
       }
 
