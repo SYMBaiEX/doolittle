@@ -90,7 +90,7 @@ eliza-agent/
 | Session search | [`packages/agent/src/services/session-service.ts`](./packages/agent/src/services/session-service.ts) + `/search` command |
 | Skills browsing | [`packages/agent/src/services/skills-service.ts`](./packages/agent/src/services/skills-service.ts) + `/skills` command |
 | Cron / scheduled runs | [`packages/agent/src/services/cron-service.ts`](./packages/agent/src/services/cron-service.ts) + `/cron` command family |
-| CLI entrypoint | [`packages/agent/src/cli.ts`](./packages/agent/src/cli.ts) |
+| CLI / TUI entrypoint | [`packages/agent/src/cli.ts`](./packages/agent/src/cli.ts) with a full-screen Blessed operator cockpit and plain fallback mode |
 | API server | [`packages/agent/src/server.ts`](./packages/agent/src/server.ts) with Bun's native HTTP server |
 | Gateway runner | [`packages/agent/src/gateway/gateway-runner.ts`](./packages/agent/src/gateway/gateway-runner.ts) |
 | Pairing and allowlists | [`packages/agent/src/services/pairing-service.ts`](./packages/agent/src/services/pairing-service.ts) |
@@ -306,7 +306,20 @@ bun test
 
 ### CLI
 
-When `ELIZA_AGENT_MODE=cli` or `both`, the runtime starts a local REPL.
+When `ELIZA_AGENT_MODE=cli` or `both`, the runtime starts a full-screen terminal UI with a live activity feed, response pane, runtime snapshot sidebar, hotkeys, and command input. Use `bun run start --plain-cli` if you want the simpler line-based fallback.
+
+Quick shortcuts:
+
+- `F2` status
+- `F3` tools summary
+- `F4` delegate overview
+- `F5` gateway readiness
+- `F6` sessions list
+- `F7` doctor
+- `F8` runtime plugins
+- `Esc` focus input
+- `Ctrl-R` refresh runtime panels
+- `Ctrl-L` clear the activity feed
 
 Useful commands:
 
