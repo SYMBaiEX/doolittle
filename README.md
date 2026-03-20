@@ -1,6 +1,6 @@
 # Eliza Agent
 
-Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built around a focused Eliza runtime. It now uses a native ElizaOS workspace layout with a mix of official packages, vendored official-compatible packages, and Eliza Agent product plugins so the runtime stays aligned with the Eliza ecosystem without giving up the broader operator platform this repo already built.
+Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a workspace monorepo. The root package is the Eliza Agent application, while `packages/elizaos-official/*` contains vendored official-compatible ElizaOS packages so the runtime stays aligned with the ecosystem without giving up the broader operator platform this repo already built.
 
 ## Versioning note
 
@@ -21,6 +21,16 @@ The published `elizaos` package is a CLI/examples wrapper, while the actual agen
 
 The platform-specific features that do not have a single clean ElizaOS equivalent are implemented here as custom ElizaOS actions, providers, evaluators, and Bun-native services. Official packages that were close but not yet compatible on the current runtime line are vendored under `packages/elizaos-official/*` and patched locally.
 
+## Monorepo layout
+
+- root package
+  - primary Eliza Agent application package
+  - runtime, CLI, API, gateway, docs, characters, skills, and product-specific services
+- `packages/elizaos-official/*`
+  - vendored official-compatible ElizaOS packages patched to the current runtime line
+
+Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md).
+
 ## File tree
 
 ```text
@@ -28,9 +38,13 @@ eliza-agent/
 ├── .env.example
 ├── README.md
 ├── biome.json
+├── docs/
+│   ├── elizaos-research.md
+│   └── monorepo.md
 ├── package.json
 ├── packages/
 │   └── elizaos-official/
+│       ├── README.md
 │       ├── compat/
 │       ├── plugin-agent-orchestrator/
 │       ├── plugin-agent-skills/
@@ -149,6 +163,24 @@ The runtime now uses a wider native ElizaOS stack:
 This codebase now includes the core runtime plus the surrounding application services needed for a broader agent platform: gateway configuration, pairing, hooks, session routing, and delivery persistence. Additional transport-specific implementations can be layered on top of the same abstractions without changing the core architecture.
 
 The gateway and scheduler lifecycle are also registered through ElizaOS service classes inside the custom plugin, so long-running runtime behavior follows the native ElizaOS service model instead of living purely as external wrappers.
+
+## Monorepo workflows
+
+Run the full workspace quality pass from the repo root:
+
+```bash
+bun run check
+```
+
+Useful workspace commands:
+
+```bash
+bun run workspace:list
+bun run lint:check
+bun run typecheck
+bun test
+bun run build
+```
 
 ## Environment reference
 

@@ -11,6 +11,15 @@ describe("ToolsService", () => {
       nativePluginsEnabled: 8,
       nativeOfficialPlugins: 4,
       nativeVendoredPlugins: 5,
+      nativeCatalog: [
+        {
+          id: "messaging.telegram",
+          category: "messaging",
+          source: "official",
+          enabled: true,
+          notes: "Official Telegram transport plugin.",
+        },
+      ],
     }));
 
     const summary = service.summary();
@@ -77,5 +86,8 @@ describe("ToolsService", () => {
     expect(bridge?.enabled).toBe(true);
     expect(bridge?.description).toContain("2 discovered tool(s)");
     expect(service.get("plugins.native")?.description).toContain("8/10");
+    expect(service.get("plugins.native.messaging.telegram")?.transport).toBe(
+      "native",
+    );
   });
 });

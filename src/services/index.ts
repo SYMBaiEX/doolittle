@@ -344,6 +344,7 @@ export function createServices(
     nativeVendoredPlugins: nativePluginCatalog.filter(
       (entry) => entry.source === "vendored",
     ).length,
+    nativeCatalog: nativePluginCatalog,
   }));
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";

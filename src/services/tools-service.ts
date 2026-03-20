@@ -9,6 +9,13 @@ interface ToolRegistryDynamicState {
   nativePluginsEnabled?: number;
   nativeOfficialPlugins?: number;
   nativeVendoredPlugins?: number;
+  nativeCatalog?: Array<{
+    id: string;
+    category: string;
+    source: string;
+    enabled: boolean;
+    notes: string;
+  }>;
 }
 
 interface ToolRegistrySummary {
@@ -49,6 +56,7 @@ export class ToolsService {
       nativePluginsEnabled: 0,
       nativeOfficialPlugins: 0,
       nativeVendoredPlugins: 0,
+      nativeCatalog: [],
     }),
   ) {}
 
@@ -349,7 +357,7 @@ export class ToolsService {
 
   list(): ToolDefinition[] {
     const dynamic = this.getDynamicState();
-    return this.tools.map((tool) =>
+    const baseTools = this.tools.map((tool) =>
       tool.id === "mcp.bridge"
         ? {
             ...tool,
@@ -369,6 +377,16 @@ export class ToolsService {
             }
           : tool,
     );
+    const pluginTools =
+      dynamic.nativeCatalog?.map<ToolDefinition>((plugin) => ({
+        id: `plugins.native.${plugin.id}`,
+        name: `Native Plugin ${plugin.id}`,
+        category: "runtime",
+        description: `${plugin.source} ${plugin.category} plugin: ${plugin.notes}`,
+        enabled: plugin.enabled,
+        transport: "native",
+      })) ?? [];
+    return [...baseTools, ...pluginTools];
   }
 
   enabled(): ToolDefinition[] {

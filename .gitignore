@@ -1,8 +1,10 @@
 node_modules/
 dist/
+packages/*/dist/
 .env
 .eliza-agent/
 .eliza/
 cache/
+coverage/
 *.log
 skills/generated/index.json
