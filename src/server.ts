@@ -13,6 +13,14 @@ import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
+import {
+  getEffectivePersonalityList,
+  getEffectiveShellHistory,
+  getEffectiveShellStatus,
+  getEffectiveSkills,
+  getNativeServices,
+  runEffectiveShellCommand,
+} from "@/runtime/native/service-bridge";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import type {
   GatewayConfig,
@@ -193,6 +201,7 @@ export function startApiServer(context: AppContext): void {
     port: context.config.port,
     fetch: async (request) => {
       const url = new URL(request.url);
+      const nativeServices = getNativeServices(context.runtime);
 
       if (request.method === "OPTIONS") {
         return json({ ok: true });
@@ -382,7 +391,7 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/skills") {
         return json({
-          skills: context.services.skills.list(),
+          skills: getEffectiveSkills(context.runtime, context.services),
         });
       }
 
@@ -877,7 +886,11 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/terminal/history") {
         return json({
-          commands: context.services.terminal.recent(25),
+          commands: getEffectiveShellHistory(
+            context.runtime,
+            context.services,
+            25,
+          ),
         });
       }
 
@@ -890,9 +903,10 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "command is required" }, 400);
         }
         return json({
-          result: await context.services.terminal.run(
+          result: await runEffectiveShellCommand(
+            context.runtime,
+            context.services,
             body.command,
-            body.timeoutMs,
           ),
         });
       }
@@ -1278,9 +1292,23 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/personality") {
+        const activeId =
+          nativeServices.personality?.activeId() ??
+          context.services.personalities.getActive().id;
+        const available = getEffectivePersonalityList(
+          context.runtime,
+          context.services,
+        );
         return json({
-          active: context.services.personalities.getActive(),
-          available: context.services.personalities.list(),
+          active:
+            available.find(
+              (entry) =>
+                typeof entry === "object" &&
+                entry !== null &&
+                "id" in entry &&
+                entry.id === activeId,
+            ) ?? context.services.personalities.getActive(),
+          available,
         });
       }
 
@@ -1432,7 +1460,9 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "POST" && url.pathname === "/personality") {
         const body = (await request.json()) as { id: string };
         return json({
-          active: context.services.personalities.setActive(body.id),
+          active:
+            nativeServices.personality?.activate(body.id) ??
+            context.services.personalities.setActive(body.id),
         });
       }
 
@@ -1449,9 +1479,14 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/execution/status") {
+        const active = context.services.settings.get().execution;
         return json({
-          active: context.services.settings.get().execution,
+          active,
           backends: await context.services.terminal.health(),
+          native: await getEffectiveShellStatus(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 
@@ -1507,12 +1542,14 @@ export function startApiServer(context: AppContext): void {
         }
 
         const text = body.path
-          ? await context.services.documents.extractPdfFromPath(body.path, {
-              startPage: body.startPage,
-              endPage: body.endPage,
-              preserveWhitespace: body.preserveWhitespace,
-              cleanContent: body.cleanContent,
-            })
+          ? nativeServices.knowledge
+            ? String(await nativeServices.knowledge.ingestPdf(body.path))
+            : await context.services.documents.extractPdfFromPath(body.path, {
+                startPage: body.startPage,
+                endPage: body.endPage,
+                preserveWhitespace: body.preserveWhitespace,
+                cleanContent: body.cleanContent,
+              })
           : await context.services.documents.extractPdfFromBase64(
               body.base64 as string,
               {
@@ -1530,13 +1567,15 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/cron/jobs") {
         return json({
-          jobs: context.services.cron.list(),
+          jobs: nativeServices.cron?.list() ?? context.services.cron.list(),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/cron/runs") {
         return json({
-          runs: context.services.cron.recentRuns(50),
+          runs:
+            nativeServices.cron?.runs(50) ??
+            context.services.cron.recentRuns(50),
         });
       }
 
@@ -1560,14 +1599,23 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "schedule and prompt are required" }, 400);
         }
         return json({
-          job: context.services.cron.create({
-            name: body.name ?? `job-${Date.now()}`,
-            schedule: body.schedule,
-            prompt: body.prompt,
-            skills: body.skills ?? [],
-            delivery: body.delivery ?? "local",
-            runtime: body.runtime,
-          }),
+          job:
+            nativeServices.cron?.create({
+              name: body.name ?? `job-${Date.now()}`,
+              schedule: body.schedule,
+              prompt: body.prompt,
+              skills: body.skills ?? [],
+              delivery: body.delivery ?? "local",
+              runtime: body.runtime,
+            }) ??
+            context.services.cron.create({
+              name: body.name ?? `job-${Date.now()}`,
+              schedule: body.schedule,
+              prompt: body.prompt,
+              skills: body.skills ?? [],
+              delivery: body.delivery ?? "local",
+              runtime: body.runtime,
+            }),
         });
       }
 
@@ -1597,15 +1645,25 @@ export function startApiServer(context: AppContext): void {
         };
 
         return json({
-          job: context.services.cron.updateConfig(id, {
-            name: body.name,
-            prompt: body.prompt,
-            schedule: body.schedule,
-            skills: body.skills,
-            delivery: body.delivery,
-            clearRuntime: body.clearRuntime,
-            runtime: body.runtime,
-          }),
+          job:
+            nativeServices.cron?.update(id, {
+              name: body.name,
+              prompt: body.prompt,
+              schedule: body.schedule,
+              skills: body.skills,
+              delivery: body.delivery,
+              clearRuntime: body.clearRuntime,
+              runtime: body.runtime,
+            }) ??
+            context.services.cron.updateConfig(id, {
+              name: body.name,
+              prompt: body.prompt,
+              schedule: body.schedule,
+              skills: body.skills,
+              delivery: body.delivery,
+              clearRuntime: body.clearRuntime,
+              runtime: body.runtime,
+            }),
         });
       }
 
@@ -1614,15 +1672,20 @@ export function startApiServer(context: AppContext): void {
         if (!body.taskId) {
           return json({ error: "taskId is required" }, 400);
         }
-        const task = context.services.delegation
-          .list()
-          .find((entry) => entry.id === body.taskId);
-        if (!task) {
-          return json({ error: "Delegation task not found" }, 404);
-        }
-        return json({
-          path: context.services.skillSynthesis.synthesizeFromTask(task),
-        });
+        const path =
+          (await nativeServices.agentSkills?.synthesize(body.taskId)) ??
+          (() => {
+            const task = context.services.delegation
+              .list()
+              .find((entry) => entry.id === body.taskId);
+            if (!task) {
+              return null;
+            }
+            return context.services.skillSynthesis.synthesizeFromTask(task);
+          })();
+        return path
+          ? json({ path })
+          : json({ error: "Delegation task not found" }, 404);
       }
 
       if (
@@ -1640,16 +1703,18 @@ export function startApiServer(context: AppContext): void {
           notes?: string;
         };
         return json({
-          path: context.services.trajectories.exportDataset({
-            limit: body.limit ?? 200,
-            sessionId: body.sessionId,
-            role: body.role,
-            label: body.label,
-            purpose: body.purpose,
-            tags: body.tags,
-            mode: body.mode,
-            notes: body.notes,
-          }),
+          path:
+            nativeServices.trajectoryLogger?.exportLatest() ??
+            context.services.trajectories.exportDataset({
+              limit: body.limit ?? 200,
+              sessionId: body.sessionId,
+              role: body.role,
+              label: body.label,
+              purpose: body.purpose,
+              tags: body.tags,
+              mode: body.mode,
+              notes: body.notes,
+            }),
         });
       }
 
@@ -1722,9 +1787,11 @@ export function startApiServer(context: AppContext): void {
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw ? Number(limitRaw) : 20;
         return json({
-          bundles: context.services.trajectories.listBundles(
-            !Number.isNaN(limit) && limit > 0 ? limit : 20,
-          ),
+          bundles:
+            nativeServices.trajectoryLogger?.bundles() ??
+            context.services.trajectories.listBundles(
+              !Number.isNaN(limit) && limit > 0 ? limit : 20,
+            ),
         });
       }
 
@@ -1836,7 +1903,9 @@ export function startApiServer(context: AppContext): void {
         request.method === "GET" &&
         url.pathname === "/trajectories/compare/latest"
       ) {
-        const comparison = context.services.trajectories.compareLatest();
+        const comparison =
+          nativeServices.trajectoryLogger?.compareLatest() ??
+          context.services.trajectories.compareLatest();
         return comparison
           ? json({ comparison })
           : json(

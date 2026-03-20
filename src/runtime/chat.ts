@@ -11,6 +11,14 @@ import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
+import {
+  getEffectivePersonalityList,
+  getEffectiveShellHistory,
+  getEffectiveShellStatus,
+  getEffectiveSkills,
+  getNativeServices,
+  runEffectiveShellCommand,
+} from "@/runtime/native/service-bridge";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
   ChatTurnRequest,
@@ -827,10 +835,19 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/skills" || trimmed === "/skills list") {
-    const skills = context.services.skills.list();
+    const skills = getEffectiveSkills(
+      context.runtime,
+      context.services,
+    ) as Array<{
+      slug: string;
+      description?: string;
+    }>;
     return skills.length
       ? skills
-          .map((skill) => `- ${skill.slug}: ${skill.description}`)
+          .map(
+            (skill) =>
+              `- ${skill.slug}: ${skill.description ?? "No description available."}`,
+          )
           .join("\n")
       : "No skills found.";
   }
@@ -871,7 +888,10 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/skills show ")) {
     const slug = trimmed.replace("/skills show ", "").trim();
-    const skill = context.services.skills.get(slug);
+    const skill =
+      (getNativeServices(context.runtime).agentSkills?.get(slug) as
+        | { content?: string }
+        | undefined) ?? context.services.skills.get(slug);
     return skill ? skill.content : `Skill not found: ${slug}`;
   }
 
@@ -1032,19 +1052,34 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/cron" || trimmed === "/cron list") {
-    const jobs = context.services.cron.list();
+    const jobs =
+      (getNativeServices(context.runtime).cron?.list() as Array<{
+        id: string;
+        name: string;
+        status: string;
+        schedule: string;
+        nextRunAt?: string;
+        skills?: string[];
+        runtime?: { model?: string; personalityId?: string };
+      }>) ?? context.services.cron.list();
     return jobs.length
       ? jobs
           .map(
             (job) =>
-              `- ${job.id} ${job.name} [${job.status}] schedule="${job.schedule}" next=${job.nextRunAt ?? "n/a"} skills=${job.skills.join(",") || "none"} model=${job.runtime?.model ?? "default"} personality=${job.runtime?.personalityId ?? "active"}`,
+              `- ${job.id} ${job.name} [${job.status}] schedule="${job.schedule}" next=${job.nextRunAt ?? "n/a"} skills=${(job.skills ?? []).join(",") || "none"} model=${job.runtime?.model ?? "default"} personality=${job.runtime?.personalityId ?? "active"}`,
           )
           .join("\n")
       : "No cron jobs configured.";
   }
 
   if (trimmed === "/cron runs") {
-    const runs = context.services.cron.recentRuns(10);
+    const runs =
+      (getNativeServices(context.runtime).cron?.runs(10) as Array<{
+        jobName: string;
+        createdAt: string;
+        outputPath?: string;
+        output: string;
+      }>) ?? context.services.cron.recentRuns(10);
     return runs.length
       ? runs
           .map(
@@ -1142,15 +1177,22 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/personality list") {
-    return context.services.personalities
-      .list()
+    return (
+      getEffectivePersonalityList(context.runtime, context.services) as Array<{
+        id: string;
+        description: string;
+      }>
+    )
       .map((profile) => `- ${profile.id}: ${profile.description}`)
       .join("\n");
   }
 
   if (trimmed.startsWith("/personality set ")) {
     const id = trimmed.replace("/personality set ", "").trim();
-    const profile = context.services.personalities.setActive(id);
+    const profile =
+      (getNativeServices(context.runtime).personality?.activate(id) as
+        | { id: string; name: string }
+        | undefined) ?? context.services.personalities.setActive(id);
     return `Active personality set to ${profile.name}.`;
   }
 
@@ -1470,10 +1512,15 @@ async function buildCommandResponse(
 
   if (trimmed === "/execution" || trimmed === "/execution status") {
     const settings = context.services.settings.get().execution;
+    const native = await getEffectiveShellStatus(
+      context.runtime,
+      context.services,
+    );
     const health = await context.services.terminal.health();
     return JSON.stringify(
       {
         active: settings,
+        native,
         backends: health,
       },
       null,
@@ -1654,12 +1701,27 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/terminal" || trimmed === "/terminal recent") {
-    const commands = context.services.terminal.recent(10);
+    const commands = getEffectiveShellHistory(
+      context.runtime,
+      context.services,
+      10,
+    ) as Array<{
+      exitCode: number;
+      command: string;
+      backend?: string;
+      backendMode?: string;
+      backendEngine?: string;
+      timeoutMs?: number;
+      durationMs?: number;
+      timedOut?: boolean;
+      stdout?: string;
+      stderr?: string;
+    }>;
     return commands.length
       ? commands
           .map(
             (entry) =>
-              `- [${entry.exitCode}] ${entry.command}\n  backend=${entry.backend} mode=${entry.backendMode ?? "n/a"} engine=${entry.backendEngine ?? "n/a"} timeout=${entry.timeoutMs ?? "n/a"}ms duration=${entry.durationMs ?? "n/a"}ms timedOut=${entry.timedOut ? "yes" : "no"}\n  stdout=${entry.stdout.slice(0, 160) || "(empty)"}\n  stderr=${entry.stderr.slice(0, 160) || "(empty)"}`,
+              `- [${entry.exitCode}] ${entry.command}\n  backend=${entry.backend} mode=${entry.backendMode ?? "n/a"} engine=${entry.backendEngine ?? "n/a"} timeout=${entry.timeoutMs ?? "n/a"}ms duration=${entry.durationMs ?? "n/a"}ms timedOut=${entry.timedOut ? "yes" : "no"}\n  stdout=${entry.stdout?.slice(0, 160) || "(empty)"}\n  stderr=${entry.stderr?.slice(0, 160) || "(empty)"}`,
           )
           .join("\n")
       : "No terminal commands recorded.";
@@ -1670,7 +1732,16 @@ async function buildCommandResponse(
     if (!command) {
       return "Usage: /terminal run <command>";
     }
-    const result = await context.services.terminal.run(command);
+    const result = (await runEffectiveShellCommand(
+      context.runtime,
+      context.services,
+      command,
+    )) as {
+      command: string;
+      exitCode: number;
+      stdout?: string;
+      stderr?: string;
+    };
     return [
       `Command: ${result.command}`,
       `Exit: ${result.exitCode}`,
@@ -2108,6 +2179,12 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/delegate queue" || trimmed.startsWith("/delegate queue ")) {
+    const nativeQueue = getNativeServices(
+      context.runtime,
+    ).agentOrchestrator?.queue();
+    if (trimmed === "/delegate queue" && nativeQueue) {
+      return JSON.stringify(nativeQueue, null, 2);
+    }
     const raw =
       trimmed === "/delegate queue"
         ? ""
@@ -2449,7 +2526,12 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories export") {
-    return context.services.trajectories.exportRecent(200);
+    const nativeExport = getNativeServices(
+      context.runtime,
+    ).trajectoryLogger?.exportLatest();
+    return typeof nativeExport === "string"
+      ? nativeExport
+      : context.services.trajectories.exportRecent(200);
   }
 
   if (trimmed.startsWith("/trajectories export ")) {
@@ -2559,7 +2641,15 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories list") {
-    const bundles = context.services.trajectories.listBundles(10);
+    const bundles =
+      (getNativeServices(context.runtime).trajectoryLogger?.bundles() as Array<{
+        label: string;
+        createdAt: string;
+        messageCount: number;
+        sessionCount: number;
+        filters?: { sessionId?: string | null; role?: string | null };
+        dataPath?: string;
+      }>) ?? context.services.trajectories.listBundles(10);
     return bundles.length
       ? bundles
           .map(
@@ -2578,7 +2668,9 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories compare latest") {
-    const comparison = context.services.trajectories.compareLatest();
+    const comparison =
+      getNativeServices(context.runtime).trajectoryLogger?.compareLatest() ??
+      context.services.trajectories.compareLatest();
     return comparison
       ? JSON.stringify(comparison, null, 2)
       : "At least two trajectory bundles are required for comparison.";
