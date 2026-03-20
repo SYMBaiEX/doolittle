@@ -361,6 +361,11 @@ Useful commands:
 - `/runtime status`
 - `/doctor`
 - `/setup checklist`
+- `/setup summary`
+- `/update preview`
+- `/migrate scan`
+- `/migrate inspect /path/to/legacy-agent-home`
+- `/migrate apply /path/to/legacy-agent-home :: overwrite=true`
 - `/web fetch https://example.com`
 - `/media inspect ./characters/eliza-agent.character.json`
 - `/media transcribe ./recordings/daily-sync.wav`
@@ -424,6 +429,11 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /mcp/invoke-tool`
 - `GET /doctor`
 - `GET /setup/checklist`
+- `GET /setup/summary`
+- `GET /update/preview`
+- `GET /migrate/sources`
+- `GET /migrate/inspect?path=/path/to/source`
+- `POST /migrate/apply`
 - `GET /workspace/tree`
 - `GET /workspace/read`
 - `GET /workspace/search`

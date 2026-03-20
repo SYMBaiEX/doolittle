@@ -204,6 +204,46 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/setup/summary") {
+        return json({
+          summary: await context.services.operator.setupSummary(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/update/preview") {
+        return json({
+          update: await context.services.operator.updatePreview(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/migrate/sources") {
+        return json({
+          sources: context.services.operator.migrationSources(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/migrate/inspect") {
+        const sourcePath = url.searchParams.get("path");
+        if (!sourcePath) {
+          return json({ error: "path is required" }, 400);
+        }
+        return json({
+          inspection: context.services.operator.inspectMigrationSource(sourcePath),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/migrate/apply") {
+        const body = (await request.json()) as { path?: string; overwrite?: boolean };
+        if (!body.path) {
+          return json({ error: "path is required" }, 400);
+        }
+        return json({
+          result: context.services.operator.applyMigration(body.path, {
+            overwrite: body.overwrite,
+          }),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/memory") {
         const target = url.searchParams.get("target") === "user" ? "user" : "memory";
         return json({
