@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -170,6 +171,10 @@ interface GatewayHistoryFilter {
 
 interface GatewayPlatformState {
   platform: PlatformName;
+  nativePluginId?: string;
+  nativePluginSource?: "official" | "vendored" | "custom";
+  nativePluginEnabled?: boolean;
+  nativePluginNotes?: string;
   status: PlatformHealth["status"];
   mode: PlatformHealth["mode"];
   ready: boolean;
@@ -300,6 +305,13 @@ export class GatewayRunner {
   private stoppedAt?: string;
   private lastHeartbeatAt?: string;
 
+  private resolveNativeMessagingPlugin(platform: PlatformName) {
+    const suffix = `.${platform}`;
+    return getNativePluginCatalog(this.context.config).find(
+      (entry) => entry.category === "messaging" && entry.id.endsWith(suffix),
+    );
+  }
+
   constructor(private readonly context: AppContext) {
     this.snapshotDir = join(this.context.config.gatewayDataDir, "snapshots");
     this.journalDir = join(this.context.config.gatewayDataDir, "journals");
@@ -377,6 +389,10 @@ export class GatewayRunner {
     };
     const created: GatewayPlatformState = {
       platform,
+      nativePluginId: this.resolveNativeMessagingPlugin(platform)?.id,
+      nativePluginSource: this.resolveNativeMessagingPlugin(platform)?.source,
+      nativePluginEnabled: this.resolveNativeMessagingPlugin(platform)?.enabled,
+      nativePluginNotes: this.resolveNativeMessagingPlugin(platform)?.notes,
       status: "stopped",
       mode: "mock",
       ready: false,
@@ -428,6 +444,11 @@ export class GatewayRunner {
     health: PlatformHealth,
   ): GatewayPlatformState {
     const state = this.ensurePlatformState(health.platform);
+    const nativePlugin = this.resolveNativeMessagingPlugin(health.platform);
+    state.nativePluginId = nativePlugin?.id;
+    state.nativePluginSource = nativePlugin?.source;
+    state.nativePluginEnabled = nativePlugin?.enabled;
+    state.nativePluginNotes = nativePlugin?.notes;
     state.status = health.status;
     state.mode = health.mode;
     state.ready = health.ready;
@@ -976,6 +997,10 @@ export class GatewayRunner {
       const latestAttachment = platformAttachments.at(-1);
       return {
         platform: entry.platform,
+        nativePluginId: state.nativePluginId,
+        nativePluginSource: state.nativePluginSource,
+        nativePluginEnabled: state.nativePluginEnabled,
+        nativePluginNotes: state.nativePluginNotes,
         status: entry.status,
         mode: entry.mode,
         ready: entry.ready,
