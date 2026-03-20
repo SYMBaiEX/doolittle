@@ -18,12 +18,23 @@ export class DeliveryService {
     }
   }
 
-  deliver(target: DeliveryTarget, text: string): DeliveredMessageRecord {
+  deliver(
+    target: DeliveryTarget,
+    text: string,
+    extras?: {
+      threadId?: string;
+      replyToId?: string;
+      metadata?: Record<string, string>;
+    },
+  ): DeliveredMessageRecord {
     const store = this.read();
     const record: DeliveredMessageRecord = {
       id: randomUUID(),
       target,
       text,
+      threadId: extras?.threadId,
+      replyToId: extras?.replyToId,
+      metadata: extras?.metadata,
       createdAt: new Date().toISOString(),
     };
     store.messages.push(record);

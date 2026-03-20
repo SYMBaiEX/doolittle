@@ -30,6 +30,7 @@ export class DelegationService {
     title: string;
     objective: string;
     executionMode?: "local" | "delegated";
+    maxAttempts?: number;
   }): DelegationTaskRecord {
     const store = this.read();
     const now = new Date().toISOString();
@@ -41,6 +42,7 @@ export class DelegationService {
       executionMode: input.executionMode ?? "local",
       workerMode: input.executionMode === "delegated" ? "process" : "inline",
       attempts: 0,
+      maxAttempts: input.maxAttempts ?? 3,
       notes: [],
       createdAt: now,
       updatedAt: now,
@@ -65,7 +67,11 @@ export class DelegationService {
   }
 
   pending(): DelegationTaskRecord[] {
-    return this.read().tasks.filter((task) => task.status === "pending");
+    return this.read().tasks.filter(
+      (task) =>
+        task.status === "pending" ||
+        (task.status === "failed" && (task.attempts ?? 0) < (task.maxAttempts ?? 3)),
+    );
   }
 
   markRunning(id: string): DelegationTaskRecord {
@@ -108,12 +114,35 @@ export class DelegationService {
     });
   }
 
+  cancel(id: string, note?: string): DelegationTaskRecord {
+    return this.update(id, (task) => {
+      task.status = "cancelled";
+      task.workerPid = undefined;
+      task.completedAt = new Date().toISOString();
+      if (note) {
+        task.notes.push(note);
+      }
+    });
+  }
+
+  requeue(id: string, note?: string): DelegationTaskRecord {
+    return this.update(id, (task) => {
+      task.status = "pending";
+      task.workerPid = undefined;
+      task.startedAt = undefined;
+      task.completedAt = undefined;
+      if (note) {
+        task.notes.push(note);
+      }
+    });
+  }
+
   async executeQueued(
     runner: (task: DelegationTaskRecord) => Promise<string>,
     options?: { concurrency?: number; onComplete?: (task: DelegationTaskRecord) => Promise<void> | void },
   ): Promise<DelegationTaskRecord[]> {
     const concurrency = options?.concurrency ?? 2;
-    const pending = this.read().tasks.filter((task) => task.status === "pending");
+    const pending = this.pending();
     const completed: DelegationTaskRecord[] = [];
 
     for (const task of pending) {

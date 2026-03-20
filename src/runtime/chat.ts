@@ -476,6 +476,18 @@ async function buildCommandResponse(
       : "No delegation tasks recorded.";
   }
 
+  if (trimmed === "/delegate queue") {
+    const tasks = context.services.delegation.pending().slice(0, 20);
+    return tasks.length
+      ? tasks
+          .map(
+            (task) =>
+              `- ${task.id} ${task.title} [${task.status}] attempts=${task.attempts ?? 0}/${task.maxAttempts ?? 3}`,
+          )
+          .join("\n")
+      : "No queued delegation tasks.";
+  }
+
   if (trimmed.startsWith("/delegate create ")) {
     const payload = trimmed.replace("/delegate create ", "");
     const [title, objective] = payload.split("::").map((part) => part.trim());
@@ -497,6 +509,11 @@ async function buildCommandResponse(
       return "Usage: /delegate note <id> :: <note>";
     }
     return JSON.stringify(context.services.delegation.addNote(id, note), null, 2);
+  }
+
+  if (trimmed.startsWith("/delegate status ")) {
+    const id = trimmed.replace("/delegate status ", "").trim();
+    return JSON.stringify(context.services.delegation.get(id), null, 2);
   }
 
   if (trimmed.startsWith("/delegate run ")) {
@@ -540,6 +557,24 @@ async function buildCommandResponse(
           )
           .join("\n")
       : "No delegated worker tasks recorded.";
+  }
+
+  if (trimmed.startsWith("/delegate retry ")) {
+    const payload = trimmed.replace("/delegate retry ", "");
+    const [id, note] = payload.split("::").map((part) => part.trim());
+    if (!id) {
+      return "Usage: /delegate retry <id> :: <optional note>";
+    }
+    return JSON.stringify(context.services.delegation.requeue(id, note || "Requeued for retry."), null, 2);
+  }
+
+  if (trimmed.startsWith("/delegate cancel ")) {
+    const payload = trimmed.replace("/delegate cancel ", "");
+    const [id, note] = payload.split("::").map((part) => part.trim());
+    if (!id) {
+      return "Usage: /delegate cancel <id> :: <optional note>";
+    }
+    return JSON.stringify(context.services.delegation.cancel(id, note || "Cancelled by operator."), null, 2);
   }
 
   if (trimmed.startsWith("/delegate complete ")) {

@@ -1,5 +1,6 @@
 import type { EnvConfig, PlatformName } from "@/types";
 import type { DeliveryService } from "@/services/delivery-service";
+import type { OutboundPlatformMessage } from "@/types";
 import { capabilitiesForPlatform, type PlatformAdapter, type PlatformHealth } from "./base";
 
 export class WhatsAppPlatformAdapter implements PlatformAdapter {
@@ -40,14 +41,7 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
     };
   }
 
-  async send(message: {
-    roomId: string;
-    userId?: string;
-    text: string;
-    threadId?: string;
-    replyToId?: string;
-    metadata?: Record<string, string>;
-  }): Promise<void> {
+  async send(message: OutboundPlatformMessage): Promise<void> {
     if (!this.config.whatsappAccessToken || !this.config.whatsappPhoneNumberId) {
       throw new Error("WhatsApp credentials are not configured.");
     }
@@ -86,6 +80,11 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
         mode: "explicit",
       },
       message.text,
+      {
+        threadId: message.threadId,
+        replyToId: message.replyToId,
+        metadata: message.metadata,
+      },
     );
   }
 

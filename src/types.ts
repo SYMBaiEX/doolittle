@@ -187,6 +187,7 @@ export interface SessionRoute {
   replyToMessageId?: string;
   channelType?: string;
   authorName?: string;
+  metadata?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -211,6 +212,9 @@ export interface DeliveredMessageRecord {
   id: string;
   target: DeliveryTarget;
   text: string;
+  threadId?: string;
+  replyToId?: string;
+  metadata?: Record<string, string>;
   createdAt: string;
 }
 
@@ -293,11 +297,12 @@ export interface DelegationTaskRecord {
   id: string;
   title: string;
   objective: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   executionMode: "local" | "delegated";
   workerMode?: "inline" | "process";
   workerPid?: number;
   attempts?: number;
+  maxAttempts?: number;
   startedAt?: string;
   lastOutputPath?: string;
   notes: string[];
