@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
@@ -55,6 +55,7 @@ describe("GatewayRunner", () => {
       const history = await runner.history(10);
       const apiTraces = runner.trace(10, { platform: "api" });
       const state = await runner.state(10, { platform: "api" });
+      const heartbeatState = await runner.heartbeat("manual");
       const health = await runner.health();
       const apiHealth = health.find((entry) => entry.platform === "api");
 
@@ -72,6 +73,15 @@ describe("GatewayRunner", () => {
       const apiState = state.platforms.find((entry) => entry.platform === "api");
       expect(apiState?.lastOutboundRoomId).toBe("room-1");
       expect(apiState?.lastOutboundUserId).toBe("user-1");
+      expect(apiState?.receiveCount).toBeGreaterThan(0);
+      expect(apiState?.routeCount).toBeGreaterThan(0);
+      expect(apiState?.respondCount).toBeGreaterThan(0);
+      expect(apiState?.heartbeatCount).toBeGreaterThan(0);
+      expect(apiState?.presence.status).toBe("online");
+      expect(apiState?.lastReceivedAt).toBeDefined();
+      expect(apiState?.lastRoutedAt).toBeDefined();
+      expect(apiState?.lastRespondedAt).toBeDefined();
+      expect(apiState?.lastHeartbeatAt).toBeDefined();
       expect(apiState?.traceCount).toBeGreaterThan(0);
       expect(apiState?.lastTraceKind).toBe("deliver");
       expect(state.totals.totalTraces).toBeGreaterThanOrEqual(apiTraces.length);
@@ -79,10 +89,21 @@ describe("GatewayRunner", () => {
       expect(state.tracesByPlatform.some((entry) => entry.platform === "api")).toBe(true);
       expect(state.totals.recentDeliveries).toBeGreaterThan(0);
       expect(state.deliveriesByPlatform.some((entry) => entry.platform === "api")).toBe(true);
+      expect(state.heartbeatAt).toBeDefined();
+      expect(state.reason).toBe("history");
+      expect(existsSync(state.snapshotPath)).toBe(true);
+      expect(existsSync(state.historyPath)).toBe(true);
+      const snapshot = JSON.parse(readFileSync(state.snapshotPath, "utf8")) as {
+        reason?: string;
+        state?: { heartbeatAt?: string };
+      };
+      expect(snapshot.reason).toBe("health");
+      expect(snapshot.state?.heartbeatAt).toBeDefined();
+      expect(heartbeatState.platforms.some((entry) => entry.platform === "api")).toBe(true);
       expect(apiHealth?.events.length ?? 0).toBeGreaterThan(0);
-      expect(apiHealth?.events.some((event) => event.kind === "respond")).toBe(true);
-      expect(apiHealth?.events.some((event) => event.kind === "deliver")).toBe(true);
+      expect(apiHealth?.events.some((event) => event.kind === "heartbeat")).toBe(true);
       expect(apiHealth?.events.some((event) => event.kind === "health")).toBe(true);
+      expect(apiHealth?.presence?.status).toBeDefined();
     } finally {
       await runner.stop();
       rmSync(root, { recursive: true, force: true });

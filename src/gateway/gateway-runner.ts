@@ -2,12 +2,16 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { randomUUID } from "node:crypto";
+import { mkdirSync, writeFileSync, appendFileSync } from "node:fs";
+import { join } from "node:path";
 import { authorizeMessage } from "./authorization";
 import {
   capabilitiesForPlatform,
+  nowIso,
   type PlatformLifecycleEvent,
   type PlatformAdapter,
   type PlatformHealth,
+  type PlatformPresenceState,
 } from "./platforms/base";
 import { DiscordPlatformAdapter } from "./platforms/discord-adapter";
 import { EmailPlatformAdapter } from "./platforms/email-adapter";
@@ -43,6 +47,7 @@ interface GatewayTraceRecord {
     | "route"
     | "respond"
     | "deliver"
+    | "heartbeat"
     | "reject"
     | "lifecycle";
   platform: PlatformName | "gateway";
@@ -69,7 +74,15 @@ interface GatewayPlatformState {
   mode: PlatformHealth["mode"];
   ready: boolean;
   detail: string;
+  presence: PlatformPresenceState;
   sendCount: number;
+  receiveCount: number;
+  routeCount: number;
+  respondCount: number;
+  heartbeatCount: number;
+  authorizeCount: number;
+  rejectCount: number;
+  lastError?: string;
   lastDeliveryAt?: string;
   lastDeliveryId?: string;
   lastOutboundRoomId?: string;
@@ -77,16 +90,29 @@ interface GatewayPlatformState {
   lastOutboundThreadId?: string;
   lastOutboundReplyToId?: string;
   lastOutboundMetadataKeys?: string[];
+  lastReceivedAt?: string;
+  lastRoutedAt?: string;
+  lastRespondedAt?: string;
+  lastHeartbeatAt?: string;
+  lastSessionId?: string;
+  lastRoomId?: string;
+  lastUserId?: string;
   eventCount: number;
   lastEventAt?: string;
   lastEventKind?: PlatformLifecycleEvent["kind"];
+  lastEventDetail?: string;
   traceCount: number;
   lastTraceAt?: string;
   lastTraceKind?: GatewayTraceRecord["kind"];
   lastTraceDetail?: string;
+  lastUpdatedAt?: string;
 }
 
 interface GatewayHistorySnapshot {
+  updatedAt: string;
+  reason: string;
+  snapshotPath: string;
+  historyPath: string;
   readiness: PlatformHealth[];
   traces: GatewayTraceRecord[];
   deliveries: DeliveredMessageRecord[];
@@ -96,6 +122,11 @@ interface GatewayHistorySnapshot {
 
 interface GatewayStateSnapshot {
   running: boolean;
+  updatedAt: string;
+  reason: string;
+  heartbeatAt?: string;
+  snapshotPath: string;
+  historyPath: string;
   totals: {
     configuredPlatforms: number;
     activeAdapters: number;
@@ -117,9 +148,19 @@ interface GatewayStateSnapshot {
 export class GatewayRunner {
   private readonly adapters = new Map<PlatformName, PlatformAdapter>();
   private readonly traceLog: GatewayTraceRecord[] = [];
+  private readonly platformStates = new Map<PlatformName, GatewayPlatformState>();
+  private readonly snapshotDir: string;
+  private readonly snapshotPath: string;
+  private readonly snapshotHistoryPath: string;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
-  constructor(private readonly context: AppContext) {}
+  constructor(private readonly context: AppContext) {
+    this.snapshotDir = join(this.context.config.gatewayDataDir, "snapshots");
+    this.snapshotPath = join(this.snapshotDir, "gateway-state.json");
+    this.snapshotHistoryPath = join(this.snapshotDir, "gateway-state-history.jsonl");
+    mkdirSync(this.snapshotDir, { recursive: true });
+  }
 
   private async observeAdapter(
     platform: PlatformName,
@@ -130,6 +171,327 @@ export class GatewayRunner {
       return;
     }
     await adapter.observe(event);
+  }
+
+  private ensurePlatformState(platform: PlatformName): GatewayPlatformState {
+    const existing = this.platformStates.get(platform);
+    if (existing) {
+      return existing;
+    }
+
+    const presence: PlatformPresenceState = {
+      status: "offline",
+      activity: `${platform} transport idle`,
+    };
+    const created: GatewayPlatformState = {
+      platform,
+      status: "stopped",
+      mode: "mock",
+      ready: false,
+      detail: `${platform} transport has not been initialized yet.`,
+      presence,
+      sendCount: 0,
+      receiveCount: 0,
+      routeCount: 0,
+      respondCount: 0,
+      heartbeatCount: 0,
+      authorizeCount: 0,
+      rejectCount: 0,
+      eventCount: 0,
+      traceCount: 0,
+    };
+    this.platformStates.set(platform, created);
+    return created;
+  }
+
+  private snapshotPresence(
+    status: PlatformPresenceState["status"],
+    activity: string,
+    lastHeartbeatAt?: string,
+  ): PlatformPresenceState {
+    return {
+      status,
+      activity,
+      lastHeartbeatAt,
+      lastPresenceChangeAt: nowIso(),
+    };
+  }
+
+  private syncPlatformStateFromHealth(health: PlatformHealth): GatewayPlatformState {
+    const state = this.ensurePlatformState(health.platform);
+    state.status = health.status;
+    state.mode = health.mode;
+    state.ready = health.ready;
+    state.detail = health.detail;
+    state.sendCount = health.sendCount ?? state.sendCount;
+    state.lastDeliveryAt = health.lastDeliveryAt ?? state.lastDeliveryAt;
+    state.lastDeliveryId = health.lastDeliveryId ?? state.lastDeliveryId;
+    state.lastOutboundRoomId = health.lastOutboundRoomId ?? state.lastOutboundRoomId;
+    state.lastOutboundUserId = health.lastOutboundUserId ?? state.lastOutboundUserId;
+    state.lastOutboundThreadId = health.lastOutboundThreadId ?? state.lastOutboundThreadId;
+    state.lastOutboundReplyToId = health.lastOutboundReplyToId ?? state.lastOutboundReplyToId;
+    state.lastOutboundMetadataKeys = health.lastOutboundMetadataKeys ?? state.lastOutboundMetadataKeys;
+    state.lastReceivedAt = health.lastReceivedAt ?? state.lastReceivedAt;
+    state.lastRoutedAt = health.lastRoutedAt ?? state.lastRoutedAt;
+    state.lastRespondedAt = health.lastRespondedAt ?? state.lastRespondedAt;
+    state.lastHeartbeatAt = health.lastHeartbeatAt ?? state.lastHeartbeatAt;
+    state.lastError = health.lastError;
+    state.presence = health.presence ?? state.presence;
+    state.eventCount = health.events.length;
+    state.lastEventAt = health.events[0]?.at ?? state.lastEventAt;
+    state.lastEventKind = health.events[0]?.kind ?? state.lastEventKind;
+    state.lastEventDetail = health.events[0]?.detail ?? state.lastEventDetail;
+    state.lastUpdatedAt = nowIso();
+    return state;
+  }
+
+  private updatePlatformStateFromTrace(entry: GatewayTraceRecord): void {
+    if (entry.platform === "gateway") {
+      return;
+    }
+
+    const state = this.ensurePlatformState(entry.platform);
+    state.traceCount += 1;
+    state.lastTraceAt = entry.at;
+    state.lastTraceKind = entry.kind;
+    state.lastTraceDetail = entry.detail;
+    state.lastUpdatedAt = entry.at;
+    state.lastRoomId = entry.roomId ?? state.lastRoomId;
+    state.lastUserId = entry.userId ?? state.lastUserId;
+    state.lastSessionId = entry.sessionId ?? state.lastSessionId;
+
+    switch (entry.kind) {
+      case "receive":
+        state.receiveCount += 1;
+        state.lastReceivedAt = entry.at;
+        state.presence = this.snapshotPresence(
+          "online",
+          `Receiving traffic on ${entry.platform}`,
+          entry.at,
+        );
+        break;
+      case "authorize":
+        state.authorizeCount += 1;
+        state.presence = this.snapshotPresence(
+          state.presence.status === "offline" ? "away" : state.presence.status,
+          `Authorization in progress for ${entry.platform}`,
+          state.lastHeartbeatAt,
+        );
+        break;
+      case "session":
+        state.presence = this.snapshotPresence(
+          "online",
+          `Session ${entry.sessionId ?? "unknown"} active on ${entry.platform}`,
+          state.lastHeartbeatAt,
+        );
+        break;
+      case "route":
+        state.routeCount += 1;
+        state.lastRoutedAt = entry.at;
+        state.presence = this.snapshotPresence(
+          "online",
+          `Routing traffic for session ${entry.sessionId ?? "unknown"}`,
+          state.lastHeartbeatAt,
+        );
+        break;
+      case "respond":
+        state.respondCount += 1;
+        state.lastRespondedAt = entry.at;
+        state.presence = this.snapshotPresence(
+          "online",
+          `Responding through ${entry.platform}`,
+          state.lastHeartbeatAt,
+        );
+        break;
+      case "deliver":
+        state.lastDeliveryAt = entry.at;
+        state.lastDeliveryId = entry.deliveryId ?? state.lastDeliveryId;
+        break;
+      case "heartbeat":
+        state.heartbeatCount += 1;
+        state.lastHeartbeatAt = entry.at;
+        state.presence = this.snapshotPresence("online", `${entry.platform} heartbeat`, entry.at);
+        break;
+      case "reject":
+        state.rejectCount += 1;
+        state.presence = this.snapshotPresence("away", `${entry.platform} rejected or paused`, state.lastHeartbeatAt);
+        break;
+      case "lifecycle":
+        state.presence = this.snapshotPresence(
+          state.status === "running" ? "online" : "offline",
+          entry.detail,
+          state.lastHeartbeatAt,
+        );
+        break;
+      default:
+        break;
+    }
+  }
+
+  private async persistSnapshot(reason: string, snapshot: GatewayHistorySnapshot): Promise<void> {
+    const persistedAt = new Date().toISOString();
+    const payload = {
+      persistedAt,
+      ...snapshot,
+    };
+    writeFileSync(this.snapshotPath, JSON.stringify(payload, null, 2), "utf8");
+    appendFileSync(
+      this.snapshotHistoryPath,
+      `${JSON.stringify({
+        persistedAt,
+        reason,
+        state: snapshot.state,
+      })}\n`,
+      "utf8",
+    );
+  }
+
+  private async collectReadiness(): Promise<PlatformHealth[]> {
+    const configuredPlatforms = Object.keys(this.context.services.gatewayConfig.platforms) as PlatformName[];
+    const known = new Set(this.adapters.keys());
+    const startedHealth = await Promise.all(
+      Array.from(this.adapters.values()).map(async (adapter) => {
+        const health = await adapter.health();
+        this.syncPlatformStateFromHealth(health);
+        return this.mergePlatformState(health);
+      }),
+    );
+    const inactiveHealth: PlatformHealth[] = configuredPlatforms
+      .filter((platform) => !known.has(platform))
+      .map((platform) => {
+        const mode: PlatformHealth["mode"] = platform === "telegram" ? "native" : "mock";
+        const inactive = {
+          platform,
+          status: "stopped" as const,
+          ready: false,
+          mode,
+          capabilities: capabilitiesForPlatform(platform),
+          detail: this.describeInactivePlatform(platform),
+          events: [
+            {
+              at: new Date().toISOString(),
+              kind: "health" as const,
+              detail: this.describeInactivePlatform(platform),
+            },
+          ],
+          presence: {
+            status: "offline" as const,
+            activity: `${platform} transport is inactive`,
+            lastPresenceChangeAt: new Date().toISOString(),
+          },
+        };
+        this.syncPlatformStateFromHealth(inactive);
+        return this.mergePlatformState(inactive);
+      });
+    return [...startedHealth, ...inactiveHealth];
+  }
+
+  private mergePlatformState(health: PlatformHealth): PlatformHealth {
+    const state = this.ensurePlatformState(health.platform);
+    return {
+      ...health,
+      lastSendAt: health.lastSendAt ?? state.lastUpdatedAt,
+      lastDeliveryAt: health.lastDeliveryAt ?? state.lastDeliveryAt,
+      lastDeliveryId: health.lastDeliveryId ?? state.lastDeliveryId,
+      lastOutboundRoomId: health.lastOutboundRoomId ?? state.lastOutboundRoomId,
+      lastOutboundUserId: health.lastOutboundUserId ?? state.lastOutboundUserId,
+      lastOutboundThreadId: health.lastOutboundThreadId ?? state.lastOutboundThreadId,
+      lastOutboundReplyToId: health.lastOutboundReplyToId ?? state.lastOutboundReplyToId,
+      lastOutboundMetadataKeys: health.lastOutboundMetadataKeys ?? state.lastOutboundMetadataKeys,
+      lastReceivedAt: health.lastReceivedAt ?? state.lastReceivedAt,
+      lastRoutedAt: health.lastRoutedAt ?? state.lastRoutedAt,
+      lastRespondedAt: health.lastRespondedAt ?? state.lastRespondedAt,
+      lastHeartbeatAt: health.lastHeartbeatAt ?? state.lastHeartbeatAt,
+      sendCount: health.sendCount ?? state.sendCount,
+      lastError: health.lastError ?? undefined,
+      presence: health.presence ?? state.presence,
+      events: health.events,
+    };
+  }
+
+  private buildStateSnapshot(
+    readiness: PlatformHealth[],
+    allTraces: GatewayTraceRecord[],
+    traces: GatewayTraceRecord[],
+    deliveries: DeliveredMessageRecord[],
+    sessions: SessionRoute[],
+    reason: string,
+  ): GatewayStateSnapshot {
+    const timestamp = new Date().toISOString();
+    const platformSummary = readiness.map((entry) => {
+      const platformTraces = allTraces.filter((trace) => trace.platform === entry.platform);
+      const latestTrace = platformTraces.at(-1);
+      const state = this.ensurePlatformState(entry.platform);
+      return {
+        platform: entry.platform,
+        status: entry.status,
+        mode: entry.mode,
+        ready: entry.ready,
+        detail: entry.detail,
+        presence: entry.presence ?? state.presence,
+        lastError: state.lastError,
+        sendCount: entry.sendCount ?? 0,
+        receiveCount: state.receiveCount,
+        routeCount: state.routeCount,
+        respondCount: state.respondCount,
+        heartbeatCount: state.heartbeatCount,
+        authorizeCount: state.authorizeCount,
+        rejectCount: state.rejectCount,
+        lastDeliveryAt: entry.lastDeliveryAt,
+        lastDeliveryId: entry.lastDeliveryId,
+        lastOutboundRoomId: entry.lastOutboundRoomId,
+        lastOutboundUserId: entry.lastOutboundUserId,
+        lastOutboundThreadId: entry.lastOutboundThreadId,
+        lastOutboundReplyToId: entry.lastOutboundReplyToId,
+        lastOutboundMetadataKeys: entry.lastOutboundMetadataKeys,
+        lastReceivedAt: entry.lastReceivedAt ?? state.lastReceivedAt,
+        lastRoutedAt: entry.lastRoutedAt ?? state.lastRoutedAt,
+        lastRespondedAt: entry.lastRespondedAt ?? state.lastRespondedAt,
+        lastHeartbeatAt: entry.lastHeartbeatAt ?? state.lastHeartbeatAt,
+        lastSessionId: state.lastSessionId,
+        lastRoomId: state.lastRoomId,
+        lastUserId: state.lastUserId,
+        eventCount: entry.events.length,
+        lastEventAt: entry.events[0]?.at,
+        lastEventKind: entry.events[0]?.kind,
+        lastEventDetail: entry.events[0]?.detail,
+        traceCount: platformTraces.length,
+        lastTraceAt: latestTrace?.at,
+        lastTraceKind: latestTrace?.kind,
+        lastTraceDetail: latestTrace?.detail,
+        lastUpdatedAt: state.lastUpdatedAt ?? timestamp,
+      };
+    });
+
+    return {
+      running: this.running,
+      updatedAt: timestamp,
+      reason,
+      heartbeatAt: this.platformStates.size > 0
+        ? Array.from(this.platformStates.values())
+            .map((state) => state.lastHeartbeatAt)
+            .filter(Boolean)
+            .at(-1)
+        : undefined,
+      snapshotPath: this.snapshotPath,
+      historyPath: this.snapshotHistoryPath,
+      totals: {
+        configuredPlatforms: readiness.length,
+        activeAdapters: readiness.filter((entry) => entry.status === "running").length,
+        readyAdapters: readiness.filter((entry) => entry.ready).length,
+        nativeAdapters: readiness.filter((entry) => entry.mode === "native").length,
+        mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
+        totalTraces: allTraces.length,
+        recentTraces: traces.length,
+        recentDeliveries: deliveries.length,
+        recentSessions: sessions.length,
+      },
+      platforms: platformSummary,
+      tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
+      tracesByPlatform: this.countByPlatform(allTraces, (trace) => trace.platform),
+      deliveriesByPlatform: this.countByPlatform(deliveries, (delivery) => delivery.target.platform),
+      sessionsByPlatform: this.countByPlatform(sessions, (session) => session.platform),
+    };
   }
 
   async start(): Promise<void> {
@@ -146,6 +508,8 @@ export class GatewayRunner {
       const adapter = this.createAdapter(platform as PlatformName);
       await adapter.start();
       this.adapters.set(platform as PlatformName, adapter);
+      const health = await adapter.health();
+      this.syncPlatformStateFromHealth(health);
       this.pushTrace({
         traceId: randomUUID(),
         at: new Date().toISOString(),
@@ -153,12 +517,24 @@ export class GatewayRunner {
         platform: platform as PlatformName,
         detail: `Adapter started for ${platform}.`,
       });
+      await this.observeAdapter(platform as PlatformName, {
+        at: new Date().toISOString(),
+        kind: "start",
+        detail: `Gateway runner registered live state for ${platform}.`,
+      });
     }
 
     this.running = true;
     await this.context.services.hooks.emit("gateway:startup", {
       platforms: Array.from(this.adapters.keys()).join(","),
     });
+    if (!this.heartbeatInterval) {
+      this.heartbeatInterval = setInterval(() => {
+        void this.heartbeat("interval");
+      }, 60_000);
+      this.heartbeatInterval.unref?.();
+    }
+    await this.heartbeat("startup");
   }
 
   private createAdapter(platform: PlatformName): PlatformAdapter {
@@ -223,9 +599,27 @@ export class GatewayRunner {
   }
 
   async stop(): Promise<void> {
-    for (const adapter of this.adapters.values()) {
-      await adapter.stop();
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
+
+    for (const [platform, adapter] of this.adapters.entries()) {
+      await adapter.stop();
+      this.pushTrace({
+        traceId: randomUUID(),
+        at: new Date().toISOString(),
+        kind: "lifecycle",
+        platform,
+        detail: `Adapter stopped for ${platform}.`,
+      });
+      await this.observeAdapter(platform, {
+        at: new Date().toISOString(),
+        kind: "stop",
+        detail: `Adapter stopped for ${platform}.`,
+      });
+    }
+
     this.pushTrace({
       traceId: randomUUID(),
       at: new Date().toISOString(),
@@ -233,11 +627,45 @@ export class GatewayRunner {
       platform: "gateway",
       detail: "Gateway stopped and all adapters were shut down.",
     });
-    this.adapters.clear();
     this.running = false;
     await this.context.services.hooks.emit("gateway:shutdown", {
       status: "stopped",
     });
+    await this.snapshotState("stop", 20);
+    this.adapters.clear();
+  }
+
+  async heartbeat(reason = "heartbeat"): Promise<GatewayStateSnapshot> {
+    const heartbeatAt = new Date().toISOString();
+    for (const platform of this.adapters.keys()) {
+      const detail = `${platform} transport heartbeat at ${heartbeatAt}.`;
+      this.pushTrace({
+        traceId: randomUUID(),
+        at: heartbeatAt,
+        kind: "heartbeat",
+        platform,
+        detail,
+      });
+      await this.observeAdapter(platform, {
+        at: heartbeatAt,
+        kind: "heartbeat",
+        detail,
+      });
+    }
+
+    this.pushTrace({
+      traceId: randomUUID(),
+      at: heartbeatAt,
+      kind: "heartbeat",
+      platform: "gateway",
+      detail: `Gateway heartbeat recorded for ${this.adapters.size} adapters.`,
+    });
+    await this.context.services.hooks.emit("gateway:heartbeat", {
+      status: this.running ? "running" : "stopped",
+      adapters: String(this.adapters.size),
+    });
+    const snapshot = await this.snapshotState(reason, 20);
+    return snapshot.state;
   }
 
   async receive(message: IncomingPlatformMessage): Promise<{
@@ -504,6 +932,8 @@ export class GatewayRunner {
       response,
     });
 
+    await this.snapshotState("receive", 20);
+
     return {
       ok: true,
       response,
@@ -514,29 +944,8 @@ export class GatewayRunner {
   }
 
   async health(): Promise<Array<PlatformHealth>> {
-    const configuredPlatforms = Object.keys(this.context.services.gatewayConfig.platforms) as PlatformName[];
-    const known = new Set(this.adapters.keys());
-    const startedHealth = await Promise.all(
-      Array.from(this.adapters.values()).map((adapter) => adapter.health()),
-    );
-    const inactiveHealth: PlatformHealth[] = configuredPlatforms
-      .filter((platform) => !known.has(platform))
-      .map((platform) => ({
-        platform,
-        status: "stopped",
-        ready: false,
-        mode: platform === "telegram" ? "native" : "mock",
-        capabilities: capabilitiesForPlatform(platform),
-        detail: this.describeInactivePlatform(platform),
-        events: [
-          {
-            at: new Date().toISOString(),
-            kind: "health",
-            detail: this.describeInactivePlatform(platform),
-          },
-        ],
-      }));
-    return [...startedHealth, ...inactiveHealth];
+    const snapshot = await this.snapshotState("health", 20);
+    return snapshot.readiness;
   }
 
   trace(limit = 20, filters?: GatewayHistoryFilter): GatewayTraceRecord[] {
@@ -548,73 +957,33 @@ export class GatewayRunner {
   }
 
   async history(limit = 20, filters?: GatewayHistoryFilter): Promise<GatewayHistorySnapshot> {
-    const readiness = await this.health();
+    return this.snapshotState("history", limit, filters);
+  }
+
+  private async snapshotState(
+    reason: string,
+    limit = 20,
+    filters?: GatewayHistoryFilter,
+  ): Promise<GatewayHistorySnapshot> {
+    const readiness = await this.collectReadiness();
     const allTraces = this.filteredTraces(filters);
     const traces = allTraces.slice(-limit).reverse();
     const deliveries = this.recentDeliveries(limit, filters?.platform);
     const sessions = this.recentSessions(limit, filters?.platform);
-    return {
+    const state = this.buildStateSnapshot(readiness, allTraces, traces, deliveries, sessions, reason);
+    const snapshot: GatewayHistorySnapshot = {
+      updatedAt: state.updatedAt,
+      reason,
+      snapshotPath: this.snapshotPath,
+      historyPath: this.snapshotHistoryPath,
       readiness,
       traces,
       deliveries,
       sessions,
-      state: this.buildStateSnapshot(readiness, allTraces, traces, deliveries, sessions),
+      state,
     };
-  }
-
-  private buildStateSnapshot(
-    readiness: PlatformHealth[],
-    allTraces: GatewayTraceRecord[],
-    traces: GatewayTraceRecord[],
-    deliveries: DeliveredMessageRecord[],
-    sessions: SessionRoute[],
-  ): GatewayStateSnapshot {
-    const platformSummary = readiness.map((entry) => {
-      const platformTraces = allTraces.filter((trace) => trace.platform === entry.platform);
-      const latestTrace = platformTraces.at(-1);
-      return {
-      platform: entry.platform,
-      status: entry.status,
-      mode: entry.mode,
-      ready: entry.ready,
-      detail: entry.detail,
-      sendCount: entry.sendCount ?? 0,
-      lastDeliveryAt: entry.lastDeliveryAt,
-      lastDeliveryId: entry.lastDeliveryId,
-      lastOutboundRoomId: entry.lastOutboundRoomId,
-      lastOutboundUserId: entry.lastOutboundUserId,
-      lastOutboundThreadId: entry.lastOutboundThreadId,
-      lastOutboundReplyToId: entry.lastOutboundReplyToId,
-      lastOutboundMetadataKeys: entry.lastOutboundMetadataKeys,
-      eventCount: entry.events.length,
-      lastEventAt: entry.events[0]?.at,
-      lastEventKind: entry.events[0]?.kind,
-      traceCount: platformTraces.length,
-      lastTraceAt: latestTrace?.at,
-      lastTraceKind: latestTrace?.kind,
-      lastTraceDetail: latestTrace?.detail,
-      };
-    });
-
-    return {
-      running: this.running,
-      totals: {
-        configuredPlatforms: readiness.length,
-        activeAdapters: readiness.filter((entry) => entry.status === "running").length,
-        readyAdapters: readiness.filter((entry) => entry.ready).length,
-        nativeAdapters: readiness.filter((entry) => entry.mode === "native").length,
-        mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
-        totalTraces: allTraces.length,
-        recentTraces: traces.length,
-        recentDeliveries: deliveries.length,
-        recentSessions: sessions.length,
-      },
-      platforms: platformSummary,
-      tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
-      tracesByPlatform: this.countByPlatform(allTraces, (trace) => trace.platform),
-      deliveriesByPlatform: this.countByPlatform(deliveries, (delivery) => delivery.target.platform),
-      sessionsByPlatform: this.countByPlatform(sessions, (session) => session.platform),
-    };
+    await this.persistSnapshot(reason, snapshot);
+    return snapshot;
   }
 
   private filteredTraces(filters?: GatewayHistoryFilter): GatewayTraceRecord[] {
@@ -702,6 +1071,7 @@ export class GatewayRunner {
 
   private pushTrace(entry: GatewayTraceRecord): void {
     this.traceLog.push(entry);
+    this.updatePlatformStateFromTrace(entry);
     if (this.traceLog.length > 200) {
       this.traceLog.splice(0, this.traceLog.length - 200);
     }
