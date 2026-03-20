@@ -66,7 +66,7 @@ describe("CronService", () => {
         prompt: "Updated prompt",
         schedule: "every 4h",
         skills: ["generated/status-audit"],
-        delivery: "origin",
+        delivery: "home",
         runtime: {
           provider: "anthropic",
           model: "claude-sonnet-4-20250514",
@@ -78,7 +78,7 @@ describe("CronService", () => {
       expect(updated.prompt).toBe("Updated prompt");
       expect(updated.schedule).toBe("every 4h");
       expect(updated.skills).toEqual(["generated/status-audit"]);
-      expect(updated.delivery).toBe("origin");
+      expect(updated.delivery).toBe("home");
       expect(updated.runtime?.provider).toBe("anthropic");
       expect(updated.runtime?.personalityId).toBe("focused");
       expect(updated.nextRunAt).toBeDefined();

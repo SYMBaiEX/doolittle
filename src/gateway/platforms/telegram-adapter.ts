@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
@@ -91,25 +92,28 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     }
 
     const apiRoot = this.config.telegramApiRoot ?? "https://api.telegram.org";
-    const response = await fetch(
-      `${apiRoot}/bot${this.config.telegramBotToken}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: message.roomId,
-          text: message.text,
-          ...(message.replyToId
-            ? {
-                reply_to_message_id:
-                  Number(message.replyToId) || message.replyToId,
-              }
-            : {}),
-        }),
-      },
-    );
+    const voicePath = this.resolveVoiceAttachment(message.metadata);
+    const response = voicePath
+      ? await this.sendVoice(apiRoot, message, voicePath)
+      : await fetch(
+          `${apiRoot}/bot${this.config.telegramBotToken}/sendMessage`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              chat_id: message.roomId,
+              text: message.text,
+              ...(message.replyToId
+                ? {
+                    reply_to_message_id:
+                      Number(message.replyToId) || message.replyToId,
+                  }
+                : {}),
+            }),
+          },
+        );
 
     if (!response.ok) {
       const body = await response.text();
@@ -147,6 +151,40 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       `Telegram delivery ${record.id} to ${message.roomId}${message.threadId ? ` thread=${message.threadId}` : ""}${message.replyToId ? ` replyTo=${message.replyToId}` : ""}.`,
     );
     return record;
+  }
+
+  private resolveVoiceAttachment(
+    metadata?: Record<string, string>,
+  ): string | undefined {
+    if (metadata?.audioAsVoice !== "true") {
+      return undefined;
+    }
+    const firstPath = metadata.attachmentUrls?.split("|").find(Boolean)?.trim();
+    if (!firstPath || !existsSync(firstPath)) {
+      return undefined;
+    }
+    return firstPath;
+  }
+
+  private async sendVoice(
+    apiRoot: string,
+    message: OutboundPlatformMessage,
+    voicePath: string,
+  ): Promise<Response> {
+    const form = new FormData();
+    form.set("chat_id", message.roomId);
+    form.set("caption", message.text);
+    form.set("voice", Bun.file(voicePath));
+    if (message.replyToId) {
+      form.set(
+        "reply_to_message_id",
+        String(Number(message.replyToId) || message.replyToId),
+      );
+    }
+    return fetch(`${apiRoot}/bot${this.config.telegramBotToken}/sendVoice`, {
+      method: "POST",
+      body: form,
+    });
   }
 
   canReceive(): boolean {

@@ -265,8 +265,10 @@ function parseCronSkills(value?: string): string[] | undefined {
   return skills.length ? skills : [];
 }
 
-function parseCronDelivery(value?: string): "origin" | "local" | undefined {
-  if (value === "origin" || value === "local") {
+function parseCronDelivery(
+  value?: string,
+): "origin" | "local" | "home" | undefined {
+  if (value === "origin" || value === "local" || value === "home") {
     return value;
   }
   return undefined;

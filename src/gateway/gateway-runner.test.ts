@@ -200,6 +200,20 @@ describe("GatewayRunner", () => {
         true,
       );
       expect(apiHealth?.presence?.status).toBeDefined();
+      if (!result.sessionId) {
+        throw new Error("Expected a gateway session id.");
+      }
+      context.services.gatewaySessions.markHome(result.sessionId, {
+        isHome: true,
+        label: "Primary API",
+      });
+      const homeDeliveries = await runner.sendToHomes("home-bound message", {
+        metadata: { source: "test" },
+        platforms: ["api"],
+      });
+      expect(homeDeliveries.length).toBe(1);
+      expect(homeDeliveries[0]?.text).toBe("home-bound message");
+      expect(homeDeliveries[0]?.metadata?.source).toBe("test");
       expect(
         state.platforms.some((entry) => entry.platform === "mattermost"),
       ).toBe(true);
