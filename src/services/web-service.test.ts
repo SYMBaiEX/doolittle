@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WebService } from "./web-service";
@@ -67,9 +67,13 @@ describe("WebService", () => {
         "data:text/html,<html><head><title>Shot</title></head><body><p>Artifact</p></body></html>",
       );
       const content = readFileSync(path, "utf8");
+      const metadata = readFileSync(path.replace(/\.md$/u, ".json"), "utf8");
       expect(content).toContain("Browser Screenshot");
       expect(content).toContain("Source: data:text/html");
       expect(content).toContain("Artifact");
+      expect(content).toContain("Content type:");
+      expect(existsSync(path.replace(/\.md$/u, ".json"))).toBe(true);
+      expect(metadata).toContain("\"contentHash\"");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -17,6 +17,7 @@ describe("MediaService", () => {
       expect(inspection.exists).toBe(false);
       expect(inspection.detail).toContain("does not exist");
       expect(inspection.mimeType).toBe("image/png");
+      expect(inspection.contentHash).toBeUndefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -35,6 +36,26 @@ describe("MediaService", () => {
       expect(inspection.width).toBe(1);
       expect(inspection.height).toBe(1);
       expect(inspection.detail).toContain("1x1");
+      expect(inspection.contentHash).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("adds preview and counters for text files", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-text-"));
+    const service = new MediaService(root);
+    const path = join(root, "notes.md");
+
+    try {
+      writeFileSync(path, "# Hello\n\nThis is a sample note.");
+      const inspection = service.inspect("notes.md");
+      expect(inspection.kind).toBe("document");
+      expect(inspection.lineCount).toBeGreaterThan(0);
+      expect(inspection.wordCount).toBeGreaterThan(0);
+      expect(inspection.textPreview).toContain("Hello");
+      expect(inspection.contentHash).toBeDefined();
+      expect(inspection.detail).toContain("words");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

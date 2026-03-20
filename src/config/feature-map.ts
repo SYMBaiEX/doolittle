@@ -54,7 +54,7 @@ export const featureMap: FeatureMapping[] = [
   {
     platformCapability: "Browser-backed web retrieval",
     elizaImplementation: "Web service with Lightpanda-first browser backend",
-    notes: "Uses Lightpanda as the default browser backend with graceful fallback to basic HTTP fetch mode, plus snapshot and screenshot-style artifact generation.",
+    notes: "Uses Lightpanda as the default browser backend with graceful fallback to basic HTTP fetch mode, plus snapshot and screenshot artifacts with metadata sidecars.",
   },
   {
     platformCapability: "Delegation task tracking",

@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 interface BrowserConfig {
@@ -28,6 +29,12 @@ interface WebPageSnapshot {
   provider: "lightpanda" | "basic";
   mode: "browser" | "fallback";
   renderedAt: string;
+  contentType: string;
+  wordCount: number;
+  lineCount: number;
+  linkCount: number;
+  headingCount: number;
+  contentHash: string;
 }
 
 async function runCommand(
@@ -80,6 +87,24 @@ function extractReadableText(html: string): { title?: string; text: string } {
   };
 }
 
+function buildPageMetrics(html: string, text: string): Omit<WebPageSnapshot, "url" | "title" | "text" | "provider" | "mode" | "renderedAt"> {
+  const contentType = "text/html";
+  const wordCount = text ? text.split(/\s+/u).filter(Boolean).length : 0;
+  const lineCount = text ? text.split(/\n/u).length : 0;
+  const linkCount = (html.match(/<a\b/giu) ?? []).length;
+  const headingCount = (html.match(/<h[1-6]\b/giu) ?? []).length;
+  const contentHash = createHash("sha256").update(html).digest("hex").slice(0, 16);
+
+  return {
+    contentType,
+    wordCount,
+    lineCount,
+    linkCount,
+    headingCount,
+    contentHash,
+  };
+}
+
 function writeArtifact(
   outputDir: string,
   prefix: "snapshot" | "screenshot",
@@ -94,12 +119,32 @@ function writeArtifact(
     `Provider: ${page.provider}`,
     `Mode: ${page.mode}`,
     `Rendered at: ${page.renderedAt}`,
+    `Content type: ${page.contentType}`,
+    `Words: ${page.wordCount}`,
+    `Lines: ${page.lineCount}`,
+    `Links: ${page.linkCount}`,
+    `Headings: ${page.headingCount}`,
+    `Hash: ${page.contentHash}`,
     "",
     ...notes,
     "",
     page.text,
   ].join("\n");
   writeFileSync(filePath, content, "utf8");
+
+  const metadataPath = filePath.replace(/\.md$/u, ".json");
+  writeFileSync(
+    metadataPath,
+    JSON.stringify(
+      {
+        ...page,
+        notes,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
   return filePath;
 }
 
@@ -149,9 +194,11 @@ export class WebService {
       try {
         const html = await this.fetchWithLightpanda(url, config);
         const readable = extractReadableText(html);
+        const metrics = buildPageMetrics(html, readable.text);
         return {
           url,
           ...readable,
+          ...metrics,
           provider: "lightpanda",
           mode: "browser",
           renderedAt: new Date().toISOString(),
@@ -163,9 +210,11 @@ export class WebService {
 
     const html = await this.fetchWithBasic(url);
     const readable = extractReadableText(html);
+    const metrics = buildPageMetrics(html, readable.text);
     return {
       url,
       ...readable,
+      ...metrics,
       provider: config.provider,
       mode: "fallback",
       renderedAt: new Date().toISOString(),
@@ -194,6 +243,7 @@ export class WebService {
       [
         "This is a lightweight screenshot artifact placeholder.",
         "When a pixel-level browser capture is available, this file can be replaced with a real image artifact.",
+        `Captured from ${page.provider} in ${page.mode} mode.`,
       ],
     );
   }

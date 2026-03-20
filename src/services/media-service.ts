@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, resolve } from "node:path";
 
@@ -11,6 +12,10 @@ export interface MediaInspection {
   exists: boolean;
   isDirectory: boolean;
   detail: string;
+  contentHash?: string;
+  textPreview?: string;
+  lineCount?: number;
+  wordCount?: number;
   width?: number;
   height?: number;
 }
@@ -76,6 +81,9 @@ export class MediaService {
     const kind = this.detectKind(extension);
     const imageDimensions =
       kind === "image" ? this.readImageDimensions(resolvedPath, extension) : undefined;
+    const contentHash = this.hashFile(resolvedPath);
+    const textMetadata =
+      kind === "document" ? this.readTextMetadata(resolvedPath, extension) : undefined;
 
     return {
       path: resolvedPath,
@@ -88,7 +96,13 @@ export class MediaService {
       isDirectory: false,
       detail: imageDimensions
         ? `Image file detected with dimensions ${imageDimensions.width}x${imageDimensions.height}.`
-        : `Detected as ${kind} (${mimeType}).`,
+        : textMetadata
+          ? `Detected as ${kind} (${mimeType}) with ${textMetadata.wordCount} words across ${textMetadata.lineCount} lines.`
+          : `Detected as ${kind} (${mimeType}).`,
+      contentHash,
+      textPreview: textMetadata?.preview,
+      lineCount: textMetadata?.lineCount,
+      wordCount: textMetadata?.wordCount,
       width: imageDimensions?.width,
       height: imageDimensions?.height,
     };
@@ -147,6 +161,31 @@ export class MediaService {
       return this.readJpegDimensions(bytes);
     }
 
+    if (extension === ".svg") {
+      const text = bytes.toString("utf8");
+      const widthMatch = text.match(/\bwidth="([\d.]+)(px)?"/iu);
+      const heightMatch = text.match(/\bheight="([\d.]+)(px)?"/iu);
+      const viewBoxMatch = text.match(/\bviewBox="([\d.\s-]+)"/iu);
+      if (widthMatch && heightMatch) {
+        return {
+          width: Number(widthMatch[1]),
+          height: Number(heightMatch[1]),
+        };
+      }
+      if (viewBoxMatch) {
+        const parts = viewBoxMatch[1]
+          .split(/\s+/u)
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value));
+        if (parts.length === 4) {
+          return {
+            width: parts[2],
+            height: parts[3],
+          };
+        }
+      }
+    }
+
     return undefined;
   }
 
@@ -188,5 +227,29 @@ export class MediaService {
     }
 
     return undefined;
+  }
+
+  private readTextMetadata(
+    path: string,
+    extension: string,
+  ): { preview: string; lineCount: number; wordCount: number } | undefined {
+    if (![".txt", ".md", ".json"].includes(extension)) {
+      return undefined;
+    }
+
+    const content = readFileSync(path, "utf8");
+    const preview = content.slice(0, 512).trim();
+    const lineCount = content ? content.split(/\n/u).length : 0;
+    const wordCount = content ? content.split(/\s+/u).filter(Boolean).length : 0;
+    return {
+      preview,
+      lineCount,
+      wordCount,
+    };
+  }
+
+  private hashFile(path: string): string {
+    const bytes = readFileSync(path);
+    return createHash("sha256").update(bytes).digest("hex").slice(0, 16);
   }
 }
