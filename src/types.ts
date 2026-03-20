@@ -270,6 +270,11 @@ export interface SessionRoute {
   channelType?: string;
   authorName?: string;
   metadata?: Record<string, string>;
+  voiceMode?: "off" | "voice_only" | "all";
+  voiceChannelId?: string;
+  voiceChannelState?: "disconnected" | "connected";
+  isHome?: boolean;
+  homeLabel?: string;
   createdAt: string;
   updatedAt: string;
 }

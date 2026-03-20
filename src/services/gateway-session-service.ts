@@ -1,9 +1,52 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { IncomingPlatformMessage, SessionRoute } from "@/types";
+import type {
+  IncomingPlatformMessage,
+  PlatformName,
+  SessionRoute,
+} from "@/types";
 
 interface SessionRouteStore {
   sessions: SessionRoute[];
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function createSessionRoute(message: IncomingPlatformMessage): SessionRoute {
+  return {
+    sessionKey: [
+      message.platform,
+      message.roomId,
+      message.userId,
+      message.threadId ?? message.replyToMessageId ?? "root",
+    ].join(":"),
+    roomId: message.roomId,
+    userId: message.userId,
+    platform: message.platform,
+    channelId: message.channelId,
+    threadId: message.threadId,
+    messageId: message.messageId,
+    replyToMessageId: message.replyToMessageId,
+    channelType: message.channelType,
+    authorName: message.authorName,
+    metadata: message.metadata,
+    voiceMode: "off",
+    voiceChannelState: "disconnected",
+    isHome: false,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+}
+
+function normalizeSessionRoute(route: SessionRoute): SessionRoute {
+  return {
+    ...route,
+    voiceMode: route.voiceMode ?? "off",
+    voiceChannelState: route.voiceChannelState ?? "disconnected",
+    isHome: route.isHome ?? false,
+  };
 }
 
 export class GatewaySessionService {
@@ -29,41 +72,91 @@ export class GatewaySessionService {
       (session) => session.sessionKey === sessionKey,
     );
     if (existing) {
-      existing.updatedAt = new Date().toISOString();
+      existing.roomId = message.roomId;
+      existing.userId = message.userId;
+      existing.channelId = message.channelId ?? existing.channelId;
+      existing.threadId = message.threadId ?? existing.threadId;
+      existing.messageId = message.messageId ?? existing.messageId;
+      existing.replyToMessageId =
+        message.replyToMessageId ?? existing.replyToMessageId;
+      existing.channelType = message.channelType ?? existing.channelType;
+      existing.authorName = message.authorName ?? existing.authorName;
+      existing.metadata = {
+        ...(existing.metadata ?? {}),
+        ...(message.metadata ?? {}),
+      };
+      existing.updatedAt = nowIso();
       this.write(store);
-      return existing;
+      return normalizeSessionRoute(existing);
     }
 
-    const created: SessionRoute = {
-      sessionKey,
-      roomId: message.roomId,
-      userId: message.userId,
-      platform: message.platform,
-      channelId: message.channelId,
-      threadId: message.threadId,
-      messageId: message.messageId,
-      replyToMessageId: message.replyToMessageId,
-      channelType: message.channelType,
-      authorName: message.authorName,
-      metadata: message.metadata,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const created = createSessionRoute(message);
     store.sessions.push(created);
     this.write(store);
     return created;
   }
 
   list(): SessionRoute[] {
-    return this.read().sessions;
+    return this.read().sessions.map(normalizeSessionRoute);
+  }
+
+  get(sessionKey: string): SessionRoute | undefined {
+    return this.read()
+      .sessions.map(normalizeSessionRoute)
+      .find((session) => session.sessionKey === sessionKey);
+  }
+
+  setVoiceMode(
+    sessionKey: string,
+    mode: "off" | "voice_only" | "all",
+  ): SessionRoute {
+    return this.update(sessionKey, (session) => {
+      session.voiceMode = mode;
+      if (mode === "off" && !session.voiceChannelId) {
+        session.voiceChannelState = "disconnected";
+      }
+    });
+  }
+
+  setVoiceChannel(sessionKey: string, channelId?: string): SessionRoute {
+    return this.update(sessionKey, (session) => {
+      session.voiceChannelId = channelId;
+      session.voiceChannelState = channelId ? "connected" : "disconnected";
+    });
+  }
+
+  markHome(
+    sessionKey: string,
+    options?: { isHome?: boolean; label?: string },
+  ): SessionRoute {
+    return this.update(sessionKey, (session, store) => {
+      if (options?.isHome ?? true) {
+        for (const entry of store.sessions) {
+          if (
+            entry.platform === session.platform &&
+            entry.userId === session.userId
+          ) {
+            entry.isHome = false;
+          }
+        }
+      }
+      session.isHome = options?.isHome ?? true;
+      session.homeLabel = options?.label ?? session.homeLabel;
+    });
+  }
+
+  homeForPlatform(platform: PlatformName): SessionRoute[] {
+    return this.list().filter(
+      (session) => session.platform === platform && session.isHome,
+    );
   }
 
   expireOlderThan(minutes: number): SessionRoute[] {
     const cutoff = Date.now() - minutes * 60 * 1000;
     const store = this.read();
-    const expired = store.sessions.filter(
-      (session) => new Date(session.updatedAt).getTime() < cutoff,
-    );
+    const expired = store.sessions
+      .filter((session) => new Date(session.updatedAt).getTime() < cutoff)
+      .map(normalizeSessionRoute);
     store.sessions = store.sessions.filter(
       (session) => new Date(session.updatedAt).getTime() >= cutoff,
     );
@@ -71,9 +164,29 @@ export class GatewaySessionService {
     return expired;
   }
 
+  private update(
+    sessionKey: string,
+    mutate: (session: SessionRoute, store: SessionRouteStore) => void,
+  ): SessionRoute {
+    const store = this.read();
+    const session = store.sessions.find(
+      (candidate) => candidate.sessionKey === sessionKey,
+    );
+    if (!session) {
+      throw new Error(`Gateway session not found: ${sessionKey}`);
+    }
+    mutate(session, store);
+    session.updatedAt = nowIso();
+    this.write(store);
+    return normalizeSessionRoute(session);
+  }
+
   private read(): SessionRouteStore {
     const raw = readFileSync(this.filePath, "utf8");
-    return JSON.parse(raw) as SessionRouteStore;
+    const parsed = JSON.parse(raw) as SessionRouteStore;
+    return {
+      sessions: (parsed.sessions ?? []).map(normalizeSessionRoute),
+    };
   }
 
   private write(store: SessionRouteStore): void {

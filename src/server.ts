@@ -1051,6 +1051,72 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (
+        request.method === "GET" &&
+        url.pathname === "/sessions/gateway/home"
+      ) {
+        const platform = url.searchParams.get(
+          "platform",
+        ) as PlatformName | null;
+        if (!platform) {
+          return json({ error: "platform is required" }, 400);
+        }
+        return json({
+          sessions: context.services.gatewaySessions.homeForPlatform(platform),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/sessions/gateway/voice"
+      ) {
+        const body = (await request.json()) as {
+          sessionKey?: string;
+          mode?: "off" | "voice_only" | "all";
+          voiceChannelId?: string;
+        };
+        if (!body.sessionKey) {
+          return json({ error: "sessionKey is required" }, 400);
+        }
+        let session = context.services.gatewaySessions.get(body.sessionKey);
+        if (!session) {
+          return json({ error: "session not found" }, 404);
+        }
+        if (body.mode) {
+          session = context.services.gatewaySessions.setVoiceMode(
+            body.sessionKey,
+            body.mode,
+          );
+        }
+        if (body.voiceChannelId !== undefined) {
+          session = context.services.gatewaySessions.setVoiceChannel(
+            body.sessionKey,
+            body.voiceChannelId || undefined,
+          );
+        }
+        return json({ session });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/sessions/gateway/home"
+      ) {
+        const body = (await request.json()) as {
+          sessionKey?: string;
+          isHome?: boolean;
+          label?: string;
+        };
+        if (!body.sessionKey) {
+          return json({ error: "sessionKey is required" }, 400);
+        }
+        return json({
+          session: context.services.gatewaySessions.markHome(body.sessionKey, {
+            isHome: body.isHome,
+            label: body.label,
+          }),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/personality") {
         return json({
           active: context.services.personalities.getActive(),

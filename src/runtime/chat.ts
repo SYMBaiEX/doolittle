@@ -1091,6 +1091,75 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/voice" || trimmed === "/voice status") {
+    const session = context.services.gatewaySessions.get(sessionKey);
+    if (!session) {
+      return "No active gateway session is attached to this conversation yet.";
+    }
+    return JSON.stringify(
+      {
+        sessionKey: session.sessionKey,
+        platform: session.platform,
+        roomId: session.roomId,
+        voiceMode: session.voiceMode ?? "off",
+        voiceChannelId: session.voiceChannelId ?? null,
+        voiceChannelState: session.voiceChannelState ?? "disconnected",
+        isHome: session.isHome ?? false,
+        homeLabel: session.homeLabel ?? null,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/voice on") {
+    const session = context.services.gatewaySessions.setVoiceMode(
+      sessionKey,
+      "voice_only",
+    );
+    return JSON.stringify(session, null, 2);
+  }
+
+  if (trimmed === "/voice off") {
+    const session = context.services.gatewaySessions.setVoiceMode(
+      sessionKey,
+      "off",
+    );
+    return JSON.stringify(session, null, 2);
+  }
+
+  if (trimmed === "/voice tts") {
+    const session = context.services.gatewaySessions.setVoiceMode(
+      sessionKey,
+      "all",
+    );
+    return JSON.stringify(session, null, 2);
+  }
+
+  if (trimmed === "/voice join" || trimmed === "/voice channel") {
+    const session = context.services.gatewaySessions.setVoiceChannel(
+      sessionKey,
+      input.roomId ?? sessionKey,
+    );
+    return JSON.stringify(session, null, 2);
+  }
+
+  if (trimmed === "/voice leave") {
+    const session = context.services.gatewaySessions.setVoiceChannel(
+      sessionKey,
+      undefined,
+    );
+    return JSON.stringify(session, null, 2);
+  }
+
+  if (trimmed === "/sethome") {
+    const session = context.services.gatewaySessions.markHome(sessionKey, {
+      isHome: true,
+      label: input.source ? `${input.source} home` : "home",
+    });
+    return JSON.stringify(session, null, 2);
+  }
+
   if (trimmed === "/gateway trace" || trimmed.startsWith("/gateway trace ")) {
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
