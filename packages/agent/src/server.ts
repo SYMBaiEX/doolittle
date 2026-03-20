@@ -10,6 +10,10 @@ import {
   syncProviderSettings,
 } from "@/runtime/chat";
 import {
+  getLatestRuntimeLine,
+  getNativePackageAudit,
+} from "@/runtime/native/package-audit";
+import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
@@ -277,6 +281,13 @@ export function startApiServer(context: AppContext): void {
           catalog,
           grouped: groupNativePluginCatalog(catalog),
           serviceRegistry: context.services.nativeRegistry,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/ecosystem") {
+        return json({
+          runtime: getLatestRuntimeLine(),
+          audit: getNativePackageAudit(context.config),
         });
       }
 

@@ -8,6 +8,10 @@ import {
   type UUID,
 } from "@elizaos/core";
 import {
+  getLatestRuntimeLine,
+  getNativePackageAudit,
+} from "@/runtime/native/package-audit";
+import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
@@ -1589,6 +1593,17 @@ async function buildCommandResponse(
         grouped: groupNativePluginCatalog(catalog),
         serviceRegistry: context.services.nativeRegistry,
         pluginManager: getEffectivePluginManagerInventory(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime ecosystem" || trimmed === "/plugins ecosystem") {
+    return JSON.stringify(
+      {
+        runtime: getLatestRuntimeLine(),
+        audit: getNativePackageAudit(context.config),
       },
       null,
       2,
