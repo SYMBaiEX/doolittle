@@ -10,6 +10,11 @@ interface ToolRegistrySummary {
   total: number;
   enabled: number;
   disabled: number;
+  transports: Array<{
+    transport: string;
+    total: number;
+    enabled: number;
+  }>;
   categories: Array<{
     category: string;
     total: number;
@@ -185,6 +190,19 @@ export class ToolsService {
     return this.list().filter((tool) => tool.enabled);
   }
 
+  search(query: string): ToolDefinition[] {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return this.list();
+    }
+    return this.list().filter((tool) =>
+      [tool.id, tool.name, tool.category, tool.description, tool.transport ?? ""]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized),
+    );
+  }
+
   get(id: string): ToolDefinition | undefined {
     return this.list().find((tool) => tool.id === id);
   }
@@ -204,6 +222,16 @@ export class ToolsService {
   summary(): ToolRegistrySummary {
     const tools = this.list();
     const enabled = tools.filter((tool) => tool.enabled);
+    const transportMap = tools.reduce<Map<string, ToolDefinition[]>>((map, tool) => {
+      const key = tool.transport ?? "service";
+      map.set(key, [...(map.get(key) ?? []), tool]);
+      return map;
+    }, new Map());
+    const transports = Array.from(transportMap.entries()).map(([transport, entries]) => ({
+      transport,
+      total: entries.length,
+      enabled: entries.filter((tool) => tool.enabled).length,
+    }));
     const categories = Object.entries(this.grouped()).map(([category, entries]) => ({
       category,
       total: entries.length,
@@ -214,6 +242,7 @@ export class ToolsService {
       total: tools.length,
       enabled: enabled.length,
       disabled: tools.length - enabled.length,
+      transports,
       categories,
       mcp: {
         enabled: dynamic.mcpEnabled,

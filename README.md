@@ -89,7 +89,7 @@ eliza-agent/
 | Workspace exploration | [`src/services/workspace-service.ts`](./src/services/workspace-service.ts) + `/workspace` commands |
 | Local terminal execution | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`src/services/repository-service.ts`](./src/services/repository-service.ts) + `/repo` commands |
-| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, and SSH runtime settings, probes, and invocation paths |
+| Execution backend control | [`src/services/terminal-service.ts`](./src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, and SSH runtime settings, probes, preview, and bootstrap paths |
 | Tool registry | [`src/services/tools-service.ts`](./src/services/tools-service.ts) + `/tools` commands |
 | MCP bridge | [`src/services/mcp-service.ts`](./src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
 | Delegation queue | [`src/services/delegation-service.ts`](./src/services/delegation-service.ts) + `/delegate` commands |
@@ -241,6 +241,8 @@ Useful commands:
 
 - `/skills list`
 - `/skills show <slug>`
+- `/skills generated list`
+- `/skills generated describe <slug>`
 - `/memory list memory`
 - `/memory add user <text>`
 - `/sessions list`
@@ -255,10 +257,15 @@ Useful commands:
 - `/model set model gpt-4.1-mini`
 - `/execution status`
 - `/execution backends`
+- `/execution bootstrap`
+- `/execution preview git status --short`
 - `/execution set backend docker`
 - `/execution set backend podman`
 - `/config show`
 - `/tools list`
+- `/tools summary`
+- `/tools search browser`
+- `/tools transports`
 - `/browser status`
 - `/browser fetch https://example.com`
 - `/browser inspect https://example.com`
@@ -266,6 +273,9 @@ Useful commands:
 - `/browser screenshot https://example.com`
 - `/mcp status`
 - `/mcp tools`
+- `/mcp cached`
+- `/mcp cached describe`
+- `/mcp cached search echo`
 - `/mcp invoke list-tools`
 - `/mcp call sum :: {"a":3,"b":4}`
 - `/web snapshot https://example.com`
@@ -280,6 +290,7 @@ Useful commands:
 - `/trajectories export session:room-123 role:user limit:50`
 - `/trajectories bundle`
 - `/trajectories bundle session:room-123`
+- `/trajectories replay latest`
 - `/context files`
 - `/status`
 - `/runtime status`
@@ -316,11 +327,20 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /sessions`
 - `GET /sessions/summary`
 - `GET /skills`
+- `GET /skills/generated`
 - `GET /tools`
+- `GET /tools/search`
+- `GET /tools/summary`
+- `GET /tools/transports`
 - `GET /browser/status`
+- `GET /browser/inspect`
 - `POST /browser/screenshot`
 - `GET /mcp/status`
 - `GET /mcp/tools`
+- `GET /mcp/cached`
+- `GET /mcp/cached/search`
+- `GET /mcp/cached/describe`
+- `GET /mcp/tool`
 - `POST /mcp/probe`
 - `POST /mcp/invoke`
 - `POST /mcp/invoke-tool`
@@ -335,6 +355,7 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /media/inspect`
 - `GET /execution/status`
 - `GET /execution/backends`
+- `POST /execution/preview`
 - `GET /terminal/history`
 - `POST /terminal/run`
 - `GET /delegation/tasks`
@@ -357,6 +378,9 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /trajectories/bundles`
 - `POST /trajectories/export`
 - `POST /trajectories/bundle`
+- `POST /trajectories/replay`
+- `GET /trajectories/replay`
+- `GET /trajectories/replay/latest`
 - `GET /gateway/config`
 - `POST /gateway/config`
 - `GET /gateway/health`

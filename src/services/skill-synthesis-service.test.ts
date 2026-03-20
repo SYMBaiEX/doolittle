@@ -32,9 +32,12 @@ describe("SkillSynthesisService", () => {
       expect(skill).toContain("## When to Use");
       expect(skill).toContain("## Procedure");
       expect(skill).toContain("## Signals");
+      expect(skill).toContain("Signal Count");
       expect(generated).toHaveLength(1);
       expect(generated[0]?.slug).toBe("browser-capture-workflow");
+      expect(generated[0]?.signalCount).toBeGreaterThan(0);
       expect(service.hasGeneratedSkill(task)).toBe(true);
+      expect(service.describeGeneratedSkill("browser-capture-workflow")).toContain("GENERATED SKILL");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

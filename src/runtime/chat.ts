@@ -197,7 +197,7 @@ async function buildCommandResponse(
       ? generated
           .map(
             (skill) =>
-              `- ${skill.slug} [${skill.updatedAt}] notes=${skill.noteCount}\n  ${skill.title}\n  ${skill.path}`,
+              `- ${skill.slug} [${skill.updatedAt}] notes=${skill.noteCount} signals=${skill.signalCount}\n  ${skill.title}\n  ${skill.path}`,
           )
           .join("\n\n")
       : "No generated skills recorded.";
@@ -213,6 +213,14 @@ async function buildCommandResponse(
       null,
       2,
     );
+  }
+
+  if (trimmed.startsWith("/skills generated describe ")) {
+    const slug = trimmed.replace("/skills generated describe ", "").trim();
+    if (!slug) {
+      return "Usage: /skills generated describe <slug>";
+    }
+    return context.services.skillSynthesis.describeGeneratedSkill(slug);
   }
 
   if (trimmed.startsWith("/skills show ")) {
@@ -436,6 +444,37 @@ async function buildCommandResponse(
       : "No gateway traces recorded.";
   }
 
+  if (trimmed === "/gateway deliveries" || trimmed.startsWith("/gateway deliveries ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const raw = trimmed.replace("/gateway deliveries", "").trim();
+    const limit = raw ? Number(raw) : undefined;
+    const deliveries = context.services.delivery.recent(
+      Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20,
+    );
+    return deliveries.length
+      ? deliveries
+          .map(
+            (delivery) =>
+              `- ${delivery.id} ${delivery.target.platform} -> ${delivery.target.channelId ?? delivery.target.userId ?? "n/a"} [${delivery.target.mode}]${delivery.threadId ? ` thread=${delivery.threadId}` : ""}${delivery.replyToId ? ` replyTo=${delivery.replyToId}` : ""}\n  ${delivery.text.slice(0, 180)}${delivery.metadata && Object.keys(delivery.metadata).length ? `\n  metadata=${JSON.stringify(delivery.metadata)}` : ""}`,
+          )
+          .join("\n\n")
+      : "No delivery records found.";
+  }
+
+  if (trimmed === "/gateway history" || trimmed.startsWith("/gateway history ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const raw = trimmed.replace("/gateway history", "").trim();
+    const limit = raw ? Number(raw) : undefined;
+    const history = await context.gateway.history(
+      Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20,
+    );
+    return JSON.stringify(history, null, 2);
+  }
+
   if (trimmed === "/model" || trimmed === "/model status") {
     return JSON.stringify(context.services.settings.get().model, null, 2);
   }
@@ -458,9 +497,27 @@ async function buildCommandResponse(
     return health
       .map(
         (entry) =>
-          `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms :: ${entry.detail}`,
+          `- ${entry.backend} [${entry.mode}] ready=${entry.ready} engine=${entry.engine ?? "n/a"} commandTimeout=${entry.limits.commandTimeoutMs}ms healthTimeout=${entry.limits.healthTimeoutMs}ms diagnostics=${entry.diagnostics.length} bootstrap=${entry.bootstrap.length} :: ${entry.detail}`,
       )
       .join("\n");
+  }
+
+  if (trimmed === "/execution bootstrap") {
+    const health = await context.services.terminal.health();
+    return health
+      .map(
+        (entry) =>
+          `- ${entry.backend}\n  bootstrap:\n${entry.bootstrap.map((item) => `    - ${item}`).join("\n")}\n  diagnostics:\n${entry.diagnostics.map((item) => `    - ${item}`).join("\n")}`,
+      )
+      .join("\n\n");
+  }
+
+  if (trimmed.startsWith("/execution preview ")) {
+    const command = trimmed.replace("/execution preview ", "").trim();
+    if (!command) {
+      return "Usage: /execution preview <command>";
+    }
+    return JSON.stringify(context.services.terminal.preview(command), null, 2);
   }
 
   if (trimmed.startsWith("/execution set ")) {
@@ -566,8 +623,31 @@ async function buildCommandResponse(
       .join("\n");
   }
 
+  if (trimmed.startsWith("/tools search ")) {
+    const query = trimmed.replace("/tools search ", "").trim();
+    if (!query) {
+      return "Usage: /tools search <query>";
+    }
+    const tools = context.services.tools.search(query);
+    return tools.length
+      ? tools
+          .map(
+            (tool) =>
+              `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.category}/${tool.transport ?? "service"}: ${tool.description}`,
+          )
+          .join("\n")
+      : `No tools found for query: ${query}`;
+  }
+
   if (trimmed === "/tools summary" || trimmed === "/tools registry") {
     return JSON.stringify(context.services.tools.summary(), null, 2);
+  }
+
+  if (trimmed === "/tools transports") {
+    const summary = context.services.tools.summary();
+    return summary.transports.length
+      ? summary.transports.map((entry) => `- ${entry.transport}: enabled=${entry.enabled}/${entry.total}`).join("\n")
+      : "No transport metadata available.";
   }
 
   if (trimmed.startsWith("/tools show ")) {
@@ -601,6 +681,24 @@ async function buildCommandResponse(
 
   if (trimmed === "/mcp cached") {
     return JSON.stringify(context.services.mcp.getCachedTools(), null, 2);
+  }
+
+  if (trimmed.startsWith("/mcp cached search ")) {
+    const query = trimmed.replace("/mcp cached search ", "").trim();
+    if (!query) {
+      return "Usage: /mcp cached search <query>";
+    }
+    return JSON.stringify(context.services.mcp.searchCachedTools(query), null, 2);
+  }
+
+  if (trimmed === "/mcp cached describe") {
+    return context.services.mcp.describeCachedTools();
+  }
+
+  if (trimmed.startsWith("/mcp cached describe ")) {
+    const raw = trimmed.replace("/mcp cached describe ", "").trim();
+    const limit = Number(raw);
+    return context.services.mcp.describeCachedTools(Number.isFinite(limit) && limit > 0 ? limit : 20);
   }
 
   if (trimmed.startsWith("/mcp describe ")) {

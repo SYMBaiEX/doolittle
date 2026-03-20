@@ -10,6 +10,7 @@ interface GeneratedSkillRecord {
   createdAt: string;
   updatedAt: string;
   noteCount: number;
+  signalCount: number;
   objective: string;
 }
 
@@ -71,6 +72,7 @@ export class SkillSynthesisService {
       `- Task ID: ${task.id}`,
       `- Task Status: ${task.status}`,
       `- Attempts: ${task.attempts}`,
+      `- Signal Count: ${this.extractSignals(task.notes).length}`,
       `- Last Updated: ${updatedAt}`,
       `- Created: ${createdAt}`,
       "",
@@ -89,6 +91,7 @@ export class SkillSynthesisService {
           createdAt,
           updatedAt,
           noteCount: task.notes.length,
+          signalCount: this.extractSignals(task.notes).length,
           objective: task.objective,
         },
       ],
@@ -113,6 +116,26 @@ export class SkillSynthesisService {
 
   getGeneratedSkill(slug: string): GeneratedSkillRecord | undefined {
     return this.readIndex().skills.find((record) => record.slug === slug);
+  }
+
+  describeGeneratedSkill(slug: string): string {
+    const record = this.getGeneratedSkill(slug);
+    if (!record) {
+      return `Generated skill not found: ${slug}`;
+    }
+    const content = existsSync(record.path) ? readFileSync(record.path, "utf8") : "";
+    return [
+      `GENERATED SKILL: ${record.title}`,
+      `Slug: ${record.slug}`,
+      `Task ID: ${record.taskId}`,
+      `Objective: ${record.objective}`,
+      `Notes: ${record.noteCount}`,
+      `Signals: ${record.signalCount}`,
+      `Updated: ${record.updatedAt}`,
+      `Path: ${record.path}`,
+      "",
+      content.slice(0, 4000),
+    ].join("\n");
   }
 
   private extractSignals(notes: string[]): string[] {

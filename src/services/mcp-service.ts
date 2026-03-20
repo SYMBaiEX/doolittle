@@ -177,6 +177,33 @@ export class McpService {
     return this.discoveredTools.find((tool) => tool.name === name);
   }
 
+  searchCachedTools(query: string): McpToolDefinition[] {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return this.getCachedTools();
+    }
+    return this.discoveredTools.filter((tool) =>
+      [tool.name, tool.description, JSON.stringify(tool.inputSchema ?? {})]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized),
+    );
+  }
+
+  describeCachedTools(limit = 20): string {
+    const tools = this.getCachedTools().slice(0, limit);
+    return tools.length
+      ? tools
+          .map(
+            (tool) =>
+              `- ${tool.name}${tool.description ? `\n  ${tool.description}` : ""}${
+                tool.inputSchema ? `\n  schema=${JSON.stringify(tool.inputSchema)}` : ""
+              }`,
+          )
+          .join("\n\n")
+      : "No MCP tools have been cached yet.";
+  }
+
   describeTool(name: string): string {
     const tool = this.getTool(name);
     if (!tool) {

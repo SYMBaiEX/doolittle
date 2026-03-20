@@ -71,6 +71,7 @@ describe("TrajectoryService", () => {
       expect(replay.replayPreview).toHaveLength(2);
       expect(replay.replayPath).toContain("replay");
       expect(readFileSync(replay.replaySummaryPath, "utf8")).toContain("Trajectory Replay: replay-fixture");
+      expect(service.describeBundle(bundle.manifestPath).label).toBe("replay-fixture");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

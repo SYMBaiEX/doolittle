@@ -17,6 +17,8 @@ describe("ToolsService", () => {
 
     const browserTools = service.byCategory("documents");
     expect(browserTools.some((tool) => tool.id === "browser.status")).toBe(true);
+    expect(service.search("browser").some((tool) => tool.id === "browser.snapshot")).toBe(true);
+    expect(service.summary().transports.some((entry) => entry.transport === "native")).toBe(true);
 
     const bridge = service.get("mcp.bridge");
     expect(bridge?.enabled).toBe(true);

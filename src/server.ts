@@ -154,15 +154,41 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/skills/generated/detail") {
+        const slug = url.searchParams.get("slug");
+        if (!slug) {
+          return json({ error: "slug is required" }, 400);
+        }
+        return json({
+          detail: context.services.skillSynthesis.describeGeneratedSkill(slug),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/tools") {
         return json({
           tools: context.services.tools.list(),
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/tools/search") {
+        const query = url.searchParams.get("query");
+        if (!query) {
+          return json({ error: "query is required" }, 400);
+        }
+        return json({
+          results: context.services.tools.search(query),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/tools/summary") {
         return json({
           summary: context.services.tools.summary(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/tools/transports") {
+        return json({
+          transports: context.services.tools.summary().transports,
         });
       }
 
@@ -205,6 +231,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/mcp/cached/search") {
+        const query = url.searchParams.get("query");
+        if (!query) {
+          return json({ error: "query is required" }, 400);
+        }
+        return json({
+          tools: context.services.mcp.searchCachedTools(query),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/mcp/tool") {
         const name = url.searchParams.get("name");
         if (!name) {
@@ -213,6 +249,16 @@ export function startApiServer(context: AppContext): void {
         return json({
           tool: context.services.mcp.getTool(name) ?? null,
           detail: context.services.mcp.describeTool(name),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/mcp/cached/describe") {
+        const limitRaw = url.searchParams.get("limit");
+        const limit = limitRaw ? Number(limitRaw) : 20;
+        return json({
+          detail: context.services.mcp.describeCachedTools(
+            !Number.isNaN(limit) && limit > 0 ? limit : 20,
+          ),
         });
       }
 
@@ -526,6 +572,16 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/execution/preview") {
+        const body = (await request.json()) as { command?: string; timeoutMs?: number };
+        if (!body.command) {
+          return json({ error: "command is required" }, 400);
+        }
+        return json({
+          preview: context.services.terminal.preview(body.command, body.timeoutMs),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/settings") {
         const body = (await request.json()) as { path: string; value: string | number | boolean };
         const settings = context.services.settings.set(body.path, body.value);
@@ -688,6 +744,11 @@ export function startApiServer(context: AppContext): void {
         return json({ error: "manifestPath, label, or latest=true is required" }, 400);
       }
 
+      if (request.method === "GET" && url.pathname === "/trajectories/replay/latest") {
+        const replay = context.services.trajectories.replayLatest();
+        return replay ? json({ replay }) : json({ error: "No trajectory bundles recorded." }, 404);
+      }
+
       if (request.method === "POST" && url.pathname === "/mcp/probe") {
         return json({
           probe: await context.services.mcp.probe(),
@@ -737,8 +798,29 @@ export function startApiServer(context: AppContext): void {
           health: readiness,
           readiness,
           traces: context.gateway.trace(25),
+          deliveries: context.services.delivery.recent(25),
           sessions: context.services.gatewaySessions.list(),
-          deliveries: context.services.delivery.recent(20),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/gateway/trace") {
+        const limit = Number(url.searchParams.get("limit") ?? "25");
+        return json({
+          traces: context.gateway.trace(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/gateway/deliveries") {
+        const limit = Number(url.searchParams.get("limit") ?? "25");
+        return json({
+          deliveries: context.services.delivery.recent(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/gateway/history") {
+        const limit = Number(url.searchParams.get("limit") ?? "25");
+        return json({
+          history: await context.gateway.history(Number.isNaN(limit) || limit <= 0 ? 25 : limit),
         });
       }
 
