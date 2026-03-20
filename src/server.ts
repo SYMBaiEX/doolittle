@@ -274,6 +274,15 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/migrate/history") {
+        const limitRaw = Number(url.searchParams.get("limit") ?? "20");
+        return json({
+          history: context.services.operator.migrationHistory(
+            Number.isNaN(limitRaw) || limitRaw <= 0 ? 20 : limitRaw,
+          ),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/migrate/inspect") {
         const sourcePath = url.searchParams.get("path");
         if (!sourcePath) {
@@ -1664,6 +1673,41 @@ export function startApiServer(context: AppContext): void {
           { error: "manifestPath, label, or latest=true is required" },
           400,
         );
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/compare/latest"
+      ) {
+        const comparison = context.services.trajectories.compareLatest();
+        return comparison
+          ? json({ comparison })
+          : json(
+              { error: "At least two trajectory bundles are required." },
+              404,
+            );
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/compare"
+      ) {
+        const body = (await request.json()) as {
+          leftManifestPath?: string;
+          rightManifestPath?: string;
+        };
+        if (!body.leftManifestPath || !body.rightManifestPath) {
+          return json(
+            { error: "leftManifestPath and rightManifestPath are required" },
+            400,
+          );
+        }
+        return json({
+          comparison: context.services.trajectories.compareBundles(
+            body.leftManifestPath,
+            body.rightManifestPath,
+          ),
+        });
       }
 
       if (

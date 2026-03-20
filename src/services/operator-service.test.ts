@@ -208,5 +208,6 @@ describe("OperatorService", () => {
       result.importedSkills.some((entry) => entry.endsWith("sample-skill")),
     ).toBe(true);
     expect(result.reportPath).toContain("migration-");
+    expect(service.migrationHistory(5)[0]?.reportPath).toBe(result.reportPath);
   });
 });

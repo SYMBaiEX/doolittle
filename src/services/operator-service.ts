@@ -73,6 +73,16 @@ export interface MigrationResult {
   reportPath: string;
 }
 
+export interface MigrationHistoryEntry {
+  createdAt: string;
+  sourcePath: string;
+  destinationPath: string;
+  importedFiles: string[];
+  importedSkills: string[];
+  skippedFiles: string[];
+  reportPath: string;
+}
+
 export class OperatorService {
   private readonly packageMetadata: PackageMetadata;
   private readonly migrationsDir: string;
@@ -328,6 +338,26 @@ export class OperatorService {
       skippedFiles,
       reportPath,
     };
+  }
+
+  migrationHistory(limit = 20): MigrationHistoryEntry[] {
+    return readdirSync(this.migrationsDir)
+      .filter(
+        (entry) => entry.startsWith("migration-") && entry.endsWith(".json"),
+      )
+      .map((entry) => join(this.migrationsDir, entry))
+      .map((pathname) => {
+        const parsed = JSON.parse(readFileSync(pathname, "utf8")) as Omit<
+          MigrationHistoryEntry,
+          "reportPath"
+        >;
+        return {
+          ...parsed,
+          reportPath: pathname,
+        };
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
   }
 
   version(): OperatorVersionSummary {
