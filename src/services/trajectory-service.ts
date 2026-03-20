@@ -87,6 +87,21 @@ export interface TrajectoryEvaluationBundle {
   responsePath?: string;
 }
 
+export interface TrajectoryResearchPackageBundle {
+  focus: "dataset" | "research" | "rl" | "evaluation";
+  bundle: TrajectoryBundleEntry;
+  replay: TrajectoryReplayResult;
+  analysis: TrajectoryAnalysisBundle;
+  evaluation: TrajectoryEvaluationBundle;
+  packageManifestPath: string;
+  reportPath: string;
+  response?: string;
+  responsePath?: string;
+  purpose?: string;
+  mode?: "dataset" | "research" | "evaluation" | "rl";
+  tags?: string[];
+}
+
 interface TrajectoryModelContext {
   provider: "openai" | "anthropic" | "offline";
   model: string;
@@ -350,6 +365,137 @@ export class TrajectoryService {
       response,
       responsePath,
     };
+  }
+
+  async package(
+    options: TrajectoryExportOptions = {},
+  ): Promise<TrajectoryResearchPackageBundle> {
+    const analysis = this.analyze({
+      ...options,
+      limit: options.limit ?? 200,
+      mode: options.mode ?? "research",
+      purpose: options.purpose ?? "trajectory research package",
+    });
+    const evaluation = await this.evaluateBundle(analysis.bundle.manifestPath, {
+      ...options,
+      replay: analysis.replay,
+      prompt: analysis.prompt,
+      highlights: analysis.highlights,
+      mode: this.normalizeEvaluationMode(options.mode ?? analysis.mode),
+      purpose: analysis.purpose ?? options.purpose ?? "trajectory research package",
+      tags: options.tags ?? analysis.tags,
+      rubric: options.rubric,
+    });
+    const stamp = Date.now();
+    const label = this.slug(`${analysis.bundle.label}-package`);
+    const packageManifestPath = join(this.baseDir, `trajectory-${stamp}-${label}-package.json`);
+    const reportPath = join(this.baseDir, `trajectory-${stamp}-${label}-package.md`);
+    const responsePath = join(this.baseDir, `trajectory-${stamp}-${label}-package-response.md`);
+    const response = evaluation.response ?? evaluation.reportPath;
+
+    writeFileSync(
+      packageManifestPath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          bundle: analysis.bundle,
+          replay: analysis.replay,
+          analysis: {
+            focus: analysis.focus,
+            purpose: analysis.purpose,
+            mode: analysis.mode,
+            tags: analysis.tags,
+            prompt: analysis.prompt,
+            highlights: analysis.highlights,
+          },
+          evaluation: {
+            focus: evaluation.focus,
+            purpose: evaluation.purpose,
+            mode: evaluation.mode,
+            tags: evaluation.tags,
+            score: evaluation.score,
+            grade: evaluation.grade,
+            findings: evaluation.findings,
+            recommendations: evaluation.recommendations,
+            evaluationPath: evaluation.evaluationPath,
+            reportPath: evaluation.reportPath,
+            responsePath: evaluation.responsePath,
+          },
+          response,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      reportPath,
+      [
+        `# Trajectory Research Package: ${analysis.bundle.label}`,
+        "",
+        `- Focus: ${analysis.focus}`,
+        `- Purpose: ${analysis.purpose ?? options.purpose ?? "trajectory research package"}`,
+        `- Mode: ${analysis.mode ?? options.mode ?? "research"}`,
+        ...(analysis.tags?.length ? [`- Tags: ${analysis.tags.join(", ")}`] : []),
+        "",
+        "## Export Bundle",
+        `- Manifest: ${analysis.bundle.manifestPath}`,
+        `- Data: ${analysis.bundle.dataPath}`,
+        `- Summary: ${analysis.bundle.summaryPath ?? "none"}`,
+        "",
+        "## Replay",
+        `- Replay file: ${analysis.replay.replayPath}`,
+        `- Replay summary: ${analysis.replay.replaySummaryPath}`,
+        `- Replay count: ${analysis.replay.replayCount}`,
+        "",
+        "## Analysis",
+        `- Prompt: ${analysis.prompt.slice(0, 280)}`,
+        ...(analysis.highlights.length ? analysis.highlights.map((entry) => `- ${entry}`) : ["- none"]),
+        "",
+        "## Evaluation",
+        `- Score: ${evaluation.score}/100`,
+        `- Grade: ${evaluation.grade}`,
+        `- Findings: ${evaluation.findings.join("; ") || "none"}`,
+        `- Recommendations: ${evaluation.recommendations.join("; ") || "none"}`,
+        `- Report: ${evaluation.reportPath}`,
+      ].join("\n"),
+      "utf8",
+    );
+
+    writeFileSync(responsePath, response, "utf8");
+
+    return {
+      focus: evaluation.focus,
+      bundle: analysis.bundle,
+      replay: analysis.replay,
+      analysis,
+      evaluation,
+      packageManifestPath,
+      reportPath,
+      response,
+      responsePath,
+      purpose: analysis.purpose,
+      mode: analysis.mode,
+      tags: analysis.tags,
+    };
+  }
+
+  packageLatest(): Promise<TrajectoryResearchPackageBundle | undefined> {
+    const latest = this.listBundles(1)[0];
+    if (!latest) {
+      return Promise.resolve(undefined);
+    }
+    return this.package({
+      limit: latest.limit,
+      sessionId: latest.filters?.sessionId ?? undefined,
+      role: latest.filters?.role ?? undefined,
+      label: latest.label,
+      purpose: latest.purpose,
+      mode: latest.mode,
+      tags: latest.tags,
+      notes: latest.notes,
+    });
   }
 
   replayBundle(manifestPath: string): TrajectoryReplayResult {

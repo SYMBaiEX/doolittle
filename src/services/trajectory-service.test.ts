@@ -107,6 +107,21 @@ describe("TrajectoryService", () => {
       expect(evaluation.evaluationPath).toContain("evaluation");
       expect(readFileSync(evaluation.reportPath, "utf8")).toContain("Trajectory Evaluation");
       expect(readFileSync(evaluation.responsePath ?? "", "utf8")).toContain("Offline trajectory analysis");
+
+      const packageBundle = await service.package({
+        limit: 10,
+        sessionId: "session-a",
+        label: "Replay Fixture",
+        purpose: "training data",
+        mode: "research",
+        tags: ["memory", "skills"],
+        notes: "Fixture used to validate trajectory exports.",
+        rubric: ["user", "assistant", "skills"],
+      });
+      expect(packageBundle.bundle.label).toBe("replay-fixture");
+      expect(packageBundle.evaluation.score).toBeGreaterThan(0);
+      expect(packageBundle.packageManifestPath).toContain("package");
+      expect(readFileSync(packageBundle.reportPath, "utf8")).toContain("Trajectory Research Package");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

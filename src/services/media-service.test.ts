@@ -104,16 +104,16 @@ describe("MediaService", () => {
     try {
       writeFileSync(
         pdfPath,
-        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Count 2 >>\nendobj\n3 0 obj\n<< /Title (Hermes Briefing) /Author (Eliza Agent) >>\nendobj\n4 0 obj\n<< /Type /Page >>\nendobj\n5 0 obj\n<< /Type /Page >>\nendobj\n%%EOF",
+        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Count 2 >>\nendobj\n3 0 obj\n<< /Title (Eliza Briefing) /Author (Eliza Agent) >>\nendobj\n4 0 obj\n<< /Type /Page >>\nendobj\n5 0 obj\n<< /Type /Page >>\nendobj\n%%EOF",
         "latin1",
       );
       const inspection = service.inspect("briefing.pdf");
       expect(inspection.kind).toBe("document");
       expect(inspection.detail).toContain("PDF detected");
       expect(inspection.pageCount).toBeGreaterThanOrEqual(2);
-      expect(inspection.title).toBe("Hermes Briefing");
+      expect(inspection.title).toBe("Eliza Briefing");
       expect(inspection.author).toBe("Eliza Agent");
-      expect(inspection.textPreview).toContain("Hermes Briefing");
+      expect(inspection.textPreview).toContain("Eliza Briefing");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -230,6 +230,60 @@ describe("MediaService", () => {
       expect(existsSync(analysis.responsePath)).toBe(true);
       expect(existsSync(analysis.manifestPath)).toBe(true);
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("creates provider-backed transcription and speech artifacts when audio endpoints are available", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-audio-native-"));
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    const service = new MediaService(
+      root,
+      join(root, "media"),
+      () => ({
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        baseUrl: "https://example.invalid/v1",
+        temperature: 0.2,
+        maxTokens: 128,
+        openAiApiKey: "test-key",
+        openAiImageModel: "gpt-image-1",
+      }),
+    );
+    const audioPath = join(root, "briefing.wav");
+
+    try {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString();
+        requests.push(url);
+        if (url.includes("/audio/transcriptions")) {
+          return new Response(JSON.stringify({ text: "Eliza Agent transcript from provider audio." }), {
+            status: 200,
+          });
+        }
+        if (url.includes("/audio/speech")) {
+          return new Response(Buffer.from("ID3eliza-agent-speech"), { status: 200 });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as typeof fetch;
+
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      const transcription = await service.transcribeWithModel("briefing.wav");
+      const speech = await service.speakWithModel("Eliza Agent speaks with clarity.");
+
+      expect(transcription.source).toBe("openai");
+      expect(transcription.transcriptText).toContain("provider audio");
+      expect(existsSync(transcription.transcriptPath)).toBe(true);
+      expect(existsSync(transcription.reportPath)).toBe(true);
+      expect(existsSync(transcription.manifestPath)).toBe(true);
+      expect(speech.artifactKind).toBe("mp3");
+      expect(existsSync(speech.artifactPath)).toBe(true);
+      expect(existsSync(speech.reportPath)).toBe(true);
+      expect(requests.some((entry) => entry.includes("/audio/transcriptions"))).toBe(true);
+      expect(requests.some((entry) => entry.includes("/audio/speech"))).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });
     }
   });
