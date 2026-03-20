@@ -158,6 +158,11 @@ export class GatewayRunner {
           mode: "origin",
         },
         response,
+        {
+          threadId: message.threadId,
+          replyToId: message.replyToMessageId,
+          metadata: message.metadata,
+        },
       );
     }
 
@@ -192,7 +197,9 @@ export class GatewayRunner {
         capabilities: capabilitiesForPlatform(platform),
         detail: this.context.services.gatewayConfig.platforms[platform].enabled
           ? "Platform is enabled but the adapter is not running."
-          : "Platform is disabled in gateway configuration.",
+          : ["signal", "matrix", "email", "sms"].includes(platform)
+            ? "Lightweight webhook-normalized support is available for this platform."
+            : "Platform is disabled in gateway configuration.",
       }));
     return [...startedHealth, ...inactiveHealth];
   }
