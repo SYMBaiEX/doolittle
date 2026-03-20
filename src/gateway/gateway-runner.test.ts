@@ -68,6 +68,9 @@ describe("GatewayRunner", () => {
       expect(history.readiness.some((entry) => entry.platform === "api")).toBe(true);
       expect(apiTraces.some((trace) => trace.traceId === result.traceId)).toBe(true);
       expect(state.platforms.some((entry) => entry.platform === "api")).toBe(true);
+      const apiState = state.platforms.find((entry) => entry.platform === "api");
+      expect(apiState?.lastOutboundRoomId).toBe("room-1");
+      expect(apiState?.lastOutboundUserId).toBe("user-1");
       expect(state.totals.recentDeliveries).toBeGreaterThan(0);
       expect(state.deliveriesByPlatform.some((entry) => entry.platform === "api")).toBe(true);
       expect(apiHealth?.events.length ?? 0).toBeGreaterThan(0);

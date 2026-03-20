@@ -28,6 +28,10 @@ describe("MockPlatformAdapter", () => {
       expect(record.metadata?.source).toBe("test");
       expect(health.lastDeliveryId).toBe(record.id);
       expect(health.lastDeliveryAt).toBeDefined();
+      expect(health.lastOutboundRoomId).toBe("room-1");
+      expect(health.lastOutboundThreadId).toBe("thread-1");
+      expect(health.lastOutboundReplyToId).toBe("reply-1");
+      expect(health.lastOutboundMetadataKeys).toEqual(["source"]);
       expect(health.events.some((event) => event.kind === "start")).toBe(true);
       expect(health.events.some((event) => event.kind === "deliver")).toBe(true);
       expect(health.events.some((event) => event.kind === "health")).toBe(true);

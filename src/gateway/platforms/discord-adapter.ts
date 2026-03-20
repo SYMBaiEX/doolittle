@@ -16,6 +16,11 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
   private lastSendAt?: string;
   private lastDeliveryAt?: string;
   private lastDeliveryId?: string;
+  private lastOutboundRoomId?: string;
+  private lastOutboundUserId?: string;
+  private lastOutboundThreadId?: string;
+  private lastOutboundReplyToId?: string;
+  private lastOutboundMetadataKeys?: string[];
   private sendCount = 0;
   private lastError?: string;
   private readonly lifecycle = createLifecycleHistory();
@@ -63,6 +68,11 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       lastSendAt: this.lastSendAt,
       lastDeliveryAt: this.lastDeliveryAt,
       lastDeliveryId: this.lastDeliveryId,
+      lastOutboundRoomId: this.lastOutboundRoomId,
+      lastOutboundUserId: this.lastOutboundUserId,
+      lastOutboundThreadId: this.lastOutboundThreadId,
+      lastOutboundReplyToId: this.lastOutboundReplyToId,
+      lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
       sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
@@ -114,6 +124,11 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     this.sendCount += 1;
     this.lastSendAt = nowIso();
     this.lastError = undefined;
+    this.lastOutboundRoomId = message.roomId;
+    this.lastOutboundUserId = message.userId;
+    this.lastOutboundThreadId = message.threadId;
+    this.lastOutboundReplyToId = message.replyToId;
+    this.lastOutboundMetadataKeys = Object.keys(message.metadata ?? {});
     const record = this.delivery.deliver(
       {
         platform: this.name,

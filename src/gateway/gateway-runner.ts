@@ -64,6 +64,11 @@ interface GatewayPlatformState {
   sendCount: number;
   lastDeliveryAt?: string;
   lastDeliveryId?: string;
+  lastOutboundRoomId?: string;
+  lastOutboundUserId?: string;
+  lastOutboundThreadId?: string;
+  lastOutboundReplyToId?: string;
+  lastOutboundMetadataKeys?: string[];
   eventCount: number;
   lastEventAt?: string;
   lastEventKind?: PlatformLifecycleEvent["kind"];
@@ -458,6 +463,11 @@ export class GatewayRunner {
       sendCount: entry.sendCount ?? 0,
       lastDeliveryAt: entry.lastDeliveryAt,
       lastDeliveryId: entry.lastDeliveryId,
+      lastOutboundRoomId: entry.lastOutboundRoomId,
+      lastOutboundUserId: entry.lastOutboundUserId,
+      lastOutboundThreadId: entry.lastOutboundThreadId,
+      lastOutboundReplyToId: entry.lastOutboundReplyToId,
+      lastOutboundMetadataKeys: entry.lastOutboundMetadataKeys,
       eventCount: entry.events.length,
       lastEventAt: entry.events[0]?.at,
       lastEventKind: entry.events[0]?.kind,
