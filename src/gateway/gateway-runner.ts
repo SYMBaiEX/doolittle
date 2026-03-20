@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { authorizeMessage } from "./authorization";
 import {
   capabilitiesForPlatform,
+  type PlatformLifecycleEvent,
   type PlatformAdapter,
   type PlatformHealth,
 } from "./platforms/base";
@@ -44,11 +45,50 @@ interface GatewayTraceRecord {
   metadataKeys?: string[];
 }
 
+interface GatewayHistoryFilter {
+  platform?: PlatformName;
+  kind?: GatewayTraceRecord["kind"];
+  sessionId?: string;
+}
+
+interface GatewayPlatformState {
+  platform: PlatformName;
+  status: PlatformHealth["status"];
+  mode: PlatformHealth["mode"];
+  ready: boolean;
+  detail: string;
+  sendCount: number;
+  lastDeliveryAt?: string;
+  lastDeliveryId?: string;
+  eventCount: number;
+  lastEventAt?: string;
+  lastEventKind?: PlatformLifecycleEvent["kind"];
+}
+
 interface GatewayHistorySnapshot {
   readiness: PlatformHealth[];
   traces: GatewayTraceRecord[];
   deliveries: DeliveredMessageRecord[];
   sessions: SessionRoute[];
+  state: GatewayStateSnapshot;
+}
+
+interface GatewayStateSnapshot {
+  running: boolean;
+  totals: {
+    configuredPlatforms: number;
+    activeAdapters: number;
+    readyAdapters: number;
+    nativeAdapters: number;
+    mockAdapters: number;
+    recentTraces: number;
+    recentDeliveries: number;
+    recentSessions: number;
+  };
+  platforms: GatewayPlatformState[];
+  tracesByKind: Array<{ kind: GatewayTraceRecord["kind"]; count: number }>;
+  deliveriesByPlatform: Array<{ platform: PlatformName; count: number }>;
+  sessionsByPlatform: Array<{ platform: PlatformName; count: number }>;
 }
 
 export class GatewayRunner {
@@ -349,22 +389,123 @@ export class GatewayRunner {
     return [...startedHealth, ...inactiveHealth];
   }
 
-  trace(limit = 20): GatewayTraceRecord[] {
-    return this.traceLog.slice(-limit).reverse();
+  trace(limit = 20, filters?: GatewayHistoryFilter): GatewayTraceRecord[] {
+    return this.filteredTraces(filters).slice(-limit).reverse();
   }
 
-  async history(limit = 20): Promise<GatewayHistorySnapshot> {
+  async state(limit = 20, filters?: GatewayHistoryFilter): Promise<GatewayStateSnapshot> {
+    return (await this.history(limit, filters)).state;
+  }
+
+  async history(limit = 20, filters?: GatewayHistoryFilter): Promise<GatewayHistorySnapshot> {
     const readiness = await this.health();
+    const traces = this.trace(limit, filters);
+    const deliveries = this.recentDeliveries(limit, filters?.platform);
+    const sessions = this.recentSessions(limit, filters?.platform);
     return {
       readiness,
-      traces: this.trace(limit),
-      deliveries: this.context.services.delivery.recent(limit),
-      sessions: this.context.services.gatewaySessions
-        .list()
-        .slice()
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        .slice(0, limit),
+      traces,
+      deliveries,
+      sessions,
+      state: this.buildStateSnapshot(readiness, traces, deliveries, sessions),
     };
+  }
+
+  private buildStateSnapshot(
+    readiness: PlatformHealth[],
+    traces: GatewayTraceRecord[],
+    deliveries: DeliveredMessageRecord[],
+    sessions: SessionRoute[],
+  ): GatewayStateSnapshot {
+    const platformSummary = readiness.map((entry) => ({
+      platform: entry.platform,
+      status: entry.status,
+      mode: entry.mode,
+      ready: entry.ready,
+      detail: entry.detail,
+      sendCount: entry.sendCount ?? 0,
+      lastDeliveryAt: entry.lastDeliveryAt,
+      lastDeliveryId: entry.lastDeliveryId,
+      eventCount: entry.events.length,
+      lastEventAt: entry.events[0]?.at,
+      lastEventKind: entry.events[0]?.kind,
+    }));
+
+    return {
+      running: this.running,
+      totals: {
+        configuredPlatforms: readiness.length,
+        activeAdapters: readiness.filter((entry) => entry.status === "running").length,
+        readyAdapters: readiness.filter((entry) => entry.ready).length,
+        nativeAdapters: readiness.filter((entry) => entry.mode === "native").length,
+        mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
+        recentTraces: traces.length,
+        recentDeliveries: deliveries.length,
+        recentSessions: sessions.length,
+      },
+      platforms: platformSummary,
+      tracesByKind: this.countByKind(traces, (trace) => trace.kind),
+      deliveriesByPlatform: this.countByPlatform(deliveries, (delivery) => delivery.target.platform),
+      sessionsByPlatform: this.countByPlatform(sessions, (session) => session.platform),
+    };
+  }
+
+  private filteredTraces(filters?: GatewayHistoryFilter): GatewayTraceRecord[] {
+    return this.traceLog.filter((trace) => {
+      if (filters?.platform && trace.platform !== filters.platform) {
+        return false;
+      }
+      if (filters?.kind && trace.kind !== filters.kind) {
+        return false;
+      }
+      if (filters?.sessionId && trace.sessionId !== filters.sessionId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private recentDeliveries(limit = 20, platform?: PlatformName): DeliveredMessageRecord[] {
+    const records = this.context.services.delivery.recent(Math.max(limit * 4, 50));
+    const filtered = platform ? records.filter((record) => record.target.platform === platform) : records;
+    return filtered.slice(0, limit);
+  }
+
+  private recentSessions(limit = 20, platform?: PlatformName): SessionRoute[] {
+    const sessions = this.context.services.gatewaySessions
+      .list()
+      .slice()
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const filtered = platform ? sessions.filter((session) => session.platform === platform) : sessions;
+    return filtered.slice(0, limit);
+  }
+
+  private countByPlatform<T>(
+    records: T[],
+    selector: (record: T) => PlatformName,
+  ): Array<{ platform: PlatformName; count: number }> {
+    const counts = new Map<PlatformName, { platform: PlatformName; count: number }>();
+    for (const record of records) {
+      const key = selector(record);
+      const existing = counts.get(key) ?? { platform: key, count: 0 };
+      existing.count += 1;
+      counts.set(key, existing);
+    }
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+  }
+
+  private countByKind<T>(
+    records: T[],
+    selector: (record: T) => GatewayTraceRecord["kind"],
+  ): Array<{ kind: GatewayTraceRecord["kind"]; count: number }> {
+    const counts = new Map<GatewayTraceRecord["kind"], { kind: GatewayTraceRecord["kind"]; count: number }>();
+    for (const record of records) {
+      const key = selector(record);
+      const existing = counts.get(key) ?? { kind: key, count: 0 };
+      existing.count += 1;
+      counts.set(key, existing);
+    }
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count);
   }
 
   private describeInactivePlatform(platform: PlatformName): string {
