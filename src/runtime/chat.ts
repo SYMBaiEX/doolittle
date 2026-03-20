@@ -899,6 +899,31 @@ async function buildCommandResponse(
       : "No sessions recorded.";
   }
 
+  if (trimmed.startsWith("/queue ")) {
+    const objective = trimmed.replace("/queue ", "").trim();
+    if (!objective) {
+      return "Usage: /queue <prompt>";
+    }
+    return JSON.stringify(
+      context.services.delegation.create({
+        title: `Queued prompt ${new Date().toISOString()}`,
+        objective,
+        group: "queued-prompts",
+        profile: "queued",
+        priority: "normal",
+        labels: ["queue", "prompt"],
+        metadata: {
+          source: input.source ?? "cli",
+          userId: input.userId,
+          roomId: input.roomId ?? `room:${input.userId}`,
+        },
+        executionMode: "local",
+      }),
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/session title ")) {
     const payload = trimmed.replace("/session title ", "").trim();
     const [sessionId, title] = payload.split("::").map((part) => part.trim());
@@ -1511,6 +1536,14 @@ async function buildCommandResponse(
   ) {
     return JSON.stringify(
       context.services.operator.migrationSources(),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/migrate history" || trimmed === "/migration history") {
+    return JSON.stringify(
+      context.services.operator.migrationHistory(20),
       null,
       2,
     );
@@ -2410,6 +2443,41 @@ async function buildCommandResponse(
     return replay
       ? JSON.stringify(replay, null, 2)
       : "No trajectory bundles recorded.";
+  }
+
+  if (trimmed === "/trajectories compare latest") {
+    const comparison = context.services.trajectories.compareLatest();
+    return comparison
+      ? JSON.stringify(comparison, null, 2)
+      : "At least two trajectory bundles are required for comparison.";
+  }
+
+  if (trimmed.startsWith("/trajectories compare ")) {
+    const raw = trimmed.replace("/trajectories compare ", "").trim();
+    const [leftRaw, rightRaw] = raw.split("::").map((part) => part.trim());
+    if (!leftRaw || !rightRaw) {
+      return "Usage: /trajectories compare <left-manifest|label> :: <right-manifest|label>";
+    }
+    const bundles = context.services.trajectories.listBundles(100);
+    const resolveBundle = (value: string) => {
+      if (value.endsWith(".json")) {
+        return value;
+      }
+      return (
+        bundles.find(
+          (entry) =>
+            entry.label === value || entry.manifestPath.endsWith(value),
+        )?.manifestPath ?? value
+      );
+    };
+    return JSON.stringify(
+      context.services.trajectories.compareBundles(
+        resolveBundle(leftRaw),
+        resolveBundle(rightRaw),
+      ),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/trajectories compress latest") {

@@ -71,6 +71,20 @@ export interface TrajectoryCompressionBundle {
   findings: string[];
 }
 
+export interface TrajectoryComparisonBundle {
+  left: TrajectoryBundleEntry;
+  right: TrajectoryBundleEntry;
+  leftReplay: TrajectoryReplayResult;
+  rightReplay: TrajectoryReplayResult;
+  reportPath: string;
+  summaryPath: string;
+  messageDelta: number;
+  sessionDelta: number;
+  roleDelta: Record<string, number>;
+  findings: string[];
+  recommendation: string;
+}
+
 export interface TrajectoryAnalysisBundle {
   focus: "dataset" | "research" | "evaluation" | "rl";
   bundle: TrajectoryBundleEntry;
@@ -758,6 +772,119 @@ export class TrajectoryService {
       return undefined;
     }
     return this.compressBundle(latest.manifestPath);
+  }
+
+  compareBundles(
+    leftManifestPath: string,
+    rightManifestPath: string,
+  ): TrajectoryComparisonBundle {
+    const left = this.describeBundle(leftManifestPath);
+    const right = this.describeBundle(rightManifestPath);
+    const leftReplay = this.replayBundle(leftManifestPath);
+    const rightReplay = this.replayBundle(rightManifestPath);
+    const roleKeys = Array.from(
+      new Set([
+        ...Object.keys(left.roleCounts),
+        ...Object.keys(right.roleCounts),
+      ]),
+    );
+    const roleDelta = roleKeys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (right.roleCounts[key] ?? 0) - (left.roleCounts[key] ?? 0);
+      return acc;
+    }, {});
+    const messageDelta = right.messageCount - left.messageCount;
+    const sessionDelta = right.sessionCount - left.sessionCount;
+    const findings = [
+      `Message delta: ${messageDelta >= 0 ? "+" : ""}${messageDelta}`,
+      `Session delta: ${sessionDelta >= 0 ? "+" : ""}${sessionDelta}`,
+      `Role delta: ${Object.entries(roleDelta)
+        .map(([role, count]) => `${role}=${count >= 0 ? "+" : ""}${count}`)
+        .join(", ")}`,
+    ];
+    const recommendation =
+      messageDelta > 0 && sessionDelta >= 0
+        ? "Right bundle expands coverage and is a stronger candidate for follow-on evaluation."
+        : messageDelta < 0
+          ? "Left bundle is broader; inspect whether right-side filtering removed useful supervision."
+          : "Both bundles are similar in breadth; compare qualitative findings and evaluation scores next.";
+
+    const stamp = Date.now();
+    const label = this.slug(`${left.label}-vs-${right.label}`);
+    const reportPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-compare.json`,
+    );
+    const summaryPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-compare.md`,
+    );
+
+    writeFileSync(
+      reportPath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          left,
+          right,
+          leftReplay,
+          rightReplay,
+          messageDelta,
+          sessionDelta,
+          roleDelta,
+          findings,
+          recommendation,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      summaryPath,
+      [
+        `# Trajectory Comparison: ${left.label} vs ${right.label}`,
+        "",
+        `- Left manifest: ${left.manifestPath}`,
+        `- Right manifest: ${right.manifestPath}`,
+        `- Message delta: ${messageDelta >= 0 ? "+" : ""}${messageDelta}`,
+        `- Session delta: ${sessionDelta >= 0 ? "+" : ""}${sessionDelta}`,
+        "",
+        "## Findings",
+        ...findings.map((entry) => `- ${entry}`),
+        "",
+        "## Recommendation",
+        recommendation,
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      left,
+      right,
+      leftReplay,
+      rightReplay,
+      reportPath,
+      summaryPath,
+      messageDelta,
+      sessionDelta,
+      roleDelta,
+      findings,
+      recommendation,
+    };
+  }
+
+  compareLatest(): TrajectoryComparisonBundle | undefined {
+    const latest = this.listBundles(2);
+    if (latest.length < 2) {
+      return undefined;
+    }
+    const left = latest[1];
+    const right = latest[0];
+    if (!left || !right) {
+      return undefined;
+    }
+    return this.compareBundles(left.manifestPath, right.manifestPath);
   }
 
   evaluateLatest(): Promise<TrajectoryEvaluationBundle | undefined> {

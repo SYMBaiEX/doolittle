@@ -100,6 +100,22 @@ describe("TrajectoryService", () => {
         "Trajectory Compression: replay-fixture",
       );
 
+      const second = service.exportFilteredBundle({
+        limit: 10,
+        label: "Replay Fixture Candidate",
+        purpose: "training data candidate",
+        mode: "research",
+      });
+      const comparison = service.compareBundles(
+        bundle.manifestPath,
+        second.manifestPath,
+      );
+      expect(comparison.findings.length).toBeGreaterThan(0);
+      expect(comparison.summaryPath).toContain("compare");
+      expect(readFileSync(comparison.summaryPath, "utf8")).toContain(
+        "Trajectory Comparison",
+      );
+
       const analysis = service.analyze({
         limit: 10,
         sessionId: "session-a",
