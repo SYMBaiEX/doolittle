@@ -130,6 +130,8 @@ function makeConfig(root: string): EnvConfig {
     sshStrictHostKeyChecking: true,
     mcpServerCommand: undefined,
     mcpTimeoutMs: 30000,
+    acpServerCommand: undefined,
+    acpTimeoutMs: 30000,
     memoryCharLimit: 100000,
     userCharLimit: 50000,
     sessionSearchLimit: 20,

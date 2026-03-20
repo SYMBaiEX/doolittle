@@ -329,6 +329,12 @@ Useful commands:
 - `/mcp cached search echo`
 - `/mcp invoke list-tools`
 - `/mcp call sum :: {"a":3,"b":4}`
+- `/acp status`
+- `/acp registry`
+- `/acp publish`
+- `/acp tools`
+- `/acp search terminal`
+- `/acp call sum :: {"a":3,"b":4}`
 - `/web snapshot https://example.com`
 - `/web inspect https://example.com`
 - `/delegate list`
@@ -361,6 +367,10 @@ Useful commands:
 - `/trajectories package`
 - `/trajectories package session:room-123 role:user limit:50 rubric:memory,skills`
 - `/trajectories replay latest`
+- `/trajectories compare latest`
+- `/trajectories ingest gateway`
+- `/trajectories ingest gateway label:gateway-review limit:100`
+- `/trajectories batch label:research rubric:coverage,signal :: investigate transport drift => summarize queued prompts`
 - `/context files`
 - `/status`
 - `/runtime status`
@@ -444,6 +454,14 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `POST /mcp/probe`
 - `POST /mcp/invoke`
 - `POST /mcp/invoke-tool`
+- `GET /acp/status`
+- `GET /acp/registry`
+- `GET /acp/tools`
+- `GET /acp/tool`
+- `POST /acp/publish`
+- `POST /acp/probe`
+- `POST /acp/invoke`
+- `POST /acp/call`
 - `GET /doctor`
 - `GET /setup/checklist`
 - `GET /setup/summary`
@@ -490,6 +508,8 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /repo/diff`
 - `GET /repo/log`
 - `POST /documents/pdf/extract`
+- `POST /trajectories/ingest/gateway`
+- `POST /trajectories/batch`
 - `POST /trajectories/package`
 - `GET /trajectories/package`
 - `GET /deliveries`

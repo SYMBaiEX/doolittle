@@ -103,6 +103,8 @@ export interface EnvConfig {
   sshStrictHostKeyChecking: boolean;
   mcpServerCommand?: string;
   mcpTimeoutMs: number;
+  acpServerCommand?: string;
+  acpTimeoutMs: number;
   memoryCharLimit: number;
   userCharLimit: number;
   sessionSearchLimit: number;
@@ -560,6 +562,38 @@ export interface McpToolDefinition {
   inputSchema?: Record<string, unknown>;
 }
 
+export type AcpToolKind =
+  | "read"
+  | "edit"
+  | "search"
+  | "execute"
+  | "fetch"
+  | "think"
+  | "other";
+
+export interface AcpToolDefinition {
+  name: string;
+  description: string;
+  kind: AcpToolKind;
+  inputSchema?: Record<string, unknown>;
+  source: "eliza-agent" | "mcp";
+}
+
+export interface AcpRegistryEntry {
+  schema_version: number;
+  name: string;
+  display_name: string;
+  description: string;
+  distribution: {
+    type: "command";
+    command: string;
+    args: string[];
+  };
+  capabilities: {
+    tools: number;
+  };
+}
+
 export interface ToolDefinition {
   id: string;
   name: string;
@@ -570,7 +604,8 @@ export interface ToolDefinition {
     | "documents"
     | "gateway"
     | "automation"
-    | "mcp";
+    | "mcp"
+    | "protocol";
   description: string;
   enabled: boolean;
   transport?: "native" | "service" | "adapter";

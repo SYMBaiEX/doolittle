@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { EnvConfig } from "@/types";
+import { AcpService } from "./acp-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
 import { DelegationService } from "./delegation-service";
@@ -48,6 +49,7 @@ export interface AppServices {
   operator: OperatorService;
   tools: ToolsService;
   mcp: McpService;
+  acp: AcpService;
   delegation: DelegationService;
   web: WebService;
   media: MediaService;
@@ -317,12 +319,15 @@ export function createServices(
   }
   const sessions = new SessionService(config.dataDir);
   const mcp = new McpService(() => settings.get().mcp);
+  let tools: ToolsService;
+  const acp = new AcpService(config, () => tools.list());
   const repository = new RepositoryService(config.workspaceDir);
   const diagnostics = new DiagnosticsService(config, gatewayConfig);
   const operator = new OperatorService(config, diagnostics, repository);
-  const tools = new ToolsService(() => ({
+  tools = new ToolsService(() => ({
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
+    acpEnabled: acp.status().enabled,
   }));
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";
@@ -385,6 +390,7 @@ export function createServices(
     operator,
     tools,
     mcp,
+    acp,
     delegation: new DelegationService(join(config.dataDir, "delegation")),
     web: new WebService(
       () => ({

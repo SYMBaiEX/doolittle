@@ -105,6 +105,8 @@ function buildConfig(root: string): EnvConfig {
     sshStrictHostKeyChecking: false,
     mcpServerCommand: undefined,
     mcpTimeoutMs: 10000,
+    acpServerCommand: undefined,
+    acpTimeoutMs: 10000,
     memoryCharLimit: 2200,
     userCharLimit: 1375,
     sessionSearchLimit: 6,

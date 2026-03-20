@@ -484,6 +484,74 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/acp/status") {
+        return json({
+          acp: context.services.acp.status(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/acp/registry") {
+        return json({
+          registry: context.services.acp.registry(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/acp/publish") {
+        return json({
+          published: context.services.acp.publishRegistry(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/acp/probe") {
+        return json({
+          probe: await context.services.acp.probe(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/acp/tools") {
+        const query = url.searchParams.get("query");
+        return json({
+          tools: query
+            ? context.services.acp.searchTools(query)
+            : context.services.acp.tools(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/acp/tool") {
+        const name = url.searchParams.get("name");
+        if (!name) {
+          return json({ error: "name is required" }, 400);
+        }
+        return json({
+          detail: context.services.acp.describeTool(name),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/acp/invoke") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          input?: string;
+        };
+        return json({
+          result: await context.services.acp.invoke(body.input ?? ""),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/acp/call") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          tool?: string;
+          input?: Record<string, unknown>;
+        };
+        if (!body.tool) {
+          return json({ error: "tool is required" }, 400);
+        }
+        return json({
+          result: await context.services.acp.invokeTool(
+            body.tool,
+            body.input ?? {},
+          ),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/workspace/tree") {
         const depth = Number(url.searchParams.get("depth") ?? "2");
         return json({
@@ -1638,6 +1706,76 @@ export function startApiServer(context: AppContext): void {
           bundles: context.services.trajectories.listBundles(
             !Number.isNaN(limit) && limit > 0 ? limit : 20,
           ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/ingest/gateway"
+      ) {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          limit?: number;
+          label?: string;
+          purpose?: string;
+          tags?: string[];
+          notes?: string;
+        };
+        const history = await context.gateway.history(body.limit ?? 200);
+        return json({
+          bundle: context.services.trajectories.ingestGatewayHistory({
+            traces: history.traces,
+            inbox: history.inbox,
+            outbox: history.outbox,
+            label: body.label ?? "gateway-history",
+            purpose: body.purpose ?? "gateway history ingest",
+            tags: body.tags ?? ["gateway", "history"],
+            notes: body.notes,
+          }),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/trajectories/batch") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          label?: string;
+          purpose?: string;
+          prompts?: string[];
+          rubric?: string[];
+          tags?: string[];
+        };
+        const prompts = (body.prompts ?? [])
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+        if (!prompts.length) {
+          return json({ error: "prompts is required" }, 400);
+        }
+        const label = body.label ?? `trajectory-batch-${Date.now()}`;
+        const group = `trajectory-batch:${label}`;
+        const tasks = prompts.map((prompt, index) =>
+          context.services.delegation.create({
+            title: `Batch prompt ${index + 1}`,
+            objective: prompt,
+            group,
+            profile: "research",
+            priority: "normal",
+            labels: ["trajectory", "batch"],
+            metadata: {
+              source: "trajectory-batch",
+              label,
+            },
+            executionMode: "local",
+          }),
+        );
+        return json({
+          batch: context.services.trajectories.createBatchManifest({
+            label,
+            purpose: body.purpose ?? "trajectory batch",
+            prompts,
+            rubric: body.rubric,
+            tags: body.tags,
+            taskIds: tasks.map((task) => task.id),
+            group,
+          }),
+          tasks,
         });
       }
 

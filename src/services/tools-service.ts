@@ -4,6 +4,7 @@ interface ToolRegistryDynamicState {
   mcpEnabled: boolean;
   discoveredMcpTools: number;
   discoveredMcpToolNames?: string[];
+  acpEnabled?: boolean;
 }
 
 interface ToolRegistrySummary {
@@ -33,6 +34,7 @@ export class ToolsService {
       mcpEnabled: false,
       discoveredMcpTools: 0,
       discoveredMcpToolNames: [],
+      acpEnabled: false,
     }),
   ) {}
 
@@ -233,6 +235,32 @@ export class ToolsService {
       description: "Send a response through the active gateway adapter.",
       enabled: true,
       transport: "adapter",
+    },
+    {
+      id: "acp.status",
+      name: "ACP Status",
+      category: "protocol",
+      description: "Inspect the ACP bridge and Eliza Agent registry surface.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "acp.registry",
+      name: "ACP Registry",
+      category: "protocol",
+      description:
+        "Publish the Eliza Agent ACP registry manifest for editor integrations.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "acp.tools",
+      name: "ACP Tool Catalog",
+      category: "protocol",
+      description:
+        "Expose Eliza Agent tools as ACP-style tool definitions with kind metadata.",
+      enabled: true,
+      transport: "service",
     },
     {
       id: "automation.cron",

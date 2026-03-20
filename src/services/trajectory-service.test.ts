@@ -161,6 +161,52 @@ describe("TrajectoryService", () => {
       expect(readFileSync(packageBundle.reportPath, "utf8")).toContain(
         "Trajectory Research Package",
       );
+
+      const ingested = service.ingestGatewayHistory({
+        traces: [
+          {
+            at: "2026-03-20T00:00:03.000Z",
+            kind: "receive",
+            platform: "telegram",
+            detail: "Inbound telegram message received.",
+            sessionId: "gateway-session",
+          },
+        ],
+        inbox: [
+          {
+            at: "2026-03-20T00:00:04.000Z",
+            platform: "telegram",
+            sessionId: "gateway-session",
+            text: "Hello from telegram",
+          },
+        ],
+        outbox: [
+          {
+            at: "2026-03-20T00:00:05.000Z",
+            platform: "telegram",
+            sessionId: "gateway-session",
+            text: "Hello back from Eliza Agent",
+          },
+        ],
+      });
+      expect(ingested.messageCount).toBe(3);
+      expect(ingested.traceCount).toBe(1);
+      expect(readFileSync(ingested.summaryPath, "utf8")).toContain(
+        "gateway-history",
+      );
+
+      const batch = service.createBatchManifest({
+        label: "Research Batch",
+        prompts: ["Investigate session drift", "Summarize gateway anomalies"],
+        rubric: ["coverage", "signal"],
+        tags: ["research", "gateway"],
+        taskIds: ["task-a", "task-b"],
+      });
+      expect(batch.prompts).toHaveLength(2);
+      expect(batch.group).toContain("trajectory-batch");
+      expect(readFileSync(batch.summaryPath, "utf8")).toContain(
+        "Investigate session drift",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

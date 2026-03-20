@@ -1751,6 +1751,63 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/acp" || trimmed === "/acp status") {
+    return JSON.stringify(context.services.acp.status(), null, 2);
+  }
+
+  if (trimmed === "/acp registry") {
+    return JSON.stringify(context.services.acp.registry(), null, 2);
+  }
+
+  if (trimmed === "/acp publish") {
+    return JSON.stringify(context.services.acp.publishRegistry(), null, 2);
+  }
+
+  if (trimmed === "/acp probe") {
+    return JSON.stringify(await context.services.acp.probe(), null, 2);
+  }
+
+  if (trimmed === "/acp tools") {
+    return JSON.stringify(context.services.acp.tools(), null, 2);
+  }
+
+  if (trimmed.startsWith("/acp search ")) {
+    const query = trimmed.replace("/acp search ", "").trim();
+    if (!query) {
+      return "Usage: /acp search <query>";
+    }
+    return JSON.stringify(context.services.acp.searchTools(query), null, 2);
+  }
+
+  if (trimmed.startsWith("/acp describe ")) {
+    const name = trimmed.replace("/acp describe ", "").trim();
+    if (!name) {
+      return "Usage: /acp describe <tool-name>";
+    }
+    return context.services.acp.describeTool(name);
+  }
+
+  if (trimmed.startsWith("/acp invoke ")) {
+    const input = trimmed.replace("/acp invoke ", "").trim();
+    return JSON.stringify(await context.services.acp.invoke(input), null, 2);
+  }
+
+  if (trimmed.startsWith("/acp call ")) {
+    const payload = trimmed.replace("/acp call ", "");
+    const [toolName, inputRaw] = payload.split("::").map((part) => part.trim());
+    if (!toolName) {
+      return "Usage: /acp call <toolName> :: <json-input>";
+    }
+    const parsedInput = inputRaw
+      ? (JSON.parse(inputRaw) as Record<string, unknown>)
+      : {};
+    return JSON.stringify(
+      await context.services.acp.invokeTool(toolName, parsedInput),
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/web fetch ")) {
     const url = trimmed.replace("/web fetch ", "").trim();
     return JSON.stringify(await context.services.web.fetchText(url), null, 2);
@@ -2452,6 +2509,48 @@ async function buildCommandResponse(
       : "At least two trajectory bundles are required for comparison.";
   }
 
+  if (trimmed === "/trajectories ingest gateway") {
+    if (!context.gateway) {
+      return "Gateway runtime is not available in this execution context.";
+    }
+    const history = await context.gateway.history(200);
+    return JSON.stringify(
+      context.services.trajectories.ingestGatewayHistory({
+        traces: history.traces,
+        inbox: history.inbox,
+        outbox: history.outbox,
+        label: "gateway-history",
+        purpose: "gateway history ingest",
+        tags: ["gateway", "history"],
+      }),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/trajectories ingest gateway ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not available in this execution context.";
+    }
+    const options = parseTrajectoryArgs(
+      trimmed.replace("/trajectories ingest gateway ", ""),
+    );
+    const history = await context.gateway.history(options.limit ?? 200);
+    return JSON.stringify(
+      context.services.trajectories.ingestGatewayHistory({
+        traces: history.traces,
+        inbox: history.inbox,
+        outbox: history.outbox,
+        label: options.label ?? "gateway-history",
+        purpose: options.purpose ?? "gateway history ingest",
+        tags: options.tags ?? ["gateway", "history"],
+        notes: options.notes,
+      }),
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/trajectories compare ")) {
     const raw = trimmed.replace("/trajectories compare ", "").trim();
     const [leftRaw, rightRaw] = raw.split("::").map((part) => part.trim());
@@ -2475,6 +2574,54 @@ async function buildCommandResponse(
         resolveBundle(leftRaw),
         resolveBundle(rightRaw),
       ),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/trajectories batch ")) {
+    const payload = trimmed.replace("/trajectories batch ", "");
+    const [optionsRaw, promptsRaw] = payload
+      .split("::")
+      .map((part) => part.trim());
+    const options = parseTrajectoryArgs(optionsRaw);
+    const prompts = (promptsRaw ?? "")
+      .split("=>")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (!prompts.length) {
+      return "Usage: /trajectories batch label:<name> rubric:a,b :: prompt one => prompt two";
+    }
+    const label = options.label ?? `trajectory-batch-${Date.now()}`;
+    const group = `trajectory-batch:${label}`;
+    const tasks = prompts.map((prompt, index) =>
+      context.services.delegation.create({
+        title: `Batch prompt ${index + 1}`,
+        objective: prompt,
+        group,
+        profile: "research",
+        priority: "normal",
+        labels: ["trajectory", "batch"],
+        metadata: {
+          source: "trajectory-batch",
+          label,
+        },
+        executionMode: "local",
+      }),
+    );
+    return JSON.stringify(
+      {
+        batch: context.services.trajectories.createBatchManifest({
+          label,
+          purpose: options.purpose ?? "trajectory batch",
+          prompts,
+          rubric: options.rubric,
+          tags: options.tags,
+          taskIds: tasks.map((task) => task.id),
+          group,
+        }),
+        tasks,
+      },
       null,
       2,
     );

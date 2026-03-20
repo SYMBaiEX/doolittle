@@ -24,6 +24,27 @@ interface TrajectoryRecord {
   text: string;
 }
 
+interface GatewayTraceLike {
+  at: string;
+  kind: string;
+  platform: string;
+  detail: string;
+  sessionId?: string;
+  userId?: string;
+  roomId?: string;
+}
+
+interface GatewayMessageLike {
+  at: string;
+  platform: string;
+  userId?: string;
+  roomId?: string;
+  sessionId?: string;
+  text?: string;
+  detail?: string;
+  status?: string;
+}
+
 interface TrajectoryBundleEntry {
   manifestPath: string;
   dataPath: string;
@@ -128,6 +149,30 @@ export interface TrajectoryResearchPackageBundle {
   purpose?: string;
   mode?: "dataset" | "research" | "evaluation" | "rl";
   tags?: string[];
+}
+
+export interface TrajectoryGatewayIngestBundle {
+  dataPath: string;
+  manifestPath: string;
+  summaryPath: string;
+  messageCount: number;
+  sessionCount: number;
+  traceCount: number;
+  inboxCount: number;
+  outboxCount: number;
+}
+
+export interface TrajectoryBatchManifest {
+  manifestPath: string;
+  summaryPath: string;
+  createdAt: string;
+  label: string;
+  purpose: string;
+  prompts: string[];
+  tags: string[];
+  rubric: string[];
+  taskIds: string[];
+  group: string;
 }
 
 interface TrajectoryModelContext {
@@ -899,6 +944,149 @@ export class TrajectoryService {
     });
   }
 
+  ingestGatewayHistory(input: {
+    label?: string;
+    purpose?: string;
+    tags?: string[];
+    notes?: string;
+    traces: GatewayTraceLike[];
+    inbox: GatewayMessageLike[];
+    outbox: GatewayMessageLike[];
+  }): TrajectoryGatewayIngestBundle {
+    const records: TrajectoryRecord[] = [];
+
+    for (const entry of input.traces) {
+      records.push({
+        sessionId:
+          entry.sessionId ??
+          `${entry.platform}:${entry.roomId ?? entry.userId ?? "unknown"}`,
+        createdAt: entry.at,
+        role: "system",
+        text: `[gateway:${entry.platform}:${entry.kind}] ${entry.detail}`,
+      });
+    }
+
+    for (const entry of input.inbox) {
+      records.push({
+        sessionId:
+          entry.sessionId ??
+          `${entry.platform}:${entry.roomId ?? entry.userId ?? "unknown"}`,
+        createdAt: entry.at,
+        role: "user",
+        text:
+          entry.text ??
+          entry.detail ??
+          `[gateway:${entry.platform}:inbox] ${entry.status ?? "received"}`,
+      });
+    }
+
+    for (const entry of input.outbox) {
+      records.push({
+        sessionId:
+          entry.sessionId ??
+          `${entry.platform}:${entry.roomId ?? entry.userId ?? "unknown"}`,
+        createdAt: entry.at,
+        role: "assistant",
+        text:
+          entry.text ??
+          entry.detail ??
+          `[gateway:${entry.platform}:outbox] ${entry.status ?? "sent"}`,
+      });
+    }
+
+    records.sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt),
+    );
+
+    const bundle = this.writeBundleRecords(records, {
+      label: input.label ?? "gateway-history",
+      purpose: input.purpose ?? "gateway history ingest",
+      tags: input.tags ?? ["gateway", "history"],
+      notes: input.notes,
+      mode: "research",
+    });
+
+    return {
+      ...bundle,
+      traceCount: input.traces.length,
+      inboxCount: input.inbox.length,
+      outboxCount: input.outbox.length,
+    };
+  }
+
+  createBatchManifest(input: {
+    label?: string;
+    purpose?: string;
+    prompts: string[];
+    rubric?: string[];
+    tags?: string[];
+    taskIds?: string[];
+    group?: string;
+  }): TrajectoryBatchManifest {
+    const prompts = input.prompts.map((entry) => entry.trim()).filter(Boolean);
+    const createdAt = new Date().toISOString();
+    const label = this.slug(input.label ?? "trajectory-batch");
+    const stamp = Date.now();
+    const manifestPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-batch.json`,
+    );
+    const summaryPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-batch.md`,
+    );
+    const manifest = {
+      createdAt,
+      label,
+      purpose: input.purpose ?? "trajectory batch",
+      prompts,
+      rubric: input.rubric ?? [],
+      tags: input.tags ?? [],
+      taskIds: input.taskIds ?? [],
+      group: input.group ?? `trajectory-batch:${label}`,
+      promptCount: prompts.length,
+    };
+
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+    writeFileSync(
+      summaryPath,
+      [
+        `# Trajectory Batch: ${label}`,
+        "",
+        `- Created: ${createdAt}`,
+        `- Purpose: ${manifest.purpose}`,
+        `- Group: ${manifest.group}`,
+        `- Prompt count: ${prompts.length}`,
+        ...(manifest.tags.length
+          ? [`- Tags: ${manifest.tags.join(", ")}`]
+          : []),
+        ...(manifest.rubric.length
+          ? [`- Rubric: ${manifest.rubric.join(", ")}`]
+          : []),
+        ...(manifest.taskIds.length
+          ? [`- Tasks: ${manifest.taskIds.join(", ")}`]
+          : []),
+        "",
+        "## Prompts",
+        ...prompts.map((entry, index) => `${index + 1}. ${entry}`),
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      manifestPath,
+      summaryPath,
+      createdAt,
+      label,
+      purpose: manifest.purpose,
+      prompts,
+      tags: manifest.tags,
+      rubric: manifest.rubric,
+      taskIds: manifest.taskIds,
+      group: manifest.group,
+    };
+  }
+
   listBundles(limit = 20): TrajectoryBundleEntry[] {
     return readdirSync(this.baseDir)
       .filter((file) => file.endsWith("-manifest.json"))
@@ -932,6 +1120,115 @@ export class TrajectoryService {
       }
       return true;
     });
+  }
+
+  private writeBundleRecords(
+    messages: TrajectoryRecord[],
+    options: {
+      label: string;
+      purpose: string;
+      tags?: string[];
+      notes?: string;
+      mode: "dataset" | "research" | "evaluation" | "rl";
+    },
+  ): {
+    dataPath: string;
+    manifestPath: string;
+    summaryPath: string;
+    messageCount: number;
+    sessionCount: number;
+  } {
+    const label = this.slug(options.label);
+    const stamp = Date.now();
+    const dataPath = join(this.baseDir, `trajectory-${stamp}-${label}.jsonl`);
+    const manifestPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-manifest.json`,
+    );
+    const summaryPath = join(
+      this.baseDir,
+      `trajectory-${stamp}-${label}-summary.md`,
+    );
+
+    writeFileSync(
+      dataPath,
+      messages.map((message) => JSON.stringify(message)).join("\n"),
+      "utf8",
+    );
+
+    const roleCounts = messages.reduce<Record<string, number>>(
+      (counts, message) => {
+        counts[message.role] = (counts[message.role] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    const sessions = Array.from(
+      new Set(messages.map((message) => message.sessionId)),
+    );
+
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          label,
+          purpose: options.purpose,
+          mode: options.mode,
+          tags: options.tags ?? [],
+          notes: options.notes,
+          limit: messages.length,
+          manifestPath,
+          filters: {
+            sessionId: null,
+            role: null,
+          },
+          dataPath,
+          summaryPath,
+          messageCount: messages.length,
+          sessionCount: sessions.length,
+          sessions,
+          roleCounts,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      summaryPath,
+      [
+        `# Trajectory Bundle: ${label}`,
+        "",
+        `- Created: ${new Date().toISOString()}`,
+        `- Mode: ${options.mode}`,
+        `- Purpose: ${options.purpose}`,
+        ...(options.tags?.length ? [`- Tags: ${options.tags.join(", ")}`] : []),
+        ...(options.notes ? [`- Notes: ${options.notes}`] : []),
+        `- Messages: ${messages.length}`,
+        `- Sessions: ${sessions.length}`,
+        "",
+        "## Role Counts",
+        ...Object.entries(roleCounts).map(
+          ([role, count]) => `- ${role}: ${count}`,
+        ),
+        "",
+        "## Sessions",
+        ...(sessions.length
+          ? sessions.map((sessionId) => `- ${sessionId}`)
+          : ["- (none)"]),
+      ].join("\n"),
+      "utf8",
+    );
+
+    return {
+      dataPath,
+      manifestPath,
+      summaryPath,
+      messageCount: messages.length,
+      sessionCount: sessions.length,
+    };
   }
 
   private slug(value: string): string {

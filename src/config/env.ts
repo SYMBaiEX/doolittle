@@ -160,6 +160,8 @@ const schema = z.object({
   ELIZA_AGENT_PAIRING_MODE: z.enum(["pair", "deny", "allow"]).default("pair"),
   MCP_SERVER_COMMAND: z.string().optional(),
   MCP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  ACP_SERVER_COMMAND: z.string().optional(),
+  ACP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 });
 
 export function loadConfig(): EnvConfig {
@@ -269,6 +271,8 @@ export function loadConfig(): EnvConfig {
     sshStrictHostKeyChecking: values.ELIZA_AGENT_SSH_STRICT_HOST_KEY_CHECKING,
     mcpServerCommand: values.MCP_SERVER_COMMAND,
     mcpTimeoutMs: values.MCP_TIMEOUT_MS,
+    acpServerCommand: values.ACP_SERVER_COMMAND,
+    acpTimeoutMs: values.ACP_TIMEOUT_MS,
     memoryCharLimit: values.ELIZA_AGENT_MEMORY_CHAR_LIMIT,
     userCharLimit: values.ELIZA_AGENT_USER_CHAR_LIMIT,
     sessionSearchLimit: values.ELIZA_AGENT_SESSION_SEARCH_LIMIT,

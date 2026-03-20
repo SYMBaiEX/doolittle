@@ -429,6 +429,15 @@ export class DiagnosticsService {
         : "MCP_SERVER_COMMAND is not configured.",
     });
 
+    checks.push({
+      id: "acp.bridge",
+      status: this.config.acpServerCommand ? "pass" : "warn",
+      summary: "ACP bridge configuration",
+      detail: this.config.acpServerCommand
+        ? `ACP bridge command configured: ${this.config.acpServerCommand}`
+        : "ACP_SERVER_COMMAND is not configured.",
+    });
+
     return checks;
   }
 
@@ -509,6 +518,11 @@ export class DiagnosticsService {
     if (!this.config.mcpServerCommand) {
       steps.push(
         "Set MCP_SERVER_COMMAND if you want MCP-backed tool discovery and invocation.",
+      );
+    }
+    if (!this.config.acpServerCommand) {
+      steps.push(
+        "Set ACP_SERVER_COMMAND if you want ACP-backed editor and protocol integrations.",
       );
     }
     if (this.config.executionBackend !== "local") {
