@@ -319,6 +319,29 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/sessions/title") {
+        const body = (await request.json()) as {
+          sessionId?: string;
+          title?: string;
+        };
+        if (!body.sessionId || !body.title) {
+          return json({ error: "sessionId and title are required" }, 400);
+        }
+        return json({
+          summary: context.services.sessions.rename(body.sessionId, body.title),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/sessions/continuity") {
+        const sessionId = url.searchParams.get("sessionId");
+        if (!sessionId) {
+          return json({ error: "sessionId is required" }, 400);
+        }
+        return json({
+          sessions: context.services.sessions.continuity(sessionId),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/sessions/summary") {
         const sessionId = url.searchParams.get("sessionId");
         if (!sessionId) {
@@ -1184,6 +1207,20 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/recall"
+      ) {
+        const userId = url.searchParams.get("userId");
+        const query = url.searchParams.get("query");
+        if (!userId || !query) {
+          return json({ error: "userId and query are required" }, 400);
+        }
+        return json({
+          hits: context.services.userProfiles.recall(userId, query),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/profiles/agent") {
         return json({
           profile: context.services.userProfiles.getAgent(),
@@ -1277,6 +1314,22 @@ export function startApiServer(context: AppContext): void {
             body.note,
             body.source,
           ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/profiles/agent/seed"
+      ) {
+        const body = (await request.json()) as {
+          name?: string;
+          goals?: string[];
+          strengths?: string[];
+          workStyle?: string[];
+          notes?: string[];
+        };
+        return json({
+          profile: context.services.userProfiles.seedAgent(body),
         });
       }
 
@@ -1611,6 +1664,37 @@ export function startApiServer(context: AppContext): void {
           { error: "manifestPath, label, or latest=true is required" },
           400,
         );
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/compress/latest"
+      ) {
+        const compressed = context.services.trajectories.compressLatest();
+        return compressed
+          ? json({ compressed })
+          : json({ error: "No trajectory bundles recorded." }, 404);
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/compress"
+      ) {
+        const body = (await request.json()) as {
+          manifestPath?: string;
+          sampleCount?: number;
+        };
+        if (!body.manifestPath) {
+          return json({ error: "manifestPath is required" }, 400);
+        }
+        return json({
+          compressed: context.services.trajectories.compressBundle(
+            body.manifestPath,
+            {
+              sampleCount: body.sampleCount,
+            },
+          ),
+        });
       }
 
       if (

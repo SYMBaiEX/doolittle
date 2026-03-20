@@ -44,10 +44,17 @@ describe("SessionService", () => {
       expect(summary.participants).toContain("assistant");
       expect(summary.preview[0]).toContain("Hello there");
 
+      const renamed = service.rename("room:alpha", "Alpha Session");
+      expect(renamed.title).toBe("Alpha Session");
+      expect(renamed.continuityKey).toBe("room:alpha");
+      expect(service.metadata("room:alpha")?.title).toBe("Alpha Session");
+
       const sessions = service.listSessions(10);
       expect(sessions).toHaveLength(2);
       expect(sessions[0]?.sessionId).toBe("room:beta");
       expect(sessions[1]?.sessionId).toBe("room:alpha");
+      expect(sessions[1]?.title).toBe("Alpha Session");
+      expect(service.continuity("room:alpha")).toHaveLength(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

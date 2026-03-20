@@ -124,6 +124,19 @@ describe("UserProfileService", () => {
       expect(card).toContain("AGENT PROFILE");
       expect(card).toContain("Explicit Memories");
       expect(card).toContain("Project Context");
+
+      const recall = service.recall("user-3", "Bun");
+      expect(recall.length).toBeGreaterThan(0);
+      expect(recall.some((entry) => entry.value.includes("Bun"))).toBe(true);
+
+      const seeded = service.seedAgent({
+        name: "Eliza Agent Prime",
+        goals: ["Ship operator-grade automation"],
+        strengths: ["Structured runtime orchestration"],
+      });
+      expect(seeded.name).toBe("Eliza Agent Prime");
+      expect(seeded.goals).toContain("Ship operator-grade automation");
+      expect(seeded.strengths).toContain("Structured runtime orchestration");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -674,6 +674,18 @@ async function buildCommandResponse(
     return context.services.userProfiles.renderAgent();
   }
 
+  if (trimmed.startsWith("/user recall ")) {
+    const query = trimmed.replace("/user recall ", "").trim();
+    if (!query) {
+      return "Usage: /user recall <query>";
+    }
+    return JSON.stringify(
+      context.services.userProfiles.recall(input.userId, query),
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/user list") {
     const profiles = context.services.userProfiles.list().slice(0, 20);
     return profiles.length
@@ -762,6 +774,54 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed.startsWith("/agent seed ")) {
+    const raw = trimmed.replace("/agent seed ", "").trim();
+    if (!raw) {
+      return "Usage: /agent seed name:Eliza Agent | goals:a,b | strengths:x,y | style:m,n | notes:p,q";
+    }
+    const seed: {
+      name?: string;
+      goals?: string[];
+      strengths?: string[];
+      workStyle?: string[];
+      notes?: string[];
+    } = {};
+    for (const segment of raw.split("|").map((part) => part.trim())) {
+      const [key, value] = segment.split(":").map((part) => part.trim());
+      if (!key || !value) {
+        continue;
+      }
+      if (key === "name") {
+        seed.name = value;
+      } else if (key === "goals" || key === "goal") {
+        seed.goals = value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      } else if (key === "strengths" || key === "strength") {
+        seed.strengths = value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      } else if (key === "style" || key === "workStyle") {
+        seed.workStyle = value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      } else if (key === "notes" || key === "note") {
+        seed.notes = value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      }
+    }
+    return JSON.stringify(
+      context.services.userProfiles.seedAgent(seed),
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/skills" || trimmed === "/skills list") {
     const skills = context.services.skills.list();
     return skills.length
@@ -837,6 +897,31 @@ async function buildCommandResponse(
           )
           .join("\n")
       : "No sessions recorded.";
+  }
+
+  if (trimmed.startsWith("/session title ")) {
+    const payload = trimmed.replace("/session title ", "").trim();
+    const [sessionId, title] = payload.split("::").map((part) => part.trim());
+    if (!sessionId || !title) {
+      return "Usage: /session title <session-id> :: <title>";
+    }
+    return JSON.stringify(
+      context.services.sessions.rename(sessionId, title),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/session continuity ")) {
+    const sessionId = trimmed.replace("/session continuity ", "").trim();
+    if (!sessionId) {
+      return "Usage: /session continuity <session-id>";
+    }
+    return JSON.stringify(
+      context.services.sessions.continuity(sessionId),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/session summary") {
@@ -2325,6 +2410,47 @@ async function buildCommandResponse(
     return replay
       ? JSON.stringify(replay, null, 2)
       : "No trajectory bundles recorded.";
+  }
+
+  if (trimmed === "/trajectories compress latest") {
+    const compressed = context.services.trajectories.compressLatest();
+    return compressed
+      ? JSON.stringify(compressed, null, 2)
+      : "No trajectory bundles recorded.";
+  }
+
+  if (trimmed.startsWith("/trajectories compress ")) {
+    const raw = trimmed.replace("/trajectories compress ", "").trim();
+    if (!raw) {
+      return "Usage: /trajectories compress <manifest-path|bundle-label|latest>";
+    }
+    if (raw === "latest") {
+      const compressed = context.services.trajectories.compressLatest();
+      return compressed
+        ? JSON.stringify(compressed, null, 2)
+        : "No trajectory bundles recorded.";
+    }
+    const bundles = context.services.trajectories.listBundles(50);
+    const bundle = raw.endsWith(".json")
+      ? raw
+      : bundles.find(
+          (entry) => entry.label === raw || entry.manifestPath.endsWith(raw),
+        );
+    if (typeof bundle === "string") {
+      return JSON.stringify(
+        context.services.trajectories.compressBundle(bundle),
+        null,
+        2,
+      );
+    }
+    if (!bundle) {
+      return `Trajectory bundle not found: ${raw}`;
+    }
+    return JSON.stringify(
+      context.services.trajectories.compressBundle(bundle.manifestPath),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/trajectories replay ")) {

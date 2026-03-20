@@ -91,6 +91,15 @@ describe("TrajectoryService", () => {
         "replay-fixture",
       );
 
+      const compressed = service.compressBundle(bundle.manifestPath, {
+        sampleCount: 2,
+      });
+      expect(compressed.sessionBlocks.length).toBeGreaterThan(0);
+      expect(compressed.findings[0]).toContain("Compressed");
+      expect(readFileSync(compressed.reportPath, "utf8")).toContain(
+        "Trajectory Compression: replay-fixture",
+      );
+
       const analysis = service.analyze({
         limit: 10,
         sessionId: "session-a",

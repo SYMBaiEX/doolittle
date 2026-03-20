@@ -142,6 +142,8 @@ export interface SessionSearchResult {
 
 export interface SessionSummary {
   sessionId: string;
+  title?: string;
+  continuityKey?: string;
   messageCount: number;
   startedAt?: string;
   endedAt?: string;

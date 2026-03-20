@@ -16,6 +16,23 @@ type RememberKind =
   | "note"
   | "memory";
 
+export interface UserProfileRecallHit {
+  kind:
+    | "displayName"
+    | "preference"
+    | "fact"
+    | "goal"
+    | "context"
+    | "constraint"
+    | "memory"
+    | "tool"
+    | "workStyle"
+    | "alias"
+    | "note";
+  value: string;
+  score: number;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -114,6 +131,32 @@ export class UserProfileService {
 
   getAgent(): AgentIdentityRecord {
     return this.read().agent;
+  }
+
+  seedAgent(seed: {
+    name?: string;
+    goals?: string[];
+    strengths?: string[];
+    workStyle?: string[];
+    notes?: string[];
+  }): AgentIdentityRecord {
+    return this.updateAgent((agent) => {
+      if (seed.name?.trim()) {
+        agent.name = seed.name.trim();
+      }
+      if (seed.goals?.length) {
+        agent.goals = unique([...agent.goals, ...seed.goals]);
+      }
+      if (seed.strengths?.length) {
+        agent.strengths = unique([...agent.strengths, ...seed.strengths]);
+      }
+      if (seed.workStyle?.length) {
+        agent.workStyle = unique([...agent.workStyle, ...seed.workStyle]);
+      }
+      if (seed.notes?.length) {
+        agent.notes = unique([...agent.notes, ...seed.notes]);
+      }
+    });
   }
 
   setMode(
@@ -287,6 +330,51 @@ export class UserProfileService {
       }
       agent.lastSource = source ?? agent.lastSource;
     });
+  }
+
+  recall(userId: string, query: string, limit = 8): UserProfileRecallHit[] {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return [];
+    }
+    const profile = this.get(userId);
+    const candidates: UserProfileRecallHit[] = [];
+    const pushMatches = (
+      kind: UserProfileRecallHit["kind"],
+      values: string[] | undefined,
+    ) => {
+      for (const value of values ?? []) {
+        const lower = value.toLowerCase();
+        if (!lower.includes(normalized)) {
+          continue;
+        }
+        const exact = lower === normalized ? 100 : 50;
+        const starts = lower.startsWith(normalized) ? 20 : 0;
+        const score = exact + starts + Math.max(1, 25 - value.length / 8);
+        candidates.push({ kind, value, score });
+      }
+    };
+
+    if (profile.displayName?.toLowerCase().includes(normalized)) {
+      candidates.push({
+        kind: "displayName",
+        value: profile.displayName,
+        score: 110,
+      });
+    }
+
+    pushMatches("alias", profile.aliases);
+    pushMatches("preference", profile.preferences);
+    pushMatches("fact", profile.facts);
+    pushMatches("goal", profile.goals);
+    pushMatches("context", profile.projectContext);
+    pushMatches("constraint", profile.constraints);
+    pushMatches("memory", profile.explicitMemories);
+    pushMatches("tool", profile.toolPreferences);
+    pushMatches("workStyle", profile.workStyle);
+    pushMatches("note", profile.notes);
+
+    return candidates.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
   render(userId: string): string {
