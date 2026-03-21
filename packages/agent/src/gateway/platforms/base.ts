@@ -25,6 +25,10 @@ export interface PlatformPresenceState {
 
 export interface PlatformHealth {
   platform: PlatformName;
+  nativePluginId?: string;
+  nativePluginSource?: "official" | "vendored" | "custom";
+  nativePluginEnabled?: boolean;
+  nativePluginNotes?: string;
   status: "idle" | "running" | "stopped";
   ready: boolean;
   mode: "native" | "mock";

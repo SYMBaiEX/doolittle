@@ -1299,6 +1299,7 @@ async function buildCommandResponse(
         `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
     );
     return [
+      `gateway totals: configured=${health.length} ready=${health.filter((entry) => entry.ready).length} pluginMediated=${health.filter((entry) => entry.nativePluginId).length} official=${health.filter((entry) => entry.nativePluginSource === "official").length} vendored=${health.filter((entry) => entry.nativePluginSource === "vendored").length}`,
       ...health.map((entry) => {
         const lifecycle = [
           entry.startedAt ? `started=${entry.startedAt}` : undefined,
@@ -1310,6 +1311,10 @@ async function buildCommandResponse(
           entry.lastError ? `error=${entry.lastError}` : undefined,
           `events=${entry.events.length}`,
           entry.events[0] ? `lastEvent=${entry.events[0].kind}` : undefined,
+          entry.nativePluginId ? `plugin=${entry.nativePluginId}` : undefined,
+          entry.nativePluginSource
+            ? `pluginSource=${entry.nativePluginSource}`
+            : undefined,
         ]
           .filter(Boolean)
           .join(" ");
@@ -1327,6 +1332,13 @@ async function buildCommandResponse(
     const messagingCatalog = groupNativePluginCatalog(
       getNativePluginCatalog(context.config),
     ).messaging;
+    const totals = [
+      `configured=${state.totals.configuredPlatforms}`,
+      `ready=${state.totals.readyAdapters}`,
+      `pluginMediated=${state.totals.pluginMediatedAdapters}`,
+      `official=${state.totals.officialPluginAdapters}`,
+      `vendored=${state.totals.vendoredPluginAdapters}`,
+    ].join(" ");
     const platformLines = state.platforms.map((entry) => {
       const counters = [
         `send=${entry.sendCount}`,
@@ -1335,13 +1347,17 @@ async function buildCommandResponse(
         `resp=${entry.respondCount}`,
         `events=${entry.eventCount}`,
       ].join(" ");
-      return `- ${entry.platform} [${entry.transportState}] ready=${entry.ready} mode=${entry.mode} presence=${entry.presence.status}${entry.lastEventKind ? ` last=${entry.lastEventKind}` : ""} ${counters} :: ${entry.detail}`;
+      return `- ${entry.platform} [${entry.transportState}] ready=${entry.ready} mode=${entry.mode} presence=${entry.presence.status}${entry.nativePluginId ? ` plugin=${entry.nativePluginId}` : ""}${entry.nativePluginSource ? ` source=${entry.nativePluginSource}` : ""}${entry.lastEventKind ? ` last=${entry.lastEventKind}` : ""} ${counters} :: ${entry.detail}`;
     });
     const pluginLines = messagingCatalog.map(
       (entry) =>
         `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
     );
-    return [...platformLines, ...pluginLines].join("\n");
+    return [
+      `platform totals: ${totals}`,
+      ...platformLines,
+      ...pluginLines,
+    ].join("\n");
   }
 
   if (trimmed === "/gateway state" || trimmed.startsWith("/gateway state ")) {
@@ -1362,9 +1378,15 @@ async function buildCommandResponse(
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
     }
+    const state = await context.gateway.state(50);
     return JSON.stringify(
       {
         runtime: context.gateway.runtimeStatus(),
+        mediation: {
+          pluginMediatedAdapters: state.totals.pluginMediatedAdapters,
+          officialPluginAdapters: state.totals.officialPluginAdapters,
+          vendoredPluginAdapters: state.totals.vendoredPluginAdapters,
+        },
         messagingPlugins: groupNativePluginCatalog(
           getNativePluginCatalog(context.config),
         ).messaging,

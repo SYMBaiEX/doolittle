@@ -1000,7 +1000,17 @@ export class GatewayRunner {
     reason: string,
   ): GatewayStateSnapshot {
     const timestamp = new Date().toISOString();
-    const platformSummary = readiness.map((entry) => {
+    const enrichedReadiness = readiness.map((entry) => {
+      const nativePlugin = this.resolveNativeMessagingPlugin(entry.platform);
+      return {
+        ...entry,
+        nativePluginId: nativePlugin?.id,
+        nativePluginSource: nativePlugin?.source,
+        nativePluginEnabled: nativePlugin?.enabled,
+        nativePluginNotes: nativePlugin?.notes,
+      };
+    });
+    const platformSummary = enrichedReadiness.map((entry) => {
       const platformTraces = allTraces.filter(
         (trace) => trace.platform === entry.platform,
       );
@@ -1087,12 +1097,15 @@ export class GatewayRunner {
       historyPath: this.snapshotHistoryPath,
       totals: {
         configuredPlatforms: readiness.length,
-        activeAdapters: readiness.filter((entry) => entry.status === "running")
+        activeAdapters: enrichedReadiness.filter(
+          (entry) => entry.status === "running",
+        ).length,
+        readyAdapters: enrichedReadiness.filter((entry) => entry.ready).length,
+        nativeAdapters: enrichedReadiness.filter(
+          (entry) => entry.mode === "native",
+        ).length,
+        mockAdapters: enrichedReadiness.filter((entry) => entry.mode === "mock")
           .length,
-        readyAdapters: readiness.filter((entry) => entry.ready).length,
-        nativeAdapters: readiness.filter((entry) => entry.mode === "native")
-          .length,
-        mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
         pluginMediatedAdapters: platformSummary.filter((entry) =>
           Boolean(entry.nativePluginId),
         ).length,
