@@ -261,6 +261,11 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/runtime/status") {
         const settings = context.services.settings.get();
         const catalog = getNativePluginCatalog(context.config);
+        const controlPlane = getNativeTransportControlPlane(
+          context.runtime,
+          context.config,
+          context.services.gatewayConfig,
+        );
         return json({
           provider: settings.model.provider,
           model: settings.model.model,
@@ -275,6 +280,9 @@ export function startApiServer(context: AppContext): void {
             catalog,
             grouped: groupNativePluginCatalog(catalog),
             serviceRegistry: context.services.nativeRegistry,
+            transportInventory: controlPlane.transportInventory,
+            transportControl: controlPlane.totals,
+            messagingBridge: controlPlane.messagingBridge,
           },
         });
       }
@@ -359,6 +367,21 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/transports") {
+        return json(
+          getNativeTransportControlPlane(
+            context.runtime,
+            context.config,
+            context.services.gatewayConfig,
+          ),
+        );
+      }
+
+      if (
+        request.method === "GET" &&
+        (url.pathname === "/transport/inventory" ||
+          url.pathname === "/transport/status" ||
+          url.pathname === "/gateway/transports")
+      ) {
         return json(
           getNativeTransportControlPlane(
             context.runtime,

@@ -6,7 +6,10 @@ import { handleAgentTurn } from "@/runtime/chat";
 import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import { getEffectiveServiceResolution } from "@/runtime/native/service-bridge";
+import {
+  getEffectiveServiceResolution,
+  getNativeTransportControlPlane,
+} from "@/runtime/native/service-bridge";
 
 interface CliState {
   activeSessionId: string;
@@ -55,6 +58,37 @@ function compactPreview(text: string): string {
   } catch {
     return truncate(text, 180);
   }
+}
+
+function summarizeTransportInventory(
+  inventory: Array<{
+    platform: string;
+    source: string;
+    configEnabled: boolean;
+    gatewayEnabled: boolean;
+    operational: boolean;
+    reason: string;
+    detail: string;
+  }>,
+): string {
+  const totals = {
+    operational: inventory.filter((entry) => entry.operational).length,
+    configEnabled: inventory.filter((entry) => entry.configEnabled).length,
+    gatewayEnabled: inventory.filter((entry) => entry.gatewayEnabled).length,
+    official: inventory.filter((entry) => entry.source === "official").length,
+    vendored: inventory.filter((entry) => entry.source === "vendored").length,
+    custom: inventory.filter((entry) => entry.source === "custom").length,
+    product: inventory.filter((entry) => entry.source === "product").length,
+  };
+
+  return [
+    `Inventory totals: operational=${totals.operational}/${inventory.length} config=${totals.configEnabled} gateway=${totals.gatewayEnabled}`,
+    `Sources: official=${totals.official} vendored=${totals.vendored} custom=${totals.custom} product=${totals.product}`,
+    ...inventory.map(
+      (entry) =>
+        `- ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason} :: ${truncate(entry.detail, 72)}`,
+    ),
+  ].join("\n");
 }
 
 function truncate(text: string, max = 280): string {
@@ -111,6 +145,7 @@ function buildHelpText(agentName: string): string {
     "Examples:",
     "  /skills list",
     "  /execution status",
+    "  /transport inventory",
     "  /browser capture https://example.com",
     "  /media analyze ./recordings/demo.wav",
     "  /delegate create Research spike :: validate a transport path",
@@ -195,13 +230,30 @@ async function renderTransportContent(context: AppContext): Promise<string> {
   const runtimeStatus = context.gateway.runtimeStatus();
   const gatewayState = await context.gateway.state(12);
   const platformStates = gatewayState.platforms.slice(0, 4);
+  const inventorySummary = summarizeTransportInventory(
+    runtimeStatus.transportInventory,
+  ).split("\n");
 
   return [
-    "{bold}Gateway Control Plane{/}",
-    `Enabled: ${gatewayState.totals.configuredPlatforms}`,
+    "{bold}Canonical Transport Inventory{/}",
+    `Configured: ${gatewayState.totals.configuredPlatforms}`,
     `Plugin-mediated: ${gatewayState.totals.pluginMediatedAdapters}/${gatewayState.totals.configuredPlatforms}`,
-    `Native live: ${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled}`,
-    `Transports operational: ${runtimeStatus.transportControl.operationalTransports}`,
+    `Operational: ${runtimeStatus.transportControl.operationalTransports}/${runtimeStatus.transportInventory.length}`,
+    `Live bridges: ${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled}`,
+    `Sources: official=${runtimeStatus.transportControl.officialPlugins} vendored=${runtimeStatus.transportControl.vendoredPlugins} custom=${runtimeStatus.transportControl.customTransports} product=${runtimeStatus.transportControl.productTransports}`,
+    "",
+    "{bold}Inventory Summary{/}",
+    ...(inventorySummary.length
+      ? inventorySummary.slice(0, 2)
+      : ["{gray-fg}No transport inventory available.{/}"]),
+    "",
+    "{bold}Shared Inventory{/}",
+    ...(runtimeStatus.transportInventory.length
+      ? runtimeStatus.transportInventory.map(
+          (entry) =>
+            `- ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason}`,
+        )
+      : ["{gray-fg}No transport inventory available.{/}"]),
     "",
     "{bold}Recent Gateway Traces{/}",
     ...(traces.length
@@ -210,16 +262,6 @@ async function renderTransportContent(context: AppContext): Promise<string> {
             `- ${trace.platform}:${trace.kind} ${truncate(trace.detail ?? trace.traceId, 34)}`,
         )
       : ["{gray-fg}No recent trace activity.{/}"]),
-    "",
-    "{bold}Native Messaging{/}",
-    ...(runtimeStatus.transportInventory.length
-      ? runtimeStatus.transportInventory
-          .slice(0, 6)
-          .map(
-            (entry) =>
-              `- ${entry.platform} ${entry.pluginId ?? entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason}`,
-          )
-      : ["{gray-fg}No enabled platform state yet.{/}"]),
     "",
     "{bold}Platform State{/}",
     ...(platformStates.length
@@ -570,7 +612,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
-    'Type "exit" to quit. Try /help, /status, /doctor, /tools summary, /gateway readiness, /runtime plugins, or /delegate overview.\n\n',
+    'Type "exit" to quit. Try /help, /status, /transport inventory, /gateway readiness, /runtime plugins, or /delegate overview.\n\n',
   );
 
   while (true) {
@@ -620,14 +662,14 @@ function renderStatusContent(context: AppContext, state: CliState): string {
   const sessions = context.services.sessions.listSessions(6);
   const delegation = context.services.delegation.overview();
   const gatewaySessions = context.services.gatewaySessions.list();
+  const transportControl = getNativeTransportControlPlane(
+    context.runtime,
+    context.config,
+    context.services.gatewayConfig,
+  );
   const active = sessions.find(
     (entry) => entry.sessionId === state.activeSessionId,
   );
-  const readyPlatforms = Object.entries(
-    context.services.gatewayConfig.platforms,
-  )
-    .filter(([, config]) => config.enabled)
-    .map(([platform]) => platform);
 
   return [
     "{bold}Runtime{/}",
@@ -636,12 +678,19 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `Session: {green-fg}${state.activeSessionId}{/}`,
     active?.title ? `Title: ${active.title}` : "Title: (untitled)",
     "",
-    "{bold}Gateway{/}",
-    `Configured: ${readyPlatforms.length}`,
+    "{bold}Transport Control{/}",
+    `Configured: ${transportControl.totals.gatewayEnabled}`,
+    `Operational: ${transportControl.totals.operationalTransports}/${transportControl.transportInventory.length}`,
+    `Live bridges: ${transportControl.totals.liveServices}/${transportControl.totals.gatewayEnabled}`,
+    `Plugin-mediated: ${transportControl.totals.enabledPlugins}`,
     `Sessions: ${gatewaySessions.length}`,
-    `Voice: ${
-      gatewaySessions.filter((entry) => entry.voiceMode).length
-    } active`,
+    `Voice: ${gatewaySessions.filter((entry) => entry.voiceMode).length} active`,
+    "",
+    "{bold}Inventory{/}",
+    ...transportControl.transportInventory.slice(0, 4).map((entry) => {
+      const marker = entry.operational ? "{green-fg}●{/}" : "{red-fg}●{/}";
+      return `${marker} ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} ${entry.reason}`;
+    }),
     "",
     "{bold}Delegation{/}",
     `Pending: ${delegation.pending}`,
@@ -1519,7 +1568,7 @@ async function startTui(context: AppContext): Promise<void> {
     "info",
   );
   response.setContent(
-    "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
+    "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /transport inventory, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));
