@@ -339,6 +339,12 @@ export class GatewayRunner {
     );
   }
 
+  private getTransportInventoryEntry(platform: PlatformName) {
+    return this.getTransportControlPlane().transportInventory.find(
+      (entry) => entry.platform === platform,
+    );
+  }
+
   private resolveNativeMessagingPlugin(platform: PlatformName) {
     const suffix = `.${platform}`;
     const plugin = getNativePluginCatalog(this.context.config).find(
@@ -997,8 +1003,28 @@ export class GatewayRunner {
 
   private mergePlatformState(health: PlatformHealth): PlatformHealth {
     const state = this.ensurePlatformState(health.platform);
+    const inventory = this.getTransportInventoryEntry(health.platform);
+    const inventoryDetail = inventory?.detail;
+    const detail =
+      inventoryDetail && inventoryDetail !== health.detail
+        ? `${inventoryDetail} ${health.detail}`
+        : (inventoryDetail ?? health.detail);
+    const ready = inventory
+      ? inventory.operational && health.ready
+      : health.ready;
+    const lastError =
+      health.lastError ??
+      (!ready &&
+      inventory &&
+      inventory.reason !== "live" &&
+      inventory.reason !== "custom-ready"
+        ? inventory.detail
+        : undefined);
+
     return {
       ...health,
+      ready,
+      detail,
       lastSendAt: health.lastSendAt ?? state.lastUpdatedAt,
       lastDeliveryAt: health.lastDeliveryAt ?? state.lastDeliveryAt,
       lastDeliveryId: health.lastDeliveryId ?? state.lastDeliveryId,
@@ -1015,7 +1041,7 @@ export class GatewayRunner {
       lastRespondedAt: health.lastRespondedAt ?? state.lastRespondedAt,
       lastHeartbeatAt: health.lastHeartbeatAt ?? state.lastHeartbeatAt,
       sendCount: health.sendCount ?? state.sendCount,
-      lastError: health.lastError ?? undefined,
+      lastError,
       presence: health.presence ?? state.presence,
       events: health.events,
     };
