@@ -24,7 +24,7 @@ import {
   type EnvConfig,
   GatewayRunner,
   handleAgentTurn,
-} from "@/plugin-api";
+} from "../agent/src/plugin-api";
 import type { CronJobRecord } from "@/types";
 
 function createOpenAiBackedTextModel(config: EnvConfig) {
