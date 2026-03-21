@@ -177,6 +177,7 @@ interface NativeOwnershipControlPlaneSummary {
     rolodex: NativeRolodexSummary;
     experience: NativeExperienceSummary;
   };
+  ecosystem?: ReturnType<AppServices["ecosystem"]["summary"]>;
 }
 
 interface NativeOwnershipSnapshot {
@@ -184,6 +185,7 @@ interface NativeOwnershipSnapshot {
   integration: NativeIntegrationControlPlane;
   autonomous: AutonomousControlPlaneSummary;
   skillHub: ReturnType<AppServices["skillsHub"]["summary"]>;
+  ecosystem: ReturnType<AppServices["ecosystem"]["summary"]>;
   media: ReturnType<typeof getNativeMediaControlPlane>;
   research: ReturnType<typeof getNativeResearchControlPlane>;
   forms: ReturnType<typeof getNativeFormsControlPlane>;
@@ -1421,6 +1423,7 @@ export function getNativeOwnershipControlPlane(
           experience: getEffectiveExperienceSummary(runtime, services),
         }
       : undefined,
+    ecosystem: services?.ecosystem.summary(),
   };
 }
 
@@ -2207,6 +2210,7 @@ export async function getNativeOwnershipSnapshot(
     integration,
     autonomous: getAutonomousControlPlane(runtime, services, config),
     skillHub: services.skillsHub.summary(),
+    ecosystem: services.ecosystem.summary(),
     media: getNativeMediaControlPlane(config),
     research: getNativeResearchControlPlane(runtime),
     forms: getNativeFormsControlPlane(runtime),
