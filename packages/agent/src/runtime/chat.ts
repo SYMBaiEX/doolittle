@@ -1308,6 +1308,15 @@ async function buildCommandResponse(
       (entry) =>
         `- bridge ${entry.platform} config=${entry.configEnabled} gateway=${entry.gatewayEnabled} service=${entry.serviceName} available=${entry.serviceAvailable} live=${entry.live} plugin=${entry.pluginId ?? "n/a"} reason=${entry.reason} :: ${entry.detail}`,
     );
+    const transportLines = controlPlane.transportInventory
+      .filter(
+        (entry) =>
+          entry.platform !== "telegram" && entry.platform !== "discord",
+      )
+      .map(
+        (entry) =>
+          `- transport ${entry.platform} source=${entry.source} config=${entry.configEnabled} gateway=${entry.gatewayEnabled} op=${entry.operational} reason=${entry.reason} :: ${entry.detail}`,
+      );
     return [
       `gateway totals: configured=${health.length} ready=${health.filter((entry) => entry.ready).length} pluginMediated=${health.filter((entry) => entry.nativePluginId).length} official=${health.filter((entry) => entry.nativePluginSource === "official").length} vendored=${health.filter((entry) => entry.nativePluginSource === "vendored").length}`,
       `bridge totals: gatewayEnabled=${controlPlane.totals.gatewayEnabled} pluginEnabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} operational=${controlPlane.totals.operationalTransports}`,
@@ -1332,6 +1341,7 @@ async function buildCommandResponse(
         return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound} edits=${entry.capabilities.edits}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
       }),
       ...bridgeLines,
+      ...transportLines,
       ...pluginLines,
     ].join("\n");
   }
@@ -1351,6 +1361,11 @@ async function buildCommandResponse(
       `official=${state.totals.officialPluginAdapters}`,
       `vendored=${state.totals.vendoredPluginAdapters}`,
     ].join(" ");
+    const controlPlane = getNativeTransportControlPlane(
+      context.runtime,
+      context.config,
+      context.services.gatewayConfig,
+    );
     const platformLines = state.platforms.map((entry) => {
       const counters = [
         `send=${entry.sendCount}`,
@@ -1365,9 +1380,14 @@ async function buildCommandResponse(
       (entry) =>
         `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
     );
+    const inventoryLines = controlPlane.transportInventory.map(
+      (entry) =>
+        `- inventory ${entry.platform} source=${entry.source} config=${entry.configEnabled} gateway=${entry.gatewayEnabled} op=${entry.operational} reason=${entry.reason}`,
+    );
     return [
       `platform totals: ${totals}`,
       ...platformLines,
+      ...inventoryLines,
       ...pluginLines,
     ].join("\n");
   }
