@@ -120,6 +120,14 @@ describe("GatewayRunner", () => {
           (entry) => entry.platform === "api" && entry.traceCount > 0,
         ),
       ).toBe(true);
+      expect(
+        history.transportJournal.some(
+          (entry) =>
+            entry.platform === "api" &&
+            entry.summary.includes("api:") &&
+            entry.summary.includes("traces="),
+        ),
+      ).toBe(true);
       expect(apiTraces.some((trace) => trace.traceId === result.traceId)).toBe(
         true,
       );
@@ -164,6 +172,7 @@ describe("GatewayRunner", () => {
       expect(transportDetail.platform).toBe("api");
       expect(transportDetail.inventory?.platform).toBe("api");
       expect(transportDetail.platformState?.platform).toBe("api");
+      expect(transportDetail.summary.includes("api:")).toBe(true);
       expect(transportDetail.traceCount).toBeGreaterThan(0);
       expect(transportDetail.inboxCount).toBeGreaterThan(0);
       expect(transportDetail.outboxCount).toBeGreaterThan(0);
@@ -176,6 +185,14 @@ describe("GatewayRunner", () => {
       expect(state.totals.inboxMessages).toBeGreaterThan(0);
       expect(state.totals.outboxMessages).toBeGreaterThan(0);
       expect(state.totals.attachmentRecords).toBeGreaterThan(0);
+      expect(
+        state.transportJournal.some(
+          (entry) =>
+            entry.platform === "api" &&
+            entry.summary.includes("operational=") &&
+            entry.summary.includes("mismatches="),
+        ),
+      ).toBe(true);
       expect(state.tracesByKind.some((entry) => entry.kind === "route")).toBe(
         true,
       );
@@ -254,6 +271,9 @@ describe("GatewayRunner", () => {
       const replay = await runner.replayInbox(replayTarget.recordId);
       expect(replay.ok).toBe(true);
       expect(replay.traceId).toBeDefined();
+      expect(replay.transportDetail?.platform).toBe("api");
+      expect(replay.transportSummary?.includes("api:")).toBe(true);
+      expect(replay.transportSummary?.includes("ready=")).toBe(true);
       context.services.gatewaySessions.markHome(result.sessionId, {
         isHome: true,
         label: "Primary API",

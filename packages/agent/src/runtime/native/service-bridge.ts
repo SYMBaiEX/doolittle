@@ -239,6 +239,20 @@ export interface EffectiveTransportInventoryEntry {
   serviceAvailable?: boolean;
 }
 
+export interface EffectiveMessagingTransportEntry {
+  platform: "telegram" | "discord";
+  pluginId?: string;
+  pluginSource?: "official" | "vendored" | "custom";
+  configEnabled: boolean;
+  pluginEnabled: boolean;
+  gatewayEnabled: boolean;
+  serviceName: string;
+  serviceAvailable: boolean;
+  live: boolean;
+  reason: "live" | "not-configured" | "plugin-disabled" | "service-unavailable";
+  detail: string;
+}
+
 function service<T>(runtime: RuntimeLike, name: string): T | undefined {
   if (typeof runtime.getService !== "function") {
     return undefined;
@@ -363,19 +377,7 @@ export function getEffectiveMessagingTransportInventory(
   runtime: RuntimeLike,
   config: EnvConfig,
   gatewayConfig?: GatewayConfig,
-): Array<{
-  platform: "telegram" | "discord";
-  pluginId?: string;
-  pluginSource?: "official" | "vendored" | "custom";
-  configEnabled: boolean;
-  pluginEnabled: boolean;
-  gatewayEnabled: boolean;
-  serviceName: string;
-  serviceAvailable: boolean;
-  live: boolean;
-  reason: "live" | "not-configured" | "plugin-disabled" | "service-unavailable";
-  detail: string;
-}> {
+): EffectiveMessagingTransportEntry[] {
   const native = getNativeServices(runtime);
   const catalog = getNativePluginCatalog(config);
   const telegramPlugin = catalog.find(
