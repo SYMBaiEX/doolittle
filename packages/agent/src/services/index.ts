@@ -7,6 +7,7 @@ import type { EnvConfig } from "@/types";
 import { AcpService } from "./acp-service";
 import { AgentSdkService } from "./agent-sdk-service";
 import { ApiTransportService } from "./api-transport-service";
+import { AutocoderPipelineService } from "./autocoder-pipeline-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
 import { DelegationService } from "./delegation-service";
@@ -65,6 +66,7 @@ export interface AppServices {
   tools: ToolsService;
   mcp: McpService;
   acp: AcpService;
+  autocoderPipeline: AutocoderPipelineService;
   delegation: DelegationService;
   web: WebService;
   media: MediaService;
@@ -347,6 +349,9 @@ export function createServices(
     (limit) => sessions.listSessions(limit),
   );
   const repository = new RepositoryService(config.workspaceDir);
+  const autocoderPipeline = new AutocoderPipelineService(
+    join(config.dataDir, "autocoder"),
+  );
   const diagnostics = new DiagnosticsService(
     config,
     gatewayConfig,
@@ -357,6 +362,7 @@ export function createServices(
     config,
     diagnostics,
     repository,
+    autocoderPipeline,
     agentSdk,
     nativeOwnership,
   );
@@ -481,6 +487,7 @@ export function createServices(
     tools,
     mcp,
     acp,
+    autocoderPipeline,
     delegation: new DelegationService(join(config.dataDir, "delegation")),
     web: new WebService(
       () => ({

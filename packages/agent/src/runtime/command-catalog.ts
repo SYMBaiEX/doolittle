@@ -181,6 +181,16 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Run native autocoder QA against a generated project path.",
   },
   {
+    command: "/codegen runs",
+    category: "runtime",
+    description: "List persisted native autocoder pipeline runs.",
+  },
+  {
+    command: "/codegen show <run-id>",
+    category: "runtime",
+    description: "Inspect one persisted native autocoder pipeline run.",
+  },
+  {
     command: "/github create <repo-name> [| private:false]",
     category: "runtime",
     description: "Create a native autocoder-backed GitHub repository.",

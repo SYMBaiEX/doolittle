@@ -1736,11 +1736,39 @@ export function startApiServer(context: AppContext): void {
         if (!body.projectName || !body.prompt) {
           return json({ error: "projectName and prompt are required" }, 400);
         }
+        const requestPayload = {
+          ...body,
+          objective: body.prompt,
+        };
+        const generation = await generateEffectiveCode(
+          context.runtime,
+          requestPayload,
+        );
+        const run = context.services.autocoderPipeline.record({
+          kind: "generate",
+          projectName: body.projectName,
+          request: requestPayload,
+          result: generation,
+        });
+        return json({ run, generation });
+      }
+
+      if (request.method === "GET" && url.pathname === "/codegen/runs") {
         return json({
-          generation: await generateEffectiveCode(context.runtime, {
-            ...body,
-            objective: body.prompt,
-          }),
+          summary: context.services.autocoderPipeline.summary(),
+          runs: context.services.autocoderPipeline.list(50),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/codegen/runs/")
+      ) {
+        const id = decodeURIComponent(
+          url.pathname.replace("/codegen/runs/", ""),
+        );
+        return json({
+          run: context.services.autocoderPipeline.get(id),
         });
       }
 
@@ -1758,15 +1786,24 @@ export function startApiServer(context: AppContext): void {
             400,
           );
         }
-        return json({
-          research: await performEffectiveCodeResearch(context.runtime, {
-            projectName: body.projectName,
-            targetType: body.targetType ?? "plugin",
-            description: body.description,
-            apis: body.apis ?? [],
-            requirements: body.requirements ?? [],
-          }),
+        const requestPayload = {
+          projectName: body.projectName,
+          targetType: body.targetType ?? "plugin",
+          description: body.description,
+          apis: body.apis ?? [],
+          requirements: body.requirements ?? [],
+        };
+        const research = await performEffectiveCodeResearch(
+          context.runtime,
+          requestPayload,
+        );
+        const run = context.services.autocoderPipeline.record({
+          kind: "research",
+          projectName: body.projectName,
+          request: requestPayload,
+          result: research,
         });
+        return json({ run, research });
       }
 
       if (request.method === "POST" && url.pathname === "/codegen/prd") {
@@ -1794,14 +1831,25 @@ export function startApiServer(context: AppContext): void {
           context.runtime,
           requestPayload,
         );
-        return json({
-          research,
-          prd: await generateEffectivePrd(
-            context.runtime,
-            requestPayload,
-            research as Record<string, unknown>,
-          ),
+        const researchRun = context.services.autocoderPipeline.record({
+          kind: "research",
+          projectName: body.projectName,
+          request: requestPayload,
+          result: research,
         });
+        const prd = await generateEffectivePrd(
+          context.runtime,
+          requestPayload,
+          research as Record<string, unknown>,
+        );
+        const prdRun = context.services.autocoderPipeline.record({
+          kind: "prd",
+          projectName: body.projectName,
+          request: requestPayload,
+          result: prd,
+          linkedRunIds: [researchRun.id],
+        });
+        return json({ researchRun, prdRun, research, prd });
       }
 
       if (request.method === "POST" && url.pathname === "/codegen/qa") {
@@ -1811,9 +1859,17 @@ export function startApiServer(context: AppContext): void {
         if (!body.projectPath) {
           return json({ error: "projectPath is required" }, 400);
         }
-        return json({
-          qa: await performEffectiveCodeQa(context.runtime, body.projectPath),
+        const qa = await performEffectiveCodeQa(
+          context.runtime,
+          body.projectPath,
+        );
+        const run = context.services.autocoderPipeline.record({
+          kind: "qa",
+          projectName: body.projectPath.split("/").filter(Boolean).at(-1),
+          request: { projectPath: body.projectPath },
+          result: qa,
         });
+        return json({ run, qa });
       }
 
       if (request.method === "POST" && url.pathname === "/github/create") {
@@ -1824,13 +1880,18 @@ export function startApiServer(context: AppContext): void {
         if (!body.name) {
           return json({ error: "name is required" }, 400);
         }
-        return json({
-          repository: await createEffectiveRepository(
-            context.runtime,
-            body.name,
-            body.private ?? true,
-          ),
+        const repository = await createEffectiveRepository(
+          context.runtime,
+          body.name,
+          body.private ?? true,
+        );
+        const run = context.services.autocoderPipeline.record({
+          kind: "github.create",
+          repositoryName: body.name,
+          request: { name: body.name, private: body.private ?? true },
+          result: repository,
         });
+        return json({ run, repository });
       }
 
       if (request.method === "POST" && url.pathname === "/github/delete") {
@@ -1840,9 +1901,17 @@ export function startApiServer(context: AppContext): void {
         if (!body.name) {
           return json({ error: "name is required" }, 400);
         }
-        return json({
-          deleted: await deleteEffectiveRepository(context.runtime, body.name),
+        const deleted = await deleteEffectiveRepository(
+          context.runtime,
+          body.name,
+        );
+        const run = context.services.autocoderPipeline.record({
+          kind: "github.delete",
+          repositoryName: body.name,
+          request: { name: body.name },
+          result: deleted,
         });
+        return json({ run, deleted });
       }
 
       if (request.method === "GET" && url.pathname === "/secrets") {
@@ -1873,10 +1942,12 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "key and value are required" }, 400);
         }
         await setEffectiveSecret(context.runtime, body.key, body.value);
-        return json({
-          key: body.key,
-          valueSet: true,
+        const run = context.services.autocoderPipeline.record({
+          kind: "secret.set",
+          request: { key: body.key, redacted: true },
+          result: { key: body.key, valueSet: true },
         });
+        return json({ run, key: body.key, valueSet: true });
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/research") {
@@ -3574,12 +3645,17 @@ export function startApiServer(context: AppContext): void {
         context.services.diagnostics = new DiagnosticsService(
           context.config,
           body,
+          context.services.agentSdk,
+          context.services.nativeOwnership,
         );
         context.services.diagnostics.attachRuntime(context.runtime);
         context.services.operator = new OperatorService(
           context.config,
           context.services.diagnostics,
           new RepositoryService(context.config.workspaceDir),
+          context.services.autocoderPipeline,
+          context.services.agentSdk,
+          context.services.nativeOwnership,
         );
         context.services.operator.attachRuntime(context.runtime);
         return json({ ok: true, gateway: body });

@@ -20,6 +20,7 @@ import {
 } from "@/runtime/native/service-bridge";
 import type { EnvConfig } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
+import type { AutocoderPipelineService } from "./autocoder-pipeline-service";
 import type { DiagnosticsService } from "./diagnostics-service";
 import {
   createNativeServiceRegistry,
@@ -126,6 +127,12 @@ export interface SetupSummary {
     vendored: number;
     categories: number;
   };
+  pipeline?: {
+    total: number;
+    failed: number;
+    latestKind?: string;
+    latestTarget?: string;
+  };
   checklist: string[];
 }
 
@@ -171,6 +178,12 @@ export interface UpdatePreview {
     official: number;
     vendored: number;
     categories: number;
+  };
+  pipeline?: {
+    total: number;
+    failed: number;
+    latestKind?: string;
+    latestTarget?: string;
   };
 }
 
@@ -220,6 +233,7 @@ export class OperatorService {
     private readonly config: EnvConfig,
     private readonly diagnostics: DiagnosticsService,
     private readonly repository: RepositoryService,
+    private readonly autocoderPipeline?: AutocoderPipelineService,
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
   ) {
@@ -249,6 +263,7 @@ export class OperatorService {
     const transportControl = ownership?.transportControl;
     const pluginManager = ownership?.pluginManager ?? null;
     const identity = ownership?.identity;
+    const pipeline = this.autocoderPipeline?.summary();
     return {
       version: this.version(),
       directories: [
@@ -381,6 +396,15 @@ export class OperatorService {
         vendored: pluginManager?.summary.vendored ?? 0,
         categories: pluginManager?.summary.categories ?? 0,
       },
+      pipeline: pipeline
+        ? {
+            total: pipeline.total,
+            failed: pipeline.failed,
+            latestKind: pipeline.latest?.kind,
+            latestTarget:
+              pipeline.latest?.projectName ?? pipeline.latest?.repositoryName,
+          }
+        : undefined,
       checklist: await this.diagnostics.setupChecklist(),
     };
   }
@@ -409,6 +433,7 @@ export class OperatorService {
     const transportControl = ownership?.transportControl;
     const pluginManager = ownership?.pluginManager ?? null;
     const identity = ownership?.identity;
+    const pipeline = this.autocoderPipeline?.summary();
 
     return {
       version: this.version(),
@@ -464,6 +489,15 @@ export class OperatorService {
         vendored: pluginManager?.summary.vendored ?? 0,
         categories: pluginManager?.summary.categories ?? 0,
       },
+      pipeline: pipeline
+        ? {
+            total: pipeline.total,
+            failed: pipeline.failed,
+            latestKind: pipeline.latest?.kind,
+            latestTarget:
+              pipeline.latest?.projectName ?? pipeline.latest?.repositoryName,
+          }
+        : undefined,
     };
   }
 

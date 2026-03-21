@@ -334,6 +334,12 @@ async function renderTransportDrilldown(
   ].join("\n");
 }
 
+function currentCliSessionId(context: AgentExecutionContext): string {
+  return (
+    context.services.sessions.listSessions(1)[0]?.sessionId ?? "cli:local-user"
+  );
+}
+
 function parseTrajectoryArgs(raw: string): {
   sessionId?: string;
   role?: "user" | "assistant" | "system";
@@ -2793,17 +2799,20 @@ async function buildCommandResponse(
     if (!namePart || !promptPart) {
       return "Usage: /codegen generate <project-name> :: <prompt>";
     }
-    return JSON.stringify(
-      {
-        generation: await generateEffectiveCode(context.runtime, {
-          projectName: namePart,
-          prompt: promptPart,
-          objective: promptPart,
-        }),
-      },
-      null,
-      2,
-    );
+    const request = {
+      projectName: namePart,
+      prompt: promptPart,
+      objective: promptPart,
+    };
+    const generation = await generateEffectiveCode(context.runtime, request);
+    const run = context.services.autocoderPipeline.record({
+      kind: "generate",
+      projectName: namePart,
+      sessionId: currentCliSessionId(context),
+      request,
+      result: generation,
+    });
+    return JSON.stringify({ run, generation }, null, 2);
   }
 
   if (trimmed.startsWith("/codegen research ")) {
@@ -2835,19 +2844,25 @@ async function buildCommandResponse(
         .split(",")
         .map((part) => part.trim())
         .filter(Boolean) ?? [];
-    return JSON.stringify(
-      {
-        research: await performEffectiveCodeResearch(context.runtime, {
-          projectName,
-          targetType: type ?? "plugin",
-          description,
-          apis,
-          requirements,
-        }),
-      },
-      null,
-      2,
+    const request = {
+      projectName,
+      targetType: type ?? "plugin",
+      description,
+      apis,
+      requirements,
+    };
+    const research = await performEffectiveCodeResearch(
+      context.runtime,
+      request,
     );
+    const run = context.services.autocoderPipeline.record({
+      kind: "research",
+      projectName,
+      sessionId: currentCliSessionId(context),
+      request,
+      result: research,
+    });
+    return JSON.stringify({ run, research }, null, 2);
   }
 
   if (trimmed.startsWith("/codegen prd ")) {
@@ -2891,18 +2906,27 @@ async function buildCommandResponse(
       context.runtime,
       request,
     );
-    return JSON.stringify(
-      {
-        research,
-        prd: await generateEffectivePrd(
-          context.runtime,
-          request,
-          research as Record<string, unknown>,
-        ),
-      },
-      null,
-      2,
+    const researchRun = context.services.autocoderPipeline.record({
+      kind: "research",
+      projectName,
+      sessionId: currentCliSessionId(context),
+      request,
+      result: research,
+    });
+    const prd = await generateEffectivePrd(
+      context.runtime,
+      request,
+      research as Record<string, unknown>,
     );
+    const prdRun = context.services.autocoderPipeline.record({
+      kind: "prd",
+      projectName,
+      sessionId: currentCliSessionId(context),
+      request,
+      result: prd,
+      linkedRunIds: [researchRun.id],
+    });
+    return JSON.stringify({ researchRun, prdRun, research, prd }, null, 2);
   }
 
   if (trimmed.startsWith("/codegen qa ")) {
@@ -2910,13 +2934,15 @@ async function buildCommandResponse(
     if (!projectPath) {
       return "Usage: /codegen qa <project-path>";
     }
-    return JSON.stringify(
-      {
-        qa: await performEffectiveCodeQa(context.runtime, projectPath),
-      },
-      null,
-      2,
-    );
+    const qa = await performEffectiveCodeQa(context.runtime, projectPath);
+    const run = context.services.autocoderPipeline.record({
+      kind: "qa",
+      projectName: projectPath.split("/").filter(Boolean).at(-1),
+      sessionId: currentCliSessionId(context),
+      request: { projectPath },
+      result: qa,
+    });
+    return JSON.stringify({ run, qa }, null, 2);
   }
 
   if (trimmed.startsWith("/github create ")) {
@@ -2929,17 +2955,19 @@ async function buildCommandResponse(
     const isPrivate = privateFlag
       ? privateFlag.replace("private:", "").trim() !== "false"
       : true;
-    return JSON.stringify(
-      {
-        repository: await createEffectiveRepository(
-          context.runtime,
-          name,
-          isPrivate,
-        ),
-      },
-      null,
-      2,
+    const repository = await createEffectiveRepository(
+      context.runtime,
+      name,
+      isPrivate,
     );
+    const run = context.services.autocoderPipeline.record({
+      kind: "github.create",
+      repositoryName: name,
+      sessionId: currentCliSessionId(context),
+      request: { name, private: isPrivate },
+      result: repository,
+    });
+    return JSON.stringify({ run, repository }, null, 2);
   }
 
   if (trimmed.startsWith("/github delete ")) {
@@ -2947,13 +2975,15 @@ async function buildCommandResponse(
     if (!name) {
       return "Usage: /github delete <repo-name>";
     }
-    return JSON.stringify(
-      {
-        deleted: await deleteEffectiveRepository(context.runtime, name),
-      },
-      null,
-      2,
-    );
+    const deleted = await deleteEffectiveRepository(context.runtime, name);
+    const run = context.services.autocoderPipeline.record({
+      kind: "github.delete",
+      repositoryName: name,
+      sessionId: currentCliSessionId(context),
+      request: { name },
+      result: deleted,
+    });
+    return JSON.stringify({ run, deleted }, null, 2);
   }
 
   if (trimmed === "/secrets list") {
@@ -2988,10 +3018,42 @@ async function buildCommandResponse(
       return "Usage: /secrets set <key> :: <value>";
     }
     await setEffectiveSecret(context.runtime, key, value);
+    const run = context.services.autocoderPipeline.record({
+      kind: "secret.set",
+      sessionId: currentCliSessionId(context),
+      request: { key, redacted: true },
+      result: { key, valueSet: true },
+    });
     return JSON.stringify(
       {
+        run,
         key,
         valueSet: true,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/codegen runs") {
+    return JSON.stringify(
+      {
+        summary: context.services.autocoderPipeline.summary(),
+        runs: context.services.autocoderPipeline.list(20),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen show ")) {
+    const id = trimmed.replace("/codegen show ", "").trim();
+    if (!id) {
+      return "Usage: /codegen show <run-id>";
+    }
+    return JSON.stringify(
+      {
+        run: context.services.autocoderPipeline.get(id),
       },
       null,
       2,

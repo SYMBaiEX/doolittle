@@ -309,6 +309,8 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
   const health = await context.services.terminal.health();
   const recent = context.services.terminal.recent(4);
   const delegation = context.services.delegation.overview();
+  const pipeline = context.services.autocoderPipeline.summary();
+  const pipelineRuns = context.services.autocoderPipeline.list(4);
 
   return [
     "{bold}Execution Backends{/}",
@@ -336,6 +338,19 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
     `Pending: ${delegation.pending}`,
     `Running: ${delegation.running}`,
     `Workers: ${delegation.activeWorkers}`,
+    "",
+    "{bold}Native Pipeline{/}",
+    `Runs: ${pipeline.total}`,
+    `Failed: ${pipeline.failed}`,
+    pipeline.latest
+      ? `Latest: ${pipeline.latest.kind} ${truncate(pipeline.latest.projectName ?? pipeline.latest.repositoryName ?? pipeline.latest.id, 26)}`
+      : "Latest: n/a",
+    ...(pipelineRuns.length
+      ? pipelineRuns.map(
+          (entry) =>
+            `- ${entry.kind} ${truncate(entry.projectName ?? entry.repositoryName ?? entry.id, 24)} {gray-fg}${entry.status}{/}`,
+        )
+      : ["{gray-fg}No pipeline runs yet.{/}"]),
   ].join("\n");
 }
 
