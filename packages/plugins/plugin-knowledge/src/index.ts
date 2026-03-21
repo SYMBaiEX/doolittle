@@ -1,8 +1,8 @@
-import type { Plugin } from "@elizaos/core";
 import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+  Service as ElizaService,
+  type IAgentRuntime,
+  type Plugin,
+} from "@elizaos/core";
 
 export interface KnowledgePluginOptions {
   knowledge: {
@@ -34,40 +34,50 @@ export interface KnowledgePluginOptions {
 }
 
 export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
-  const KnowledgeService = createServiceAdapter({
-    serviceType: "knowledge",
-    capabilityDescription:
-      "Official-style knowledge ingestion and recall service for Eliza Agent.",
-    create: async () => ({
-      async ingestPdf(path: string) {
-        const text = await options.knowledge.extractPdf(path);
-        const stored = options.memory.remember("memory", {
-          text,
-          source: `knowledge:${path}`,
-        });
-        return {
-          path,
-          text,
-          stored,
-        };
-      },
-      remember(text: string, source = "knowledge:manual") {
-        return options.memory.remember("memory", { text, source });
-      },
-      recall(query: string, limit = 8) {
-        return {
-          memory: options.memory.read("memory"),
-          sessions: options.sessions.search(query, limit),
-        };
-      },
-    }),
-  });
+  class KnowledgeService extends ElizaService {
+    static serviceType = "knowledge";
+    capabilityDescription =
+      "Official-style knowledge ingestion and recall service for Eliza Agent.";
 
-  return createServicePlugin(
-    "knowledge",
-    "Official-style knowledge service layered onto Eliza Agent memory and document ingestion.",
-    KnowledgeService,
-  );
+    static async start(_runtime: IAgentRuntime): Promise<ElizaService> {
+      return new KnowledgeService(_runtime);
+    }
+
+    async stop(): Promise<void> {
+      return;
+    }
+
+    async ingestPdf(path: string) {
+      const text = await options.knowledge.extractPdf(path);
+      const stored = options.memory.remember("memory", {
+        text,
+        source: `knowledge:${path}`,
+      });
+      return {
+        path,
+        text,
+        stored,
+      };
+    }
+
+    remember(text: string, source = "knowledge:manual") {
+      return options.memory.remember("memory", { text, source });
+    }
+
+    recall(query: string, limit = 8) {
+      return {
+        memory: options.memory.read("memory"),
+        sessions: options.sessions.search(query, limit),
+      };
+    }
+  }
+
+  return {
+    name: "knowledge",
+    description:
+      "Official-style knowledge service layered onto Eliza Agent memory and document ingestion.",
+    services: [KnowledgeService],
+  };
 }
 
 export default createKnowledgePlugin;

@@ -46,7 +46,6 @@
     "@elizaos/plugin-pdf": "alpha",
     "@elizaos/plugin-personality": "workspace:*",
     "@elizaos/plugin-plugin-manager": "workspace:*",
-    "@elizaos/plugin-compat": "workspace:*",
     "@elizaos/plugin-rolodex": "workspace:*",
     "@elizaos/plugin-shell": "workspace:*",
     "@elizaos/plugin-sql": "alpha",

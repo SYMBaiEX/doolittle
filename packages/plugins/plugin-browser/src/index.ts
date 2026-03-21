@@ -1,8 +1,8 @@
-import type { Plugin } from "@elizaos/core";
 import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+  Service as ElizaService,
+  type IAgentRuntime,
+  type Plugin,
+} from "@elizaos/core";
 
 export interface BrowserPluginOptions {
   browser: {
@@ -19,46 +19,62 @@ export interface BrowserPluginOptions {
 }
 
 export function createBrowserPlugin(options: BrowserPluginOptions): Plugin {
-  const BrowserService = createServiceAdapter({
-    serviceType: "browser",
-    capabilityDescription:
-      "Official-style browser automation service backed by Eliza Agent web capture and analysis workflows.",
-    create: async () => ({
-      status() {
-        return options.browser.status();
-      },
-      fetch(url: string) {
-        return options.browser.fetchText(url);
-      },
-      inspect(url: string) {
-        return options.browser.inspect(url);
-      },
-      snapshot(url: string) {
-        return options.browser.snapshot(url);
-      },
-      screenshot(url: string) {
-        return options.browser.screenshot(url);
-      },
-      capture(url: string) {
-        return options.browser.capture(url);
-      },
-      analyze(url: string) {
-        return options.browser.analyze(url);
-      },
-      compare(leftUrl: string, rightUrl: string) {
-        return options.browser.compare(leftUrl, rightUrl);
-      },
-      analyzeComparison(leftUrl: string, rightUrl: string) {
-        return options.browser.analyzeComparison(leftUrl, rightUrl);
-      },
-    }),
-  });
+  class BrowserService extends ElizaService {
+    static serviceType = "browser";
+    capabilityDescription =
+      "Official-style browser automation service backed by Eliza Agent web capture and analysis workflows.";
 
-  return createServicePlugin(
-    "browser",
-    "Official-style browser plugin layered onto Eliza Agent web automation and analysis.",
-    BrowserService,
-  );
+    static async start(runtime: IAgentRuntime): Promise<ElizaService> {
+      return new BrowserService(runtime);
+    }
+
+    async stop(): Promise<void> {
+      return;
+    }
+
+    status() {
+      return options.browser.status();
+    }
+
+    fetch(url: string) {
+      return options.browser.fetchText(url);
+    }
+
+    inspect(url: string) {
+      return options.browser.inspect(url);
+    }
+
+    snapshot(url: string) {
+      return options.browser.snapshot(url);
+    }
+
+    screenshot(url: string) {
+      return options.browser.screenshot(url);
+    }
+
+    capture(url: string) {
+      return options.browser.capture(url);
+    }
+
+    analyze(url: string) {
+      return options.browser.analyze(url);
+    }
+
+    compare(leftUrl: string, rightUrl: string) {
+      return options.browser.compare(leftUrl, rightUrl);
+    }
+
+    analyzeComparison(leftUrl: string, rightUrl: string) {
+      return options.browser.analyzeComparison(leftUrl, rightUrl);
+    }
+  }
+
+  return {
+    name: "browser",
+    description:
+      "Official-style browser plugin layered onto Eliza Agent web automation and analysis.",
+    services: [BrowserService],
+  };
 }
 
 export default createBrowserPlugin;

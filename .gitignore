@@ -11,4 +11,5 @@ packages/*/dist/
 cache/
 coverage/
 *.log
+*.tgz
 skills/generated/index.json

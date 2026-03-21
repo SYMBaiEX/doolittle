@@ -1,8 +1,5 @@
-import type { Plugin } from "@elizaos/core";
-import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface TrajectoryLoggerPluginOptions {
   trajectories: {
@@ -15,28 +12,37 @@ export interface TrajectoryLoggerPluginOptions {
 export function createTrajectoryLoggerPlugin(
   options: TrajectoryLoggerPluginOptions,
 ): Plugin {
-  const TrajectoryLoggerService = createServiceAdapter({
-    serviceType: "trajectory_logger",
-    capabilityDescription:
-      "Official-style trajectory logger service backed by Eliza Agent trajectory workflows.",
-    create: async () => ({
-      exportLatest() {
-        return options.trajectories.exportLatest();
-      },
-      bundles() {
-        return options.trajectories.listBundles();
-      },
-      compareLatest() {
-        return options.trajectories.compareLatest();
-      },
-    }),
-  });
+  class TrajectoryLoggerService extends ElizaService {
+    static serviceType = "trajectory_logger";
+    capabilityDescription =
+      "Trajectory logger service backed by Eliza Agent trajectory workflows.";
 
-  return createServicePlugin(
-    "trajectory-logger",
-    "Official-style trajectory logger plugin for Eliza Agent research workflows.",
-    TrajectoryLoggerService,
-  );
+    private readonly trajectories = options.trajectories;
+
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      return new TrajectoryLoggerService(runtime);
+    }
+
+    async stop(): Promise<void> {}
+
+    exportLatest() {
+      return this.trajectories.exportLatest();
+    }
+
+    bundles() {
+      return this.trajectories.listBundles();
+    }
+
+    compareLatest() {
+      return this.trajectories.compareLatest();
+    }
+  }
+
+  return {
+    name: "trajectory-logger",
+    description: "Trajectory logger plugin for Eliza Agent research workflows.",
+    services: [TrajectoryLoggerService],
+  };
 }
 
 export default createTrajectoryLoggerPlugin;
