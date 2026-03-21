@@ -5,10 +5,11 @@ interface ToolRegistryDynamicState {
   discoveredMcpTools: number;
   discoveredMcpToolNames?: string[];
   acpEnabled?: boolean;
-  nativePluginsTotal?: number;
-  nativePluginsEnabled?: number;
-  nativeOfficialPlugins?: number;
-  nativeVendoredPlugins?: number;
+  nativePluginManagerTotal?: number;
+  nativePluginManagerEnabled?: number;
+  nativePluginManagerOfficial?: number;
+  nativePluginManagerVendored?: number;
+  nativePluginManagerCategories?: number;
   nativeCatalog?: Array<{
     id: string;
     category: string;
@@ -52,6 +53,7 @@ interface ToolRegistrySummary {
     enabled: number;
     official: number;
     vendored: number;
+    categories: number;
   };
   ecosystem: {
     registryAvailable: boolean;
@@ -69,10 +71,11 @@ export class ToolsService {
       discoveredMcpTools: 0,
       discoveredMcpToolNames: [],
       acpEnabled: false,
-      nativePluginsTotal: 0,
-      nativePluginsEnabled: 0,
-      nativeOfficialPlugins: 0,
-      nativeVendoredPlugins: 0,
+      nativePluginManagerTotal: 0,
+      nativePluginManagerEnabled: 0,
+      nativePluginManagerOfficial: 0,
+      nativePluginManagerVendored: 0,
+      nativePluginManagerCategories: 0,
       nativeCatalog: [],
       nativeRuntimeLatest: "unknown",
       nativeRuntimeAlpha: "unknown",
@@ -440,7 +443,7 @@ export class ToolsService {
         : tool.id === "plugins.native"
           ? {
               ...tool,
-              description: `Native ElizaOS stack includes ${dynamic.nativePluginsEnabled ?? 0}/${dynamic.nativePluginsTotal ?? 0} enabled plugin definitions, with ${dynamic.nativeOfficialPlugins ?? 0} official and ${dynamic.nativeVendoredPlugins ?? 0} vendored packages.`,
+              description: `Native ElizaOS stack includes ${dynamic.nativePluginManagerEnabled ?? 0}/${dynamic.nativePluginManagerTotal ?? 0} enabled plugin definitions across ${dynamic.nativePluginManagerCategories ?? 0} categories, with ${dynamic.nativePluginManagerOfficial ?? 0} official and ${dynamic.nativePluginManagerVendored ?? 0} vendored packages.`,
             }
           : tool.id === "packages.native"
             ? {
@@ -563,10 +566,11 @@ export class ToolsService {
         discoveredToolNames: dynamic.discoveredMcpToolNames ?? [],
       },
       native: {
-        total: dynamic.nativePluginsTotal ?? 0,
-        enabled: dynamic.nativePluginsEnabled ?? 0,
-        official: dynamic.nativeOfficialPlugins ?? 0,
-        vendored: dynamic.nativeVendoredPlugins ?? 0,
+        total: dynamic.nativePluginManagerTotal ?? 0,
+        enabled: dynamic.nativePluginManagerEnabled ?? 0,
+        official: dynamic.nativePluginManagerOfficial ?? 0,
+        vendored: dynamic.nativePluginManagerVendored ?? 0,
+        categories: dynamic.nativePluginManagerCategories ?? 0,
       },
       ecosystem: {
         registryAvailable: dynamic.agentSdkRegistryAvailable ?? false,

@@ -4,6 +4,13 @@ import type { MemoryTarget } from "@/types";
 
 const ENTRY_DELIMITER = "\n§\n";
 
+export interface MemorySummary {
+  target: MemoryTarget;
+  entries: number;
+  characters: number;
+  preview: string[];
+}
+
 export class MemoryService {
   private readonly fileByTarget: Record<MemoryTarget, string>;
   private readonly limitByTarget: Record<MemoryTarget, number>;
@@ -48,6 +55,17 @@ export class MemoryService {
     }
 
     return `${label} [${percent}% — ${usage} chars]\n${entries.join(ENTRY_DELIMITER)}`;
+  }
+
+  summary(target: MemoryTarget = "memory"): MemorySummary {
+    const entries = this.list(target);
+    const snapshot = this.read(target);
+    return {
+      target,
+      entries: entries.length,
+      characters: snapshot.length,
+      preview: entries.slice(-5),
+    };
   }
 
   add(target: MemoryTarget, content: string): string {

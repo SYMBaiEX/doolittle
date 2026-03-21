@@ -3,10 +3,15 @@ import type { AppServices } from "@/services";
 import type { RuntimeLike } from "./service-bridge";
 import {
   getAutonomousControlPlane,
+  getEffectiveDelegationChildren,
+  getEffectiveDelegationTask,
+  getEffectiveDelegationTree,
   getEffectiveMessagingTransportInventory,
+  getEffectivePluginManagerInventory,
   getEffectiveTransportInventory,
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
+  retryEffectiveDelegationTask,
 } from "./service-bridge";
 
 describe("getEffectiveMessagingTransportInventory", () => {
@@ -275,6 +280,13 @@ describe("getEffectiveMessagingTransportInventory", () => {
           return {
             list: () => [{ id: "plugin-1" }, { id: "plugin-2" }],
             categories: () => ({ foundation: 1, automation: 1 }),
+            summary: () => ({
+              total: 2,
+              enabled: 1,
+              official: 1,
+              vendored: 1,
+              categories: 2,
+            }),
           };
         }
         return null;
@@ -320,6 +332,122 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(controlPlane.orchestrator.queuePending).toBe(1);
     expect(controlPlane.trajectories.bundles).toBe(1);
     expect(controlPlane.pluginManager.plugins).toBe(2);
+    expect(controlPlane.pluginManager.enabled).toBe(1);
+    expect(controlPlane.pluginManager.official).toBe(1);
+    expect(controlPlane.pluginManager.vendored).toBe(1);
     expect(controlPlane.totals.nativeServices).toBe(4);
+  });
+});
+
+describe("plugin manager bridge helper", () => {
+  it("prefers native plugin manager summary when available", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "plugin_manager") {
+          return {
+            list: () => [{ id: "plugin-1" }, { id: "plugin-2" }],
+            categories: () => ({ foundation: 1, automation: 1 }),
+            summary: () => ({
+              total: 2,
+              enabled: 1,
+              official: 1,
+              vendored: 1,
+              categories: 2,
+            }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const inventory = getEffectivePluginManagerInventory(runtime);
+
+    expect(inventory?.summary).toEqual({
+      total: 2,
+      enabled: 1,
+      official: 1,
+      vendored: 1,
+      categories: 2,
+    });
+    expect(inventory?.plugins).toHaveLength(2);
+  });
+});
+
+describe("delegation bridge helpers", () => {
+  it("prefers native orchestrator tree, children, status, and retry helpers when available", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "agent_orchestrator") {
+          return {
+            getTask: (id: string) => ({ id, source: "native-task" }),
+            getChildren: (id: string) => [
+              { id: `${id}-child`, source: "native-child" },
+            ],
+            tree: (id: string) => ({ id, source: "native-tree" }),
+            retryTask: (
+              id: string,
+              note?: string,
+              options?: { cascadeChildren?: boolean },
+            ) => ({
+              id,
+              note,
+              cascadeChildren: options?.cascadeChildren ?? false,
+              source: "native-retry",
+            }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const services = {
+      delegation: {
+        get: (id: string) => ({ id, source: "fallback-task" }),
+        listChildren: (id: string) => [
+          { id: `${id}-child`, source: "fallback-child" },
+        ],
+        tree: (id: string) => ({ id, source: "fallback-tree" }),
+        requeue: (id: string, note?: string) => ({
+          id,
+          note,
+          source: "fallback-retry",
+        }),
+      },
+    } as never as AppServices;
+
+    expect(getEffectiveDelegationTask(runtime, services, "task-1")).toEqual({
+      id: "task-1",
+      source: "native-task",
+    });
+    expect(getEffectiveDelegationChildren(runtime, services, "task-1")).toEqual(
+      [
+        {
+          id: "task-1-child",
+          source: "native-child",
+        },
+      ],
+    );
+    expect(getEffectiveDelegationTree(runtime, services, "task-1")).toEqual({
+      id: "task-1",
+      source: "native-tree",
+    });
+    expect(
+      retryEffectiveDelegationTask(runtime, services, "task-1", "note"),
+    ).toEqual({
+      id: "task-1",
+      note: "note",
+      cascadeChildren: false,
+      source: "native-retry",
+    });
+    expect(
+      retryEffectiveDelegationTask(runtime, services, "task-1", "note", {
+        cascadeChildren: true,
+      }),
+    ).toEqual({
+      id: "task-1",
+      note: "note",
+      cascadeChildren: true,
+      source: "native-retry",
+    });
   });
 });

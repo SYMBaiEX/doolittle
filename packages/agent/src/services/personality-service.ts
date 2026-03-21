@@ -76,6 +76,20 @@ export class PersonalityService {
     return this.getActive().id;
   }
 
+  summary(): {
+    total: number;
+    activeId?: string;
+    names: string[];
+  } {
+    const available = this.list();
+    const active = this.getActive();
+    return {
+      total: available.length,
+      activeId: active.id,
+      names: available.map((profile) => profile.name),
+    };
+  }
+
   private read(): PersonalityStore {
     const raw = readFileSync(this.filePath, "utf8");
     return JSON.parse(raw) as PersonalityStore;

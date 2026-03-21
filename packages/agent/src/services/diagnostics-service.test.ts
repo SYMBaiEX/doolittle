@@ -153,6 +153,32 @@ describe("DiagnosticsService", () => {
     );
     const runtime = {
       getService(name: string) {
+        if (name === "plugin_manager") {
+          return {
+            list: () => [
+              {
+                id: "messaging.telegram",
+                enabled: true,
+                source: "official",
+              },
+              {
+                id: "messaging.discord",
+                enabled: false,
+                source: "vendored",
+              },
+            ],
+            categories: () => ({
+              messaging: ["messaging.telegram", "messaging.discord"],
+            }),
+            summary: () => ({
+              total: 2,
+              enabled: 1,
+              official: 1,
+              vendored: 1,
+              categories: 1,
+            }),
+          };
+        }
         if (name === "discord_transport") {
           return {
             history: () => [],
@@ -208,6 +234,18 @@ describe("DiagnosticsService", () => {
             check.detail.includes("operational=") &&
             check.detail.includes("custom=") &&
             check.detail.includes("product="),
+        ),
+      ).toBe(true);
+      expect(checks.some((check) => check.id === "native.plugin-manager")).toBe(
+        true,
+      );
+      expect(
+        checks.some(
+          (check) =>
+            check.id === "native.plugin-manager" &&
+            check.detail.includes("total=2") &&
+            check.detail.includes("official=1") &&
+            check.detail.includes("vendored=1"),
         ),
       ).toBe(true);
       expect(

@@ -9,6 +9,7 @@ export interface KnowledgePluginOptions {
     extractPdf(path: string): Promise<string>;
   };
   memory: {
+    list(target?: "memory" | "user"): string[];
     remember(
       target: "memory" | "user",
       input: { text: string; source: string },
@@ -19,6 +20,12 @@ export interface KnowledgePluginOptions {
       truncated: boolean;
     };
     read(target?: "memory" | "user"): string;
+    summary(target?: "memory" | "user"): {
+      target: "memory" | "user";
+      entries: number;
+      characters: number;
+      preview: string[];
+    };
   };
   sessions: {
     search(
@@ -62,6 +69,10 @@ export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
 
     remember(text: string, source = "knowledge:manual") {
       return options.memory.remember("memory", { text, source });
+    }
+
+    summary(target: "memory" | "user" = "memory") {
+      return options.memory.summary(target);
     }
 
     recall(query: string, limit = 8) {

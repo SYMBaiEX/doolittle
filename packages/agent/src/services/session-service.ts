@@ -107,6 +107,16 @@ export class SessionService {
     return this.recent(limit);
   }
 
+  summary(limit = 10): {
+    totalSessions: number;
+    recentSessionIds: string[];
+  } {
+    return {
+      totalSessions: this.listSessions(1000).length,
+      recentSessionIds: this.latest(limit).map((session) => session.sessionId),
+    };
+  }
+
   summarize(sessionId: string, limit = 12): SessionSummary {
     const rows = this.db
       .query(

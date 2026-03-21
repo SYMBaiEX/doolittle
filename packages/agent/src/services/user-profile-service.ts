@@ -33,6 +33,12 @@ export interface UserProfileRecallHit {
   score: number;
 }
 
+export interface UserProfileWorkspaceSummary {
+  totalProfiles: number;
+  agentName: string;
+  recentProfiles: string[];
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -476,6 +482,16 @@ export class UserProfileService {
 
   renderCards(userId: string): string {
     return `${this.render(userId)}\n\n${this.renderAgent()}`;
+  }
+
+  summary(): UserProfileWorkspaceSummary {
+    const profiles = this.list();
+    const agent = this.getAgent();
+    return {
+      totalProfiles: profiles.length,
+      agentName: agent.name,
+      recentProfiles: profiles.slice(0, 5).map((profile) => profile.userId),
+    };
   }
 
   private update(

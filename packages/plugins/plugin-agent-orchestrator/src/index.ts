@@ -16,6 +16,8 @@ export interface AgentOrchestratorPluginOptions {
     get(id: string): unknown;
     queueSummary(): unknown;
     overview(): unknown;
+    getChildren?(id: string): unknown[];
+    tree?(id: string): unknown;
     spawnChild(
       parentId: string,
       input: {
@@ -26,6 +28,11 @@ export interface AgentOrchestratorPluginOptions {
         priority?: string;
         tags?: string[];
       },
+    ): unknown;
+    retryTask?(
+      id: string,
+      note?: string,
+      options?: { cascadeChildren?: boolean },
     ): unknown;
     cancel(id: string, note?: string): unknown;
     supervise(
@@ -80,6 +87,14 @@ export function createAgentOrchestratorPlugin(
       return this.delegation.get(id);
     }
 
+    getChildren(id: string) {
+      return this.delegation.getChildren?.(id) ?? [];
+    }
+
+    tree(id: string) {
+      return this.delegation.tree?.(id) ?? this.delegation.get(id);
+    }
+
     overview() {
       return this.delegation.overview();
     }
@@ -96,6 +111,14 @@ export function createAgentOrchestratorPlugin(
       },
     ) {
       return this.delegation.spawnChild(parentId, input);
+    }
+
+    retryTask(
+      id: string,
+      note?: string,
+      options?: { cascadeChildren?: boolean },
+    ) {
+      return this.delegation.retryTask?.(id, note, options);
     }
 
     cancelTask(id: string, note?: string) {

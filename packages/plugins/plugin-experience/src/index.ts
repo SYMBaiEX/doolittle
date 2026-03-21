@@ -8,9 +8,19 @@ export interface ExperiencePluginOptions {
   sessions: {
     usage(sessionId: string): unknown;
     latest(limit?: number): unknown;
+    summary(): {
+      totalSessions: number;
+      recentSessionIds: string[];
+    };
   };
   memory: {
     read(target?: "memory" | "user"): string;
+    summary(target?: "memory" | "user"): {
+      target: "memory" | "user";
+      entries: number;
+      characters: number;
+      preview: string[];
+    };
   };
 }
 
@@ -42,6 +52,16 @@ export function createExperiencePlugin(
       return {
         shared: options.memory.read("memory"),
         user: options.memory.read("user"),
+      };
+    }
+
+    summary() {
+      return {
+        sessions: options.sessions.summary(),
+        memory: {
+          shared: options.memory.summary("memory"),
+          user: options.memory.summary("user"),
+        },
       };
     }
   }

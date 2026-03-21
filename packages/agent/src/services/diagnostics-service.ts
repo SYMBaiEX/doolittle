@@ -7,6 +7,7 @@ import {
 } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
+  getEffectivePluginManagerInventory,
   getNativeIntegrationControlPlane,
   getNativeTransportControlPlane,
   type RuntimeLike,
@@ -129,6 +130,9 @@ export class DiagnosticsService {
           this.config,
           this.gatewayConfig,
         )
+      : undefined;
+    const pluginManager = this.runtime
+      ? getEffectivePluginManagerInventory(this.runtime)
       : undefined;
     const integrationControl = this.runtime
       ? await getNativeIntegrationControlPlane(this.runtime, {
@@ -288,6 +292,14 @@ export class DiagnosticsService {
         status: controlPlane.totals.operationalTransports > 0 ? "pass" : "warn",
         summary: "Native messaging control plane",
         detail: `configured=${controlPlane.totals.configured} gatewayEnabled=${controlPlane.totals.gatewayEnabled} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} operational=${controlPlane.totals.operationalTransports} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins} custom=${controlPlane.totals.customTransports} product=${controlPlane.totals.productTransports}`,
+      });
+      checks.push({
+        id: "native.plugin-manager",
+        status: pluginManager?.summary.total ? "pass" : "warn",
+        summary: "Native plugin manager summary",
+        detail: pluginManager
+          ? `total=${pluginManager.summary.total} enabled=${pluginManager.summary.enabled} official=${pluginManager.summary.official} vendored=${pluginManager.summary.vendored} categories=${pluginManager.summary.categories}`
+          : "Plugin manager inventory unavailable.",
       });
       checks.push({
         id: "gateway.transport.inventory",

@@ -21,7 +21,7 @@ import telegramPlugin from "@elizaos/plugin-telegram";
 import { createTrajectoryLoggerPlugin } from "@elizaos/plugin-trajectory-logger";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig, MemoryTarget } from "@/types";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -96,7 +96,16 @@ export function buildNativePluginAssembly(
       knowledge: {
         extractPdf: (path) => services.documents.extractPdf(path),
       },
-      memory: services.memory,
+      memory: {
+        list: (target: MemoryTarget = "memory") => services.memory.list(target),
+        remember: (
+          target: MemoryTarget,
+          input: { text: string; source: string },
+        ) => services.memory.remember(target, input),
+        read: (target: MemoryTarget = "memory") => services.memory.read(target),
+        summary: (target: MemoryTarget = "memory") =>
+          services.memory.summary(target),
+      },
       sessions: services.sessions,
     }),
     createLocalEmbeddingPlugin(),
@@ -106,6 +115,7 @@ export function buildNativePluginAssembly(
         get: (id) => services.personalities.get(id),
         setActive: (id) => services.personalities.setActive(id),
         activeId: () => services.personalities.activeId(),
+        summary: () => services.personalities.summary(),
       },
     }),
     createRolodexPlugin({
@@ -122,15 +132,18 @@ export function buildNativePluginAssembly(
         observeAgent: (input) =>
           services.userProfiles.observeAgent(input.text, input.source),
         agentProfile: () => services.userProfiles.agentProfile(),
+        summary: () => services.userProfiles.summary(),
       },
     }),
     createExperiencePlugin({
       sessions: {
         usage: (sessionId) => services.sessions.usage(sessionId),
         latest: (limit = 5) => services.sessions.latest(limit),
+        summary: () => services.sessions.summary(),
       },
       memory: {
         read: (target) => services.memory.read(target),
+        summary: (target = "memory") => services.memory.summary(target),
       },
     }),
   ];
@@ -196,6 +209,8 @@ export function buildNativePluginAssembly(
         get: (id) => services.delegation.get(id),
         queueSummary: () => services.delegation.queueSummary(),
         overview: () => services.delegation.overview(),
+        getChildren: (id) => services.delegation.listChildren(id),
+        tree: (id) => services.delegation.tree(id),
         spawnChild: (parentId, input) =>
           services.delegation.spawnChild(parentId, {
             ...input,
@@ -207,6 +222,8 @@ export function buildNativePluginAssembly(
                 : "normal",
             metadata: normalizeMetadata(input.metadata),
           }),
+        retryTask: (id, note, options) =>
+          services.delegation.requeue(id, note, options),
         cancel: (id, note) => services.delegation.cancel(id, note),
         supervise: (runner, options) =>
           services.delegation.supervise(runner as never, options as never),
@@ -218,6 +235,15 @@ export function buildNativePluginAssembly(
       plugins: {
         list: () => catalog,
         categories: () => groupedCatalog,
+        summary: () => ({
+          total: catalog.length,
+          enabled: catalog.filter((entry) => entry.enabled).length,
+          official: catalog.filter((entry) => entry.source === "official")
+            .length,
+          vendored: catalog.filter((entry) => entry.source === "vendored")
+            .length,
+          categories: Object.keys(groupedCatalog).length,
+        }),
       },
     }),
   ];

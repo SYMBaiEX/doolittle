@@ -10,6 +10,11 @@ export interface PersonalityPluginOptions {
     get(id: string): unknown;
     setActive(id: string): unknown;
     activeId(): string | undefined;
+    summary(): {
+      total: number;
+      activeId?: string;
+      names: string[];
+    };
   };
 }
 
@@ -43,6 +48,10 @@ export function createPersonalityPlugin(
 
     activeId() {
       return options.personalities.activeId();
+    }
+
+    summary() {
+      return options.personalities.summary();
     }
   }
 

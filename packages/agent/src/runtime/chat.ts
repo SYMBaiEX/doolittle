@@ -24,9 +24,12 @@ import {
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
+  getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
   getEffectiveDelegationQueue,
+  getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
+  getEffectiveDelegationTree,
   getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
   getEffectivePersonalityList,
@@ -43,6 +46,7 @@ import {
   inspectEffectiveBrowserPage,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
+  retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
@@ -2846,7 +2850,21 @@ async function buildCommandResponse(
     if (!id) {
       return "Usage: /delegate children <parent-id>";
     }
-    const tasks = context.services.delegation.listChildren(id);
+    const tasks = getEffectiveDelegationChildren(
+      context.runtime,
+      context.services,
+      id,
+    ) as Array<{
+      id: string;
+      title: string;
+      status: string;
+      group?: string;
+      profile?: string;
+      parentTaskId?: string;
+      labels?: string[];
+      tags?: string[];
+      objective: string;
+    }>;
     return tasks.length
       ? tasks
           .map(
@@ -2862,7 +2880,11 @@ async function buildCommandResponse(
     if (!id) {
       return "Usage: /delegate tree <task-id>";
     }
-    return JSON.stringify(context.services.delegation.tree(id), null, 2);
+    return JSON.stringify(
+      getEffectiveDelegationTree(context.runtime, context.services, id),
+      null,
+      2,
+    );
   }
 
   if (
@@ -2990,7 +3012,11 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate status ")) {
     const id = trimmed.replace("/delegate status ", "").trim();
-    return JSON.stringify(context.services.delegation.get(id), null, 2);
+    return JSON.stringify(
+      getEffectiveDelegationTask(context.runtime, context.services, id),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/delegate run ")) {
@@ -3081,12 +3107,32 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/delegate retry ")) {
     const payload = trimmed.replace("/delegate retry ", "");
-    const [id, note] = payload.split("::").map((part) => part.trim());
+    const [left, note] = payload.split("::").map((part) => part.trim());
+    const segments = left
+      .split("|")
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    const [id, ...rawOptions] = segments;
+    const cascadeChildren = rawOptions.some((segment) => {
+      const [key, value] = segment
+        .split(":")
+        .map((part) => part.trim().toLowerCase());
+      return (
+        key === "cascade" &&
+        (value === "children" || value === "child" || value === "true")
+      );
+    });
     if (!id) {
-      return "Usage: /delegate retry <id> :: <optional note>";
+      return "Usage: /delegate retry <id> [| cascade:children] :: <optional note>";
     }
     return JSON.stringify(
-      context.services.delegation.requeue(id, note || "Requeued for retry."),
+      retryEffectiveDelegationTask(
+        context.runtime,
+        context.services,
+        id,
+        note || "Requeued for retry.",
+        cascadeChildren ? { cascadeChildren: true } : undefined,
+      ),
       null,
       2,
     );

@@ -7,10 +7,11 @@ describe("ToolsService", () => {
       mcpEnabled: true,
       discoveredMcpTools: 2,
       discoveredMcpToolNames: ["sum", "echo"],
-      nativePluginsTotal: 10,
-      nativePluginsEnabled: 8,
-      nativeOfficialPlugins: 4,
-      nativeVendoredPlugins: 5,
+      nativePluginManagerTotal: 10,
+      nativePluginManagerEnabled: 8,
+      nativePluginManagerOfficial: 4,
+      nativePluginManagerVendored: 5,
+      nativePluginManagerCategories: 3,
       agentSdkCompatibilityFailures: 1,
       nativeCatalog: [
         {
@@ -29,6 +30,7 @@ describe("ToolsService", () => {
     expect(summary.mcp.enabled).toBe(true);
     expect(summary.mcp.discoveredToolNames).toContain("sum");
     expect(summary.native.total).toBe(10);
+    expect(summary.native.categories).toBe(3);
     expect(summary.native.official).toBe(4);
     expect(summary.native.vendored).toBe(5);
     expect(summary.ecosystem.compatibilityFailures).toBe(1);

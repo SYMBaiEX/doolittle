@@ -16,6 +16,11 @@ export interface RolodexPluginOptions {
     recall(userId: string, query: string): unknown;
     observeAgent(input: { text: string; source: string }): unknown;
     agentProfile(): unknown;
+    summary(): {
+      totalProfiles: number;
+      agentName?: string;
+      recentProfiles: string[];
+    };
   };
 }
 
@@ -56,6 +61,10 @@ export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
 
     agentProfile() {
       return options.profiles.agentProfile();
+    }
+
+    summary() {
+      return options.profiles.summary();
     }
   }
 

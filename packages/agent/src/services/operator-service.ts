@@ -14,6 +14,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
+  getEffectivePluginManagerInventory,
   getNativeTransportControlPlane,
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
@@ -101,6 +102,14 @@ export interface SetupSummary {
     skillCatalogSkills: number;
     compatibilityFailures: number;
   };
+  pluginManager?: {
+    available: boolean;
+    total: number;
+    enabled: number;
+    official: number;
+    vendored: number;
+    categories: number;
+  };
   checklist: string[];
 }
 
@@ -123,6 +132,14 @@ export interface UpdatePreview {
   transportInventory?: ReturnType<
     typeof getNativeTransportControlPlane
   >["transportInventory"];
+  pluginManager?: {
+    available: boolean;
+    total: number;
+    enabled: number;
+    official: number;
+    vendored: number;
+    categories: number;
+  };
 }
 
 export interface MigrationSourceSummary {
@@ -193,6 +210,9 @@ export class OperatorService {
           this.diagnostics.currentGatewayConfig(),
         )
       : undefined;
+    const pluginManager = this.runtime
+      ? getEffectivePluginManagerInventory(this.runtime)
+      : null;
     return {
       version: this.version(),
       directories: [
@@ -295,6 +315,14 @@ export class OperatorService {
         skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
         compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
       },
+      pluginManager: {
+        available: Boolean(pluginManager),
+        total: pluginManager?.summary.total ?? 0,
+        enabled: pluginManager?.summary.enabled ?? 0,
+        official: pluginManager?.summary.official ?? 0,
+        vendored: pluginManager?.summary.vendored ?? 0,
+        categories: pluginManager?.summary.categories ?? 0,
+      },
       checklist: await this.diagnostics.setupChecklist(),
     };
   }
@@ -317,6 +345,9 @@ export class OperatorService {
           this.diagnostics.currentGatewayConfig(),
         )
       : undefined;
+    const pluginManager = this.runtime
+      ? getEffectivePluginManagerInventory(this.runtime)
+      : null;
 
     return {
       version: this.version(),
@@ -341,6 +372,14 @@ export class OperatorService {
         skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
         skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
         compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
+      },
+      pluginManager: {
+        available: Boolean(pluginManager),
+        total: pluginManager?.summary.total ?? 0,
+        enabled: pluginManager?.summary.enabled ?? 0,
+        official: pluginManager?.summary.official ?? 0,
+        vendored: pluginManager?.summary.vendored ?? 0,
+        categories: pluginManager?.summary.categories ?? 0,
       },
     };
   }

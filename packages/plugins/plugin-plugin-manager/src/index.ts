@@ -5,6 +5,13 @@ export interface PluginManagerPluginOptions {
   plugins: {
     list(): unknown[];
     categories(): unknown;
+    summary(): {
+      total: number;
+      enabled: number;
+      official: number;
+      vendored: number;
+      categories: number;
+    };
   };
 }
 
@@ -35,6 +42,10 @@ export function createPluginManagerPlugin(
 
     categories() {
       return this.plugins.categories();
+    }
+
+    summary() {
+      return this.plugins.summary();
     }
   }
 

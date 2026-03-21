@@ -4,10 +4,12 @@ Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a worksp
 
 ## Versioning note
 
-On March 20, 2026, npm reports:
+On March 21, 2026, npm reports:
 
 - `elizaos@latest` → `2.0.0-alpha.77`
-- `elizaos@alpha` → `2.0.0-alpha.81`
+- `elizaos@alpha` → `2.0.0-alpha.85`
+- `@elizaos/core@alpha` → `2.0.0-alpha.85`
+- `@elizaos/agent@alpha` → `2.0.0-alpha.85`
 
 This project now uses the explicit `alpha` dist-tag for the core ElizaOS runtime packages so the repo intentionally tracks the leading alpha line instead of relying on `latest` to remain alpha-backed.
 
@@ -20,7 +22,7 @@ The published `elizaos` package is a CLI/examples wrapper, while the actual agen
 - `@elizaos/autonomous: "alpha"` and `@elizaos/skills: "alpha"` to keep the first-party native alignment packages on the same runtime channel
 - `@elizaos/plugin-sql: "alpha"` and other compatible official plugins on `alpha` where that is the correct 2.x line
 
-The platform-specific features that do not have a single clean ElizaOS equivalent are implemented here as custom ElizaOS actions, providers, evaluators, and Bun-native services. Official packages that were close but not yet compatible on the current runtime line are vendored under `packages/plugins/*` and patched locally.
+The platform-specific features that do not have a single clean ElizaOS equivalent are implemented here as custom ElizaOS actions, providers, evaluators, and Bun-native services. Official packages that were close but not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` alpha service model.
 
 ## Monorepo layout
 
@@ -35,7 +37,7 @@ The platform-specific features that do not have a single clean ElizaOS equivalen
 - `packages/characters`
   - local character definitions
 
-Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md).
+Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md). Native-adoption priorities live in [`docs/eliza-maximization-matrix.md`](./docs/eliza-maximization-matrix.md).
 
 ## File tree
 
@@ -55,7 +57,6 @@ eliza-agent/
 │   │   └── eliza-agent.character.json
 │   ├── plugins/
 │   │   ├── eliza-agent-plugin.ts
-│   │   ├── compat/
 │   │   ├── plugin-agent-orchestrator/
 │   │   ├── plugin-agent-skills/
 │   │   ├── plugin-coding-agent/
@@ -148,7 +149,7 @@ The runtime now uses a wider native ElizaOS stack:
 - `@elizaos/skills`
   - First-party skills package used as part of the native ElizaOS workspace alignment.
 - vendored official-compatible packages in `packages/plugins/*`
-  - Local workspace packages that preserve official ElizaOS package names while patching compatibility to the current runtime line for browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
+  - Local workspace packages that preserve official ElizaOS package names while implementing directly against the current runtime line for browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
 - `elizaos`
   - Requested dist-tag package channel for the ElizaOS umbrella package.
 - `eliza-agent-runtime` custom plugin

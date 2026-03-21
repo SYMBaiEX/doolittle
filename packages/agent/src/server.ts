@@ -26,8 +26,11 @@ import {
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
+  getEffectiveDelegationChildren,
   getEffectiveDelegationQueue,
+  getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
+  getEffectiveDelegationTree,
   getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
   getEffectivePersonalityList,
@@ -45,6 +48,7 @@ import {
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   probeEffectiveMcp,
+  retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
@@ -1353,17 +1357,29 @@ export function startApiServer(context: AppContext): void {
         }
         if (!action) {
           return json({
-            task: context.services.delegation.get(id),
+            task: getEffectiveDelegationTask(
+              context.runtime,
+              context.services,
+              id,
+            ),
           });
         }
         if (action === "children") {
           return json({
-            children: context.services.delegation.listChildren(id),
+            children: getEffectiveDelegationChildren(
+              context.runtime,
+              context.services,
+              id,
+            ),
           });
         }
         if (action === "tree") {
           return json({
-            tree: context.services.delegation.tree(id),
+            tree: getEffectiveDelegationTree(
+              context.runtime,
+              context.services,
+              id,
+            ),
           });
         }
       }
@@ -1545,12 +1561,11 @@ export function startApiServer(context: AppContext): void {
         }
         if (action === "retry") {
           return json({
-            task: context.services.delegation.requeue(
+            task: retryEffectiveDelegationTask(
+              context.runtime,
+              context.services,
               id,
               body.note ?? "Requeued via API.",
-              {
-                cascadeChildren: body.cascadeChildren,
-              },
             ),
           });
         }

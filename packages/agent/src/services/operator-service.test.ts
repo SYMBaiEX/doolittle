@@ -171,6 +171,32 @@ describe("OperatorService", () => {
         if (name === "discord_transport") {
           return { history: () => [] };
         }
+        if (name === "plugin_manager") {
+          return {
+            list: () => [
+              {
+                id: "messaging.telegram",
+                enabled: true,
+                source: "official",
+              },
+              {
+                id: "messaging.discord",
+                enabled: true,
+                source: "vendored",
+              },
+            ],
+            categories: () => ({
+              messaging: ["messaging.telegram", "messaging.discord"],
+            }),
+            summary: () => ({
+              total: 2,
+              enabled: 2,
+              official: 1,
+              vendored: 1,
+              categories: 1,
+            }),
+          };
+        }
         return null;
       },
     } as unknown as RuntimeLike;
@@ -200,6 +226,9 @@ describe("OperatorService", () => {
         (entry) => entry.platform === "telegram" && !entry.operational,
       ),
     ).toBe(true);
+    expect(setup.pluginManager?.available).toBe(true);
+    expect(setup.pluginManager?.total).toBeGreaterThan(0);
+    expect(setup.pluginManager?.categories).toBeGreaterThan(0);
     expect(
       setup.transports.some(
         (entry) =>
@@ -214,6 +243,7 @@ describe("OperatorService", () => {
     expect(
       update.transportInventory?.some((entry) => entry.platform === "api"),
     ).toBe(true);
+    expect(update.pluginManager?.enabled).toBeGreaterThan(0);
     expect(update.recommendedSteps.length).toBeGreaterThan(0);
   });
 

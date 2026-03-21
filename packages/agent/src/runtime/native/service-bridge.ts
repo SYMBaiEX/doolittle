@@ -8,6 +8,7 @@ interface NativeKnowledgeService {
   ingestPdf(path: string): Promise<unknown>;
   remember(text: string, source?: string): unknown;
   recall(query: string, limit?: number): unknown;
+  summary?(target?: "memory" | "user"): unknown;
 }
 
 interface NativePersonalityService {
@@ -15,6 +16,7 @@ interface NativePersonalityService {
   get(id: string): unknown;
   activate(id: string): unknown;
   activeId(): string | undefined;
+  summary?(): unknown;
 }
 
 interface NativeRolodexService {
@@ -28,6 +30,14 @@ interface NativeRolodexService {
   recall(userId: string, query: string): unknown;
   observeAgent(text: string, source?: string): unknown;
   agentProfile(): unknown;
+  summary?(): unknown;
+}
+
+interface NativeExperienceService {
+  usage(sessionId: string): unknown;
+  recent?(limit?: number): unknown;
+  memorySnapshot?(): unknown;
+  summary?(): unknown;
 }
 
 interface NativeShellService {
@@ -91,6 +101,8 @@ interface NativeAgentOrchestratorService {
     metadata?: Record<string, unknown>,
   ): unknown;
   getTask?(id: string): unknown;
+  getChildren?(id: string): unknown[];
+  tree?(id: string): unknown;
   queue(): unknown;
   overview?(): unknown;
   tasks(): unknown[];
@@ -105,13 +117,26 @@ interface NativeAgentOrchestratorService {
       tags?: string[];
     },
   ): unknown;
-  retryTask?(id: string): unknown;
+  retryTask?(
+    id: string,
+    note?: string,
+    options?: { cascadeChildren?: boolean },
+  ): unknown;
   cancelTask?(id: string, note?: string): unknown;
 }
 
 interface NativePluginManagerService {
   list(): unknown[];
   categories(): unknown;
+  summary?(): NativePluginManagerSummary;
+}
+
+interface NativePluginManagerSummary {
+  total: number;
+  enabled: number;
+  official: number;
+  vendored: number;
+  categories: number;
 }
 
 interface NativeDiscordTransportService {
@@ -201,6 +226,9 @@ interface AutonomousControlPlaneSummary {
     available: boolean;
     plugins: number;
     categories: number;
+    enabled: number;
+    official: number;
+    vendored: number;
   };
   totals: {
     nativeServices: number;
@@ -302,6 +330,7 @@ export function getNativeServices(runtime: RuntimeLike) {
     knowledge: service<NativeKnowledgeService>(runtime, "knowledge"),
     personality: service<NativePersonalityService>(runtime, "personality"),
     rolodex: service<NativeRolodexService>(runtime, "rolodex"),
+    experience: service<NativeExperienceService>(runtime, "experience"),
     shell: service<NativeShellService>(runtime, "shell"),
     browser: service<NativeBrowserService>(runtime, "browser"),
     mcp: service<NativeMcpService>(runtime, "mcp"),
@@ -706,6 +735,13 @@ export function getEffectiveServiceResolution(
       available: Boolean(native.rolodex),
     },
     {
+      capability: "experience",
+      nativeService: "experience",
+      source: native.experience ? "native" : "product",
+      fallback: "sessions + memory",
+      available: Boolean(native.experience),
+    },
+    {
       capability: "shell",
       nativeService: "shell",
       source: native.shell ? "native" : "product",
@@ -814,6 +850,70 @@ export function getEffectiveSkillsSummary(
     })),
     roots: [...roots.entries()].map(([name, count]) => ({ name, count })),
   };
+}
+
+export function getEffectiveMemorySnapshot(
+  runtime: RuntimeLike,
+  services: AppServices,
+  target: "memory" | "user" = "memory",
+) {
+  return (
+    getNativeServices(runtime).knowledge?.summary?.(target) ?? {
+      target,
+      entries: services.memory.list(target).length,
+      characters: services.memory.read(target).length,
+      preview: services.memory.list(target).slice(-5),
+    }
+  );
+}
+
+export function getEffectivePersonalitySummary(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).personality?.summary?.() ?? {
+      total: services.personalities.list().length,
+      activeId: services.personalities.getActive().id,
+      names: services.personalities.list().map((profile) => profile.name),
+    }
+  );
+}
+
+export function getEffectiveRolodexSummary(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).rolodex?.summary?.() ?? {
+      totalProfiles: services.userProfiles.list().length,
+      agentName: services.userProfiles.getAgent().name,
+      recentProfiles: services.userProfiles
+        .list()
+        .slice(0, 5)
+        .map((profile) => profile.userId),
+    }
+  );
+}
+
+export function getEffectiveExperienceSummary(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).experience?.summary?.() ?? {
+      sessions: {
+        totalSessions: services.sessions.listSessions(1000).length,
+        recentSessionIds: services.sessions
+          .latest(10)
+          .map((session) => session.sessionId),
+      },
+      memory: {
+        shared: getEffectiveMemorySnapshot(runtime, services, "memory"),
+        user: getEffectiveMemorySnapshot(runtime, services, "user"),
+      },
+    }
+  );
 }
 
 export function getEffectiveGeneratedSkills(
@@ -1125,6 +1225,44 @@ export function getEffectiveDelegationTask(
   );
 }
 
+export function getEffectiveDelegationChildren(
+  runtime: RuntimeLike,
+  services: AppServices,
+  parentId: string,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.getChildren?.(parentId) ??
+    services.delegation.listChildren(parentId)
+  );
+}
+
+export function getEffectiveDelegationTree(
+  runtime: RuntimeLike,
+  services: AppServices,
+  id: string,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.tree?.(id) ??
+    services.delegation.tree(id)
+  );
+}
+
+export function retryEffectiveDelegationTask(
+  runtime: RuntimeLike,
+  services: AppServices,
+  id: string,
+  note?: string,
+  options?: { cascadeChildren?: boolean },
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.retryTask?.(
+      id,
+      note,
+      options,
+    ) ?? services.delegation.requeue(id, note, options)
+  );
+}
+
 export function createEffectiveDelegationTask(
   runtime: RuntimeLike,
   services: AppServices,
@@ -1167,16 +1305,55 @@ export function createEffectiveDelegationTask(
   );
 }
 
-export function getEffectivePluginManagerInventory(
-  runtime: RuntimeLike,
-): { plugins: unknown[]; categories: unknown } | null {
+export function getEffectivePluginManagerInventory(runtime: RuntimeLike): {
+  plugins: unknown[];
+  categories: unknown;
+  summary: NativePluginManagerSummary;
+} | null {
   const pluginManager = getNativeServices(runtime).pluginManager;
   if (!pluginManager) {
     return null;
   }
+  const plugins = pluginManager.list();
+  const categories = pluginManager.categories();
+  const summary = pluginManager.summary?.() ?? {
+    total: Array.isArray(plugins) ? plugins.length : 0,
+    enabled: Array.isArray(plugins)
+      ? plugins.filter(
+          (entry) =>
+            entry !== null &&
+            typeof entry === "object" &&
+            "enabled" in entry &&
+            Boolean((entry as { enabled?: unknown }).enabled),
+        ).length
+      : 0,
+    official: Array.isArray(plugins)
+      ? plugins.filter(
+          (entry) =>
+            entry !== null &&
+            typeof entry === "object" &&
+            "source" in entry &&
+            (entry as { source?: unknown }).source === "official",
+        ).length
+      : 0,
+    vendored: Array.isArray(plugins)
+      ? plugins.filter(
+          (entry) =>
+            entry !== null &&
+            typeof entry === "object" &&
+            "source" in entry &&
+            (entry as { source?: unknown }).source === "vendored",
+        ).length
+      : 0,
+    categories:
+      categories && typeof categories === "object"
+        ? Object.keys(categories as Record<string, unknown>).length
+        : 0,
+  };
   return {
-    plugins: pluginManager.list(),
-    categories: pluginManager.categories(),
+    plugins,
+    categories,
+    summary,
   };
 }
 
@@ -1249,11 +1426,11 @@ export function getAutonomousControlPlane(
     pluginManager: {
       source: native.pluginManager ? "native" : "product",
       available: Boolean(native.pluginManager),
-      plugins: pluginInventory?.plugins.length ?? 0,
-      categories: pluginInventory?.categories
-        ? Object.keys(pluginInventory.categories as Record<string, unknown>)
-            .length
-        : 0,
+      plugins: pluginInventory?.summary.total ?? 0,
+      categories: pluginInventory?.summary.categories ?? 0,
+      enabled: pluginInventory?.summary.enabled ?? 0,
+      official: pluginInventory?.summary.official ?? 0,
+      vendored: pluginInventory?.summary.vendored ?? 0,
     },
     totals: {
       nativeServices: serviceSources.filter(Boolean).length,

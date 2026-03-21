@@ -348,15 +348,19 @@ export function createServices(
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
     acpEnabled: acp.status().enabled,
-    nativePluginsTotal: nativePluginCatalog.length,
-    nativePluginsEnabled: nativePluginCatalog.filter((entry) => entry.enabled)
-      .length,
-    nativeOfficialPlugins: nativePluginCatalog.filter(
+    nativePluginManagerTotal: nativePluginCatalog.length,
+    nativePluginManagerEnabled: nativePluginCatalog.filter(
+      (entry) => entry.enabled,
+    ).length,
+    nativePluginManagerOfficial: nativePluginCatalog.filter(
       (entry) => entry.source === "official",
     ).length,
-    nativeVendoredPlugins: nativePluginCatalog.filter(
+    nativePluginManagerVendored: nativePluginCatalog.filter(
       (entry) => entry.source === "vendored",
     ).length,
+    nativePluginManagerCategories: new Set(
+      nativePluginCatalog.map((entry) => entry.category),
+    ).size,
     nativeCatalog: nativePluginCatalog,
     nativeRuntimeLatest: nativePackageAudit.runtime.latest,
     nativeRuntimeAlpha: nativePackageAudit.runtime.alpha,
