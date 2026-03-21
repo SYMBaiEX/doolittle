@@ -335,6 +335,7 @@ export function startApiServer(context: AppContext): void {
           totals: state.totals,
           platforms: state.platforms,
           messagingBridge: controlPlane.messagingBridge,
+          transportInventory: controlPlane.transportInventory,
           transportControl: controlPlane.totals,
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),
@@ -351,6 +352,7 @@ export function startApiServer(context: AppContext): void {
         return json({
           resolution: getEffectiveServiceResolution(context.runtime),
           messagingBridge: controlPlane.messagingBridge,
+          transportInventory: controlPlane.transportInventory,
           transportControl: controlPlane.totals,
           registry: context.services.nativeRegistry,
         });
@@ -2382,6 +2384,7 @@ export function startApiServer(context: AppContext): void {
           health: readiness,
           readiness,
           messagingBridge: controlPlane.messagingBridge,
+          transportInventory: controlPlane.transportInventory,
           transportControl: controlPlane.totals,
           mediation: {
             pluginMediatedAdapters: history.state.totals.pluginMediatedAdapters,
@@ -2462,6 +2465,7 @@ export function startApiServer(context: AppContext): void {
         return json({
           runtime: runtimeStatus,
           messagingBridge: runtimeStatus.messagingBridge,
+          transportInventory: runtimeStatus.transportInventory,
           transportControl: runtimeStatus.transportControl,
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),

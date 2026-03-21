@@ -192,8 +192,8 @@ async function renderTransportContent(context: AppContext): Promise<string> {
   const traces = context.gateway.trace(6);
   const inbox = context.gateway.inbox(3);
   const sessions = context.services.gatewaySessions.list().slice(0, 4);
-  const gatewayState = await context.gateway.state(12);
   const runtimeStatus = context.gateway.runtimeStatus();
+  const gatewayState = await context.gateway.state(12);
   const platformStates = gatewayState.platforms.slice(0, 4);
 
   return [
@@ -201,6 +201,7 @@ async function renderTransportContent(context: AppContext): Promise<string> {
     `Enabled: ${gatewayState.totals.configuredPlatforms}`,
     `Plugin-mediated: ${gatewayState.totals.pluginMediatedAdapters}/${gatewayState.totals.configuredPlatforms}`,
     `Native live: ${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled}`,
+    `Transports operational: ${runtimeStatus.transportControl.operationalTransports}`,
     "",
     "{bold}Recent Gateway Traces{/}",
     ...(traces.length
@@ -211,11 +212,13 @@ async function renderTransportContent(context: AppContext): Promise<string> {
       : ["{gray-fg}No recent trace activity.{/}"]),
     "",
     "{bold}Native Messaging{/}",
-    ...(runtimeStatus.messagingBridge.length
-      ? runtimeStatus.messagingBridge.map(
-          (entry) =>
-            `- ${entry.platform} ${entry.pluginId ?? "custom"}${entry.pluginSource ? ` (${entry.pluginSource})` : ""} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} live=${entry.live ? "yes" : "no"}`,
-        )
+    ...(runtimeStatus.transportInventory.length
+      ? runtimeStatus.transportInventory
+          .slice(0, 6)
+          .map(
+            (entry) =>
+              `- ${entry.platform} ${entry.pluginId ?? entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason}`,
+          )
       : ["{gray-fg}No enabled platform state yet.{/}"]),
     "",
     "{bold}Platform State{/}",
