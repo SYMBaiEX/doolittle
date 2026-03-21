@@ -3,13 +3,23 @@ import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import {
+  getEffectiveMessagingTransportInventory,
+  type RuntimeLike,
+} from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 
 export class DiagnosticsService {
+  private runtime?: RuntimeLike;
+
   constructor(
     private readonly config: EnvConfig,
     private readonly gatewayConfig: GatewayConfig,
   ) {}
+
+  attachRuntime(runtime: RuntimeLike): void {
+    this.runtime = runtime;
+  }
 
   async run(input: {
     skillsCount: number;
@@ -50,6 +60,9 @@ export class DiagnosticsService {
     );
     const nativeAudit = getNativePackageAudit(this.config);
     const nativePlugins = getNativePluginCatalog(this.config);
+    const messagingBridge = this.runtime
+      ? getEffectiveMessagingTransportInventory(this.runtime, this.config)
+      : [];
     checks.push({
       id: "native.workspace",
       status: existsSync(nativeWorkspacePath) ? "pass" : "warn",
@@ -117,6 +130,20 @@ export class DiagnosticsService {
         )
         .join(", "),
     });
+
+    if (messagingBridge.length) {
+      checks.push({
+        id: "native.messaging.services",
+        status: messagingBridge.some((entry) => entry.live) ? "pass" : "warn",
+        summary: "Native messaging runtime services",
+        detail: messagingBridge
+          .map(
+            (entry) =>
+              `${entry.platform}:available=${entry.serviceAvailable}:live=${entry.live}:plugin=${entry.pluginId ?? "n/a"}`,
+          )
+          .join(", "),
+      });
+    }
 
     checks.push({
       id: "skills.present",

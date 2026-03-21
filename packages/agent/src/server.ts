@@ -24,6 +24,7 @@ import {
   getEffectiveMessagingTransportInventory,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
+  getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkills,
@@ -333,6 +334,17 @@ export function startApiServer(context: AppContext): void {
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),
           ).messaging,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/services") {
+        return json({
+          resolution: getEffectiveServiceResolution(context.runtime),
+          messagingBridge: getEffectiveMessagingTransportInventory(
+            context.runtime,
+            context.config,
+          ),
+          registry: context.services.nativeRegistry,
         });
       }
 
@@ -2330,6 +2342,7 @@ export function startApiServer(context: AppContext): void {
           context.config,
           body,
         );
+        context.services.diagnostics.attachRuntime(context.runtime);
         return json({ ok: true, gateway: body });
       }
 
