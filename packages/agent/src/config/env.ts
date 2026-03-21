@@ -1,10 +1,19 @@
 import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 import type { EnvConfig } from "@/types";
 
 loadEnv();
+
+function defaultRepoRoot(): string {
+  return fileURLToPath(new URL("../../../../", import.meta.url));
+}
+
+function resolveFromRepoRoot(value: string): string {
+  return isAbsolute(value) ? value : resolve(defaultRepoRoot(), value);
+}
 
 const schema = z.object({
   ELIZA_AGENT_NAME: z.string().default("Eliza Agent"),
@@ -167,12 +176,14 @@ const schema = z.object({
 
 export function loadConfig(): EnvConfig {
   const values = schema.parse(process.env);
-  const dataDir = resolve(values.ELIZA_AGENT_DATA_DIR);
-  const skillsDir = resolve(values.ELIZA_AGENT_SKILLS_DIR);
-  const cronOutputDir = resolve(values.ELIZA_AGENT_CRON_OUTPUT_DIR);
-  const gatewayDataDir = resolve(values.ELIZA_AGENT_GATEWAY_DATA_DIR);
-  const hooksDir = resolve(values.ELIZA_AGENT_HOOKS_DIR);
-  const workspaceDir = resolve(values.ELIZA_AGENT_WORKSPACE_DIR);
+  const dataDir = resolveFromRepoRoot(values.ELIZA_AGENT_DATA_DIR);
+  const skillsDir = resolveFromRepoRoot(values.ELIZA_AGENT_SKILLS_DIR);
+  const cronOutputDir = resolveFromRepoRoot(values.ELIZA_AGENT_CRON_OUTPUT_DIR);
+  const gatewayDataDir = resolveFromRepoRoot(
+    values.ELIZA_AGENT_GATEWAY_DATA_DIR,
+  );
+  const hooksDir = resolveFromRepoRoot(values.ELIZA_AGENT_HOOKS_DIR);
+  const workspaceDir = resolveFromRepoRoot(values.ELIZA_AGENT_WORKSPACE_DIR);
 
   mkdirSync(dataDir, { recursive: true });
   mkdirSync(skillsDir, { recursive: true });

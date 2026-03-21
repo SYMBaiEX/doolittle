@@ -51,7 +51,7 @@ function readJsonFiles<T>(directory: string): T[] {
 }
 
 function defaultPackagesRoot(): string {
-  return fileURLToPath(new URL("../../../", import.meta.url));
+  return fileURLToPath(new URL("../../../../packages/", import.meta.url));
 }
 
 export class EcosystemService {

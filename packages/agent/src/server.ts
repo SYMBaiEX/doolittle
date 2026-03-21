@@ -3986,6 +3986,7 @@ export function startApiServer(context: AppContext): void {
           body,
           context.services.agentSdk,
           context.services.nativeOwnership,
+          context.services.ecosystem,
         );
         context.services.diagnostics.attachRuntime(context.runtime);
         context.services.operator = new OperatorService(
@@ -3995,6 +3996,7 @@ export function startApiServer(context: AppContext): void {
           context.services.autocoderPipeline,
           context.services.agentSdk,
           context.services.nativeOwnership,
+          context.services.ecosystem,
         );
         context.services.operator.attachRuntime(context.runtime);
         return json({ ok: true, gateway: body });

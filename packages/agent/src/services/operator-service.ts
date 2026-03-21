@@ -22,6 +22,7 @@ import type { EnvConfig } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
 import type { AutocoderPipelineService } from "./autocoder-pipeline-service";
 import type { DiagnosticsService } from "./diagnostics-service";
+import type { EcosystemService } from "./ecosystem-service";
 import {
   createNativeServiceRegistry,
   describeNativeServiceRegistry,
@@ -118,6 +119,9 @@ export interface SetupSummary {
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
     compatibilityFailures: number;
+    benchmarkPacks?: number;
+    distributionChannels?: number;
+    modelingProfiles?: number;
   };
   pluginManager?: {
     available: boolean;
@@ -166,6 +170,9 @@ export interface UpdatePreview {
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
     compatibilityFailures: number;
+    benchmarkPacks?: number;
+    distributionChannels?: number;
+    modelingProfiles?: number;
   };
   transportControl?: ReturnType<
     typeof getNativeTransportControlPlane
@@ -240,6 +247,7 @@ export class OperatorService {
     private readonly autocoderPipeline?: AutocoderPipelineService,
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
+    private readonly ecosystemService?: EcosystemService,
   ) {
     this.packageMetadata = this.loadPackageMetadata();
     this.migrationsDir = join(this.config.dataDir, "migrations");
@@ -268,6 +276,7 @@ export class OperatorService {
     const pluginManager = ownership?.pluginManager ?? null;
     const identity = ownership?.identity;
     const pipeline = this.autocoderPipeline?.summary();
+    const workspaceEcosystem = this.ecosystemService?.summary();
     return {
       version: this.version(),
       directories: [
@@ -391,6 +400,9 @@ export class OperatorService {
         skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
         skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
         compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
+        benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
+        distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,
+        modelingProfiles: workspaceEcosystem?.modelingProfiles ?? 0,
       },
       pluginManager: {
         available: Boolean(pluginManager),
@@ -440,6 +452,7 @@ export class OperatorService {
     const pluginManager = ownership?.pluginManager ?? null;
     const identity = ownership?.identity;
     const pipeline = this.autocoderPipeline?.summary();
+    const workspaceEcosystem = this.ecosystemService?.summary();
 
     return {
       version: this.version(),
@@ -486,6 +499,9 @@ export class OperatorService {
         skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
         skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
         compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
+        benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
+        distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,
+        modelingProfiles: workspaceEcosystem?.modelingProfiles ?? 0,
       },
       pluginManager: {
         available: Boolean(pluginManager),

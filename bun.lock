@@ -54,8 +54,20 @@
       "name": "@eliza-agent/agent",
       "version": "0.1.0",
     },
+    "packages/benchmarks": {
+      "name": "@eliza-agent/benchmarks",
+      "version": "0.1.0",
+    },
     "packages/characters": {
       "name": "@eliza-agent/characters",
+      "version": "0.1.0",
+    },
+    "packages/distributions": {
+      "name": "@eliza-agent/distributions",
+      "version": "0.1.0",
+    },
+    "packages/modeling": {
+      "name": "@eliza-agent/modeling",
       "version": "0.1.0",
     },
     "packages/plugins": {
@@ -341,7 +353,13 @@
 
     "@eliza-agent/agent": ["@eliza-agent/agent@workspace:packages/agent"],
 
+    "@eliza-agent/benchmarks": ["@eliza-agent/benchmarks@workspace:packages/benchmarks"],
+
     "@eliza-agent/characters": ["@eliza-agent/characters@workspace:packages/characters"],
+
+    "@eliza-agent/distributions": ["@eliza-agent/distributions@workspace:packages/distributions"],
+
+    "@eliza-agent/modeling": ["@eliza-agent/modeling@workspace:packages/modeling"],
 
     "@eliza-agent/plugins": ["@eliza-agent/plugins@workspace:packages/plugins"],
 

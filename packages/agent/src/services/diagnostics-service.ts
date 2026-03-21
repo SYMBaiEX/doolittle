@@ -18,6 +18,7 @@ import {
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
+import type { EcosystemService } from "./ecosystem-service";
 
 function summarizeTransportInventory(
   inventory: Array<{
@@ -58,6 +59,7 @@ export class DiagnosticsService {
     private readonly gatewayConfig: GatewayConfig,
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
+    private readonly ecosystemService?: EcosystemService,
   ) {}
 
   attachRuntime(runtime: RuntimeLike): void {
@@ -124,6 +126,7 @@ export class DiagnosticsService {
     const ecosystem = this.agentSdk
       ? await this.agentSdk.overview()
       : undefined;
+    const workspaceEcosystem = this.ecosystemService?.summary();
     const compatibility = this.agentSdk
       ? await this.agentSdk.compatibility()
       : undefined;
@@ -270,6 +273,27 @@ export class DiagnosticsService {
           : `${compatibility.failures}/${compatibility.checked} plugins need attention for core ${compatibility.coreVersion}: ${compatibility.failing.map((entry) => entry.plugin).join(", ")}`
         : "Compatibility report unavailable.",
     });
+
+    if (workspaceEcosystem) {
+      checks.push({
+        id: "ecosystem.workspace.benchmarks",
+        status: workspaceEcosystem.benchmarkPacks > 0 ? "pass" : "warn",
+        summary: "Benchmark workspace packs",
+        detail: `benchmark packs=${workspaceEcosystem.benchmarkPacks}`,
+      });
+      checks.push({
+        id: "ecosystem.workspace.distributions",
+        status: workspaceEcosystem.distributionChannels > 0 ? "pass" : "warn",
+        summary: "Distribution workspace channels",
+        detail: `distribution channels=${workspaceEcosystem.distributionChannels}`,
+      });
+      checks.push({
+        id: "ecosystem.workspace.modeling",
+        status: workspaceEcosystem.modelingProfiles > 0 ? "pass" : "warn",
+        summary: "Modeling workspace profiles",
+        detail: `modeling profiles=${workspaceEcosystem.modelingProfiles}`,
+      });
+    }
 
     checks.push({
       id: "native.transport-mediation",

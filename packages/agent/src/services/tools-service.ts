@@ -47,6 +47,9 @@ interface ToolRegistryDynamicState {
   skillsHubManifestCount?: number;
   skillsHubInstalledTotal?: number;
   skillsHubFamilyTotal?: number;
+  ecosystemBenchmarkPacks?: number;
+  ecosystemDistributionChannels?: number;
+  ecosystemModelingProfiles?: number;
 }
 
 interface ToolRegistrySummary {
@@ -102,6 +105,9 @@ interface ToolRegistrySummary {
     skillsHubManifestCount: number;
     skillsHubInstalledTotal: number;
     skillsHubFamilyTotal: number;
+    benchmarkPacks: number;
+    distributionChannels: number;
+    modelingProfiles: number;
     laggingLatestPackages: number;
   };
 }
@@ -131,6 +137,9 @@ export class ToolsService {
       skillsHubManifestCount: 0,
       skillsHubInstalledTotal: 0,
       skillsHubFamilyTotal: 0,
+      ecosystemBenchmarkPacks: 0,
+      ecosystemDistributionChannels: 0,
+      ecosystemModelingProfiles: 0,
     }),
   ) {}
 
@@ -465,6 +474,15 @@ export class ToolsService {
         "Inspect latest-line ElizaOS package compatibility across official, alpha-only, vendored, and workspace-bound packages.",
       enabled: true,
       transport: "native",
+    },
+    {
+      id: "ecosystem.workspace",
+      name: "Ecosystem Workspace",
+      category: "runtime",
+      description:
+        "Inspect Eliza Agent benchmark packs, distribution channels, and modeling profiles published through the workspace.",
+      enabled: true,
+      transport: "service",
     },
     {
       id: "automation.cron",
@@ -913,6 +931,9 @@ export class ToolsService {
           nativeOwnershipSnapshot?.skillHub.familyTotal ??
           dynamic.skillsHubFamilyTotal ??
           0,
+        benchmarkPacks: dynamic.ecosystemBenchmarkPacks ?? 0,
+        distributionChannels: dynamic.ecosystemDistributionChannels ?? 0,
+        modelingProfiles: dynamic.ecosystemModelingProfiles ?? 0,
         laggingLatestPackages: dynamic.nativeLaggingLatestPackages ?? 0,
       },
     };

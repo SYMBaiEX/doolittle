@@ -360,6 +360,7 @@ export function createServices(
     gatewayConfig,
     agentSdk,
     nativeOwnership,
+    ecosystem,
   );
   const operator = new OperatorService(
     config,
@@ -368,6 +369,7 @@ export function createServices(
     autocoderPipeline,
     agentSdk,
     nativeOwnership,
+    ecosystem,
   );
   const skills = new SkillsService(config.skillsDir, agentSdk);
   const skillSynthesis = new SkillSynthesisService(config.skillsDir);
@@ -417,6 +419,9 @@ export function createServices(
     skillsHubManifestCount: skillsHubSummary.exportedManifests,
     skillsHubInstalledTotal: skillsHubSummary.installedTotal,
     skillsHubFamilyTotal: skillsHubSummary.familyTotal,
+    ecosystemBenchmarkPacks: ecosystem.summary().benchmarkPacks,
+    ecosystemDistributionChannels: ecosystem.summary().distributionChannels,
+    ecosystemModelingProfiles: ecosystem.summary().modelingProfiles,
     nativeOwnershipControlPlane: nativeOwnership.controlPlane(),
     nativeOwnershipSnapshot: nativeOwnership.snapshotSync(),
   }));
