@@ -170,6 +170,18 @@ describe("DiagnosticsService", () => {
         recentCronRuns: 0,
         recentTerminalCommands: 0,
         repositoryAvailable: true,
+        gatewayTransportOverview: {
+          mismatchCount: 1,
+          operationalCount: 1,
+          details: [
+            {
+              platform: "telegram",
+              mismatchFlags: ["health-ready-mismatch"],
+              inventory: { detail: "Telegram is ready." },
+              platformState: { detail: "Telegram state is pending." },
+            },
+          ],
+        },
       });
 
       expect(checks.some((check) => check.id === "data.exists")).toBe(true);
@@ -207,6 +219,14 @@ describe("DiagnosticsService", () => {
             check.id === "gateway.transport.inventory" &&
             check.detail.includes("official=") &&
             check.detail.includes("source="),
+        ),
+      ).toBe(true);
+      expect(
+        checks.some(
+          (check) =>
+            check.id === "gateway.transport.overview" &&
+            check.status === "warn" &&
+            check.detail.includes("mismatches=1"),
         ),
       ).toBe(true);
 

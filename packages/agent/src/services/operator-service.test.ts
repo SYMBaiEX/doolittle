@@ -210,6 +210,10 @@ describe("OperatorService", () => {
     ).toBe(true);
     expect(setup.checklist.length).toBeGreaterThan(0);
     expect(update.version.version).toBeTruthy();
+    expect(update.transportControl?.configured).toBeGreaterThan(0);
+    expect(
+      update.transportInventory?.some((entry) => entry.platform === "api"),
+    ).toBe(true);
     expect(update.recommendedSteps.length).toBeGreaterThan(0);
   });
 

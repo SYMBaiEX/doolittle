@@ -513,6 +513,9 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/doctor") {
+        const transportOverview = context.gateway
+          ? await context.gateway.transportOverview()
+          : undefined;
         return json({
           checks: await context.services.diagnostics.run({
             skillsCount: context.services.skills.list().length,
@@ -520,6 +523,7 @@ export function startApiServer(context: AppContext): void {
             recentCronRuns: context.services.cron.recentRuns(5).length,
             recentTerminalCommands: context.services.terminal.recent(5).length,
             repositoryAvailable: context.services.repository.isRepository(),
+            gatewayTransportOverview: transportOverview,
           }),
         });
       }
