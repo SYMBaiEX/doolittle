@@ -31,7 +31,11 @@ describe("createPluginManagerPlugin", () => {
       },
     });
 
-    const service = (await plugin.services[0].start({} as never)) as {
+    const serviceFactory = plugin.services?.[0];
+    if (!serviceFactory) {
+      throw new Error("plugin-manager service not registered");
+    }
+    const service = (await serviceFactory.start({} as never)) as unknown as {
       list(): unknown[];
       categories(): unknown;
       summary(): unknown;
