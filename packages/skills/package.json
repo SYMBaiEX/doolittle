@@ -9,13 +9,18 @@
     "skills",
     "identity",
     "memory",
+    "communications",
     "browser",
     "media",
     "platform",
     "delegation",
     "mcp",
     "research",
+    "knowledge",
     "voice",
-    "vision"
+    "vision",
+    "observability",
+    "safety",
+    "release"
   ]
 }

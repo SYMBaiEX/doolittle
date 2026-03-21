@@ -6,6 +6,12 @@ Curated skill families:
 - `memory/profile-learning` - [`packages/skills/memory/profile-learning/SKILL.md`](./memory/profile-learning/SKILL.md)
 - `productivity/repo-ops` - [`packages/skills/productivity/repo-ops/SKILL.md`](./productivity/repo-ops/SKILL.md)
 - `automation/reports` - [`packages/skills/automation/reports/SKILL.md`](./automation/reports/SKILL.md)
+- `communications/inbox` - [`packages/skills/communications/inbox/SKILL.md`](./communications/inbox/SKILL.md)
+- `knowledge/rag` - [`packages/skills/knowledge/rag/SKILL.md`](./knowledge/rag/SKILL.md)
+- `operations/release` - [`packages/skills/operations/release/SKILL.md`](./operations/release/SKILL.md)
+- `observability/telemetry` - [`packages/skills/observability/telemetry/SKILL.md`](./observability/telemetry/SKILL.md)
+- `integrations/workspace` - [`packages/skills/integrations/workspace/SKILL.md`](./integrations/workspace/SKILL.md)
+- `safety/review` - [`packages/skills/safety/review/SKILL.md`](./safety/review/SKILL.md)
 - `platform/execution` - [`packages/skills/platform/execution/SKILL.md`](./platform/execution/SKILL.md)
 - `platform/transport` - [`packages/skills/platform/transport/SKILL.md`](./platform/transport/SKILL.md)
 - `platform/delegation` - [`packages/skills/platform/delegation/SKILL.md`](./platform/delegation/SKILL.md)
@@ -14,6 +20,7 @@ Curated skill families:
 - `media/voice` - [`packages/skills/media/voice/SKILL.md`](./media/voice/SKILL.md)
 - `media/vision` - [`packages/skills/media/vision/SKILL.md`](./media/vision/SKILL.md)
 - `research/trajectory` - [`packages/skills/research/trajectory/SKILL.md`](./research/trajectory/SKILL.md)
+- `research/evaluation` - [`packages/skills/research/evaluation/SKILL.md`](./research/evaluation/SKILL.md)
 - `research/batch` - [`packages/skills/research/batch/SKILL.md`](./research/batch/SKILL.md)
 
 Generated skill families:

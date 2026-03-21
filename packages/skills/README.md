@@ -14,6 +14,18 @@ See the current registry in [`index.md`](./index.md).
   - local repository work, verification, and durable project notes
 - `automation/reports`
   - scheduled summaries and recurring operational reports
+- `communications/inbox`
+  - inbound triage, reply shaping, routing, and continuity management
+- `knowledge/rag`
+  - source-backed retrieval, document ingestion, and citation-aware context
+- `operations/release`
+  - release planning, rollout validation, rollback safety, and upgrade notes
+- `observability/telemetry`
+  - logs, metrics, traces, incident summaries, and operator signal review
+- `integrations/workspace`
+  - plugin coverage, native versus custom integration choices, and compatibility notes
+- `safety/review`
+  - risk checks, guardrails, approval gates, and safe fallback planning
 - `platform/execution`
   - local, container, and remote execution backend planning
 - `platform/transport`
@@ -30,6 +42,8 @@ See the current registry in [`index.md`](./index.md).
   - image inspection, screenshot analysis, and visual evidence capture
 - `research/trajectory`
   - session replay, trajectory export, bundle review, and learning loops
+- `research/evaluation`
+  - repeatable scoring, bundle comparison, and regression-oriented review
 - `research/batch`
   - replay bundles, evaluation sweeps, and higher-volume review runs
 - `generated/*`
