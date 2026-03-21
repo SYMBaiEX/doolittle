@@ -194,6 +194,12 @@ describe("GatewayRunner", () => {
       expect(snapshot.state?.heartbeatAt).toBeDefined();
       expect(runtimeStatus.pid).toBeGreaterThan(0);
       expect(runtimeStatus.adapters).toContain("api");
+      expect(runtimeStatus.transportControl.configured).toBeGreaterThan(0);
+      expect(
+        runtimeStatus.messagingBridge.some(
+          (entry) => entry.platform === "discord",
+        ),
+      ).toBe(true);
       expect(
         heartbeatState.platforms.some((entry) => entry.platform === "api"),
       ).toBe(true);
