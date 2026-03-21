@@ -4,11 +4,14 @@ import { createAgentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrato
 import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
 import { autocoderPlugin } from "@elizaos/plugin-autocoder";
+import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createCronPlugin } from "@elizaos/plugin-cron";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
+import { e2bPlugin } from "@elizaos/plugin-e2b";
 import { createExperiencePlugin } from "@elizaos/plugin-experience";
+import formsPlugin from "@elizaos/plugin-forms";
 import { createKnowledgePlugin } from "@elizaos/plugin-knowledge";
 import { createLocalEmbeddingPlugin } from "@elizaos/plugin-local-embedding";
 import { createMcpPlugin } from "@elizaos/plugin-mcp";
@@ -73,7 +76,7 @@ export function buildNativePluginAssembly(
   const catalog = getNativePluginCatalog(config);
   const groupedCatalog = groupNativePluginCatalog(catalog);
 
-  const foundation: Plugin[] = [];
+  const foundation: Plugin[] = [normalizePlugin(bootstrapPlugin)];
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
@@ -185,6 +188,8 @@ export function buildNativePluginAssembly(
   ];
 
   const execution: Plugin[] = [
+    normalizePlugin(e2bPlugin),
+    normalizePlugin(formsPlugin),
     createShellPlugin({
       terminal: {
         run: (command) => services.terminal.run(command),

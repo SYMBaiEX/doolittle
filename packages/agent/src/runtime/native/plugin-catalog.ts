@@ -59,6 +59,15 @@ export function getNativePluginCatalog(
       notes: "First-party skills package used for native stack alignment.",
     },
     {
+      id: "foundation.bootstrap",
+      packageName: "@elizaos/plugin-bootstrap",
+      category: "foundation",
+      source: "official",
+      enabled: true,
+      notes:
+        "Official bootstrap plugin provides core actions, providers, and runtime task services.",
+    },
+    {
       id: "providers.sql",
       packageName: "@elizaos/plugin-sql",
       category: "providers",
@@ -173,6 +182,24 @@ export function getNativePluginCatalog(
       source: "official",
       enabled: true,
       notes: "Official shell execution service on the alpha line.",
+    },
+    {
+      id: "execution.e2b",
+      packageName: "@elizaos/plugin-e2b",
+      category: "execution",
+      source: "official",
+      enabled: true,
+      notes:
+        "Official E2B sandbox service for secure code execution and autocoder support.",
+    },
+    {
+      id: "execution.forms",
+      packageName: "@elizaos/plugin-forms",
+      category: "execution",
+      source: "official",
+      enabled: true,
+      notes:
+        "Official structured forms plugin used by autocoder and guided workflow flows.",
     },
     {
       id: "execution.coding-agent",
