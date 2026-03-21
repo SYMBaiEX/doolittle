@@ -2,12 +2,14 @@ import type { Plugin } from "@elizaos/core";
 import { createAgentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
 import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
+import { createBrowserPlugin } from "@elizaos/plugin-browser";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createCronPlugin } from "@elizaos/plugin-cron";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
 import { createExperiencePlugin } from "@elizaos/plugin-experience";
 import { createKnowledgePlugin } from "@elizaos/plugin-knowledge";
 import { createLocalEmbeddingPlugin } from "@elizaos/plugin-local-embedding";
+import { createMcpPlugin } from "@elizaos/plugin-mcp";
 import { openaiPlugin } from "@elizaos/plugin-openai";
 import { pdfPlugin } from "@elizaos/plugin-pdf";
 import { createPersonalityPlugin } from "@elizaos/plugin-personality";
@@ -32,7 +34,9 @@ export interface NativePluginAssembly {
   providers: Plugin[];
   messaging: Plugin[];
   knowledge: Plugin[];
+  browser: Plugin[];
   execution: Plugin[];
+  integration: Plugin[];
   automation: Plugin[];
   product: Plugin[];
   all: Plugin[];
@@ -131,6 +135,23 @@ export function buildNativePluginAssembly(
     }),
   ];
 
+  const browser: Plugin[] = [
+    createBrowserPlugin({
+      browser: {
+        status: () => services.web.status(),
+        fetchText: (url) => services.web.fetchText(url),
+        inspect: (url) => services.web.inspect(url),
+        snapshot: (url) => services.web.snapshot(url),
+        screenshot: (url) => services.web.screenshot(url),
+        capture: (url) => services.web.capture(url),
+        analyze: (url) => services.web.analyze(url),
+        compare: (leftUrl, rightUrl) => services.web.compare(leftUrl, rightUrl),
+        analyzeComparison: (leftUrl, rightUrl) =>
+          services.web.analyzeComparison(leftUrl, rightUrl),
+      },
+    }),
+  ];
+
   const execution: Plugin[] = [
     createShellPlugin({
       terminal: {
@@ -187,6 +208,22 @@ export function buildNativePluginAssembly(
     }),
   ];
 
+  const integration: Plugin[] = [
+    createMcpPlugin({
+      mcp: {
+        status: () => services.mcp.status(),
+        probe: () => services.mcp.probe(),
+        discoverTools: () => services.mcp.discoverTools(),
+        invoke: (input) => services.mcp.invoke(input),
+        invokeTool: (name, input) => services.mcp.invokeTool(name, input),
+        getCachedTools: () => services.mcp.getCachedTools(),
+        searchCachedTools: (query) => services.mcp.searchCachedTools(query),
+        describeCachedTools: (limit) => services.mcp.describeCachedTools(limit),
+        describeTool: (name) => services.mcp.describeTool(name),
+      },
+    }),
+  ];
+
   const automation: Plugin[] = [
     createCronPlugin({
       cron: {
@@ -221,7 +258,9 @@ export function buildNativePluginAssembly(
     ...providers,
     ...messaging,
     ...knowledge,
+    ...browser,
     ...execution,
+    ...integration,
     ...automation,
     ...product,
   ];
@@ -234,7 +273,9 @@ export function buildNativePluginAssembly(
       providers,
       messaging,
       knowledge,
+      browser,
       execution,
+      integration,
       automation,
       product,
       all,
@@ -248,7 +289,9 @@ export function buildNativePluginAssembly(
     providers,
     messaging,
     knowledge,
+    browser,
     execution,
+    integration,
     automation,
     product,
     all,

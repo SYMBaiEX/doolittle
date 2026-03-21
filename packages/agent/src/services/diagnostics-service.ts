@@ -1,7 +1,10 @@
 import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { getNativePackageAudit } from "@/runtime/native/package-audit";
+import {
+  getLatestRuntimeLine,
+  getNativePackageAudit,
+} from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
   getNativeTransportControlPlane,
@@ -153,7 +156,10 @@ export class DiagnosticsService {
 
     checks.push({
       id: "native.runtime-line",
-      status: nativeAudit.runtime.alpha === "2.0.0-alpha.81" ? "pass" : "warn",
+      status:
+        nativeAudit.runtime.alpha === getLatestRuntimeLine().alpha
+          ? "pass"
+          : "warn",
       summary: "Alpha Eliza runtime line",
       detail: `alpha=${nativeAudit.runtime.alpha} latest=${nativeAudit.runtime.latest}`,
     });
