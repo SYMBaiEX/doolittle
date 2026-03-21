@@ -1,8 +1,5 @@
-import type { Plugin } from "@elizaos/core";
-import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface AgentOrchestratorPluginOptions {
   delegation: {
@@ -45,66 +42,81 @@ export interface AgentOrchestratorPluginOptions {
 export function createAgentOrchestratorPlugin(
   options: AgentOrchestratorPluginOptions,
 ): Plugin {
-  const AgentOrchestratorService = createServiceAdapter({
-    serviceType: "agent_orchestrator",
-    capabilityDescription:
-      "Official-style agent orchestrator service backed by Eliza Agent delegation and worker supervision.",
-    create: async () => ({
-      createTask(
-        title: string,
-        objective: string,
-        metadata?: Record<string, unknown>,
-      ) {
-        return options.delegation.create({ title, objective, metadata });
-      },
-      queue() {
-        return options.delegation.queueSummary();
-      },
-      tasks() {
-        return options.delegation.list();
-      },
-      getTask(id: string) {
-        return options.delegation.get(id);
-      },
-      overview() {
-        return options.delegation.overview();
-      },
-      spawnChild(
-        parentId: string,
-        input: {
-          title: string;
-          objective: string;
-          metadata?: Record<string, unknown>;
-          profile?: string;
-          priority?: string;
-          tags?: string[];
-        },
-      ) {
-        return options.delegation.spawnChild(parentId, input);
-      },
-      cancelTask(id: string, note?: string) {
-        return options.delegation.cancel(id, note);
-      },
-      supervise(
-        runner: (task: unknown) => Promise<string>,
-        runOptions?: Record<string, unknown>,
-      ) {
-        return options.delegation.supervise(runner, runOptions);
-      },
-      runQueued(
-        runner: (task: unknown) => Promise<string>,
-        runOptions?: Record<string, unknown>,
-      ) {
-        return options.delegation.runQueued(runner, runOptions);
-      },
-    }),
-  });
+  class AgentOrchestratorService extends ElizaService {
+    static serviceType = "agent_orchestrator";
+    capabilityDescription =
+      "Agent orchestrator service backed by Eliza Agent delegation and worker supervision.";
 
-  return createServicePlugin(
-    "agent-orchestrator",
-    "Official-style orchestrator plugin layered onto Eliza Agent task delegation.",
-    AgentOrchestratorService,
-  );
+    private readonly delegation = options.delegation;
+
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      return new AgentOrchestratorService(runtime);
+    }
+
+    async stop(): Promise<void> {}
+
+    createTask(
+      title: string,
+      objective: string,
+      metadata?: Record<string, unknown>,
+    ) {
+      return this.delegation.create({ title, objective, metadata });
+    }
+
+    queue() {
+      return this.delegation.queueSummary();
+    }
+
+    tasks() {
+      return this.delegation.list();
+    }
+
+    getTask(id: string) {
+      return this.delegation.get(id);
+    }
+
+    overview() {
+      return this.delegation.overview();
+    }
+
+    spawnChild(
+      parentId: string,
+      input: {
+        title: string;
+        objective: string;
+        metadata?: Record<string, unknown>;
+        profile?: string;
+        priority?: string;
+        tags?: string[];
+      },
+    ) {
+      return this.delegation.spawnChild(parentId, input);
+    }
+
+    cancelTask(id: string, note?: string) {
+      return this.delegation.cancel(id, note);
+    }
+
+    supervise(
+      runner: (task: unknown) => Promise<string>,
+      runOptions?: Record<string, unknown>,
+    ) {
+      return this.delegation.supervise(runner, runOptions);
+    }
+
+    runQueued(
+      runner: (task: unknown) => Promise<string>,
+      runOptions?: Record<string, unknown>,
+    ) {
+      return this.delegation.runQueued(runner, runOptions);
+    }
+  }
+
+  return {
+    name: "agent-orchestrator",
+    description: "Orchestrator plugin layered onto Eliza Agent delegation.",
+    services: [AgentOrchestratorService],
+  };
 }
 
 export default createAgentOrchestratorPlugin;

@@ -1,8 +1,5 @@
-import type { Plugin } from "@elizaos/core";
-import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface PluginManagerPluginOptions {
   plugins: {
@@ -14,25 +11,33 @@ export interface PluginManagerPluginOptions {
 export function createPluginManagerPlugin(
   options: PluginManagerPluginOptions,
 ): Plugin {
-  const PluginManagerService = createServiceAdapter({
-    serviceType: "plugin_manager",
-    capabilityDescription:
-      "Official-style plugin manager service for native ElizaOS plugin inventory and categories.",
-    create: async () => ({
-      list() {
-        return options.plugins.list();
-      },
-      categories() {
-        return options.plugins.categories();
-      },
-    }),
-  });
+  class PluginManagerService extends ElizaService {
+    static serviceType = "plugin_manager";
+    capabilityDescription =
+      "Plugin manager service for native ElizaOS plugin inventory and categories.";
 
-  return createServicePlugin(
-    "plugin-manager",
-    "Official-style plugin manager plugin for Eliza Agent's native plugin registry.",
-    PluginManagerService,
-  );
+    private readonly plugins = options.plugins;
+
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      return new PluginManagerService(runtime);
+    }
+
+    async stop(): Promise<void> {}
+
+    list() {
+      return this.plugins.list();
+    }
+
+    categories() {
+      return this.plugins.categories();
+    }
+  }
+
+  return {
+    name: "plugin-manager",
+    description: "Plugin manager plugin for Eliza Agent's native registry.",
+    services: [PluginManagerService],
+  };
 }
 
 export default createPluginManagerPlugin;

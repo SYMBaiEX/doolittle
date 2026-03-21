@@ -1,8 +1,5 @@
-import type { Plugin } from "@elizaos/core";
-import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface CronPluginOptions {
   cron: {
@@ -15,34 +12,45 @@ export interface CronPluginOptions {
 }
 
 export function createCronPlugin(options: CronPluginOptions): Plugin {
-  const CronService = createServiceAdapter({
-    serviceType: "cron",
-    capabilityDescription:
-      "Official-style cron automation service backed by Eliza Agent automations.",
-    create: async () => ({
-      list() {
-        return options.cron.list();
-      },
-      get(id: string) {
-        return options.cron.get(id);
-      },
-      create(input: unknown) {
-        return options.cron.create(input);
-      },
-      update(id: string, patch: unknown) {
-        return options.cron.update(id, patch);
-      },
-      runs(limit = 20) {
-        return options.cron.runs(limit);
-      },
-    }),
-  });
+  class CronService extends ElizaService {
+    static serviceType = "cron";
+    capabilityDescription =
+      "Cron automation service backed by Eliza Agent automations.";
 
-  return createServicePlugin(
-    "cron",
-    "Official-style cron plugin for Eliza Agent scheduled workflows.",
-    CronService,
-  );
+    private readonly cron = options.cron;
+
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      return new CronService(runtime);
+    }
+
+    async stop(): Promise<void> {}
+
+    list() {
+      return this.cron.list();
+    }
+
+    get(id: string) {
+      return this.cron.get(id);
+    }
+
+    create(input: unknown) {
+      return this.cron.create(input);
+    }
+
+    update(id: string, patch: unknown) {
+      return this.cron.update(id, patch);
+    }
+
+    runs(limit = 20) {
+      return this.cron.runs(limit);
+    }
+  }
+
+  return {
+    name: "cron",
+    description: "Cron plugin for Eliza Agent scheduled workflows.",
+    services: [CronService],
+  };
 }
 
 export default createCronPlugin;

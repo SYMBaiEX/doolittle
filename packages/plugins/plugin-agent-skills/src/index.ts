@@ -1,8 +1,5 @@
-import type { Plugin } from "@elizaos/core";
-import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface AgentSkillsPluginOptions {
   skills: {
@@ -20,37 +17,51 @@ export interface AgentSkillsPluginOptions {
 export function createAgentSkillsPlugin(
   options: AgentSkillsPluginOptions,
 ): Plugin {
-  const AgentSkillsService = createServiceAdapter({
-    serviceType: "agent_skills",
-    capabilityDescription:
-      "Official-style agent skills service backed by Eliza Agent skill discovery and synthesis.",
-    create: async () => ({
-      list() {
-        return options.skills.list();
-      },
-      get(slug: string) {
-        return options.skills.get(slug);
-      },
-      generated() {
-        return options.skills.generated();
-      },
-      catalog(limit = 20) {
-        return options.skills.catalog(limit);
-      },
-      searchCatalog(query: string, limit = 15) {
-        return options.skills.searchCatalog(query, limit);
-      },
-      synthesize(taskId: string) {
-        return options.synthesis.synthesize(taskId);
-      },
-    }),
-  });
+  class AgentSkillsService extends ElizaService {
+    static serviceType = "agent_skills";
+    capabilityDescription =
+      "Agent skills service backed by Eliza Agent skill discovery and synthesis.";
 
-  return createServicePlugin(
-    "agent-skills",
-    "Official-style agent skills plugin layered onto Eliza Agent skills and synthesis.",
-    AgentSkillsService,
-  );
+    private readonly skills = options.skills;
+    private readonly synthesis = options.synthesis;
+
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      return new AgentSkillsService(runtime);
+    }
+
+    async stop(): Promise<void> {}
+
+    list() {
+      return this.skills.list();
+    }
+
+    get(slug: string) {
+      return this.skills.get(slug);
+    }
+
+    generated() {
+      return this.skills.generated();
+    }
+
+    catalog(limit = 20) {
+      return this.skills.catalog(limit);
+    }
+
+    searchCatalog(query: string, limit = 15) {
+      return this.skills.searchCatalog(query, limit);
+    }
+
+    synthesize(taskId: string) {
+      return this.synthesis.synthesize(taskId);
+    }
+  }
+
+  return {
+    name: "agent-skills",
+    description:
+      "Agent skills plugin layered onto Eliza Agent skills and synthesis.",
+    services: [AgentSkillsService],
+  };
 }
 
 export default createAgentSkillsPlugin;

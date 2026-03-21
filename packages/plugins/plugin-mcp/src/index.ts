@@ -1,8 +1,8 @@
-import type { Plugin } from "@elizaos/core";
 import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+  Service as ElizaService,
+  type IAgentRuntime,
+  type Plugin,
+} from "@elizaos/core";
 
 export interface McpPluginOptions {
   mcp: {
@@ -19,46 +19,62 @@ export interface McpPluginOptions {
 }
 
 export function createMcpPlugin(options: McpPluginOptions): Plugin {
-  const McpService = createServiceAdapter({
-    serviceType: "mcp",
-    capabilityDescription:
-      "Official-style MCP service backed by Eliza Agent tool discovery and invocation.",
-    create: async () => ({
-      status() {
-        return options.mcp.status();
-      },
-      probe() {
-        return options.mcp.probe();
-      },
-      discoverTools() {
-        return options.mcp.discoverTools();
-      },
-      invoke(input: string) {
-        return options.mcp.invoke(input);
-      },
-      invokeTool(name: string, input: Record<string, unknown>) {
-        return options.mcp.invokeTool(name, input);
-      },
-      getCachedTools() {
-        return options.mcp.getCachedTools();
-      },
-      searchCachedTools(query: string) {
-        return options.mcp.searchCachedTools(query);
-      },
-      describeCachedTools(limit = 20) {
-        return options.mcp.describeCachedTools(limit);
-      },
-      describeTool(name: string) {
-        return options.mcp.describeTool(name);
-      },
-    }),
-  });
+  class McpService extends ElizaService {
+    static serviceType = "mcp";
+    capabilityDescription =
+      "Official-style MCP service backed by Eliza Agent tool discovery and invocation.";
 
-  return createServicePlugin(
-    "mcp",
-    "Official-style MCP plugin layered onto Eliza Agent MCP discovery and invocation.",
-    McpService,
-  );
+    static async start(runtime: IAgentRuntime): Promise<ElizaService> {
+      return new McpService(runtime);
+    }
+
+    async stop(): Promise<void> {
+      return;
+    }
+
+    status() {
+      return options.mcp.status();
+    }
+
+    probe() {
+      return options.mcp.probe();
+    }
+
+    discoverTools() {
+      return options.mcp.discoverTools();
+    }
+
+    invoke(input: string) {
+      return options.mcp.invoke(input);
+    }
+
+    invokeTool(name: string, input: Record<string, unknown>) {
+      return options.mcp.invokeTool(name, input);
+    }
+
+    getCachedTools() {
+      return options.mcp.getCachedTools();
+    }
+
+    searchCachedTools(query: string) {
+      return options.mcp.searchCachedTools(query);
+    }
+
+    describeCachedTools(limit = 20) {
+      return options.mcp.describeCachedTools(limit);
+    }
+
+    describeTool(name: string) {
+      return options.mcp.describeTool(name);
+    }
+  }
+
+  return {
+    name: "mcp",
+    description:
+      "Official-style MCP plugin layered onto Eliza Agent MCP discovery and invocation.",
+    services: [McpService],
+  };
 }
 
 export default createMcpPlugin;

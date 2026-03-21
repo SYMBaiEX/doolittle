@@ -13,7 +13,6 @@
         "@elizaos/plugin-anthropic": "alpha",
         "@elizaos/plugin-browser": "workspace:*",
         "@elizaos/plugin-coding-agent": "workspace:*",
-        "@elizaos/plugin-compat": "workspace:*",
         "@elizaos/plugin-cron": "workspace:*",
         "@elizaos/plugin-discord": "workspace:*",
         "@elizaos/plugin-experience": "workspace:*",
@@ -56,19 +55,11 @@
       "name": "@eliza-agent/plugins",
       "version": "0.1.0",
     },
-    "packages/plugins/compat": {
-      "name": "@elizaos/plugin-compat",
-      "version": "2.0.0-alpha.81-patched.0",
-      "dependencies": {
-        "@elizaos/core": "alpha",
-      },
-    },
     "packages/plugins/plugin-agent-orchestrator": {
       "name": "@elizaos/plugin-agent-orchestrator",
       "version": "0.3.16-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-agent-skills": {
@@ -76,7 +67,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-browser": {
@@ -84,7 +74,6 @@
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-coding-agent": {
@@ -92,7 +81,6 @@
       "version": "0.1.0-next.1-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-cron": {
@@ -100,7 +88,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-discord": {
@@ -108,7 +95,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-experience": {
@@ -116,7 +102,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-knowledge": {
@@ -124,7 +109,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-local-embedding": {
@@ -132,7 +116,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-mcp": {
@@ -140,7 +123,6 @@
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-personality": {
@@ -148,7 +130,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-plugin-manager": {
@@ -156,7 +137,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-rolodex": {
@@ -164,7 +144,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-shell": {
@@ -172,7 +151,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/plugins/plugin-trajectory-logger": {
@@ -180,7 +158,6 @@
       "version": "2.0.0-alpha.81-patched.0",
       "dependencies": {
         "@elizaos/core": "alpha",
-        "@elizaos/plugin-compat": "file:../compat",
       },
     },
     "packages/skills": {
@@ -345,8 +322,6 @@
     "@elizaos/plugin-cli": ["@elizaos/plugin-cli@2.0.0-alpha.3", "", { "dependencies": { "@elizaos/core": "2.0.0-alpha.3", "commander": "^12.1.0" } }, "sha512-akqSGar/chWdMBG0RS+YDIZsfqJdAMq+KS9VxSYN6p2BX1ULKum0h+uFXfkdfMIVfOV12RQk074xqiRStjrzeA=="],
 
     "@elizaos/plugin-coding-agent": ["@elizaos/plugin-coding-agent@workspace:packages/plugins/plugin-coding-agent"],
-
-    "@elizaos/plugin-compat": ["@elizaos/plugin-compat@workspace:packages/plugins/compat"],
 
     "@elizaos/plugin-cron": ["@elizaos/plugin-cron@workspace:packages/plugins/plugin-cron"],
 

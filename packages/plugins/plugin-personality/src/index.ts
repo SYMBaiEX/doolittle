@@ -1,8 +1,8 @@
-import type { Plugin } from "@elizaos/core";
 import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+  Service as ElizaService,
+  type IAgentRuntime,
+  type Plugin,
+} from "@elizaos/core";
 
 export interface PersonalityPluginOptions {
   personalities: {
@@ -16,31 +16,42 @@ export interface PersonalityPluginOptions {
 export function createPersonalityPlugin(
   options: PersonalityPluginOptions,
 ): Plugin {
-  const PersonalityService = createServiceAdapter({
-    serviceType: "personality",
-    capabilityDescription:
-      "Official-style personality service backed by Eliza Agent personality profiles.",
-    create: async () => ({
-      list() {
-        return options.personalities.list();
-      },
-      get(id: string) {
-        return options.personalities.get(id);
-      },
-      activate(id: string) {
-        return options.personalities.setActive(id);
-      },
-      activeId() {
-        return options.personalities.activeId();
-      },
-    }),
-  });
+  class PersonalityService extends ElizaService {
+    static serviceType = "personality";
+    capabilityDescription =
+      "Official-style personality service backed by Eliza Agent personality profiles.";
 
-  return createServicePlugin(
-    "personality",
-    "Official-style personality plugin bridged to Eliza Agent profiles.",
-    PersonalityService,
-  );
+    static async start(_runtime: IAgentRuntime): Promise<ElizaService> {
+      return new PersonalityService(_runtime);
+    }
+
+    async stop(): Promise<void> {
+      return;
+    }
+
+    list() {
+      return options.personalities.list();
+    }
+
+    get(id: string) {
+      return options.personalities.get(id);
+    }
+
+    activate(id: string) {
+      return options.personalities.setActive(id);
+    }
+
+    activeId() {
+      return options.personalities.activeId();
+    }
+  }
+
+  return {
+    name: "personality",
+    description:
+      "Official-style personality plugin bridged to Eliza Agent profiles.",
+    services: [PersonalityService],
+  };
 }
 
 export default createPersonalityPlugin;

@@ -1,8 +1,5 @@
-import type { Plugin } from "@elizaos/core";
-import {
-  createServiceAdapter,
-  createServicePlugin,
-} from "@elizaos/plugin-compat";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface CodingAgentPluginOptions {
   workspace: {
@@ -31,50 +28,69 @@ export interface CodingAgentPluginOptions {
 export function createCodingAgentPlugin(
   options: CodingAgentPluginOptions,
 ): Plugin {
-  const CodingAgentService = createServiceAdapter({
-    serviceType: "coding_agent",
-    capabilityDescription:
-      "Official-style coding agent service for workspace, repository, and task orchestration.",
-    create: async () => ({
-      read(path: string) {
-        return options.workspace.read(path);
-      },
-      write(path: string, content: string) {
-        return options.workspace.write(path, content);
-      },
-      search(query: string, limit = 20) {
-        return options.workspace.search(query, limit);
-      },
-      repoStatus() {
-        return options.repository.status();
-      },
-      repoDiff() {
-        return options.repository.diff();
-      },
-      repoLog(limit = 10) {
-        return options.repository.log(limit);
-      },
-      run(command: string) {
-        return options.shell.run(command);
-      },
-      delegate(
-        title: string,
-        objective: string,
-        metadata?: Record<string, unknown>,
-      ) {
-        return options.delegation.create({ title, objective, metadata });
-      },
-      tasks() {
-        return options.delegation.list();
-      },
-    }),
-  });
+  class CodingAgentService extends ElizaService {
+    static serviceType = "coding_agent";
+    capabilityDescription =
+      "Coding agent service for workspace, repository, and task orchestration.";
 
-  return createServicePlugin(
-    "coding-agent",
-    "Official-style coding agent plugin layered onto Eliza Agent developer workflows.",
-    CodingAgentService,
-  );
+    private readonly workspace = options.workspace;
+    private readonly repository = options.repository;
+    private readonly shell = options.shell;
+    private readonly delegation = options.delegation;
+
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      return new CodingAgentService(runtime);
+    }
+
+    async stop(): Promise<void> {}
+
+    read(path: string) {
+      return this.workspace.read(path);
+    }
+
+    write(path: string, content: string) {
+      return this.workspace.write(path, content);
+    }
+
+    search(query: string, limit = 20) {
+      return this.workspace.search(query, limit);
+    }
+
+    repoStatus() {
+      return this.repository.status();
+    }
+
+    repoDiff() {
+      return this.repository.diff();
+    }
+
+    repoLog(limit = 10) {
+      return this.repository.log(limit);
+    }
+
+    run(command: string) {
+      return this.shell.run(command);
+    }
+
+    delegate(
+      title: string,
+      objective: string,
+      metadata?: Record<string, unknown>,
+    ) {
+      return this.delegation.create({ title, objective, metadata });
+    }
+
+    tasks() {
+      return this.delegation.list();
+    }
+  }
+
+  return {
+    name: "coding-agent",
+    description:
+      "Coding agent plugin layered onto Eliza Agent developer workflows.",
+    services: [CodingAgentService],
+  };
 }
 
 export default createCodingAgentPlugin;
