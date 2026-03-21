@@ -19,6 +19,7 @@ import {
   createEffectiveDelegationTask,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
+  getEffectiveMessagingTransportInventory,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
@@ -1298,6 +1299,13 @@ async function buildCommandResponse(
       (entry) =>
         `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
     );
+    const bridgeLines = getEffectiveMessagingTransportInventory(
+      context.runtime,
+      context.config,
+    ).map(
+      (entry) =>
+        `- bridge ${entry.platform} service=${entry.serviceName} available=${entry.serviceAvailable} live=${entry.live} plugin=${entry.pluginId ?? "n/a"} :: ${entry.detail}`,
+    );
     return [
       `gateway totals: configured=${health.length} ready=${health.filter((entry) => entry.ready).length} pluginMediated=${health.filter((entry) => entry.nativePluginId).length} official=${health.filter((entry) => entry.nativePluginSource === "official").length} vendored=${health.filter((entry) => entry.nativePluginSource === "vendored").length}`,
       ...health.map((entry) => {
@@ -1320,6 +1328,7 @@ async function buildCommandResponse(
           .join(" ");
         return `- ${entry.platform} [${entry.status}] ready=${entry.ready} mode=${entry.mode} inbound=${entry.capabilities.inbound} outbound=${entry.capabilities.outbound} edits=${entry.capabilities.edits}${lifecycle ? ` ${lifecycle}` : ""} :: ${entry.detail}`;
       }),
+      ...bridgeLines,
       ...pluginLines,
     ].join("\n");
   }
@@ -1382,6 +1391,10 @@ async function buildCommandResponse(
     return JSON.stringify(
       {
         runtime: context.gateway.runtimeStatus(),
+        messagingBridge: getEffectiveMessagingTransportInventory(
+          context.runtime,
+          context.config,
+        ),
         mediation: {
           pluginMediatedAdapters: state.totals.pluginMediatedAdapters,
           officialPluginAdapters: state.totals.officialPluginAdapters,
@@ -1626,6 +1639,10 @@ async function buildCommandResponse(
     return JSON.stringify(
       {
         resolution: getEffectiveServiceResolution(context.runtime),
+        messaging: getEffectiveMessagingTransportInventory(
+          context.runtime,
+          context.config,
+        ),
         registry: context.services.nativeRegistry,
       },
       null,

@@ -12,6 +12,7 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getEffectiveMessagingTransportInventory } from "@/runtime/native/service-bridge";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -325,9 +326,27 @@ export class GatewayRunner {
 
   private resolveNativeMessagingPlugin(platform: PlatformName) {
     const suffix = `.${platform}`;
-    return getNativePluginCatalog(this.context.config).find(
+    const plugin = getNativePluginCatalog(this.context.config).find(
       (entry) => entry.category === "messaging" && entry.id.endsWith(suffix),
     );
+    const bridge = getEffectiveMessagingTransportInventory(
+      this.context.runtime,
+      this.context.config,
+    ).find((entry) => entry.platform === platform);
+    if (!plugin) {
+      return bridge
+        ? {
+            id: bridge.pluginId,
+            source: bridge.pluginSource,
+            enabled: bridge.pluginEnabled,
+            notes: bridge.detail,
+          }
+        : undefined;
+    }
+    return {
+      ...plugin,
+      notes: bridge ? `${plugin.notes} ${bridge.detail}` : plugin.notes,
+    };
   }
 
   constructor(private readonly context: AppContext) {
