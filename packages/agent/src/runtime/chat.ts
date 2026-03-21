@@ -1961,6 +1961,14 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/runtime compatibility") {
+    return JSON.stringify(
+      await context.services.agentSdk.compatibility(),
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/runtime registry") {
     return JSON.stringify(await context.services.agentSdk.registry(), null, 2);
   }

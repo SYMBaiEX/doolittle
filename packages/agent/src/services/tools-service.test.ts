@@ -11,6 +11,7 @@ describe("ToolsService", () => {
       nativePluginsEnabled: 8,
       nativeOfficialPlugins: 4,
       nativeVendoredPlugins: 5,
+      agentSdkCompatibilityFailures: 1,
       nativeCatalog: [
         {
           id: "messaging.telegram",
@@ -30,6 +31,7 @@ describe("ToolsService", () => {
     expect(summary.native.total).toBe(10);
     expect(summary.native.official).toBe(4);
     expect(summary.native.vendored).toBe(5);
+    expect(summary.ecosystem.compatibilityFailures).toBe(1);
 
     const browserTools = service.byCategory("documents");
     expect(browserTools.some((tool) => tool.id === "browser.status")).toBe(
@@ -85,6 +87,7 @@ describe("ToolsService", () => {
     const bridge = service.get("mcp.bridge");
     expect(bridge?.enabled).toBe(true);
     expect(bridge?.description).toContain("2 discovered tool(s)");
+    expect(service.get("runtime.compatibility")?.description).toContain("1");
     expect(service.get("plugins.native")?.description).toContain("8/10");
     expect(service.get("plugins.native.messaging.telegram")?.transport).toBe(
       "native",

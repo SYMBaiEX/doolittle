@@ -118,6 +118,9 @@ export class DiagnosticsService {
     const ecosystem = this.agentSdk
       ? await this.agentSdk.overview()
       : undefined;
+    const compatibility = this.agentSdk
+      ? await this.agentSdk.compatibility()
+      : undefined;
     const registrySnapshot = ecosystem?.registry;
     const skillCatalog = ecosystem?.skillCatalog;
     const controlPlane = this.runtime
@@ -236,6 +239,21 @@ export class DiagnosticsService {
       detail: skillCatalog?.available
         ? `Skill catalog available with ${skillCatalog.total} cached skills.`
         : `Skill catalog unavailable: ${skillCatalog?.error ?? "unknown error"}`,
+    });
+
+    checks.push({
+      id: "ecosystem.compatibility",
+      status: compatibility
+        ? compatibility.compatible
+          ? "pass"
+          : "warn"
+        : "warn",
+      summary: "ElizaOS plugin compatibility",
+      detail: compatibility
+        ? compatibility.compatible
+          ? `All ${compatibility.checked} checked plugins are compatible with core ${compatibility.coreVersion}.`
+          : `${compatibility.failures}/${compatibility.checked} plugins need attention for core ${compatibility.coreVersion}: ${compatibility.failing.map((entry) => entry.plugin).join(", ")}`
+        : "Compatibility report unavailable.",
     });
 
     checks.push({

@@ -25,6 +25,7 @@ interface ToolRegistryDynamicState {
   agentSdkRegistryPlugins?: number;
   agentSdkCatalogAvailable?: boolean;
   agentSdkCatalogSkills?: number;
+  agentSdkCompatibilityFailures?: number;
 }
 
 interface ToolRegistrySummary {
@@ -57,6 +58,7 @@ interface ToolRegistrySummary {
     registryPlugins: number;
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
+    compatibilityFailures: number;
   };
 }
 
@@ -392,6 +394,15 @@ export class ToolsService {
       transport: "native",
     },
     {
+      id: "runtime.compatibility",
+      name: "Compatibility Report",
+      category: "runtime",
+      description:
+        "Inspect plugin-to-core compatibility results from the Eliza agent SDK.",
+      enabled: true,
+      transport: "native",
+    },
+    {
       id: "runtime.autonomous",
       name: "Autonomous Control Plane",
       category: "runtime",
@@ -443,14 +454,22 @@ export class ToolsService {
                     ? `ElizaOS registry snapshot available with ${dynamic.agentSdkRegistryPlugins ?? 0} plugin entries.`
                     : "ElizaOS registry snapshot is unavailable in the current environment.",
                 }
-              : tool.id === "skills.catalog"
+              : tool.id === "runtime.compatibility"
                 ? {
                     ...tool,
-                    description: dynamic.agentSdkCatalogAvailable
-                      ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
-                      : "ElizaOS skill catalog is unavailable in the current environment.",
+                    description:
+                      (dynamic.agentSdkCompatibilityFailures ?? 0) > 0
+                        ? `ElizaOS compatibility reported ${dynamic.agentSdkCompatibilityFailures ?? 0} plugin/core mismatch(es).`
+                        : "ElizaOS compatibility checks are currently clean.",
                   }
-                : tool,
+                : tool.id === "skills.catalog"
+                  ? {
+                      ...tool,
+                      description: dynamic.agentSdkCatalogAvailable
+                        ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
+                        : "ElizaOS skill catalog is unavailable in the current environment.",
+                    }
+                  : tool,
     );
     const pluginTools =
       dynamic.nativeCatalog?.map<ToolDefinition>((plugin) => ({
@@ -554,6 +573,7 @@ export class ToolsService {
         registryPlugins: dynamic.agentSdkRegistryPlugins ?? 0,
         skillCatalogAvailable: dynamic.agentSdkCatalogAvailable ?? false,
         skillCatalogSkills: dynamic.agentSdkCatalogSkills ?? 0,
+        compatibilityFailures: dynamic.agentSdkCompatibilityFailures ?? 0,
       },
     };
   }

@@ -93,6 +93,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show the ElizaOS registry snapshot and configured endpoints.",
   },
   {
+    command: "/runtime compatibility",
+    category: "runtime",
+    description:
+      "Show plugin-to-core compatibility results from the Eliza agent SDK.",
+  },
+  {
     command: "/runtime registry refresh",
     category: "runtime",
     description: "Refresh the ElizaOS registry snapshot from the agent SDK.",

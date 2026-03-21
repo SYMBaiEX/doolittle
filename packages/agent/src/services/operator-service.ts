@@ -99,6 +99,7 @@ export interface SetupSummary {
     registryPlugins: number;
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
+    compatibilityFailures: number;
   };
   checklist: string[];
 }
@@ -114,6 +115,7 @@ export interface UpdatePreview {
     registryPlugins: number;
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
+    compatibilityFailures: number;
   };
   transportControl?: ReturnType<
     typeof getNativeTransportControlPlane
@@ -291,6 +293,7 @@ export class OperatorService {
         registryPlugins: ecosystem?.registry.total ?? 0,
         skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
         skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
+        compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
       },
       checklist: await this.diagnostics.setupChecklist(),
     };
@@ -337,6 +340,7 @@ export class OperatorService {
         registryPlugins: ecosystem?.registry.total ?? 0,
         skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
         skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
+        compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
       },
     };
   }
