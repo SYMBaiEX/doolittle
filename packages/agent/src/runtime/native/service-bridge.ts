@@ -81,6 +81,14 @@ interface EffectiveDelegationCreateInput {
   maxAttempts?: number;
 }
 
+interface EffectiveServiceResolutionRecord {
+  capability: string;
+  nativeService: string;
+  source: "native" | "product";
+  fallback: string;
+  available: boolean;
+}
+
 type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
 
 function service<T>(runtime: RuntimeLike, name: string): T | undefined {
@@ -111,6 +119,77 @@ export function getNativeServices(runtime: RuntimeLike) {
       "plugin_manager",
     ),
   };
+}
+
+export function getEffectiveServiceResolution(
+  runtime: RuntimeLike,
+): EffectiveServiceResolutionRecord[] {
+  const native = getNativeServices(runtime);
+  return [
+    {
+      capability: "knowledge",
+      nativeService: "knowledge",
+      source: native.knowledge ? "native" : "product",
+      fallback: "documents + memory + sessions",
+      available: Boolean(native.knowledge),
+    },
+    {
+      capability: "personality",
+      nativeService: "personality",
+      source: native.personality ? "native" : "product",
+      fallback: "personalities",
+      available: Boolean(native.personality),
+    },
+    {
+      capability: "rolodex",
+      nativeService: "rolodex",
+      source: native.rolodex ? "native" : "product",
+      fallback: "userProfiles",
+      available: Boolean(native.rolodex),
+    },
+    {
+      capability: "shell",
+      nativeService: "shell",
+      source: native.shell ? "native" : "product",
+      fallback: "terminal",
+      available: Boolean(native.shell),
+    },
+    {
+      capability: "cron",
+      nativeService: "cron",
+      source: native.cron ? "native" : "product",
+      fallback: "cron",
+      available: Boolean(native.cron),
+    },
+    {
+      capability: "agentSkills",
+      nativeService: "agent_skills",
+      source: native.agentSkills ? "native" : "product",
+      fallback: "skills + skillSynthesis",
+      available: Boolean(native.agentSkills),
+    },
+    {
+      capability: "trajectoryLogger",
+      nativeService: "trajectory_logger",
+      source: native.trajectoryLogger ? "native" : "product",
+      fallback: "trajectories",
+      available: Boolean(native.trajectoryLogger),
+    },
+    {
+      capability: "agentOrchestrator",
+      nativeService: "agent_orchestrator",
+      source: native.agentOrchestrator ? "native" : "product",
+      fallback: "delegation",
+      available: Boolean(native.agentOrchestrator),
+    },
+    {
+      capability: "pluginManager",
+      nativeService: "plugin_manager",
+      source: native.pluginManager ? "native" : "product",
+      fallback: "native plugin catalog",
+      available: Boolean(native.pluginManager),
+    },
+  ];
 }
 
 export function getEffectiveSkills(
