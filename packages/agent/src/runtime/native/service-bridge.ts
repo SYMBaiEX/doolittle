@@ -858,12 +858,8 @@ export function getEffectiveMemorySnapshot(
   target: "memory" | "user" = "memory",
 ) {
   return (
-    getNativeServices(runtime).knowledge?.summary?.(target) ?? {
-      target,
-      entries: services.memory.list(target).length,
-      characters: services.memory.read(target).length,
-      preview: services.memory.list(target).slice(-5),
-    }
+    getNativeServices(runtime).knowledge?.summary?.(target) ??
+    services.memory.summary(target)
   );
 }
 
@@ -873,9 +869,7 @@ export function getEffectivePersonalitySummary(
 ) {
   return (
     getNativeServices(runtime).personality?.summary?.() ?? {
-      total: services.personalities.list().length,
-      activeId: services.personalities.getActive().id,
-      names: services.personalities.list().map((profile) => profile.name),
+      ...services.personalities.summary(),
     }
   );
 }
@@ -886,12 +880,7 @@ export function getEffectiveRolodexSummary(
 ) {
   return (
     getNativeServices(runtime).rolodex?.summary?.() ?? {
-      totalProfiles: services.userProfiles.list().length,
-      agentName: services.userProfiles.getAgent().name,
-      recentProfiles: services.userProfiles
-        .list()
-        .slice(0, 5)
-        .map((profile) => profile.userId),
+      ...services.userProfiles.summary(),
     }
   );
 }
@@ -903,10 +892,7 @@ export function getEffectiveExperienceSummary(
   return (
     getNativeServices(runtime).experience?.summary?.() ?? {
       sessions: {
-        totalSessions: services.sessions.listSessions(1000).length,
-        recentSessionIds: services.sessions
-          .latest(10)
-          .map((session) => session.sessionId),
+        ...services.sessions.summary(),
       },
       memory: {
         shared: getEffectiveMemorySnapshot(runtime, services, "memory"),
