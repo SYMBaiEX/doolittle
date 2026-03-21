@@ -21,6 +21,7 @@ import {
   createEffectiveDelegationTask,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
+  getEffectiveMessagingTransportInventory,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveShellHistory,
@@ -325,6 +326,10 @@ export function startApiServer(context: AppContext): void {
         return json({
           totals: state.totals,
           platforms: state.platforms,
+          messagingBridge: getEffectiveMessagingTransportInventory(
+            context.runtime,
+            context.config,
+          ),
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),
           ).messaging,
@@ -2334,6 +2339,10 @@ export function startApiServer(context: AppContext): void {
         return json({
           health: readiness,
           readiness,
+          messagingBridge: getEffectiveMessagingTransportInventory(
+            context.runtime,
+            context.config,
+          ),
           mediation: {
             pluginMediatedAdapters: history.state.totals.pluginMediatedAdapters,
             officialPluginAdapters: history.state.totals.officialPluginAdapters,

@@ -1,5 +1,7 @@
 import type { IAgentRuntime } from "@elizaos/core";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
+import type { EnvConfig } from "@/types";
 
 interface NativeKnowledgeService {
   ingestPdf(path: string): Promise<unknown>;
@@ -68,6 +70,17 @@ interface NativePluginManagerService {
   categories(): unknown;
 }
 
+interface NativeDiscordTransportService {
+  status?: () => unknown;
+  history?: (limit?: number) => unknown[];
+}
+
+interface NativeTelegramTransportService {
+  bot?: unknown;
+  messageManager?: unknown;
+  knownChats?: Map<string | number, unknown>;
+}
+
 interface EffectiveDelegationCreateInput {
   title: string;
   objective: string;
@@ -118,7 +131,80 @@ export function getNativeServices(runtime: RuntimeLike) {
       runtime,
       "plugin_manager",
     ),
+    telegram: service<NativeTelegramTransportService>(runtime, "telegram"),
+    discordTransport: service<NativeDiscordTransportService>(
+      runtime,
+      "discord_transport",
+    ),
   };
+}
+
+export function getEffectiveMessagingTransportInventory(
+  runtime: RuntimeLike,
+  config: EnvConfig,
+): Array<{
+  platform: "telegram" | "discord";
+  pluginId?: string;
+  pluginSource?: "official" | "vendored" | "custom";
+  pluginEnabled: boolean;
+  serviceName: string;
+  serviceAvailable: boolean;
+  live: boolean;
+  detail: string;
+}> {
+  const native = getNativeServices(runtime);
+  const catalog = getNativePluginCatalog(config);
+  const telegramPlugin = catalog.find(
+    (entry) => entry.id === "messaging.telegram",
+  );
+  const discordPlugin = catalog.find(
+    (entry) => entry.id === "messaging.discord",
+  );
+  const telegramKnownChats =
+    native.telegram?.knownChats instanceof Map
+      ? native.telegram.knownChats.size
+      : 0;
+  const telegramLive = Boolean(
+    telegramPlugin?.enabled &&
+      native.telegram?.bot &&
+      native.telegram?.messageManager,
+  );
+  const discordLive = Boolean(
+    discordPlugin?.enabled &&
+      native.discordTransport &&
+      typeof native.discordTransport?.history === "function",
+  );
+
+  return [
+    {
+      platform: "telegram",
+      pluginId: telegramPlugin?.id,
+      pluginSource: telegramPlugin?.source,
+      pluginEnabled: Boolean(telegramPlugin?.enabled),
+      serviceName: "telegram",
+      serviceAvailable: Boolean(native.telegram),
+      live: telegramLive,
+      detail: telegramLive
+        ? `telegram service live; knownChats=${telegramKnownChats}`
+        : telegramPlugin?.enabled
+          ? "telegram plugin enabled but runtime service not fully live"
+          : "telegram plugin disabled",
+    },
+    {
+      platform: "discord",
+      pluginId: discordPlugin?.id,
+      pluginSource: discordPlugin?.source,
+      pluginEnabled: Boolean(discordPlugin?.enabled),
+      serviceName: "discord_transport",
+      serviceAvailable: Boolean(native.discordTransport),
+      live: discordLive,
+      detail: discordLive
+        ? "discord transport service available through native bridge"
+        : discordPlugin?.enabled
+          ? "discord plugin enabled but runtime service not fully live"
+          : "discord plugin disabled",
+    },
+  ];
 }
 
 export function getEffectiveServiceResolution(
