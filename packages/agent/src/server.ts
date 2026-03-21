@@ -37,6 +37,7 @@ import {
   getEffectiveShellStatus,
   getEffectiveSkillCatalog,
   getEffectiveSkills,
+  getEffectiveSkillsSummary,
   getNativeIntegrationControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
@@ -695,6 +696,12 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/skills") {
         return json({
           skills: getEffectiveSkills(context.runtime, context.services),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/summary") {
+        return json({
+          summary: getEffectiveSkillsSummary(context.runtime, context.services),
         });
       }
 

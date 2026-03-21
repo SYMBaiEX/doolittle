@@ -5,6 +5,7 @@ import {
   getAutonomousControlPlane,
   getEffectiveMessagingTransportInventory,
   getEffectiveTransportInventory,
+  getNativeMessagingTransportState,
   getNativeTransportControlPlane,
 } from "./service-bridge";
 
@@ -114,8 +115,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(controlPlane.totals.enabledPlugins).toBe(1);
     expect(controlPlane.totals.availableServices).toBe(2);
     expect(controlPlane.totals.liveServices).toBe(1);
-    expect(controlPlane.totals.officialPlugins).toBe(1);
-    expect(controlPlane.totals.vendoredPlugins).toBe(1);
+    expect(controlPlane.totals.officialPlugins).toBe(2);
+    expect(controlPlane.totals.vendoredPlugins).toBe(0);
     expect(controlPlane.totals.operationalTransports).toBeGreaterThan(0);
   });
 
@@ -170,6 +171,86 @@ describe("getEffectiveMessagingTransportInventory", () => {
     ).toBe("gateway-disabled");
   });
 
+  it("builds a native messaging transport state summary", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "telegram") {
+          return {
+            bot: {},
+            messageManager: {},
+            knownChats: new Map([["1", {}]]),
+          };
+        }
+        if (name === "discord_transport") {
+          return {
+            history: () => [],
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const telegram = getNativeMessagingTransportState(
+      runtime,
+      {
+        telegramBotToken: "telegram-token",
+        discordBotToken: "discord-token",
+      } as never,
+      {
+        platforms: {
+          api: { enabled: true },
+          cli: { enabled: true },
+          telegram: { enabled: true },
+          discord: { enabled: true },
+          slack: { enabled: false },
+          whatsapp: { enabled: false },
+          signal: { enabled: false },
+          matrix: { enabled: false },
+          email: { enabled: false },
+          sms: { enabled: false },
+          mattermost: { enabled: false },
+          homeassistant: { enabled: false },
+          dingtalk: { enabled: false },
+        },
+      } as never,
+      "telegram",
+    );
+    const discord = getNativeMessagingTransportState(
+      runtime,
+      {
+        telegramBotToken: "telegram-token",
+        discordBotToken: "discord-token",
+      } as never,
+      {
+        platforms: {
+          api: { enabled: true },
+          cli: { enabled: true },
+          telegram: { enabled: true },
+          discord: { enabled: true },
+          slack: { enabled: false },
+          whatsapp: { enabled: false },
+          signal: { enabled: false },
+          matrix: { enabled: false },
+          email: { enabled: false },
+          sms: { enabled: false },
+          mattermost: { enabled: false },
+          homeassistant: { enabled: false },
+          dingtalk: { enabled: false },
+        },
+      } as never,
+      "discord",
+    );
+
+    expect(telegram?.ready).toBe(true);
+    expect(telegram?.summary).toContain("telegram:");
+    expect(telegram?.summary).toContain("live=true");
+    expect(telegram?.summary).toContain("ready=true");
+    expect(discord?.ready).toBe(true);
+    expect(discord?.summary).toContain("discord:");
+    expect(discord?.summary).toContain("live=true");
+    expect(discord?.summary).toContain("ready=true");
+  });
+
   it("builds an autonomous control-plane summary from native services", () => {
     const runtime = {
       getService(name: string) {
@@ -211,6 +292,14 @@ describe("getEffectiveMessagingTransportInventory", () => {
       },
       skills: {
         list: () => [{ slug: "fallback-skill" }],
+        summary: () => ({
+          total: 1,
+          roots: [{ name: "fallback", count: 1 }],
+          categories: [{ name: "fallback", count: 1 }],
+        }),
+      },
+      skillSynthesis: {
+        listGeneratedSkills: () => [{ slug: "generated-skill" }],
       },
       delegation: {
         list: () => [{ id: "fallback-task" }],

@@ -36,6 +36,7 @@ import {
   getEffectiveShellStatus,
   getEffectiveSkillCatalog,
   getEffectiveSkills,
+  getEffectiveSkillsSummary,
   getNativeIntegrationControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
@@ -1042,6 +1043,14 @@ async function buildCommandResponse(
           )
           .join("\n")
       : "No skills found.";
+  }
+
+  if (trimmed === "/skills summary") {
+    return JSON.stringify(
+      getEffectiveSkillsSummary(context.runtime, context.services),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/skills catalog") {

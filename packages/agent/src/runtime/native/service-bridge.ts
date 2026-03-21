@@ -72,6 +72,7 @@ interface NativeAgentSkillsService {
   list(): unknown[];
   get(slug: string): unknown;
   generated?(): unknown[];
+  summary?(): unknown;
   catalog?(limit?: number): Promise<unknown>;
   searchCatalog?(query: string, limit?: number): Promise<unknown>;
   synthesize(taskId: string): Promise<unknown>;
@@ -175,6 +176,10 @@ interface AutonomousControlPlaneSummary {
     source: "native" | "product";
     available: boolean;
     localSkills: number;
+    workspaceTotal: number;
+    workspaceCurated: number;
+    workspaceGenerated: number;
+    workspaceFamilies: number;
     catalogSkills: number;
     trendingSkills: number;
   };
@@ -251,6 +256,12 @@ export interface EffectiveMessagingTransportEntry {
   live: boolean;
   reason: "live" | "not-configured" | "plugin-disabled" | "service-unavailable";
   detail: string;
+}
+
+export interface NativeMessagingTransportState
+  extends EffectiveMessagingTransportEntry {
+  ready: boolean;
+  summary: string;
 }
 
 function service<T>(runtime: RuntimeLike, name: string): T | undefined {
@@ -449,6 +460,37 @@ export function getEffectiveMessagingTransportInventory(
           : "discord plugin disabled",
     },
   ];
+}
+
+export function getNativeMessagingTransportState(
+  runtime: RuntimeLike,
+  config: EnvConfig,
+  gatewayConfig: GatewayConfig | undefined,
+  platform: "telegram" | "discord",
+): NativeMessagingTransportState | undefined {
+  const entry = getEffectiveMessagingTransportInventory(
+    runtime,
+    config,
+    gatewayConfig,
+  ).find((transport) => transport.platform === platform);
+  if (!entry) {
+    return undefined;
+  }
+  const ready = entry.live && entry.gatewayEnabled;
+  return {
+    ...entry,
+    ready,
+    summary: [
+      `${platform}:`,
+      `config=${entry.configEnabled}`,
+      `gateway=${entry.gatewayEnabled}`,
+      `plugin=${entry.pluginEnabled}`,
+      `service=${entry.serviceAvailable}`,
+      `live=${entry.live}`,
+      `ready=${ready}`,
+      `reason=${entry.reason}`,
+    ].join(" "),
+  };
 }
 
 const ALL_TRANSPORT_PLATFORMS: EffectiveTransportInventoryEntry["platform"][] =
@@ -729,6 +771,49 @@ export function getEffectiveSkills(
   return (
     getNativeServices(runtime).agentSkills?.list() ?? services.skills.list()
   );
+}
+
+export function getEffectiveSkillsSummary(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  const nativeSummary = getNativeServices(runtime).agentSkills?.summary?.();
+  if (nativeSummary) {
+    return nativeSummary;
+  }
+  const skillsService = services.skills as Partial<{
+    summary: () => unknown;
+    list: () => unknown[];
+  }>;
+  if (typeof skillsService.summary === "function") {
+    return skillsService.summary();
+  }
+  const workspaceSkills = skillsService.list?.() ?? [];
+  const roots = new Map<string, number>();
+  const categories = new Map<string, number>();
+  let generated = 0;
+  for (const skill of workspaceSkills as Array<{ slug?: string }>) {
+    const slug = String(skill.slug ?? "");
+    const root = slug.split("/")[0] || "unknown";
+    const category = slug.startsWith("generated/")
+      ? "generated"
+      : slug.split("/").slice(0, 2).join("/") || root;
+    roots.set(root, (roots.get(root) ?? 0) + 1);
+    categories.set(category, (categories.get(category) ?? 0) + 1);
+    if (root === "generated") {
+      generated += 1;
+    }
+  }
+  return {
+    total: workspaceSkills.length,
+    curated: workspaceSkills.length - generated,
+    generated,
+    categories: [...categories.entries()].map(([name, count]) => ({
+      name,
+      count,
+    })),
+    roots: [...roots.entries()].map(([name, count]) => ({ name, count })),
+  };
 }
 
 export function getEffectiveGeneratedSkills(
@@ -1101,6 +1186,7 @@ export function getAutonomousControlPlane(
 ): AutonomousControlPlaneSummary {
   const native = getNativeServices(runtime);
   const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
+  const skillsSummary = getEffectiveSkillsSummary(runtime, services);
   const localSkills = getEffectiveSkills(runtime, services);
   const orchestratorTasks = getEffectiveDelegationTasks(runtime, services);
   const orchestratorQueue = getEffectiveDelegationQueue(runtime, services);
@@ -1125,6 +1211,25 @@ export function getAutonomousControlPlane(
       source: native.agentSkills ? "native" : "product",
       available: Boolean(native.agentSkills),
       localSkills: Array.isArray(localSkills) ? localSkills.length : 0,
+      workspaceTotal:
+        typeof skillsSummary === "object" && skillsSummary !== null
+          ? Number(
+              (skillsSummary as { total?: number }).total ?? localSkills.length,
+            )
+          : localSkills.length,
+      workspaceCurated:
+        typeof skillsSummary === "object" && skillsSummary !== null
+          ? Number((skillsSummary as { curated?: number }).curated ?? 0)
+          : 0,
+      workspaceGenerated:
+        typeof skillsSummary === "object" && skillsSummary !== null
+          ? Number((skillsSummary as { generated?: number }).generated ?? 0)
+          : 0,
+      workspaceFamilies:
+        typeof skillsSummary === "object" && skillsSummary !== null
+          ? ((skillsSummary as { roots?: Array<{ name: string }> }).roots
+              ?.length ?? 0)
+          : 0,
       catalogSkills: skillsCatalog?.total ?? 0,
       trendingSkills: skillsCatalog?.trending?.length ?? 0,
     },

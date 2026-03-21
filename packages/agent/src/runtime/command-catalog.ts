@@ -204,6 +204,11 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "List available local and native-backed skills.",
   },
   {
+    command: "/skills summary",
+    category: "skills",
+    description: "Show skills workspace counts and category breadth.",
+  },
+  {
     command: "/skills generated list",
     category: "skills",
     description: "List synthesized/generated skills.",
