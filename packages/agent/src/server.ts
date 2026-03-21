@@ -22,6 +22,7 @@ import {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
+  exportEffectiveSkillHubManifest,
   fetchEffectiveBrowserPage,
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
@@ -42,13 +43,24 @@ import {
   getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
-  getEffectiveSkillCatalog,
+  getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubGenerated,
+  getEffectiveSkillHubInstalled,
+  getEffectiveSkillHubInstalledManifest,
+  getEffectiveSkillHubSummary,
+  getEffectiveSkillHubWorkspace,
   getEffectiveSkills,
   getEffectiveSkillsSummary,
+  getEffectiveUserBeliefs,
+  getEffectiveUserEngagement,
+  getEffectiveUserProfileSearch,
+  getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
+  importEffectiveSkillHubManifest,
   inspectEffectiveBrowserPage,
+  installEffectiveSkillHubManifest,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   probeEffectiveMcp,
@@ -56,8 +68,9 @@ import {
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
-  searchEffectiveSkillCatalog,
+  searchEffectiveSkillHubCatalog,
   snapshotEffectiveBrowserPage,
+  syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import { OperatorService } from "@/services/operator-service";
@@ -721,12 +734,16 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/skills") {
         return json({
           skills: getEffectiveSkills(context.runtime, context.services),
+          hub: getEffectiveSkillHubSummary(context.services),
+          workspace: getEffectiveSkillHubWorkspace(context.services),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/skills/summary") {
         return json({
           summary: getEffectiveSkillsSummary(context.runtime, context.services),
+          hub: getEffectiveSkillHubSummary(context.services),
+          installed: getEffectiveSkillHubInstalled(context.services),
         });
       }
 
@@ -737,18 +754,41 @@ export function startApiServer(context: AppContext): void {
           url.searchParams.get("refresh") === "1";
         return json(
           query
-            ? await searchEffectiveSkillCatalog(
-                context.runtime,
-                context.services,
-                query,
-              )
+            ? await searchEffectiveSkillHubCatalog(context.services, query)
             : refresh
-              ? await context.services.agentSdk.skillCatalog(true)
-              : await getEffectiveSkillCatalog(
-                  context.runtime,
-                  context.services,
-                ),
+              ? await getEffectiveSkillHubCatalog(context.services, true, 50)
+              : await getEffectiveSkillHubCatalog(context.services, false, 50),
         );
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/skills/catalog/")
+      ) {
+        const slug = url.pathname.replace("/skills/catalog/", "").trim();
+        if (!slug || slug === "search") {
+          return json({ error: "Skill slug is required." }, 400);
+        }
+        return json(
+          (await context.services.skillsHub.catalogEntry(slug)) ?? {
+            error: `Skill not found: ${slug}`,
+          },
+        );
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/skills/manifest/")
+      ) {
+        const slug = url.pathname.replace("/skills/manifest/", "").trim();
+        if (!slug) {
+          return json({ error: "Skill slug is required." }, 400);
+        }
+        return json({
+          manifest: context.services.skillsHub.manifest(slug) ?? {
+            error: `Skill manifest not found: ${slug}`,
+          },
+        });
       }
 
       if (request.method === "GET" && url.pathname === "/skills/generated") {
@@ -757,6 +797,7 @@ export function startApiServer(context: AppContext): void {
             context.runtime,
             context.services,
           ),
+          hub: getEffectiveSkillHubGenerated(context.services),
         });
       }
 
@@ -770,6 +811,111 @@ export function startApiServer(context: AppContext): void {
         }
         return json({
           detail: context.services.skillSynthesis.describeGeneratedSkill(slug),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/hub") {
+        return json({
+          summary: getEffectiveSkillHubSummary(context.services),
+          workspace: getEffectiveSkillHubWorkspace(context.services),
+          generated: getEffectiveSkillHubGenerated(context.services),
+          installed: getEffectiveSkillHubInstalled(context.services),
+          catalog: await getEffectiveSkillHubCatalog(
+            context.services,
+            false,
+            50,
+          ),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/installed") {
+        return json({
+          installed: getEffectiveSkillHubInstalled(context.services),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/skills/installed/")
+      ) {
+        const slug = url.pathname.replace("/skills/installed/", "").trim();
+        if (!slug) {
+          return json({ error: "Skill slug is required." }, 400);
+        }
+        return json({
+          manifest: getEffectiveSkillHubInstalledManifest(
+            context.services,
+            slug,
+          ) ?? {
+            error: `Installed skill manifest not found: ${slug}`,
+          },
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/skills/sync") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          refresh?: boolean;
+        };
+        return json({
+          sync: await syncEffectiveSkillHub(
+            context.services,
+            Boolean(body.refresh),
+          ),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/skills/export") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          slug?: string;
+          destinationPath?: string;
+          bundle?: boolean;
+        };
+        if (body.bundle) {
+          return json({
+            bundle: await context.services.skillsHub.exportBundle(
+              body.slug ?? "skills-hub",
+            ),
+          });
+        }
+        if (!body.slug) {
+          return json({ error: "slug is required" }, 400);
+        }
+        return json({
+          manifest: exportEffectiveSkillHubManifest(
+            context.services,
+            body.slug,
+            body.destinationPath,
+          ),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/skills/import") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          sourcePath?: string;
+        };
+        if (!body.sourcePath) {
+          return json({ error: "sourcePath is required" }, 400);
+        }
+        return json({
+          import: importEffectiveSkillHubManifest(
+            context.services,
+            body.sourcePath,
+          ),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/skills/install") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          slug?: string;
+        };
+        if (!body.slug) {
+          return json({ error: "slug is required" }, 400);
+        }
+        return json({
+          install: await installEffectiveSkillHubManifest(
+            context.services,
+            body.slug,
+          ),
         });
       }
 
@@ -909,9 +1055,53 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/acp/package") {
+        return json({
+          package: context.services.acp.packageMetadata(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/acp/editor") {
+        return json({
+          editor: context.services.acp.editorSummary(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/acp/sessions") {
+        const limit = Number(url.searchParams.get("limit") ?? "5");
+        return json({
+          sessions: context.services.acp.sessionSummary(
+            !Number.isNaN(limit) && limit > 0 ? limit : 5,
+          ),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/acp/publish") {
         return json({
           published: context.services.acp.publishRegistry(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/acp/export") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          label?: string;
+        };
+        return json({
+          exported: context.services.acp.exportBundle(body.label ?? "latest"),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/acp/import") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          path?: string;
+          payload?: string;
+        };
+        const input = body.payload ?? body.path ?? "";
+        if (!input) {
+          return json({ error: "path or payload is required" }, 400);
+        }
+        return json({
+          imported: context.services.acp.importBundle(input),
         });
       }
 
@@ -1793,6 +1983,25 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/search"
+      ) {
+        const query = url.searchParams.get("query");
+        const limit = Number(url.searchParams.get("limit") ?? "10");
+        if (!query) {
+          return json({ error: "query is required" }, 400);
+        }
+        return json({
+          hits: getEffectiveUserProfileSearch(
+            context.runtime,
+            context.services,
+            query,
+            Number.isFinite(limit) && limit > 0 ? limit : 10,
+          ),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/profiles/users/card") {
         const userId = url.searchParams.get("userId");
         if (!userId) {
@@ -1822,6 +2031,57 @@ export function startApiServer(context: AppContext): void {
           hits:
             nativeServices.rolodex?.recall(userId, query) ??
             context.services.userProfiles.recall(userId, query),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/beliefs"
+      ) {
+        const userId = url.searchParams.get("userId");
+        if (!userId) {
+          return json({ error: "userId is required" }, 400);
+        }
+        return json({
+          beliefs: getEffectiveUserBeliefs(
+            context.runtime,
+            context.services,
+            userId,
+          ),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/relationship"
+      ) {
+        const userId = url.searchParams.get("userId");
+        if (!userId) {
+          return json({ error: "userId is required" }, 400);
+        }
+        return json({
+          relationship: getEffectiveUserRelationship(
+            context.runtime,
+            context.services,
+            userId,
+          ),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/engagement"
+      ) {
+        const userId = url.searchParams.get("userId");
+        if (!userId) {
+          return json({ error: "userId is required" }, 400);
+        }
+        return json({
+          engagement: getEffectiveUserEngagement(
+            context.runtime,
+            context.services,
+            userId,
+          ),
         });
       }
 
@@ -1886,9 +2146,11 @@ export function startApiServer(context: AppContext): void {
           kind?:
             | "preference"
             | "fact"
+            | "belief"
             | "goal"
             | "context"
             | "constraint"
+            | "relationship"
             | "note"
             | "memory";
           value?: string;
@@ -2850,6 +3112,13 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/gateway/daemon") {
+        return json({
+          daemon: context.gateway.runtimeStatus().daemon,
+          runtime: context.gateway.runtimeStatus(),
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/gateway/start") {
         await context.gateway.start();
         return json({ ok: true });
@@ -2858,6 +3127,41 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "POST" && url.pathname === "/gateway/stop") {
         await context.gateway.stop();
         return json({ ok: true });
+      }
+
+      if (request.method === "POST" && url.pathname === "/gateway/watchdog") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          reason?: string;
+        };
+        const reason = body.reason?.trim() || "api";
+        return json({
+          reason,
+          records: await context.gateway.watchdog(reason),
+          runtime: context.gateway.runtimeStatus(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/gateway/restart") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          platform?: string;
+          reason?: string;
+        };
+        const platform =
+          body.platform?.trim().toLowerCase() === "all"
+            ? "all"
+            : body.platform
+              ? parseTransportPlatform(body.platform)
+              : "all";
+        if (!platform) {
+          return json({ error: "Unknown transport platform." }, 400);
+        }
+        const reason = body.reason?.trim() || "api";
+        return json({
+          platform,
+          reason,
+          records: await context.gateway.restart(platform, reason),
+          runtime: context.gateway.runtimeStatus(),
+        });
       }
 
       if (request.method === "POST" && url.pathname === "/gateway/message") {
@@ -2885,6 +3189,7 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "POST" && url.pathname === "/gateway/supervise") {
         return json({
           records: await context.gateway.supervise("api"),
+          runtime: context.gateway.runtimeStatus(),
         });
       }
 
@@ -2893,6 +3198,7 @@ export function startApiServer(context: AppContext): void {
           records: context.gateway.supervision(
             Number(url.searchParams.get("limit") ?? "25"),
           ),
+          runtime: context.gateway.runtimeStatus(),
         });
       }
 

@@ -124,6 +124,88 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Summarize enabled tools and native plugin inventory.",
   },
   {
+    command: "/acp status",
+    category: "runtime",
+    description: "Show ACP bridge status, command wiring, and registry paths.",
+  },
+  {
+    command: "/acp package",
+    category: "runtime",
+    description: "Show ACP package metadata for editor and registry packaging.",
+  },
+  {
+    command: "/acp editor",
+    category: "runtime",
+    description:
+      "Show ACP editor install, export, and import integration details.",
+  },
+  {
+    command: "/acp install",
+    category: "runtime",
+    description:
+      "Show ACP editor installation instructions and registry integration details.",
+  },
+  {
+    command: "/acp sessions",
+    category: "runtime",
+    description:
+      "Summarize recent ACP-visible sessions and titled session state.",
+  },
+  {
+    command: "/acp registry",
+    category: "runtime",
+    description: "Show the ACP registry manifest metadata for Eliza Agent.",
+  },
+  {
+    command: "/acp publish",
+    category: "runtime",
+    description:
+      "Write the ACP registry manifest to disk for editor discovery.",
+  },
+  {
+    command: "/acp export [label]",
+    category: "runtime",
+    description:
+      "Export ACP package, registry, session, and tool metadata into a bundle.",
+  },
+  {
+    command: "/acp import <path-or-json>",
+    category: "runtime",
+    description:
+      "Import an ACP bundle from disk or a raw JSON payload into the local ACP store.",
+  },
+  {
+    command: "/acp tools",
+    category: "runtime",
+    description: "List ACP tool definitions with kind and source metadata.",
+  },
+  {
+    command: "/acp search <query>",
+    category: "runtime",
+    description:
+      "Search ACP-exposed tools by name, kind, source, or description.",
+  },
+  {
+    command: "/acp describe <tool-name>",
+    category: "runtime",
+    description: "Describe one ACP-exposed tool in editor-facing detail.",
+  },
+  {
+    command: "/acp probe",
+    category: "runtime",
+    description: "Run the configured ACP server command health probe.",
+  },
+  {
+    command: "/acp invoke <args>",
+    category: "runtime",
+    description: "Invoke the ACP server command directly with raw arguments.",
+  },
+  {
+    command: "/acp call <tool-name> :: <json>",
+    category: "runtime",
+    description: "Invoke one ACP tool with JSON input through the ACP bridge.",
+  },
+  {
     command: "/platforms",
     category: "gateway",
     description: "Show platform enablement and transport plugin mediation.",
@@ -149,6 +231,11 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show persisted gateway runtime lifecycle state.",
   },
   {
+    command: "/gateway daemon",
+    category: "gateway",
+    description: "Show the daemon policy, watchdog, and restart queue state.",
+  },
+  {
     command: "/gateway trace limit:20",
     category: "gateway",
     description: "Inspect recent gateway trace events with filtering support.",
@@ -162,6 +249,17 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/gateway supervision",
     category: "gateway",
     description: "Inspect daemon-style gateway supervision records.",
+  },
+  {
+    command: "/gateway watchdog",
+    category: "gateway",
+    description: "Run a gateway watchdog cycle and collect restart decisions.",
+  },
+  {
+    command: "/gateway restart all",
+    category: "gateway",
+    description:
+      "Restart one or all gateway adapters through the daemon control plane.",
   },
   {
     command: "/gateway replay latest",
@@ -199,9 +297,34 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show the current user memory card.",
   },
   {
+    command: "/user beliefs",
+    category: "memory",
+    description: "Show extracted beliefs for the active user.",
+  },
+  {
+    command: "/user relationship",
+    category: "memory",
+    description: "Show the current relationship summary for the active user.",
+  },
+  {
+    command: "/user engagement",
+    category: "memory",
+    description: "Show the current engagement summary for the active user.",
+  },
+  {
+    command: "/user search <query>",
+    category: "memory",
+    description: "Search the user profile index for matching signals.",
+  },
+  {
     command: "/profiles summary",
     category: "memory",
     description: "Show native rolodex and profile summary data.",
+  },
+  {
+    command: "/profiles users search <query>",
+    category: "memory",
+    description: "Search all user profiles by profile signal.",
   },
   {
     command: "/agent profile",
@@ -231,7 +354,22 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
   {
     command: "/skills summary",
     category: "skills",
-    description: "Show skills workspace counts and category breadth.",
+    description: "Show workspace and hub skill summaries.",
+  },
+  {
+    command: "/skills hub",
+    category: "skills",
+    description: "Show the native Eliza skills hub summary.",
+  },
+  {
+    command: "/skills installed",
+    category: "skills",
+    description: "List installed skill manifests.",
+  },
+  {
+    command: "/skills installed show <slug>",
+    category: "skills",
+    description: "Show one installed skill manifest.",
   },
   {
     command: "/skills generated list",
@@ -241,18 +379,48 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
   {
     command: "/skills catalog",
     category: "skills",
-    description:
-      "Show the ElizaOS skill catalog snapshot and trending entries.",
+    description: "Show the native Eliza skill catalog snapshot.",
   },
   {
     command: "/skills catalog refresh",
     category: "skills",
-    description: "Refresh the ElizaOS skill catalog snapshot and cache.",
+    description: "Refresh the native Eliza skill catalog snapshot and cache.",
   },
   {
     command: "/skills catalog search <query>",
     category: "skills",
-    description: "Search the ElizaOS skill catalog cache.",
+    description: "Search the native Eliza skill catalog cache.",
+  },
+  {
+    command: "/skills catalog show <slug>",
+    category: "skills",
+    description: "Show a specific catalog skill entry.",
+  },
+  {
+    command: "/skills sync",
+    category: "skills",
+    description:
+      "Sync the workspace skill hub against the native catalog and distribution index.",
+  },
+  {
+    command: "/skills manifest <slug>",
+    category: "skills",
+    description: "Show the installable manifest for a workspace skill.",
+  },
+  {
+    command: "/skills export <slug|all>",
+    category: "skills",
+    description: "Export an installable skill manifest or bundle.",
+  },
+  {
+    command: "/skills import <manifest-path>",
+    category: "skills",
+    description: "Import a skill manifest into the local hub install area.",
+  },
+  {
+    command: "/skills install <catalog-slug>",
+    category: "skills",
+    description: "Install a catalog skill into the local hub install area.",
   },
   {
     command: "/browser status",

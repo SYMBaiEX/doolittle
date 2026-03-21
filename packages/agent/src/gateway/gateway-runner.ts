@@ -207,6 +207,13 @@ interface GatewayPlatformState {
   lastRoutedAt?: string;
   lastRespondedAt?: string;
   lastHeartbeatAt?: string;
+  lastWatchdogAt?: string;
+  lastWatchdogReason?: string;
+  lastWatchdogAction?: "healthy" | "restart" | "recover" | "backoff" | "skip";
+  restartCount: number;
+  restartFailureCount: number;
+  lastRestartAt?: string;
+  nextRestartAt?: string;
   lastSessionId?: string;
   lastRoomId?: string;
   lastUserId?: string;
@@ -231,6 +238,7 @@ interface GatewayHistorySnapshot {
   reason: string;
   snapshotPath: string;
   historyPath: string;
+  watchdogAt?: string;
   readiness: PlatformHealth[];
   transportOverview: {
     mismatchCount: number;
@@ -286,8 +294,10 @@ interface GatewayStateSnapshot {
   updatedAt: string;
   reason: string;
   heartbeatAt?: string;
+  watchdogAt?: string;
   snapshotPath: string;
   historyPath: string;
+  daemon: GatewayDaemonRuntimeState;
   totals: {
     configuredPlatforms: number;
     activeAdapters: number;
@@ -338,6 +348,9 @@ interface GatewayStateSnapshot {
     ready: boolean;
     transportState?: GatewayPlatformState["transportState"];
     status?: PlatformHealth["status"];
+    restartCount: number;
+    restartFailures: number;
+    backoffUntilAt?: string;
     traceCount: number;
     inboxCount: number;
     outboxCount: number;
@@ -368,9 +381,11 @@ interface GatewayRuntimeStatus {
   startedAt?: string;
   stoppedAt?: string;
   lastHeartbeatAt?: string;
+  lastWatchdogAt?: string;
   lastSupervisionAt?: string;
   supervisionEvents: number;
   adapters: PlatformName[];
+  daemon: GatewayDaemonRuntimeState;
   transportControl: ReturnType<typeof getNativeTransportControlPlane>["totals"];
   messagingBridge: ReturnType<
     typeof getNativeTransportControlPlane
@@ -378,6 +393,52 @@ interface GatewayRuntimeStatus {
   transportInventory: ReturnType<
     typeof getNativeTransportControlPlane
   >["transportInventory"];
+}
+
+interface GatewayDaemonPolicy {
+  heartbeatIntervalMs: number;
+  watchdogIntervalMs: number;
+  restartBaseDelayMs: number;
+  restartMaxDelayMs: number;
+  restartMultiplier: number;
+  restartJitterMs: number;
+}
+
+interface GatewayDaemonState {
+  heartbeatRuns: number;
+  watchdogRuns: number;
+  restartRuns: number;
+  restartRecoveries: number;
+  restartBackoffs: number;
+  watchdogSkips: number;
+  lastHeartbeatAt?: string;
+  lastWatchdogAt?: string;
+  lastRestartAt?: string;
+  lastRecoveryAt?: string;
+  lastBackoffAt?: string;
+  lastReason?: string;
+}
+
+interface GatewayDaemonRuntimeState {
+  policy: GatewayDaemonPolicy;
+  state: GatewayDaemonState;
+  restartQueue: Array<{
+    platform: PlatformName;
+    failures: number;
+    lastRestartAt?: string;
+    nextEligibleAt?: string;
+    backoffMs: number;
+    action?: "healthy" | "restart" | "recover" | "backoff" | "skip";
+  }>;
+  watchdog: {
+    running: boolean;
+    activePlatforms: number;
+    unhealthyPlatforms: number;
+    restartablePlatforms: number;
+    backoffPlatforms: number;
+    lastWatchdogAt?: string;
+    lastReason?: string;
+  };
 }
 
 interface GatewayTransportDetail {
@@ -407,9 +468,20 @@ interface GatewayTransportDetail {
 interface GatewaySupervisionRecord {
   at: string;
   platform: PlatformName | "gateway";
-  action: "health" | "restart" | "recover" | "watch" | "skip";
+  action: "health" | "restart" | "recover" | "watch" | "skip" | "backoff";
   detail: string;
+  delayMs?: number;
+  attempt?: number;
 }
+
+const GATEWAY_DAEMON_POLICY: GatewayDaemonPolicy = {
+  heartbeatIntervalMs: 60_000,
+  watchdogIntervalMs: 45_000,
+  restartBaseDelayMs: 5_000,
+  restartMaxDelayMs: 5 * 60_000,
+  restartMultiplier: 2,
+  restartJitterMs: 750,
+};
 
 export class GatewayRunner {
   private readonly events = new EventEmitter();
@@ -431,6 +503,24 @@ export class GatewayRunner {
   private readonly inboxPath: string;
   private readonly outboxPath: string;
   private readonly attachmentsPath: string;
+  private readonly daemonState: GatewayDaemonState = {
+    heartbeatRuns: 0,
+    watchdogRuns: 0,
+    restartRuns: 0,
+    restartRecoveries: 0,
+    restartBackoffs: 0,
+    watchdogSkips: 0,
+  };
+  private readonly restartBackoffByPlatform = new Map<
+    PlatformName,
+    {
+      failures: number;
+      lastRestartAt?: string;
+      nextEligibleAt?: string;
+      lastAction?: GatewayDaemonRuntimeState["restartQueue"][number]["action"];
+      backoffMs: number;
+    }
+  >();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private supervisionInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -499,6 +589,9 @@ export class GatewayRunner {
       ready: boolean;
       transportState?: GatewayPlatformState["transportState"];
       status?: PlatformHealth["status"];
+      restartCount?: number;
+      restartFailures?: number;
+      backoffUntilAt?: string;
       traceCount: number;
       inboxCount: number;
       outboxCount: number;
@@ -516,6 +609,9 @@ export class GatewayRunner {
       `ready=${entry.ready}`,
       `transportState=${entry.transportState ?? "n/a"}`,
       `status=${entry.status ?? "n/a"}`,
+      `restarts=${entry.restartCount ?? 0}`,
+      `failures=${entry.restartFailures ?? 0}`,
+      entry.backoffUntilAt ? `backoffUntil=${entry.backoffUntilAt}` : null,
       `traces=${entry.traceCount}`,
       `inbox=${entry.inboxCount}`,
       `outbox=${entry.outboxCount}`,
@@ -567,6 +663,65 @@ export class GatewayRunner {
     if (!existsSync(pathname)) {
       writeFileSync(pathname, "", "utf8");
     }
+  }
+
+  private ensureRestartState(platform: PlatformName) {
+    const existing = this.restartBackoffByPlatform.get(platform);
+    if (existing) {
+      return existing;
+    }
+    const created: {
+      failures: number;
+      lastRestartAt?: string;
+      nextEligibleAt?: string;
+      lastAction?: GatewayDaemonRuntimeState["restartQueue"][number]["action"];
+      backoffMs: number;
+    } = {
+      failures: 0,
+      backoffMs: GATEWAY_DAEMON_POLICY.restartBaseDelayMs,
+    };
+    this.restartBackoffByPlatform.set(platform, created);
+    return created;
+  }
+
+  private buildDaemonRuntimeState(): GatewayDaemonRuntimeState {
+    return {
+      policy: GATEWAY_DAEMON_POLICY,
+      state: { ...this.daemonState },
+      restartQueue: Array.from(this.restartBackoffByPlatform.entries()).map(
+        ([platform, state]) => ({
+          platform,
+          failures: state.failures,
+          lastRestartAt: state.lastRestartAt,
+          nextEligibleAt: state.nextEligibleAt,
+          backoffMs: state.backoffMs,
+          action: state.lastAction,
+        }),
+      ),
+      watchdog: this.computeWatchdogSnapshot(),
+    };
+  }
+
+  private computeRestartBackoffMs(failures: number): number {
+    const raw =
+      GATEWAY_DAEMON_POLICY.restartBaseDelayMs *
+      Math.max(
+        1,
+        GATEWAY_DAEMON_POLICY.restartMultiplier ** Math.max(0, failures - 1),
+      );
+    const jitter = Math.min(
+      GATEWAY_DAEMON_POLICY.restartJitterMs,
+      Math.max(0, raw / 8),
+    );
+    return Math.min(
+      GATEWAY_DAEMON_POLICY.restartMaxDelayMs,
+      Math.max(0, raw + jitter),
+    );
+  }
+
+  private nextBackoffEligibility(failures: number): string {
+    const backoffMs = this.computeRestartBackoffMs(failures);
+    return new Date(Date.now() + backoffMs).toISOString();
   }
 
   private loadJournal<T>(pathname: string): T[] {
@@ -637,6 +792,13 @@ export class GatewayRunner {
       lastRoutedAt: undefined,
       lastRespondedAt: undefined,
       lastHeartbeatAt: undefined,
+      lastWatchdogAt: undefined,
+      lastWatchdogReason: undefined,
+      lastWatchdogAction: undefined,
+      restartCount: 0,
+      restartFailureCount: 0,
+      lastRestartAt: undefined,
+      nextRestartAt: undefined,
       lastSessionId: undefined,
       lastRoomId: undefined,
       lastUserId: undefined,
@@ -1287,6 +1449,13 @@ export class GatewayRunner {
         lastRoutedAt: entry.lastRoutedAt ?? state.lastRoutedAt,
         lastRespondedAt: entry.lastRespondedAt ?? state.lastRespondedAt,
         lastHeartbeatAt: entry.lastHeartbeatAt ?? state.lastHeartbeatAt,
+        lastWatchdogAt: state.lastWatchdogAt,
+        lastWatchdogReason: state.lastWatchdogReason,
+        lastWatchdogAction: state.lastWatchdogAction,
+        restartCount: state.restartCount,
+        restartFailureCount: state.restartFailureCount,
+        lastRestartAt: state.lastRestartAt,
+        nextRestartAt: state.nextRestartAt,
         lastSessionId: state.lastSessionId,
         lastRoomId: state.lastRoomId,
         lastUserId: state.lastUserId,
@@ -1362,6 +1531,9 @@ export class GatewayRunner {
               status: enrichedReadiness.find(
                 (health) => health.platform === entry.platform,
               )?.status,
+              restartCount: platformState.restartCount,
+              restartFailures: platformState.restartFailureCount,
+              backoffUntilAt: platformState.nextRestartAt,
               traceCount: entry.traceCount,
               inboxCount: entry.inboxCount,
               outboxCount: entry.outboxCount,
@@ -1415,6 +1587,9 @@ export class GatewayRunner {
         ready: entry.readiness?.ready ?? false,
         transportState: entry.platformState?.transportState,
         status: entry.readiness?.status,
+        restartCount: entry.platformState?.restartCount ?? 0,
+        restartFailures: entry.platformState?.restartFailureCount ?? 0,
+        backoffUntilAt: entry.platformState?.nextRestartAt,
         traceCount: entry.traceCount,
         inboxCount: entry.inboxCount,
         outboxCount: entry.outboxCount,
@@ -1431,6 +1606,9 @@ export class GatewayRunner {
             ready: entry.readiness?.ready ?? false,
             transportState: entry.platformState?.transportState,
             status: entry.readiness?.status,
+            restartCount: entry.platformState?.restartCount ?? 0,
+            restartFailures: entry.platformState?.restartFailureCount ?? 0,
+            backoffUntilAt: entry.platformState?.nextRestartAt,
             traceCount: entry.traceCount,
             inboxCount: entry.inboxCount,
             outboxCount: entry.outboxCount,
@@ -1448,6 +1626,7 @@ export class GatewayRunner {
       running: this.running,
       updatedAt: timestamp,
       reason,
+      watchdogAt: this.daemonState.lastWatchdogAt,
       heartbeatAt:
         this.platformStates.size > 0
           ? Array.from(this.platformStates.values())
@@ -1457,6 +1636,7 @@ export class GatewayRunner {
           : undefined,
       snapshotPath: this.snapshotPath,
       historyPath: this.snapshotHistoryPath,
+      daemon: this.buildDaemonRuntimeState(),
       totals: {
         configuredPlatforms: readiness.length,
         activeAdapters: enrichedReadiness.filter(
@@ -1544,6 +1724,7 @@ export class GatewayRunner {
       const adapter = this.createAdapter(platform as PlatformName);
       await adapter.start();
       this.adapters.set(platform as PlatformName, adapter);
+      this.ensureRestartState(platform as PlatformName);
       const health = await adapter.health();
       this.syncPlatformStateFromHealth(health);
       this.pushTrace({
@@ -1563,6 +1744,7 @@ export class GatewayRunner {
     this.running = true;
     this.startedAt = new Date().toISOString();
     this.stoppedAt = undefined;
+    this.daemonState.lastReason = "startup";
     this.writeRuntimeStatus();
     await this.context.services.hooks.emit("gateway:startup", {
       platforms: Array.from(this.adapters.keys()).join(","),
@@ -1570,17 +1752,17 @@ export class GatewayRunner {
     if (!this.heartbeatInterval) {
       this.heartbeatInterval = setInterval(() => {
         void this.heartbeat("interval");
-      }, 60_000);
+      }, GATEWAY_DAEMON_POLICY.heartbeatIntervalMs);
       this.heartbeatInterval.unref?.();
     }
     if (!this.supervisionInterval) {
       this.supervisionInterval = setInterval(() => {
-        void this.supervise("interval");
-      }, 45_000);
+        void this.watchdog("interval");
+      }, GATEWAY_DAEMON_POLICY.watchdogIntervalMs);
       this.supervisionInterval.unref?.();
     }
     await this.heartbeat("startup");
-    await this.supervise("startup");
+    await this.watchdog("startup");
   }
 
   private createAdapter(platform: PlatformName): PlatformAdapter {
@@ -1714,6 +1896,7 @@ export class GatewayRunner {
     });
     this.running = false;
     this.stoppedAt = new Date().toISOString();
+    this.daemonState.lastReason = "shutdown";
     this.writeRuntimeStatus();
     await this.context.services.hooks.emit("gateway:shutdown", {
       status: "stopped",
@@ -1725,6 +1908,9 @@ export class GatewayRunner {
   async heartbeat(reason = "heartbeat"): Promise<GatewayStateSnapshot> {
     const heartbeatAt = new Date().toISOString();
     this.lastHeartbeatAt = heartbeatAt;
+    this.daemonState.heartbeatRuns += 1;
+    this.daemonState.lastHeartbeatAt = heartbeatAt;
+    this.daemonState.lastReason = reason;
     for (const platform of this.adapters.keys()) {
       const detail = `${platform} transport heartbeat at ${heartbeatAt}.`;
       this.pushTrace({
@@ -1759,6 +1945,7 @@ export class GatewayRunner {
 
   runtimeStatus(): GatewayRuntimeStatus {
     const controlPlane = this.getTransportControlPlane();
+    const daemon = this.buildDaemonRuntimeState();
     return {
       pid: process.pid,
       running: this.running,
@@ -1766,13 +1953,111 @@ export class GatewayRunner {
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastHeartbeatAt: this.lastHeartbeatAt,
+      lastWatchdogAt: this.daemonState.lastWatchdogAt,
       lastSupervisionAt: this.lastSupervisionAt,
       supervisionEvents: this.supervisionLog.length,
       adapters: Array.from(this.adapters.keys()),
+      daemon,
       transportControl: controlPlane.totals,
       messagingBridge: controlPlane.messagingBridge,
       transportInventory: controlPlane.transportInventory,
     };
+  }
+
+  private computeWatchdogSnapshot(): GatewayDaemonRuntimeState["watchdog"] {
+    const activePlatforms = Array.from(this.adapters.keys()).length;
+    const unhealthyPlatforms = Array.from(this.platformStates.values()).filter(
+      (state) => state.status !== "running" || !state.ready,
+    ).length;
+    const backoffPlatforms = Array.from(
+      this.restartBackoffByPlatform.values(),
+    ).filter((entry) => Boolean(entry.nextEligibleAt)).length;
+    return {
+      running: this.running,
+      activePlatforms,
+      unhealthyPlatforms,
+      restartablePlatforms: activePlatforms,
+      backoffPlatforms,
+      lastWatchdogAt: this.daemonState.lastWatchdogAt,
+      lastReason: this.daemonState.lastReason,
+    };
+  }
+
+  private recordRestartAttempt(
+    platform: PlatformName,
+    outcome: "restart" | "recover" | "backoff" | "skip" | "healthy",
+    detail: string,
+    delayMs?: number,
+  ): GatewaySupervisionRecord {
+    const state = this.ensurePlatformState(platform);
+    const restartState = this.ensureRestartState(platform);
+    if (outcome === "restart") {
+      this.daemonState.restartRuns += 1;
+      this.daemonState.lastRestartAt = nowIso();
+      restartState.failures = 0;
+      restartState.backoffMs = GATEWAY_DAEMON_POLICY.restartBaseDelayMs;
+      restartState.nextEligibleAt = undefined;
+      restartState.lastAction = "restart";
+      state.restartCount += 1;
+      state.restartFailureCount = restartState.failures;
+      state.lastRestartAt = this.daemonState.lastRestartAt;
+      state.nextRestartAt = restartState.nextEligibleAt;
+      state.lastWatchdogAt = this.daemonState.lastWatchdogAt;
+      state.lastWatchdogReason = this.daemonState.lastReason;
+      state.lastWatchdogAction = "restart";
+      state.transportState = state.ready ? "live" : "degraded";
+    } else if (outcome === "recover") {
+      this.daemonState.restartRecoveries += 1;
+      this.daemonState.lastRecoveryAt = nowIso();
+      restartState.failures += 1;
+      restartState.backoffMs = this.computeRestartBackoffMs(
+        restartState.failures,
+      );
+      restartState.nextEligibleAt = this.nextBackoffEligibility(
+        restartState.failures,
+      );
+      restartState.lastAction = "recover";
+      state.restartFailureCount = restartState.failures;
+      state.nextRestartAt = restartState.nextEligibleAt;
+      state.lastWatchdogAt = this.daemonState.lastWatchdogAt;
+      state.lastWatchdogReason = this.daemonState.lastReason;
+      state.lastWatchdogAction = "recover";
+      state.transportState = state.ready ? "live" : "degraded";
+    } else if (outcome === "backoff") {
+      this.daemonState.restartBackoffs += 1;
+      this.daemonState.lastBackoffAt = nowIso();
+      restartState.lastAction = "backoff";
+      state.restartFailureCount = restartState.failures;
+      state.lastWatchdogAt = this.daemonState.lastWatchdogAt;
+      state.lastWatchdogReason = this.daemonState.lastReason;
+      state.lastWatchdogAction = "backoff";
+      state.nextRestartAt = restartState.nextEligibleAt;
+    } else if (outcome === "skip") {
+      this.daemonState.watchdogSkips += 1;
+      restartState.lastAction = "skip";
+      state.lastWatchdogAt = this.daemonState.lastWatchdogAt;
+      state.lastWatchdogReason = this.daemonState.lastReason;
+      state.lastWatchdogAction = "skip";
+    } else {
+      restartState.failures = 0;
+      restartState.backoffMs = GATEWAY_DAEMON_POLICY.restartBaseDelayMs;
+      restartState.nextEligibleAt = undefined;
+      restartState.lastAction = "healthy";
+      state.restartFailureCount = 0;
+      state.nextRestartAt = undefined;
+      state.lastWatchdogAt = this.daemonState.lastWatchdogAt;
+      state.lastWatchdogReason = this.daemonState.lastReason;
+      state.lastWatchdogAction = "healthy";
+    }
+
+    const record = this.recordSupervision(
+      platform,
+      outcome === "healthy" ? "health" : outcome,
+      detail,
+      delayMs,
+      restartState.failures,
+    );
+    return record;
   }
 
   async transport(platform: PlatformName): Promise<GatewayTransportDetail> {
@@ -1860,6 +2145,9 @@ export class GatewayRunner {
           ready: nativeMessagingState?.ready ?? readiness?.ready ?? false,
           transportState: platformState?.transportState,
           status: readiness?.status,
+          restartCount: platformState?.restartCount ?? 0,
+          restartFailures: platformState?.restartFailureCount ?? 0,
+          backoffUntilAt: platformState?.nextRestartAt,
           traceCount: recentTraces.length,
           inboxCount: recentInbox.length,
           outboxCount: recentOutbox.length,
@@ -1895,14 +2183,32 @@ export class GatewayRunner {
   }
 
   async supervise(reason = "manual"): Promise<GatewaySupervisionRecord[]> {
+    return this.watchdog(reason);
+  }
+
+  async watchdog(reason = "watchdog"): Promise<GatewaySupervisionRecord[]> {
     const records: GatewaySupervisionRecord[] = [];
+    const watchdogAt = new Date().toISOString();
+    this.lastSupervisionAt = watchdogAt;
+    this.daemonState.watchdogRuns += 1;
+    this.daemonState.lastWatchdogAt = watchdogAt;
+    this.daemonState.lastReason = reason;
+
     for (const [platform, adapter] of this.adapters.entries()) {
       const health = await adapter.health();
+      const restartState = this.ensureRestartState(platform);
+      const backoffActive =
+        restartState.nextEligibleAt !== undefined &&
+        new Date(restartState.nextEligibleAt).getTime() > Date.now();
+
       if (health.ready) {
+        restartState.failures = 0;
+        restartState.nextEligibleAt = undefined;
+        restartState.backoffMs = GATEWAY_DAEMON_POLICY.restartBaseDelayMs;
         records.push(
-          this.recordSupervision(
+          this.recordRestartAttempt(
             platform,
-            "health",
+            "healthy",
             `${platform} healthy during ${reason}.`,
           ),
         );
@@ -1918,41 +2224,105 @@ export class GatewayRunner {
         continue;
       }
 
-      if (health.status === "running" || health.status === "idle") {
-        try {
-          await adapter.stop();
-          await adapter.start();
-          records.push(
-            this.recordSupervision(
-              platform,
-              "restart",
-              `${platform} adapter restart attempted during ${reason}.`,
-            ),
-          );
-        } catch (error) {
-          records.push(
-            this.recordSupervision(
-              platform,
-              "recover",
-              `${platform} recovery failed during ${reason}: ${error instanceof Error ? error.message : String(error)}`,
-            ),
-          );
-        }
-      } else {
+      const restartable =
+        health.status === "running" || health.status === "idle";
+      if (!restartable) {
         records.push(
-          this.recordSupervision(
+          this.recordRestartAttempt(
             platform,
             "skip",
             `${platform} supervision skipped during ${reason}; adapter status ${health.status}.`,
           ),
         );
+        continue;
+      }
+
+      if (backoffActive) {
+        records.push(
+          this.recordRestartAttempt(
+            platform,
+            "backoff",
+            `${platform} restart delayed until ${restartState.nextEligibleAt} during ${reason}.`,
+            restartState.backoffMs,
+          ),
+        );
+        continue;
+      }
+
+      try {
+        await adapter.stop();
+        await adapter.start();
+        restartState.failures = 0;
+        restartState.nextEligibleAt = undefined;
+        restartState.backoffMs = GATEWAY_DAEMON_POLICY.restartBaseDelayMs;
+        restartState.lastRestartAt = watchdogAt;
+        restartState.lastAction = "restart";
+        records.push(
+          this.recordRestartAttempt(
+            platform,
+            "restart",
+            `${platform} adapter restart attempted during ${reason}.`,
+          ),
+        );
+      } catch (error) {
+        const detail = `${platform} recovery failed during ${reason}: ${error instanceof Error ? error.message : String(error)}`;
+        records.push(this.recordRestartAttempt(platform, "recover", detail));
       }
     }
 
-    this.lastSupervisionAt = new Date().toISOString();
     this.writeRuntimeStatus();
-    await this.snapshotState(`supervise:${reason}`, 20);
+    await this.snapshotState(`watchdog:${reason}`, 20);
     return records;
+  }
+
+  async restart(
+    platform: PlatformName | "all",
+    reason = "manual",
+  ): Promise<GatewaySupervisionRecord[]> {
+    if (platform === "all") {
+      const records: GatewaySupervisionRecord[] = [];
+      for (const candidate of this.adapters.keys()) {
+        records.push(...(await this.restart(candidate, reason)));
+      }
+      return records;
+    }
+
+    const adapter = this.adapters.get(platform);
+    if (!adapter) {
+      return [
+        this.recordSupervision(
+          platform,
+          "skip",
+          `${platform} restart skipped during ${reason}; adapter is not active.`,
+        ),
+      ];
+    }
+
+    const restartState = this.ensureRestartState(platform);
+    try {
+      await adapter.stop();
+      await adapter.start();
+      restartState.failures = 0;
+      restartState.nextEligibleAt = undefined;
+      restartState.backoffMs = GATEWAY_DAEMON_POLICY.restartBaseDelayMs;
+      restartState.lastRestartAt = nowIso();
+      restartState.lastAction = "restart";
+      this.writeRuntimeStatus();
+      await this.snapshotState(`restart:${platform}:${reason}`, 20);
+      return [
+        this.recordRestartAttempt(
+          platform,
+          "restart",
+          `${platform} adapter restarted during ${reason}.`,
+        ),
+      ];
+    } catch (error) {
+      const detail = `${platform} restart failed during ${reason}: ${error instanceof Error ? error.message : String(error)}`;
+      const delayMs = this.computeRestartBackoffMs(restartState.failures + 1);
+      this.writeRuntimeStatus();
+      await this.snapshotState(`restart-failed:${platform}:${reason}`, 20);
+      return [this.recordRestartAttempt(platform, "recover", detail, delayMs)];
+    }
   }
 
   async receive(message: IncomingPlatformMessage): Promise<{
@@ -2911,12 +3281,16 @@ export class GatewayRunner {
     platform: PlatformName | "gateway",
     action: GatewaySupervisionRecord["action"],
     detail: string,
+    delayMs?: number,
+    attempt?: number,
   ): GatewaySupervisionRecord {
     const record: GatewaySupervisionRecord = {
       at: new Date().toISOString(),
       platform,
       action,
       detail,
+      delayMs,
+      attempt,
     };
     this.supervisionLog.push(record);
     if (this.supervisionLog.length > 200) {

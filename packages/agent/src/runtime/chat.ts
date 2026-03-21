@@ -20,6 +20,7 @@ import {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
+  exportEffectiveSkillHubManifest,
   fetchEffectiveBrowserPage,
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
@@ -41,21 +42,33 @@ import {
   getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
-  getEffectiveSkillCatalog,
+  getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubGenerated,
+  getEffectiveSkillHubInstalled,
+  getEffectiveSkillHubInstalledManifest,
+  getEffectiveSkillHubSummary,
+  getEffectiveSkillHubWorkspace,
   getEffectiveSkills,
   getEffectiveSkillsSummary,
+  getEffectiveUserBeliefs,
+  getEffectiveUserEngagement,
+  getEffectiveUserProfileSearch,
+  getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
+  importEffectiveSkillHubManifest,
   inspectEffectiveBrowserPage,
+  installEffectiveSkillHubManifest,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
-  searchEffectiveSkillCatalog,
+  searchEffectiveSkillHubCatalog,
   snapshotEffectiveBrowserPage,
+  syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
@@ -938,9 +951,53 @@ async function buildCommandResponse(
     return context.services.userProfiles.render(input.userId);
   }
 
+  if (trimmed === "/user beliefs") {
+    return JSON.stringify(
+      getEffectiveUserBeliefs(context.runtime, context.services, input.userId),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/user relationship") {
+    return JSON.stringify(
+      getEffectiveUserRelationship(
+        context.runtime,
+        context.services,
+        input.userId,
+      ),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/user engagement") {
+    return JSON.stringify(
+      getEffectiveUserEngagement(
+        context.runtime,
+        context.services,
+        input.userId,
+      ),
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/profiles summary") {
     return JSON.stringify(
       getEffectiveRolodexSummary(context.runtime, context.services),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/user search ")) {
+    const query = trimmed.replace("/user search ", "").trim();
+    if (!query) {
+      return "Usage: /user search <query>";
+    }
+    return JSON.stringify(
+      getEffectiveUserProfileSearch(context.runtime, context.services, query),
       null,
       2,
     );
@@ -974,6 +1031,18 @@ async function buildCommandResponse(
     return JSON.stringify(
       nativeServices.rolodex?.recall(input.userId, query) ??
         context.services.userProfiles.recall(input.userId, query),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/profiles users search ")) {
+    const query = trimmed.replace("/profiles users search ", "").trim();
+    if (!query) {
+      return "Usage: /profiles users search <query>";
+    }
+    return JSON.stringify(
+      getEffectiveUserProfileSearch(context.runtime, context.services, query),
       null,
       2,
     );
@@ -1027,20 +1096,22 @@ async function buildCommandResponse(
     const kind = kindRaw?.trim();
     const value = valueParts.join("::").trim();
     if (!kind || !value) {
-      return "Usage: /user remember <preference|fact|goal|context|constraint|note|memory> :: <text>";
+      return "Usage: /user remember <preference|fact|belief|goal|context|constraint|relationship|note|memory> :: <text>";
     }
     if (
       ![
         "preference",
         "fact",
+        "belief",
         "goal",
         "context",
         "constraint",
+        "relationship",
         "note",
         "memory",
       ].includes(kind)
     ) {
-      return "Usage: /user remember <preference|fact|goal|context|constraint|note|memory> :: <text>";
+      return "Usage: /user remember <preference|fact|belief|goal|context|constraint|relationship|note|memory> :: <text>";
     }
     return JSON.stringify(
       nativeServices.rolodex?.remember(
@@ -1136,19 +1207,64 @@ async function buildCommandResponse(
       slug: string;
       description?: string;
     }>;
-    return skills.length
-      ? skills
-          .map(
-            (skill) =>
-              `- ${skill.slug}: ${skill.description ?? "No description available."}`,
-          )
-          .join("\n")
-      : "No skills found.";
+    const workspace = getEffectiveSkillHubWorkspace(context.services) as Array<{
+      slug: string;
+      title: string;
+      description: string;
+      source: string;
+      manifestPath: string;
+    }>;
+    return [
+      `workspace=${workspace.length} generated=${getEffectiveSkillHubGenerated(context.services).length} installed=${getEffectiveSkillHubInstalled(context.services).length}`,
+      "",
+      skills.length
+        ? skills
+            .map(
+              (skill) =>
+                `- ${skill.slug}: ${skill.description ?? "No description available."}`,
+            )
+            .join("\n")
+        : "No skills found.",
+    ].join("\n");
   }
 
   if (trimmed === "/skills summary") {
     return JSON.stringify(
-      getEffectiveSkillsSummary(context.runtime, context.services),
+      {
+        workspace: getEffectiveSkillsSummary(context.runtime, context.services),
+        hub: getEffectiveSkillHubSummary(context.services),
+        installed: getEffectiveSkillHubInstalled(context.services),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills hub") {
+    return JSON.stringify(
+      getEffectiveSkillHubSummary(context.services),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills installed") {
+    return JSON.stringify(
+      getEffectiveSkillHubInstalled(context.services),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills installed show ")) {
+    const slug = trimmed.replace("/skills installed show ", "").trim();
+    if (!slug) {
+      return "Usage: /skills installed show <slug>";
+    }
+    return JSON.stringify(
+      getEffectiveSkillHubInstalledManifest(context.services, slug) ?? {
+        error: `Installed skill manifest not found: ${slug}`,
+      },
       null,
       2,
     );
@@ -1156,7 +1272,7 @@ async function buildCommandResponse(
 
   if (trimmed === "/skills catalog") {
     return JSON.stringify(
-      await getEffectiveSkillCatalog(context.runtime, context.services),
+      await getEffectiveSkillHubCatalog(context.services, false, 50),
       null,
       2,
     );
@@ -1164,7 +1280,7 @@ async function buildCommandResponse(
 
   if (trimmed === "/skills catalog refresh") {
     return JSON.stringify(
-      await context.services.agentSdk.skillCatalog(true),
+      await getEffectiveSkillHubCatalog(context.services, true, 50),
       null,
       2,
     );
@@ -1176,11 +1292,86 @@ async function buildCommandResponse(
       return "Usage: /skills catalog search <query>";
     }
     return JSON.stringify(
-      await searchEffectiveSkillCatalog(
-        context.runtime,
-        context.services,
-        query,
-      ),
+      await searchEffectiveSkillHubCatalog(context.services, query),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills catalog show ")) {
+    const slug = trimmed.replace("/skills catalog show ", "").trim();
+    if (!slug) {
+      return "Usage: /skills catalog show <slug>";
+    }
+    return JSON.stringify(
+      (await context.services.skillsHub.catalogEntry(slug)) ?? {
+        error: `Catalog skill not found: ${slug}`,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills sync" || trimmed === "/skills sync refresh") {
+    return JSON.stringify(
+      await syncEffectiveSkillHub(context.services, true),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills manifest ")) {
+    const slug = trimmed.replace("/skills manifest ", "").trim();
+    if (!slug) {
+      return "Usage: /skills manifest <slug>";
+    }
+    return JSON.stringify(
+      context.services.skillsHub.manifest(slug) ?? {
+        error: `Skill manifest not found: ${slug}`,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills export ")) {
+    const raw = trimmed.replace("/skills export ", "").trim();
+    if (!raw) {
+      return "Usage: /skills export <slug|all>";
+    }
+    if (raw === "all") {
+      return JSON.stringify(
+        await context.services.skillsHub.exportBundle("skills-hub"),
+        null,
+        2,
+      );
+    }
+    return JSON.stringify(
+      exportEffectiveSkillHubManifest(context.services, raw),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills import ")) {
+    const sourcePath = trimmed.replace("/skills import ", "").trim();
+    if (!sourcePath) {
+      return "Usage: /skills import <manifest-path>";
+    }
+    return JSON.stringify(
+      importEffectiveSkillHubManifest(context.services, sourcePath),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills install ")) {
+    const slug = trimmed.replace("/skills install ", "").trim();
+    if (!slug) {
+      return "Usage: /skills install <catalog-slug>";
+    }
+    return JSON.stringify(
+      await installEffectiveSkillHubManifest(context.services, slug),
       null,
       2,
     );
@@ -1841,6 +2032,74 @@ async function buildCommandResponse(
         messagingPlugins: groupNativePluginCatalog(
           getNativePluginCatalog(context.config),
         ).messaging,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/gateway daemon") {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const runtime = context.gateway.runtimeStatus();
+    return JSON.stringify(
+      {
+        runtime,
+        daemon: runtime.daemon,
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/gateway watchdog")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const reason = trimmed.replace("/gateway watchdog", "").trim() || "cli";
+    return JSON.stringify(
+      {
+        reason,
+        records: await context.gateway.watchdog(reason),
+        runtime: context.gateway.runtimeStatus(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/gateway restart")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const payload = trimmed.replace("/gateway restart", "").trim();
+    const [candidate, ...reasonParts] = payload.split(/\s+/u);
+    const platform =
+      candidate === "all" || !candidate
+        ? "all"
+        : (parseTransportPlatform(candidate) ?? "all");
+    const reason = reasonParts.join(" ").trim() || "cli";
+    return JSON.stringify(
+      {
+        platform,
+        reason,
+        records: await context.gateway.restart(platform, reason),
+        runtime: context.gateway.runtimeStatus(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/gateway supervision") {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    return JSON.stringify(
+      {
+        runtime: context.gateway.runtimeStatus(),
+        records: context.gateway.supervision(50),
       },
       null,
       2,
@@ -2570,8 +2829,33 @@ async function buildCommandResponse(
     return JSON.stringify(context.services.acp.registry(), null, 2);
   }
 
+  if (trimmed === "/acp package") {
+    return JSON.stringify(context.services.acp.packageMetadata(), null, 2);
+  }
+
+  if (trimmed === "/acp editor" || trimmed === "/acp install") {
+    return JSON.stringify(context.services.acp.editorSummary(), null, 2);
+  }
+
+  if (trimmed === "/acp sessions") {
+    return JSON.stringify(context.services.acp.sessionSummary(), null, 2);
+  }
+
   if (trimmed === "/acp publish") {
     return JSON.stringify(context.services.acp.publishRegistry(), null, 2);
+  }
+
+  if (trimmed.startsWith("/acp export")) {
+    const label = trimmed.replace("/acp export", "").trim() || "latest";
+    return JSON.stringify(context.services.acp.exportBundle(label), null, 2);
+  }
+
+  if (trimmed.startsWith("/acp import ")) {
+    const input = trimmed.replace("/acp import ", "").trim();
+    if (!input) {
+      return "Usage: /acp import <path-or-json>";
+    }
+    return JSON.stringify(context.services.acp.importBundle(input), null, 2);
   }
 
   if (trimmed === "/acp probe") {
@@ -3679,6 +3963,12 @@ export async function handleAgentTurn(
     input.userId,
     input.message,
     input.source,
+    {
+      source: input.source,
+      channel: input.source,
+      sessionId,
+      signal: input.message.slice(0, 160),
+    },
   );
 
   context.services.sessions.storeMessage({

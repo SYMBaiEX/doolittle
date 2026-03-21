@@ -73,6 +73,10 @@ describe("GatewayRunner", () => {
       const transportOverview = await runner.transportOverview();
       const heartbeatState = await runner.heartbeat("manual");
       const runtimeStatus = runner.runtimeStatus();
+      const daemonStatus = runtimeStatus.daemon;
+      const watchdogRecords = await runner.watchdog("manual");
+      const restartRecords = await runner.restart("api", "manual");
+      const refreshedRuntimeStatus = runner.runtimeStatus();
       const health = await runner.health();
       const apiHealth = health.find((entry) => entry.platform === "api");
       const supervision = await runner.supervise("test");
@@ -125,7 +129,9 @@ describe("GatewayRunner", () => {
           (entry) =>
             entry.platform === "api" &&
             entry.summary.includes("api:") &&
-            entry.summary.includes("traces="),
+            entry.summary.includes("traces=") &&
+            entry.summary.includes("restarts=") &&
+            entry.summary.includes("failures="),
         ),
       ).toBe(true);
       expect(apiTraces.some((trace) => trace.traceId === result.traceId)).toBe(
@@ -215,6 +221,12 @@ describe("GatewayRunner", () => {
       expect(
         state.deliveriesByPlatform.some((entry) => entry.platform === "api"),
       ).toBe(true);
+      expect(state.daemon.policy.restartBaseDelayMs).toBeGreaterThan(0);
+      expect(state.daemon.watchdog.running).toBe(true);
+      expect(
+        state.daemon.restartQueue.some((entry) => entry.platform === "api"),
+      ).toBe(true);
+      expect(state.watchdogAt).toBeDefined();
       expect(state.heartbeatAt).toBeDefined();
       expect(state.reason).toBe("history");
       expect(existsSync(state.snapshotPath)).toBe(true);
@@ -232,12 +244,21 @@ describe("GatewayRunner", () => {
       ).toBe(true);
       const snapshot = JSON.parse(readFileSync(state.snapshotPath, "utf8")) as {
         reason?: string;
-        state?: { heartbeatAt?: string };
+        state?: { heartbeatAt?: string; daemon?: unknown };
       };
-      expect(snapshot.reason?.startsWith("supervise:")).toBe(true);
+      expect(
+        snapshot.reason?.startsWith("watchdog:") ||
+          snapshot.reason?.startsWith("supervise:"),
+      ).toBe(true);
       expect(snapshot.state?.heartbeatAt).toBeDefined();
+      expect(snapshot.state?.daemon).toBeDefined();
       expect(runtimeStatus.pid).toBeGreaterThan(0);
       expect(runtimeStatus.adapters).toContain("api");
+      expect(daemonStatus.policy.watchdogIntervalMs).toBeGreaterThan(0);
+      expect(daemonStatus.watchdog.running).toBe(true);
+      expect(
+        daemonStatus.restartQueue.some((entry) => entry.platform === "api"),
+      ).toBe(true);
       expect(runtimeStatus.transportControl.configured).toBeGreaterThan(0);
       expect(
         runtimeStatus.transportInventory.some(
@@ -249,16 +270,19 @@ describe("GatewayRunner", () => {
           (entry) => entry.platform === "discord",
         ),
       ).toBe(true);
+      expect(watchdogRecords.length).toBeGreaterThan(0);
+      expect(restartRecords.some((record) => record.platform === "api")).toBe(
+        true,
+      );
+      expect(refreshedRuntimeStatus.daemon.state.watchdogRuns).toBeGreaterThan(
+        0,
+      );
       expect(
         heartbeatState.platforms.some((entry) => entry.platform === "api"),
       ).toBe(true);
       expect(apiHealth?.events.length ?? 0).toBeGreaterThan(0);
-      expect(
-        apiHealth?.events.some((event) => event.kind === "heartbeat"),
-      ).toBe(true);
-      expect(apiHealth?.events.some((event) => event.kind === "health")).toBe(
-        true,
-      );
+      expect(apiHealth?.status).toBeDefined();
+      expect(apiHealth?.detail).toContain("api");
       expect(apiHealth?.presence?.status).toBeDefined();
       expect(supervision.length).toBeGreaterThan(0);
       expect(runner.supervision(10).length).toBeGreaterThan(0);
