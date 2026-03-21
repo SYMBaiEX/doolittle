@@ -243,16 +243,16 @@ interface NativeE2BService {
 
 interface NativeGitHubService {
   capabilityDescription?: string;
-  createRepository?: (...args: unknown[]) => unknown;
-  deleteRepository?: (...args: unknown[]) => unknown;
+  createRepository?: (name: string, isPrivate?: boolean) => Promise<unknown>;
+  deleteRepository?: (name: string) => Promise<unknown>;
 }
 
 interface NativeSecretsManagerService {
   capabilityDescription?: string;
-  getSecret?: (key: string) => unknown;
-  setSecret?: (key: string, value: string) => unknown;
-  hasSecret?: (key: string) => boolean;
-  listSecretKeys?: () => string[];
+  getSecret?: (key: string) => Promise<unknown> | unknown;
+  setSecret?: (key: string, value: string) => Promise<unknown> | unknown;
+  hasSecret?: (key: string) => Promise<boolean> | boolean;
+  listSecretKeys?: () => Promise<string[]> | string[];
 }
 
 interface NativeTelegramTransportService {
@@ -598,7 +598,8 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
         method as keyof NativeCodeGenerationService
       ] === "function",
   );
-  const secretKeys = native.secretsManager?.listSecretKeys?.() ?? [];
+  const rawSecretKeys = native.secretsManager?.listSecretKeys?.();
+  const secretKeys = Array.isArray(rawSecretKeys) ? rawSecretKeys : [];
 
   return {
     e2b: {
@@ -651,6 +652,99 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
       hasWrite: typeof native.secretsManager?.setSecret === "function",
     },
   };
+}
+
+export async function performEffectiveCodeResearch(
+  runtime: RuntimeLike,
+  request: Record<string, unknown>,
+) {
+  const codeGeneration = getNativeServices(runtime).codeGeneration;
+  if (!codeGeneration?.performResearch) {
+    throw new Error("Native code generation research is unavailable.");
+  }
+  return codeGeneration.performResearch(request);
+}
+
+export async function generateEffectivePrd(
+  runtime: RuntimeLike,
+  request: Record<string, unknown>,
+  research: Record<string, unknown>,
+) {
+  const codeGeneration = getNativeServices(runtime).codeGeneration;
+  if (!codeGeneration?.generatePRD) {
+    throw new Error("Native PRD generation is unavailable.");
+  }
+  return codeGeneration.generatePRD(request, research);
+}
+
+export async function performEffectiveCodeQa(
+  runtime: RuntimeLike,
+  projectPath: string,
+) {
+  const codeGeneration = getNativeServices(runtime).codeGeneration;
+  if (!codeGeneration?.performQA) {
+    throw new Error("Native code generation QA is unavailable.");
+  }
+  return codeGeneration.performQA(projectPath);
+}
+
+export async function createEffectiveRepository(
+  runtime: RuntimeLike,
+  name: string,
+  isPrivate = true,
+) {
+  const github = getNativeServices(runtime).github;
+  if (!github?.createRepository) {
+    throw new Error("Native GitHub service is unavailable.");
+  }
+  return github.createRepository(name, isPrivate);
+}
+
+export async function deleteEffectiveRepository(
+  runtime: RuntimeLike,
+  name: string,
+) {
+  const github = getNativeServices(runtime).github;
+  if (!github?.deleteRepository) {
+    throw new Error("Native GitHub service is unavailable.");
+  }
+  return github.deleteRepository(name);
+}
+
+export async function getEffectiveSecret(runtime: RuntimeLike, key: string) {
+  const secretsManager = getNativeServices(runtime).secretsManager;
+  if (!secretsManager?.getSecret) {
+    throw new Error("Native secrets service is unavailable.");
+  }
+  return secretsManager.getSecret(key);
+}
+
+export async function setEffectiveSecret(
+  runtime: RuntimeLike,
+  key: string,
+  value: string,
+) {
+  const secretsManager = getNativeServices(runtime).secretsManager;
+  if (!secretsManager?.setSecret) {
+    throw new Error("Native secrets service is unavailable.");
+  }
+  return secretsManager.setSecret(key, value);
+}
+
+export async function hasEffectiveSecret(runtime: RuntimeLike, key: string) {
+  const secretsManager = getNativeServices(runtime).secretsManager;
+  if (!secretsManager?.hasSecret) {
+    throw new Error("Native secrets service is unavailable.");
+  }
+  return secretsManager.hasSecret(key);
+}
+
+export async function listEffectiveSecretKeys(runtime: RuntimeLike) {
+  const secretsManager = getNativeServices(runtime).secretsManager;
+  if (!secretsManager?.listSecretKeys) {
+    throw new Error("Native secrets service is unavailable.");
+  }
+  return secretsManager.listSecretKeys();
 }
 
 export function getNativeMediaControlPlane(config: EnvConfig) {

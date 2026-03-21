@@ -195,6 +195,24 @@ export class ToolsService {
       transport: "service",
     },
     {
+      id: "github.native",
+      name: "Native GitHub",
+      category: "runtime",
+      description:
+        "Manage native autocoder GitHub repository creation and deletion.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "secrets.native",
+      name: "Native Secrets",
+      category: "runtime",
+      description:
+        "Inspect and manage native secrets-manager keys for autocoder workflows.",
+      enabled: true,
+      transport: "service",
+    },
+    {
       id: "repository.status",
       name: "Repository Status",
       category: "repository",

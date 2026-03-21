@@ -19,7 +19,9 @@ import {
   compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
   createEffectiveForm,
+  createEffectiveRepository,
   createEffectiveSandbox,
+  deleteEffectiveRepository,
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
@@ -27,6 +29,7 @@ import {
   exportEffectiveSkillHubManifest,
   fetchEffectiveBrowserPage,
   generateEffectiveCode,
+  generateEffectivePrd,
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
@@ -45,6 +48,7 @@ import {
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
+  getEffectiveSecret,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkillHubCatalog,
@@ -79,11 +83,15 @@ import {
   killEffectiveSandbox,
   listEffectiveForms,
   listEffectiveSandboxes,
+  listEffectiveSecretKeys,
+  performEffectiveCodeQa,
+  performEffectiveCodeResearch,
   retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
   searchEffectiveSkillHubCatalog,
+  setEffectiveSecret,
   snapshotEffectiveBrowserPage,
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
@@ -2792,6 +2800,198 @@ async function buildCommandResponse(
           prompt: promptPart,
           objective: promptPart,
         }),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen research ")) {
+    const payload = trimmed.replace("/codegen research ", "").trim();
+    const [left, description] = payload.split("::").map((part) => part.trim());
+    if (!left || !description) {
+      return "Usage: /codegen research <project-name> | type:plugin | apis:api1,api2 | requirements:req1,req2 :: <description>";
+    }
+    const segments = left.split("|").map((part) => part.trim());
+    const projectName = segments.shift()?.trim();
+    if (!projectName) {
+      return "Usage: /codegen research <project-name> | type:plugin | apis:api1,api2 | requirements:req1,req2 :: <description>";
+    }
+    const type = segments
+      .find((part) => part.startsWith("type:"))
+      ?.replace("type:", "")
+      .trim();
+    const apis =
+      segments
+        .find((part) => part.startsWith("apis:"))
+        ?.replace("apis:", "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean) ?? [];
+    const requirements =
+      segments
+        .find((part) => part.startsWith("requirements:"))
+        ?.replace("requirements:", "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean) ?? [];
+    return JSON.stringify(
+      {
+        research: await performEffectiveCodeResearch(context.runtime, {
+          projectName,
+          targetType: type ?? "plugin",
+          description,
+          apis,
+          requirements,
+        }),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen prd ")) {
+    const payload = trimmed.replace("/codegen prd ", "").trim();
+    const [left, description] = payload.split("::").map((part) => part.trim());
+    if (!left || !description) {
+      return "Usage: /codegen prd <project-name> | type:plugin | apis:api1,api2 | requirements:req1,req2 :: <description>";
+    }
+    const segments = left.split("|").map((part) => part.trim());
+    const projectName = segments.shift()?.trim();
+    if (!projectName) {
+      return "Usage: /codegen prd <project-name> | type:plugin | apis:api1,api2 | requirements:req1,req2 :: <description>";
+    }
+    const targetType =
+      segments
+        .find((part) => part.startsWith("type:"))
+        ?.replace("type:", "")
+        .trim() ?? "plugin";
+    const apis =
+      segments
+        .find((part) => part.startsWith("apis:"))
+        ?.replace("apis:", "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean) ?? [];
+    const requirements =
+      segments
+        .find((part) => part.startsWith("requirements:"))
+        ?.replace("requirements:", "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean) ?? [];
+    const request = {
+      projectName,
+      targetType,
+      description,
+      apis,
+      requirements,
+    };
+    const research = await performEffectiveCodeResearch(
+      context.runtime,
+      request,
+    );
+    return JSON.stringify(
+      {
+        research,
+        prd: await generateEffectivePrd(
+          context.runtime,
+          request,
+          research as Record<string, unknown>,
+        ),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen qa ")) {
+    const projectPath = trimmed.replace("/codegen qa ", "").trim();
+    if (!projectPath) {
+      return "Usage: /codegen qa <project-path>";
+    }
+    return JSON.stringify(
+      {
+        qa: await performEffectiveCodeQa(context.runtime, projectPath),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/github create ")) {
+    const payload = trimmed.replace("/github create ", "").trim();
+    if (!payload) {
+      return "Usage: /github create <repo-name> [| private:false]";
+    }
+    const [name, ...flags] = payload.split("|").map((part) => part.trim());
+    const privateFlag = flags.find((part) => part.startsWith("private:"));
+    const isPrivate = privateFlag
+      ? privateFlag.replace("private:", "").trim() !== "false"
+      : true;
+    return JSON.stringify(
+      {
+        repository: await createEffectiveRepository(
+          context.runtime,
+          name,
+          isPrivate,
+        ),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/github delete ")) {
+    const name = trimmed.replace("/github delete ", "").trim();
+    if (!name) {
+      return "Usage: /github delete <repo-name>";
+    }
+    return JSON.stringify(
+      {
+        deleted: await deleteEffectiveRepository(context.runtime, name),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/secrets list") {
+    return JSON.stringify(
+      {
+        keys: await listEffectiveSecretKeys(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/secrets get ")) {
+    const key = trimmed.replace("/secrets get ", "").trim();
+    if (!key) {
+      return "Usage: /secrets get <key>";
+    }
+    return JSON.stringify(
+      {
+        key,
+        value: await getEffectiveSecret(context.runtime, key),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/secrets set ")) {
+    const payload = trimmed.replace("/secrets set ", "").trim();
+    const [key, value] = payload.split("::").map((part) => part.trim());
+    if (!key || !value) {
+      return "Usage: /secrets set <key> :: <value>";
+    }
+    await setEffectiveSecret(context.runtime, key, value);
+    return JSON.stringify(
+      {
+        key,
+        valueSet: true,
       },
       null,
       2,
