@@ -2,7 +2,11 @@ import type { IAgentRuntime } from "@elizaos/core";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
 import type { MemorySummary } from "@/services/memory-service";
-import type { EnvConfig, GatewayConfig } from "@/types";
+import type {
+  EnvConfig,
+  GatewayConfig,
+  UserProfileWorkspaceSummary,
+} from "@/types";
 import { describeAutonomousAlignment } from "./autonomous-stack";
 
 interface NativeKnowledgeService {
@@ -150,15 +154,7 @@ interface NativePersonalitySummary {
   names: string[];
 }
 
-interface NativeRolodexSummary {
-  totalProfiles: number;
-  agentName: string;
-  recentProfiles: string[];
-  totalBeliefs: number;
-  activeRelationships: number;
-  engagedProfiles: number;
-  recentSignals: string[];
-}
+interface NativeRolodexSummary extends UserProfileWorkspaceSummary {}
 
 interface NativeExperienceSummary {
   sessions: {
@@ -168,6 +164,17 @@ interface NativeExperienceSummary {
   memory: {
     shared: MemorySummary;
     user: MemorySummary;
+  };
+}
+
+interface NativeOwnershipControlPlaneSummary {
+  serviceResolution: EffectiveServiceResolutionRecord[];
+  transportControl: ReturnType<typeof getNativeTransportControlPlane>;
+  pluginManager: ReturnType<typeof getEffectivePluginManagerInventory> | null;
+  identity?: {
+    personality: NativePersonalitySummary;
+    rolodex: NativeRolodexSummary;
+    experience: NativeExperienceSummary;
   };
 }
 
@@ -898,7 +905,10 @@ export function getEffectivePersonalitySummary(
   services: AppServices,
 ): NativePersonalitySummary {
   return (getNativeServices(runtime).personality?.summary?.() ?? {
-    ...services.personalities.summary(),
+    ...(services.personalities?.summary?.() ?? {
+      total: 0,
+      names: [],
+    }),
   }) as NativePersonalitySummary;
 }
 
@@ -909,6 +919,13 @@ export function getEffectiveRolodexSummary(
   return (getNativeServices(runtime).rolodex?.summary?.() ?? {
     ...services.userProfiles.summary(),
   }) as NativeRolodexSummary;
+}
+
+export function getEffectiveUserProfileSummary(
+  runtime: RuntimeLike,
+  services: AppServices,
+): NativeRolodexSummary {
+  return getEffectiveRolodexSummary(runtime, services);
 }
 
 export function getEffectiveUserProfileSearch(
@@ -969,6 +986,30 @@ export function getEffectiveExperienceSummary(
       user: getEffectiveMemorySnapshot(runtime, services, "user"),
     },
   }) as NativeExperienceSummary;
+}
+
+export function getNativeOwnershipControlPlane(
+  runtime: RuntimeLike,
+  services: AppServices | undefined,
+  config: EnvConfig,
+  gatewayConfig?: GatewayConfig,
+): NativeOwnershipControlPlaneSummary {
+  return {
+    serviceResolution: getEffectiveServiceResolution(runtime),
+    transportControl: getNativeTransportControlPlane(
+      runtime,
+      config,
+      gatewayConfig,
+    ),
+    pluginManager: getEffectivePluginManagerInventory(runtime),
+    identity: services
+      ? {
+          personality: getEffectivePersonalitySummary(runtime, services),
+          rolodex: getEffectiveRolodexSummary(runtime, services),
+          experience: getEffectiveExperienceSummary(runtime, services),
+        }
+      : undefined,
+  };
 }
 
 export function getEffectiveGeneratedSkills(

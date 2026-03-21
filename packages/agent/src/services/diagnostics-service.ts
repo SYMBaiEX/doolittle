@@ -7,9 +7,8 @@ import {
 } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
-  getEffectivePluginManagerInventory,
   getNativeIntegrationControlPlane,
-  getNativeTransportControlPlane,
+  getNativeOwnershipControlPlane,
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
@@ -124,15 +123,13 @@ export class DiagnosticsService {
       : undefined;
     const registrySnapshot = ecosystem?.registry;
     const skillCatalog = ecosystem?.skillCatalog;
-    const controlPlane = this.runtime
-      ? getNativeTransportControlPlane(
+    const ownership = this.runtime
+      ? getNativeOwnershipControlPlane(
           this.runtime,
+          undefined,
           this.config,
           this.gatewayConfig,
         )
-      : undefined;
-    const pluginManager = this.runtime
-      ? getEffectivePluginManagerInventory(this.runtime)
       : undefined;
     const integrationControl = this.runtime
       ? await getNativeIntegrationControlPlane(this.runtime, {
@@ -170,7 +167,6 @@ export class DiagnosticsService {
           },
         } as unknown as Parameters<typeof getNativeIntegrationControlPlane>[1])
       : undefined;
-    const messagingBridge = controlPlane?.messagingBridge ?? [];
     checks.push({
       id: "native.workspace",
       status: existsSync(nativeWorkspacePath) ? "pass" : "warn",
@@ -275,7 +271,10 @@ export class DiagnosticsService {
         .join(", "),
     });
 
-    if (controlPlane) {
+    if (ownership) {
+      const controlPlane = ownership.transportControl;
+      const pluginManager = ownership.pluginManager;
+      const messagingBridge = controlPlane.messagingBridge;
       checks.push({
         id: "native.messaging.services",
         status: messagingBridge.some((entry) => entry.live) ? "pass" : "warn",
@@ -310,6 +309,12 @@ export class DiagnosticsService {
             : "warn",
         summary: "Gateway transport inventory",
         detail: summarizeTransportInventory(controlPlane.transportInventory),
+      });
+      checks.push({
+        id: "native.ownership.snapshot",
+        status: ownership.serviceResolution.length > 0 ? "pass" : "warn",
+        summary: "Native ownership control plane",
+        detail: `serviceResolution=${ownership.serviceResolution.length} transportOperational=${controlPlane.totals.operationalTransports} pluginManagerEnabled=${pluginManager?.summary.enabled ?? 0}`,
       });
       if (input.gatewayTransportOverview) {
         checks.push({

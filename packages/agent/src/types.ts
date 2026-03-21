@@ -409,6 +409,8 @@ export interface AgentIdentityRecord {
 export interface UserProfileBeliefSummary {
   userId: string;
   displayName?: string;
+  count: number;
+  sourceCount: number;
   beliefs: string[];
   sources: string[];
 }
@@ -419,6 +421,7 @@ export interface UserProfileRelationshipSummary {
   status: "new" | "growing" | "active" | "trusted";
   trust: number;
   collaboration: number;
+  noteCount: number;
   notes: string[];
   lastInteractionAt?: string;
   lastSource?: string;
@@ -428,6 +431,10 @@ export interface UserProfileEngagementSummary {
   userId: string;
   displayName?: string;
   touches: number;
+  channelCount: number;
+  sourceCount: number;
+  sessionCount: number;
+  recentSignalCount: number;
   channels: string[];
   sources: string[];
   sessionIds: string[];
@@ -442,6 +449,78 @@ export interface UserProfileSearchHit {
   score: number;
   matchedFields: string[];
   preview: string[];
+  relationshipStatus?: "new" | "growing" | "active" | "trusted";
+  trust?: number;
+  collaboration?: number;
+  touches?: number;
+  channels?: string[];
+  lastInteractionAt?: string;
+  lastSource?: string;
+}
+
+export interface UserProfileWorkspaceRelationshipSummary {
+  userId: string;
+  displayName?: string;
+  status: "new" | "growing" | "active" | "trusted";
+  trust: number;
+  collaboration: number;
+  lastInteractionAt?: string;
+  lastSource?: string;
+}
+
+export interface UserProfileWorkspaceEngagementSummary {
+  userId: string;
+  displayName?: string;
+  touches: number;
+  channels: string[];
+  sources: string[];
+  sessionIds: string[];
+  recentSignals: string[];
+  lastInteractionAt?: string;
+  lastSource?: string;
+}
+
+export interface UserProfileWorkspaceBeliefSummary {
+  userId: string;
+  displayName?: string;
+  beliefCount: number;
+  sourceCount: number;
+  beliefs: string[];
+  sources: string[];
+}
+
+export interface UserProfileWorkspaceSignalSummary {
+  signal: string;
+  count: number;
+  userIds: string[];
+}
+
+export interface UserProfileWorkspaceChannelSummary {
+  channel: string;
+  count: number;
+}
+
+export interface UserProfileWorkspaceSummary {
+  totalProfiles: number;
+  agentName: string;
+  recentProfiles: string[];
+  totalBeliefs: number;
+  totalBeliefSources: number;
+  activeRelationships: number;
+  trustedRelationships: number;
+  engagedProfiles: number;
+  relationshipStatusCounts: {
+    new: number;
+    growing: number;
+    active: number;
+    trusted: number;
+  };
+  topBeliefProfiles: UserProfileWorkspaceBeliefSummary[];
+  topRelationships: UserProfileWorkspaceRelationshipSummary[];
+  topEngagements: UserProfileWorkspaceEngagementSummary[];
+  topChannels: UserProfileWorkspaceChannelSummary[];
+  topSignals: UserProfileWorkspaceSignalSummary[];
+  recentSignals: string[];
 }
 
 export interface ContextDocument {

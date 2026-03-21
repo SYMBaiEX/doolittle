@@ -8,20 +8,24 @@ import type {
   Service,
 } from "@elizaos/core";
 import { Service as ElizaService, ModelType } from "@elizaos/core";
-import { createCronAction } from "@/actions/cron-action";
-import { createMemoryAction } from "@/actions/memory-action";
-import { createRepositoryAction } from "@/actions/repository-action";
-import { createSessionSearchAction } from "@/actions/session-search-action";
-import { createSkillsAction } from "@/actions/skills-action";
-import { createTerminalAction } from "@/actions/terminal-action";
-import { createWorkspaceAction } from "@/actions/workspace-action";
-import { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
-import { GatewayRunner } from "@/gateway/gateway-runner";
-import { createAgentContextProvider } from "@/providers/agent-context-provider";
-import type { AppContext } from "@/runtime/bootstrap";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types";
+import {
+  type AgentExecutionContext,
+  type AppContext,
+  type AppServices,
+  createAgentContextProvider,
+  createCronAction,
+  createMemoryAction,
+  createMemoryNudgeEvaluator,
+  createRepositoryAction,
+  createSessionSearchAction,
+  createSkillsAction,
+  createTerminalAction,
+  createWorkspaceAction,
+  type EnvConfig,
+  GatewayRunner,
+  handleAgentTurn,
+} from "@/plugin-api";
+import type { CronJobRecord } from "@/types";
 
 function createOpenAiBackedTextModel(config: EnvConfig) {
   return async (
@@ -158,8 +162,7 @@ export function createElizaAgentPlugin(
       } | null;
       const gateway = gatewayService?.runner;
 
-      services.cron.setExecutor(async (job) => {
-        const { handleAgentTurn } = await import("@/runtime/chat");
+      services.cron.setExecutor(async (job: CronJobRecord) => {
         const output = await handleAgentTurn(
           {
             message: job.prompt,

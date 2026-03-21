@@ -319,7 +319,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
   {
     command: "/profiles summary",
     category: "memory",
-    description: "Show native rolodex and profile summary data.",
+    description: "Show native rolodex and profile workspace summary data.",
+  },
+  {
+    command: "/profiles users summary",
+    category: "memory",
+    description: "Show the Honcho-style user modeling workspace summary.",
   },
   {
     command: "/profiles users search <query>",

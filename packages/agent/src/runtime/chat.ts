@@ -38,8 +38,6 @@ import {
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
-  getEffectiveRolodexSummary,
-  getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkillHubCatalog,
@@ -53,8 +51,10 @@ import {
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
   getEffectiveUserProfileSearch,
+  getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
+  getNativeOwnershipControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
   importEffectiveSkillHubManifest,
@@ -76,6 +76,7 @@ import type {
   CronJobRuntimeOverrides,
   MemoryTarget,
   PlatformName,
+  UserProfileWorkspaceSummary,
 } from "@/types";
 import type { AppContext } from "./bootstrap";
 
@@ -177,15 +178,34 @@ export function formatPersonalitySummary(summary: {
   ].join(" ");
 }
 
-export function formatRolodexSummary(summary: {
-  totalProfiles: number;
-  agentName: string;
-  recentProfiles: string[];
-}): string {
+export function formatRolodexSummary(
+  summary: UserProfileWorkspaceSummary,
+): string {
+  const formatPairs = (items: Record<string, number>) => {
+    const pairs = Object.entries(items)
+      .filter(([, value]) => value > 0)
+      .map(([key, value]) => `${key}:${value}`);
+    return pairs.length ? pairs.join(",") : "none";
+  };
+
+  const topChannels = summary.topChannels
+    .map((entry) => `${entry.channel}:${entry.count}`)
+    .join(", ");
+  const topSignals = summary.topSignals
+    .map((entry) => `${entry.signal}(${entry.count})`)
+    .join(", ");
+
   return [
     `totalProfiles=${summary.totalProfiles}`,
     `agent=${summary.agentName}`,
     `recent=${summary.recentProfiles.length ? summary.recentProfiles.join(",") : "none"}`,
+    `beliefs=${summary.totalBeliefs}`,
+    `sources=${summary.totalBeliefSources}`,
+    `relationships=${summary.activeRelationships}/${summary.trustedRelationships}`,
+    `engaged=${summary.engagedProfiles}`,
+    `status=${formatPairs(summary.relationshipStatusCounts)}`,
+    `topChannels=${topChannels || "none"}`,
+    `topSignals=${topSignals || "none"}`,
   ].join(" ");
 }
 
@@ -983,9 +1003,12 @@ async function buildCommandResponse(
     );
   }
 
-  if (trimmed === "/profiles summary") {
+  if (
+    trimmed === "/profiles summary" ||
+    trimmed === "/profiles users summary"
+  ) {
     return JSON.stringify(
-      getEffectiveRolodexSummary(context.runtime, context.services),
+      getEffectiveUserProfileSummary(context.runtime, context.services),
       null,
       2,
     );
@@ -1795,39 +1818,45 @@ async function buildCommandResponse(
   if (trimmed === "/status") {
     const personality = context.services.personalities.getActive();
     const settings = context.services.settings.get();
-    const controlPlane = getNativeTransportControlPlane(
+    const ownership = getNativeOwnershipControlPlane(
       context.runtime,
+      context.services,
       context.config,
       context.services.gatewayConfig,
     );
+    const controlPlane = ownership.transportControl;
     const memorySummary = getEffectiveMemorySnapshot(
       context.runtime,
       context.services,
       "memory",
     );
-    const personalitySummary = getEffectivePersonalitySummary(
-      context.runtime,
-      context.services,
-    );
-    const rolodexSummary = getEffectiveRolodexSummary(
-      context.runtime,
-      context.services,
-    );
-    const experienceSummary = getEffectiveExperienceSummary(
-      context.runtime,
-      context.services,
-    );
+    if (!ownership.identity) {
+      return [
+        `Agent: ${context.config.agentName}`,
+        `Personality: ${personality.name}`,
+        `Personality summary: n/a`,
+        `Provider: ${settings.model.provider}`,
+        `Model: ${settings.model.model}`,
+        `Transport inventory: ${controlPlane.totals.operationalTransports}/${controlPlane.transportInventory.length} operational`,
+        `Gateway bridges: ${controlPlane.totals.liveServices}/${controlPlane.totals.gatewayEnabled} live`,
+        `Memory summary: ${formatMemorySummary(memorySummary)}`,
+        `Profiles summary: n/a`,
+        `Experience summary: n/a`,
+      ].join("\n");
+    }
+    const identity = ownership.identity;
     return [
       `Agent: ${context.config.agentName}`,
       `Personality: ${personality.name}`,
-      `Personality summary: ${formatPersonalitySummary(personalitySummary)}`,
+      `Personality summary: ${formatPersonalitySummary(identity.personality)}`,
       `Provider: ${settings.model.provider}`,
       `Model: ${settings.model.model}`,
       `Transport inventory: ${controlPlane.totals.operationalTransports}/${controlPlane.transportInventory.length} operational`,
       `Gateway bridges: ${controlPlane.totals.liveServices}/${controlPlane.totals.gatewayEnabled} live`,
       `Memory summary: ${formatMemorySummary(memorySummary)}`,
-      `Profiles summary: ${formatRolodexSummary(rolodexSummary)}`,
-      `Experience summary: ${formatExperienceSummary(experienceSummary)}`,
+      `Profiles summary: ${formatRolodexSummary(identity.rolodex)}`,
+      `Experience summary: ${formatExperienceSummary(identity.experience)}`,
+      `Native ownership: services=${ownership.serviceResolution.length} plugins=${ownership.pluginManager?.summary.enabled ?? 0}`,
       `Skills: ${context.services.skills.list().length}`,
       `Cron jobs: ${context.services.cron.list().length}`,
       `Gateway sessions: ${context.services.gatewaySessions.list().length}`,
@@ -2320,12 +2349,22 @@ async function buildCommandResponse(
 
   if (trimmed === "/runtime plugins" || trimmed === "/plugins native") {
     const catalog = getNativePluginCatalog(context.config);
+    const ownership = getNativeOwnershipControlPlane(
+      context.runtime,
+      context.services,
+      context.config,
+      context.services.gatewayConfig,
+    );
     return JSON.stringify(
       {
         catalog,
         grouped: groupNativePluginCatalog(catalog),
         serviceRegistry: context.services.nativeRegistry,
-        pluginManager: getEffectivePluginManagerInventory(context.runtime),
+        pluginManager: ownership.pluginManager,
+        ownership: {
+          serviceResolution: ownership.serviceResolution,
+          identity: ownership.identity,
+        },
       },
       null,
       2,
@@ -2333,8 +2372,9 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/runtime services" || trimmed === "/services native") {
-    const controlPlane = getNativeTransportControlPlane(
+    const ownership = getNativeOwnershipControlPlane(
       context.runtime,
+      context.services,
       context.config,
       context.services.gatewayConfig,
     );
@@ -2347,11 +2387,15 @@ async function buildCommandResponse(
     );
     return JSON.stringify(
       {
-        resolution: getEffectiveServiceResolution(context.runtime),
+        resolution: ownership.serviceResolution,
         integration,
-        messaging: controlPlane.messagingBridge,
-        transportInventory: controlPlane.transportInventory,
-        transportControl: controlPlane.totals,
+        messaging: ownership.transportControl.messagingBridge,
+        transportInventory: ownership.transportControl.transportInventory,
+        transportControl: ownership.transportControl.totals,
+        ownership: {
+          pluginManager: ownership.pluginManager,
+          identity: ownership.identity,
+        },
         registry: context.services.nativeRegistry,
       },
       null,

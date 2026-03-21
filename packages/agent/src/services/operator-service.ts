@@ -14,8 +14,8 @@ import { basename, dirname, join, resolve } from "node:path";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
-  getEffectivePluginManagerInventory,
-  getNativeTransportControlPlane,
+  getNativeOwnershipControlPlane,
+  type getNativeTransportControlPlane,
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
 import type { EnvConfig } from "@/types";
@@ -95,6 +95,22 @@ export interface SetupSummary {
     typeof getNativeTransportControlPlane
   >["transportInventory"];
   nativeServices: Array<{ group: string; services: string[]; count: number }>;
+  ownership?: {
+    serviceResolution: number;
+    pluginManager: {
+      available: boolean;
+      total: number;
+      enabled: number;
+      official: number;
+      vendored: number;
+      categories: number;
+    };
+    identity?: {
+      personality: number;
+      rolodex: number;
+      experience: number;
+    };
+  };
   ecosystem?: {
     registryAvailable: boolean;
     registryPlugins: number;
@@ -119,6 +135,22 @@ export interface UpdatePreview {
   status: string;
   recentCommits: string;
   recommendedSteps: string[];
+  ownership?: {
+    serviceResolution: number;
+    pluginManager: {
+      available: boolean;
+      total: number;
+      enabled: number;
+      official: number;
+      vendored: number;
+      categories: number;
+    };
+    identity?: {
+      personality: number;
+      rolodex: number;
+      experience: number;
+    };
+  };
   ecosystem?: {
     registryAvailable: boolean;
     registryPlugins: number;
@@ -203,16 +235,17 @@ export class OperatorService {
     const ecosystem = this.agentSdk
       ? await this.agentSdk.overview()
       : undefined;
-    const transportControl = this.runtime
-      ? getNativeTransportControlPlane(
+    const ownership = this.runtime
+      ? getNativeOwnershipControlPlane(
           this.runtime,
+          undefined,
           this.config,
           this.diagnostics.currentGatewayConfig(),
         )
       : undefined;
-    const pluginManager = this.runtime
-      ? getEffectivePluginManagerInventory(this.runtime)
-      : null;
+    const transportControl = ownership?.transportControl;
+    const pluginManager = ownership?.pluginManager ?? null;
+    const identity = ownership?.identity;
     return {
       version: this.version(),
       directories: [
@@ -308,6 +341,28 @@ export class OperatorService {
       nativeServices: describeNativeServiceRegistry(
         createNativeServiceRegistry(),
       ),
+      ownership: ownership
+        ? {
+            serviceResolution: ownership.serviceResolution.length,
+            pluginManager: {
+              available: Boolean(ownership.pluginManager),
+              total: ownership.pluginManager?.summary.total ?? 0,
+              enabled: ownership.pluginManager?.summary.enabled ?? 0,
+              official: ownership.pluginManager?.summary.official ?? 0,
+              vendored: ownership.pluginManager?.summary.vendored ?? 0,
+              categories: ownership.pluginManager?.summary.categories ?? 0,
+            },
+            ...(identity
+              ? {
+                  identity: {
+                    personality: identity.personality.total,
+                    rolodex: identity.rolodex.totalProfiles,
+                    experience: identity.experience.sessions.totalSessions,
+                  },
+                }
+              : {}),
+          }
+        : undefined,
       ecosystem: {
         registryAvailable: ecosystem?.registry.available ?? false,
         registryPlugins: ecosystem?.registry.total ?? 0,
@@ -338,16 +393,17 @@ export class OperatorService {
     const recentCommits = repositoryAvailable
       ? await this.repository.recentCommits(8)
       : "(no git history available)";
-    const transportControl = this.runtime
-      ? getNativeTransportControlPlane(
+    const ownership = this.runtime
+      ? getNativeOwnershipControlPlane(
           this.runtime,
+          undefined,
           this.config,
           this.diagnostics.currentGatewayConfig(),
         )
       : undefined;
-    const pluginManager = this.runtime
-      ? getEffectivePluginManagerInventory(this.runtime)
-      : null;
+    const transportControl = ownership?.transportControl;
+    const pluginManager = ownership?.pluginManager ?? null;
+    const identity = ownership?.identity;
 
     return {
       version: this.version(),
@@ -356,6 +412,28 @@ export class OperatorService {
       recentCommits,
       transportControl: transportControl?.totals,
       transportInventory: transportControl?.transportInventory,
+      ownership: ownership
+        ? {
+            serviceResolution: ownership.serviceResolution.length,
+            pluginManager: {
+              available: Boolean(ownership.pluginManager),
+              total: ownership.pluginManager?.summary.total ?? 0,
+              enabled: ownership.pluginManager?.summary.enabled ?? 0,
+              official: ownership.pluginManager?.summary.official ?? 0,
+              vendored: ownership.pluginManager?.summary.vendored ?? 0,
+              categories: ownership.pluginManager?.summary.categories ?? 0,
+            },
+            ...(identity
+              ? {
+                  identity: {
+                    personality: identity.personality.total,
+                    rolodex: identity.rolodex.totalProfiles,
+                    experience: identity.experience.sessions.totalSessions,
+                  },
+                }
+              : {}),
+          }
+        : undefined,
       recommendedSteps: repositoryAvailable
         ? [
             "Review git status before updating runtime dependencies.",

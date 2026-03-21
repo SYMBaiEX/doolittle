@@ -40,7 +40,6 @@ import {
   getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
-  getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkillHubCatalog,
@@ -54,8 +53,10 @@ import {
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
   getEffectiveUserProfileSearch,
+  getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
+  getNativeOwnershipControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
   importEffectiveSkillHubManifest,
@@ -392,8 +393,9 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/runtime/status") {
         const settings = context.services.settings.get();
         const catalog = getNativePluginCatalog(context.config);
-        const controlPlane = getNativeTransportControlPlane(
+        const ownership = getNativeOwnershipControlPlane(
           context.runtime,
+          context.services,
           context.config,
           context.services.gatewayConfig,
         );
@@ -411,19 +413,35 @@ export function startApiServer(context: AppContext): void {
             catalog,
             grouped: groupNativePluginCatalog(catalog),
             serviceRegistry: context.services.nativeRegistry,
-            transportInventory: controlPlane.transportInventory,
-            transportControl: controlPlane.totals,
-            messagingBridge: controlPlane.messagingBridge,
+            transportInventory: ownership.transportControl.transportInventory,
+            transportControl: ownership.transportControl.totals,
+            messagingBridge: ownership.transportControl.messagingBridge,
+            ownership: {
+              serviceResolution: ownership.serviceResolution,
+              pluginManager: ownership.pluginManager,
+              identity: ownership.identity,
+            },
           },
         });
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/plugins") {
         const catalog = getNativePluginCatalog(context.config);
+        const ownership = getNativeOwnershipControlPlane(
+          context.runtime,
+          context.services,
+          context.config,
+          context.services.gatewayConfig,
+        );
         return json({
           catalog,
           grouped: groupNativePluginCatalog(catalog),
           serviceRegistry: context.services.nativeRegistry,
+          pluginManager: ownership.pluginManager,
+          ownership: {
+            serviceResolution: ownership.serviceResolution,
+            identity: ownership.identity,
+          },
         });
       }
 
@@ -508,8 +526,9 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/services") {
-        const controlPlane = getNativeTransportControlPlane(
+        const ownership = getNativeOwnershipControlPlane(
           context.runtime,
+          context.services,
           context.config,
           context.services.gatewayConfig,
         );
@@ -521,11 +540,15 @@ export function startApiServer(context: AppContext): void {
           },
         );
         return json({
-          resolution: getEffectiveServiceResolution(context.runtime),
+          resolution: ownership.serviceResolution,
           integration,
-          messagingBridge: controlPlane.messagingBridge,
-          transportInventory: controlPlane.transportInventory,
-          transportControl: controlPlane.totals,
+          messagingBridge: ownership.transportControl.messagingBridge,
+          transportInventory: ownership.transportControl.transportInventory,
+          transportControl: ownership.transportControl.totals,
+          ownership: {
+            pluginManager: ownership.pluginManager,
+            identity: ownership.identity,
+          },
           registry: context.services.nativeRegistry,
         });
       }
@@ -2100,9 +2123,21 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/summary"
+      ) {
+        return json({
+          summary: getEffectiveUserProfileSummary(
+            context.runtime,
+            context.services,
+          ),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/profiles/summary") {
         return json({
-          summary: getEffectiveRolodexSummary(
+          summary: getEffectiveUserProfileSummary(
             context.runtime,
             context.services,
           ),
@@ -3014,17 +3049,22 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/gateway/health") {
         const readiness = await context.gateway.health();
         const history = await context.gateway.history(25);
-        const controlPlane = getNativeTransportControlPlane(
+        const ownership = getNativeOwnershipControlPlane(
           context.runtime,
+          context.services,
           context.config,
           context.services.gatewayConfig,
         );
         return json({
           health: readiness,
           readiness,
-          messagingBridge: controlPlane.messagingBridge,
-          transportInventory: controlPlane.transportInventory,
-          transportControl: controlPlane.totals,
+          messagingBridge: ownership.transportControl.messagingBridge,
+          transportInventory: ownership.transportControl.transportInventory,
+          transportControl: ownership.transportControl.totals,
+          ownership: {
+            pluginManager: ownership.pluginManager,
+            identity: ownership.identity,
+          },
           mediation: {
             pluginMediatedAdapters: history.state.totals.pluginMediatedAdapters,
             officialPluginAdapters: history.state.totals.officialPluginAdapters,

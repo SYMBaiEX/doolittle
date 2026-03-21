@@ -107,13 +107,20 @@ describe("UserProfileService", () => {
       expect(
         beliefs.beliefs.some((entry) => entry.includes("Eliza-native")),
       ).toBe(true);
+      expect(beliefs.count).toBe(2);
+      expect(beliefs.sourceCount).toBeGreaterThan(0);
       expect(
         beliefs.beliefs.some((entry) => entry.includes("Bun is the right")),
       ).toBe(true);
       expect(relationship.status).not.toBe("new");
       expect(relationship.trust).toBeGreaterThan(0);
       expect(relationship.collaboration).toBeGreaterThan(0);
+      expect(relationship.noteCount).toBeGreaterThan(0);
       expect(engagement.touches).toBeGreaterThan(0);
+      expect(engagement.channelCount).toBeGreaterThan(0);
+      expect(engagement.sourceCount).toBeGreaterThan(0);
+      expect(engagement.sessionCount).toBeGreaterThanOrEqual(0);
+      expect(engagement.recentSignalCount).toBeGreaterThan(0);
       expect(engagement.channels).toContain("cli");
       expect(engagement.recentSignals.length).toBeGreaterThan(0);
       expect(rendered).toContain("Beliefs");
@@ -127,6 +134,16 @@ describe("UserProfileService", () => {
       expect(recall.some((entry) => entry.kind === "belief")).toBe(true);
       expect(recall.some((entry) => entry.kind === "relationship")).toBe(true);
       expect(recall.some((entry) => entry.kind === "engagement")).toBe(true);
+
+      const summary = service.summary();
+      expect(summary.totalBeliefs).toBeGreaterThanOrEqual(2);
+      expect(summary.totalBeliefSources).toBeGreaterThan(0);
+      expect(summary.trustedRelationships).toBeGreaterThanOrEqual(0);
+      expect(summary.relationshipStatusCounts.active).toBeGreaterThanOrEqual(0);
+      expect(summary.topBeliefProfiles.length).toBeGreaterThanOrEqual(1);
+      expect(summary.topRelationships.length).toBeGreaterThanOrEqual(1);
+      expect(summary.topEngagements.length).toBeGreaterThanOrEqual(1);
+      expect(summary.topSignals.length).toBeGreaterThanOrEqual(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
