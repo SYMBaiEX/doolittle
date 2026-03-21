@@ -6,6 +6,7 @@ import {
 } from "@elizaos/agent/services/registry-client";
 import {
   type CatalogSkill,
+  getCatalogSkill,
   getCatalogSkills,
   getTrendingSkills,
   searchCatalogSkills,
@@ -144,6 +145,14 @@ export async function getAgentSkillCatalogSnapshot(limit = 20) {
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+export async function getAgentCatalogSkills() {
+  return getCatalogSkills();
+}
+
+export async function getAgentCatalogSkill(slug: string) {
+  return getCatalogSkill(slug);
 }
 
 export async function searchAgentSkillCatalog(query: string, limit = 15) {

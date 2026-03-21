@@ -33,9 +33,40 @@ describe("AcpService", () => {
         transport: "service",
       },
     ];
-    const service = new AcpService(config, () => tools);
+    const sessionSummary = () => ({
+      totalSessions: 3,
+      recentSessionIds: ["session-a", "session-b", "session-c"],
+    });
+    const listSessions = () => [
+      {
+        sessionId: "session-a",
+        title: "Primary Session",
+        messageCount: 3,
+        participants: ["user", "assistant"] as Array<
+          "user" | "assistant" | "system"
+        >,
+        preview: [],
+      },
+      {
+        sessionId: "session-b",
+        title: "Editor Session",
+        messageCount: 2,
+        participants: ["user"] as Array<"user" | "assistant" | "system">,
+        preview: [],
+      },
+    ];
+    const service = new AcpService(
+      config,
+      () => tools,
+      sessionSummary,
+      listSessions,
+    );
 
     try {
+      expect(service.packageMetadata().name).toBe("eliza-agent");
+      expect(service.editorSummary().registryPath).toContain("agent.json");
+      expect(service.sessionSummary().titledSessions).toBe(2);
+
       const published = service.publishRegistry();
       expect(published.path).toContain("agent.json");
       expect(readFileSync(published.path, "utf8")).toContain("eliza-agent");
@@ -47,6 +78,19 @@ describe("AcpService", () => {
 
       const probe = await service.probe();
       expect(probe.ok).toBe(true);
+
+      const exported = service.exportBundle("zed");
+      expect(exported.path).toContain("acp-export-zed");
+
+      const imported = service.importBundle(
+        JSON.stringify({
+          label: "zed",
+          package: { name: "eliza-agent" },
+          tools: [{ name: "workspace.read" }],
+        }),
+      );
+      expect(imported.packageName).toBe("eliza-agent");
+      expect(imported.toolCount).toBe(1);
 
       const result = await service.invokeTool("sum", { a: 2, b: 3 });
       expect(result.ok).toBe(true);

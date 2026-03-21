@@ -1,10 +1,14 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
+  AcpEditorSummary,
+  AcpPackageMetadata,
   AcpRegistryEntry,
+  AcpSessionSummary,
   AcpToolDefinition,
   AcpToolKind,
   EnvConfig,
+  SessionSummary,
   ToolDefinition,
 } from "@/types";
 
@@ -69,18 +73,33 @@ function guessToolKind(tool: ToolDefinition): AcpToolKind {
 export class AcpService {
   private readonly registryDir: string;
   private readonly registryPath: string;
+  private readonly exportDir: string;
+  private readonly importDir: string;
+  private readonly rootPackagePath: string;
   private lastProbeAt?: string;
   private lastInvocationAt?: string;
   private lastPublishAt?: string;
+  private lastExportAt?: string;
+  private lastImportAt?: string;
   private lastError?: string;
 
   constructor(
     private readonly config: EnvConfig,
     private readonly getTools: () => ToolDefinition[],
+    private readonly getSessionSummary: () => {
+      totalSessions: number;
+      recentSessionIds: string[];
+    },
+    private readonly listSessions: (limit: number) => SessionSummary[],
   ) {
     this.registryDir = join(this.config.dataDir, "acp");
     this.registryPath = join(this.registryDir, "agent.json");
+    this.exportDir = join(this.registryDir, "exports");
+    this.importDir = join(this.registryDir, "imports");
+    this.rootPackagePath = join(import.meta.dir, "../../../../package.json");
     mkdirSync(this.registryDir, { recursive: true });
+    mkdirSync(this.exportDir, { recursive: true });
+    mkdirSync(this.importDir, { recursive: true });
   }
 
   status() {
@@ -93,11 +112,75 @@ export class AcpService {
       command: this.config.acpServerCommand,
       timeoutMs: this.config.acpTimeoutMs,
       registryPath: this.registryPath,
+      exportDir: this.exportDir,
+      importDir: this.importDir,
       toolCount: tools.length,
       lastProbeAt: this.lastProbeAt,
       lastInvocationAt: this.lastInvocationAt,
       lastPublishAt: this.lastPublishAt,
+      lastExportAt: this.lastExportAt,
+      lastImportAt: this.lastImportAt,
       lastError: this.lastError,
+    };
+  }
+
+  packageMetadata(): AcpPackageMetadata {
+    const packageJson = this.readRootPackageJson();
+    const workspaces = Array.isArray(packageJson.workspaces)
+      ? packageJson.workspaces.length
+      : 0;
+    const pluginPackageCount = Array.from(
+      new Set(this.getTools().map((tool) => tool.category)),
+    ).length;
+    return {
+      name:
+        typeof packageJson.name === "string" ? packageJson.name : "eliza-agent",
+      version:
+        typeof packageJson.version === "string" ? packageJson.version : "0.0.0",
+      description:
+        typeof packageJson.description === "string"
+          ? packageJson.description
+          : undefined,
+      packageManager:
+        typeof packageJson.packageManager === "string"
+          ? packageJson.packageManager
+          : undefined,
+      workspaceCount: workspaces,
+      pluginPackageCount,
+      rootPath: this.rootPackagePath,
+    };
+  }
+
+  editorSummary(): AcpEditorSummary {
+    const pkg = this.packageMetadata();
+    return {
+      package: pkg,
+      registryPath: this.registryPath,
+      exportDir: this.exportDir,
+      importDir: this.importDir,
+      commandConfigured: Boolean(this.config.acpServerCommand),
+      command: this.config.acpServerCommand,
+      installCommand: "bun install && bun run start -- --cli",
+      exportCommand: "POST /acp/export or /acp export [label]",
+      importCommand: "POST /acp/import or /acp import <path|json>",
+      lastPublishAt: this.lastPublishAt,
+      lastExportAt: this.lastExportAt,
+      lastImportAt: this.lastImportAt,
+    };
+  }
+
+  sessionSummary(limit = 5): AcpSessionSummary {
+    const summary = this.getSessionSummary();
+    const sessions = this.listSessions(limit);
+    const titled = sessions.filter((session) => Boolean(session.title?.trim()));
+    return {
+      totalSessions: summary.totalSessions,
+      recentSessionIds: summary.recentSessionIds.slice(0, limit),
+      titledSessions: titled.length,
+      recentTitles: titled
+        .map((session) => session.title?.trim())
+        .filter((title): title is string => Boolean(title))
+        .slice(0, limit),
     };
   }
 
@@ -109,6 +192,10 @@ export class AcpService {
       display_name: this.config.agentName,
       description:
         "Eliza Agent on ElizaOS with persistent memory, gateway transports, execution backends, and research tooling.",
+      package: {
+        name: this.packageMetadata().name,
+        version: this.packageMetadata().version,
+      },
       distribution: command
         ? {
             type: "command",
@@ -122,6 +209,9 @@ export class AcpService {
           },
       capabilities: {
         tools: this.tools().length,
+        sessions: true,
+        import_export: true,
+        editors: ["zed", "cursor", "vscode"],
       },
     };
   }
@@ -169,6 +259,68 @@ export class AcpService {
       `Source: ${tool.source}`,
       `Description: ${tool.description}`,
     ].join("\n");
+  }
+
+  exportBundle(label = "latest"): {
+    path: string;
+    label: string;
+    package: AcpPackageMetadata;
+    registry: AcpRegistryEntry;
+    toolCount: number;
+  } {
+    const safeLabel = label.trim().replace(/[^a-z0-9._-]+/giu, "-") || "latest";
+    const fileName = `acp-export-${safeLabel}-${Date.now()}.json`;
+    const path = join(this.exportDir, fileName);
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      label: safeLabel,
+      package: this.packageMetadata(),
+      status: this.status(),
+      editor: this.editorSummary(),
+      registry: this.registry(),
+      sessions: this.sessionSummary(),
+      tools: this.tools(),
+    };
+    writeFileSync(path, JSON.stringify(payload, null, 2), "utf8");
+    this.lastExportAt = payload.exportedAt;
+    return {
+      path,
+      label: safeLabel,
+      package: payload.package,
+      registry: payload.registry,
+      toolCount: payload.tools.length,
+    };
+  }
+
+  importBundle(input: string): {
+    path: string;
+    importedAt: string;
+    label?: string;
+    packageName?: string;
+    toolCount?: number;
+  } {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      throw new Error("ACP import requires a file path or JSON payload.");
+    }
+    const raw = existsSync(trimmed) ? readFileSync(trimmed, "utf8") : trimmed;
+    const parsed = JSON.parse(raw) as {
+      label?: string;
+      package?: { name?: string };
+      tools?: unknown[];
+    };
+    const importedAt = new Date().toISOString();
+    const fileName = `acp-import-${importedAt.replaceAll(":", "-")}.json`;
+    const path = join(this.importDir, fileName);
+    writeFileSync(path, JSON.stringify(parsed, null, 2), "utf8");
+    this.lastImportAt = importedAt;
+    return {
+      path,
+      importedAt,
+      label: parsed.label,
+      packageName: parsed.package?.name,
+      toolCount: Array.isArray(parsed.tools) ? parsed.tools.length : undefined,
+    };
   }
 
   async probe(): Promise<{ ok: boolean; detail: string }> {
@@ -255,5 +407,16 @@ export class AcpService {
       output: [stdout.trim(), stderr.trim()].filter(Boolean).join("\n"),
       exitCode,
     };
+  }
+
+  private readRootPackageJson(): Record<string, unknown> {
+    try {
+      return JSON.parse(readFileSync(this.rootPackagePath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      return {};
+    }
   }
 }
