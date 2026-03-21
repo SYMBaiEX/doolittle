@@ -2692,6 +2692,49 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/ecosystem" || trimmed === "/ecosystem packages") {
+    return JSON.stringify(
+      {
+        summary: context.services.ecosystem.summary(),
+        benchmarks: context.services.ecosystem.benchmarkPacks(),
+        channels: context.services.ecosystem.distributionChannels(),
+        modeling: context.services.ecosystem.modelingProfiles(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/benchmarks packs") {
+    return JSON.stringify(
+      {
+        packs: context.services.ecosystem.benchmarkPacks(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills channels") {
+    return JSON.stringify(
+      {
+        channels: context.services.ecosystem.distributionChannels(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/modeling profiles") {
+    return JSON.stringify(
+      {
+        profiles: context.services.ecosystem.modelingProfiles(),
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/runtime autonomous") {
     return JSON.stringify(
       getAutonomousControlPlane(

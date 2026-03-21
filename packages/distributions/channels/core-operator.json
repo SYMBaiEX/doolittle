@@ -1,0 +1,7 @@
+{
+  "id": "core-operator",
+  "title": "Core Operator",
+  "description": "Minimal operator-facing distribution for gateway, diagnostics, sessions, and execution controls.",
+  "tags": ["operator", "gateway", "diagnostics"],
+  "skillRoots": ["platform", "operations", "support", "observability"]
+}

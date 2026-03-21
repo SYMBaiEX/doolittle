@@ -1,0 +1,13 @@
+{
+  "id": "gateway-daemon",
+  "title": "Gateway Daemon",
+  "focus": "gateway",
+  "description": "Reviews transport readiness, daemon recovery, delivery journaling, and cross-platform session continuity.",
+  "tags": ["gateway", "daemon", "transport", "voice"],
+  "recommendedCommands": [
+    "/gateway runtime",
+    "/transport inventory",
+    "/transport mismatches",
+    "/platforms"
+  ]
+}

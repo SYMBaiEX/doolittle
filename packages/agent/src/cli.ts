@@ -158,6 +158,7 @@ function buildHelpText(agentName: string): string {
 function renderEcosystemContent(context: AppContext): string {
   const audit = getNativePackageAudit(context.config);
   const resolution = getEffectiveServiceResolution(context.runtime);
+  const ecosystem = context.services.ecosystem.summary();
   const latest = audit.runtime.latest;
   const alpha = audit.runtime.alpha;
 
@@ -173,6 +174,7 @@ function renderEcosystemContent(context: AppContext): string {
     `Vendored: ${audit.packages.filter((entry) => entry.compatibility === "vendored-by-design").length}`,
     `Workspace-only: ${audit.packages.filter((entry) => entry.compatibility === "workspace-only").length}`,
     `Native services: ${resolution.filter((entry) => entry.source === "native").length}/${resolution.length}`,
+    `Workspace packs: benchmarks=${ecosystem.benchmarkPacks} channels=${ecosystem.distributionChannels} modeling=${ecosystem.modelingProfiles}`,
     "",
     "{bold}Priority Packages{/}",
     ...audit.packages

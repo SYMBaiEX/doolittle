@@ -1,0 +1,7 @@
+{
+  "id": "relationship-memory",
+  "title": "Relationship Memory",
+  "description": "Profiles the user-agent relationship across channels, engagement, trust, and continuity.",
+  "modes": ["local", "hybrid"],
+  "signals": ["engagement", "relationship", "history", "channels"]
+}

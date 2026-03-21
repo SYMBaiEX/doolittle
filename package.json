@@ -7,6 +7,9 @@
   "description": "Monorepo for the Bun-first ElizaOS-native Eliza Agent platform and vendored official workspace packages.",
   "workspaces": [
     "packages/agent",
+    "packages/benchmarks",
+    "packages/distributions",
+    "packages/modeling",
     "packages/plugins",
     "packages/plugins/*",
     "packages/skills",
