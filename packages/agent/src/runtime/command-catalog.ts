@@ -101,16 +101,67 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Show native forms ownership, template counts, and persistence state.",
   },
   {
+    command: "/forms list",
+    category: "runtime",
+    description: "List native forms and their current status.",
+  },
+  {
+    command: "/forms templates",
+    category: "runtime",
+    description: "List native form templates available from the forms service.",
+  },
+  {
+    command: "/forms create <template-id> :: <json-metadata>",
+    category: "runtime",
+    description: "Create a native form from a template with optional metadata.",
+  },
+  {
+    command: "/forms show <form-id>",
+    category: "runtime",
+    description: "Inspect one native form in detail.",
+  },
+  {
+    command: "/forms cancel <form-id>",
+    category: "runtime",
+    description: "Cancel one native form.",
+  },
+  {
     command: "/runtime e2b",
     category: "runtime",
     description:
       "Show native E2B sandbox ownership, active sandboxes, and execution readiness.",
   },
   {
+    command: "/e2b list",
+    category: "runtime",
+    description: "List native E2B sandboxes.",
+  },
+  {
+    command: "/e2b create <template>",
+    category: "runtime",
+    description: "Create a native E2B sandbox.",
+  },
+  {
+    command: "/e2b exec <language> :: <code>",
+    category: "runtime",
+    description: "Execute code in the active native E2B sandbox.",
+  },
+  {
+    command: "/e2b kill <sandbox-id>",
+    category: "runtime",
+    description:
+      "Kill one native E2B sandbox, or the active sandbox by default.",
+  },
+  {
     command: "/runtime codegen",
     category: "runtime",
     description:
       "Show native code generation, GitHub, secrets, and sandbox ownership.",
+  },
+  {
+    command: "/codegen generate <project-name> :: <prompt>",
+    category: "runtime",
+    description: "Invoke the native code generation service directly.",
   },
   {
     command: "/runtime research",

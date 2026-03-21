@@ -16,14 +16,19 @@ import {
 import {
   analyzeEffectiveBrowserComparison,
   analyzeEffectiveBrowserPage,
+  cancelEffectiveForm,
   captureEffectiveBrowserPage,
   compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
+  createEffectiveForm,
+  createEffectiveSandbox,
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
+  executeEffectiveSandboxCode,
   exportEffectiveSkillHubManifest,
   fetchEffectiveBrowserPage,
+  generateEffectiveCode,
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
@@ -33,6 +38,8 @@ import {
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
   getEffectiveExperienceSummary,
+  getEffectiveForm,
+  getEffectiveFormTemplates,
   getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
   getEffectiveMemorySnapshot,
@@ -71,6 +78,9 @@ import {
   installEffectiveSkillHubManifest,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
+  killEffectiveSandbox,
+  listEffectiveForms,
+  listEffectiveSandboxes,
   probeEffectiveMcp,
   retryEffectiveDelegationTask,
   runEffectiveShellCommand,
@@ -1592,15 +1602,137 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/forms") {
+        return json({
+          control: getNativeFormsControlPlane(context.runtime),
+          forms: await listEffectiveForms(context.runtime),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/forms/templates") {
+        return json({
+          control: getNativeFormsControlPlane(context.runtime),
+          templates: getEffectiveFormTemplates(context.runtime),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/forms/create") {
+        const body = (await request.json()) as {
+          template?: string;
+          form?: Record<string, unknown>;
+          metadata?: Record<string, unknown>;
+        };
+        if (!body.template && !body.form) {
+          return json({ error: "template or form is required" }, 400);
+        }
+        return json({
+          form: await createEffectiveForm(
+            context.runtime,
+            body.template ?? body.form,
+            body.metadata,
+          ),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/forms/") &&
+        !url.pathname.endsWith("/cancel")
+      ) {
+        const formId = decodeURIComponent(url.pathname.replace("/forms/", ""));
+        return json({
+          form: await getEffectiveForm(context.runtime, formId),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname.startsWith("/forms/") &&
+        url.pathname.endsWith("/cancel")
+      ) {
+        const formId = decodeURIComponent(
+          url.pathname.replace("/forms/", "").replace("/cancel", ""),
+        );
+        return json({
+          cancelled: await cancelEffectiveForm(context.runtime, formId),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/runtime/e2b") {
         return json({
           e2b: getNativeExecutionControlPlane(context.runtime).e2b,
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/e2b/sandboxes") {
+        return json({
+          control: getNativeExecutionControlPlane(context.runtime).e2b,
+          sandboxes: listEffectiveSandboxes(context.runtime),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/e2b/sandboxes") {
+        const body = (await request.json()) as {
+          template?: string;
+          metadata?: Record<string, string>;
+        };
+        return json({
+          sandboxId: await createEffectiveSandbox(context.runtime, {
+            template: body.template,
+            metadata: body.metadata,
+          }),
+          sandboxes: listEffectiveSandboxes(context.runtime),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/e2b/execute") {
+        const body = (await request.json()) as {
+          code?: string;
+          language?: string;
+        };
+        if (!body.code) {
+          return json({ error: "code is required" }, 400);
+        }
+        return json({
+          result: await executeEffectiveSandboxCode(
+            context.runtime,
+            body.code,
+            body.language ?? "python",
+          ),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/e2b/kill") {
+        const body = (await request.json()) as {
+          id?: string;
+        };
+        await killEffectiveSandbox(context.runtime, body.id);
+        return json({
+          killed: body.id ?? "active",
+          sandboxes: listEffectiveSandboxes(context.runtime),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/runtime/codegen") {
         return json({
           execution: getNativeExecutionControlPlane(context.runtime),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/codegen/generate") {
+        const body = (await request.json()) as {
+          projectName?: string;
+          prompt?: string;
+          [key: string]: unknown;
+        };
+        if (!body.projectName || !body.prompt) {
+          return json({ error: "projectName and prompt are required" }, 400);
+        }
+        return json({
+          generation: await generateEffectiveCode(context.runtime, {
+            ...body,
+            objective: body.prompt,
+          }),
         });
       }
 

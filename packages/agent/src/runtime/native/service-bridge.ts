@@ -215,6 +215,12 @@ interface NativeFormsService {
     | Map<string, unknown>
     | unknown[]
     | Record<string, unknown>;
+  createForm?: (
+    templateOrForm: unknown,
+    metadata?: unknown,
+  ) => Promise<unknown>;
+  getForm?: (formId: string) => Promise<unknown>;
+  cancelForm?: (formId: string) => Promise<boolean>;
   forcePersist?: () => Promise<unknown>;
 }
 
@@ -227,6 +233,11 @@ interface NativeE2BService {
     metadata?: Record<string, string>;
     createdAt?: string;
   }>;
+  createSandbox?: (options?: {
+    template?: string;
+    metadata?: Record<string, string>;
+  }) => Promise<string>;
+  killSandbox?: (id?: string) => Promise<void>;
   executeCode?: (code: string, language?: string) => Promise<unknown>;
 }
 
@@ -1840,6 +1851,106 @@ export function getEffectivePluginManagerInventory(runtime: RuntimeLike): {
     categories,
     summary,
   };
+}
+
+export async function listEffectiveForms(
+  runtime: RuntimeLike,
+): Promise<unknown[]> {
+  return getNativeServices(runtime).forms?.listForms?.() ?? [];
+}
+
+export function getEffectiveFormTemplates(runtime: RuntimeLike) {
+  const templates = getNativeServices(runtime).forms?.getTemplates?.();
+  if (templates instanceof Map) {
+    return [...templates.entries()].map(([id, value]) => ({ id, value }));
+  }
+  if (Array.isArray(templates)) {
+    return templates;
+  }
+  if (templates && typeof templates === "object") {
+    return Object.entries(templates).map(([id, value]) => ({ id, value }));
+  }
+  return [];
+}
+
+export async function createEffectiveForm(
+  runtime: RuntimeLike,
+  templateOrForm: unknown,
+  metadata?: unknown,
+) {
+  const forms = getNativeServices(runtime).forms;
+  if (!forms?.createForm) {
+    throw new Error("Native forms service is unavailable.");
+  }
+  return forms.createForm(templateOrForm, metadata);
+}
+
+export async function getEffectiveForm(runtime: RuntimeLike, formId: string) {
+  const forms = getNativeServices(runtime).forms;
+  if (!forms?.getForm) {
+    throw new Error("Native forms service is unavailable.");
+  }
+  return forms.getForm(formId);
+}
+
+export async function cancelEffectiveForm(
+  runtime: RuntimeLike,
+  formId: string,
+) {
+  const forms = getNativeServices(runtime).forms;
+  if (!forms?.cancelForm) {
+    throw new Error("Native forms service is unavailable.");
+  }
+  return forms.cancelForm(formId);
+}
+
+export function listEffectiveSandboxes(runtime: RuntimeLike) {
+  return getNativeServices(runtime).e2b?.listSandboxes?.() ?? [];
+}
+
+export async function createEffectiveSandbox(
+  runtime: RuntimeLike,
+  options?: {
+    template?: string;
+    metadata?: Record<string, string>;
+  },
+) {
+  const e2b = getNativeServices(runtime).e2b;
+  if (!e2b?.createSandbox) {
+    throw new Error("Native E2B service is unavailable.");
+  }
+  return e2b.createSandbox(options);
+}
+
+export async function killEffectiveSandbox(runtime: RuntimeLike, id?: string) {
+  const e2b = getNativeServices(runtime).e2b;
+  if (!e2b?.killSandbox) {
+    throw new Error("Native E2B service is unavailable.");
+  }
+  return e2b.killSandbox(id);
+}
+
+export async function executeEffectiveSandboxCode(
+  runtime: RuntimeLike,
+  code: string,
+  language = "python",
+) {
+  const e2b = getNativeServices(runtime).e2b;
+  if (!e2b?.executeCode) {
+    throw new Error("Native E2B service is unavailable.");
+  }
+  return e2b.executeCode(code, language);
+}
+
+export async function generateEffectiveCode(
+  runtime: RuntimeLike,
+  request: Record<string, unknown>,
+) {
+  const codeGeneration = getNativeServices(runtime).codeGeneration;
+  if (!codeGeneration?.generateCode) {
+    throw new Error("Native code generation service is unavailable.");
+  }
+  return codeGeneration.generateCode(request);
 }
 
 export function getAutonomousControlPlane(

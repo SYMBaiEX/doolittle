@@ -2,11 +2,18 @@ import { describe, expect, it } from "bun:test";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "./service-bridge";
 import {
+  cancelEffectiveForm,
+  createEffectiveForm,
+  createEffectiveSandbox,
+  executeEffectiveSandboxCode,
+  generateEffectiveCode,
   getAutonomousControlPlane,
   getEffectiveDelegationChildren,
   getEffectiveDelegationTask,
   getEffectiveDelegationTree,
   getEffectiveExperienceSummary,
+  getEffectiveForm,
+  getEffectiveFormTemplates,
   getEffectiveMemorySnapshot,
   getEffectiveMessagingTransportInventory,
   getEffectivePersonalitySummary,
@@ -19,6 +26,9 @@ import {
   getNativeMessagingTransportState,
   getNativeResearchControlPlane,
   getNativeTransportControlPlane,
+  killEffectiveSandbox,
+  listEffectiveForms,
+  listEffectiveSandboxes,
   retryEffectiveDelegationTask,
 } from "./service-bridge";
 
@@ -91,6 +101,86 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(execution.codeGeneration.methods).toContain("generateCode");
     expect(execution.github.available).toBe(true);
     expect(execution.secretsManager.keys).toContain("OPENAI_API_KEY");
+  });
+
+  it("invokes native forms, sandboxes, and code generation actions", async () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "forms") {
+          return {
+            listForms: () => [{ id: "form-1", status: "active" }],
+            getTemplates: () => new Map([["intake", { name: "Intake" }]]),
+            createForm: async (template: unknown, metadata?: unknown) => ({
+              id: "form-created",
+              template,
+              metadata,
+            }),
+            getForm: async (id: string) => ({ id, status: "active" }),
+            cancelForm: async (id: string) => id === "form-created",
+          };
+        }
+        if (name === "e2b") {
+          return {
+            listSandboxes: () => [{ id: "sandbox-1" }],
+            createSandbox: async () => "sandbox-2",
+            killSandbox: async () => undefined,
+            executeCode: async (code: string, language?: string) => ({
+              success: true,
+              code,
+              language,
+            }),
+          };
+        }
+        if (name === "code-generation") {
+          return {
+            generateCode: async (request: Record<string, unknown>) => ({
+              ok: true,
+              request,
+            }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    expect(await listEffectiveForms(runtime)).toHaveLength(1);
+    expect(getEffectiveFormTemplates(runtime)).toHaveLength(1);
+    expect(
+      await createEffectiveForm(runtime, "intake", { owner: "eliza" }),
+    ).toEqual({
+      id: "form-created",
+      template: "intake",
+      metadata: { owner: "eliza" },
+    });
+    expect(await getEffectiveForm(runtime, "form-created")).toEqual({
+      id: "form-created",
+      status: "active",
+    });
+    expect(await cancelEffectiveForm(runtime, "form-created")).toBe(true);
+    expect(listEffectiveSandboxes(runtime)).toHaveLength(1);
+    expect(await createEffectiveSandbox(runtime)).toBe("sandbox-2");
+    expect(
+      await executeEffectiveSandboxCode(runtime, "print('hi')", "python"),
+    ).toEqual({
+      success: true,
+      code: "print('hi')",
+      language: "python",
+    });
+    await expect(
+      killEffectiveSandbox(runtime, "sandbox-2"),
+    ).resolves.toBeUndefined();
+    await expect(
+      generateEffectiveCode(runtime, {
+        projectName: "eliza-native",
+        prompt: "Build an agent",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      request: {
+        projectName: "eliza-native",
+        prompt: "Build an agent",
+      },
+    });
   });
 
   it("reports live telegram and discord services when runtime services exist", () => {

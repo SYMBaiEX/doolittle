@@ -168,6 +168,33 @@ export class ToolsService {
       transport: "service",
     },
     {
+      id: "forms.native",
+      name: "Native Forms",
+      category: "runtime",
+      description:
+        "Inspect, create, and manage native Eliza forms through the runtime forms service.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "e2b.native",
+      name: "Native E2B",
+      category: "runtime",
+      description:
+        "Create, inspect, and execute native E2B sandboxes through the runtime execution service.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "codegen.native",
+      name: "Native Code Generation",
+      category: "runtime",
+      description:
+        "Invoke native code generation, GitHub, and secrets-backed autocoder workflows.",
+      enabled: true,
+      transport: "service",
+    },
+    {
       id: "repository.status",
       name: "Repository Status",
       category: "repository",

@@ -14,14 +14,19 @@ import {
 import {
   analyzeEffectiveBrowserComparison,
   analyzeEffectiveBrowserPage,
+  cancelEffectiveForm,
   captureEffectiveBrowserPage,
   compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
+  createEffectiveForm,
+  createEffectiveSandbox,
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
+  executeEffectiveSandboxCode,
   exportEffectiveSkillHubManifest,
   fetchEffectiveBrowserPage,
+  generateEffectiveCode,
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
@@ -32,6 +37,8 @@ import {
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
   getEffectiveExperienceSummary,
+  getEffectiveForm,
+  getEffectiveFormTemplates,
   getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
   getEffectiveMemorySnapshot,
@@ -69,6 +76,9 @@ import {
   installEffectiveSkillHubManifest,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
+  killEffectiveSandbox,
+  listEffectiveForms,
+  listEffectiveSandboxes,
   retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
@@ -2617,6 +2627,81 @@ async function buildCommandResponse(
     return JSON.stringify(getNativeFormsControlPlane(context.runtime), null, 2);
   }
 
+  if (trimmed === "/forms" || trimmed === "/forms list") {
+    return JSON.stringify(
+      {
+        control: getNativeFormsControlPlane(context.runtime),
+        forms: await listEffectiveForms(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/forms templates") {
+    return JSON.stringify(
+      {
+        control: getNativeFormsControlPlane(context.runtime),
+        templates: getEffectiveFormTemplates(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/forms show ")) {
+    const formId = trimmed.replace("/forms show ", "").trim();
+    if (!formId) {
+      return "Usage: /forms show <form-id>";
+    }
+    return JSON.stringify(
+      {
+        form: await getEffectiveForm(context.runtime, formId),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/forms create ")) {
+    const payload = trimmed.replace("/forms create ", "").trim();
+    if (!payload) {
+      return "Usage: /forms create <template-id> [:: <json-metadata>]";
+    }
+    const [templateId, metadataRaw] = payload
+      .split("::")
+      .map((part) => part.trim());
+    let metadata: unknown;
+    if (metadataRaw) {
+      try {
+        metadata = JSON.parse(metadataRaw);
+      } catch {
+        return "Usage: /forms create <template-id> [:: <json-metadata>]";
+      }
+    }
+    return JSON.stringify(
+      {
+        form: await createEffectiveForm(context.runtime, templateId, metadata),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/forms cancel ")) {
+    const formId = trimmed.replace("/forms cancel ", "").trim();
+    if (!formId) {
+      return "Usage: /forms cancel <form-id>";
+    }
+    return JSON.stringify(
+      {
+        cancelled: await cancelEffectiveForm(context.runtime, formId),
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/runtime e2b" || trimmed === "/runtime sandboxes") {
     return JSON.stringify(
       getNativeExecutionControlPlane(context.runtime).e2b,
@@ -2625,9 +2710,89 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/e2b" || trimmed === "/e2b list") {
+    return JSON.stringify(
+      {
+        control: getNativeExecutionControlPlane(context.runtime).e2b,
+        sandboxes: listEffectiveSandboxes(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/e2b create")) {
+    const template = trimmed.replace("/e2b create", "").trim() || undefined;
+    return JSON.stringify(
+      {
+        sandboxId: await createEffectiveSandbox(context.runtime, {
+          template,
+        }),
+        sandboxes: listEffectiveSandboxes(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/e2b kill")) {
+    const sandboxId = trimmed.replace("/e2b kill", "").trim() || undefined;
+    await killEffectiveSandbox(context.runtime, sandboxId);
+    return JSON.stringify(
+      {
+        killed: sandboxId ?? "active",
+        sandboxes: listEffectiveSandboxes(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/e2b exec ")) {
+    const payload = trimmed.replace("/e2b exec ", "").trim();
+    const [languagePart, codePart] = payload
+      .split("::")
+      .map((part) => part.trim());
+    if (!languagePart || !codePart) {
+      return "Usage: /e2b exec <python|javascript|typescript|bash> :: <code>";
+    }
+    return JSON.stringify(
+      {
+        result: await executeEffectiveSandboxCode(
+          context.runtime,
+          codePart,
+          languagePart,
+        ),
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/runtime codegen") {
     return JSON.stringify(
       getNativeExecutionControlPlane(context.runtime),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen generate ")) {
+    const payload = trimmed.replace("/codegen generate ", "").trim();
+    const [namePart, promptPart] = payload
+      .split("::")
+      .map((part) => part.trim());
+    if (!namePart || !promptPart) {
+      return "Usage: /codegen generate <project-name> :: <prompt>";
+    }
+    return JSON.stringify(
+      {
+        generation: await generateEffectiveCode(context.runtime, {
+          projectName: namePart,
+          prompt: promptPart,
+          objective: promptPart,
+        }),
+      },
       null,
       2,
     );
