@@ -19,6 +19,11 @@ export function createCronPlugin(options: CronPluginOptions): Plugin {
 
     private readonly cron = options.cron;
 
+    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
+    constructor(runtime?: IAgentRuntime) {
+      super(runtime);
+    }
+
     static async start(runtime?: IAgentRuntime): Promise<Service> {
       return new CronService(runtime);
     }

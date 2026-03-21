@@ -19,6 +19,11 @@ export function createTrajectoryLoggerPlugin(
 
     private readonly trajectories = options.trajectories;
 
+    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
+    constructor(runtime?: IAgentRuntime) {
+      super(runtime);
+    }
+
     static async start(runtime?: IAgentRuntime): Promise<Service> {
       return new TrajectoryLoggerService(runtime);
     }
