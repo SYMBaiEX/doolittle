@@ -186,6 +186,9 @@ async function renderTransportDrilldown(
     gatewayState
       ? `Gateway state: transportState=${gatewayState.transportState} presence=${gatewayState.presence.status} send=${gatewayState.sendCount} recv=${gatewayState.receiveCount} route=${gatewayState.routeCount} resp=${gatewayState.respondCount} traces=${gatewayState.traceCount}`
       : "Gateway state: n/a",
+    gatewayDetail?.summary
+      ? `Summary: ${gatewayDetail.summary}`
+      : "Summary: n/a",
     gatewayState?.lastEventKind
       ? `Last event: ${gatewayState.lastEventKind} :: ${gatewayState.lastEventDetail ?? "n/a"}`
       : "Last event: n/a",

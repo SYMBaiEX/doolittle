@@ -252,6 +252,23 @@ interface GatewayHistorySnapshot {
     lastEventKind?: PlatformLifecycleEvent["kind"];
     detail: string;
   }>;
+  transportJournal: Array<{
+    platform: PlatformName;
+    source: string;
+    operational: boolean;
+    ready: boolean;
+    transportState?: GatewayPlatformState["transportState"];
+    status?: PlatformHealth["status"];
+    traceCount: number;
+    inboxCount: number;
+    outboxCount: number;
+    attachmentCount: number;
+    mismatchFlags: string[];
+    lastActivityAt?: string;
+    lastTraceKind?: GatewayTraceRecord["kind"];
+    lastEventKind?: PlatformLifecycleEvent["kind"];
+    summary: string;
+  }>;
   traces: GatewayTraceRecord[];
   inbox: GatewayInboxRecord[];
   outbox: GatewayOutboxRecord[];
@@ -311,6 +328,23 @@ interface GatewayStateSnapshot {
     lastEventKind?: PlatformLifecycleEvent["kind"];
     detail: string;
   }>;
+  transportJournal: Array<{
+    platform: PlatformName;
+    source: string;
+    operational: boolean;
+    ready: boolean;
+    transportState?: GatewayPlatformState["transportState"];
+    status?: PlatformHealth["status"];
+    traceCount: number;
+    inboxCount: number;
+    outboxCount: number;
+    attachmentCount: number;
+    mismatchFlags: string[];
+    lastActivityAt?: string;
+    lastTraceKind?: GatewayTraceRecord["kind"];
+    lastEventKind?: PlatformLifecycleEvent["kind"];
+    summary: string;
+  }>;
   tracesByKind: Array<{ kind: GatewayTraceRecord["kind"]; count: number }>;
   tracesByPlatform: Array<{
     platform: PlatformName | "gateway";
@@ -362,6 +396,8 @@ interface GatewayTransportDetail {
   recentOutbox: GatewayOutboxRecord[];
   recentAttachments: GatewayAttachmentRecord[];
   mismatchFlags: string[];
+  lastActivityAt?: string;
+  summary: string;
 }
 
 interface GatewaySupervisionRecord {
@@ -436,6 +472,41 @@ export class GatewayRunner {
       ...plugin,
       notes: bridge ? `${plugin.notes} ${bridge.detail}` : plugin.notes,
     };
+  }
+
+  private summarizeTransportJournalEntry(
+    entry: {
+      platform: PlatformName;
+      source: string;
+      operational: boolean;
+      ready: boolean;
+      transportState?: GatewayPlatformState["transportState"];
+      status?: PlatformHealth["status"];
+      traceCount: number;
+      inboxCount: number;
+      outboxCount: number;
+      attachmentCount: number;
+      mismatchFlags: string[];
+      lastTraceKind?: GatewayTraceRecord["kind"];
+      lastEventKind?: PlatformLifecycleEvent["kind"];
+    },
+    lastActivityAt?: string,
+  ): string {
+    return [
+      `${entry.platform}: source=${entry.source}`,
+      `operational=${entry.operational}`,
+      `ready=${entry.ready}`,
+      `transportState=${entry.transportState ?? "n/a"}`,
+      `status=${entry.status ?? "n/a"}`,
+      `traces=${entry.traceCount}`,
+      `inbox=${entry.inboxCount}`,
+      `outbox=${entry.outboxCount}`,
+      `attachments=${entry.attachmentCount}`,
+      `mismatches=${entry.mismatchFlags.length ? entry.mismatchFlags.join("|") : "none"}`,
+      `lastActivity=${lastActivityAt ?? "n/a"}`,
+      `lastTrace=${entry.lastTraceKind ?? "n/a"}`,
+      `lastEvent=${entry.lastEventKind ?? "n/a"}`,
+    ].join(" ");
   }
 
   constructor(private readonly context: AppContext) {
@@ -1212,45 +1283,74 @@ export class GatewayRunner {
         lastUpdatedAt: state.lastUpdatedAt ?? timestamp,
       };
     });
-    const transportOverviewDetails = platformSummary.map((entry) => {
-      const inventory = controlPlane.transportInventory.find(
-        (record) => record.platform === entry.platform,
-      );
-      const bridge = controlPlane.messagingBridge.find(
-        (record) => record.platform === entry.platform,
-      );
-      const mismatchFlags: string[] = [];
-      if (inventory?.gatewayEnabled && !entry.ready) {
-        mismatchFlags.push("gateway-enabled-without-ready-platform");
-      }
-      if (inventory && inventory.operational !== entry.ready) {
-        mismatchFlags.push("inventory-operational-mismatch");
-      }
-      if (bridge?.pluginEnabled && !bridge.serviceAvailable) {
-        mismatchFlags.push("plugin-enabled-without-runtime-service");
-      }
-      if (bridge?.serviceAvailable && !bridge.live) {
-        mismatchFlags.push("runtime-service-not-live");
-      }
-      return {
-        platform: entry.platform,
-        inventory,
-        messagingBridge: bridge,
-        platformState: this.ensurePlatformState(entry.platform),
-        readiness: enrichedReadiness.find(
-          (health) => health.platform === entry.platform,
-        ),
-        traceCount: entry.traceCount,
-        inboxCount: entry.inboxCount,
-        outboxCount: entry.outboxCount,
-        attachmentCount: entry.attachmentCount,
-        recentTraces: this.trace(20, { platform: entry.platform }),
-        recentInbox: this.inbox(20, { platform: entry.platform }),
-        recentOutbox: this.outbox(20, { platform: entry.platform }),
-        recentAttachments: this.attachments(20, { platform: entry.platform }),
-        mismatchFlags,
-      };
-    });
+    const transportOverviewDetails: GatewayTransportDetail[] =
+      platformSummary.map((entry) => {
+        const inventory = controlPlane.transportInventory.find(
+          (record) => record.platform === entry.platform,
+        );
+        const bridge = controlPlane.messagingBridge.find(
+          (record) => record.platform === entry.platform,
+        );
+        const platformState = this.ensurePlatformState(entry.platform);
+        const mismatchFlags: string[] = [];
+        if (inventory?.gatewayEnabled && !entry.ready) {
+          mismatchFlags.push("gateway-enabled-without-ready-platform");
+        }
+        if (inventory && inventory.operational !== entry.ready) {
+          mismatchFlags.push("inventory-operational-mismatch");
+        }
+        if (bridge?.pluginEnabled && !bridge.serviceAvailable) {
+          mismatchFlags.push("plugin-enabled-without-runtime-service");
+        }
+        if (bridge?.serviceAvailable && !bridge.live) {
+          mismatchFlags.push("runtime-service-not-live");
+        }
+        const source =
+          inventory?.source ?? platformState.nativePluginSource ?? "custom";
+        const lastActivityAt =
+          platformState.lastUpdatedAt ??
+          platformState.lastTraceAt ??
+          platformState.lastEventAt;
+        return {
+          platform: entry.platform,
+          inventory,
+          messagingBridge: bridge,
+          platformState,
+          readiness: enrichedReadiness.find(
+            (health) => health.platform === entry.platform,
+          ),
+          traceCount: entry.traceCount,
+          inboxCount: entry.inboxCount,
+          outboxCount: entry.outboxCount,
+          attachmentCount: entry.attachmentCount,
+          recentTraces: this.trace(20, { platform: entry.platform }),
+          recentInbox: this.inbox(20, { platform: entry.platform }),
+          recentOutbox: this.outbox(20, { platform: entry.platform }),
+          recentAttachments: this.attachments(20, { platform: entry.platform }),
+          mismatchFlags,
+          lastActivityAt,
+          summary: this.summarizeTransportJournalEntry(
+            {
+              platform: entry.platform,
+              source,
+              operational: inventory?.operational ?? false,
+              ready: entry.ready,
+              transportState: entry.transportState,
+              status: enrichedReadiness.find(
+                (health) => health.platform === entry.platform,
+              )?.status,
+              traceCount: entry.traceCount,
+              inboxCount: entry.inboxCount,
+              outboxCount: entry.outboxCount,
+              attachmentCount: entry.attachmentCount,
+              mismatchFlags,
+              lastTraceKind: entry.lastTraceKind,
+              lastEventKind: entry.lastEventKind,
+            },
+            lastActivityAt,
+          ),
+        };
+      });
     const transportSummaries = transportOverviewDetails.map((entry) => ({
       platform: entry.platform,
       source:
@@ -1276,6 +1376,50 @@ export class GatewayRunner {
         entry.readiness?.detail ??
         "n/a",
     }));
+    const transportJournal = transportOverviewDetails.map((entry) => {
+      const source =
+        entry.inventory?.source ??
+        entry.platformState?.nativePluginSource ??
+        "custom";
+      const lastActivityAt =
+        entry.platformState?.lastUpdatedAt ??
+        entry.platformState?.lastTraceAt ??
+        entry.platformState?.lastEventAt;
+      return {
+        platform: entry.platform,
+        source,
+        operational: entry.inventory?.operational ?? false,
+        ready: entry.readiness?.ready ?? false,
+        transportState: entry.platformState?.transportState,
+        status: entry.readiness?.status,
+        traceCount: entry.traceCount,
+        inboxCount: entry.inboxCount,
+        outboxCount: entry.outboxCount,
+        attachmentCount: entry.attachmentCount,
+        mismatchFlags: entry.mismatchFlags,
+        lastActivityAt,
+        lastTraceKind: entry.platformState?.lastTraceKind,
+        lastEventKind: entry.platformState?.lastEventKind,
+        summary: this.summarizeTransportJournalEntry(
+          {
+            platform: entry.platform,
+            source,
+            operational: entry.inventory?.operational ?? false,
+            ready: entry.readiness?.ready ?? false,
+            transportState: entry.platformState?.transportState,
+            status: entry.readiness?.status,
+            traceCount: entry.traceCount,
+            inboxCount: entry.inboxCount,
+            outboxCount: entry.outboxCount,
+            attachmentCount: entry.attachmentCount,
+            mismatchFlags: entry.mismatchFlags,
+            lastTraceKind: entry.platformState?.lastTraceKind,
+            lastEventKind: entry.platformState?.lastEventKind,
+          },
+          lastActivityAt,
+        ),
+      };
+    });
 
     return {
       running: this.running,
@@ -1331,6 +1475,7 @@ export class GatewayRunner {
         details: transportOverviewDetails,
       },
       transportSummaries,
+      transportJournal,
       tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
       tracesByPlatform: this.countByPlatform(
         allTraces,
@@ -1421,6 +1566,10 @@ export class GatewayRunner {
         platform,
         this.context.config,
         this.context.services.delivery,
+        () =>
+          this.getTransportControlPlane().messagingBridge.find(
+            (entry) => entry.platform === platform,
+          ),
       );
     }
     if (platform === "discord") {
@@ -1428,6 +1577,10 @@ export class GatewayRunner {
         platform,
         this.context.config,
         this.context.services.delivery,
+        () =>
+          this.getTransportControlPlane().messagingBridge.find(
+            (entry) => entry.platform === platform,
+          ),
       );
     }
     if (platform === "slack") {
@@ -1615,6 +1768,14 @@ export class GatewayRunner {
     const recentOutbox = this.outbox(20, { platform });
     const recentAttachments = this.attachments(20, { platform });
     const mismatchFlags: string[] = [];
+    const source =
+      inventory?.source ?? platformState?.nativePluginSource ?? "custom";
+    const lastActivityAt =
+      platformState?.lastUpdatedAt ??
+      platformState?.lastTraceAt ??
+      platformState?.lastEventAt ??
+      readiness?.lastHeartbeatAt ??
+      undefined;
 
     if (inventory?.gatewayEnabled && !platformState) {
       mismatchFlags.push("gateway-enabled-without-platform-state");
@@ -1651,6 +1812,25 @@ export class GatewayRunner {
       recentOutbox,
       recentAttachments,
       mismatchFlags,
+      lastActivityAt,
+      summary: this.summarizeTransportJournalEntry(
+        {
+          platform,
+          source,
+          operational: inventory?.operational ?? false,
+          ready: readiness?.ready ?? false,
+          transportState: platformState?.transportState,
+          status: readiness?.status,
+          traceCount: recentTraces.length,
+          inboxCount: recentInbox.length,
+          outboxCount: recentOutbox.length,
+          attachmentCount: recentAttachments.length,
+          mismatchFlags,
+          lastTraceKind: platformState?.lastTraceKind,
+          lastEventKind: platformState?.lastEventKind,
+        },
+        lastActivityAt,
+      ),
     };
   }
 
@@ -2334,13 +2514,15 @@ export class GatewayRunner {
     traceId?: string;
     sessionId?: string;
     deliveryId?: string;
+    transportSummary?: string;
+    transportDetail?: GatewayTransportDetail;
   }> {
     const record = this.inboxLog.find((entry) => entry.recordId === recordId);
     if (!record) {
       throw new Error(`Inbox record ${recordId} was not found.`);
     }
 
-    return this.receive({
+    const result = await this.receive({
       platform: record.platform,
       userId: record.userId,
       roomId: record.roomId,
@@ -2358,6 +2540,35 @@ export class GatewayRunner {
         replayedAt: new Date().toISOString(),
       },
     });
+    const transportDetail = await this.transport(record.platform);
+    const source =
+      transportDetail.inventory?.source ??
+      transportDetail.platformState?.nativePluginSource ??
+      "custom";
+    return {
+      ...result,
+      transportDetail,
+      transportSummary: this.summarizeTransportJournalEntry(
+        {
+          platform: record.platform,
+          source,
+          operational: transportDetail.inventory?.operational ?? false,
+          ready: transportDetail.readiness?.ready ?? false,
+          transportState: transportDetail.platformState?.transportState,
+          status: transportDetail.readiness?.status,
+          traceCount: transportDetail.traceCount,
+          inboxCount: transportDetail.inboxCount,
+          outboxCount: transportDetail.outboxCount,
+          attachmentCount: transportDetail.attachmentCount,
+          mismatchFlags: transportDetail.mismatchFlags,
+          lastTraceKind: transportDetail.platformState?.lastTraceKind,
+          lastEventKind: transportDetail.platformState?.lastEventKind,
+        },
+        transportDetail.platformState?.lastUpdatedAt ??
+          transportDetail.platformState?.lastTraceAt ??
+          transportDetail.platformState?.lastEventAt,
+      ),
+    };
   }
 
   private async snapshotState(
@@ -2394,6 +2605,7 @@ export class GatewayRunner {
       readiness,
       transportOverview: state.transportOverview,
       transportSummaries: state.transportSummaries,
+      transportJournal: state.transportJournal,
       traces,
       inbox,
       outbox,

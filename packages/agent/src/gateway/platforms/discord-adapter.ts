@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import type { EffectiveMessagingTransportEntry } from "@/runtime/native/service-bridge";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
@@ -33,6 +34,9 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     public readonly name: PlatformName,
     private readonly config: EnvConfig,
     private readonly delivery: DeliveryService,
+    private readonly nativeBridge?: () =>
+      | EffectiveMessagingTransportEntry
+      | undefined,
   ) {}
 
   async start(): Promise<void> {
@@ -55,20 +59,31 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
-    const ready = this.status === "running" && this.canReceive();
+    const bridge = this.nativeBridge?.();
+    const ready =
+      this.status === "running" &&
+      this.canReceive() &&
+      (bridge ? bridge.live && bridge.gatewayEnabled : true);
     this.lifecycle.record(
       "health",
       describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return buildConfiguredTransportHealth({
+    const health = buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
       sendCount: this.sendCount,
       configured: Boolean(this.config.discordBotToken),
+      readyWhenRunning: bridge ? bridge.live && bridge.gatewayEnabled : true,
       configuredDetail:
         "Discord bot token configured; replies, threads, and attachments are supported.",
       missingDetail: "DISCORD_BOT_TOKEN is not configured.",
-      runningDetail: `Discord bot token configured; replies, threads, and attachments are supported. Sends=${this.sendCount}.`,
+      runningDetail: [
+        "Discord bot token configured; replies, threads, and attachments are supported.",
+        `Sends=${this.sendCount}.`,
+        bridge?.detail,
+      ]
+        .filter(Boolean)
+        .join(" "),
       stoppedDetail: "DISCORD_BOT_TOKEN is not configured.",
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
@@ -84,6 +99,13 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
       events: this.lifecycle.recent(6),
       capabilities: capabilitiesForPlatform(this.name),
     });
+    return {
+      ...health,
+      nativePluginId: bridge?.pluginId,
+      nativePluginSource: bridge?.pluginSource,
+      nativePluginEnabled: bridge?.pluginEnabled,
+      nativePluginNotes: bridge?.detail,
+    };
   }
 
   async send(message: OutboundPlatformMessage) {

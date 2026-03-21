@@ -325,6 +325,7 @@ async function buildTransportDrilldown(
           detail: gatewayDetail,
           health: gatewayDetail?.readiness,
           state: gatewayDetail?.platformState,
+          summary: gatewayDetail?.summary,
           history: gatewayDetail
             ? {
                 traces: gatewayDetail.recentTraces,
