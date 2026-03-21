@@ -12,7 +12,7 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import { getEffectiveMessagingTransportInventory } from "@/runtime/native/service-bridge";
+import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -286,6 +286,10 @@ interface GatewayRuntimeStatus {
   lastSupervisionAt?: string;
   supervisionEvents: number;
   adapters: PlatformName[];
+  transportControl: ReturnType<typeof getNativeTransportControlPlane>["totals"];
+  messagingBridge: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["messagingBridge"];
 }
 
 interface GatewaySupervisionRecord {
@@ -324,15 +328,21 @@ export class GatewayRunner {
   private lastSupervisionAt?: string;
   private readonly supervisionLog: GatewaySupervisionRecord[] = [];
 
+  private getTransportControlPlane() {
+    return getNativeTransportControlPlane(
+      this.context.runtime,
+      this.context.config,
+    );
+  }
+
   private resolveNativeMessagingPlugin(platform: PlatformName) {
     const suffix = `.${platform}`;
     const plugin = getNativePluginCatalog(this.context.config).find(
       (entry) => entry.category === "messaging" && entry.id.endsWith(suffix),
     );
-    const bridge = getEffectiveMessagingTransportInventory(
-      this.context.runtime,
-      this.context.config,
-    ).find((entry) => entry.platform === platform);
+    const bridge = this.getTransportControlPlane().messagingBridge.find(
+      (entry) => entry.platform === platform,
+    );
     if (!plugin) {
       return bridge
         ? {
@@ -1388,6 +1398,7 @@ export class GatewayRunner {
   }
 
   runtimeStatus(): GatewayRuntimeStatus {
+    const controlPlane = this.getTransportControlPlane();
     return {
       pid: process.pid,
       running: this.running,
@@ -1398,6 +1409,8 @@ export class GatewayRunner {
       lastSupervisionAt: this.lastSupervisionAt,
       supervisionEvents: this.supervisionLog.length,
       adapters: Array.from(this.adapters.keys()),
+      transportControl: controlPlane.totals,
+      messagingBridge: controlPlane.messagingBridge,
     };
   }
 
