@@ -60,10 +60,12 @@ eliza-agent/
 │   │   ├── plugin-agent-skills/
 │   │   ├── plugin-coding-agent/
 │   │   ├── plugin-cron/
+│   │   ├── plugin-browser/
 │   │   ├── plugin-discord/
 │   │   ├── plugin-experience/
 │   │   ├── plugin-knowledge/
 │   │   ├── plugin-local-embedding/
+│   │   ├── plugin-mcp/
 │   │   ├── plugin-personality/
 │   │   ├── plugin-plugin-manager/
 │   │   ├── plugin-rolodex/
@@ -146,7 +148,7 @@ The runtime now uses a wider native ElizaOS stack:
 - `@elizaos/skills`
   - First-party skills package used as part of the native ElizaOS workspace alignment.
 - vendored official-compatible packages in `packages/plugins/*`
-  - Local workspace packages that preserve official ElizaOS package names while patching compatibility to the current runtime line for Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
+  - Local workspace packages that preserve official ElizaOS package names while patching compatibility to the current runtime line for browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
 - `elizaos`
   - Requested dist-tag package channel for the ElizaOS umbrella package.
 - `eliza-agent-runtime` custom plugin

@@ -1,0 +1,13 @@
+{
+  "name": "@elizaos/plugin-browser",
+  "version": "2.0.0-alpha.81-patched.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos-official/compat": "file:../compat",
+    "@elizaos/core": "alpha"
+  }
+}

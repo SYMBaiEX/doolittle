@@ -11,7 +11,7 @@ Eliza Agent is organized as a Bun workspace monorepo.
   - runtime, CLI, API, gateway, and product-specific services
 - `packages/plugins`
   - local Eliza Agent product plugins and vendored official-compatible ElizaOS plugin packages
-  - includes the Eliza Agent plugin plus patched official plugin workspaces
+  - includes the Eliza Agent plugin plus patched official plugin workspaces such as `plugin-browser` and `plugin-mcp`
 - `packages/skills`
   - local Eliza Agent skill content and generated skills
   - organized by category for discoverability (`identity/`, `memory/`, `productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)

@@ -17,10 +17,12 @@ This workspace contains both product-native Eliza Agent plugins and vendored off
 - `plugin-agent-skills`
 - `plugin-coding-agent`
 - `plugin-cron`
+- `plugin-browser`
 - `plugin-discord`
 - `plugin-experience`
 - `plugin-knowledge`
 - `plugin-local-embedding`
+- `plugin-mcp`
 - `plugin-personality`
 - `plugin-plugin-manager`
 - `plugin-rolodex`
