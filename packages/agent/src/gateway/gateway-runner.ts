@@ -250,6 +250,9 @@ interface GatewayStateSnapshot {
     readyAdapters: number;
     nativeAdapters: number;
     mockAdapters: number;
+    pluginMediatedAdapters: number;
+    officialPluginAdapters: number;
+    vendoredPluginAdapters: number;
     totalTraces: number;
     recentTraces: number;
     inboxMessages: number;
@@ -1090,6 +1093,15 @@ export class GatewayRunner {
         nativeAdapters: readiness.filter((entry) => entry.mode === "native")
           .length,
         mockAdapters: readiness.filter((entry) => entry.mode === "mock").length,
+        pluginMediatedAdapters: platformSummary.filter((entry) =>
+          Boolean(entry.nativePluginId),
+        ).length,
+        officialPluginAdapters: platformSummary.filter(
+          (entry) => entry.nativePluginSource === "official",
+        ).length,
+        vendoredPluginAdapters: platformSummary.filter(
+          (entry) => entry.nativePluginSource === "vendored",
+        ).length,
         totalTraces: allTraces.length,
         recentTraces: traces.length,
         inboxMessages: inbox.length,
