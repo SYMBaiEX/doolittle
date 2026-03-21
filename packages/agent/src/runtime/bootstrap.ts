@@ -133,6 +133,7 @@ export async function getAppContext(): Promise<AppContext> {
 
     await runtime.initialize();
     services.diagnostics.attachRuntime(runtime);
+    services.operator.attachRuntime(runtime);
     services.documents = new DocumentsService(runtime, config.workspaceDir);
     const gatewayService = runtime.getService("eliza_agent_gateway") as {
       runner?: GatewayRunner;

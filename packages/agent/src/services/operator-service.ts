@@ -13,6 +13,10 @@ import { basename, dirname, join, resolve } from "node:path";
 
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import {
+  getNativeTransportControlPlane,
+  type RuntimeLike,
+} from "@/runtime/native/service-bridge";
 import type { EnvConfig } from "@/types";
 import type { DiagnosticsService } from "./diagnostics-service";
 import {
@@ -55,6 +59,7 @@ export interface SetupSummary {
   directories: Array<{ label: string; path: string; exists: boolean }>;
   providers: Array<{ id: string; ready: boolean; detail: string }>;
   transports: Array<{ id: string; ready: boolean; detail: string }>;
+  transportControl?: ReturnType<typeof getNativeTransportControlPlane>;
   nativeServices: Array<{ group: string; services: string[]; count: number }>;
   checklist: string[];
 }
@@ -107,6 +112,7 @@ export interface MigrationHistoryEntry {
 export class OperatorService {
   private readonly packageMetadata: PackageMetadata;
   private readonly migrationsDir: string;
+  private runtime?: RuntimeLike;
 
   constructor(
     private readonly config: EnvConfig,
@@ -116,6 +122,10 @@ export class OperatorService {
     this.packageMetadata = this.loadPackageMetadata();
     this.migrationsDir = join(this.config.dataDir, "migrations");
     mkdirSync(this.migrationsDir, { recursive: true });
+  }
+
+  attachRuntime(runtime: RuntimeLike): void {
+    this.runtime = runtime;
   }
 
   async setupSummary(): Promise<SetupSummary> {
@@ -200,6 +210,9 @@ export class OperatorService {
             : "Missing SIGNAL_CLI_COMMAND.",
         },
       ],
+      transportControl: this.runtime
+        ? getNativeTransportControlPlane(this.runtime, this.config)
+        : undefined,
       nativeServices: describeNativeServiceRegistry(
         createNativeServiceRegistry(),
       ),

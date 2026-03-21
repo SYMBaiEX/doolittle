@@ -5,6 +5,7 @@ import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
   getEffectiveMessagingTransportInventory,
+  getNativeTransportControlPlane,
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
@@ -131,7 +132,11 @@ export class DiagnosticsService {
         .join(", "),
     });
 
-    if (messagingBridge.length) {
+    if (this.runtime && messagingBridge.length) {
+      const controlPlane = getNativeTransportControlPlane(
+        this.runtime,
+        this.config,
+      );
       checks.push({
         id: "native.messaging.services",
         status: messagingBridge.some((entry) => entry.live) ? "pass" : "warn",
@@ -142,6 +147,12 @@ export class DiagnosticsService {
               `${entry.platform}:available=${entry.serviceAvailable}:live=${entry.live}:plugin=${entry.pluginId ?? "n/a"}`,
           )
           .join(", "),
+      });
+      checks.push({
+        id: "native.messaging.control-plane",
+        status: controlPlane.totals.enabledPlugins > 0 ? "pass" : "warn",
+        summary: "Native messaging control plane",
+        detail: `configured=${controlPlane.totals.configured} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins}`,
       });
     }
 

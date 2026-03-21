@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { RuntimeLike } from "@/runtime/native/service-bridge";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import { DiagnosticsService } from "./diagnostics-service";
 
@@ -150,6 +151,17 @@ describe("DiagnosticsService", () => {
       buildConfig(root),
       buildGatewayConfig(),
     );
+    const runtime = {
+      getService(name: string) {
+        if (name === "discord_transport") {
+          return {
+            history: () => [],
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+    service.attachRuntime(runtime);
 
     try {
       const checks = await service.run({
@@ -173,6 +185,9 @@ describe("DiagnosticsService", () => {
         checks.some(
           (check) => check.id === "mcp.bridge" && check.status === "warn",
         ),
+      ).toBe(true);
+      expect(
+        checks.some((check) => check.id === "native.messaging.control-plane"),
       ).toBe(true);
 
       const checklist = await service.setupChecklist();

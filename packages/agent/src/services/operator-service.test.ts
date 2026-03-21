@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import type { RuntimeLike } from "@/runtime/native/service-bridge";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import { DiagnosticsService } from "./diagnostics-service";
 import { OperatorService } from "./operator-service";
@@ -163,6 +163,18 @@ describe("OperatorService", () => {
     const diagnostics = new DiagnosticsService(config, gatewayConfig);
     const repository = new RepositoryService(config.workspaceDir);
     const service = new OperatorService(config, diagnostics, repository);
+    const runtime = {
+      getService(name: string) {
+        if (name === "telegram") {
+          return { bot: {}, messageManager: {}, knownChats: new Map() };
+        }
+        if (name === "discord_transport") {
+          return { history: () => [] };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+    service.attachRuntime(runtime);
 
     const setup = await service.setupSummary();
     const update = await service.updatePreview();
@@ -174,6 +186,7 @@ describe("OperatorService", () => {
     expect(
       setup.transports.some((entry) => entry.id === "telegram" && entry.ready),
     ).toBe(true);
+    expect(setup.transportControl?.totals.availableServices).toBe(2);
     expect(setup.checklist.length).toBeGreaterThan(0);
     expect(update.version.version).toBeTruthy();
     expect(update.recommendedSteps.length).toBeGreaterThan(0);

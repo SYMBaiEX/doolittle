@@ -19,7 +19,6 @@ import {
   createEffectiveDelegationTask,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
-  getEffectiveMessagingTransportInventory,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
@@ -27,6 +26,7 @@ import {
   getEffectiveShellStatus,
   getEffectiveSkills,
   getNativeServices,
+  getNativeTransportControlPlane,
   runEffectiveShellCommand,
 } from "@/runtime/native/service-bridge";
 import type { RuntimeSettings } from "@/services/settings-service";
@@ -1293,21 +1293,23 @@ async function buildCommandResponse(
       return "Gateway runtime is not attached to this execution context.";
     }
     const health = await context.gateway.health();
+    const controlPlane = getNativeTransportControlPlane(
+      context.runtime,
+      context.config,
+    );
     const pluginLines = groupNativePluginCatalog(
       getNativePluginCatalog(context.config),
     ).messaging.map(
       (entry) =>
         `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,
     );
-    const bridgeLines = getEffectiveMessagingTransportInventory(
-      context.runtime,
-      context.config,
-    ).map(
+    const bridgeLines = controlPlane.messagingBridge.map(
       (entry) =>
         `- bridge ${entry.platform} service=${entry.serviceName} available=${entry.serviceAvailable} live=${entry.live} plugin=${entry.pluginId ?? "n/a"} :: ${entry.detail}`,
     );
     return [
       `gateway totals: configured=${health.length} ready=${health.filter((entry) => entry.ready).length} pluginMediated=${health.filter((entry) => entry.nativePluginId).length} official=${health.filter((entry) => entry.nativePluginSource === "official").length} vendored=${health.filter((entry) => entry.nativePluginSource === "vendored").length}`,
+      `bridge totals: enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices}`,
       ...health.map((entry) => {
         const lifecycle = [
           entry.startedAt ? `started=${entry.startedAt}` : undefined,
@@ -1388,13 +1390,15 @@ async function buildCommandResponse(
       return "Gateway runtime is not attached to this execution context.";
     }
     const state = await context.gateway.state(50);
+    const controlPlane = getNativeTransportControlPlane(
+      context.runtime,
+      context.config,
+    );
     return JSON.stringify(
       {
         runtime: context.gateway.runtimeStatus(),
-        messagingBridge: getEffectiveMessagingTransportInventory(
-          context.runtime,
-          context.config,
-        ),
+        messagingBridge: controlPlane.messagingBridge,
+        transportControl: controlPlane.totals,
         mediation: {
           pluginMediatedAdapters: state.totals.pluginMediatedAdapters,
           officialPluginAdapters: state.totals.officialPluginAdapters,
@@ -1636,15 +1640,25 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/runtime services" || trimmed === "/services native") {
+    const controlPlane = getNativeTransportControlPlane(
+      context.runtime,
+      context.config,
+    );
     return JSON.stringify(
       {
         resolution: getEffectiveServiceResolution(context.runtime),
-        messaging: getEffectiveMessagingTransportInventory(
-          context.runtime,
-          context.config,
-        ),
+        messaging: controlPlane.messagingBridge,
+        transportControl: controlPlane.totals,
         registry: context.services.nativeRegistry,
       },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime transports") {
+    return JSON.stringify(
+      getNativeTransportControlPlane(context.runtime, context.config),
       null,
       2,
     );

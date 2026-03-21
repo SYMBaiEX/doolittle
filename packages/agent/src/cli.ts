@@ -106,6 +106,7 @@ function buildHelpText(agentName: string): string {
     "  F10 /gateway history limit:10",
     "  F11 /gateway supervision",
     "  F12 /responses list",
+    "  Shift-F12 /runtime transports",
     "",
     "Examples:",
     "  /skills list",
@@ -1442,6 +1443,7 @@ async function startTui(context: AppContext): Promise<void> {
     [["f10"], "/gateway history limit:10"],
     [["f11"], "/gateway supervision"],
     [["f12"], "/responses list"],
+    [["S-f12"], "/runtime transports"],
   ];
 
   for (const [keys, command] of hotkeys) {

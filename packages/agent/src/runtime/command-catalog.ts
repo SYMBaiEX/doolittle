@@ -46,6 +46,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show native-vs-product service resolution across the stack.",
   },
   {
+    command: "/runtime transports",
+    category: "runtime",
+    description:
+      "Show native messaging plugin, service, and live control-plane state.",
+  },
+  {
     command: "/runtime ecosystem",
     category: "runtime",
     description: "Show alpha-channel package alignment and native audit data.",

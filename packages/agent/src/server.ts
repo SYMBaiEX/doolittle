@@ -29,6 +29,7 @@ import {
   getEffectiveShellStatus,
   getEffectiveSkills,
   getNativeServices,
+  getNativeTransportControlPlane,
   runEffectiveShellCommand,
 } from "@/runtime/native/service-bridge";
 import { DiagnosticsService } from "@/services/diagnostics-service";
@@ -338,14 +339,22 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/services") {
+        const controlPlane = getNativeTransportControlPlane(
+          context.runtime,
+          context.config,
+        );
         return json({
           resolution: getEffectiveServiceResolution(context.runtime),
-          messagingBridge: getEffectiveMessagingTransportInventory(
-            context.runtime,
-            context.config,
-          ),
+          messagingBridge: controlPlane.messagingBridge,
+          transportControl: controlPlane.totals,
           registry: context.services.nativeRegistry,
         });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/transports") {
+        return json(
+          getNativeTransportControlPlane(context.runtime, context.config),
+        );
       }
 
       if (request.method === "GET" && url.pathname === "/doctor") {

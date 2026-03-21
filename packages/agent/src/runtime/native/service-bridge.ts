@@ -209,6 +209,49 @@ export function getEffectiveMessagingTransportInventory(
   ];
 }
 
+export function getNativeTransportControlPlane(
+  runtime: RuntimeLike,
+  config: EnvConfig,
+): {
+  messagingBridge: ReturnType<typeof getEffectiveMessagingTransportInventory>;
+  messagingPlugins: ReturnType<typeof getNativePluginCatalog>;
+  totals: {
+    configured: number;
+    enabledPlugins: number;
+    availableServices: number;
+    liveServices: number;
+    officialPlugins: number;
+    vendoredPlugins: number;
+  };
+} {
+  const messagingPlugins = getNativePluginCatalog(config).filter(
+    (entry) => entry.category === "messaging",
+  );
+  const messagingBridge = getEffectiveMessagingTransportInventory(
+    runtime,
+    config,
+  );
+  return {
+    messagingBridge,
+    messagingPlugins,
+    totals: {
+      configured: messagingBridge.length,
+      enabledPlugins: messagingBridge.filter((entry) => entry.pluginEnabled)
+        .length,
+      availableServices: messagingBridge.filter(
+        (entry) => entry.serviceAvailable,
+      ).length,
+      liveServices: messagingBridge.filter((entry) => entry.live).length,
+      officialPlugins: messagingBridge.filter(
+        (entry) => entry.pluginSource === "official",
+      ).length,
+      vendoredPlugins: messagingBridge.filter(
+        (entry) => entry.pluginSource === "vendored",
+      ).length,
+    },
+  };
+}
+
 export function getEffectiveServiceResolution(
   runtime: RuntimeLike,
 ): EffectiveServiceResolutionRecord[] {
