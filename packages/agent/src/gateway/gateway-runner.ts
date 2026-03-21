@@ -12,7 +12,10 @@ import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge";
+import {
+  getNativeMessagingTransportState,
+  getNativeTransportControlPlane,
+} from "@/runtime/native/service-bridge";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -385,6 +388,7 @@ interface GatewayTransportDetail {
   messagingBridge?: ReturnType<
     typeof getNativeTransportControlPlane
   >["messagingBridge"][number];
+  nativeMessagingState?: ReturnType<typeof getNativeMessagingTransportState>;
   platformState?: GatewayPlatformState;
   readiness?: PlatformHealth;
   traceCount: number;
@@ -455,6 +459,15 @@ export class GatewayRunner {
     const plugin = getNativePluginCatalog(this.context.config).find(
       (entry) => entry.category === "messaging" && entry.id.endsWith(suffix),
     );
+    const nativeState =
+      platform === "telegram" || platform === "discord"
+        ? getNativeMessagingTransportState(
+            this.context.runtime,
+            this.context.config,
+            this.context.services.gatewayConfig,
+            platform,
+          )
+        : undefined;
     const bridge = this.getTransportControlPlane().messagingBridge.find(
       (entry) => entry.platform === platform,
     );
@@ -464,13 +477,17 @@ export class GatewayRunner {
             id: bridge.pluginId,
             source: bridge.pluginSource,
             enabled: bridge.pluginEnabled,
-            notes: bridge.detail,
+            notes: nativeState
+              ? `${nativeState.summary} ${nativeState.detail}`
+              : bridge.detail,
           }
         : undefined;
     }
     return {
       ...plugin,
-      notes: bridge ? `${plugin.notes} ${bridge.detail}` : plugin.notes,
+      notes: bridge
+        ? `${plugin.notes} ${nativeState ? `${nativeState.summary} ${nativeState.detail}` : bridge.detail}`
+        : plugin.notes,
     };
   }
 
@@ -489,6 +506,7 @@ export class GatewayRunner {
       mismatchFlags: string[];
       lastTraceKind?: GatewayTraceRecord["kind"];
       lastEventKind?: PlatformLifecycleEvent["kind"];
+      nativeMessagingSummary?: string;
     },
     lastActivityAt?: string,
   ): string {
@@ -506,7 +524,12 @@ export class GatewayRunner {
       `lastActivity=${lastActivityAt ?? "n/a"}`,
       `lastTrace=${entry.lastTraceKind ?? "n/a"}`,
       `lastEvent=${entry.lastEventKind ?? "n/a"}`,
-    ].join(" ");
+      entry.nativeMessagingSummary
+        ? `native=${entry.nativeMessagingSummary}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
 
   constructor(private readonly context: AppContext) {
@@ -1567,8 +1590,11 @@ export class GatewayRunner {
         this.context.config,
         this.context.services.delivery,
         () =>
-          this.getTransportControlPlane().messagingBridge.find(
-            (entry) => entry.platform === platform,
+          getNativeMessagingTransportState(
+            this.context.runtime,
+            this.context.config,
+            this.context.services.gatewayConfig,
+            platform,
           ),
       );
     }
@@ -1578,8 +1604,11 @@ export class GatewayRunner {
         this.context.config,
         this.context.services.delivery,
         () =>
-          this.getTransportControlPlane().messagingBridge.find(
-            (entry) => entry.platform === platform,
+          getNativeMessagingTransportState(
+            this.context.runtime,
+            this.context.config,
+            this.context.services.gatewayConfig,
+            platform,
           ),
       );
     }
@@ -1770,6 +1799,15 @@ export class GatewayRunner {
     const mismatchFlags: string[] = [];
     const source =
       inventory?.source ?? platformState?.nativePluginSource ?? "custom";
+    const nativeMessagingState =
+      platform === "telegram" || platform === "discord"
+        ? getNativeMessagingTransportState(
+            this.context.runtime,
+            this.context.config,
+            this.context.services.gatewayConfig,
+            platform,
+          )
+        : undefined;
     const lastActivityAt =
       platformState?.lastUpdatedAt ??
       platformState?.lastTraceAt ??
@@ -1801,6 +1839,7 @@ export class GatewayRunner {
       platform,
       inventory,
       messagingBridge,
+      nativeMessagingState,
       platformState,
       readiness,
       traceCount: recentTraces.length,
@@ -1818,7 +1857,7 @@ export class GatewayRunner {
           platform,
           source,
           operational: inventory?.operational ?? false,
-          ready: readiness?.ready ?? false,
+          ready: nativeMessagingState?.ready ?? readiness?.ready ?? false,
           transportState: platformState?.transportState,
           status: readiness?.status,
           traceCount: recentTraces.length,
@@ -1828,6 +1867,7 @@ export class GatewayRunner {
           mismatchFlags,
           lastTraceKind: platformState?.lastTraceKind,
           lastEventKind: platformState?.lastEventKind,
+          nativeMessagingSummary: nativeMessagingState?.summary,
         },
         lastActivityAt,
       ),
