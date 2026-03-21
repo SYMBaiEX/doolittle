@@ -368,6 +368,10 @@ export function createServices(
     agentSdkCatalogAvailable:
       agentSdk.snapshot().skillCatalog?.available ?? false,
     agentSdkCatalogSkills: agentSdk.snapshot().skillCatalog?.total ?? 0,
+    agentSdkCompatibilityFailures:
+      agentSdk
+        .snapshot()
+        .audit?.compatibility.filter((entry) => !entry.compatible).length ?? 0,
   }));
   void agentSdk.prime().catch(() => {});
   const getModelContext = (): {

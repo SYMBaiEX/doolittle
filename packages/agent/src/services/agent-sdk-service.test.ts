@@ -28,7 +28,10 @@ describe("AgentSdkService", () => {
         "@elizaos/agent": "2.0.0-alpha.85",
         "@elizaos/autonomous": "2.0.0-alpha.85",
       },
-      compatibility: ["ok", "ok"],
+      compatibility: [
+        { plugin: "@elizaos/plugin-openai", compatible: true },
+        { plugin: "@elizaos/plugin-browser", compatible: true },
+      ],
       skillCatalog: {
         cachedSkills: 8,
       },
@@ -51,6 +54,7 @@ describe("AgentSdkService", () => {
       foundationPackages: 2,
       installedFoundationPackages: 2,
       compatibilityChecks: 2,
+      compatibilityFailures: 0,
       registryEndpoints: 2,
       registryPlugins: 14,
       nonAppPlugins: 11,

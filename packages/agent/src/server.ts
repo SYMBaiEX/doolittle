@@ -414,6 +414,13 @@ export function startApiServer(context: AppContext): void {
         );
       }
 
+      if (
+        request.method === "GET" &&
+        url.pathname === "/runtime/compatibility"
+      ) {
+        return json(await context.services.agentSdk.compatibility());
+      }
+
       if (request.method === "GET" && url.pathname === "/runtime/registry") {
         const query = url.searchParams.get("query")?.trim();
         const refresh =

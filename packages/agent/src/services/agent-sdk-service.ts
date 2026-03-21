@@ -22,12 +22,22 @@ export interface AgentSdkOverview {
     foundationPackages: number;
     installedFoundationPackages: number;
     compatibilityChecks: number;
+    compatibilityFailures: number;
     registryEndpoints: number;
     registryPlugins: number;
     nonAppPlugins: number;
     skillCatalogSkills: number;
     trendingSkills: number;
   };
+}
+
+export interface AgentSdkCompatibilityReport {
+  coreVersion: string;
+  compatible: boolean;
+  checked: number;
+  failures: number;
+  results: AgentSdkAudit["compatibility"];
+  failing: AgentSdkAudit["compatibility"];
 }
 
 function countInstalledFoundationPackages(
@@ -98,6 +108,9 @@ export class AgentSdkService {
           audit.installed,
         ),
         compatibilityChecks: audit.compatibility.length,
+        compatibilityFailures: audit.compatibility.filter(
+          (entry) => !entry.compatible,
+        ).length,
         registryEndpoints: registry.endpoints?.length ?? 0,
         registryPlugins: registry.total ?? 0,
         nonAppPlugins: registry.nonAppPlugins ?? 0,
@@ -105,6 +118,19 @@ export class AgentSdkService {
           skillCatalog.total ?? audit.skillCatalog.cachedSkills ?? 0,
         trendingSkills: skillCatalog.trending?.length ?? 0,
       },
+    };
+  }
+
+  async compatibility(force = false): Promise<AgentSdkCompatibilityReport> {
+    const audit = await this.audit(force);
+    const failing = audit.compatibility.filter((entry) => !entry.compatible);
+    return {
+      coreVersion: audit.coreVersion,
+      compatible: failing.length === 0,
+      checked: audit.compatibility.length,
+      failures: failing.length,
+      results: audit.compatibility,
+      failing,
     };
   }
 
