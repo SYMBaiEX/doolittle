@@ -164,6 +164,48 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Invoke the native code generation service directly.",
   },
   {
+    command:
+      "/codegen research <project-name> | type:plugin | apis:api1,api2 | requirements:req1,req2 :: <description>",
+    category: "runtime",
+    description: "Run native autocoder research for a project request.",
+  },
+  {
+    command:
+      "/codegen prd <project-name> | type:plugin | apis:api1,api2 | requirements:req1,req2 :: <description>",
+    category: "runtime",
+    description: "Run native autocoder research and generate a PRD.",
+  },
+  {
+    command: "/codegen qa <project-path>",
+    category: "runtime",
+    description: "Run native autocoder QA against a generated project path.",
+  },
+  {
+    command: "/github create <repo-name> [| private:false]",
+    category: "runtime",
+    description: "Create a native autocoder-backed GitHub repository.",
+  },
+  {
+    command: "/github delete <repo-name>",
+    category: "runtime",
+    description: "Delete a native autocoder-backed GitHub repository.",
+  },
+  {
+    command: "/secrets list",
+    category: "runtime",
+    description: "List native secrets-manager keys.",
+  },
+  {
+    command: "/secrets get <key>",
+    category: "runtime",
+    description: "Read one native secret value.",
+  },
+  {
+    command: "/secrets set <key> :: <value>",
+    category: "runtime",
+    description: "Store one native secret value.",
+  },
+  {
     command: "/runtime research",
     category: "runtime",
     description:

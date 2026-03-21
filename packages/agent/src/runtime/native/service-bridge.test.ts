@@ -4,9 +4,12 @@ import type { RuntimeLike } from "./service-bridge";
 import {
   cancelEffectiveForm,
   createEffectiveForm,
+  createEffectiveRepository,
   createEffectiveSandbox,
+  deleteEffectiveRepository,
   executeEffectiveSandboxCode,
   generateEffectiveCode,
+  generateEffectivePrd,
   getAutonomousControlPlane,
   getEffectiveDelegationChildren,
   getEffectiveDelegationTask,
@@ -19,6 +22,7 @@ import {
   getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
+  getEffectiveSecret,
   getEffectiveTransportInventory,
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
@@ -29,7 +33,11 @@ import {
   killEffectiveSandbox,
   listEffectiveForms,
   listEffectiveSandboxes,
+  listEffectiveSecretKeys,
+  performEffectiveCodeQa,
+  performEffectiveCodeResearch,
   retryEffectiveDelegationTask,
+  setEffectiveSecret,
 } from "./service-bridge";
 
 describe("getEffectiveMessagingTransportInventory", () => {
@@ -133,10 +141,43 @@ describe("getEffectiveMessagingTransportInventory", () => {
         }
         if (name === "code-generation") {
           return {
+            performResearch: async (request: Record<string, unknown>) => ({
+              research: true,
+              request,
+            }),
+            generatePRD: async (
+              request: Record<string, unknown>,
+              research: Record<string, unknown>,
+            ) => ({
+              prd: true,
+              request,
+              research,
+            }),
+            performQA: async (projectPath: string) => ({
+              passed: true,
+              projectPath,
+            }),
             generateCode: async (request: Record<string, unknown>) => ({
               ok: true,
               request,
             }),
+          };
+        }
+        if (name === "github") {
+          return {
+            createRepository: async (name: string, isPrivate = true) => ({
+              name,
+              private: isPrivate,
+            }),
+            deleteRepository: async (name: string) => ({ deleted: name }),
+          };
+        }
+        if (name === "secrets-manager") {
+          return {
+            listSecretKeys: async () => ["OPENAI_API_KEY"],
+            getSecret: async (key: string) => `value:${key}`,
+            setSecret: async () => undefined,
+            hasSecret: async () => true,
           };
         }
         return null;
@@ -181,6 +222,57 @@ describe("getEffectiveMessagingTransportInventory", () => {
         prompt: "Build an agent",
       },
     });
+    await expect(
+      performEffectiveCodeResearch(runtime, {
+        projectName: "eliza-native",
+        description: "Build an agent",
+        apis: ["github"],
+      }),
+    ).resolves.toEqual({
+      research: true,
+      request: {
+        projectName: "eliza-native",
+        description: "Build an agent",
+        apis: ["github"],
+      },
+    });
+    await expect(
+      generateEffectivePrd(
+        runtime,
+        { projectName: "eliza-native" },
+        { research: true },
+      ),
+    ).resolves.toEqual({
+      prd: true,
+      request: { projectName: "eliza-native" },
+      research: { research: true },
+    });
+    await expect(
+      performEffectiveCodeQa(runtime, "/tmp/project"),
+    ).resolves.toEqual({
+      passed: true,
+      projectPath: "/tmp/project",
+    });
+    await expect(
+      createEffectiveRepository(runtime, "eliza-native", false),
+    ).resolves.toEqual({
+      name: "eliza-native",
+      private: false,
+    });
+    await expect(
+      deleteEffectiveRepository(runtime, "eliza-native"),
+    ).resolves.toEqual({
+      deleted: "eliza-native",
+    });
+    await expect(listEffectiveSecretKeys(runtime)).resolves.toEqual([
+      "OPENAI_API_KEY",
+    ]);
+    await expect(getEffectiveSecret(runtime, "OPENAI_API_KEY")).resolves.toBe(
+      "value:OPENAI_API_KEY",
+    );
+    await expect(
+      setEffectiveSecret(runtime, "OPENAI_API_KEY", "secret"),
+    ).resolves.toBeUndefined();
   });
 
   it("reports live telegram and discord services when runtime services exist", () => {

@@ -21,7 +21,9 @@ import {
   compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
   createEffectiveForm,
+  createEffectiveRepository,
   createEffectiveSandbox,
+  deleteEffectiveRepository,
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
@@ -29,6 +31,7 @@ import {
   exportEffectiveSkillHubManifest,
   fetchEffectiveBrowserPage,
   generateEffectiveCode,
+  generateEffectivePrd,
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
@@ -47,6 +50,7 @@ import {
   getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
+  getEffectiveSecret,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkillHubCatalog,
@@ -81,12 +85,16 @@ import {
   killEffectiveSandbox,
   listEffectiveForms,
   listEffectiveSandboxes,
+  listEffectiveSecretKeys,
+  performEffectiveCodeQa,
+  performEffectiveCodeResearch,
   probeEffectiveMcp,
   retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
   searchEffectiveSkillHubCatalog,
+  setEffectiveSecret,
   snapshotEffectiveBrowserPage,
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
@@ -1733,6 +1741,141 @@ export function startApiServer(context: AppContext): void {
             ...body,
             objective: body.prompt,
           }),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/codegen/research") {
+        const body = (await request.json()) as {
+          projectName?: string;
+          targetType?: string;
+          description?: string;
+          apis?: string[];
+          requirements?: string[];
+        };
+        if (!body.projectName || !body.description) {
+          return json(
+            { error: "projectName and description are required" },
+            400,
+          );
+        }
+        return json({
+          research: await performEffectiveCodeResearch(context.runtime, {
+            projectName: body.projectName,
+            targetType: body.targetType ?? "plugin",
+            description: body.description,
+            apis: body.apis ?? [],
+            requirements: body.requirements ?? [],
+          }),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/codegen/prd") {
+        const body = (await request.json()) as {
+          projectName?: string;
+          targetType?: string;
+          description?: string;
+          apis?: string[];
+          requirements?: string[];
+        };
+        if (!body.projectName || !body.description) {
+          return json(
+            { error: "projectName and description are required" },
+            400,
+          );
+        }
+        const requestPayload = {
+          projectName: body.projectName,
+          targetType: body.targetType ?? "plugin",
+          description: body.description,
+          apis: body.apis ?? [],
+          requirements: body.requirements ?? [],
+        };
+        const research = await performEffectiveCodeResearch(
+          context.runtime,
+          requestPayload,
+        );
+        return json({
+          research,
+          prd: await generateEffectivePrd(
+            context.runtime,
+            requestPayload,
+            research as Record<string, unknown>,
+          ),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/codegen/qa") {
+        const body = (await request.json()) as {
+          projectPath?: string;
+        };
+        if (!body.projectPath) {
+          return json({ error: "projectPath is required" }, 400);
+        }
+        return json({
+          qa: await performEffectiveCodeQa(context.runtime, body.projectPath),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/github/create") {
+        const body = (await request.json()) as {
+          name?: string;
+          private?: boolean;
+        };
+        if (!body.name) {
+          return json({ error: "name is required" }, 400);
+        }
+        return json({
+          repository: await createEffectiveRepository(
+            context.runtime,
+            body.name,
+            body.private ?? true,
+          ),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/github/delete") {
+        const body = (await request.json()) as {
+          name?: string;
+        };
+        if (!body.name) {
+          return json({ error: "name is required" }, 400);
+        }
+        return json({
+          deleted: await deleteEffectiveRepository(context.runtime, body.name),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/secrets") {
+        return json({
+          keys: await listEffectiveSecretKeys(context.runtime),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/secrets/get") {
+        const body = (await request.json()) as {
+          key?: string;
+        };
+        if (!body.key) {
+          return json({ error: "key is required" }, 400);
+        }
+        return json({
+          key: body.key,
+          value: await getEffectiveSecret(context.runtime, body.key),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/secrets/set") {
+        const body = (await request.json()) as {
+          key?: string;
+          value?: string;
+        };
+        if (!body.key || body.value === undefined) {
+          return json({ error: "key and value are required" }, 400);
+        }
+        await setEffectiveSecret(context.runtime, body.key, body.value);
+        return json({
+          key: body.key,
+          valueSet: true,
         });
       }
 
