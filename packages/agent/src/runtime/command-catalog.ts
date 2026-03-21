@@ -186,9 +186,24 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "List persisted native autocoder pipeline runs.",
   },
   {
+    command: "/codegen workflows",
+    category: "runtime",
+    description: "List persisted native autocoder workflow graphs.",
+  },
+  {
     command: "/codegen show <run-id>",
     category: "runtime",
     description: "Inspect one persisted native autocoder pipeline run.",
+  },
+  {
+    command: "/codegen workflow <workflow-id>",
+    category: "runtime",
+    description: "Inspect one native autocoder workflow graph and its runs.",
+  },
+  {
+    command: "/codegen bundle <workflow-id>",
+    category: "runtime",
+    description: "Export one native autocoder workflow bundle manifest.",
   },
   {
     command: "/github create <repo-name> [| private:false]",

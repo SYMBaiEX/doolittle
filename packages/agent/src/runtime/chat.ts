@@ -340,6 +340,77 @@ function currentCliSessionId(context: AgentExecutionContext): string {
   );
 }
 
+function createAutocoderWorkflow(
+  context: AgentExecutionContext,
+  input: {
+    title: string;
+    objective: string;
+    kind: Parameters<
+      AgentExecutionContext["services"]["autocoderPipeline"]["startWorkflow"]
+    >[0]["kind"];
+    projectName?: string;
+    repositoryName?: string;
+  },
+) {
+  const sessionId = currentCliSessionId(context);
+  const task = context.services.delegation.create({
+    title: input.title,
+    objective: input.objective,
+    group: "autocoder",
+    profile: "native",
+    priority: "normal",
+    labels: ["autocoder", input.kind],
+    metadata: {
+      kind: input.kind,
+      sessionId,
+      projectName: input.projectName ?? "",
+      repositoryName: input.repositoryName ?? "",
+    },
+    executionMode: "local",
+  });
+  context.services.delegation.markRunning(task.id);
+  const workflow = context.services.autocoderPipeline.startWorkflow({
+    title: input.title,
+    objective: input.objective,
+    kind: input.kind,
+    projectName: input.projectName,
+    repositoryName: input.repositoryName,
+    sessionId,
+    taskId: task.id,
+  });
+  context.services.delegation.addNote(
+    task.id,
+    `system: attached autocoder workflow ${workflow.id}`,
+  );
+  return {
+    sessionId,
+    taskId: task.id,
+    workflowId: workflow.id,
+  };
+}
+
+function completeAutocoderWorkflow(
+  context: AgentExecutionContext,
+  taskId: string,
+  workflowId: string,
+  note: string,
+): void {
+  context.services.delegation.complete(
+    taskId,
+    `${note} workflow=${workflowId}`,
+  );
+}
+
+function failAutocoderWorkflow(
+  context: AgentExecutionContext,
+  taskId: string,
+  workflowId: string,
+  error: unknown,
+): void {
+  const message = error instanceof Error ? error.message : String(error);
+  context.services.delegation.fail(taskId, `${message} workflow=${workflowId}`);
+}
+
 function parseTrajectoryArgs(raw: string): {
   sessionId?: string;
   role?: "user" | "assistant" | "system";
@@ -2804,15 +2875,48 @@ async function buildCommandResponse(
       prompt: promptPart,
       objective: promptPart,
     };
-    const generation = await generateEffectiveCode(context.runtime, request);
-    const run = context.services.autocoderPipeline.record({
+    const workflow = createAutocoderWorkflow(context, {
+      title: `Generate ${namePart}`,
+      objective: promptPart,
       kind: "generate",
       projectName: namePart,
-      sessionId: currentCliSessionId(context),
-      request,
-      result: generation,
     });
-    return JSON.stringify({ run, generation }, null, 2);
+    try {
+      const generation = await generateEffectiveCode(context.runtime, request);
+      const run = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "generate",
+        projectName: namePart,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request,
+        result: generation,
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: code generation completed",
+      );
+      return JSON.stringify(
+        {
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          run,
+          generation,
+        },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed.startsWith("/codegen research ")) {
@@ -2851,18 +2955,51 @@ async function buildCommandResponse(
       apis,
       requirements,
     };
-    const research = await performEffectiveCodeResearch(
-      context.runtime,
-      request,
-    );
-    const run = context.services.autocoderPipeline.record({
+    const workflow = createAutocoderWorkflow(context, {
+      title: `Research ${projectName}`,
+      objective: description,
       kind: "research",
       projectName,
-      sessionId: currentCliSessionId(context),
-      request,
-      result: research,
     });
-    return JSON.stringify({ run, research }, null, 2);
+    try {
+      const research = await performEffectiveCodeResearch(
+        context.runtime,
+        request,
+      );
+      const run = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "research",
+        projectName,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request,
+        result: research,
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: research completed",
+      );
+      return JSON.stringify(
+        {
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          run,
+          research,
+        },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed.startsWith("/codegen prd ")) {
@@ -2902,31 +3039,69 @@ async function buildCommandResponse(
       apis,
       requirements,
     };
-    const research = await performEffectiveCodeResearch(
-      context.runtime,
-      request,
-    );
-    const researchRun = context.services.autocoderPipeline.record({
-      kind: "research",
-      projectName,
-      sessionId: currentCliSessionId(context),
-      request,
-      result: research,
-    });
-    const prd = await generateEffectivePrd(
-      context.runtime,
-      request,
-      research as Record<string, unknown>,
-    );
-    const prdRun = context.services.autocoderPipeline.record({
+    const workflow = createAutocoderWorkflow(context, {
+      title: `PRD ${projectName}`,
+      objective: description,
       kind: "prd",
       projectName,
-      sessionId: currentCliSessionId(context),
-      request,
-      result: prd,
-      linkedRunIds: [researchRun.id],
     });
-    return JSON.stringify({ researchRun, prdRun, research, prd }, null, 2);
+    try {
+      const research = await performEffectiveCodeResearch(
+        context.runtime,
+        request,
+      );
+      const researchRun = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "research",
+        projectName,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request,
+        result: research,
+      });
+      const prd = await generateEffectivePrd(
+        context.runtime,
+        request,
+        research as Record<string, unknown>,
+      );
+      const prdRun = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "prd",
+        projectName,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request,
+        result: prd,
+        linkedRunIds: [researchRun.id],
+        parentRunId: researchRun.id,
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: PRD workflow completed",
+      );
+      return JSON.stringify(
+        {
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          researchRun,
+          prdRun,
+          research,
+          prd,
+        },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed.startsWith("/codegen qa ")) {
@@ -2934,15 +3109,44 @@ async function buildCommandResponse(
     if (!projectPath) {
       return "Usage: /codegen qa <project-path>";
     }
-    const qa = await performEffectiveCodeQa(context.runtime, projectPath);
-    const run = context.services.autocoderPipeline.record({
+    const projectName = projectPath.split("/").filter(Boolean).at(-1);
+    const workflow = createAutocoderWorkflow(context, {
+      title: `QA ${projectName ?? "project"}`,
+      objective: `QA ${projectPath}`,
       kind: "qa",
-      projectName: projectPath.split("/").filter(Boolean).at(-1),
-      sessionId: currentCliSessionId(context),
-      request: { projectPath },
-      result: qa,
+      projectName,
     });
-    return JSON.stringify({ run, qa }, null, 2);
+    try {
+      const qa = await performEffectiveCodeQa(context.runtime, projectPath);
+      const run = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "qa",
+        projectName,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request: { projectPath },
+        result: qa,
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: QA completed",
+      );
+      return JSON.stringify(
+        { workflowId: workflow.workflowId, taskId: workflow.taskId, run, qa },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed.startsWith("/github create ")) {
@@ -2955,19 +3159,52 @@ async function buildCommandResponse(
     const isPrivate = privateFlag
       ? privateFlag.replace("private:", "").trim() !== "false"
       : true;
-    const repository = await createEffectiveRepository(
-      context.runtime,
-      name,
-      isPrivate,
-    );
-    const run = context.services.autocoderPipeline.record({
+    const workflow = createAutocoderWorkflow(context, {
+      title: `Create repo ${name}`,
+      objective: `Create GitHub repository ${name}`,
       kind: "github.create",
       repositoryName: name,
-      sessionId: currentCliSessionId(context),
-      request: { name, private: isPrivate },
-      result: repository,
     });
-    return JSON.stringify({ run, repository }, null, 2);
+    try {
+      const repository = await createEffectiveRepository(
+        context.runtime,
+        name,
+        isPrivate,
+      );
+      const run = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "github.create",
+        repositoryName: name,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request: { name, private: isPrivate },
+        result: repository,
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: repository created",
+      );
+      return JSON.stringify(
+        {
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          run,
+          repository,
+        },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed.startsWith("/github delete ")) {
@@ -2975,15 +3212,48 @@ async function buildCommandResponse(
     if (!name) {
       return "Usage: /github delete <repo-name>";
     }
-    const deleted = await deleteEffectiveRepository(context.runtime, name);
-    const run = context.services.autocoderPipeline.record({
+    const workflow = createAutocoderWorkflow(context, {
+      title: `Delete repo ${name}`,
+      objective: `Delete GitHub repository ${name}`,
       kind: "github.delete",
       repositoryName: name,
-      sessionId: currentCliSessionId(context),
-      request: { name },
-      result: deleted,
     });
-    return JSON.stringify({ run, deleted }, null, 2);
+    try {
+      const deleted = await deleteEffectiveRepository(context.runtime, name);
+      const run = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "github.delete",
+        repositoryName: name,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request: { name },
+        result: deleted,
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: repository deleted",
+      );
+      return JSON.stringify(
+        {
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          run,
+          deleted,
+        },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed === "/secrets list") {
@@ -3017,22 +3287,47 @@ async function buildCommandResponse(
     if (!key || !value) {
       return "Usage: /secrets set <key> :: <value>";
     }
-    await setEffectiveSecret(context.runtime, key, value);
-    const run = context.services.autocoderPipeline.record({
+    const workflow = createAutocoderWorkflow(context, {
+      title: `Set secret ${key}`,
+      objective: `Set secret ${key}`,
       kind: "secret.set",
-      sessionId: currentCliSessionId(context),
-      request: { key, redacted: true },
-      result: { key, valueSet: true },
     });
-    return JSON.stringify(
-      {
-        run,
-        key,
-        valueSet: true,
-      },
-      null,
-      2,
-    );
+    try {
+      await setEffectiveSecret(context.runtime, key, value);
+      const run = context.services.autocoderPipeline.record({
+        workflowId: workflow.workflowId,
+        kind: "secret.set",
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request: { key, redacted: true },
+        result: { key, valueSet: true },
+      });
+      completeAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        "system: secret stored",
+      );
+      return JSON.stringify(
+        {
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          run,
+          key,
+          valueSet: true,
+        },
+        null,
+        2,
+      );
+    } catch (error) {
+      failAutocoderWorkflow(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      throw error;
+    }
   }
 
   if (trimmed === "/codegen runs") {
@@ -3040,6 +3335,17 @@ async function buildCommandResponse(
       {
         summary: context.services.autocoderPipeline.summary(),
         runs: context.services.autocoderPipeline.list(20),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/codegen workflows") {
+    return JSON.stringify(
+      {
+        summary: context.services.autocoderPipeline.summary(),
+        workflows: context.services.autocoderPipeline.listWorkflows(20),
       },
       null,
       2,
@@ -3055,6 +3361,30 @@ async function buildCommandResponse(
       {
         run: context.services.autocoderPipeline.get(id),
       },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen workflow ")) {
+    const id = trimmed.replace("/codegen workflow ", "").trim();
+    if (!id) {
+      return "Usage: /codegen workflow <workflow-id>";
+    }
+    return JSON.stringify(
+      context.services.autocoderPipeline.workflow(id),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/codegen bundle ")) {
+    const id = trimmed.replace("/codegen bundle ", "").trim();
+    if (!id) {
+      return "Usage: /codegen bundle <workflow-id>";
+    }
+    return JSON.stringify(
+      context.services.autocoderPipeline.bundleWorkflow(id),
       null,
       2,
     );
