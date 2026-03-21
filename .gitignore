@@ -1,6 +1,10 @@
 node_modules/
 dist/
 packages/*/dist/
+!packages/plugins/plugin-browser/dist/
+!packages/plugins/plugin-browser/dist/**
+!packages/plugins/plugin-mcp/dist/
+!packages/plugins/plugin-mcp/dist/**
 .env
 .eliza-agent/
 .eliza/

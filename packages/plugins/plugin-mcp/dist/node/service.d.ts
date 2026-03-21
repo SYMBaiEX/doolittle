@@ -1,0 +1,44 @@
+import { type IAgentRuntime, Service } from "@elizaos/core";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { JSONSchema7 } from "json-schema";
+import { type McpProvider, type McpResourceResponse, type McpServer } from "./types";
+export declare class McpService extends Service {
+    static serviceType: string;
+    capabilityDescription: string;
+    private connections;
+    private connectionStates;
+    private mcpProvider;
+    private pingConfig;
+    private toolCompatibility;
+    private compatibilityInitialized;
+    private initializationPromise;
+    constructor(runtime: IAgentRuntime);
+    static start(runtime: IAgentRuntime): Promise<McpService>;
+    waitForInitialization(): Promise<void>;
+    stop(): Promise<void>;
+    private initializeMcpServers;
+    private getMcpSettings;
+    private updateServerConnections;
+    private initializeConnection;
+    private setupTransportHandlers;
+    private startPingMonitoring;
+    private sendPing;
+    private handlePingFailure;
+    private handleDisconnection;
+    deleteConnection(name: string): Promise<void>;
+    private getServerConnection;
+    private buildStdioClientTransport;
+    private buildHttpClientTransport;
+    private appendErrorMessage;
+    private fetchToolsList;
+    private fetchResourcesList;
+    private fetchResourceTemplatesList;
+    getServers(): McpServer[];
+    getProviderData(): McpProvider;
+    callTool(serverName: string, toolName: string, toolArguments?: Readonly<Record<string, unknown>>): Promise<CallToolResult>;
+    readResource(serverName: string, uri: string): Promise<McpResourceResponse>;
+    restartConnection(serverName: string): Promise<void>;
+    private initializeToolCompatibility;
+    applyToolCompatibility(toolSchema: JSONSchema7): JSONSchema7;
+}
+//# sourceMappingURL=service.d.ts.map
