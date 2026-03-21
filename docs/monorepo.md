@@ -10,17 +10,13 @@ Eliza Agent is organized as a Bun workspace monorepo.
   - the primary Eliza Agent application source
   - runtime, CLI, API, gateway, and product-specific services
 - `packages/plugins`
-  - local Eliza Agent product plugins
+  - local Eliza Agent product plugins and vendored official-compatible ElizaOS plugin packages
+  - includes the Eliza Agent plugin plus patched official plugin workspaces
 - `packages/skills`
   - local Eliza Agent skill content and generated skills
   - organized by category for discoverability (`identity/`, `memory/`, `productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)
 - `packages/characters`
   - character definitions and persona data
-- `packages/elizaos-official/*`
-  - vendored official-compatible ElizaOS packages
-  - preserve upstream package names where practical
-  - carry the compatibility shims needed for the current runtime line
-
 ## Boundary rules
 
 - keep product behavior in `packages/agent/src/`
@@ -28,7 +24,7 @@ Eliza Agent is organized as a Bun workspace monorepo.
   - operator flows
   - ACP surfaces
   - Eliza Agent identity and routing
-- keep upstream-like compatibility work in `packages/elizaos-official/*`
+- keep upstream-like compatibility work in `packages/plugins/*`
   - avoid mixing product logic into vendored packages
   - prefer small shims and adapters over behavior rewrites
 - keep workspace-level documentation at the repo root and under `docs/`

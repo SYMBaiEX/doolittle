@@ -105,7 +105,7 @@ export class DiagnosticsService {
     const nativeWorkspacePath = join(
       this.config.workspaceDir,
       "packages",
-      "elizaos-official",
+      "plugins",
     );
     const nativeAudit = getNativePackageAudit(this.config);
     const nativePlugins = getNativePluginCatalog(this.config);

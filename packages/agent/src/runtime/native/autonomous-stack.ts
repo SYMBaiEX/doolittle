@@ -1,7 +1,9 @@
+import type {} from "@elizaos/agent";
 import type {} from "@elizaos/autonomous";
 import type {} from "@elizaos/skills";
 
 export const autonomousFoundationPackages = [
+  "@elizaos/agent",
   "@elizaos/autonomous",
   "@elizaos/skills",
 ] as const;

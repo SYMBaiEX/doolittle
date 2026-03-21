@@ -8,9 +8,9 @@
   "workspaces": [
     "packages/agent",
     "packages/plugins",
+    "packages/plugins/*",
     "packages/skills",
-    "packages/characters",
-    "packages/elizaos-official/*"
+    "packages/characters"
   ],
   "scripts": {
     "bootstrap": "bun run scripts/bootstrap.ts",
@@ -28,17 +28,20 @@
     "workspace:plugins": "bun run packages/agent/src/index.ts --help"
   },
   "dependencies": {
+    "@elizaos/agent": "alpha",
     "@elizaos/autonomous": "alpha",
     "@elizaos/core": "alpha",
     "@elizaos/plugin-agent-orchestrator": "workspace:*",
     "@elizaos/plugin-agent-skills": "workspace:*",
     "@elizaos/plugin-anthropic": "alpha",
+    "@elizaos/plugin-browser": "alpha",
     "@elizaos/plugin-coding-agent": "workspace:*",
     "@elizaos/plugin-cron": "workspace:*",
     "@elizaos/plugin-discord": "workspace:*",
     "@elizaos/plugin-experience": "workspace:*",
     "@elizaos/plugin-knowledge": "workspace:*",
     "@elizaos/plugin-local-embedding": "workspace:*",
+    "@elizaos/plugin-mcp": "alpha",
     "@elizaos/plugin-openai": "alpha",
     "@elizaos/plugin-pdf": "alpha",
     "@elizaos/plugin-personality": "workspace:*",
@@ -53,6 +56,11 @@
     "dotenv": "^17.2.3",
     "elizaos": "alpha",
     "zod": "^4.3.6"
+  },
+  "overrides": {
+    "@elizaos/core": "2.0.0-alpha.85",
+    "@elizaos/autonomous": "2.0.0-alpha.85",
+    "@elizaos/skills": "2.0.0-alpha.85"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
