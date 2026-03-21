@@ -12,5 +12,6 @@ This workspace copy is vendored into `packages/plugins/plugin-mcp` and normalize
 
 ## Contents
 
-- prebuilt `dist/` bundle from the published package
+- source-first workspace entrypoint at `src/index.ts`
 - local package manifest normalized for the workspace
+- MCP service wrapper aligned with the sibling vendored plugin conventions
