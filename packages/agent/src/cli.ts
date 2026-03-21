@@ -147,6 +147,7 @@ function buildHelpText(agentName: string): string {
     "  /execution status",
     "  /transport inventory",
     "  /transport show telegram",
+    "  /transport mismatches",
     "  /browser capture https://example.com",
     "  /media analyze ./recordings/demo.wav",
     "  /delegate create Research spike :: validate a transport path",

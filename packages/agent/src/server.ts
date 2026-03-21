@@ -482,6 +482,23 @@ export function startApiServer(context: AppContext): void {
 
       if (
         request.method === "GET" &&
+        (url.pathname === "/transport/mismatches" ||
+          url.pathname === "/gateway/transport-mismatches")
+      ) {
+        if (!context.gateway) {
+          return json(
+            {
+              error:
+                "Gateway runtime is not attached to this execution context.",
+            },
+            503,
+          );
+        }
+        return json(await context.gateway.transportOverview());
+      }
+
+      if (
+        request.method === "GET" &&
         (url.pathname.startsWith("/transport/") ||
           url.pathname.startsWith("/gateway/transport/"))
       ) {
