@@ -53,6 +53,17 @@ function buildPluginSettings(
     settings.FAL_API_KEY = config.falApiKey;
   }
 
+  settings.E2B_MODE = process.env.E2B_MODE ?? "local";
+  settings.NODE_ENV = process.env.NODE_ENV ?? "development";
+
+  if (process.env.E2B_API_KEY) {
+    settings.E2B_API_KEY = process.env.E2B_API_KEY;
+  }
+
+  if (process.env.GITHUB_TOKEN) {
+    settings.GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  }
+
   if (config.telegramBotToken) {
     settings.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
   }

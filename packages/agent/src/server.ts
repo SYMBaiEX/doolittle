@@ -463,7 +463,11 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/runtime/autonomous") {
         return json(
-          getAutonomousControlPlane(context.runtime, context.services),
+          getAutonomousControlPlane(
+            context.runtime,
+            context.services,
+            context.config,
+          ),
         );
       }
 
