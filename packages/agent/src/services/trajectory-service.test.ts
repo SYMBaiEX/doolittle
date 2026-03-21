@@ -207,6 +207,34 @@ describe("TrajectoryService", () => {
       expect(readFileSync(batch.summaryPath, "utf8")).toContain(
         "Investigate session drift",
       );
+
+      const benchmarkEnvironment = service.describeBenchmarkEnvironment();
+      expect(benchmarkEnvironment.bundleCount).toBeGreaterThanOrEqual(2);
+      expect(benchmarkEnvironment.canEvaluate).toBe(true);
+
+      const benchmark = service.createBenchmarkManifest({
+        label: "Replay Benchmark",
+        rubric: ["coverage", "signal"],
+        cases: [
+          { manifestPath: bundle.manifestPath, label: "baseline" },
+          { manifestPath: second.manifestPath, label: "candidate" },
+        ],
+      });
+      expect(benchmark.cases).toHaveLength(2);
+      expect(service.listBenchmarkManifests().length).toBeGreaterThan(0);
+      expect(
+        service.describeBenchmarkManifest(benchmark.manifestPath).label,
+      ).toBe("replay-benchmark");
+
+      const benchmarkRun = await service.runBenchmark(benchmark.manifestPath);
+      expect(benchmarkRun.cases).toHaveLength(2);
+      expect(benchmarkRun.reportPath).toContain("benchmark-report");
+      expect(readFileSync(benchmarkRun.reportPath, "utf8")).toContain(
+        "Trajectory Benchmark Run",
+      );
+      expect((await service.runLatestBenchmark())?.label).toBe(
+        "replay-benchmark",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

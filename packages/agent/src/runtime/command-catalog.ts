@@ -46,6 +46,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show native-vs-product service resolution across the stack.",
   },
   {
+    command: "/runtime ownership",
+    category: "runtime",
+    description:
+      "Show the full native ownership snapshot, including integration, autonomous alignment, and skill hub state.",
+  },
+  {
     command: "/runtime transports",
     category: "runtime",
     description:
@@ -367,6 +373,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show the native Eliza skills hub summary.",
   },
   {
+    command: "/skills hub distribution",
+    category: "skills",
+    description:
+      "Show skills hub distribution across sources, roots, categories, and tags.",
+  },
+  {
     command: "/skills installed",
     category: "skills",
     description: "List installed skill manifests.",
@@ -518,6 +530,28 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "/trajectories batch label:research rubric:coverage,signal :: prompt one => prompt two",
     category: "research",
     description: "Create a research batch bundle from prompts.",
+  },
+  {
+    command:
+      "/trajectories benchmark create label:benchmark rubric:coverage,signal :: label:baseline => label:target",
+    category: "research",
+    description: "Create a benchmark manifest from trajectory bundles.",
+  },
+  {
+    command: "/trajectories benchmark environment",
+    category: "research",
+    description:
+      "Show benchmark environment summary and model/runtime context.",
+  },
+  {
+    command: "/trajectories benchmark run latest",
+    category: "research",
+    description: "Run the latest benchmark manifest and score all cases.",
+  },
+  {
+    command: "/trajectories benchmark list",
+    category: "research",
+    description: "List saved benchmark manifests.",
   },
 ];
 

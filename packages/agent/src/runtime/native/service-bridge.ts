@@ -178,6 +178,13 @@ interface NativeOwnershipControlPlaneSummary {
   };
 }
 
+interface NativeOwnershipSnapshot {
+  controlPlane: NativeOwnershipControlPlaneSummary;
+  integration: NativeIntegrationControlPlane;
+  autonomous: AutonomousControlPlaneSummary;
+  skillHub: ReturnType<AppServices["skillsHub"]["summary"]>;
+}
+
 interface NativeDiscordTransportService {
   status?: () => unknown;
   history?: (limit?: number) => unknown[];
@@ -1600,5 +1607,34 @@ export function getAutonomousControlPlane(
       nativeServices: serviceSources.filter(Boolean).length,
       productFallbacks: serviceSources.filter((entry) => !entry).length,
     },
+  };
+}
+
+export async function getNativeOwnershipSnapshot(
+  runtime: RuntimeLike,
+  services: AppServices,
+  config: EnvConfig,
+  gatewayConfig?: GatewayConfig,
+): Promise<NativeOwnershipSnapshot> {
+  const [integration, controlPlane] = await Promise.all([
+    getNativeIntegrationControlPlane(runtime, {
+      web: {
+        status: () => services.web.status(),
+      },
+      mcp: {
+        status: () => services.mcp.status(),
+        getCachedTools: () => services.mcp.getCachedTools(),
+      },
+    }),
+    Promise.resolve(
+      getNativeOwnershipControlPlane(runtime, services, config, gatewayConfig),
+    ),
+  ]);
+
+  return {
+    controlPlane,
+    integration,
+    autonomous: getAutonomousControlPlane(runtime, services),
+    skillHub: services.skillsHub.summary(),
   };
 }
