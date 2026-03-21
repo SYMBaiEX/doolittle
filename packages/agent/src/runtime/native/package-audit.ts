@@ -19,7 +19,7 @@ interface NativePackageAuditRecord {
 
 export function getLatestRuntimeLine() {
   return {
-    date: "2026-03-20",
+    date: "2026-03-21",
     latest: "2.0.0-alpha.77",
     alpha: "2.0.0-alpha.85",
   };
@@ -159,6 +159,16 @@ export function getNativePackageAudit(config: EnvConfig): {
       note: "Official browser plugin is now owned directly on the alpha line.",
     },
     {
+      packageName: "@elizaos/plugin-tts",
+      role: "media",
+      currentStrategy: "official",
+      currentTag: "alpha",
+      latestTagVersion: "0.25.6-alpha.1",
+      alphaTagVersion: "0.25.6-alpha.1",
+      compatibility: "alpha-only",
+      note: "Official TTS plugin is now installed for voice generation and media coverage.",
+    },
+    {
       packageName: "@elizaos/plugin-mcp",
       role: "integration",
       currentStrategy: "official",
@@ -287,6 +297,24 @@ export function getNativePackageAudit(config: EnvConfig): {
       alphaTagVersion: "2.0.0-alpha.20",
       compatibility: "alpha-only",
       note: "Official trajectory logger package is now owned directly on the alpha line.",
+    },
+    {
+      packageName: "@elizaos/plugin-action-bench",
+      role: "research",
+      currentStrategy: "official",
+      currentTag: "latest",
+      latestTagVersion: "1.4.4",
+      compatibility: "lagging-latest",
+      note: "Official action benchmark plugin exists in the live tree, but its published 1.x core peer is behind the current alpha runtime line, so it stays excluded until it is rebased or vendored.",
+    },
+    {
+      packageName: "@elizaos/plugin-autocoder",
+      role: "research",
+      currentStrategy: "official",
+      currentTag: "latest",
+      latestTagVersion: "1.3.3",
+      compatibility: "lagging-latest",
+      note: "Official autocoder plugin exists in the live tree, but its published 1.x core peer is behind the current alpha runtime line, so it stays excluded until it is rebased or vendored.",
     },
   ];
 

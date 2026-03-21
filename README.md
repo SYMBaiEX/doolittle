@@ -147,6 +147,12 @@ The runtime now uses a wider native ElizaOS stack:
   - Required ElizaOS database adapter for runtime initialization and local persistent state.
 - `@elizaos/plugin-telegram`
   - Official Telegram transport plugin, enabled only when Telegram credentials are configured.
+- `@elizaos/plugin-tts`
+  - Official text-to-speech plugin for voice synthesis when `FAL_API_KEY` is configured.
+- `@elizaos/plugin-action-bench`
+  - Official action benchmark plugin for coverage sweeps and evaluation drills.
+- `@elizaos/plugin-autocoder`
+  - Official autocoder plugin for SWE-bench style code-generation evaluation.
 - `@elizaos/autonomous`
   - First-party architectural reference package used selectively for native stack alignment.
 - `@elizaos/skills`
@@ -205,6 +211,7 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ANTHROPIC_BASE_URL` | Optional Anthropic-compatible base URL override. |
 | `ANTHROPIC_SMALL_MODEL` | Default Anthropic small model identifier. |
 | `ANTHROPIC_LARGE_MODEL` | Default Anthropic large model identifier. |
+| `FAL_API_KEY` | Enables the official ElizaOS TTS plugin when set. |
 | `ELIZA_AGENT_MEMORY_CHAR_LIMIT` | Max characters for `MEMORY.md`. |
 | `ELIZA_AGENT_USER_CHAR_LIMIT` | Max characters for `USER.md`. |
 | `ELIZA_AGENT_SESSION_SEARCH_LIMIT` | Default number of search hits returned by `/search`. |

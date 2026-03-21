@@ -43,6 +43,8 @@ import {
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubFamilies,
+  getEffectiveSkillHubFamily,
   getEffectiveSkillHubGenerated,
   getEffectiveSkillHubInstalled,
   getEffectiveSkillHubInstalledManifest,
@@ -394,12 +396,14 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/runtime/status") {
         const settings = context.services.settings.get();
         const catalog = getNativePluginCatalog(context.config);
-        const ownership = getNativeOwnershipControlPlane(
-          context.runtime,
-          context.services,
-          context.config,
-          context.services.gatewayConfig,
-        );
+        const ownership =
+          context.services.nativeOwnership.controlPlane() ??
+          getNativeOwnershipControlPlane(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          );
         return json({
           provider: settings.model.provider,
           model: settings.model.model,
@@ -428,12 +432,14 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/runtime/plugins") {
         const catalog = getNativePluginCatalog(context.config);
-        const ownership = getNativeOwnershipControlPlane(
-          context.runtime,
-          context.services,
-          context.config,
-          context.services.gatewayConfig,
-        );
+        const ownership =
+          context.services.nativeOwnership.controlPlane() ??
+          getNativeOwnershipControlPlane(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          );
         return json({
           catalog,
           grouped: groupNativePluginCatalog(catalog),
@@ -527,12 +533,14 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/services") {
-        const ownership = getNativeOwnershipControlPlane(
-          context.runtime,
-          context.services,
-          context.config,
-          context.services.gatewayConfig,
-        );
+        const ownership =
+          context.services.nativeOwnership.controlPlane() ??
+          getNativeOwnershipControlPlane(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          );
         const integration = await getNativeIntegrationControlPlane(
           context.runtime,
           {
@@ -556,12 +564,13 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/runtime/ownership") {
         return json(
-          await getNativeOwnershipSnapshot(
-            context.runtime,
-            context.services,
-            context.config,
-            context.services.gatewayConfig,
-          ),
+          (await context.services.nativeOwnership.snapshot()) ??
+            (await getNativeOwnershipSnapshot(
+              context.runtime,
+              context.services,
+              context.config,
+              context.services.gatewayConfig,
+            )),
         );
       }
 
@@ -855,6 +864,7 @@ export function startApiServer(context: AppContext): void {
           workspace: getEffectiveSkillHubWorkspace(context.services),
           generated: getEffectiveSkillHubGenerated(context.services),
           installed: getEffectiveSkillHubInstalled(context.services),
+          families: getEffectiveSkillHubFamilies(context.services, 50),
           catalog: await getEffectiveSkillHubCatalog(
             context.services,
             false,
@@ -870,6 +880,48 @@ export function startApiServer(context: AppContext): void {
         return json({
           distribution: getEffectiveSkillHubSummary(context.services)
             .distribution,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/families") {
+        return json({
+          families: getEffectiveSkillHubFamilies(context.services, 50),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/hub/families") {
+        return json({
+          families: getEffectiveSkillHubFamilies(context.services, 50),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/skills/families/")
+      ) {
+        const slug = url.pathname.replace("/skills/families/", "").trim();
+        if (!slug) {
+          return json({ error: "Skill family slug is required." }, 400);
+        }
+        return json({
+          family: getEffectiveSkillHubFamily(context.services, slug) ?? {
+            error: `Skill family not found: ${slug}`,
+          },
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/skills/hub/families/")
+      ) {
+        const slug = url.pathname.replace("/skills/hub/families/", "").trim();
+        if (!slug) {
+          return json({ error: "Skill family slug is required." }, 400);
+        }
+        return json({
+          family: getEffectiveSkillHubFamily(context.services, slug) ?? {
+            error: `Skill family not found: ${slug}`,
+          },
         });
       }
 
@@ -3201,6 +3253,11 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as GatewayConfig;
         saveGatewayConfig(context.config, body);
         context.services.gatewayConfig = body;
+        context.services.nativeOwnership.attachRuntime(
+          context.runtime,
+          context.services,
+          body,
+        );
         context.services.diagnostics = new DiagnosticsService(
           context.config,
           body,
@@ -3218,12 +3275,14 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/gateway/health") {
         const readiness = await context.gateway.health();
         const history = await context.gateway.history(25);
-        const ownership = getNativeOwnershipControlPlane(
-          context.runtime,
-          context.services,
-          context.config,
-          context.services.gatewayConfig,
-        );
+        const ownership =
+          context.services.nativeOwnership.controlPlane() ??
+          getNativeOwnershipControlPlane(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          );
         return json({
           health: readiness,
           readiness,

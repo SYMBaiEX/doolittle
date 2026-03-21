@@ -7,6 +7,8 @@ export type NativePluginCategory =
   | "messaging"
   | "knowledge"
   | "browser"
+  | "media"
+  | "research"
   | "execution"
   | "integration"
   | "automation"
@@ -156,6 +158,15 @@ export function getNativePluginCatalog(
         "Official browser plugin layered onto Eliza Agent web automation flows.",
     },
     {
+      id: "media.tts",
+      packageName: "@elizaos/plugin-tts",
+      category: "media",
+      source: "official",
+      enabled: enabled(config.falApiKey),
+      notes:
+        "Official TTS plugin for voice generation on the alpha line when FAL is configured.",
+    },
+    {
       id: "execution.shell",
       packageName: "@elizaos/plugin-shell",
       category: "execution",
@@ -223,6 +234,24 @@ export function getNativePluginCatalog(
       notes: "Official trajectory logger service on the alpha line.",
     },
     {
+      id: "research.action-bench",
+      packageName: "@elizaos/plugin-action-bench",
+      category: "research",
+      source: "official",
+      enabled: true,
+      notes:
+        "Official action benchmark plugin for agent evaluation and coverage drills.",
+    },
+    {
+      id: "research.autocoder",
+      packageName: "@elizaos/plugin-autocoder",
+      category: "research",
+      source: "official",
+      enabled: true,
+      notes:
+        "Official autocoder plugin for code generation and SWE-bench style evaluation workflows.",
+    },
+    {
       id: "product.eliza-agent-runtime",
       packageName: "eliza-agent-runtime",
       category: "product",
@@ -242,6 +271,8 @@ export function groupNativePluginCatalog(
     messaging: catalog.filter((entry) => entry.category === "messaging"),
     knowledge: catalog.filter((entry) => entry.category === "knowledge"),
     browser: catalog.filter((entry) => entry.category === "browser"),
+    media: catalog.filter((entry) => entry.category === "media"),
+    research: catalog.filter((entry) => entry.category === "research"),
     execution: catalog.filter((entry) => entry.category === "execution"),
     integration: catalog.filter((entry) => entry.category === "integration"),
     automation: catalog.filter((entry) => entry.category === "automation"),

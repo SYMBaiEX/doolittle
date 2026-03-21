@@ -72,6 +72,25 @@ export interface SkillHubDistributionRecord {
   }>;
 }
 
+export interface SkillHubFamilyRecord {
+  slug: string;
+  title: string;
+  description: string;
+  path: string;
+  kind: "curated" | "generated";
+  workspaceTotal: number;
+  generatedTotal: number;
+  catalogTotal: number;
+  installedTotal: number;
+  recent: Array<{
+    slug: string;
+    title: string;
+    category: string;
+    root: string;
+    source: "workspace" | "generated" | "catalog" | "installed";
+  }>;
+}
+
 export interface SkillHubSummary {
   workspaceTotal: number;
   generatedTotal: number;
@@ -79,9 +98,13 @@ export interface SkillHubSummary {
   installedTotal: number;
   installable: number;
   exportedManifests: number;
+  familyTotal: number;
+  curatedFamilyTotal: number;
+  generatedFamilyTotal: number;
   manifestsDir: string;
   summary: string;
   distribution: SkillHubDistributionRecord;
+  families: SkillHubFamilyRecord[];
   recentWorkspace: Array<{
     slug: string;
     title: string;
@@ -222,6 +245,23 @@ function tagsFromCatalog(tags: Record<string, string>): string[] {
     .slice(0, 12);
 }
 
+function titleizeSlug(value: string): string {
+  return value
+    .replaceAll("/", " ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/gu, (match) => match.toUpperCase())
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function matchesFamily(slug: string, familySlug: string): boolean {
+  return (
+    slug === familySlug ||
+    slug.startsWith(`${familySlug}/`) ||
+    (familySlug === "generated" && slug.startsWith("generated/"))
+  );
+}
+
 function incrementGroupedCount(
   groups: Map<
     string,
@@ -277,10 +317,13 @@ export class SkillsHubService {
   private readonly installsDir: string;
   private readonly exportsDir: string;
   private readonly importsDir: string;
+  private readonly familyIndexPath: string;
+  private readonly familyReadmePath: string;
   private readonly installedIndexPath: string;
   private readonly catalogIndexPath: string;
   private lastSyncReport?: SkillHubSyncReport;
   private catalogCache?: SkillHubCatalogRecord[];
+  private familyCache?: SkillHubFamilyRecord[];
 
   constructor(
     private readonly skills: SkillsService,
@@ -293,6 +336,8 @@ export class SkillsHubService {
     this.installsDir = join(this.hubDir, "installs");
     this.exportsDir = join(this.hubDir, "exports");
     this.importsDir = join(this.hubDir, "imports");
+    this.familyIndexPath = join(this.skills.rootDir(), "index.md");
+    this.familyReadmePath = join(this.skills.rootDir(), "README.md");
     this.installedIndexPath = join(this.installsDir, "index.json");
     this.catalogIndexPath = join(this.hubDir, "catalog.json");
     mkdirSync(this.manifestsDir, { recursive: true });
@@ -338,6 +383,48 @@ export class SkillsHubService {
     return workspace.filter((entry) => entry.source === "generated");
   }
 
+  families(force = false, limit = 50): SkillHubFamilyRecord[] {
+    if (force) {
+      this.familyCache = undefined;
+    }
+
+    const curated = this.readCuratedFamilies();
+    const workspace = this.workspace();
+    const catalog = this.catalogCache ?? [];
+    const installed = this.installedManifests();
+    const generated = workspace.filter((entry) => entry.source === "generated");
+
+    const families = curated.map((family) =>
+      this.buildCuratedFamilyRecord(family, workspace, catalog, installed),
+    );
+    if (generated.length > 0) {
+      families.push(
+        this.buildGeneratedFamilyRecord(generated, catalog, installed),
+      );
+    }
+
+    this.familyCache = families.sort(
+      (left, right) =>
+        right.workspaceTotal +
+          right.generatedTotal +
+          right.catalogTotal +
+          right.installedTotal -
+          (left.workspaceTotal +
+            left.generatedTotal +
+            left.catalogTotal +
+            left.installedTotal) || left.slug.localeCompare(right.slug),
+    );
+
+    return this.familyCache.slice(0, limit);
+  }
+
+  family(slug: string): SkillHubFamilyRecord | undefined {
+    const normalized = normalizeSlug(slug);
+    return this.families(false, 500).find(
+      (entry) => normalizeSlug(entry.slug) === normalized,
+    );
+  }
+
   async catalog(force = false, limit = 50): Promise<SkillHubCatalogRecord[]> {
     if (!force && this.catalogCache) {
       return this.catalogCache.slice(0, limit);
@@ -369,6 +456,7 @@ export class SkillsHubService {
         ? this.findWorkspaceSkill(entry.slug)?.path
         : undefined,
     }));
+    this.familyCache = undefined;
     writeFileSync(
       this.catalogIndexPath,
       JSON.stringify(
@@ -441,6 +529,7 @@ export class SkillsHubService {
       "utf8",
     );
     this.lastSyncReport = report;
+    this.familyCache = undefined;
     return report;
   }
 
@@ -603,6 +692,7 @@ export class SkillsHubService {
       ),
       installedManifest,
     ]);
+    this.familyCache = undefined;
     return {
       sourcePath,
       manifestPath,
@@ -652,11 +742,12 @@ export class SkillsHubService {
     );
   }
 
-  summary(_force = false): SkillHubSummary {
+  summary(force = false): SkillHubSummary {
     const workspace = this.workspace();
     const generated = workspace.filter((entry) => entry.source === "generated");
     const installed = this.installedManifests();
     const catalog = this.catalogCache ?? [];
+    const families = this.families(force, 500);
     const sourceSummary: SkillHubDistributionRecord["sources"] = [
       {
         source: "workspace",
@@ -727,14 +818,21 @@ export class SkillsHubService {
       installedTotal: installed.length,
       installable: workspace.filter((entry) => entry.installable).length,
       exportedManifests: this.lastSyncReport?.exportedManifests ?? 0,
+      familyTotal: families.length,
+      curatedFamilyTotal: families.filter((entry) => entry.kind === "curated")
+        .length,
+      generatedFamilyTotal: families.filter(
+        (entry) => entry.kind === "generated",
+      ).length,
       manifestsDir: this.manifestsDir,
-      summary: `workspace=${workspace.length} generated=${generated.length} catalog=${this.lastSyncReport?.catalogTotal ?? catalog.length} installed=${installed.length}`,
+      summary: `workspace=${workspace.length} generated=${generated.length} catalog=${this.lastSyncReport?.catalogTotal ?? catalog.length} installed=${installed.length} families=${families.length}`,
       distribution: {
         sources: sourceSummary,
         categories: mapToSortedGroupedRecords(categoryGroups).slice(0, 12),
         roots: mapToSortedGroupedRecords(rootGroups).slice(0, 12),
         tags: mapToSortedGroupedRecords(tagGroups).slice(0, 20),
       },
+      families: families.slice(0, 12),
       recentWorkspace: workspace
         .slice()
         .sort((left, right) =>
@@ -764,6 +862,185 @@ export class SkillsHubService {
         root: entry.root,
         tags: this.installedManifest(entry.slug)?.tags ?? [],
       })),
+    };
+  }
+
+  private readCuratedFamilies(): Array<{
+    slug: string;
+    path: string;
+    title: string;
+    description: string;
+  }> {
+    const indexContent = existsSync(this.familyIndexPath)
+      ? readFileSync(this.familyIndexPath, "utf8")
+      : "";
+    const readmeContent = existsSync(this.familyReadmePath)
+      ? readFileSync(this.familyReadmePath, "utf8")
+      : "";
+    const descriptions = this.parseFamilyDescriptions(readmeContent);
+
+    const families: Array<{
+      slug: string;
+      path: string;
+      title: string;
+      description: string;
+    }> = [];
+
+    for (const line of indexContent.split(/\r?\n/u)) {
+      const match = line.match(/^- `([^`]+)` - \[`[^`]+`\]\((\.\/[^)]+)\)$/u);
+      if (!match) {
+        continue;
+      }
+      const slug = match[1] ?? "";
+      const path = match[2] ?? "";
+      families.push({
+        slug,
+        path,
+        title: titleizeSlug(slug),
+        description:
+          descriptions.get(slug) ?? `Curated skill family for ${slug}.`,
+      });
+    }
+
+    return families;
+  }
+
+  private parseFamilyDescriptions(content: string): Map<string, string> {
+    const descriptions = new Map<string, string>();
+    let inCategoryMap = false;
+    let currentSlug: string | undefined;
+
+    for (const rawLine of content.split(/\r?\n/u)) {
+      const line = rawLine.trimEnd();
+      if (line === "## Category map") {
+        inCategoryMap = true;
+        currentSlug = undefined;
+        continue;
+      }
+      if (
+        inCategoryMap &&
+        line.startsWith("## ") &&
+        line !== "## Category map"
+      ) {
+        break;
+      }
+      if (!inCategoryMap) {
+        continue;
+      }
+
+      const slugMatch = line.match(/^\s*-\s+`([^`]+)`$/u);
+      if (slugMatch) {
+        currentSlug = slugMatch[1];
+        continue;
+      }
+
+      const descriptionMatch = line.match(/^\s*-\s+(.+)$/u);
+      if (currentSlug && descriptionMatch) {
+        descriptions.set(currentSlug, descriptionMatch[1].trim());
+        currentSlug = undefined;
+      }
+    }
+
+    return descriptions;
+  }
+
+  private buildCuratedFamilyRecord(
+    family: {
+      slug: string;
+      path: string;
+      title: string;
+      description: string;
+    },
+    workspace: SkillHubWorkspaceRecord[],
+    catalog: SkillHubCatalogRecord[],
+    installed: Array<{
+      slug: string;
+      title: string;
+      source: string;
+      root: string;
+      category: string;
+    }>,
+  ): SkillHubFamilyRecord {
+    const workspaceMatches = workspace.filter((entry) =>
+      matchesFamily(entry.slug, family.slug),
+    );
+    const catalogMatches = catalog.filter((entry) =>
+      matchesFamily(entry.slug, family.slug),
+    );
+    const installedMatches = installed.filter((entry) =>
+      matchesFamily(entry.slug, family.slug),
+    );
+    const recent = workspaceMatches
+      .slice()
+      .sort((left, right) =>
+        (right.updatedAt ?? "").localeCompare(left.updatedAt ?? ""),
+      )
+      .slice(0, 5)
+      .map((entry) => ({
+        slug: entry.slug,
+        title: entry.title,
+        category: entry.category,
+        root: entry.root,
+        source: entry.source,
+      }));
+
+    return {
+      slug: family.slug,
+      title: family.title,
+      description: family.description,
+      path: join(this.skills.rootDir(), family.path.replace(/^\.\//u, "")),
+      kind: "curated",
+      workspaceTotal: workspaceMatches.length,
+      generatedTotal: workspaceMatches.filter(
+        (entry) => entry.source === "generated",
+      ).length,
+      catalogTotal: catalogMatches.length,
+      installedTotal: installedMatches.length,
+      recent,
+    };
+  }
+
+  private buildGeneratedFamilyRecord(
+    generated: SkillHubWorkspaceRecord[],
+    catalog: SkillHubCatalogRecord[],
+    installed: Array<{
+      slug: string;
+      title: string;
+      source: string;
+      root: string;
+      category: string;
+    }>,
+  ): SkillHubFamilyRecord {
+    const recent = generated
+      .slice()
+      .sort((left, right) =>
+        (right.updatedAt ?? "").localeCompare(left.updatedAt ?? ""),
+      )
+      .slice(0, 5)
+      .map((entry) => ({
+        slug: entry.slug,
+        title: entry.title,
+        category: entry.category,
+        root: entry.root,
+        source: entry.source,
+      }));
+
+    return {
+      slug: "generated",
+      title: "Generated Skills",
+      description:
+        "Skill manifests synthesized from delegated workstreams and replayed tasks.",
+      path: join(this.skills.rootDir(), "generated"),
+      kind: "generated",
+      workspaceTotal: generated.length,
+      generatedTotal: generated.length,
+      catalogTotal: catalog.filter((entry) =>
+        entry.slug.startsWith("generated/"),
+      ).length,
+      installedTotal: installed.filter((entry) =>
+        entry.slug.startsWith("generated/"),
+      ).length,
+      recent,
     };
   }
 

@@ -169,6 +169,7 @@ function renderEcosystemContent(context: AppContext): string {
     "{bold}Package Audit{/}",
     `Aligned: ${audit.packages.filter((entry) => entry.compatibility === "aligned").length}`,
     `Alpha-only: ${audit.packages.filter((entry) => entry.compatibility === "alpha-only").length}`,
+    `Lagging latest: ${audit.packages.filter((entry) => entry.compatibility === "lagging-latest").length}`,
     `Vendored: ${audit.packages.filter((entry) => entry.compatibility === "vendored-by-design").length}`,
     `Workspace-only: ${audit.packages.filter((entry) => entry.compatibility === "workspace-only").length}`,
     `Native services: ${resolution.filter((entry) => entry.source === "native").length}/${resolution.length}`,

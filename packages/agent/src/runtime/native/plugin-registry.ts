@@ -1,7 +1,9 @@
 import type { Plugin } from "@elizaos/core";
+import { actionBenchPlugin } from "@elizaos/plugin-action-bench";
 import { createAgentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
 import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
+import { autocoderPlugin } from "@elizaos/plugin-autocoder";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createCronPlugin } from "@elizaos/plugin-cron";
@@ -19,6 +21,7 @@ import { createShellPlugin } from "@elizaos/plugin-shell";
 import sqlPlugin from "@elizaos/plugin-sql";
 import telegramPlugin from "@elizaos/plugin-telegram";
 import { createTrajectoryLoggerPlugin } from "@elizaos/plugin-trajectory-logger";
+import { TTSGenerationPlugin } from "@elizaos/plugin-tts";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
 import type { EnvConfig, MemoryTarget } from "@/types";
@@ -35,6 +38,8 @@ export interface NativePluginAssembly {
   messaging: Plugin[];
   knowledge: Plugin[];
   browser: Plugin[];
+  media: Plugin[];
+  research: Plugin[];
   execution: Plugin[];
   integration: Plugin[];
   automation: Plugin[];
@@ -167,6 +172,16 @@ export function buildNativePluginAssembly(
           services.web.analyzeComparison(leftUrl, rightUrl),
       },
     }),
+  ];
+
+  const media: Plugin[] = [];
+  if (config.falApiKey) {
+    media.push(normalizePlugin(TTSGenerationPlugin));
+  }
+
+  const research: Plugin[] = [
+    normalizePlugin(actionBenchPlugin),
+    normalizePlugin(autocoderPlugin),
   ];
 
   const execution: Plugin[] = [
@@ -310,6 +325,8 @@ export function buildNativePluginAssembly(
     ...messaging,
     ...knowledge,
     ...browser,
+    ...media,
+    ...research,
     ...execution,
     ...integration,
     ...automation,
@@ -325,6 +342,8 @@ export function buildNativePluginAssembly(
       messaging,
       knowledge,
       browser,
+      media,
+      research,
       execution,
       integration,
       automation,
@@ -341,6 +360,8 @@ export function buildNativePluginAssembly(
     messaging,
     knowledge,
     browser,
+    media,
+    research,
     execution,
     integration,
     automation,

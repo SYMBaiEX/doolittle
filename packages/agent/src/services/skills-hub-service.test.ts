@@ -20,6 +20,24 @@ describe("SkillsHubService", () => {
       recursive: true,
     });
     mkdirSync(dataDir, { recursive: true });
+    writeFileSync(
+      join(skillsDir, "index.md"),
+      [
+        "- `planning/coordination` - [`coordination`](./planning/coordination/README.md)",
+      ].join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      join(skillsDir, "README.md"),
+      [
+        "# Skills",
+        "",
+        "## Category map",
+        "- `planning/coordination`",
+        "  - Coordinate planning work across multiple projects.",
+      ].join("\n"),
+      "utf8",
+    );
 
     const workspaceSkillPath = join(
       skillsDir,
@@ -131,13 +149,23 @@ describe("SkillsHubService", () => {
       expect(summary.workspaceTotal).toBe(2);
       expect(summary.generatedTotal).toBe(1);
       expect(summary.catalogTotal).toBe(2);
+      expect(summary.familyTotal).toBeGreaterThan(0);
       expect(
         summary.distribution.sources.some((entry) => entry.count > 0),
       ).toBe(true);
       expect(
         summary.distribution.roots.some((entry) => entry.name === "planning"),
       ).toBe(true);
+      expect(summary.families.length).toBeGreaterThan(0);
       expect(summary.recentWorkspace.length).toBeGreaterThan(0);
+
+      const families = hub.families(true, 20);
+      expect(
+        families.some((entry) => entry.slug === "planning/coordination"),
+      ).toBe(true);
+      expect(
+        hub.family("planning/coordination")?.workspaceTotal,
+      ).toBeGreaterThan(0);
 
       const catalog = await hub.catalog(true, 10);
       expect(

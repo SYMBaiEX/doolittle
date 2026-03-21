@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-
+import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
@@ -221,6 +221,7 @@ export class OperatorService {
     private readonly diagnostics: DiagnosticsService,
     private readonly repository: RepositoryService,
     private readonly agentSdk?: AgentSdkService,
+    private readonly nativeOwnership?: NativeOwnershipCache,
   ) {
     this.packageMetadata = this.loadPackageMetadata();
     this.migrationsDir = join(this.config.dataDir, "migrations");
@@ -235,14 +236,16 @@ export class OperatorService {
     const ecosystem = this.agentSdk
       ? await this.agentSdk.overview()
       : undefined;
-    const ownership = this.runtime
-      ? getNativeOwnershipControlPlane(
-          this.runtime,
-          undefined,
-          this.config,
-          this.diagnostics.currentGatewayConfig(),
-        )
-      : undefined;
+    const ownership =
+      this.nativeOwnership?.controlPlane() ??
+      (this.runtime
+        ? getNativeOwnershipControlPlane(
+            this.runtime,
+            undefined,
+            this.config,
+            this.diagnostics.currentGatewayConfig(),
+          )
+        : undefined);
     const transportControl = ownership?.transportControl;
     const pluginManager = ownership?.pluginManager ?? null;
     const identity = ownership?.identity;
@@ -393,14 +396,16 @@ export class OperatorService {
     const recentCommits = repositoryAvailable
       ? await this.repository.recentCommits(8)
       : "(no git history available)";
-    const ownership = this.runtime
-      ? getNativeOwnershipControlPlane(
-          this.runtime,
-          undefined,
-          this.config,
-          this.diagnostics.currentGatewayConfig(),
-        )
-      : undefined;
+    const ownership =
+      this.nativeOwnership?.controlPlane() ??
+      (this.runtime
+        ? getNativeOwnershipControlPlane(
+            this.runtime,
+            undefined,
+            this.config,
+            this.diagnostics.currentGatewayConfig(),
+          )
+        : undefined);
     const transportControl = ownership?.transportControl;
     const pluginManager = ownership?.pluginManager ?? null;
     const identity = ownership?.identity;
@@ -635,8 +640,17 @@ export class OperatorService {
         "@elizaos/plugin-browser":
           this.packageMetadata.dependencies?.["@elizaos/plugin-browser"] ??
           "unknown",
+        "@elizaos/plugin-tts":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-tts"] ??
+          "unknown",
         "@elizaos/plugin-mcp":
           this.packageMetadata.dependencies?.["@elizaos/plugin-mcp"] ??
+          "unknown",
+        "@elizaos/plugin-action-bench":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-action-bench"] ??
+          "unknown",
+        "@elizaos/plugin-autocoder":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-autocoder"] ??
           "unknown",
       },
       nativePlugins: {

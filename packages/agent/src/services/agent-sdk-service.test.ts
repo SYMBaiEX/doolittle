@@ -53,6 +53,8 @@ describe("AgentSdkService", () => {
     expect(overview.summary).toEqual({
       foundationPackages: 2,
       installedFoundationPackages: 2,
+      ecosystemPackages: 0,
+      installedEcosystemPackages: 0,
       compatibilityChecks: 2,
       compatibilityFailures: 0,
       registryEndpoints: 2,

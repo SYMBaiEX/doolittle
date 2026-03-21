@@ -1068,6 +1068,20 @@ export function getEffectiveSkillHubGenerated(services: AppServices) {
   return services.skillsHub.generated();
 }
 
+export function getEffectiveSkillHubFamilies(
+  services: AppServices,
+  limit = 50,
+) {
+  return services.skillsHub.families(false, limit);
+}
+
+export function getEffectiveSkillHubFamily(
+  services: AppServices,
+  slug: string,
+) {
+  return services.skillsHub.family(slug);
+}
+
 export function getEffectiveSkillHubInstalled(services: AppServices) {
   return services.skillsHub.installedManifests();
 }

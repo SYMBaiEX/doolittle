@@ -1,4 +1,15 @@
+import type {
+  getNativeOwnershipControlPlane,
+  getNativeOwnershipSnapshot,
+} from "@/runtime/native/service-bridge";
 import type { ToolDefinition } from "@/types";
+
+type NativeOwnershipControlPlane = ReturnType<
+  typeof getNativeOwnershipControlPlane
+>;
+type NativeOwnershipSnapshot = Awaited<
+  ReturnType<typeof getNativeOwnershipSnapshot>
+>;
 
 interface ToolRegistryDynamicState {
   mcpEnabled: boolean;
@@ -17,10 +28,13 @@ interface ToolRegistryDynamicState {
     enabled: boolean;
     notes: string;
   }>;
+  nativeOwnershipControlPlane?: NativeOwnershipControlPlane;
+  nativeOwnershipSnapshot?: NativeOwnershipSnapshot;
   nativeRuntimeLatest?: string;
   nativeRuntimeAlpha?: string;
   nativeAlignedPackages?: number;
   nativeAlphaOnlyPackages?: number;
+  nativeLaggingLatestPackages?: number;
   nativeWorkspaceOnlyPackages?: number;
   agentSdkRegistryAvailable?: boolean;
   agentSdkRegistryPlugins?: number;
@@ -32,6 +46,7 @@ interface ToolRegistryDynamicState {
   skillsHubCatalogTotal?: number;
   skillsHubManifestCount?: number;
   skillsHubInstalledTotal?: number;
+  skillsHubFamilyTotal?: number;
 }
 
 interface ToolRegistrySummary {
@@ -60,6 +75,21 @@ interface ToolRegistrySummary {
     vendored: number;
     categories: number;
   };
+  ownership: {
+    serviceResolution: number;
+    operationalTransports: number;
+    pluginManagerEnabled: number;
+    pluginManagerOfficial: number;
+    pluginManagerVendored: number;
+    skillHubTotal: number;
+    skillHubGenerated: number;
+    skillHubCatalogTotal: number;
+    skillHubManifestCount: number;
+    skillHubInstalledTotal: number;
+    skillHubFamilyTotal: number;
+    nativeServices: number;
+    productFallbacks: number;
+  };
   ecosystem: {
     registryAvailable: boolean;
     registryPlugins: number;
@@ -71,6 +101,8 @@ interface ToolRegistrySummary {
     skillsHubCatalogTotal: number;
     skillsHubManifestCount: number;
     skillsHubInstalledTotal: number;
+    skillsHubFamilyTotal: number;
+    laggingLatestPackages: number;
   };
 }
 
@@ -91,12 +123,14 @@ export class ToolsService {
       nativeRuntimeAlpha: "unknown",
       nativeAlignedPackages: 0,
       nativeAlphaOnlyPackages: 0,
+      nativeLaggingLatestPackages: 0,
       nativeWorkspaceOnlyPackages: 0,
       skillsHubTotal: 0,
       skillsHubGenerated: 0,
       skillsHubCatalogTotal: 0,
       skillsHubManifestCount: 0,
       skillsHubInstalledTotal: 0,
+      skillsHubFamilyTotal: 0,
     }),
   ) {}
 
@@ -475,6 +509,15 @@ export class ToolsService {
       transport: "native",
     },
     {
+      id: "runtime.ownership",
+      name: "Ownership Snapshot",
+      category: "runtime",
+      description:
+        "Inspect the shared native ownership snapshot across control plane, integration, autonomous, and skill hub surfaces.",
+      enabled: true,
+      transport: "native",
+    },
+    {
       id: "skills.catalog",
       name: "Skill Catalog",
       category: "runtime",
@@ -489,6 +532,24 @@ export class ToolsService {
       category: "runtime",
       description:
         "Inspect the native Eliza skill hub summary, installed manifests, and distribution sync state.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.families",
+      name: "Skill Families",
+      category: "runtime",
+      description:
+        "Inspect curated and generated Eliza skill families with workspace, catalog, and install coverage.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.family",
+      name: "Skill Family",
+      category: "runtime",
+      description:
+        "Inspect a single skill family by slug for detailed hub coverage.",
       enabled: true,
       transport: "native",
     },
@@ -545,12 +606,15 @@ export class ToolsService {
         : tool.id === "plugins.native"
           ? {
               ...tool,
-              description: `Native ElizaOS stack includes ${dynamic.nativePluginManagerEnabled ?? 0}/${dynamic.nativePluginManagerTotal ?? 0} enabled plugin definitions across ${dynamic.nativePluginManagerCategories ?? 0} categories, with ${dynamic.nativePluginManagerOfficial ?? 0} official and ${dynamic.nativePluginManagerVendored ?? 0} vendored packages.`,
+              description: dynamic.nativeOwnershipControlPlane?.pluginManager
+                ?.summary
+                ? `Native ElizaOS stack includes ${dynamic.nativeOwnershipControlPlane.pluginManager.summary.enabled}/${dynamic.nativeOwnershipControlPlane.pluginManager.summary.total} enabled plugin definitions across ${dynamic.nativeOwnershipControlPlane.pluginManager.summary.categories} categories, with ${dynamic.nativeOwnershipControlPlane.pluginManager.summary.official} official and ${dynamic.nativeOwnershipControlPlane.pluginManager.summary.vendored} vendored packages.`
+                : `Native ElizaOS stack includes ${dynamic.nativePluginManagerEnabled ?? 0}/${dynamic.nativePluginManagerTotal ?? 0} enabled plugin definitions across ${dynamic.nativePluginManagerCategories ?? 0} categories, with ${dynamic.nativePluginManagerOfficial ?? 0} official and ${dynamic.nativePluginManagerVendored ?? 0} vendored packages.`,
             }
           : tool.id === "packages.native"
             ? {
                 ...tool,
-                description: `Latest runtime=${dynamic.nativeRuntimeLatest ?? "unknown"} alpha=${dynamic.nativeRuntimeAlpha ?? "unknown"} aligned=${dynamic.nativeAlignedPackages ?? 0} alphaOnly=${dynamic.nativeAlphaOnlyPackages ?? 0} workspaceOnly=${dynamic.nativeWorkspaceOnlyPackages ?? 0}.`,
+                description: `Latest runtime=${dynamic.nativeRuntimeLatest ?? "unknown"} alpha=${dynamic.nativeRuntimeAlpha ?? "unknown"} aligned=${dynamic.nativeAlignedPackages ?? 0} alphaOnly=${dynamic.nativeAlphaOnlyPackages ?? 0} laggingLatest=${dynamic.nativeLaggingLatestPackages ?? 0} workspaceOnly=${dynamic.nativeWorkspaceOnlyPackages ?? 0}.`,
               }
             : tool.id === "runtime.registry"
               ? {
@@ -567,24 +631,51 @@ export class ToolsService {
                         ? `ElizaOS compatibility reported ${dynamic.agentSdkCompatibilityFailures ?? 0} plugin/core mismatch(es).`
                         : "ElizaOS compatibility checks are currently clean.",
                   }
-                : tool.id === "skills.catalog"
+                : tool.id === "runtime.ownership"
                   ? {
                       ...tool,
-                      description: dynamic.agentSdkCatalogAvailable
-                        ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
-                        : "ElizaOS skill catalog is unavailable in the current environment.",
+                      description:
+                        dynamic.nativeOwnershipControlPlane ||
+                        dynamic.nativeOwnershipSnapshot
+                          ? `Shared ownership snapshot: services=${dynamic.nativeOwnershipControlPlane?.serviceResolution.length ?? 0} operational=${dynamic.nativeOwnershipControlPlane?.transportControl.totals.operationalTransports ?? 0} pluginManager=${dynamic.nativeOwnershipControlPlane?.pluginManager?.summary.enabled ?? 0} skillHub=${dynamic.nativeOwnershipSnapshot?.skillHub.workspaceTotal ?? dynamic.skillsHubTotal ?? 0}/${dynamic.nativeOwnershipSnapshot?.skillHub.installedTotal ?? dynamic.skillsHubInstalledTotal ?? 0}.`
+                          : "Shared native ownership snapshot is unavailable in the current environment.",
                     }
-                  : tool.id === "skills.hub"
+                  : tool.id === "skills.catalog"
                     ? {
                         ...tool,
-                        description: `Skills hub summary=${dynamic.skillsHubTotal ?? 0} generated=${dynamic.skillsHubGenerated ?? 0} catalog=${dynamic.skillsHubCatalogTotal ?? 0} manifests=${dynamic.skillsHubManifestCount ?? 0} installed=${dynamic.skillsHubInstalledTotal ?? 0}.`,
+                        description: dynamic.agentSdkCatalogAvailable
+                          ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
+                          : "ElizaOS skill catalog is unavailable in the current environment.",
                       }
-                    : tool.id === "skills.installed"
+                    : tool.id === "skills.hub"
                       ? {
                           ...tool,
-                          description: `Installed skill manifests available: ${dynamic.skillsHubInstalledTotal ?? 0}.`,
+                          description: dynamic.nativeOwnershipSnapshot
+                            ? `Skills hub summary=${dynamic.nativeOwnershipSnapshot.skillHub.workspaceTotal} generated=${dynamic.nativeOwnershipSnapshot.skillHub.generatedTotal} catalog=${dynamic.nativeOwnershipSnapshot.skillHub.catalogTotal} manifests=${dynamic.nativeOwnershipSnapshot.skillHub.exportedManifests} installed=${dynamic.nativeOwnershipSnapshot.skillHub.installedTotal} families=${dynamic.nativeOwnershipSnapshot.skillHub.familyTotal}.`
+                            : `Skills hub summary=${dynamic.skillsHubTotal ?? 0} generated=${dynamic.skillsHubGenerated ?? 0} catalog=${dynamic.skillsHubCatalogTotal ?? 0} manifests=${dynamic.skillsHubManifestCount ?? 0} installed=${dynamic.skillsHubInstalledTotal ?? 0} families=${dynamic.skillsHubFamilyTotal ?? 0}.`,
                         }
-                      : tool,
+                      : tool.id === "skills.families"
+                        ? {
+                            ...tool,
+                            description: dynamic.nativeOwnershipSnapshot
+                              ? `Curated and generated skill families available: ${dynamic.nativeOwnershipSnapshot.skillHub.familyTotal}.`
+                              : `Curated and generated skill families available: ${dynamic.skillsHubFamilyTotal ?? 0}.`,
+                          }
+                        : tool.id === "skills.family"
+                          ? {
+                              ...tool,
+                              description: dynamic.nativeOwnershipSnapshot
+                                ? `Inspect a single skill family from the ${dynamic.nativeOwnershipSnapshot.skillHub.familyTotal}-family hub.`
+                                : `Inspect a single skill family from the ${dynamic.skillsHubFamilyTotal ?? 0}-family hub.`,
+                            }
+                          : tool.id === "skills.installed"
+                            ? {
+                                ...tool,
+                                description: dynamic.nativeOwnershipSnapshot
+                                  ? `Installed skill manifests available: ${dynamic.nativeOwnershipSnapshot.skillHub.installedTotal}.`
+                                  : `Installed skill manifests available: ${dynamic.skillsHubInstalledTotal ?? 0}.`,
+                              }
+                            : tool,
     );
     const pluginTools =
       dynamic.nativeCatalog?.map<ToolDefinition>((plugin) => ({
@@ -666,6 +757,9 @@ export class ToolsService {
       }),
     );
     const dynamic = this.getDynamicState();
+    const nativeOwnershipControlPlane =
+      dynamic.nativeOwnershipControlPlane ?? null;
+    const nativeOwnershipSnapshot = dynamic.nativeOwnershipSnapshot ?? null;
     return {
       total: tools.length,
       enabled: enabled.length,
@@ -678,11 +772,71 @@ export class ToolsService {
         discoveredToolNames: dynamic.discoveredMcpToolNames ?? [],
       },
       native: {
-        total: dynamic.nativePluginManagerTotal ?? 0,
-        enabled: dynamic.nativePluginManagerEnabled ?? 0,
-        official: dynamic.nativePluginManagerOfficial ?? 0,
-        vendored: dynamic.nativePluginManagerVendored ?? 0,
-        categories: dynamic.nativePluginManagerCategories ?? 0,
+        total:
+          nativeOwnershipControlPlane?.pluginManager?.summary.total ??
+          dynamic.nativePluginManagerTotal ??
+          0,
+        enabled:
+          nativeOwnershipControlPlane?.pluginManager?.summary.enabled ??
+          dynamic.nativePluginManagerEnabled ??
+          0,
+        official:
+          nativeOwnershipControlPlane?.pluginManager?.summary.official ??
+          dynamic.nativePluginManagerOfficial ??
+          0,
+        vendored:
+          nativeOwnershipControlPlane?.pluginManager?.summary.vendored ??
+          dynamic.nativePluginManagerVendored ??
+          0,
+        categories:
+          nativeOwnershipControlPlane?.pluginManager?.summary.categories ??
+          dynamic.nativePluginManagerCategories ??
+          0,
+      },
+      ownership: {
+        serviceResolution:
+          nativeOwnershipControlPlane?.serviceResolution.length ?? 0,
+        operationalTransports:
+          nativeOwnershipControlPlane?.transportControl.totals
+            .operationalTransports ?? 0,
+        pluginManagerEnabled:
+          nativeOwnershipControlPlane?.pluginManager?.summary.enabled ?? 0,
+        pluginManagerOfficial:
+          nativeOwnershipControlPlane?.pluginManager?.summary.official ?? 0,
+        pluginManagerVendored:
+          nativeOwnershipControlPlane?.pluginManager?.summary.vendored ?? 0,
+        skillHubTotal:
+          nativeOwnershipSnapshot?.skillHub.workspaceTotal ??
+          dynamic.skillsHubTotal ??
+          0,
+        skillHubGenerated:
+          nativeOwnershipSnapshot?.skillHub.generatedTotal ??
+          dynamic.skillsHubGenerated ??
+          0,
+        skillHubCatalogTotal:
+          nativeOwnershipSnapshot?.skillHub.catalogTotal ??
+          dynamic.skillsHubCatalogTotal ??
+          0,
+        skillHubManifestCount:
+          nativeOwnershipSnapshot?.skillHub.exportedManifests ??
+          dynamic.skillsHubManifestCount ??
+          0,
+        skillHubInstalledTotal:
+          nativeOwnershipSnapshot?.skillHub.installedTotal ??
+          dynamic.skillsHubInstalledTotal ??
+          0,
+        skillHubFamilyTotal:
+          nativeOwnershipSnapshot?.skillHub.familyTotal ??
+          dynamic.skillsHubFamilyTotal ??
+          0,
+        nativeServices:
+          nativeOwnershipControlPlane?.serviceResolution.filter(
+            (entry) => entry.source === "native",
+          ).length ?? 0,
+        productFallbacks:
+          nativeOwnershipControlPlane?.serviceResolution.filter(
+            (entry) => entry.source === "product",
+          ).length ?? 0,
       },
       ecosystem: {
         registryAvailable: dynamic.agentSdkRegistryAvailable ?? false,
@@ -690,11 +844,31 @@ export class ToolsService {
         skillCatalogAvailable: dynamic.agentSdkCatalogAvailable ?? false,
         skillCatalogSkills: dynamic.agentSdkCatalogSkills ?? 0,
         compatibilityFailures: dynamic.agentSdkCompatibilityFailures ?? 0,
-        skillsHubTotal: dynamic.skillsHubTotal ?? 0,
-        skillsHubGenerated: dynamic.skillsHubGenerated ?? 0,
-        skillsHubCatalogTotal: dynamic.skillsHubCatalogTotal ?? 0,
-        skillsHubManifestCount: dynamic.skillsHubManifestCount ?? 0,
-        skillsHubInstalledTotal: dynamic.skillsHubInstalledTotal ?? 0,
+        skillsHubTotal:
+          nativeOwnershipSnapshot?.skillHub.workspaceTotal ??
+          dynamic.skillsHubTotal ??
+          0,
+        skillsHubGenerated:
+          nativeOwnershipSnapshot?.skillHub.generatedTotal ??
+          dynamic.skillsHubGenerated ??
+          0,
+        skillsHubCatalogTotal:
+          nativeOwnershipSnapshot?.skillHub.catalogTotal ??
+          dynamic.skillsHubCatalogTotal ??
+          0,
+        skillsHubManifestCount:
+          nativeOwnershipSnapshot?.skillHub.exportedManifests ??
+          dynamic.skillsHubManifestCount ??
+          0,
+        skillsHubInstalledTotal:
+          nativeOwnershipSnapshot?.skillHub.installedTotal ??
+          dynamic.skillsHubInstalledTotal ??
+          0,
+        skillsHubFamilyTotal:
+          nativeOwnershipSnapshot?.skillHub.familyTotal ??
+          dynamic.skillsHubFamilyTotal ??
+          0,
+        laggingLatestPackages: dynamic.nativeLaggingLatestPackages ?? 0,
       },
     };
   }

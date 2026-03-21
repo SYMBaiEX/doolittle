@@ -3,6 +3,7 @@
 This workspace holds curated and generated Eliza Agent skill documents.
 
 See the current registry in [`index.md`](./index.md).
+The skills hub surfaces these families directly through `/skills families` and `/skills hub families`.
 
 ## Category map
 
@@ -60,6 +61,12 @@ See the current registry in [`index.md`](./index.md).
   - repeatable scoring, bundle comparison, and regression-oriented review
 - `research/batch`
   - replay bundles, evaluation sweeps, and higher-volume review runs
+- `research/action-bench`
+  - action-calling benchmark coverage, package-enabled action sweeps, and evaluation gates
+- `research/autocoder`
+  - code-generation evaluation, SWE-bench style review, and patch-quality checks
+- `media/voice/tts`
+  - provider-backed text-to-speech, voice artifact generation, and speech audit notes
 - `generated/*`
   - generated skills created from completed workstreams
 

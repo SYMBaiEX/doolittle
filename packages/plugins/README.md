@@ -1,17 +1,16 @@
 # Plugin Workspace
 
-This workspace contains both product-native Eliza Agent plugins and vendored official-compatible ElizaOS plugin packages patched locally for the current runtime line.
+This workspace contains both product-native Eliza Agent plugins and vendored official ElizaOS plugin packages updated locally for the current runtime line.
 
 ## Purpose
 
 - preserve official package names where possible
-- keep compatibility fixes close to the upstream package boundary
-- avoid scattering runtime-line shims across the product code in `packages/agent/src/`
+- keep upstream adjustments close to the package boundary
+- avoid scattering runtime-line changes across the product code in `packages/agent/src/`
 - keep all plugin-shaped code under `packages/plugins/*` so the monorepo stays coherent
 
 ## Workspace contents
 
-- `compat`
 - `eliza-agent-plugin.ts`
 - `plugin-agent-orchestrator`
 - `plugin-agent-skills`
@@ -28,6 +27,14 @@ This workspace contains both product-native Eliza Agent plugins and vendored off
 - `plugin-rolodex`
 - `plugin-shell`
 - `plugin-trajectory-logger`
+
+## Direct ecosystem packages
+
+These are installed at the repo root and surfaced through the native runtime, but they are not workspace folders:
+
+- `@elizaos/plugin-action-bench`
+- `@elizaos/plugin-autocoder`
+- `@elizaos/plugin-tts`
 
 ## Working rule
 

@@ -74,12 +74,25 @@ export const featureMap: FeatureMapping[] = [
       "Uses Lightpanda as the default browser backend with graceful fallback to basic HTTP fetch mode, plus richer page metadata, structured snapshots, and screenshot artifacts with metadata sidecars.",
   },
   {
+    platformCapability: "Native text-to-speech and voice synthesis",
+    elizaImplementation: "Official TTS plugin plus media speech bundles",
+    notes:
+      "Uses the first-party TTS plugin when FAL is configured and keeps the media service as a fallback and audit layer for provider-native or offline speech generation.",
+  },
+  {
     platformCapability:
       "Model-assisted media analysis, transcription, speech, and generation",
     elizaImplementation:
       "Media service with analysis, voice, vision, transcription, speech, and image generation bundles",
     notes:
       "Creates model-assisted reports for audio, image, and document artifacts, can transcribe audio through provider-native speech endpoints, can synthesize Eliza Agent speech audio when the provider supports it, and can emit concept image bundles or SVG fallbacks.",
+  },
+  {
+    platformCapability: "Action benchmarks and code-generation evaluation",
+    elizaImplementation:
+      "Official action-bench and autocoder plugins plus trajectory benchmark flows",
+    notes:
+      "Adds Eliza-native benchmark actions and SWE-bench style code-generation evaluation so the research stack can compare action coverage and code quality directly inside the runtime.",
   },
   {
     platformCapability: "Trajectory export, research packaging, and evaluation",

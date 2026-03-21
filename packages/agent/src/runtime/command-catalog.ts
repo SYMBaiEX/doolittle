@@ -379,6 +379,23 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Show skills hub distribution across sources, roots, categories, and tags.",
   },
   {
+    command: "/skills hub families",
+    category: "skills",
+    description:
+      "Show curated and generated skill families with workspace, catalog, and install coverage.",
+  },
+  {
+    command: "/skills families",
+    category: "skills",
+    description:
+      "Show curated and generated skill families with workspace, catalog, and install coverage.",
+  },
+  {
+    command: "/skills family <slug>",
+    category: "skills",
+    description: "Show a single skill family by slug.",
+  },
+  {
     command: "/skills installed",
     category: "skills",
     description: "List installed skill manifests.",

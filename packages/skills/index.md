@@ -29,6 +29,9 @@ Curated skill families:
 - `research/trajectory` - [`packages/skills/research/trajectory/SKILL.md`](./research/trajectory/SKILL.md)
 - `research/evaluation` - [`packages/skills/research/evaluation/SKILL.md`](./research/evaluation/SKILL.md)
 - `research/batch` - [`packages/skills/research/batch/SKILL.md`](./research/batch/SKILL.md)
+- `research/action-bench` - [`packages/skills/research/action-bench/SKILL.md`](./research/action-bench/SKILL.md)
+- `research/autocoder` - [`packages/skills/research/autocoder/SKILL.md`](./research/autocoder/SKILL.md)
+- `media/voice/tts` - [`packages/skills/media/voice/tts/SKILL.md`](./media/voice/tts/SKILL.md)
 
 Generated skill families:
 

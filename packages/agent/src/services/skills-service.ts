@@ -23,6 +23,10 @@ export class SkillsService {
     private readonly agentSdk: AgentSdkService,
   ) {}
 
+  rootDir(): string {
+    return this.skillsDir;
+  }
+
   list(): SkillDocument[] {
     return this.walk(this.skillsDir)
       .filter((path) => path.endsWith("SKILL.md"))

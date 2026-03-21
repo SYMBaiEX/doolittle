@@ -49,6 +49,10 @@ function buildPluginSettings(
     settings.ANTHROPIC_BASE_URL = config.anthropicBaseUrl;
   }
 
+  if (config.falApiKey) {
+    settings.FAL_API_KEY = config.falApiKey;
+  }
+
   if (config.telegramBotToken) {
     settings.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
   }
@@ -132,6 +136,7 @@ export async function getAppContext(): Promise<AppContext> {
     });
 
     await runtime.initialize();
+    services.nativeOwnership.attachRuntime(runtime, services);
     services.diagnostics.attachRuntime(runtime);
     services.operator.attachRuntime(runtime);
     services.documents = new DocumentsService(runtime, config.workspaceDir);

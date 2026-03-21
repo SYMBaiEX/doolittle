@@ -14,6 +14,9 @@ export const autonomousPatternAreas = [
   "coding-agent-integration",
   "trajectory-logging",
   "plugin-centric-runtime-assembly",
+  "action-bench-evaluation",
+  "autocoder-swe-bench-evaluation",
+  "tts-voice-generation",
 ] as const;
 
 export function describeAutonomousAlignment() {
@@ -27,6 +30,9 @@ export function describeAutonomousAlignment() {
       "trajectory-logger",
       "plugin-manager",
       "trigger-scheduling",
+      "action-bench",
+      "autocoder",
+      "tts",
     ],
   };
 }

@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
+import { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
@@ -41,6 +42,7 @@ export interface AppServices {
   apiTransport: ApiTransportService;
   agentSdk: AgentSdkService;
   nativeRegistry: NativeServiceRegistry;
+  nativeOwnership: NativeOwnershipCache;
   memory: MemoryService;
   skills: SkillsService;
   skillsHub: SkillsHubService;
@@ -77,6 +79,7 @@ export function createServices(
 ): AppServices {
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
+  const nativeOwnership = new NativeOwnershipCache(config, gatewayConfig);
   const provider: "anthropic" | "openai" | "offline" = config.anthropicApiKey
     ? "anthropic"
     : config.openAiApiKey
@@ -344,12 +347,18 @@ export function createServices(
     (limit) => sessions.listSessions(limit),
   );
   const repository = new RepositoryService(config.workspaceDir);
-  const diagnostics = new DiagnosticsService(config, gatewayConfig, agentSdk);
+  const diagnostics = new DiagnosticsService(
+    config,
+    gatewayConfig,
+    agentSdk,
+    nativeOwnership,
+  );
   const operator = new OperatorService(
     config,
     diagnostics,
     repository,
     agentSdk,
+    nativeOwnership,
   );
   const skills = new SkillsService(config.skillsDir, agentSdk);
   const skillSynthesis = new SkillSynthesisService(config.skillsDir);
@@ -359,6 +368,7 @@ export function createServices(
     agentSdk,
     config.dataDir,
   );
+  const skillsHubSummary = skillsHub.summary();
   tools = new ToolsService(() => ({
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
@@ -381,6 +391,7 @@ export function createServices(
     nativeRuntimeAlpha: nativePackageAudit.runtime.alpha,
     nativeAlignedPackages: nativePackageAudit.summary.aligned,
     nativeAlphaOnlyPackages: nativePackageAudit.summary.alphaOnly,
+    nativeLaggingLatestPackages: nativePackageAudit.summary.laggingLatest,
     nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
     agentSdkRegistryAvailable: agentSdk.snapshot().registry?.available ?? false,
     agentSdkRegistryPlugins: agentSdk.snapshot().registry?.total ?? 0,
@@ -391,11 +402,14 @@ export function createServices(
       agentSdk
         .snapshot()
         .audit?.compatibility.filter((entry) => !entry.compatible).length ?? 0,
-    skillsHubTotal: skillsHub.summary().workspaceTotal,
-    skillsHubGenerated: skillsHub.summary().generatedTotal,
-    skillsHubCatalogTotal: skillsHub.summary().catalogTotal,
-    skillsHubManifestCount: skillsHub.summary().exportedManifests,
-    skillsHubInstalledTotal: skillsHub.summary().installedTotal,
+    skillsHubTotal: skillsHubSummary.workspaceTotal,
+    skillsHubGenerated: skillsHubSummary.generatedTotal,
+    skillsHubCatalogTotal: skillsHubSummary.catalogTotal,
+    skillsHubManifestCount: skillsHubSummary.exportedManifests,
+    skillsHubInstalledTotal: skillsHubSummary.installedTotal,
+    skillsHubFamilyTotal: skillsHubSummary.familyTotal,
+    nativeOwnershipControlPlane: nativeOwnership.controlPlane(),
+    nativeOwnershipSnapshot: nativeOwnership.snapshotSync(),
   }));
   void agentSdk.prime().catch(() => {});
   const getModelContext = (): {
@@ -427,6 +441,7 @@ export function createServices(
     apiTransport,
     agentSdk,
     nativeRegistry: createNativeServiceRegistry(),
+    nativeOwnership,
     memory: new MemoryService(config.dataDir, {
       memory: config.memoryCharLimit,
       user: config.userCharLimit,

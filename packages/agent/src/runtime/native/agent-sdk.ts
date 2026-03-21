@@ -26,11 +26,26 @@ const FOUNDATION_PACKAGES = [
   "@elizaos/plugin-mcp",
 ] as const;
 
+const ECOSYSTEM_PACKAGES = [
+  "@elizaos/plugin-action-bench",
+  "@elizaos/plugin-autocoder",
+  "@elizaos/plugin-tts",
+] as const;
+
 export async function getAgentSdkAudit() {
   const coreVersion = (await getInstalledVersion("@elizaos/core")) ?? "unknown";
   const installed = Object.fromEntries(
     await Promise.all(
       FOUNDATION_PACKAGES.map(async (packageName) => [
+        packageName,
+        await getInstalledVersion(packageName),
+      ]),
+    ),
+  );
+  const ecosystemPackages = [...ECOSYSTEM_PACKAGES];
+  const ecosystemInstalled = Object.fromEntries(
+    await Promise.all(
+      ecosystemPackages.map(async (packageName) => [
         packageName,
         await getInstalledVersion(packageName),
       ]),
@@ -42,6 +57,7 @@ export async function getAgentSdkAudit() {
       ...AI_PROVIDER_PLUGINS,
       "@elizaos/plugin-browser",
       "@elizaos/plugin-mcp",
+      ...ecosystemPackages,
     ]),
   ];
 
@@ -62,6 +78,8 @@ export async function getAgentSdkAudit() {
   return {
     foundationPackages: [...FOUNDATION_PACKAGES],
     installed,
+    ecosystemPackages,
+    ecosystemInstalled,
     coreVersion,
     channels: CHANNEL_DIST_TAGS,
     compatibility,

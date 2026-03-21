@@ -1,6 +1,7 @@
 import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
+import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import {
   getLatestRuntimeLine,
   getNativePackageAudit,
@@ -52,6 +53,7 @@ export class DiagnosticsService {
     private readonly config: EnvConfig,
     private readonly gatewayConfig: GatewayConfig,
     private readonly agentSdk?: AgentSdkService,
+    private readonly nativeOwnership?: NativeOwnershipCache,
   ) {}
 
   attachRuntime(runtime: RuntimeLike): void {
@@ -123,14 +125,16 @@ export class DiagnosticsService {
       : undefined;
     const registrySnapshot = ecosystem?.registry;
     const skillCatalog = ecosystem?.skillCatalog;
-    const ownership = this.runtime
-      ? getNativeOwnershipControlPlane(
-          this.runtime,
-          undefined,
-          this.config,
-          this.gatewayConfig,
-        )
-      : undefined;
+    const ownership =
+      this.nativeOwnership?.controlPlane() ??
+      (this.runtime
+        ? getNativeOwnershipControlPlane(
+            this.runtime,
+            undefined,
+            this.config,
+            this.gatewayConfig,
+          )
+        : undefined);
     const integrationControl = this.runtime
       ? await getNativeIntegrationControlPlane(this.runtime, {
           web: {
@@ -215,12 +219,13 @@ export class DiagnosticsService {
       id: "native.package-alignment",
       status:
         nativeAudit.summary.alphaOnly > 0 ||
+        nativeAudit.summary.laggingLatest > 0 ||
         nativeAudit.summary.workspaceOnly > 0 ||
         nativeAudit.summary.vendored > 0
           ? "warn"
           : "pass",
       summary: "Native package compatibility audit",
-      detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} alphaOnly=${nativeAudit.summary.alphaOnly} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
+      detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} alphaOnly=${nativeAudit.summary.alphaOnly} laggingLatest=${nativeAudit.summary.laggingLatest} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
     });
 
     checks.push({
@@ -475,6 +480,15 @@ export class DiagnosticsService {
       detail: this.config.emailSendCommand
         ? "Email send command configured."
         : "EMAIL_SEND_COMMAND is not configured.",
+    });
+
+    checks.push({
+      id: "media.tts.readiness",
+      status: this.config.falApiKey ? "pass" : "warn",
+      summary: "Text-to-speech plugin readiness",
+      detail: this.config.falApiKey
+        ? "FAL API key configured for the official TTS plugin."
+        : "FAL_API_KEY is not configured, so the official TTS plugin stays disabled.",
     });
 
     checks.push({
@@ -775,6 +789,11 @@ export class DiagnosticsService {
     if (!this.config.emailSendCommand) {
       steps.push(
         "Set EMAIL_SEND_COMMAND before enabling the Email gateway path.",
+      );
+    }
+    if (!this.config.falApiKey) {
+      steps.push(
+        "Set FAL_API_KEY before relying on the official TTS plugin for voice synthesis.",
       );
     }
     if (!this.config.smsSendCommand) {

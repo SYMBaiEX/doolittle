@@ -41,6 +41,8 @@ import {
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubFamilies,
+  getEffectiveSkillHubFamily,
   getEffectiveSkillHubGenerated,
   getEffectiveSkillHubInstalled,
   getEffectiveSkillHubInstalledManifest,
@@ -1384,6 +1386,36 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/skills families") {
+    return JSON.stringify(
+      getEffectiveSkillHubFamilies(context.services, 50),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills hub families") {
+    return JSON.stringify(
+      getEffectiveSkillHubFamilies(context.services, 50),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/skills family ")) {
+    const slug = trimmed.replace("/skills family ", "").trim();
+    if (!slug) {
+      return "Usage: /skills family <slug>";
+    }
+    return JSON.stringify(
+      getEffectiveSkillHubFamily(context.services, slug) ?? {
+        error: `Skill family not found: ${slug}`,
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/skills installed") {
     return JSON.stringify(
       getEffectiveSkillHubInstalled(context.services),
@@ -1931,12 +1963,14 @@ async function buildCommandResponse(
   if (trimmed === "/status") {
     const personality = context.services.personalities.getActive();
     const settings = context.services.settings.get();
-    const ownership = getNativeOwnershipControlPlane(
-      context.runtime,
-      context.services,
-      context.config,
-      context.services.gatewayConfig,
-    );
+    const ownership =
+      context.services.nativeOwnership.controlPlane() ??
+      getNativeOwnershipControlPlane(
+        context.runtime,
+        context.services,
+        context.config,
+        context.services.gatewayConfig,
+      );
     const controlPlane = ownership.transportControl;
     const memorySummary = getEffectiveMemorySnapshot(
       context.runtime,
@@ -2462,12 +2496,14 @@ async function buildCommandResponse(
 
   if (trimmed === "/runtime plugins" || trimmed === "/plugins native") {
     const catalog = getNativePluginCatalog(context.config);
-    const ownership = getNativeOwnershipControlPlane(
-      context.runtime,
-      context.services,
-      context.config,
-      context.services.gatewayConfig,
-    );
+    const ownership =
+      context.services.nativeOwnership.controlPlane() ??
+      getNativeOwnershipControlPlane(
+        context.runtime,
+        context.services,
+        context.config,
+        context.services.gatewayConfig,
+      );
     return JSON.stringify(
       {
         catalog,
@@ -2485,12 +2521,14 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/runtime services" || trimmed === "/services native") {
-    const ownership = getNativeOwnershipControlPlane(
-      context.runtime,
-      context.services,
-      context.config,
-      context.services.gatewayConfig,
-    );
+    const ownership =
+      context.services.nativeOwnership.controlPlane() ??
+      getNativeOwnershipControlPlane(
+        context.runtime,
+        context.services,
+        context.config,
+        context.services.gatewayConfig,
+      );
     const integration = await getNativeIntegrationControlPlane(
       context.runtime,
       {
@@ -2518,12 +2556,13 @@ async function buildCommandResponse(
 
   if (trimmed === "/runtime ownership") {
     return JSON.stringify(
-      await getNativeOwnershipSnapshot(
-        context.runtime,
-        context.services,
-        context.config,
-        context.services.gatewayConfig,
-      ),
+      (await context.services.nativeOwnership.snapshot()) ??
+        (await getNativeOwnershipSnapshot(
+          context.runtime,
+          context.services,
+          context.config,
+          context.services.gatewayConfig,
+        )),
       null,
       2,
     );

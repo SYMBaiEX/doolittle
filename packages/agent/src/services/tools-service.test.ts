@@ -12,7 +12,68 @@ describe("ToolsService", () => {
       nativePluginManagerOfficial: 4,
       nativePluginManagerVendored: 5,
       nativePluginManagerCategories: 3,
+      nativeLaggingLatestPackages: 2,
       agentSdkCompatibilityFailures: 1,
+      nativeOwnershipControlPlane: {
+        serviceResolution: [{ source: "native" }] as never,
+        transportControl: {
+          totals: {
+            configured: 1,
+            enabledPlugins: 1,
+            gatewayEnabled: 1,
+            availableServices: 1,
+            liveServices: 1,
+            officialPlugins: 1,
+            vendoredPlugins: 0,
+            operationalTransports: 1,
+            customTransports: 0,
+            productTransports: 0,
+          },
+          transportInventory: [],
+          messagingBridge: [],
+          messagingPlugins: [],
+        } as never,
+        pluginManager: {
+          plugins: [],
+          categories: [],
+          summary: {
+            total: 2,
+            enabled: 2,
+            official: 1,
+            vendored: 1,
+            categories: 1,
+          },
+        } as never,
+        identity: undefined,
+      } as never,
+      nativeOwnershipSnapshot: {
+        controlPlane: {} as never,
+        integration: {} as never,
+        autonomous: {} as never,
+        skillHub: {
+          workspaceTotal: 10,
+          generatedTotal: 4,
+          catalogTotal: 3,
+          installedTotal: 2,
+          installable: 1,
+          exportedManifests: 6,
+          familyTotal: 2,
+          curatedFamilyTotal: 1,
+          generatedFamilyTotal: 1,
+          manifestsDir: "/tmp/manifests",
+          summary: "ok",
+          distribution: {
+            sources: [],
+            categories: [],
+            roots: [],
+            tags: [],
+          },
+          families: [],
+          recentWorkspace: [],
+          recentCatalog: [],
+          recentInstalled: [],
+        },
+      } as never,
       nativeCatalog: [
         {
           id: "messaging.telegram",
@@ -29,11 +90,15 @@ describe("ToolsService", () => {
     expect(summary.enabled).toBeGreaterThan(0);
     expect(summary.mcp.enabled).toBe(true);
     expect(summary.mcp.discoveredToolNames).toContain("sum");
-    expect(summary.native.total).toBe(10);
-    expect(summary.native.categories).toBe(3);
-    expect(summary.native.official).toBe(4);
-    expect(summary.native.vendored).toBe(5);
+    expect(summary.native.total).toBe(2);
+    expect(summary.native.categories).toBe(1);
+    expect(summary.native.official).toBe(1);
+    expect(summary.native.vendored).toBe(1);
     expect(summary.ecosystem.compatibilityFailures).toBe(1);
+    expect(summary.ecosystem.skillsHubTotal).toBe(10);
+    expect(summary.ecosystem.skillsHubInstalledTotal).toBe(2);
+    expect(summary.ecosystem.skillsHubFamilyTotal).toBe(2);
+    expect(summary.ecosystem.laggingLatestPackages).toBe(2);
 
     const browserTools = service.byCategory("documents");
     expect(browserTools.some((tool) => tool.id === "browser.status")).toBe(
@@ -65,6 +130,8 @@ describe("ToolsService", () => {
     expect(browserTools.some((tool) => tool.id === "media.generate")).toBe(
       true,
     );
+    expect(service.get("skills.families")?.description).toContain("families");
+    expect(service.get("skills.family")?.description).toContain("family");
     expect(
       service
         .byCategory("automation")
@@ -90,8 +157,11 @@ describe("ToolsService", () => {
     expect(bridge?.enabled).toBe(true);
     expect(bridge?.description).toContain("2 discovered tool(s)");
     expect(service.get("runtime.compatibility")?.description).toContain("1");
-    expect(service.get("plugins.native")?.description).toContain("8/10");
-    expect(service.get("skills.hub")?.description).toContain("installed=0");
+    expect(service.get("plugins.native")?.description).toContain("2/2");
+    expect(service.get("skills.hub")?.description).toContain("installed=2");
+    expect(service.get("runtime.ownership")?.description).toContain(
+      "Shared ownership snapshot",
+    );
     expect(service.get("plugins.native.messaging.telegram")?.transport).toBe(
       "native",
     );

@@ -26,6 +26,8 @@ export interface AgentSdkOverview {
   summary: {
     foundationPackages: number;
     installedFoundationPackages: number;
+    ecosystemPackages: number;
+    installedEcosystemPackages: number;
     compatibilityChecks: number;
     compatibilityFailures: number;
     registryEndpoints: number;
@@ -49,6 +51,12 @@ function countInstalledFoundationPackages(
   installed: AgentSdkAudit["installed"],
 ): number {
   return Object.values(installed).filter(Boolean).length;
+}
+
+function countInstalledEcosystemPackages(
+  installed: AgentSdkAudit["ecosystemInstalled"],
+): number {
+  return Object.values(installed ?? {}).filter(Boolean).length;
 }
 
 export class AgentSdkService {
@@ -124,6 +132,10 @@ export class AgentSdkService {
         foundationPackages: audit.foundationPackages.length,
         installedFoundationPackages: countInstalledFoundationPackages(
           audit.installed,
+        ),
+        ecosystemPackages: audit.ecosystemPackages?.length ?? 0,
+        installedEcosystemPackages: countInstalledEcosystemPackages(
+          audit.ecosystemInstalled,
         ),
         compatibilityChecks: audit.compatibility.length,
         compatibilityFailures: audit.compatibility.filter(
