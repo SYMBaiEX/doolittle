@@ -163,6 +163,21 @@ export class DiagnosticsService {
         summary: "Native messaging control plane",
         detail: `configured=${controlPlane.totals.configured} gatewayEnabled=${controlPlane.totals.gatewayEnabled} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins}`,
       });
+      checks.push({
+        id: "gateway.transport.inventory",
+        status:
+          controlPlane.transportInventory.filter((entry) => entry.operational)
+            .length > 0
+            ? "pass"
+            : "warn",
+        summary: "Gateway transport inventory",
+        detail: controlPlane.transportInventory
+          .map(
+            (entry) =>
+              `${entry.platform}:cfg=${entry.configEnabled}:gateway=${entry.gatewayEnabled}:operational=${entry.operational}:reason=${entry.reason}`,
+          )
+          .join(", "),
+      });
     }
 
     checks.push({
