@@ -1,13 +1,10 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
-import {
-  getAgentRegistrySnapshot,
-  getAgentSkillCatalogSnapshot,
-} from "@/runtime/native/agent-sdk";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import { AcpService } from "./acp-service";
+import { AgentSdkService } from "./agent-sdk-service";
 import { ApiTransportService } from "./api-transport-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
@@ -41,6 +38,7 @@ import { WorkspaceService } from "./workspace-service";
 
 export interface AppServices {
   apiTransport: ApiTransportService;
+  agentSdk: AgentSdkService;
   nativeRegistry: NativeServiceRegistry;
   memory: MemoryService;
   skills: SkillsService;
@@ -76,6 +74,7 @@ export function createServices(
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
 ): AppServices {
   const gatewayConfig = loadGatewayConfig(config);
+  const agentSdk = new AgentSdkService();
   const provider: "anthropic" | "openai" | "offline" = config.anthropicApiKey
     ? "anthropic"
     : config.openAiApiKey
@@ -334,20 +333,17 @@ export function createServices(
   const apiTransport = new ApiTransportService(join(config.dataDir, "api"));
   const nativePluginCatalog = getNativePluginCatalog(config);
   const nativePackageAudit = getNativePackageAudit(config);
-  const agentSdkRegistry = {
-    available: false,
-    total: 0,
-  };
-  const agentSdkCatalog = {
-    available: false,
-    total: 0,
-  };
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
   const acp = new AcpService(config, () => tools.list());
   const repository = new RepositoryService(config.workspaceDir);
-  const diagnostics = new DiagnosticsService(config, gatewayConfig);
-  const operator = new OperatorService(config, diagnostics, repository);
+  const diagnostics = new DiagnosticsService(config, gatewayConfig, agentSdk);
+  const operator = new OperatorService(
+    config,
+    diagnostics,
+    repository,
+    agentSdk,
+  );
   tools = new ToolsService(() => ({
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
@@ -367,23 +363,13 @@ export function createServices(
     nativeAlignedPackages: nativePackageAudit.summary.aligned,
     nativeAlphaOnlyPackages: nativePackageAudit.summary.alphaOnly,
     nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
-    agentSdkRegistryAvailable: agentSdkRegistry.available,
-    agentSdkRegistryPlugins: agentSdkRegistry.total,
-    agentSdkCatalogAvailable: agentSdkCatalog.available,
-    agentSdkCatalogSkills: agentSdkCatalog.total,
+    agentSdkRegistryAvailable: agentSdk.snapshot().registry?.available ?? false,
+    agentSdkRegistryPlugins: agentSdk.snapshot().registry?.total ?? 0,
+    agentSdkCatalogAvailable:
+      agentSdk.snapshot().skillCatalog?.available ?? false,
+    agentSdkCatalogSkills: agentSdk.snapshot().skillCatalog?.total ?? 0,
   }));
-  void getAgentRegistrySnapshot()
-    .then((snapshot) => {
-      agentSdkRegistry.available = snapshot.available;
-      agentSdkRegistry.total = snapshot.total;
-    })
-    .catch(() => {});
-  void getAgentSkillCatalogSnapshot()
-    .then((snapshot) => {
-      agentSdkCatalog.available = snapshot.available;
-      agentSdkCatalog.total = snapshot.total;
-    })
-    .catch(() => {});
+  void agentSdk.prime().catch(() => {});
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";
     model: string;
@@ -411,12 +397,13 @@ export function createServices(
 
   return {
     apiTransport,
+    agentSdk,
     nativeRegistry: createNativeServiceRegistry(),
     memory: new MemoryService(config.dataDir, {
       memory: config.memoryCharLimit,
       user: config.userCharLimit,
     }),
-    skills: new SkillsService(config.skillsDir),
+    skills: new SkillsService(config.skillsDir, agentSdk),
     sessions,
     cron: new CronService(
       join(config.dataDir, "cron"),

@@ -10,15 +10,6 @@ import {
   syncProviderSettings,
 } from "@/runtime/chat";
 import {
-  getAgentRegistrySnapshot,
-  getAgentSdkAudit,
-  searchAgentRegistry,
-} from "@/runtime/native/agent-sdk";
-import {
-  getLatestRuntimeLine,
-  getNativePackageAudit,
-} from "@/runtime/native/package-audit";
-import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
@@ -43,6 +34,7 @@ import {
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkills,
+  getNativeIntegrationControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
   inspectEffectiveBrowserPage,
@@ -409,19 +401,21 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/ecosystem") {
-        return json({
-          runtime: getLatestRuntimeLine(),
-          audit: getNativePackageAudit(context.config),
-          agentSdk: await getAgentSdkAudit(),
-        });
+        const refresh =
+          url.searchParams.get("refresh") === "true" ||
+          url.searchParams.get("refresh") === "1";
+        return json(await context.services.agentSdk.overview(refresh));
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/registry") {
         const query = url.searchParams.get("query")?.trim();
+        const refresh =
+          url.searchParams.get("refresh") === "true" ||
+          url.searchParams.get("refresh") === "1";
         return json(
           query
-            ? await searchAgentRegistry(query)
-            : await getAgentRegistrySnapshot(),
+            ? await context.services.agentSdk.searchRegistry(query)
+            : await context.services.agentSdk.registry(refresh),
         );
       }
 
@@ -479,8 +473,16 @@ export function startApiServer(context: AppContext): void {
           context.config,
           context.services.gatewayConfig,
         );
+        const integration = await getNativeIntegrationControlPlane(
+          context.runtime,
+          {
+            web: context.services.web,
+            mcp: context.services.mcp,
+          },
+        );
         return json({
           resolution: getEffectiveServiceResolution(context.runtime),
+          integration,
           messagingBridge: controlPlane.messagingBridge,
           transportInventory: controlPlane.transportInventory,
           transportControl: controlPlane.totals,
@@ -680,10 +682,13 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/skills/catalog") {
         const query = url.searchParams.get("query")?.trim();
+        const refresh =
+          url.searchParams.get("refresh") === "true" ||
+          url.searchParams.get("refresh") === "1";
         return json(
           query
-            ? await context.services.skills.searchCatalog(query)
-            : await context.services.skills.catalog(),
+            ? await context.services.agentSdk.searchSkillCatalog(query)
+            : await context.services.agentSdk.skillCatalog(refresh),
         );
       }
 

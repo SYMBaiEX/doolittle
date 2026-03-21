@@ -8,15 +8,6 @@ import {
   type UUID,
 } from "@elizaos/core";
 import {
-  getAgentRegistrySnapshot,
-  getAgentSdkAudit,
-  searchAgentRegistry,
-} from "@/runtime/native/agent-sdk";
-import {
-  getLatestRuntimeLine,
-  getNativePackageAudit,
-} from "@/runtime/native/package-audit";
-import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
@@ -41,6 +32,7 @@ import {
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkills,
+  getNativeIntegrationControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
   inspectEffectiveBrowserPage,
@@ -1045,7 +1037,19 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/skills catalog") {
-    return JSON.stringify(await context.services.skills.catalog(), null, 2);
+    return JSON.stringify(
+      await context.services.agentSdk.skillCatalog(),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills catalog refresh") {
+    return JSON.stringify(
+      await context.services.agentSdk.skillCatalog(true),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/skills catalog search ")) {
@@ -1054,7 +1058,7 @@ async function buildCommandResponse(
       return "Usage: /skills catalog search <query>";
     }
     return JSON.stringify(
-      await context.services.skills.searchCatalog(query),
+      await context.services.agentSdk.searchSkillCatalog(query),
       null,
       2,
     );
@@ -1902,9 +1906,17 @@ async function buildCommandResponse(
       context.config,
       context.services.gatewayConfig,
     );
+    const integration = await getNativeIntegrationControlPlane(
+      context.runtime,
+      {
+        web: context.services.web,
+        mcp: context.services.mcp,
+      },
+    );
     return JSON.stringify(
       {
         resolution: getEffectiveServiceResolution(context.runtime),
+        integration,
         messaging: controlPlane.messagingBridge,
         transportInventory: controlPlane.transportInventory,
         transportControl: controlPlane.totals,
@@ -1927,20 +1939,29 @@ async function buildCommandResponse(
     );
   }
 
-  if (trimmed === "/runtime ecosystem" || trimmed === "/plugins ecosystem") {
+  if (
+    trimmed === "/runtime ecosystem" ||
+    trimmed === "/plugins ecosystem" ||
+    trimmed === "/runtime ecosystem refresh"
+  ) {
+    const refresh = trimmed.endsWith(" refresh");
     return JSON.stringify(
-      {
-        runtime: getLatestRuntimeLine(),
-        audit: getNativePackageAudit(context.config),
-        agentSdk: await getAgentSdkAudit(),
-      },
+      await context.services.agentSdk.overview(refresh),
       null,
       2,
     );
   }
 
   if (trimmed === "/runtime registry") {
-    return JSON.stringify(await getAgentRegistrySnapshot(), null, 2);
+    return JSON.stringify(await context.services.agentSdk.registry(), null, 2);
+  }
+
+  if (trimmed === "/runtime registry refresh") {
+    return JSON.stringify(
+      await context.services.agentSdk.registry(true),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/runtime registry search ")) {
@@ -1948,7 +1969,11 @@ async function buildCommandResponse(
     if (!query) {
       return "Usage: /runtime registry search <query>";
     }
-    return JSON.stringify(await searchAgentRegistry(query), null, 2);
+    return JSON.stringify(
+      await context.services.agentSdk.searchRegistry(query),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/execution backends") {

@@ -126,6 +126,30 @@ interface EffectiveServiceResolutionRecord {
   available: boolean;
 }
 
+type BrowserMcpServices = {
+  web: {
+    status(): Promise<unknown>;
+  };
+  mcp: {
+    status(): unknown;
+    getCachedTools(): unknown[];
+  };
+};
+
+interface NativeIntegrationControlPlane {
+  browser: {
+    source: "native" | "product";
+    available: boolean;
+    status: unknown;
+  };
+  mcp: {
+    source: "native" | "product";
+    available: boolean;
+    status: ReturnType<typeof getEffectiveMcpStatus>;
+    cachedTools: unknown[];
+  };
+}
+
 type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
 
 export type { RuntimeLike };
@@ -196,6 +220,63 @@ export function getNativeServices(runtime: RuntimeLike) {
       runtime,
       "discord_transport",
     ),
+  };
+}
+
+async function resolveBrowserIntegrationStatus(
+  runtime: RuntimeLike,
+  services: BrowserMcpServices,
+) {
+  const native = getNativeServices(runtime).browser;
+  if (native) {
+    return {
+      source: "native" as const,
+      available: true,
+      status: await native.status(),
+    };
+  }
+  return {
+    source: "product" as const,
+    available: false,
+    status: await services.web.status(),
+  };
+}
+
+function resolveMcpIntegrationStatus(
+  runtime: RuntimeLike,
+  services: BrowserMcpServices,
+) {
+  const native = getNativeServices(runtime).mcp;
+  if (native) {
+    return {
+      source: "native" as const,
+      available: true,
+      status: native.status(),
+      cachedTools: native.getCachedTools(),
+    };
+  }
+  return {
+    source: "product" as const,
+    available: false,
+    status: services.mcp.status(),
+    cachedTools: services.mcp.getCachedTools(),
+  };
+}
+
+export async function getNativeIntegrationControlPlane(
+  runtime: RuntimeLike,
+  services: BrowserMcpServices,
+): Promise<NativeIntegrationControlPlane> {
+  const browser = await resolveBrowserIntegrationStatus(runtime, services);
+  const mcp = resolveMcpIntegrationStatus(runtime, services);
+  return {
+    browser,
+    mcp: {
+      source: mcp.source,
+      available: mcp.available,
+      status: mcp.status,
+      cachedTools: mcp.cachedTools,
+    },
   };
 }
 
@@ -594,10 +675,7 @@ export async function getEffectiveBrowserStatus(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return (
-    (await getNativeServices(runtime).browser?.status()) ??
-    services.web.status()
-  );
+  return (await resolveBrowserIntegrationStatus(runtime, services)).status;
 }
 
 export async function fetchEffectiveBrowserPage(
@@ -699,7 +777,7 @@ export function getEffectiveMcpStatus(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return getNativeServices(runtime).mcp?.status() ?? services.mcp.status();
+  return resolveMcpIntegrationStatus(runtime, services).status;
 }
 
 export async function probeEffectiveMcp(
@@ -725,10 +803,7 @@ export function getEffectiveCachedMcpTools(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return (
-    getNativeServices(runtime).mcp?.getCachedTools() ??
-    services.mcp.getCachedTools()
-  );
+  return resolveMcpIntegrationStatus(runtime, services).cachedTools;
 }
 
 export function searchEffectiveCachedMcpTools(

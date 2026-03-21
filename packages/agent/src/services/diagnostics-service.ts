@@ -11,10 +11,12 @@ import {
 } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
+  getNativeIntegrationControlPlane,
   getNativeTransportControlPlane,
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
+import type { AgentSdkService } from "./agent-sdk-service";
 
 function summarizeTransportInventory(
   inventory: Array<{
@@ -53,6 +55,7 @@ export class DiagnosticsService {
   constructor(
     private readonly config: EnvConfig,
     private readonly gatewayConfig: GatewayConfig,
+    private readonly agentSdk?: AgentSdkService,
   ) {}
 
   attachRuntime(runtime: RuntimeLike): void {
@@ -117,8 +120,8 @@ export class DiagnosticsService {
     const nativeAudit = getNativePackageAudit(this.config);
     const nativePlugins = getNativePluginCatalog(this.config);
     const [registrySnapshot, skillCatalog] = await Promise.all([
-      getAgentRegistrySnapshot(),
-      getAgentSkillCatalogSnapshot(),
+      this.agentSdk?.registry() ?? getAgentRegistrySnapshot(),
+      this.agentSdk?.skillCatalog() ?? getAgentSkillCatalogSnapshot(),
     ]);
     const controlPlane = this.runtime
       ? getNativeTransportControlPlane(
@@ -126,6 +129,42 @@ export class DiagnosticsService {
           this.config,
           this.gatewayConfig,
         )
+      : undefined;
+    const integrationControl = this.runtime
+      ? await getNativeIntegrationControlPlane(this.runtime, {
+          web: {
+            status: async () => ({
+              provider: this.config.browserProvider,
+              ready: Boolean(this.config.browserCommand),
+              mode:
+                this.config.browserProvider === "lightpanda"
+                  ? "browser"
+                  : "fallback",
+              detail:
+                this.config.browserProvider === "lightpanda"
+                  ? `Lightpanda is configured as the default browser backend via ${this.config.browserCommand}.`
+                  : "Basic HTTP fetch mode is configured as the browser fallback.",
+              artifacts: {
+                snapshot: Boolean(this.config.browserCommand),
+                screenshot: Boolean(this.config.browserCommand),
+                comparison: Boolean(this.config.browserCommand),
+              },
+            }),
+          },
+          mcp: {
+            status: () => ({
+              enabled: Boolean(this.config.mcpServerCommand),
+              detail: this.config.mcpServerCommand
+                ? `MCP bridge command configured: ${this.config.mcpServerCommand}`
+                : "MCP_SERVER_COMMAND is not configured.",
+              command: this.config.mcpServerCommand || undefined,
+              timeoutMs: this.config.mcpTimeoutMs,
+              discoveredTools: 0,
+              cachedToolNames: [],
+            }),
+            getCachedTools: () => [],
+          },
+        } as unknown as Parameters<typeof getNativeIntegrationControlPlane>[1])
       : undefined;
     const messagingBridge = controlPlane?.messagingBridge ?? [];
     checks.push({
@@ -599,6 +638,28 @@ export class DiagnosticsService {
           ? `Lightpanda is configured as the default browser backend via ${this.config.browserCommand}.`
           : "Basic HTTP fetch mode is configured as the browser fallback.",
     });
+
+    if (integrationControl) {
+      checks.push({
+        id: "integration.browser.native",
+        status:
+          integrationControl.browser.source === "native" ? "pass" : "warn",
+        summary: "Native browser integration",
+        detail:
+          integrationControl.browser.source === "native"
+            ? "Browser status is resolved through the native Eliza service bridge."
+            : "Browser status is still resolved through the product fallback service.",
+      });
+      checks.push({
+        id: "integration.mcp.native",
+        status: integrationControl.mcp.source === "native" ? "pass" : "warn",
+        summary: "Native MCP integration",
+        detail:
+          integrationControl.mcp.source === "native"
+            ? `MCP status is resolved through the native Eliza service bridge with ${integrationControl.mcp.cachedTools.length} cached tool(s).`
+            : "MCP status is still resolved through the product fallback service.",
+      });
+    }
 
     checks.push({
       id: "execution.remote.sync",

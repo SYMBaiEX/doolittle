@@ -77,9 +77,19 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show alpha-channel package alignment and native audit data.",
   },
   {
+    command: "/runtime ecosystem refresh",
+    category: "runtime",
+    description: "Refresh the ElizaOS agent SDK ecosystem audit and cache.",
+  },
+  {
     command: "/runtime registry",
     category: "runtime",
     description: "Show the ElizaOS registry snapshot and configured endpoints.",
+  },
+  {
+    command: "/runtime registry refresh",
+    category: "runtime",
+    description: "Refresh the ElizaOS registry snapshot from the agent SDK.",
   },
   {
     command: "/runtime registry search <query>",
@@ -191,6 +201,11 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     category: "skills",
     description:
       "Show the ElizaOS skill catalog snapshot and trending entries.",
+  },
+  {
+    command: "/skills catalog refresh",
+    category: "skills",
+    description: "Refresh the ElizaOS skill catalog snapshot and cache.",
   },
   {
     command: "/skills catalog search <query>",

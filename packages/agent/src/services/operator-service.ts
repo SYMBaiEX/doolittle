@@ -22,6 +22,7 @@ import {
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
 import type { EnvConfig } from "@/types";
+import type { AgentSdkService } from "./agent-sdk-service";
 import type { DiagnosticsService } from "./diagnostics-service";
 import {
   createNativeServiceRegistry,
@@ -172,6 +173,7 @@ export class OperatorService {
     private readonly config: EnvConfig,
     private readonly diagnostics: DiagnosticsService,
     private readonly repository: RepositoryService,
+    private readonly agentSdk?: AgentSdkService,
   ) {
     this.packageMetadata = this.loadPackageMetadata();
     this.migrationsDir = join(this.config.dataDir, "migrations");
@@ -184,8 +186,8 @@ export class OperatorService {
 
   async setupSummary(): Promise<SetupSummary> {
     const [registrySnapshot, skillCatalog] = await Promise.all([
-      getAgentRegistrySnapshot(),
-      getAgentSkillCatalogSnapshot(),
+      this.agentSdk?.registry() ?? getAgentRegistrySnapshot(),
+      this.agentSdk?.skillCatalog() ?? getAgentSkillCatalogSnapshot(),
     ]);
     const transportControl = this.runtime
       ? getNativeTransportControlPlane(
@@ -301,8 +303,8 @@ export class OperatorService {
 
   async updatePreview(): Promise<UpdatePreview> {
     const [registrySnapshot, skillCatalog] = await Promise.all([
-      getAgentRegistrySnapshot(),
-      getAgentSkillCatalogSnapshot(),
+      this.agentSdk?.registry() ?? getAgentRegistrySnapshot(),
+      this.agentSdk?.skillCatalog() ?? getAgentSkillCatalogSnapshot(),
     ]);
     const repositoryAvailable = this.repository.isRepository();
     const status = repositoryAvailable

@@ -1,13 +1,13 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import {
-  getAgentSkillCatalogSnapshot,
-  searchAgentSkillCatalog,
-} from "@/runtime/native/agent-sdk";
 import type { SkillDocument } from "@/types";
+import type { AgentSdkService } from "./agent-sdk-service";
 
 export class SkillsService {
-  constructor(private readonly skillsDir: string) {}
+  constructor(
+    private readonly skillsDir: string,
+    private readonly agentSdk: AgentSdkService,
+  ) {}
 
   list(): SkillDocument[] {
     return this.walk(this.skillsDir)
@@ -37,11 +37,11 @@ export class SkillsService {
   }
 
   async catalog(limit = 20) {
-    return getAgentSkillCatalogSnapshot(limit);
+    return this.agentSdk.skillCatalog(false, limit);
   }
 
   async searchCatalog(query: string, limit = 15) {
-    return searchAgentSkillCatalog(query, limit);
+    return this.agentSdk.searchSkillCatalog(query, limit);
   }
 
   private walk(root: string): string[] {
