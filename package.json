@@ -16,16 +16,16 @@
     "bootstrap": "bun run scripts/bootstrap.ts",
     "bootstrap:check": "bun run scripts/bootstrap.ts --check",
     "install:deps": "bash scripts/install.sh",
-    "dev": "bun --watch packages/agent/src/index.ts",
-    "start": "bun run packages/agent/src/index.ts",
-    "build": "bun build ./packages/agent/src/index.ts --target bun --outdir dist --external sharp",
+    "dev": "bun run --cwd packages/agent dev",
+    "start": "bun run --cwd packages/agent start",
+    "build": "bun run --cwd packages/agent build",
     "lint": "bunx @biomejs/biome check --write .",
     "lint:check": "bunx @biomejs/biome check .",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "check": "bun run lint:check && bun run typecheck && bun test && bun run build",
     "workspace:list": "find packages -maxdepth 2 -mindepth 1 -type f -name package.json | sort",
-    "workspace:plugins": "bun run packages/agent/src/index.ts --help"
+    "workspace:plugins": "bun run --cwd packages/agent start --help"
   },
   "dependencies": {
     "@elizaos/agent": "alpha",
@@ -46,6 +46,7 @@
     "@elizaos/plugin-pdf": "alpha",
     "@elizaos/plugin-personality": "workspace:*",
     "@elizaos/plugin-plugin-manager": "workspace:*",
+    "@elizaos/plugin-compat": "workspace:*",
     "@elizaos/plugin-rolodex": "workspace:*",
     "@elizaos/plugin-shell": "workspace:*",
     "@elizaos/plugin-sql": "alpha",

@@ -1,5 +1,5 @@
 {
-  "name": "@elizaos-official/compat",
+  "name": "@elizaos/plugin-compat",
   "version": "2.0.0-alpha.81-patched.0",
   "private": true,
   "type": "module",

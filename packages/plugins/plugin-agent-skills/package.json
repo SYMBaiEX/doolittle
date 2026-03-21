@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@elizaos-official/compat": "file:../compat",
+    "@elizaos/plugin-compat": "file:../compat",
     "@elizaos/core": "alpha"
   }
 }

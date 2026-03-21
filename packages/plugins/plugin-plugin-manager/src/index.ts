@@ -2,7 +2,7 @@ import type { Plugin } from "@elizaos/core";
 import {
   createServiceAdapter,
   createServicePlugin,
-} from "@elizaos-official/compat";
+} from "@elizaos/plugin-compat";
 
 export interface PluginManagerPluginOptions {
   plugins: {

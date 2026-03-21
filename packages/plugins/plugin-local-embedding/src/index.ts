@@ -3,7 +3,7 @@ import {
   createServiceAdapter,
   createServicePlugin,
   stableHashVector,
-} from "@elizaos-official/compat";
+} from "@elizaos/plugin-compat";
 
 export function createLocalEmbeddingPlugin(): Plugin {
   const LocalEmbeddingService = createServiceAdapter({
