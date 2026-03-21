@@ -21,7 +21,6 @@ import {
   createEffectiveDelegationTask,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
-  getEffectiveMessagingTransportInventory,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
@@ -33,6 +32,8 @@ import {
   runEffectiveShellCommand,
 } from "@/runtime/native/service-bridge";
 import { DiagnosticsService } from "@/services/diagnostics-service";
+import { OperatorService } from "@/services/operator-service";
+import { RepositoryService } from "@/services/repository-service";
 import type {
   GatewayConfig,
   IncomingPlatformMessage,
@@ -325,13 +326,16 @@ export function startApiServer(context: AppContext): void {
           );
         }
         const state = await context.gateway.state(50);
+        const controlPlane = getNativeTransportControlPlane(
+          context.runtime,
+          context.config,
+          context.services.gatewayConfig,
+        );
         return json({
           totals: state.totals,
           platforms: state.platforms,
-          messagingBridge: getEffectiveMessagingTransportInventory(
-            context.runtime,
-            context.config,
-          ),
+          messagingBridge: controlPlane.messagingBridge,
+          transportControl: controlPlane.totals,
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),
           ).messaging,
@@ -342,6 +346,7 @@ export function startApiServer(context: AppContext): void {
         const controlPlane = getNativeTransportControlPlane(
           context.runtime,
           context.config,
+          context.services.gatewayConfig,
         );
         return json({
           resolution: getEffectiveServiceResolution(context.runtime),
@@ -353,7 +358,11 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/runtime/transports") {
         return json(
-          getNativeTransportControlPlane(context.runtime, context.config),
+          getNativeTransportControlPlane(
+            context.runtime,
+            context.config,
+            context.services.gatewayConfig,
+          ),
         );
       }
 
@@ -2352,19 +2361,28 @@ export function startApiServer(context: AppContext): void {
           body,
         );
         context.services.diagnostics.attachRuntime(context.runtime);
+        context.services.operator = new OperatorService(
+          context.config,
+          context.services.diagnostics,
+          new RepositoryService(context.config.workspaceDir),
+        );
+        context.services.operator.attachRuntime(context.runtime);
         return json({ ok: true, gateway: body });
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/health") {
         const readiness = await context.gateway.health();
         const history = await context.gateway.history(25);
+        const controlPlane = getNativeTransportControlPlane(
+          context.runtime,
+          context.config,
+          context.services.gatewayConfig,
+        );
         return json({
           health: readiness,
           readiness,
-          messagingBridge: getEffectiveMessagingTransportInventory(
-            context.runtime,
-            context.config,
-          ),
+          messagingBridge: controlPlane.messagingBridge,
+          transportControl: controlPlane.totals,
           mediation: {
             pluginMediatedAdapters: history.state.totals.pluginMediatedAdapters,
             officialPluginAdapters: history.state.totals.officialPluginAdapters,
