@@ -249,6 +249,8 @@ interface GatewayStateSnapshot {
     configuredPlatforms: number;
     activeAdapters: number;
     readyAdapters: number;
+    gatewayEnabledTransports: number;
+    operationalTransports: number;
     nativeAdapters: number;
     mockAdapters: number;
     pluginMediatedAdapters: number;
@@ -1059,6 +1061,7 @@ export class GatewayRunner {
     reason: string,
   ): GatewayStateSnapshot {
     const timestamp = new Date().toISOString();
+    const controlPlane = this.getTransportControlPlane();
     const enrichedReadiness = readiness.map((entry) => {
       const nativePlugin = this.resolveNativeMessagingPlugin(entry.platform);
       return {
@@ -1160,6 +1163,8 @@ export class GatewayRunner {
           (entry) => entry.status === "running",
         ).length,
         readyAdapters: enrichedReadiness.filter((entry) => entry.ready).length,
+        gatewayEnabledTransports: controlPlane.totals.gatewayEnabled,
+        operationalTransports: controlPlane.totals.operationalTransports,
         nativeAdapters: enrichedReadiness.filter(
           (entry) => entry.mode === "native",
         ).length,

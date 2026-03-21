@@ -1,12 +1,15 @@
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 export class DingtalkPlatformAdapter implements PlatformAdapter {
@@ -32,22 +35,19 @@ export class DingtalkPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status =
-      this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken
-        ? "running"
-        : "stopped";
-    if (this.status === "running") {
-      this.startedAt = nowIso();
-      this.lastError = undefined;
-      this.lifecycle.record(
-        "start",
-        "DingTalk adapter started with webhook or access token configuration.",
-      );
-    } else {
-      this.lastError =
-        "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN is required.";
-      this.lifecycle.record("error", this.lastError);
-    }
+    const configured = Boolean(
+      this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken,
+    );
+    const started = trackTransportStart(
+      this.name,
+      configured,
+      "DingTalk adapter started with webhook or access token configuration.",
+      "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN is required.",
+      this.lifecycle,
+    );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -57,20 +57,24 @@ export class DingtalkPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `DingTalk health check: status=${this.status} sends=${this.sendCount}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && this.canReceive(),
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail:
-        this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken
-          ? "DingTalk webhook or access token configured."
-          : "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN should be configured.",
+      sendCount: this.sendCount,
+      configured: Boolean(
+        this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken,
+      ),
+      configuredDetail: "DingTalk webhook or access token configured.",
+      missingDetail:
+        "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN should be configured.",
+      runningDetail: `DingTalk webhook or access token configured. Sends=${this.sendCount}.`,
+      stoppedDetail:
+        "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN should be configured.",
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
@@ -81,10 +85,10 @@ export class DingtalkPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {

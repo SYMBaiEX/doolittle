@@ -2,12 +2,15 @@ import { randomUUID } from "node:crypto";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 export class HomeAssistantPlatformAdapter implements PlatformAdapter {
@@ -33,22 +36,19 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status =
-      this.config.homeAssistantUrl && this.config.homeAssistantToken
-        ? "running"
-        : "stopped";
-    if (this.status === "running") {
-      this.startedAt = nowIso();
-      this.lastError = undefined;
-      this.lifecycle.record(
-        "start",
-        "Home Assistant adapter started with API URL and long-lived token.",
-      );
-    } else {
-      this.lastError =
-        "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN are required.";
-      this.lifecycle.record("error", this.lastError);
-    }
+    const configured = Boolean(
+      this.config.homeAssistantUrl && this.config.homeAssistantToken,
+    );
+    const started = trackTransportStart(
+      this.name,
+      configured,
+      "Home Assistant adapter started with API URL and long-lived token.",
+      "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN are required.",
+      this.lifecycle,
+    );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -58,20 +58,24 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `Home Assistant health check: status=${this.status} sends=${this.sendCount}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && this.canReceive(),
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail:
-        this.config.homeAssistantUrl && this.config.homeAssistantToken
-          ? `Home Assistant API configured at ${this.config.homeAssistantUrl}.`
-          : "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN should both be configured.",
+      sendCount: this.sendCount,
+      configured: Boolean(
+        this.config.homeAssistantUrl && this.config.homeAssistantToken,
+      ),
+      configuredDetail: `Home Assistant API configured at ${this.config.homeAssistantUrl}.`,
+      missingDetail:
+        "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN should both be configured.",
+      runningDetail: `Home Assistant API configured at ${this.config.homeAssistantUrl}. Sends=${this.sendCount}.`,
+      stoppedDetail:
+        "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN should both be configured.",
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
@@ -82,10 +86,10 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {

@@ -424,7 +424,7 @@ export function getNativeTransportControlPlane(
       configured: messagingBridge.length,
       enabledPlugins: messagingBridge.filter((entry) => entry.pluginEnabled)
         .length,
-      gatewayEnabled: messagingBridge.filter((entry) => entry.gatewayEnabled)
+      gatewayEnabled: transportInventory.filter((entry) => entry.gatewayEnabled)
         .length,
       availableServices: messagingBridge.filter(
         (entry) => entry.serviceAvailable,

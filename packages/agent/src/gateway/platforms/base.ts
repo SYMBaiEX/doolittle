@@ -103,6 +103,135 @@ export type PlatformMessageHandler = (
   message: IncomingPlatformMessage,
 ) => Promise<string>;
 
+export interface TransportHealthInput {
+  platform: PlatformName;
+  status: "idle" | "running" | "stopped";
+  sendCount: number;
+  configured: boolean;
+  readyWhenRunning?: boolean;
+  configuredDetail: string;
+  missingDetail: string;
+  runningDetail: string;
+  stoppedDetail?: string;
+  lastError?: string;
+  startedAt?: string;
+  stoppedAt?: string;
+  lastSendAt?: string;
+  lastDeliveryAt?: string;
+  lastDeliveryId?: string;
+  lastOutboundRoomId?: string;
+  lastOutboundUserId?: string;
+  lastOutboundThreadId?: string;
+  lastOutboundReplyToId?: string;
+  lastOutboundMetadataKeys?: string[];
+  events: PlatformLifecycleEvent[];
+  capabilities: PlatformCapabilitySet;
+  mode?: "native" | "mock";
+}
+
+export function buildConfiguredTransportHealth(
+  input: TransportHealthInput,
+): PlatformHealth {
+  const readyWhenRunning = input.readyWhenRunning ?? true;
+  const ready =
+    input.status === "running" && readyWhenRunning && input.configured;
+  const detail = input.configured
+    ? input.status === "running"
+      ? input.runningDetail
+      : (input.stoppedDetail ?? input.configuredDetail)
+    : input.missingDetail;
+  return {
+    platform: input.platform,
+    status: input.status,
+    ready,
+    mode: input.mode ?? "native",
+    capabilities: input.capabilities,
+    detail,
+    startedAt: input.startedAt,
+    stoppedAt: input.stoppedAt,
+    lastSendAt: input.lastSendAt,
+    lastDeliveryAt: input.lastDeliveryAt,
+    lastDeliveryId: input.lastDeliveryId,
+    lastOutboundRoomId: input.lastOutboundRoomId,
+    lastOutboundUserId: input.lastOutboundUserId,
+    lastOutboundThreadId: input.lastOutboundThreadId,
+    lastOutboundReplyToId: input.lastOutboundReplyToId,
+    lastOutboundMetadataKeys: input.lastOutboundMetadataKeys,
+    sendCount: input.sendCount,
+    lastError: input.lastError,
+    events: input.events,
+  };
+}
+
+export function formatTransportDisplayName(platform: PlatformName): string {
+  switch (platform) {
+    case "telegram":
+      return "Telegram";
+    case "discord":
+      return "Discord";
+    case "slack":
+      return "Slack";
+    case "whatsapp":
+      return "WhatsApp";
+    case "signal":
+      return "Signal";
+    case "matrix":
+      return "Matrix";
+    case "email":
+      return "Email";
+    case "sms":
+      return "SMS";
+    case "mattermost":
+      return "Mattermost";
+    case "homeassistant":
+      return "Home Assistant";
+    case "dingtalk":
+      return "DingTalk";
+    case "api":
+      return "API";
+    case "cli":
+      return "CLI";
+    default:
+      return platform;
+  }
+}
+
+export function describeTransportHealth(
+  platform: PlatformName,
+  status: "idle" | "running" | "stopped",
+  sendCount: number,
+  ready: boolean,
+): string {
+  return `${formatTransportDisplayName(platform)} health check: status=${status} sends=${sendCount} ready=${ready}.`;
+}
+
+export function trackTransportStart(
+  platform: PlatformName,
+  configured: boolean,
+  startedDetail: string,
+  missingDetail: string,
+  lifecycle: LifecycleHistory,
+): {
+  status: "idle" | "running" | "stopped";
+  startedAt?: string;
+  lastError?: string;
+} {
+  if (configured) {
+    lifecycle.record("start", `${platform}: ${startedDetail}`);
+    return {
+      status: "running",
+      startedAt: nowIso(),
+      lastError: undefined,
+    };
+  }
+  const lastError = missingDetail;
+  lifecycle.record("error", `${platform}: ${lastError}`);
+  return {
+    status: "stopped",
+    lastError,
+  };
+}
+
 export function nowIso(): string {
   return new Date().toISOString();
 }

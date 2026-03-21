@@ -146,6 +146,8 @@ describe("GatewayRunner", () => {
       expect(apiState?.traceCount).toBeGreaterThan(0);
       expect(apiState?.lastTraceKind).toBe("deliver");
       expect(state.totals.totalTraces).toBeGreaterThanOrEqual(apiTraces.length);
+      expect(state.totals.gatewayEnabledTransports).toBeGreaterThan(0);
+      expect(state.totals.operationalTransports).toBeGreaterThanOrEqual(0);
       expect(state.totals.inboxMessages).toBeGreaterThan(0);
       expect(state.totals.outboxMessages).toBeGreaterThan(0);
       expect(state.totals.attachmentRecords).toBeGreaterThan(0);

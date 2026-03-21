@@ -2,12 +2,15 @@ import { existsSync } from "node:fs";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 export class TelegramPlatformAdapter implements PlatformAdapter {
@@ -33,19 +36,16 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    if (!this.config.telegramBotToken) {
-      this.status = "stopped";
-      this.lastError = "TELEGRAM_BOT_TOKEN is not configured.";
-      return;
-    }
-
-    this.status = "running";
-    this.startedAt = nowIso();
-    this.lastError = undefined;
-    this.lifecycle.record(
-      "start",
+    const started = trackTransportStart(
+      this.name,
+      Boolean(this.config.telegramBotToken),
       "Telegram adapter started with configured bot token.",
+      "TELEGRAM_BOT_TOKEN is not configured.",
+      this.lifecycle,
     );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -55,19 +55,21 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `Telegram health check: status=${this.status} sends=${this.sendCount} ready=${this.status === "running" && this.canReceive()}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && this.canReceive(),
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail: this.config.telegramBotToken
-        ? `Telegram token configured; replies and threaded session routing are enabled. Sends=${this.sendCount}.`
-        : "Telegram token missing.",
+      sendCount: this.sendCount,
+      configured: Boolean(this.config.telegramBotToken),
+      configuredDetail:
+        "Telegram token configured; replies and threaded session routing are enabled.",
+      missingDetail: "TELEGRAM_BOT_TOKEN is not configured.",
+      runningDetail: `Telegram token configured; replies and threaded session routing are enabled. Sends=${this.sendCount}.`,
+      stoppedDetail: "TELEGRAM_BOT_TOKEN is not configured.",
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
@@ -78,10 +80,10 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {

@@ -1,12 +1,15 @@
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 export class SlackPlatformAdapter implements PlatformAdapter {
@@ -32,23 +35,21 @@ export class SlackPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status =
-      this.config.slackWebhookUrl && this.config.slackSigningSecret
-        ? "running"
-        : "stopped";
-    if (this.status === "running") {
-      this.startedAt = nowIso();
-      this.lastError = undefined;
-      this.lifecycle.record(
-        "start",
-        "Slack adapter started with webhook and signing secret.",
-      );
-    } else {
-      this.lastError = !this.config.slackWebhookUrl
+    const configured = Boolean(
+      this.config.slackWebhookUrl && this.config.slackSigningSecret,
+    );
+    const started = trackTransportStart(
+      this.name,
+      configured,
+      "Slack adapter started with webhook and signing secret.",
+      !this.config.slackWebhookUrl
         ? "SLACK_WEBHOOK_URL is not configured."
-        : "SLACK_SIGNING_SECRET is not configured.";
-      this.lifecycle.record("error", this.lastError);
-    }
+        : "SLACK_SIGNING_SECRET is not configured.",
+      this.lifecycle,
+    );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -58,19 +59,27 @@ export class SlackPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `Slack health check: status=${this.status} sends=${this.sendCount} ready=${this.status === "running" && this.canReceive()}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && this.canReceive(),
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail: this.config.slackWebhookUrl
+      sendCount: this.sendCount,
+      configured: Boolean(
+        this.config.slackWebhookUrl && this.config.slackSigningSecret,
+      ),
+      configuredDetail:
+        "Slack webhook and signing secret configured; threaded replies are supported.",
+      missingDetail: !this.config.slackWebhookUrl
+        ? "SLACK_WEBHOOK_URL is not configured."
+        : "SLACK_SIGNING_SECRET is not configured.",
+      runningDetail: `Slack webhook and signing secret configured; threaded replies are supported. Sends=${this.sendCount}.`,
+      stoppedDetail: this.config.slackWebhookUrl
         ? this.config.slackSigningSecret
-          ? `Slack webhook and signing secret configured; threaded replies are supported. Sends=${this.sendCount}.`
+          ? "Slack webhook and signing secret configured; adapter is stopped."
           : "SLACK_SIGNING_SECRET is not configured."
         : "SLACK_WEBHOOK_URL is not configured.",
       startedAt: this.startedAt,
@@ -83,10 +92,10 @@ export class SlackPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {

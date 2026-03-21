@@ -2,12 +2,15 @@ import { randomUUID } from "node:crypto";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 export class MatrixPlatformAdapter implements PlatformAdapter {
@@ -33,22 +36,19 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status =
-      this.config.matrixHomeserver && this.config.matrixAccessToken
-        ? "running"
-        : "stopped";
-    if (this.status === "running") {
-      this.startedAt = nowIso();
-      this.lastError = undefined;
-      this.lifecycle.record(
-        "start",
-        "Matrix adapter started with homeserver and access token.",
-      );
-    } else {
-      this.lastError =
-        "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN are required.";
-      this.lifecycle.record("error", this.lastError);
-    }
+    const configured = Boolean(
+      this.config.matrixHomeserver && this.config.matrixAccessToken,
+    );
+    const started = trackTransportStart(
+      this.name,
+      configured,
+      "Matrix adapter started with homeserver and access token.",
+      "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN are required.",
+      this.lifecycle,
+    );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -58,20 +58,24 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `Matrix health check: status=${this.status} sends=${this.sendCount} ready=${this.canReceive()}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && this.canReceive(),
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail:
-        this.config.matrixHomeserver && this.config.matrixAccessToken
-          ? `Matrix homeserver configured at ${this.config.matrixHomeserver}.`
-          : "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN should both be configured.",
+      sendCount: this.sendCount,
+      configured: Boolean(
+        this.config.matrixHomeserver && this.config.matrixAccessToken,
+      ),
+      configuredDetail: `Matrix homeserver configured at ${this.config.matrixHomeserver}.`,
+      missingDetail:
+        "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN should both be configured.",
+      runningDetail: `Matrix homeserver configured at ${this.config.matrixHomeserver}. Sends=${this.sendCount}.`,
+      stoppedDetail:
+        "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN should both be configured.",
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
@@ -82,10 +86,10 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {

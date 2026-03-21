@@ -1,12 +1,15 @@
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 async function runShellCommand(
@@ -61,15 +64,16 @@ export class CommandPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status = this.command ? "running" : "stopped";
-    if (this.status === "running") {
-      this.startedAt = nowIso();
-      this.lastError = undefined;
-      this.lifecycle.record("start", `${this.name} command adapter started.`);
-    } else {
-      this.lastError = this.missingDetail;
-      this.lifecycle.record("error", this.lastError);
-    }
+    const started = trackTransportStart(
+      this.name,
+      Boolean(this.command),
+      `${this.name} command adapter started.`,
+      this.missingDetail,
+      this.lifecycle,
+    );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -79,17 +83,20 @@ export class CommandPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `${this.name} command adapter health: status=${this.status} sends=${this.sendCount}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready: this.status === "running" && this.canReceive(),
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail: this.command ? this.description : this.missingDetail,
+      sendCount: this.sendCount,
+      configured: Boolean(this.command),
+      configuredDetail: this.description,
+      missingDetail: this.missingDetail,
+      runningDetail: `${this.description} Sends=${this.sendCount}.`,
+      stoppedDetail: this.missingDetail,
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
@@ -100,10 +107,10 @@ export class CommandPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {

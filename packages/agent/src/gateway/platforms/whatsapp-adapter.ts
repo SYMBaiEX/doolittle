@@ -1,12 +1,15 @@
 import type { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
 import {
+  buildConfiguredTransportHealth,
   capabilitiesForPlatform,
   createLifecycleHistory,
+  describeTransportHealth,
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
+  trackTransportStart,
 } from "./base";
 
 export class WhatsAppPlatformAdapter implements PlatformAdapter {
@@ -32,27 +35,25 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
   ) {}
 
   async start(): Promise<void> {
-    this.status =
+    const configured = Boolean(
       this.config.whatsappAccessToken &&
-      this.config.whatsappPhoneNumberId &&
-      this.config.whatsappVerifyToken
-        ? "running"
-        : "stopped";
-    if (this.status === "running") {
-      this.startedAt = nowIso();
-      this.lastError = undefined;
-      this.lifecycle.record(
-        "start",
-        "WhatsApp adapter started with Graph API credentials.",
-      );
-    } else {
-      this.lastError = !this.config.whatsappAccessToken
+        this.config.whatsappPhoneNumberId &&
+        this.config.whatsappVerifyToken,
+    );
+    const started = trackTransportStart(
+      this.name,
+      configured,
+      "WhatsApp adapter started with Graph API credentials.",
+      !this.config.whatsappAccessToken
         ? "WHATSAPP_ACCESS_TOKEN is not configured."
         : !this.config.whatsappPhoneNumberId
           ? "WHATSAPP_PHONE_NUMBER_ID is not configured."
-          : "WHATSAPP_VERIFY_TOKEN is not configured.";
-      this.lifecycle.record("error", this.lastError);
-    }
+          : "WHATSAPP_VERIFY_TOKEN is not configured.",
+      this.lifecycle,
+    );
+    this.status = started.status;
+    this.startedAt = started.startedAt;
+    this.lastError = started.lastError;
   }
 
   async stop(): Promise<void> {
@@ -62,22 +63,27 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
   }
 
   async health(): Promise<PlatformHealth> {
-    const ready = Boolean(
-      this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId,
-    );
+    const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
       "health",
-      `WhatsApp health check: status=${this.status} sends=${this.sendCount} ready=${ready}.`,
+      describeTransportHealth(this.name, this.status, this.sendCount, ready),
     );
-    return {
+    return buildConfiguredTransportHealth({
       platform: this.name,
       status: this.status,
-      ready,
-      mode: "native",
-      capabilities: capabilitiesForPlatform(this.name),
-      detail: ready
-        ? `WhatsApp Graph API credentials configured; replies are carried through message context. Sends=${this.sendCount}.`
-        : "WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN are required.",
+      sendCount: this.sendCount,
+      configured: Boolean(
+        this.config.whatsappAccessToken &&
+          this.config.whatsappPhoneNumberId &&
+          this.config.whatsappVerifyToken,
+      ),
+      configuredDetail:
+        "WhatsApp Graph API credentials configured; replies are carried through message context.",
+      missingDetail:
+        "WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN are required.",
+      runningDetail: `WhatsApp Graph API credentials configured; replies are carried through message context. Sends=${this.sendCount}.`,
+      stoppedDetail:
+        "WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN are required.",
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,
@@ -88,10 +94,10 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
-      sendCount: this.sendCount,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
-    };
+      capabilities: capabilitiesForPlatform(this.name),
+    });
   }
 
   async send(message: OutboundPlatformMessage) {
