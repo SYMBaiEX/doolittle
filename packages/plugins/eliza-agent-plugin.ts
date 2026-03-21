@@ -8,6 +8,7 @@ import type {
   Service,
 } from "@elizaos/core";
 import { Service as ElizaService, ModelType } from "@elizaos/core";
+import type { CronJobRecord } from "@/types";
 import {
   type AgentExecutionContext,
   type AppContext,
@@ -25,7 +26,6 @@ import {
   GatewayRunner,
   handleAgentTurn,
 } from "../agent/src/plugin-api";
-import type { CronJobRecord } from "@/types";
 
 function createOpenAiBackedTextModel(config: EnvConfig) {
   return async (
