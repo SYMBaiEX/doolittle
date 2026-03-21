@@ -4,7 +4,7 @@ import { getEffectiveMessagingTransportInventory } from "./service-bridge";
 
 describe("getEffectiveMessagingTransportInventory", () => {
   it("reports live telegram and discord services when runtime services exist", () => {
-    const runtime: RuntimeLike = {
+    const runtime = {
       getService(name: string) {
         if (name === "telegram") {
           return {
@@ -20,7 +20,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
         }
         return null;
       },
-    };
+    } as unknown as RuntimeLike;
 
     const inventory = getEffectiveMessagingTransportInventory(runtime, {
       telegramBotToken: "telegram-token",
@@ -36,7 +36,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
   });
 
   it("reports disabled bridge state when plugins are not configured", () => {
-    const runtime: RuntimeLike = {
+    const runtime = {
       getService(name: string) {
         if (name === "discord_transport") {
           return {
@@ -45,7 +45,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
         }
         return null;
       },
-    };
+    } as unknown as RuntimeLike;
 
     const inventory = getEffectiveMessagingTransportInventory(runtime, {
       telegramBotToken: undefined,
