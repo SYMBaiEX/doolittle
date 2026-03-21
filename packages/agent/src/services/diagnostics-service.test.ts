@@ -189,6 +189,9 @@ describe("DiagnosticsService", () => {
       expect(
         checks.some((check) => check.id === "native.messaging.control-plane"),
       ).toBe(true);
+      expect(
+        checks.some((check) => check.id === "gateway.transport.inventory"),
+      ).toBe(true);
 
       const checklist = await service.setupChecklist();
       expect(

@@ -106,6 +106,38 @@ type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
 
 export type { RuntimeLike };
 
+export interface EffectiveTransportInventoryEntry {
+  platform:
+    | "api"
+    | "cli"
+    | "telegram"
+    | "discord"
+    | "slack"
+    | "whatsapp"
+    | "signal"
+    | "matrix"
+    | "email"
+    | "sms"
+    | "mattermost"
+    | "homeassistant"
+    | "dingtalk";
+  source: "official" | "vendored" | "custom" | "product";
+  configEnabled: boolean;
+  gatewayEnabled: boolean;
+  operational: boolean;
+  reason:
+    | "live"
+    | "gateway-disabled"
+    | "not-configured"
+    | "plugin-disabled"
+    | "service-unavailable"
+    | "custom-ready";
+  detail: string;
+  pluginId?: string;
+  serviceName?: string;
+  serviceAvailable?: boolean;
+}
+
 function service<T>(runtime: RuntimeLike, name: string): T | undefined {
   if (typeof runtime.getService !== "function") {
     return undefined;
@@ -155,7 +187,7 @@ export function getEffectiveMessagingTransportInventory(
   serviceName: string;
   serviceAvailable: boolean;
   live: boolean;
-  reason: string;
+  reason: "live" | "not-configured" | "plugin-disabled" | "service-unavailable";
   detail: string;
 }> {
   const native = getNativeServices(runtime);
@@ -231,6 +263,125 @@ export function getEffectiveMessagingTransportInventory(
   ];
 }
 
+const ALL_TRANSPORT_PLATFORMS: EffectiveTransportInventoryEntry["platform"][] =
+  [
+    "api",
+    "cli",
+    "telegram",
+    "discord",
+    "slack",
+    "whatsapp",
+    "signal",
+    "matrix",
+    "email",
+    "sms",
+    "mattermost",
+    "homeassistant",
+    "dingtalk",
+  ];
+
+export function getEffectiveTransportInventory(
+  runtime: RuntimeLike,
+  config: EnvConfig,
+  gatewayConfig?: GatewayConfig,
+): EffectiveTransportInventoryEntry[] {
+  const messagingBridge = getEffectiveMessagingTransportInventory(
+    runtime,
+    config,
+    gatewayConfig,
+  );
+  const messagingMap = new Map(
+    messagingBridge.map((entry) => [entry.platform, entry]),
+  );
+  const isGatewayEnabled = (
+    platform: EffectiveTransportInventoryEntry["platform"],
+  ) => Boolean(gatewayConfig?.platforms[platform].enabled);
+
+  return ALL_TRANSPORT_PLATFORMS.map((platform) => {
+    if (platform === "telegram" || platform === "discord") {
+      const entry = messagingMap.get(platform);
+      if (!entry) {
+        return {
+          platform,
+          source: "custom",
+          configEnabled: false,
+          gatewayEnabled: isGatewayEnabled(platform),
+          operational: false,
+          reason: "not-configured",
+          detail: `${platform} transport is not configured.`,
+        };
+      }
+      return {
+        platform,
+        source: entry.pluginSource ?? "custom",
+        configEnabled: entry.configEnabled,
+        gatewayEnabled: entry.gatewayEnabled,
+        operational: entry.live && entry.gatewayEnabled,
+        reason: !entry.gatewayEnabled ? "gateway-disabled" : entry.reason,
+        detail: !entry.gatewayEnabled
+          ? `${platform} transport is disabled in gateway config.`
+          : entry.detail,
+        pluginId: entry.pluginId,
+        serviceName: entry.serviceName,
+        serviceAvailable: entry.serviceAvailable,
+      };
+    }
+
+    const configEnabled = (() => {
+      switch (platform) {
+        case "api":
+        case "cli":
+          return true;
+        case "slack":
+          return Boolean(config.slackWebhookUrl && config.slackSigningSecret);
+        case "whatsapp":
+          return Boolean(
+            config.whatsappAccessToken &&
+              config.whatsappPhoneNumberId &&
+              config.whatsappVerifyToken,
+          );
+        case "signal":
+          return Boolean(config.signalCliCommand);
+        case "matrix":
+          return Boolean(config.matrixHomeserver && config.matrixAccessToken);
+        case "email":
+          return Boolean(config.emailSendCommand);
+        case "sms":
+          return Boolean(config.smsSendCommand);
+        case "mattermost":
+          return Boolean(config.mattermostUrl && config.mattermostToken);
+        case "homeassistant":
+          return Boolean(config.homeAssistantUrl && config.homeAssistantToken);
+        case "dingtalk":
+          return Boolean(
+            config.dingtalkWebhookUrl || config.dingtalkAccessToken,
+          );
+      }
+    })();
+
+    const gatewayEnabled = isGatewayEnabled(platform);
+    const operational = configEnabled && gatewayEnabled;
+
+    return {
+      platform,
+      source: platform === "api" || platform === "cli" ? "product" : "custom",
+      configEnabled,
+      gatewayEnabled,
+      operational,
+      reason: operational
+        ? "custom-ready"
+        : !gatewayEnabled
+          ? "gateway-disabled"
+          : "not-configured",
+      detail: operational
+        ? `${platform} transport is configured and enabled.`
+        : !gatewayEnabled
+          ? `${platform} transport is disabled in gateway config.`
+          : `${platform} transport is not configured.`,
+    };
+  });
+}
+
 export function getNativeTransportControlPlane(
   runtime: RuntimeLike,
   config: EnvConfig,
@@ -238,6 +389,7 @@ export function getNativeTransportControlPlane(
 ): {
   messagingBridge: ReturnType<typeof getEffectiveMessagingTransportInventory>;
   messagingPlugins: ReturnType<typeof getNativePluginCatalog>;
+  transportInventory: EffectiveTransportInventoryEntry[];
   totals: {
     configured: number;
     enabledPlugins: number;
@@ -246,6 +398,9 @@ export function getNativeTransportControlPlane(
     liveServices: number;
     officialPlugins: number;
     vendoredPlugins: number;
+    operationalTransports: number;
+    customTransports: number;
+    productTransports: number;
   };
 } {
   const messagingPlugins = getNativePluginCatalog(config).filter(
@@ -256,9 +411,15 @@ export function getNativeTransportControlPlane(
     config,
     gatewayConfig,
   );
+  const transportInventory = getEffectiveTransportInventory(
+    runtime,
+    config,
+    gatewayConfig,
+  );
   return {
     messagingBridge,
     messagingPlugins,
+    transportInventory,
     totals: {
       configured: messagingBridge.length,
       enabledPlugins: messagingBridge.filter((entry) => entry.pluginEnabled)
@@ -274,6 +435,15 @@ export function getNativeTransportControlPlane(
       ).length,
       vendoredPlugins: messagingBridge.filter(
         (entry) => entry.pluginSource === "vendored",
+      ).length,
+      operationalTransports: transportInventory.filter(
+        (entry) => entry.operational,
+      ).length,
+      customTransports: transportInventory.filter(
+        (entry) => entry.source === "custom",
+      ).length,
+      productTransports: transportInventory.filter(
+        (entry) => entry.source === "product",
       ).length,
     },
   };
