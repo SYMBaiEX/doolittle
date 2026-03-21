@@ -52,6 +52,16 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Show native messaging plugin, service, and live control-plane state.",
   },
   {
+    command: "/transport inventory",
+    category: "runtime",
+    description: "Show the shared canonical transport inventory.",
+  },
+  {
+    command: "/transport status",
+    category: "runtime",
+    description: "Show the shared transport status summary.",
+  },
+  {
     command: "/runtime ecosystem",
     category: "runtime",
     description: "Show alpha-channel package alignment and native audit data.",
@@ -75,6 +85,11 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/platforms",
     category: "gateway",
     description: "Show platform enablement and transport plugin mediation.",
+  },
+  {
+    command: "/gateway transports",
+    category: "gateway",
+    description: "Show the canonical gateway transport inventory.",
   },
   {
     command: "/gateway readiness",
