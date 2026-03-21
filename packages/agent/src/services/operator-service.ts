@@ -15,6 +15,10 @@ import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import type { DiagnosticsService } from "./diagnostics-service";
+import {
+  createNativeServiceRegistry,
+  describeNativeServiceRegistry,
+} from "./native-service-registry";
 import type { RepositoryService } from "./repository-service";
 
 interface PackageMetadata {
@@ -51,7 +55,7 @@ export interface SetupSummary {
   directories: Array<{ label: string; path: string; exists: boolean }>;
   providers: Array<{ id: string; ready: boolean; detail: string }>;
   transports: Array<{ id: string; ready: boolean; detail: string }>;
-  nativeServices: Array<{ group: string; services: string[] }>;
+  nativeServices: Array<{ group: string; services: string[]; count: number }>;
   checklist: string[];
 }
 
@@ -196,46 +200,9 @@ export class OperatorService {
             : "Missing SIGNAL_CLI_COMMAND.",
         },
       ],
-      nativeServices: [
-        {
-          group: "officialBacked",
-          services: [
-            "documents",
-            "mcp",
-            "acp",
-            "web",
-            "media",
-            "userProfiles",
-            "personalities",
-            "skills",
-            "skillSynthesis",
-            "trajectories",
-          ],
-        },
-        {
-          group: "customEliza",
-          services: [
-            "memory",
-            "sessions",
-            "cron",
-            "workspace",
-            "terminal",
-            "repository",
-            "gatewaySessions",
-            "delivery",
-            "pairing",
-            "hooks",
-            "contextFiles",
-            "settings",
-            "tools",
-            "diagnostics",
-          ],
-        },
-        {
-          group: "productOrchestration",
-          services: ["operator", "gatewayConfig", "delegation"],
-        },
-      ],
+      nativeServices: describeNativeServiceRegistry(
+        createNativeServiceRegistry(),
+      ),
       checklist: await this.diagnostics.setupChecklist(),
     };
   }

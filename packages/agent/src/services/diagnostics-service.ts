@@ -2,6 +2,7 @@ import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 
 export class DiagnosticsService {
@@ -48,6 +49,7 @@ export class DiagnosticsService {
       "elizaos-official",
     );
     const nativeAudit = getNativePackageAudit(this.config);
+    const nativePlugins = getNativePluginCatalog(this.config);
     checks.push({
       id: "native.workspace",
       status: existsSync(nativeWorkspacePath) ? "pass" : "warn",
@@ -99,6 +101,21 @@ export class DiagnosticsService {
           : "pass",
       summary: "Native package compatibility audit",
       detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} alphaOnly=${nativeAudit.summary.alphaOnly} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
+    });
+
+    checks.push({
+      id: "native.transport-mediation",
+      status: nativePlugins.some((entry) => entry.category === "messaging")
+        ? "pass"
+        : "warn",
+      summary: "Native messaging plugin mediation",
+      detail: nativePlugins
+        .filter((entry) => entry.category === "messaging")
+        .map(
+          (entry) =>
+            `${entry.id}:${entry.enabled ? "enabled" : "disabled"}:${entry.source}`,
+        )
+        .join(", "),
     });
 
     checks.push({
