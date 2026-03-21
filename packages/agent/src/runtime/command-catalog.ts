@@ -95,6 +95,24 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Show native media ownership, including official TTS plugin readiness.",
   },
   {
+    command: "/runtime forms",
+    category: "runtime",
+    description:
+      "Show native forms ownership, template counts, and persistence state.",
+  },
+  {
+    command: "/runtime e2b",
+    category: "runtime",
+    description:
+      "Show native E2B sandbox ownership, active sandboxes, and execution readiness.",
+  },
+  {
+    command: "/runtime codegen",
+    category: "runtime",
+    description:
+      "Show native code generation, GitHub, secrets, and sandbox ownership.",
+  },
+  {
     command: "/runtime research",
     category: "runtime",
     description:

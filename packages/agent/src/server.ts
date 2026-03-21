@@ -57,6 +57,8 @@ import {
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  getNativeExecutionControlPlane,
+  getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
   getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
@@ -1581,6 +1583,24 @@ export function startApiServer(context: AppContext): void {
       if (request.method === "GET" && url.pathname === "/runtime/media") {
         return json({
           media: getNativeMediaControlPlane(context.config),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/forms") {
+        return json({
+          forms: getNativeFormsControlPlane(context.runtime),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/e2b") {
+        return json({
+          e2b: getNativeExecutionControlPlane(context.runtime).e2b,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/codegen") {
+        return json({
+          execution: getNativeExecutionControlPlane(context.runtime),
         });
       }
 

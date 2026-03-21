@@ -186,6 +186,8 @@ interface NativeOwnershipSnapshot {
   skillHub: ReturnType<AppServices["skillsHub"]["summary"]>;
   media: ReturnType<typeof getNativeMediaControlPlane>;
   research: ReturnType<typeof getNativeResearchControlPlane>;
+  forms: ReturnType<typeof getNativeFormsControlPlane>;
+  execution: ReturnType<typeof getNativeExecutionControlPlane>;
 }
 
 interface NativeDiscordTransportService {
@@ -195,6 +197,51 @@ interface NativeDiscordTransportService {
 
 interface NativeCodeGenerationService {
   capabilityDescription?: string;
+  performResearch?: (...args: unknown[]) => unknown;
+  generatePRD?: (...args: unknown[]) => unknown;
+  performQA?: (...args: unknown[]) => unknown;
+  generateCode?: (...args: unknown[]) => unknown;
+  generateCodeInternal?: (...args: unknown[]) => unknown;
+  runValidationSuite?: (...args: unknown[]) => unknown;
+  generateCodeInChunks?: (...args: unknown[]) => unknown;
+  installDependencies?: (...args: unknown[]) => unknown;
+}
+
+interface NativeFormsService {
+  capabilityDescription?: string;
+  isPersistenceAvailable?: () => boolean;
+  listForms?: () => unknown[];
+  getTemplates?: () =>
+    | Map<string, unknown>
+    | unknown[]
+    | Record<string, unknown>;
+  forcePersist?: () => Promise<unknown>;
+}
+
+interface NativeE2BService {
+  capabilityDescription?: string;
+  listSandboxes?: () => Array<{
+    id?: string;
+    path?: string;
+    template?: string;
+    metadata?: Record<string, string>;
+    createdAt?: string;
+  }>;
+  executeCode?: (code: string, language?: string) => Promise<unknown>;
+}
+
+interface NativeGitHubService {
+  capabilityDescription?: string;
+  createRepository?: (...args: unknown[]) => unknown;
+  deleteRepository?: (...args: unknown[]) => unknown;
+}
+
+interface NativeSecretsManagerService {
+  capabilityDescription?: string;
+  getSecret?: (key: string) => unknown;
+  setSecret?: (key: string, value: string) => unknown;
+  hasSecret?: (key: string) => boolean;
+  listSecretKeys?: () => string[];
 }
 
 interface NativeTelegramTransportService {
@@ -299,6 +346,24 @@ interface AutonomousControlPlaneSummary {
     };
     autocoder: {
       source: "native-plugin";
+      available: boolean;
+      ready: boolean;
+    };
+  };
+  forms: {
+    source: "native" | "product";
+    available: boolean;
+    total: number;
+    templates: number;
+  };
+  execution: {
+    e2b: {
+      source: "native" | "product";
+      available: boolean;
+      sandboxes: number;
+    };
+    codeGeneration: {
+      source: "native" | "product";
       available: boolean;
       ready: boolean;
     };
@@ -430,13 +495,150 @@ export function getNativeServices(runtime: RuntimeLike) {
       runtime,
       "code-generation",
     ),
-    e2b: service<Record<string, unknown>>(runtime, "e2b"),
-    forms: service<Record<string, unknown>>(runtime, "forms"),
-    github: service<Record<string, unknown>>(runtime, "github"),
-    secretsManager: service<Record<string, unknown>>(
+    e2b: service<NativeE2BService>(runtime, "e2b"),
+    forms: service<NativeFormsService>(runtime, "forms"),
+    github: service<NativeGitHubService>(runtime, "github"),
+    secretsManager: service<NativeSecretsManagerService>(
       runtime,
       "secrets-manager",
     ),
+  };
+}
+
+function countRecordLikeEntries(value: unknown): number {
+  if (value instanceof Map) {
+    return value.size;
+  }
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  if (value && typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>).length;
+  }
+  return 0;
+}
+
+function countFormsByStatus(
+  forms: unknown[],
+  status: "active" | "completed" | "cancelled",
+): number {
+  return forms.filter((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    return (
+      ((entry as { status?: unknown }).status ?? "")
+        .toString()
+        .toLowerCase() === status
+    );
+  }).length;
+}
+
+function getSandboxRoot(
+  sandboxes: Array<{ path?: string }>,
+): string | undefined {
+  return sandboxes.find((entry) => entry.path)?.path?.replace(/\/[^/]+$/, "");
+}
+
+export function getNativeFormsControlPlane(runtime: RuntimeLike) {
+  const forms = getNativeServices(runtime).forms;
+  const formList = forms?.listForms?.() ?? [];
+  const formEntries = Array.isArray(formList) ? formList : [];
+  const templates = countRecordLikeEntries(forms?.getTemplates?.());
+  const persistenceAvailable = forms?.isPersistenceAvailable?.() ?? false;
+
+  return {
+    source: forms ? ("native-plugin" as const) : ("product" as const),
+    available: Boolean(forms),
+    capability:
+      forms?.capabilityDescription ??
+      "Structured form workflows for native autocoder and operator collection flows.",
+    persistenceAvailable,
+    templates,
+    forms: {
+      total: formEntries.length,
+      active: countFormsByStatus(formEntries, "active"),
+      completed: countFormsByStatus(formEntries, "completed"),
+      cancelled: countFormsByStatus(formEntries, "cancelled"),
+    },
+    supportsForcePersist: typeof forms?.forcePersist === "function",
+    detail: forms
+      ? `Forms service is live with ${templates} templates and ${formEntries.length} tracked forms.`
+      : "Forms service is not available in the native runtime.",
+  };
+}
+
+export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
+  const native = getNativeServices(runtime);
+  const sandboxes = native.e2b?.listSandboxes?.() ?? [];
+  const activeSandboxId = sandboxes[0]?.id;
+  const codeGenerationMethods = [
+    "performResearch",
+    "generatePRD",
+    "performQA",
+    "generateCode",
+    "generateCodeInternal",
+    "runValidationSuite",
+    "generateCodeInChunks",
+    "installDependencies",
+  ].filter(
+    (method) =>
+      typeof native.codeGeneration?.[
+        method as keyof NativeCodeGenerationService
+      ] === "function",
+  );
+  const secretKeys = native.secretsManager?.listSecretKeys?.() ?? [];
+
+  return {
+    e2b: {
+      source: native.e2b ? ("native-plugin" as const) : ("product" as const),
+      available: Boolean(native.e2b),
+      capability:
+        native.e2b?.capabilityDescription ??
+        "Local E2B-style sandbox execution for native code generation flows.",
+      sandboxes: sandboxes.length,
+      activeSandboxId,
+      sandboxRoot: getSandboxRoot(sandboxes),
+      supportsExecution: typeof native.e2b?.executeCode === "function",
+      detail: native.e2b
+        ? `E2B runtime has ${sandboxes.length} active sandboxes${activeSandboxId ? ` with ${activeSandboxId} selected` : ""}.`
+        : "E2B sandbox service is unavailable.",
+    },
+    codeGeneration: {
+      source: native.codeGeneration
+        ? ("native-plugin" as const)
+        : ("product" as const),
+      available: Boolean(native.codeGeneration),
+      capability:
+        native.codeGeneration?.capabilityDescription ??
+        "Native code generation and autocoder workflows.",
+      methods: codeGenerationMethods,
+      ready:
+        Boolean(native.codeGeneration) &&
+        Boolean(native.e2b) &&
+        Boolean(native.forms),
+      detail: native.codeGeneration
+        ? `Code generation service exposes ${codeGenerationMethods.length} runtime methods.`
+        : "Code generation service is unavailable.",
+    },
+    github: {
+      available: Boolean(native.github),
+      capability:
+        native.github?.capabilityDescription ??
+        "GitHub repository lifecycle support for code generation flows.",
+      createRepository: typeof native.github?.createRepository === "function",
+      deleteRepository: typeof native.github?.deleteRepository === "function",
+    },
+    secretsManager: {
+      available: Boolean(native.secretsManager),
+      capability:
+        native.secretsManager?.capabilityDescription ??
+        "Secrets management for native autocoder and deployment flows.",
+      keys: secretKeys,
+      hasListKeys: typeof native.secretsManager?.listSecretKeys === "function",
+      hasRead: typeof native.secretsManager?.getSecret === "function",
+      hasWrite: typeof native.secretsManager?.setSecret === "function",
+    },
   };
 }
 
@@ -459,6 +661,7 @@ export function getNativeMediaControlPlane(config: EnvConfig) {
 
 export function getNativeResearchControlPlane(runtime: RuntimeLike) {
   const native = getNativeServices(runtime);
+  const executionControl = getNativeExecutionControlPlane(runtime);
   const autocoderDependencies = {
     codeGeneration: Boolean(native.codeGeneration),
     e2b: Boolean(native.e2b),
@@ -490,6 +693,7 @@ export function getNativeResearchControlPlane(runtime: RuntimeLike) {
       capability:
         native.codeGeneration?.capabilityDescription ??
         "Generates ElizaOS projects through native autocoder services when dependencies are present.",
+      methods: executionControl.codeGeneration.methods,
       dependencies: autocoderDependencies,
       detail: autocoderReady
         ? "Official autocoder runtime services are available."
@@ -1644,6 +1848,8 @@ export function getAutonomousControlPlane(
   config?: EnvConfig,
 ): AutonomousControlPlaneSummary {
   const native = getNativeServices(runtime);
+  const formsControl = getNativeFormsControlPlane(runtime);
+  const executionControl = getNativeExecutionControlPlane(runtime);
   const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
   const skillsSummary = getEffectiveSkillsSummary(runtime, services);
   const localSkills = getEffectiveSkills(runtime, services);
@@ -1745,6 +1951,24 @@ export function getAutonomousControlPlane(
         ready: researchControl.autocoder.ready,
       },
     },
+    forms: {
+      source: native.forms ? "native" : "product",
+      available: Boolean(native.forms),
+      total: formsControl.forms.total,
+      templates: formsControl.templates,
+    },
+    execution: {
+      e2b: {
+        source: native.e2b ? "native" : "product",
+        available: Boolean(native.e2b),
+        sandboxes: executionControl.e2b.sandboxes,
+      },
+      codeGeneration: {
+        source: native.codeGeneration ? "native" : "product",
+        available: Boolean(native.codeGeneration),
+        ready: executionControl.codeGeneration.ready,
+      },
+    },
     totals: {
       nativeServices: serviceSources.filter(Boolean).length,
       productFallbacks: serviceSources.filter((entry) => !entry).length,
@@ -1780,5 +2004,7 @@ export async function getNativeOwnershipSnapshot(
     skillHub: services.skillsHub.summary(),
     media: getNativeMediaControlPlane(config),
     research: getNativeResearchControlPlane(runtime),
+    forms: getNativeFormsControlPlane(runtime),
+    execution: getNativeExecutionControlPlane(runtime),
   };
 }

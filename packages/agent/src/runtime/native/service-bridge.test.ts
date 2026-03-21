@@ -13,6 +13,8 @@ import {
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
   getEffectiveTransportInventory,
+  getNativeExecutionControlPlane,
+  getNativeFormsControlPlane,
   getNativeMediaControlPlane,
   getNativeMessagingTransportState,
   getNativeResearchControlPlane,
@@ -21,6 +23,76 @@ import {
 } from "./service-bridge";
 
 describe("getEffectiveMessagingTransportInventory", () => {
+  it("builds native forms and execution control planes from installed services", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "forms") {
+          return {
+            capabilityDescription: "forms",
+            isPersistenceAvailable: () => true,
+            listForms: () => [
+              { id: "1", status: "active" },
+              { id: "2", status: "completed" },
+            ],
+            getTemplates: () =>
+              new Map([
+                ["default", {}],
+                ["review", {}],
+              ]),
+            forcePersist: async () => undefined,
+          };
+        }
+        if (name === "e2b") {
+          return {
+            capabilityDescription: "e2b",
+            listSandboxes: () => [
+              { id: "sandbox-1", path: "/tmp/eliza-agent-e2b/sandbox-1" },
+            ],
+            executeCode: async () => ({ success: true }),
+          };
+        }
+        if (name === "code-generation") {
+          return {
+            capabilityDescription: "codegen",
+            performResearch: () => undefined,
+            generateCode: () => undefined,
+            generateCodeInternal: () => undefined,
+          };
+        }
+        if (name === "github") {
+          return {
+            createRepository: () => undefined,
+            deleteRepository: () => undefined,
+          };
+        }
+        if (name === "secrets-manager") {
+          return {
+            listSecretKeys: () => ["OPENAI_API_KEY"],
+            getSecret: () => "x",
+            setSecret: () => undefined,
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const forms = getNativeFormsControlPlane(runtime);
+    const execution = getNativeExecutionControlPlane(runtime);
+
+    expect(forms.available).toBe(true);
+    expect(forms.templates).toBe(2);
+    expect(forms.forms.total).toBe(2);
+    expect(forms.forms.active).toBe(1);
+    expect(forms.persistenceAvailable).toBe(true);
+    expect(execution.e2b.available).toBe(true);
+    expect(execution.e2b.sandboxes).toBe(1);
+    expect(execution.codeGeneration.available).toBe(true);
+    expect(execution.codeGeneration.ready).toBe(true);
+    expect(execution.codeGeneration.methods).toContain("generateCode");
+    expect(execution.github.available).toBe(true);
+    expect(execution.secretsManager.keys).toContain("OPENAI_API_KEY");
+  });
+
   it("reports live telegram and discord services when runtime services exist", () => {
     const runtime = {
       getService(name: string) {

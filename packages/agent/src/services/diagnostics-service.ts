@@ -8,6 +8,8 @@ import {
 } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
+  getNativeExecutionControlPlane,
+  getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
   getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
@@ -173,6 +175,12 @@ export class DiagnosticsService {
           },
         } as unknown as Parameters<typeof getNativeIntegrationControlPlane>[1])
       : undefined;
+    const formsControl = this.runtime
+      ? getNativeFormsControlPlane(this.runtime)
+      : undefined;
+    const executionControl = this.runtime
+      ? getNativeExecutionControlPlane(this.runtime)
+      : undefined;
     checks.push({
       id: "native.workspace",
       status: existsSync(nativeWorkspacePath) ? "pass" : "warn",
@@ -337,6 +345,30 @@ export class DiagnosticsService {
             .join(", ")}`,
         });
       }
+    }
+
+    if (formsControl) {
+      checks.push({
+        id: "native.forms",
+        status: formsControl.available ? "pass" : "warn",
+        summary: "Native forms ownership",
+        detail: `available=${formsControl.available} templates=${formsControl.templates} total=${formsControl.forms.total} active=${formsControl.forms.active} persistence=${formsControl.persistenceAvailable}`,
+      });
+    }
+
+    if (executionControl) {
+      checks.push({
+        id: "native.execution.e2b",
+        status: executionControl.e2b.available ? "pass" : "warn",
+        summary: "Native E2B sandbox ownership",
+        detail: `available=${executionControl.e2b.available} sandboxes=${executionControl.e2b.sandboxes} execution=${executionControl.e2b.supportsExecution} root=${executionControl.e2b.sandboxRoot ?? "n/a"}`,
+      });
+      checks.push({
+        id: "native.execution.codegen",
+        status: executionControl.codeGeneration.ready ? "pass" : "warn",
+        summary: "Native code generation ownership",
+        detail: `available=${executionControl.codeGeneration.available} ready=${executionControl.codeGeneration.ready} methods=${executionControl.codeGeneration.methods.join(",") || "none"} github=${executionControl.github.available} secrets=${executionControl.secretsManager.available}`,
+      });
     }
 
     checks.push({

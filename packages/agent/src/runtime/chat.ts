@@ -55,6 +55,8 @@ import {
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  getNativeExecutionControlPlane,
+  getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
   getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
@@ -2609,6 +2611,26 @@ async function buildCommandResponse(
 
   if (trimmed === "/runtime media") {
     return JSON.stringify(getNativeMediaControlPlane(context.config), null, 2);
+  }
+
+  if (trimmed === "/runtime forms") {
+    return JSON.stringify(getNativeFormsControlPlane(context.runtime), null, 2);
+  }
+
+  if (trimmed === "/runtime e2b" || trimmed === "/runtime sandboxes") {
+    return JSON.stringify(
+      getNativeExecutionControlPlane(context.runtime).e2b,
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime codegen") {
+    return JSON.stringify(
+      getNativeExecutionControlPlane(context.runtime),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/runtime research") {
