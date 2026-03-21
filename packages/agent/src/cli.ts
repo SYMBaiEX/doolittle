@@ -187,12 +187,18 @@ function renderResponsesContent(context: AppContext): string {
   ].join("\n");
 }
 
-function renderTransportContent(context: AppContext): string {
+async function renderTransportContent(context: AppContext): Promise<string> {
   const traces = context.gateway.trace(6);
   const inbox = context.gateway.inbox(3);
   const sessions = context.services.gatewaySessions.list().slice(0, 4);
+  const gatewayState = await context.gateway.state(12);
+  const platformStates = gatewayState.platforms.slice(0, 4);
 
   return [
+    "{bold}Gateway Control Plane{/}",
+    `Enabled: ${gatewayState.totals.configuredPlatforms}`,
+    `Plugin-mediated: ${gatewayState.totals.pluginMediatedAdapters}/${gatewayState.totals.configuredPlatforms}`,
+    "",
     "{bold}Recent Gateway Traces{/}",
     ...(traces.length
       ? traces.map(
@@ -200,6 +206,14 @@ function renderTransportContent(context: AppContext): string {
             `- ${trace.platform}:${trace.kind} ${truncate(trace.detail ?? trace.traceId, 34)}`,
         )
       : ["{gray-fg}No recent trace activity.{/}"]),
+    "",
+    "{bold}Native Messaging{/}",
+    ...(platformStates.length
+      ? platformStates.map(
+          (entry) =>
+            `- ${entry.platform} ${entry.nativePluginId ?? "custom"}${entry.nativePluginSource ? ` (${entry.nativePluginSource})` : ""}`,
+        )
+      : ["{gray-fg}No enabled platform state yet.{/}"]),
     "",
     "{bold}Recent Inbox{/}",
     ...(inbox.length
@@ -1085,7 +1099,7 @@ async function startTui(context: AppContext): Promise<void> {
 
   async function refreshPanels(): Promise<void> {
     sidebar.setContent(renderStatusContent(context, state));
-    transportBox.setContent(renderTransportContent(context));
+    transportBox.setContent(await renderTransportContent(context));
     executionBox.setContent(await renderExecutionContent(context));
     await renderControlDeck(controlDeckMode);
     footer.setContent(renderFooter(context, busy, queueDepth));
@@ -1492,7 +1506,7 @@ async function startTui(context: AppContext): Promise<void> {
   response.setContent(
     "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
   );
-  transportBox.setContent(renderTransportContent(context));
+  transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));
   await renderControlDeck(controlDeckMode);
 

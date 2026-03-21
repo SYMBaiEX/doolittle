@@ -321,8 +321,13 @@ export function startApiServer(context: AppContext): void {
             503,
           );
         }
+        const state = await context.gateway.state(50);
         return json({
-          platforms: (await context.gateway.state(50)).platforms,
+          totals: state.totals,
+          platforms: state.platforms,
+          messagingPlugins: groupNativePluginCatalog(
+            getNativePluginCatalog(context.config),
+          ).messaging,
         });
       }
 
@@ -2329,6 +2334,11 @@ export function startApiServer(context: AppContext): void {
         return json({
           health: readiness,
           readiness,
+          mediation: {
+            pluginMediatedAdapters: history.state.totals.pluginMediatedAdapters,
+            officialPluginAdapters: history.state.totals.officialPluginAdapters,
+            vendoredPluginAdapters: history.state.totals.vendoredPluginAdapters,
+          },
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),
           ).messaging,
