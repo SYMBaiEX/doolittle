@@ -1,0 +1,13 @@
+{
+  "id": "core-runtime",
+  "title": "Core Runtime",
+  "focus": "runtime",
+  "description": "Exercises provider routing, shell execution, forms, E2B, and native codegen flows.",
+  "tags": ["runtime", "forms", "e2b", "codegen"],
+  "recommendedCommands": [
+    "/runtime status",
+    "/runtime forms",
+    "/runtime e2b",
+    "/runtime codegen"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "dialectic",
+  "title": "Dialectic Modeling",
+  "description": "Cross-session profile modeling with context synthesis, belief tracking, and conclusion capture.",
+  "modes": ["assist", "conclude"],
+  "signals": ["beliefs", "goals", "constraints", "preferences"]
+}

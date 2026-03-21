@@ -1,0 +1,7 @@
+{
+  "name": "@eliza-agent/modeling",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Eliza Agent user and assistant modeling profiles."
+}

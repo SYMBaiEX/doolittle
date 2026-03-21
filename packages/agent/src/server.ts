@@ -553,6 +553,33 @@ export function startApiServer(context: AppContext): void {
         return json(await context.services.agentSdk.overview(refresh));
       }
 
+      if (request.method === "GET" && url.pathname === "/ecosystem") {
+        return json({
+          summary: context.services.ecosystem.summary(),
+          benchmarks: context.services.ecosystem.benchmarkPacks(),
+          channels: context.services.ecosystem.distributionChannels(),
+          modeling: context.services.ecosystem.modelingProfiles(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/benchmarks/packs") {
+        return json({
+          packs: context.services.ecosystem.benchmarkPacks(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/channels") {
+        return json({
+          channels: context.services.ecosystem.distributionChannels(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/modeling/profiles") {
+        return json({
+          profiles: context.services.ecosystem.modelingProfiles(),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/runtime/autonomous") {
         return json(
           getAutonomousControlPlane(

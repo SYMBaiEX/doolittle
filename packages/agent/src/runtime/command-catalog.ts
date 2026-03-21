@@ -83,6 +83,27 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show alpha-channel package alignment and native audit data.",
   },
   {
+    command: "/ecosystem",
+    category: "runtime",
+    description:
+      "Show Eliza Agent benchmark packs, skill channels, and modeling profiles.",
+  },
+  {
+    command: "/benchmarks packs",
+    category: "research",
+    description: "List workspace-native benchmark packs.",
+  },
+  {
+    command: "/skills channels",
+    category: "skills",
+    description: "List workspace-native skill distribution channels.",
+  },
+  {
+    command: "/modeling profiles",
+    category: "memory",
+    description: "List workspace-native user and assistant modeling profiles.",
+  },
+  {
     command: "/runtime autonomous",
     category: "runtime",
     description:

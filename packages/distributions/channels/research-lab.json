@@ -1,0 +1,7 @@
+{
+  "id": "research-lab",
+  "title": "Research Lab",
+  "description": "Expanded distribution for trajectories, action benchmarks, autocoder, and dataset-oriented workflows.",
+  "tags": ["research", "trajectory", "autocoder", "benchmark"],
+  "skillRoots": ["research", "data", "documentation", "media"]
+}

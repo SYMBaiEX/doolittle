@@ -14,6 +14,7 @@ import { DelegationService } from "./delegation-service";
 import { DeliveryService } from "./delivery-service";
 import { DiagnosticsService } from "./diagnostics-service";
 import { DocumentsService } from "./documents-service";
+import { EcosystemService } from "./ecosystem-service";
 import { GatewaySessionService } from "./gateway-session-service";
 import { HooksService } from "./hooks-service";
 import { McpService } from "./mcp-service";
@@ -54,6 +55,7 @@ export interface AppServices {
   gatewaySessions: GatewaySessionService;
   delivery: DeliveryService;
   documents: DocumentsService;
+  ecosystem: EcosystemService;
   gatewayConfig: ReturnType<typeof loadGatewayConfig>;
   personalities: PersonalityService;
   contextFiles: ContextFilesService;
@@ -349,6 +351,7 @@ export function createServices(
     (limit) => sessions.listSessions(limit),
   );
   const repository = new RepositoryService(config.workspaceDir);
+  const ecosystem = new EcosystemService();
   const autocoderPipeline = new AutocoderPipelineService(
     join(config.dataDir, "autocoder"),
   );
@@ -472,6 +475,7 @@ export function createServices(
       runtime ?? ({} as ConstructorParameters<typeof DocumentsService>[0]),
       config.workspaceDir,
     ),
+    ecosystem,
     gatewayConfig,
     personalities: new PersonalityService(config.dataDir),
     contextFiles: new ContextFilesService(config.workspaceDir),
