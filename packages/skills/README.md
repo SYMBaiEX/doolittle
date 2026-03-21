@@ -26,6 +26,12 @@ See the current registry in [`index.md`](./index.md).
   - plugin coverage, native versus custom integration choices, and compatibility notes
 - `safety/review`
   - risk checks, guardrails, approval gates, and safe fallback planning
+- `planning/coordination`
+  - roadmap shaping, workstream alignment, dependency tracking, and milestone planning
+- `support/incidents`
+  - outage triage, containment, operator impact, and follow-up investigation
+- `community/engagement`
+  - outward-facing replies, onboarding guidance, and Eliza Agent communication
 - `platform/execution`
   - local, container, and remote execution backend planning
 - `platform/transport`
