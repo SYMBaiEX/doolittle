@@ -311,6 +311,7 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
   const delegation = context.services.delegation.overview();
   const pipeline = context.services.autocoderPipeline.summary();
   const pipelineRuns = context.services.autocoderPipeline.list(4);
+  const pipelineWorkflows = context.services.autocoderPipeline.listWorkflows(3);
 
   return [
     "{bold}Execution Backends{/}",
@@ -341,16 +342,29 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
     "",
     "{bold}Native Pipeline{/}",
     `Runs: ${pipeline.total}`,
+    `Workflows: ${pipeline.workflows}`,
     `Failed: ${pipeline.failed}`,
+    `Failed workflows: ${pipeline.failedWorkflows}`,
     pipeline.latest
       ? `Latest: ${pipeline.latest.kind} ${truncate(pipeline.latest.projectName ?? pipeline.latest.repositoryName ?? pipeline.latest.id, 26)}`
       : "Latest: n/a",
+    pipeline.latestWorkflow
+      ? `Latest workflow: ${truncate(pipeline.latestWorkflow.title, 26)} {gray-fg}${pipeline.latestWorkflow.status}{/}`
+      : "Latest workflow: n/a",
     ...(pipelineRuns.length
       ? pipelineRuns.map(
           (entry) =>
             `- ${entry.kind} ${truncate(entry.projectName ?? entry.repositoryName ?? entry.id, 24)} {gray-fg}${entry.status}{/}`,
         )
       : ["{gray-fg}No pipeline runs yet.{/}"]),
+    "",
+    "{bold}Workflow Graphs{/}",
+    ...(pipelineWorkflows.length
+      ? pipelineWorkflows.map(
+          (entry) =>
+            `- ${truncate(entry.title, 24)} runs=${entry.runIds.length} {gray-fg}${entry.status}{/}`,
+        )
+      : ["{gray-fg}No workflows yet.{/}"]),
   ].join("\n");
 }
 

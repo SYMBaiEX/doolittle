@@ -129,7 +129,9 @@ export interface SetupSummary {
   };
   pipeline?: {
     total: number;
+    workflows: number;
     failed: number;
+    failedWorkflows: number;
     latestKind?: string;
     latestTarget?: string;
   };
@@ -181,7 +183,9 @@ export interface UpdatePreview {
   };
   pipeline?: {
     total: number;
+    workflows: number;
     failed: number;
+    failedWorkflows: number;
     latestKind?: string;
     latestTarget?: string;
   };
@@ -399,7 +403,9 @@ export class OperatorService {
       pipeline: pipeline
         ? {
             total: pipeline.total,
+            workflows: pipeline.workflows,
             failed: pipeline.failed,
+            failedWorkflows: pipeline.failedWorkflows,
             latestKind: pipeline.latest?.kind,
             latestTarget:
               pipeline.latest?.projectName ?? pipeline.latest?.repositoryName,
@@ -492,7 +498,9 @@ export class OperatorService {
       pipeline: pipeline
         ? {
             total: pipeline.total,
+            workflows: pipeline.workflows,
             failed: pipeline.failed,
+            failedWorkflows: pipeline.failedWorkflows,
             latestKind: pipeline.latest?.kind,
             latestTarget:
               pipeline.latest?.projectName ?? pipeline.latest?.repositoryName,
