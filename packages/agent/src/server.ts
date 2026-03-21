@@ -23,6 +23,7 @@ import {
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
   fetchEffectiveBrowserPage,
+  getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
   getEffectiveDelegationQueue,
@@ -405,6 +406,12 @@ export function startApiServer(context: AppContext): void {
           url.searchParams.get("refresh") === "true" ||
           url.searchParams.get("refresh") === "1";
         return json(await context.services.agentSdk.overview(refresh));
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/autonomous") {
+        return json(
+          getAutonomousControlPlane(context.runtime, context.services),
+        );
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/registry") {

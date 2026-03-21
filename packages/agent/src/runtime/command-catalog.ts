@@ -77,6 +77,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show alpha-channel package alignment and native audit data.",
   },
   {
+    command: "/runtime autonomous",
+    category: "runtime",
+    description:
+      "Show how much of the agent, skills, orchestration, and trajectory stack is running through native Eliza services.",
+  },
+  {
     command: "/runtime ecosystem refresh",
     category: "runtime",
     description: "Refresh the ElizaOS agent SDK ecosystem audit and cache.",

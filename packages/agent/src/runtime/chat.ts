@@ -21,6 +21,7 @@ import {
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
   fetchEffectiveBrowserPage,
+  getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
   getEffectiveDelegationQueue,
@@ -1947,6 +1948,14 @@ async function buildCommandResponse(
     const refresh = trimmed.endsWith(" refresh");
     return JSON.stringify(
       await context.services.agentSdk.overview(refresh),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime autonomous") {
+    return JSON.stringify(
+      getAutonomousControlPlane(context.runtime, context.services),
       null,
       2,
     );

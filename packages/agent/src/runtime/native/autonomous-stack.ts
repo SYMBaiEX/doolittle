@@ -20,5 +20,13 @@ export function describeAutonomousAlignment() {
   return {
     foundationPackages: [...autonomousFoundationPackages],
     patternAreas: [...autonomousPatternAreas],
+    nativeControlPlanes: [
+      "agent-sdk",
+      "agent-skills",
+      "agent-orchestrator",
+      "trajectory-logger",
+      "plugin-manager",
+      "trigger-scheduling",
+    ],
   };
 }

@@ -2,6 +2,7 @@ import type { IAgentRuntime } from "@elizaos/core";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
 import type { EnvConfig, GatewayConfig } from "@/types";
+import { describeAutonomousAlignment } from "./autonomous-stack";
 
 interface NativeKnowledgeService {
   ingestPdf(path: string): Promise<unknown>;
@@ -150,6 +151,40 @@ interface NativeIntegrationControlPlane {
   };
 }
 
+interface AutonomousControlPlaneSummary {
+  alignment: ReturnType<typeof describeAutonomousAlignment>;
+  skills: {
+    source: "native" | "product";
+    available: boolean;
+    localSkills: number;
+    catalogSkills: number;
+    trendingSkills: number;
+  };
+  orchestrator: {
+    source: "native" | "product";
+    available: boolean;
+    tasks: number;
+    queuePending: number;
+    activeWorkers: number;
+  };
+  trajectories: {
+    source: "native" | "product";
+    available: boolean;
+    bundles: number;
+    latestAvailable: boolean;
+  };
+  pluginManager: {
+    source: "native" | "product";
+    available: boolean;
+    plugins: number;
+    categories: number;
+  };
+  totals: {
+    nativeServices: number;
+    productFallbacks: number;
+  };
+}
+
 type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
 
 export type { RuntimeLike };
@@ -191,6 +226,32 @@ function service<T>(runtime: RuntimeLike, name: string): T | undefined {
     return undefined;
   }
   return (runtime.getService(name) as T | null) ?? undefined;
+}
+
+function countQueuePending(queue: unknown): number {
+  if (Array.isArray(queue)) {
+    return queue.length;
+  }
+  if (queue && typeof queue === "object") {
+    const record = queue as Record<string, unknown>;
+    if (typeof record.pending === "number") {
+      return record.pending;
+    }
+    if (typeof record.total === "number") {
+      return record.total;
+    }
+  }
+  return 0;
+}
+
+function countQueueActiveWorkers(queue: unknown): number {
+  if (queue && typeof queue === "object") {
+    const record = queue as Record<string, unknown>;
+    if (typeof record.activeWorkers === "number") {
+      return record.activeWorkers;
+    }
+  }
+  return 0;
 }
 
 export function getNativeServices(runtime: RuntimeLike) {
@@ -955,5 +1016,67 @@ export function getEffectivePluginManagerInventory(
   return {
     plugins: pluginManager.list(),
     categories: pluginManager.categories(),
+  };
+}
+
+export function getAutonomousControlPlane(
+  runtime: RuntimeLike,
+  services: AppServices,
+): AutonomousControlPlaneSummary {
+  const native = getNativeServices(runtime);
+  const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
+  const localSkills = getEffectiveSkills(runtime, services);
+  const orchestratorTasks = getEffectiveDelegationTasks(runtime, services);
+  const orchestratorQueue = getEffectiveDelegationQueue(runtime, services);
+  const pluginInventory = getEffectivePluginManagerInventory(runtime);
+  const trajectorySource = native.trajectoryLogger;
+  const trajectoryBundles =
+    native.trajectoryLogger?.bundles() ?? services.trajectories.listBundles();
+  const latestTrajectory =
+    native.trajectoryLogger?.exportLatest() ??
+    services.trajectories.exportLatest();
+
+  const serviceSources = [
+    native.agentSkills,
+    native.agentOrchestrator,
+    native.trajectoryLogger,
+    native.pluginManager,
+  ];
+
+  return {
+    alignment: describeAutonomousAlignment(),
+    skills: {
+      source: native.agentSkills ? "native" : "product",
+      available: Boolean(native.agentSkills),
+      localSkills: Array.isArray(localSkills) ? localSkills.length : 0,
+      catalogSkills: skillsCatalog?.total ?? 0,
+      trendingSkills: skillsCatalog?.trending?.length ?? 0,
+    },
+    orchestrator: {
+      source: native.agentOrchestrator ? "native" : "product",
+      available: Boolean(native.agentOrchestrator),
+      tasks: Array.isArray(orchestratorTasks) ? orchestratorTasks.length : 0,
+      queuePending: countQueuePending(orchestratorQueue),
+      activeWorkers: countQueueActiveWorkers(orchestratorQueue),
+    },
+    trajectories: {
+      source: trajectorySource ? "native" : "product",
+      available: Boolean(trajectorySource),
+      bundles: Array.isArray(trajectoryBundles) ? trajectoryBundles.length : 0,
+      latestAvailable: Boolean(latestTrajectory),
+    },
+    pluginManager: {
+      source: native.pluginManager ? "native" : "product",
+      available: Boolean(native.pluginManager),
+      plugins: pluginInventory?.plugins.length ?? 0,
+      categories: pluginInventory?.categories
+        ? Object.keys(pluginInventory.categories as Record<string, unknown>)
+            .length
+        : 0,
+    },
+    totals: {
+      nativeServices: serviceSources.filter(Boolean).length,
+      productFallbacks: serviceSources.filter((entry) => !entry).length,
+    },
   };
 }

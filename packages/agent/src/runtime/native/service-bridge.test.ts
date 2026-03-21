@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import type { AppServices } from "@/services";
 import type { RuntimeLike } from "./service-bridge";
 import {
+  getAutonomousControlPlane,
   getEffectiveMessagingTransportInventory,
   getEffectiveTransportInventory,
   getNativeTransportControlPlane,
@@ -166,5 +168,69 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(
       inventory.find((entry) => entry.platform === "discord")?.reason,
     ).toBe("gateway-disabled");
+  });
+
+  it("builds an autonomous control-plane summary from native services", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "agent_skills") {
+          return {
+            list: () => [{ slug: "native-skill" }],
+          };
+        }
+        if (name === "agent_orchestrator") {
+          return {
+            tasks: () => [{ id: "task-1" }, { id: "task-2" }],
+            queue: () => ({ pending: 1, activeWorkers: 1 }),
+          };
+        }
+        if (name === "trajectory_logger") {
+          return {
+            bundles: () => [{ id: "bundle-1" }],
+            exportLatest: () => ({ id: "latest" }),
+          };
+        }
+        if (name === "plugin_manager") {
+          return {
+            list: () => [{ id: "plugin-1" }, { id: "plugin-2" }],
+            categories: () => ({ foundation: 1, automation: 1 }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const services = {
+      agentSdk: {
+        snapshot: () => ({
+          skillCatalog: {
+            total: 9,
+            trending: [{ slug: "browser" }, { slug: "mcp" }],
+          },
+        }),
+      },
+      skills: {
+        list: () => [{ slug: "fallback-skill" }],
+      },
+      delegation: {
+        list: () => [{ id: "fallback-task" }],
+        queueSummary: () => ({ pending: 2, activeWorkers: 0 }),
+      },
+      trajectories: {
+        listBundles: () => [{ id: "fallback-bundle" }],
+        exportLatest: () => ({ id: "fallback-latest" }),
+      },
+    } as unknown as AppServices;
+
+    const controlPlane = getAutonomousControlPlane(runtime, services);
+
+    expect(controlPlane.skills.source).toBe("native");
+    expect(controlPlane.skills.localSkills).toBe(1);
+    expect(controlPlane.skills.catalogSkills).toBe(9);
+    expect(controlPlane.orchestrator.tasks).toBe(2);
+    expect(controlPlane.orchestrator.queuePending).toBe(1);
+    expect(controlPlane.trajectories.bundles).toBe(1);
+    expect(controlPlane.pluginManager.plugins).toBe(2);
+    expect(controlPlane.totals.nativeServices).toBe(4);
   });
 });

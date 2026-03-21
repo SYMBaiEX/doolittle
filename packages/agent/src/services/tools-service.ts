@@ -392,6 +392,15 @@ export class ToolsService {
       transport: "native",
     },
     {
+      id: "runtime.autonomous",
+      name: "Autonomous Control Plane",
+      category: "runtime",
+      description:
+        "Inspect native Eliza agent-skills, orchestrator, trajectory, and plugin-manager adoption.",
+      enabled: true,
+      transport: "native",
+    },
+    {
       id: "skills.catalog",
       name: "Skill Catalog",
       category: "runtime",
