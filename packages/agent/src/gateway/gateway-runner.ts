@@ -1532,6 +1532,26 @@ export class GatewayRunner {
     };
   }
 
+  async transportOverview(): Promise<{
+    details: GatewayTransportDetail[];
+    mismatchCount: number;
+    operationalCount: number;
+  }> {
+    const platforms = Object.keys(
+      this.context.services.gatewayConfig.platforms,
+    ) as PlatformName[];
+    const details = await Promise.all(
+      platforms.map((platform) => this.transport(platform)),
+    );
+    return {
+      details,
+      mismatchCount: details.filter((entry) => entry.mismatchFlags.length > 0)
+        .length,
+      operationalCount: details.filter((entry) => entry.inventory?.operational)
+        .length,
+    };
+  }
+
   async supervise(reason = "manual"): Promise<GatewaySupervisionRecord[]> {
     const records: GatewaySupervisionRecord[] = [];
     for (const [platform, adapter] of this.adapters.entries()) {

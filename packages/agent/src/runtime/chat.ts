@@ -1508,6 +1508,25 @@ async function buildCommandResponse(
     ].join("\n");
   }
 
+  if (trimmed === "/transport mismatches") {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const overview = await context.gateway.transportOverview();
+    const mismatches = overview.details.filter(
+      (entry) => entry.mismatchFlags.length > 0,
+    );
+    return [
+      `transport mismatch summary: mismatches=${overview.mismatchCount} operational=${overview.operationalCount}/${overview.details.length}`,
+      ...(mismatches.length
+        ? mismatches.map(
+            (entry) =>
+              `- ${entry.platform} :: ${entry.mismatchFlags.join(", ")} :: ${entry.inventory?.detail ?? entry.platformState?.detail ?? "n/a"}`,
+          )
+        : ["- none"]),
+    ].join("\n");
+  }
+
   if (
     trimmed.startsWith("/transport show ") ||
     trimmed.startsWith("/gateway transport show ") ||
