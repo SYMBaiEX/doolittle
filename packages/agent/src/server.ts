@@ -28,12 +28,14 @@ import {
   getEffectiveCachedMcpTools,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
+  getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
+  getEffectiveSkillCatalog,
   getEffectiveSkills,
   getNativeIntegrationControlPlane,
   getNativeServices,
@@ -45,6 +47,7 @@ import {
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
+  searchEffectiveSkillCatalog,
   snapshotEffectiveBrowserPage,
 } from "@/runtime/native/service-bridge";
 import { DiagnosticsService } from "@/services/diagnostics-service";
@@ -701,14 +704,26 @@ export function startApiServer(context: AppContext): void {
           url.searchParams.get("refresh") === "1";
         return json(
           query
-            ? await context.services.agentSdk.searchSkillCatalog(query)
-            : await context.services.agentSdk.skillCatalog(refresh),
+            ? await searchEffectiveSkillCatalog(
+                context.runtime,
+                context.services,
+                query,
+              )
+            : refresh
+              ? await context.services.agentSdk.skillCatalog(true)
+              : await getEffectiveSkillCatalog(
+                  context.runtime,
+                  context.services,
+                ),
         );
       }
 
       if (request.method === "GET" && url.pathname === "/skills/generated") {
         return json({
-          skills: context.services.skillSynthesis.listGeneratedSkills(),
+          skills: getEffectiveGeneratedSkills(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 

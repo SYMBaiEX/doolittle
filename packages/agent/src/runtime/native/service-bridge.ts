@@ -71,6 +71,9 @@ interface NativeCronService {
 interface NativeAgentSkillsService {
   list(): unknown[];
   get(slug: string): unknown;
+  generated?(): unknown[];
+  catalog?(limit?: number): Promise<unknown>;
+  searchCatalog?(query: string, limit?: number): Promise<unknown>;
   synthesize(taskId: string): Promise<unknown>;
 }
 
@@ -86,8 +89,23 @@ interface NativeAgentOrchestratorService {
     objective: string,
     metadata?: Record<string, unknown>,
   ): unknown;
+  getTask?(id: string): unknown;
   queue(): unknown;
+  overview?(): unknown;
   tasks(): unknown[];
+  spawnChild?(
+    parentId: string,
+    input: {
+      title: string;
+      objective: string;
+      metadata?: Record<string, unknown>;
+      profile?: string;
+      priority?: string;
+      tags?: string[];
+    },
+  ): unknown;
+  retryTask?(id: string): unknown;
+  cancelTask?(id: string, note?: string): unknown;
 }
 
 interface NativePluginManagerService {
@@ -711,6 +729,41 @@ export function getEffectiveSkills(
   );
 }
 
+export function getEffectiveGeneratedSkills(
+  runtime: RuntimeLike,
+  services: AppServices,
+): unknown[] {
+  return (
+    getNativeServices(runtime).agentSkills?.generated?.() ??
+    services.skillSynthesis.listGeneratedSkills()
+  );
+}
+
+export async function getEffectiveSkillCatalog(
+  runtime: RuntimeLike,
+  services: AppServices,
+  limit = 20,
+) {
+  return (
+    (await getNativeServices(runtime).agentSkills?.catalog?.(limit)) ??
+    services.skills.catalog(limit)
+  );
+}
+
+export async function searchEffectiveSkillCatalog(
+  runtime: RuntimeLike,
+  services: AppServices,
+  query: string,
+  limit = 15,
+) {
+  return (
+    (await getNativeServices(runtime).agentSkills?.searchCatalog?.(
+      query,
+      limit,
+    )) ?? services.skills.searchCatalog(query, limit)
+  );
+}
+
 export function getEffectivePersonalityList(
   runtime: RuntimeLike,
   services: AppServices,
@@ -961,6 +1014,27 @@ export function getEffectiveDelegationQueue(
   return (
     getNativeServices(runtime).agentOrchestrator?.queue() ??
     services.delegation.queueSummary()
+  );
+}
+
+export function getEffectiveDelegationOverview(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.overview?.() ??
+    services.delegation.overview()
+  );
+}
+
+export function getEffectiveDelegationTask(
+  runtime: RuntimeLike,
+  services: AppServices,
+  id: string,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.getTask?.(id) ??
+    services.delegation.get(id)
   );
 }
 
