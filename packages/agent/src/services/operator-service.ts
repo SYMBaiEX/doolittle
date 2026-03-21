@@ -102,6 +102,12 @@ export interface UpdatePreview {
   status: string;
   recentCommits: string;
   recommendedSteps: string[];
+  transportControl?: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["totals"];
+  transportInventory?: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["transportInventory"];
 }
 
 export interface MigrationSourceSummary {
@@ -275,12 +281,21 @@ export class OperatorService {
     const recentCommits = repositoryAvailable
       ? await this.repository.recentCommits(8)
       : "(no git history available)";
+    const transportControl = this.runtime
+      ? getNativeTransportControlPlane(
+          this.runtime,
+          this.config,
+          this.diagnostics.currentGatewayConfig(),
+        )
+      : undefined;
 
     return {
       version: this.version(),
       repositoryAvailable,
       status,
       recentCommits,
+      transportControl: transportControl?.totals,
+      transportInventory: transportControl?.transportInventory,
       recommendedSteps: repositoryAvailable
         ? [
             "Review git status before updating runtime dependencies.",

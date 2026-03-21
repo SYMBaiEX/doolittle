@@ -109,6 +109,17 @@ describe("GatewayRunner", () => {
       expect(history.readiness.some((entry) => entry.platform === "api")).toBe(
         true,
       );
+      expect(
+        history.transportOverview.details.some(
+          (entry) => entry.platform === "api",
+        ),
+      ).toBe(true);
+      expect(history.transportOverview.mismatchCount).toBeGreaterThanOrEqual(0);
+      expect(
+        history.transportSummaries.some(
+          (entry) => entry.platform === "api" && entry.traceCount > 0,
+        ),
+      ).toBe(true);
       expect(apiTraces.some((trace) => trace.traceId === result.traceId)).toBe(
         true,
       );

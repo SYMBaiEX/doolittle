@@ -1974,12 +1974,16 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/doctor") {
+    const transportOverview = context.gateway
+      ? await context.gateway.transportOverview()
+      : undefined;
     const checks = await context.services.diagnostics.run({
       skillsCount: context.services.skills.list().length,
       contextFilesCount: context.services.contextFiles.list().length,
       recentCronRuns: context.services.cron.recentRuns(5).length,
       recentTerminalCommands: context.services.terminal.recent(5).length,
       repositoryAvailable: context.services.repository.isRepository(),
+      gatewayTransportOverview: transportOverview,
     });
     return checks
       .map(

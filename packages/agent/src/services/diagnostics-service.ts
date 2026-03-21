@@ -62,6 +62,20 @@ export class DiagnosticsService {
     recentCronRuns: number;
     recentTerminalCommands: number;
     repositoryAvailable: boolean;
+    gatewayTransportOverview?: {
+      mismatchCount: number;
+      operationalCount: number;
+      details: Array<{
+        platform: string;
+        mismatchFlags: string[];
+        inventory?: {
+          detail: string;
+        };
+        platformState?: {
+          detail?: string;
+        };
+      }>;
+    };
   }): Promise<DiagnosticCheck[]> {
     const checks: DiagnosticCheck[] = [];
 
@@ -199,6 +213,20 @@ export class DiagnosticsService {
         summary: "Gateway transport inventory",
         detail: summarizeTransportInventory(controlPlane.transportInventory),
       });
+      if (input.gatewayTransportOverview) {
+        checks.push({
+          id: "gateway.transport.overview",
+          status:
+            input.gatewayTransportOverview.mismatchCount > 0 ? "warn" : "pass",
+          summary: "Gateway transport overview",
+          detail: `operational=${input.gatewayTransportOverview.operationalCount} mismatches=${input.gatewayTransportOverview.mismatchCount}; ${input.gatewayTransportOverview.details
+            .map(
+              (entry) =>
+                `${entry.platform}:${entry.mismatchFlags.length ? entry.mismatchFlags.join("|") : "ok"}`,
+            )
+            .join(", ")}`,
+        });
+      }
     }
 
     checks.push({

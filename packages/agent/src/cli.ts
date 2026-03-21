@@ -617,7 +617,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
-    'Type "exit" to quit. Try /help, /status, /transport inventory, /gateway readiness, /runtime plugins, or /delegate overview.\n\n',
+    'Type "exit" to quit. Try /help, /status, /transport inventory, /transport mismatches, /gateway readiness, /runtime plugins, or /delegate overview.\n\n',
   );
 
   while (true) {
@@ -1573,7 +1573,7 @@ async function startTui(context: AppContext): Promise<void> {
     "info",
   );
   response.setContent(
-    "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /transport inventory, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
+    "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /transport inventory, /transport mismatches, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));

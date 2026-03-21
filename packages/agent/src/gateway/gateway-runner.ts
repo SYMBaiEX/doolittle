@@ -229,6 +229,29 @@ interface GatewayHistorySnapshot {
   snapshotPath: string;
   historyPath: string;
   readiness: PlatformHealth[];
+  transportOverview: {
+    mismatchCount: number;
+    operationalCount: number;
+    details: GatewayTransportDetail[];
+  };
+  transportSummaries: Array<{
+    platform: PlatformName;
+    source?: string;
+    configEnabled: boolean;
+    gatewayEnabled: boolean;
+    operational: boolean;
+    ready: boolean;
+    transportState?: GatewayPlatformState["transportState"];
+    status?: PlatformHealth["status"];
+    traceCount: number;
+    inboxCount: number;
+    outboxCount: number;
+    attachmentCount: number;
+    mismatchFlags: string[];
+    lastTraceKind?: GatewayTraceRecord["kind"];
+    lastEventKind?: PlatformLifecycleEvent["kind"];
+    detail: string;
+  }>;
   traces: GatewayTraceRecord[];
   inbox: GatewayInboxRecord[];
   outbox: GatewayOutboxRecord[];
@@ -265,6 +288,29 @@ interface GatewayStateSnapshot {
     recentSessions: number;
   };
   platforms: GatewayPlatformState[];
+  transportOverview: {
+    mismatchCount: number;
+    operationalCount: number;
+    details: GatewayTransportDetail[];
+  };
+  transportSummaries: Array<{
+    platform: PlatformName;
+    source?: string;
+    configEnabled: boolean;
+    gatewayEnabled: boolean;
+    operational: boolean;
+    ready: boolean;
+    transportState?: GatewayPlatformState["transportState"];
+    status?: PlatformHealth["status"];
+    traceCount: number;
+    inboxCount: number;
+    outboxCount: number;
+    attachmentCount: number;
+    mismatchFlags: string[];
+    lastTraceKind?: GatewayTraceRecord["kind"];
+    lastEventKind?: PlatformLifecycleEvent["kind"];
+    detail: string;
+  }>;
   tracesByKind: Array<{ kind: GatewayTraceRecord["kind"]; count: number }>;
   tracesByPlatform: Array<{
     platform: PlatformName | "gateway";
@@ -701,6 +747,8 @@ export class GatewayRunner {
         persistedAt,
         reason,
         state: snapshot.state,
+        transportOverview: snapshot.transportOverview,
+        transportSummaries: snapshot.transportSummaries,
       })}\n`,
       "utf8",
     );
@@ -1164,6 +1212,70 @@ export class GatewayRunner {
         lastUpdatedAt: state.lastUpdatedAt ?? timestamp,
       };
     });
+    const transportOverviewDetails = platformSummary.map((entry) => {
+      const inventory = controlPlane.transportInventory.find(
+        (record) => record.platform === entry.platform,
+      );
+      const bridge = controlPlane.messagingBridge.find(
+        (record) => record.platform === entry.platform,
+      );
+      const mismatchFlags: string[] = [];
+      if (inventory?.gatewayEnabled && !entry.ready) {
+        mismatchFlags.push("gateway-enabled-without-ready-platform");
+      }
+      if (inventory && inventory.operational !== entry.ready) {
+        mismatchFlags.push("inventory-operational-mismatch");
+      }
+      if (bridge?.pluginEnabled && !bridge.serviceAvailable) {
+        mismatchFlags.push("plugin-enabled-without-runtime-service");
+      }
+      if (bridge?.serviceAvailable && !bridge.live) {
+        mismatchFlags.push("runtime-service-not-live");
+      }
+      return {
+        platform: entry.platform,
+        inventory,
+        messagingBridge: bridge,
+        platformState: this.ensurePlatformState(entry.platform),
+        readiness: enrichedReadiness.find(
+          (health) => health.platform === entry.platform,
+        ),
+        traceCount: entry.traceCount,
+        inboxCount: entry.inboxCount,
+        outboxCount: entry.outboxCount,
+        attachmentCount: entry.attachmentCount,
+        recentTraces: this.trace(20, { platform: entry.platform }),
+        recentInbox: this.inbox(20, { platform: entry.platform }),
+        recentOutbox: this.outbox(20, { platform: entry.platform }),
+        recentAttachments: this.attachments(20, { platform: entry.platform }),
+        mismatchFlags,
+      };
+    });
+    const transportSummaries = transportOverviewDetails.map((entry) => ({
+      platform: entry.platform,
+      source:
+        entry.inventory?.source ??
+        entry.platformState?.nativePluginSource ??
+        "custom",
+      configEnabled: entry.inventory?.configEnabled ?? false,
+      gatewayEnabled: entry.inventory?.gatewayEnabled ?? false,
+      operational: entry.inventory?.operational ?? false,
+      ready: entry.readiness?.ready ?? false,
+      transportState: entry.platformState?.transportState,
+      status: entry.readiness?.status,
+      traceCount: entry.traceCount,
+      inboxCount: entry.inboxCount,
+      outboxCount: entry.outboxCount,
+      attachmentCount: entry.attachmentCount,
+      mismatchFlags: entry.mismatchFlags,
+      lastTraceKind: entry.platformState?.lastTraceKind,
+      lastEventKind: entry.platformState?.lastEventKind,
+      detail:
+        entry.inventory?.detail ??
+        entry.platformState?.detail ??
+        entry.readiness?.detail ??
+        "n/a",
+    }));
 
     return {
       running: this.running,
@@ -1209,6 +1321,16 @@ export class GatewayRunner {
         recentSessions: sessions.length,
       },
       platforms: platformSummary,
+      transportOverview: {
+        mismatchCount: transportOverviewDetails.filter(
+          (entry) => entry.mismatchFlags.length > 0,
+        ).length,
+        operationalCount: transportOverviewDetails.filter(
+          (entry) => entry.inventory?.operational,
+        ).length,
+        details: transportOverviewDetails,
+      },
+      transportSummaries,
       tracesByKind: this.countByKind(allTraces, (trace) => trace.kind),
       tracesByPlatform: this.countByPlatform(
         allTraces,
@@ -2270,6 +2392,8 @@ export class GatewayRunner {
       snapshotPath: this.snapshotPath,
       historyPath: this.snapshotHistoryPath,
       readiness,
+      transportOverview: state.transportOverview,
+      transportSummaries: state.transportSummaries,
       traces,
       inbox,
       outbox,
