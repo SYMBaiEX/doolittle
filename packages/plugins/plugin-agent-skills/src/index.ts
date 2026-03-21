@@ -8,6 +8,9 @@ export interface AgentSkillsPluginOptions {
   skills: {
     list(): unknown[];
     get(slug: string): unknown;
+    generated(): unknown[];
+    catalog(limit?: number): Promise<unknown>;
+    searchCatalog(query: string, limit?: number): Promise<unknown>;
   };
   synthesis: {
     synthesize(taskId: string): Promise<unknown>;
@@ -27,6 +30,15 @@ export function createAgentSkillsPlugin(
       },
       get(slug: string) {
         return options.skills.get(slug);
+      },
+      generated() {
+        return options.skills.generated();
+      },
+      catalog(limit = 20) {
+        return options.skills.catalog(limit);
+      },
+      searchCatalog(query: string, limit = 15) {
+        return options.skills.searchCatalog(query, limit);
       },
       synthesize(taskId: string) {
         return options.synthesis.synthesize(taskId);

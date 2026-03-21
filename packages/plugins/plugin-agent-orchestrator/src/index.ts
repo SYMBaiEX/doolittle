@@ -16,7 +16,21 @@ export interface AgentOrchestratorPluginOptions {
       parentTaskId?: string;
     }): unknown;
     list(): unknown[];
+    get(id: string): unknown;
     queueSummary(): unknown;
+    overview(): unknown;
+    spawnChild(
+      parentId: string,
+      input: {
+        title: string;
+        objective: string;
+        metadata?: Record<string, unknown>;
+        profile?: string;
+        priority?: string;
+        tags?: string[];
+      },
+    ): unknown;
+    cancel(id: string, note?: string): unknown;
     supervise(
       runner: (task: unknown) => Promise<string>,
       options?: Record<string, unknown>,
@@ -48,6 +62,28 @@ export function createAgentOrchestratorPlugin(
       },
       tasks() {
         return options.delegation.list();
+      },
+      getTask(id: string) {
+        return options.delegation.get(id);
+      },
+      overview() {
+        return options.delegation.overview();
+      },
+      spawnChild(
+        parentId: string,
+        input: {
+          title: string;
+          objective: string;
+          metadata?: Record<string, unknown>;
+          profile?: string;
+          priority?: string;
+          tags?: string[];
+        },
+      ) {
+        return options.delegation.spawnChild(parentId, input);
+      },
+      cancelTask(id: string, note?: string) {
+        return options.delegation.cancel(id, note);
       },
       supervise(
         runner: (task: unknown) => Promise<string>,

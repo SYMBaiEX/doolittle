@@ -193,7 +193,21 @@ export function buildNativePluginAssembly(
             metadata: normalizeMetadata(input.metadata),
           }),
         list: () => services.delegation.list(),
+        get: (id) => services.delegation.get(id),
         queueSummary: () => services.delegation.queueSummary(),
+        overview: () => services.delegation.overview(),
+        spawnChild: (parentId, input) =>
+          services.delegation.spawnChild(parentId, {
+            ...input,
+            priority:
+              input.priority === "low" ||
+              input.priority === "high" ||
+              input.priority === "normal"
+                ? input.priority
+                : "normal",
+            metadata: normalizeMetadata(input.metadata),
+          }),
+        cancel: (id, note) => services.delegation.cancel(id, note),
         supervise: (runner, options) =>
           services.delegation.supervise(runner as never, options as never),
         runQueued: (runner, options) =>
@@ -235,7 +249,14 @@ export function buildNativePluginAssembly(
       },
     }),
     createAgentSkillsPlugin({
-      skills: services.skills,
+      skills: {
+        list: () => services.skills.list(),
+        get: (slug) => services.skills.get(slug),
+        generated: () => services.skillSynthesis.listGeneratedSkills(),
+        catalog: (limit) => services.skills.catalog(limit),
+        searchCatalog: (query, limit) =>
+          services.skills.searchCatalog(query, limit),
+      },
       synthesis: {
         synthesize: async (taskId) => {
           const task = services.delegation.get(taskId);

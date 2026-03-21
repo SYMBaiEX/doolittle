@@ -24,14 +24,17 @@ import {
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
+  getEffectiveDelegationOverview,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
+  getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
+  getEffectiveSkillCatalog,
   getEffectiveSkills,
   getNativeIntegrationControlPlane,
   getNativeServices,
@@ -42,6 +45,7 @@ import {
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
+  searchEffectiveSkillCatalog,
   snapshotEffectiveBrowserPage,
 } from "@/runtime/native/service-bridge";
 import type { RuntimeSettings } from "@/services/settings-service";
@@ -1039,7 +1043,7 @@ async function buildCommandResponse(
 
   if (trimmed === "/skills catalog") {
     return JSON.stringify(
-      await context.services.agentSdk.skillCatalog(),
+      await getEffectiveSkillCatalog(context.runtime, context.services),
       null,
       2,
     );
@@ -1059,19 +1063,33 @@ async function buildCommandResponse(
       return "Usage: /skills catalog search <query>";
     }
     return JSON.stringify(
-      await context.services.agentSdk.searchSkillCatalog(query),
+      await searchEffectiveSkillCatalog(
+        context.runtime,
+        context.services,
+        query,
+      ),
       null,
       2,
     );
   }
 
   if (trimmed === "/skills generated" || trimmed === "/skills generated list") {
-    const generated = context.services.skillSynthesis.listGeneratedSkills();
+    const generated = getEffectiveGeneratedSkills(
+      context.runtime,
+      context.services,
+    ) as Array<{
+      slug?: string;
+      updatedAt?: string;
+      noteCount?: number;
+      signalCount?: number;
+      title?: string;
+      path?: string;
+    }>;
     return generated.length
       ? generated
           .map(
             (skill) =>
-              `- ${skill.slug} [${skill.updatedAt}] notes=${skill.noteCount} signals=${skill.signalCount}\n  ${skill.title}\n  ${skill.path}`,
+              `- ${skill.slug ?? "unknown"} [${skill.updatedAt ?? "n/a"}] notes=${skill.noteCount ?? 0} signals=${skill.signalCount ?? 0}\n  ${skill.title ?? "Untitled"}\n  ${skill.path ?? "n/a"}`,
           )
           .join("\n\n")
       : "No generated skills recorded.";
@@ -2734,7 +2752,10 @@ async function buildCommandResponse(
   if (trimmed === "/delegate overview") {
     return JSON.stringify(
       {
-        local: context.services.delegation.overview(),
+        local: getEffectiveDelegationOverview(
+          context.runtime,
+          context.services,
+        ),
         native: getEffectiveDelegationQueue(context.runtime, context.services),
       },
       null,
