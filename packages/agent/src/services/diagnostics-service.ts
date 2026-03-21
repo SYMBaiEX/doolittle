@@ -9,7 +9,9 @@ import {
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
   getNativeIntegrationControlPlane,
+  getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
+  getNativeResearchControlPlane,
   type RuntimeLike,
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
@@ -704,6 +706,30 @@ export class DiagnosticsService {
           integrationControl.mcp.source === "native"
             ? `MCP status is resolved through the native Eliza service bridge with ${integrationControl.mcp.cachedTools.length} cached tool(s).`
             : "MCP status is still resolved through the product fallback service.",
+      });
+    }
+
+    const mediaControl = getNativeMediaControlPlane(this.config);
+    checks.push({
+      id: "media.tts.native",
+      status: mediaControl.tts.ready ? "pass" : "warn",
+      summary: "Native TTS ownership",
+      detail: mediaControl.tts.detail,
+    });
+
+    if (this.runtime) {
+      const researchControl = getNativeResearchControlPlane(this.runtime);
+      checks.push({
+        id: "research.action-bench.native",
+        status: researchControl.actionBench.available ? "pass" : "warn",
+        summary: "Action-bench plugin ownership",
+        detail: researchControl.actionBench.detail,
+      });
+      checks.push({
+        id: "research.autocoder.native",
+        status: researchControl.autocoder.ready ? "pass" : "warn",
+        summary: "Autocoder runtime readiness",
+        detail: researchControl.autocoder.detail,
       });
     }
 

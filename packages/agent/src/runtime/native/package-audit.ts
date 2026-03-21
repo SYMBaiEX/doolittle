@@ -305,7 +305,7 @@ export function getNativePackageAudit(config: EnvConfig): {
       currentTag: "latest",
       latestTagVersion: "1.4.4",
       compatibility: "lagging-latest",
-      note: "Official action benchmark plugin exists in the live tree, but its published 1.x core peer is behind the current alpha runtime line, so it stays excluded until it is rebased or vendored.",
+      note: "Official action benchmark plugin is installed and surfaced on the current stack, but it still ships on an older line so it remains action-scoped rather than a deeper native service owner.",
     },
     {
       packageName: "@elizaos/plugin-autocoder",
@@ -314,7 +314,7 @@ export function getNativePackageAudit(config: EnvConfig): {
       currentTag: "latest",
       latestTagVersion: "1.3.3",
       compatibility: "lagging-latest",
-      note: "Official autocoder plugin exists in the live tree, but its published 1.x core peer is behind the current alpha runtime line, so it stays excluded until it is rebased or vendored.",
+      note: "Official autocoder plugin is installed and audited, but its heavier E2B/forms/runtime dependencies keep it in a gated state until the surrounding native service stack is available.",
     },
   ];
 

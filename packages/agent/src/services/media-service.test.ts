@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fal } from "@fal-ai/client";
 import { MediaService } from "./media-service";
 
 const ONE_BY_ONE_PNG =
@@ -12,6 +13,14 @@ const ONE_SECOND_WAV = Buffer.from([
   0x00, 0x00, 0x80, 0x3e, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74,
   0x61, 0x40, 0x3e, 0x00, 0x00,
 ]);
+
+const originalFalSubscribe = fal.subscribe;
+const originalFalConfig = fal.config;
+
+afterEach(() => {
+  fal.subscribe = originalFalSubscribe;
+  fal.config = originalFalConfig;
+});
 
 describe("MediaService", () => {
   it("returns missing-file metadata without throwing", () => {
@@ -316,6 +325,57 @@ describe("MediaService", () => {
       expect(requests.some((entry) => entry.includes("/audio/speech"))).toBe(
         true,
       );
+    } finally {
+      globalThis.fetch = originalFetch;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("prefers the official tts plugin path when fal is configured", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-media-fal-"));
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    let configuredKey = "";
+    const service = new MediaService(root, join(root, "media"), () => ({
+      provider: "offline",
+      model: "offline",
+      baseUrl: "https://example.invalid/v1",
+      temperature: 0,
+      maxTokens: 0,
+      falApiKey: "fal-test-key",
+    }));
+
+    try {
+      fal.config = ((input: { credentials?: string }) => {
+        configuredKey = input.credentials ?? "";
+      }) as typeof fal.config;
+      fal.subscribe = (async (_endpoint: string, _options: unknown) => ({
+        data: {
+          audio: {
+            url: "https://example.invalid/fal-audio.mp3",
+          },
+        },
+      })) as typeof fal.subscribe;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        requests.push(url);
+        if (url === "https://example.invalid/fal-audio.mp3") {
+          return new Response(Buffer.from("ID3eliza-agent-fal-tts"), {
+            status: 200,
+          });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as typeof fetch;
+
+      const speech = await service.speakWithModel("Eliza Agent native TTS.", {
+        format: "mp3",
+      });
+
+      expect(configuredKey).toBe("fal-test-key");
+      expect(speech.artifactKind).toBe("mp3");
+      expect(speech.response).toContain("official TTS plugin-compatible");
+      expect(existsSync(speech.artifactPath)).toBe(true);
+      expect(requests).toContain("https://example.invalid/fal-audio.mp3");
     } finally {
       globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });

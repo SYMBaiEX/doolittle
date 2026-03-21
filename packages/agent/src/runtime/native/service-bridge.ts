@@ -1,4 +1,5 @@
 import type { IAgentRuntime } from "@elizaos/core";
+import { benchmarkConfig } from "@elizaos/plugin-action-bench";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
 import type { MemorySummary } from "@/services/memory-service";
@@ -183,11 +184,17 @@ interface NativeOwnershipSnapshot {
   integration: NativeIntegrationControlPlane;
   autonomous: AutonomousControlPlaneSummary;
   skillHub: ReturnType<AppServices["skillsHub"]["summary"]>;
+  media: ReturnType<typeof getNativeMediaControlPlane>;
+  research: ReturnType<typeof getNativeResearchControlPlane>;
 }
 
 interface NativeDiscordTransportService {
   status?: () => unknown;
   history?: (limit?: number) => unknown[];
+}
+
+interface NativeCodeGenerationService {
+  capabilityDescription?: string;
 }
 
 interface NativeTelegramTransportService {
@@ -275,6 +282,26 @@ interface AutonomousControlPlaneSummary {
     enabled: number;
     official: number;
     vendored: number;
+  };
+  media: {
+    tts: {
+      source: "native-plugin" | "product";
+      available: boolean;
+      configured: boolean;
+      provider: "fal" | "none";
+    };
+  };
+  research: {
+    actionBench: {
+      source: "native-plugin";
+      available: boolean;
+      actions: number;
+    };
+    autocoder: {
+      source: "native-plugin";
+      available: boolean;
+      ready: boolean;
+    };
   };
   totals: {
     nativeServices: number;
@@ -399,6 +426,75 @@ export function getNativeServices(runtime: RuntimeLike) {
       runtime,
       "discord_transport",
     ),
+    codeGeneration: service<NativeCodeGenerationService>(
+      runtime,
+      "code-generation",
+    ),
+    e2b: service<Record<string, unknown>>(runtime, "e2b"),
+    forms: service<Record<string, unknown>>(runtime, "forms"),
+    github: service<Record<string, unknown>>(runtime, "github"),
+    secretsManager: service<Record<string, unknown>>(
+      runtime,
+      "secrets-manager",
+    ),
+  };
+}
+
+export function getNativeMediaControlPlane(config: EnvConfig) {
+  return {
+    tts: {
+      source: "native-plugin" as const,
+      available: true,
+      configured: Boolean(config.falApiKey),
+      provider: config.falApiKey ? ("fal" as const) : ("none" as const),
+      pluginAction: "GENERATE_TTS",
+      preferredFormat: "mp3" as const,
+      ready: Boolean(config.falApiKey),
+      detail: config.falApiKey
+        ? "Official TTS plugin path is enabled through FAL and can generate mp3 voice artifacts."
+        : "Official TTS plugin is installed but FAL_API_KEY is missing, so voice generation falls back to provider or offline paths.",
+    },
+  };
+}
+
+export function getNativeResearchControlPlane(runtime: RuntimeLike) {
+  const native = getNativeServices(runtime);
+  const autocoderDependencies = {
+    codeGeneration: Boolean(native.codeGeneration),
+    e2b: Boolean(native.e2b),
+    forms: Boolean(native.forms),
+    github: Boolean(native.github),
+    secretsManager: Boolean(native.secretsManager),
+  };
+  const autocoderReady =
+    autocoderDependencies.codeGeneration &&
+    autocoderDependencies.e2b &&
+    autocoderDependencies.forms;
+
+  return {
+    actionBench: {
+      source: "native-plugin" as const,
+      available: true,
+      actions: benchmarkConfig.totalActionsLoaded,
+      suites: {
+        typewriter: benchmarkConfig.typewriterEnabled,
+        multiverseMath: benchmarkConfig.multiverseMathEnabled,
+        relationalData: benchmarkConfig.relationalDataEnabled,
+      },
+      detail: `Official action-bench plugin is loaded with ${benchmarkConfig.totalActionsLoaded} benchmark actions.`,
+    },
+    autocoder: {
+      source: "native-plugin" as const,
+      available: true,
+      ready: autocoderReady,
+      capability:
+        native.codeGeneration?.capabilityDescription ??
+        "Generates ElizaOS projects through native autocoder services when dependencies are present.",
+      dependencies: autocoderDependencies,
+      detail: autocoderReady
+        ? "Official autocoder runtime services are available."
+        : "Official autocoder plugin is installed, but code-generation readiness still depends on e2b/forms-backed runtime services.",
+    },
   };
 }
 
@@ -1545,6 +1641,7 @@ export function getEffectivePluginManagerInventory(runtime: RuntimeLike): {
 export function getAutonomousControlPlane(
   runtime: RuntimeLike,
   services: AppServices,
+  config?: EnvConfig,
 ): AutonomousControlPlaneSummary {
   const native = getNativeServices(runtime);
   const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
@@ -1553,6 +1650,17 @@ export function getAutonomousControlPlane(
   const orchestratorTasks = getEffectiveDelegationTasks(runtime, services);
   const orchestratorQueue = getEffectiveDelegationQueue(runtime, services);
   const pluginInventory = getEffectivePluginManagerInventory(runtime);
+  const mediaControl = config
+    ? getNativeMediaControlPlane(config)
+    : {
+        tts: {
+          source: "native-plugin" as const,
+          available: true,
+          configured: false,
+          provider: "none" as const,
+        },
+      };
+  const researchControl = getNativeResearchControlPlane(runtime);
   const trajectorySource = native.trajectoryLogger;
   const trajectoryBundles =
     native.trajectoryLogger?.bundles() ?? services.trajectories.listBundles();
@@ -1617,6 +1725,26 @@ export function getAutonomousControlPlane(
       official: pluginInventory?.summary.official ?? 0,
       vendored: pluginInventory?.summary.vendored ?? 0,
     },
+    media: {
+      tts: {
+        source: "native-plugin",
+        available: true,
+        configured: mediaControl.tts.configured,
+        provider: mediaControl.tts.provider,
+      },
+    },
+    research: {
+      actionBench: {
+        source: "native-plugin",
+        available: researchControl.actionBench.available,
+        actions: researchControl.actionBench.actions,
+      },
+      autocoder: {
+        source: "native-plugin",
+        available: researchControl.autocoder.available,
+        ready: researchControl.autocoder.ready,
+      },
+    },
     totals: {
       nativeServices: serviceSources.filter(Boolean).length,
       productFallbacks: serviceSources.filter((entry) => !entry).length,
@@ -1648,7 +1776,9 @@ export async function getNativeOwnershipSnapshot(
   return {
     controlPlane,
     integration,
-    autonomous: getAutonomousControlPlane(runtime, services),
+    autonomous: getAutonomousControlPlane(runtime, services, config),
     skillHub: services.skillsHub.summary(),
+    media: getNativeMediaControlPlane(config),
+    research: getNativeResearchControlPlane(runtime),
   };
 }

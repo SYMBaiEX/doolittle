@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
+import { fal } from "@fal-ai/client";
 
 export interface MediaInspection {
   path: string;
@@ -51,6 +52,7 @@ interface MediaModelContext {
   anthropicApiKey?: string;
   anthropicBaseUrl?: string;
   openAiImageModel?: string;
+  falApiKey?: string;
 }
 
 export interface MediaAnalysisBundle {
@@ -877,7 +879,35 @@ export class MediaService {
     let response = "Generated an offline Eliza Agent speech concept artifact.";
     const preferredFormat = options.format ?? "mp3";
 
+    if (preferredFormat !== "svg" && modelContext?.falApiKey) {
+      try {
+        const tts = await this.generateFalSpeech(script, {
+          apiKey: modelContext.falApiKey,
+          voice: this.resolveFalVoice(voice),
+        });
+        const audioResponse = await fetch(tts.audioUrl);
+        if (!audioResponse.ok) {
+          const body = await audioResponse.text();
+          throw new Error(
+            `Official TTS artifact download failed (${audioResponse.status}): ${body}`,
+          );
+        }
+
+        const bytes = Buffer.from(await audioResponse.arrayBuffer());
+        artifactPath = join(
+          this.outputDir,
+          `media-${stamp}-${label}-speech.mp3`,
+        );
+        artifactKind = "mp3";
+        writeFileSync(artifactPath, bytes);
+        response = `Generated official TTS plugin-compatible speech audio at ${artifactPath}.`;
+      } catch (error) {
+        response = error instanceof Error ? error.message : String(error);
+      }
+    }
+
     if (
+      artifactKind !== "mp3" &&
       preferredFormat !== "svg" &&
       modelContext?.provider === "openai" &&
       modelContext.openAiApiKey
@@ -929,7 +959,9 @@ export class MediaService {
           "utf8",
         );
       }
-    } else {
+    }
+
+    if (artifactKind !== "mp3") {
       writeFileSync(
         artifactPath,
         this.renderSpeechSvg(script, voice, options.speed),
@@ -1058,6 +1090,47 @@ export class MediaService {
       return "document";
     }
     return "unknown";
+  }
+
+  private resolveFalVoice(voice?: string): string {
+    if (!voice || voice === "alloy") {
+      return "Jennifer (English (US)/American)";
+    }
+    return voice;
+  }
+
+  private async generateFalSpeech(
+    text: string,
+    options: {
+      apiKey: string;
+      voice: string;
+    },
+  ): Promise<{ audioUrl: string }> {
+    fal.config({
+      credentials: options.apiKey,
+    });
+    const response = (await fal.subscribe("fal-ai/playai/tts/v3", {
+      input: {
+        input: text,
+        voice: options.voice,
+      },
+      logs: false,
+    })) as {
+      data?: {
+        audio?: {
+          url?: string;
+        };
+      };
+    };
+    const audioUrl = response.data?.audio?.url;
+    if (!audioUrl) {
+      throw new Error(
+        "Official TTS plugin did not return an audio artifact URL.",
+      );
+    }
+    return {
+      audioUrl,
+    };
   }
 
   private readImageDimensions(

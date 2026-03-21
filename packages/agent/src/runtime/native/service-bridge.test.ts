@@ -13,7 +13,9 @@ import {
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
   getEffectiveTransportInventory,
+  getNativeMediaControlPlane,
   getNativeMessagingTransportState,
+  getNativeResearchControlPlane,
   getNativeTransportControlPlane,
   retryEffectiveDelegationTask,
 } from "./service-bridge";
@@ -339,7 +341,51 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(controlPlane.pluginManager.enabled).toBe(1);
     expect(controlPlane.pluginManager.official).toBe(1);
     expect(controlPlane.pluginManager.vendored).toBe(1);
+    expect(controlPlane.media.tts.available).toBe(true);
+    expect(controlPlane.research.actionBench.actions).toBeGreaterThan(0);
+    expect(controlPlane.research.autocoder.ready).toBe(false);
     expect(controlPlane.totals.nativeServices).toBe(4);
+  });
+});
+
+describe("media and research control plane helpers", () => {
+  it("reports native tts readiness based on fal configuration", () => {
+    const enabled = getNativeMediaControlPlane({
+      falApiKey: "fal-key",
+    } as never);
+    const disabled = getNativeMediaControlPlane({
+      falApiKey: undefined,
+    } as never);
+
+    expect(enabled.tts.ready).toBe(true);
+    expect(enabled.tts.provider).toBe("fal");
+    expect(disabled.tts.ready).toBe(false);
+    expect(disabled.tts.provider).toBe("none");
+  });
+
+  it("reports action-bench depth and gated autocoder readiness", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "code-generation") {
+          return {
+            capabilityDescription: "Native code generation",
+          };
+        }
+        if (name === "e2b") {
+          return {};
+        }
+        if (name === "forms") {
+          return {};
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const controlPlane = getNativeResearchControlPlane(runtime);
+
+    expect(controlPlane.actionBench.actions).toBeGreaterThan(0);
+    expect(controlPlane.autocoder.ready).toBe(true);
+    expect(controlPlane.autocoder.dependencies.github).toBe(false);
   });
 });
 
