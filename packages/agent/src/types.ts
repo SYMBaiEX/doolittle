@@ -358,6 +358,9 @@ export interface UserProfileRecord {
   userId: string;
   displayName?: string;
   memoryMode?: "local" | "hybrid";
+  userMemoryMode?: "local" | "hybrid";
+  assistantMemoryMode?: "local" | "hybrid";
+  dialecticMode?: "off" | "assist" | "conclude";
   preferences: string[];
   facts: string[];
   beliefs: string[];
@@ -456,6 +459,25 @@ export interface UserProfileSearchHit {
   channels?: string[];
   lastInteractionAt?: string;
   lastSource?: string;
+}
+
+export interface UserProfileContextSummary {
+  userId: string;
+  displayName?: string;
+  query: string;
+  answer: string;
+  evidence: string[];
+  userMemoryMode: "local" | "hybrid";
+  assistantMemoryMode: "local" | "hybrid";
+  dialecticMode: "off" | "assist" | "conclude";
+}
+
+export interface UserProfileConclusionRecord {
+  userId: string;
+  query: string;
+  conclusion: string;
+  source?: string;
+  recordedAt: string;
 }
 
 export interface UserProfileWorkspaceRelationshipSummary {

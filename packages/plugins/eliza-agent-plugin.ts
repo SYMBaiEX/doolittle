@@ -8,11 +8,11 @@ import type {
   Service,
 } from "@elizaos/core";
 import { Service as ElizaService, ModelType } from "@elizaos/core";
-import type { CronJobRecord } from "@/types";
 import {
   type AgentExecutionContext,
   type AppContext,
   type AppServices,
+  type CronJobRecord,
   createAgentContextProvider,
   createCronAction,
   createMemoryAction,

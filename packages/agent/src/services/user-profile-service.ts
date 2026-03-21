@@ -3,6 +3,8 @@ import { join } from "node:path";
 import type {
   AgentIdentityRecord,
   UserProfileBeliefSummary,
+  UserProfileConclusionRecord,
+  UserProfileContextSummary,
   UserProfileEngagementSummary,
   UserProfileRecord,
   UserProfileRelationshipSummary,
@@ -107,6 +109,9 @@ function createEmptyProfile(userId: string): UserProfileRecord {
   return {
     userId,
     memoryMode: "hybrid",
+    userMemoryMode: "hybrid",
+    assistantMemoryMode: "hybrid",
+    dialecticMode: "assist",
     preferences: [],
     facts: [],
     beliefs: [],
@@ -390,6 +395,35 @@ export class UserProfileService {
       userId,
       (profile) => {
         profile.memoryMode = mode ?? "hybrid";
+        profile.userMemoryMode = mode ?? "hybrid";
+        profile.assistantMemoryMode = mode ?? "hybrid";
+      },
+      context,
+    );
+  }
+
+  configureModeling(
+    userId: string,
+    settings: {
+      userMemoryMode?: "local" | "hybrid";
+      assistantMemoryMode?: "local" | "hybrid";
+      dialecticMode?: "off" | "assist" | "conclude";
+    },
+    context?: UserProfileInteractionContext,
+  ): UserProfileRecord {
+    return this.update(
+      userId,
+      (profile) => {
+        if (settings.userMemoryMode) {
+          profile.userMemoryMode = settings.userMemoryMode;
+          profile.memoryMode = settings.userMemoryMode;
+        }
+        if (settings.assistantMemoryMode) {
+          profile.assistantMemoryMode = settings.assistantMemoryMode;
+        }
+        if (settings.dialecticMode) {
+          profile.dialecticMode = settings.dialecticMode;
+        }
       },
       context,
     );
@@ -691,6 +725,92 @@ export class UserProfileService {
     return candidates.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
+  context(userId: string, query: string): UserProfileContextSummary {
+    const profile = this.get(userId);
+    const relationship = this.relationship(userId);
+    const engagement = this.engagement(userId);
+    const beliefs = this.beliefs(userId);
+    const recall = this.recall(userId, query, 6);
+    const evidence = unique([
+      ...recall.map((entry) => `${entry.kind}: ${entry.value}`),
+      ...(profile.goals ?? []).slice(0, 2).map((entry) => `goal: ${entry}`),
+      ...(profile.projectContext ?? [])
+        .slice(0, 2)
+        .map((entry) => `context: ${entry}`),
+      ...(profile.constraints ?? [])
+        .slice(0, 2)
+        .map((entry) => `constraint: ${entry}`),
+    ]).slice(0, 8);
+
+    return {
+      userId,
+      displayName: profile.displayName,
+      query,
+      answer: [
+        profile.displayName
+          ? `${profile.displayName} is operating with`
+          : "This user is operating with",
+        `${profile.userMemoryMode ?? profile.memoryMode ?? "hybrid"} user memory`,
+        `and ${profile.assistantMemoryMode ?? profile.memoryMode ?? "hybrid"} assistant memory.`,
+        `Relationship status is ${relationship.status} with trust ${relationship.trust}/10 and collaboration ${relationship.collaboration}/10.`,
+        `Engagement cadence is ${scoreCadence(engagement.touches)} with ${engagement.touches} touches.`,
+        beliefs.count
+          ? `Known beliefs: ${beliefs.beliefs.slice(0, 3).join("; ")}.`
+          : "No strong explicit beliefs are recorded yet.",
+        evidence.length
+          ? `Most relevant evidence: ${evidence.slice(0, 4).join(" | ")}`
+          : "There is not enough matching evidence yet, so the profile should be expanded through more observation.",
+      ].join(" "),
+      evidence,
+      userMemoryMode: profile.userMemoryMode ?? profile.memoryMode ?? "hybrid",
+      assistantMemoryMode:
+        profile.assistantMemoryMode ?? profile.memoryMode ?? "hybrid",
+      dialecticMode: profile.dialecticMode ?? "assist",
+    };
+  }
+
+  conclude(
+    userId: string,
+    query: string,
+    conclusion: string,
+    source?: string,
+  ): UserProfileConclusionRecord {
+    const trimmedQuery = query.trim();
+    const trimmedConclusion = conclusion.trim();
+    this.update(
+      userId,
+      (profile) => {
+        profile.notes = unique([
+          ...profile.notes,
+          `Conclusion: ${trimmedConclusion}`,
+        ]);
+        profile.explicitMemories = unique([
+          ...(profile.explicitMemories ?? []),
+          `${trimmedQuery} => ${trimmedConclusion}`,
+        ]);
+        profile.relationship = normalizeRelationship({
+          ...normalizeRelationship(profile.relationship),
+          notes: unique([
+            ...(profile.relationship?.notes ?? []),
+            `Conclusion: ${trimmedConclusion}`,
+          ]).slice(-15),
+          lastSource: source ?? profile.relationship?.lastSource,
+          lastInteractionAt: nowIso(),
+        });
+        profile.lastSource = source ?? profile.lastSource;
+      },
+      { source, channel: source, signal: trimmedConclusion },
+    );
+
+    return {
+      userId,
+      query: trimmedQuery,
+      conclusion: trimmedConclusion,
+      source,
+      recordedAt: nowIso(),
+    };
+  }
+
   render(userId: string): string {
     const profile = this.get(userId);
     const relationship = this.relationship(userId);
@@ -698,7 +818,9 @@ export class UserProfileService {
     const beliefs = this.beliefs(userId);
     return [
       `USER PROFILE: ${profile.displayName ?? profile.userId}`,
-      `Memory mode: ${profile.memoryMode ?? "hybrid"}`,
+      `User memory: ${profile.userMemoryMode ?? profile.memoryMode ?? "hybrid"}`,
+      `Assistant memory: ${profile.assistantMemoryMode ?? profile.memoryMode ?? "hybrid"}`,
+      `Dialectic mode: ${profile.dialecticMode ?? "assist"}`,
       `Last seen: ${profile.lastSeenAt}`,
       `Source: ${profile.lastSource ?? "unknown"}`,
       "",
@@ -995,6 +1117,10 @@ export class UserProfileService {
     const next: UserProfileRecord = {
       ...base,
       memoryMode: base.memoryMode ?? "hybrid",
+      userMemoryMode: base.userMemoryMode ?? base.memoryMode ?? "hybrid",
+      assistantMemoryMode:
+        base.assistantMemoryMode ?? base.memoryMode ?? "hybrid",
+      dialecticMode: base.dialecticMode ?? "assist",
       preferences: [...base.preferences],
       facts: [...base.facts],
       beliefs: [...(base.beliefs ?? [])],
@@ -1052,6 +1178,11 @@ export class UserProfileService {
         ...createEmptyProfile(profile.userId),
         ...profile,
         memoryMode: profile.memoryMode ?? "hybrid",
+        userMemoryMode:
+          profile.userMemoryMode ?? profile.memoryMode ?? "hybrid",
+        assistantMemoryMode:
+          profile.assistantMemoryMode ?? profile.memoryMode ?? "hybrid",
+        dialecticMode: profile.dialecticMode ?? "assist",
         aliases: profile.aliases ?? [],
         goals: profile.goals ?? [],
         projectContext: profile.projectContext ?? [],

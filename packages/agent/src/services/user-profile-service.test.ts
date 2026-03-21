@@ -213,4 +213,59 @@ describe("UserProfileService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("supports synthesized profile context, conclusions, and split modeling controls", () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "eliza-agent-user-profile-context-"),
+    );
+    const service = new UserProfileService(root);
+
+    try {
+      service.observe(
+        "user-5",
+        "I believe Bun should stay the default toolchain and I trust this setup.",
+        "cli",
+      );
+      service.remember(
+        "user-5",
+        "context",
+        "We are finalizing the Eliza-native monorepo.",
+        "cli",
+      );
+      service.configureModeling("user-5", {
+        userMemoryMode: "local",
+        assistantMemoryMode: "hybrid",
+        dialecticMode: "conclude",
+      });
+
+      const context = service.context(
+        "user-5",
+        "What matters most about this user's toolchain preferences?",
+      );
+      expect(context.answer).toContain("user memory");
+      expect(context.evidence.length).toBeGreaterThan(0);
+      expect(context.userMemoryMode).toBe("local");
+      expect(context.assistantMemoryMode).toBe("hybrid");
+      expect(context.dialecticMode).toBe("conclude");
+
+      const conclusion = service.conclude(
+        "user-5",
+        "What matters most about this user's toolchain preferences?",
+        "Preserve Bun-first defaults and keep changes Eliza-native.",
+        "cli",
+      );
+      const profile = service.get("user-5");
+      expect(conclusion.conclusion).toContain("Bun-first");
+      expect(
+        profile.explicitMemories?.some((entry) => entry.includes("Bun-first")),
+      ).toBe(true);
+      expect(
+        profile.relationship?.notes.some((entry) =>
+          entry.includes("Conclusion: Preserve Bun-first defaults"),
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
