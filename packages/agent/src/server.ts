@@ -232,6 +232,95 @@ function parseDelegationFilters(url: URL): {
   };
 }
 
+const TRANSPORT_PLATFORM_NAMES: PlatformName[] = [
+  "api",
+  "cli",
+  "telegram",
+  "discord",
+  "slack",
+  "whatsapp",
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+  "mattermost",
+  "homeassistant",
+  "dingtalk",
+];
+
+function parseTransportPlatform(value: string): PlatformName | undefined {
+  const platform = value.trim().toLowerCase();
+  return TRANSPORT_PLATFORM_NAMES.includes(platform as PlatformName)
+    ? (platform as PlatformName)
+    : undefined;
+}
+
+async function buildTransportDrilldown(
+  context: AppContext,
+  platform: PlatformName,
+) {
+  const controlPlane = getNativeTransportControlPlane(
+    context.runtime,
+    context.config,
+    context.services.gatewayConfig,
+  );
+  const inventory = controlPlane.transportInventory.find(
+    (entry) => entry.platform === platform,
+  );
+  const bridge = controlPlane.messagingBridge.find(
+    (entry) => entry.platform === platform,
+  );
+  const runtimeStatus = context.gateway?.runtimeStatus();
+  const runtimeInventory = runtimeStatus?.transportInventory.find(
+    (entry) => entry.platform === platform,
+  );
+  const gatewayDetail = context.gateway
+    ? await context.gateway.transport(platform)
+    : undefined;
+  const messagingPlugins = groupNativePluginCatalog(
+    getNativePluginCatalog(context.config),
+  ).messaging;
+  const nativePlugin = messagingPlugins.find(
+    (entry) =>
+      entry.id ===
+      (gatewayDetail?.platformState?.nativePluginId ??
+        inventory?.pluginId ??
+        bridge?.pluginId),
+  );
+
+  return {
+    platform,
+    inventory,
+    bridge,
+    runtime: runtimeStatus
+      ? {
+          transportInventory: runtimeInventory,
+          transportControl: runtimeStatus.transportControl,
+          messagingBridge: runtimeStatus.messagingBridge.find(
+            (entry) => entry.platform === platform,
+          ),
+        }
+      : undefined,
+    gateway: context.gateway
+      ? {
+          detail: gatewayDetail,
+          health: gatewayDetail?.readiness,
+          state: gatewayDetail?.platformState,
+          history: gatewayDetail
+            ? {
+                traces: gatewayDetail.recentTraces,
+                inbox: gatewayDetail.recentInbox,
+                outbox: gatewayDetail.recentOutbox,
+                attachments: gatewayDetail.recentAttachments,
+              }
+            : undefined,
+        }
+      : undefined,
+    plugin: nativePlugin,
+    controlPlane,
+  };
+}
+
 export function startApiServer(context: AppContext): void {
   Bun.serve({
     hostname: context.config.host,
@@ -389,6 +478,21 @@ export function startApiServer(context: AppContext): void {
             context.services.gatewayConfig,
           ),
         );
+      }
+
+      if (
+        request.method === "GET" &&
+        (url.pathname.startsWith("/transport/") ||
+          url.pathname.startsWith("/gateway/transport/"))
+      ) {
+        const rawPlatform = url.pathname
+          .replace(/^\/gateway\/transport\//u, "")
+          .replace(/^\/transport\//u, "");
+        const platform = parseTransportPlatform(rawPlatform);
+        if (!platform) {
+          return json({ error: "Unknown transport platform." }, 404);
+        }
+        return json(await buildTransportDrilldown(context, platform));
       }
 
       if (request.method === "GET" && url.pathname === "/doctor") {

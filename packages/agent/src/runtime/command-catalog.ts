@@ -57,9 +57,20 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show the shared canonical transport inventory.",
   },
   {
+    command: "/transport show <platform>",
+    category: "runtime",
+    description: "Inspect one transport in detail.",
+  },
+  {
     command: "/transport status",
     category: "runtime",
     description: "Show the shared transport status summary.",
+  },
+  {
+    command: "/transport show <platform>",
+    category: "runtime",
+    description:
+      "Inspect one transport with inventory, runtime, and journal state.",
   },
   {
     command: "/runtime ecosystem",
@@ -90,6 +101,16 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/gateway transports",
     category: "gateway",
     description: "Show the canonical gateway transport inventory.",
+  },
+  {
+    command: "/gateway transport <platform>",
+    category: "gateway",
+    description: "Show one gateway transport in detail.",
+  },
+  {
+    command: "/gateway transport <platform>",
+    category: "gateway",
+    description: "Inspect one gateway transport in detail.",
   },
   {
     command: "/gateway readiness",

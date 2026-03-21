@@ -80,6 +80,115 @@ function summarizeTransportInventory(
   ].join("\n");
 }
 
+const TRANSPORT_PLATFORM_NAMES: PlatformName[] = [
+  "api",
+  "cli",
+  "telegram",
+  "discord",
+  "slack",
+  "whatsapp",
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+  "mattermost",
+  "homeassistant",
+  "dingtalk",
+];
+
+function parseTransportPlatform(raw: string): PlatformName | undefined {
+  const platform = raw.trim().toLowerCase();
+  return TRANSPORT_PLATFORM_NAMES.includes(platform as PlatformName)
+    ? (platform as PlatformName)
+    : undefined;
+}
+
+function formatTransportField(value: unknown): string {
+  if (value === undefined || value === null || value === "") {
+    return "n/a";
+  }
+  return String(value);
+}
+
+async function renderTransportDrilldown(
+  context: AgentExecutionContext,
+  platform: PlatformName,
+): Promise<string> {
+  const controlPlane = getNativeTransportControlPlane(
+    context.runtime,
+    context.config,
+    context.services.gatewayConfig,
+  );
+  const inventory = controlPlane.transportInventory.find(
+    (entry) => entry.platform === platform,
+  );
+  const bridge = controlPlane.messagingBridge.find(
+    (entry) => entry.platform === platform,
+  );
+  const runtimeStatus = context.gateway?.runtimeStatus();
+  const runtimeInventory = runtimeStatus?.transportInventory.find(
+    (entry) => entry.platform === platform,
+  );
+  const gatewayHealth = context.gateway
+    ? (await context.gateway.health()).find(
+        (entry) => entry.platform === platform,
+      )
+    : undefined;
+  const gatewayState = context.gateway
+    ? (
+        await context.gateway.state(20, {
+          platform,
+        })
+      ).platforms.at(0)
+    : undefined;
+  const gatewayHistory = context.gateway
+    ? await context.gateway.history(20, { platform })
+    : undefined;
+  const messagingPlugins = groupNativePluginCatalog(
+    getNativePluginCatalog(context.config),
+  ).messaging;
+  const nativePlugin = messagingPlugins.find(
+    (entry) =>
+      entry.id ===
+      (gatewayState?.nativePluginId ?? inventory?.pluginId ?? bridge?.pluginId),
+  );
+
+  if (!inventory) {
+    return `Transport ${platform} was not found in the canonical inventory.`;
+  }
+
+  return [
+    `{bold}Transport Drill-Down{/} ${platform}`,
+    `Inventory: source=${inventory.source} config=${inventory.configEnabled} gateway=${inventory.gatewayEnabled} operational=${inventory.operational} reason=${inventory.reason}`,
+    `Detail: ${inventory.detail}`,
+    `Plugin: ${formatTransportField(inventory.pluginId)} service=${formatTransportField(inventory.serviceName)} available=${formatTransportField(inventory.serviceAvailable)}`,
+    bridge
+      ? `Bridge: config=${bridge.configEnabled} gateway=${bridge.gatewayEnabled} service=${formatTransportField(bridge.serviceName)} available=${formatTransportField(bridge.serviceAvailable)} live=${bridge.live} plugin=${formatTransportField(bridge.pluginId)} reason=${bridge.reason}`
+      : "Bridge: n/a",
+    runtimeStatus
+      ? `Runtime control: operational=${runtimeStatus.transportControl.operationalTransports}/${runtimeStatus.transportInventory.length} live=${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled} pluginEnabled=${runtimeStatus.transportControl.enabledPlugins}`
+      : "Runtime control: n/a",
+    runtimeInventory
+      ? `Runtime inventory: source=${runtimeInventory.source} config=${runtimeInventory.configEnabled} gateway=${runtimeInventory.gatewayEnabled} operational=${runtimeInventory.operational} reason=${runtimeInventory.reason}`
+      : "Runtime inventory: n/a",
+    gatewayHealth
+      ? `Gateway health: status=${gatewayHealth.status} ready=${gatewayHealth.ready} mode=${gatewayHealth.mode} sends=${formatTransportField(gatewayHealth.sendCount)} detail=${gatewayHealth.detail}`
+      : "Gateway health: n/a",
+    gatewayState
+      ? `Gateway state: transportState=${gatewayState.transportState} presence=${gatewayState.presence.status} send=${gatewayState.sendCount} recv=${gatewayState.receiveCount} route=${gatewayState.routeCount} resp=${gatewayState.respondCount} traces=${gatewayState.traceCount}`
+      : "Gateway state: n/a",
+    gatewayState?.lastEventKind
+      ? `Last event: ${gatewayState.lastEventKind} :: ${gatewayState.lastEventDetail ?? "n/a"}`
+      : "Last event: n/a",
+    gatewayHistory
+      ? `History: traces=${gatewayHistory.traces.length} inbox=${gatewayHistory.inbox.length} outbox=${gatewayHistory.outbox.length} attachments=${gatewayHistory.attachments.length} deliveries=${gatewayHistory.deliveries.length} sessions=${gatewayHistory.sessions.length}`
+      : "History: n/a",
+    nativePlugin
+      ? `Native plugin: ${nativePlugin.id} source=${nativePlugin.source} enabled=${nativePlugin.enabled} :: ${nativePlugin.notes}`
+      : "Native plugin: n/a",
+  ].join("\n");
+}
+
 function parseTrajectoryArgs(raw: string): {
   sessionId?: string;
   role?: "user" | "assistant" | "system";
@@ -1404,6 +1513,25 @@ async function buildCommandResponse(
       `native services: available=${controlPlane.totals.availableServices} product=${controlPlane.totals.productTransports} custom=${controlPlane.totals.customTransports}`,
       summarizeTransportInventory(controlPlane.transportInventory),
     ].join("\n");
+  }
+
+  if (
+    trimmed.startsWith("/transport show ") ||
+    trimmed.startsWith("/gateway transport show ") ||
+    trimmed.startsWith("/transport ") ||
+    trimmed.startsWith("/gateway transport ")
+  ) {
+    const rawPlatform = trimmed
+      .replace(/^\/gateway\s+transport\s+show\s+/u, "")
+      .replace(/^\/transport\s+show\s+/u, "")
+      .replace(/^\/gateway\s+transport\s+/u, "")
+      .replace(/^\/transport\s+/u, "")
+      .trim();
+    const platform = parseTransportPlatform(rawPlatform);
+    if (!platform) {
+      return "Usage: /transport show <platform>";
+    }
+    return renderTransportDrilldown(context, platform);
   }
 
   if (trimmed === "/platforms" || trimmed === "/platforms status") {

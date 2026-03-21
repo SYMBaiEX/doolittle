@@ -146,6 +146,7 @@ function buildHelpText(agentName: string): string {
     "  /skills list",
     "  /execution status",
     "  /transport inventory",
+    "  /transport show telegram",
     "  /browser capture https://example.com",
     "  /media analyze ./recordings/demo.wav",
     "  /delegate create Research spike :: validate a transport path",
@@ -254,6 +255,9 @@ async function renderTransportContent(context: AppContext): Promise<string> {
             `- ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason}`,
         )
       : ["{gray-fg}No transport inventory available.{/}"]),
+    "",
+    "{bold}Drill-Down{/}",
+    "Try /transport show telegram for a single-platform view.",
     "",
     "{bold}Recent Gateway Traces{/}",
     ...(traces.length
