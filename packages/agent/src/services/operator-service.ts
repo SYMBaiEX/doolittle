@@ -11,6 +11,10 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
+import {
+  getAgentRegistrySnapshot,
+  getAgentSkillCatalogSnapshot,
+} from "@/runtime/native/agent-sdk";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
@@ -93,6 +97,12 @@ export interface SetupSummary {
     typeof getNativeTransportControlPlane
   >["transportInventory"];
   nativeServices: Array<{ group: string; services: string[]; count: number }>;
+  ecosystem?: {
+    registryAvailable: boolean;
+    registryPlugins: number;
+    skillCatalogAvailable: boolean;
+    skillCatalogSkills: number;
+  };
   checklist: string[];
 }
 
@@ -102,6 +112,12 @@ export interface UpdatePreview {
   status: string;
   recentCommits: string;
   recommendedSteps: string[];
+  ecosystem?: {
+    registryAvailable: boolean;
+    registryPlugins: number;
+    skillCatalogAvailable: boolean;
+    skillCatalogSkills: number;
+  };
   transportControl?: ReturnType<
     typeof getNativeTransportControlPlane
   >["totals"];
@@ -167,6 +183,10 @@ export class OperatorService {
   }
 
   async setupSummary(): Promise<SetupSummary> {
+    const [registrySnapshot, skillCatalog] = await Promise.all([
+      getAgentRegistrySnapshot(),
+      getAgentSkillCatalogSnapshot(),
+    ]);
     const transportControl = this.runtime
       ? getNativeTransportControlPlane(
           this.runtime,
@@ -269,11 +289,21 @@ export class OperatorService {
       nativeServices: describeNativeServiceRegistry(
         createNativeServiceRegistry(),
       ),
+      ecosystem: {
+        registryAvailable: registrySnapshot.available,
+        registryPlugins: registrySnapshot.total,
+        skillCatalogAvailable: skillCatalog.available,
+        skillCatalogSkills: skillCatalog.total,
+      },
       checklist: await this.diagnostics.setupChecklist(),
     };
   }
 
   async updatePreview(): Promise<UpdatePreview> {
+    const [registrySnapshot, skillCatalog] = await Promise.all([
+      getAgentRegistrySnapshot(),
+      getAgentSkillCatalogSnapshot(),
+    ]);
     const repositoryAvailable = this.repository.isRepository();
     const status = repositoryAvailable
       ? await this.repository.status()
@@ -306,6 +336,12 @@ export class OperatorService {
             "Initialize a git repository if you want update previews tied to commit history.",
             "Keep bun install, bun run typecheck, bun test, and bun run build as the standard update validation flow.",
           ],
+      ecosystem: {
+        registryAvailable: registrySnapshot.available,
+        registryPlugins: registrySnapshot.total,
+        skillCatalogAvailable: skillCatalog.available,
+        skillCatalogSkills: skillCatalog.total,
+      },
     };
   }
 

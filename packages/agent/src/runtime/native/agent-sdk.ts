@@ -1,6 +1,14 @@
 import {
+  getConfiguredEndpoints,
+  getRegistryPlugins,
+  listNonAppPlugins,
+  searchNonAppPlugins,
+} from "@elizaos/agent/services/registry-client";
+import {
   type CatalogSkill,
   getCatalogSkills,
+  getTrendingSkills,
+  searchCatalogSkills,
 } from "@elizaos/agent/services/skill-catalog-client";
 import { CHANNEL_DIST_TAGS } from "@elizaos/agent/services/update-checker";
 import {
@@ -63,4 +71,94 @@ export async function getAgentSdkAudit() {
       error: catalogError,
     },
   };
+}
+
+export async function getAgentRegistrySnapshot(limit = 20) {
+  try {
+    const [registry, plugins] = await Promise.all([
+      getRegistryPlugins(),
+      listNonAppPlugins(),
+    ]);
+    return {
+      available: true,
+      endpoints: getConfiguredEndpoints(),
+      total: registry.size,
+      nonAppPlugins: plugins.length,
+      sample: plugins.slice(0, limit).map((plugin) => plugin.name),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      endpoints: getConfiguredEndpoints(),
+      total: 0,
+      nonAppPlugins: 0,
+      sample: [] as string[],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function searchAgentRegistry(query: string, limit = 15) {
+  try {
+    return {
+      available: true,
+      query,
+      results: await searchNonAppPlugins(query, limit),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      query,
+      results: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function getAgentSkillCatalogSnapshot(limit = 20) {
+  try {
+    const [catalog, trending] = await Promise.all([
+      getCatalogSkills(),
+      getTrendingSkills(limit),
+    ]);
+    return {
+      available: true,
+      total: catalog.length,
+      trending: trending.map((skill) => ({
+        slug: skill.slug,
+        displayName: skill.displayName,
+        installs: skill.stats.installsCurrent,
+        stars: skill.stats.stars,
+      })),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      total: 0,
+      trending: [] as Array<{
+        slug: string;
+        displayName: string;
+        installs: number;
+        stars: number;
+      }>,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function searchAgentSkillCatalog(query: string, limit = 15) {
+  try {
+    return {
+      available: true,
+      query,
+      results: await searchCatalogSkills(query, limit),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      query,
+      results: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }

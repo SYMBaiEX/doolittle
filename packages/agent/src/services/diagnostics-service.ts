@@ -2,6 +2,10 @@ import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  getAgentRegistrySnapshot,
+  getAgentSkillCatalogSnapshot,
+} from "@/runtime/native/agent-sdk";
+import {
   getLatestRuntimeLine,
   getNativePackageAudit,
 } from "@/runtime/native/package-audit";
@@ -112,6 +116,10 @@ export class DiagnosticsService {
     );
     const nativeAudit = getNativePackageAudit(this.config);
     const nativePlugins = getNativePluginCatalog(this.config);
+    const [registrySnapshot, skillCatalog] = await Promise.all([
+      getAgentRegistrySnapshot(),
+      getAgentSkillCatalogSnapshot(),
+    ]);
     const controlPlane = this.runtime
       ? getNativeTransportControlPlane(
           this.runtime,
@@ -174,6 +182,24 @@ export class DiagnosticsService {
           : "pass",
       summary: "Native package compatibility audit",
       detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} alphaOnly=${nativeAudit.summary.alphaOnly} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
+    });
+
+    checks.push({
+      id: "ecosystem.registry",
+      status: registrySnapshot.available ? "pass" : "warn",
+      summary: "ElizaOS registry snapshot",
+      detail: registrySnapshot.available
+        ? `Registry snapshot available with ${registrySnapshot.total} entries and ${registrySnapshot.nonAppPlugins} non-app plugins.`
+        : `Registry snapshot unavailable: ${registrySnapshot.error ?? "unknown error"}`,
+    });
+
+    checks.push({
+      id: "ecosystem.skills.catalog",
+      status: skillCatalog.available ? "pass" : "warn",
+      summary: "ElizaOS skill catalog",
+      detail: skillCatalog.available
+        ? `Skill catalog available with ${skillCatalog.total} cached skills.`
+        : `Skill catalog unavailable: ${skillCatalog.error ?? "unknown error"}`,
     });
 
     checks.push({

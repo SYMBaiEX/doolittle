@@ -21,6 +21,10 @@ interface ToolRegistryDynamicState {
   nativeAlignedPackages?: number;
   nativeAlphaOnlyPackages?: number;
   nativeWorkspaceOnlyPackages?: number;
+  agentSdkRegistryAvailable?: boolean;
+  agentSdkRegistryPlugins?: number;
+  agentSdkCatalogAvailable?: boolean;
+  agentSdkCatalogSkills?: number;
 }
 
 interface ToolRegistrySummary {
@@ -47,6 +51,12 @@ interface ToolRegistrySummary {
     enabled: number;
     official: number;
     vendored: number;
+  };
+  ecosystem: {
+    registryAvailable: boolean;
+    registryPlugins: number;
+    skillCatalogAvailable: boolean;
+    skillCatalogSkills: number;
   };
 }
 
@@ -372,6 +382,24 @@ export class ToolsService {
       enabled: true,
       transport: "native",
     },
+    {
+      id: "runtime.registry",
+      name: "Registry Snapshot",
+      category: "runtime",
+      description:
+        "Inspect the ElizaOS registry client snapshot and endpoint state.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.catalog",
+      name: "Skill Catalog",
+      category: "runtime",
+      description:
+        "Inspect the ElizaOS skill catalog cache and trending skill metadata.",
+      enabled: true,
+      transport: "native",
+    },
   ];
 
   list(): ToolDefinition[] {
@@ -399,7 +427,21 @@ export class ToolsService {
                 ...tool,
                 description: `Latest runtime=${dynamic.nativeRuntimeLatest ?? "unknown"} alpha=${dynamic.nativeRuntimeAlpha ?? "unknown"} aligned=${dynamic.nativeAlignedPackages ?? 0} alphaOnly=${dynamic.nativeAlphaOnlyPackages ?? 0} workspaceOnly=${dynamic.nativeWorkspaceOnlyPackages ?? 0}.`,
               }
-            : tool,
+            : tool.id === "runtime.registry"
+              ? {
+                  ...tool,
+                  description: dynamic.agentSdkRegistryAvailable
+                    ? `ElizaOS registry snapshot available with ${dynamic.agentSdkRegistryPlugins ?? 0} plugin entries.`
+                    : "ElizaOS registry snapshot is unavailable in the current environment.",
+                }
+              : tool.id === "skills.catalog"
+                ? {
+                    ...tool,
+                    description: dynamic.agentSdkCatalogAvailable
+                      ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
+                      : "ElizaOS skill catalog is unavailable in the current environment.",
+                  }
+                : tool,
     );
     const pluginTools =
       dynamic.nativeCatalog?.map<ToolDefinition>((plugin) => ({
@@ -497,6 +539,12 @@ export class ToolsService {
         enabled: dynamic.nativePluginsEnabled ?? 0,
         official: dynamic.nativeOfficialPlugins ?? 0,
         vendored: dynamic.nativeVendoredPlugins ?? 0,
+      },
+      ecosystem: {
+        registryAvailable: dynamic.agentSdkRegistryAvailable ?? false,
+        registryPlugins: dynamic.agentSdkRegistryPlugins ?? 0,
+        skillCatalogAvailable: dynamic.agentSdkCatalogAvailable ?? false,
+        skillCatalogSkills: dynamic.agentSdkCatalogSkills ?? 0,
       },
     };
   }

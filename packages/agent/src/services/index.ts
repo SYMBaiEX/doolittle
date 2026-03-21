@@ -1,5 +1,9 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
+import {
+  getAgentRegistrySnapshot,
+  getAgentSkillCatalogSnapshot,
+} from "@/runtime/native/agent-sdk";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
@@ -330,6 +334,14 @@ export function createServices(
   const apiTransport = new ApiTransportService(join(config.dataDir, "api"));
   const nativePluginCatalog = getNativePluginCatalog(config);
   const nativePackageAudit = getNativePackageAudit(config);
+  const agentSdkRegistry = {
+    available: false,
+    total: 0,
+  };
+  const agentSdkCatalog = {
+    available: false,
+    total: 0,
+  };
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
   const acp = new AcpService(config, () => tools.list());
@@ -355,7 +367,23 @@ export function createServices(
     nativeAlignedPackages: nativePackageAudit.summary.aligned,
     nativeAlphaOnlyPackages: nativePackageAudit.summary.alphaOnly,
     nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
+    agentSdkRegistryAvailable: agentSdkRegistry.available,
+    agentSdkRegistryPlugins: agentSdkRegistry.total,
+    agentSdkCatalogAvailable: agentSdkCatalog.available,
+    agentSdkCatalogSkills: agentSdkCatalog.total,
   }));
+  void getAgentRegistrySnapshot()
+    .then((snapshot) => {
+      agentSdkRegistry.available = snapshot.available;
+      agentSdkRegistry.total = snapshot.total;
+    })
+    .catch(() => {});
+  void getAgentSkillCatalogSnapshot()
+    .then((snapshot) => {
+      agentSdkCatalog.available = snapshot.available;
+      agentSdkCatalog.total = snapshot.total;
+    })
+    .catch(() => {});
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";
     model: string;
