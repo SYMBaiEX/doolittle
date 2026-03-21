@@ -409,6 +409,7 @@ export function createServices(
       join(config.dataDir, "cron"),
       config.cronOutputDir,
       config.cronTickSeconds,
+      config.timezone,
     ),
     pairing: new PairingService(join(config.gatewayDataDir, "pairing")),
     hooks: new HooksService(config.hooksDir),

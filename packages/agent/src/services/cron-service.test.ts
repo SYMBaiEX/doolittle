@@ -11,6 +11,7 @@ describe("CronService", () => {
       join(root, "data"),
       join(root, "output"),
       30,
+      "America/Chicago",
     );
 
     try {
@@ -48,6 +49,7 @@ describe("CronService", () => {
       join(root, "data"),
       join(root, "output"),
       30,
+      "America/Chicago",
     );
 
     try {
@@ -87,6 +89,31 @@ describe("CronService", () => {
         clearRuntime: true,
       });
       expect(cleared.runtime).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses autonomous cron scheduling for 5-field cron expressions", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-cron-cronexpr-"));
+    const service = new CronService(
+      join(root, "data"),
+      join(root, "output"),
+      30,
+      "America/Chicago",
+    );
+
+    try {
+      const job = service.create({
+        name: "weekday-report",
+        prompt: "Send the daily operator summary.",
+        schedule: "15 9 * * 1-5",
+      });
+
+      expect(job.nextRunAt).toBeDefined();
+      const nextRun = new Date(job.nextRunAt ?? "");
+      expect(Number.isNaN(nextRun.getTime())).toBe(false);
+      expect(nextRun.getUTCMinutes()).toBe(15);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
