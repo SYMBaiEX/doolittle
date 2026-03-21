@@ -187,6 +187,16 @@ describe("OperatorService", () => {
       setup.transports.some((entry) => entry.id === "telegram" && entry.ready),
     ).toBe(true);
     expect(setup.transportControl?.totals.availableServices).toBe(2);
+    expect(
+      setup.transportInventory?.some(
+        (entry) => entry.platform === "api" && entry.operational,
+      ),
+    ).toBe(true);
+    expect(
+      setup.transportInventory?.some(
+        (entry) => entry.platform === "telegram" && !entry.operational,
+      ),
+    ).toBe(true);
     expect(setup.checklist.length).toBeGreaterThan(0);
     expect(update.version.version).toBeTruthy();
     expect(update.recommendedSteps.length).toBeGreaterThan(0);

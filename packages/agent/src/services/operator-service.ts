@@ -60,6 +60,9 @@ export interface SetupSummary {
   providers: Array<{ id: string; ready: boolean; detail: string }>;
   transports: Array<{ id: string; ready: boolean; detail: string }>;
   transportControl?: ReturnType<typeof getNativeTransportControlPlane>;
+  transportInventory?: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["transportInventory"];
   nativeServices: Array<{ group: string; services: string[]; count: number }>;
   checklist: string[];
 }
@@ -129,6 +132,13 @@ export class OperatorService {
   }
 
   async setupSummary(): Promise<SetupSummary> {
+    const transportControl = this.runtime
+      ? getNativeTransportControlPlane(
+          this.runtime,
+          this.config,
+          this.diagnostics.currentGatewayConfig(),
+        )
+      : undefined;
     return {
       version: this.version(),
       directories: [
@@ -210,13 +220,8 @@ export class OperatorService {
             : "Missing SIGNAL_CLI_COMMAND.",
         },
       ],
-      transportControl: this.runtime
-        ? getNativeTransportControlPlane(
-            this.runtime,
-            this.config,
-            this.diagnostics.currentGatewayConfig(),
-          )
-        : undefined,
+      transportControl,
+      transportInventory: transportControl?.transportInventory,
       nativeServices: describeNativeServiceRegistry(
         createNativeServiceRegistry(),
       ),
