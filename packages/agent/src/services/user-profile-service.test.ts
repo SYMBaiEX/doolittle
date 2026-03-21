@@ -77,6 +77,61 @@ describe("UserProfileService", () => {
     }
   });
 
+  it("tracks beliefs, relationship signals, and engagement summaries", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-user-profile-rel-"));
+    const service = new UserProfileService(root);
+
+    try {
+      service.remember(
+        "user-4",
+        "belief",
+        "Eliza Agent should stay Eliza-native.",
+        "cli",
+      );
+      service.observe(
+        "user-4",
+        "I believe Bun is the right toolchain and I trust this setup.",
+        "cli",
+      );
+      service.observe(
+        "user-4",
+        "We should collaborate more closely and you can count on me.",
+        "cli",
+      );
+
+      const beliefs = service.beliefs("user-4");
+      const relationship = service.relationship("user-4");
+      const engagement = service.engagement("user-4");
+      const rendered = service.render("user-4");
+
+      expect(
+        beliefs.beliefs.some((entry) => entry.includes("Eliza-native")),
+      ).toBe(true);
+      expect(
+        beliefs.beliefs.some((entry) => entry.includes("Bun is the right")),
+      ).toBe(true);
+      expect(relationship.status).not.toBe("new");
+      expect(relationship.trust).toBeGreaterThan(0);
+      expect(relationship.collaboration).toBeGreaterThan(0);
+      expect(engagement.touches).toBeGreaterThan(0);
+      expect(engagement.channels).toContain("cli");
+      expect(engagement.recentSignals.length).toBeGreaterThan(0);
+      expect(rendered).toContain("Beliefs");
+      expect(rendered).toContain("Relationship");
+      expect(rendered).toContain("Engagement");
+
+      const search = service.search("Eliza", 5);
+      expect(search.some((entry) => entry.userId === "user-4")).toBe(true);
+
+      const recall = service.recall("user-4", "Bun");
+      expect(recall.some((entry) => entry.kind === "belief")).toBe(true);
+      expect(recall.some((entry) => entry.kind === "relationship")).toBe(true);
+      expect(recall.some((entry) => entry.kind === "engagement")).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("supports explicit memories, mode switches, and agent profile cards", () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-user-profile-cards-"));
     const service = new UserProfileService(root);

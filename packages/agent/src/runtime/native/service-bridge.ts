@@ -32,6 +32,10 @@ interface NativeRolodexService {
   observeAgent(text: string, source?: string): unknown;
   agentProfile(): unknown;
   summary?(): unknown;
+  search?(query: string, limit?: number): unknown;
+  beliefs?(userId: string): unknown;
+  relationship?(userId: string): unknown;
+  engagement?(userId: string): unknown;
 }
 
 interface NativeExperienceService {
@@ -150,6 +154,10 @@ interface NativeRolodexSummary {
   totalProfiles: number;
   agentName: string;
   recentProfiles: string[];
+  totalBeliefs: number;
+  activeRelationships: number;
+  engagedProfiles: number;
+  recentSignals: string[];
 }
 
 interface NativeExperienceSummary {
@@ -903,6 +911,51 @@ export function getEffectiveRolodexSummary(
   }) as NativeRolodexSummary;
 }
 
+export function getEffectiveUserProfileSearch(
+  runtime: RuntimeLike,
+  services: AppServices,
+  query: string,
+  limit = 10,
+) {
+  return (
+    getNativeServices(runtime).rolodex?.search?.(query, limit) ??
+    services.userProfiles.search(query, limit)
+  );
+}
+
+export function getEffectiveUserBeliefs(
+  runtime: RuntimeLike,
+  services: AppServices,
+  userId: string,
+) {
+  return (
+    getNativeServices(runtime).rolodex?.beliefs?.(userId) ??
+    services.userProfiles.beliefs(userId)
+  );
+}
+
+export function getEffectiveUserRelationship(
+  runtime: RuntimeLike,
+  services: AppServices,
+  userId: string,
+) {
+  return (
+    getNativeServices(runtime).rolodex?.relationship?.(userId) ??
+    services.userProfiles.relationship(userId)
+  );
+}
+
+export function getEffectiveUserEngagement(
+  runtime: RuntimeLike,
+  services: AppServices,
+  userId: string,
+) {
+  return (
+    getNativeServices(runtime).rolodex?.engagement?.(userId) ??
+    services.userProfiles.engagement(userId)
+  );
+}
+
 export function getEffectiveExperienceSummary(
   runtime: RuntimeLike,
   services: AppServices,
@@ -937,6 +990,74 @@ export async function getEffectiveSkillCatalog(
     (await getNativeServices(runtime).agentSkills?.catalog?.(limit)) ??
     services.skills.catalog(limit)
   );
+}
+
+export async function getEffectiveSkillHubCatalog(
+  services: AppServices,
+  force = false,
+  limit = 50,
+) {
+  return services.skillsHub.catalog(force, limit);
+}
+
+export async function searchEffectiveSkillHubCatalog(
+  services: AppServices,
+  query: string,
+  limit = 15,
+) {
+  return services.skillsHub.searchCatalog(query, limit);
+}
+
+export function getEffectiveSkillHubSummary(services: AppServices) {
+  return services.skillsHub.summary();
+}
+
+export function getEffectiveSkillHubWorkspace(services: AppServices) {
+  return services.skillsHub.workspace();
+}
+
+export function getEffectiveSkillHubGenerated(services: AppServices) {
+  return services.skillsHub.generated();
+}
+
+export function getEffectiveSkillHubInstalled(services: AppServices) {
+  return services.skillsHub.installedManifests();
+}
+
+export function getEffectiveSkillHubInstalledManifest(
+  services: AppServices,
+  slug: string,
+) {
+  return services.skillsHub.installedManifest(slug);
+}
+
+export async function syncEffectiveSkillHub(
+  services: AppServices,
+  force = false,
+) {
+  return services.skillsHub.syncCatalog(force);
+}
+
+export function exportEffectiveSkillHubManifest(
+  services: AppServices,
+  slug: string,
+  destinationPath?: string,
+) {
+  return services.skillsHub.exportManifest(slug, destinationPath);
+}
+
+export function importEffectiveSkillHubManifest(
+  services: AppServices,
+  sourcePath: string,
+) {
+  return services.skillsHub.importManifest(sourcePath);
+}
+
+export function installEffectiveSkillHubManifest(
+  services: AppServices,
+  slug: string,
+) {
+  return services.skillsHub.installFromCatalog(slug);
 }
 
 export async function searchEffectiveSkillCatalog(

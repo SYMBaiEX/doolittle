@@ -42,42 +42,68 @@ describe("SkillsHubService", () => {
     );
 
     const agentSdk = new AgentSdkService();
-    const workspaceCatalogEntry = {
+    const catalogCreatedAt = Date.now();
+    const workspaceCatalogEntry: AgentCatalogSkill = {
       slug: "planning/coordination",
       displayName: "Planning Coordination",
       summary: "Coordinate planning work across multiple projects.",
       tags: { domain: "planning" },
+      createdAt: catalogCreatedAt,
+      updatedAt: catalogCreatedAt + 1_000,
+      latestVersion: {
+        version: "1.0.0",
+        createdAt: catalogCreatedAt,
+        changelog: "Initial release",
+      },
       stats: {
-        installsCurrent: 12,
+        comments: 2,
+        downloads: 144,
         installsAllTime: 88,
+        installsCurrent: 12,
         stars: 21,
         versions: 3,
       },
     };
-    const remoteCatalogEntry = {
+    const remoteCatalogEntry: AgentCatalogSkill = {
       slug: "distribution/catalog-skill",
       displayName: "Distribution Catalog",
       summary: "Catalog skill used to exercise installs.",
       tags: { domain: "distribution" },
+      createdAt: catalogCreatedAt,
+      updatedAt: catalogCreatedAt + 1_000,
+      latestVersion: {
+        version: "1.0.0",
+        createdAt: catalogCreatedAt,
+        changelog: "Initial release",
+      },
       stats: {
-        installsCurrent: 5,
+        comments: 1,
+        downloads: 27,
         installsAllTime: 15,
+        installsCurrent: 5,
         stars: 4,
         versions: 2,
       },
     };
-    agentSdk.catalog = async () =>
-      [workspaceCatalogEntry, remoteCatalogEntry] as never;
-    agentSdk.catalogSkill = async (
-      slug: string,
-    ): Promise<AgentCatalogSkill> =>
+    agentSdk.catalog = async () => [workspaceCatalogEntry, remoteCatalogEntry];
+    agentSdk.catalogSkill = async (slug: string) =>
       slug === remoteCatalogEntry.slug ? remoteCatalogEntry : null;
-    agentSdk.searchSkillCatalog = async () =>
-      ({
-        available: true,
-        query: "planning",
-        results: [workspaceCatalogEntry],
-      }) as never;
+    agentSdk.searchSkillCatalog = async () => ({
+      available: true,
+      query: "planning",
+      results: [
+        {
+          slug: workspaceCatalogEntry.slug,
+          displayName: workspaceCatalogEntry.displayName,
+          summary: workspaceCatalogEntry.summary,
+          score: 0.99,
+          latestVersion: workspaceCatalogEntry.latestVersion?.version ?? null,
+          downloads: workspaceCatalogEntry.stats.downloads,
+          stars: workspaceCatalogEntry.stats.stars,
+          installs: workspaceCatalogEntry.stats.installsCurrent,
+        },
+      ],
+    });
 
     const skills = new SkillsService(skillsDir, agentSdk);
     const synthesis = new SkillSynthesisService(skillsDir);

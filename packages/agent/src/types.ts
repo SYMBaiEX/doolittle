@@ -360,6 +360,8 @@ export interface UserProfileRecord {
   memoryMode?: "local" | "hybrid";
   preferences: string[];
   facts: string[];
+  beliefs: string[];
+  beliefSources: string[];
   notes: string[];
   aliases?: string[];
   goals?: string[];
@@ -368,9 +370,30 @@ export interface UserProfileRecord {
   explicitMemories?: string[];
   toolPreferences?: string[];
   workStyle?: string[];
+  relationship?: UserProfileRelationshipRecord;
+  engagement?: UserProfileEngagementRecord;
   lastSource?: string;
   lastSeenAt: string;
   updatedAt: string;
+}
+
+export interface UserProfileRelationshipRecord {
+  status: "new" | "growing" | "active" | "trusted";
+  trust: number;
+  collaboration: number;
+  notes: string[];
+  lastInteractionAt?: string;
+  lastSource?: string;
+}
+
+export interface UserProfileEngagementRecord {
+  touches: number;
+  channels: string[];
+  sources: string[];
+  sessionIds: string[];
+  recentSignals: string[];
+  lastInteractionAt?: string;
+  lastSource?: string;
 }
 
 export interface AgentIdentityRecord {
@@ -381,6 +404,44 @@ export interface AgentIdentityRecord {
   workStyle: string[];
   lastSource?: string;
   updatedAt: string;
+}
+
+export interface UserProfileBeliefSummary {
+  userId: string;
+  displayName?: string;
+  beliefs: string[];
+  sources: string[];
+}
+
+export interface UserProfileRelationshipSummary {
+  userId: string;
+  displayName?: string;
+  status: "new" | "growing" | "active" | "trusted";
+  trust: number;
+  collaboration: number;
+  notes: string[];
+  lastInteractionAt?: string;
+  lastSource?: string;
+}
+
+export interface UserProfileEngagementSummary {
+  userId: string;
+  displayName?: string;
+  touches: number;
+  channels: string[];
+  sources: string[];
+  sessionIds: string[];
+  recentSignals: string[];
+  lastInteractionAt?: string;
+  lastSource?: string;
+}
+
+export interface UserProfileSearchHit {
+  userId: string;
+  displayName?: string;
+  score: number;
+  matchedFields: string[];
+  preview: string[];
 }
 
 export interface ContextDocument {
@@ -600,6 +661,10 @@ export interface AcpRegistryEntry {
   name: string;
   display_name: string;
   description: string;
+  package: {
+    name: string;
+    version: string;
+  };
   distribution: {
     type: "command";
     command: string;
@@ -607,7 +672,42 @@ export interface AcpRegistryEntry {
   };
   capabilities: {
     tools: number;
+    sessions?: boolean;
+    import_export?: boolean;
+    editors?: string[];
   };
+}
+
+export interface AcpPackageMetadata {
+  name: string;
+  version: string;
+  description?: string;
+  packageManager?: string;
+  workspaceCount: number;
+  pluginPackageCount: number;
+  rootPath: string;
+}
+
+export interface AcpEditorSummary {
+  package: AcpPackageMetadata;
+  registryPath: string;
+  exportDir: string;
+  importDir: string;
+  commandConfigured: boolean;
+  command?: string;
+  installCommand: string;
+  exportCommand: string;
+  importCommand: string;
+  lastPublishAt?: string;
+  lastExportAt?: string;
+  lastImportAt?: string;
+}
+
+export interface AcpSessionSummary {
+  totalSessions: number;
+  recentSessionIds: string[];
+  titledSessions: number;
+  recentTitles: string[];
 }
 
 export interface ToolDefinition {

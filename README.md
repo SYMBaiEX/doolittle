@@ -89,6 +89,7 @@ eliza-agent/
 | MEMORY.md and USER.md | [`packages/agent/src/services/memory-service.ts`](./packages/agent/src/services/memory-service.ts) |
 | Session search | [`packages/agent/src/services/session-service.ts`](./packages/agent/src/services/session-service.ts) + `/search` command |
 | Skills browsing | [`packages/agent/src/services/skills-service.ts`](./packages/agent/src/services/skills-service.ts) + `/skills` command |
+| Skills hub / sync / distribution | [`packages/agent/src/services/skills-hub-service.ts`](./packages/agent/src/services/skills-hub-service.ts) + `/skills hub`, `/skills sync`, `/skills export`, `/skills import`, `/skills install` |
 | Cron / scheduled runs | [`packages/agent/src/services/cron-service.ts`](./packages/agent/src/services/cron-service.ts) + `/cron` command family |
 | CLI / TUI entrypoint | [`packages/agent/src/cli.ts`](./packages/agent/src/cli.ts) with a full-screen Blessed operator cockpit and plain fallback mode |
 | API server | [`packages/agent/src/server.ts`](./packages/agent/src/server.ts) with Bun's native HTTP server |
@@ -128,6 +129,8 @@ Curated skill docs live under [`packages/skills`](./packages/skills) and are gro
 
 The category index is documented in [`packages/skills/README.md`](./packages/skills/README.md).
 
+Native skills-hub distribution, manifest export/import, and install workflows are documented in [`docs/skills-hub.md`](./docs/skills-hub.md).
+
 ## Plugin inventory
 
 The runtime now uses a wider native ElizaOS stack:
@@ -148,6 +151,8 @@ The runtime now uses a wider native ElizaOS stack:
   - First-party architectural reference package used selectively for native stack alignment.
 - `@elizaos/skills`
   - First-party skills package used as part of the native ElizaOS workspace alignment.
+- `skills hub`
+  - Eliza Agent-native distribution layer for catalog sync, manifest export/import, and installable skill manifests.
 - vendored official-compatible packages in `packages/plugins/*`
   - Local workspace packages that preserve official ElizaOS package names while implementing directly against the current runtime line for browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
 - `elizaos`
@@ -368,6 +373,10 @@ Useful commands:
 - `/search <query>`
 - `/user profile`
 - `/user card`
+- `/user beliefs`
+- `/user relationship`
+- `/user engagement`
+- `/user search Bun`
 - `/user mode hybrid`
 - `/user remember context :: we are shipping the final native experience pass`
 - `/agent profile`
@@ -518,7 +527,11 @@ When `ELIZA_AGENT_MODE=api` or `both`, the Bun API exposes:
 - `GET /sessions`
 - `GET /sessions/summary`
 - `GET /profiles/users`
+- `GET /profiles/users/search?query=Bun`
 - `GET /profiles/users/card?userId=user-123`
+- `GET /profiles/users/beliefs?userId=user-123`
+- `GET /profiles/users/relationship?userId=user-123`
+- `GET /profiles/users/engagement?userId=user-123`
 - `GET /profiles/agent`
 - `GET /skills`
 - `GET /skills/generated`
