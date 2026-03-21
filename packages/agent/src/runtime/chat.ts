@@ -129,21 +129,11 @@ async function renderTransportDrilldown(
   const runtimeInventory = runtimeStatus?.transportInventory.find(
     (entry) => entry.platform === platform,
   );
-  const gatewayHealth = context.gateway
-    ? (await context.gateway.health()).find(
-        (entry) => entry.platform === platform,
-      )
+  const gatewayDetail = context.gateway
+    ? await context.gateway.transport(platform)
     : undefined;
-  const gatewayState = context.gateway
-    ? (
-        await context.gateway.state(20, {
-          platform,
-        })
-      ).platforms.at(0)
-    : undefined;
-  const gatewayHistory = context.gateway
-    ? await context.gateway.history(20, { platform })
-    : undefined;
+  const gatewayHealth = gatewayDetail?.readiness;
+  const gatewayState = gatewayDetail?.platformState;
   const messagingPlugins = groupNativePluginCatalog(
     getNativePluginCatalog(context.config),
   ).messaging;
@@ -180,9 +170,12 @@ async function renderTransportDrilldown(
     gatewayState?.lastEventKind
       ? `Last event: ${gatewayState.lastEventKind} :: ${gatewayState.lastEventDetail ?? "n/a"}`
       : "Last event: n/a",
-    gatewayHistory
-      ? `History: traces=${gatewayHistory.traces.length} inbox=${gatewayHistory.inbox.length} outbox=${gatewayHistory.outbox.length} attachments=${gatewayHistory.attachments.length} deliveries=${gatewayHistory.deliveries.length} sessions=${gatewayHistory.sessions.length}`
+    gatewayDetail
+      ? `History: traces=${gatewayDetail.traceCount} inbox=${gatewayDetail.inboxCount} outbox=${gatewayDetail.outboxCount} attachments=${gatewayDetail.attachmentCount}`
       : "History: n/a",
+    gatewayDetail
+      ? `Mismatches: ${gatewayDetail.mismatchFlags.length ? gatewayDetail.mismatchFlags.join(", ") : "none"}`
+      : "Mismatches: n/a",
     nativePlugin
       ? `Native plugin: ${nativePlugin.id} source=${nativePlugin.source} enabled=${nativePlugin.enabled} :: ${nativePlugin.notes}`
       : "Native plugin: n/a",

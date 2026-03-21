@@ -297,6 +297,27 @@ interface GatewayRuntimeStatus {
   >["transportInventory"];
 }
 
+interface GatewayTransportDetail {
+  platform: PlatformName;
+  inventory?: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["transportInventory"][number];
+  messagingBridge?: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["messagingBridge"][number];
+  platformState?: GatewayPlatformState;
+  readiness?: PlatformHealth;
+  traceCount: number;
+  inboxCount: number;
+  outboxCount: number;
+  attachmentCount: number;
+  recentTraces: GatewayTraceRecord[];
+  recentInbox: GatewayInboxRecord[];
+  recentOutbox: GatewayOutboxRecord[];
+  recentAttachments: GatewayAttachmentRecord[];
+  mismatchFlags: string[];
+}
+
 interface GatewaySupervisionRecord {
   at: string;
   platform: PlatformName | "gateway";
@@ -1447,6 +1468,67 @@ export class GatewayRunner {
       transportControl: controlPlane.totals,
       messagingBridge: controlPlane.messagingBridge,
       transportInventory: controlPlane.transportInventory,
+    };
+  }
+
+  async transport(platform: PlatformName): Promise<GatewayTransportDetail> {
+    const controlPlane = this.getTransportControlPlane();
+    const inventory = controlPlane.transportInventory.find(
+      (entry) => entry.platform === platform,
+    );
+    const messagingBridge = controlPlane.messagingBridge.find(
+      (entry) => entry.platform === platform,
+    );
+    const readiness = (await this.health()).find(
+      (entry) => entry.platform === platform,
+    );
+    const state = await this.state(100, {
+      platform,
+    });
+    const platformState = state.platforms.find(
+      (entry) => entry.platform === platform,
+    );
+    const recentTraces = this.trace(20, { platform });
+    const recentInbox = this.inbox(20, { platform });
+    const recentOutbox = this.outbox(20, { platform });
+    const recentAttachments = this.attachments(20, { platform });
+    const mismatchFlags: string[] = [];
+
+    if (inventory?.gatewayEnabled && !platformState) {
+      mismatchFlags.push("gateway-enabled-without-platform-state");
+    }
+    if (
+      inventory &&
+      platformState &&
+      inventory.operational !== platformState.ready
+    ) {
+      mismatchFlags.push("inventory-operational-mismatch");
+    }
+    if (messagingBridge?.pluginEnabled && !messagingBridge.serviceAvailable) {
+      mismatchFlags.push("plugin-enabled-without-runtime-service");
+    }
+    if (messagingBridge?.serviceAvailable && !messagingBridge.live) {
+      mismatchFlags.push("runtime-service-not-live");
+    }
+    if (readiness && platformState && readiness.ready !== platformState.ready) {
+      mismatchFlags.push("health-ready-mismatch");
+    }
+
+    return {
+      platform,
+      inventory,
+      messagingBridge,
+      platformState,
+      readiness,
+      traceCount: recentTraces.length,
+      inboxCount: recentInbox.length,
+      outboxCount: recentOutbox.length,
+      attachmentCount: recentAttachments.length,
+      recentTraces,
+      recentInbox,
+      recentOutbox,
+      recentAttachments,
+      mismatchFlags,
     };
   }
 

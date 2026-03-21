@@ -67,12 +67,6 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show the shared transport status summary.",
   },
   {
-    command: "/transport show <platform>",
-    category: "runtime",
-    description:
-      "Inspect one transport with inventory, runtime, and journal state.",
-  },
-  {
     command: "/runtime ecosystem",
     category: "runtime",
     description: "Show alpha-channel package alignment and native audit data.",
@@ -106,11 +100,6 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/gateway transport <platform>",
     category: "gateway",
     description: "Show one gateway transport in detail.",
-  },
-  {
-    command: "/gateway transport <platform>",
-    category: "gateway",
-    description: "Inspect one gateway transport in detail.",
   },
   {
     command: "/gateway readiness",

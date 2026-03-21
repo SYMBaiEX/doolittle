@@ -69,6 +69,7 @@ describe("GatewayRunner", () => {
       const attachments = runner.attachments(10);
       const apiTraces = runner.trace(10, { platform: "api" });
       const state = await runner.state(10, { platform: "api" });
+      const transportDetail = await runner.transport("api");
       const heartbeatState = await runner.heartbeat("manual");
       const runtimeStatus = runner.runtimeStatus();
       const health = await runner.health();
@@ -148,6 +149,13 @@ describe("GatewayRunner", () => {
       expect(state.totals.totalTraces).toBeGreaterThanOrEqual(apiTraces.length);
       expect(state.totals.gatewayEnabledTransports).toBeGreaterThan(0);
       expect(state.totals.operationalTransports).toBeGreaterThanOrEqual(0);
+      expect(transportDetail.platform).toBe("api");
+      expect(transportDetail.inventory?.platform).toBe("api");
+      expect(transportDetail.platformState?.platform).toBe("api");
+      expect(transportDetail.traceCount).toBeGreaterThan(0);
+      expect(transportDetail.inboxCount).toBeGreaterThan(0);
+      expect(transportDetail.outboxCount).toBeGreaterThan(0);
+      expect(transportDetail.mismatchFlags).toEqual([]);
       expect(state.totals.inboxMessages).toBeGreaterThan(0);
       expect(state.totals.outboxMessages).toBeGreaterThan(0);
       expect(state.totals.attachmentRecords).toBeGreaterThan(0);
