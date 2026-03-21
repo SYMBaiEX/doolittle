@@ -1,6 +1,7 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
+import type { MemorySummary } from "@/services/memory-service";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import { describeAutonomousAlignment } from "./autonomous-stack";
 
@@ -137,6 +138,29 @@ interface NativePluginManagerSummary {
   official: number;
   vendored: number;
   categories: number;
+}
+
+interface NativePersonalitySummary {
+  total: number;
+  activeId?: string;
+  names: string[];
+}
+
+interface NativeRolodexSummary {
+  totalProfiles: number;
+  agentName: string;
+  recentProfiles: string[];
+}
+
+interface NativeExperienceSummary {
+  sessions: {
+    totalSessions: number;
+    recentSessionIds: string[];
+  };
+  memory: {
+    shared: MemorySummary;
+    user: MemorySummary;
+  };
 }
 
 interface NativeDiscordTransportService {
@@ -856,50 +880,42 @@ export function getEffectiveMemorySnapshot(
   runtime: RuntimeLike,
   services: AppServices,
   target: "memory" | "user" = "memory",
-) {
-  return (
-    getNativeServices(runtime).knowledge?.summary?.(target) ??
-    services.memory.summary(target)
-  );
+): MemorySummary {
+  return (getNativeServices(runtime).knowledge?.summary?.(target) ??
+    services.memory.summary(target)) as MemorySummary;
 }
 
 export function getEffectivePersonalitySummary(
   runtime: RuntimeLike,
   services: AppServices,
-) {
-  return (
-    getNativeServices(runtime).personality?.summary?.() ?? {
-      ...services.personalities.summary(),
-    }
-  );
+): NativePersonalitySummary {
+  return (getNativeServices(runtime).personality?.summary?.() ?? {
+    ...services.personalities.summary(),
+  }) as NativePersonalitySummary;
 }
 
 export function getEffectiveRolodexSummary(
   runtime: RuntimeLike,
   services: AppServices,
-) {
-  return (
-    getNativeServices(runtime).rolodex?.summary?.() ?? {
-      ...services.userProfiles.summary(),
-    }
-  );
+): NativeRolodexSummary {
+  return (getNativeServices(runtime).rolodex?.summary?.() ?? {
+    ...services.userProfiles.summary(),
+  }) as NativeRolodexSummary;
 }
 
 export function getEffectiveExperienceSummary(
   runtime: RuntimeLike,
   services: AppServices,
-) {
-  return (
-    getNativeServices(runtime).experience?.summary?.() ?? {
-      sessions: {
-        ...services.sessions.summary(),
-      },
-      memory: {
-        shared: getEffectiveMemorySnapshot(runtime, services, "memory"),
-        user: getEffectiveMemorySnapshot(runtime, services, "user"),
-      },
-    }
-  );
+): NativeExperienceSummary {
+  return (getNativeServices(runtime).experience?.summary?.() ?? {
+    sessions: {
+      ...services.sessions.summary(),
+    },
+    memory: {
+      shared: getEffectiveMemorySnapshot(runtime, services, "memory"),
+      user: getEffectiveMemorySnapshot(runtime, services, "user"),
+    },
+  }) as NativeExperienceSummary;
 }
 
 export function getEffectiveGeneratedSkills(

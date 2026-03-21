@@ -6,8 +6,12 @@ import {
   getEffectiveDelegationChildren,
   getEffectiveDelegationTask,
   getEffectiveDelegationTree,
+  getEffectiveExperienceSummary,
+  getEffectiveMemorySnapshot,
   getEffectiveMessagingTransportInventory,
+  getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
+  getEffectiveRolodexSummary,
   getEffectiveTransportInventory,
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
@@ -448,6 +452,218 @@ describe("delegation bridge helpers", () => {
       note: "note",
       cascadeChildren: true,
       source: "native-retry",
+    });
+  });
+});
+
+describe("identity bridge helpers", () => {
+  it("prefers native knowledge, personality, rolodex, and experience summaries when available", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "knowledge") {
+          return {
+            summary: (target: "memory" | "user") => ({
+              target,
+              entries: target === "memory" ? 9 : 4,
+              characters: target === "memory" ? 144 : 72,
+              preview: [`${target}:native-preview`],
+            }),
+          };
+        }
+        if (name === "personality") {
+          return {
+            summary: () => ({
+              total: 4,
+              activeId: "operator",
+              names: ["Operator", "Concise", "Teacher", "Autonomous"],
+            }),
+          };
+        }
+        if (name === "rolodex") {
+          return {
+            summary: () => ({
+              totalProfiles: 2,
+              agentName: "Eliza Agent",
+              recentProfiles: ["alice", "bob"],
+            }),
+          };
+        }
+        if (name === "experience") {
+          return {
+            summary: () => ({
+              sessions: {
+                totalSessions: 5,
+                recentSessionIds: ["session-1", "session-2"],
+              },
+              memory: {
+                shared: {
+                  target: "memory",
+                  entries: 9,
+                  characters: 144,
+                  preview: ["native"],
+                },
+                user: {
+                  target: "user",
+                  entries: 4,
+                  characters: 72,
+                  preview: ["native-user"],
+                },
+              },
+            }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const services = {
+      memory: {
+        summary: (target: "memory" | "user") => ({
+          target,
+          entries: 1,
+          characters: 1,
+          preview: ["fallback"],
+        }),
+      },
+      personalities: {
+        summary: () => ({
+          total: 1,
+          activeId: "fallback",
+          names: ["fallback"],
+        }),
+      },
+      userProfiles: {
+        summary: () => ({
+          totalProfiles: 1,
+          agentName: "fallback",
+          recentProfiles: ["fallback"],
+        }),
+      },
+      sessions: {
+        summary: () => ({
+          totalSessions: 1,
+          recentSessionIds: ["fallback"],
+        }),
+      },
+    } as never as AppServices;
+
+    expect(getEffectiveMemorySnapshot(runtime, services, "memory")).toEqual({
+      target: "memory",
+      entries: 9,
+      characters: 144,
+      preview: ["memory:native-preview"],
+    });
+    expect(getEffectiveMemorySnapshot(runtime, services, "user")).toEqual({
+      target: "user",
+      entries: 4,
+      characters: 72,
+      preview: ["user:native-preview"],
+    });
+    expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
+      total: 4,
+      activeId: "operator",
+      names: ["Operator", "Concise", "Teacher", "Autonomous"],
+    });
+    expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
+      totalProfiles: 2,
+      agentName: "Eliza Agent",
+      recentProfiles: ["alice", "bob"],
+    });
+    expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
+      sessions: {
+        totalSessions: 5,
+        recentSessionIds: ["session-1", "session-2"],
+      },
+      memory: {
+        shared: {
+          target: "memory",
+          entries: 9,
+          characters: 144,
+          preview: ["native"],
+        },
+        user: {
+          target: "user",
+          entries: 4,
+          characters: 72,
+          preview: ["native-user"],
+        },
+      },
+    });
+  });
+
+  it("falls back to product summaries when native services are unavailable", () => {
+    const runtime = {
+      getService() {
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const services = {
+      memory: {
+        summary: (target: "memory" | "user") => ({
+          target,
+          entries: target === "memory" ? 3 : 1,
+          characters: target === "memory" ? 48 : 12,
+          preview: [`${target}:fallback`],
+        }),
+      },
+      personalities: {
+        summary: () => ({
+          total: 2,
+          activeId: "operator",
+          names: ["Operator", "Teacher"],
+        }),
+      },
+      userProfiles: {
+        summary: () => ({
+          totalProfiles: 7,
+          agentName: "Eliza Agent",
+          recentProfiles: ["carol", "dave"],
+        }),
+      },
+      sessions: {
+        summary: () => ({
+          totalSessions: 9,
+          recentSessionIds: ["session-a"],
+        }),
+      },
+    } as never as AppServices;
+
+    expect(getEffectiveMemorySnapshot(runtime, services, "memory")).toEqual({
+      target: "memory",
+      entries: 3,
+      characters: 48,
+      preview: ["memory:fallback"],
+    });
+    expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
+      total: 2,
+      activeId: "operator",
+      names: ["Operator", "Teacher"],
+    });
+    expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
+      totalProfiles: 7,
+      agentName: "Eliza Agent",
+      recentProfiles: ["carol", "dave"],
+    });
+    expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
+      sessions: {
+        totalSessions: 9,
+        recentSessionIds: ["session-a"],
+      },
+      memory: {
+        shared: {
+          target: "memory",
+          entries: 3,
+          characters: 48,
+          preview: ["memory:fallback"],
+        },
+        user: {
+          target: "user",
+          entries: 1,
+          characters: 12,
+          preview: ["user:fallback"],
+        },
+      },
     });
   });
 });

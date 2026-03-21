@@ -31,10 +31,14 @@ import {
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
+  getEffectiveExperienceSummary,
   getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
+  getEffectiveMemorySnapshot,
   getEffectivePersonalityList,
+  getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
+  getEffectiveRolodexSummary,
   getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
@@ -650,7 +654,24 @@ export function startApiServer(context: AppContext): void {
           url.searchParams.get("target") === "user" ? "user" : "memory";
         return json({
           target,
+          summary: getEffectiveMemorySnapshot(
+            context.runtime,
+            context.services,
+            target,
+          ),
           snapshot: context.services.memory.renderSnapshot(target),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/memory/summary") {
+        const target =
+          url.searchParams.get("target") === "user" ? "user" : "memory";
+        return json({
+          summary: getEffectiveMemorySnapshot(
+            context.runtime,
+            context.services,
+            target,
+          ),
         });
       }
 
@@ -1747,6 +1768,19 @@ export function startApiServer(context: AppContext): void {
                 entry.id === activeId,
             ) ?? context.services.personalities.getActive(),
           available,
+          summary: getEffectivePersonalitySummary(
+            context.runtime,
+            context.services,
+          ),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/personality/summary") {
+        return json({
+          summary: getEffectivePersonalitySummary(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 
@@ -1768,6 +1802,10 @@ export function startApiServer(context: AppContext): void {
           card:
             nativeServices.rolodex?.card(userId) ??
             context.services.userProfiles.renderCards(userId),
+          summary: getEffectiveRolodexSummary(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 
@@ -1795,6 +1833,19 @@ export function startApiServer(context: AppContext): void {
           card:
             nativeServices.rolodex?.agentProfile() ??
             context.services.userProfiles.renderAgent(),
+          summary: getEffectiveRolodexSummary(
+            context.runtime,
+            context.services,
+          ),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/profiles/summary") {
+        return json({
+          summary: getEffectiveRolodexSummary(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 
@@ -1913,6 +1964,24 @@ export function startApiServer(context: AppContext): void {
         };
         return json({
           profile: context.services.userProfiles.seedAgent(body),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/experience") {
+        return json({
+          summary: getEffectiveExperienceSummary(
+            context.runtime,
+            context.services,
+          ),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/experience/summary") {
+        return json({
+          summary: getEffectiveExperienceSummary(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 

@@ -111,8 +111,16 @@ export class SessionService {
     totalSessions: number;
     recentSessionIds: string[];
   } {
+    const total = this.db
+      .query(
+        `
+          SELECT COUNT(DISTINCT session_id) as count
+          FROM messages
+        `,
+      )
+      .get() as { count: number };
     return {
-      totalSessions: this.listSessions(1000).length,
+      totalSessions: total.count,
       recentSessionIds: this.latest(limit).map((session) => session.sessionId),
     };
   }

@@ -189,14 +189,39 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show long-term memory entries.",
   },
   {
+    command: "/memory summary",
+    category: "memory",
+    description: "Show native memory summary data.",
+  },
+  {
     command: "/user card",
     category: "memory",
     description: "Show the current user memory card.",
   },
   {
+    command: "/profiles summary",
+    category: "memory",
+    description: "Show native rolodex and profile summary data.",
+  },
+  {
     command: "/agent profile",
     category: "memory",
     description: "Show the Eliza Agent identity profile.",
+  },
+  {
+    command: "/personality summary",
+    category: "memory",
+    description: "Show native personality summary data.",
+  },
+  {
+    command: "/experience summary",
+    category: "memory",
+    description: "Show native session and memory experience summary data.",
+  },
+  {
+    command: "/experience",
+    category: "memory",
+    description: "Show native session and memory experience summary data.",
   },
   {
     command: "/skills list",

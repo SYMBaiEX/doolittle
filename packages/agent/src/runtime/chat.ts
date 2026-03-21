@@ -30,10 +30,14 @@ import {
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
+  getEffectiveExperienceSummary,
   getEffectiveGeneratedSkills,
   getEffectiveMcpStatus,
+  getEffectiveMemorySnapshot,
   getEffectivePersonalityList,
+  getEffectivePersonalitySummary,
   getEffectivePluginManagerInventory,
+  getEffectiveRolodexSummary,
   getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
@@ -132,6 +136,69 @@ function formatTransportField(value: unknown): string {
     return "n/a";
   }
   return String(value);
+}
+
+export function formatMemorySummary(summary: {
+  target: string;
+  entries: number;
+  characters: number;
+  preview: string[];
+}): string {
+  return [
+    `target=${summary.target}`,
+    `entries=${summary.entries}`,
+    `characters=${summary.characters}`,
+    `preview=${summary.preview.length ? summary.preview.join(" | ") : "none"}`,
+  ].join(" ");
+}
+
+export function formatPersonalitySummary(summary: {
+  total: number;
+  activeId?: string;
+  names: string[];
+}): string {
+  return [
+    `total=${summary.total}`,
+    `active=${summary.activeId ?? "n/a"}`,
+    `names=${summary.names.length ? summary.names.join(", ") : "none"}`,
+  ].join(" ");
+}
+
+export function formatRolodexSummary(summary: {
+  totalProfiles: number;
+  agentName: string;
+  recentProfiles: string[];
+}): string {
+  return [
+    `totalProfiles=${summary.totalProfiles}`,
+    `agent=${summary.agentName}`,
+    `recent=${summary.recentProfiles.length ? summary.recentProfiles.join(",") : "none"}`,
+  ].join(" ");
+}
+
+export function formatExperienceSummary(summary: {
+  sessions: { totalSessions: number; recentSessionIds: string[] };
+  memory: {
+    shared: {
+      target: string;
+      entries: number;
+      characters: number;
+      preview: string[];
+    };
+    user: {
+      target: string;
+      entries: number;
+      characters: number;
+      preview: string[];
+    };
+  };
+}): string {
+  return [
+    `sessions=${summary.sessions.totalSessions}`,
+    `recent=${summary.sessions.recentSessionIds.length ? summary.sessions.recentSessionIds.join(",") : "none"}`,
+    `memory.shared=${summary.memory.shared.entries}/${summary.memory.shared.characters}`,
+    `memory.user=${summary.memory.user.entries}/${summary.memory.user.characters}`,
+  ].join(" ");
 }
 
 async function renderTransportDrilldown(
@@ -837,36 +904,66 @@ async function buildCommandResponse(
         ? "user"
         : "memory";
     if (
+      trimmed === "/memory summary" ||
+      trimmed === `/memory summary ${target}`
+    ) {
+      return JSON.stringify(
+        getEffectiveMemorySnapshot(context.runtime, context.services, target),
+        null,
+        2,
+      );
+    }
+    if (
       trimmed === "/memory" ||
       trimmed === "/memory list" ||
       trimmed === `/memory list ${target}`
     ) {
-      return context.services.memory.renderSnapshot(target);
+      return [
+        context.services.memory.renderSnapshot(target),
+        "",
+        `Summary: ${formatMemorySummary(
+          getEffectiveMemorySnapshot(context.runtime, context.services, target),
+        )}`,
+      ].join("\n");
     }
   }
 
   if (trimmed === "/user" || trimmed === "/user profile") {
+    const nativeCard = nativeServices.rolodex?.card(input.userId);
+    if (nativeCard) {
+      return typeof nativeCard === "string"
+        ? nativeCard
+        : JSON.stringify(nativeCard, null, 2);
+    }
     return context.services.userProfiles.render(input.userId);
   }
 
-  if (trimmed === "/user card" || trimmed === "/profiles card") {
+  if (trimmed === "/profiles summary") {
     return JSON.stringify(
-      nativeServices.rolodex?.card(input.userId) ?? {
-        rendered: context.services.userProfiles.renderCards(input.userId),
-      },
+      getEffectiveRolodexSummary(context.runtime, context.services),
       null,
       2,
     );
   }
 
+  if (trimmed === "/user card" || trimmed === "/profiles card") {
+    const nativeCard = nativeServices.rolodex?.card(input.userId);
+    if (nativeCard) {
+      return typeof nativeCard === "string"
+        ? nativeCard
+        : JSON.stringify(nativeCard, null, 2);
+    }
+    return context.services.userProfiles.renderCards(input.userId);
+  }
+
   if (trimmed === "/agent profile") {
-    return JSON.stringify(
-      nativeServices.rolodex?.agentProfile() ?? {
-        rendered: context.services.userProfiles.renderAgent(),
-      },
-      null,
-      2,
-    );
+    const nativeProfile = nativeServices.rolodex?.agentProfile();
+    if (nativeProfile) {
+      return typeof nativeProfile === "string"
+        ? nativeProfile
+        : JSON.stringify(nativeProfile, null, 2);
+    }
+    return context.services.userProfiles.renderAgent();
   }
 
   if (trimmed.startsWith("/user recall ")) {
@@ -1420,7 +1517,14 @@ async function buildCommandResponse(
 
   if (trimmed === "/personality" || trimmed === "/personality status") {
     const active = context.services.personalities.getActive();
-    return `${active.name} (${active.id})\n${active.description}\n${active.systemAddendum}`;
+    return [
+      `${active.name} (${active.id})`,
+      active.description,
+      active.systemAddendum,
+      `Summary: ${formatPersonalitySummary(
+        getEffectivePersonalitySummary(context.runtime, context.services),
+      )}`,
+    ].join("\n");
   }
 
   if (trimmed === "/personality list") {
@@ -1441,6 +1545,22 @@ async function buildCommandResponse(
         | { id: string; name: string }
         | undefined) ?? context.services.personalities.setActive(id);
     return `Active personality set to ${profile.name}.`;
+  }
+
+  if (trimmed === "/personality summary") {
+    return JSON.stringify(
+      getEffectivePersonalitySummary(context.runtime, context.services),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/experience" || trimmed === "/experience summary") {
+    return JSON.stringify(
+      getEffectiveExperienceSummary(context.runtime, context.services),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/context" || trimmed === "/context files") {
@@ -1483,25 +1603,43 @@ async function buildCommandResponse(
 
   if (trimmed === "/status") {
     const personality = context.services.personalities.getActive();
-    const skillsCount = context.services.skills.list().length;
-    const cronJobs = context.services.cron.list().length;
-    const gatewaySessions = context.services.gatewaySessions.list().length;
     const settings = context.services.settings.get();
     const controlPlane = getNativeTransportControlPlane(
       context.runtime,
       context.config,
       context.services.gatewayConfig,
     );
+    const memorySummary = getEffectiveMemorySnapshot(
+      context.runtime,
+      context.services,
+      "memory",
+    );
+    const personalitySummary = getEffectivePersonalitySummary(
+      context.runtime,
+      context.services,
+    );
+    const rolodexSummary = getEffectiveRolodexSummary(
+      context.runtime,
+      context.services,
+    );
+    const experienceSummary = getEffectiveExperienceSummary(
+      context.runtime,
+      context.services,
+    );
     return [
       `Agent: ${context.config.agentName}`,
       `Personality: ${personality.name}`,
+      `Personality summary: ${formatPersonalitySummary(personalitySummary)}`,
       `Provider: ${settings.model.provider}`,
       `Model: ${settings.model.model}`,
       `Transport inventory: ${controlPlane.totals.operationalTransports}/${controlPlane.transportInventory.length} operational`,
       `Gateway bridges: ${controlPlane.totals.liveServices}/${controlPlane.totals.gatewayEnabled} live`,
-      `Skills: ${skillsCount}`,
-      `Cron jobs: ${cronJobs}`,
-      `Gateway sessions: ${gatewaySessions}`,
+      `Memory summary: ${formatMemorySummary(memorySummary)}`,
+      `Profiles summary: ${formatRolodexSummary(rolodexSummary)}`,
+      `Experience summary: ${formatExperienceSummary(experienceSummary)}`,
+      `Skills: ${context.services.skills.list().length}`,
+      `Cron jobs: ${context.services.cron.list().length}`,
+      `Gateway sessions: ${context.services.gatewaySessions.list().length}`,
     ].join("\n");
   }
 
