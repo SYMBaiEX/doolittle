@@ -12,4 +12,5 @@ cache/
 coverage/
 *.log
 *.tgz
+docs/
 skills/generated/index.json
