@@ -193,12 +193,14 @@ async function renderTransportContent(context: AppContext): Promise<string> {
   const inbox = context.gateway.inbox(3);
   const sessions = context.services.gatewaySessions.list().slice(0, 4);
   const gatewayState = await context.gateway.state(12);
+  const runtimeStatus = context.gateway.runtimeStatus();
   const platformStates = gatewayState.platforms.slice(0, 4);
 
   return [
     "{bold}Gateway Control Plane{/}",
     `Enabled: ${gatewayState.totals.configuredPlatforms}`,
     `Plugin-mediated: ${gatewayState.totals.pluginMediatedAdapters}/${gatewayState.totals.configuredPlatforms}`,
+    `Native live: ${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled}`,
     "",
     "{bold}Recent Gateway Traces{/}",
     ...(traces.length
@@ -209,10 +211,18 @@ async function renderTransportContent(context: AppContext): Promise<string> {
       : ["{gray-fg}No recent trace activity.{/}"]),
     "",
     "{bold}Native Messaging{/}",
+    ...(runtimeStatus.messagingBridge.length
+      ? runtimeStatus.messagingBridge.map(
+          (entry) =>
+            `- ${entry.platform} ${entry.pluginId ?? "custom"}${entry.pluginSource ? ` (${entry.pluginSource})` : ""} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} live=${entry.live ? "yes" : "no"}`,
+        )
+      : ["{gray-fg}No enabled platform state yet.{/}"]),
+    "",
+    "{bold}Platform State{/}",
     ...(platformStates.length
       ? platformStates.map(
           (entry) =>
-            `- ${entry.platform} ${entry.nativePluginId ?? "custom"}${entry.nativePluginSource ? ` (${entry.nativePluginSource})` : ""}`,
+            `- ${entry.platform} ${entry.transportState} ${entry.presence.status}${entry.nativePluginId ? ` plugin=${entry.nativePluginId}` : ""}`,
         )
       : ["{gray-fg}No enabled platform state yet.{/}"]),
     "",

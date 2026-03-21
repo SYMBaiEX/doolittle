@@ -2458,8 +2458,11 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/runtime") {
+        const runtimeStatus = context.gateway.runtimeStatus();
         return json({
-          runtime: context.gateway.runtimeStatus(),
+          runtime: runtimeStatus,
+          messagingBridge: runtimeStatus.messagingBridge,
+          transportControl: runtimeStatus.transportControl,
           messagingPlugins: groupNativePluginCatalog(
             getNativePluginCatalog(context.config),
           ).messaging,

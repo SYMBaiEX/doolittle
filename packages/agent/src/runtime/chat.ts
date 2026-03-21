@@ -1391,16 +1391,12 @@ async function buildCommandResponse(
       return "Gateway runtime is not attached to this execution context.";
     }
     const state = await context.gateway.state(50);
-    const controlPlane = getNativeTransportControlPlane(
-      context.runtime,
-      context.config,
-      context.services.gatewayConfig,
-    );
+    const runtimeStatus = context.gateway.runtimeStatus();
     return JSON.stringify(
       {
-        runtime: context.gateway.runtimeStatus(),
-        messagingBridge: controlPlane.messagingBridge,
-        transportControl: controlPlane.totals,
+        runtime: runtimeStatus,
+        messagingBridge: runtimeStatus.messagingBridge,
+        transportControl: runtimeStatus.transportControl,
         mediation: {
           pluginMediatedAdapters: state.totals.pluginMediatedAdapters,
           officialPluginAdapters: state.totals.officialPluginAdapters,
