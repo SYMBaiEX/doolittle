@@ -1296,6 +1296,7 @@ async function buildCommandResponse(
     const controlPlane = getNativeTransportControlPlane(
       context.runtime,
       context.config,
+      context.services.gatewayConfig,
     );
     const pluginLines = groupNativePluginCatalog(
       getNativePluginCatalog(context.config),
@@ -1305,11 +1306,11 @@ async function buildCommandResponse(
     );
     const bridgeLines = controlPlane.messagingBridge.map(
       (entry) =>
-        `- bridge ${entry.platform} service=${entry.serviceName} available=${entry.serviceAvailable} live=${entry.live} plugin=${entry.pluginId ?? "n/a"} :: ${entry.detail}`,
+        `- bridge ${entry.platform} config=${entry.configEnabled} gateway=${entry.gatewayEnabled} service=${entry.serviceName} available=${entry.serviceAvailable} live=${entry.live} plugin=${entry.pluginId ?? "n/a"} reason=${entry.reason} :: ${entry.detail}`,
     );
     return [
       `gateway totals: configured=${health.length} ready=${health.filter((entry) => entry.ready).length} pluginMediated=${health.filter((entry) => entry.nativePluginId).length} official=${health.filter((entry) => entry.nativePluginSource === "official").length} vendored=${health.filter((entry) => entry.nativePluginSource === "vendored").length}`,
-      `bridge totals: enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices}`,
+      `bridge totals: gatewayEnabled=${controlPlane.totals.gatewayEnabled} pluginEnabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices}`,
       ...health.map((entry) => {
         const lifecycle = [
           entry.startedAt ? `started=${entry.startedAt}` : undefined,
@@ -1393,6 +1394,7 @@ async function buildCommandResponse(
     const controlPlane = getNativeTransportControlPlane(
       context.runtime,
       context.config,
+      context.services.gatewayConfig,
     );
     return JSON.stringify(
       {
@@ -1643,6 +1645,7 @@ async function buildCommandResponse(
     const controlPlane = getNativeTransportControlPlane(
       context.runtime,
       context.config,
+      context.services.gatewayConfig,
     );
     return JSON.stringify(
       {
@@ -1658,7 +1661,11 @@ async function buildCommandResponse(
 
   if (trimmed === "/runtime transports") {
     return JSON.stringify(
-      getNativeTransportControlPlane(context.runtime, context.config),
+      getNativeTransportControlPlane(
+        context.runtime,
+        context.config,
+        context.services.gatewayConfig,
+      ),
       null,
       2,
     );

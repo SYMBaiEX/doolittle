@@ -332,6 +332,7 @@ export class GatewayRunner {
     return getNativeTransportControlPlane(
       this.context.runtime,
       this.context.config,
+      this.context.services.gatewayConfig,
     );
   }
 

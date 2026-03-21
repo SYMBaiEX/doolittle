@@ -22,6 +22,10 @@ export class DiagnosticsService {
     this.runtime = runtime;
   }
 
+  currentGatewayConfig(): GatewayConfig {
+    return this.gatewayConfig;
+  }
+
   async run(input: {
     skillsCount: number;
     contextFilesCount: number;
@@ -62,7 +66,11 @@ export class DiagnosticsService {
     const nativeAudit = getNativePackageAudit(this.config);
     const nativePlugins = getNativePluginCatalog(this.config);
     const messagingBridge = this.runtime
-      ? getEffectiveMessagingTransportInventory(this.runtime, this.config)
+      ? getEffectiveMessagingTransportInventory(
+          this.runtime,
+          this.config,
+          this.gatewayConfig,
+        )
       : [];
     checks.push({
       id: "native.workspace",
@@ -136,6 +144,7 @@ export class DiagnosticsService {
       const controlPlane = getNativeTransportControlPlane(
         this.runtime,
         this.config,
+        this.gatewayConfig,
       );
       checks.push({
         id: "native.messaging.services",
@@ -152,7 +161,7 @@ export class DiagnosticsService {
         id: "native.messaging.control-plane",
         status: controlPlane.totals.enabledPlugins > 0 ? "pass" : "warn",
         summary: "Native messaging control plane",
-        detail: `configured=${controlPlane.totals.configured} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins}`,
+        detail: `configured=${controlPlane.totals.configured} gatewayEnabled=${controlPlane.totals.gatewayEnabled} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins}`,
       });
     }
 

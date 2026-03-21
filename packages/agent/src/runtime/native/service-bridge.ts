@@ -1,7 +1,7 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig, GatewayConfig } from "@/types";
 
 interface NativeKnowledgeService {
   ingestPdf(path: string): Promise<unknown>;
@@ -144,14 +144,18 @@ export function getNativeServices(runtime: RuntimeLike) {
 export function getEffectiveMessagingTransportInventory(
   runtime: RuntimeLike,
   config: EnvConfig,
+  gatewayConfig?: GatewayConfig,
 ): Array<{
   platform: "telegram" | "discord";
   pluginId?: string;
   pluginSource?: "official" | "vendored" | "custom";
+  configEnabled: boolean;
   pluginEnabled: boolean;
+  gatewayEnabled: boolean;
   serviceName: string;
   serviceAvailable: boolean;
   live: boolean;
+  reason: string;
   detail: string;
 }> {
   const native = getNativeServices(runtime);
@@ -182,10 +186,19 @@ export function getEffectiveMessagingTransportInventory(
       platform: "telegram",
       pluginId: telegramPlugin?.id,
       pluginSource: telegramPlugin?.source,
+      configEnabled: Boolean(config.telegramBotToken),
       pluginEnabled: Boolean(telegramPlugin?.enabled),
+      gatewayEnabled: Boolean(gatewayConfig?.platforms.telegram.enabled),
       serviceName: "telegram",
       serviceAvailable: Boolean(native.telegram),
       live: telegramLive,
+      reason: telegramLive
+        ? "live"
+        : telegramPlugin?.enabled
+          ? "service-unavailable"
+          : config.telegramBotToken
+            ? "plugin-disabled"
+            : "not-configured",
       detail: telegramLive
         ? `telegram service live; knownChats=${telegramKnownChats}`
         : telegramPlugin?.enabled
@@ -196,10 +209,19 @@ export function getEffectiveMessagingTransportInventory(
       platform: "discord",
       pluginId: discordPlugin?.id,
       pluginSource: discordPlugin?.source,
+      configEnabled: Boolean(config.discordBotToken),
       pluginEnabled: Boolean(discordPlugin?.enabled),
+      gatewayEnabled: Boolean(gatewayConfig?.platforms.discord.enabled),
       serviceName: "discord_transport",
       serviceAvailable: Boolean(native.discordTransport),
       live: discordLive,
+      reason: discordLive
+        ? "live"
+        : discordPlugin?.enabled
+          ? "service-unavailable"
+          : config.discordBotToken
+            ? "plugin-disabled"
+            : "not-configured",
       detail: discordLive
         ? "discord transport service available through native bridge"
         : discordPlugin?.enabled
@@ -212,12 +234,14 @@ export function getEffectiveMessagingTransportInventory(
 export function getNativeTransportControlPlane(
   runtime: RuntimeLike,
   config: EnvConfig,
+  gatewayConfig?: GatewayConfig,
 ): {
   messagingBridge: ReturnType<typeof getEffectiveMessagingTransportInventory>;
   messagingPlugins: ReturnType<typeof getNativePluginCatalog>;
   totals: {
     configured: number;
     enabledPlugins: number;
+    gatewayEnabled: number;
     availableServices: number;
     liveServices: number;
     officialPlugins: number;
@@ -230,6 +254,7 @@ export function getNativeTransportControlPlane(
   const messagingBridge = getEffectiveMessagingTransportInventory(
     runtime,
     config,
+    gatewayConfig,
   );
   return {
     messagingBridge,
@@ -237,6 +262,8 @@ export function getNativeTransportControlPlane(
     totals: {
       configured: messagingBridge.length,
       enabledPlugins: messagingBridge.filter((entry) => entry.pluginEnabled)
+        .length,
+      gatewayEnabled: messagingBridge.filter((entry) => entry.gatewayEnabled)
         .length,
       availableServices: messagingBridge.filter(
         (entry) => entry.serviceAvailable,

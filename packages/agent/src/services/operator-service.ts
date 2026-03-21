@@ -211,7 +211,11 @@ export class OperatorService {
         },
       ],
       transportControl: this.runtime
-        ? getNativeTransportControlPlane(this.runtime, this.config)
+        ? getNativeTransportControlPlane(
+            this.runtime,
+            this.config,
+            this.diagnostics.currentGatewayConfig(),
+          )
         : undefined,
       nativeServices: describeNativeServiceRegistry(
         createNativeServiceRegistry(),
