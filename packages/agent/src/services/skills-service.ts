@@ -3,6 +3,20 @@ import { join, relative } from "node:path";
 import type { SkillDocument } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
 
+export interface SkillsWorkspaceSummary {
+  total: number;
+  curated: number;
+  generated: number;
+  categories: Array<{
+    name: string;
+    count: number;
+  }>;
+  roots: Array<{
+    name: string;
+    count: number;
+  }>;
+}
+
 export class SkillsService {
   constructor(
     private readonly skillsDir: string,
@@ -34,6 +48,44 @@ export class SkillsService {
 
   get(slug: string): SkillDocument | undefined {
     return this.list().find((skill) => skill.slug === slug);
+  }
+
+  summary(): SkillsWorkspaceSummary {
+    const skills = this.list();
+    const counts = new Map<string, number>();
+    const roots = new Map<string, number>();
+    let generated = 0;
+
+    for (const skill of skills) {
+      const slug = skill.slug.replaceAll("\\", "/");
+      const root = slug.split("/")[0] ?? "unknown";
+      const category = slug.startsWith("generated/")
+        ? "generated"
+        : slug.split("/").slice(0, 2).join("/") || root;
+      roots.set(root, (roots.get(root) ?? 0) + 1);
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+      if (root === "generated") {
+        generated += 1;
+      }
+    }
+
+    return {
+      total: skills.length,
+      curated: skills.length - generated,
+      generated,
+      categories: [...counts.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort(
+          (left, right) =>
+            right.count - left.count || left.name.localeCompare(right.name),
+        ),
+      roots: [...roots.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort(
+          (left, right) =>
+            right.count - left.count || left.name.localeCompare(right.name),
+        ),
+    };
   }
 
   async catalog(limit = 20) {

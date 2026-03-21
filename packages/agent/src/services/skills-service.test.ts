@@ -38,4 +38,37 @@ describe("SkillsService", () => {
       { method: "searchSkillCatalog", query: "operator", limit: 3 },
     ]);
   });
+
+  test("summarizes workspace breadth by root family", async () => {
+    const agentSdk = {
+      async skillCatalog() {
+        return {
+          available: true,
+          total: 0,
+          trending: [],
+        };
+      },
+      async searchSkillCatalog() {
+        return {
+          available: true,
+          query: "",
+          results: [],
+        };
+      },
+    } as unknown as AgentSdkService;
+
+    const service = new SkillsService(
+      "/Users/symbiex/dev/elizaos/eliza-agent/eliza-agent/packages/skills",
+      agentSdk,
+    );
+
+    const summary = service.summary();
+
+    expect(summary.total).toBeGreaterThan(10);
+    expect(summary.curated).toBeGreaterThan(10);
+    expect(summary.generated).toBeGreaterThan(0);
+    expect(summary.roots.map((entry) => entry.name)).toContain("platform");
+    expect(summary.roots.map((entry) => entry.name)).toContain("research");
+    expect(summary.roots.map((entry) => entry.name)).toContain("generated");
+  });
 });

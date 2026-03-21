@@ -2,7 +2,7 @@
   "name": "@eliza-agent/skills",
   "version": "0.1.0",
   "private": true,
-  "description": "Eliza Agent skills workspace for identity, memory, communications, planning, support, transport, execution, media, and research families.",
+  "description": "Eliza Agent skills workspace for identity, memory, communications, documentation, data, planning, support, transport, execution, media, testing, and research families.",
   "type": "module",
   "keywords": [
     "eliza-agent",
@@ -10,6 +10,8 @@
     "identity",
     "memory",
     "communications",
+    "documentation",
+    "data",
     "browser",
     "media",
     "platform",
@@ -22,6 +24,7 @@
     "observability",
     "safety",
     "release",
+    "testing",
     "planning",
     "support",
     "community"

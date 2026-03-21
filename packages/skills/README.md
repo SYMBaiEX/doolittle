@@ -16,6 +16,14 @@ See the current registry in [`index.md`](./index.md).
   - scheduled summaries and recurring operational reports
 - `communications/inbox`
   - inbound triage, reply shaping, routing, and continuity management
+- `documentation/authoring`
+  - operator docs, workspace guides, and user-facing procedural writing
+- `data/ingestion`
+  - source normalization, import pipelines, and memory/catalog ingestion
+- `distribution/install`
+  - bootstrap guidance, install flows, and release delivery notes
+- `testing/regression`
+  - smoke checks, regression coverage, and repeatable behavior validation
 - `knowledge/rag`
   - source-backed retrieval, document ingestion, and citation-aware context
 - `operations/release`
