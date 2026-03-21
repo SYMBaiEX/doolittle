@@ -6,7 +6,9 @@ export type NativePluginCategory =
   | "providers"
   | "messaging"
   | "knowledge"
+  | "browser"
   | "execution"
+  | "integration"
   | "automation"
   | "product";
 
@@ -30,8 +32,17 @@ export function getNativePluginCatalog(
 
   return [
     {
-      id: "foundation.autonomous",
+      id: "foundation.agent",
       packageName: autonomous.foundationPackages[0],
+      category: "foundation",
+      source: "official",
+      enabled: true,
+      notes:
+        "Standalone Eliza agent package used for native runtime and ecosystem alignment.",
+    },
+    {
+      id: "foundation.autonomous",
+      packageName: autonomous.foundationPackages[1],
       category: "foundation",
       source: "official",
       enabled: true,
@@ -39,7 +50,7 @@ export function getNativePluginCatalog(
     },
     {
       id: "foundation.skills",
-      packageName: autonomous.foundationPackages[1],
+      packageName: autonomous.foundationPackages[2],
       category: "foundation",
       source: "official",
       enabled: true,
@@ -135,6 +146,15 @@ export function getNativePluginCatalog(
       notes: "Vendored official-style session and memory experience service.",
     },
     {
+      id: "browser.browser",
+      packageName: "@elizaos/plugin-browser",
+      category: "browser",
+      source: "vendored",
+      enabled: true,
+      notes:
+        "Vendored official-style browser plugin layered onto Eliza Agent web automation flows.",
+    },
+    {
       id: "execution.shell",
       packageName: "@elizaos/plugin-shell",
       category: "execution",
@@ -165,6 +185,15 @@ export function getNativePluginCatalog(
       source: "vendored",
       enabled: true,
       notes: "Vendored official-style plugin manager service.",
+    },
+    {
+      id: "integration.mcp",
+      packageName: "@elizaos/plugin-mcp",
+      category: "integration",
+      source: "vendored",
+      enabled: true,
+      notes:
+        "Vendored official-style MCP plugin layered onto Eliza Agent discovery and invocation.",
     },
     {
       id: "automation.cron",
@@ -209,7 +238,9 @@ export function groupNativePluginCatalog(
     providers: catalog.filter((entry) => entry.category === "providers"),
     messaging: catalog.filter((entry) => entry.category === "messaging"),
     knowledge: catalog.filter((entry) => entry.category === "knowledge"),
+    browser: catalog.filter((entry) => entry.category === "browser"),
     execution: catalog.filter((entry) => entry.category === "execution"),
+    integration: catalog.filter((entry) => entry.category === "integration"),
     automation: catalog.filter((entry) => entry.category === "automation"),
     product: catalog.filter((entry) => entry.category === "product"),
   };

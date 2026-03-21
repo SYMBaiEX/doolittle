@@ -470,12 +470,20 @@ export class OperatorService {
       dependencies: {
         "@elizaos/core":
           this.packageMetadata.dependencies?.["@elizaos/core"] ?? "unknown",
+        "@elizaos/agent":
+          this.packageMetadata.dependencies?.["@elizaos/agent"] ?? "unknown",
         elizaos: this.packageMetadata.dependencies?.elizaos ?? "unknown",
         "@elizaos/plugin-openai":
           this.packageMetadata.dependencies?.["@elizaos/plugin-openai"] ??
           "unknown",
         "@elizaos/plugin-anthropic":
           this.packageMetadata.dependencies?.["@elizaos/plugin-anthropic"] ??
+          "unknown",
+        "@elizaos/plugin-browser":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-browser"] ??
+          "unknown",
+        "@elizaos/plugin-mcp":
+          this.packageMetadata.dependencies?.["@elizaos/plugin-mcp"] ??
           "unknown",
       },
       nativePlugins: {

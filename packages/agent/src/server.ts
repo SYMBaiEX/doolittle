@@ -9,6 +9,7 @@ import {
   runModelAnalysisTurn,
   syncProviderSettings,
 } from "@/runtime/chat";
+import { getAgentSdkAudit } from "@/runtime/native/agent-sdk";
 import {
   getLatestRuntimeLine,
   getNativePackageAudit,
@@ -18,9 +19,20 @@ import {
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
 import {
+  analyzeEffectiveBrowserComparison,
+  analyzeEffectiveBrowserPage,
+  captureEffectiveBrowserPage,
+  compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
+  describeEffectiveCachedMcpTools,
+  describeEffectiveMcpTool,
+  discoverEffectiveMcpTools,
+  fetchEffectiveBrowserPage,
+  getEffectiveBrowserStatus,
+  getEffectiveCachedMcpTools,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
+  getEffectiveMcpStatus,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
@@ -29,7 +41,14 @@ import {
   getEffectiveSkills,
   getNativeServices,
   getNativeTransportControlPlane,
+  inspectEffectiveBrowserPage,
+  invokeEffectiveMcp,
+  invokeEffectiveMcpTool,
+  probeEffectiveMcp,
   runEffectiveShellCommand,
+  screenshotEffectiveBrowserPage,
+  searchEffectiveCachedMcpTools,
+  snapshotEffectiveBrowserPage,
 } from "@/runtime/native/service-bridge";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import { OperatorService } from "@/services/operator-service";
@@ -389,6 +408,7 @@ export function startApiServer(context: AppContext): void {
         return json({
           runtime: getLatestRuntimeLine(),
           audit: getNativePackageAudit(context.config),
+          agentSdk: await getAgentSdkAudit(),
         });
       }
 
@@ -721,19 +741,22 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "GET" && url.pathname === "/mcp/status") {
         return json({
-          mcp: context.services.mcp.status(),
+          mcp: getEffectiveMcpStatus(context.runtime, context.services),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/mcp/tools") {
         return json({
-          discovery: await context.services.mcp.discoverTools(),
+          discovery: await discoverEffectiveMcpTools(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/mcp/cached") {
         return json({
-          tools: context.services.mcp.getCachedTools(),
+          tools: getEffectiveCachedMcpTools(context.runtime, context.services),
         });
       }
 
@@ -743,7 +766,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "query is required" }, 400);
         }
         return json({
-          tools: context.services.mcp.searchCachedTools(query),
+          tools: searchEffectiveCachedMcpTools(
+            context.runtime,
+            context.services,
+            query,
+          ),
         });
       }
 
@@ -753,8 +780,19 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "name is required" }, 400);
         }
         return json({
-          tool: context.services.mcp.getTool(name) ?? null,
-          detail: context.services.mcp.describeTool(name),
+          tool:
+            getEffectiveCachedMcpTools(context.runtime, context.services).find(
+              (tool) =>
+                tool &&
+                typeof tool === "object" &&
+                "name" in tool &&
+                String((tool as { name?: unknown }).name) === name,
+            ) ?? null,
+          detail: describeEffectiveMcpTool(
+            context.runtime,
+            context.services,
+            name,
+          ),
         });
       }
 
@@ -762,7 +800,9 @@ export function startApiServer(context: AppContext): void {
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw ? Number(limitRaw) : 20;
         return json({
-          detail: context.services.mcp.describeCachedTools(
+          detail: describeEffectiveCachedMcpTools(
+            context.runtime,
+            context.services,
             !Number.isNaN(limit) && limit > 0 ? limit : 20,
           ),
         });
@@ -872,13 +912,20 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "url is required" }, 400);
         }
         return json({
-          page: await context.services.web.fetchText(targetUrl),
+          page: await fetchEffectiveBrowserPage(
+            context.runtime,
+            context.services,
+            targetUrl,
+          ),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/browser/status") {
         return json({
-          browser: await context.services.web.status(),
+          browser: await getEffectiveBrowserStatus(
+            context.runtime,
+            context.services,
+          ),
         });
       }
 
@@ -888,7 +935,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "url is required" }, 400);
         }
         return json({
-          inspection: await context.services.web.inspect(targetUrl),
+          inspection: await inspectEffectiveBrowserPage(
+            context.runtime,
+            context.services,
+            targetUrl,
+          ),
         });
       }
 
@@ -898,7 +949,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "url is required" }, 400);
         }
         return json({
-          path: await context.services.web.snapshot(body.url),
+          path: await snapshotEffectiveBrowserPage(
+            context.runtime,
+            context.services,
+            body.url,
+          ),
         });
       }
 
@@ -908,7 +963,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "url is required" }, 400);
         }
         return json({
-          path: await context.services.web.screenshot(body.url),
+          path: await screenshotEffectiveBrowserPage(
+            context.runtime,
+            context.services,
+            body.url,
+          ),
         });
       }
 
@@ -918,7 +977,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "url is required" }, 400);
         }
         return json({
-          capture: await context.services.web.capture(body.url),
+          capture: await captureEffectiveBrowserPage(
+            context.runtime,
+            context.services,
+            body.url,
+          ),
         });
       }
 
@@ -927,7 +990,11 @@ export function startApiServer(context: AppContext): void {
         if (!body.url) {
           return json({ error: "url is required" }, 400);
         }
-        const analysis = await context.services.web.analyze(body.url);
+        const analysis = await analyzeEffectiveBrowserPage(
+          context.runtime,
+          context.services,
+          body.url,
+        );
         return json({
           analysis,
           response: await runModelAnalysisTurn(
@@ -950,7 +1017,9 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "leftUrl and rightUrl are required" }, 400);
         }
         return json({
-          comparison: await context.services.web.compare(
+          comparison: await compareEffectiveBrowserPages(
+            context.runtime,
+            context.services,
             body.leftUrl,
             body.rightUrl,
           ),
@@ -968,7 +1037,9 @@ export function startApiServer(context: AppContext): void {
         if (!body.leftUrl || !body.rightUrl) {
           return json({ error: "leftUrl and rightUrl are required" }, 400);
         }
-        const analysis = await context.services.web.analyzeComparison(
+        const analysis = await analyzeEffectiveBrowserComparison(
+          context.runtime,
+          context.services,
           body.leftUrl,
           body.rightUrl,
         );
@@ -991,7 +1062,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "url is required" }, 400);
         }
         return json({
-          inspection: await context.services.web.inspect(targetUrl),
+          inspection: await inspectEffectiveBrowserPage(
+            context.runtime,
+            context.services,
+            targetUrl,
+          ),
         });
       }
 
@@ -2466,7 +2541,7 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {
         return json({
-          probe: await context.services.mcp.probe(),
+          probe: await probeEffectiveMcp(context.runtime, context.services),
         });
       }
 
@@ -2476,7 +2551,11 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "input is required" }, 400);
         }
         return json({
-          result: await context.services.mcp.invoke(body.input),
+          result: await invokeEffectiveMcp(
+            context.runtime,
+            context.services,
+            body.input,
+          ),
         });
       }
 
@@ -2489,7 +2568,9 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "tool is required" }, 400);
         }
         return json({
-          result: await context.services.mcp.invokeTool(
+          result: await invokeEffectiveMcpTool(
+            context.runtime,
+            context.services,
             body.tool,
             body.input ?? {},
           ),

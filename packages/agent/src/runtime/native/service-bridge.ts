@@ -35,6 +35,30 @@ interface NativeShellService {
   status(): Promise<unknown>;
 }
 
+interface NativeBrowserService {
+  status(): Promise<unknown>;
+  fetch(url: string): Promise<unknown>;
+  inspect(url: string): Promise<unknown>;
+  snapshot(url: string): Promise<string>;
+  screenshot(url: string): Promise<string>;
+  capture(url: string): Promise<unknown>;
+  analyze(url: string): Promise<unknown>;
+  compare(leftUrl: string, rightUrl: string): Promise<unknown>;
+  analyzeComparison(leftUrl: string, rightUrl: string): Promise<unknown>;
+}
+
+interface NativeMcpService {
+  status(): unknown;
+  probe(): Promise<unknown>;
+  discoverTools(): Promise<unknown>;
+  invoke(input: string): Promise<unknown>;
+  invokeTool(name: string, input: Record<string, unknown>): Promise<unknown>;
+  getCachedTools(): unknown[];
+  searchCachedTools(query: string): unknown[];
+  describeCachedTools(limit?: number): string;
+  describeTool(name: string): string;
+}
+
 interface NativeCronService {
   list(): unknown[];
   get(id: string): unknown;
@@ -151,6 +175,8 @@ export function getNativeServices(runtime: RuntimeLike) {
     personality: service<NativePersonalityService>(runtime, "personality"),
     rolodex: service<NativeRolodexService>(runtime, "rolodex"),
     shell: service<NativeShellService>(runtime, "shell"),
+    browser: service<NativeBrowserService>(runtime, "browser"),
+    mcp: service<NativeMcpService>(runtime, "mcp"),
     cron: service<NativeCronService>(runtime, "cron"),
     agentSkills: service<NativeAgentSkillsService>(runtime, "agent_skills"),
     trajectoryLogger: service<NativeTrajectoryLoggerService>(
@@ -483,6 +509,20 @@ export function getEffectiveServiceResolution(
       available: Boolean(native.shell),
     },
     {
+      capability: "browser",
+      nativeService: "browser",
+      source: native.browser ? "native" : "product",
+      fallback: "web",
+      available: Boolean(native.browser),
+    },
+    {
+      capability: "mcp",
+      nativeService: "mcp",
+      source: native.mcp ? "native" : "product",
+      fallback: "mcp",
+      available: Boolean(native.mcp),
+    },
+    {
       capability: "cron",
       nativeService: "cron",
       source: native.cron ? "native" : "product",
@@ -547,6 +587,203 @@ export async function runEffectiveShellCommand(
   return (
     (await getNativeServices(runtime).shell?.run(command)) ??
     services.terminal.run(command)
+  );
+}
+
+export async function getEffectiveBrowserStatus(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.status()) ??
+    services.web.status()
+  );
+}
+
+export async function fetchEffectiveBrowserPage(
+  runtime: RuntimeLike,
+  services: AppServices,
+  url: string,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.fetch(url)) ??
+    services.web.fetchText(url)
+  );
+}
+
+export async function inspectEffectiveBrowserPage(
+  runtime: RuntimeLike,
+  services: AppServices,
+  url: string,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.inspect(url)) ??
+    services.web.inspect(url)
+  );
+}
+
+export async function snapshotEffectiveBrowserPage(
+  runtime: RuntimeLike,
+  services: AppServices,
+  url: string,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.snapshot(url)) ??
+    services.web.snapshot(url)
+  );
+}
+
+export async function screenshotEffectiveBrowserPage(
+  runtime: RuntimeLike,
+  services: AppServices,
+  url: string,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.screenshot(url)) ??
+    services.web.screenshot(url)
+  );
+}
+
+export async function captureEffectiveBrowserPage(
+  runtime: RuntimeLike,
+  services: AppServices,
+  url: string,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.capture(url)) ??
+    services.web.capture(url)
+  );
+}
+
+export async function analyzeEffectiveBrowserPage(
+  runtime: RuntimeLike,
+  services: AppServices,
+  url: string,
+): Promise<{ prompt: string } & Record<string, unknown>> {
+  return (((await getNativeServices(runtime).browser?.analyze(url)) as
+    | ({ prompt: string } & Record<string, unknown>)
+    | undefined) ?? services.web.analyze(url)) as { prompt: string } & Record<
+    string,
+    unknown
+  >;
+}
+
+export async function compareEffectiveBrowserPages(
+  runtime: RuntimeLike,
+  services: AppServices,
+  leftUrl: string,
+  rightUrl: string,
+) {
+  return (
+    (await getNativeServices(runtime).browser?.compare(leftUrl, rightUrl)) ??
+    services.web.compare(leftUrl, rightUrl)
+  );
+}
+
+export async function analyzeEffectiveBrowserComparison(
+  runtime: RuntimeLike,
+  services: AppServices,
+  leftUrl: string,
+  rightUrl: string,
+): Promise<{ prompt: string } & Record<string, unknown>> {
+  return (((await getNativeServices(runtime).browser?.analyzeComparison(
+    leftUrl,
+    rightUrl,
+  )) as ({ prompt: string } & Record<string, unknown>) | undefined) ??
+    services.web.analyzeComparison(leftUrl, rightUrl)) as {
+    prompt: string;
+  } & Record<string, unknown>;
+}
+
+export function getEffectiveMcpStatus(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return getNativeServices(runtime).mcp?.status() ?? services.mcp.status();
+}
+
+export async function probeEffectiveMcp(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    (await getNativeServices(runtime).mcp?.probe()) ?? services.mcp.probe()
+  );
+}
+
+export async function discoverEffectiveMcpTools(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    (await getNativeServices(runtime).mcp?.discoverTools()) ??
+    services.mcp.discoverTools()
+  );
+}
+
+export function getEffectiveCachedMcpTools(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    getNativeServices(runtime).mcp?.getCachedTools() ??
+    services.mcp.getCachedTools()
+  );
+}
+
+export function searchEffectiveCachedMcpTools(
+  runtime: RuntimeLike,
+  services: AppServices,
+  query: string,
+) {
+  return (
+    getNativeServices(runtime).mcp?.searchCachedTools(query) ??
+    services.mcp.searchCachedTools(query)
+  );
+}
+
+export function describeEffectiveCachedMcpTools(
+  runtime: RuntimeLike,
+  services: AppServices,
+  limit = 20,
+) {
+  return (
+    getNativeServices(runtime).mcp?.describeCachedTools(limit) ??
+    services.mcp.describeCachedTools(limit)
+  );
+}
+
+export function describeEffectiveMcpTool(
+  runtime: RuntimeLike,
+  services: AppServices,
+  name: string,
+) {
+  return (
+    getNativeServices(runtime).mcp?.describeTool(name) ??
+    services.mcp.describeTool(name)
+  );
+}
+
+export async function invokeEffectiveMcp(
+  runtime: RuntimeLike,
+  services: AppServices,
+  input: string,
+) {
+  return (
+    (await getNativeServices(runtime).mcp?.invoke(input)) ??
+    services.mcp.invoke(input)
+  );
+}
+
+export async function invokeEffectiveMcpTool(
+  runtime: RuntimeLike,
+  services: AppServices,
+  name: string,
+  input: Record<string, unknown>,
+) {
+  return (
+    (await getNativeServices(runtime).mcp?.invokeTool(name, input)) ??
+    services.mcp.invokeTool(name, input)
   );
 }
 

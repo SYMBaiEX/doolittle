@@ -7,6 +7,7 @@ import {
   stringToUuid,
   type UUID,
 } from "@elizaos/core";
+import { getAgentSdkAudit } from "@/runtime/native/agent-sdk";
 import {
   getLatestRuntimeLine,
   getNativePackageAudit,
@@ -16,9 +17,20 @@ import {
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
 import {
+  analyzeEffectiveBrowserComparison,
+  analyzeEffectiveBrowserPage,
+  captureEffectiveBrowserPage,
+  compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
+  describeEffectiveCachedMcpTools,
+  describeEffectiveMcpTool,
+  discoverEffectiveMcpTools,
+  fetchEffectiveBrowserPage,
+  getEffectiveBrowserStatus,
+  getEffectiveCachedMcpTools,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
+  getEffectiveMcpStatus,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
@@ -27,7 +39,13 @@ import {
   getEffectiveSkills,
   getNativeServices,
   getNativeTransportControlPlane,
+  inspectEffectiveBrowserPage,
+  invokeEffectiveMcp,
+  invokeEffectiveMcpTool,
   runEffectiveShellCommand,
+  screenshotEffectiveBrowserPage,
+  searchEffectiveCachedMcpTools,
+  snapshotEffectiveBrowserPage,
 } from "@/runtime/native/service-bridge";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
@@ -1894,6 +1912,7 @@ async function buildCommandResponse(
       {
         runtime: getLatestRuntimeLine(),
         audit: getNativePackageAudit(context.config),
+        agentSdk: await getAgentSdkAudit(),
       },
       null,
       2,
@@ -2210,15 +2229,27 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/mcp" || trimmed === "/mcp status") {
-    return JSON.stringify(context.services.mcp.status(), null, 2);
+    return JSON.stringify(
+      getEffectiveMcpStatus(context.runtime, context.services),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/mcp tools") {
-    return JSON.stringify(await context.services.mcp.discoverTools(), null, 2);
+    return JSON.stringify(
+      await discoverEffectiveMcpTools(context.runtime, context.services),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/mcp cached") {
-    return JSON.stringify(context.services.mcp.getCachedTools(), null, 2);
+    return JSON.stringify(
+      getEffectiveCachedMcpTools(context.runtime, context.services),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/mcp cached search ")) {
@@ -2227,20 +2258,22 @@ async function buildCommandResponse(
       return "Usage: /mcp cached search <query>";
     }
     return JSON.stringify(
-      context.services.mcp.searchCachedTools(query),
+      searchEffectiveCachedMcpTools(context.runtime, context.services, query),
       null,
       2,
     );
   }
 
   if (trimmed === "/mcp cached describe") {
-    return context.services.mcp.describeCachedTools();
+    return describeEffectiveCachedMcpTools(context.runtime, context.services);
   }
 
   if (trimmed.startsWith("/mcp cached describe ")) {
     const raw = trimmed.replace("/mcp cached describe ", "").trim();
     const limit = Number(raw);
-    return context.services.mcp.describeCachedTools(
+    return describeEffectiveCachedMcpTools(
+      context.runtime,
+      context.services,
       Number.isFinite(limit) && limit > 0 ? limit : 20,
     );
   }
@@ -2250,12 +2283,16 @@ async function buildCommandResponse(
     if (!name) {
       return "Usage: /mcp describe <tool-name>";
     }
-    return context.services.mcp.describeTool(name);
+    return describeEffectiveMcpTool(context.runtime, context.services, name);
   }
 
   if (trimmed.startsWith("/mcp invoke ")) {
     const input = trimmed.replace("/mcp invoke ", "").trim();
-    return JSON.stringify(await context.services.mcp.invoke(input), null, 2);
+    return JSON.stringify(
+      await invokeEffectiveMcp(context.runtime, context.services, input),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/mcp call ")) {
@@ -2268,7 +2305,12 @@ async function buildCommandResponse(
       ? (JSON.parse(inputRaw) as Record<string, unknown>)
       : {};
     return JSON.stringify(
-      await context.services.mcp.invokeTool(toolName, parsedInput),
+      await invokeEffectiveMcpTool(
+        context.runtime,
+        context.services,
+        toolName,
+        parsedInput,
+      ),
       null,
       2,
     );
@@ -2333,36 +2375,64 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/web fetch ")) {
     const url = trimmed.replace("/web fetch ", "").trim();
-    return JSON.stringify(await context.services.web.fetchText(url), null, 2);
+    return JSON.stringify(
+      await fetchEffectiveBrowserPage(context.runtime, context.services, url),
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/browser" || trimmed === "/browser status") {
-    return JSON.stringify(await context.services.web.status(), null, 2);
+    return JSON.stringify(
+      await getEffectiveBrowserStatus(context.runtime, context.services),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/browser fetch ")) {
     const url = trimmed.replace("/browser fetch ", "").trim();
-    return JSON.stringify(await context.services.web.fetchText(url), null, 2);
+    return JSON.stringify(
+      await fetchEffectiveBrowserPage(context.runtime, context.services, url),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/browser inspect ")) {
     const url = trimmed.replace("/browser inspect ", "").trim();
-    return JSON.stringify(await context.services.web.inspect(url), null, 2);
+    return JSON.stringify(
+      await inspectEffectiveBrowserPage(context.runtime, context.services, url),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/browser snapshot ")) {
     const url = trimmed.replace("/browser snapshot ", "").trim();
-    return await context.services.web.snapshot(url);
+    return await snapshotEffectiveBrowserPage(
+      context.runtime,
+      context.services,
+      url,
+    );
   }
 
   if (trimmed.startsWith("/browser screenshot ")) {
     const url = trimmed.replace("/browser screenshot ", "").trim();
-    return await context.services.web.screenshot(url);
+    return await screenshotEffectiveBrowserPage(
+      context.runtime,
+      context.services,
+      url,
+    );
   }
 
   if (trimmed.startsWith("/browser capture ")) {
     const url = trimmed.replace("/browser capture ", "").trim();
-    return JSON.stringify(await context.services.web.capture(url), null, 2);
+    return JSON.stringify(
+      await captureEffectiveBrowserPage(context.runtime, context.services, url),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/browser analyze ")) {
@@ -2370,7 +2440,11 @@ async function buildCommandResponse(
     if (!url) {
       return "Usage: /browser analyze <url>";
     }
-    const analysis = await context.services.web.analyze(url);
+    const analysis = await analyzeEffectiveBrowserPage(
+      context.runtime,
+      context.services,
+      url,
+    );
     const response = await runModelAnalysisTurn(
       context,
       analysis.prompt,
@@ -2389,7 +2463,12 @@ async function buildCommandResponse(
       return "Usage: /browser compare <left-url> :: <right-url>";
     }
     return JSON.stringify(
-      await context.services.web.compare(leftUrl, rightUrl),
+      await compareEffectiveBrowserPages(
+        context.runtime,
+        context.services,
+        leftUrl,
+        rightUrl,
+      ),
       null,
       2,
     );
@@ -2401,7 +2480,9 @@ async function buildCommandResponse(
     if (!leftUrl || !rightUrl) {
       return "Usage: /browser compare analyze <left-url> :: <right-url>";
     }
-    const analysis = await context.services.web.analyzeComparison(
+    const analysis = await analyzeEffectiveBrowserComparison(
+      context.runtime,
+      context.services,
       leftUrl,
       rightUrl,
     );
@@ -2418,12 +2499,20 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
-    return await context.services.web.snapshot(url);
+    return await snapshotEffectiveBrowserPage(
+      context.runtime,
+      context.services,
+      url,
+    );
   }
 
   if (trimmed.startsWith("/web inspect ")) {
     const url = trimmed.replace("/web inspect ", "").trim();
-    return JSON.stringify(await context.services.web.inspect(url), null, 2);
+    return JSON.stringify(
+      await inspectEffectiveBrowserPage(context.runtime, context.services, url),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/media inspect ")) {
