@@ -1,5 +1,9 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import {
+  getAgentSkillCatalogSnapshot,
+  searchAgentSkillCatalog,
+} from "@/runtime/native/agent-sdk";
 import type { SkillDocument } from "@/types";
 
 export class SkillsService {
@@ -30,6 +34,14 @@ export class SkillsService {
 
   get(slug: string): SkillDocument | undefined {
     return this.list().find((skill) => skill.slug === slug);
+  }
+
+  async catalog(limit = 20) {
+    return getAgentSkillCatalogSnapshot(limit);
+  }
+
+  async searchCatalog(query: string, limit = 15) {
+    return searchAgentSkillCatalog(query, limit);
   }
 
   private walk(root: string): string[] {

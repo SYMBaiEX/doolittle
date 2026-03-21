@@ -77,6 +77,16 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show alpha-channel package alignment and native audit data.",
   },
   {
+    command: "/runtime registry",
+    category: "runtime",
+    description: "Show the ElizaOS registry snapshot and configured endpoints.",
+  },
+  {
+    command: "/runtime registry search <query>",
+    category: "runtime",
+    description: "Search the ElizaOS registry snapshot for plugins.",
+  },
+  {
     command: "/sessions list",
     category: "runtime",
     description: "List recent titled and active sessions.",
@@ -175,6 +185,17 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/skills generated list",
     category: "skills",
     description: "List synthesized/generated skills.",
+  },
+  {
+    command: "/skills catalog",
+    category: "skills",
+    description:
+      "Show the ElizaOS skill catalog snapshot and trending entries.",
+  },
+  {
+    command: "/skills catalog search <query>",
+    category: "skills",
+    description: "Search the ElizaOS skill catalog cache.",
   },
   {
     command: "/browser status",

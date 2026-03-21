@@ -9,7 +9,11 @@ import {
   runModelAnalysisTurn,
   syncProviderSettings,
 } from "@/runtime/chat";
-import { getAgentSdkAudit } from "@/runtime/native/agent-sdk";
+import {
+  getAgentRegistrySnapshot,
+  getAgentSdkAudit,
+  searchAgentRegistry,
+} from "@/runtime/native/agent-sdk";
 import {
   getLatestRuntimeLine,
   getNativePackageAudit,
@@ -412,6 +416,15 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/runtime/registry") {
+        const query = url.searchParams.get("query")?.trim();
+        return json(
+          query
+            ? await searchAgentRegistry(query)
+            : await getAgentRegistrySnapshot(),
+        );
+      }
+
       if (request.method === "GET" && url.pathname === "/v1/responses") {
         return json({
           data: context.services.apiTransport.list(
@@ -663,6 +676,15 @@ export function startApiServer(context: AppContext): void {
         return json({
           skills: getEffectiveSkills(context.runtime, context.services),
         });
+      }
+
+      if (request.method === "GET" && url.pathname === "/skills/catalog") {
+        const query = url.searchParams.get("query")?.trim();
+        return json(
+          query
+            ? await context.services.skills.searchCatalog(query)
+            : await context.services.skills.catalog(),
+        );
       }
 
       if (request.method === "GET" && url.pathname === "/skills/generated") {

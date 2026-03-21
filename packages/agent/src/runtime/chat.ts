@@ -7,7 +7,11 @@ import {
   stringToUuid,
   type UUID,
 } from "@elizaos/core";
-import { getAgentSdkAudit } from "@/runtime/native/agent-sdk";
+import {
+  getAgentRegistrySnapshot,
+  getAgentSdkAudit,
+  searchAgentRegistry,
+} from "@/runtime/native/agent-sdk";
 import {
   getLatestRuntimeLine,
   getNativePackageAudit,
@@ -1040,6 +1044,22 @@ async function buildCommandResponse(
       : "No skills found.";
   }
 
+  if (trimmed === "/skills catalog") {
+    return JSON.stringify(await context.services.skills.catalog(), null, 2);
+  }
+
+  if (trimmed.startsWith("/skills catalog search ")) {
+    const query = trimmed.replace("/skills catalog search ", "").trim();
+    if (!query) {
+      return "Usage: /skills catalog search <query>";
+    }
+    return JSON.stringify(
+      await context.services.skills.searchCatalog(query),
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/skills generated" || trimmed === "/skills generated list") {
     const generated = context.services.skillSynthesis.listGeneratedSkills();
     return generated.length
@@ -1917,6 +1937,18 @@ async function buildCommandResponse(
       null,
       2,
     );
+  }
+
+  if (trimmed === "/runtime registry") {
+    return JSON.stringify(await getAgentRegistrySnapshot(), null, 2);
+  }
+
+  if (trimmed.startsWith("/runtime registry search ")) {
+    const query = trimmed.replace("/runtime registry search ", "").trim();
+    if (!query) {
+      return "Usage: /runtime registry search <query>";
+    }
+    return JSON.stringify(await searchAgentRegistry(query), null, 2);
   }
 
   if (trimmed === "/execution backends") {
