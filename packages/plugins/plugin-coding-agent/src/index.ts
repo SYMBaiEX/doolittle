@@ -38,6 +38,11 @@ export function createCodingAgentPlugin(
     private readonly shell = options.shell;
     private readonly delegation = options.delegation;
 
+    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
+    constructor(runtime?: IAgentRuntime) {
+      super(runtime);
+    }
+
     static async start(runtime?: IAgentRuntime): Promise<Service> {
       return new CodingAgentService(runtime);
     }
