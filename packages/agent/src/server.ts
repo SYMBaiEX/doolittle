@@ -58,8 +58,10 @@ import {
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
+  getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
+  getNativeResearchControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
   importEffectiveSkillHubManifest,
@@ -1569,6 +1571,18 @@ export function startApiServer(context: AppContext): void {
             style: body.style,
             focus: body.focus,
           }),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/media") {
+        return json({
+          media: getNativeMediaControlPlane(context.config),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/runtime/research") {
+        return json({
+          research: getNativeResearchControlPlane(context.runtime),
         });
       }
 

@@ -56,8 +56,10 @@ import {
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
+  getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
+  getNativeResearchControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
   importEffectiveSkillHubManifest,
@@ -2595,7 +2597,23 @@ async function buildCommandResponse(
 
   if (trimmed === "/runtime autonomous") {
     return JSON.stringify(
-      getAutonomousControlPlane(context.runtime, context.services),
+      getAutonomousControlPlane(
+        context.runtime,
+        context.services,
+        context.config,
+      ),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime media") {
+    return JSON.stringify(getNativeMediaControlPlane(context.config), null, 2);
+  }
+
+  if (trimmed === "/runtime research") {
+    return JSON.stringify(
+      getNativeResearchControlPlane(context.runtime),
       null,
       2,
     );

@@ -422,6 +422,7 @@ export function createServices(
     anthropicApiKey: string | undefined;
     anthropicBaseUrl: string | undefined;
     openAiImageModel: string | undefined;
+    falApiKey: string | undefined;
   } => ({
     provider: settings.get().model.provider as
       | "openai"
@@ -435,6 +436,7 @@ export function createServices(
     anthropicApiKey: config.anthropicApiKey,
     anthropicBaseUrl: config.anthropicBaseUrl,
     openAiImageModel: config.openAiImageModel,
+    falApiKey: config.falApiKey,
   });
 
   return {
