@@ -9,6 +9,37 @@ import {
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 
+function summarizeTransportInventory(
+  inventory: Array<{
+    platform: string;
+    source: string;
+    configEnabled: boolean;
+    gatewayEnabled: boolean;
+    operational: boolean;
+    reason: string;
+    detail: string;
+  }>,
+): string {
+  const totals = {
+    operational: inventory.filter((entry) => entry.operational).length,
+    configEnabled: inventory.filter((entry) => entry.configEnabled).length,
+    gatewayEnabled: inventory.filter((entry) => entry.gatewayEnabled).length,
+    official: inventory.filter((entry) => entry.source === "official").length,
+    vendored: inventory.filter((entry) => entry.source === "vendored").length,
+    custom: inventory.filter((entry) => entry.source === "custom").length,
+    product: inventory.filter((entry) => entry.source === "product").length,
+  };
+
+  return [
+    `operational=${totals.operational}/${inventory.length} configured=${totals.configEnabled} gatewayEnabled=${totals.gatewayEnabled}`,
+    `official=${totals.official} vendored=${totals.vendored} custom=${totals.custom} product=${totals.product}`,
+    ...inventory.map(
+      (entry) =>
+        `${entry.platform}:source=${entry.source}:cfg=${entry.configEnabled ? "on" : "off"}:gateway=${entry.gatewayEnabled ? "on" : "off"}:live=${entry.operational ? "yes" : "no"}:${entry.reason}`,
+    ),
+  ].join(", ");
+}
+
 export class DiagnosticsService {
   private runtime?: RuntimeLike;
 
@@ -156,7 +187,7 @@ export class DiagnosticsService {
         id: "native.messaging.control-plane",
         status: controlPlane.totals.operationalTransports > 0 ? "pass" : "warn",
         summary: "Native messaging control plane",
-        detail: `configured=${controlPlane.totals.configured} gatewayEnabled=${controlPlane.totals.gatewayEnabled} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} operational=${controlPlane.totals.operationalTransports} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins}`,
+        detail: `configured=${controlPlane.totals.configured} gatewayEnabled=${controlPlane.totals.gatewayEnabled} enabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} operational=${controlPlane.totals.operationalTransports} official=${controlPlane.totals.officialPlugins} vendored=${controlPlane.totals.vendoredPlugins} custom=${controlPlane.totals.customTransports} product=${controlPlane.totals.productTransports}`,
       });
       checks.push({
         id: "gateway.transport.inventory",
@@ -166,12 +197,7 @@ export class DiagnosticsService {
             ? "pass"
             : "warn",
         summary: "Gateway transport inventory",
-        detail: controlPlane.transportInventory
-          .map(
-            (entry) =>
-              `${entry.platform}:cfg=${entry.configEnabled}:gateway=${entry.gatewayEnabled}:operational=${entry.operational}:reason=${entry.reason}`,
-          )
-          .join(", "),
+        detail: summarizeTransportInventory(controlPlane.transportInventory),
       });
     }
 

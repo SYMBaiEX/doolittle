@@ -193,11 +193,21 @@ describe("DiagnosticsService", () => {
         checks.some(
           (check) =>
             check.id === "native.messaging.control-plane" &&
-            check.detail.includes("operational="),
+            check.detail.includes("operational=") &&
+            check.detail.includes("custom=") &&
+            check.detail.includes("product="),
         ),
       ).toBe(true);
       expect(
         checks.some((check) => check.id === "gateway.transport.inventory"),
+      ).toBe(true);
+      expect(
+        checks.some(
+          (check) =>
+            check.id === "gateway.transport.inventory" &&
+            check.detail.includes("official=") &&
+            check.detail.includes("source="),
+        ),
       ).toBe(true);
 
       const checklist = await service.setupChecklist();

@@ -184,9 +184,12 @@ describe("OperatorService", () => {
       setup.providers.some((entry) => entry.id === "openai" && entry.ready),
     ).toBe(true);
     expect(
-      setup.transports.some((entry) => entry.id === "telegram" && entry.ready),
+      setup.transports.some((entry) => entry.id === "telegram" && !entry.ready),
     ).toBe(true);
     expect(setup.transportControl?.totals.availableServices).toBe(2);
+    expect(
+      setup.transportControl?.totals.operationalTransports,
+    ).toBeGreaterThan(0);
     expect(
       setup.transportInventory?.some(
         (entry) => entry.platform === "api" && entry.operational,
@@ -195,6 +198,14 @@ describe("OperatorService", () => {
     expect(
       setup.transportInventory?.some(
         (entry) => entry.platform === "telegram" && !entry.operational,
+      ),
+    ).toBe(true);
+    expect(
+      setup.transports.some(
+        (entry) =>
+          entry.id === "telegram" &&
+          entry.detail.includes("source=") &&
+          entry.detail.includes("operational="),
       ),
     ).toBe(true);
     expect(setup.checklist.length).toBeGreaterThan(0);

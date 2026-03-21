@@ -32,6 +32,35 @@ interface PackageMetadata {
   dependencies?: Record<string, string>;
 }
 
+function findInventoryEntry(
+  inventory: NonNullable<SetupSummary["transportInventory"]>,
+  id: string,
+): (typeof inventory)[number] | undefined {
+  return inventory.find((entry) => entry.platform === id);
+}
+
+function describeTransportSummary(
+  id: string,
+  label: string,
+  inventory?: SetupSummary["transportInventory"],
+  fallbackReady?: boolean,
+  fallbackDetail?: string,
+): { id: string; ready: boolean; detail: string } {
+  const entry = inventory ? findInventoryEntry(inventory, id) : undefined;
+  if (entry) {
+    return {
+      id,
+      ready: entry.operational,
+      detail: `${label}: source=${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gateway=${entry.gatewayEnabled ? "on" : "off"} operational=${entry.operational ? "yes" : "no"} reason=${entry.reason}`,
+    };
+  }
+  return {
+    id,
+    ready: fallbackReady ?? false,
+    detail: fallbackDetail ?? `${label} transport is not available.`,
+  };
+}
+
 export interface OperatorVersionSummary {
   name: string;
   version: string;
@@ -180,45 +209,54 @@ export class OperatorService {
         },
       ],
       transports: [
-        {
-          id: "telegram",
-          ready: Boolean(this.config.telegramBotToken),
-          detail: this.config.telegramBotToken
+        describeTransportSummary(
+          "telegram",
+          "Telegram",
+          transportControl?.transportInventory,
+          Boolean(this.config.telegramBotToken),
+          this.config.telegramBotToken
             ? "Telegram token configured."
             : "Missing TELEGRAM_BOT_TOKEN.",
-        },
-        {
-          id: "discord",
-          ready: Boolean(this.config.discordBotToken),
-          detail: this.config.discordBotToken
+        ),
+        describeTransportSummary(
+          "discord",
+          "Discord",
+          transportControl?.transportInventory,
+          Boolean(this.config.discordBotToken),
+          this.config.discordBotToken
             ? "Discord token configured."
             : "Missing DISCORD_BOT_TOKEN.",
-        },
-        {
-          id: "slack",
-          ready: Boolean(this.config.slackWebhookUrl),
-          detail: this.config.slackWebhookUrl
+        ),
+        describeTransportSummary(
+          "slack",
+          "Slack",
+          transportControl?.transportInventory,
+          Boolean(this.config.slackWebhookUrl),
+          this.config.slackWebhookUrl
             ? "Slack webhook configured."
             : "Missing SLACK_WEBHOOK_URL.",
-        },
-        {
-          id: "whatsapp",
-          ready: Boolean(
+        ),
+        describeTransportSummary(
+          "whatsapp",
+          "WhatsApp",
+          transportControl?.transportInventory,
+          Boolean(
             this.config.whatsappAccessToken &&
               this.config.whatsappPhoneNumberId,
           ),
-          detail:
-            this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId
-              ? "WhatsApp delivery credentials configured."
-              : "Missing WhatsApp delivery credentials.",
-        },
-        {
-          id: "signal",
-          ready: Boolean(this.config.signalCliCommand),
-          detail: this.config.signalCliCommand
+          this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId
+            ? "WhatsApp delivery credentials configured."
+            : "Missing WhatsApp delivery credentials.",
+        ),
+        describeTransportSummary(
+          "signal",
+          "Signal",
+          transportControl?.transportInventory,
+          Boolean(this.config.signalCliCommand),
+          this.config.signalCliCommand
             ? "Signal CLI command configured."
             : "Missing SIGNAL_CLI_COMMAND.",
-        },
+        ),
       ],
       transportControl,
       transportInventory: transportControl?.transportInventory,
