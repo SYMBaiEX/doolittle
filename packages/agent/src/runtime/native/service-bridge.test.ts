@@ -485,6 +485,10 @@ describe("identity bridge helpers", () => {
               totalProfiles: 2,
               agentName: "Eliza Agent",
               recentProfiles: ["alice", "bob"],
+              totalBeliefs: 4,
+              activeRelationships: 1,
+              engagedProfiles: 1,
+              recentSignals: ["native-signal"],
             }),
           };
         }
@@ -568,6 +572,10 @@ describe("identity bridge helpers", () => {
       totalProfiles: 2,
       agentName: "Eliza Agent",
       recentProfiles: ["alice", "bob"],
+      totalBeliefs: 4,
+      activeRelationships: 1,
+      engagedProfiles: 1,
+      recentSignals: ["native-signal"],
     });
     expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
       sessions: {
@@ -619,6 +627,10 @@ describe("identity bridge helpers", () => {
           totalProfiles: 7,
           agentName: "Eliza Agent",
           recentProfiles: ["carol", "dave"],
+          totalBeliefs: 1,
+          activeRelationships: 0,
+          engagedProfiles: 0,
+          recentSignals: ["fallback"],
         }),
       },
       sessions: {
@@ -644,6 +656,10 @@ describe("identity bridge helpers", () => {
       totalProfiles: 7,
       agentName: "Eliza Agent",
       recentProfiles: ["carol", "dave"],
+      totalBeliefs: 1,
+      activeRelationships: 0,
+      engagedProfiles: 0,
+      recentSignals: ["fallback"],
     });
     expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
       sessions: {

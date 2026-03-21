@@ -27,6 +27,11 @@ interface ToolRegistryDynamicState {
   agentSdkCatalogAvailable?: boolean;
   agentSdkCatalogSkills?: number;
   agentSdkCompatibilityFailures?: number;
+  skillsHubTotal?: number;
+  skillsHubGenerated?: number;
+  skillsHubCatalogTotal?: number;
+  skillsHubManifestCount?: number;
+  skillsHubInstalledTotal?: number;
 }
 
 interface ToolRegistrySummary {
@@ -61,6 +66,11 @@ interface ToolRegistrySummary {
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
     compatibilityFailures: number;
+    skillsHubTotal: number;
+    skillsHubGenerated: number;
+    skillsHubCatalogTotal: number;
+    skillsHubManifestCount: number;
+    skillsHubInstalledTotal: number;
   };
 }
 
@@ -82,6 +92,11 @@ export class ToolsService {
       nativeAlignedPackages: 0,
       nativeAlphaOnlyPackages: 0,
       nativeWorkspaceOnlyPackages: 0,
+      skillsHubTotal: 0,
+      skillsHubGenerated: 0,
+      skillsHubCatalogTotal: 0,
+      skillsHubManifestCount: 0,
+      skillsHubInstalledTotal: 0,
     }),
   ) {}
 
@@ -301,6 +316,51 @@ export class ToolsService {
       transport: "service",
     },
     {
+      id: "acp.package",
+      name: "ACP Package Metadata",
+      category: "protocol",
+      description:
+        "Inspect ACP package metadata, workspace packaging, and registry identity.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "acp.editor",
+      name: "ACP Editor Summary",
+      category: "protocol",
+      description:
+        "Inspect ACP editor install, registry, export, and import integration details.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "acp.sessions",
+      name: "ACP Session Summary",
+      category: "protocol",
+      description:
+        "Expose ACP-visible session counts, recent session ids, and titled session summaries.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "acp.export",
+      name: "ACP Export",
+      category: "protocol",
+      description:
+        "Export ACP package, registry, session, and tool metadata into a reusable bundle.",
+      enabled: true,
+      transport: "service",
+    },
+    {
+      id: "acp.import",
+      name: "ACP Import",
+      category: "protocol",
+      description:
+        "Import ACP bundle metadata from a file path or JSON payload into the local ACP workspace.",
+      enabled: true,
+      transport: "service",
+    },
+    {
       id: "acp.tools",
       name: "ACP Tool Catalog",
       category: "protocol",
@@ -423,6 +483,48 @@ export class ToolsService {
       enabled: true,
       transport: "native",
     },
+    {
+      id: "skills.hub",
+      name: "Skill Hub",
+      category: "runtime",
+      description:
+        "Inspect the native Eliza skill hub summary, installed manifests, and distribution sync state.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.installed",
+      name: "Installed Skills",
+      category: "runtime",
+      description:
+        "Inspect installed skill manifests and their distribution metadata.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.export",
+      name: "Skill Export",
+      category: "runtime",
+      description: "Export a workspace or catalog skill manifest.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.import",
+      name: "Skill Import",
+      category: "runtime",
+      description: "Import a manifest into the local Eliza skill hub.",
+      enabled: true,
+      transport: "native",
+    },
+    {
+      id: "skills.install",
+      name: "Skill Install",
+      category: "runtime",
+      description: "Install a catalog skill into the local Eliza skill hub.",
+      enabled: true,
+      transport: "native",
+    },
   ];
 
   list(): ToolDefinition[] {
@@ -472,7 +574,17 @@ export class ToolsService {
                         ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
                         : "ElizaOS skill catalog is unavailable in the current environment.",
                     }
-                  : tool,
+                  : tool.id === "skills.hub"
+                    ? {
+                        ...tool,
+                        description: `Skills hub summary=${dynamic.skillsHubTotal ?? 0} generated=${dynamic.skillsHubGenerated ?? 0} catalog=${dynamic.skillsHubCatalogTotal ?? 0} manifests=${dynamic.skillsHubManifestCount ?? 0} installed=${dynamic.skillsHubInstalledTotal ?? 0}.`,
+                      }
+                    : tool.id === "skills.installed"
+                      ? {
+                          ...tool,
+                          description: `Installed skill manifests available: ${dynamic.skillsHubInstalledTotal ?? 0}.`,
+                        }
+                      : tool,
     );
     const pluginTools =
       dynamic.nativeCatalog?.map<ToolDefinition>((plugin) => ({
@@ -578,6 +690,11 @@ export class ToolsService {
         skillCatalogAvailable: dynamic.agentSdkCatalogAvailable ?? false,
         skillCatalogSkills: dynamic.agentSdkCatalogSkills ?? 0,
         compatibilityFailures: dynamic.agentSdkCompatibilityFailures ?? 0,
+        skillsHubTotal: dynamic.skillsHubTotal ?? 0,
+        skillsHubGenerated: dynamic.skillsHubGenerated ?? 0,
+        skillsHubCatalogTotal: dynamic.skillsHubCatalogTotal ?? 0,
+        skillsHubManifestCount: dynamic.skillsHubManifestCount ?? 0,
+        skillsHubInstalledTotal: dynamic.skillsHubInstalledTotal ?? 0,
       },
     };
   }

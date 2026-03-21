@@ -16,10 +16,18 @@ export interface RolodexPluginOptions {
     recall(userId: string, query: string): unknown;
     observeAgent(input: { text: string; source: string }): unknown;
     agentProfile(): unknown;
+    search(query: string, limit?: number): unknown;
+    beliefs(userId: string): unknown;
+    relationship(userId: string): unknown;
+    engagement(userId: string): unknown;
     summary(): {
       totalProfiles: number;
       agentName?: string;
       recentProfiles: string[];
+      totalBeliefs: number;
+      activeRelationships: number;
+      engagedProfiles: number;
+      recentSignals: string[];
     };
   };
 }
@@ -61,6 +69,22 @@ export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
 
     agentProfile() {
       return options.profiles.agentProfile();
+    }
+
+    search(query: string, limit = 10) {
+      return options.profiles.search(query, limit);
+    }
+
+    beliefs(userId: string) {
+      return options.profiles.beliefs(userId);
+    }
+
+    relationship(userId: string) {
+      return options.profiles.relationship(userId);
+    }
+
+    engagement(userId: string) {
+      return options.profiles.engagement(userId);
     }
 
     summary() {

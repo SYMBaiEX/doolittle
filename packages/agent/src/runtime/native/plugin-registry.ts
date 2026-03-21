@@ -132,6 +132,10 @@ export function buildNativePluginAssembly(
         observeAgent: (input) =>
           services.userProfiles.observeAgent(input.text, input.source),
         agentProfile: () => services.userProfiles.agentProfile(),
+        search: (query, limit) => services.userProfiles.search(query, limit),
+        beliefs: (userId) => services.userProfiles.beliefs(userId),
+        relationship: (userId) => services.userProfiles.relationship(userId),
+        engagement: (userId) => services.userProfiles.engagement(userId),
         summary: () => services.userProfiles.summary(),
       },
     }),

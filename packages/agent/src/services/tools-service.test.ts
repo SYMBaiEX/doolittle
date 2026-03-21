@@ -91,6 +91,7 @@ describe("ToolsService", () => {
     expect(bridge?.description).toContain("2 discovered tool(s)");
     expect(service.get("runtime.compatibility")?.description).toContain("1");
     expect(service.get("plugins.native")?.description).toContain("8/10");
+    expect(service.get("skills.hub")?.description).toContain("installed=0");
     expect(service.get("plugins.native.messaging.telegram")?.transport).toBe(
       "native",
     );

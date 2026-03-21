@@ -1,6 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentIdentityRecord, UserProfileRecord } from "@/types";
+import type {
+  AgentIdentityRecord,
+  UserProfileBeliefSummary,
+  UserProfileEngagementSummary,
+  UserProfileRecord,
+  UserProfileRelationshipSummary,
+  UserProfileSearchHit,
+} from "@/types";
 
 interface UserProfileStore {
   profiles: UserProfileRecord[];
@@ -10,9 +17,11 @@ interface UserProfileStore {
 type RememberKind =
   | "preference"
   | "fact"
+  | "belief"
   | "goal"
   | "context"
   | "constraint"
+  | "relationship"
   | "note"
   | "memory";
 
@@ -21,9 +30,12 @@ export interface UserProfileRecallHit {
     | "displayName"
     | "preference"
     | "fact"
+    | "belief"
     | "goal"
     | "context"
     | "constraint"
+    | "relationship"
+    | "engagement"
     | "memory"
     | "tool"
     | "workStyle"
@@ -37,6 +49,17 @@ export interface UserProfileWorkspaceSummary {
   totalProfiles: number;
   agentName: string;
   recentProfiles: string[];
+  totalBeliefs: number;
+  activeRelationships: number;
+  engagedProfiles: number;
+  recentSignals: string[];
+}
+
+interface UserProfileInteractionContext {
+  source?: string;
+  channel?: string;
+  sessionId?: string;
+  signal?: string;
 }
 
 function nowIso(): string {
@@ -95,6 +118,8 @@ function createEmptyProfile(userId: string): UserProfileRecord {
     memoryMode: "hybrid",
     preferences: [],
     facts: [],
+    beliefs: [],
+    beliefSources: [],
     notes: [],
     aliases: [],
     goals: [],
@@ -103,9 +128,78 @@ function createEmptyProfile(userId: string): UserProfileRecord {
     explicitMemories: [],
     toolPreferences: [],
     workStyle: [],
+    relationship: createDefaultRelationship(),
+    engagement: createDefaultEngagement(),
     lastSeenAt: nowIso(),
     updatedAt: nowIso(),
   };
+}
+
+function createDefaultRelationship(): NonNullable<
+  UserProfileRecord["relationship"]
+> {
+  return {
+    status: "new",
+    trust: 0,
+    collaboration: 0,
+    notes: [],
+  };
+}
+
+function createDefaultEngagement(): NonNullable<
+  UserProfileRecord["engagement"]
+> {
+  return {
+    touches: 0,
+    channels: [],
+    sources: [],
+    sessionIds: [],
+    recentSignals: [],
+  };
+}
+
+function normalizeRelationship(
+  relationship?: UserProfileRecord["relationship"],
+): NonNullable<UserProfileRecord["relationship"]> {
+  const next = {
+    ...createDefaultRelationship(),
+    ...(relationship ?? {}),
+    notes: relationship?.notes ?? [],
+  };
+  const score = next.trust + next.collaboration;
+  if (score >= 12 || next.trust >= 8) {
+    next.status = "trusted";
+  } else if (score >= 6 || next.trust >= 4) {
+    next.status = "active";
+  } else if (score > 0 || next.collaboration > 0) {
+    next.status = "growing";
+  } else {
+    next.status = "new";
+  }
+  return next;
+}
+
+function normalizeEngagement(
+  engagement?: UserProfileRecord["engagement"],
+): NonNullable<UserProfileRecord["engagement"]> {
+  return {
+    ...createDefaultEngagement(),
+    ...(engagement ?? {}),
+    channels: engagement?.channels ?? [],
+    sources: engagement?.sources ?? [],
+    sessionIds: engagement?.sessionIds ?? [],
+    recentSignals: engagement?.recentSignals ?? [],
+  };
+}
+
+function scoreCadence(touches: number): "low" | "steady" | "high" {
+  if (touches >= 15) {
+    return "high";
+  }
+  if (touches >= 4) {
+    return "steady";
+  }
+  return "low";
 }
 
 export class UserProfileService {
@@ -147,6 +241,112 @@ export class UserProfileService {
     return this.renderAgent();
   }
 
+  beliefs(userId: string): UserProfileBeliefSummary {
+    const profile = this.get(userId);
+    return {
+      userId,
+      displayName: profile.displayName,
+      beliefs: profile.beliefs ?? [],
+      sources: profile.beliefSources ?? [],
+    };
+  }
+
+  relationship(userId: string): UserProfileRelationshipSummary {
+    const profile = this.get(userId);
+    const relationship = normalizeRelationship(profile.relationship);
+    return {
+      userId,
+      displayName: profile.displayName,
+      status: relationship.status,
+      trust: relationship.trust,
+      collaboration: relationship.collaboration,
+      notes: relationship.notes,
+      lastInteractionAt: relationship.lastInteractionAt,
+      lastSource: relationship.lastSource,
+    };
+  }
+
+  engagement(userId: string): UserProfileEngagementSummary {
+    const profile = this.get(userId);
+    const engagement = normalizeEngagement(profile.engagement);
+    return {
+      userId,
+      displayName: profile.displayName,
+      touches: engagement.touches,
+      channels: engagement.channels,
+      sources: engagement.sources,
+      sessionIds: engagement.sessionIds,
+      recentSignals: engagement.recentSignals,
+      lastInteractionAt: engagement.lastInteractionAt,
+      lastSource: engagement.lastSource,
+    };
+  }
+
+  search(query: string, limit = 10): UserProfileSearchHit[] {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return [];
+    }
+
+    const scored = this.list().flatMap((profile) => {
+      const matches: string[] = [];
+      const fields = [
+        ["displayName", profile.displayName],
+        ["alias", profile.aliases?.join(" ")],
+        ["preference", profile.preferences.join(" ")],
+        ["fact", profile.facts.join(" ")],
+        ["belief", profile.beliefs.join(" ")],
+        ["beliefSource", profile.beliefSources?.join(" ")],
+        ["goal", profile.goals?.join(" ")],
+        ["context", profile.projectContext?.join(" ")],
+        ["constraint", profile.constraints?.join(" ")],
+        ["memory", profile.explicitMemories?.join(" ")],
+        ["tool", profile.toolPreferences?.join(" ")],
+        ["workStyle", profile.workStyle?.join(" ")],
+        ["note", profile.notes.join(" ")],
+        ["relationship", profile.relationship?.notes?.join(" ")],
+        ["engagement", profile.engagement?.recentSignals?.join(" ")],
+        ["status", profile.relationship?.status],
+      ] as const;
+
+      let score = 0;
+      const preview: string[] = [];
+      for (const [field, value] of fields) {
+        if (!value) {
+          continue;
+        }
+        const lower = value.toLowerCase();
+        if (!lower.includes(normalized)) {
+          continue;
+        }
+        matches.push(field);
+        score += lower === normalized ? 50 : 10;
+        score += lower.startsWith(normalized) ? 8 : 0;
+        preview.push(
+          `${field}: ${value.length > 120 ? `${value.slice(0, 120)}…` : value}`,
+        );
+      }
+
+      if (!matches.length) {
+        return [];
+      }
+
+      return [
+        {
+          userId: profile.userId,
+          displayName: profile.displayName,
+          score: score + Math.max(1, 20 - profile.updatedAt.length / 4),
+          matchedFields: unique(matches),
+          preview: unique(preview).slice(0, 3),
+        },
+      ];
+    });
+
+    return scored
+      .sort((left, right) => right.score - left.score)
+      .slice(0, limit);
+  }
+
   seedAgent(seed: {
     name?: string;
     goals?: string[];
@@ -176,14 +376,24 @@ export class UserProfileService {
   setMode(
     userId: string,
     mode: UserProfileRecord["memoryMode"],
+    context?: UserProfileInteractionContext,
   ): UserProfileRecord {
-    return this.update(userId, (profile) => {
-      profile.memoryMode = mode ?? "hybrid";
-    });
+    return this.update(
+      userId,
+      (profile) => {
+        profile.memoryMode = mode ?? "hybrid";
+      },
+      context,
+    );
   }
 
-  addNote(userId: string, note: string, source?: string): UserProfileRecord {
-    return this.remember(userId, "note", note, source);
+  addNote(
+    userId: string,
+    note: string,
+    source?: string,
+    context?: UserProfileInteractionContext,
+  ): UserProfileRecord {
+    return this.remember(userId, "note", note, source, context);
   }
 
   remember(
@@ -191,130 +401,209 @@ export class UserProfileService {
     kind: RememberKind,
     value: string,
     source?: string,
+    context?: UserProfileInteractionContext,
   ): UserProfileRecord {
     const nextValue = value.trim();
-    return this.update(userId, (profile) => {
-      switch (kind) {
-        case "preference":
-          profile.preferences = unique([...profile.preferences, nextValue]);
-          break;
-        case "fact":
-          profile.facts = unique([...profile.facts, nextValue]);
-          break;
-        case "goal":
-          profile.goals = unique([...(profile.goals ?? []), nextValue]);
-          break;
-        case "context":
-          profile.projectContext = unique([
-            ...(profile.projectContext ?? []),
-            nextValue,
-          ]);
-          break;
-        case "constraint":
-          profile.constraints = unique([
-            ...(profile.constraints ?? []),
-            nextValue,
-          ]);
-          break;
-        case "memory":
-          profile.explicitMemories = unique([
-            ...(profile.explicitMemories ?? []),
-            nextValue,
-          ]);
-          break;
-        default:
-          profile.notes = unique([...profile.notes, nextValue]);
-          break;
-      }
-      profile.lastSource = source ?? profile.lastSource;
-    });
+    return this.update(
+      userId,
+      (profile) => {
+        switch (kind) {
+          case "preference":
+            profile.preferences = unique([...profile.preferences, nextValue]);
+            break;
+          case "fact":
+            profile.facts = unique([...profile.facts, nextValue]);
+            break;
+          case "belief":
+            profile.beliefs = unique([...profile.beliefs, nextValue]);
+            profile.beliefSources = unique([
+              ...(profile.beliefSources ?? []),
+              source ?? "manual",
+            ]);
+            break;
+          case "goal":
+            profile.goals = unique([...(profile.goals ?? []), nextValue]);
+            break;
+          case "context":
+            profile.projectContext = unique([
+              ...(profile.projectContext ?? []),
+              nextValue,
+            ]);
+            break;
+          case "constraint":
+            profile.constraints = unique([
+              ...(profile.constraints ?? []),
+              nextValue,
+            ]);
+            break;
+          case "relationship":
+            profile.relationship = normalizeRelationship({
+              ...normalizeRelationship(profile.relationship),
+              notes: unique([
+                ...(profile.relationship?.notes ?? []),
+                nextValue,
+              ]),
+              lastSource: source ?? profile.relationship?.lastSource,
+              lastInteractionAt: nowIso(),
+            });
+            break;
+          case "memory":
+            profile.explicitMemories = unique([
+              ...(profile.explicitMemories ?? []),
+              nextValue,
+            ]);
+            break;
+          default:
+            profile.notes = unique([...profile.notes, nextValue]);
+            break;
+        }
+        profile.lastSource = source ?? profile.lastSource;
+      },
+      context ?? { source },
+    );
   }
 
-  observe(userId: string, message: string, source?: string): UserProfileRecord {
+  observe(
+    userId: string,
+    message: string,
+    source?: string,
+    context?: UserProfileInteractionContext,
+  ): UserProfileRecord {
     const observation = message.trim();
-    return this.update(userId, (profile) => {
-      const lower = observation.toLowerCase();
-      const preference = matchSingle(
-        observation,
-        /\b(?:i prefer|i like|i usually use)\s+(.+?)(?:[.!?]|$)/iu,
-      );
-      const fact = matchSingle(
-        observation,
-        /\b(?:my name is|i am|i'm)\s+(.+?)(?:[.!?]|$)/iu,
-      );
-      const alias = matchSingle(
-        observation,
-        /\b(?:you can call me|call me|i go by)\s+(.+?)(?:[.!?]|$)/iu,
-      );
-      const goal = matchSingle(
-        observation,
-        /\b(?:my goal is|i want to|i need to|help me)\s+(.+?)(?:[.!?]|$)/iu,
-      );
-      const projectContext = matchSingle(
-        observation,
-        /\b(?:we are building|we're building|this project is|the current project is)\s+(.+?)(?:[.!?]|$)/iu,
-      );
-      const constraint = matchSingle(
-        observation,
-        /\b(?:do not|don't|must not|cannot|can't)\s+(.+?)(?:[.!?]|$)/iu,
-      );
-      const toolSignals = detectTools(observation);
-      const workStyle = matchSingle(
-        observation,
-        /\b(?:i work best with|i prefer updates that are|i want responses that are)\s+(.+?)(?:[.!?]|$)/iu,
-      );
+    return this.update(
+      userId,
+      (profile) => {
+        const lower = observation.toLowerCase();
+        const preference = matchSingle(
+          observation,
+          /\b(?:i prefer|i like|i usually use)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const belief = matchSingle(
+          observation,
+          /\b(?:i believe|i think|i suspect|i'm convinced|i expect)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const fact = matchSingle(
+          observation,
+          /\b(?:my name is|i am|i'm)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const alias = matchSingle(
+          observation,
+          /\b(?:you can call me|call me|i go by)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const goal = matchSingle(
+          observation,
+          /\b(?:my goal is|i want to|i need to|help me)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const projectContext = matchSingle(
+          observation,
+          /\b(?:we are building|we're building|this project is|the current project is)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const constraint = matchSingle(
+          observation,
+          /\b(?:do not|don't|must not|cannot|can't)\s+(.+?)(?:[.!?]|$)/iu,
+        );
+        const toolSignals = detectTools(observation);
+        const workStyle = matchSingle(
+          observation,
+          /\b(?:i work best with|i prefer updates that are|i want responses that are)\s+(.+?)(?:[.!?]|$)/iu,
+        );
 
-      if (preference && preference.length < 160) {
-        profile.preferences = unique([...profile.preferences, preference]);
-      }
-      if (fact && fact.length < 160) {
-        if (lower.startsWith("my name is")) {
-          profile.displayName = fact.trim();
-        } else {
-          profile.facts = unique([...profile.facts, fact]);
+        if (preference && preference.length < 160) {
+          profile.preferences = unique([...profile.preferences, preference]);
         }
-      }
-      if (alias && alias.length < 100) {
-        profile.aliases = unique([...(profile.aliases ?? []), alias]);
-      }
-      if (goal && goal.length < 180) {
-        profile.goals = unique([...(profile.goals ?? []), goal]);
-      }
-      if (projectContext && projectContext.length < 220) {
-        profile.projectContext = unique([
-          ...(profile.projectContext ?? []),
-          projectContext,
-        ]);
-      }
-      if (constraint && constraint.length < 220) {
-        profile.constraints = unique([
-          ...(profile.constraints ?? []),
-          constraint,
-        ]);
-      }
-      if (toolSignals.length) {
-        profile.toolPreferences = unique([
-          ...(profile.toolPreferences ?? []),
-          ...toolSignals,
-        ]);
-      }
-      if (workStyle && workStyle.length < 180) {
-        profile.workStyle = unique([...(profile.workStyle ?? []), workStyle]);
-      }
-      if (
-        /remember|save this|important|note that|keep in mind/iu.test(
-          observation,
-        ) &&
-        observation.length < 240
-      ) {
-        profile.explicitMemories = unique([
-          ...(profile.explicitMemories ?? []),
-          observation,
-        ]);
-      }
+        if (belief && belief.length < 180) {
+          profile.beliefs = unique([...profile.beliefs, belief]);
+          profile.beliefSources = unique([
+            ...(profile.beliefSources ?? []),
+            source ?? "observation",
+          ]);
+        }
+        if (fact && fact.length < 160) {
+          if (lower.startsWith("my name is")) {
+            profile.displayName = fact.trim();
+          } else {
+            profile.facts = unique([...profile.facts, fact]);
+          }
+        }
+        if (alias && alias.length < 100) {
+          profile.aliases = unique([...(profile.aliases ?? []), alias]);
+        }
+        if (goal && goal.length < 180) {
+          profile.goals = unique([...(profile.goals ?? []), goal]);
+        }
+        if (projectContext && projectContext.length < 220) {
+          profile.projectContext = unique([
+            ...(profile.projectContext ?? []),
+            projectContext,
+          ]);
+        }
+        if (constraint && constraint.length < 220) {
+          profile.constraints = unique([
+            ...(profile.constraints ?? []),
+            constraint,
+          ]);
+        }
+        if (toolSignals.length) {
+          profile.toolPreferences = unique([
+            ...(profile.toolPreferences ?? []),
+            ...toolSignals,
+          ]);
+        }
+        if (
+          /trust|collaborat|team|partner|together|reliable|depend on|count on|follow through/iu.test(
+            observation,
+          )
+        ) {
+          const current = normalizeRelationship(profile.relationship);
+          current.notes = unique([...(current.notes ?? []), observation]).slice(
+            -15,
+          );
+          current.lastInteractionAt = nowIso();
+          current.lastSource = source ?? current.lastSource;
+          profile.relationship = normalizeRelationship(current);
+        }
+        if (workStyle && workStyle.length < 180) {
+          profile.workStyle = unique([...(profile.workStyle ?? []), workStyle]);
+        }
+        if (
+          /remember|save this|important|note that|keep in mind/iu.test(
+            observation,
+          ) &&
+          observation.length < 240
+        ) {
+          profile.explicitMemories = unique([
+            ...(profile.explicitMemories ?? []),
+            observation,
+          ]);
+        }
 
-      profile.lastSource = source ?? profile.lastSource;
-    });
+        const relationshipSignals = [
+          /trust/i.test(observation),
+          /work together|collaborat|team|partner|together/i.test(observation),
+          /reliable|depend on|count on|follow through/i.test(observation),
+        ].filter(Boolean).length;
+        if (relationshipSignals > 0) {
+          const current = normalizeRelationship(profile.relationship);
+          current.trust = Math.min(
+            10,
+            current.trust + (relationshipSignals > 1 ? 2 : 1),
+          );
+          current.collaboration = Math.min(
+            10,
+            current.collaboration + (relationshipSignals > 1 ? 2 : 1),
+          );
+          current.notes = unique([...(current.notes ?? []), observation]).slice(
+            -15,
+          );
+          current.lastInteractionAt = nowIso();
+          current.lastSource = source ?? current.lastSource;
+          profile.relationship = normalizeRelationship(current);
+        }
+
+        profile.lastSource = source ?? profile.lastSource;
+      },
+      context ?? { source, channel: source, signal: observation },
+    );
   }
 
   observeAgent(note: string, source?: string): AgentIdentityRecord {
@@ -387,12 +676,18 @@ export class UserProfileService {
     pushMatches("tool", profile.toolPreferences);
     pushMatches("workStyle", profile.workStyle);
     pushMatches("note", profile.notes);
+    pushMatches("belief", profile.beliefs);
+    pushMatches("relationship", profile.relationship?.notes);
+    pushMatches("engagement", profile.engagement?.recentSignals);
 
     return candidates.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
   render(userId: string): string {
     const profile = this.get(userId);
+    const relationship = this.relationship(userId);
+    const engagement = this.engagement(userId);
+    const beliefs = this.beliefs(userId);
     return [
       `USER PROFILE: ${profile.displayName ?? profile.userId}`,
       `Memory mode: ${profile.memoryMode ?? "hybrid"}`,
@@ -407,6 +702,14 @@ export class UserProfileService {
       "Goals",
       ...((profile.goals ?? []).length
         ? (profile.goals ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      "Beliefs",
+      ...(beliefs.beliefs.length
+        ? beliefs.beliefs.map(
+            (item, index) =>
+              `- ${item}${beliefs.sources[index] ? ` [${beliefs.sources[index]}]` : ""}`,
+          )
         : ["- (none)"]),
       "",
       "Project Context",
@@ -427,6 +730,18 @@ export class UserProfileService {
       "Work Style",
       ...((profile.workStyle ?? []).length
         ? (profile.workStyle ?? []).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      `Relationship: ${relationship.status} trust=${relationship.trust}/10 collaboration=${relationship.collaboration}/10`,
+      ...(relationship.notes.length
+        ? relationship.notes.slice(-5).map((item) => `- ${item}`)
+        : ["- (none)"]),
+      "",
+      `Engagement: touches=${engagement.touches} cadence=${scoreCadence(engagement.touches)}`,
+      `Channels: ${engagement.channels.length ? engagement.channels.join(", ") : "none"}`,
+      `Sources: ${engagement.sources.length ? engagement.sources.join(", ") : "none"}`,
+      ...(engagement.recentSignals.length
+        ? engagement.recentSignals.slice(-5).map((item) => `- ${item}`)
         : ["- (none)"]),
       "",
       "Aliases",
@@ -487,16 +802,37 @@ export class UserProfileService {
   summary(): UserProfileWorkspaceSummary {
     const profiles = this.list();
     const agent = this.getAgent();
+    const totalBeliefs = profiles.reduce(
+      (sum, profile) => sum + (profile.beliefs?.length ?? 0),
+      0,
+    );
+    const activeRelationships = profiles.filter((profile) => {
+      const relationship = normalizeRelationship(profile.relationship);
+      return relationship.status !== "new";
+    }).length;
+    const engagedProfiles = profiles.filter(
+      (profile) => normalizeEngagement(profile.engagement).touches > 0,
+    ).length;
+    const recentSignals = unique(
+      profiles.flatMap((profile) =>
+        normalizeEngagement(profile.engagement).recentSignals.slice(-2),
+      ),
+    ).slice(-5);
     return {
       totalProfiles: profiles.length,
       agentName: agent.name,
       recentProfiles: profiles.slice(0, 5).map((profile) => profile.userId),
+      totalBeliefs,
+      activeRelationships,
+      engagedProfiles,
+      recentSignals,
     };
   }
 
   private update(
     userId: string,
     mutate: (profile: UserProfileRecord) => void,
+    context?: UserProfileInteractionContext,
   ): UserProfileRecord {
     const store = this.read();
     const existingIndex = store.profiles.findIndex(
@@ -512,6 +848,8 @@ export class UserProfileService {
       memoryMode: base.memoryMode ?? "hybrid",
       preferences: [...base.preferences],
       facts: [...base.facts],
+      beliefs: [...(base.beliefs ?? [])],
+      beliefSources: [...(base.beliefSources ?? [])],
       notes: [...base.notes],
       aliases: [...(base.aliases ?? [])],
       goals: [...(base.goals ?? [])],
@@ -520,11 +858,14 @@ export class UserProfileService {
       explicitMemories: [...(base.explicitMemories ?? [])],
       toolPreferences: [...(base.toolPreferences ?? [])],
       workStyle: [...(base.workStyle ?? [])],
+      relationship: normalizeRelationship(base.relationship),
+      engagement: normalizeEngagement(base.engagement),
       lastSeenAt: nowIso(),
       updatedAt: nowIso(),
     };
 
     mutate(next);
+    this.recordInteraction(next, context);
 
     if (existingIndex >= 0) {
       store.profiles[existingIndex] = next;
@@ -569,6 +910,10 @@ export class UserProfileService {
         explicitMemories: profile.explicitMemories ?? [],
         toolPreferences: profile.toolPreferences ?? [],
         workStyle: profile.workStyle ?? [],
+        beliefs: profile.beliefs ?? [],
+        beliefSources: profile.beliefSources ?? [],
+        relationship: normalizeRelationship(profile.relationship),
+        engagement: normalizeEngagement(profile.engagement),
       })),
       agent: {
         ...createDefaultAgentIdentity(),
@@ -583,5 +928,41 @@ export class UserProfileService {
 
   private write(store: UserProfileStore): void {
     writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+  }
+
+  private recordInteraction(
+    profile: UserProfileRecord,
+    context?: UserProfileInteractionContext,
+  ): void {
+    const engagement = normalizeEngagement(profile.engagement);
+    engagement.touches += 1;
+    const channel = context?.channel ?? context?.source;
+    if (channel) {
+      engagement.channels = unique([...engagement.channels, channel]);
+    }
+    if (context?.source) {
+      engagement.sources = unique([...engagement.sources, context.source]);
+      profile.lastSource = context.source;
+      engagement.lastSource = context.source;
+    }
+    if (context?.sessionId) {
+      engagement.sessionIds = unique([
+        ...engagement.sessionIds,
+        context.sessionId,
+      ]);
+    }
+    if (context?.signal) {
+      engagement.recentSignals = unique([
+        ...engagement.recentSignals,
+        context.signal,
+      ]).slice(-10);
+    }
+    engagement.lastInteractionAt = nowIso();
+    profile.engagement = normalizeEngagement(engagement);
+    profile.relationship = normalizeRelationship({
+      ...normalizeRelationship(profile.relationship),
+      lastInteractionAt: engagement.lastInteractionAt,
+      lastSource: engagement.lastSource ?? profile.relationship?.lastSource,
+    });
   }
 }

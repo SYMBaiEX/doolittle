@@ -28,6 +28,7 @@ import { RepositoryService } from "./repository-service";
 import { SessionService } from "./session-service";
 import { SettingsService } from "./settings-service";
 import { SkillSynthesisService } from "./skill-synthesis-service";
+import { SkillsHubService } from "./skills-hub-service";
 import { SkillsService } from "./skills-service";
 import { TerminalService } from "./terminal-service";
 import { ToolsService } from "./tools-service";
@@ -42,6 +43,7 @@ export interface AppServices {
   nativeRegistry: NativeServiceRegistry;
   memory: MemoryService;
   skills: SkillsService;
+  skillsHub: SkillsHubService;
   sessions: SessionService;
   cron: CronService;
   pairing: PairingService;
@@ -335,7 +337,12 @@ export function createServices(
   const nativePackageAudit = getNativePackageAudit(config);
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
-  const acp = new AcpService(config, () => tools.list());
+  const acp = new AcpService(
+    config,
+    () => tools.list(),
+    () => sessions.summary(),
+    (limit) => sessions.listSessions(limit),
+  );
   const repository = new RepositoryService(config.workspaceDir);
   const diagnostics = new DiagnosticsService(config, gatewayConfig, agentSdk);
   const operator = new OperatorService(
@@ -343,6 +350,14 @@ export function createServices(
     diagnostics,
     repository,
     agentSdk,
+  );
+  const skills = new SkillsService(config.skillsDir, agentSdk);
+  const skillSynthesis = new SkillSynthesisService(config.skillsDir);
+  const skillsHub = new SkillsHubService(
+    skills,
+    skillSynthesis,
+    agentSdk,
+    config.dataDir,
   );
   tools = new ToolsService(() => ({
     mcpEnabled: mcp.status().enabled,
@@ -376,6 +391,11 @@ export function createServices(
       agentSdk
         .snapshot()
         .audit?.compatibility.filter((entry) => !entry.compatible).length ?? 0,
+    skillsHubTotal: skillsHub.summary().workspaceTotal,
+    skillsHubGenerated: skillsHub.summary().generatedTotal,
+    skillsHubCatalogTotal: skillsHub.summary().catalogTotal,
+    skillsHubManifestCount: skillsHub.summary().manifestTotal,
+    skillsHubInstalledTotal: skillsHub.summary().installedTotal,
   }));
   void agentSdk.prime().catch(() => {});
   const getModelContext = (): {
@@ -411,7 +431,7 @@ export function createServices(
       memory: config.memoryCharLimit,
       user: config.userCharLimit,
     }),
-    skills: new SkillsService(config.skillsDir, agentSdk),
+    skills,
     sessions,
     cron: new CronService(
       join(config.dataDir, "cron"),
@@ -464,7 +484,8 @@ export function createServices(
       sessions,
       getModelContext,
     ),
-    skillSynthesis: new SkillSynthesisService(config.skillsDir),
+    skillSynthesis,
+    skillsHub,
     userProfiles: new UserProfileService(join(config.dataDir, "profiles")),
     settings,
   };
