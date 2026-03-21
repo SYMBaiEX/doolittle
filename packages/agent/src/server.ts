@@ -2232,6 +2232,75 @@ export function startApiServer(context: AppContext): void {
 
       if (
         request.method === "POST" &&
+        url.pathname === "/profiles/users/modeling"
+      ) {
+        const body = (await request.json()) as {
+          userId?: string;
+          userMemoryMode?: "local" | "hybrid";
+          assistantMemoryMode?: "local" | "hybrid";
+          dialecticMode?: "off" | "assist" | "conclude";
+        };
+        if (!body.userId) {
+          return json({ error: "userId is required" }, 400);
+        }
+        return json({
+          profile: context.services.userProfiles.configureModeling(
+            body.userId,
+            {
+              userMemoryMode: body.userMemoryMode,
+              assistantMemoryMode: body.assistantMemoryMode,
+              dialecticMode: body.dialecticMode,
+            },
+          ),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/profiles/users/context"
+      ) {
+        const userId = url.searchParams.get("userId");
+        const query = url.searchParams.get("query");
+        if (!userId || !query) {
+          return json({ error: "userId and query are required" }, 400);
+        }
+        return json({
+          context: context.services.userProfiles.context(userId, query),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/profiles/users/conclude"
+      ) {
+        const body = (await request.json()) as {
+          userId?: string;
+          query?: string;
+          conclusion?: string;
+          source?: string;
+        };
+        if (!body.userId || !body.query || !body.conclusion) {
+          return json(
+            { error: "userId, query, and conclusion are required" },
+            400,
+          );
+        }
+        return json({
+          context: context.services.userProfiles.context(
+            body.userId,
+            body.query,
+          ),
+          conclusion: context.services.userProfiles.conclude(
+            body.userId,
+            body.query,
+            body.conclusion,
+            body.source,
+          ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
         url.pathname === "/profiles/agent/observe"
       ) {
         const body = (await request.json()) as {

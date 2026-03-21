@@ -12,4 +12,4 @@ export type { AppContext } from "@/runtime/bootstrap";
 export type { AgentExecutionContext } from "@/runtime/chat";
 export { handleAgentTurn } from "@/runtime/chat";
 export type { AppServices } from "@/services";
-export type { EnvConfig } from "@/types";
+export type { CronJobRecord, EnvConfig } from "@/types";

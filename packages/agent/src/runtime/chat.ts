@@ -1059,6 +1059,41 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed.startsWith("/user context ")) {
+    const query = trimmed.replace("/user context ", "").trim();
+    if (!query) {
+      return "Usage: /user context <question>";
+    }
+    return JSON.stringify(
+      context.services.userProfiles.context(input.userId, query),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/user conclude ")) {
+    const payload = trimmed.replace("/user conclude ", "");
+    const [queryRaw, ...conclusionParts] = payload.split("::");
+    const query = queryRaw?.trim();
+    const conclusion = conclusionParts.join("::").trim();
+    if (!query || !conclusion) {
+      return "Usage: /user conclude <question> :: <conclusion>";
+    }
+    return JSON.stringify(
+      {
+        context: context.services.userProfiles.context(input.userId, query),
+        conclusion: context.services.userProfiles.conclude(
+          input.userId,
+          query,
+          conclusion,
+          input.source,
+        ),
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/profiles users search ")) {
     const query = trimmed.replace("/profiles users search ", "").trim();
     if (!query) {
@@ -1108,6 +1143,53 @@ async function buildCommandResponse(
     }
     return JSON.stringify(
       context.services.userProfiles.setMode(input.userId, mode),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/user modeling ")) {
+    const payload = trimmed.replace("/user modeling ", "");
+    const segments = payload
+      .split("|")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    const settings: {
+      userMemoryMode?: "local" | "hybrid";
+      assistantMemoryMode?: "local" | "hybrid";
+      dialecticMode?: "off" | "assist" | "conclude";
+    } = {};
+    for (const segment of segments) {
+      const [key, value] = segment.split(":").map((entry) => entry.trim());
+      if (!key || !value) {
+        continue;
+      }
+      if (
+        (key === "user" || key === "userMemory") &&
+        (value === "local" || value === "hybrid")
+      ) {
+        settings.userMemoryMode = value;
+      } else if (
+        (key === "assistant" || key === "assistantMemory") &&
+        (value === "local" || value === "hybrid")
+      ) {
+        settings.assistantMemoryMode = value;
+      } else if (
+        (key === "dialectic" || key === "mode") &&
+        (value === "off" || value === "assist" || value === "conclude")
+      ) {
+        settings.dialecticMode = value;
+      }
+    }
+    if (
+      !settings.userMemoryMode &&
+      !settings.assistantMemoryMode &&
+      !settings.dialecticMode
+    ) {
+      return "Usage: /user modeling user:<local|hybrid> | assistant:<local|hybrid> | dialectic:<off|assist|conclude>";
+    }
+    return JSON.stringify(
+      context.services.userProfiles.configureModeling(input.userId, settings),
       null,
       2,
     );
