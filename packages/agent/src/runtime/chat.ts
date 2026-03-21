@@ -1310,7 +1310,7 @@ async function buildCommandResponse(
     );
     return [
       `gateway totals: configured=${health.length} ready=${health.filter((entry) => entry.ready).length} pluginMediated=${health.filter((entry) => entry.nativePluginId).length} official=${health.filter((entry) => entry.nativePluginSource === "official").length} vendored=${health.filter((entry) => entry.nativePluginSource === "vendored").length}`,
-      `bridge totals: gatewayEnabled=${controlPlane.totals.gatewayEnabled} pluginEnabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices}`,
+      `bridge totals: gatewayEnabled=${controlPlane.totals.gatewayEnabled} pluginEnabled=${controlPlane.totals.enabledPlugins} available=${controlPlane.totals.availableServices} live=${controlPlane.totals.liveServices} operational=${controlPlane.totals.operationalTransports}`,
       ...health.map((entry) => {
         const lifecycle = [
           entry.startedAt ? `started=${entry.startedAt}` : undefined,
@@ -1396,6 +1396,7 @@ async function buildCommandResponse(
       {
         runtime: runtimeStatus,
         messagingBridge: runtimeStatus.messagingBridge,
+        transportInventory: runtimeStatus.transportInventory,
         transportControl: runtimeStatus.transportControl,
         mediation: {
           pluginMediatedAdapters: state.totals.pluginMediatedAdapters,
@@ -1647,6 +1648,7 @@ async function buildCommandResponse(
       {
         resolution: getEffectiveServiceResolution(context.runtime),
         messaging: controlPlane.messagingBridge,
+        transportInventory: controlPlane.transportInventory,
         transportControl: controlPlane.totals,
         registry: context.services.nativeRegistry,
       },

@@ -290,6 +290,9 @@ interface GatewayRuntimeStatus {
   messagingBridge: ReturnType<
     typeof getNativeTransportControlPlane
   >["messagingBridge"];
+  transportInventory: ReturnType<
+    typeof getNativeTransportControlPlane
+  >["transportInventory"];
 }
 
 interface GatewaySupervisionRecord {
@@ -1412,6 +1415,7 @@ export class GatewayRunner {
       adapters: Array.from(this.adapters.keys()),
       transportControl: controlPlane.totals,
       messagingBridge: controlPlane.messagingBridge,
+      transportInventory: controlPlane.transportInventory,
     };
   }
 

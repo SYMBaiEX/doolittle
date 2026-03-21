@@ -196,6 +196,11 @@ describe("GatewayRunner", () => {
       expect(runtimeStatus.adapters).toContain("api");
       expect(runtimeStatus.transportControl.configured).toBeGreaterThan(0);
       expect(
+        runtimeStatus.transportInventory.some(
+          (entry) => entry.platform === "api",
+        ),
+      ).toBe(true);
+      expect(
         runtimeStatus.messagingBridge.some(
           (entry) => entry.platform === "discord",
         ),
