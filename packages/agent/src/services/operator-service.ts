@@ -11,10 +11,6 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
-import {
-  getAgentRegistrySnapshot,
-  getAgentSkillCatalogSnapshot,
-} from "@/runtime/native/agent-sdk";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
@@ -185,10 +181,9 @@ export class OperatorService {
   }
 
   async setupSummary(): Promise<SetupSummary> {
-    const [registrySnapshot, skillCatalog] = await Promise.all([
-      this.agentSdk?.registry() ?? getAgentRegistrySnapshot(),
-      this.agentSdk?.skillCatalog() ?? getAgentSkillCatalogSnapshot(),
-    ]);
+    const ecosystem = this.agentSdk
+      ? await this.agentSdk.overview()
+      : undefined;
     const transportControl = this.runtime
       ? getNativeTransportControlPlane(
           this.runtime,
@@ -292,20 +287,19 @@ export class OperatorService {
         createNativeServiceRegistry(),
       ),
       ecosystem: {
-        registryAvailable: registrySnapshot.available,
-        registryPlugins: registrySnapshot.total,
-        skillCatalogAvailable: skillCatalog.available,
-        skillCatalogSkills: skillCatalog.total,
+        registryAvailable: ecosystem?.registry.available ?? false,
+        registryPlugins: ecosystem?.registry.total ?? 0,
+        skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
+        skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
       },
       checklist: await this.diagnostics.setupChecklist(),
     };
   }
 
   async updatePreview(): Promise<UpdatePreview> {
-    const [registrySnapshot, skillCatalog] = await Promise.all([
-      this.agentSdk?.registry() ?? getAgentRegistrySnapshot(),
-      this.agentSdk?.skillCatalog() ?? getAgentSkillCatalogSnapshot(),
-    ]);
+    const ecosystem = this.agentSdk
+      ? await this.agentSdk.overview()
+      : undefined;
     const repositoryAvailable = this.repository.isRepository();
     const status = repositoryAvailable
       ? await this.repository.status()
@@ -339,10 +333,10 @@ export class OperatorService {
             "Keep bun install, bun run typecheck, bun test, and bun run build as the standard update validation flow.",
           ],
       ecosystem: {
-        registryAvailable: registrySnapshot.available,
-        registryPlugins: registrySnapshot.total,
-        skillCatalogAvailable: skillCatalog.available,
-        skillCatalogSkills: skillCatalog.total,
+        registryAvailable: ecosystem?.registry.available ?? false,
+        registryPlugins: ecosystem?.registry.total ?? 0,
+        skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
+        skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
       },
     };
   }
