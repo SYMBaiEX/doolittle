@@ -13,6 +13,7 @@ export interface SkillHubWorkspaceRecord {
   path: string;
   root: string;
   category: string;
+  tags: string[];
   source: "workspace" | "generated";
   installable: boolean;
   contentLength: number;
@@ -29,6 +30,7 @@ export interface SkillHubCatalogRecord {
   displayName: string;
   summary: string | null;
   tags: Record<string, string>;
+  tagList: string[];
   installsCurrent: number;
   installsAllTime: number;
   stars: number;
@@ -37,6 +39,72 @@ export interface SkillHubCatalogRecord {
   workspacePath?: string;
   manifestPath: string;
   source: "catalog" | "workspace";
+}
+
+export interface SkillHubDistributionRecord {
+  sources: Array<{
+    source: "workspace" | "generated" | "catalog" | "installed";
+    count: number;
+  }>;
+  categories: Array<{
+    name: string;
+    count: number;
+    workspace: number;
+    generated: number;
+    catalog: number;
+    installed: number;
+  }>;
+  roots: Array<{
+    name: string;
+    count: number;
+    workspace: number;
+    generated: number;
+    catalog: number;
+    installed: number;
+  }>;
+  tags: Array<{
+    name: string;
+    count: number;
+    workspace: number;
+    generated: number;
+    catalog: number;
+    installed: number;
+  }>;
+}
+
+export interface SkillHubSummary {
+  workspaceTotal: number;
+  generatedTotal: number;
+  catalogTotal: number;
+  installedTotal: number;
+  installable: number;
+  exportedManifests: number;
+  manifestsDir: string;
+  summary: string;
+  distribution: SkillHubDistributionRecord;
+  recentWorkspace: Array<{
+    slug: string;
+    title: string;
+    category: string;
+    root: string;
+    source: "workspace" | "generated";
+    tags: string[];
+  }>;
+  recentCatalog: Array<{
+    slug: string;
+    displayName: string;
+    source: "catalog" | "workspace";
+    installed: boolean;
+    tags: string[];
+  }>;
+  recentInstalled: Array<{
+    slug: string;
+    title: string;
+    source: string;
+    category: string;
+    root: string;
+    tags: string[];
+  }>;
 }
 
 export interface SkillHubManifest {
@@ -54,6 +122,7 @@ export interface SkillHubManifest {
   lineCount: number;
   hash: string;
   tags: string[];
+  tagList?: string[];
   generatedAt: string;
   workspacePath?: string;
   taskId?: string;
@@ -141,6 +210,67 @@ function tagsFromText(content: string): string[] {
   return [...tags].slice(0, 8);
 }
 
+function tagsFromCatalog(tags: Record<string, string>): string[] {
+  return Object.entries(tags)
+    .flatMap(([key, value]) => [
+      key.trim(),
+      value.trim(),
+      `${key.trim()}:${value.trim()}`,
+    ])
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function incrementGroupedCount(
+  groups: Map<
+    string,
+    {
+      count: number;
+      workspace: number;
+      generated: number;
+      catalog: number;
+      installed: number;
+    }
+  >,
+  name: string,
+  source: "workspace" | "generated" | "catalog" | "installed",
+): void {
+  if (!name) {
+    return;
+  }
+  const current = groups.get(name) ?? {
+    count: 0,
+    workspace: 0,
+    generated: 0,
+    catalog: 0,
+    installed: 0,
+  };
+  current.count += 1;
+  current[source] += 1;
+  groups.set(name, current);
+}
+
+function mapToSortedGroupedRecords(
+  groups: Map<
+    string,
+    {
+      count: number;
+      workspace: number;
+      generated: number;
+      catalog: number;
+      installed: number;
+    }
+  >,
+) {
+  return [...groups.entries()]
+    .map(([name, value]) => ({ name, ...value }))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.name.localeCompare(right.name),
+    );
+}
+
 export class SkillsHubService {
   private readonly hubDir: string;
   private readonly manifestsDir: string;
@@ -189,6 +319,7 @@ export class SkillsHubService {
         path: skill.path,
         root: rootFromSlug(skill.slug),
         category: categoryFromSlug(skill.slug),
+        tags: tagsFromText(content),
         source: normalized.startsWith("generated/") ? "generated" : "workspace",
         installable: true,
         contentLength: content.length,
@@ -217,6 +348,7 @@ export class SkillsHubService {
       displayName: entry.displayName,
       summary: entry.summary,
       tags: entry.tags,
+      tagList: tagsFromCatalog(entry.tags),
       installsCurrent: entry.stats.installsCurrent,
       installsAllTime: entry.stats.installsAllTime,
       stars: entry.stats.stars,
@@ -330,6 +462,7 @@ export class SkillsHubService {
         displayName: entry.displayName,
         summary: entry.summary,
         tags: entry.tags,
+        tagList: tagsFromCatalog(entry.tags),
         installsCurrent: entry.stats.installsCurrent,
         installsAllTime: entry.stats.installsAllTime,
         stars: entry.stats.stars,
@@ -519,25 +652,118 @@ export class SkillsHubService {
     );
   }
 
-  summary(force = false) {
+  summary(_force = false): SkillHubSummary {
     const workspace = this.workspace();
     const generated = workspace.filter((entry) => entry.source === "generated");
     const installed = this.installedManifests();
+    const catalog = this.catalogCache ?? [];
+    const sourceSummary: SkillHubDistributionRecord["sources"] = [
+      {
+        source: "workspace",
+        count: workspace.filter((entry) => entry.source === "workspace").length,
+      },
+      { source: "generated", count: generated.length },
+      { source: "catalog", count: catalog.length },
+      { source: "installed", count: installed.length },
+    ];
+    const categoryGroups = new Map<
+      string,
+      {
+        count: number;
+        workspace: number;
+        generated: number;
+        catalog: number;
+        installed: number;
+      }
+    >();
+    const rootGroups = new Map<
+      string,
+      {
+        count: number;
+        workspace: number;
+        generated: number;
+        catalog: number;
+        installed: number;
+      }
+    >();
+    const tagGroups = new Map<
+      string,
+      {
+        count: number;
+        workspace: number;
+        generated: number;
+        catalog: number;
+        installed: number;
+      }
+    >();
+
+    for (const entry of workspace) {
+      incrementGroupedCount(categoryGroups, entry.category, entry.source);
+      incrementGroupedCount(rootGroups, entry.root, entry.source);
+      for (const tag of entry.tags) {
+        incrementGroupedCount(tagGroups, tag, entry.source);
+      }
+    }
+    for (const entry of catalog) {
+      incrementGroupedCount(
+        categoryGroups,
+        rootFromSlug(entry.slug),
+        "catalog",
+      );
+      incrementGroupedCount(rootGroups, rootFromSlug(entry.slug), "catalog");
+      for (const tag of entry.tagList) {
+        incrementGroupedCount(tagGroups, tag, "catalog");
+      }
+    }
+    for (const entry of installed) {
+      incrementGroupedCount(categoryGroups, entry.category, "installed");
+      incrementGroupedCount(rootGroups, entry.root, "installed");
+    }
+
     return {
       workspaceTotal: workspace.length,
-      installable: workspace.filter((entry) => entry.installable).length,
       generatedTotal: generated.length,
-      catalogTotal:
-        this.lastSyncReport?.catalogTotal ?? this.catalogCache?.length ?? 0,
-      syncedTotal: this.lastSyncReport?.workspaceTotal ?? 0,
-      manifestTotal: installed.length,
+      catalogTotal: this.lastSyncReport?.catalogTotal ?? catalog.length,
       installedTotal: installed.length,
-      sourceDir: this.manifestsDir,
-      exportDir: this.exportsDir,
-      importDir: this.importsDir,
-      catalogDir: this.catalogIndexPath,
-      installedDir: this.installedIndexPath,
-      force,
+      installable: workspace.filter((entry) => entry.installable).length,
+      exportedManifests: this.lastSyncReport?.exportedManifests ?? 0,
+      manifestsDir: this.manifestsDir,
+      summary: `workspace=${workspace.length} generated=${generated.length} catalog=${this.lastSyncReport?.catalogTotal ?? catalog.length} installed=${installed.length}`,
+      distribution: {
+        sources: sourceSummary,
+        categories: mapToSortedGroupedRecords(categoryGroups).slice(0, 12),
+        roots: mapToSortedGroupedRecords(rootGroups).slice(0, 12),
+        tags: mapToSortedGroupedRecords(tagGroups).slice(0, 20),
+      },
+      recentWorkspace: workspace
+        .slice()
+        .sort((left, right) =>
+          (right.updatedAt ?? "").localeCompare(left.updatedAt ?? ""),
+        )
+        .slice(0, 8)
+        .map((entry) => ({
+          slug: entry.slug,
+          title: entry.title,
+          category: entry.category,
+          root: entry.root,
+          source: entry.source,
+          tags: entry.tags,
+        })),
+      recentCatalog: catalog.slice(0, 8).map((entry) => ({
+        slug: entry.slug,
+        displayName: entry.displayName,
+        source: entry.source,
+        installed: entry.installed,
+        tags: entry.tagList,
+      })),
+      recentInstalled: installed.slice(0, 8).map((entry) => ({
+        slug: entry.slug,
+        title: entry.title,
+        source: entry.source,
+        category: entry.category,
+        root: entry.root,
+        tags: this.installedManifest(entry.slug)?.tags ?? [],
+      })),
     };
   }
 
@@ -621,6 +847,7 @@ export class SkillsHubService {
       lineCount: countLines(content),
       hash: hashContent(content),
       tags: tagsFromText(content),
+      tagList: tagsFromCatalog(catalog?.tags ?? {}),
       generatedAt: nowIso(),
       catalog: catalog
         ? {

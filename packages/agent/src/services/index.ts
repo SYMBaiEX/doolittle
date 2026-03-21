@@ -394,7 +394,7 @@ export function createServices(
     skillsHubTotal: skillsHub.summary().workspaceTotal,
     skillsHubGenerated: skillsHub.summary().generatedTotal,
     skillsHubCatalogTotal: skillsHub.summary().catalogTotal,
-    skillsHubManifestCount: skillsHub.summary().manifestTotal,
+    skillsHubManifestCount: skillsHub.summary().exportedManifests,
     skillsHubInstalledTotal: skillsHub.summary().installedTotal,
   }));
   void agentSdk.prime().catch(() => {});

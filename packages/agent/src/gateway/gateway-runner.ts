@@ -386,6 +386,15 @@ interface GatewayRuntimeStatus {
   supervisionEvents: number;
   adapters: PlatformName[];
   daemon: GatewayDaemonRuntimeState;
+  journalPaths: {
+    snapshot: string;
+    history: string;
+    runtime: string;
+    supervision: string;
+    inbox: string;
+    outbox: string;
+    attachments: string;
+  };
   transportControl: ReturnType<typeof getNativeTransportControlPlane>["totals"];
   messagingBridge: ReturnType<
     typeof getNativeTransportControlPlane
@@ -1958,6 +1967,15 @@ export class GatewayRunner {
       supervisionEvents: this.supervisionLog.length,
       adapters: Array.from(this.adapters.keys()),
       daemon,
+      journalPaths: {
+        snapshot: this.snapshotPath,
+        history: this.snapshotHistoryPath,
+        runtime: this.runtimeStatusPath,
+        supervision: this.supervisionPath,
+        inbox: this.inboxPath,
+        outbox: this.outboxPath,
+        attachments: this.attachmentsPath,
+      },
       transportControl: controlPlane.totals,
       messagingBridge: controlPlane.messagingBridge,
       transportInventory: controlPlane.transportInventory,

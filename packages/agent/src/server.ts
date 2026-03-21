@@ -57,6 +57,7 @@ import {
   getEffectiveUserRelationship,
   getNativeIntegrationControlPlane,
   getNativeOwnershipControlPlane,
+  getNativeOwnershipSnapshot,
   getNativeServices,
   getNativeTransportControlPlane,
   importEffectiveSkillHubManifest,
@@ -553,6 +554,17 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/runtime/ownership") {
+        return json(
+          await getNativeOwnershipSnapshot(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          ),
+        );
+      }
+
       if (request.method === "GET" && url.pathname === "/runtime/transports") {
         return json(
           getNativeTransportControlPlane(
@@ -848,6 +860,16 @@ export function startApiServer(context: AppContext): void {
             false,
             50,
           ),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/skills/hub/distribution"
+      ) {
+        return json({
+          distribution: getEffectiveSkillHubSummary(context.services)
+            .distribution,
         });
       }
 
@@ -3051,6 +3073,84 @@ export function startApiServer(context: AppContext): void {
           { error: "manifestPath, label, or latest=true is required" },
           400,
         );
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/benchmark/environment"
+      ) {
+        return json({
+          environment:
+            context.services.trajectories.describeBenchmarkEnvironment(),
+        });
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname === "/trajectories/benchmarks"
+      ) {
+        return json({
+          benchmarks: context.services.trajectories.listBenchmarkManifests(
+            Number(url.searchParams.get("limit") ?? "20"),
+          ),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/benchmark/create"
+      ) {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          label?: string;
+          purpose?: string;
+          tags?: string[];
+          rubric?: string[];
+          group?: string;
+          cases?: Array<{ manifestPath?: string; label?: string }>;
+        };
+        if (!body.cases?.length) {
+          return json(
+            { error: "At least one benchmark case is required" },
+            400,
+          );
+        }
+        return json({
+          benchmark: context.services.trajectories.createBenchmarkManifest({
+            label: body.label,
+            purpose: body.purpose,
+            tags: body.tags,
+            rubric: body.rubric,
+            group: body.group,
+            cases: body.cases,
+          }),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/trajectories/benchmark/run"
+      ) {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          manifestPath?: string;
+          latest?: boolean;
+        };
+        if (body.latest) {
+          const run = await context.services.trajectories.runLatestBenchmark();
+          return run
+            ? json({ benchmark: run })
+            : json(
+                { error: "No trajectory benchmark manifests recorded." },
+                404,
+              );
+        }
+        if (!body.manifestPath) {
+          return json({ error: "manifestPath is required" }, 400);
+        }
+        return json({
+          benchmark: await context.services.trajectories.runBenchmark(
+            body.manifestPath,
+          ),
+        });
       }
 
       if (request.method === "POST" && url.pathname === "/mcp/probe") {

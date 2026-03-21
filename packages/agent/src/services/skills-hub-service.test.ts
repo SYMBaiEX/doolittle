@@ -131,6 +131,13 @@ describe("SkillsHubService", () => {
       expect(summary.workspaceTotal).toBe(2);
       expect(summary.generatedTotal).toBe(1);
       expect(summary.catalogTotal).toBe(2);
+      expect(
+        summary.distribution.sources.some((entry) => entry.count > 0),
+      ).toBe(true);
+      expect(
+        summary.distribution.roots.some((entry) => entry.name === "planning"),
+      ).toBe(true);
+      expect(summary.recentWorkspace.length).toBeGreaterThan(0);
 
       const catalog = await hub.catalog(true, 10);
       expect(
