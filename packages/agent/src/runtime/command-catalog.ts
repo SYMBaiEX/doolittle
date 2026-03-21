@@ -41,6 +41,11 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "List native ElizaOS plugin inventory and source.",
   },
   {
+    command: "/runtime services",
+    category: "runtime",
+    description: "Show native-vs-product service resolution across the stack.",
+  },
+  {
     command: "/runtime ecosystem",
     category: "runtime",
     description: "Show alpha-channel package alignment and native audit data.",

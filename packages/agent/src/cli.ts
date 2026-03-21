@@ -6,6 +6,7 @@ import { handleAgentTurn } from "@/runtime/chat";
 import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getEffectiveServiceResolution } from "@/runtime/native/service-bridge";
 
 interface CliState {
   activeSessionId: string;
@@ -118,6 +119,7 @@ function buildHelpText(agentName: string): string {
 
 function renderEcosystemContent(context: AppContext): string {
   const audit = getNativePackageAudit(context.config);
+  const resolution = getEffectiveServiceResolution(context.runtime);
   const latest = audit.runtime.latest;
   const alpha = audit.runtime.alpha;
 
@@ -131,6 +133,7 @@ function renderEcosystemContent(context: AppContext): string {
     `Alpha-only: ${audit.packages.filter((entry) => entry.compatibility === "alpha-only").length}`,
     `Vendored: ${audit.packages.filter((entry) => entry.compatibility === "vendored-by-design").length}`,
     `Workspace-only: ${audit.packages.filter((entry) => entry.compatibility === "workspace-only").length}`,
+    `Native services: ${resolution.filter((entry) => entry.source === "native").length}/${resolution.length}`,
     "",
     "{bold}Priority Packages{/}",
     ...audit.packages

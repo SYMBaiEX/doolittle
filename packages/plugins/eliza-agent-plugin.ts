@@ -113,11 +113,12 @@ export function createElizaAgentPlugin(
     runner!: GatewayRunner;
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
-      const context = {} as AppContext;
+      const context = {
+        config,
+        services,
+        runtime: runtime as never,
+      } as unknown as AppContext;
       const runner = new GatewayRunner(context);
-      context.config = config;
-      context.services = services;
-      context.runtime = runtime as never;
       context.gateway = runner;
       const service = new GatewayRuntimeService(runtime);
       service.runner = runner;

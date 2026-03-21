@@ -21,6 +21,7 @@ import {
   getEffectiveDelegationTasks,
   getEffectivePersonalityList,
   getEffectivePluginManagerInventory,
+  getEffectiveServiceResolution,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
   getEffectiveSkills,
@@ -1593,6 +1594,17 @@ async function buildCommandResponse(
         grouped: groupNativePluginCatalog(catalog),
         serviceRegistry: context.services.nativeRegistry,
         pluginManager: getEffectivePluginManagerInventory(context.runtime),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/runtime services" || trimmed === "/services native") {
+    return JSON.stringify(
+      {
+        resolution: getEffectiveServiceResolution(context.runtime),
+        registry: context.services.nativeRegistry,
       },
       null,
       2,
