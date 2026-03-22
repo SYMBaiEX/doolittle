@@ -2570,6 +2570,56 @@ export class GatewayRunner {
       sessionId: session.sessionKey,
     });
 
+    let progressiveDelivery: DeliveredMessageRecord | undefined;
+    let progressiveText = "";
+    let lastProgressFlushAt = 0;
+    let progressChain = Promise.resolve();
+    const queueProgressFlush = (text: string, force = false): Promise<void> => {
+      if (!adapter || !text.trim()) {
+        return progressChain;
+      }
+      progressChain = progressChain
+        .then(async () => {
+          const now = Date.now();
+          if (
+            !force &&
+            progressiveDelivery &&
+            now - lastProgressFlushAt < 250 &&
+            text.length - progressiveText.length < 32
+          ) {
+            return;
+          }
+          const outbound: OutboundPlatformMessage = {
+            roomId: message.channelId ?? message.roomId,
+            userId: message.userId,
+            text,
+            threadId: message.threadId ?? session.threadId,
+            replyToId: message.messageId ?? message.replyToMessageId,
+            metadata: {
+              ...(message.metadata ?? {}),
+              progressive: "true",
+            },
+          };
+          if (!progressiveDelivery) {
+            progressiveDelivery = await adapter.send(outbound);
+          } else {
+            progressiveDelivery = await this.editDelivery(
+              progressiveDelivery.id,
+              text,
+              {
+                threadId: outbound.threadId,
+                replyToId: outbound.replyToId,
+                metadata: outbound.metadata,
+              },
+            );
+          }
+          progressiveText = text;
+          lastProgressFlushAt = now;
+        })
+        .catch(() => undefined);
+      return progressChain;
+    };
+
     const response = await handleAgentTurn(
       {
         message: message.text,
@@ -2578,7 +2628,13 @@ export class GatewayRunner {
         source: message.platform,
       },
       this.context,
+      {
+        onResponseProgress: async ({ response }) => {
+          await queueProgressFlush(response, false);
+        },
+      },
     );
+    await queueProgressFlush(response, true);
     this.pushTrace({
       traceId,
       at: new Date().toISOString(),
@@ -2606,16 +2662,28 @@ export class GatewayRunner {
         metadata: message.metadata,
       });
       try {
-        const delivery = await adapter.send(outbound);
+        const requiresFreshDelivery =
+          outbound.metadata?.audioAsVoice === "true" ||
+          Number(outbound.metadata?.attachmentCount ?? "0") > 0;
+        const delivery =
+          progressiveDelivery && !requiresFreshDelivery
+            ? await this.editDelivery(progressiveDelivery.id, outbound.text, {
+                threadId: outbound.threadId,
+                replyToId: outbound.replyToId,
+                metadata: outbound.metadata,
+              })
+            : await adapter.send(outbound);
         deliveryId = delivery.id;
-        this.recordOutbox(
-          message.platform,
-          traceId,
-          session.sessionKey,
-          delivery,
-          outbound,
-          "sent",
-        );
+        if (!progressiveDelivery || requiresFreshDelivery) {
+          this.recordOutbox(
+            message.platform,
+            traceId,
+            session.sessionKey,
+            delivery,
+            outbound,
+            "sent",
+          );
+        }
         this.pushTrace({
           traceId,
           at: new Date().toISOString(),

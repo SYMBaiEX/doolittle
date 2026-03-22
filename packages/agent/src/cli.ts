@@ -34,6 +34,7 @@ interface CliExecutionHooks {
     chunk: string;
     command: string;
   }) => void;
+  onResponseProgress?: (event: { response: string }) => void;
 }
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
@@ -92,7 +93,7 @@ function renderResponseTranscript(
   }
 
   return sections
-    .slice(-6)
+    .slice(-10)
     .map((entry) =>
       [`{bold}${escapeBlessed(entry.label)}{/}`, escapeBlessed(entry.body)]
         .filter(Boolean)
@@ -164,6 +165,10 @@ function buildHelpText(agentName: string): string {
     "  /media analyze ./recordings/demo.wav",
     `  ${command("/delegate create Research spike :: validate a transport path")}`,
     `  ${command("/trajectories ingest gateway label:review limit:100")}`,
+    `  ${command("/accounts")}`,
+    `  ${command("/accounts doctor")}`,
+    `  ${command("/accounts connect codex")}`,
+    `  ${command("/accounts connect claude-code")}`,
     "  !git status",
     "  !uname -a",
   ].join("\n");
@@ -629,41 +634,6 @@ async function executeCliInput(
     return { text: buildHelpText(context.config.agentName), tone: "info" };
   }
 
-  if (trimmed.startsWith("!")) {
-    const command = trimmed.slice(1).trim();
-    if (!command) {
-      return { text: "Usage: !<shell command>", tone: "warning" };
-    }
-    const result = await context.services.terminal.runStreamingLocal(command, {
-      onStdout: (chunk) => {
-        hooks?.onStream?.({
-          source: "stdout",
-          chunk,
-          command,
-        });
-      },
-      onStderr: (chunk) => {
-        hooks?.onStream?.({
-          source: "stderr",
-          chunk,
-          command,
-        });
-      },
-    });
-    return {
-      text: [
-        `$ ${result.command}`,
-        "",
-        result.stdout || "(no stdout)",
-        result.stderr ? `\n[stderr]\n${result.stderr}` : "",
-        `\nexit=${result.exitCode} duration=${result.durationMs ?? "n/a"}ms`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      tone: result.exitCode === 0 ? "success" : "warning",
-    };
-  }
-
   const runShellFlow = async (
     command: string,
     onSuccess?: () => Promise<string | undefined>,
@@ -750,8 +720,7 @@ async function executeCliInput(
     normalizedTrimmed.startsWith("/") &&
     !normalizedTrimmed.startsWith("/resume ") &&
     normalizedTrimmed !== "/resume" &&
-    !normalizedTrimmed.startsWith("/title ") &&
-    !normalizedTrimmed.startsWith("/terminal run ")
+    !normalizedTrimmed.startsWith("/title ")
   ) {
     const response = await executeSlashCommand(
       {
@@ -761,6 +730,10 @@ async function executeCliInput(
         source: "cli",
       },
       context,
+      {
+        onResponseProgress: ({ response }) =>
+          hooks?.onResponseProgress?.({ response }),
+      },
     );
     if (response !== undefined) {
       return { text: response, tone: "info" };
@@ -811,38 +784,6 @@ async function executeCliInput(
     };
   }
 
-  if (normalizedTrimmed.startsWith("/terminal run ")) {
-    const command = normalizedTrimmed.replace("/terminal run ", "").trim();
-    if (!command) {
-      return { text: "Usage: /terminal run <command>", tone: "warning" };
-    }
-    const result = await context.services.terminal.runStreamingLocal(command, {
-      onStdout: (chunk) => {
-        hooks?.onStream?.({
-          source: "stdout",
-          chunk,
-          command,
-        });
-      },
-      onStderr: (chunk) => {
-        hooks?.onStream?.({
-          source: "stderr",
-          chunk,
-          command,
-        });
-      },
-    });
-    return {
-      text: [
-        `Command: ${result.command}`,
-        `Exit: ${result.exitCode}`,
-        `STDOUT:\n${result.stdout || "(empty)"}`,
-        `STDERR:\n${result.stderr || "(empty)"}`,
-      ].join("\n"),
-      tone: result.exitCode === 0 ? "success" : "warning",
-    };
-  }
-
   const response = await handleAgentTurn(
     {
       message: normalizedTrimmed,
@@ -851,6 +792,10 @@ async function executeCliInput(
       source: "cli",
     },
     context,
+    {
+      onResponseProgress: ({ response }) =>
+        hooks?.onResponseProgress?.({ response }),
+    },
   );
 
   return { text: response, tone: "agent" };
@@ -867,7 +812,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
-    `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
+    `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
   );
 
   while (true) {
@@ -1023,6 +968,7 @@ async function startTui(context: AppContext): Promise<void> {
     tags: true,
     border: "line",
     scrollback: 1000,
+    wrap: true,
     keys: true,
     mouse: true,
     vi: true,
@@ -1043,6 +989,7 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     scrollable: true,
     alwaysScroll: true,
+    wrap: true,
     keys: true,
     mouse: true,
     vi: true,
@@ -1069,6 +1016,7 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     scrollable: true,
     alwaysScroll: true,
+    wrap: true,
     mouse: true,
     keys: true,
     vi: true,
@@ -1090,6 +1038,7 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     scrollable: true,
     alwaysScroll: true,
+    wrap: true,
     mouse: true,
     keys: true,
     vi: true,
@@ -1111,6 +1060,7 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     scrollable: true,
     alwaysScroll: true,
+    wrap: true,
     mouse: true,
     keys: true,
     vi: true,
@@ -1132,6 +1082,7 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     scrollable: true,
     alwaysScroll: true,
+    wrap: true,
     mouse: true,
     keys: true,
     vi: true,
@@ -1370,16 +1321,20 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   function renderResponsePane(): void {
+    const pinnedToBottom =
+      screen.focused !== response || response.getScrollPerc() >= 96;
     response.setContent(
       renderResponseTranscript(responseHistory, liveResponse),
     );
-    response.setScrollPerc(100);
+    if (pinnedToBottom) {
+      response.setScrollPerc(100);
+    }
   }
 
   function pushResponseEntry(label: string, body: string): void {
     responseHistory.push({ label, body });
-    if (responseHistory.length > 24) {
-      responseHistory.splice(0, responseHistory.length - 24);
+    if (responseHistory.length > 48) {
+      responseHistory.splice(0, responseHistory.length - 48);
     }
     liveResponse = undefined;
     renderResponsePane();
@@ -1563,6 +1518,34 @@ async function startTui(context: AppContext): Promise<void> {
     screen.render();
   }
 
+  let refreshPanelsPromise: Promise<void> | null = null;
+  let refreshPanelsQueued = false;
+  let refreshPanelsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleRefreshPanels(delayMs = 120): void {
+    refreshPanelsQueued = true;
+    if (refreshPanelsTimer) {
+      return;
+    }
+    refreshPanelsTimer = setTimeout(() => {
+      refreshPanelsTimer = null;
+      if (refreshPanelsPromise) {
+        return;
+      }
+      refreshPanelsPromise = (async () => {
+        do {
+          refreshPanelsQueued = false;
+          await refreshPanels();
+        } while (refreshPanelsQueued);
+      })().finally(() => {
+        refreshPanelsPromise = null;
+        if (refreshPanelsQueued && !refreshPanelsTimer) {
+          scheduleRefreshPanels(delayMs);
+        }
+      });
+    }, delayMs);
+  }
+
   function syncLayout(): void {
     applyLayout(screen, {
       header,
@@ -1629,6 +1612,9 @@ async function startTui(context: AppContext): Promise<void> {
               ? `${current}\n${source.toUpperCase()}: ${streamed}`
               : `${source.toUpperCase()}: ${streamed}`,
           );
+        },
+        onResponseProgress: ({ response }) => {
+          setLiveResponse(line, response);
         },
       });
       await syncThemeFromSettings();
@@ -1968,7 +1954,7 @@ async function startTui(context: AppContext): Promise<void> {
       return;
     }
     syncLayout();
-    void refreshPanels();
+    scheduleRefreshPanels(0);
   });
 
   unsubscribers.push(
@@ -1978,7 +1964,7 @@ async function startTui(context: AppContext): Promise<void> {
         truncate(event.detail, 160),
         event.kind === "reject" ? "warning" : "info",
       );
-      void refreshPanels();
+      scheduleRefreshPanels();
     }),
   );
   unsubscribers.push(
@@ -1988,19 +1974,19 @@ async function startTui(context: AppContext): Promise<void> {
         `${event.detail} -> ${event.exitCode}`,
         event.exitCode === 0 ? "success" : "warning",
       );
-      void refreshPanels();
+      scheduleRefreshPanels();
     }),
   );
   unsubscribers.push(
     context.services.delegation.onUpdate((event) => {
       appendActivity("task", truncate(event.detail, 160), "info");
-      void refreshPanels();
+      scheduleRefreshPanels();
     }),
   );
   unsubscribers.push(
     context.services.sessions.onActivity((event) => {
       appendActivity("mem", truncate(event.detail, 160), "agent");
-      void refreshPanels();
+      scheduleRefreshPanels();
     }),
   );
   unsubscribers.push(
@@ -2010,7 +1996,7 @@ async function startTui(context: AppContext): Promise<void> {
         `${event.record.id} ${truncate(event.record.outputText, 120)}`,
         "agent",
       );
-      void refreshPanels();
+      scheduleRefreshPanels();
     }),
   );
 

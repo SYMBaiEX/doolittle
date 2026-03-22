@@ -317,6 +317,15 @@ function renderChecks(checks: DiagnosticCheck[]): string[] {
   );
 }
 
+function resolveLocalShell(): string {
+  const candidates = [process.env.SHELL, "/bin/zsh", "/bin/sh"].filter(
+    (value): value is string => Boolean(value?.trim()),
+  );
+  return candidates.find((candidate) => existsSync(candidate)) ?? "/bin/sh";
+}
+
+const LOCAL_SHELL = resolveLocalShell();
+
 async function runCommand(
   cmd: string[],
   options: { cwd?: string; timeoutMs: number },
@@ -1326,9 +1335,9 @@ class LocalExecutionBackend implements ExecutionBackend {
     const checks = [
       createCheck(
         "local.shell",
-        "pass",
+        existsSync(LOCAL_SHELL) ? "pass" : "warn",
         "Local shell",
-        "Local commands execute through /bin/zsh -lc on the host.",
+        `Local commands execute through ${LOCAL_SHELL} -lc on the host.`,
       ),
       createCheck(
         "local.workspace",
@@ -1353,7 +1362,7 @@ class LocalExecutionBackend implements ExecutionBackend {
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command,
-      argv: ["/bin/zsh", "-lc", command],
+      argv: [LOCAL_SHELL, "-lc", command],
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
@@ -1366,9 +1375,9 @@ class LocalExecutionBackend implements ExecutionBackend {
     const checks = [
       createCheck(
         "local.shell",
-        "pass",
+        existsSync(LOCAL_SHELL) ? "pass" : "warn",
         "Local shell",
-        "Local Bun shell execution is available.",
+        `Local shell execution is available through ${LOCAL_SHELL}.`,
       ),
       createCheck(
         "local.workspace",
@@ -1400,7 +1409,7 @@ class LocalExecutionBackend implements ExecutionBackend {
     options: { cwd: string; timeoutMs: number },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
-      await runCommand(["/bin/zsh", "-lc", command], options),
+      await runCommand([LOCAL_SHELL, "-lc", command], options),
     );
   }
 }
@@ -2549,6 +2558,7 @@ export class TerminalService {
     capturedAt: number;
     value: ExecutionBackendHealth[];
   };
+  private healthPromise?: Promise<ExecutionBackendHealth[]>;
 
   constructor(
     baseDir: string,
@@ -2578,7 +2588,7 @@ export class TerminalService {
     command: string,
     timeoutMs?: number,
   ): Promise<TerminalCommandRecord> {
-    this.healthCache = undefined;
+    this.invalidateHealthCache();
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
     const backend =
@@ -2672,7 +2682,7 @@ export class TerminalService {
     },
     timeoutMs?: number,
   ): Promise<TerminalCommandRecord> {
-    this.healthCache = undefined;
+    this.invalidateHealthCache();
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
     if (backendName !== "local") {
@@ -2693,7 +2703,7 @@ export class TerminalService {
     });
     const startedAt = new Date().toISOString();
     const result = normalizeBackendError(
-      await runCommandStreaming(["/bin/zsh", "-lc", safeCommand], {
+      await runCommandStreaming([LOCAL_SHELL, "-lc", safeCommand], {
         cwd: this.workspaceDir,
         timeoutMs: effectiveTimeoutMs,
         onStdout: callbacks?.onStdout,
@@ -2763,17 +2773,26 @@ export class TerminalService {
     if (this.healthCache && now - this.healthCache.capturedAt < 20_000) {
       return this.healthCache.value;
     }
+    if (this.healthPromise) {
+      return this.healthPromise;
+    }
     const settings = this.getSettings();
-    const value = await Promise.all(
+    this.healthPromise = Promise.all(
       Array.from(this.backends.values()).map((backend) =>
         backend.health(settings, this.workspaceDir),
       ),
-    );
-    this.healthCache = {
-      capturedAt: now,
-      value,
-    };
-    return value;
+    )
+      .then((value) => {
+        this.healthCache = {
+          capturedAt: Date.now(),
+          value,
+        };
+        return value;
+      })
+      .finally(() => {
+        this.healthPromise = undefined;
+      });
+    return this.healthPromise;
   }
 
   preview(command: string, timeoutMs?: number): ExecutionBackendPreview {
@@ -2819,6 +2838,11 @@ export class TerminalService {
 
   cloudArtifacts(limit = 10): ExecutionCloudArtifactRecord[] {
     return this.cloudState.listArtifacts(limit);
+  }
+
+  private invalidateHealthCache(): void {
+    this.healthCache = undefined;
+    this.healthPromise = undefined;
   }
 
   private read(): TerminalStore {
