@@ -1,6 +1,6 @@
 # Eliza Agent
 
-Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a workspace monorepo. The root package is the workspace manifest and shared toolchain layer, while the product code lives under `packages/agent`, plugin-shaped code lives under `packages/plugins`, characters live under `packages/characters`, and skills live under `packages/skills`.
+Eliza Agent is a Bun-first, TypeScript-native ElizaOS platform built as a workspace monorepo. The root package is the shared toolchain and install layer, the runtime lives under `packages/agent`, plugin-shaped code lives under `packages/plugins`, curated skills live under `packages/skills`, optional skill packs live under `packages/skill-packs-optional`, characters live under `packages/characters`, and supporting workspaces such as ACP, modeling, benchmarks, and distributions live alongside them.
 
 ## Versioning note
 
@@ -34,8 +34,20 @@ The platform-specific features that do not have a single clean ElizaOS equivalen
   - local Eliza Agent product plugins plus vendored official-compatible ElizaOS plugin packages
 - `packages/skills`
   - local Eliza Agent skill documents and generated skills, organized by category
+- `packages/skill-packs-optional`
+  - broader optional skill packs kept separate from the curated default skill tier
 - `packages/characters`
   - local character definitions
+- `packages/acp`
+  - ACP primitives and publishing surfaces used by the runtime
+- `packages/modeling`
+  - local modeling profiles and persona-alignment assets
+- `packages/benchmarks`
+  - benchmark packs and evaluation scaffolding
+- `packages/distributions`
+  - release-channel metadata and distribution manifests
+- `packages/integrations`
+  - integration-specific docs and workspace support assets
 
 Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md). Native-adoption priorities live in [`docs/eliza-maximization-matrix.md`](./docs/eliza-maximization-matrix.md).
 
@@ -43,39 +55,77 @@ Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md). Nativ
 
 ```text
 eliza-agent/
+├── .eliza-agent/
 ├── .env.example
 ├── README.md
+├── bin/
 ├── biome.json
 ├── docs/
+│   ├── eliza-maximization-matrix.md
 │   ├── elizaos-research.md
-│   └── monorepo.md
+│   ├── monorepo.md
+│   ├── parity-ledger.md
+│   └── skills-hub.md
 ├── package.json
+├── scripts/
 ├── packages/
+│   ├── acp/
 │   ├── agent/
 │   │   └── src/
+│   ├── benchmarks/
 │   ├── characters/
 │   │   └── eliza-agent.character.json
+│   ├── distributions/
+│   ├── integrations/
+│   ├── modeling/
 │   ├── plugins/
 │   │   ├── eliza-agent-plugin.ts
+│   │   ├── plugin-action-bench/
 │   │   ├── plugin-agent-orchestrator/
 │   │   ├── plugin-agent-skills/
+│   │   ├── plugin-autocoder/
+│   │   ├── plugin-browser/
+│   │   ├── plugin-claude-code/
+│   │   ├── plugin-codex/
 │   │   ├── plugin-coding-agent/
 │   │   ├── plugin-cron/
-│   │   ├── plugin-browser/
 │   │   ├── plugin-discord/
+│   │   ├── plugin-e2b/
 │   │   ├── plugin-experience/
+│   │   ├── plugin-forms/
 │   │   ├── plugin-knowledge/
 │   │   ├── plugin-local-embedding/
 │   │   ├── plugin-mcp/
+│   │   ├── plugin-planning/
 │   │   ├── plugin-personality/
 │   │   ├── plugin-plugin-manager/
 │   │   ├── plugin-rolodex/
 │   │   ├── plugin-shell/
-│   │   └── plugin-trajectory-logger/
+│   │   ├── plugin-trajectory-logger/
+│   │   └── plugin-tts/
+│   ├── skill-packs-optional/
 │   ├── skills/
 │   │   ├── automation/
+│   │   ├── browser/
+│   │   ├── communications/
+│   │   ├── data/
+│   │   ├── distribution/
+│   │   ├── documentation/
 │   │   ├── generated/
-│   │   └── productivity/
+│   │   ├── identity/
+│   │   ├── integrations/
+│   │   ├── knowledge/
+│   │   ├── media/
+│   │   ├── memory/
+│   │   ├── observability/
+│   │   ├── operations/
+│   │   ├── planning/
+│   │   ├── platform/
+│   │   ├── productivity/
+│   │   ├── research/
+│   │   ├── safety/
+│   │   ├── support/
+│   │   └── testing/
 ├── tsconfig.json
 ```
 
@@ -108,6 +158,13 @@ eliza-agent/
 | Local terminal execution | [`packages/agent/src/services/terminal-service.ts`](./packages/agent/src/services/terminal-service.ts) + `/terminal` commands |
 | Repository inspection | [`packages/agent/src/services/repository-service.ts`](./packages/agent/src/services/repository-service.ts) + `/repo` commands |
 | Execution backend control | [`packages/agent/src/services/terminal-service.ts`](./packages/agent/src/services/terminal-service.ts) + `/execution` commands with local, Docker, Podman, SSH, Singularity, Daytona, and Modal runtime settings, probes, preview, bootstrap, remote sync planning, snapshot history, and cloud sandbox profile paths |
+| Diagnostics and readiness checks | [`packages/agent/src/services/diagnostics-service.ts`](./packages/agent/src/services/diagnostics-service.ts) + `eliza-agent doctor` + `/doctor` |
+| Operator status and summaries | [`packages/agent/src/services/operator-service.ts`](./packages/agent/src/services/operator-service.ts) + [`packages/agent/src/services/operator-summary.ts`](./packages/agent/src/services/operator-summary.ts) |
+| ACP registry and tool publishing | [`packages/agent/src/services/acp-service.ts`](./packages/agent/src/services/acp-service.ts) + `/acp` commands |
+| Planning boards and generated plans | [`packages/agent/src/server.ts`](./packages/agent/src/server.ts) + native planning control-plane endpoints and `/planning` flows |
+| Forms lifecycle | [`packages/agent/src/server.ts`](./packages/agent/src/server.ts) + native forms control-plane endpoints and `/forms` flows |
+| Integration control plane | [`packages/agent/src/server.ts`](./packages/agent/src/server.ts) + native integration inventory and readiness endpoints |
+| Ecosystem and package audit views | [`packages/agent/src/runtime/native/package-audit.ts`](./packages/agent/src/runtime/native/package-audit.ts) + `/runtime ecosystem` |
 | Tool registry | [`packages/agent/src/services/tools-service.ts`](./packages/agent/src/services/tools-service.ts) + `/tools` commands |
 | Native plugin inventory | [`packages/agent/src/runtime/native/plugin-catalog.ts`](./packages/agent/src/runtime/native/plugin-catalog.ts) + `/plugins native` + `GET /runtime/plugins` |
 | MCP bridge | [`packages/agent/src/services/mcp-service.ts`](./packages/agent/src/services/mcp-service.ts) + `/mcp` commands for probe, discovery, and structured tool invocation |
@@ -119,9 +176,23 @@ eliza-agent/
 
 Curated skill docs live under [`packages/skills`](./packages/skills) and are grouped by category for easier browsing:
 
+- `identity/`
+- `memory/`
 - `productivity/`
 - `automation/`
+- `communications/`
+- `documentation/`
+- `data/`
+- `distribution/`
+- `operations/`
+- `observability/`
+- `integrations/`
+- `planning/`
+- `safety/`
+- `support/`
+- `testing/`
 - `platform/`
+- `knowledge/`
 - `browser/`
 - `media/`
 - `research/`
@@ -157,6 +228,12 @@ The runtime now uses a wider native ElizaOS stack:
   - Workspace-native action benchmark plugin for coverage sweeps and evaluation drills.
 - `@elizaos/plugin-autocoder`
   - Workspace-native autocoder plugin for native codegen, repository, and secrets workflows.
+- `@elizaos/plugin-e2b`
+  - Workspace-native E2B sandbox integration plugin for cloud execution profiles and remote coding paths.
+- `@elizaos/plugin-forms`
+  - Workspace-native forms plugin for operator intake, structured workflow prompts, and API-backed form state.
+- `@elizaos/plugin-planning`
+  - Workspace-native planning plugin for plans, milestones, and coordination control-plane surfaces.
 - `@elizaos/autonomous`
   - First-party architectural reference package used selectively for native stack alignment.
 - `@elizaos/skills`
@@ -164,7 +241,7 @@ The runtime now uses a wider native ElizaOS stack:
 - `skills hub`
   - Eliza Agent-native distribution layer for catalog sync, manifest export/import, and installable skill manifests.
 - vendored official-compatible packages in `packages/plugins/*`
-  - Local workspace packages that preserve official ElizaOS package names while implementing directly against the current runtime line for browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, and trajectory-logger.
+  - Local workspace packages that preserve official ElizaOS package names while implementing directly against the current runtime line for browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, action-bench, autocoder, E2B, forms, planning, trajectory-logger, linked-provider routing, and text-to-speech.
 - `elizaos`
   - Requested dist-tag package channel for the ElizaOS umbrella package.
 - `eliza-agent-runtime` custom plugin
@@ -185,6 +262,8 @@ bun run check
 Useful workspace commands:
 
 ```bash
+bun run bootstrap
+bun run bootstrap:check
 bun run workspace:list
 bun run lint:check
 bun run typecheck
@@ -192,6 +271,7 @@ bun test
 bun run build
 bun run smoke:linked-providers
 bun run publish:providers:check
+bun run publish:providers:alpha
 ```
 
 ## Local install and launch
