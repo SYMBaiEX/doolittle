@@ -14,7 +14,11 @@ import {
   parseTransportPlatform,
 } from "@/gateway/control-plane";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import {
+  getLinkedProviderAccountsSnapshot,
+  refreshLinkedClaudeCodeCredentials,
+  refreshLinkedCodexCredentials,
+} from "@/runtime/native/account-auth";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -846,6 +850,85 @@ export function syncProviderSettings(
     "OPENAI_BASE_URL",
     provider === "codex" ? "https://chatgpt.com/backend-api/codex" : baseUrl,
   );
+}
+
+export type LinkedProviderName = "codex" | "claude-code";
+
+function resolveLinkedProviderName(
+  raw: string | undefined,
+): LinkedProviderName | undefined {
+  const value = raw?.trim().toLowerCase();
+  if (!value) {
+    return undefined;
+  }
+  if (value === "codex") {
+    return "codex";
+  }
+  if (value === "claude-code" || value === "claude" || value === "claudecode") {
+    return "claude-code";
+  }
+  return undefined;
+}
+
+function defaultProviderModel(provider: LinkedProviderName): string {
+  return provider === "codex" ? "gpt-5.3-codex" : "claude-sonnet-4-20250514";
+}
+
+function defaultProviderBaseUrl(provider: LinkedProviderName): string {
+  return provider === "codex" ? "https://chatgpt.com/backend-api/codex" : "";
+}
+
+export function activateLinkedProvider(
+  context: AgentExecutionContext,
+  provider: LinkedProviderName,
+): {
+  provider: LinkedProviderName;
+  model: string;
+  baseUrl: string;
+  accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>;
+} {
+  const settings = context.services.settings.get();
+  const nextModel =
+    settings.model.provider === provider && settings.model.model.trim()
+      ? settings.model.model
+      : defaultProviderModel(provider);
+  const nextBaseUrl =
+    settings.model.provider === provider
+      ? settings.model.baseUrl
+      : defaultProviderBaseUrl(provider);
+
+  context.services.settings.set("model.provider", provider);
+  context.services.settings.set("model.model", nextModel);
+  context.services.settings.set("model.baseUrl", nextBaseUrl);
+  const updated = context.services.settings.get();
+  syncProviderSettings(context, updated);
+
+  return {
+    provider,
+    model: updated.model.model,
+    baseUrl: updated.model.baseUrl,
+    accounts: getLinkedProviderAccountsSnapshot(),
+  };
+}
+
+export async function refreshLinkedAccounts(
+  provider?: LinkedProviderName | "all",
+): Promise<ReturnType<typeof getLinkedProviderAccountsSnapshot>> {
+  if (!provider || provider === "all") {
+    await Promise.all([
+      refreshLinkedCodexCredentials().catch(() => undefined),
+      refreshLinkedClaudeCodeCredentials().catch(() => undefined),
+    ]);
+    return getLinkedProviderAccountsSnapshot();
+  }
+
+  if (provider === "codex") {
+    await refreshLinkedCodexCredentials();
+    return getLinkedProviderAccountsSnapshot();
+  }
+
+  await refreshLinkedClaudeCodeCredentials();
+  return getLinkedProviderAccountsSnapshot();
 }
 
 async function buildCommandResponse(
@@ -2512,6 +2595,30 @@ async function buildCommandResponse(
     trimmed === "/accounts status"
   ) {
     return JSON.stringify(getLinkedProviderAccountsSnapshot(), null, 2);
+  }
+
+  if (trimmed === "/accounts refresh") {
+    return JSON.stringify(await refreshLinkedAccounts("all"), null, 2);
+  }
+
+  if (trimmed.startsWith("/accounts refresh ")) {
+    const provider = resolveLinkedProviderName(
+      trimmed.replace("/accounts refresh ", "").trim(),
+    );
+    if (!provider) {
+      return "Usage: /accounts refresh <codex|claude-code>";
+    }
+    return JSON.stringify(await refreshLinkedAccounts(provider), null, 2);
+  }
+
+  if (trimmed.startsWith("/accounts use ")) {
+    const provider = resolveLinkedProviderName(
+      trimmed.replace("/accounts use ", "").trim(),
+    );
+    if (!provider) {
+      return "Usage: /accounts use <codex|claude-code>";
+    }
+    return JSON.stringify(activateLinkedProvider(context, provider), null, 2);
   }
 
   if (

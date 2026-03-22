@@ -1,10 +1,32 @@
 {
   "name": "@elizaos/plugin-claude-code",
   "version": "2.0.0-alpha.85",
+  "description": "Workspace-native ElizaOS provider plugin for linked Claude Code account execution.",
+  "license": "MIT",
   "type": "module",
-  "main": "src/index.ts",
-  "module": "src/index.ts",
-  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "elizaos",
+    "plugin",
+    "claude",
+    "anthropic",
+    "claude-code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SYMBaiEX/eliza-agent.git",
+    "directory": "packages/plugins/plugin-claude-code"
+  },
+  "homepage": "https://github.com/SYMBaiEX/eliza-agent/tree/main/packages/plugins/plugin-claude-code",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@elizaos/core": "alpha"
   }

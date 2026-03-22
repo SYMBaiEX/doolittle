@@ -1,10 +1,32 @@
 {
   "name": "@elizaos/plugin-codex",
   "version": "2.0.0-alpha.85",
+  "description": "Workspace-native ElizaOS provider plugin for linked ChatGPT Codex account execution.",
+  "license": "MIT",
   "type": "module",
-  "main": "src/index.ts",
-  "module": "src/index.ts",
-  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "elizaos",
+    "plugin",
+    "codex",
+    "openai",
+    "chatgpt"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SYMBaiEX/eliza-agent.git",
+    "directory": "packages/plugins/plugin-codex"
+  },
+  "homepage": "https://github.com/SYMBaiEX/eliza-agent/tree/main/packages/plugins/plugin-codex",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@elizaos/core": "alpha"
   }
