@@ -1,7 +1,6 @@
 import { getAppContext } from "../packages/agent/src/runtime/bootstrap";
 import {
   activateLinkedProvider,
-  handleAgentTurn,
   type LinkedProviderName,
   syncProviderSettings,
 } from "../packages/agent/src/runtime/chat";
@@ -102,19 +101,18 @@ async function main(): Promise<void> {
 
       const service = context.runtime.getService(serviceType) as {
         runtimeCredentials?: () => unknown;
+        generateText?: (params: {
+          prompt: string;
+          maxTokens?: number;
+        }) => Promise<string>;
       } | null;
       result.runtimeCredentials = service?.runtimeCredentials?.();
 
       if (args.live) {
-        const response = await handleAgentTurn(
-          {
-            message: args.prompt,
-            userId: "smoke-linked-provider",
-            roomId: `smoke:${provider}`,
-            source: "cli",
-          },
-          context,
-        );
+        const response = await service?.generateText?.({
+          prompt: args.prompt,
+          maxTokens: 120,
+        });
         result.liveResponse = normalizeLiveResponse(response);
       }
 
