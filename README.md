@@ -138,9 +138,13 @@ The runtime now uses a wider native ElizaOS stack:
 - `@elizaos/core`
   - Core runtime, message pipeline, character model, action/provider/evaluator contracts.
 - `@elizaos/plugin-openai`
-  - Official OpenAI provider plugin for GPT-family and Codex-capable model routing on the current ElizaOS alpha runtime line.
+  - Official OpenAI provider plugin for API-key-backed GPT-family model routing on the current ElizaOS alpha runtime line.
 - `@elizaos/plugin-anthropic`
-  - Official Anthropic provider plugin for Claude-family model routing on the current ElizaOS alpha runtime line.
+  - Official Anthropic provider plugin for API-key-backed Claude-family model routing on the current ElizaOS alpha runtime line.
+- `@elizaos/plugin-codex`
+  - Workspace-native linked-account provider plugin that reuses local Codex CLI login state and routes requests through the Codex Responses backend.
+- `@elizaos/plugin-claude-code`
+  - Workspace-native linked-account provider plugin that reuses local Claude Code OAuth state and routes requests through Anthropic with Claude Code headers.
 - `@elizaos/plugin-pdf`
   - Official PDF service plugin for runtime-native document extraction.
 - `@elizaos/plugin-sql`
@@ -148,11 +152,11 @@ The runtime now uses a wider native ElizaOS stack:
 - `@elizaos/plugin-telegram`
   - Official Telegram transport plugin, enabled only when Telegram credentials are configured.
 - `@elizaos/plugin-tts`
-  - Official text-to-speech plugin for voice synthesis when `FAL_API_KEY` is configured.
+  - Workspace-native text-to-speech plugin aligned to the current alpha runtime line and used when `FAL_API_KEY` is configured.
 - `@elizaos/plugin-action-bench`
-  - Official action benchmark plugin for coverage sweeps and evaluation drills.
+  - Workspace-native action benchmark plugin for coverage sweeps and evaluation drills.
 - `@elizaos/plugin-autocoder`
-  - Official autocoder plugin for SWE-bench style code-generation evaluation.
+  - Workspace-native autocoder plugin for native codegen, repository, and secrets workflows.
 - `@elizaos/autonomous`
   - First-party architectural reference package used selectively for native stack alignment.
 - `@elizaos/skills`
@@ -186,7 +190,36 @@ bun run lint:check
 bun run typecheck
 bun test
 bun run build
+bun run smoke:linked-providers
+bun run publish:providers:check
 ```
+
+## Linked provider plugins
+
+Eliza Agent now includes first-class linked-account providers for users who are already signed into Codex or Claude Code locally.
+
+- [`packages/plugins/plugin-codex`](./packages/plugins/plugin-codex)
+- [`packages/plugins/plugin-claude-code`](./packages/plugins/plugin-claude-code)
+
+Useful operator flows:
+
+- `/accounts`
+- `/accounts refresh`
+- `/accounts refresh codex`
+- `/accounts refresh claude-code`
+- `/accounts use codex`
+- `/accounts use claude-code`
+
+Repo-level smoke and packaging flows:
+
+```bash
+bun run smoke:linked-providers
+bun run smoke:linked-providers -- --provider codex --live
+bun run smoke:linked-providers -- --provider claude-code --live
+bun run publish:providers:check
+```
+
+The smoke script validates linked-account discovery, provider switching, runtime service registration, and optional live request execution when local signed-in credentials are available.
 
 ## Environment reference
 

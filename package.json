@@ -21,6 +21,7 @@
     "bootstrap": "bun run scripts/bootstrap.ts",
     "bootstrap:check": "bun run scripts/bootstrap.ts --check",
     "onboard": "bun run scripts/bootstrap.ts",
+    "smoke:linked-providers": "bun run scripts/smoke-linked-providers.ts",
     "install:deps": "bash scripts/install.sh",
     "dev": "bun run --cwd packages/agent dev",
     "start": "bun run --cwd packages/agent start",
@@ -30,6 +31,9 @@
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "check": "bun run lint:check && bun run typecheck && bun test && bun run build",
+    "publish:codex:dry-run": "npm_config_cache=.eliza-agent/.npm-cache npm pack --dry-run ./packages/plugins/plugin-codex",
+    "publish:claude-code:dry-run": "npm_config_cache=.eliza-agent/.npm-cache npm pack --dry-run ./packages/plugins/plugin-claude-code",
+    "publish:providers:check": "bun run publish:codex:dry-run && bun run publish:claude-code:dry-run",
     "workspace:list": "find packages -maxdepth 2 -mindepth 1 -type f -name package.json | sort",
     "workspace:plugins": "bun run --cwd packages/agent start --help"
   },
