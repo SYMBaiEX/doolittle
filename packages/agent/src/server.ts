@@ -9,7 +9,9 @@ import {
 import { normalizeInboundMessage } from "@/gateway/message-normalization";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
+  activateLinkedProvider,
   handleAgentTurn,
+  refreshLinkedAccounts,
   runDelegationTaskInWorker,
   runModelAnalysisTurn,
   syncProviderSettings,
@@ -414,6 +416,44 @@ export function startApiServer(context: AppContext): void {
         (url.pathname === "/runtime/accounts" || url.pathname === "/accounts")
       ) {
         return json(getLinkedProviderAccountsSnapshot());
+      }
+
+      if (request.method === "POST" && url.pathname === "/accounts/refresh") {
+        const body = (await request.json().catch(() => ({}))) as {
+          provider?: string;
+        };
+        const provider =
+          body.provider === "codex" || body.provider === "claude-code"
+            ? body.provider
+            : body.provider === undefined || body.provider === "all"
+              ? "all"
+              : undefined;
+        if (!provider) {
+          return json(
+            { error: "provider must be codex, claude-code, or all" },
+            400,
+          );
+        }
+        try {
+          return json(await refreshLinkedAccounts(provider));
+        } catch (error) {
+          return json(
+            {
+              error: error instanceof Error ? error.message : "refresh failed",
+            },
+            500,
+          );
+        }
+      }
+
+      if (request.method === "POST" && url.pathname === "/accounts/use") {
+        const body = (await request.json()) as {
+          provider?: string;
+        };
+        if (body.provider !== "codex" && body.provider !== "claude-code") {
+          return json({ error: "provider must be codex or claude-code" }, 400);
+        }
+        return json(activateLinkedProvider(context, body.provider));
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/ecosystem") {

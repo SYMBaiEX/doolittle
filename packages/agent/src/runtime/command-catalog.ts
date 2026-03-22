@@ -83,6 +83,24 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show alpha-channel package alignment and native audit data.",
   },
   {
+    command: "/accounts",
+    category: "runtime",
+    description:
+      "Show linked Codex and Claude Code account status and reuse readiness.",
+  },
+  {
+    command: "/accounts refresh [codex|claude-code]",
+    category: "runtime",
+    description:
+      "Refresh linked Codex or Claude Code credentials from their local CLI stores.",
+  },
+  {
+    command: "/accounts use <codex|claude-code>",
+    category: "runtime",
+    description:
+      "Switch the active runtime provider to the linked Codex or Claude Code plugin.",
+  },
+  {
     command: "/theme",
     category: "runtime",
     description: "Show the active operator theme and available theme controls.",
