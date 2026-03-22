@@ -920,16 +920,23 @@ async function getProviderReadinessMessage(
   }
 
   if (provider === "codex") {
+    const codexStatus = snapshot.codex;
     const credentials = await resolveLinkedProviderCredentials("codex");
     if (!credentials?.accessToken) {
-      return `Codex is selected, but no reusable Codex credentials are available. Run \`${displayCommand("/accounts connect codex")}\` or \`codex login\`, then try again.`;
+      return codexStatus.nativeReady || codexStatus.reusable
+        ? `Codex is selected, but the bound credentials still look incomplete. Run \`${displayCommand("/accounts connect codex")}\` to rebind them, or run \`codex login\` first if the local store is stale.`
+        : `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
     }
   }
 
   if (provider === "claude-code") {
+    const claudeStatus = snapshot.claudeCode;
     const credentials = await resolveLinkedProviderCredentials("claude-code");
     if (!credentials?.accessToken) {
-      return `Claude Code is selected, but no native Claude Code credentials are available. Run \`${displayCommand("/accounts connect claude-code")}\` or \`claude setup-token\`, then try again.`;
+      if (claudeStatus.fallbackReady) {
+        return `Claude Code is selected, but native Eliza auth material is still missing. Run \`claude setup-token\` to finish the native path, or \`${displayCommand("/accounts connect claude-code")}\` to activate the local Claude CLI fallback right now.`;
+      }
+      return `Claude Code is selected, but no native Claude Code credentials are available. Run \`claude auth login\` or \`claude setup-token\`, then \`${displayCommand("/accounts connect claude-code")}\` to bind it in Eliza.`;
     }
   }
 
@@ -941,10 +948,10 @@ function buildProviderNoResponseMessage(
   model: string,
 ): string {
   if (provider === "codex") {
-    return `I couldn't get a usable response from Codex (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, or switch providers with \`${displayCommand("/accounts use claude-code")}\`.`;
+    return `I couldn't get a usable response from Codex (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, then \`${displayCommand("/accounts connect codex")}\` if it needs a rebind.`;
   }
   if (provider === "claude-code") {
-    return `I couldn't get a usable response from Claude Code (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, or switch providers with \`${displayCommand("/accounts use codex")}\`.`;
+    return `I couldn't get a usable response from Claude Code (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, then \`${displayCommand("/accounts connect claude-code")}\` if it needs a rebind.`;
   }
   if (provider === "openai") {
     return `I couldn't get a usable response from OpenAI (${model}). Check \`OPENAI_API_KEY\` or switch to a linked provider with \`${displayCommand("/accounts")}\`.`;
@@ -1087,6 +1094,28 @@ function formatLinkedAccountSummary(
     `  reusable: ${status.reusable ? "yes" : "no"}`,
     `  detail: ${status.detail}`,
   ].join("\n");
+}
+
+function formatLinkedProviderAdviceNextStep(
+  advice: ReturnType<typeof getLinkedProviderConnectAdvice>,
+): string {
+  if (advice.primaryCommand?.startsWith("/")) {
+    return `next: ${displayCommand(advice.primaryCommand)}`;
+  }
+  return advice.primaryCommand
+    ? `next: ${advice.preferredAction} -> ${advice.primaryCommand}`
+    : `next: ${advice.preferredAction}`;
+}
+
+function formatLinkedProviderAdviceAlternate(
+  advice: ReturnType<typeof getLinkedProviderConnectAdvice>,
+): string | undefined {
+  if (!advice.secondaryCommand) {
+    return undefined;
+  }
+  return advice.secondaryCommand.startsWith("/")
+    ? `alternate: ${displayCommand(advice.secondaryCommand)}`
+    : `alternate: ${advice.secondaryCommand}`;
 }
 
 export async function refreshLinkedAccounts(
@@ -2926,10 +2955,16 @@ async function buildCommandResponse(
     return [
       `codex: nativeReady=${accounts.codex.nativeReady ? "yes" : "no"} fallbackReady=${accounts.codex.fallbackReady ? "yes" : "no"} available=${accounts.codex.available ? "yes" : "no"}`,
       `  detail: ${accounts.codex.detail}`,
-      `  next: ${codexAdvice.preferredAction}${codexAdvice.primaryCommand ? ` -> ${codexAdvice.primaryCommand}` : ""}`,
+      `  ${formatLinkedProviderAdviceNextStep(codexAdvice)}`,
+      formatLinkedProviderAdviceAlternate(codexAdvice)
+        ? `  ${formatLinkedProviderAdviceAlternate(codexAdvice)}`
+        : "",
       `claude-code: nativeReady=${accounts.claudeCode.nativeReady ? "yes" : "no"} fallbackReady=${accounts.claudeCode.fallbackReady ? "yes" : "no"} available=${accounts.claudeCode.available ? "yes" : "no"}`,
       `  detail: ${accounts.claudeCode.detail}`,
-      `  next: ${claudeAdvice.preferredAction}${claudeAdvice.primaryCommand ? ` -> ${claudeAdvice.primaryCommand}` : ""}`,
+      `  ${formatLinkedProviderAdviceNextStep(claudeAdvice)}`,
+      formatLinkedProviderAdviceAlternate(claudeAdvice)
+        ? `  ${formatLinkedProviderAdviceAlternate(claudeAdvice)}`
+        : "",
     ].join("\n");
   }
 
@@ -2999,10 +3034,8 @@ async function buildCommandResponse(
     }
     return [
       `${provider} is not ready to activate yet.`,
-      `next: ${result.advice.preferredAction}${result.advice.primaryCommand ? ` -> ${result.advice.primaryCommand}` : ""}`,
-      result.advice.secondaryCommand
-        ? `alternate: ${result.advice.secondaryCommand}`
-        : "",
+      formatLinkedProviderAdviceNextStep(result.advice),
+      formatLinkedProviderAdviceAlternate(result.advice) ?? "",
       `detail: ${result.advice.detail}`,
       "",
       formatLinkedAccountSummary(provider, result.accounts),

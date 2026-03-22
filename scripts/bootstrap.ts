@@ -2049,7 +2049,10 @@ async function runWizard(
     } else {
       banner();
       warn(
-        `Terminal is ${cols || "unknown"}x${rows || "unknown"}. Falling back to the line wizard below for a cleaner setup flow.`,
+        `Terminal is ${cols || "unknown"}x${rows || "unknown"}. I’m switching to the line wizard so the setup stays readable.`,
+      );
+      info(
+        "If you want the fullscreen ritual later, expand the terminal and rerun `eliza-agent setup`.",
       );
     }
   }

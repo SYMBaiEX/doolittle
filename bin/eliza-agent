@@ -34,10 +34,10 @@ load_local_runtime_env() {
 ensure_onboarded() {
   if [[ ! -f "$ROOT/.eliza-agent/onboarding.json" ]]; then
     if [[ -t 0 && -t 1 ]]; then
-      echo "No onboarding state found. Beginning first contact..."
+      echo "No onboarding state found. Beginning first contact so I can finish setup."
       bun run scripts/bootstrap.ts
     else
-      echo "No onboarding state found. Run 'eliza-agent setup' first."
+      echo "No onboarding state found. Run 'eliza-agent setup' to finish onboarding, or 'eliza-agent doctor' to inspect readiness first."
       exit 1
     fi
   fi

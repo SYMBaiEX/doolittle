@@ -140,31 +140,31 @@ const RAW_COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/accounts",
     category: "runtime",
     description:
-      "Show linked Codex and Claude Code account status and reuse readiness.",
+      "Show linked Codex and Claude Code readiness, activation advice, and connect actions.",
   },
   {
     command: "/accounts refresh [codex|claude-code]",
     category: "runtime",
     description:
-      "Refresh linked Codex or Claude Code credentials from their local CLI stores.",
+      "Refresh linked Codex or Claude Code credentials from their local auth stores.",
   },
   {
     command: "/accounts connect <codex|claude-code>",
     category: "runtime",
     description:
-      "Refresh, bind, and switch to the selected linked provider when native auth is ready.",
+      "Bind, refresh, and activate the selected linked provider when native auth is ready.",
   },
   {
     command: "/accounts doctor",
     category: "runtime",
     description:
-      "Show linked-provider readiness, gaps, and the exact login commands to run locally.",
+      "Show linked-provider readiness, action advice, and the exact login/connect commands.",
   },
   {
     command: "/accounts login <codex|claude-code>",
     category: "runtime",
     description:
-      "Show the exact local CLI login command and the follow-up connect step needed to bind a linked provider account.",
+      "Show the exact local CLI login command and the follow-up connect step needed to bind it in Eliza.",
   },
   {
     command: "/accounts setup-token claude-code",
