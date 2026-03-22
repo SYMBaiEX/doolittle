@@ -308,6 +308,11 @@ function getDependencyProbes(
   const browserCommand =
     existingEnv.get("ELIZA_AGENT_BROWSER_COMMAND") || "lightpanda";
   const accounts = getLinkedProviderAccountsSnapshot();
+  const codexNativeReady =
+    accounts.codex.nativeReady === true || accounts.codex.reusable === true;
+  const claudeNativeReady =
+    accounts.claudeCode.nativeReady === true ||
+    accounts.claudeCode.reusable === true;
   return [
     {
       key: "bun",
@@ -375,25 +380,22 @@ function getDependencyProbes(
     {
       key: "codex-auth",
       label: "Codex account",
-      installed: accounts.codex.nativeReady ?? accounts.codex.reusable,
+      installed: codexNativeReady,
       detail: accounts.codex.detail,
-      recommendation:
-        (accounts.codex.nativeReady ?? accounts.codex.reusable)
-          ? undefined
-          : `Run ${accounts.codex.loginCommand ?? "codex login"} if you want account-linked Codex workflows.`,
+      recommendation: codexNativeReady
+        ? undefined
+        : `Run ${accounts.codex.loginCommand ?? "codex login"} if you want account-linked Codex workflows.`,
     },
     {
       key: "claude-auth",
       label: "Claude Code account",
-      installed:
-        accounts.claudeCode.nativeReady ?? accounts.claudeCode.reusable,
+      installed: claudeNativeReady,
       detail: accounts.claudeCode.detail,
-      recommendation:
-        (accounts.claudeCode.nativeReady ?? accounts.claudeCode.reusable)
-          ? undefined
-          : accounts.claudeCode.fallbackReady
-            ? `Run ${accounts.claudeCode.setupCommand ?? "claude setup-token"} if you want the full native Claude Code path.`
-            : `Run ${accounts.claudeCode.loginCommand ?? "claude auth login"} if you want account-linked Anthropic workflows.`,
+      recommendation: claudeNativeReady
+        ? undefined
+        : accounts.claudeCode.fallbackReady
+          ? `Run ${accounts.claudeCode.setupCommand ?? "claude setup-token"} if you want the full native Claude Code path.`
+          : `Run ${accounts.claudeCode.loginCommand ?? "claude auth login"} if you want account-linked Anthropic workflows.`,
     },
   ];
 }
@@ -993,7 +995,7 @@ async function runWizard(
     );
 
     section("Mind", "I need a mind to think with.");
-    const provider = await chooseOne<ProviderMode>(
+    let provider = await chooseOne<ProviderMode>(
       rl,
       "Choose my first cognition path:",
       [
@@ -1094,6 +1096,64 @@ async function runWizard(
         info(
           "Claude Code is already signed in locally, but I still want a setup-token if you want the clean native Eliza path.",
         );
+      }
+    }
+
+    if (provider === "codex") {
+      section(
+        "Codex Bond",
+        "Choose how I should bind to Codex. Native auth is the path I want by default.",
+      );
+      const codexPath = await chooseOne<"login" | "skip">(
+        rl,
+        "How should I bind to Codex:",
+        [
+          {
+            value: "login",
+            label: "Codex login",
+            detail:
+              "Recommended first step. Use the official Codex login flow and let me detect the reusable auth store.",
+          },
+          {
+            value: "skip",
+            label: "Skip for now",
+            detail:
+              "Leave Codex unbound for now and continue with another provider.",
+          },
+        ],
+        linkedAccounts.codex.nativeReady ? "skip" : "login",
+      );
+
+      if (codexPath === "login") {
+        runInteractiveCommand("codex", ["login"], "Codex login");
+        linkedAccounts = getLinkedProviderAccountsSnapshot();
+        useLinkedCodexAuth = Boolean(linkedAccounts.codex.nativeReady);
+        if (!linkedAccounts.codex.nativeReady) {
+          warn(
+            "Codex login completed, but I still cannot detect reusable native auth material.",
+          );
+          const keepCodex = await askYesNo(
+            rl,
+            "Should I keep Codex selected anyway and let you connect it later from `/accounts connect codex`",
+            false,
+          );
+          if (!keepCodex) {
+            provider = "openai";
+            useLinkedCodexAuth = false;
+          }
+        } else {
+          useLinkedCodexAuth = true;
+        }
+      } else if (!linkedAccounts.codex.nativeReady) {
+        const switchProvider = await askYesNo(
+          rl,
+          "Codex is not bound yet. Should I switch to OpenAI instead so I can finish waking with a working provider",
+          true,
+        );
+        if (switchProvider) {
+          provider = "openai";
+          useLinkedCodexAuth = false;
+        }
       }
     }
 

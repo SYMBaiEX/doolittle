@@ -317,6 +317,7 @@ interface EffectiveServiceResolutionRecord {
   capability: string;
   nativeService: string;
   source: "native" | "product";
+  ownership: "plugin" | "product";
   fallback: string;
   available: boolean;
 }
@@ -334,11 +335,13 @@ type BrowserMcpServices = {
 interface NativeIntegrationControlPlane {
   browser: {
     source: "native" | "product";
+    ownership: "plugin" | "product";
     available: boolean;
     status: unknown;
   };
   mcp: {
     source: "native" | "product";
+    ownership: "plugin" | "product";
     available: boolean;
     status: ReturnType<typeof getEffectiveMcpStatus>;
     cachedTools: unknown[];
@@ -490,6 +493,10 @@ function service<T>(runtime: RuntimeLike, name: string): T | undefined {
     return undefined;
   }
   return (runtime.getService(name) as T | null) ?? undefined;
+}
+
+function resolveOwnership(nativeService: unknown): "plugin" | "product" {
+  return nativeService ? "plugin" : "product";
 }
 
 function countQueuePending(queue: unknown): number {
@@ -897,12 +904,14 @@ async function resolveBrowserIntegrationStatus(
   if (native) {
     return {
       source: "native" as const,
+      ownership: "plugin" as const,
       available: true,
       status: await native.status(),
     };
   }
   return {
     source: "product" as const,
+    ownership: "product" as const,
     available: false,
     status: await services.web.status(),
   };
@@ -916,6 +925,7 @@ function resolveMcpIntegrationStatus(
   if (native) {
     return {
       source: "native" as const,
+      ownership: "plugin" as const,
       available: true,
       status: native.status(),
       cachedTools: native.getCachedTools(),
@@ -923,6 +933,7 @@ function resolveMcpIntegrationStatus(
   }
   return {
     source: "product" as const,
+    ownership: "product" as const,
     available: false,
     status: services.mcp.status(),
     cachedTools: services.mcp.getCachedTools(),
@@ -939,6 +950,7 @@ export async function getNativeIntegrationControlPlane(
     browser,
     mcp: {
       source: mcp.source,
+      ownership: mcp.available ? "plugin" : "product",
       available: mcp.available,
       status: mcp.status,
       cachedTools: mcp.cachedTools,
@@ -1250,6 +1262,7 @@ export function getEffectiveServiceResolution(
       capability: "knowledge",
       nativeService: "knowledge",
       source: native.knowledge ? "native" : "product",
+      ownership: resolveOwnership(native.knowledge),
       fallback: "documents + memory + sessions",
       available: Boolean(native.knowledge),
     },
@@ -1257,6 +1270,7 @@ export function getEffectiveServiceResolution(
       capability: "personality",
       nativeService: "personality",
       source: native.personality ? "native" : "product",
+      ownership: resolveOwnership(native.personality),
       fallback: "personalities",
       available: Boolean(native.personality),
     },
@@ -1264,6 +1278,7 @@ export function getEffectiveServiceResolution(
       capability: "rolodex",
       nativeService: "rolodex",
       source: native.rolodex ? "native" : "product",
+      ownership: resolveOwnership(native.rolodex),
       fallback: "userProfiles",
       available: Boolean(native.rolodex),
     },
@@ -1271,6 +1286,7 @@ export function getEffectiveServiceResolution(
       capability: "experience",
       nativeService: "experience",
       source: native.experience ? "native" : "product",
+      ownership: resolveOwnership(native.experience),
       fallback: "sessions + memory",
       available: Boolean(native.experience),
     },
@@ -1278,6 +1294,7 @@ export function getEffectiveServiceResolution(
       capability: "shell",
       nativeService: "shell",
       source: native.shell ? "native" : "product",
+      ownership: resolveOwnership(native.shell),
       fallback: "terminal",
       available: Boolean(native.shell),
     },
@@ -1285,6 +1302,7 @@ export function getEffectiveServiceResolution(
       capability: "browser",
       nativeService: "browser",
       source: native.browser ? "native" : "product",
+      ownership: resolveOwnership(native.browser),
       fallback: "web",
       available: Boolean(native.browser),
     },
@@ -1292,6 +1310,7 @@ export function getEffectiveServiceResolution(
       capability: "mcp",
       nativeService: "mcp",
       source: native.mcp ? "native" : "product",
+      ownership: resolveOwnership(native.mcp),
       fallback: "mcp",
       available: Boolean(native.mcp),
     },
@@ -1299,6 +1318,7 @@ export function getEffectiveServiceResolution(
       capability: "cron",
       nativeService: "cron",
       source: native.cron ? "native" : "product",
+      ownership: resolveOwnership(native.cron),
       fallback: "cron",
       available: Boolean(native.cron),
     },
@@ -1306,6 +1326,7 @@ export function getEffectiveServiceResolution(
       capability: "agentSkills",
       nativeService: "agent_skills",
       source: native.agentSkills ? "native" : "product",
+      ownership: resolveOwnership(native.agentSkills),
       fallback: "skills + skillSynthesis",
       available: Boolean(native.agentSkills),
     },
@@ -1313,6 +1334,7 @@ export function getEffectiveServiceResolution(
       capability: "trajectoryLogger",
       nativeService: "trajectory_logger",
       source: native.trajectoryLogger ? "native" : "product",
+      ownership: resolveOwnership(native.trajectoryLogger),
       fallback: "trajectories",
       available: Boolean(native.trajectoryLogger),
     },
@@ -1320,6 +1342,7 @@ export function getEffectiveServiceResolution(
       capability: "agentOrchestrator",
       nativeService: "agent_orchestrator",
       source: native.agentOrchestrator ? "native" : "product",
+      ownership: resolveOwnership(native.agentOrchestrator),
       fallback: "delegation",
       available: Boolean(native.agentOrchestrator),
     },
@@ -1327,6 +1350,7 @@ export function getEffectiveServiceResolution(
       capability: "pluginManager",
       nativeService: "plugin_manager",
       source: native.pluginManager ? "native" : "product",
+      ownership: resolveOwnership(native.pluginManager),
       fallback: "native plugin catalog",
       available: Boolean(native.pluginManager),
     },

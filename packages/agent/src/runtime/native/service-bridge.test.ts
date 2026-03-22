@@ -25,9 +25,11 @@ import {
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
   getEffectiveSecret,
+  getEffectiveServiceResolution,
   getEffectiveTransportInventory,
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
+  getNativeIntegrationControlPlane,
   getNativeMediaControlPlane,
   getNativeMessagingTransportState,
   getNativePlanningControlPlane,
@@ -128,6 +130,73 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(execution.codeGeneration.methods).toContain("generateCode");
     expect(execution.github.available).toBe(true);
     expect(execution.secretsManager.keys).toContain("OPENAI_API_KEY");
+  });
+
+  it("marks browser, knowledge, and orchestrator bridges as plugin-owned when native services are present", async () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "knowledge") {
+          return {
+            summary: () => ({
+              target: "memory",
+              entries: 2,
+              characters: 40,
+              preview: ["native"],
+            }),
+          };
+        }
+        if (name === "browser") {
+          return {
+            status: async () => ({ mode: "browser" }),
+          };
+        }
+        if (name === "mcp") {
+          return {
+            status: () => ({ mode: "native" }),
+            getCachedTools: () => [{ name: "tool-1" }],
+          };
+        }
+        if (name === "agent_orchestrator") {
+          return {
+            tasks: () => [{ id: "task-1" }],
+            queue: () => ({ pending: 0, activeWorkers: 0 }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const services = {
+      web: {
+        status: async () => ({ mode: "fallback" }),
+      },
+      mcp: {
+        status: () => ({ mode: "fallback" }),
+        getCachedTools: () => [],
+      },
+    } as never as {
+      web: { status(): Promise<unknown> };
+      mcp: { status(): unknown; getCachedTools(): unknown[] };
+    };
+
+    const resolution = getEffectiveServiceResolution(runtime);
+    const integration = await getNativeIntegrationControlPlane(
+      runtime,
+      services,
+    );
+
+    expect(
+      resolution.find((entry) => entry.capability === "knowledge")?.ownership,
+    ).toBe("plugin");
+    expect(
+      resolution.find((entry) => entry.capability === "browser")?.ownership,
+    ).toBe("plugin");
+    expect(
+      resolution.find((entry) => entry.capability === "agentOrchestrator")
+        ?.ownership,
+    ).toBe("plugin");
+    expect(integration.browser.ownership).toBe("plugin");
+    expect(integration.mcp.ownership).toBe("plugin");
   });
 
   it("invokes native forms, sandboxes, and code generation actions", async () => {
