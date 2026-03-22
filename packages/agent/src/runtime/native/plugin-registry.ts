@@ -5,6 +5,8 @@ import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
 import { createAutocoderPlugin } from "@elizaos/plugin-autocoder";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
+import { createClaudeCodeAuthPlugin } from "@elizaos/plugin-claude-code-auth";
+import { createCodexAuthPlugin } from "@elizaos/plugin-codex-auth";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
 import { e2bPlugin } from "@elizaos/plugin-e2b";
@@ -23,6 +25,7 @@ import { TTSGenerationPlugin } from "@elizaos/plugin-tts";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
 import type { EnvConfig, MemoryTarget } from "@/types";
+import { getLinkedProviderAccountsSnapshot } from "./account-auth";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -82,6 +85,12 @@ export function buildNativePluginAssembly(
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
+    createCodexAuthPlugin({
+      getStatus: () => getLinkedProviderAccountsSnapshot().codex,
+    }),
+    createClaudeCodeAuthPlugin({
+      getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
+    }),
   ];
   if (config.openAiApiKey) {
     providers.push(normalizePlugin(openaiPlugin));

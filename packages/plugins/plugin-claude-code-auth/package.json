@@ -1,0 +1,11 @@
+{
+  "name": "@elizaos/plugin-claude-code-auth",
+  "version": "2.0.0-alpha.85",
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@elizaos/core": "alpha"
+  }
+}
