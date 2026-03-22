@@ -2221,11 +2221,13 @@ async function runWizard(
 
       let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
       let useLinkedCodexAuth =
-        existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true";
+        existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true" ||
+        Boolean(linkedAccounts.codex.nativeReady);
       let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-5.4";
       let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
       let useLinkedClaudeCodeAuth =
-        existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true";
+        existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true" ||
+        Boolean(linkedAccounts.claudeCode.nativeReady);
       let claudeCodeCliFallback =
         existingEnv.get("ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK") === "true";
       let claudeCodeOauthToken =
@@ -2243,27 +2245,44 @@ async function runWizard(
       ) {
         section(
           "Threads",
-          "I can feel other minds already signed into this machine.",
+          "I found linked provider sessions on this machine and can carry them forward for you.",
         );
-        if (linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable) {
+        if (
+          (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) &&
+          provider !== "codex"
+        ) {
           useLinkedCodexAuth = await askYesNo(
             rl,
-            "Should I bind the linked Codex account so I can think through it natively",
+            "Should I keep the linked Codex account ready for coding and repair work",
             useLinkedCodexAuth,
           );
         }
         if (
-          linkedAccounts.claudeCode.nativeReady ??
-          linkedAccounts.claudeCode.reusable
+          (linkedAccounts.claudeCode.nativeReady ||
+            linkedAccounts.claudeCode.reusable) &&
+          provider !== "claude-code"
         ) {
           useLinkedClaudeCodeAuth = await askYesNo(
             rl,
-            "Should I bind the linked Claude Code account so I can reason through it natively",
+            "Should I keep the linked Claude Code account ready for long-form reasoning work",
             useLinkedClaudeCodeAuth,
           );
         } else if (linkedAccounts.claudeCode.fallbackReady) {
           info(
-            "Claude Code is already signed in locally, but I still want a setup-token if you want the clean native Eliza path.",
+            "Claude Code is signed in locally, but I still prefer a setup-token if you want the clean native Eliza-owned path.",
+          );
+        }
+        if (provider === "codex" && linkedAccounts.codex.nativeReady) {
+          info(
+            "Codex is already bound natively, so I will carry that forward.",
+          );
+        }
+        if (
+          provider === "claude-code" &&
+          linkedAccounts.claudeCode.nativeReady
+        ) {
+          info(
+            "Claude Code already has native auth material here, so I will carry that forward.",
           );
         }
       }
@@ -2308,11 +2327,11 @@ async function runWizard(
             useLinkedCodexAuth = Boolean(linkedAccounts.codex.nativeReady);
             if (!linkedAccounts.codex.nativeReady) {
               warn(
-                "Codex login completed, but I still cannot detect reusable native auth material.",
+                "Codex login completed, but I still cannot see reusable native auth material yet.",
               );
               const keepCodex = await askYesNo(
                 rl,
-                "Should I keep Codex selected anyway and let you reconnect it later from `/accounts connect codex`",
+                "Should I keep Codex selected anyway and let you reconnect it later from `/accounts-connect codex`",
                 false,
               );
               if (!keepCodex) {
@@ -2325,7 +2344,7 @@ async function runWizard(
           } else if (!linkedAccounts.codex.nativeReady) {
             const switchProvider = await askYesNo(
               rl,
-              "Codex is not bound yet. Should I switch to OpenAI so I can finish waking up with a working provider",
+              "Codex is not bound yet. Should I switch to OpenAI so I can finish this first boot with a working provider",
               true,
             );
             if (switchProvider) {
@@ -2398,7 +2417,7 @@ async function runWizard(
             if (!getLinkedProviderAccountsSnapshot().claudeCode.reusable) {
               const continueNative = await askYesNo(
                 rl,
-                "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now",
+                "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now so Eliza can own the session cleanly",
                 true,
               );
               if (continueNative) {
@@ -2444,7 +2463,7 @@ async function runWizard(
       if (provider === "openai" || provider === "hybrid") {
         openaiApiKey = await askSecret(
           rl,
-          "Give me OPENAI_API_KEY",
+          "Paste OPENAI_API_KEY",
           openaiApiKey,
         );
       }
@@ -2467,7 +2486,7 @@ async function runWizard(
       if (provider === "anthropic" || provider === "hybrid") {
         anthropicApiKey = await askSecret(
           rl,
-          "Give me ANTHROPIC_API_KEY",
+          "Paste ANTHROPIC_API_KEY",
           anthropicApiKey,
         );
       }
@@ -2681,38 +2700,38 @@ async function runWizard(
         if (transports.includes("telegram")) {
           telegramBotToken = await askSecret(
             rl,
-            "Give me TELEGRAM_BOT_TOKEN",
+            "Paste TELEGRAM_BOT_TOKEN",
             telegramBotToken,
           );
         }
         if (transports.includes("discord")) {
           discordBotToken = await askSecret(
             rl,
-            "Give me DISCORD_BOT_TOKEN",
+            "Paste DISCORD_BOT_TOKEN",
             discordBotToken,
           );
         }
         if (transports.includes("slack")) {
           slackWebhookUrl = await askSecret(
             rl,
-            "Give me SLACK_WEBHOOK_URL",
+            "Paste SLACK_WEBHOOK_URL",
             slackWebhookUrl,
           );
           slackSigningSecret = await askSecret(
             rl,
-            "Give me SLACK_SIGNING_SECRET",
+            "Paste SLACK_SIGNING_SECRET",
             slackSigningSecret,
           );
         }
         if (transports.includes("homeassistant")) {
           homeAssistantUrl = await ask(
             rl,
-            "Give me HOMEASSISTANT_URL",
+            "Paste HOMEASSISTANT_URL",
             homeAssistantUrl,
           );
           homeAssistantToken = await askSecret(
             rl,
-            "Give me HOMEASSISTANT_TOKEN",
+            "Paste HOMEASSISTANT_TOKEN",
             homeAssistantToken,
           );
         }
@@ -2846,11 +2865,11 @@ async function runWizard(
         }
       }
       if (tools.tts) {
-        falApiKey = await askSecret(rl, "Give me FAL_API_KEY", falApiKey);
+        falApiKey = await askSecret(rl, "Paste FAL_API_KEY", falApiKey);
       }
       if (tools.codegen) {
-        e2bApiKey = await askSecret(rl, "Give me E2B_API_KEY", e2bApiKey);
-        githubToken = await askSecret(rl, "Give me GITHUB_TOKEN", githubToken);
+        e2bApiKey = await askSecret(rl, "Paste E2B_API_KEY", e2bApiKey);
+        githubToken = await askSecret(rl, "Paste GITHUB_TOKEN", githubToken);
       }
 
       const reviewed = finalizeWizardAnswers(
@@ -3112,13 +3131,13 @@ function printSummary(
   console.log(`  pulseprint: ${onboarding.profile}`);
 
   console.log();
-  console.log(paint("What Was Written", color.cyan + color.bold));
+  console.log(paint("What I Wrote", color.cyan + color.bold));
   for (const entry of createdDirs) {
     console.log(`  - ${entry}`);
   }
 
   console.log();
-  console.log(paint("Bindings", color.cyan + color.bold));
+  console.log(paint("Runtime Bindings", color.cyan + color.bold));
   for (const entry of envMessages) {
     console.log(`  - ${entry}`);
   }
