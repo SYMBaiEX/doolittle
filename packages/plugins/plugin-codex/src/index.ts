@@ -29,6 +29,16 @@ interface CodexPluginOptions {
         source?: string;
       }
     | undefined;
+  refreshCredentials?: () => Promise<
+    | {
+        accessToken?: string;
+        refreshToken?: string;
+        authMode?: string;
+        lastRefresh?: string;
+        source?: string;
+      }
+    | undefined
+  >;
 }
 
 const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
@@ -88,7 +98,10 @@ async function runCodexTextGeneration(
     );
   }
 
-  const credentials = options.getCredentials?.();
+  let credentials = options.getCredentials?.();
+  if (!credentials?.accessToken?.trim() && options.refreshCredentials) {
+    credentials = await options.refreshCredentials();
+  }
   const accessToken = credentials?.accessToken?.trim();
   if (!accessToken) {
     throw new Error(
@@ -97,21 +110,41 @@ async function runCodexTextGeneration(
   }
 
   const runtimeModel = getRuntimeModelSettings(runtime);
-  const response = await fetch(
-    `${runtimeModel.baseUrl || DEFAULT_CODEX_BASE_URL}/responses`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: runtimeModel.model || DEFAULT_CODEX_MODEL,
-        input: params.prompt,
-        store: false,
-      }),
+  const endpoint = `${runtimeModel.baseUrl || DEFAULT_CODEX_BASE_URL}/responses`;
+  let response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      model: runtimeModel.model || DEFAULT_CODEX_MODEL,
+      input: params.prompt,
+      store: false,
+    }),
+  });
+
+  if (
+    (response.status === 401 || response.status === 403) &&
+    options.refreshCredentials
+  ) {
+    const refreshed = await options.refreshCredentials();
+    const refreshedAccessToken = refreshed?.accessToken?.trim();
+    if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${refreshedAccessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: runtimeModel.model || DEFAULT_CODEX_MODEL,
+          input: params.prompt,
+          store: false,
+        }),
+      });
+    }
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -171,6 +204,10 @@ export function createCodexPlugin(options: CodexPluginOptions): Plugin {
         lastRefresh: status.lastRefresh,
         detail: status.detail,
       };
+    }
+
+    async refreshRuntimeCredentials() {
+      return options.refreshCredentials?.();
     }
   }
 

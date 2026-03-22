@@ -92,4 +92,55 @@ describe("createCodexPlugin", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("refreshes Codex credentials after an auth failure", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestCount = 0;
+    globalThis.fetch = (async (_url, init) => {
+      requestCount += 1;
+      const auth = (init?.headers as Record<string, string>)?.Authorization;
+      if (requestCount === 1) {
+        expect(auth).toBe("Bearer stale-token");
+        return new Response("expired", { status: 401 });
+      }
+      expect(auth).toBe("Bearer fresh-token");
+      return new Response(JSON.stringify({ output_text: "refreshed" }), {
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    try {
+      const plugin = createCodexPlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "codex",
+          available: true,
+          reusable: true,
+          detail: "ready",
+        }),
+        getCredentials: () => ({
+          accessToken: "stale-token",
+        }),
+        refreshCredentials: async () => ({
+          accessToken: "fresh-token",
+        }),
+      });
+      const handler = plugin.models?.TEXT_LARGE;
+      const result = await handler?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: {
+                provider: "codex",
+              },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      );
+      expect(result).toBe("refreshed");
+      expect(requestCount).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 export interface LinkedProviderAccountStatus {
   provider: "codex" | "claude-code";
@@ -35,6 +35,13 @@ export interface LinkedClaudeCodeCredentials {
   source?: string;
 }
 
+const CODEX_OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+const CODEX_OAUTH_TOKEN_URL = "https://auth.openai.com/oauth/token";
+const CLAUDE_CODE_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+const CLAUDE_CODE_OAUTH_TOKEN_URL =
+  "https://console.anthropic.com/v1/oauth/token";
+const DEFAULT_REFRESH_SKEW_SECONDS = 120;
+
 function resolveHome(homePath?: string): string {
   return homePath?.trim() || process.env.HOME?.trim() || homedir();
 }
@@ -52,6 +59,48 @@ function readJson(path: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function writeJson(path: string, value: unknown): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function decodeJwtPayload(token?: string): Record<string, unknown> | undefined {
+  const parts = token?.split(".");
+  if (!parts || parts.length < 2) {
+    return undefined;
+  }
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return undefined;
+  }
+}
+
+function isUnixSecondsExpiring(
+  expiresAtSeconds?: number,
+  skewSeconds = DEFAULT_REFRESH_SKEW_SECONDS,
+): boolean {
+  if (!expiresAtSeconds || !Number.isFinite(expiresAtSeconds)) {
+    return false;
+  }
+  return Date.now() >= expiresAtSeconds * 1000 - skewSeconds * 1000;
+}
+
+function isUnixMsExpiring(
+  expiresAtMs?: number,
+  skewSeconds = DEFAULT_REFRESH_SKEW_SECONDS,
+): boolean {
+  if (!expiresAtMs || !Number.isFinite(expiresAtMs)) {
+    return false;
+  }
+  return Date.now() >= expiresAtMs - skewSeconds * 1000;
 }
 
 function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
@@ -143,6 +192,78 @@ export function getLinkedCodexCredentials(
     lastRefresh: lastRefresh || undefined,
     source: authPath,
   };
+}
+
+export function codexAccessTokenIsExpiring(
+  accessToken?: string,
+  skewSeconds = DEFAULT_REFRESH_SKEW_SECONDS,
+): boolean {
+  const payload = decodeJwtPayload(accessToken);
+  const exp =
+    payload && typeof payload.exp === "number" ? payload.exp : undefined;
+  return isUnixSecondsExpiring(exp, skewSeconds);
+}
+
+export async function refreshLinkedCodexCredentials(
+  homePath?: string,
+): Promise<LinkedCodexCredentials | undefined> {
+  const authPath = join(resolveHome(homePath), ".codex", "auth.json");
+  const payload = existsSync(authPath) ? readJson(authPath) : undefined;
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+  const tokens =
+    "tokens" in payload
+      ? { ...(payload as { tokens?: Record<string, unknown> }).tokens }
+      : {};
+  const refreshToken =
+    typeof tokens.refresh_token === "string" ? tokens.refresh_token.trim() : "";
+  if (!refreshToken) {
+    return undefined;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: CODEX_OAUTH_CLIENT_ID,
+  });
+
+  const response = await fetch(CODEX_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(
+      `Codex OAuth refresh failed (${response.status}): ${detail}`,
+    );
+  }
+
+  const refreshPayload = (await response.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+  };
+  if (!refreshPayload.access_token?.trim()) {
+    throw new Error(
+      "Codex OAuth refresh response did not include access_token",
+    );
+  }
+
+  const updatedPayload = {
+    ...(payload as Record<string, unknown>),
+    tokens: {
+      ...tokens,
+      access_token: refreshPayload.access_token.trim(),
+      refresh_token: refreshPayload.refresh_token?.trim() || refreshToken,
+    },
+    last_refresh: new Date().toISOString(),
+  };
+  writeJson(authPath, updatedPayload);
+  return getLinkedCodexCredentials(homePath);
 }
 
 function getClaudeCodeAccountStatus(
@@ -290,6 +411,90 @@ export function getLinkedClaudeCodeCredentials(
     accountLabel,
     source: existsSync(credentialsPath) ? credentialsPath : profilePath,
   };
+}
+
+export function claudeCodeAccessTokenIsExpiring(
+  expiresAt?: string,
+  skewSeconds = DEFAULT_REFRESH_SKEW_SECONDS,
+): boolean {
+  const parsed = expiresAt ? Number(expiresAt) : NaN;
+  return isUnixMsExpiring(
+    Number.isFinite(parsed) ? parsed : undefined,
+    skewSeconds,
+  );
+}
+
+export async function refreshLinkedClaudeCodeCredentials(
+  homePath?: string,
+): Promise<LinkedClaudeCodeCredentials | undefined> {
+  const home = resolveHome(homePath);
+  const credentialsPath = join(home, ".claude", ".credentials.json");
+  const payload = existsSync(credentialsPath)
+    ? readJson(credentialsPath)
+    : undefined;
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+  const oauth =
+    "claudeAiOauth" in payload
+      ? {
+          ...(payload as { claudeAiOauth?: Record<string, unknown> })
+            .claudeAiOauth,
+        }
+      : {};
+  const refreshToken =
+    typeof oauth.refreshToken === "string" ? oauth.refreshToken.trim() : "";
+  if (!refreshToken) {
+    return undefined;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: CLAUDE_CODE_CLIENT_ID,
+  });
+  const response = await fetch(CLAUDE_CODE_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "claude-cli/2.1.74 (external, cli)",
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(
+      `Claude Code OAuth refresh failed (${response.status}): ${detail}`,
+    );
+  }
+
+  const refreshPayload = (await response.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+  if (!refreshPayload.access_token?.trim()) {
+    throw new Error(
+      "Claude Code OAuth refresh response did not include access_token",
+    );
+  }
+
+  const expiresInSeconds =
+    typeof refreshPayload.expires_in === "number"
+      ? refreshPayload.expires_in
+      : 3600;
+  const updatedPayload = {
+    ...(payload as Record<string, unknown>),
+    claudeAiOauth: {
+      ...oauth,
+      accessToken: refreshPayload.access_token.trim(),
+      refreshToken: refreshPayload.refresh_token?.trim() || refreshToken,
+      expiresAt: Date.now() + expiresInSeconds * 1000,
+    },
+  };
+  writeJson(credentialsPath, updatedPayload);
+  return getLinkedClaudeCodeCredentials(homePath);
 }
 
 export function getLinkedProviderAccountsSnapshot(
