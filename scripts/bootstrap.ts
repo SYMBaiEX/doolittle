@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import blessed from "blessed";
 import { getLinkedProviderAccountsSnapshot } from "../packages/agent/src/runtime/native/account-auth";
 import {
   DEFAULT_TUI_THEME,
@@ -244,11 +245,77 @@ const color = {
   red: "\u001b[31m",
 };
 
+const wizardSectionOrder = [
+  "Preflight",
+  "Awakening",
+  "Face",
+  "Mind",
+  "Threads",
+  "Codex Bond",
+  "Claude Bond",
+  "Body",
+  "Channels",
+  "Hands",
+  "First Pulse",
+] as const;
+
+type WizardSnapshot = {
+  title: string;
+  subtitle: string;
+  currentSection: string;
+  currentDetail: string;
+  logLines: string[];
+};
+
+type WizardScreenContext = {
+  setSection: (title: string, detail?: string) => void;
+  appendLine: (message: string) => void;
+  promptText: (
+    prompt: string,
+    defaultValue?: string,
+    options?: { secret?: boolean },
+  ) => Promise<string>;
+  promptYesNo: (prompt: string, defaultValue: boolean) => Promise<boolean>;
+  selectOne: <T extends string>(
+    prompt: string,
+    optionsList: Array<{ value: T; label: string; detail?: string }>,
+    defaultValue: T,
+  ) => Promise<T>;
+  selectMany: <T extends string>(
+    prompt: string,
+    optionsList: Array<{ value: T; label: string }>,
+    defaults: T[],
+  ) => Promise<T[]>;
+  snapshot: () => WizardSnapshot;
+  destroy: () => void;
+};
+
+let wizardScreen: WizardScreenContext | null = null;
+
+function requireReadline(
+  rl: ReturnType<typeof createInterface> | null,
+): ReturnType<typeof createInterface> {
+  if (!rl) {
+    throw new Error("Interactive readline is unavailable.");
+  }
+  return rl;
+}
+
+function getListSelectedIndex(
+  list: blessed.Widgets.ListElement,
+): number | undefined {
+  return (list as unknown as { selected?: number }).selected;
+}
+
 function paint(value: string, tone: string): string {
   return `${tone}${value}${color.reset}`;
 }
 
 function section(title: string, detail?: string): void {
+  if (wizardScreen) {
+    wizardScreen.setSection(title, detail);
+    return;
+  }
   console.log();
   console.log(paint(`◆ ${title}`, color.orange + color.bold));
   if (detail) {
@@ -257,14 +324,25 @@ function section(title: string, detail?: string): void {
 }
 
 function info(message: string): void {
+  if (wizardScreen) {
+    wizardScreen.appendLine(message);
+    return;
+  }
   console.log(paint(`  ${message}`, color.dim));
 }
 
 function warn(message: string): void {
+  if (wizardScreen) {
+    wizardScreen.appendLine(`WARNING: ${message}`);
+    return;
+  }
   console.log(paint(`  ⚠ ${message}`, color.amber));
 }
 
 function banner(): void {
+  if (wizardScreen) {
+    return;
+  }
   console.log(
     [
       paint(
@@ -289,6 +367,420 @@ function banner(): void {
       ),
     ].join("\n"),
   );
+}
+
+function createWizardScreen(
+  initial?: Partial<WizardSnapshot>,
+): WizardScreenContext {
+  const screen = blessed.screen({
+    smartCSR: true,
+    fullUnicode: true,
+    title: "Eliza Agent // Awakening",
+    dockBorders: true,
+  });
+  const snapshot: WizardSnapshot = {
+    title: "ELIZA AGENT // AWAKENING",
+    subtitle:
+      "A first-contact ritual for shaping a mind, a body, and a presence.",
+    currentSection: initial?.currentSection || "Preflight",
+    currentDetail:
+      initial?.currentDetail || "I checked the machine before waking fully.",
+    logLines: initial?.logLines ? [...initial.logLines] : [],
+  };
+  const header = blessed.box({
+    parent: screen,
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: 3,
+    tags: true,
+    style: {
+      fg: "white",
+      bg: "#ff6a00",
+    },
+    content: "",
+    padding: { left: 1, right: 1 },
+  });
+  const sidebar = blessed.box({
+    parent: screen,
+    top: 3,
+    left: 0,
+    width: 24,
+    bottom: 1,
+    border: "line",
+    label: " Ritual Stages ",
+    tags: true,
+    padding: { left: 1, right: 1 },
+    style: {
+      border: { fg: "#ff6a00" },
+      fg: "white",
+      bg: "#202833",
+    },
+    content: "",
+  });
+  const detail = blessed.box({
+    parent: screen,
+    top: 3,
+    left: 24,
+    width: "100%-24",
+    height: 6,
+    border: "line",
+    label: " Current Pulse ",
+    tags: true,
+    padding: { left: 1, right: 1 },
+    style: {
+      border: { fg: "#55d6ff" },
+      fg: "white",
+      bg: "#202833",
+    },
+    content: "",
+  });
+  const logBox = blessed.box({
+    parent: screen,
+    top: 9,
+    left: 24,
+    width: "100%-24",
+    bottom: 1,
+    border: "line",
+    label: " Setup Feed ",
+    tags: true,
+    scrollable: true,
+    alwaysScroll: true,
+    scrollbar: {
+      ch: " ",
+      style: { bg: "#3b4757" },
+      track: { bg: "#202833" },
+    },
+    padding: { left: 1, right: 1 },
+    style: {
+      border: { fg: "#4fd17d" },
+      fg: "white",
+      bg: "#202833",
+    },
+    content: "",
+  });
+  const _footer = blessed.box({
+    parent: screen,
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    height: 1,
+    tags: true,
+    style: {
+      fg: "#9dd7ff",
+      bg: "#151c24",
+    },
+    content:
+      " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-C exit ",
+  });
+
+  const render = () => {
+    header.setContent(`{bold}${snapshot.title}{/bold}\n${snapshot.subtitle}`);
+    sidebar.setContent(
+      wizardSectionOrder
+        .map((name) =>
+          name === snapshot.currentSection
+            ? `{#ff6a00-fg}› ${name}{/}`
+            : `  ${name}`,
+        )
+        .join("\n"),
+    );
+    detail.setContent(
+      `{bold}${snapshot.currentSection}{/bold}\n${snapshot.currentDetail}`,
+    );
+    logBox.setContent(snapshot.logLines.join("\n"));
+    logBox.setScrollPerc(100);
+    screen.render();
+  };
+
+  const appendLine = (message: string) => {
+    snapshot.logLines.push(message);
+    if (snapshot.logLines.length > 200) {
+      snapshot.logLines.splice(0, snapshot.logLines.length - 200);
+    }
+    render();
+  };
+
+  const setSection = (title: string, detailText?: string) => {
+    snapshot.currentSection = title;
+    snapshot.currentDetail = detailText || "";
+    appendLine(`◆ ${title}${detailText ? ` — ${detailText}` : ""}`);
+  };
+
+  const showOverlay = <T>(
+    title: string,
+    body: string,
+    mount: (
+      box: blessed.Widgets.BoxElement,
+      resolve: (value: T) => void,
+    ) => void,
+  ): Promise<T> =>
+    new Promise((resolve) => {
+      const overlay = blessed.box({
+        parent: screen,
+        top: "center",
+        left: "center",
+        width: "72%",
+        height: "70%",
+        border: "line",
+        label: ` ${title} `,
+        tags: true,
+        padding: { top: 1, left: 1, right: 1, bottom: 1 },
+        style: {
+          border: { fg: "#ffb000" },
+          fg: "white",
+          bg: "#151c24",
+        },
+      });
+      blessed.box({
+        parent: overlay,
+        top: 0,
+        left: 0,
+        width: "100%-2",
+        height: 3,
+        tags: true,
+        content: body,
+      });
+      mount(overlay, (value) => {
+        overlay.destroy();
+        render();
+        resolve(value);
+      });
+      render();
+    });
+
+  const promptText = async (
+    prompt: string,
+    defaultValue = "",
+    options?: { secret?: boolean },
+  ): Promise<string> =>
+    showOverlay<string>(
+      "Input",
+      `${prompt}\n{gray-fg}${defaultValue ? `Default: ${options?.secret ? "[stored]" : defaultValue}` : "Enter to keep current"}{/gray-fg}`,
+      (overlay, resolve) => {
+        const inputBox = blessed.textbox({
+          parent: overlay,
+          top: 4,
+          left: 0,
+          width: "100%-2",
+          height: 3,
+          border: "line",
+          inputOnFocus: true,
+          censor: options?.secret ?? false,
+          keys: true,
+          mouse: true,
+          style: {
+            border: { fg: "#55d6ff" },
+            fg: "white",
+            bg: "#202833",
+          },
+          value: defaultValue,
+        });
+        blessed.box({
+          parent: overlay,
+          bottom: 0,
+          left: 0,
+          width: "100%-2",
+          height: 1,
+          tags: true,
+          content: "{gray-fg}Enter save · Esc keep current{/gray-fg}",
+        });
+        inputBox.focus();
+        inputBox.readInput((_err, value) => {
+          resolve((value || "").trim() || defaultValue);
+        });
+        inputBox.key("escape", () => resolve(defaultValue));
+      },
+    );
+
+  const promptYesNo = async (
+    prompt: string,
+    defaultValue: boolean,
+  ): Promise<boolean> =>
+    showOverlay<boolean>(
+      "Confirm",
+      `${prompt}\n{gray-fg}Enter confirms · Esc keeps default{/gray-fg}`,
+      (overlay, resolve) => {
+        const list = blessed.list({
+          parent: overlay,
+          top: 4,
+          left: 0,
+          width: "100%-2",
+          height: 6,
+          border: "line",
+          keys: true,
+          mouse: true,
+          style: {
+            border: { fg: "#55d6ff" },
+            selected: { bg: "#ff6a00", fg: "black" },
+            item: { fg: "white" },
+          },
+          items: [
+            `Yes${defaultValue ? " (default)" : ""}`,
+            `No${!defaultValue ? " (default)" : ""}`,
+          ],
+        });
+        let selectedIndex = defaultValue ? 0 : 1;
+        list.select(selectedIndex);
+        list.focus();
+        list.on("keypress", () => {
+          selectedIndex = getListSelectedIndex(list) ?? selectedIndex;
+        });
+        list.key(["enter", "space"], () => resolve(selectedIndex === 0));
+        list.key("escape", () => resolve(defaultValue));
+      },
+    );
+
+  const selectOne = async <T extends string>(
+    prompt: string,
+    optionsList: Array<{ value: T; label: string; detail?: string }>,
+    defaultValue: T,
+  ): Promise<T> =>
+    showOverlay<T>(
+      "Choose One",
+      `${prompt}\n{gray-fg}↑/↓ move · Enter confirm · Esc keep current{/gray-fg}`,
+      (overlay, resolve) => {
+        const detailBox = blessed.box({
+          parent: overlay,
+          top: 4,
+          left: "60%",
+          width: "40%-2",
+          height: "100%-8",
+          border: "line",
+          label: " Detail ",
+          padding: { left: 1, right: 1 },
+          style: { border: { fg: "#4fd17d" }, fg: "white" },
+        });
+        const list = blessed.list({
+          parent: overlay,
+          top: 4,
+          left: 0,
+          width: "60%",
+          height: "100%-8",
+          border: "line",
+          keys: true,
+          mouse: true,
+          style: {
+            border: { fg: "#55d6ff" },
+            selected: { bg: "#ff6a00", fg: "black" },
+            item: { fg: "white" },
+          },
+          items: optionsList.map((item) => item.label),
+        });
+        let selectedIndex = Math.max(
+          0,
+          optionsList.findIndex((item) => item.value === defaultValue),
+        );
+        list.select(selectedIndex);
+        const updateDetail = () => {
+          selectedIndex = getListSelectedIndex(list) ?? selectedIndex;
+          const current = optionsList[selectedIndex];
+          detailBox.setContent(
+            `${current?.label || ""}\n\n${current?.detail || "No extra detail."}`,
+          );
+          screen.render();
+        };
+        list.on("select item", (_item, index) =>
+          resolve(optionsList[index]?.value ?? defaultValue),
+        );
+        list.on("keypress", updateDetail);
+        list.focus();
+        updateDetail();
+        list.key(["enter", "space"], () =>
+          resolve(optionsList[selectedIndex]?.value ?? defaultValue),
+        );
+        list.key("escape", () => resolve(defaultValue));
+      },
+    );
+
+  const selectMany = async <T extends string>(
+    prompt: string,
+    optionsList: Array<{ value: T; label: string }>,
+    defaults: T[],
+  ): Promise<T[]> =>
+    showOverlay<T[]>(
+      "Choose Many",
+      `${prompt}\n{gray-fg}↑/↓ move · Space toggle · Enter confirm{/gray-fg}`,
+      (overlay, resolve) => {
+        const active = new Set(defaults);
+        let cursorIndex = 0;
+        const list = blessed.list({
+          parent: overlay,
+          top: 4,
+          left: 0,
+          width: "100%-2",
+          height: "100%-8",
+          border: "line",
+          keys: true,
+          mouse: true,
+          style: {
+            border: { fg: "#55d6ff" },
+            selected: { bg: "#ff6a00", fg: "black" },
+            item: { fg: "white" },
+          },
+          items: [],
+        });
+        const refresh = () => {
+          cursorIndex = getListSelectedIndex(list) ?? cursorIndex;
+          list.setItems(
+            optionsList.map(
+              (item) => `${active.has(item.value) ? "●" : "○"} ${item.label}`,
+            ),
+          );
+          list.select(cursorIndex);
+          screen.render();
+        };
+        list.focus();
+        refresh();
+        list.on("keypress", () => {
+          cursorIndex = getListSelectedIndex(list) ?? cursorIndex;
+        });
+        list.key("space", () => {
+          const current = optionsList[cursorIndex];
+          if (!current) {
+            return;
+          }
+          if (active.has(current.value)) {
+            active.delete(current.value);
+          } else {
+            active.add(current.value);
+          }
+          refresh();
+        });
+        list.key("enter", () =>
+          resolve(
+            optionsList
+              .filter((item) => active.has(item.value))
+              .map((item) => item.value),
+          ),
+        );
+        list.key("escape", () => resolve(defaults));
+      },
+    );
+
+  screen.key(["C-c"], () => {
+    screen.destroy();
+    process.exit(1);
+  });
+
+  render();
+
+  return {
+    setSection,
+    appendLine,
+    promptText,
+    promptYesNo,
+    selectOne,
+    selectMany,
+    snapshot: () => ({
+      title: snapshot.title,
+      subtitle: snapshot.subtitle,
+      currentSection: snapshot.currentSection,
+      currentDetail: snapshot.currentDetail,
+      logLines: [...snapshot.logLines],
+    }),
+    destroy: () => screen.destroy(),
+  };
 }
 
 function commandExists(command: string): boolean {
@@ -406,7 +898,13 @@ function printDependencyProbes(probes: DependencyProbe[]): void {
     const state = probe.installed
       ? paint("online", color.green)
       : paint("missing", color.red);
-    console.log(`  ${probe.label}: ${state}`);
+    if (wizardScreen) {
+      wizardScreen.appendLine(
+        `${probe.label}: ${probe.installed ? "online" : "missing"}`,
+      );
+    } else {
+      console.log(`  ${probe.label}: ${state}`);
+    }
     info(probe.detail);
     if (!probe.installed && probe.recommendation) {
       warn(probe.recommendation);
@@ -691,25 +1189,33 @@ function fingerprint(
 }
 
 async function ask(
-  rl: ReturnType<typeof createInterface>,
+  rl: ReturnType<typeof createInterface> | null,
   prompt: string,
   defaultValue = "",
 ): Promise<string> {
+  if (wizardScreen) {
+    return wizardScreen.promptText(prompt, defaultValue);
+  }
+  const promptInterface = requireReadline(rl);
   const suffix = defaultValue ? ` [${defaultValue}]` : "";
   const answer = (
-    await rl.question(paint(`${prompt}${suffix}: `, color.amber))
+    await promptInterface.question(paint(`${prompt}${suffix}: `, color.amber))
   ).trim();
   return answer || defaultValue;
 }
 
 async function askSecret(
-  rl: ReturnType<typeof createInterface>,
+  rl: ReturnType<typeof createInterface> | null,
   prompt: string,
   defaultValue = "",
 ): Promise<string> {
+  if (wizardScreen) {
+    return wizardScreen.promptText(prompt, defaultValue, { secret: true });
+  }
   if (!input.isTTY || !output.isTTY) {
     return ask(rl, prompt, defaultValue);
   }
+  const promptInterface = requireReadline(rl);
 
   const suffix = defaultValue ? " [stored]" : "";
   const previousState = spawnSync("stty", ["-g"], {
@@ -721,7 +1227,7 @@ async function askSecret(
   spawnSync("stty", ["-echo"], { stdio: "inherit" });
   try {
     const answer = (
-      await rl.question(paint(`${prompt}${suffix}: `, color.amber))
+      await promptInterface.question(paint(`${prompt}${suffix}: `, color.amber))
     ).trim();
     output.write("\n");
     return answer || defaultValue;
@@ -735,14 +1241,20 @@ async function askSecret(
 }
 
 async function askYesNo(
-  rl: ReturnType<typeof createInterface>,
+  rl: ReturnType<typeof createInterface> | null,
   prompt: string,
   defaultValue: boolean,
 ): Promise<boolean> {
+  if (wizardScreen) {
+    return wizardScreen.promptYesNo(prompt, defaultValue);
+  }
+  const promptInterface = requireReadline(rl);
   const fallback = defaultValue ? "Y/n" : "y/N";
   while (true) {
     const answer = (
-      await rl.question(paint(`${prompt} [${fallback}]: `, color.amber))
+      await promptInterface.question(
+        paint(`${prompt} [${fallback}]: `, color.amber),
+      )
     )
       .trim()
       .toLowerCase();
@@ -811,11 +1323,20 @@ function runInteractiveCommand(
   args: string[],
   label: string,
 ): boolean {
+  const snapshot = wizardScreen?.snapshot();
+  if (wizardScreen) {
+    wizardScreen.destroy();
+    wizardScreen = null;
+    console.log();
+  }
   section("Binding", label);
   const result = spawnSync(command, args, {
     stdio: "inherit",
     env: process.env,
   });
+  if (snapshot) {
+    wizardScreen = createWizardScreen(snapshot);
+  }
   if (result.error) {
     warn(`${label} failed: ${result.error.message}`);
     return false;
@@ -829,11 +1350,15 @@ function runInteractiveCommand(
 }
 
 async function chooseOne<T extends string>(
-  rl: ReturnType<typeof createInterface>,
+  rl: ReturnType<typeof createInterface> | null,
   prompt: string,
   optionsList: Array<{ value: T; label: string; detail?: string }>,
   defaultValue: T,
 ): Promise<T> {
+  if (wizardScreen) {
+    return wizardScreen.selectOne(prompt, optionsList, defaultValue);
+  }
+  const promptInterface = requireReadline(rl);
   if (supportsInteractiveMenus()) {
     return withRawMenuInput(async () => {
       let selectedIndex = Math.max(
@@ -908,7 +1433,7 @@ async function chooseOne<T extends string>(
   });
   while (true) {
     const answer = (
-      await rl.question(
+      await promptInterface.question(
         paint(
           `Select [1-${optionsList.length}] (${optionsList.findIndex((item) => item.value === defaultValue) + 1}): `,
           color.amber,
@@ -938,11 +1463,15 @@ async function chooseOne<T extends string>(
 }
 
 async function chooseMany<T extends string>(
-  rl: ReturnType<typeof createInterface>,
+  rl: ReturnType<typeof createInterface> | null,
   prompt: string,
   optionsList: Array<{ value: T; label: string }>,
   defaults: T[],
 ): Promise<T[]> {
+  if (wizardScreen) {
+    return wizardScreen.selectMany(prompt, optionsList, defaults);
+  }
+  const promptInterface = requireReadline(rl);
   if (supportsInteractiveMenus()) {
     return withRawMenuInput(async () => {
       const active = new Set(defaults);
@@ -1034,7 +1563,9 @@ async function chooseMany<T extends string>(
     "Use comma-separated numbers like 1,3,5. Leave blank to keep the defaults.",
   );
   while (true) {
-    const answer = (await rl.question(paint("Select: ", color.amber))).trim();
+    const answer = (
+      await promptInterface.question(paint("Select: ", color.amber))
+    ).trim();
     if (!answer) {
       return defaults;
     }
@@ -1134,11 +1665,12 @@ async function runWizard(
     return headlessAnswers(existingEnv);
   }
 
+  wizardScreen = createWizardScreen();
   banner();
   const dependencyProbes = getDependencyProbes(existingEnv);
   let linkedAccounts = getLinkedProviderAccountsSnapshot();
   printDependencyProbes(dependencyProbes);
-  const rl = createInterface({ input, output });
+  const rl = wizardScreen ? null : createInterface({ input, output });
   try {
     section("Awakening", "Decide how fully you want me to come online.");
     const mode = await chooseOne<WizardMode>(
@@ -1884,7 +2416,9 @@ async function runWizard(
       modalTarget,
     };
   } finally {
-    rl.close();
+    rl?.close();
+    wizardScreen?.destroy();
+    wizardScreen = null;
   }
 }
 
