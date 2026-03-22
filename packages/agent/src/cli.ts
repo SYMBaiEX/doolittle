@@ -32,6 +32,18 @@ interface CliExecutionHooks {
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
 
+const TUI_THEME = {
+  baseBg: "black",
+  baseFg: "white",
+  brandBlue: "#0B35F1",
+  cyanGlow: "cyan",
+  greenGlow: "green",
+  magentaGlow: "magenta",
+  amberGlow: "yellow",
+  muted: "gray",
+  panelBg: "black",
+} as const;
+
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -123,6 +135,170 @@ function buildHelpText(agentName: string): string {
     "  /delegate create Research spike :: validate a transport path",
     "  /trajectories ingest gateway label:review limit:100",
   ].join("\n");
+}
+
+function panelStyle(accent: string) {
+  return {
+    fg: TUI_THEME.baseFg,
+    bg: TUI_THEME.panelBg,
+    border: { fg: accent },
+    label: { fg: accent, bold: true },
+  };
+}
+
+function applyLayout(
+  screen: blessed.Widgets.Screen,
+  layout: {
+    header: blessed.Widgets.BoxElement;
+    activity: blessed.Widgets.Log;
+    response: blessed.Widgets.BoxElement;
+    sidebar: blessed.Widgets.BoxElement;
+    transportBox: blessed.Widgets.BoxElement;
+    executionBox: blessed.Widgets.BoxElement;
+    assistBox: blessed.Widgets.BoxElement;
+    paletteOverlay: blessed.Widgets.BoxElement;
+    paletteInput: blessed.Widgets.TextboxElement;
+    paletteList: blessed.Widgets.ListElement;
+    composerOverlay: blessed.Widgets.BoxElement;
+    composer: blessed.Widgets.TextareaElement;
+    inputBox: blessed.Widgets.TextboxElement;
+    footer: blessed.Widgets.BoxElement;
+  },
+): void {
+  const width = screen.width as number;
+  const height = screen.height as number;
+  const compact = width < 140;
+  const narrow = width < 110;
+  const short = height < 34;
+
+  layout.header.top = 0;
+  layout.header.left = 0;
+  layout.header.width = "100%";
+  layout.header.height = 3;
+
+  layout.inputBox.left = 0;
+  layout.inputBox.width = "100%";
+  layout.inputBox.bottom = 1;
+  layout.inputBox.height = 3;
+
+  layout.footer.left = 0;
+  layout.footer.width = "100%";
+  layout.footer.bottom = 0;
+  layout.footer.height = 1;
+
+  if (narrow) {
+    layout.activity.top = 3;
+    layout.activity.left = 0;
+    layout.activity.width = "100%";
+    layout.activity.height = short ? "34%" : "36%";
+
+    layout.response.top = short ? "37%" : "39%";
+    layout.response.left = 0;
+    layout.response.width = "100%";
+    layout.response.height = short ? "18%" : "20%";
+
+    layout.sidebar.top = short ? "55%" : "59%";
+    layout.sidebar.left = 0;
+    layout.sidebar.width = "50%";
+    layout.sidebar.height = short ? "18%" : "19%";
+
+    layout.transportBox.top = short ? "55%" : "59%";
+    layout.transportBox.left = "50%";
+    layout.transportBox.width = "50%";
+    layout.transportBox.height = short ? "18%" : "19%";
+
+    layout.executionBox.top = short ? "73%" : "78%";
+    layout.executionBox.left = 0;
+    layout.executionBox.width = "50%";
+    layout.executionBox.height = short ? "16%" : "18%-1";
+
+    layout.assistBox.top = short ? "73%" : "78%";
+    layout.assistBox.left = "50%";
+    layout.assistBox.width = "50%";
+    layout.assistBox.height = short ? "16%" : "18%-1";
+  } else if (compact) {
+    layout.activity.top = 3;
+    layout.activity.left = 0;
+    layout.activity.width = "62%";
+    layout.activity.height = short ? "64%-1" : "68%-1";
+
+    layout.response.top = short ? "64%+2" : "68%+2";
+    layout.response.left = 0;
+    layout.response.width = "62%";
+    layout.response.height = short ? "26%-2" : "22%-2";
+
+    layout.sidebar.top = 3;
+    layout.sidebar.left = "62%";
+    layout.sidebar.width = "38%";
+    layout.sidebar.height = "28%";
+
+    layout.transportBox.top = "28%+3";
+    layout.transportBox.left = "62%";
+    layout.transportBox.width = "38%";
+    layout.transportBox.height = "24%";
+
+    layout.executionBox.top = "52%+3";
+    layout.executionBox.left = "62%";
+    layout.executionBox.width = "38%";
+    layout.executionBox.height = "18%";
+
+    layout.assistBox.top = "70%+3";
+    layout.assistBox.left = "62%";
+    layout.assistBox.width = "38%";
+    layout.assistBox.height = "18%-1";
+  } else {
+    layout.activity.top = 3;
+    layout.activity.left = 0;
+    layout.activity.width = "68%";
+    layout.activity.height = "70%-1";
+
+    layout.response.top = "70%+2";
+    layout.response.left = 0;
+    layout.response.width = "68%";
+    layout.response.height = "30%-2";
+
+    layout.sidebar.top = 3;
+    layout.sidebar.left = "68%";
+    layout.sidebar.width = "32%";
+    layout.sidebar.height = "30%";
+
+    layout.transportBox.top = "30%+3";
+    layout.transportBox.left = "68%";
+    layout.transportBox.width = "32%";
+    layout.transportBox.height = "22%";
+
+    layout.executionBox.top = "52%+3";
+    layout.executionBox.left = "68%";
+    layout.executionBox.width = "32%";
+    layout.executionBox.height = "18%";
+
+    layout.assistBox.top = "70%+3";
+    layout.assistBox.left = "68%";
+    layout.assistBox.width = "32%";
+    layout.assistBox.height = "18%-1";
+  }
+
+  layout.paletteOverlay.width = narrow ? "94%" : compact ? "82%" : "72%";
+  layout.paletteOverlay.height = narrow ? "76%" : "68%";
+  layout.paletteOverlay.top = "center";
+  layout.paletteOverlay.left = "center";
+  layout.paletteInput.top = 0;
+  layout.paletteInput.left = 0;
+  layout.paletteInput.width = "100%-2";
+  layout.paletteInput.height = 3;
+  layout.paletteList.top = 3;
+  layout.paletteList.left = 0;
+  layout.paletteList.width = "100%-2";
+  layout.paletteList.height = "100%-4";
+
+  layout.composerOverlay.width = narrow ? "96%" : compact ? "88%" : "78%";
+  layout.composerOverlay.height = narrow ? "82%" : "72%";
+  layout.composerOverlay.top = "center";
+  layout.composerOverlay.left = "center";
+  layout.composer.width = "100%-2";
+  layout.composer.height = "100%-4";
+  layout.composer.top = 0;
+  layout.composer.left = 0;
 }
 
 async function renderEcosystemContent(context: AppContext): Promise<string> {
@@ -786,7 +962,7 @@ async function startTui(context: AppContext): Promise<void> {
     dockBorders: true,
   });
 
-  blessed.box({
+  const header = blessed.box({
     parent: screen,
     top: 0,
     left: 0,
@@ -794,10 +970,10 @@ async function startTui(context: AppContext): Promise<void> {
     height: 3,
     tags: true,
     style: {
-      fg: "white",
-      bg: "blue",
+      fg: TUI_THEME.baseFg,
+      bg: TUI_THEME.brandBlue,
     },
-    content: `{bold}${context.config.agentName}{/bold}  {gray-fg}ElizaOS-native operator cockpit{/}  {white-fg}Monorepo + native plugin stack{/}`,
+    content: `{bold}${context.config.agentName}{/bold}  {black-fg}ELIZAOS CYBERNETIC OPS DECK{/}  {white-fg}alpha-native monorepo + plugin lattice{/}`,
   });
 
   const activity = blessed.log({
@@ -816,10 +992,7 @@ async function startTui(context: AppContext): Promise<void> {
     scrollbar: {
       ch: " ",
     },
-    style: {
-      border: { fg: "cyan" },
-      label: { fg: "cyan", bold: true },
-    },
+    style: panelStyle(TUI_THEME.cyanGlow),
   });
 
   const response = blessed.box({
@@ -843,10 +1016,7 @@ async function startTui(context: AppContext): Promise<void> {
     scrollbar: {
       ch: " ",
     },
-    style: {
-      border: { fg: "magenta" },
-      label: { fg: "magenta", bold: true },
-    },
+    style: panelStyle(TUI_THEME.magentaGlow),
     content:
       "{gray-fg}Responses, JSON payloads, and operator output will render here.{/}",
   });
@@ -869,10 +1039,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: {
-      border: { fg: "green" },
-      label: { fg: "green", bold: true },
-    },
+    style: panelStyle(TUI_THEME.greenGlow),
   });
 
   const transportBox = blessed.box({
@@ -893,10 +1060,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: {
-      border: { fg: "cyan" },
-      label: { fg: "cyan", bold: true },
-    },
+    style: panelStyle(TUI_THEME.cyanGlow),
   });
 
   const executionBox = blessed.box({
@@ -917,10 +1081,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: {
-      border: { fg: "green" },
-      label: { fg: "green", bold: true },
-    },
+    style: panelStyle(TUI_THEME.greenGlow),
   });
 
   const assistBox = blessed.box({
@@ -941,10 +1102,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: {
-      border: { fg: "yellow" },
-      label: { fg: "yellow", bold: true },
-    },
+    style: panelStyle(TUI_THEME.amberGlow),
   });
 
   const paletteOverlay = blessed.box({
@@ -958,10 +1116,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Command Palette ",
     style: {
-      fg: "white",
-      bg: "black",
-      border: { fg: "magenta" },
-      label: { fg: "magenta", bold: true },
+      fg: TUI_THEME.baseFg,
+      bg: TUI_THEME.baseBg,
+      border: { fg: TUI_THEME.magentaGlow },
+      label: { fg: TUI_THEME.magentaGlow, bold: true },
     },
   });
 
@@ -975,10 +1133,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Search ",
     style: {
-      border: { fg: "yellow" },
-      label: { fg: "yellow", bold: true },
+      border: { fg: TUI_THEME.amberGlow },
+      label: { fg: TUI_THEME.amberGlow, bold: true },
       focus: {
-        border: { fg: "green" },
+        border: { fg: TUI_THEME.brandBlue },
       },
     },
   });
@@ -996,13 +1154,13 @@ async function startTui(context: AppContext): Promise<void> {
     vi: true,
     tags: true,
     style: {
-      border: { fg: "cyan" },
+      border: { fg: TUI_THEME.cyanGlow },
       selected: {
-        bg: "blue",
-        fg: "white",
+        bg: TUI_THEME.brandBlue,
+        fg: TUI_THEME.baseFg,
       },
       item: {
-        fg: "white",
+        fg: TUI_THEME.baseFg,
       },
     },
     items: [],
@@ -1019,10 +1177,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Multiline Composer ",
     style: {
-      fg: "white",
-      bg: "black",
-      border: { fg: "green" },
-      label: { fg: "green", bold: true },
+      fg: TUI_THEME.baseFg,
+      bg: TUI_THEME.baseBg,
+      border: { fg: TUI_THEME.greenGlow },
+      label: { fg: TUI_THEME.greenGlow, bold: true },
     },
   });
 
@@ -1039,10 +1197,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Compose (Ctrl-S submit, Esc close) ",
     style: {
-      border: { fg: "green" },
-      label: { fg: "green", bold: true },
+      border: { fg: TUI_THEME.greenGlow },
+      label: { fg: TUI_THEME.greenGlow, bold: true },
       focus: {
-        border: { fg: "yellow" },
+        border: { fg: TUI_THEME.brandBlue },
       },
     },
   });
@@ -1071,12 +1229,12 @@ async function startTui(context: AppContext): Promise<void> {
     keys: true,
     tags: false,
     style: {
-      fg: "white",
-      bg: "black",
-      border: { fg: "blue" },
-      label: { fg: "blue", bold: true },
+      fg: TUI_THEME.baseFg,
+      bg: TUI_THEME.baseBg,
+      border: { fg: TUI_THEME.brandBlue },
+      label: { fg: TUI_THEME.brandBlue, bold: true },
       focus: {
-        border: { fg: "magenta" },
+        border: { fg: TUI_THEME.cyanGlow },
       },
     },
   });
@@ -1089,8 +1247,8 @@ async function startTui(context: AppContext): Promise<void> {
     height: 1,
     tags: true,
     style: {
-      fg: "white",
-      bg: "gray",
+      fg: TUI_THEME.baseFg,
+      bg: TUI_THEME.baseBg,
     },
   });
 
@@ -1215,6 +1373,26 @@ async function startTui(context: AppContext): Promise<void> {
     executionBox.setContent(await renderExecutionContent(context));
     await renderControlDeck(controlDeckMode);
     footer.setContent(renderFooter(context, busy, queueDepth));
+    screen.render();
+  }
+
+  function syncLayout(): void {
+    applyLayout(screen, {
+      header,
+      activity,
+      response,
+      sidebar,
+      transportBox,
+      executionBox,
+      assistBox,
+      paletteOverlay,
+      paletteInput,
+      paletteList,
+      composerOverlay,
+      composer,
+      inputBox,
+      footer,
+    });
     screen.render();
   }
 
@@ -1563,6 +1741,11 @@ async function startTui(context: AppContext): Promise<void> {
     });
   }
 
+  screen.on("resize", () => {
+    syncLayout();
+    void refreshPanels();
+  });
+
   unsubscribers.push(
     context.gateway.onUpdate((event) => {
       appendActivity(
@@ -1624,6 +1807,7 @@ async function startTui(context: AppContext): Promise<void> {
   await renderControlDeck(controlDeckMode);
 
   await refreshPanels();
+  syncLayout();
   inputBox.focus();
   screen.render();
 
