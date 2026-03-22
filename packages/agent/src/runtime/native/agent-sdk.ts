@@ -26,7 +26,7 @@ const FOUNDATION_PACKAGES = [
   "@elizaos/plugin-mcp",
 ] as const;
 
-const SUPPORT_PACKAGES = [
+const LEGACY_PACKAGES = [
   "@elizaos/server",
   "@elizaos/cli",
   "@elizaos/api-client",
@@ -60,10 +60,10 @@ export async function getAgentSdkAudit() {
       ]),
     ),
   );
-  const supportPackages = [...SUPPORT_PACKAGES];
-  const supportInstalled = Object.fromEntries(
+  const legacyPackages = [...LEGACY_PACKAGES];
+  const legacyInstalled = Object.fromEntries(
     await Promise.all(
-      supportPackages.map(async (packageName) => [
+      legacyPackages.map(async (packageName) => [
         packageName,
         await getInstalledVersion(packageName),
       ]),
@@ -98,8 +98,8 @@ export async function getAgentSdkAudit() {
     installed,
     ecosystemPackages,
     ecosystemInstalled,
-    supportPackages,
-    supportInstalled,
+    legacyPackages,
+    legacyInstalled,
     coreVersion,
     channels: CHANNEL_DIST_TAGS,
     compatibility,

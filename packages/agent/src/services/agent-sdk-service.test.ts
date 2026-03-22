@@ -10,8 +10,8 @@ describe("AgentSdkService", () => {
         installed: Record<string, string | undefined>;
         ecosystemPackages?: string[];
         ecosystemInstalled?: Record<string, string | undefined>;
-        supportPackages?: string[];
-        supportInstalled?: Record<string, string | undefined>;
+        legacyPackages?: string[];
+        legacyInstalled?: Record<string, string | undefined>;
         compatibility: unknown[];
         skillCatalog: { cachedSkills: number };
       }>;
@@ -34,8 +34,6 @@ describe("AgentSdkService", () => {
       },
       ecosystemPackages: [],
       ecosystemInstalled: {},
-      supportPackages: [],
-      supportInstalled: {},
       compatibility: [
         { plugin: "@elizaos/plugin-openai", compatible: true },
         { plugin: "@elizaos/plugin-browser", compatible: true },
@@ -63,8 +61,6 @@ describe("AgentSdkService", () => {
       installedFoundationPackages: 2,
       ecosystemPackages: 0,
       installedEcosystemPackages: 0,
-      supportPackages: 0,
-      installedSupportPackages: 0,
       compatibilityChecks: 2,
       compatibilityFailures: 0,
       registryEndpoints: 2,
