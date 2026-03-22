@@ -59,6 +59,8 @@ export interface ResponseTranscriptEntry {
   label: string;
   body: string;
   at: string;
+  kind?: "user" | "assistant" | "shell" | "command" | "system";
+  pending?: boolean;
 }
 
 function nowStamp(): string {
@@ -114,16 +116,39 @@ export function renderResponseTranscript(
     return "{gray-fg}Responses, JSON payloads, and operator output will render here.{/}";
   }
 
+  const renderEntry = (entry: ResponseTranscriptEntry): string => {
+    const roleTag =
+      entry.kind === "user"
+        ? "{yellow-fg}You{/}"
+        : entry.kind === "assistant"
+          ? "{cyan-fg}Agent{/}"
+          : entry.kind === "shell"
+            ? "{green-fg}Shell{/}"
+            : entry.kind === "command"
+              ? "{magenta-fg}Command{/}"
+              : "{gray-fg}System{/}";
+    const customLabel =
+      entry.label &&
+      !["You", "Shell", "Command", "Command Result", "Helm Ready"].includes(
+        entry.label,
+      )
+        ? ` ${escapeBlessed(entry.label)}`
+        : "";
+    const body = entry.body.trim()
+      ? escapeBlessed(entry.body)
+      : entry.pending
+        ? "{gray-fg}thinking…{/}"
+        : "{gray-fg}waiting…{/}";
+
+    return [
+      `{gray-fg}${escapeBlessed(entry.at)}{/} ${roleTag}${customLabel}${entry.pending ? " {gray-fg}…{/}" : ""}`,
+      body,
+    ].join("\n");
+  };
+
   return sections
     .slice(-20)
-    .map((entry) =>
-      [
-        `{gray-fg}${escapeBlessed(entry.at)}{/} {bold}${escapeBlessed(entry.label)}{/}`,
-        escapeBlessed(entry.body),
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    )
+    .map((entry) => renderEntry(entry))
     .join("\n\n{gray-fg}────────────────────────────────{/}\n\n");
 }
 
@@ -942,10 +967,13 @@ export function renderFooter(
   busy: boolean,
   queueDepth: number,
   hint = "Esc input",
+  busyFrame = "•",
 ): string {
   return [
     `${context.config.agentName} TUI`,
-    busy ? "{yellow-fg}processing{/}" : "{green-fg}ready{/}",
+    busy
+      ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
+      : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
     `{cyan-fg}${escapeBlessed(context.services.settings.get().model.provider)}{/}`,
     `{cyan-fg}${escapeBlessed(context.services.settings.get().model.model)}{/}`,
@@ -1237,7 +1265,7 @@ async function startTui(context: AppContext): Promise<void> {
     left: 0,
     width: "100%",
     height: 3,
-    label: " Command ",
+    label: " Message / Command ",
     inputOnFocus: true,
     border: "line",
     mouse: true,
@@ -1296,6 +1324,7 @@ async function startTui(context: AppContext): Promise<void> {
   let paletteOpen = false;
   const responseHistory: ResponseTranscriptEntry[] = [];
   let liveResponse: ResponseTranscriptEntry | undefined;
+  let liveToolTrail: string[] = [];
   const crashLogPath = join(context.config.dataDir, "cli-crash.log");
   mkdirSync(context.config.dataDir, { recursive: true });
   const focusables: blessed.Widgets.BlessedElement[] = [
@@ -1309,6 +1338,8 @@ async function startTui(context: AppContext): Promise<void> {
   ];
   let focusIndex = focusables.length - 1;
   let shuttingDown = false;
+  let busyFrameIndex = 0;
+  let busySpinnerTimer: ReturnType<typeof setInterval> | null = null;
   const logFatal = (label: string, error: unknown) => {
     const detail =
       error instanceof Error ? error.stack || error.message : String(error);
@@ -1329,6 +1360,7 @@ async function startTui(context: AppContext): Promise<void> {
     }
   };
   let footerHint = "Esc input";
+  const busyFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
   function textEntryFocused(): boolean {
     return (
@@ -1394,8 +1426,35 @@ async function startTui(context: AppContext): Promise<void> {
 
   function updateFooterHint(): void {
     footerHint = footerHintForCurrentFocus();
-    footer.setContent(renderFooter(context, busy, queueDepth, footerHint));
+    footer.setContent(
+      renderFooter(
+        context,
+        busy,
+        queueDepth,
+        footerHint,
+        busyFrames[busyFrameIndex % busyFrames.length] ?? "•",
+      ),
+    );
     screen.render();
+  }
+
+  function startBusySpinner(): void {
+    if (busySpinnerTimer) {
+      return;
+    }
+    busySpinnerTimer = setInterval(() => {
+      busyFrameIndex = (busyFrameIndex + 1) % busyFrames.length;
+      updateFooterHint();
+    }, 120);
+  }
+
+  function stopBusySpinner(): void {
+    if (!busySpinnerTimer) {
+      return;
+    }
+    clearInterval(busySpinnerTimer);
+    busySpinnerTimer = null;
+    busyFrameIndex = 0;
   }
 
   function scrollFocusedPane(delta: number): void {
@@ -1427,17 +1486,59 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   function pushResponseEntry(label: string, body: string): void {
-    responseHistory.push({ label, body, at: nowStamp() });
+    responseHistory.push({
+      label,
+      body,
+      at: nowStamp(),
+      kind:
+        label === "You"
+          ? "user"
+          : label === "Shell"
+            ? "shell"
+            : label === "Command" || label === "Command Result"
+              ? "command"
+              : label === "Helm Ready"
+                ? "system"
+                : "assistant",
+    });
     if (responseHistory.length > 48) {
       responseHistory.splice(0, responseHistory.length - 48);
     }
+    liveToolTrail = [];
     liveResponse = undefined;
     renderResponsePane();
   }
 
-  function setLiveResponse(label: string, body: string): void {
-    liveResponse = { label, body, at: nowStamp() };
+  function setLiveResponse(
+    label: string,
+    body: string,
+    options?: { kind?: ResponseTranscriptEntry["kind"]; pending?: boolean },
+  ): void {
+    const toolOverlay = liveToolTrail.length
+      ? `\n\n[tool activity]\n${liveToolTrail.slice(-4).join("\n")}`
+      : "";
+    liveResponse = {
+      label,
+      body: `${body}${toolOverlay}`.trim(),
+      at: nowStamp(),
+      kind: options?.kind,
+      pending: options?.pending,
+    };
     renderResponsePane();
+  }
+
+  function pushLiveToolEvent(detail: string): void {
+    liveToolTrail.push(`- ${detail}`);
+    if (liveToolTrail.length > 6) {
+      liveToolTrail = liveToolTrail.slice(-6);
+    }
+    if (liveResponse) {
+      const body = liveResponse.body.split("\n\n[tool activity]\n")[0] ?? "";
+      setLiveResponse(liveResponse.label, body, {
+        kind: liveResponse.kind,
+        pending: liveResponse.pending,
+      });
+    }
   }
 
   function focusAt(index: number): void {
@@ -1613,7 +1714,15 @@ async function startTui(context: AppContext): Promise<void> {
     transportBox.setContent(await renderTransportContent(context));
     executionBox.setContent(await renderExecutionContent(context));
     await renderControlDeck(controlDeckMode);
-    footer.setContent(renderFooter(context, busy, queueDepth, footerHint));
+    footer.setContent(
+      renderFooter(
+        context,
+        busy,
+        queueDepth,
+        footerHint,
+        busyFrames[busyFrameIndex % busyFrames.length] ?? "•",
+      ),
+    );
     screen.render();
   }
 
@@ -1671,6 +1780,7 @@ async function startTui(context: AppContext): Promise<void> {
     }
 
     busy = true;
+    startBusySpinner();
     queueDepth = pendingCommands.length;
     await refreshPanels();
 
@@ -1691,6 +1801,14 @@ async function startTui(context: AppContext): Promise<void> {
           ? "Shell"
           : "Command Result",
       "",
+      {
+        kind: isConversationalInput(line)
+          ? "assistant"
+          : line.startsWith("!")
+            ? "shell"
+            : "command",
+        pending: true,
+      },
     );
 
     try {
@@ -1717,6 +1835,7 @@ async function startTui(context: AppContext): Promise<void> {
             current.trim()
               ? `${current}\n${source.toUpperCase()}: ${streamed}`
               : `${source.toUpperCase()}: ${streamed}`,
+            { kind: "shell", pending: true },
           );
         },
         onResponseProgress: ({ response }) => {
@@ -1727,6 +1846,14 @@ async function startTui(context: AppContext): Promise<void> {
                 ? "Shell"
                 : "Command Result",
             response,
+            {
+              kind: isConversationalInput(line)
+                ? "assistant"
+                : line.startsWith("!")
+                  ? "shell"
+                  : "command",
+              pending: true,
+            },
           );
         },
       });
@@ -1764,6 +1891,7 @@ async function startTui(context: AppContext): Promise<void> {
       appendActivity("err", detail, "error");
     } finally {
       busy = false;
+      stopBusySpinner();
       if (!screenDestroyed) {
         try {
           await refreshPanels();
@@ -2243,12 +2371,20 @@ async function startTui(context: AppContext): Promise<void> {
         `${event.detail} -> ${event.exitCode}`,
         event.exitCode === 0 ? "success" : "warning",
       );
+      if (busy) {
+        pushLiveToolEvent(
+          `shell ${truncate(event.detail, 64)} → ${event.exitCode}`,
+        );
+      }
       scheduleRefreshPanels();
     }),
   );
   unsubscribers.push(
     context.services.delegation.onUpdate((event) => {
       appendActivity("task", truncate(event.detail, 160), "info");
+      if (busy) {
+        pushLiveToolEvent(`delegate ${truncate(event.detail, 72)}`);
+      }
       scheduleRefreshPanels();
     }),
   );
@@ -2303,6 +2439,7 @@ async function startTui(context: AppContext): Promise<void> {
   await new Promise<void>((resolve) => {
     screen.on("destroy", () => {
       screenDestroyed = true;
+      stopBusySpinner();
       input.removeListener("data", handleRawCtrlC);
       process.removeListener("SIGINT", handleSigint);
       process.removeListener("SIGTERM", handleSigterm);
