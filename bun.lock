@@ -5,6 +5,7 @@
     "": {
       "name": "eliza-agent",
       "dependencies": {
+        "@eliza-agent/acp": "workspace:*",
         "@elizaos/agent": "2.0.0-alpha.85",
         "@elizaos/autonomous": "2.0.0-alpha.85",
         "@elizaos/core": "2.0.0-alpha.85",
@@ -50,9 +51,16 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/acp": {
+      "name": "@eliza-agent/acp",
+      "version": "0.1.0",
+    },
     "packages/agent": {
       "name": "@eliza-agent/agent",
       "version": "0.1.0",
+      "dependencies": {
+        "@eliza-agent/acp": "workspace:*",
+      },
     },
     "packages/benchmarks": {
       "name": "@eliza-agent/benchmarks",
@@ -189,6 +197,10 @@
       "dependencies": {
         "@elizaos/core": "2.0.0-alpha.85",
       },
+    },
+    "packages/skill-packs-optional": {
+      "name": "@eliza-agent/skill-packs-optional",
+      "version": "0.1.0",
     },
     "packages/skills": {
       "name": "@eliza-agent/skills",
@@ -351,6 +363,8 @@
 
     "@electric-sql/pglite": ["@electric-sql/pglite@0.3.16", "", {}, "sha512-mZkZfOd9OqTMHsK+1cje8OSzfAQcpD7JmILXTl5ahdempjUDdmg4euf1biDex5/LfQIDJ3gvCu6qDgdnDxfJmA=="],
 
+    "@eliza-agent/acp": ["@eliza-agent/acp@workspace:packages/acp"],
+
     "@eliza-agent/agent": ["@eliza-agent/agent@workspace:packages/agent"],
 
     "@eliza-agent/benchmarks": ["@eliza-agent/benchmarks@workspace:packages/benchmarks"],
@@ -362,6 +376,8 @@
     "@eliza-agent/modeling": ["@eliza-agent/modeling@workspace:packages/modeling"],
 
     "@eliza-agent/plugins": ["@eliza-agent/plugins@workspace:packages/plugins"],
+
+    "@eliza-agent/skill-packs-optional": ["@eliza-agent/skill-packs-optional@workspace:packages/skill-packs-optional"],
 
     "@eliza-agent/skills": ["@eliza-agent/skills@workspace:packages/skills"],
 

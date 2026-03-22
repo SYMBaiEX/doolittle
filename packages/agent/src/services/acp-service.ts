@@ -1,12 +1,18 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  buildAcpBundlePayload,
+  buildAcpEditorSummary,
+  buildAcpPackageMetadata,
+  buildAcpRegistryEntry,
+  guessAcpToolKind,
+} from "@eliza-agent/acp";
 import type {
   AcpEditorSummary,
   AcpPackageMetadata,
   AcpRegistryEntry,
   AcpSessionSummary,
   AcpToolDefinition,
-  AcpToolKind,
   EnvConfig,
   SessionSummary,
   ToolDefinition,
@@ -25,49 +31,6 @@ function shellQuote(value: string): string {
 function buildShellCommand(command: string, args: string[]): string {
   const suffix = args.map((arg) => shellQuote(arg)).join(" ");
   return suffix ? `${command} ${suffix}` : command;
-}
-
-function guessToolKind(tool: ToolDefinition): AcpToolKind {
-  if (
-    tool.id.startsWith("workspace.read") ||
-    tool.id.startsWith("browser.snapshot")
-  ) {
-    return "read";
-  }
-  if (
-    tool.id.startsWith("workspace.write") ||
-    tool.id.startsWith("gateway.edit") ||
-    tool.id.startsWith("browser.compare")
-  ) {
-    return "edit";
-  }
-  if (
-    tool.id.startsWith("workspace.search") ||
-    tool.id.startsWith("mcp") ||
-    tool.id.startsWith("acp")
-  ) {
-    return "search";
-  }
-  if (
-    tool.id.startsWith("terminal.run") ||
-    tool.id.startsWith("repository") ||
-    tool.id.startsWith("gateway.send") ||
-    tool.id.startsWith("media.generate") ||
-    tool.id.startsWith("media.speak")
-  ) {
-    return "execute";
-  }
-  if (
-    tool.id.startsWith("web.") ||
-    tool.id.startsWith("browser.") ||
-    tool.id.startsWith("documents.")
-  ) {
-    return "fetch";
-  }
-  if (tool.id.startsWith("automation.") || tool.id.startsWith("delegate")) {
-    return "think";
-  }
-  return "other";
 }
 
 export class AcpService {
@@ -132,41 +95,27 @@ export class AcpService {
     const pluginPackageCount = Array.from(
       new Set(this.getTools().map((tool) => tool.category)),
     ).length;
-    return {
-      name:
-        typeof packageJson.name === "string" ? packageJson.name : "eliza-agent",
-      version:
-        typeof packageJson.version === "string" ? packageJson.version : "0.0.0",
-      description:
-        typeof packageJson.description === "string"
-          ? packageJson.description
-          : undefined,
-      packageManager:
-        typeof packageJson.packageManager === "string"
-          ? packageJson.packageManager
-          : undefined,
+    return buildAcpPackageMetadata({
+      ...packageJson,
       workspaceCount: workspaces,
       pluginPackageCount,
       rootPath: this.rootPackagePath,
-    };
+    });
   }
 
   editorSummary(): AcpEditorSummary {
     const pkg = this.packageMetadata();
-    return {
+    return buildAcpEditorSummary({
       package: pkg,
       registryPath: this.registryPath,
       exportDir: this.exportDir,
       importDir: this.importDir,
       commandConfigured: Boolean(this.config.acpServerCommand),
       command: this.config.acpServerCommand,
-      installCommand: "bun install && bun run start -- --cli",
-      exportCommand: "POST /acp/export or /acp export [label]",
-      importCommand: "POST /acp/import or /acp import <path|json>",
       lastPublishAt: this.lastPublishAt,
       lastExportAt: this.lastExportAt,
       lastImportAt: this.lastImportAt,
-    };
+    });
   }
 
   sessionSummary(limit = 5): AcpSessionSummary {
@@ -186,34 +135,14 @@ export class AcpService {
 
   registry(): AcpRegistryEntry {
     const command = this.config.acpServerCommand?.trim();
-    return {
-      schema_version: 1,
-      name: "eliza-agent",
-      display_name: this.config.agentName,
+    return buildAcpRegistryEntry({
+      agentName: this.config.agentName,
       description:
         "Eliza Agent on ElizaOS with persistent memory, gateway transports, execution backends, and research tooling.",
-      package: {
-        name: this.packageMetadata().name,
-        version: this.packageMetadata().version,
-      },
-      distribution: command
-        ? {
-            type: "command",
-            command: "/bin/zsh",
-            args: ["-lc", command],
-          }
-        : {
-            type: "command",
-            command: "bun",
-            args: ["run", "start", "--cli"],
-          },
-      capabilities: {
-        tools: this.tools().length,
-        sessions: true,
-        import_export: true,
-        editors: ["zed", "cursor", "vscode"],
-      },
-    };
+      package: this.packageMetadata(),
+      command,
+      toolCount: this.tools().length,
+    });
   }
 
   publishRegistry(): { path: string; entry: AcpRegistryEntry } {
@@ -230,7 +159,7 @@ export class AcpService {
     return this.getTools().map((tool) => ({
       name: tool.id,
       description: tool.description,
-      kind: guessToolKind(tool),
+      kind: guessAcpToolKind(tool),
       source: tool.transport === "native" ? "mcp" : "eliza-agent",
     }));
   }
@@ -271,7 +200,7 @@ export class AcpService {
     const safeLabel = label.trim().replace(/[^a-z0-9._-]+/giu, "-") || "latest";
     const fileName = `acp-export-${safeLabel}-${Date.now()}.json`;
     const path = join(this.exportDir, fileName);
-    const payload = {
+    const payload = buildAcpBundlePayload({
       exportedAt: new Date().toISOString(),
       label: safeLabel,
       package: this.packageMetadata(),
@@ -280,7 +209,7 @@ export class AcpService {
       registry: this.registry(),
       sessions: this.sessionSummary(),
       tools: this.tools(),
-    };
+    });
     writeFileSync(path, JSON.stringify(payload, null, 2), "utf8");
     this.lastExportAt = payload.exportedAt;
     return {

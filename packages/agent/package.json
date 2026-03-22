@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Primary Eliza Agent application package.",
+  "dependencies": {
+    "@eliza-agent/acp": "workspace:*"
+  },
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun run src/index.ts",

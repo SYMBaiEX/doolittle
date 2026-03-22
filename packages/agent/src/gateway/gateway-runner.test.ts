@@ -22,11 +22,14 @@ describe("GatewayRunner", () => {
       port: 0,
       dataDir: join(root, "data"),
       gatewayDataDir: join(root, "gateway"),
+      homeAssistantUrl: "https://homeassistant.local",
+      homeAssistantToken: "token",
       allowAllUsers: true,
       pairingDefaultMode: "allow",
     } as AppContext["config"];
 
     const gatewayConfig = loadGatewayConfig(config);
+    gatewayConfig.platforms.homeassistant.enabled = true;
     const context = {
       config,
       services: {
@@ -44,6 +47,40 @@ describe("GatewayRunner", () => {
       runtime: {} as never,
     } as unknown as AppContext;
     const runner = new GatewayRunner(context);
+    const originalFetch = globalThis.fetch;
+
+    const mockFetch = Object.assign(
+      async (input: RequestInfo | URL) => {
+        const url = new URL(
+          typeof input === "string" || input instanceof URL
+            ? input.toString()
+            : input.url,
+        );
+        if (url.pathname === "/api/states") {
+          return new Response(
+            JSON.stringify([
+              { entity_id: "light.kitchen", state: "on" },
+              { entity_id: "sensor.temperature", state: "22.4" },
+            ]),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            },
+          );
+        }
+        if (url.pathname === "/api/services/notify/eliza_agent") {
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response("not found", { status: 404 });
+      },
+      {
+        preconnect: originalFetch.preconnect.bind(originalFetch),
+      },
+    );
+    globalThis.fetch = mockFetch;
 
     try {
       await runner.start();
@@ -75,6 +112,7 @@ describe("GatewayRunner", () => {
       const runtimeStatus = runner.runtimeStatus();
       const daemonStatus = runtimeStatus.daemon;
       const watchdogRecords = await runner.watchdog("manual");
+      const watchRecords = await runner.watch("homeassistant", "manual");
       const restartRecords = await runner.restart("api", "manual");
       const refreshedRuntimeStatus = runner.runtimeStatus();
       const health = await runner.health();
@@ -274,6 +312,9 @@ describe("GatewayRunner", () => {
       expect(restartRecords.some((record) => record.platform === "api")).toBe(
         true,
       );
+      expect(
+        watchRecords.some((record) => record.platform === "homeassistant"),
+      ).toBe(true);
       expect(refreshedRuntimeStatus.daemon.state.watchdogRuns).toBeGreaterThan(
         0,
       );
@@ -342,6 +383,7 @@ describe("GatewayRunner", () => {
       ).toBe(true);
     } finally {
       await runner.stop();
+      globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });
     }
   });

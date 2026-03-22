@@ -1,0 +1,10 @@
+{
+  "name": "@eliza-agent/acp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "First-class ACP packaging helpers for Eliza Agent.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
