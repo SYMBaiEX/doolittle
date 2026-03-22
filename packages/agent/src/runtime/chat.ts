@@ -2132,6 +2132,29 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/gateway watch" || trimmed.startsWith("/gateway watch ")) {
+    if (!context.gateway) {
+      return "Gateway runtime is not attached to this execution context.";
+    }
+    const payload = trimmed.replace("/gateway watch", "").trim();
+    const [candidate, ...reasonParts] = payload.split(/\s+/u);
+    const platform =
+      candidate === "all" || !candidate
+        ? "all"
+        : (parseTransportPlatform(candidate) ?? "all");
+    const reason = reasonParts.join(" ").trim() || "cli";
+    return JSON.stringify(
+      {
+        platform,
+        reason,
+        records: await context.gateway.watch(platform, reason),
+        runtime: context.gateway.runtimeStatus(),
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/gateway restart")) {
     if (!context.gateway) {
       return "Gateway runtime is not attached to this execution context.";
@@ -2519,10 +2542,44 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/skills optional" || trimmed === "/skills optional packs") {
+    return JSON.stringify(
+      {
+        optionalSkillPacks: context.services.ecosystem.optionalSkillPacks(),
+      },
+      null,
+      2,
+    );
+  }
+
   if (trimmed === "/modeling profiles") {
     return JSON.stringify(
       {
         profiles: context.services.ecosystem.modelingProfiles(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/insights") {
+    return JSON.stringify(
+      {
+        ownership:
+          context.services.nativeOwnership.controlPlane() ??
+          getNativeOwnershipControlPlane(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          ),
+        ecosystem: await getNativeEcosystemSnapshot(
+          context.runtime,
+          context.services,
+          context.config,
+          context.services.gatewayConfig,
+        ),
+        operator: await context.services.operator.setupSummary(),
       },
       null,
       2,
@@ -4403,6 +4460,18 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed.startsWith("/retry ")) {
+    return handleAgentTurn(
+      {
+        message: `/delegate retry ${trimmed.replace("/retry ", "").trim()}`,
+        userId: currentCliSessionId(context),
+        roomId: currentCliSessionId(context),
+        source: "cli",
+      },
+      context,
+    );
+  }
+
   if (trimmed.startsWith("/delegate cancel ")) {
     const payload = trimmed.replace("/delegate cancel ", "");
     const [id, note] = payload.split("::").map((part) => part.trim());
@@ -4798,6 +4867,25 @@ async function buildCommandResponse(
     return compressed
       ? JSON.stringify(compressed, null, 2)
       : "No trajectory bundles recorded.";
+  }
+
+  if (trimmed === "/compress") {
+    const compressed = context.services.trajectories.compressLatest();
+    return compressed
+      ? JSON.stringify(compressed, null, 2)
+      : "No trajectory bundles are available yet.";
+  }
+
+  if (trimmed.startsWith("/compress ")) {
+    return handleAgentTurn(
+      {
+        message: `/trajectories compress ${trimmed.replace("/compress ", "").trim()}`,
+        userId: currentCliSessionId(context),
+        roomId: currentCliSessionId(context),
+        source: "cli",
+      },
+      context,
+    );
   }
 
   if (trimmed.startsWith("/trajectories compress ")) {

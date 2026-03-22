@@ -31,6 +31,7 @@ export interface OperatorCondensedSummary {
     benchmarkPacks?: number;
     distributionChannels?: number;
     modelingProfiles?: number;
+    optionalSkillPacks?: number;
   };
   pluginManager: {
     available: boolean;
@@ -92,6 +93,7 @@ export function buildOperatorCondensedSummary(input: {
       benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
       distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,
       modelingProfiles: workspaceEcosystem?.modelingProfiles ?? 0,
+      optionalSkillPacks: workspaceEcosystem?.optionalSkillPacks ?? 0,
     },
     pluginManager: {
       available: Boolean(pluginManager),

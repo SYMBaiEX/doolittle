@@ -170,7 +170,7 @@ async function renderEcosystemContent(context: AppContext): Promise<string> {
     `Vendored: ${vendored}`,
     `Workspace-only: ${workspaceOnly}`,
     `Native services: ${resolution.filter((entry) => entry.source === "native").length}/${resolution.length}`,
-    `Workspace packs: benchmarks=${ecosystem.benchmarkPacks} channels=${ecosystem.distributionChannels} modeling=${ecosystem.modelingProfiles}`,
+    `Workspace packs: benchmarks=${ecosystem.benchmarkPacks} channels=${ecosystem.distributionChannels} modeling=${ecosystem.modelingProfiles} optional=${ecosystem.optionalSkillPacks}`,
     "",
     "{bold}Priority Packages{/}",
     ...snapshot.packageAudit.packages

@@ -435,9 +435,39 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (
+        request.method === "GET" &&
+        (url.pathname === "/skills/optional" ||
+          url.pathname === "/skills/optional-packs")
+      ) {
+        return json({
+          optionalSkillPacks: context.services.ecosystem.optionalSkillPacks(),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/modeling/profiles") {
         return json({
           profiles: context.services.ecosystem.modelingProfiles(),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/insights") {
+        return json({
+          ownership:
+            context.services.nativeOwnership.controlPlane() ??
+            getNativeOwnershipControlPlane(
+              context.runtime,
+              context.services,
+              context.config,
+              context.services.gatewayConfig,
+            ),
+          ecosystem: await getNativeEcosystemSnapshot(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          ),
+          operator: await context.services.operator.setupSummary(),
         });
       }
 
@@ -3996,6 +4026,29 @@ export function startApiServer(context: AppContext): void {
         return json({
           reason,
           records: await context.gateway.watchdog(reason),
+          runtime: context.gateway.runtimeStatus(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/gateway/watch") {
+        const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+          platform?: string;
+          reason?: string;
+        };
+        const platform =
+          body.platform?.trim().toLowerCase() === "all"
+            ? "all"
+            : body.platform
+              ? parseTransportPlatform(body.platform)
+              : "all";
+        if (!platform) {
+          return json({ error: "Unknown transport platform." }, 400);
+        }
+        const reason = body.reason?.trim() || "api";
+        return json({
+          platform,
+          reason,
+          records: await context.gateway.watch(platform, reason),
           runtime: context.gateway.runtimeStatus(),
         });
       }

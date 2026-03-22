@@ -21,7 +21,7 @@ describe("HomeAssistantPlatformAdapter", () => {
     );
     const originalFetch = globalThis.fetch;
 
-    const mockFetch = Object.assign(
+    const mockFetch: typeof fetch = Object.assign(
       async (input: RequestInfo | URL) => {
         const url = new URL(
           typeof input === "string" || input instanceof URL
@@ -49,9 +49,9 @@ describe("HomeAssistantPlatformAdapter", () => {
         return new Response("not found", { status: 404 });
       },
       {
-        preconnect: originalFetch.preconnect.bind(originalFetch),
+        preconnect: async () => {},
       },
-    );
+    ) as typeof fetch;
     globalThis.fetch = mockFetch;
 
     try {

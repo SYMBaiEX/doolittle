@@ -99,9 +99,21 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "List workspace-native skill distribution channels.",
   },
   {
+    command: "/skills optional",
+    category: "skills",
+    description:
+      "List optional Eliza-native skill packs curated for this repo.",
+  },
+  {
     command: "/modeling profiles",
     category: "memory",
     description: "List workspace-native user and assistant modeling profiles.",
+  },
+  {
+    command: "/insights",
+    category: "runtime",
+    description:
+      "Show a high-level ownership, ecosystem, and operator insight snapshot.",
   },
   {
     command: "/runtime autonomous",
@@ -205,6 +217,17 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/codegen runs",
     category: "runtime",
     description: "List persisted native autocoder pipeline runs.",
+  },
+  {
+    command: "/retry <delegation-task-id>",
+    category: "delegation",
+    description: "Alias for /delegate retry <delegation-task-id>.",
+  },
+  {
+    command: "/compress [manifest-path|bundle-label|latest]",
+    category: "research",
+    description:
+      "Alias for trajectory compression of the latest or named bundle.",
   },
   {
     command: "/codegen workflows",
@@ -429,6 +452,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/gateway watchdog",
     category: "gateway",
     description: "Run a gateway watchdog cycle and collect restart decisions.",
+  },
+  {
+    command: "/gateway watch homeassistant",
+    category: "gateway",
+    description:
+      "Run a Home Assistant watch cycle and surface observed states.",
   },
   {
     command: "/gateway restart all",

@@ -17,6 +17,9 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
   private startedAt?: string;
   private stoppedAt?: string;
+  private lastWatchAt?: string;
+  private lastWatchCount?: number;
+  private lastWatchSummary?: string;
   private lastSendAt?: string;
   private lastDeliveryAt?: string;
   private lastDeliveryId?: string;
@@ -57,6 +60,63 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
     this.lifecycle.record("stop", "Home Assistant adapter stopped.");
   }
 
+  async watch(reason = "watch"): Promise<{
+    watchedAt: string;
+    count: number;
+    summary: string;
+  }> {
+    if (!this.config.homeAssistantUrl || !this.config.homeAssistantToken) {
+      this.lastError =
+        "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN are required.";
+      this.lifecycle.record("error", this.lastError);
+      throw new Error(this.lastError);
+    }
+
+    const watchedAt = nowIso();
+    const url = `${this.config.homeAssistantUrl.replace(/\/$/u, "")}/api/states`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.config.homeAssistantToken}`,
+        "content-type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      this.lastError = `Home Assistant watch failed (${response.status}): ${await response.text()}`;
+      this.lifecycle.record("error", this.lastError);
+      throw new Error(this.lastError);
+    }
+
+    const payload = (await response.json().catch(() => [])) as Array<{
+      entity_id?: string;
+      state?: string;
+      last_changed?: string;
+      last_updated?: string;
+    }>;
+    const count = Array.isArray(payload) ? payload.length : 0;
+    const sample = (Array.isArray(payload) ? payload : [])
+      .slice(0, 3)
+      .map((entry) => entry.entity_id ?? "unknown")
+      .join(", ");
+    const summary = `Observed ${count} Home Assistant states${sample ? ` (${sample})` : ""}.`;
+
+    this.lastWatchAt = watchedAt;
+    this.lastWatchCount = count;
+    this.lastWatchSummary = summary;
+    this.lastError = undefined;
+    this.lifecycle.record(
+      "heartbeat",
+      `Home Assistant watch cycle (${reason}) observed ${count} entities.`,
+    );
+
+    return {
+      watchedAt,
+      count,
+      summary,
+    };
+  }
+
   async health(): Promise<PlatformHealth> {
     const ready = this.status === "running" && this.canReceive();
     this.lifecycle.record(
@@ -86,6 +146,9 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
       lastOutboundThreadId: this.lastOutboundThreadId,
       lastOutboundReplyToId: this.lastOutboundReplyToId,
       lastOutboundMetadataKeys: this.lastOutboundMetadataKeys,
+      lastWatchAt: this.lastWatchAt,
+      lastWatchCount: this.lastWatchCount,
+      lastWatchSummary: this.lastWatchSummary,
       lastError: this.lastError,
       events: this.lifecycle.recent(6),
       capabilities: capabilitiesForPlatform(this.name),

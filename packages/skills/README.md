@@ -5,6 +5,8 @@ This workspace holds curated and generated Eliza Agent skill documents.
 See the current registry in [`index.md`](./index.md).
 The skills hub surfaces these families directly through `/skills families` and `/skills hub families`.
 
+Optional, higher-breadth packs live in the sibling [`packages/skill-packs-optional`](../skill-packs-optional) workspace so the curated tier stays clean and the optional tier can evolve independently.
+
 ## Category map
 
 - `identity/modeling`

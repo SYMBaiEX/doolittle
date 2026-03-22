@@ -48,6 +48,9 @@ export interface PlatformHealth {
   lastRoutedAt?: string;
   lastRespondedAt?: string;
   lastHeartbeatAt?: string;
+  lastWatchAt?: string;
+  lastWatchCount?: number;
+  lastWatchSummary?: string;
   sendCount?: number;
   lastError?: string;
   presence?: PlatformPresenceState;
@@ -91,6 +94,11 @@ export interface PlatformAdapter {
   stop(): Promise<void>;
   health(): Promise<PlatformHealth>;
   send(message: OutboundPlatformMessage): Promise<DeliveredMessageRecord>;
+  watch?(reason?: string): Promise<{
+    watchedAt: string;
+    count: number;
+    summary: string;
+  }>;
   edit?(
     delivery: DeliveredMessageRecord,
     message: OutboundPlatformMessage,
@@ -124,6 +132,9 @@ export interface TransportHealthInput {
   lastOutboundThreadId?: string;
   lastOutboundReplyToId?: string;
   lastOutboundMetadataKeys?: string[];
+  lastWatchAt?: string;
+  lastWatchCount?: number;
+  lastWatchSummary?: string;
   events: PlatformLifecycleEvent[];
   capabilities: PlatformCapabilitySet;
   mode?: "native" | "mock";
@@ -157,6 +168,9 @@ export function buildConfiguredTransportHealth(
     lastOutboundThreadId: input.lastOutboundThreadId,
     lastOutboundReplyToId: input.lastOutboundReplyToId,
     lastOutboundMetadataKeys: input.lastOutboundMetadataKeys,
+    lastWatchAt: input.lastWatchAt,
+    lastWatchCount: input.lastWatchCount,
+    lastWatchSummary: input.lastWatchSummary,
     sendCount: input.sendCount,
     lastError: input.lastError,
     events: input.events,

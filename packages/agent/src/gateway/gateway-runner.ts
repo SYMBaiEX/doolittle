@@ -2231,6 +2231,21 @@ export class GatewayRunner {
           ),
         );
         if (platform === "homeassistant") {
+          const watchResult = await adapter.watch?.(reason);
+          if (watchResult) {
+            records.push(
+              this.recordSupervision(
+                platform,
+                "watch",
+                `Home Assistant watch cycle observed ${watchResult.count} states during ${reason}.`,
+              ),
+            );
+            await this.observeAdapter(platform, {
+              at: watchResult.watchedAt,
+              kind: "heartbeat",
+              detail: watchResult.summary,
+            });
+          }
           records.push(
             this.recordSupervision(
               platform,
@@ -2291,6 +2306,63 @@ export class GatewayRunner {
     this.writeRuntimeStatus();
     await this.snapshotState(`watchdog:${reason}`, 20);
     return records;
+  }
+
+  async watch(
+    platform: PlatformName | "all",
+    reason = "manual-watch",
+  ): Promise<GatewaySupervisionRecord[]> {
+    if (platform === "all") {
+      const records: GatewaySupervisionRecord[] = [];
+      for (const candidate of this.adapters.keys()) {
+        records.push(...(await this.watch(candidate, reason)));
+      }
+      return records;
+    }
+
+    const adapter = this.adapters.get(platform);
+    if (!adapter) {
+      return [
+        this.recordSupervision(
+          platform,
+          "skip",
+          `${platform} watch skipped during ${reason}; adapter is not active.`,
+        ),
+      ];
+    }
+
+    if (typeof adapter.watch !== "function") {
+      return [
+        this.recordSupervision(
+          platform,
+          "skip",
+          `${platform} watch skipped during ${reason}; adapter does not support watch cycles.`,
+        ),
+      ];
+    }
+
+    const result = await adapter.watch(reason);
+    await this.observeAdapter(platform, {
+      at: result.watchedAt,
+      kind: "heartbeat",
+      detail: `${platform} watch cycle observed ${result.count} states during ${reason}.`,
+    });
+    this.pushTrace({
+      traceId: randomUUID(),
+      at: result.watchedAt,
+      kind: "heartbeat",
+      platform,
+      detail: result.summary,
+    });
+    this.writeRuntimeStatus();
+    await this.snapshotState(`watch:${platform}:${reason}`, 20);
+    return [
+      this.recordSupervision(
+        platform,
+        "watch",
+        `${platform} watch cycle observed ${result.count} states during ${reason}.`,
+      ),
+    ];
   }
 
   async restart(

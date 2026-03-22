@@ -7,23 +7,18 @@ import { autocoderPlugin } from "@elizaos/plugin-autocoder";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
-import { createCronPlugin } from "@elizaos/plugin-cron";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
 import { e2bPlugin } from "@elizaos/plugin-e2b";
 import { createExperiencePlugin } from "@elizaos/plugin-experience";
 import formsPlugin from "@elizaos/plugin-forms";
 import { createKnowledgePlugin } from "@elizaos/plugin-knowledge";
 import { createLocalEmbeddingPlugin } from "@elizaos/plugin-local-embedding";
-import { createMcpPlugin } from "@elizaos/plugin-mcp";
 import { openaiPlugin } from "@elizaos/plugin-openai";
 import { pdfPlugin } from "@elizaos/plugin-pdf";
-import { createPersonalityPlugin } from "@elizaos/plugin-personality";
 import { createPluginManagerPlugin } from "@elizaos/plugin-plugin-manager";
 import { createRolodexPlugin } from "@elizaos/plugin-rolodex";
-import { createShellPlugin } from "@elizaos/plugin-shell";
 import sqlPlugin from "@elizaos/plugin-sql";
 import telegramPlugin from "@elizaos/plugin-telegram";
-import { createTrajectoryLoggerPlugin } from "@elizaos/plugin-trajectory-logger";
 import { TTSGenerationPlugin } from "@elizaos/plugin-tts";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
@@ -32,6 +27,13 @@ import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "./plugin-catalog";
+import {
+  createNativeCronServicePlugin,
+  createNativeMcpServicePlugin,
+  createNativePersonalityServicePlugin,
+  createNativeShellServicePlugin,
+  createNativeTrajectoryLoggerServicePlugin,
+} from "./service-plugins";
 
 export interface NativePluginAssembly {
   catalog: ReturnType<typeof getNativePluginCatalog>;
@@ -117,15 +119,7 @@ export function buildNativePluginAssembly(
       sessions: services.sessions,
     }),
     createLocalEmbeddingPlugin(),
-    createPersonalityPlugin({
-      personalities: {
-        list: () => services.personalities.list(),
-        get: (id) => services.personalities.get(id),
-        setActive: (id) => services.personalities.setActive(id),
-        activeId: () => services.personalities.activeId(),
-        summary: () => services.personalities.summary(),
-      },
-    }),
+    createNativePersonalityServicePlugin(services),
     createRolodexPlugin({
       profiles: {
         card: (userId) => services.userProfiles.card(userId),
@@ -190,13 +184,7 @@ export function buildNativePluginAssembly(
   const execution: Plugin[] = [
     normalizePlugin(e2bPlugin),
     normalizePlugin(formsPlugin),
-    createShellPlugin({
-      terminal: {
-        run: (command) => services.terminal.run(command),
-        getHistory: (limit = 20) => services.terminal.getHistory(limit),
-        status: () => services.terminal.status(),
-      },
-    }),
+    createNativeShellServicePlugin(services),
     createCodingAgentPlugin({
       workspace: services.workspace,
       repository: {
@@ -272,32 +260,10 @@ export function buildNativePluginAssembly(
     }),
   ];
 
-  const integration: Plugin[] = [
-    createMcpPlugin({
-      mcp: {
-        status: () => services.mcp.status(),
-        probe: () => services.mcp.probe(),
-        discoverTools: () => services.mcp.discoverTools(),
-        invoke: (input) => services.mcp.invoke(input),
-        invokeTool: (name, input) => services.mcp.invokeTool(name, input),
-        getCachedTools: () => services.mcp.getCachedTools(),
-        searchCachedTools: (query) => services.mcp.searchCachedTools(query),
-        describeCachedTools: (limit) => services.mcp.describeCachedTools(limit),
-        describeTool: (name) => services.mcp.describeTool(name),
-      },
-    }),
-  ];
+  const integration: Plugin[] = [createNativeMcpServicePlugin(services)];
 
   const automation: Plugin[] = [
-    createCronPlugin({
-      cron: {
-        list: () => services.cron.list(),
-        get: (id) => services.cron.get(id),
-        create: (input) => services.cron.create(input as never),
-        update: (id, patch) => services.cron.update(id, patch as never),
-        runs: (limit = 20) => services.cron.runs(limit),
-      },
-    }),
+    createNativeCronServicePlugin(services),
     createAgentSkillsPlugin({
       skills: {
         list: () => services.skills.list(),
@@ -314,13 +280,7 @@ export function buildNativePluginAssembly(
         },
       },
     }),
-    createTrajectoryLoggerPlugin({
-      trajectories: {
-        exportLatest: () => services.trajectories.exportLatest(),
-        listBundles: () => services.trajectories.listBundles(),
-        compareLatest: () => services.trajectories.compareLatest(),
-      },
-    }),
+    createNativeTrajectoryLoggerServicePlugin(services),
   ];
 
   const product: Plugin[] = [createElizaAgentPlugin(services, config)];

@@ -1,0 +1,14 @@
+{
+  "name": "@eliza-agent/skill-packs-optional",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Eliza Agent optional skill-pack tier for experimental, domain-specific, and higher-breadth skills.",
+  "keywords": [
+    "eliza-agent",
+    "skills",
+    "optional",
+    "experimental",
+    "domain-packs"
+  ]
+}

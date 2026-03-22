@@ -206,6 +206,9 @@ interface NativeEcosystemSnapshot {
     benchmarks: ReturnType<AppServices["ecosystem"]["benchmarkPacks"]>;
     channels: ReturnType<AppServices["ecosystem"]["distributionChannels"]>;
     modeling: ReturnType<AppServices["ecosystem"]["modelingProfiles"]>;
+    optionalSkillPacks: ReturnType<
+      AppServices["ecosystem"]["optionalSkillPacks"]
+    >;
   };
   ownership: NativeOwnershipSnapshot;
 }
@@ -2267,6 +2270,7 @@ export async function getNativeEcosystemSnapshot(
       benchmarks: services.ecosystem.benchmarkPacks(),
       channels: services.ecosystem.distributionChannels(),
       modeling: services.ecosystem.modelingProfiles(),
+      optionalSkillPacks: services.ecosystem.optionalSkillPacks(),
     },
     ownership,
   };
