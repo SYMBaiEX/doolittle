@@ -84,17 +84,26 @@ export function createServices(
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
   const nativeOwnership = new NativeOwnershipCache(config, gatewayConfig);
-  const provider: "anthropic" | "openai" | "offline" = config.anthropicApiKey
-    ? "anthropic"
-    : config.openAiApiKey
-      ? "openai"
-      : "offline";
+  const provider: "anthropic" | "openai" | "codex" | "claude-code" | "offline" =
+    config.anthropicApiKey
+      ? "anthropic"
+      : config.openAiApiKey
+        ? "openai"
+        : config.useLinkedClaudeCodeAuth
+          ? "claude-code"
+          : config.useLinkedCodexAuth
+            ? "codex"
+            : "offline";
   const defaultModel =
-    provider === "anthropic" ? config.anthropicLargeModel : config.openAiModel;
+    provider === "anthropic" || provider === "claude-code"
+      ? config.anthropicLargeModel
+      : config.openAiModel;
   const defaultBaseUrl =
-    provider === "anthropic"
+    provider === "anthropic" || provider === "claude-code"
       ? (config.anthropicBaseUrl ?? "https://api.anthropic.com")
-      : config.openAiBaseUrl;
+      : provider === "codex"
+        ? "https://chatgpt.com/backend-api/codex"
+        : config.openAiBaseUrl;
   const settings = new SettingsService(config.dataDir, {
     model: {
       provider,
@@ -441,10 +450,15 @@ export function createServices(
     openAiImageModel: string | undefined;
     falApiKey: string | undefined;
   } => ({
-    provider: settings.get().model.provider as
-      | "openai"
-      | "anthropic"
-      | "offline",
+    provider:
+      settings.get().model.provider === "codex"
+        ? "openai"
+        : settings.get().model.provider === "claude-code"
+          ? "anthropic"
+          : (settings.get().model.provider as
+              | "openai"
+              | "anthropic"
+              | "offline"),
     model: settings.get().model.model,
     baseUrl: settings.get().model.baseUrl,
     temperature: settings.get().model.temperature,

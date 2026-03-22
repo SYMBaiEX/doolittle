@@ -15,8 +15,8 @@
         "@elizaos/plugin-anthropic": "alpha",
         "@elizaos/plugin-autocoder": "workspace:*",
         "@elizaos/plugin-browser": "workspace:*",
-        "@elizaos/plugin-claude-code-auth": "workspace:*",
-        "@elizaos/plugin-codex-auth": "workspace:*",
+        "@elizaos/plugin-claude-code": "workspace:*",
+        "@elizaos/plugin-codex": "workspace:*",
         "@elizaos/plugin-coding-agent": "workspace:*",
         "@elizaos/plugin-cron": "workspace:*",
         "@elizaos/plugin-discord": "workspace:*",
@@ -119,15 +119,15 @@
         "@elizaos/core": "2.0.0-alpha.85",
       },
     },
-    "packages/plugins/plugin-claude-code-auth": {
-      "name": "@elizaos/plugin-claude-code-auth",
+    "packages/plugins/plugin-claude-code": {
+      "name": "@elizaos/plugin-claude-code",
       "version": "2.0.0-alpha.85",
       "dependencies": {
         "@elizaos/core": "alpha",
       },
     },
-    "packages/plugins/plugin-codex-auth": {
-      "name": "@elizaos/plugin-codex-auth",
+    "packages/plugins/plugin-codex": {
+      "name": "@elizaos/plugin-codex",
       "version": "2.0.0-alpha.85",
       "dependencies": {
         "@elizaos/core": "alpha",
@@ -434,11 +434,11 @@
 
     "@elizaos/plugin-browser": ["@elizaos/plugin-browser@workspace:packages/plugins/plugin-browser"],
 
-    "@elizaos/plugin-claude-code-auth": ["@elizaos/plugin-claude-code-auth@workspace:packages/plugins/plugin-claude-code-auth"],
+    "@elizaos/plugin-claude-code": ["@elizaos/plugin-claude-code@workspace:packages/plugins/plugin-claude-code"],
 
     "@elizaos/plugin-cli": ["@elizaos/plugin-cli@2.0.0-alpha.3", "", { "dependencies": { "@elizaos/core": "2.0.0-alpha.3", "commander": "^12.1.0" } }, "sha512-akqSGar/chWdMBG0RS+YDIZsfqJdAMq+KS9VxSYN6p2BX1ULKum0h+uFXfkdfMIVfOV12RQk074xqiRStjrzeA=="],
 
-    "@elizaos/plugin-codex-auth": ["@elizaos/plugin-codex-auth@workspace:packages/plugins/plugin-codex-auth"],
+    "@elizaos/plugin-codex": ["@elizaos/plugin-codex@workspace:packages/plugins/plugin-codex"],
 
     "@elizaos/plugin-coding-agent": ["@elizaos/plugin-coding-agent@workspace:packages/plugins/plugin-coding-agent"],
 

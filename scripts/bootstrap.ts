@@ -25,7 +25,13 @@ type ExecutionBackendName =
 type PairingMode = "pair" | "allow" | "deny";
 
 type WizardMode = "quick" | "ritual";
-type ProviderMode = "openai" | "anthropic" | "hybrid" | "offline";
+type ProviderMode =
+  | "openai"
+  | "anthropic"
+  | "codex"
+  | "claude-code"
+  | "hybrid"
+  | "offline";
 type BrowserMode = "lightpanda" | "basic";
 type TransportName =
   | "telegram"
@@ -831,7 +837,11 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
       : "openai"
     : existingEnv.get("ANTHROPIC_API_KEY")
       ? "anthropic"
-      : "offline";
+      : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true"
+        ? "claude-code"
+        : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
+          ? "codex"
+          : "offline";
   return {
     mode: "quick",
     agentName: existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
@@ -956,9 +966,21 @@ async function runWizard(
           detail: "Fast, flexible, and strong for multimodal reasoning.",
         },
         {
+          value: "codex",
+          label: "Codex",
+          detail:
+            "Use the signed-in Codex account on this machine as my first coding mind.",
+        },
+        {
           value: "anthropic",
           label: "Anthropic",
           detail: "Claude-first cognition for longer-context reasoning flows.",
+        },
+        {
+          value: "claude-code",
+          label: "Claude Code",
+          detail:
+            "Use the signed-in Claude Code account on this machine as my first reasoning mind.",
         },
         {
           value: "hybrid",
@@ -978,7 +1000,12 @@ async function runWizard(
           : "anthropic"
         : existingEnv.get("OPENAI_API_KEY")
           ? "openai"
-          : "offline",
+          : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
+              "true"
+            ? "claude-code"
+            : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
+              ? "codex"
+              : "offline",
     );
 
     let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
@@ -1380,7 +1407,11 @@ function applyAnswers(answers: WizardAnswers): {
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiApiKey
         : "",
-    ELIZA_AGENT_USE_LINKED_CODEX_AUTH: String(answers.useLinkedCodexAuth),
+    ELIZA_AGENT_USE_LINKED_CODEX_AUTH: String(
+      answers.useLinkedCodexAuth ||
+        answers.provider === "codex" ||
+        answers.provider === "hybrid",
+    ),
     OPENAI_MODEL:
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiModel
@@ -1390,7 +1421,9 @@ function applyAnswers(answers: WizardAnswers): {
         ? answers.anthropicApiKey
         : "",
     ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH: String(
-      answers.useLinkedClaudeCodeAuth,
+      answers.useLinkedClaudeCodeAuth ||
+        answers.provider === "claude-code" ||
+        answers.provider === "hybrid",
     ),
     ANTHROPIC_LARGE_MODEL:
       answers.provider === "anthropic" || answers.provider === "hybrid"
@@ -1426,14 +1459,23 @@ function applyAnswers(answers: WizardAnswers): {
   settings.mcp.serverCommand = answers.tools.mcp
     ? answers.mcpServerCommand
     : "";
-  if (answers.provider === "anthropic") {
+  if (answers.provider === "anthropic" || answers.provider === "claude-code") {
     settings.model.provider = "anthropic";
+    if (answers.provider === "claude-code") {
+      settings.model.provider = "claude-code";
+    }
     settings.model.model = answers.anthropicModel;
     settings.model.baseUrl = "";
   } else {
     settings.model.provider = "openai";
+    if (answers.provider === "codex") {
+      settings.model.provider = "codex";
+    }
     settings.model.model = answers.openaiModel;
-    settings.model.baseUrl = "https://api.openai.com/v1";
+    settings.model.baseUrl =
+      answers.provider === "codex"
+        ? "https://chatgpt.com/backend-api/codex"
+        : "https://api.openai.com/v1";
   }
   settings.execution.sshHost = answers.backend === "ssh" ? answers.sshHost : "";
   settings.execution.sshUser = answers.backend === "ssh" ? answers.sshUser : "";

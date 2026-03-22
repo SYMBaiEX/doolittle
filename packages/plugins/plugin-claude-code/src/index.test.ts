@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { createClaudeCodeAuthPlugin } from "./index";
+import { createClaudeCodePlugin } from "./index";
 
-describe("createClaudeCodeAuthPlugin", () => {
+describe("createClaudeCodePlugin", () => {
   it("exposes linked Claude Code runtime credentials", async () => {
-    const plugin = createClaudeCodeAuthPlugin({
+    const plugin = createClaudeCodePlugin({
       getStatus: () => ({
         provider: "claude-code",
         available: true,
@@ -16,7 +16,7 @@ describe("createClaudeCodeAuthPlugin", () => {
       }),
     });
 
-    expect(plugin.name).toBe("@elizaos/plugin-claude-code-auth");
+    expect(plugin.name).toBe("@elizaos/plugin-claude-code");
     const serviceCtor = plugin.services?.[0];
     expect(serviceCtor).toBeDefined();
     const service = await (
@@ -27,6 +27,7 @@ describe("createClaudeCodeAuthPlugin", () => {
     expect(service.runtimeCredentials()).toEqual(
       expect.objectContaining({
         provider: "claude-code",
+        upstreamProvider: "anthropic",
         reusable: true,
         authMode: "oauth",
       }),

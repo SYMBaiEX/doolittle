@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { createCodexAuthPlugin } from "./index";
+import { createCodexPlugin } from "./index";
 
-describe("createCodexAuthPlugin", () => {
-  it("exposes linked Codex account runtime credentials", async () => {
-    const plugin = createCodexAuthPlugin({
+describe("createCodexPlugin", () => {
+  it("exposes linked Codex runtime credentials", async () => {
+    const plugin = createCodexPlugin({
       getStatus: () => ({
         provider: "codex",
         available: true,
@@ -15,7 +15,7 @@ describe("createCodexAuthPlugin", () => {
       }),
     });
 
-    expect(plugin.name).toBe("@elizaos/plugin-codex-auth");
+    expect(plugin.name).toBe("@elizaos/plugin-codex");
     const serviceCtor = plugin.services?.[0];
     expect(serviceCtor).toBeDefined();
     const service = await (
@@ -25,7 +25,8 @@ describe("createCodexAuthPlugin", () => {
     ).start(undefined);
     expect(service.runtimeCredentials()).toEqual(
       expect.objectContaining({
-        provider: "openai-codex",
+        provider: "codex",
+        upstreamProvider: "openai-codex",
         reusable: true,
         baseUrl: "https://chatgpt.com/backend-api/codex",
       }),

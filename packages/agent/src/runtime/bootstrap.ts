@@ -3,6 +3,10 @@ import character from "@/character";
 import { loadConfig } from "@/config/env";
 import { featureMap } from "@/config/feature-map";
 import { GatewayRunner } from "@/gateway/gateway-runner";
+import {
+  getLinkedClaudeCodeCredentials,
+  getLinkedCodexCredentials,
+} from "@/runtime/native/account-auth";
 import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { type AppServices, createServices } from "@/services";
@@ -37,11 +41,26 @@ function buildPluginSettings(
     ANTHROPIC_LARGE_MODEL: config.anthropicLargeModel,
   };
 
-  if (config.openAiApiKey) {
+  const modelProvider = runtimeSettings.model.provider;
+  const linkedCodex =
+    config.useLinkedCodexAuth && modelProvider === "codex"
+      ? getLinkedCodexCredentials()
+      : undefined;
+  const linkedClaudeCode =
+    config.useLinkedClaudeCodeAuth && modelProvider === "claude-code"
+      ? getLinkedClaudeCodeCredentials()
+      : undefined;
+
+  if (linkedCodex?.accessToken) {
+    settings.OPENAI_API_KEY = linkedCodex.accessToken;
+    settings.OPENAI_BASE_URL = "https://chatgpt.com/backend-api/codex";
+  } else if (config.openAiApiKey) {
     settings.OPENAI_API_KEY = config.openAiApiKey;
   }
 
-  if (config.anthropicApiKey) {
+  if (linkedClaudeCode?.accessToken) {
+    settings.ANTHROPIC_API_KEY = linkedClaudeCode.accessToken;
+  } else if (config.anthropicApiKey) {
     settings.ANTHROPIC_API_KEY = config.anthropicApiKey;
   }
 

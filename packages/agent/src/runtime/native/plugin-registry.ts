@@ -5,8 +5,8 @@ import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
 import { createAutocoderPlugin } from "@elizaos/plugin-autocoder";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
-import { createClaudeCodeAuthPlugin } from "@elizaos/plugin-claude-code-auth";
-import { createCodexAuthPlugin } from "@elizaos/plugin-codex-auth";
+import { createClaudeCodePlugin } from "@elizaos/plugin-claude-code";
+import { createCodexPlugin } from "@elizaos/plugin-codex";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
 import { e2bPlugin } from "@elizaos/plugin-e2b";
@@ -85,10 +85,10 @@ export function buildNativePluginAssembly(
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
-    createCodexAuthPlugin({
+    createCodexPlugin({
       getStatus: () => getLinkedProviderAccountsSnapshot().codex,
     }),
-    createClaudeCodeAuthPlugin({
+    createClaudeCodePlugin({
       getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
     }),
   ];
