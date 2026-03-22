@@ -41,6 +41,11 @@ interface ClaudeCodePluginOptions {
   >;
 }
 
+export interface ClaudeCodeLiveGenerateParams {
+  prompt: string;
+  maxTokens?: number;
+}
+
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const COMMON_BETAS = [
   "interleaved-thinking-2025-05-14",
@@ -225,6 +230,10 @@ export function createClaudeCodePlugin(
 
     async refreshRuntimeCredentials() {
       return options.refreshCredentials?.();
+    }
+
+    async generateText(params: ClaudeCodeLiveGenerateParams): Promise<string> {
+      return runClaudeCodeTextGeneration(this.runtime, params, options);
     }
   }
 

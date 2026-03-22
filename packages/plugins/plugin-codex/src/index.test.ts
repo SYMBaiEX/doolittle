@@ -88,6 +88,25 @@ describe("createCodexPlugin", () => {
       expect(
         (calls[0]?.init?.headers as Record<string, string>)?.Authorization,
       ).toBe("Bearer codex-token");
+      expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(
+        expect.objectContaining({
+          model: "gpt-5.3-codex",
+          instructions: expect.stringContaining("You are Codex"),
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: "hello",
+                },
+              ],
+            },
+          ],
+          stream: true,
+          store: false,
+        }),
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }
