@@ -39,9 +39,10 @@ interface CliExecutionHooks {
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
 
-interface ResponseTranscriptEntry {
+export interface ResponseTranscriptEntry {
   label: string;
   body: string;
+  at: string;
 }
 
 function nowStamp(): string {
@@ -80,7 +81,7 @@ function escapeBlessed(text: string): string {
   return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
 }
 
-function renderResponseTranscript(
+export function renderResponseTranscript(
   history: ResponseTranscriptEntry[],
   live?: ResponseTranscriptEntry,
 ): string {
@@ -93,9 +94,12 @@ function renderResponseTranscript(
   }
 
   return sections
-    .slice(-10)
+    .slice(-14)
     .map((entry) =>
-      [`{bold}${escapeBlessed(entry.label)}{/}`, escapeBlessed(entry.body)]
+      [
+        `{gray-fg}${escapeBlessed(entry.at)}{/} {bold}${escapeBlessed(entry.label)}{/}`,
+        escapeBlessed(entry.body),
+      ]
         .filter(Boolean)
         .join("\n"),
     )
@@ -268,66 +272,66 @@ function applyLayout(
   } else if (compact) {
     layout.activity.top = 3;
     layout.activity.left = 0;
-    layout.activity.width = "64%";
-    layout.activity.height = short ? "58%-1" : "62%-1";
+    layout.activity.width = "74%";
+    layout.activity.height = short ? "54%-1" : "58%-1";
 
-    layout.response.top = short ? "58%+2" : "62%+2";
+    layout.response.top = short ? "54%+2" : "58%+2";
     layout.response.left = 0;
-    layout.response.width = "64%";
-    layout.response.height = short ? "32%-2" : "28%-2";
+    layout.response.width = "74%";
+    layout.response.height = short ? "36%-2" : "32%-2";
 
-    // Right-rail: total reduced from 88% → 81% (non-short) / 70% (short)
-    // so assistBox clears the input row at H≥34.
+    // Give the working transcript more room while keeping an always-visible
+    // operator rail on the right.
     layout.sidebar.top = 3;
-    layout.sidebar.left = "64%";
-    layout.sidebar.width = "36%";
+    layout.sidebar.left = "74%";
+    layout.sidebar.width = "26%";
     layout.sidebar.height = short ? "22%" : "26%";
 
     layout.transportBox.top = short ? "22%+3" : "26%+3";
-    layout.transportBox.left = "64%";
-    layout.transportBox.width = "36%";
+    layout.transportBox.left = "74%";
+    layout.transportBox.width = "26%";
     layout.transportBox.height = short ? "18%" : "20%";
 
     layout.executionBox.top = short ? "40%+3" : "46%+3";
-    layout.executionBox.left = "64%";
-    layout.executionBox.width = "36%";
+    layout.executionBox.left = "74%";
+    layout.executionBox.width = "26%";
     layout.executionBox.height = short ? "15%" : "17%";
 
     layout.assistBox.top = short ? "55%+3" : "63%+3";
-    layout.assistBox.left = "64%";
-    layout.assistBox.width = "36%";
+    layout.assistBox.left = "74%";
+    layout.assistBox.width = "26%";
     layout.assistBox.height = short ? "15%-1" : "17%-1";
   } else {
     layout.activity.top = 3;
     layout.activity.left = 0;
-    layout.activity.width = "70%";
-    layout.activity.height = "60%-1";
+    layout.activity.width = "74%";
+    layout.activity.height = "54%-1";
 
-    layout.response.top = "60%+2";
+    layout.response.top = "54%+2";
     layout.response.left = 0;
-    layout.response.width = "70%";
-    layout.response.height = "40%-2";
+    layout.response.width = "74%";
+    layout.response.height = "46%-2";
 
-    // Right-rail: total reduced from 88% → 79% (non-short) / 67% (short)
-    // so assistBox clears the input row at H≥34.
+    // Keep the operator rail secondary on wide terminals so the coding stream
+    // remains dominant.
     layout.sidebar.top = 3;
-    layout.sidebar.left = "70%";
-    layout.sidebar.width = "30%";
+    layout.sidebar.left = "74%";
+    layout.sidebar.width = "26%";
     layout.sidebar.height = short ? "22%" : "27%";
 
     layout.transportBox.top = short ? "22%+3" : "27%+3";
-    layout.transportBox.left = "70%";
-    layout.transportBox.width = "30%";
+    layout.transportBox.left = "74%";
+    layout.transportBox.width = "26%";
     layout.transportBox.height = short ? "17%" : "20%";
 
     layout.executionBox.top = short ? "39%+3" : "47%+3";
-    layout.executionBox.left = "70%";
-    layout.executionBox.width = "30%";
+    layout.executionBox.left = "74%";
+    layout.executionBox.width = "26%";
     layout.executionBox.height = short ? "14%" : "16%";
 
     layout.assistBox.top = short ? "53%+3" : "63%+3";
-    layout.assistBox.left = "70%";
-    layout.assistBox.width = "30%";
+    layout.assistBox.left = "74%";
+    layout.assistBox.width = "26%";
     layout.assistBox.height = short ? "14%-1" : "16%-1";
   }
 
@@ -913,7 +917,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
   ].join("\n");
 }
 
-function renderFooter(
+export function renderFooter(
   context: AppContext,
   busy: boolean,
   queueDepth: number,
@@ -1379,7 +1383,7 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   function pushResponseEntry(label: string, body: string): void {
-    responseHistory.push({ label, body });
+    responseHistory.push({ label, body, at: nowStamp() });
     if (responseHistory.length > 48) {
       responseHistory.splice(0, responseHistory.length - 48);
     }
@@ -1388,7 +1392,7 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   function setLiveResponse(label: string, body: string): void {
-    liveResponse = { label, body };
+    liveResponse = { label, body, at: nowStamp() };
     renderResponsePane();
   }
 

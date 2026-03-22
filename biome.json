@@ -8,6 +8,9 @@
       "!!**/.eliza-agent",
       "!!**/.eliza",
       "!!**/cache",
+      "!!**/var",
+      "!!**/playwright-report",
+      "!!**/test-results",
       "!!skills/generated/index.json"
     ]
   },

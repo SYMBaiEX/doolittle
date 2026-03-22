@@ -197,9 +197,21 @@ const RAW_COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Approve a pending remote shell command and execute it immediately.",
   },
   {
+    command: "/approve <id>",
+    category: "execution",
+    description:
+      "Short alias for approving and executing a pending remote shell command.",
+  },
+  {
     command: "/approvals deny <id>",
     category: "execution",
     description: "Deny a pending remote shell command without running it.",
+  },
+  {
+    command: "/deny <id>",
+    category: "execution",
+    description:
+      "Short alias for denying a pending remote shell command without running it.",
   },
   {
     command: "/theme",
