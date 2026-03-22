@@ -152,4 +152,37 @@ describe("createClaudeCodePlugin", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("falls back to the local Claude CLI when no reusable token store is readable", async () => {
+    const plugin = createClaudeCodePlugin({
+      enabled: true,
+      getStatus: () => ({
+        provider: "claude-code",
+        available: true,
+        reusable: true,
+        authMode: "claude.ai",
+        detail: "ready",
+      }),
+      invokeCliPrint: async ({ prompt, model, appendSystemPrompt }) => {
+        expect(prompt).toBe("hello");
+        expect(model).toBe("claude-sonnet-4-20250514");
+        expect(appendSystemPrompt).toContain("You are Claude Code");
+        return "LINKED_PROVIDER_OK";
+      },
+    });
+
+    const handler = plugin.models?.TEXT_LARGE;
+    const result = await handler?.(
+      {
+        getSetting: () =>
+          JSON.stringify({
+            model: {
+              provider: "claude-code",
+            },
+          }),
+      } as never,
+      { prompt: "hello" } as never,
+    );
+    expect(result).toBe("LINKED_PROVIDER_OK");
+  });
 });
