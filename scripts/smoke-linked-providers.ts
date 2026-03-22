@@ -1,6 +1,6 @@
 import { getAppContext } from "../packages/agent/src/runtime/bootstrap";
 import {
-  activateLinkedProvider,
+  connectLinkedProvider,
   type LinkedProviderName,
   syncProviderSettings,
 } from "../packages/agent/src/runtime/chat";
@@ -17,8 +17,12 @@ interface SmokeResult {
   provider: LinkedProviderName;
   available: boolean;
   reusable: boolean;
+  nativeReady?: boolean;
+  fallbackReady?: boolean;
   activated: boolean;
+  connected?: boolean;
   serviceType: string;
+  advice?: unknown;
   runtimeCredentials?: unknown;
   liveResponse?: string;
   detail: string;
@@ -86,6 +90,8 @@ async function main(): Promise<void> {
         provider,
         available: account.available,
         reusable: account.reusable,
+        nativeReady: account.nativeReady,
+        fallbackReady: account.fallbackReady,
         activated: false,
         serviceType,
         detail: account.detail,
@@ -96,8 +102,10 @@ async function main(): Promise<void> {
         continue;
       }
 
-      activateLinkedProvider(context, provider);
-      result.activated = true;
+      const connect = await connectLinkedProvider(context, provider);
+      result.connected = connect.connected;
+      result.activated = connect.activated;
+      result.advice = connect.advice;
 
       const service = context.runtime.getService(serviceType) as {
         runtimeCredentials?: () => unknown;
@@ -147,9 +155,10 @@ async function main(): Promise<void> {
   for (const result of results) {
     console.log(
       [
-        `[${result.provider}] available=${result.available} reusable=${result.reusable} activated=${result.activated}`,
+        `[${result.provider}] available=${result.available} reusable=${result.reusable} nativeReady=${result.nativeReady} fallbackReady=${result.fallbackReady} connected=${result.connected} activated=${result.activated}`,
         `service=${result.serviceType}`,
         `detail=${result.detail}`,
+        result.advice ? `advice=${JSON.stringify(result.advice)}` : undefined,
         result.runtimeCredentials
           ? `runtime=${JSON.stringify(result.runtimeCredentials)}`
           : "runtime=missing",
