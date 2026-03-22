@@ -1,6 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { featureMap } from "@/config/feature-map";
 import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
+import {
+  buildTransportDrilldown,
+  parseGatewayFiltersFromUrl,
+  parseTransportPlatform,
+} from "@/gateway/control-plane";
 import { normalizeInboundMessage } from "@/gateway/message-normalization";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
@@ -108,18 +113,6 @@ import type {
   PlatformName,
 } from "@/types";
 
-type GatewayTraceKind =
-  | "receive"
-  | "authorize"
-  | "session"
-  | "route"
-  | "respond"
-  | "deliver"
-  | "update"
-  | "heartbeat"
-  | "reject"
-  | "lifecycle";
-
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,
@@ -194,59 +187,6 @@ async function parseJsonBody<T>(
       response: json({ error: "Invalid JSON body." }, 400),
     };
   }
-}
-
-function parseGatewayFilters(url: URL): {
-  limit: number;
-  platform?: PlatformName;
-  sessionId?: string;
-  kind?: GatewayTraceKind;
-} {
-  const rawLimit = Number(url.searchParams.get("limit") ?? "25");
-  const platform = url.searchParams.get("platform") ?? undefined;
-  const sessionId =
-    url.searchParams.get("sessionId") ??
-    url.searchParams.get("session") ??
-    undefined;
-  const kind = url.searchParams.get("kind") ?? undefined;
-  return {
-    limit: Number.isNaN(rawLimit) || rawLimit <= 0 ? 25 : rawLimit,
-    platform:
-      platform &&
-      [
-        "telegram",
-        "discord",
-        "slack",
-        "whatsapp",
-        "signal",
-        "matrix",
-        "email",
-        "sms",
-        "mattermost",
-        "homeassistant",
-        "dingtalk",
-        "api",
-      ].includes(platform)
-        ? (platform as PlatformName)
-        : undefined,
-    sessionId,
-    kind:
-      kind &&
-      [
-        "receive",
-        "authorize",
-        "session",
-        "route",
-        "respond",
-        "deliver",
-        "update",
-        "heartbeat",
-        "reject",
-        "lifecycle",
-      ].includes(kind)
-        ? (kind as GatewayTraceKind)
-        : undefined,
-  };
 }
 
 function createAutocoderWorkflowContext(
@@ -369,96 +309,6 @@ function parseDelegationFilters(url: URL): {
       executionMode === "local" || executionMode === "delegated"
         ? executionMode
         : undefined,
-  };
-}
-
-const TRANSPORT_PLATFORM_NAMES: PlatformName[] = [
-  "api",
-  "cli",
-  "telegram",
-  "discord",
-  "slack",
-  "whatsapp",
-  "signal",
-  "matrix",
-  "email",
-  "sms",
-  "mattermost",
-  "homeassistant",
-  "dingtalk",
-];
-
-function parseTransportPlatform(value: string): PlatformName | undefined {
-  const platform = value.trim().toLowerCase();
-  return TRANSPORT_PLATFORM_NAMES.includes(platform as PlatformName)
-    ? (platform as PlatformName)
-    : undefined;
-}
-
-async function buildTransportDrilldown(
-  context: AppContext,
-  platform: PlatformName,
-) {
-  const controlPlane = getNativeTransportControlPlane(
-    context.runtime,
-    context.config,
-    context.services.gatewayConfig,
-  );
-  const inventory = controlPlane.transportInventory.find(
-    (entry) => entry.platform === platform,
-  );
-  const bridge = controlPlane.messagingBridge.find(
-    (entry) => entry.platform === platform,
-  );
-  const runtimeStatus = context.gateway?.runtimeStatus();
-  const runtimeInventory = runtimeStatus?.transportInventory.find(
-    (entry) => entry.platform === platform,
-  );
-  const gatewayDetail = context.gateway
-    ? await context.gateway.transport(platform)
-    : undefined;
-  const messagingPlugins = groupNativePluginCatalog(
-    getNativePluginCatalog(context.config),
-  ).messaging;
-  const nativePlugin = messagingPlugins.find(
-    (entry) =>
-      entry.id ===
-      (gatewayDetail?.platformState?.nativePluginId ??
-        inventory?.pluginId ??
-        bridge?.pluginId),
-  );
-
-  return {
-    platform,
-    inventory,
-    bridge,
-    runtime: runtimeStatus
-      ? {
-          transportInventory: runtimeInventory,
-          transportControl: runtimeStatus.transportControl,
-          messagingBridge: runtimeStatus.messagingBridge.find(
-            (entry) => entry.platform === platform,
-          ),
-        }
-      : undefined,
-    gateway: context.gateway
-      ? {
-          detail: gatewayDetail,
-          health: gatewayDetail?.readiness,
-          state: gatewayDetail?.platformState,
-          summary: gatewayDetail?.summary,
-          history: gatewayDetail
-            ? {
-                traces: gatewayDetail.recentTraces,
-                inbox: gatewayDetail.recentInbox,
-                outbox: gatewayDetail.recentOutbox,
-                attachments: gatewayDetail.recentAttachments,
-              }
-            : undefined,
-        }
-      : undefined,
-    plugin: nativePlugin,
-    controlPlane,
   };
 }
 
@@ -4053,7 +3903,7 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/trace") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         const history = await context.gateway.history(filters.limit, filters);
         return json({
           traces: history.traces,
@@ -4062,7 +3912,7 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/deliveries") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         const history = await context.gateway.history(filters.limit, filters);
         return json({
           deliveries: history.deliveries,
@@ -4071,7 +3921,7 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/inbox") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         return json({
           inbox: context.gateway.inbox(filters.limit, filters),
           state: await context.gateway.state(filters.limit, filters),
@@ -4079,7 +3929,7 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/outbox") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         return json({
           outbox: context.gateway.outbox(filters.limit, filters),
           state: await context.gateway.state(filters.limit, filters),
@@ -4087,7 +3937,7 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/attachments") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         return json({
           attachments: context.gateway.attachments(filters.limit, filters),
           state: await context.gateway.state(filters.limit, filters),
@@ -4095,14 +3945,14 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/history") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         return json({
           history: await context.gateway.history(filters.limit, filters),
         });
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/state") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         return json({
           state: await context.gateway.state(filters.limit, filters),
         });
@@ -4212,7 +4062,7 @@ export function startApiServer(context: AppContext): void {
       }
 
       if (request.method === "GET" && url.pathname === "/gateway/journal") {
-        const filters = parseGatewayFilters(url);
+        const filters = parseGatewayFiltersFromUrl(url);
         return json({
           traces: context.gateway.trace(filters.limit, filters),
           inbox: context.gateway.inbox(filters.limit, filters),
