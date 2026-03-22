@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -140,6 +141,14 @@ interface BootstrapOptions {
   yes: boolean;
 }
 
+interface DependencyProbe {
+  key: string;
+  label: string;
+  installed: boolean;
+  detail: string;
+  recommendation?: string;
+}
+
 interface WizardAnswers {
   mode: WizardMode;
   agentName: string;
@@ -266,6 +275,103 @@ function banner(): void {
       ),
     ].join("\n"),
   );
+}
+
+function commandExists(command: string): boolean {
+  const result = spawnSync("sh", ["-lc", `command -v ${command}`], {
+    stdio: "ignore",
+  });
+  return result.status === 0;
+}
+
+function hasPackage(path: string): boolean {
+  return existsSync(join(root, "node_modules", ...path.split("/")));
+}
+
+function getDependencyProbes(
+  existingEnv: Map<string, string>,
+): DependencyProbe[] {
+  const browserCommand =
+    existingEnv.get("ELIZA_AGENT_BROWSER_COMMAND") || "lightpanda";
+  return [
+    {
+      key: "bun",
+      label: "Bun runtime",
+      installed: commandExists("bun"),
+      detail: "Required for install, build, and runtime entrypoints.",
+    },
+    {
+      key: "git",
+      label: "Git",
+      installed: commandExists("git"),
+      detail: "Used by repository workflows, codegen, and status tooling.",
+    },
+    {
+      key: "docker",
+      label: "Docker",
+      installed: commandExists("docker"),
+      detail: "Container execution backend.",
+      recommendation: "Install Docker Desktop or switch execution to Local.",
+    },
+    {
+      key: "podman",
+      label: "Podman",
+      installed: commandExists("podman"),
+      detail: "Rootless container execution backend.",
+      recommendation: "Install Podman or choose a different body.",
+    },
+    {
+      key: "ssh",
+      label: "SSH",
+      installed: commandExists("ssh"),
+      detail: "Remote execution backend.",
+      recommendation: "Install OpenSSH or stay local.",
+    },
+    {
+      key: "daytona",
+      label: "Daytona",
+      installed: commandExists("daytona"),
+      detail: "Cloud workspace backend.",
+      recommendation: "Install Daytona CLI before choosing the Daytona body.",
+    },
+    {
+      key: "modal",
+      label: "Modal",
+      installed: commandExists("modal"),
+      detail: "Elastic cloud backend.",
+      recommendation: "Install and authenticate the Modal CLI first.",
+    },
+    {
+      key: "lightpanda",
+      label: "Lightpanda vision",
+      installed: commandExists(browserCommand) || hasPackage("lightpanda"),
+      detail: "Preferred browser automation path.",
+      recommendation:
+        "Install Lightpanda or choose Basic HTTP eyes during onboarding.",
+    },
+    {
+      key: "ffmpeg",
+      label: "FFmpeg",
+      installed: commandExists("ffmpeg"),
+      detail: "Helpful for richer media/audio workflows.",
+      recommendation:
+        "Install FFmpeg if you want stronger local media processing.",
+    },
+  ];
+}
+
+function printDependencyProbes(probes: DependencyProbe[]): void {
+  section("Preflight", "I checked the machine before waking fully.");
+  for (const probe of probes) {
+    const state = probe.installed
+      ? paint("online", color.green)
+      : paint("missing", color.red);
+    console.log(`  ${probe.label}: ${state}`);
+    info(probe.detail);
+    if (!probe.installed && probe.recommendation) {
+      warn(probe.recommendation);
+    }
+  }
 }
 
 function ensureDir(path: string): void {
@@ -556,6 +662,38 @@ async function ask(
   return answer || defaultValue;
 }
 
+async function askSecret(
+  rl: ReturnType<typeof createInterface>,
+  prompt: string,
+  defaultValue = "",
+): Promise<string> {
+  if (!input.isTTY || !output.isTTY) {
+    return ask(rl, prompt, defaultValue);
+  }
+
+  const suffix = defaultValue ? " [stored]" : "";
+  const previousState = spawnSync("stty", ["-g"], {
+    stdio: ["inherit", "pipe", "inherit"],
+  })
+    .stdout.toString()
+    .trim();
+
+  spawnSync("stty", ["-echo"], { stdio: "inherit" });
+  try {
+    const answer = (
+      await rl.question(paint(`${prompt}${suffix}: `, color.amber))
+    ).trim();
+    output.write("\n");
+    return answer || defaultValue;
+  } finally {
+    if (previousState) {
+      spawnSync("stty", [previousState], { stdio: "inherit" });
+    } else {
+      spawnSync("stty", ["echo"], { stdio: "inherit" });
+    }
+  }
+}
+
 async function askYesNo(
   rl: ReturnType<typeof createInterface>,
   prompt: string,
@@ -726,6 +864,8 @@ async function runWizard(
   }
 
   banner();
+  const dependencyProbes = getDependencyProbes(existingEnv);
+  printDependencyProbes(dependencyProbes);
   const rl = createInterface({ input, output });
   try {
     section("Awakening", "Decide how fully you want me to come online.");
@@ -818,7 +958,11 @@ async function runWizard(
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
 
     if (provider === "openai" || provider === "hybrid") {
-      openaiApiKey = await ask(rl, "Give me OPENAI_API_KEY", openaiApiKey);
+      openaiApiKey = await askSecret(
+        rl,
+        "Give me OPENAI_API_KEY",
+        openaiApiKey,
+      );
       openaiModel = await ask(
         rl,
         "Choose my primary OpenAI model",
@@ -826,7 +970,7 @@ async function runWizard(
       );
     }
     if (provider === "anthropic" || provider === "hybrid") {
-      anthropicApiKey = await ask(
+      anthropicApiKey = await askSecret(
         rl,
         "Give me ANTHROPIC_API_KEY",
         anthropicApiKey,
@@ -883,6 +1027,22 @@ async function runWizard(
         "ELIZA_AGENT_EXECUTION_BACKEND",
       ) as ExecutionBackendName) || "local",
     );
+    const backendProbeKey =
+      backend === "docker" ||
+      backend === "podman" ||
+      backend === "ssh" ||
+      backend === "daytona" ||
+      backend === "modal"
+        ? backend
+        : undefined;
+    if (backendProbeKey) {
+      const probe = dependencyProbes.find(
+        (entry) => entry.key === backendProbeKey,
+      );
+      if (probe && !probe.installed) {
+        warn(`${probe.label} is not installed yet.`);
+      }
+    }
     const browser = await chooseOne<BrowserMode>(
       rl,
       "Choose my eyes:",
@@ -902,6 +1062,16 @@ async function runWizard(
       (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
         "lightpanda",
     );
+    if (browser === "lightpanda") {
+      const probe = dependencyProbes.find(
+        (entry) => entry.key === "lightpanda",
+      );
+      if (probe && !probe.installed) {
+        warn(
+          "Lightpanda is not installed yet. Basic HTTP is safer until you add it.",
+        );
+      }
+    }
 
     let sshHost = existingEnv.get("ELIZA_AGENT_SSH_HOST") || "";
     let sshUser = existingEnv.get("ELIZA_AGENT_SSH_USER") || "";
@@ -992,26 +1162,26 @@ async function runWizard(
         allowAllUsers,
       );
       if (transports.includes("telegram")) {
-        telegramBotToken = await ask(
+        telegramBotToken = await askSecret(
           rl,
           "Give me TELEGRAM_BOT_TOKEN",
           telegramBotToken,
         );
       }
       if (transports.includes("discord")) {
-        discordBotToken = await ask(
+        discordBotToken = await askSecret(
           rl,
           "Give me DISCORD_BOT_TOKEN",
           discordBotToken,
         );
       }
       if (transports.includes("slack")) {
-        slackWebhookUrl = await ask(
+        slackWebhookUrl = await askSecret(
           rl,
           "Give me SLACK_WEBHOOK_URL",
           slackWebhookUrl,
         );
-        slackSigningSecret = await ask(
+        slackSigningSecret = await askSecret(
           rl,
           "Give me SLACK_SIGNING_SECRET",
           slackSigningSecret,
@@ -1023,7 +1193,7 @@ async function runWizard(
           "Give me HOMEASSISTANT_URL",
           homeAssistantUrl,
         );
-        homeAssistantToken = await ask(
+        homeAssistantToken = await askSecret(
           rl,
           "Give me HOMEASSISTANT_TOKEN",
           homeAssistantToken,
@@ -1095,11 +1265,11 @@ async function runWizard(
       );
     }
     if (tools.tts) {
-      falApiKey = await ask(rl, "Give me FAL_API_KEY", falApiKey);
+      falApiKey = await askSecret(rl, "Give me FAL_API_KEY", falApiKey);
     }
     if (tools.codegen) {
-      e2bApiKey = await ask(rl, "Give me E2B_API_KEY", e2bApiKey);
-      githubToken = await ask(rl, "Give me GITHUB_TOKEN", githubToken);
+      e2bApiKey = await askSecret(rl, "Give me E2B_API_KEY", e2bApiKey);
+      githubToken = await askSecret(rl, "Give me GITHUB_TOKEN", githubToken);
     }
 
     return {
@@ -1302,6 +1472,7 @@ function printSummary(
   console.log("  - bun run start");
   console.log("  - bun run start --plain-cli");
   console.log("  - bun run dev");
+  console.log("  - bun run bootstrap --check");
   console.log("  - /theme list");
   console.log("  - /doctor");
   console.log("  - /gateway readiness");
@@ -1322,6 +1493,7 @@ for (const dir of directories) {
 }
 
 const initialEnvMessages = ensureEnvFile();
+const dependencyProbes = getDependencyProbes(readEnvEntries());
 
 if (options.checkOnly) {
   const summary = [
@@ -1330,6 +1502,11 @@ if (options.checkOnly) {
     "",
     "Directories:",
     ...createdDirs.map((entry) => `- ${entry}`),
+    "",
+    "Preflight:",
+    ...dependencyProbes.map(
+      (probe) => `- ${probe.label}: ${probe.installed ? "online" : "missing"}`,
+    ),
     "",
     "Environment:",
     ...initialEnvMessages.map((entry) => `- ${entry}`),
