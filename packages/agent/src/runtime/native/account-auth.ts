@@ -461,8 +461,8 @@ function getClaudeCodeAccountStatus(
       loginCommand: "claude auth login",
       detail: accountLabel
         ? cliStatus.loggedIn
-          ? "Claude account profile is present and Claude CLI reports logged in, but no reusable OAuth credential store was found yet."
-          : "Claude account profile is present locally, but no reusable refreshable credential store was found. Run `claude auth login`."
+          ? "Claude account profile is present and Claude CLI reports logged in, but Eliza Agent still could not read a reusable Claude Code credential store."
+          : "Claude account profile is present locally, but that profile alone is not a reusable Claude Code login. Run `claude auth login`."
         : cliStatus.available
           ? cliStatus.loggedIn
             ? "Claude CLI reports a logged-in session, but Eliza Agent could not read a reusable OAuth credential store yet."

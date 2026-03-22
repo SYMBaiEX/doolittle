@@ -7,6 +7,7 @@ Workspace-native ElizaOS provider plugin for using a locally signed-in Codex acc
 - Detects reusable Codex credentials from `~/.codex/auth.json`
 - Exposes Codex-linked provider state to the Eliza runtime
 - Routes text generation through the Codex Responses endpoint
+- Handles Codex streaming responses and normalizes them into plain provider output
 - Refreshes expired linked credentials automatically when possible
 
 ## Expected Local Login State
@@ -26,8 +27,21 @@ Credential source:
 ## Operator Flows
 
 - `/accounts`
+- `/accounts doctor`
+- `/accounts login codex`
 - `/accounts refresh codex`
 - `/accounts use codex`
+
+## Verification
+
+From the repo root:
+
+```bash
+bun run smoke:linked-providers -- --provider codex
+bun run smoke:linked-providers -- --provider codex --live
+```
+
+The live smoke path was verified in this workspace against a locally signed-in Codex account and returned `LINKED_PROVIDER_OK`.
 
 ## Notes
 

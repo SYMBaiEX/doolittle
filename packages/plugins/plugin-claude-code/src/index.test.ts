@@ -90,6 +90,9 @@ describe("createClaudeCodePlugin", () => {
       expect(
         (calls[0]?.init?.headers as Record<string, string>)?.["anthropic-beta"],
       ).toContain("claude-code-20250219");
+      expect(
+        JSON.parse(String(calls[0]?.init?.body)).system?.[0]?.text,
+      ).toContain("You are Claude Code");
     } finally {
       globalThis.fetch = originalFetch;
     }
