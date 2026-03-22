@@ -1045,9 +1045,20 @@ async function runWizard(
         "Give me OPENAI_API_KEY",
         openaiApiKey,
       );
+    }
+    if (
+      provider === "openai" ||
+      provider === "hybrid" ||
+      provider === "codex"
+    ) {
+      if (provider === "codex" && !openaiModel) {
+        openaiModel = "gpt-5.3-codex";
+      }
       openaiModel = await ask(
         rl,
-        "Choose my primary OpenAI model",
+        provider === "codex"
+          ? "Choose my primary Codex model"
+          : "Choose my primary OpenAI model",
         openaiModel,
       );
     }
@@ -1057,9 +1068,17 @@ async function runWizard(
         "Give me ANTHROPIC_API_KEY",
         anthropicApiKey,
       );
+    }
+    if (
+      provider === "anthropic" ||
+      provider === "hybrid" ||
+      provider === "claude-code"
+    ) {
       anthropicModel = await ask(
         rl,
-        "Choose my primary Anthropic model",
+        provider === "claude-code"
+          ? "Choose my primary Claude Code model"
+          : "Choose my primary Anthropic model",
         anthropicModel,
       );
     }
@@ -1413,7 +1432,9 @@ function applyAnswers(answers: WizardAnswers): {
         answers.provider === "hybrid",
     ),
     OPENAI_MODEL:
-      answers.provider === "openai" || answers.provider === "hybrid"
+      answers.provider === "openai" ||
+      answers.provider === "hybrid" ||
+      answers.provider === "codex"
         ? answers.openaiModel
         : "gpt-4.1-mini",
     ANTHROPIC_API_KEY:
@@ -1426,7 +1447,9 @@ function applyAnswers(answers: WizardAnswers): {
         answers.provider === "hybrid",
     ),
     ANTHROPIC_LARGE_MODEL:
-      answers.provider === "anthropic" || answers.provider === "hybrid"
+      answers.provider === "anthropic" ||
+      answers.provider === "hybrid" ||
+      answers.provider === "claude-code"
         ? answers.anthropicModel
         : "claude-sonnet-4-20250514",
     TELEGRAM_BOT_TOKEN: answers.telegramBotToken,

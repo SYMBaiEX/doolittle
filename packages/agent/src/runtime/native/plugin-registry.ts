@@ -25,7 +25,11 @@ import { TTSGenerationPlugin } from "@elizaos/plugin-tts";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
 import type { EnvConfig, MemoryTarget } from "@/types";
-import { getLinkedProviderAccountsSnapshot } from "./account-auth";
+import {
+  getLinkedClaudeCodeCredentials,
+  getLinkedCodexCredentials,
+  getLinkedProviderAccountsSnapshot,
+} from "./account-auth";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -78,6 +82,7 @@ export function buildNativePluginAssembly(
   services: AppServices,
   config: EnvConfig,
 ): NativePluginAssembly {
+  const selectedProvider = services.settings.get().model.provider;
   const catalog = getNativePluginCatalog(config);
   const groupedCatalog = groupNativePluginCatalog(catalog);
 
@@ -86,10 +91,14 @@ export function buildNativePluginAssembly(
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
     createCodexPlugin({
+      enabled: selectedProvider === "codex",
       getStatus: () => getLinkedProviderAccountsSnapshot().codex,
+      getCredentials: () => getLinkedCodexCredentials(),
     }),
     createClaudeCodePlugin({
+      enabled: selectedProvider === "claude-code",
       getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
+      getCredentials: () => getLinkedClaudeCodeCredentials(),
     }),
   ];
   if (config.openAiApiKey) {
