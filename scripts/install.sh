@@ -227,6 +227,8 @@ fi
 printf "%s\n" "  eliza-agent plain"
 printf "%s\n" "  eliza-agent setup"
 printf "%s\n" "  eliza-agent doctor"
+printf "%s\n" "${dim}  Once the cockpit is open, try: summarize this repo and tell me where to start${reset}"
+printf "%s\n" "${dim}  Or run a shell action directly: !git status${reset}"
 
 if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
   printf "\n%s\n" "${amber}Launching Eliza Agent now...${reset}"

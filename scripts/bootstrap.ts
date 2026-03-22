@@ -2247,29 +2247,36 @@ async function runWizard(
           "Threads",
           "I found linked provider sessions on this machine and can carry them forward for you.",
         );
-        if (
-          (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) &&
-          provider !== "codex"
-        ) {
-          useLinkedCodexAuth = await askYesNo(
-            rl,
-            "Should I keep the linked Codex account ready for coding and repair work",
-            useLinkedCodexAuth,
-          );
-        }
-        if (
-          (linkedAccounts.claudeCode.nativeReady ||
-            linkedAccounts.claudeCode.reusable) &&
-          provider !== "claude-code"
-        ) {
-          useLinkedClaudeCodeAuth = await askYesNo(
-            rl,
-            "Should I keep the linked Claude Code account ready for long-form reasoning work",
-            useLinkedClaudeCodeAuth,
-          );
-        } else if (linkedAccounts.claudeCode.fallbackReady) {
+        if (mode === "ritual") {
+          if (
+            (linkedAccounts.codex.nativeReady ||
+              linkedAccounts.codex.reusable) &&
+            provider !== "codex"
+          ) {
+            useLinkedCodexAuth = await askYesNo(
+              rl,
+              "Should I keep the linked Codex account ready for coding and repair work",
+              useLinkedCodexAuth,
+            );
+          }
+          if (
+            (linkedAccounts.claudeCode.nativeReady ||
+              linkedAccounts.claudeCode.reusable) &&
+            provider !== "claude-code"
+          ) {
+            useLinkedClaudeCodeAuth = await askYesNo(
+              rl,
+              "Should I keep the linked Claude Code account ready for long-form reasoning work",
+              useLinkedClaudeCodeAuth,
+            );
+          } else if (linkedAccounts.claudeCode.fallbackReady) {
+            info(
+              "Claude Code is signed in locally, but I still prefer a setup-token if you want the clean native Eliza-owned path.",
+            );
+          }
+        } else {
           info(
-            "Claude Code is signed in locally, but I still prefer a setup-token if you want the clean native Eliza-owned path.",
+            "Quick ignition will quietly carry forward any native Codex or Claude Code auth already available here.",
           );
         }
         if (provider === "codex" && linkedAccounts.codex.nativeReady) {
@@ -2504,51 +2511,64 @@ async function runWizard(
         );
       }
 
-      section("Body", "Choose where I should live and act.");
-      const backend = await chooseOne<ExecutionBackendName>(
-        rl,
-        "Where should I execute:",
-        [
-          {
-            value: "local",
-            label: "Local machine",
-            detail: "Fastest embodiment for direct local development.",
-          },
-          {
-            value: "docker",
-            label: "Docker",
-            detail: "A contained local body with cleaner boundaries.",
-          },
-          {
-            value: "podman",
-            label: "Podman",
-            detail: "A rootless container body with strong isolation.",
-          },
-          {
-            value: "ssh",
-            label: "SSH",
-            detail: "A remote body on a server, workstation, or homelab node.",
-          },
-          {
-            value: "daytona",
-            label: "Daytona",
-            detail: "A cloud workspace body for remote development loops.",
-          },
-          {
-            value: "modal",
-            label: "Modal",
-            detail: "An elastic cloud body for bursty execution.",
-          },
-          {
-            value: "singularity",
-            label: "Singularity",
-            detail: "A scientific or HPC body with strict runtime shape.",
-          },
-        ],
+      let backend =
         (existingEnv.get(
           "ELIZA_AGENT_EXECUTION_BACKEND",
-        ) as ExecutionBackendName) || "local",
-      );
+        ) as ExecutionBackendName) || "local";
+      if (mode === "ritual") {
+        section("Body", "Choose where I should live and act.");
+        backend = await chooseOne<ExecutionBackendName>(
+          rl,
+          "Where should I execute:",
+          [
+            {
+              value: "local",
+              label: "Local machine",
+              detail: "Fastest embodiment for direct local development.",
+            },
+            {
+              value: "docker",
+              label: "Docker",
+              detail: "A contained local body with cleaner boundaries.",
+            },
+            {
+              value: "podman",
+              label: "Podman",
+              detail: "A rootless container body with strong isolation.",
+            },
+            {
+              value: "ssh",
+              label: "SSH",
+              detail:
+                "A remote body on a server, workstation, or homelab node.",
+            },
+            {
+              value: "daytona",
+              label: "Daytona",
+              detail: "A cloud workspace body for remote development loops.",
+            },
+            {
+              value: "modal",
+              label: "Modal",
+              detail: "An elastic cloud body for bursty execution.",
+            },
+            {
+              value: "singularity",
+              label: "Singularity",
+              detail: "A scientific or HPC body with strict runtime shape.",
+            },
+          ],
+          backend,
+        );
+      } else {
+        section(
+          "Body",
+          "Quick ignition keeps the body simple so you reach the shell faster.",
+        );
+        info(
+          `Using ${backend} as the default body for first boot. You can change this later from eliza-agent setup.`,
+        );
+      }
       const backendProbeKey =
         backend === "docker" ||
         backend === "podman" ||
@@ -2571,24 +2591,31 @@ async function runWizard(
         ? (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
           "lightpanda"
         : "basic";
-      let browser = await chooseOne<BrowserMode>(
-        rl,
-        "Choose my eyes:",
-        [
-          {
-            value: "lightpanda",
-            label: "Lightpanda",
-            detail: "Full browser vision and the best default for web work.",
-          },
-          {
-            value: "basic",
-            label: "Basic HTTP",
-            detail:
-              "Lighter, simpler sight if browser automation is not installed yet.",
-          },
-        ],
-        preferredBrowserDefault,
-      );
+      let browser = preferredBrowserDefault;
+      if (mode === "ritual") {
+        browser = await chooseOne<BrowserMode>(
+          rl,
+          "Choose my eyes:",
+          [
+            {
+              value: "lightpanda",
+              label: "Lightpanda",
+              detail: "Full browser vision and the best default for web work.",
+            },
+            {
+              value: "basic",
+              label: "Basic HTTP",
+              detail:
+                "Lighter, simpler sight if browser automation is not installed yet.",
+            },
+          ],
+          preferredBrowserDefault,
+        );
+      } else {
+        info(
+          `Using ${preferredBrowserDefault === "lightpanda" ? "Lightpanda" : "Basic HTTP"} vision for first boot.`,
+        );
+      }
       if (browser === "lightpanda") {
         const probe = dependencyProbes.find(
           (entry) => entry.key === "lightpanda",
@@ -2597,12 +2624,14 @@ async function runWizard(
           warn(
             "Lightpanda is not installed yet. Basic HTTP is safer until you add it.",
           );
-          const fallbackToBasic = await askYesNo(
-            rl,
-            "Should I fall back to Basic HTTP for now",
-            true,
-          );
-          if (fallbackToBasic) {
+          if (
+            mode === "quick" ||
+            (await askYesNo(
+              rl,
+              "Should I fall back to Basic HTTP for now",
+              true,
+            ))
+          ) {
             browser = "basic";
           }
         }
@@ -2737,10 +2766,6 @@ async function runWizard(
         }
       }
 
-      section(
-        "Hands",
-        "Choose the tools, bridges, and protocols I should wake up holding.",
-      );
       const tools = {
         mcp:
           mode === "ritual"
@@ -2781,6 +2806,20 @@ async function runWizard(
                   existingEnv.get("GITHUB_TOKEN"),
               ),
       };
+      if (mode === "quick") {
+        section(
+          "Hands",
+          "Quick ignition keeps the toolkit lean and only preserves bindings you already had.",
+        );
+        info(
+          `Preserving: mcp=${tools.mcp ? "yes" : "no"} acp=${tools.acp ? "yes" : "no"} tts=${tools.tts ? "yes" : "no"} codegen=${tools.codegen ? "yes" : "no"}.`,
+        );
+      } else {
+        section(
+          "Hands",
+          "Choose the tools, bridges, and protocols I should wake up holding.",
+        );
+      }
 
       let mcpServerCommand = existingEnv.get("MCP_SERVER_COMMAND") || "";
       let acpServerCommand = existingEnv.get("ACP_SERVER_COMMAND") || "";
@@ -3151,6 +3190,11 @@ function printSummary(
   console.log("  - /theme list");
   console.log("  - /doctor");
   console.log("  - /gateway readiness");
+  console.log();
+  console.log(paint("First Words", color.cyan + color.bold));
+  console.log('  - "summarize this repo and tell me where to start"');
+  console.log("  - !git status");
+  console.log('  - "what machine am I on and what tools can you use here"');
 }
 
 const createdDirs: string[] = [];
