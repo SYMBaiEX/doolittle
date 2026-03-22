@@ -1,3 +1,4 @@
+import { arch, hostname, platform, release } from "node:os";
 import type {
   IAgentRuntime,
   Memory,
@@ -20,6 +21,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
       const memorySnapshot = services.memory.renderSnapshot("memory");
       const userSnapshot = services.memory.renderSnapshot("user");
       const personality = services.personalities.getActive();
+      const settings = services.settings.get();
       const contextFiles = services.contextFiles.render();
       const skills = services.skills
         .list()
@@ -71,6 +73,15 @@ export function createAgentContextProvider(services: AppServices): Provider {
             `- ${profile.displayName ?? profile.userId}: prefs=${profile.preferences.length} facts=${profile.facts.length} notes=${profile.notes.length}`,
         )
         .join("\n");
+      const hostEnvironment = [
+        `- os=${platform()} ${release()}`,
+        `- arch=${arch()}`,
+        `- hostname=${hostname()}`,
+        `- executionBackend=${settings.execution.backend}`,
+        `- modelProvider=${settings.model.provider}`,
+        `- model=${settings.model.model}`,
+        "- terminal=available via local terminal service and /terminal run",
+      ].join("\n");
 
       const text = [
         memorySnapshot,
@@ -80,6 +91,9 @@ export function createAgentContextProvider(services: AppServices): Provider {
         "ACTIVE PERSONALITY",
         `${personality.name}: ${personality.description}`,
         personality.systemAddendum,
+        "",
+        "HOST ENVIRONMENT",
+        hostEnvironment,
         "",
         "WORKSPACE CONTEXT",
         contextFiles,

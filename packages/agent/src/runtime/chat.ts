@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
+import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
 import {
   ChannelType,
@@ -14,6 +15,10 @@ import {
   parseTransportPlatform,
 } from "@/gateway/control-plane";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
+import {
+  canonicalizeSlashCommandSyntax,
+  normalizeSlashCommandSyntax,
+} from "@/runtime/command-catalog";
 import {
   getLinkedProviderAccountsSnapshot,
   getLinkedProviderConnectAdvice,
@@ -143,6 +148,10 @@ export type AgentExecutionContext = Pick<
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function displayCommand(command: string): string {
+  return canonicalizeSlashCommandSyntax(command);
 }
 
 export function formatMemorySummary(summary: {
@@ -893,10 +902,10 @@ async function getProviderReadinessMessage(
       return [
         "OpenAI is selected, but OPENAI_API_KEY is not configured.",
         "A linked Codex account is ready on this machine.",
-        "Run `/accounts use codex` to activate it, or add OPENAI_API_KEY and try again.",
+        `Run \`${displayCommand("/accounts use codex")}\` to activate it, or add OPENAI_API_KEY and try again.`,
       ].join(" ");
     }
-    return "OpenAI is selected, but OPENAI_API_KEY is not configured. Add it in `.env` or run `/accounts` to bind a linked provider.";
+    return `OpenAI is selected, but OPENAI_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
   }
 
   if (provider === "anthropic" && !context.config.anthropicApiKey?.trim()) {
@@ -904,23 +913,23 @@ async function getProviderReadinessMessage(
       return [
         "Anthropic is selected, but ANTHROPIC_API_KEY is not configured.",
         "A linked Claude Code account is ready on this machine.",
-        "Run `/accounts use claude-code` to activate it, or add ANTHROPIC_API_KEY and try again.",
+        `Run \`${displayCommand("/accounts use claude-code")}\` to activate it, or add ANTHROPIC_API_KEY and try again.`,
       ].join(" ");
     }
-    return "Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in `.env` or run `/accounts` to bind a linked provider.";
+    return `Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
   }
 
   if (provider === "codex") {
     const credentials = await resolveLinkedProviderCredentials("codex");
     if (!credentials?.accessToken) {
-      return "Codex is selected, but no reusable Codex credentials are available. Run `/accounts connect codex` or `codex login`, then try again.";
+      return `Codex is selected, but no reusable Codex credentials are available. Run \`${displayCommand("/accounts connect codex")}\` or \`codex login\`, then try again.`;
     }
   }
 
   if (provider === "claude-code") {
     const credentials = await resolveLinkedProviderCredentials("claude-code");
     if (!credentials?.accessToken) {
-      return "Claude Code is selected, but no native Claude Code credentials are available. Run `/accounts connect claude-code` or `claude setup-token`, then try again.";
+      return `Claude Code is selected, but no native Claude Code credentials are available. Run \`${displayCommand("/accounts connect claude-code")}\` or \`claude setup-token\`, then try again.`;
     }
   }
 
@@ -932,18 +941,59 @@ function buildProviderNoResponseMessage(
   model: string,
 ): string {
   if (provider === "codex") {
-    return `I couldn't get a usable response from Codex (${model}). Run \`/accounts doctor\` to verify the linked account, or switch providers with \`/accounts use claude-code\`.`;
+    return `I couldn't get a usable response from Codex (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, or switch providers with \`${displayCommand("/accounts use claude-code")}\`.`;
   }
   if (provider === "claude-code") {
-    return `I couldn't get a usable response from Claude Code (${model}). Run \`/accounts doctor\` to verify the linked account, or switch providers with \`/accounts use codex\`.`;
+    return `I couldn't get a usable response from Claude Code (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, or switch providers with \`${displayCommand("/accounts use codex")}\`.`;
   }
   if (provider === "openai") {
-    return `I couldn't get a usable response from OpenAI (${model}). Check \`OPENAI_API_KEY\` or switch to a linked provider with \`/accounts\`.`;
+    return `I couldn't get a usable response from OpenAI (${model}). Check \`OPENAI_API_KEY\` or switch to a linked provider with \`${displayCommand("/accounts")}\`.`;
   }
   if (provider === "anthropic") {
-    return `I couldn't get a usable response from Anthropic (${model}). Check \`ANTHROPIC_API_KEY\` or switch to a linked provider with \`/accounts\`.`;
+    return `I couldn't get a usable response from Anthropic (${model}). Check \`ANTHROPIC_API_KEY\` or switch to a linked provider with \`${displayCommand("/accounts")}\`.`;
   }
-  return "I couldn't get a usable response from the active provider. Run `/doctor` or `/accounts` to repair the runtime.";
+  return `I couldn't get a usable response from the active provider. Run \`${displayCommand("/doctor")}\` or \`${displayCommand("/accounts")}\` to repair the runtime.`;
+}
+
+function shouldAttachSystemFacts(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized || normalized.startsWith("/")) {
+    return false;
+  }
+  return [
+    "what pc",
+    "what computer",
+    "what machine",
+    "what os",
+    "which os",
+    "what system",
+    "macos",
+    "windows",
+    "linux",
+    "darwin",
+    "am i on",
+    "use the terminal",
+    "can you use the terminal",
+    "can you run terminal",
+    "what shell",
+    "what platform",
+  ].some((token) => normalized.includes(token));
+}
+
+function buildSystemFactsContext(context: AgentExecutionContext): string {
+  const terminalAvailable = "yes";
+  const settings = context.services.settings.get();
+  return [
+    "Live machine facts:",
+    `- os=${platform()} ${release()}`,
+    `- arch=${arch()}`,
+    `- hostname=${hostname()}`,
+    `- workspace=${context.config.workspaceDir}`,
+    `- shell access=${terminalAvailable} via terminal service and /terminal run`,
+    `- execution backend=${settings.execution.backend}`,
+    `- provider=${settings.model.provider}`,
+    "Use these live facts when answering machine or terminal capability questions. Do not say you cannot inspect the machine when local terminal access is available.",
+  ].join("\n");
 }
 
 export function activateLinkedProvider(
@@ -1025,6 +1075,20 @@ export async function connectLinkedProvider(
   };
 }
 
+function formatLinkedAccountSummary(
+  provider: LinkedProviderName,
+  snapshot: ReturnType<typeof getLinkedProviderAccountsSnapshot>,
+): string {
+  const status = provider === "codex" ? snapshot.codex : snapshot.claudeCode;
+  return [
+    `${provider}`,
+    `  nativeReady: ${status.nativeReady ? "yes" : "no"}`,
+    `  fallbackReady: ${status.fallbackReady ? "yes" : "no"}`,
+    `  reusable: ${status.reusable ? "yes" : "no"}`,
+    `  detail: ${status.detail}`,
+  ].join("\n");
+}
+
 export async function refreshLinkedAccounts(
   provider?: LinkedProviderName | "all",
 ): Promise<ReturnType<typeof getLinkedProviderAccountsSnapshot>> {
@@ -1054,7 +1118,7 @@ async function buildCommandResponse(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   const { message } = input;
-  const trimmed = message.trim();
+  const trimmed = normalizeSlashCommandSyntax(message.trim());
   const sessionKey = input.roomId ?? `room:${input.userId}`;
   const nativeServices = getNativeServices(context.runtime);
 
@@ -2016,6 +2080,10 @@ async function buildCommandResponse(
     );
   }
 
+  if (trimmed === "/system" || trimmed === "/system facts") {
+    return buildSystemFactsContext(context);
+  }
+
   if (trimmed === "/experience" || trimmed === "/experience summary") {
     return JSON.stringify(
       getEffectiveExperienceSummary(context.runtime, context.services),
@@ -2741,7 +2809,14 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/accounts refresh") {
-    return JSON.stringify(await refreshLinkedAccounts("all"), null, 2);
+    const snapshot = await refreshLinkedAccounts("all");
+    return [
+      "Refreshed linked provider state.",
+      "",
+      formatLinkedAccountSummary("codex", snapshot),
+      "",
+      formatLinkedAccountSummary("claude-code", snapshot),
+    ].join("\n");
   }
 
   if (trimmed.startsWith("/accounts refresh ")) {
@@ -2749,9 +2824,14 @@ async function buildCommandResponse(
       trimmed.replace("/accounts refresh ", "").trim(),
     );
     if (!provider) {
-      return "Usage: /accounts refresh <codex|claude-code>";
+      return `Usage: ${displayCommand("/accounts refresh <codex|claude-code>")}`;
     }
-    return JSON.stringify(await refreshLinkedAccounts(provider), null, 2);
+    const snapshot = await refreshLinkedAccounts(provider);
+    return [
+      `Refreshed ${provider}.`,
+      "",
+      formatLinkedAccountSummary(provider, snapshot),
+    ].join("\n");
   }
 
   if (trimmed.startsWith("/accounts use ")) {
@@ -2759,9 +2839,18 @@ async function buildCommandResponse(
       trimmed.replace("/accounts use ", "").trim(),
     );
     if (!provider) {
-      return "Usage: /accounts use <codex|claude-code>";
+      return `Usage: ${displayCommand("/accounts use <codex|claude-code>")}`;
     }
-    return JSON.stringify(activateLinkedProvider(context, provider), null, 2);
+    const activated = activateLinkedProvider(context, provider);
+    return [
+      `Activated ${provider}.`,
+      `model: ${activated.model}`,
+      activated.baseUrl
+        ? `baseUrl: ${activated.baseUrl}`
+        : "baseUrl: provider default",
+      "",
+      formatLinkedAccountSummary(provider, activated.accounts),
+    ].join("\n");
   }
 
   if (trimmed.startsWith("/accounts connect ")) {
@@ -2769,13 +2858,32 @@ async function buildCommandResponse(
       trimmed.replace("/accounts connect ", "").trim(),
     );
     if (!provider) {
-      return "Usage: /accounts connect <codex|claude-code>";
+      return `Usage: ${displayCommand("/accounts connect <codex|claude-code>")}`;
     }
-    return JSON.stringify(
-      await connectLinkedProvider(context, provider),
-      null,
-      2,
-    );
+    const result = await connectLinkedProvider(context, provider);
+    if (result.connected && result.activated && result.providerState) {
+      return [
+        `${provider} is now connected and active.`,
+        `model: ${result.providerState.model}`,
+        result.providerState.baseUrl
+          ? `baseUrl: ${result.providerState.baseUrl}`
+          : "baseUrl: provider default",
+        "",
+        formatLinkedAccountSummary(provider, result.accounts),
+      ].join("\n");
+    }
+    return [
+      `${provider} is not ready to activate yet.`,
+      `next: ${result.advice.preferredAction}${result.advice.primaryCommand ? ` -> ${result.advice.primaryCommand}` : ""}`,
+      result.advice.secondaryCommand
+        ? `alternate: ${result.advice.secondaryCommand}`
+        : "",
+      `detail: ${result.advice.detail}`,
+      "",
+      formatLinkedAccountSummary(provider, result.accounts),
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   if (trimmed.startsWith("/accounts login ")) {
@@ -2783,19 +2891,22 @@ async function buildCommandResponse(
       trimmed.replace("/accounts login ", "").trim(),
     );
     if (!provider) {
-      return "Usage: /accounts login <codex|claude-code>";
+      return `Usage: ${displayCommand("/accounts login <codex|claude-code>")}`;
     }
-    return JSON.stringify(
-      {
-        provider,
-        command: getLinkedProviderLoginCommand(provider),
-        setupCommand: getLinkedProviderSetupCommand(provider),
-        advice: getLinkedProviderConnectAdvice(provider),
-        status: getLinkedProviderAccountsSnapshot(),
-      },
-      null,
-      2,
-    );
+    const advice = getLinkedProviderConnectAdvice(provider);
+    return [
+      `To connect ${provider}, run this in your local shell:`,
+      `  ${getLinkedProviderLoginCommand(provider)}`,
+      `If you're already inside the Eliza Agent cockpit, you can also run: !${getLinkedProviderLoginCommand(provider)}`,
+      getLinkedProviderSetupCommand(provider)
+        ? `Optional setup-token path: ${getLinkedProviderSetupCommand(provider)}`
+        : "",
+      `After that, run ${displayCommand(`/accounts connect ${provider}`)} here.`,
+      "",
+      `detail: ${advice.detail}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   if (trimmed.startsWith("/accounts setup-token ")) {
@@ -2803,18 +2914,18 @@ async function buildCommandResponse(
       trimmed.replace("/accounts setup-token ", "").trim(),
     );
     if (provider !== "claude-code") {
-      return "Usage: /accounts setup-token claude-code";
+      return `Usage: ${displayCommand("/accounts setup-token claude-code")}`;
     }
-    return JSON.stringify(
-      {
-        provider,
-        command: getLinkedProviderSetupCommand(provider),
-        advice: getLinkedProviderConnectAdvice(provider),
-        status: getLinkedProviderAccountsSnapshot(),
-      },
-      null,
-      2,
-    );
+    const advice = getLinkedProviderConnectAdvice(provider);
+    return [
+      "To bind Claude Code natively with a setup token, run this in your local shell:",
+      `  ${getLinkedProviderSetupCommand(provider)}`,
+      `From the Eliza Agent cockpit, you can also run: !${getLinkedProviderSetupCommand(provider)}`,
+      "Then paste the token into onboarding or set CLAUDE_CODE_SETUP_TOKEN / CLAUDE_CODE_OAUTH_TOKEN.",
+      `After that, run ${displayCommand("/accounts connect claude-code")} here.`,
+      "",
+      `detail: ${advice.detail}`,
+    ].join("\n");
   }
 
   if (
@@ -5431,6 +5542,9 @@ export async function handleAgentTurn(
   },
 ): Promise<string> {
   const responseFromCommandLayer = await buildCommandResponse(input, context);
+  const effectiveMessage = shouldAttachSystemFacts(input.message)
+    ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
+    : input.message;
   const roomKey = input.roomId ?? `room:${input.userId}`;
   const roomId = stringToUuid(roomKey);
   const worldId = stringToUuid("eliza-agent-world");
@@ -5439,7 +5553,7 @@ export async function handleAgentTurn(
 
   context.services.userProfiles.observe(
     input.userId,
-    input.message,
+    effectiveMessage,
     input.source,
     {
       source: input.source,
@@ -5513,7 +5627,7 @@ export async function handleAgentTurn(
     entityId: entityId as UUID,
     roomId: roomId as UUID,
     content: {
-      text: input.message,
+      text: effectiveMessage,
       source: input.source ?? "cli",
       channelType: ChannelType.DM,
     },

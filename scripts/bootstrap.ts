@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
@@ -13,6 +14,7 @@ import {
 } from "../packages/agent/src/runtime/native/account-auth";
 import {
   DEFAULT_TUI_THEME,
+  getReadableTextColor,
   getTuiTheme,
   listTuiThemes,
   type TuiThemeName,
@@ -486,7 +488,17 @@ function createWizardScreen(
   const applyTheme = (themeName: TuiThemeName) => {
     activeThemeName = themeName;
     const theme = getTuiTheme(themeName);
-    header.style.fg = theme.baseFg;
+    const primaryFg = getReadableTextColor(
+      theme.primary,
+      theme.baseFg,
+      "black",
+    );
+    const secondaryFg = getReadableTextColor(
+      theme.secondary,
+      theme.baseFg,
+      "black",
+    );
+    header.style.fg = primaryFg;
     header.style.bg = theme.primary;
     sidebar.style.border = { fg: theme.primary };
     sidebar.style.fg = theme.baseFg;
@@ -503,6 +515,9 @@ function createWizardScreen(
     };
     _footer.style.fg = theme.cyanGlow;
     _footer.style.bg = theme.baseBg;
+    _footer.setContent(
+      ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Theme preview ${theme.label}  Highlight ${secondaryFg === "black" ? "dark" : "light"} text `,
+    );
   };
   applyTheme(DEFAULT_TUI_THEME);
 
@@ -515,7 +530,7 @@ function createWizardScreen(
       wizardSectionOrder
         .map((name) =>
           name === snapshot.currentSection
-            ? `{${theme.primary}-fg}› ${name}{/}`
+            ? `{bold}{${getReadableTextColor(theme.secondary, theme.baseFg, "black")}-fg}› ${name}{/}{/bold}`
             : `  ${name}`,
         )
         .join("\n"),
@@ -671,7 +686,14 @@ function createWizardScreen(
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
-            selected: { bg: "#ff6a00", fg: "black" },
+            selected: {
+              bg: getTuiTheme(activeThemeName).primary,
+              fg: getReadableTextColor(
+                getTuiTheme(activeThemeName).primary,
+                "white",
+                "black",
+              ),
+            },
             item: { fg: "white" },
           },
           items: [
@@ -742,7 +764,14 @@ function createWizardScreen(
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
-            selected: { bg: "#ff6a00", fg: "black" },
+            selected: {
+              bg: getTuiTheme(activeThemeName).primary,
+              fg: getReadableTextColor(
+                getTuiTheme(activeThemeName).primary,
+                "white",
+                "black",
+              ),
+            },
             item: { fg: "white" },
           },
           items: optionsList.map((item) => item.label),
@@ -829,7 +858,14 @@ function createWizardScreen(
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
-            selected: { bg: "#ff6a00", fg: "black" },
+            selected: {
+              bg: getTuiTheme(activeThemeName).primary,
+              fg: getReadableTextColor(
+                getTuiTheme(activeThemeName).primary,
+                "white",
+                "black",
+              ),
+            },
             item: { fg: "white" },
           },
           items: [],
@@ -966,6 +1002,16 @@ function getDependencyProbes(
     accounts.claudeCode.nativeReady === true ||
     accounts.claudeCode.reusable === true;
   return [
+    {
+      key: "host",
+      label: "Host system",
+      installed: true,
+      detail: `${platform()} ${release()} · ${arch()} · ${hostname()}`,
+      recommendation:
+        platform() === "darwin"
+          ? "macOS detected. I will favor zsh-friendly paths and local app-style defaults."
+          : undefined,
+    },
     {
       key: "bun",
       label: "Bun runtime",
@@ -2035,18 +2081,15 @@ async function runWizard(
         "ritual",
       );
 
-      section(
-        "Face",
-        "Give me a name, a timezone, and the skin I should wear.",
-      );
+      section("Face", "Give me a name, a timezone, and a visible personality.");
       const agentName = await ask(
         rl,
-        "What should I call myself",
+        "What should I answer to",
         existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
       );
       const timezone = await ask(
         rl,
-        "What time should I live in",
+        "What timezone should shape my days",
         existingEnv.get("ELIZA_AGENT_TIMEZONE") || "America/Chicago",
       );
       const themeChoices = listTuiThemes().map((theme) => ({
@@ -2077,7 +2120,7 @@ async function runWizard(
       section("Mind", "I need a mind to think with.");
       let provider = await chooseOne<ProviderMode>(
         rl,
-        "Choose my first cognition path:",
+        "How should I think on day one?",
         [
           {
             value: "openai",
@@ -2161,7 +2204,7 @@ async function runWizard(
         if (linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable) {
           useLinkedCodexAuth = await askYesNo(
             rl,
-            "Should I bind the linked Codex account for Codex-native workflows",
+            "Should I bind the linked Codex account so I can think through it natively",
             useLinkedCodexAuth,
           );
         }
@@ -2171,7 +2214,7 @@ async function runWizard(
         ) {
           useLinkedClaudeCodeAuth = await askYesNo(
             rl,
-            "Should I bind the linked Claude Code account for Anthropic-native workflows",
+            "Should I bind the linked Claude Code account so I can reason through it natively",
             useLinkedClaudeCodeAuth,
           );
         } else if (linkedAccounts.claudeCode.fallbackReady) {
@@ -2182,155 +2225,175 @@ async function runWizard(
       }
 
       if (provider === "codex") {
-        section(
-          "Codex Bond",
-          "Choose how I should bind to Codex. Native auth is the path I want by default.",
-        );
-        const codexPath = await chooseOne<"login" | "skip">(
-          rl,
-          "How should I bind to Codex:",
-          [
-            {
-              value: "login",
-              label: "Codex login",
-              detail:
-                "Recommended first step. Use the official Codex login flow and let me detect the reusable auth store.",
-            },
-            {
-              value: "skip",
-              label: "Skip for now",
-              detail:
-                "Leave Codex unbound for now and continue with another provider.",
-            },
-          ],
-          linkedAccounts.codex.nativeReady ? "skip" : "login",
-        );
+        if (linkedAccounts.codex.nativeReady && useLinkedCodexAuth) {
+          section(
+            "Codex Bond",
+            "Codex is already bound cleanly on this machine. I can keep that path and move on.",
+          );
+          info(
+            "Detected reusable native Codex auth. No extra login step needed.",
+          );
+        } else {
+          section(
+            "Codex Bond",
+            "Choose how I should bind to Codex. Native auth is the path I want by default.",
+          );
+          const codexPath = await chooseOne<"login" | "skip">(
+            rl,
+            "How should I complete the Codex bond?",
+            [
+              {
+                value: "login",
+                label: "Codex login",
+                detail:
+                  "Recommended first step. Use the official Codex login flow and let me detect the reusable auth store.",
+              },
+              {
+                value: "skip",
+                label: "Skip for now",
+                detail:
+                  "Leave Codex unbound for now and continue with another provider.",
+              },
+            ],
+            linkedAccounts.codex.nativeReady ? "skip" : "login",
+          );
 
-        if (codexPath === "login") {
-          runInteractiveCommand("codex", ["login"], "Codex login");
-          linkedAccounts = getLinkedProviderAccountsSnapshot();
-          useLinkedCodexAuth = Boolean(linkedAccounts.codex.nativeReady);
-          if (!linkedAccounts.codex.nativeReady) {
-            warn(
-              "Codex login completed, but I still cannot detect reusable native auth material.",
-            );
-            const keepCodex = await askYesNo(
+          if (codexPath === "login") {
+            runInteractiveCommand("codex", ["login"], "Codex login");
+            linkedAccounts = getLinkedProviderAccountsSnapshot();
+            useLinkedCodexAuth = Boolean(linkedAccounts.codex.nativeReady);
+            if (!linkedAccounts.codex.nativeReady) {
+              warn(
+                "Codex login completed, but I still cannot detect reusable native auth material.",
+              );
+              const keepCodex = await askYesNo(
+                rl,
+                "Should I keep Codex selected anyway and let you reconnect it later from `/accounts connect codex`",
+                false,
+              );
+              if (!keepCodex) {
+                provider = "openai";
+                useLinkedCodexAuth = false;
+              }
+            } else {
+              useLinkedCodexAuth = true;
+            }
+          } else if (!linkedAccounts.codex.nativeReady) {
+            const switchProvider = await askYesNo(
               rl,
-              "Should I keep Codex selected anyway and let you connect it later from `/accounts connect codex`",
-              false,
+              "Codex is not bound yet. Should I switch to OpenAI so I can finish waking up with a working provider",
+              true,
             );
-            if (!keepCodex) {
+            if (switchProvider) {
               provider = "openai";
               useLinkedCodexAuth = false;
             }
-          } else {
-            useLinkedCodexAuth = true;
-          }
-        } else if (!linkedAccounts.codex.nativeReady) {
-          const switchProvider = await askYesNo(
-            rl,
-            "Codex is not bound yet. Should I switch to OpenAI instead so I can finish waking with a working provider",
-            true,
-          );
-          if (switchProvider) {
-            provider = "openai";
-            useLinkedCodexAuth = false;
           }
         }
       }
 
       if (provider === "claude-code") {
-        section(
-          "Claude Bond",
-          "Choose how I should bind to Claude Code. Native auth comes first; local CLI fallback is only the escape hatch.",
-        );
-        const claudePath = await chooseOne<
-          "login" | "setup-token" | "local-cli-fallback" | "skip"
-        >(
-          rl,
-          "How should I bind to Claude Code:",
-          [
-            {
-              value: "login",
-              label: "Claude auth login",
-              detail:
-                "Recommended first step. Use the official Claude Code login flow and then let me detect native credentials.",
-            },
-            {
-              value: "setup-token",
-              label: "Claude setup-token",
-              detail:
-                "Best native path for Eliza-owned execution. Generate a Claude token and bind it directly into my runtime.",
-            },
-            {
-              value: "local-cli-fallback",
-              label: "Use local Claude session",
-              detail:
-                "Only choose this if you do not want native auth material. I will call the local Claude CLI as a fallback.",
-            },
-            {
-              value: "skip",
-              label: "Skip for now",
-              detail: "Leave Claude unbound for now.",
-            },
-          ],
-          claudeCodeCliFallback
-            ? "local-cli-fallback"
-            : claudeCodeOauthToken
-              ? "setup-token"
-              : "login",
-        );
-
-        if (claudePath === "login") {
-          runInteractiveCommand(
-            "claude",
-            ["auth", "login"],
-            "Claude auth login",
+        if (linkedAccounts.claudeCode.nativeReady && useLinkedClaudeCodeAuth) {
+          section(
+            "Claude Bond",
+            "Claude Code is already bound with native credentials. I can keep that path and move on.",
           );
-          linkedAccounts = getLinkedProviderAccountsSnapshot();
-          useLinkedClaudeCodeAuth = linkedAccounts.claudeCode.reusable;
-          if (!getLinkedProviderAccountsSnapshot().claudeCode.reusable) {
-            const continueNative = await askYesNo(
-              rl,
-              "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now",
-              true,
-            );
-            if (continueNative) {
-              runInteractiveCommand(
-                "claude",
-                ["setup-token"],
-                "Claude setup-token",
-              );
-              claudeCodeOauthToken = await askSecret(
-                rl,
-                "Paste the Claude setup token I should bind",
-                claudeCodeOauthToken,
-              );
-              useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
-            } else {
-              claudeCodeCliFallback = await askYesNo(
-                rl,
-                "Should I use the local signed-in Claude CLI as a fallback instead",
-                false,
-              );
-              useLinkedClaudeCodeAuth = claudeCodeCliFallback;
-            }
-          }
-        } else if (claudePath === "setup-token") {
-          runInteractiveCommand(
-            "claude",
-            ["setup-token"],
-            "Claude setup-token",
+          info(
+            "Detected reusable native Claude Code auth. No extra binding step needed.",
           );
-          claudeCodeOauthToken = await askSecret(
+        } else {
+          section(
+            "Claude Bond",
+            "Choose how I should bind to Claude Code. Native auth comes first; local CLI fallback is only the escape hatch.",
+          );
+          const claudePath = await chooseOne<
+            "login" | "setup-token" | "local-cli-fallback" | "skip"
+          >(
             rl,
-            "Paste the Claude setup token I should bind",
-            claudeCodeOauthToken,
+            "How should I complete the Claude bond?",
+            [
+              {
+                value: "login",
+                label: "Claude auth login",
+                detail:
+                  "Recommended first step. Use the official Claude Code login flow and then let me detect native credentials.",
+              },
+              {
+                value: "setup-token",
+                label: "Claude setup-token",
+                detail:
+                  "Best native path for Eliza-owned execution. Generate a Claude token and bind it directly into my runtime.",
+              },
+              {
+                value: "local-cli-fallback",
+                label: "Use local Claude session",
+                detail:
+                  "Only choose this if you do not want native auth material. I will call the local Claude CLI as a fallback.",
+              },
+              {
+                value: "skip",
+                label: "Skip for now",
+                detail: "Leave Claude unbound for now.",
+              },
+            ],
+            claudeCodeCliFallback
+              ? "local-cli-fallback"
+              : claudeCodeOauthToken
+                ? "setup-token"
+                : "login",
           );
-          useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
-        } else if (claudePath === "local-cli-fallback") {
-          claudeCodeCliFallback = true;
-          useLinkedClaudeCodeAuth = true;
+
+          if (claudePath === "login") {
+            runInteractiveCommand(
+              "claude",
+              ["auth", "login"],
+              "Claude auth login",
+            );
+            linkedAccounts = getLinkedProviderAccountsSnapshot();
+            useLinkedClaudeCodeAuth = linkedAccounts.claudeCode.reusable;
+            if (!getLinkedProviderAccountsSnapshot().claudeCode.reusable) {
+              const continueNative = await askYesNo(
+                rl,
+                "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now",
+                true,
+              );
+              if (continueNative) {
+                runInteractiveCommand(
+                  "claude",
+                  ["setup-token"],
+                  "Claude setup-token",
+                );
+                claudeCodeOauthToken = await askSecret(
+                  rl,
+                  "Paste the Claude setup token I should bind",
+                  claudeCodeOauthToken,
+                );
+                useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
+              } else {
+                claudeCodeCliFallback = await askYesNo(
+                  rl,
+                  "Should I use the local signed-in Claude CLI as a fallback instead",
+                  false,
+                );
+                useLinkedClaudeCodeAuth = claudeCodeCliFallback;
+              }
+            }
+          } else if (claudePath === "setup-token") {
+            runInteractiveCommand(
+              "claude",
+              ["setup-token"],
+              "Claude setup-token",
+            );
+            claudeCodeOauthToken = await askSecret(
+              rl,
+              "Paste the Claude setup token I should bind",
+              claudeCodeOauthToken,
+            );
+            useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
+          } else if (claudePath === "local-cli-fallback") {
+            claudeCodeCliFallback = true;
+            useLinkedClaudeCodeAuth = true;
+          }
         }
       }
 
@@ -2352,8 +2415,8 @@ async function runWizard(
         openaiModel = await ask(
           rl,
           provider === "codex"
-            ? "Choose my primary Codex model"
-            : "Choose my primary OpenAI model",
+            ? "Which Codex model should lead my first sessions"
+            : "Which OpenAI model should lead my first sessions",
           openaiModel,
         );
       }
@@ -2372,8 +2435,8 @@ async function runWizard(
         anthropicModel = await ask(
           rl,
           provider === "claude-code"
-            ? "Choose my primary Claude Code model"
-            : "Choose my primary Anthropic model",
+            ? "Which Claude Code model should lead my first sessions"
+            : "Which Anthropic model should lead my first sessions",
           anthropicModel,
         );
       }
@@ -2545,7 +2608,7 @@ async function runWizard(
         );
         pairingMode = await chooseOne<PairingMode>(
           rl,
-          "How should I handle first contact:",
+          "How should I greet new arrivals:",
           [
             {
               value: "pair",
@@ -2568,7 +2631,7 @@ async function runWizard(
         );
         allowAllUsers = await askYesNo(
           rl,
-          "Should I trust everyone on remote channels by default?",
+          "Should I trust everyone on remote channels by default",
           allowAllUsers,
         );
         if (transports.includes("telegram")) {
@@ -2613,14 +2676,14 @@ async function runWizard(
 
       section(
         "Hands",
-        "Bind the deeper tools and protocols I should wake up with.",
+        "Choose the tools, bridges, and protocols I should wake up holding.",
       );
       const tools = {
         mcp:
           mode === "ritual"
             ? await askYesNo(
                 rl,
-                "Should I wake up with MCP already bound?",
+                "Should I wake up with an MCP bridge already bound",
                 Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
               )
             : Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
@@ -2628,7 +2691,7 @@ async function runWizard(
           mode === "ritual"
             ? await askYesNo(
                 rl,
-                "Should I wake up with ACP and editor presence?",
+                "Should I wake up with ACP and editor presence",
                 Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
               )
             : Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
@@ -2636,7 +2699,7 @@ async function runWizard(
           mode === "ritual"
             ? await askYesNo(
                 rl,
-                "Should I speak on first boot if you have a FAL key?",
+                "Should I speak on first boot if you have a FAL key",
                 Boolean(existingEnv.get("FAL_API_KEY")),
               )
             : Boolean(existingEnv.get("FAL_API_KEY")),
@@ -2644,7 +2707,7 @@ async function runWizard(
           mode === "ritual"
             ? await askYesNo(
                 rl,
-                "Should I wake up with codegen, research, and E2B online?",
+                "Should I wake up with codegen, research, and E2B online",
                 Boolean(
                   existingEnv.get("E2B_API_KEY") ||
                     existingEnv.get("GITHUB_TOKEN"),
@@ -2665,7 +2728,7 @@ async function runWizard(
         if (!mcpServerCommand) {
           const mcpPreset = await chooseOne(
             rl,
-            "How should I bind MCP on first boot?",
+            "How should I open my MCP bridge on first boot?",
             [
               {
                 value: "filesystem",
@@ -2704,7 +2767,7 @@ async function runWizard(
         if (!acpServerCommand) {
           const acpPreset = await chooseOne(
             rl,
-            "How should I present myself to ACP-aware editors?",
+            "How should I appear to ACP-aware editors?",
             [
               {
                 value: "local-agent",
@@ -2801,7 +2864,7 @@ async function runWizard(
 
       const confirm = await askYesNo(
         rl,
-        "Should I seal this configuration and wake with it",
+        "Should I seal this configuration and wake up with it",
         true,
       );
       if (!confirm) {

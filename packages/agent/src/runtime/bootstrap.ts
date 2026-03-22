@@ -66,6 +66,7 @@ function buildPluginSettings(
     ANTHROPIC_SMALL_MODEL: config.anthropicSmallModel,
     ANTHROPIC_LARGE_MODEL: config.anthropicLargeModel,
     SECRET_SALT: ensureSecretSalt(config),
+    PGLITE_DATA_DIR: join(config.dataDir, "pglite"),
   };
 
   const modelProvider = runtimeSettings.model.provider;

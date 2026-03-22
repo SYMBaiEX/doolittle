@@ -4,7 +4,12 @@ import blessed from "blessed";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
-import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
+import {
+  COMMAND_CATALOG,
+  canonicalizeSlashCommandSyntax,
+  normalizeSlashCommandSyntax,
+  suggestCommands,
+} from "@/runtime/command-catalog";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
@@ -47,26 +52,30 @@ function formatJson(value: unknown): string {
 
 function compactJsonLine(value: unknown): string {
   const raw = JSON.stringify(value);
-  return raw.length > 180 ? `${raw.slice(0, 177)}...` : raw;
+  return raw.length > 320 ? `${raw.slice(0, 317)}...` : raw;
 }
 
 function compactPreview(text: string): string {
   if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
-    return truncate(text, 180);
+    return truncate(text, 320);
   }
 
   try {
     return compactJsonLine(JSON.parse(text) as unknown);
   } catch {
-    return truncate(text, 180);
+    return truncate(text, 320);
   }
 }
 
-function truncate(text: string, max = 280): string {
+function truncate(text: string, max = 520): string {
   const normalized = text.replace(/\s+/gu, " ").trim();
   return normalized.length > max
     ? `${normalized.slice(0, Math.max(0, max - 3))}...`
     : normalized;
+}
+
+function escapeBlessed(text: string): string {
+  return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
 }
 
 function toneTag(tone: CliExecutionResult["tone"]): string {
@@ -85,6 +94,7 @@ function toneTag(tone: CliExecutionResult["tone"]): string {
 }
 
 function buildHelpText(agentName: string): string {
+  const command = (value: string) => canonicalizeSlashCommandSyntax(value);
   return [
     `${agentName} TUI shortcuts`,
     "",
@@ -96,40 +106,43 @@ function buildHelpText(agentName: string): string {
     "  Ctrl-G           Switch to Gateway control deck",
     "  Ctrl-P           Open command palette",
     "  Ctrl-E           Open multiline composer",
+    "  Ctrl-S           Focus last response",
     "  Alt-1..Alt-4     Switch control deck mode (Assist/Ecosystem/Gateway/Responses)",
     "  Tab              Complete the top suggested command",
-    "  PageUp/PageDown  Scroll activity",
+    "  PageUp/PageDown  Scroll the focused pane",
     "  Up/Down          Command history in input",
     "",
     "Hotkeys:",
     "  F2  /status",
-    "  F3  /tools summary",
-    "  F4  /delegate overview",
-    "  F5  /gateway readiness",
-    "  F6  /sessions list",
+    `  F3  ${command("/tools summary")}`,
+    `  F4  ${command("/delegate overview")}`,
+    `  F5  ${command("/gateway readiness")}`,
+    `  F6  ${command("/sessions list")}`,
     "  F7  /doctor",
-    "  F8  /runtime plugins",
-    "  F9  /runtime ecosystem",
-    "  F10 /gateway history limit:10",
-    "  F11 /gateway supervision",
-    "  F12 /responses list",
-    "  Shift-F12 /runtime transports",
+    `  F8  ${command("/runtime plugins")}`,
+    `  F9  ${command("/runtime ecosystem")}`,
+    `  F10 ${command("/gateway history limit:10")}`,
+    `  F11 ${command("/gateway supervision")}`,
+    `  F12 ${command("/responses list")}`,
+    `  Shift-F12 ${command("/runtime transports")}`,
     "  Ctrl-T           Next theme",
     "  Ctrl-Y           Previous theme",
     "",
     "Examples:",
-    "  /skills list",
-    "  /execution status",
-    "  /theme list",
-    "  /theme set ghost",
-    "  /theme next",
-    "  /transport inventory",
-    "  /transport show telegram",
-    "  /transport mismatches",
+    `  ${command("/skills list")}`,
+    `  ${command("/execution status")}`,
+    `  ${command("/theme list")}`,
+    `  ${command("/theme set ghost")}`,
+    `  ${command("/theme next")}`,
+    `  ${command("/transport inventory")}`,
+    `  ${command("/transport show telegram")}`,
+    `  ${command("/transport mismatches")}`,
     "  /browser capture https://example.com",
     "  /media analyze ./recordings/demo.wav",
-    "  /delegate create Research spike :: validate a transport path",
-    "  /trajectories ingest gateway label:review limit:100",
+    `  ${command("/delegate create Research spike :: validate a transport path")}`,
+    `  ${command("/trajectories ingest gateway label:review limit:100")}`,
+    "  !git status",
+    "  !uname -a",
   ].join("\n");
 }
 
@@ -227,66 +240,66 @@ function applyLayout(
   } else if (compact) {
     layout.activity.top = 3;
     layout.activity.left = 0;
-    layout.activity.width = "62%";
-    layout.activity.height = short ? "64%-1" : "68%-1";
+    layout.activity.width = "64%";
+    layout.activity.height = short ? "58%-1" : "62%-1";
 
-    layout.response.top = short ? "64%+2" : "68%+2";
+    layout.response.top = short ? "58%+2" : "62%+2";
     layout.response.left = 0;
-    layout.response.width = "62%";
-    layout.response.height = short ? "26%-2" : "22%-2";
+    layout.response.width = "64%";
+    layout.response.height = short ? "32%-2" : "28%-2";
 
     // Right-rail: total reduced from 88% → 81% (non-short) / 70% (short)
     // so assistBox clears the input row at H≥34.
     layout.sidebar.top = 3;
-    layout.sidebar.left = "62%";
-    layout.sidebar.width = "38%";
+    layout.sidebar.left = "64%";
+    layout.sidebar.width = "36%";
     layout.sidebar.height = short ? "22%" : "26%";
 
     layout.transportBox.top = short ? "22%+3" : "26%+3";
-    layout.transportBox.left = "62%";
-    layout.transportBox.width = "38%";
+    layout.transportBox.left = "64%";
+    layout.transportBox.width = "36%";
     layout.transportBox.height = short ? "18%" : "20%";
 
     layout.executionBox.top = short ? "40%+3" : "46%+3";
-    layout.executionBox.left = "62%";
-    layout.executionBox.width = "38%";
+    layout.executionBox.left = "64%";
+    layout.executionBox.width = "36%";
     layout.executionBox.height = short ? "15%" : "17%";
 
     layout.assistBox.top = short ? "55%+3" : "63%+3";
-    layout.assistBox.left = "62%";
-    layout.assistBox.width = "38%";
+    layout.assistBox.left = "64%";
+    layout.assistBox.width = "36%";
     layout.assistBox.height = short ? "15%-1" : "17%-1";
   } else {
     layout.activity.top = 3;
     layout.activity.left = 0;
-    layout.activity.width = "68%";
-    layout.activity.height = "70%-1";
+    layout.activity.width = "70%";
+    layout.activity.height = "60%-1";
 
-    layout.response.top = "70%+2";
+    layout.response.top = "60%+2";
     layout.response.left = 0;
-    layout.response.width = "68%";
-    layout.response.height = "30%-2";
+    layout.response.width = "70%";
+    layout.response.height = "40%-2";
 
     // Right-rail: total reduced from 88% → 79% (non-short) / 67% (short)
     // so assistBox clears the input row at H≥34.
     layout.sidebar.top = 3;
-    layout.sidebar.left = "68%";
-    layout.sidebar.width = "32%";
+    layout.sidebar.left = "70%";
+    layout.sidebar.width = "30%";
     layout.sidebar.height = short ? "22%" : "27%";
 
     layout.transportBox.top = short ? "22%+3" : "27%+3";
-    layout.transportBox.left = "68%";
-    layout.transportBox.width = "32%";
+    layout.transportBox.left = "70%";
+    layout.transportBox.width = "30%";
     layout.transportBox.height = short ? "17%" : "20%";
 
     layout.executionBox.top = short ? "39%+3" : "47%+3";
-    layout.executionBox.left = "68%";
-    layout.executionBox.width = "32%";
+    layout.executionBox.left = "70%";
+    layout.executionBox.width = "30%";
     layout.executionBox.height = short ? "14%" : "16%";
 
     layout.assistBox.top = short ? "53%+3" : "63%+3";
-    layout.assistBox.left = "68%";
-    layout.assistBox.width = "32%";
+    layout.assistBox.left = "70%";
+    layout.assistBox.width = "30%";
     layout.assistBox.height = short ? "14%-1" : "16%-1";
   }
 
@@ -455,7 +468,7 @@ async function renderTransportContent(context: AppContext): Promise<string> {
       : ["{gray-fg}No transport inventory available.{/}"]),
     "",
     "{bold}Drill-Down{/}",
-    "Try /transport show telegram for a single-platform view.",
+    `Try ${canonicalizeSlashCommandSyntax("/transport show telegram")} for a single-platform view.`,
     "",
     "{bold}Recent Gateway Traces{/}",
     ...(traces.length
@@ -493,23 +506,17 @@ async function renderTransportContent(context: AppContext): Promise<string> {
 }
 
 async function renderExecutionContent(context: AppContext): Promise<string> {
-  const health = await context.services.terminal.health();
   const recent = context.services.terminal.recent(4);
   const delegation = context.services.delegation.overview();
   const pipeline = context.services.autocoderPipeline.summary();
   const pipelineRuns = context.services.autocoderPipeline.list(4);
   const pipelineWorkflows = context.services.autocoderPipeline.listWorkflows(3);
+  const settings = context.services.settings.get();
 
   return [
     "{bold}Execution Backends{/}",
-    ...health
-      .slice(0, 4)
-      .map(
-        (entry) =>
-          `- ${entry.backend} ${
-            entry.ready ? "{green-fg}ready{/}" : "{red-fg}blocked{/}"
-          }`,
-      ),
+    `Configured: {cyan-fg}${settings.execution.backend}{/}`,
+    `Deep backend diagnostics: ${canonicalizeSlashCommandSyntax("/execution status")}`,
     "",
     "{bold}Recent Commands{/}",
     ...(recent.length
@@ -583,6 +590,7 @@ async function executeCliInput(
   hooks?: CliExecutionHooks,
 ): Promise<CliExecutionResult> {
   const trimmed = line.trim();
+  const normalizedTrimmed = normalizeSlashCommandSyntax(trimmed);
 
   if (!trimmed) {
     return { text: "", tone: "info" };
@@ -594,23 +602,86 @@ async function executeCliInput(
       shouldExit: true,
     };
   }
-  if (trimmed === "/help") {
+  if (normalizedTrimmed === "/help") {
     return { text: buildHelpText(context.config.agentName), tone: "info" };
   }
 
-  if (trimmed === "/gateway start") {
+  if (trimmed.startsWith("!")) {
+    const command = trimmed.slice(1).trim();
+    if (!command) {
+      return { text: "Usage: !<shell command>", tone: "warning" };
+    }
+    const result = await context.services.terminal.runStreamingLocal(command, {
+      onStdout: (chunk) => {
+        hooks?.onStream?.({
+          source: "stdout",
+          chunk,
+          command,
+        });
+      },
+      onStderr: (chunk) => {
+        hooks?.onStream?.({
+          source: "stderr",
+          chunk,
+          command,
+        });
+      },
+    });
+    return {
+      text: [
+        `$ ${result.command}`,
+        "",
+        result.stdout || "(no stdout)",
+        result.stderr ? `\n[stderr]\n${result.stderr}` : "",
+        `\nexit=${result.exitCode} duration=${result.durationMs ?? "n/a"}ms`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      tone: result.exitCode === 0 ? "success" : "warning",
+    };
+  }
+
+  const localFirstCommands = [
+    "/gateway start",
+    "/gateway stop",
+    "/gateway status",
+    "/terminal run ",
+  ];
+  const shouldRouteThroughRuntime =
+    normalizedTrimmed.startsWith("/") &&
+    !localFirstCommands.some((command) =>
+      normalizedTrimmed.startsWith(command),
+    );
+
+  if (shouldRouteThroughRuntime) {
+    const response = await handleAgentTurn(
+      {
+        message: normalizedTrimmed,
+        userId: "local-user",
+        roomId: state.activeSessionId,
+        source: "cli",
+      },
+      context,
+    );
+    return { text: response, tone: "info" };
+  }
+
+  if (normalizedTrimmed === "/gateway start") {
     await context.gateway.start();
     return { text: "Gateway started.", tone: "success" };
   }
-  if (trimmed === "/gateway stop") {
+  if (normalizedTrimmed === "/gateway stop") {
     await context.gateway.stop();
     return { text: "Gateway stopped.", tone: "warning" };
   }
-  if (trimmed === "/gateway status") {
+  if (normalizedTrimmed === "/gateway status") {
     const health = await context.gateway.health();
     return { text: formatJson(health), tone: "info" };
   }
-  if (trimmed === "/runtime ecosystem" || trimmed === "/plugins ecosystem") {
+  if (
+    normalizedTrimmed === "/runtime ecosystem" ||
+    normalizedTrimmed === "/plugins ecosystem"
+  ) {
     return {
       text: formatJson({
         runtime: getNativePackageAudit(context.config).runtime,
@@ -619,7 +690,7 @@ async function executeCliInput(
       tone: "info",
     };
   }
-  if (trimmed === "/runtime status") {
+  if (normalizedTrimmed === "/runtime status") {
     return {
       text: formatJson({
         provider: context.services.settings.get().model.provider,
@@ -634,30 +705,30 @@ async function executeCliInput(
       tone: "info",
     };
   }
-  if (trimmed === "/gateway config") {
+  if (normalizedTrimmed === "/gateway config") {
     return {
       text: formatJson(context.services.gatewayConfig),
       tone: "info",
     };
   }
-  if (trimmed === "/gateway supervision") {
+  if (normalizedTrimmed === "/gateway supervision") {
     return {
       text: formatJson(context.gateway.supervision(20)),
       tone: "info",
     };
   }
-  if (trimmed === "/gateway daemon") {
+  if (normalizedTrimmed === "/gateway daemon") {
     return {
       text: formatJson(context.gateway.runtimeStatus().daemon),
       tone: "info",
     };
   }
-  if (trimmed === "/gateway journal") {
+  if (normalizedTrimmed === "/gateway journal") {
     const history = await context.gateway.history(10);
     return { text: formatJson(history), tone: "info" };
   }
-  if (trimmed.startsWith("/gateway replay ")) {
-    const raw = trimmed.replace("/gateway replay ", "").trim();
+  if (normalizedTrimmed.startsWith("/gateway replay ")) {
+    const raw = normalizedTrimmed.replace("/gateway replay ", "").trim();
     const target =
       raw === "latest" ? context.gateway.inbox(1).at(0)?.recordId : raw;
     if (!target) {
@@ -671,14 +742,14 @@ async function executeCliInput(
       tone: "success",
     };
   }
-  if (trimmed === "/responses list") {
+  if (normalizedTrimmed === "/responses list") {
     return {
       text: formatJson(context.services.apiTransport.list(20)),
       tone: "info",
     };
   }
-  if (trimmed.startsWith("/responses show ")) {
-    const id = trimmed.replace("/responses show ", "").trim();
+  if (normalizedTrimmed.startsWith("/responses show ")) {
+    const id = normalizedTrimmed.replace("/responses show ", "").trim();
     if (!id) {
       return { text: "Usage: /responses show <id>", tone: "warning" };
     }
@@ -687,16 +758,16 @@ async function executeCliInput(
       ? { text: formatJson(record), tone: "info" }
       : { text: `Response ${id} not found.`, tone: "warning" };
   }
-  if (trimmed.startsWith("/pdf extract ")) {
-    const path = trimmed.replace("/pdf extract ", "").trim();
+  if (normalizedTrimmed.startsWith("/pdf extract ")) {
+    const path = normalizedTrimmed.replace("/pdf extract ", "").trim();
     if (!path) {
       return { text: "Usage: /pdf extract <path>", tone: "warning" };
     }
     const extracted = await context.services.documents.extractPdfFromPath(path);
     return { text: extracted, tone: "agent" };
   }
-  if (trimmed.startsWith("/gateway receive ")) {
-    const payload = trimmed.replace("/gateway receive ", "");
+  if (normalizedTrimmed.startsWith("/gateway receive ")) {
+    const payload = normalizedTrimmed.replace("/gateway receive ", "");
     const [head, text] = payload.split("::").map((part) => part.trim());
     const [platform, userId, roomId] = head.split(/\s+/u);
     if (!platform || !userId || !roomId || !text) {
@@ -713,27 +784,27 @@ async function executeCliInput(
     });
     return { text: formatJson(result), tone: "info" };
   }
-  if (trimmed === "/pairing pending") {
+  if (normalizedTrimmed === "/pairing pending") {
     return {
       text: formatJson(context.services.pairing.listPending()),
       tone: "info",
     };
   }
-  if (trimmed.startsWith("/pairing approve ")) {
-    const [, , platform, code] = trimmed.split(/\s+/u);
+  if (normalizedTrimmed.startsWith("/pairing approve ")) {
+    const [, , platform, code] = normalizedTrimmed.split(/\s+/u);
     const approved = context.services.pairing.approve(platform as never, code);
     return { text: formatJson(approved), tone: "success" };
   }
-  if (trimmed.startsWith("/pairing deny ")) {
-    const [, , platform, code] = trimmed.split(/\s+/u);
+  if (normalizedTrimmed.startsWith("/pairing deny ")) {
+    const [, , platform, code] = normalizedTrimmed.split(/\s+/u);
     const denied = context.services.pairing.deny(platform as never, code);
     return { text: formatJson(denied), tone: "warning" };
   }
-  if (trimmed === "/hooks list") {
+  if (normalizedTrimmed === "/hooks list") {
     return { text: formatJson(context.services.hooks.list()), tone: "info" };
   }
-  if (trimmed.startsWith("/hooks add ")) {
-    const payload = trimmed.replace("/hooks add ", "");
+  if (normalizedTrimmed.startsWith("/hooks add ")) {
+    const payload = normalizedTrimmed.replace("/hooks add ", "");
     const [head, template] = payload.split("::").map((part) => part.trim());
     const [event, ...nameParts] = head.split(/\s+/u);
     const name = nameParts.join(" ") || event;
@@ -751,19 +822,19 @@ async function executeCliInput(
     });
     return { text: formatJson(hook), tone: "success" };
   }
-  if (trimmed === "/hooks recent") {
+  if (normalizedTrimmed === "/hooks recent") {
     return {
       text: formatJson(context.services.hooks.recentInvocations()),
       tone: "info",
     };
   }
-  if (trimmed === "/sessions gateway") {
+  if (normalizedTrimmed === "/sessions gateway") {
     return {
       text: formatJson(context.services.gatewaySessions.list()),
       tone: "info",
     };
   }
-  if (trimmed === "/resume") {
+  if (normalizedTrimmed === "/resume") {
     const titled = context.services.sessions.listTitled(10);
     return {
       text: titled.length
@@ -777,8 +848,8 @@ async function executeCliInput(
       tone: "info",
     };
   }
-  if (trimmed.startsWith("/resume ")) {
-    const query = trimmed.replace("/resume ", "").trim();
+  if (normalizedTrimmed.startsWith("/resume ")) {
+    const query = normalizedTrimmed.replace("/resume ", "").trim();
     const target = context.services.sessions.resolveByTitle(query);
     if (!target) {
       return {
@@ -793,8 +864,8 @@ async function executeCliInput(
     };
   }
 
-  if (trimmed.startsWith("/title ")) {
-    const title = trimmed.replace("/title ", "").trim();
+  if (normalizedTrimmed.startsWith("/title ")) {
+    const title = normalizedTrimmed.replace("/title ", "").trim();
     if (!title) {
       return { text: "Usage: /title <name>", tone: "warning" };
     }
@@ -808,8 +879,8 @@ async function executeCliInput(
     };
   }
 
-  if (trimmed.startsWith("/terminal run ")) {
-    const command = trimmed.replace("/terminal run ", "").trim();
+  if (normalizedTrimmed.startsWith("/terminal run ")) {
+    const command = normalizedTrimmed.replace("/terminal run ", "").trim();
     if (!command) {
       return { text: "Usage: /terminal run <command>", tone: "warning" };
     }
@@ -842,7 +913,7 @@ async function executeCliInput(
 
   const response = await handleAgentTurn(
     {
-      message: trimmed,
+      message: normalizedTrimmed,
       userId: "local-user",
       roomId: state.activeSessionId,
       source: "cli",
@@ -864,7 +935,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
-    'Type "exit" to quit. Try /help, /status, /transport inventory, /transport mismatches, /gateway readiness, /runtime plugins, or /delegate overview.\n\n',
+    `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
   );
 
   while (true) {
@@ -977,6 +1048,7 @@ function renderFooter(
     "{magenta-fg}Tab{/} complete",
     "{cyan-fg}Ctrl-P{/} palette",
     "{cyan-fg}Ctrl-E{/} compose",
+    "{cyan-fg}!cmd{/} shell",
     "{cyan-fg}Ctrl-T/Y{/} theme",
     "{cyan-fg}Alt-1..4{/} deck",
     "Esc input",
@@ -1346,6 +1418,23 @@ async function startTui(context: AppContext): Promise<void> {
     screen.render();
   }
 
+  function scrollFocusedPane(delta: number): void {
+    const target =
+      screen.focused === response
+        ? response
+        : screen.focused === sidebar
+          ? sidebar
+          : screen.focused === transportBox
+            ? transportBox
+            : screen.focused === executionBox
+              ? executionBox
+              : screen.focused === assistBox
+                ? assistBox
+                : activity;
+    target.scroll(delta);
+    screen.render();
+  }
+
   function focusAt(index: number): void {
     syncFocusIndexFromCurrentFocus();
     focusIndex = (index + focusables.length) % focusables.length;
@@ -1506,7 +1595,7 @@ async function startTui(context: AppContext): Promise<void> {
     tone: CliExecutionResult["tone"],
   ): void {
     activity.log(
-      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {bold}${kind}{/bold} ${message}`,
+      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {bold}${kind}{/bold} ${escapeBlessed(message)}`,
     );
   }
 
@@ -1580,15 +1669,15 @@ async function startTui(context: AppContext): Promise<void> {
           const current = response.getContent();
           response.setContent(
             current?.trim()
-              ? `${current}\n${source.toUpperCase()}: ${streamed}`
-              : `${source.toUpperCase()}: ${streamed}`,
+              ? `${current}\n${source.toUpperCase()}: ${escapeBlessed(streamed)}`
+              : `${source.toUpperCase()}: ${escapeBlessed(streamed)}`,
           );
           screen.render();
         },
       });
       await syncThemeFromSettings();
       if (result.text) {
-        response.setContent(result.text);
+        response.setContent(escapeBlessed(result.text));
         appendActivity(
           result.tone === "agent" ? "agent" : "out",
           compactPreview(result.text),
@@ -1601,7 +1690,7 @@ async function startTui(context: AppContext): Promise<void> {
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      response.setContent(`Error: ${detail}`);
+      response.setContent(escapeBlessed(`Error: ${detail}`));
       appendActivity("err", detail, "error");
     } finally {
       busy = false;
@@ -1771,11 +1860,15 @@ async function startTui(context: AppContext): Promise<void> {
     }
     openComposer(inputBox.getValue());
   });
+  screen.key(["C-s"], () => {
+    response.focus();
+    screen.render();
+  });
   screen.key(["C-t"], () => {
-    queueCommand("/theme next");
+    queueCommand(canonicalizeSlashCommandSyntax("/theme next"));
   });
   screen.key(["C-y"], () => {
-    queueCommand("/theme prev");
+    queueCommand(canonicalizeSlashCommandSyntax("/theme prev"));
   });
   screen.key(["tab"], () => {
     if (composerOpen) {
@@ -1844,24 +1937,22 @@ async function startTui(context: AppContext): Promise<void> {
     void refreshPanels();
   });
   screen.key(["pageup"], () => {
-    activity.scroll(-8);
-    screen.render();
+    scrollFocusedPane(-8);
   });
   screen.key(["pagedown"], () => {
-    activity.scroll(8);
-    screen.render();
+    scrollFocusedPane(8);
   });
   screen.key(["enter"], () => {
     if (screen.focused === sidebar) {
-      queueCommand("/sessions list");
+      queueCommand(canonicalizeSlashCommandSyntax("/sessions list"));
       return;
     }
     if (screen.focused === transportBox) {
-      queueCommand("/gateway readiness");
+      queueCommand(canonicalizeSlashCommandSyntax("/gateway readiness"));
       return;
     }
     if (screen.focused === executionBox) {
-      queueCommand("/execution status");
+      queueCommand(canonicalizeSlashCommandSyntax("/execution status"));
       return;
     }
     if (screen.focused === assistBox) {
@@ -1873,29 +1964,29 @@ async function startTui(context: AppContext): Promise<void> {
         return;
       }
       if (controlDeckMode === "ecosystem") {
-        queueCommand("/runtime ecosystem");
+        queueCommand(canonicalizeSlashCommandSyntax("/runtime ecosystem"));
         return;
       }
       if (controlDeckMode === "gateway") {
-        queueCommand("/gateway supervision");
+        queueCommand(canonicalizeSlashCommandSyntax("/gateway supervision"));
         return;
       }
-      queueCommand("/responses list");
+      queueCommand(canonicalizeSlashCommandSyntax("/responses list"));
     }
   });
 
   const hotkeys: Array<[string[], string]> = [
     [["f2"], "/status"],
-    [["f3"], "/tools summary"],
-    [["f4"], "/delegate overview"],
-    [["f5"], "/gateway readiness"],
-    [["f6"], "/sessions list"],
+    [["f3"], canonicalizeSlashCommandSyntax("/tools summary")],
+    [["f4"], canonicalizeSlashCommandSyntax("/delegate overview")],
+    [["f5"], canonicalizeSlashCommandSyntax("/gateway readiness")],
+    [["f6"], canonicalizeSlashCommandSyntax("/sessions list")],
     [["f7"], "/doctor"],
-    [["f8"], "/runtime plugins"],
-    [["f9"], "/runtime ecosystem"],
-    [["f10"], "/gateway history limit:10"],
-    [["f11"], "/gateway supervision"],
-    [["f12"], "/responses list"],
+    [["f8"], canonicalizeSlashCommandSyntax("/runtime plugins")],
+    [["f9"], canonicalizeSlashCommandSyntax("/runtime ecosystem")],
+    [["f10"], canonicalizeSlashCommandSyntax("/gateway history limit:10")],
+    [["f11"], canonicalizeSlashCommandSyntax("/gateway supervision")],
+    [["f12"], canonicalizeSlashCommandSyntax("/responses list")],
     [["S-f12"], "/runtime transports"],
   ];
 
@@ -1972,11 +2063,11 @@ async function startTui(context: AppContext): Promise<void> {
   );
   appendActivity(
     "tip",
-    "Use Ctrl-E for multiline compose, /theme list to explore palettes, and streamed local terminal output will appear live in the feed.",
+    `Use Ctrl-E for multiline compose, ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes, and streamed local terminal output will appear live in the feed.`,
     "info",
   );
   response.setContent(
-    "{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, /transport inventory, /transport mismatches, /gateway readiness, /execution status, /browser capture <url>, or /delegate overview.",
+    `{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/execution status")}, ${canonicalizeSlashCommandSyntax("/browser capture <url>")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.`,
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));

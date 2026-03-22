@@ -2545,6 +2545,10 @@ export class TerminalService {
   private readonly filePath: string;
   private readonly cloudState: CloudStoreManager;
   private readonly backends: Map<ExecutionBackendName, ExecutionBackend>;
+  private healthCache?: {
+    capturedAt: number;
+    value: ExecutionBackendHealth[];
+  };
 
   constructor(
     baseDir: string,
@@ -2574,6 +2578,7 @@ export class TerminalService {
     command: string,
     timeoutMs?: number,
   ): Promise<TerminalCommandRecord> {
+    this.healthCache = undefined;
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
     const backend =
@@ -2667,6 +2672,7 @@ export class TerminalService {
     },
     timeoutMs?: number,
   ): Promise<TerminalCommandRecord> {
+    this.healthCache = undefined;
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
     if (backendName !== "local") {
@@ -2753,12 +2759,21 @@ export class TerminalService {
   }
 
   async health(): Promise<ExecutionBackendHealth[]> {
+    const now = Date.now();
+    if (this.healthCache && now - this.healthCache.capturedAt < 20_000) {
+      return this.healthCache.value;
+    }
     const settings = this.getSettings();
-    return Promise.all(
+    const value = await Promise.all(
       Array.from(this.backends.values()).map((backend) =>
         backend.health(settings, this.workspaceDir),
       ),
     );
+    this.healthCache = {
+      capturedAt: now,
+      value,
+    };
+    return value;
   }
 
   preview(command: string, timeoutMs?: number): ExecutionBackendPreview {

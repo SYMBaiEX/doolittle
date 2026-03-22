@@ -15,6 +15,22 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 1
 fi
 
+load_local_runtime_env() {
+  export PGLITE_DATA_DIR="${PGLITE_DATA_DIR:-$ROOT/.eliza-agent/pglite}"
+  mkdir -p "$PGLITE_DATA_DIR"
+
+  local env_file="$ROOT/.env"
+  if [[ -f "$env_file" ]]; then
+    if ! grep -Eq '^[[:space:]]*(DATABASE_URL|POSTGRES_URL)=' "$env_file"; then
+      unset DATABASE_URL || true
+      unset POSTGRES_URL || true
+    fi
+  else
+    unset DATABASE_URL || true
+    unset POSTGRES_URL || true
+  fi
+}
+
 ensure_onboarded() {
   if [[ ! -f "$ROOT/.eliza-agent/onboarding.json" ]]; then
     if [[ -t 0 && -t 1 ]]; then
@@ -35,6 +51,7 @@ fi
 case "$command_name" in
   start)
     ensure_onboarded
+    load_local_runtime_env
     ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" src/index.ts --cli "$@"
     ;;
   setup|onboard|bootstrap)
@@ -48,22 +65,27 @@ case "$command_name" in
     ;;
   dev)
     ensure_onboarded
+    load_local_runtime_env
     ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" dev "$@"
     ;;
   api)
     ensure_onboarded
+    load_local_runtime_env
     exec bun run --cwd "$ROOT/packages/agent" src/index.ts --api-only "$@"
     ;;
   gateway)
     ensure_onboarded
+    load_local_runtime_env
     exec bun run --cwd "$ROOT/packages/agent" src/index.ts --gateway "$@"
     ;;
   plain|plain-cli)
     ensure_onboarded
+    load_local_runtime_env
     ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" src/index.ts --plain-cli "$@"
     ;;
   *)
     ensure_onboarded
+    load_local_runtime_env
     ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" src/index.ts "$command_name" "$@"
     ;;
 esac

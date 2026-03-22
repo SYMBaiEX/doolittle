@@ -12,6 +12,24 @@ LOCAL_BIN_DIR="${HOME}/.local/bin"
 ELIZA_BIN_LINK="${LOCAL_BIN_DIR}/eliza-agent"
 ELIZA_BIN_SOURCE="${ROOT}/bin/eliza-agent"
 ELIZA_SHORT_LINK="${LOCAL_BIN_DIR}/ea"
+OS_NAME="unknown"
+
+detect_os() {
+  case "$(uname -s)" in
+    Darwin*)
+      OS_NAME="macos"
+      ;;
+    Linux*)
+      OS_NAME="linux"
+      ;;
+    CYGWIN*|MINGW*|MSYS*)
+      OS_NAME="windows"
+      ;;
+    *)
+      OS_NAME="unknown"
+      ;;
+  esac
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -52,6 +70,17 @@ printf "%s\n" \
   "${orange}║      Bun-first install and first-contact onboarding         ║${reset}" \
   "${orange}╚══════════════════════════════════════════════════════════════╝${reset}"
 printf "%s\n" "${dim}  This ritual installs the stack, seeds the workspace, and begins first contact.${reset}"
+
+detect_os
+if [[ "$OS_NAME" == "windows" ]]; then
+  echo "Windows-style shell detected. Use a Unix shell/WSL for this installer flow."
+  exit 1
+fi
+if [[ "$OS_NAME" == "macos" ]]; then
+  printf "%s\n" "${dim}  Host: macOS detected. I will use zsh-friendly defaults and local app-style paths.${reset}"
+elif [[ "$OS_NAME" == "linux" ]]; then
+  printf "%s\n" "${dim}  Host: Linux detected. I will keep the local ~/.local/bin workflow and shell-first defaults.${reset}"
+fi
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "Eliza Agent requires Bun. Install Bun first, then rerun scripts/install.sh."
@@ -162,5 +191,16 @@ printf "%s\n" "  eliza-agent doctor"
 if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
   printf "\n%s\n" "${amber}Launching Eliza Agent now...${reset}"
   printf "%s\n" "${dim}  Press Ctrl-C to return to your shell.${reset}"
-  exec "$ELIZA_BIN_LINK"
+  if "$ELIZA_BIN_LINK"; then
+    exit 0
+  fi
+  printf "\n%s\n" "${orange}${bold}The first launch tripped over something local.${reset}"
+  printf "%s\n" "${dim}  Your install is still in place. The fastest recovery steps are below.${reset}"
+  printf "%s\n" "  eliza-agent doctor"
+  printf "%s\n" "  eliza-agent plain"
+  printf "%s\n" "  eliza-agent setup"
+  if [[ "$OS_NAME" == "macos" ]]; then
+    printf "%s\n" "  If this is a new shell session issue, run: source ~/.zshrc"
+  fi
+  exit 1
 fi
