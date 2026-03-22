@@ -290,11 +290,31 @@ Copy `.env.example` to `.env` and fill in what you need.
 bash scripts/install.sh
 ```
 
-This Bun-first installer:
+This Bun-first installer now behaves more like a real onboarding ritual than a plain dependency step. It:
 
 - runs `bun install`
 - creates `.env` from `.env.example` when it does not already exist
 - seeds the local workspace directories used by the agent runtime
+- launches an interactive onboarding flow for:
+  - provider and model routing
+  - execution backend
+  - browser mode
+  - transport/channel selection
+  - MCP / ACP / TTS / codegen setup
+  - TUI theme selection
+- writes directly into:
+  - `.env`
+  - `.eliza-agent/settings.json`
+  - `.eliza-agent/gateway/gateway.json`
+  - `.eliza-agent/onboarding.json`
+
+Useful modes:
+
+```bash
+bash scripts/install.sh --headless
+bash scripts/install.sh --skip-wizard
+bash scripts/install.sh --check
+```
 
 If you only want to re-run the workspace bootstrap step, use:
 

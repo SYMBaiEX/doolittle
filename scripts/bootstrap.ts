@@ -1,10 +1,196 @@
 #!/usr/bin/env bun
 
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
+
+import {
+  DEFAULT_TUI_THEME,
+  listTuiThemes,
+  type TuiThemeName,
+} from "../packages/agent/src/runtime/theme-catalog";
+
+type ExecutionBackendName =
+  | "local"
+  | "docker"
+  | "podman"
+  | "ssh"
+  | "singularity"
+  | "daytona"
+  | "modal";
+
+type PairingMode = "pair" | "allow" | "deny";
+
+type WizardMode = "quick" | "ritual";
+type ProviderMode = "openai" | "anthropic" | "hybrid" | "offline";
+type BrowserMode = "lightpanda" | "basic";
+type TransportName =
+  | "telegram"
+  | "discord"
+  | "slack"
+  | "whatsapp"
+  | "signal"
+  | "matrix"
+  | "email"
+  | "sms"
+  | "mattermost"
+  | "homeassistant"
+  | "dingtalk";
+
+interface RuntimeSettings {
+  model: {
+    provider: string;
+    model: string;
+    baseUrl: string;
+    temperature: number;
+    maxTokens: number;
+  };
+  gateway: {
+    sessionTimeoutMinutes: number;
+    mirrorResponsesToHistory: boolean;
+  };
+  execution: {
+    backend: ExecutionBackendName;
+    remoteSyncMode: "mirror" | "snapshot";
+    remoteSyncInclude: string[];
+    remoteSyncExclude: string[];
+    remoteArtifactPaths: string[];
+    remoteArtifactPolicy: "metadata-only" | "allowlisted";
+    remoteWorkspaceLabel: string;
+    dockerImage: string;
+    dockerNetwork: string;
+    dockerWorkspacePath: string;
+    dockerEnvPassthrough: string[];
+    singularityImage: string;
+    daytonaTarget: string;
+    daytonaCommand: string;
+    daytonaShell: string;
+    daytonaWorkspacePath: string;
+    daytonaSnapshot: string;
+    daytonaBootstrapCommand: string;
+    daytonaStatusCommand: string;
+    daytonaInspectCommand: string;
+    modalTarget: string;
+    modalCommand: string;
+    modalShell: string;
+    modalWorkspacePath: string;
+    modalEnvironment: string;
+    modalBootstrapCommand: string;
+    modalStatusCommand: string;
+    modalInspectCommand: string;
+    commandTimeoutMs: number;
+    healthTimeoutMs: number;
+    containerCpuLimit: string;
+    containerMemoryLimit: string;
+    containerPidsLimit: number;
+    containerReadOnlyRoot: boolean;
+    sshHost: string;
+    sshUser: string;
+    sshPath: string;
+    sshPort: number;
+    sshKeyPath: string;
+    sshStrictHostKeyChecking: boolean;
+  };
+  mcp: {
+    serverCommand: string;
+    timeoutMs: number;
+  };
+  ui: {
+    theme: TuiThemeName;
+  };
+}
+
+interface GatewayPlatformConfig {
+  enabled: boolean;
+  allowedUserIds: string[];
+  pairingMode: PairingMode;
+  allowAllUsers?: boolean;
+}
+
+interface GatewayConfig {
+  allowAllUsers: boolean;
+  sessionTimeoutMinutes: number;
+  mirrorResponsesToHistory: boolean;
+  platforms: Record<string, GatewayPlatformConfig>;
+}
+
+interface OnboardingSummary {
+  timestamp: string;
+  mode: WizardMode | "headless";
+  theme: TuiThemeName;
+  provider: ProviderMode;
+  backend: ExecutionBackendName;
+  browser: BrowserMode;
+  transports: TransportName[];
+  tools: {
+    mcp: boolean;
+    acp: boolean;
+    tts: boolean;
+    codegen: boolean;
+  };
+  profile: string;
+}
+
+interface BootstrapOptions {
+  checkOnly: boolean;
+  headless: boolean;
+  skipWizard: boolean;
+  yes: boolean;
+}
+
+interface WizardAnswers {
+  mode: WizardMode;
+  agentName: string;
+  timezone: string;
+  theme: TuiThemeName;
+  provider: ProviderMode;
+  backend: ExecutionBackendName;
+  browser: BrowserMode;
+  pairingMode: PairingMode;
+  allowAllUsers: boolean;
+  transports: TransportName[];
+  tools: {
+    mcp: boolean;
+    acp: boolean;
+    tts: boolean;
+    codegen: boolean;
+  };
+  openaiApiKey: string;
+  openaiModel: string;
+  anthropicApiKey: string;
+  anthropicModel: string;
+  telegramBotToken: string;
+  discordBotToken: string;
+  slackWebhookUrl: string;
+  slackSigningSecret: string;
+  homeAssistantUrl: string;
+  homeAssistantToken: string;
+  mcpServerCommand: string;
+  acpServerCommand: string;
+  falApiKey: string;
+  e2bApiKey: string;
+  githubToken: string;
+  sshHost: string;
+  sshUser: string;
+  sshPath: string;
+  daytonaTarget: string;
+  modalTarget: string;
+}
 
 const root = process.cwd();
-const checkOnly = process.argv.includes("--check");
+const args = process.argv.slice(2);
+const options: BootstrapOptions = {
+  checkOnly: args.includes("--check"),
+  headless:
+    args.includes("--headless") ||
+    args.includes("--non-interactive") ||
+    !input.isTTY ||
+    !output.isTTY,
+  skipWizard: args.includes("--skip-wizard"),
+  yes: args.includes("--yes"),
+};
 
 const directories = [
   ".eliza-agent",
@@ -14,13 +200,79 @@ const directories = [
   ".eliza-agent/remote-artifacts",
   ".eliza-agent/trajectories",
   "packages/skills/generated",
+  "packages/skill-packs-optional/generated",
 ];
+
+const envPath = join(root, ".env");
+const envExamplePath = join(root, ".env.example");
+const settingsPath = join(root, ".eliza-agent", "settings.json");
+const gatewayPath = join(root, ".eliza-agent", "gateway", "gateway.json");
+const onboardingPath = join(root, ".eliza-agent", "onboarding.json");
+
+const color = {
+  reset: "\u001b[0m",
+  dim: "\u001b[2m",
+  bold: "\u001b[1m",
+  orange: "\u001b[38;2;255;106;0m",
+  amber: "\u001b[38;2;255;176;0m",
+  cyan: "\u001b[36m",
+  green: "\u001b[32m",
+  magenta: "\u001b[35m",
+  red: "\u001b[31m",
+};
+
+function paint(value: string, tone: string): string {
+  return `${tone}${value}${color.reset}`;
+}
+
+function section(title: string, detail?: string): void {
+  console.log();
+  console.log(paint(`◆ ${title}`, color.orange + color.bold));
+  if (detail) {
+    console.log(paint(`  ${detail}`, color.dim));
+  }
+}
+
+function info(message: string): void {
+  console.log(paint(`  ${message}`, color.dim));
+}
+
+function warn(message: string): void {
+  console.log(paint(`  ⚠ ${message}`, color.amber));
+}
+
+function banner(): void {
+  console.log(
+    [
+      paint(
+        "╔══════════════════════════════════════════════════════════════╗",
+        color.orange,
+      ),
+      paint(
+        "║                     ELIZA AGENT // AWAKENING               ║",
+        color.orange + color.bold,
+      ),
+      paint(
+        "║        Bun-first onboarding for the ElizaOS alpha stack    ║",
+        color.orange,
+      ),
+      paint(
+        "╚══════════════════════════════════════════════════════════════╝",
+        color.orange,
+      ),
+      paint(
+        "  A reflective first-contact ritual for models, tools, and channels.",
+        color.dim,
+      ),
+    ].join("\n"),
+  );
+}
 
 function ensureDir(path: string): void {
   if (existsSync(path)) {
     return;
   }
-  if (checkOnly) {
+  if (options.checkOnly) {
     return;
   }
   mkdirSync(path, { recursive: true });
@@ -28,9 +280,6 @@ function ensureDir(path: string): void {
 
 function ensureEnvFile(): string[] {
   const messages: string[] = [];
-  const envPath = join(root, ".env");
-  const envExamplePath = join(root, ".env.example");
-
   if (existsSync(envPath)) {
     messages.push(".env already exists");
     return messages;
@@ -41,7 +290,7 @@ function ensureEnvFile(): string[] {
     return messages;
   }
 
-  if (checkOnly) {
+  if (options.checkOnly) {
     messages.push(".env would be created from .env.example");
     return messages;
   }
@@ -51,6 +300,968 @@ function ensureEnvFile(): string[] {
   return messages;
 }
 
+function readEnvEntries(): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!existsSync(envPath)) {
+    return map;
+  }
+  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    if (!line || line.trim().startsWith("#")) {
+      continue;
+    }
+    const separator = line.indexOf("=");
+    if (separator <= 0) {
+      continue;
+    }
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1);
+    map.set(key, value);
+  }
+  return map;
+}
+
+function updateEnvFile(updates: Record<string, string | undefined>): string[] {
+  const messages: string[] = [];
+  if (!existsSync(envPath)) {
+    return [".env is missing"];
+  }
+  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+  const seen = new Set<string>();
+  const nextLines = lines.map((line) => {
+    if (!line || line.trim().startsWith("#")) {
+      return line;
+    }
+    const separator = line.indexOf("=");
+    if (separator <= 0) {
+      return line;
+    }
+    const key = line.slice(0, separator).trim();
+    if (!(key in updates)) {
+      return line;
+    }
+    seen.add(key);
+    const value = updates[key];
+    messages.push(`${key} ${value ? "updated" : "cleared"}`);
+    return `${key}=${value ?? ""}`;
+  });
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (seen.has(key)) {
+      continue;
+    }
+    nextLines.push(`${key}=${value ?? ""}`);
+    messages.push(`${key} added`);
+  }
+
+  if (!options.checkOnly) {
+    writeFileSync(envPath, nextLines.join("\n"), "utf8");
+  }
+  return messages;
+}
+
+function defaultSettings(theme: TuiThemeName): RuntimeSettings {
+  return {
+    model: {
+      provider: "openai",
+      model: "gpt-4.1-mini",
+      baseUrl: "https://api.openai.com/v1",
+      temperature: 0.4,
+      maxTokens: 1200,
+    },
+    gateway: {
+      sessionTimeoutMinutes: 120,
+      mirrorResponsesToHistory: true,
+    },
+    execution: {
+      backend: "local",
+      remoteSyncMode: "mirror",
+      remoteSyncInclude: ["**/*"],
+      remoteSyncExclude: [
+        ".git",
+        ".eliza-agent",
+        "node_modules",
+        "dist",
+        "coverage",
+        ".cache",
+        ".turbo",
+        ".DS_Store",
+      ],
+      remoteArtifactPaths: [
+        ".eliza-agent/remote-artifacts",
+        ".eliza-agent/trajectories",
+        ".eliza-agent/cron-output",
+      ],
+      remoteArtifactPolicy: "metadata-only",
+      remoteWorkspaceLabel: "eliza-agent-workspace",
+      dockerImage: "oven/bun:latest",
+      dockerNetwork: "host",
+      dockerWorkspacePath: "/workspace",
+      dockerEnvPassthrough: [
+        "PATH",
+        "HOME",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+      ],
+      singularityImage: "",
+      daytonaTarget: "",
+      daytonaCommand: "",
+      daytonaShell: "/bin/sh",
+      daytonaWorkspacePath: "/workspace",
+      daytonaSnapshot: "",
+      daytonaBootstrapCommand: "",
+      daytonaStatusCommand: "",
+      daytonaInspectCommand: "",
+      modalTarget: "",
+      modalCommand: "",
+      modalShell: "/bin/bash",
+      modalWorkspacePath: "/workspace",
+      modalEnvironment: "",
+      modalBootstrapCommand: "",
+      modalStatusCommand: "",
+      modalInspectCommand: "",
+      commandTimeoutMs: 30_000,
+      healthTimeoutMs: 5_000,
+      containerCpuLimit: "2",
+      containerMemoryLimit: "2g",
+      containerPidsLimit: 256,
+      containerReadOnlyRoot: true,
+      sshHost: "",
+      sshUser: "",
+      sshPath: "",
+      sshPort: 22,
+      sshKeyPath: "",
+      sshStrictHostKeyChecking: false,
+    },
+    mcp: {
+      serverCommand: "",
+      timeoutMs: 10_000,
+    },
+    ui: {
+      theme,
+    },
+  };
+}
+
+function loadSettings(theme: TuiThemeName): RuntimeSettings {
+  if (!existsSync(settingsPath)) {
+    return defaultSettings(theme);
+  }
+  try {
+    const current = JSON.parse(
+      readFileSync(settingsPath, "utf8"),
+    ) as RuntimeSettings;
+    return {
+      ...defaultSettings(theme),
+      ...current,
+      model: { ...defaultSettings(theme).model, ...current.model },
+      gateway: { ...defaultSettings(theme).gateway, ...current.gateway },
+      execution: { ...defaultSettings(theme).execution, ...current.execution },
+      mcp: { ...defaultSettings(theme).mcp, ...current.mcp },
+      ui: { ...defaultSettings(theme).ui, ...current.ui },
+    };
+  } catch {
+    return defaultSettings(theme);
+  }
+}
+
+function defaultGatewayConfig(
+  allowAllUsers: boolean,
+  pairingMode: PairingMode,
+): GatewayConfig {
+  const platforms = [
+    "api",
+    "cli",
+    "telegram",
+    "discord",
+    "slack",
+    "whatsapp",
+    "signal",
+    "matrix",
+    "email",
+    "sms",
+    "mattermost",
+    "homeassistant",
+    "dingtalk",
+  ];
+  const config: GatewayConfig = {
+    allowAllUsers,
+    sessionTimeoutMinutes: 120,
+    mirrorResponsesToHistory: true,
+    platforms: {},
+  };
+
+  for (const platform of platforms) {
+    config.platforms[platform] = {
+      enabled: platform === "api" || platform === "cli",
+      allowedUserIds: [],
+      pairingMode:
+        platform === "api" || platform === "cli" ? "allow" : pairingMode,
+      allowAllUsers:
+        platform === "api" || platform === "cli" ? true : undefined,
+    };
+  }
+
+  return config;
+}
+
+function loadGatewayConfig(
+  allowAllUsers: boolean,
+  pairingMode: PairingMode,
+): GatewayConfig {
+  const defaults = defaultGatewayConfig(allowAllUsers, pairingMode);
+  if (!existsSync(gatewayPath)) {
+    return defaults;
+  }
+  try {
+    const current = JSON.parse(
+      readFileSync(gatewayPath, "utf8"),
+    ) as GatewayConfig;
+    return {
+      ...defaults,
+      ...current,
+      platforms: {
+        ...defaults.platforms,
+        ...(current.platforms ?? {}),
+      },
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function writeJson(path: string, value: unknown): void {
+  if (options.checkOnly) {
+    return;
+  }
+  writeFileSync(path, JSON.stringify(value, null, 2), "utf8");
+}
+
+function fingerprint(
+  values: Record<string, string | boolean | string[]>,
+): string {
+  const stable = JSON.stringify(values, Object.keys(values).sort());
+  return createHash("sha256").update(stable).digest("hex").slice(0, 12);
+}
+
+async function ask(
+  rl: ReturnType<typeof createInterface>,
+  prompt: string,
+  defaultValue = "",
+): Promise<string> {
+  const suffix = defaultValue ? ` [${defaultValue}]` : "";
+  const answer = (
+    await rl.question(paint(`${prompt}${suffix}: `, color.amber))
+  ).trim();
+  return answer || defaultValue;
+}
+
+async function askYesNo(
+  rl: ReturnType<typeof createInterface>,
+  prompt: string,
+  defaultValue: boolean,
+): Promise<boolean> {
+  const fallback = defaultValue ? "Y/n" : "y/N";
+  while (true) {
+    const answer = (
+      await rl.question(paint(`${prompt} [${fallback}]: `, color.amber))
+    )
+      .trim()
+      .toLowerCase();
+    if (!answer) {
+      return defaultValue;
+    }
+    if (answer === "y" || answer === "yes") {
+      return true;
+    }
+    if (answer === "n" || answer === "no") {
+      return false;
+    }
+    warn("Please answer yes or no.");
+  }
+}
+
+async function chooseOne<T extends string>(
+  rl: ReturnType<typeof createInterface>,
+  prompt: string,
+  optionsList: Array<{ value: T; label: string; detail?: string }>,
+  defaultValue: T,
+): Promise<T> {
+  console.log(paint(prompt, color.cyan + color.bold));
+  optionsList.forEach((item, index) => {
+    const selected = item.value === defaultValue ? "●" : "○";
+    console.log(`  ${selected} ${index + 1}. ${item.label}`);
+    if (item.detail) {
+      info(item.detail);
+    }
+  });
+  while (true) {
+    const answer = (
+      await rl.question(
+        paint(
+          `Select [1-${optionsList.length}] (${optionsList.findIndex((item) => item.value === defaultValue) + 1}): `,
+          color.amber,
+        ),
+      )
+    ).trim();
+    if (!answer) {
+      return defaultValue;
+    }
+    const numeric = Number(answer);
+    if (
+      Number.isInteger(numeric) &&
+      numeric >= 1 &&
+      numeric <= optionsList.length
+    ) {
+      const selected = optionsList[numeric - 1];
+      if (selected) {
+        return selected.value;
+      }
+    }
+    const direct = optionsList.find((item) => item.value === answer);
+    if (direct) {
+      return direct.value;
+    }
+    warn("Pick one of the listed options.");
+  }
+}
+
+async function chooseMany<T extends string>(
+  rl: ReturnType<typeof createInterface>,
+  prompt: string,
+  optionsList: Array<{ value: T; label: string }>,
+  defaults: T[],
+): Promise<T[]> {
+  console.log(paint(prompt, color.cyan + color.bold));
+  optionsList.forEach((item, index) => {
+    const selected = defaults.includes(item.value) ? "●" : "○";
+    console.log(`  ${selected} ${index + 1}. ${item.label}`);
+  });
+  info(
+    "Use comma-separated numbers like 1,3,5. Leave blank to keep the defaults.",
+  );
+  while (true) {
+    const answer = (await rl.question(paint("Select: ", color.amber))).trim();
+    if (!answer) {
+      return defaults;
+    }
+    const values = answer
+      .split(",")
+      .map((entry) => Number(entry.trim()))
+      .filter(
+        (value) =>
+          Number.isInteger(value) && value >= 1 && value <= optionsList.length,
+      )
+      .map((value) => optionsList[value - 1]?.value)
+      .filter((value): value is T => Boolean(value));
+    if (values.length > 0) {
+      return [...new Set(values)];
+    }
+    warn("Enter one or more valid option numbers.");
+  }
+}
+
+function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
+  const provider: ProviderMode = existingEnv.get("OPENAI_API_KEY")
+    ? existingEnv.get("ANTHROPIC_API_KEY")
+      ? "hybrid"
+      : "openai"
+    : existingEnv.get("ANTHROPIC_API_KEY")
+      ? "anthropic"
+      : "offline";
+  return {
+    mode: "quick",
+    agentName: existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
+    timezone: existingEnv.get("ELIZA_AGENT_TIMEZONE") || "America/Chicago",
+    theme: DEFAULT_TUI_THEME,
+    provider,
+    backend:
+      (existingEnv.get(
+        "ELIZA_AGENT_EXECUTION_BACKEND",
+      ) as ExecutionBackendName) || "local",
+    browser:
+      (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
+      "lightpanda",
+    pairingMode:
+      (existingEnv.get("ELIZA_AGENT_PAIRING_MODE") as PairingMode) || "pair",
+    allowAllUsers: existingEnv.get("ELIZA_AGENT_ALLOW_ALL_USERS") === "true",
+    transports: [],
+    tools: {
+      mcp: Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
+      acp: Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
+      tts: Boolean(existingEnv.get("FAL_API_KEY")),
+      codegen: Boolean(
+        existingEnv.get("E2B_API_KEY") || existingEnv.get("GITHUB_TOKEN"),
+      ),
+    },
+    openaiApiKey: existingEnv.get("OPENAI_API_KEY") || "",
+    openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-4.1-mini",
+    anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
+    anthropicModel:
+      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514",
+    telegramBotToken: existingEnv.get("TELEGRAM_BOT_TOKEN") || "",
+    discordBotToken: existingEnv.get("DISCORD_BOT_TOKEN") || "",
+    slackWebhookUrl: existingEnv.get("SLACK_WEBHOOK_URL") || "",
+    slackSigningSecret: existingEnv.get("SLACK_SIGNING_SECRET") || "",
+    homeAssistantUrl: existingEnv.get("HOMEASSISTANT_URL") || "",
+    homeAssistantToken: existingEnv.get("HOMEASSISTANT_TOKEN") || "",
+    mcpServerCommand: existingEnv.get("MCP_SERVER_COMMAND") || "",
+    acpServerCommand: existingEnv.get("ACP_SERVER_COMMAND") || "",
+    falApiKey: existingEnv.get("FAL_API_KEY") || "",
+    e2bApiKey: existingEnv.get("E2B_API_KEY") || "",
+    githubToken: existingEnv.get("GITHUB_TOKEN") || "",
+    sshHost: existingEnv.get("ELIZA_AGENT_SSH_HOST") || "",
+    sshUser: existingEnv.get("ELIZA_AGENT_SSH_USER") || "",
+    sshPath: existingEnv.get("ELIZA_AGENT_SSH_PATH") || "",
+    daytonaTarget: existingEnv.get("ELIZA_AGENT_DAYTONA_TARGET") || "",
+    modalTarget: existingEnv.get("ELIZA_AGENT_MODAL_TARGET") || "",
+  };
+}
+
+async function runWizard(
+  existingEnv: Map<string, string>,
+): Promise<WizardAnswers> {
+  if (options.headless || options.skipWizard) {
+    return headlessAnswers(existingEnv);
+  }
+
+  banner();
+  const rl = createInterface({ input, output });
+  try {
+    section("Phase 1 // Signal", "Choose how this build should wake up.");
+    const mode = await chooseOne<WizardMode>(
+      rl,
+      "Select onboarding mode:",
+      [
+        {
+          value: "quick",
+          label: "Quickstart",
+          detail:
+            "Get a clean local build ready fast with a few high-impact decisions.",
+        },
+        {
+          value: "ritual",
+          label: "Full ritual",
+          detail:
+            "Configure models, execution, channels, tools, and interface style in one pass.",
+        },
+      ],
+      "ritual",
+    );
+
+    section(
+      "Phase 2 // Identity",
+      "Shape the operator shell and first-contact tone.",
+    );
+    const agentName = await ask(
+      rl,
+      "Agent display name",
+      existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
+    );
+    const timezone = await ask(
+      rl,
+      "Timezone",
+      existingEnv.get("ELIZA_AGENT_TIMEZONE") || "America/Chicago",
+    );
+    const themeChoices = listTuiThemes().map((theme) => ({
+      value: theme.name,
+      label: `${theme.label} (${theme.name})`,
+      detail:
+        theme.aliases.length > 0
+          ? `Aliases: ${theme.aliases.join(", ")}`
+          : undefined,
+    }));
+    const theme = await chooseOne<TuiThemeName>(
+      rl,
+      "Choose the default operator theme:",
+      themeChoices,
+      DEFAULT_TUI_THEME,
+    );
+
+    section("Phase 3 // Cognition", "Pick your first model route.");
+    const provider = await chooseOne<ProviderMode>(
+      rl,
+      "Select model path:",
+      [
+        {
+          value: "openai",
+          label: "OpenAI",
+          detail:
+            "Fastest path for GPT-backed reasoning and multimodal support.",
+        },
+        {
+          value: "anthropic",
+          label: "Anthropic",
+          detail: "Claude-first route for higher-context reasoning flows.",
+        },
+        {
+          value: "hybrid",
+          label: "Hybrid",
+          detail:
+            "Wire both providers now and choose the primary runtime route.",
+        },
+        {
+          value: "offline",
+          label: "Offline bootstrap",
+          detail:
+            "No provider keys yet. Start with local setup and connect later.",
+        },
+      ],
+      existingEnv.get("ANTHROPIC_API_KEY")
+        ? existingEnv.get("OPENAI_API_KEY")
+          ? "hybrid"
+          : "anthropic"
+        : existingEnv.get("OPENAI_API_KEY")
+          ? "openai"
+          : "offline",
+    );
+
+    let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
+    let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-4.1-mini";
+    let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
+    let anthropicModel =
+      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
+
+    if (provider === "openai" || provider === "hybrid") {
+      openaiApiKey = await ask(rl, "OPENAI_API_KEY", openaiApiKey);
+      openaiModel = await ask(rl, "Primary OpenAI model", openaiModel);
+    }
+    if (provider === "anthropic" || provider === "hybrid") {
+      anthropicApiKey = await ask(rl, "ANTHROPIC_API_KEY", anthropicApiKey);
+      anthropicModel = await ask(rl, "Primary Anthropic model", anthropicModel);
+    }
+
+    section("Phase 4 // Body", "Choose where the agent thinks and executes.");
+    const backend = await chooseOne<ExecutionBackendName>(
+      rl,
+      "Execution backend:",
+      [
+        {
+          value: "local",
+          label: "Local machine",
+          detail: "Zero-friction development path.",
+        },
+        {
+          value: "docker",
+          label: "Docker",
+          detail: "Containerized local sandbox.",
+        },
+        {
+          value: "podman",
+          label: "Podman",
+          detail: "Rootless container execution.",
+        },
+        {
+          value: "ssh",
+          label: "SSH",
+          detail: "Remote machine or homelab control plane.",
+        },
+        {
+          value: "daytona",
+          label: "Daytona",
+          detail: "Cloud workspace execution.",
+        },
+        {
+          value: "modal",
+          label: "Modal",
+          detail: "Elastic cloud sandbox path.",
+        },
+        {
+          value: "singularity",
+          label: "Singularity",
+          detail: "HPC or scientific container path.",
+        },
+      ],
+      (existingEnv.get(
+        "ELIZA_AGENT_EXECUTION_BACKEND",
+      ) as ExecutionBackendName) || "local",
+    );
+    const browser = await chooseOne<BrowserMode>(
+      rl,
+      "Browser provider:",
+      [
+        {
+          value: "lightpanda",
+          label: "Lightpanda",
+          detail: "Full browser path and the best default for web tasks.",
+        },
+        {
+          value: "basic",
+          label: "Basic HTTP",
+          detail:
+            "Lightweight fallback if browser automation is not installed yet.",
+        },
+      ],
+      (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
+        "lightpanda",
+    );
+
+    let sshHost = existingEnv.get("ELIZA_AGENT_SSH_HOST") || "";
+    let sshUser = existingEnv.get("ELIZA_AGENT_SSH_USER") || "";
+    let sshPath = existingEnv.get("ELIZA_AGENT_SSH_PATH") || "";
+    let daytonaTarget = existingEnv.get("ELIZA_AGENT_DAYTONA_TARGET") || "";
+    let modalTarget = existingEnv.get("ELIZA_AGENT_MODAL_TARGET") || "";
+    if (backend === "ssh") {
+      sshHost = await ask(rl, "SSH host", sshHost);
+      sshUser = await ask(rl, "SSH user", sshUser);
+      sshPath = await ask(
+        rl,
+        "SSH workspace path",
+        sshPath || "~/workspace/eliza-agent",
+      );
+    } else if (backend === "daytona") {
+      daytonaTarget = await ask(rl, "Daytona target", daytonaTarget);
+    } else if (backend === "modal") {
+      modalTarget = await ask(rl, "Modal target", modalTarget);
+    }
+
+    let transports: TransportName[] = [];
+    let pairingMode: PairingMode =
+      (existingEnv.get("ELIZA_AGENT_PAIRING_MODE") as PairingMode) || "pair";
+    let allowAllUsers =
+      existingEnv.get("ELIZA_AGENT_ALLOW_ALL_USERS") === "true";
+    let telegramBotToken = existingEnv.get("TELEGRAM_BOT_TOKEN") || "";
+    let discordBotToken = existingEnv.get("DISCORD_BOT_TOKEN") || "";
+    let slackWebhookUrl = existingEnv.get("SLACK_WEBHOOK_URL") || "";
+    let slackSigningSecret = existingEnv.get("SLACK_SIGNING_SECRET") || "";
+    let homeAssistantUrl = existingEnv.get("HOMEASSISTANT_URL") || "";
+    let homeAssistantToken = existingEnv.get("HOMEASSISTANT_TOKEN") || "";
+    if (mode === "ritual") {
+      section("Phase 5 // Channels", "Choose where Eliza should surface.");
+      transports = await chooseMany<TransportName>(
+        rl,
+        "Enable transport paths:",
+        [
+          { value: "telegram", label: "Telegram" },
+          { value: "discord", label: "Discord" },
+          { value: "slack", label: "Slack" },
+          { value: "whatsapp", label: "WhatsApp" },
+          { value: "signal", label: "Signal" },
+          { value: "matrix", label: "Matrix" },
+          { value: "email", label: "Email" },
+          { value: "sms", label: "SMS" },
+          { value: "mattermost", label: "Mattermost" },
+          { value: "homeassistant", label: "Home Assistant" },
+          { value: "dingtalk", label: "DingTalk" },
+        ],
+        [],
+      );
+      pairingMode = await chooseOne<PairingMode>(
+        rl,
+        "Default remote pairing mode:",
+        [
+          {
+            value: "pair",
+            label: "Pair",
+            detail: "Approve first contact before full access.",
+          },
+          { value: "allow", label: "Allow", detail: "Open access by default." },
+          {
+            value: "deny",
+            label: "Deny",
+            detail: "Lock new users out until you change it.",
+          },
+        ],
+        pairingMode,
+      );
+      allowAllUsers = await askYesNo(
+        rl,
+        "Allow all users globally for gateway transports?",
+        allowAllUsers,
+      );
+      if (transports.includes("telegram")) {
+        telegramBotToken = await ask(
+          rl,
+          "TELEGRAM_BOT_TOKEN",
+          telegramBotToken,
+        );
+      }
+      if (transports.includes("discord")) {
+        discordBotToken = await ask(rl, "DISCORD_BOT_TOKEN", discordBotToken);
+      }
+      if (transports.includes("slack")) {
+        slackWebhookUrl = await ask(rl, "SLACK_WEBHOOK_URL", slackWebhookUrl);
+        slackSigningSecret = await ask(
+          rl,
+          "SLACK_SIGNING_SECRET",
+          slackSigningSecret,
+        );
+      }
+      if (transports.includes("homeassistant")) {
+        homeAssistantUrl = await ask(rl, "HOMEASSISTANT_URL", homeAssistantUrl);
+        homeAssistantToken = await ask(
+          rl,
+          "HOMEASSISTANT_TOKEN",
+          homeAssistantToken,
+        );
+      }
+    }
+
+    section("Phase 6 // Tools", "Attach the deeper protocol surfaces.");
+    const tools = {
+      mcp:
+        mode === "ritual"
+          ? await askYesNo(
+              rl,
+              "Configure MCP on first run?",
+              Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
+            )
+          : Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
+      acp:
+        mode === "ritual"
+          ? await askYesNo(
+              rl,
+              "Configure ACP/editor bridge now?",
+              Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
+            )
+          : Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
+      tts:
+        mode === "ritual"
+          ? await askYesNo(
+              rl,
+              "Enable native TTS if you have a FAL key?",
+              Boolean(existingEnv.get("FAL_API_KEY")),
+            )
+          : Boolean(existingEnv.get("FAL_API_KEY")),
+      codegen:
+        mode === "ritual"
+          ? await askYesNo(
+              rl,
+              "Wire codegen, research, and E2B now?",
+              Boolean(
+                existingEnv.get("E2B_API_KEY") ||
+                  existingEnv.get("GITHUB_TOKEN"),
+              ),
+            )
+          : Boolean(
+              existingEnv.get("E2B_API_KEY") || existingEnv.get("GITHUB_TOKEN"),
+            ),
+    };
+
+    let mcpServerCommand = existingEnv.get("MCP_SERVER_COMMAND") || "";
+    let acpServerCommand = existingEnv.get("ACP_SERVER_COMMAND") || "";
+    let falApiKey = existingEnv.get("FAL_API_KEY") || "";
+    let e2bApiKey = existingEnv.get("E2B_API_KEY") || "";
+    let githubToken = existingEnv.get("GITHUB_TOKEN") || "";
+    if (tools.mcp) {
+      mcpServerCommand = await ask(rl, "MCP_SERVER_COMMAND", mcpServerCommand);
+    }
+    if (tools.acp) {
+      acpServerCommand = await ask(rl, "ACP_SERVER_COMMAND", acpServerCommand);
+    }
+    if (tools.tts) {
+      falApiKey = await ask(rl, "FAL_API_KEY", falApiKey);
+    }
+    if (tools.codegen) {
+      e2bApiKey = await ask(rl, "E2B_API_KEY", e2bApiKey);
+      githubToken = await ask(rl, "GITHUB_TOKEN", githubToken);
+    }
+
+    return {
+      mode,
+      agentName,
+      timezone,
+      theme,
+      provider,
+      backend,
+      browser,
+      pairingMode,
+      allowAllUsers,
+      transports,
+      tools,
+      openaiApiKey,
+      openaiModel,
+      anthropicApiKey,
+      anthropicModel,
+      telegramBotToken,
+      discordBotToken,
+      slackWebhookUrl,
+      slackSigningSecret,
+      homeAssistantUrl,
+      homeAssistantToken,
+      mcpServerCommand,
+      acpServerCommand,
+      falApiKey,
+      e2bApiKey,
+      githubToken,
+      sshHost,
+      sshUser,
+      sshPath,
+      daytonaTarget,
+      modalTarget,
+    };
+  } finally {
+    rl.close();
+  }
+}
+
+function applyAnswers(answers: WizardAnswers): {
+  envMessages: string[];
+  settings: RuntimeSettings;
+  gateway: GatewayConfig;
+  onboarding: OnboardingSummary;
+} {
+  const envMessages = updateEnvFile({
+    ELIZA_AGENT_NAME: answers.agentName,
+    ELIZA_AGENT_TIMEZONE: answers.timezone,
+    OPENAI_API_KEY:
+      answers.provider === "openai" || answers.provider === "hybrid"
+        ? answers.openaiApiKey
+        : "",
+    OPENAI_MODEL:
+      answers.provider === "openai" || answers.provider === "hybrid"
+        ? answers.openaiModel
+        : "gpt-4.1-mini",
+    ANTHROPIC_API_KEY:
+      answers.provider === "anthropic" || answers.provider === "hybrid"
+        ? answers.anthropicApiKey
+        : "",
+    ANTHROPIC_LARGE_MODEL:
+      answers.provider === "anthropic" || answers.provider === "hybrid"
+        ? answers.anthropicModel
+        : "claude-sonnet-4-20250514",
+    TELEGRAM_BOT_TOKEN: answers.telegramBotToken,
+    DISCORD_BOT_TOKEN: answers.discordBotToken,
+    SLACK_WEBHOOK_URL: answers.slackWebhookUrl,
+    SLACK_SIGNING_SECRET: answers.slackSigningSecret,
+    HOMEASSISTANT_URL: answers.homeAssistantUrl,
+    HOMEASSISTANT_TOKEN: answers.homeAssistantToken,
+    MCP_SERVER_COMMAND: answers.tools.mcp ? answers.mcpServerCommand : "",
+    ACP_SERVER_COMMAND: answers.tools.acp ? answers.acpServerCommand : "",
+    FAL_API_KEY: answers.tools.tts ? answers.falApiKey : "",
+    E2B_API_KEY: answers.tools.codegen ? answers.e2bApiKey : "",
+    GITHUB_TOKEN: answers.tools.codegen ? answers.githubToken : "",
+    ELIZA_AGENT_EXECUTION_BACKEND: answers.backend,
+    ELIZA_AGENT_BROWSER_PROVIDER: answers.browser,
+    ELIZA_AGENT_ALLOW_ALL_USERS: String(answers.allowAllUsers),
+    ELIZA_AGENT_PAIRING_MODE: answers.pairingMode,
+    ELIZA_AGENT_SSH_HOST: answers.backend === "ssh" ? answers.sshHost : "",
+    ELIZA_AGENT_SSH_USER: answers.backend === "ssh" ? answers.sshUser : "",
+    ELIZA_AGENT_SSH_PATH: answers.backend === "ssh" ? answers.sshPath : "",
+    ELIZA_AGENT_DAYTONA_TARGET:
+      answers.backend === "daytona" ? answers.daytonaTarget : "",
+    ELIZA_AGENT_MODAL_TARGET:
+      answers.backend === "modal" ? answers.modalTarget : "",
+  });
+
+  const settings = loadSettings(answers.theme);
+  settings.ui.theme = answers.theme;
+  settings.execution.backend = answers.backend;
+  settings.mcp.serverCommand = answers.tools.mcp
+    ? answers.mcpServerCommand
+    : "";
+  if (answers.provider === "anthropic") {
+    settings.model.provider = "anthropic";
+    settings.model.model = answers.anthropicModel;
+    settings.model.baseUrl = "";
+  } else {
+    settings.model.provider = "openai";
+    settings.model.model = answers.openaiModel;
+    settings.model.baseUrl = "https://api.openai.com/v1";
+  }
+  settings.execution.sshHost = answers.backend === "ssh" ? answers.sshHost : "";
+  settings.execution.sshUser = answers.backend === "ssh" ? answers.sshUser : "";
+  settings.execution.sshPath = answers.backend === "ssh" ? answers.sshPath : "";
+  settings.execution.daytonaTarget =
+    answers.backend === "daytona" ? answers.daytonaTarget : "";
+  settings.execution.modalTarget =
+    answers.backend === "modal" ? answers.modalTarget : "";
+  writeJson(settingsPath, settings);
+
+  const gateway = loadGatewayConfig(answers.allowAllUsers, answers.pairingMode);
+  gateway.allowAllUsers = answers.allowAllUsers;
+  gateway.platforms.api.enabled = true;
+  gateway.platforms.api.pairingMode = "allow";
+  gateway.platforms.api.allowAllUsers = true;
+  gateway.platforms.cli.enabled = true;
+  gateway.platforms.cli.pairingMode = "allow";
+  gateway.platforms.cli.allowAllUsers = true;
+  const remoteTransports: TransportName[] = [
+    "telegram",
+    "discord",
+    "slack",
+    "whatsapp",
+    "signal",
+    "matrix",
+    "email",
+    "sms",
+    "mattermost",
+    "homeassistant",
+    "dingtalk",
+  ];
+  for (const platform of remoteTransports) {
+    gateway.platforms[platform].enabled = answers.transports.includes(platform);
+    gateway.platforms[platform].pairingMode = answers.pairingMode;
+    gateway.platforms[platform].allowAllUsers = answers.allowAllUsers
+      ? true
+      : undefined;
+  }
+  writeJson(gatewayPath, gateway);
+
+  const onboarding: OnboardingSummary = {
+    timestamp: new Date().toISOString(),
+    mode: options.headless || options.skipWizard ? "headless" : answers.mode,
+    theme: answers.theme,
+    provider: answers.provider,
+    backend: answers.backend,
+    browser: answers.browser,
+    transports: answers.transports,
+    tools: answers.tools,
+    profile: fingerprint({
+      provider: answers.provider,
+      backend: answers.backend,
+      browser: answers.browser,
+      theme: answers.theme,
+      transports: answers.transports,
+      tts: answers.tools.tts,
+      mcp: answers.tools.mcp,
+      acp: answers.tools.acp,
+      codegen: answers.tools.codegen,
+    }),
+  };
+  writeJson(onboardingPath, onboarding);
+
+  return { envMessages, settings, gateway, onboarding };
+}
+
+function printSummary(
+  createdDirs: string[],
+  envMessages: string[],
+  onboarding: OnboardingSummary,
+): void {
+  section("Bootstrap Summary");
+  console.log(`  mode: ${options.checkOnly ? "check" : "apply"}`);
+  console.log(`  onboarding: ${onboarding.mode}`);
+  console.log(`  provider: ${onboarding.provider}`);
+  console.log(`  backend: ${onboarding.backend}`);
+  console.log(`  theme: ${onboarding.theme}`);
+  console.log(
+    `  transports: ${onboarding.transports.join(", ") || "api, cli only"}`,
+  );
+  console.log(`  profile: ${onboarding.profile}`);
+
+  console.log();
+  console.log(paint("Directories", color.cyan + color.bold));
+  for (const entry of createdDirs) {
+    console.log(`  - ${entry}`);
+  }
+
+  console.log();
+  console.log(paint("Environment", color.cyan + color.bold));
+  for (const entry of envMessages) {
+    console.log(`  - ${entry}`);
+  }
+
+  console.log();
+  console.log(paint("Next moves", color.cyan + color.bold));
+  console.log("  - bun run start");
+  console.log("  - bun run start --plain-cli");
+  console.log("  - bun run dev");
+  console.log("  - /theme list");
+  console.log("  - /doctor");
+  console.log("  - /gateway readiness");
+}
+
 const createdDirs: string[] = [];
 for (const dir of directories) {
   const absolute = join(root, dir);
@@ -58,28 +1269,33 @@ for (const dir of directories) {
   ensureDir(absolute);
   if (existed) {
     createdDirs.push(`${dir} (exists)`);
-  } else if (checkOnly) {
+  } else if (options.checkOnly) {
     createdDirs.push(`${dir} (missing)`);
   } else {
     createdDirs.push(dir);
   }
 }
 
-const envMessages = ensureEnvFile();
+const initialEnvMessages = ensureEnvFile();
 
-const summary = [
-  "Eliza Agent bootstrap",
-  checkOnly ? "mode: check" : "mode: apply",
-  "",
-  "Directories:",
-  ...createdDirs.map((entry) => `- ${entry}`),
-  "",
-  "Environment:",
-  ...envMessages.map((entry) => `- ${entry}`),
-  "",
-  checkOnly
-    ? "Bootstrap check complete."
-    : "Bootstrap complete. Review .env, then run bun run dev or bun run start.",
-];
+if (options.checkOnly) {
+  const summary = [
+    "Eliza Agent bootstrap",
+    "mode: check",
+    "",
+    "Directories:",
+    ...createdDirs.map((entry) => `- ${entry}`),
+    "",
+    "Environment:",
+    ...initialEnvMessages.map((entry) => `- ${entry}`),
+    "",
+    "Bootstrap check complete.",
+  ];
+  console.log(summary.join("\n"));
+  process.exit(0);
+}
 
-console.log(summary.join("\n"));
+const existingEnv = readEnvEntries();
+const answers = await runWizard(existingEnv);
+const { envMessages, onboarding } = applyAnswers(answers);
+printSummary(createdDirs, [...initialEnvMessages, ...envMessages], onboarding);

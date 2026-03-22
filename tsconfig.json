@@ -21,6 +21,7 @@
     }
   },
   "include": [
+    "scripts/**/*.ts",
     "packages/agent/src/**/*.ts",
     "packages/agent/src/**/*.d.ts",
     "packages/characters/**/*.json",
