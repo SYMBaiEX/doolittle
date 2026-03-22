@@ -383,12 +383,12 @@ function formatExecutionApprovalPrompt(input: {
   reason: string;
 }): string {
   return [
-    "Execution approval required before I run that remote shell command.",
+    "Remote execution approval required before I run that shell command.",
     `Approval: ${input.id}`,
     `Reason: ${input.reason}`,
     `Command: ${input.command}`,
-    `Approve and run: ${displayCommand(`/approvals approve ${input.id}`)}`,
-    `Deny: ${displayCommand(`/approvals deny ${input.id}`)}`,
+    `Approve and run: ${displayCommand(`/approve ${input.id}`)}`,
+    `Deny: ${displayCommand(`/deny ${input.id}`)}`,
     `Review pending: ${displayCommand("/approvals")}`,
   ].join("\n");
 }
@@ -1533,6 +1533,21 @@ async function buildCommandResponse(
     ].join("\n");
   }
 
+  if (trimmed.startsWith("/deny ")) {
+    const id = trimmed.replace("/deny ", "").trim();
+    if (!id) {
+      return `Usage: ${displayCommand("/deny <approval-id>")}`;
+    }
+    return buildCommandResponse(
+      {
+        ...input,
+        message: `/approvals deny ${id}`,
+      },
+      context,
+      hooks,
+    );
+  }
+
   if (trimmed.startsWith("/approvals approve ")) {
     const id = trimmed.replace("/approvals approve ", "").trim();
     const record = context.services.executionApprovals.get(id);
@@ -1557,6 +1572,21 @@ async function buildCommandResponse(
       hooks,
     );
     return [intro, "", formatShellCommandResponse(result)].join("\n");
+  }
+
+  if (trimmed.startsWith("/approve ")) {
+    const id = trimmed.replace("/approve ", "").trim();
+    if (!id) {
+      return `Usage: ${displayCommand("/approve <approval-id>")}`;
+    }
+    return buildCommandResponse(
+      {
+        ...input,
+        message: `/approvals approve ${id}`,
+      },
+      context,
+      hooks,
+    );
   }
 
   if (trimmed === "/gateway start") {

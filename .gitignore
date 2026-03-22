@@ -11,6 +11,8 @@ packages/*/dist/
 var/
 cache/
 coverage/
+playwright-report/
+test-results/
 *.log
 *.tgz
 docs/
