@@ -20,6 +20,7 @@
   "scripts": {
     "bootstrap": "bun run scripts/bootstrap.ts",
     "bootstrap:check": "bun run scripts/bootstrap.ts --check",
+    "onboard": "bun run scripts/bootstrap.ts",
     "install:deps": "bash scripts/install.sh",
     "dev": "bun run --cwd packages/agent dev",
     "start": "bun run --cwd packages/agent start",
