@@ -1331,7 +1331,23 @@ async function startTui(context: AppContext): Promise<void> {
     );
   }
 
+  function syncFocusIndexFromCurrentFocus(): void {
+    const current = screen.focused
+      ? focusables.indexOf(screen.focused as blessed.Widgets.BlessedElement)
+      : -1;
+    if (current >= 0) {
+      focusIndex = current;
+    }
+  }
+
+  function focusPrimaryInput(): void {
+    focusIndex = focusables.length - 1;
+    inputBox.focus();
+    screen.render();
+  }
+
   function focusAt(index: number): void {
+    syncFocusIndexFromCurrentFocus();
     focusIndex = (index + focusables.length) % focusables.length;
     focusables[focusIndex]?.focus();
     screen.render();
@@ -1345,10 +1361,14 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   function openPalette(initialValue = ""): void {
+    const preservedValue = composerOpen ? composer.getValue() : initialValue;
+    if (composerOpen) {
+      closeComposer();
+    }
     paletteOpen = true;
     paletteOverlay.show();
-    paletteInput.setValue(initialValue);
-    paletteList.setItems(renderPaletteItems(initialValue));
+    paletteInput.setValue(preservedValue);
+    paletteList.setItems(renderPaletteItems(preservedValue));
     paletteSelectionIndex = 0;
     paletteList.select(0);
     paletteInput.focus();
@@ -1360,14 +1380,17 @@ async function startTui(context: AppContext): Promise<void> {
     paletteOverlay.hide();
     paletteInput.clearValue();
     paletteList.setItems([]);
-    inputBox.focus();
-    screen.render();
+    focusPrimaryInput();
   }
 
   function openComposer(initialValue = ""): void {
+    const preservedValue = paletteOpen ? paletteInput.getValue() : initialValue;
+    if (paletteOpen) {
+      closePalette();
+    }
     composerOpen = true;
     composerOverlay.show();
-    composer.setValue(initialValue);
+    composer.setValue(preservedValue);
     composer.focus();
     screen.render();
   }
@@ -1376,8 +1399,7 @@ async function startTui(context: AppContext): Promise<void> {
     composerOpen = false;
     composerOverlay.hide();
     composer.clearValue();
-    inputBox.focus();
-    screen.render();
+    focusPrimaryInput();
   }
 
   function setInputValue(value: string): void {
@@ -1767,6 +1789,7 @@ async function startTui(context: AppContext): Promise<void> {
       screen.render();
       return;
     }
+    syncFocusIndexFromCurrentFocus();
     focusAt(focusIndex + 1);
   });
   screen.key(["S-tab"], () => {
@@ -1781,6 +1804,7 @@ async function startTui(context: AppContext): Promise<void> {
       screen.render();
       return;
     }
+    syncFocusIndexFromCurrentFocus();
     focusAt(focusIndex - 1);
   });
   screen.key(["escape"], () => {
@@ -1984,5 +2008,13 @@ export async function startCli(context: AppContext): Promise<void> {
     return;
   }
 
-  await startTui(context);
+  try {
+    await startTui(context);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `${context.config.agentName} TUI failed to start (${detail}). Falling back to plain CLI.`,
+    );
+    await startPlainCli(context);
+  }
 }
