@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
@@ -166,7 +167,44 @@ export function createServices(
       theme: "orange",
     },
   });
+  const linkedAccounts = getLinkedProviderAccountsSnapshot();
   const currentSettings = settings.get();
+  const persistedProvider = currentSettings.model.provider;
+  const persistedHasOpenAi =
+    persistedProvider === "openai" && Boolean(config.openAiApiKey?.trim());
+  const persistedHasAnthropic =
+    persistedProvider === "anthropic" &&
+    Boolean(config.anthropicApiKey?.trim());
+  const persistedHasCodex =
+    persistedProvider === "codex" &&
+    Boolean(linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable);
+  const persistedHasClaudeCode =
+    persistedProvider === "claude-code" &&
+    Boolean(
+      linkedAccounts.claudeCode.nativeReady ||
+        linkedAccounts.claudeCode.reusable,
+    );
+
+  if (
+    !persistedHasOpenAi &&
+    !persistedHasAnthropic &&
+    !persistedHasCodex &&
+    !persistedHasClaudeCode
+  ) {
+    if (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) {
+      settings.set("model.provider", "codex");
+      settings.set("model.model", "gpt-5.4");
+      settings.set("model.baseUrl", "https://chatgpt.com/backend-api/codex");
+    } else if (
+      linkedAccounts.claudeCode.nativeReady ||
+      linkedAccounts.claudeCode.reusable
+    ) {
+      settings.set("model.provider", "claude-code");
+      settings.set("model.model", config.anthropicLargeModel);
+      settings.set("model.baseUrl", config.anthropicBaseUrl ?? "");
+    }
+  }
+
   if (!currentSettings.execution.dockerNetwork) {
     settings.set("execution.dockerNetwork", config.dockerNetwork);
   }
@@ -437,7 +475,6 @@ export function createServices(
     nativeOwnershipControlPlane: nativeOwnership.controlPlane(),
     nativeOwnershipSnapshot: nativeOwnership.snapshotSync(),
   }));
-  void agentSdk.prime().catch(() => {});
   const getModelContext = (): {
     provider: "openai" | "anthropic" | "offline";
     model: string;

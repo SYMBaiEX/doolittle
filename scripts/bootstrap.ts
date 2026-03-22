@@ -309,12 +309,6 @@ function requireReadline(
   return rl;
 }
 
-function getListSelectedIndex(
-  list: blessed.Widgets.ListElement,
-): number | undefined {
-  return (list as unknown as { selected?: number }).selected;
-}
-
 function paint(value: string, tone: string): string {
   return `${tone}${value}${color.reset}`;
 }
@@ -385,6 +379,8 @@ function createWizardScreen(
     fullUnicode: true,
     title: "Eliza Agent // Awakening",
     dockBorders: true,
+    grabKeys: true,
+    mouse: true,
   });
   const snapshot: WizardSnapshot = {
     title: "ELIZA AGENT // AWAKENING",
@@ -500,6 +496,7 @@ function createWizardScreen(
     logBox.setScrollPerc(100);
     screen.render();
   };
+  screen.on("resize", render);
 
   const appendLine = (message: string) => {
     snapshot.logLines.push(message);
@@ -524,6 +521,14 @@ function createWizardScreen(
     ) => void,
   ): Promise<T> =>
     new Promise((resolve) => {
+      let settled = false;
+      const settle = (value: T) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(value);
+      };
       const overlay = blessed.box({
         parent: screen,
         top: "center",
@@ -552,7 +557,7 @@ function createWizardScreen(
       mount(overlay, (value) => {
         overlay.destroy();
         render();
-        resolve(value);
+        settle(value);
       });
       render();
     });
@@ -576,6 +581,7 @@ function createWizardScreen(
           inputOnFocus: true,
           censor: options?.secret ?? false,
           keys: true,
+          vi: true,
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
@@ -593,11 +599,24 @@ function createWizardScreen(
           tags: true,
           content: "{gray-fg}Enter save · Esc keep current{/gray-fg}",
         });
-        inputBox.focus();
-        inputBox.readInput((_err, value) => {
-          resolve((value || "").trim() || defaultValue);
+        let settled = false;
+        const finish = (value: string) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve((String(value || "").trim() || defaultValue).trim());
+        };
+        inputBox.setValue(defaultValue);
+        inputBox.on("submit", (value) => {
+          finish(String(value ?? inputBox.getValue()));
         });
-        inputBox.key("escape", () => resolve(defaultValue));
+        inputBox.once("cancel", () => finish(defaultValue));
+        inputBox.key(["enter", "return"], () => inputBox.submit());
+        inputBox.key(["escape", "C-c"], () => inputBox.cancel());
+        inputBox.focus();
+        screen.render();
+        inputBox.readInput();
       },
     );
 
@@ -617,6 +636,7 @@ function createWizardScreen(
           height: 6,
           border: "line",
           keys: true,
+          vi: true,
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
@@ -628,14 +648,33 @@ function createWizardScreen(
             `No${!defaultValue ? " (default)" : ""}`,
           ],
         });
+        let settled = false;
         let selectedIndex = defaultValue ? 0 : 1;
-        list.select(selectedIndex);
+        const finish = (value: boolean) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve(value);
+        };
+        const applySelection = (index: number) => {
+          selectedIndex = Math.max(0, Math.min(1, index));
+          list.select(selectedIndex);
+          screen.render();
+        };
         list.focus();
-        list.on("keypress", () => {
-          selectedIndex = getListSelectedIndex(list) ?? selectedIndex;
+        applySelection(selectedIndex);
+        list.key(["up", "left"], () => applySelection(selectedIndex - 1));
+        list.key(["down", "right"], () => applySelection(selectedIndex + 1));
+        list.key(["1", "2"], (_ch, key) => {
+          const raw = Number(key.full);
+          if (Number.isInteger(raw) && raw >= 1 && raw <= 2) {
+            applySelection(raw - 1);
+          }
         });
-        list.key(["enter", "space"], () => resolve(selectedIndex === 0));
-        list.key("escape", () => resolve(defaultValue));
+        list.key(["enter", "space"], () => finish(selectedIndex === 0));
+        list.key("escape", () => finish(defaultValue));
+        list.key("C-c", () => finish(defaultValue));
       },
     );
 
@@ -667,6 +706,7 @@ function createWizardScreen(
           height: "100%-8",
           border: "line",
           keys: true,
+          vi: true,
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
@@ -679,25 +719,55 @@ function createWizardScreen(
           0,
           optionsList.findIndex((item) => item.value === defaultValue),
         );
-        list.select(selectedIndex);
+        let settled = false;
+        const finish = (index: number) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve(optionsList[index]?.value ?? defaultValue);
+        };
+        const clampIndex = (index: number) =>
+          optionsList.length === 0
+            ? 0
+            : Math.max(0, Math.min(optionsList.length - 1, index));
         const updateDetail = () => {
-          selectedIndex = getListSelectedIndex(list) ?? selectedIndex;
+          selectedIndex = clampIndex(selectedIndex);
           const current = optionsList[selectedIndex];
           detailBox.setContent(
             `${current?.label || ""}\n\n${current?.detail || "No extra detail."}`,
           );
+          list.select(selectedIndex);
           screen.render();
         };
-        list.on("select item", (_item, index) =>
-          resolve(optionsList[index]?.value ?? defaultValue),
-        );
-        list.on("keypress", updateDetail);
         list.focus();
+        screen.render();
         updateDetail();
-        list.key(["enter", "space"], () =>
-          resolve(optionsList[selectedIndex]?.value ?? defaultValue),
+        list.key(["up", "left"], () => {
+          selectedIndex = clampIndex(selectedIndex - 1);
+          updateDetail();
+        });
+        list.key(["down", "right"], () => {
+          selectedIndex = clampIndex(selectedIndex + 1);
+          updateDetail();
+        });
+        list.key(
+          optionsList.map((_item, index) => String(index + 1)),
+          (_ch, key) => {
+            const numeric = Number(key.full);
+            if (
+              Number.isInteger(numeric) &&
+              numeric >= 1 &&
+              numeric <= optionsList.length
+            ) {
+              selectedIndex = numeric - 1;
+              updateDetail();
+            }
+          },
         );
-        list.key("escape", () => resolve(defaultValue));
+        list.key(["enter", "space"], () => finish(selectedIndex));
+        list.key("escape", () => finish(clampIndex(selectedIndex)));
+        list.key("C-c", () => finish(clampIndex(selectedIndex)));
       },
     );
 
@@ -720,6 +790,7 @@ function createWizardScreen(
           height: "100%-8",
           border: "line",
           keys: true,
+          vi: true,
           mouse: true,
           style: {
             border: { fg: "#55d6ff" },
@@ -728,8 +799,20 @@ function createWizardScreen(
           },
           items: [],
         });
+        let settled = false;
+        const finish = (value: T[]) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve(value);
+        };
+        const clampIndex = (index: number) =>
+          optionsList.length === 0
+            ? 0
+            : Math.max(0, Math.min(optionsList.length - 1, index));
         const refresh = () => {
-          cursorIndex = getListSelectedIndex(list) ?? cursorIndex;
+          cursorIndex = clampIndex(cursorIndex);
           list.setItems(
             optionsList.map(
               (item) => `${active.has(item.value) ? "●" : "○"} ${item.label}`,
@@ -738,11 +821,40 @@ function createWizardScreen(
           list.select(cursorIndex);
           screen.render();
         };
+        const moveCursor = (delta: number) => {
+          cursorIndex = clampIndex(cursorIndex + delta);
+          refresh();
+        };
         list.focus();
         refresh();
-        list.on("keypress", () => {
-          cursorIndex = getListSelectedIndex(list) ?? cursorIndex;
+        list.on("select item", (_item, index) => {
+          cursorIndex = clampIndex(index);
+          refresh();
         });
+        list.key(["up", "left"], () => moveCursor(-1));
+        list.key(["down", "right"], () => moveCursor(1));
+        list.key(
+          optionsList.map((_item, index) => String(index + 1)),
+          (_ch, key) => {
+            const numeric = Number(key.full);
+            if (
+              Number.isInteger(numeric) &&
+              numeric >= 1 &&
+              numeric <= optionsList.length
+            ) {
+              cursorIndex = numeric - 1;
+              const current = optionsList[cursorIndex];
+              if (current) {
+                if (active.has(current.value)) {
+                  active.delete(current.value);
+                } else {
+                  active.add(current.value);
+                }
+              }
+              refresh();
+            }
+          },
+        );
         list.key("space", () => {
           const current = optionsList[cursorIndex];
           if (!current) {
@@ -756,13 +868,14 @@ function createWizardScreen(
           refresh();
         });
         list.key("enter", () =>
-          resolve(
+          finish(
             optionsList
               .filter((item) => active.has(item.value))
               .map((item) => item.value),
           ),
         );
-        list.key("escape", () => resolve(defaults));
+        list.key("escape", () => finish(defaults));
+        list.key("C-c", () => finish(defaults));
       },
     );
 

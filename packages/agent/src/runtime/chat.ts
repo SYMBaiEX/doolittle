@@ -927,6 +927,25 @@ async function getProviderReadinessMessage(
   return undefined;
 }
 
+function buildProviderNoResponseMessage(
+  provider: string,
+  model: string,
+): string {
+  if (provider === "codex") {
+    return `I couldn't get a usable response from Codex (${model}). Run \`/accounts doctor\` to verify the linked account, or switch providers with \`/accounts use claude-code\`.`;
+  }
+  if (provider === "claude-code") {
+    return `I couldn't get a usable response from Claude Code (${model}). Run \`/accounts doctor\` to verify the linked account, or switch providers with \`/accounts use codex\`.`;
+  }
+  if (provider === "openai") {
+    return `I couldn't get a usable response from OpenAI (${model}). Check \`OPENAI_API_KEY\` or switch to a linked provider with \`/accounts\`.`;
+  }
+  if (provider === "anthropic") {
+    return `I couldn't get a usable response from Anthropic (${model}). Check \`ANTHROPIC_API_KEY\` or switch to a linked provider with \`/accounts\`.`;
+  }
+  return "I couldn't get a usable response from the active provider. Run `/doctor` or `/accounts` to repair the runtime.";
+}
+
 export function activateLinkedProvider(
   context: AgentExecutionContext,
   provider: LinkedProviderName,
@@ -5582,7 +5601,11 @@ export async function handleAgentTurn(
   }
 
   const finalResponse =
-    response.trim() || "The runtime completed without producing a response.";
+    response.trim() ||
+    buildProviderNoResponseMessage(
+      settingsDuring.model.provider,
+      settingsDuring.model.model,
+    );
 
   context.services.sessions.storeMessage({
     id: randomUUID(),
