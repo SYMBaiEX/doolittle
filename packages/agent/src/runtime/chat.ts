@@ -7,6 +7,7 @@ import {
   stringToUuid,
   type UUID,
 } from "@elizaos/core";
+import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -115,37 +116,6 @@ export type AgentExecutionContext = Pick<
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function summarizeTransportInventory(
-  inventory: Array<{
-    platform: string;
-    source: string;
-    configEnabled: boolean;
-    gatewayEnabled: boolean;
-    operational: boolean;
-    reason: string;
-    detail: string;
-  }>,
-): string {
-  const totals = {
-    operational: inventory.filter((entry) => entry.operational).length,
-    configEnabled: inventory.filter((entry) => entry.configEnabled).length,
-    gatewayEnabled: inventory.filter((entry) => entry.gatewayEnabled).length,
-    official: inventory.filter((entry) => entry.source === "official").length,
-    vendored: inventory.filter((entry) => entry.source === "vendored").length,
-    custom: inventory.filter((entry) => entry.source === "custom").length,
-    product: inventory.filter((entry) => entry.source === "product").length,
-  };
-
-  return [
-    `inventory totals: operational=${totals.operational}/${inventory.length} configEnabled=${totals.configEnabled} gatewayEnabled=${totals.gatewayEnabled}`,
-    `sources: official=${totals.official} vendored=${totals.vendored} custom=${totals.custom} product=${totals.product}`,
-    ...inventory.map(
-      (entry) =>
-        `- ${entry.platform} source=${entry.source} config=${entry.configEnabled} gateway=${entry.gatewayEnabled} op=${entry.operational} reason=${entry.reason} :: ${entry.detail}`,
-    ),
-  ].join("\n");
 }
 
 const TRANSPORT_PLATFORM_NAMES: PlatformName[] = [
@@ -2174,7 +2144,7 @@ async function buildCommandResponse(
       context.config,
       context.services.gatewayConfig,
     );
-    return summarizeTransportInventory(controlPlane.transportInventory);
+    return summarizeTransportInventory(controlPlane.transportInventory, "chat");
   }
 
   if (trimmed === "/transport status") {
@@ -2186,7 +2156,7 @@ async function buildCommandResponse(
     return [
       `transport status: operational=${controlPlane.totals.operationalTransports}/${controlPlane.transportInventory.length} live=${controlPlane.totals.liveServices} gatewayEnabled=${controlPlane.totals.gatewayEnabled} pluginEnabled=${controlPlane.totals.enabledPlugins}`,
       `native services: available=${controlPlane.totals.availableServices} product=${controlPlane.totals.productTransports} custom=${controlPlane.totals.customTransports}`,
-      summarizeTransportInventory(controlPlane.transportInventory),
+      summarizeTransportInventory(controlPlane.transportInventory, "chat"),
     ].join("\n");
   }
 

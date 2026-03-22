@@ -1,6 +1,10 @@
 import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  getTransportRequirementRecords,
+  summarizeTransportInventory,
+} from "@/gateway/transport-contract";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import {
   getLatestRuntimeLine,
@@ -19,37 +23,6 @@ import {
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
 import type { EcosystemService } from "./ecosystem-service";
-
-function summarizeTransportInventory(
-  inventory: Array<{
-    platform: string;
-    source: string;
-    configEnabled: boolean;
-    gatewayEnabled: boolean;
-    operational: boolean;
-    reason: string;
-    detail: string;
-  }>,
-): string {
-  const totals = {
-    operational: inventory.filter((entry) => entry.operational).length,
-    configEnabled: inventory.filter((entry) => entry.configEnabled).length,
-    gatewayEnabled: inventory.filter((entry) => entry.gatewayEnabled).length,
-    official: inventory.filter((entry) => entry.source === "official").length,
-    vendored: inventory.filter((entry) => entry.source === "vendored").length,
-    custom: inventory.filter((entry) => entry.source === "custom").length,
-    product: inventory.filter((entry) => entry.source === "product").length,
-  };
-
-  return [
-    `operational=${totals.operational}/${inventory.length} configured=${totals.configEnabled} gatewayEnabled=${totals.gatewayEnabled}`,
-    `official=${totals.official} vendored=${totals.vendored} custom=${totals.custom} product=${totals.product}`,
-    ...inventory.map(
-      (entry) =>
-        `${entry.platform}:source=${entry.source}:cfg=${entry.configEnabled ? "on" : "off"}:gateway=${entry.gatewayEnabled ? "on" : "off"}:live=${entry.operational ? "yes" : "no"}:${entry.reason}`,
-    ),
-  ].join(", ");
-}
 
 export class DiagnosticsService {
   private runtime?: RuntimeLike;
@@ -92,6 +65,10 @@ export class DiagnosticsService {
     };
   }): Promise<DiagnosticCheck[]> {
     const checks: DiagnosticCheck[] = [];
+    const transportRequirements = getTransportRequirementRecords(
+      this.config,
+      this.gatewayConfig,
+    );
 
     checks.push({
       id: "workspace.exists",
@@ -347,7 +324,10 @@ export class DiagnosticsService {
             ? "pass"
             : "warn",
         summary: "Gateway transport inventory",
-        detail: summarizeTransportInventory(controlPlane.transportInventory),
+        detail: summarizeTransportInventory(
+          controlPlane.transportInventory,
+          "diagnostics",
+        ),
       });
       checks.push({
         id: "native.ownership.snapshot",
@@ -424,121 +404,14 @@ export class DiagnosticsService {
         : "No gateway platforms enabled.",
     });
 
-    checks.push({
-      id: "telegram.readiness",
-      status:
-        this.gatewayConfig.platforms.telegram.enabled &&
-        !this.config.telegramBotToken
-          ? "fail"
-          : this.config.telegramBotToken
-            ? "pass"
-            : "warn",
-      summary: "Telegram transport readiness",
-      detail: this.config.telegramBotToken
-        ? "Telegram token configured."
-        : "TELEGRAM_BOT_TOKEN is not configured.",
-    });
-
-    checks.push({
-      id: "discord.readiness",
-      status:
-        this.gatewayConfig.platforms.discord.enabled &&
-        !this.config.discordBotToken
-          ? "fail"
-          : this.config.discordBotToken
-            ? "pass"
-            : "warn",
-      summary: "Discord transport readiness",
-      detail: this.config.discordBotToken
-        ? "Discord bot token configured."
-        : "DISCORD_BOT_TOKEN is not configured.",
-    });
-
-    checks.push({
-      id: "slack.readiness",
-      status:
-        this.gatewayConfig.platforms.slack.enabled &&
-        (!this.config.slackWebhookUrl || !this.config.slackSigningSecret)
-          ? "fail"
-          : this.config.slackWebhookUrl && this.config.slackSigningSecret
-            ? "pass"
-            : "warn",
-      summary: "Slack transport readiness",
-      detail:
-        this.config.slackWebhookUrl && this.config.slackSigningSecret
-          ? "Slack webhook and signing secret configured."
-          : "SLACK_WEBHOOK_URL and SLACK_SIGNING_SECRET should both be configured.",
-    });
-
-    checks.push({
-      id: "whatsapp.readiness",
-      status:
-        this.gatewayConfig.platforms.whatsapp.enabled &&
-        !(
-          this.config.whatsappAccessToken &&
-          this.config.whatsappPhoneNumberId &&
-          this.config.whatsappVerifyToken
-        )
-          ? "fail"
-          : this.config.whatsappAccessToken &&
-              this.config.whatsappPhoneNumberId &&
-              this.config.whatsappVerifyToken
-            ? "pass"
-            : "warn",
-      summary: "WhatsApp transport readiness",
-      detail:
-        this.config.whatsappAccessToken &&
-        this.config.whatsappPhoneNumberId &&
-        this.config.whatsappVerifyToken
-          ? "WhatsApp credentials and verify token configured."
-          : "WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN should all be configured.",
-    });
-
-    checks.push({
-      id: "signal.readiness",
-      status:
-        this.gatewayConfig.platforms.signal.enabled &&
-        !this.config.signalCliCommand
-          ? "fail"
-          : this.config.signalCliCommand
-            ? "pass"
-            : "warn",
-      summary: "Signal transport readiness",
-      detail: this.config.signalCliCommand
-        ? "Signal CLI command configured."
-        : "SIGNAL_CLI_COMMAND is not configured.",
-    });
-
-    checks.push({
-      id: "matrix.readiness",
-      status:
-        this.gatewayConfig.platforms.matrix.enabled &&
-        !(this.config.matrixHomeserver && this.config.matrixAccessToken)
-          ? "fail"
-          : this.config.matrixHomeserver && this.config.matrixAccessToken
-            ? "pass"
-            : "warn",
-      summary: "Matrix transport readiness",
-      detail:
-        this.config.matrixHomeserver && this.config.matrixAccessToken
-          ? "Matrix homeserver and access token configured."
-          : "MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN should both be configured.",
-    });
-
-    checks.push({
-      id: "email.readiness",
-      status:
-        this.gatewayConfig.platforms.email.enabled &&
-        !this.config.emailSendCommand
-          ? "fail"
-          : this.config.emailSendCommand
-            ? "pass"
-            : "warn",
-      summary: "Email transport readiness",
-      detail: this.config.emailSendCommand
-        ? "Email send command configured."
-        : "EMAIL_SEND_COMMAND is not configured.",
-    });
+    for (const requirement of transportRequirements) {
+      checks.push({
+        id: `${requirement.platform}.readiness`,
+        status: requirement.status,
+        summary: `${requirement.label} transport readiness`,
+        detail: requirement.summary,
+      });
+    }
 
     checks.push({
       id: "media.tts.readiness",
@@ -547,68 +420,6 @@ export class DiagnosticsService {
       detail: this.config.falApiKey
         ? "FAL API key configured for the official TTS plugin."
         : "FAL_API_KEY is not configured, so the official TTS plugin stays disabled.",
-    });
-
-    checks.push({
-      id: "sms.readiness",
-      status:
-        this.gatewayConfig.platforms.sms.enabled && !this.config.smsSendCommand
-          ? "fail"
-          : this.config.smsSendCommand
-            ? "pass"
-            : "warn",
-      summary: "SMS transport readiness",
-      detail: this.config.smsSendCommand
-        ? "SMS send command configured."
-        : "SMS_SEND_COMMAND is not configured.",
-    });
-
-    checks.push({
-      id: "mattermost.readiness",
-      status:
-        this.gatewayConfig.platforms.mattermost.enabled &&
-        !(this.config.mattermostUrl && this.config.mattermostToken)
-          ? "fail"
-          : this.config.mattermostUrl && this.config.mattermostToken
-            ? "pass"
-            : "warn",
-      summary: "Mattermost transport readiness",
-      detail:
-        this.config.mattermostUrl && this.config.mattermostToken
-          ? "Mattermost server URL and token configured."
-          : "MATTERMOST_URL and MATTERMOST_TOKEN should both be configured.",
-    });
-
-    checks.push({
-      id: "homeassistant.readiness",
-      status:
-        this.gatewayConfig.platforms.homeassistant.enabled &&
-        !(this.config.homeAssistantUrl && this.config.homeAssistantToken)
-          ? "fail"
-          : this.config.homeAssistantUrl && this.config.homeAssistantToken
-            ? "pass"
-            : "warn",
-      summary: "Home Assistant transport readiness",
-      detail:
-        this.config.homeAssistantUrl && this.config.homeAssistantToken
-          ? "Home Assistant API URL and token configured."
-          : "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN should both be configured.",
-    });
-
-    checks.push({
-      id: "dingtalk.readiness",
-      status:
-        this.gatewayConfig.platforms.dingtalk.enabled &&
-        !(this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken)
-          ? "fail"
-          : this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken
-            ? "pass"
-            : "warn",
-      summary: "DingTalk transport readiness",
-      detail:
-        this.config.dingtalkWebhookUrl || this.config.dingtalkAccessToken
-          ? "DingTalk webhook URL or access token configured."
-          : "DINGTALK_WEBHOOK_URL or DINGTALK_ACCESS_TOKEN should be configured.",
     });
 
     checks.push({
@@ -834,52 +645,18 @@ export class DiagnosticsService {
       "Run /doctor after configuration changes.",
     ];
 
-    if (!this.config.telegramBotToken) {
-      steps.push(
-        "Set TELEGRAM_BOT_TOKEN before enabling the Telegram gateway path.",
-      );
-    }
-    if (!this.config.discordBotToken) {
-      steps.push(
-        "Set DISCORD_BOT_TOKEN before enabling the Discord gateway path.",
-      );
-    }
-    if (!this.config.slackWebhookUrl || !this.config.slackSigningSecret) {
-      steps.push(
-        "Set SLACK_WEBHOOK_URL and SLACK_SIGNING_SECRET before enabling the Slack gateway path.",
-      );
-    }
-    if (
-      !this.config.whatsappAccessToken ||
-      !this.config.whatsappPhoneNumberId ||
-      !this.config.whatsappVerifyToken
-    ) {
-      steps.push(
-        "Set WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN before enabling the WhatsApp gateway path.",
-      );
-    }
-    if (!this.config.signalCliCommand) {
-      steps.push(
-        "Set SIGNAL_CLI_COMMAND before enabling the Signal gateway path.",
-      );
-    }
-    if (!this.config.matrixHomeserver || !this.config.matrixAccessToken) {
-      steps.push(
-        "Set MATRIX_HOMESERVER and MATRIX_ACCESS_TOKEN before enabling the Matrix gateway path.",
-      );
-    }
-    if (!this.config.emailSendCommand) {
-      steps.push(
-        "Set EMAIL_SEND_COMMAND before enabling the Email gateway path.",
-      );
+    for (const requirement of getTransportRequirementRecords(
+      this.config,
+      this.gatewayConfig,
+    )) {
+      if (requirement.checklist) {
+        steps.push(requirement.checklist);
+      }
     }
     if (!this.config.falApiKey) {
       steps.push(
         "Set FAL_API_KEY before relying on the official TTS plugin for voice synthesis.",
       );
-    }
-    if (!this.config.smsSendCommand) {
-      steps.push("Set SMS_SEND_COMMAND before enabling the SMS gateway path.");
     }
     if (this.config.browserProvider === "lightpanda") {
       steps.push(

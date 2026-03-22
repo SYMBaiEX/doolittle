@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { getTransportRequirementRecords } from "@/gateway/transport-contract";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
@@ -317,56 +318,18 @@ export class OperatorService {
             : "Missing ANTHROPIC_API_KEY.",
         },
       ],
-      transports: [
+      transports: getTransportRequirementRecords(
+        this.config,
+        this.diagnostics.currentGatewayConfig(),
+      ).map((requirement) =>
         describeTransportSummary(
-          "telegram",
-          "Telegram",
+          requirement.platform,
+          requirement.label,
           transportControl?.transportInventory,
-          Boolean(this.config.telegramBotToken),
-          this.config.telegramBotToken
-            ? "Telegram token configured."
-            : "Missing TELEGRAM_BOT_TOKEN.",
+          requirement.configured,
+          requirement.summary,
         ),
-        describeTransportSummary(
-          "discord",
-          "Discord",
-          transportControl?.transportInventory,
-          Boolean(this.config.discordBotToken),
-          this.config.discordBotToken
-            ? "Discord token configured."
-            : "Missing DISCORD_BOT_TOKEN.",
-        ),
-        describeTransportSummary(
-          "slack",
-          "Slack",
-          transportControl?.transportInventory,
-          Boolean(this.config.slackWebhookUrl),
-          this.config.slackWebhookUrl
-            ? "Slack webhook configured."
-            : "Missing SLACK_WEBHOOK_URL.",
-        ),
-        describeTransportSummary(
-          "whatsapp",
-          "WhatsApp",
-          transportControl?.transportInventory,
-          Boolean(
-            this.config.whatsappAccessToken &&
-              this.config.whatsappPhoneNumberId,
-          ),
-          this.config.whatsappAccessToken && this.config.whatsappPhoneNumberId
-            ? "WhatsApp delivery credentials configured."
-            : "Missing WhatsApp delivery credentials.",
-        ),
-        describeTransportSummary(
-          "signal",
-          "Signal",
-          transportControl?.transportInventory,
-          Boolean(this.config.signalCliCommand),
-          this.config.signalCliCommand
-            ? "Signal CLI command configured."
-            : "Missing SIGNAL_CLI_COMMAND.",
-        ),
-      ],
+      ),
       transportControl,
       transportInventory: transportControl?.transportInventory,
       nativeServices: describeNativeServiceRegistry(
