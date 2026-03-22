@@ -103,6 +103,12 @@ import {
   snapshotEffectiveBrowserPage,
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
+import {
+  DEFAULT_TUI_THEME,
+  getTuiTheme,
+  listTuiThemes,
+  resolveTuiThemeName,
+} from "@/runtime/theme-catalog";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
   ChatTurnRequest,
@@ -3395,6 +3401,51 @@ async function buildCommandResponse(
 
   if (trimmed === "/config" || trimmed === "/config show") {
     return JSON.stringify(context.services.settings.get(), null, 2);
+  }
+
+  if (trimmed === "/theme" || trimmed === "/theme show") {
+    const settings = context.services.settings.get();
+    const active = getTuiTheme(settings.ui.theme);
+    return [
+      `active=${active.name}`,
+      `label=${active.label}`,
+      `primary=${active.primary}`,
+      `secondary=${active.secondary}`,
+      `available=${listTuiThemes()
+        .map((entry) => entry.name)
+        .join(", ")}`,
+    ].join("\n");
+  }
+
+  if (trimmed === "/theme list") {
+    return listTuiThemes()
+      .map(
+        (entry) =>
+          `- ${entry.name} :: ${entry.label} primary=${entry.primary} secondary=${entry.secondary}${entry.name === DEFAULT_TUI_THEME ? " default" : ""}`,
+      )
+      .join("\n");
+  }
+
+  if (trimmed.startsWith("/theme set ")) {
+    const rawTheme = trimmed.replace("/theme set ", "").trim();
+    const theme = resolveTuiThemeName(rawTheme);
+    if (!theme) {
+      return [
+        `Unknown theme: ${rawTheme}`,
+        `Available: ${listTuiThemes()
+          .map((entry) => entry.name)
+          .join(", ")}`,
+      ].join("\n");
+    }
+    const settings = context.services.settings.set("ui.theme", theme);
+    return JSON.stringify(
+      {
+        theme: settings.ui.theme,
+        profile: getTuiTheme(settings.ui.theme),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/doctor") {

@@ -2,6 +2,7 @@ import type { IAgentRuntime } from "@elizaos/core";
 import { benchmarkConfig } from "@elizaos/plugin-action-bench";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
 import type { AppServices } from "@/services";
 import type { MemorySummary } from "@/services/memory-service";
 import type {
@@ -185,6 +186,10 @@ interface NativeOwnershipSnapshot {
   controlPlane: NativeOwnershipControlPlaneSummary;
   integration: NativeIntegrationControlPlane;
   autonomous: AutonomousControlPlaneSummary;
+  ui: {
+    active: ReturnType<typeof getTuiTheme>;
+    themes: ReturnType<typeof listTuiThemes>;
+  };
   skillHub: ReturnType<AppServices["skillsHub"]["summary"]>;
   ecosystem: ReturnType<AppServices["ecosystem"]["summary"]>;
   media: ReturnType<typeof getNativeMediaControlPlane>;
@@ -2230,6 +2235,10 @@ export async function getNativeOwnershipSnapshot(
     controlPlane,
     integration,
     autonomous: getAutonomousControlPlane(runtime, services, config),
+    ui: {
+      active: getTuiTheme(services.settings.get().ui.theme),
+      themes: listTuiThemes(),
+    },
     skillHub: services.skillsHub.summary(),
     ecosystem: services.ecosystem.summary(),
     media: getNativeMediaControlPlane(config),

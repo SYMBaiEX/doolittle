@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import type { TuiThemeName } from "@/runtime/theme-catalog";
 import type {
   ExecutionBackendName,
   RemoteArtifactPolicy,
@@ -64,6 +65,9 @@ export interface RuntimeSettings {
   mcp: {
     serverCommand: string;
     timeoutMs: number;
+  };
+  ui: {
+    theme: TuiThemeName;
   };
 }
 
@@ -329,6 +333,15 @@ export class SettingsService {
         parsed.mcp.timeoutMs = 10_000;
         dirty = true;
       }
+    }
+    if (!parsed.ui || typeof parsed.ui !== "object") {
+      parsed.ui = {
+        theme: "orange",
+      };
+      dirty = true;
+    } else if (!parsed.ui.theme) {
+      parsed.ui.theme = "orange";
+      dirty = true;
     }
     if (dirty) {
       this.write(parsed);

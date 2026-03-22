@@ -153,6 +153,9 @@ export function createServices(
       serverCommand: config.mcpServerCommand ?? "",
       timeoutMs: config.mcpTimeoutMs,
     },
+    ui: {
+      theme: "orange",
+    },
   });
   const currentSettings = settings.get();
   if (!currentSettings.execution.dockerNetwork) {

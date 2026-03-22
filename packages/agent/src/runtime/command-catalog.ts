@@ -83,6 +83,22 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Show alpha-channel package alignment and native audit data.",
   },
   {
+    command: "/theme",
+    category: "runtime",
+    description: "Show the active operator theme and available theme controls.",
+  },
+  {
+    command: "/theme list",
+    category: "runtime",
+    description: "List all built-in operator cockpit themes.",
+  },
+  {
+    command: "/theme set <name>",
+    category: "runtime",
+    description:
+      "Set the active operator theme and persist it in runtime settings.",
+  },
+  {
     command: "/ecosystem",
     category: "runtime",
     description:
