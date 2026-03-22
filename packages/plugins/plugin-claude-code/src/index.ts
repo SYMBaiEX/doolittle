@@ -21,6 +21,11 @@ interface LinkedAccountStatus {
 interface ClaudeCodePluginOptions {
   enabled?: boolean;
   getStatus: () => LinkedAccountStatus;
+  invokeCliPrint?: (params: {
+    prompt: string;
+    model: string;
+    appendSystemPrompt?: string;
+  }) => Promise<string>;
   getCredentials?: () =>
     | {
         accessToken?: string;
@@ -84,6 +89,46 @@ function withClaudeCodeSystemPrefix(): Array<{ type: "text"; text: string }> {
   ];
 }
 
+async function invokeClaudeCodeCliPrint(params: {
+  prompt: string;
+  model: string;
+  appendSystemPrompt?: string;
+}): Promise<string> {
+  const args = [
+    "-p",
+    params.prompt,
+    "--output-format",
+    "text",
+    "--model",
+    params.model,
+  ];
+
+  if (params.appendSystemPrompt?.trim()) {
+    args.push("--append-system-prompt", params.appendSystemPrompt.trim());
+  }
+
+  const result = spawnSync("claude", args, {
+    encoding: "utf8",
+    timeout: 120_000,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== 0) {
+    const detail = [result.stdout, result.stderr]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    throw new Error(
+      `Claude Code CLI invocation failed${typeof result.status === "number" ? ` (${result.status})` : ""}: ${detail || "Unknown error"}`,
+    );
+  }
+
+  return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+}
+
 function getRuntimeProvider(
   runtime: IAgentRuntime | undefined,
 ): string | undefined {
@@ -143,16 +188,23 @@ async function runClaudeCodeTextGeneration(
     credentials = await options.refreshCredentials();
   }
   const accessToken = credentials?.accessToken?.trim();
+  const runtimeModel = getRuntimeModelSettings(runtime);
+  const model = runtimeModel.model || "claude-sonnet-4-20250514";
+
   if (!accessToken) {
-    throw new Error(
-      "No reusable linked Claude Code access token is available for the Claude Code provider.",
-    );
+    const cliOutput = await (
+      options.invokeCliPrint ?? invokeClaudeCodeCliPrint
+    )({
+      prompt: params.prompt,
+      model,
+      appendSystemPrompt: CLAUDE_CODE_SYSTEM_PREFIX,
+    });
+    return cliOutput || "No response returned.";
   }
 
-  const runtimeModel = getRuntimeModelSettings(runtime);
   const endpoint = `${runtimeModel.baseUrl || DEFAULT_ANTHROPIC_BASE_URL}/v1/messages`;
   const requestBody = {
-    model: runtimeModel.model || "claude-sonnet-4-20250514",
+    model,
     max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
     temperature: runtimeModel.temperature ?? 0.4,
     system: withClaudeCodeSystemPrefix(),

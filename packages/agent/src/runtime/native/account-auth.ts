@@ -448,12 +448,12 @@ function getClaudeCodeAccountStatus(
     return {
       provider: "claude-code",
       available: true,
-      reusable: false,
+      reusable: cliStatus.loggedIn,
       source: existsSync(credentialsPath)
         ? credentialsPath
         : existsSync(profilePath)
           ? profilePath
-          : undefined,
+          : cliStatus.source,
       authMode:
         cliStatus.authMethod ||
         (existsSync(profilePath) ? "profile" : undefined),
@@ -461,11 +461,11 @@ function getClaudeCodeAccountStatus(
       loginCommand: "claude auth login",
       detail: accountLabel
         ? cliStatus.loggedIn
-          ? "Claude account profile is present and Claude CLI reports logged in, but Eliza Agent still could not read a reusable Claude Code credential store."
+          ? "Claude account profile is present and Claude CLI reports logged in. Eliza Agent can use the local Claude CLI directly even though no reusable credential file was found."
           : "Claude account profile is present locally, but that profile alone is not a reusable Claude Code login. Run `claude auth login`."
         : cliStatus.available
           ? cliStatus.loggedIn
-            ? "Claude CLI reports a logged-in session, but Eliza Agent could not read a reusable OAuth credential store yet."
+            ? "Claude CLI reports a logged-in session, and Eliza Agent can use the local Claude CLI directly even though no reusable credential file was found."
             : "Claude CLI is installed, but no reusable OAuth credential store was found. Run `claude auth login`."
           : "Claude CLI presence was detected, but no reusable OAuth credential store was found.",
     };
