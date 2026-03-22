@@ -154,6 +154,112 @@ interface AgentTurnHooks {
   }) => void | Promise<void>;
 }
 
+const REMOTE_EXECUTION_PLATFORMS = new Set<PlatformName>([
+  "telegram",
+  "discord",
+  "slack",
+  "whatsapp",
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+  "mattermost",
+  "homeassistant",
+  "dingtalk",
+]);
+
+const SAFE_REMOTE_EXECUTION_PREFIXES = [
+  "pwd",
+  "ls",
+  "find",
+  "cat",
+  "head",
+  "tail",
+  "echo",
+  "printf",
+  "rg",
+  "grep",
+  "git status",
+  "git diff",
+  "git log",
+  "git show",
+  "uname",
+  "whoami",
+  "date",
+  "ps ",
+  "which ",
+  "whereis ",
+  "env",
+  "printenv",
+  "bun test",
+  "bun run test",
+  "bun run typecheck",
+  "bun run lint",
+  "bun run build",
+  "npm test",
+  "npm run test",
+  "npm run typecheck",
+  "npm run lint",
+  "npm run build",
+];
+
+const REMOTE_EXECUTION_APPROVAL_RULES: Array<{
+  pattern: RegExp;
+  reason: string;
+}> = [
+  {
+    pattern: /(^|\s)(sudo|doas)\b/u,
+    reason: "uses elevated privileges",
+  },
+  {
+    pattern: /(^|\s)rm\b/u,
+    reason: "can delete files",
+  },
+  {
+    pattern: /(^|\s)(mv|cp)\b/u,
+    reason: "can overwrite project files",
+  },
+  {
+    pattern: /(^|\s)(chmod|chown|chgrp)\b/u,
+    reason: "can change file permissions or ownership",
+  },
+  {
+    pattern: /(^|\s)(kill|pkill|killall)\b/u,
+    reason: "can terminate running processes",
+  },
+  {
+    pattern:
+      /(^|\s)(reboot|shutdown|halt|launchctl|systemctl|scutil|diskutil|dd|mkfs|mount|umount)\b/u,
+    reason: "can change host-level system state",
+  },
+  {
+    pattern:
+      /\bgit\s+(reset|clean|checkout|switch|restore|rebase|push|cherry-pick|am|apply|commit)\b/u,
+    reason: "can rewrite git state or publish changes",
+  },
+  {
+    pattern:
+      /\b(bun|npm|pnpm|yarn|uv|pip|pip3|poetry|cargo|go|brew)\s+(add|install|remove|uninstall|update|upgrade|publish)\b/u,
+    reason: "can mutate dependencies, environments, or publish artifacts",
+  },
+  {
+    pattern: /(^|\s)(>|>>|1>|2>|&>)/u,
+    reason: "writes command output to files",
+  },
+  {
+    pattern: /\|\s*(bash|sh|zsh|fish)\b/u,
+    reason: "pipes output directly into a shell",
+  },
+  {
+    pattern: /\b(sed|perl)\s+-i\b/u,
+    reason: "edits files in place",
+  },
+  {
+    pattern: /\btee\b/u,
+    reason: "can write command output into files",
+  },
+];
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -238,6 +344,148 @@ async function runShellCommandForTurn(
     stderr?: string;
     durationMs?: number;
   };
+}
+
+function resolveRemoteExecutionPlatform(
+  source?: string,
+): PlatformName | undefined {
+  if (!source) {
+    return undefined;
+  }
+  return REMOTE_EXECUTION_PLATFORMS.has(source as PlatformName)
+    ? (source as PlatformName)
+    : undefined;
+}
+
+function getExecutionApprovalReason(command: string): string | undefined {
+  const normalized = command.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+  if (
+    SAFE_REMOTE_EXECUTION_PREFIXES.some(
+      (prefix) => normalized === prefix || normalized.startsWith(`${prefix} `),
+    )
+  ) {
+    return undefined;
+  }
+  for (const rule of REMOTE_EXECUTION_APPROVAL_RULES) {
+    if (rule.pattern.test(normalized)) {
+      return rule.reason;
+    }
+  }
+  return undefined;
+}
+
+function formatExecutionApprovalPrompt(input: {
+  id: string;
+  command: string;
+  reason: string;
+}): string {
+  return [
+    "Execution approval required before I run that remote shell command.",
+    `Approval: ${input.id}`,
+    `Reason: ${input.reason}`,
+    `Command: ${input.command}`,
+    `Approve and run: ${displayCommand(`/approvals approve ${input.id}`)}`,
+    `Deny: ${displayCommand(`/approvals deny ${input.id}`)}`,
+    `Review pending: ${displayCommand("/approvals")}`,
+  ].join("\n");
+}
+
+function isApprovalScopedToRequester(
+  input: ChatTurnRequest,
+  record: {
+    platform: PlatformName;
+    userId: string;
+    roomId: string;
+  },
+): boolean {
+  const source = resolveRemoteExecutionPlatform(input.source);
+  if (!source) {
+    return true;
+  }
+  const sessionKey = input.roomId ?? `room:${input.userId}`;
+  return (
+    record.platform === source &&
+    record.userId === input.userId &&
+    record.roomId === sessionKey
+  );
+}
+
+async function maybeRequireRemoteExecutionApproval(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  command: string,
+  hooks?: AgentTurnHooks,
+): Promise<string | undefined> {
+  const platform = resolveRemoteExecutionPlatform(input.source);
+  const reason = getExecutionApprovalReason(command);
+  if (!platform || !reason) {
+    return undefined;
+  }
+
+  const roomId = input.roomId ?? `room:${input.userId}`;
+  const approval =
+    context.services.executionApprovals.useApproved({
+      platform,
+      userId: input.userId,
+      roomId,
+      command,
+    }) ?? undefined;
+  if (approval) {
+    return undefined;
+  }
+
+  const pending =
+    context.services.executionApprovals.findPending({
+      platform,
+      userId: input.userId,
+      roomId,
+      command,
+    }) ??
+    context.services.executionApprovals.request({
+      platform,
+      userId: input.userId,
+      roomId,
+      command,
+      reason,
+    });
+  const prompt = formatExecutionApprovalPrompt({
+    id: pending.id,
+    command,
+    reason: pending.reason,
+  });
+  await hooks?.onResponseProgress?.({
+    chunk: prompt,
+    response: prompt,
+    phase: "command",
+  });
+  return prompt;
+}
+
+function formatExecutionApprovalList(
+  approvals: Array<{
+    id: string;
+    status: string;
+    platform: string;
+    userId: string;
+    roomId: string;
+    command: string;
+    reason: string;
+    createdAt: string;
+    expiresAt: string;
+  }>,
+): string {
+  if (!approvals.length) {
+    return "No execution approvals recorded.";
+  }
+  return approvals
+    .map(
+      (record) =>
+        `- ${record.id} [${record.status}] ${record.platform} user=${record.userId} room=${record.roomId}\n  reason=${record.reason}\n  command=${record.command}\n  created=${record.createdAt} expires=${record.expiresAt}`,
+    )
+    .join("\n\n");
 }
 
 export function formatMemorySummary(summary: {
@@ -1237,6 +1485,79 @@ async function buildCommandResponse(
   const trimmed = normalizeSlashCommandSyntax(message.trim());
   const sessionKey = input.roomId ?? `room:${input.userId}`;
   const nativeServices = getNativeServices(context.runtime);
+  const sourcePlatform = resolveRemoteExecutionPlatform(input.source);
+
+  if (trimmed === "/approvals" || trimmed === "/approvals list") {
+    const approvals = context.services.executionApprovals
+      .list()
+      .filter((record) =>
+        sourcePlatform ? isApprovalScopedToRequester(input, record) : true,
+      )
+      .slice(0, 20);
+    return formatExecutionApprovalList(approvals);
+  }
+
+  if (trimmed.startsWith("/approvals list ")) {
+    const rawStatus = trimmed.replace("/approvals list ", "").trim();
+    const status =
+      rawStatus === "pending" ||
+      rawStatus === "approved" ||
+      rawStatus === "denied" ||
+      rawStatus === "used" ||
+      rawStatus === "expired"
+        ? rawStatus
+        : undefined;
+    const approvals = context.services.executionApprovals
+      .list(status)
+      .filter((record) =>
+        sourcePlatform ? isApprovalScopedToRequester(input, record) : true,
+      )
+      .slice(0, 20);
+    return formatExecutionApprovalList(approvals);
+  }
+
+  if (trimmed.startsWith("/approvals deny ")) {
+    const id = trimmed.replace("/approvals deny ", "").trim();
+    const record = context.services.executionApprovals.get(id);
+    if (!record) {
+      return `Execution approval not found: ${id}`;
+    }
+    if (!isApprovalScopedToRequester(input, record)) {
+      return "You can only deny execution approvals for your own remote session.";
+    }
+    const denied = context.services.executionApprovals.deny(id);
+    return [
+      `Denied approval ${denied.id}.`,
+      `Command: ${denied.command}`,
+      `Reason: ${denied.reason}`,
+    ].join("\n");
+  }
+
+  if (trimmed.startsWith("/approvals approve ")) {
+    const id = trimmed.replace("/approvals approve ", "").trim();
+    const record = context.services.executionApprovals.get(id);
+    if (!record) {
+      return `Execution approval not found: ${id}`;
+    }
+    if (!isApprovalScopedToRequester(input, record)) {
+      return "You can only approve execution requests for your own remote session.";
+    }
+    const approved = context.services.executionApprovals.approve(id, {
+      useImmediately: true,
+    });
+    const intro = `Approval ${approved.id} accepted. Executing: ${approved.command}`;
+    await hooks?.onResponseProgress?.({
+      chunk: intro,
+      response: intro,
+      phase: "command",
+    });
+    const result = await runShellCommandForTurn(
+      approved.command,
+      context,
+      hooks,
+    );
+    return [intro, "", formatShellCommandResponse(result)].join("\n");
+  }
 
   if (trimmed === "/gateway start") {
     if (!context.gateway) {
@@ -4338,6 +4659,15 @@ async function buildCommandResponse(
     if (!command) {
       return "Usage: /terminal run <command>";
     }
+    const approvalPrompt = await maybeRequireRemoteExecutionApproval(
+      input,
+      context,
+      command,
+      hooks,
+    );
+    if (approvalPrompt) {
+      return approvalPrompt;
+    }
     const result = await runShellCommandForTurn(command, context, hooks);
     const response = formatShellCommandResponse(result);
     await hooks?.onResponseProgress?.({
@@ -5826,6 +6156,24 @@ export async function handleAgentTurn(
     const command = input.message.trim().slice(1).trim();
     if (!command) {
       return "Usage: !<shell command>";
+    }
+    const approvalPrompt = await maybeRequireRemoteExecutionApproval(
+      input,
+      context,
+      command,
+      options,
+    );
+    if (approvalPrompt) {
+      context.services.sessions.storeMessage({
+        id: randomUUID(),
+        sessionId,
+        roomId,
+        entityId,
+        role: "assistant",
+        text: approvalPrompt,
+        createdAt: nowIso(),
+      });
+      return approvalPrompt;
     }
     const result = await runShellCommandForTurn(command, context, options);
     const shellResponse = formatShellCommandResponse(result);

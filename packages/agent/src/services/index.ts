@@ -16,6 +16,7 @@ import { DeliveryService } from "./delivery-service";
 import { DiagnosticsService } from "./diagnostics-service";
 import { DocumentsService } from "./documents-service";
 import { EcosystemService } from "./ecosystem-service";
+import { ExecutionApprovalService } from "./execution-approval-service";
 import { GatewaySessionService } from "./gateway-session-service";
 import { HooksService } from "./hooks-service";
 import { McpService } from "./mcp-service";
@@ -54,6 +55,7 @@ export interface AppServices {
   pairing: PairingService;
   hooks: HooksService;
   gatewaySessions: GatewaySessionService;
+  executionApprovals: ExecutionApprovalService;
   delivery: DeliveryService;
   documents: DocumentsService;
   ecosystem: EcosystemService;
@@ -528,6 +530,9 @@ export function createServices(
     hooks: new HooksService(config.hooksDir),
     gatewaySessions: new GatewaySessionService(
       join(config.gatewayDataDir, "sessions"),
+    ),
+    executionApprovals: new ExecutionApprovalService(
+      join(config.gatewayDataDir, "approvals"),
     ),
     delivery: new DeliveryService(join(config.gatewayDataDir, "delivery")),
     documents: new DocumentsService(

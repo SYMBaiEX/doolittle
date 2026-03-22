@@ -179,6 +179,29 @@ const RAW_COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Switch the active runtime provider to the linked Codex or Claude Code plugin.",
   },
   {
+    command: "/approvals",
+    category: "execution",
+    description:
+      "List pending and recent remote execution approvals for shell commands.",
+  },
+  {
+    command: "/approvals list [pending|approved|denied|used|expired]",
+    category: "execution",
+    description:
+      "Filter remote execution approvals by status for review or troubleshooting.",
+  },
+  {
+    command: "/approvals approve <id>",
+    category: "execution",
+    description:
+      "Approve a pending remote shell command and execute it immediately.",
+  },
+  {
+    command: "/approvals deny <id>",
+    category: "execution",
+    description: "Deny a pending remote shell command without running it.",
+  },
+  {
     command: "/theme",
     category: "runtime",
     description: "Show the active operator theme and available theme controls.",
