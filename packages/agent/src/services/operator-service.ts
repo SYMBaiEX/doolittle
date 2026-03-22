@@ -28,6 +28,7 @@ import {
   createNativeServiceRegistry,
   describeNativeServiceRegistry,
 } from "./native-service-registry";
+import { buildOperatorCondensedSummary } from "./operator-summary";
 import type { RepositoryService } from "./repository-service";
 
 interface PackageMetadata {
@@ -274,10 +275,14 @@ export class OperatorService {
           )
         : undefined);
     const transportControl = ownership?.transportControl;
-    const pluginManager = ownership?.pluginManager ?? null;
-    const identity = ownership?.identity;
     const pipeline = this.autocoderPipeline?.summary();
     const workspaceEcosystem = this.ecosystemService?.summary();
+    const condensed = buildOperatorCondensedSummary({
+      ownership,
+      ecosystem,
+      workspaceEcosystem,
+      pipeline,
+    });
     return {
       version: this.version(),
       directories: [
@@ -335,57 +340,10 @@ export class OperatorService {
       nativeServices: describeNativeServiceRegistry(
         createNativeServiceRegistry(),
       ),
-      ownership: ownership
-        ? {
-            serviceResolution: ownership.serviceResolution.length,
-            pluginManager: {
-              available: Boolean(ownership.pluginManager),
-              total: ownership.pluginManager?.summary.total ?? 0,
-              enabled: ownership.pluginManager?.summary.enabled ?? 0,
-              official: ownership.pluginManager?.summary.official ?? 0,
-              vendored: ownership.pluginManager?.summary.vendored ?? 0,
-              categories: ownership.pluginManager?.summary.categories ?? 0,
-            },
-            ...(identity
-              ? {
-                  identity: {
-                    personality: identity.personality.total,
-                    rolodex: identity.rolodex.totalProfiles,
-                    experience: identity.experience.sessions.totalSessions,
-                  },
-                }
-              : {}),
-          }
-        : undefined,
-      ecosystem: {
-        registryAvailable: ecosystem?.registry.available ?? false,
-        registryPlugins: ecosystem?.registry.total ?? 0,
-        skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
-        skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
-        compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
-        benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
-        distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,
-        modelingProfiles: workspaceEcosystem?.modelingProfiles ?? 0,
-      },
-      pluginManager: {
-        available: Boolean(pluginManager),
-        total: pluginManager?.summary.total ?? 0,
-        enabled: pluginManager?.summary.enabled ?? 0,
-        official: pluginManager?.summary.official ?? 0,
-        vendored: pluginManager?.summary.vendored ?? 0,
-        categories: pluginManager?.summary.categories ?? 0,
-      },
-      pipeline: pipeline
-        ? {
-            total: pipeline.total,
-            workflows: pipeline.workflows,
-            failed: pipeline.failed,
-            failedWorkflows: pipeline.failedWorkflows,
-            latestKind: pipeline.latest?.kind,
-            latestTarget:
-              pipeline.latest?.projectName ?? pipeline.latest?.repositoryName,
-          }
-        : undefined,
+      ownership: condensed.ownership,
+      ecosystem: condensed.ecosystem,
+      pluginManager: condensed.pluginManager,
+      pipeline: condensed.pipeline,
       checklist: await this.diagnostics.setupChecklist(),
     };
   }
@@ -412,10 +370,14 @@ export class OperatorService {
           )
         : undefined);
     const transportControl = ownership?.transportControl;
-    const pluginManager = ownership?.pluginManager ?? null;
-    const identity = ownership?.identity;
     const pipeline = this.autocoderPipeline?.summary();
     const workspaceEcosystem = this.ecosystemService?.summary();
+    const condensed = buildOperatorCondensedSummary({
+      ownership,
+      ecosystem,
+      workspaceEcosystem,
+      pipeline,
+    });
 
     return {
       version: this.version(),
@@ -424,28 +386,7 @@ export class OperatorService {
       recentCommits,
       transportControl: transportControl?.totals,
       transportInventory: transportControl?.transportInventory,
-      ownership: ownership
-        ? {
-            serviceResolution: ownership.serviceResolution.length,
-            pluginManager: {
-              available: Boolean(ownership.pluginManager),
-              total: ownership.pluginManager?.summary.total ?? 0,
-              enabled: ownership.pluginManager?.summary.enabled ?? 0,
-              official: ownership.pluginManager?.summary.official ?? 0,
-              vendored: ownership.pluginManager?.summary.vendored ?? 0,
-              categories: ownership.pluginManager?.summary.categories ?? 0,
-            },
-            ...(identity
-              ? {
-                  identity: {
-                    personality: identity.personality.total,
-                    rolodex: identity.rolodex.totalProfiles,
-                    experience: identity.experience.sessions.totalSessions,
-                  },
-                }
-              : {}),
-          }
-        : undefined,
+      ownership: condensed.ownership,
       recommendedSteps: repositoryAvailable
         ? [
             "Review git status before updating runtime dependencies.",
@@ -456,35 +397,9 @@ export class OperatorService {
             "Initialize a git repository if you want update previews tied to commit history.",
             "Keep bun install, bun run typecheck, bun test, and bun run build as the standard update validation flow.",
           ],
-      ecosystem: {
-        registryAvailable: ecosystem?.registry.available ?? false,
-        registryPlugins: ecosystem?.registry.total ?? 0,
-        skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
-        skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
-        compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
-        benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
-        distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,
-        modelingProfiles: workspaceEcosystem?.modelingProfiles ?? 0,
-      },
-      pluginManager: {
-        available: Boolean(pluginManager),
-        total: pluginManager?.summary.total ?? 0,
-        enabled: pluginManager?.summary.enabled ?? 0,
-        official: pluginManager?.summary.official ?? 0,
-        vendored: pluginManager?.summary.vendored ?? 0,
-        categories: pluginManager?.summary.categories ?? 0,
-      },
-      pipeline: pipeline
-        ? {
-            total: pipeline.total,
-            workflows: pipeline.workflows,
-            failed: pipeline.failed,
-            failedWorkflows: pipeline.failedWorkflows,
-            latestKind: pipeline.latest?.kind,
-            latestTarget:
-              pipeline.latest?.projectName ?? pipeline.latest?.repositoryName,
-          }
-        : undefined,
+      ecosystem: condensed.ecosystem,
+      pluginManager: condensed.pluginManager,
+      pipeline: condensed.pipeline,
     };
   }
 
