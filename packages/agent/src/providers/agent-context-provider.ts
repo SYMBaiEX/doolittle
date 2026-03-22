@@ -9,6 +9,25 @@ import type {
 import type { AppServices } from "@/services";
 
 export function createAgentContextProvider(services: AppServices): Provider {
+  let providerCache:
+    | {
+        capturedAt: number;
+        text: string;
+        data: {
+          skillsCount: number;
+          cronJobs: number;
+          personality: string;
+          terminalCommands: number;
+        };
+      }
+    | undefined;
+  let repoCache:
+    | {
+        capturedAt: number;
+        summary: string;
+      }
+    | undefined;
+
   return {
     name: "ELIZA_AGENT_CONTEXT_PROVIDER",
     description:
@@ -18,18 +37,33 @@ export function createAgentContextProvider(services: AppServices): Provider {
       _message: Memory,
       _state?: State,
     ): Promise<ProviderResult> => {
+      const now = Date.now();
+      if (providerCache && now - providerCache.capturedAt < 2_000) {
+        return {
+          text: providerCache.text,
+          values: {},
+          data: providerCache.data,
+        };
+      }
+
       const memorySnapshot = services.memory.renderSnapshot("memory");
       const userSnapshot = services.memory.renderSnapshot("user");
       const personality = services.personalities.getActive();
       const settings = services.settings.get();
       const contextFiles = services.contextFiles.render();
-      const skills = services.skills
-        .list()
+      const skillEntries = services.skills.list();
+      const cronJobs = services.cron.list();
+      const recentTerminal = services.terminal.recent(5);
+      const enabledTools = services.tools.enabled();
+      const delegationTasks = services.delegation.list();
+      const delegationOverview = services.delegation.overview();
+      const delegationWorkers = services.delegation.workers(5);
+      const userProfileEntries = services.userProfiles.list();
+      const skills = skillEntries
         .slice(0, 12)
         .map((skill) => `- ${skill.slug}: ${skill.description}`)
         .join("\n");
-      const cronSummary = services.cron
-        .list()
+      const cronSummary = cronJobs
         .slice(0, 8)
         .map(
           (job) =>
@@ -37,36 +71,40 @@ export function createAgentContextProvider(services: AppServices): Provider {
         )
         .join("\n");
       const workspaceSummary = services.workspace.summary(18);
-      const recentCommands = services.terminal
-        .recent(5)
+      const recentCommands = recentTerminal
         .map((entry) => `- [${entry.exitCode}] ${entry.command}`)
         .join("\n");
-      const repoSummary = await services.repository
-        .status()
-        .catch(
-          (error) =>
-            `Repository status unavailable: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      const toolsSummary = services.tools
-        .enabled()
+      const repoSummary =
+        repoCache && now - repoCache.capturedAt < 10_000
+          ? repoCache.summary
+          : await services.repository
+              .status()
+              .then((summary) => {
+                repoCache = {
+                  capturedAt: Date.now(),
+                  summary,
+                };
+                return summary;
+              })
+              .catch(
+                (error) =>
+                  `Repository status unavailable: ${error instanceof Error ? error.message : String(error)}`,
+              );
+      const toolsSummary = enabledTools
         .slice(0, 10)
         .map((tool) => `- ${tool.id}: ${tool.description}`)
         .join("\n");
-      const delegationSummary = services.delegation
-        .list()
+      const delegationSummary = delegationTasks
         .slice(0, 5)
         .map((task) => `- ${task.title} [${task.status}]`)
         .join("\n");
-      const delegationOverview = services.delegation.overview();
-      const delegationWorkers = services.delegation
-        .workers(5)
+      const delegationWorkersSummary = delegationWorkers
         .map(
           (worker) =>
             `- ${worker.title} [${worker.status}] alive=${worker.alive} stalled=${worker.stalled} attempts=${worker.attempts}/${worker.maxAttempts}`,
         )
         .join("\n");
-      const userProfiles = services.userProfiles
-        .list()
+      const userProfiles = userProfileEntries
         .slice(0, 5)
         .map(
           (profile) =>
@@ -123,21 +161,29 @@ export function createAgentContextProvider(services: AppServices): Provider {
         JSON.stringify(delegationOverview, null, 2),
         "",
         "DELEGATION WORKERS",
-        delegationWorkers || "(none)",
+        delegationWorkersSummary || "(none)",
         "",
         "USER PROFILES",
         userProfiles || "(none)",
       ].join("\n");
 
+      const data = {
+        skillsCount: skillEntries.length,
+        cronJobs: cronJobs.length,
+        personality: personality.id,
+        terminalCommands: recentTerminal.length,
+      };
+
+      providerCache = {
+        capturedAt: Date.now(),
+        text,
+        data,
+      };
+
       return {
         text,
         values: {},
-        data: {
-          skillsCount: services.skills.list().length,
-          cronJobs: services.cron.list().length,
-          personality: personality.id,
-          terminalCommands: services.terminal.recent(5).length,
-        },
+        data,
       };
     },
   };

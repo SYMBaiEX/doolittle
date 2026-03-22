@@ -146,12 +146,98 @@ export type AgentExecutionContext = Pick<
   gateway?: AppContext["gateway"];
 };
 
+interface AgentTurnHooks {
+  onResponseProgress?: (update: {
+    chunk: string;
+    response: string;
+    phase: "command" | "readiness" | "model";
+  }) => void | Promise<void>;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
 
 function displayCommand(command: string): string {
   return canonicalizeSlashCommandSyntax(command);
+}
+
+function formatShellCommandResponse(result: {
+  command: string;
+  exitCode?: number;
+  stdout?: string;
+  stderr?: string;
+  durationMs?: number;
+}): string {
+  return [
+    `Command: ${result.command}`,
+    result.exitCode !== undefined ? `Exit: ${result.exitCode}` : undefined,
+    result.durationMs !== undefined
+      ? `Duration: ${result.durationMs}ms`
+      : undefined,
+    `STDOUT:\n${result.stdout || "(empty)"}`,
+    `STDERR:\n${result.stderr || "(empty)"}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function runShellCommandForTurn(
+  command: string,
+  context: AgentExecutionContext,
+  hooks?: AgentTurnHooks,
+): Promise<{
+  command: string;
+  exitCode: number;
+  stdout?: string;
+  stderr?: string;
+  durationMs?: number;
+}> {
+  const backend = context.services.settings.get().execution.backend;
+  if (backend === "local" && hooks?.onResponseProgress) {
+    let stdout = "";
+    let stderr = "";
+    const emit = async (chunk: string) => {
+      await hooks.onResponseProgress?.({
+        chunk,
+        response: formatShellCommandResponse({
+          command,
+          stdout,
+          stderr,
+        }),
+        phase: "command",
+      });
+    };
+    const result = await context.services.terminal.runStreamingLocal(command, {
+      onStdout: (chunk) => {
+        stdout += chunk;
+        void emit(chunk);
+      },
+      onStderr: (chunk) => {
+        stderr += chunk;
+        void emit(chunk);
+      },
+    });
+    return {
+      command: result.command,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      durationMs: result.durationMs,
+    };
+  }
+
+  return (await runEffectiveShellCommand(
+    context.runtime,
+    context.services,
+    command,
+  )) as {
+    command: string;
+    exitCode: number;
+    stdout?: string;
+    stderr?: string;
+    durationMs?: number;
+  };
 }
 
 export function formatMemorySummary(summary: {
@@ -1145,6 +1231,7 @@ export async function refreshLinkedAccounts(
 async function buildCommandResponse(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
+  hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
   const { message } = input;
   const trimmed = normalizeSlashCommandSyntax(message.trim());
@@ -4251,22 +4338,14 @@ async function buildCommandResponse(
     if (!command) {
       return "Usage: /terminal run <command>";
     }
-    const result = (await runEffectiveShellCommand(
-      context.runtime,
-      context.services,
-      command,
-    )) as {
-      command: string;
-      exitCode: number;
-      stdout?: string;
-      stderr?: string;
-    };
-    return [
-      `Command: ${result.command}`,
-      `Exit: ${result.exitCode}`,
-      `STDOUT:\n${result.stdout || "(empty)"}`,
-      `STDERR:\n${result.stderr || "(empty)"}`,
-    ].join("\n");
+    const result = await runShellCommandForTurn(command, context, hooks);
+    const response = formatShellCommandResponse(result);
+    await hooks?.onResponseProgress?.({
+      chunk: response,
+      response,
+      phase: "command",
+    });
+    return response;
   }
 
   if (trimmed === "/repo" || trimmed === "/repo status") {
@@ -5694,8 +5773,9 @@ async function buildCommandResponse(
 export async function executeSlashCommand(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
+  hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
-  return buildCommandResponse(input, context);
+  return buildCommandResponse(input, context, hooks);
 }
 
 export async function handleAgentTurn(
@@ -5704,9 +5784,13 @@ export async function handleAgentTurn(
   options?: {
     runtimeOverrides?: CronJobRuntimeOverrides;
     personalityId?: string;
-  },
+  } & AgentTurnHooks,
 ): Promise<string> {
-  const responseFromCommandLayer = await executeSlashCommand(input, context);
+  const responseFromCommandLayer = await executeSlashCommand(
+    input,
+    context,
+    options,
+  );
   const effectiveMessage = shouldAttachSystemFacts(input.message)
     ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
     : input.message;
@@ -5738,7 +5822,36 @@ export async function handleAgentTurn(
     createdAt: nowIso(),
   });
 
+  if (input.message.trim().startsWith("!")) {
+    const command = input.message.trim().slice(1).trim();
+    if (!command) {
+      return "Usage: !<shell command>";
+    }
+    const result = await runShellCommandForTurn(command, context, options);
+    const shellResponse = formatShellCommandResponse(result);
+    await options?.onResponseProgress?.({
+      chunk: shellResponse,
+      response: shellResponse,
+      phase: "command",
+    });
+    context.services.sessions.storeMessage({
+      id: randomUUID(),
+      sessionId,
+      roomId,
+      entityId,
+      role: "assistant",
+      text: shellResponse,
+      createdAt: nowIso(),
+    });
+    return shellResponse;
+  }
+
   if (responseFromCommandLayer) {
+    await options?.onResponseProgress?.({
+      chunk: responseFromCommandLayer,
+      response: responseFromCommandLayer,
+      phase: "command",
+    });
     context.services.sessions.storeMessage({
       id: randomUUID(),
       sessionId,
@@ -5764,6 +5877,11 @@ export async function handleAgentTurn(
     settingsDuring.model.provider,
   );
   if (readinessMessage) {
+    await options?.onResponseProgress?.({
+      chunk: readinessMessage,
+      response: readinessMessage,
+      phase: "readiness",
+    });
     context.services.sessions.storeMessage({
       id: randomUUID(),
       sessionId,
@@ -5839,6 +5957,11 @@ export async function handleAgentTurn(
       async (content) => {
         if (content?.text) {
           response += content.text;
+          await options?.onResponseProgress?.({
+            chunk: content.text,
+            response,
+            phase: "model",
+          });
         }
         return [];
       },
