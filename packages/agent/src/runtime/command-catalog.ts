@@ -140,31 +140,31 @@ const RAW_COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/accounts",
     category: "runtime",
     description:
-      "Show linked Codex and Claude Code readiness, activation advice, and connect actions.",
+      "Show managed Eliza Cloud status plus local Codex and Claude Code specialist provider readiness.",
   },
   {
-    command: "/accounts refresh [codex|claude-code]",
+    command: "/accounts refresh [elizacloud|codex|claude-code]",
     category: "runtime",
     description:
-      "Refresh linked Codex or Claude Code credentials from their local auth stores.",
+      "Refresh managed-cloud or local specialist-provider state from the workspace and auth stores.",
   },
   {
-    command: "/accounts connect <codex|claude-code>",
+    command: "/accounts connect <elizacloud|codex|claude-code>",
     category: "runtime",
     description:
-      "Bind, refresh, and activate the selected linked provider when native auth is ready.",
+      "Activate Eliza Cloud managed mode or bind a local Codex/Claude Code specialist provider when auth is ready.",
   },
   {
     command: "/accounts doctor",
     category: "runtime",
     description:
-      "Show linked-provider readiness, action advice, and the exact login/connect commands.",
+      "Show managed-cloud readiness, local specialist-provider readiness, and the exact next-step commands.",
   },
   {
-    command: "/accounts login <codex|claude-code>",
+    command: "/accounts login <elizacloud|codex|claude-code>",
     category: "runtime",
     description:
-      "Show the exact local CLI login command and the follow-up connect step needed to bind it in Eliza.",
+      "Show the exact local CLI login command and the follow-up activation step for Cloud, Codex, or Claude Code.",
   },
   {
     command: "/accounts setup-token claude-code",
@@ -173,10 +173,10 @@ const RAW_COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Show the Claude setup-token flow used to finish native Claude Code binding.",
   },
   {
-    command: "/accounts use <codex|claude-code>",
+    command: "/accounts use <elizacloud|codex|claude-code>",
     category: "runtime",
     description:
-      "Switch the active runtime provider to the linked Codex or Claude Code plugin.",
+      "Switch the active runtime provider to Eliza Cloud managed inference or a local Codex/Claude Code specialist provider.",
   },
   {
     command: "/approvals",

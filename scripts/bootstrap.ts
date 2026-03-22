@@ -1,12 +1,14 @@
 #!/usr/bin/env bun
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { normalizeCloudSiteUrl } from "@elizaos/autonomous/cloud/base-url";
+import { checkCloudAvailability } from "@elizaos/autonomous/runtime/cloud-onboarding";
 import blessed from "blessed";
 import {
   getLinkedProviderAccountsSnapshot,
@@ -29,10 +31,24 @@ type ExecutionBackendName =
   | "daytona"
   | "modal";
 
+const IS_MACOS = platform() === "darwin";
+
+function macAwareInstallerKeyLabel(label: string): string {
+  if (!IS_MACOS) {
+    return label;
+  }
+  return label
+    .replaceAll("Alt-", "Option-")
+    .replaceAll("Alt", "Option")
+    .replaceAll("Ctrl-", "Control-")
+    .replaceAll("Ctrl", "Control");
+}
+
 type PairingMode = "pair" | "allow" | "deny";
 
 type WizardMode = "quick" | "ritual";
 type ProviderMode =
+  | "elizacloud"
   | "openai"
   | "anthropic"
   | "codex"
@@ -136,6 +152,7 @@ interface OnboardingSummary {
   theme: TuiThemeName;
   provider: ProviderMode;
   accounts: {
+    elizaCloudLinked: boolean;
     codexLinked: boolean;
     claudeCodeLinked: boolean;
   };
@@ -186,6 +203,9 @@ interface WizardAnswers {
   openaiApiKey: string;
   useLinkedCodexAuth: boolean;
   openaiModel: string;
+  elizaCloudApiKey: string;
+  elizaCloudEnabled: boolean;
+  elizaCloudModel: string;
   anthropicApiKey: string;
   useLinkedClaudeCodeAuth: boolean;
   claudeCodeCliFallback: boolean;
@@ -305,6 +325,18 @@ type WizardScreenContext = {
 
 let wizardScreen: WizardScreenContext | null = null;
 
+function normalizeElizaCloudModel(value?: string | null): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return "anthropic/claude-sonnet-4.6";
+  }
+  const normalized = trimmed.toLowerCase();
+  if (normalized === "openai/gpt-5" || normalized === "openai/gpt-5-mini") {
+    return "anthropic/claude-sonnet-4.6";
+  }
+  return trimmed;
+}
+
 function requireReadline(
   rl: ReturnType<typeof createInterface> | null,
 ): ReturnType<typeof createInterface> {
@@ -400,8 +432,7 @@ function createWizardScreen(
   };
   const chromeTop = 4;
   let activeThemeName = DEFAULT_TUI_THEME;
-  let footerContent =
-    " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-T next theme  Ctrl-Y previous theme  Ctrl-C exit ";
+  let footerContent = ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  ${macAwareInstallerKeyLabel("Ctrl-T")} next theme  ${macAwareInstallerKeyLabel("Ctrl-Y")} previous theme  ${macAwareInstallerKeyLabel("Ctrl-C")} exit `;
   const header = blessed.box({
     parent: screen,
     top: 0,
@@ -525,7 +556,7 @@ function createWizardScreen(
     _footer.style.fg = theme.cyanGlow;
     _footer.style.bg = theme.baseBg;
     setFooter(
-      ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Theme preview ${theme.label}  Highlight ${secondaryFg === "black" ? "dark" : "light"} text `,
+      ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Theme preview ${theme.label}  Highlight ${secondaryFg === "black" ? "dark" : "light"} text  ${macAwareInstallerKeyLabel("Ctrl-T/Y")} cycle `,
     );
   };
   applyTheme(DEFAULT_TUI_THEME);
@@ -675,7 +706,7 @@ function createWizardScreen(
           content: "{gray-fg}Enter save · Esc keep current{/gray-fg}",
         });
         setFooter(
-          " Type and press Enter to save  |  Esc keeps current  |  Ctrl-C exits ",
+          ` Type and press Enter to save  |  Esc keeps current  |  ${macAwareInstallerKeyLabel("Ctrl-C")} exits `,
         );
         let settled = false;
         const finish = (value: string) => {
@@ -1436,9 +1467,15 @@ function fingerprint(
 }
 
 function summarizeAnswers(answers: WizardAnswers): string[] {
+  const model =
+    answers.provider === "anthropic" || answers.provider === "claude-code"
+      ? answers.anthropicModel
+      : answers.provider === "elizacloud"
+        ? answers.elizaCloudModel
+        : answers.openaiModel;
   return [
-    `mind=${answers.provider} model=${answers.provider === "anthropic" || answers.provider === "claude-code" ? answers.anthropicModel : answers.openaiModel}`,
-    `threads=codex:${answers.useLinkedCodexAuth ? "bound" : "idle"} claude:${answers.useLinkedClaudeCodeAuth ? "bound" : "idle"}`,
+    `mind=${answers.provider} model=${model}`,
+    `threads=cloud:${answers.elizaCloudApiKey ? "bound" : "idle"} codex:${answers.useLinkedCodexAuth ? "bound" : "idle"} claude:${answers.useLinkedClaudeCodeAuth ? "bound" : "idle"}`,
     `body=${answers.backend} eyes=${answers.browser}`,
     `channels=${answers.transports.length ? answers.transports.join(", ") : "api, cli only"}`,
     `tools=${
@@ -1472,6 +1509,14 @@ function finalizeWizardAnswers(
   const claudeReady = Boolean(
     linkedAccounts.claudeCode.nativeReady || linkedAccounts.claudeCode.reusable,
   );
+  const cloudReady = Boolean(next.elizaCloudApiKey.trim());
+
+  if (next.provider === "elizacloud" && !cloudReady) {
+    next.provider = "offline";
+    notices.push(
+      "Eliza Cloud is still selected, but no managed cloud key is active yet. I left the mind dormant instead of silently switching you onto another provider.",
+    );
+  }
 
   if (
     next.provider === "openai" &&
@@ -1762,6 +1807,175 @@ function runInteractiveCommand(
   return true;
 }
 
+async function tryOpenBrowser(url: string): Promise<boolean> {
+  const isWindows = platform() === "win32";
+  const isMac = platform() === "darwin";
+  const bin = isMac ? "open" : isWindows ? "cmd" : "xdg-open";
+  const args = isWindows ? ["/c", "start", "", url] : [url];
+
+  return await new Promise<boolean>((resolve) => {
+    try {
+      const child = spawn(bin, args, {
+        stdio: "ignore",
+        env: process.env,
+      });
+      child.once("error", () => resolve(false));
+      child.once("spawn", () => resolve(true));
+      child.unref();
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+interface ElizaCloudLoginSession {
+  sessionId: string;
+  browserUrl: string;
+}
+
+interface ElizaCloudLoginPollResult {
+  status: string;
+  apiKey?: string;
+}
+
+async function createElizaCloudLoginSession(
+  baseUrl: string,
+): Promise<ElizaCloudLoginSession> {
+  const siteBase = normalizeCloudSiteUrl(baseUrl);
+  const sessionId = crypto.randomUUID();
+  const response = await fetch(`${siteBase}/api/auth/cli-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId }),
+    redirect: "manual",
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      `Failed to create auth session (HTTP ${response.status}): ${body || "empty response"}`,
+    );
+  }
+
+  return {
+    sessionId,
+    browserUrl: `${siteBase}/auth/cli-login?session=${encodeURIComponent(sessionId)}`,
+  };
+}
+
+async function pollElizaCloudLoginSession(
+  baseUrl: string,
+  sessionId: string,
+): Promise<ElizaCloudLoginPollResult> {
+  const siteBase = normalizeCloudSiteUrl(baseUrl);
+  const response = await fetch(
+    `${siteBase}/api/auth/cli-session/${encodeURIComponent(sessionId)}`,
+    {
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+
+  if (response.status === 404) {
+    throw new Error("Auth session expired or not found. Please try again.");
+  }
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      `Cloud login polling failed (HTTP ${response.status}): ${body || "empty response"}`,
+    );
+  }
+
+  return (await response.json()) as ElizaCloudLoginPollResult;
+}
+
+async function runElizaCloudLoginFlow(
+  label: string,
+  baseUrl = "https://www.elizacloud.ai",
+): Promise<string | undefined> {
+  const snapshot = wizardScreen?.snapshot();
+  if (wizardScreen) {
+    wizardScreen.destroy();
+    wizardScreen = null;
+    console.log();
+  }
+
+  try {
+    section("Binding", label);
+    const availability = await checkCloudAvailability(baseUrl);
+    if (availability) {
+      const normalizedAvailability = availability.toLowerCase();
+      const authGatedAvailability =
+        normalizedAvailability.includes("http 401") ||
+        normalizedAvailability.includes("http 403");
+      if (authGatedAvailability) {
+        warn(
+          "Eliza Cloud availability probing is auth-gated right now, so I am continuing directly to the login flow instead of treating that probe as a blocker.",
+        );
+      } else {
+        warn(availability);
+        return undefined;
+      }
+    }
+
+    let announcedBrowser = false;
+    let lastStatus = "";
+    const session = await createElizaCloudLoginSession(baseUrl);
+
+    if (!announcedBrowser) {
+      info("Trying to open your browser for Eliza Cloud login.");
+      info(
+        `If it does not appear, open this URL manually: ${session.browserUrl}`,
+      );
+      info("I will keep waiting here while the Eliza Cloud login completes.");
+      announcedBrowser = true;
+      void tryOpenBrowser(session.browserUrl).then((opened) => {
+        if (!opened) {
+          warn(
+            "I could not confirm an automatic browser launch. Use the URL above to continue the Cloud login manually.",
+          );
+        }
+      });
+    }
+
+    const deadline = Date.now() + 300_000;
+    let apiKey: string | undefined;
+
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      const poll = await pollElizaCloudLoginSession(baseUrl, session.sessionId);
+      if (poll.status && poll.status !== lastStatus) {
+        info(`Eliza Cloud auth: ${poll.status}`);
+        lastStatus = poll.status;
+      }
+      if (poll.status === "authenticated" && poll.apiKey) {
+        apiKey = poll.apiKey;
+        break;
+      }
+    }
+
+    if (!apiKey) {
+      throw new Error(
+        "Cloud login timed out. The browser login was not completed within 300 seconds.",
+      );
+    }
+
+    info(`${label} completed.`);
+    return apiKey;
+  } catch (error) {
+    warn(
+      `${label} failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return undefined;
+  } finally {
+    if (snapshot) {
+      wizardScreen = createWizardScreen(snapshot);
+    }
+  }
+}
+
 async function chooseOne<T extends string>(
   rl: ReturnType<typeof createInterface> | null,
   prompt: string,
@@ -2003,19 +2217,23 @@ async function chooseMany<T extends string>(
 }
 
 function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
-  const provider: ProviderMode = existingEnv.get("OPENAI_API_KEY")
-    ? existingEnv.get("ANTHROPIC_API_KEY")
-      ? "hybrid"
-      : "openai"
-    : existingEnv.get("ANTHROPIC_API_KEY") ||
-        existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
-        existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
-      ? "anthropic"
-      : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true"
-        ? "claude-code"
-        : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
-          ? "codex"
-          : "offline";
+  const provider: ProviderMode =
+    existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true"
+      ? "elizacloud"
+      : existingEnv.get("OPENAI_API_KEY")
+        ? existingEnv.get("ANTHROPIC_API_KEY")
+          ? "hybrid"
+          : "openai"
+        : existingEnv.get("ANTHROPIC_API_KEY") ||
+            existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+            existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
+          ? "anthropic"
+          : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
+              "true"
+            ? "claude-code"
+            : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
+              ? "codex"
+              : "offline";
   return {
     mode: "quick",
     agentName: existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
@@ -2045,6 +2263,11 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     useLinkedCodexAuth:
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true",
     openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-5.4",
+    elizaCloudApiKey: existingEnv.get("ELIZAOS_CLOUD_API_KEY") || "",
+    elizaCloudEnabled: existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true",
+    elizaCloudModel: normalizeElizaCloudModel(
+      existingEnv.get("ELIZAOS_CLOUD_LARGE_MODEL"),
+    ),
     anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
     useLinkedClaudeCodeAuth:
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true",
@@ -2167,6 +2390,12 @@ async function runWizard(
         "How should I think on day one?",
         [
           {
+            value: "elizacloud",
+            label: "Eliza Cloud",
+            detail:
+              "Managed ElizaOS-native inference with the cleanest default setup and the least day-one friction.",
+          },
+          {
             value: "openai",
             label: "OpenAI",
             detail: "Fast, flexible, and strong for multimodal reasoning.",
@@ -2201,22 +2430,24 @@ async function runWizard(
               "No provider keys yet. Wake the shell now and feed me a mind later.",
           },
         ],
-        existingEnv.get("ANTHROPIC_API_KEY")
-          ? existingEnv.get("OPENAI_API_KEY")
-            ? "hybrid"
-            : "anthropic"
-          : existingEnv.get("OPENAI_API_KEY")
-            ? "openai"
-            : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
-                existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
-              ? "claude-code"
-              : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
-                  "true"
+        existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true"
+          ? "elizacloud"
+          : existingEnv.get("ANTHROPIC_API_KEY")
+            ? existingEnv.get("OPENAI_API_KEY")
+              ? "hybrid"
+              : "anthropic"
+            : existingEnv.get("OPENAI_API_KEY")
+              ? "openai"
+              : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+                  existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
                 ? "claude-code"
-                : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") ===
+                : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
                     "true"
-                  ? "codex"
-                  : "offline",
+                  ? "claude-code"
+                  : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") ===
+                      "true"
+                    ? "codex"
+                    : "elizacloud",
       );
 
       let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
@@ -2224,6 +2455,13 @@ async function runWizard(
         existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true" ||
         Boolean(linkedAccounts.codex.nativeReady);
       let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-5.4";
+      let elizaCloudApiKey = existingEnv.get("ELIZAOS_CLOUD_API_KEY") || "";
+      let elizaCloudEnabled =
+        existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true" ||
+        Boolean(elizaCloudApiKey);
+      let elizaCloudModel = normalizeElizaCloudModel(
+        existingEnv.get("ELIZAOS_CLOUD_LARGE_MODEL"),
+      );
       let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
       let useLinkedClaudeCodeAuth =
         existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true" ||
@@ -2291,6 +2529,207 @@ async function runWizard(
           info(
             "Claude Code already has native auth material here, so I will carry that forward.",
           );
+        }
+      }
+
+      if (provider === "elizacloud") {
+        if (elizaCloudApiKey) {
+          section(
+            "Cloud Bond",
+            existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true"
+              ? "Eliza Cloud is already active for this workspace, so I can keep the managed path and move on."
+              : "Eliza Cloud is already connected for this workspace, so I can activate the managed path without asking for the key again.",
+          );
+          info(
+            existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true"
+              ? "Detected an active Eliza Cloud bond locally."
+              : "Detected ELIZAOS_CLOUD_API_KEY locally. I can turn Eliza Cloud into the active managed inference path now.",
+          );
+          elizaCloudEnabled = true;
+        } else {
+          section(
+            "Cloud Bond",
+            "Eliza Cloud is the cleanest managed path here. I can bond to it with the official Eliza login flow or a direct cloud key.",
+          );
+          const cloudPath = await chooseOne<"login" | "key" | "skip">(
+            rl,
+            "How should I complete the Eliza Cloud bond?",
+            [
+              {
+                value: "login",
+                label: "Eliza Cloud login",
+                detail:
+                  "Recommended. Use `elizaos login` and let it write ELIZAOS_CLOUD_API_KEY into this project automatically.",
+              },
+              {
+                value: "key",
+                label: "Paste cloud key",
+                detail:
+                  "Use an existing Eliza Cloud API key directly if you already have one from the dashboard.",
+              },
+              {
+                value: "skip",
+                label: "Skip for now",
+                detail:
+                  "Leave managed cloud inference unbound for now and choose another provider later.",
+              },
+            ],
+            "login",
+          );
+
+          if (cloudPath === "login") {
+            const apiKey = await runElizaCloudLoginFlow("Eliza Cloud login");
+            if (apiKey) {
+              elizaCloudApiKey = apiKey;
+              elizaCloudEnabled = true;
+            }
+          } else if (cloudPath === "key") {
+            elizaCloudApiKey = await askSecret(
+              rl,
+              "Give me ELIZAOS_CLOUD_API_KEY",
+              elizaCloudApiKey,
+            );
+            elizaCloudEnabled = Boolean(elizaCloudApiKey);
+          }
+
+          if (elizaCloudApiKey) {
+            elizaCloudModel = await ask(
+              rl,
+              "Choose my primary Eliza Cloud model",
+              elizaCloudModel,
+            );
+          } else if (cloudPath !== "skip") {
+            warn(
+              "I still do not see ELIZAOS_CLOUD_API_KEY in this workspace, so Eliza Cloud is not fully bonded yet.",
+            );
+            const recoveryOptions: Array<{
+              value:
+                | "retry"
+                | "key"
+                | "codex"
+                | "claude-code"
+                | "openai"
+                | "anthropic"
+                | "offline";
+              label: string;
+              detail: string;
+            }> = [
+              {
+                value: "retry",
+                label: "Retry Cloud login",
+                detail:
+                  "Try the native Eliza Cloud browser login flow again right now.",
+              },
+              {
+                value: "key",
+                label: "Paste cloud key",
+                detail:
+                  "Paste ELIZAOS_CLOUD_API_KEY manually if you already have it.",
+              },
+            ];
+
+            if (
+              linkedAccounts.codex.nativeReady ||
+              linkedAccounts.codex.reusable
+            ) {
+              recoveryOptions.push({
+                value: "codex",
+                label: "Switch to Codex",
+                detail:
+                  "Use the local ChatGPT/Codex specialist path for now instead of managed Cloud.",
+              });
+            }
+            if (
+              linkedAccounts.claudeCode.nativeReady ||
+              linkedAccounts.claudeCode.reusable
+            ) {
+              recoveryOptions.push({
+                value: "claude-code",
+                label: "Switch to Claude Code",
+                detail:
+                  "Use the local Claude Code specialist path for now instead of managed Cloud.",
+              });
+            }
+            if (openaiApiKey.trim()) {
+              recoveryOptions.push({
+                value: "openai",
+                label: "Switch to OpenAI API",
+                detail: "Use the direct OpenAI API path for now.",
+              });
+            }
+            if (anthropicApiKey.trim()) {
+              recoveryOptions.push({
+                value: "anthropic",
+                label: "Switch to Anthropic API",
+                detail: "Use the direct Anthropic API path for now.",
+              });
+            }
+            recoveryOptions.push({
+              value: "offline",
+              label: "Leave the mind dormant",
+              detail:
+                "Do not silently switch providers. Finish onboarding and reconnect Cloud later.",
+            });
+
+            const recovery = await chooseOne<
+              | "retry"
+              | "key"
+              | "codex"
+              | "claude-code"
+              | "openai"
+              | "anthropic"
+              | "offline"
+            >(
+              rl,
+              "How should I recover from the incomplete Eliza Cloud bond?",
+              recoveryOptions,
+              "retry",
+            );
+
+            if (recovery === "retry") {
+              const retryKey =
+                await runElizaCloudLoginFlow("Eliza Cloud login");
+              if (retryKey) {
+                elizaCloudApiKey = retryKey;
+                elizaCloudEnabled = true;
+                elizaCloudModel = await ask(
+                  rl,
+                  "Choose my primary Eliza Cloud model",
+                  elizaCloudModel,
+                );
+              } else {
+                provider = "offline";
+              }
+            } else if (recovery === "key") {
+              elizaCloudApiKey = await askSecret(
+                rl,
+                "Give me ELIZAOS_CLOUD_API_KEY",
+                elizaCloudApiKey,
+              );
+              elizaCloudEnabled = Boolean(elizaCloudApiKey);
+              if (elizaCloudApiKey) {
+                elizaCloudModel = await ask(
+                  rl,
+                  "Choose my primary Eliza Cloud model",
+                  elizaCloudModel,
+                );
+              } else {
+                provider = "offline";
+              }
+            } else if (recovery === "codex") {
+              provider = "codex";
+              useLinkedCodexAuth = true;
+            } else if (recovery === "claude-code") {
+              provider = "claude-code";
+              useLinkedClaudeCodeAuth = true;
+            } else if (recovery === "openai") {
+              provider = "openai";
+            } else if (recovery === "anthropic") {
+              provider = "anthropic";
+            } else {
+              provider = "offline";
+            }
+          }
         }
       }
 
@@ -2508,6 +2947,13 @@ async function runWizard(
             ? "Which Claude Code model should lead my first sessions"
             : "Which Anthropic model should lead my first sessions",
           anthropicModel,
+        );
+      }
+      if (provider === "elizacloud" && elizaCloudApiKey) {
+        elizaCloudModel = await ask(
+          rl,
+          "Which Eliza Cloud model should lead my first sessions",
+          elizaCloudModel,
         );
       }
 
@@ -2927,6 +3373,9 @@ async function runWizard(
           openaiApiKey,
           useLinkedCodexAuth,
           openaiModel,
+          elizaCloudApiKey,
+          elizaCloudEnabled,
+          elizaCloudModel,
           anthropicApiKey,
           useLinkedClaudeCodeAuth,
           claudeCodeCliFallback,
@@ -2995,6 +3444,13 @@ function applyAnswers(answers: WizardAnswers): {
     ELIZA_AGENT_NAME: answers.agentName,
     ELIZA_AGENT_MODE: "cli",
     ELIZA_AGENT_TIMEZONE: answers.timezone,
+    ELIZAOS_CLOUD_ENABLED: String(
+      answers.provider === "elizacloud" && Boolean(answers.elizaCloudApiKey),
+    ),
+    ELIZAOS_CLOUD_API_KEY: answers.elizaCloudApiKey,
+    ELIZAOS_CLOUD_BASE_URL: "https://www.elizacloud.ai/api/v1",
+    ELIZAOS_CLOUD_SMALL_MODEL: "anthropic/claude-3-5-haiku-20241022",
+    ELIZAOS_CLOUD_LARGE_MODEL: answers.elizaCloudModel,
     OPENAI_API_KEY:
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiApiKey
@@ -3062,7 +3518,14 @@ function applyAnswers(answers: WizardAnswers): {
   settings.mcp.serverCommand = answers.tools.mcp
     ? answers.mcpServerCommand
     : "";
-  if (answers.provider === "anthropic" || answers.provider === "claude-code") {
+  if (answers.provider === "elizacloud") {
+    settings.model.provider = "elizacloud";
+    settings.model.model = answers.elizaCloudModel;
+    settings.model.baseUrl = "https://www.elizacloud.ai/api/v1";
+  } else if (
+    answers.provider === "anthropic" ||
+    answers.provider === "claude-code"
+  ) {
     settings.model.provider = "anthropic";
     if (answers.provider === "claude-code") {
       settings.model.provider = "claude-code";
@@ -3125,6 +3588,7 @@ function applyAnswers(answers: WizardAnswers): {
     theme: answers.theme,
     provider: answers.provider,
     accounts: {
+      elizaCloudLinked: Boolean(answers.elizaCloudApiKey),
       codexLinked: answers.useLinkedCodexAuth,
       claudeCodeLinked: answers.useLinkedClaudeCodeAuth,
     },

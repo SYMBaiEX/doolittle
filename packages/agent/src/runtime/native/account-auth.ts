@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 export interface LinkedProviderAccountStatus {
-  provider: "codex" | "claude-code";
+  provider: "codex" | "claude-code" | "elizacloud";
   available: boolean;
   reusable: boolean;
   nativeReady?: boolean;
@@ -21,10 +21,11 @@ export interface LinkedProviderAccountStatus {
 export interface LinkedProviderAccountsSnapshot {
   codex: LinkedProviderAccountStatus;
   claudeCode: LinkedProviderAccountStatus;
+  elizaCloud: LinkedProviderAccountStatus;
 }
 
 export interface LinkedProviderConnectAdvice {
-  provider: "codex" | "claude-code";
+  provider: "codex" | "claude-code" | "elizacloud";
   status: LinkedProviderAccountStatus;
   ready: boolean;
   preferredAction: "use" | "refresh" | "login" | "setup-token";
@@ -38,6 +39,7 @@ interface ProviderAuthStoreShape {
   providers: Partial<{
     codex: LinkedCodexCredentials & { storedAt?: string };
     "claude-code": LinkedClaudeCodeCredentials & { storedAt?: string };
+    elizacloud: LinkedElizaCloudCredentials & { storedAt?: string };
   }>;
 }
 
@@ -56,6 +58,13 @@ export interface LinkedClaudeCodeCredentials {
   accountLabel?: string;
   authMode?: string;
   source?: string;
+}
+
+export interface LinkedElizaCloudCredentials {
+  apiKey?: string;
+  source?: string;
+  authMode?: string;
+  baseUrl?: string;
 }
 
 const CODEX_OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
@@ -200,6 +209,26 @@ function getClaudeCodeEnvToken(): { key: string; token: string } | undefined {
   return undefined;
 }
 
+function getElizaCloudEnvKey():
+  | {
+      key: string;
+      value: string;
+    }
+  | undefined {
+  for (const key of ["ELIZAOS_CLOUD_API_KEY", "ELIZA_CLOUD_API_KEY"] as const) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      return { key, value };
+    }
+  }
+  return undefined;
+}
+
+function isElizaCloudInferenceEnabled(): boolean {
+  const value = process.env.ELIZAOS_CLOUD_ENABLED?.trim().toLowerCase();
+  return value === "true" || value === "1" || value === "yes";
+}
+
 function readJson(path: string): unknown {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -243,12 +272,30 @@ function writeProviderAuthStore(store: ProviderAuthStoreShape): void {
 }
 
 function persistProviderCredentials(
-  provider: "codex" | "claude-code",
+  provider: "codex" | "claude-code" | "elizacloud",
   credentials:
-    | (LinkedCodexCredentials | LinkedClaudeCodeCredentials)
+    | (
+        | LinkedCodexCredentials
+        | LinkedClaudeCodeCredentials
+        | LinkedElizaCloudCredentials
+      )
     | undefined,
 ): void {
-  if (!credentials?.accessToken && !credentials?.refreshToken) {
+  if (!credentials) {
+    return;
+  }
+  if (
+    typeof (credentials as LinkedElizaCloudCredentials).apiKey !== "undefined"
+  ) {
+    if (!(credentials as LinkedElizaCloudCredentials).apiKey) {
+      return;
+    }
+  } else if (
+    !(credentials as LinkedCodexCredentials | LinkedClaudeCodeCredentials)
+      .accessToken &&
+    !(credentials as LinkedCodexCredentials | LinkedClaudeCodeCredentials)
+      .refreshToken
+  ) {
     return;
   }
   const store = readProviderAuthStore();
@@ -286,6 +333,21 @@ function getStoredClaudeCodeCredentials():
     expiresAt: record.expiresAt,
     accountLabel: record.accountLabel,
     authMode: record.authMode,
+    source: "eliza-auth-store",
+  };
+}
+
+function getStoredElizaCloudCredentials():
+  | LinkedElizaCloudCredentials
+  | undefined {
+  const record = readProviderAuthStore().providers.elizacloud;
+  if (!record || !("apiKey" in record) || !record.apiKey) {
+    return undefined;
+  }
+  return {
+    apiKey: record.apiKey,
+    authMode: record.authMode,
+    baseUrl: record.baseUrl,
     source: "eliza-auth-store",
   };
 }
@@ -795,6 +857,82 @@ export function getLinkedClaudeCodeCredentials(
   return resolved;
 }
 
+function getElizaCloudAccountStatus(
+  _homePath?: string,
+): LinkedProviderAccountStatus {
+  const cloudInferenceEnabled = isElizaCloudInferenceEnabled();
+  const stored = getStoredElizaCloudCredentials();
+  if (stored?.apiKey) {
+    return {
+      provider: "elizacloud",
+      available: true,
+      reusable: true,
+      nativeReady: true,
+      fallbackReady: false,
+      source: stored.source,
+      authMode: stored.authMode ?? "api-key",
+      loginCommand: "elizaos login",
+      detail: cloudInferenceEnabled
+        ? "Eliza Cloud is already connected and active as the managed inference path for this workspace."
+        : "Eliza Cloud is already connected from the local Eliza auth store and can be activated as the managed inference path.",
+    };
+  }
+
+  const envKey = getElizaCloudEnvKey();
+  if (envKey?.value) {
+    return {
+      provider: "elizacloud",
+      available: true,
+      reusable: true,
+      nativeReady: true,
+      fallbackReady: false,
+      source: `env:${envKey.key}`,
+      authMode: "api-key",
+      loginCommand: "elizaos login",
+      detail: cloudInferenceEnabled
+        ? "Eliza Cloud is already connected and active for managed inference in this workspace."
+        : "Eliza Cloud API key is already configured for this workspace and can be activated as the managed inference path.",
+    };
+  }
+
+  return {
+    provider: "elizacloud",
+    available: commandExists("elizaos"),
+    reusable: false,
+    nativeReady: false,
+    fallbackReady: false,
+    loginCommand: "elizaos login",
+    detail: commandExists("elizaos")
+      ? "Eliza Cloud is not active yet. Run `elizaos login` from this project to save ELIZAOS_CLOUD_API_KEY."
+      : "Eliza Cloud is not active yet, and the `elizaos` CLI was not found on this machine.",
+  };
+}
+
+export function getLinkedElizaCloudCredentials(
+  _homePath?: string,
+): LinkedElizaCloudCredentials | undefined {
+  const stored = getStoredElizaCloudCredentials();
+  if (stored?.apiKey) {
+    return stored;
+  }
+
+  const envKey = getElizaCloudEnvKey();
+  if (!envKey?.value) {
+    return undefined;
+  }
+
+  const resolved = {
+    apiKey: envKey.value,
+    authMode: "api-key",
+    baseUrl:
+      process.env.ELIZAOS_CLOUD_BASE_URL?.trim() ||
+      "https://www.elizacloud.ai/api/v1",
+    source: `env:${envKey.key}`,
+  };
+  persistProviderCredentials("elizacloud", resolved);
+  return resolved;
+}
+
 export function claudeCodeAccessTokenIsExpiring(
   expiresAt?: string,
   skewSeconds = DEFAULT_REFRESH_SKEW_SECONDS,
@@ -934,9 +1072,14 @@ export async function refreshLinkedClaudeCodeCredentials(
 }
 
 export async function resolveLinkedProviderCredentials(
-  provider: "codex" | "claude-code",
+  provider: "codex" | "claude-code" | "elizacloud",
   homePath?: string,
-): Promise<LinkedCodexCredentials | LinkedClaudeCodeCredentials | undefined> {
+): Promise<
+  | LinkedCodexCredentials
+  | LinkedClaudeCodeCredentials
+  | LinkedElizaCloudCredentials
+  | undefined
+> {
   if (provider === "codex") {
     const credentials = getLinkedCodexCredentials(homePath);
     if (
@@ -946,6 +1089,10 @@ export async function resolveLinkedProviderCredentials(
       return refreshLinkedCodexCredentials(homePath);
     }
     return credentials;
+  }
+
+  if (provider === "elizacloud") {
+    return getLinkedElizaCloudCredentials(homePath);
   }
 
   const credentials = getLinkedClaudeCodeCredentials(homePath);
@@ -965,27 +1112,39 @@ export function getLinkedProviderAccountsSnapshot(
   return {
     codex: getCodexAccountStatus(homePath),
     claudeCode: getClaudeCodeAccountStatus(homePath),
+    elizaCloud: getElizaCloudAccountStatus(homePath),
   };
 }
 
 export function getLinkedProviderLoginCommand(
-  provider: "codex" | "claude-code",
+  provider: "codex" | "claude-code" | "elizacloud",
 ): string {
-  return provider === "codex" ? "codex login" : "claude auth login";
+  if (provider === "codex") {
+    return "codex login";
+  }
+  if (provider === "elizacloud") {
+    return "elizaos login";
+  }
+  return "claude auth login";
 }
 
 export function getLinkedProviderSetupCommand(
-  provider: "codex" | "claude-code",
+  provider: "codex" | "claude-code" | "elizacloud",
 ): string | undefined {
   return provider === "claude-code" ? "claude setup-token" : undefined;
 }
 
 export function getLinkedProviderConnectAdvice(
-  provider: "codex" | "claude-code",
+  provider: "codex" | "claude-code" | "elizacloud",
   homePath?: string,
 ): LinkedProviderConnectAdvice {
   const snapshot = getLinkedProviderAccountsSnapshot(homePath);
-  const status = provider === "codex" ? snapshot.codex : snapshot.claudeCode;
+  const status =
+    provider === "codex"
+      ? snapshot.codex
+      : provider === "claude-code"
+        ? snapshot.claudeCode
+        : snapshot.elizaCloud;
   const nativeReady = status.nativeReady ?? status.reusable;
   const fallbackReady = status.fallbackReady ?? false;
 
@@ -999,7 +1158,9 @@ export function getLinkedProviderConnectAdvice(
       detail:
         provider === "codex"
           ? "Codex is already bound for native Eliza execution. Run `/accounts connect codex` to activate it here."
-          : "Claude Code is already bound for native Eliza execution. Run `/accounts connect claude-code` to activate it here.",
+          : provider === "elizacloud"
+            ? "Eliza Cloud is already available in this workspace. Run `/accounts connect elizacloud` to activate managed cloud inference here."
+            : "Claude Code is already bound for native Eliza execution. Run `/accounts connect claude-code` to activate it here.",
     };
   }
 
@@ -1026,6 +1187,8 @@ export function getLinkedProviderConnectAdvice(
     detail:
       provider === "codex"
         ? "Codex still needs a linked local login. Run `codex login`, then `/accounts connect codex` to bind it in Eliza."
-        : "Claude Code still needs an official login. Run `claude auth login`, then `/accounts connect claude-code` to bind it in Eliza.",
+        : provider === "elizacloud"
+          ? "Eliza Cloud is not active yet. Run `elizaos login` from this project to save ELIZAOS_CLOUD_API_KEY, then `/accounts connect elizacloud` to use the managed cloud path."
+          : "Claude Code still needs an official login. Run `claude auth login`, then `/accounts connect claude-code` to bind it in Eliza.",
   };
 }

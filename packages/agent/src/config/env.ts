@@ -1,14 +1,19 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 import type { EnvConfig } from "@/types";
 
-loadEnv();
-
 function defaultRepoRoot(): string {
   return fileURLToPath(new URL("../../../../", import.meta.url));
+}
+
+const repoEnvPath = resolve(defaultRepoRoot(), ".env");
+if (existsSync(repoEnvPath)) {
+  loadEnv({ path: repoEnvPath, override: true });
+} else {
+  loadEnv({ override: true });
 }
 
 function resolveFromRepoRoot(value: string): string {
@@ -23,6 +28,18 @@ const schema = z.object({
   ELIZA_AGENT_DATA_DIR: z.string().default(".eliza-agent"),
   ELIZA_AGENT_SKILLS_DIR: z.string().default("./packages/skills"),
   ELIZA_AGENT_TIMEZONE: z.string().default("America/Chicago"),
+  ELIZAOS_CLOUD_API_KEY: z.string().optional(),
+  ELIZAOS_CLOUD_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  ELIZAOS_CLOUD_BASE_URL: z
+    .string()
+    .default("https://www.elizacloud.ai/api/v1"),
+  ELIZAOS_CLOUD_SMALL_MODEL: z
+    .string()
+    .default("anthropic/claude-3-5-haiku-20241022"),
+  ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("anthropic/claude-sonnet-4.6"),
   OPENAI_API_KEY: z.string().optional(),
   ELIZA_AGENT_USE_LINKED_CODEX_AUTH: z
     .enum(["true", "false"])
@@ -211,6 +228,11 @@ export function loadConfig(): EnvConfig {
     dataDir,
     skillsDir,
     timezone: values.ELIZA_AGENT_TIMEZONE,
+    elizaCloudApiKey: values.ELIZAOS_CLOUD_API_KEY,
+    elizaCloudEnabled: values.ELIZAOS_CLOUD_ENABLED,
+    elizaCloudBaseUrl: values.ELIZAOS_CLOUD_BASE_URL,
+    elizaCloudSmallModel: values.ELIZAOS_CLOUD_SMALL_MODEL,
+    elizaCloudLargeModel: values.ELIZAOS_CLOUD_LARGE_MODEL,
     openAiApiKey: values.OPENAI_API_KEY,
     useLinkedCodexAuth: values.ELIZA_AGENT_USE_LINKED_CODEX_AUTH,
     openAiBaseUrl: values.OPENAI_BASE_URL,

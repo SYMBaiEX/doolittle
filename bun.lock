@@ -21,6 +21,7 @@
         "@elizaos/plugin-cron": "workspace:*",
         "@elizaos/plugin-discord": "workspace:*",
         "@elizaos/plugin-e2b": "workspace:*",
+        "@elizaos/plugin-elizacloud": "alpha",
         "@elizaos/plugin-experience": "workspace:*",
         "@elizaos/plugin-forms": "workspace:*",
         "@elizaos/plugin-knowledge": "workspace:*",
@@ -164,6 +165,13 @@
         "@octokit/rest": "^22.0.0",
         "dotenv": "^17.2.0",
         "uuid": "^11.1.0",
+      },
+    },
+    "packages/plugins/plugin-elizacloud": {
+      "name": "@plugins/plugin-elizacloud-bridge",
+      "version": "2.0.0-alpha.85",
+      "dependencies": {
+        "@elizaos/core": "alpha",
       },
     },
     "packages/plugins/plugin-experience": {
@@ -774,6 +782,8 @@
     "@pinojs/redact": ["@pinojs/redact@0.4.0", "", {}, "sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg=="],
 
     "@playwright/test": ["@playwright/test@1.58.2", "", { "dependencies": { "playwright": "1.58.2" }, "bin": { "playwright": "cli.js" } }, "sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA=="],
+
+    "@plugins/plugin-elizacloud-bridge": ["@plugins/plugin-elizacloud-bridge@workspace:packages/plugins/plugin-elizacloud"],
 
     "@protobufjs/aspromise": ["@protobufjs/aspromise@1.1.2", "", {}, "sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ=="],
 

@@ -84,11 +84,20 @@ export function createServices(
   config: EnvConfig,
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
 ): AppServices {
+  const stableElizaCloudLargeModel = "anthropic/claude-sonnet-4.6";
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
   const nativeOwnership = new NativeOwnershipCache(config, gatewayConfig);
-  const provider: "anthropic" | "openai" | "codex" | "claude-code" | "offline" =
-    config.anthropicApiKey
+  const cloudInferenceEnabled = config.elizaCloudEnabled;
+  const provider:
+    | "anthropic"
+    | "openai"
+    | "elizacloud"
+    | "codex"
+    | "claude-code"
+    | "offline" = cloudInferenceEnabled
+    ? "elizacloud"
+    : config.anthropicApiKey
       ? "anthropic"
       : config.openAiApiKey
         ? "openai"
@@ -98,15 +107,19 @@ export function createServices(
             ? "codex"
             : "offline";
   const defaultModel =
-    provider === "anthropic" || provider === "claude-code"
-      ? config.anthropicLargeModel
-      : config.openAiModel;
+    provider === "elizacloud"
+      ? config.elizaCloudLargeModel
+      : provider === "anthropic" || provider === "claude-code"
+        ? config.anthropicLargeModel
+        : config.openAiModel;
   const defaultBaseUrl =
-    provider === "anthropic" || provider === "claude-code"
-      ? (config.anthropicBaseUrl ?? "https://api.anthropic.com")
-      : provider === "codex"
-        ? "https://chatgpt.com/backend-api/codex"
-        : config.openAiBaseUrl;
+    provider === "elizacloud"
+      ? config.elizaCloudBaseUrl
+      : provider === "anthropic" || provider === "claude-code"
+        ? (config.anthropicBaseUrl ?? "https://api.anthropic.com")
+        : provider === "codex"
+          ? "https://chatgpt.com/backend-api/codex"
+          : config.openAiBaseUrl;
   const settings = new SettingsService(config.dataDir, {
     model: {
       provider,
@@ -171,12 +184,20 @@ export function createServices(
   });
   const linkedAccounts = getLinkedProviderAccountsSnapshot();
   const currentSettings = settings.get();
+  const cloudModelLooksStale = (model: string): boolean => {
+    const normalized = model.trim().toLowerCase();
+    return normalized === "openai/gpt-5" || normalized === "openai/gpt-5-mini";
+  };
   const persistedProvider = currentSettings.model.provider;
   const persistedHasOpenAi =
     persistedProvider === "openai" && Boolean(config.openAiApiKey?.trim());
   const persistedHasAnthropic =
     persistedProvider === "anthropic" &&
     Boolean(config.anthropicApiKey?.trim());
+  const persistedHasElizaCloud =
+    persistedProvider === "elizacloud" &&
+    config.elizaCloudEnabled &&
+    Boolean(config.elizaCloudApiKey?.trim());
   const persistedHasCodex =
     persistedProvider === "codex" &&
     Boolean(linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable);
@@ -187,13 +208,65 @@ export function createServices(
         linkedAccounts.claudeCode.reusable,
     );
 
+  if (config.elizaCloudEnabled && config.elizaCloudApiKey?.trim()) {
+    const desiredCloudModel = cloudModelLooksStale(config.elizaCloudLargeModel)
+      ? stableElizaCloudLargeModel
+      : config.elizaCloudLargeModel;
+    const targetCloudModel = cloudModelLooksStale(currentSettings.model.model)
+      ? desiredCloudModel
+      : currentSettings.model.provider === "elizacloud"
+        ? currentSettings.model.model
+        : desiredCloudModel;
+    if (
+      currentSettings.model.provider !== "elizacloud" ||
+      currentSettings.model.model !== targetCloudModel ||
+      currentSettings.model.baseUrl !== config.elizaCloudBaseUrl
+    ) {
+      settings.set("model.provider", "elizacloud");
+      settings.set("model.model", targetCloudModel);
+      settings.set("model.baseUrl", config.elizaCloudBaseUrl);
+    }
+  } else if (
+    persistedProvider === "elizacloud" &&
+    (!config.elizaCloudEnabled || !config.elizaCloudApiKey?.trim())
+  ) {
+    if (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) {
+      settings.set("model.provider", "codex");
+      settings.set("model.model", "gpt-5.4");
+      settings.set("model.baseUrl", "https://chatgpt.com/backend-api/codex");
+    } else if (
+      linkedAccounts.claudeCode.nativeReady ||
+      linkedAccounts.claudeCode.reusable
+    ) {
+      settings.set("model.provider", "claude-code");
+      settings.set("model.model", config.anthropicLargeModel);
+      settings.set("model.baseUrl", config.anthropicBaseUrl ?? "");
+    } else if (config.openAiApiKey?.trim()) {
+      settings.set("model.provider", "openai");
+      settings.set("model.model", config.openAiModel);
+      settings.set("model.baseUrl", config.openAiBaseUrl);
+    } else if (config.anthropicApiKey?.trim()) {
+      settings.set("model.provider", "anthropic");
+      settings.set("model.model", config.anthropicLargeModel);
+      settings.set("model.baseUrl", config.anthropicBaseUrl ?? "");
+    }
+  }
+
   if (
     !persistedHasOpenAi &&
     !persistedHasAnthropic &&
+    !persistedHasElizaCloud &&
     !persistedHasCodex &&
     !persistedHasClaudeCode
   ) {
-    if (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) {
+    if (config.elizaCloudEnabled && config.elizaCloudApiKey?.trim()) {
+      settings.set("model.provider", "elizacloud");
+      settings.set("model.model", config.elizaCloudLargeModel);
+      settings.set("model.baseUrl", config.elizaCloudBaseUrl);
+    } else if (
+      linkedAccounts.codex.nativeReady ||
+      linkedAccounts.codex.reusable
+    ) {
       settings.set("model.provider", "codex");
       settings.set("model.model", "gpt-5.4");
       settings.set("model.baseUrl", "https://chatgpt.com/backend-api/codex");
@@ -490,7 +563,8 @@ export function createServices(
     falApiKey: string | undefined;
   } => ({
     provider:
-      settings.get().model.provider === "codex"
+      settings.get().model.provider === "codex" ||
+      settings.get().model.provider === "elizacloud"
         ? "openai"
         : settings.get().model.provider === "claude-code"
           ? "anthropic"

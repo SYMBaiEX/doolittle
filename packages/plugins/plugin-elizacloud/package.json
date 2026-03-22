@@ -1,0 +1,33 @@
+{
+  "name": "@plugins/plugin-elizacloud-bridge",
+  "version": "2.0.0-alpha.85",
+  "description": "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src/index.ts",
+    "README.md"
+  ],
+  "keywords": [
+    "elizaos",
+    "plugin",
+    "elizacloud",
+    "cloud",
+    "inference"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SYMBaiEX/eliza-agent.git",
+    "directory": "packages/plugins/plugin-elizacloud"
+  },
+  "homepage": "https://github.com/SYMBaiEX/eliza-agent/tree/main/packages/plugins/plugin-elizacloud",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@elizaos/core": "alpha"
+  }
+}

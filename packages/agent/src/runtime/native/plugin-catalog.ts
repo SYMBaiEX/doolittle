@@ -75,6 +75,15 @@ export function getNativePluginCatalog(
       notes: "Official PDF ingestion plugin.",
     },
     {
+      id: "providers.elizacloud",
+      packageName: "@elizaos/plugin-elizacloud",
+      category: "providers",
+      source: "custom",
+      enabled: enabled(config.elizaCloudApiKey) || config.elizaCloudEnabled,
+      notes:
+        "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference and cloud-native defaults.",
+    },
+    {
       id: "providers.codex",
       packageName: "@elizaos/plugin-codex",
       category: "providers",
