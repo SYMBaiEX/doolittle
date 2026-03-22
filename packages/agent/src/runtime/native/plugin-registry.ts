@@ -100,6 +100,7 @@ export function buildNativePluginAssembly(
     }),
     createClaudeCodePlugin({
       enabled: selectedProvider === "claude-code",
+      allowCliFallback: config.claudeCodeCliFallback,
       getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
       getCredentials: () => getLinkedClaudeCodeCredentials(),
       refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),

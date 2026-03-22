@@ -38,6 +38,10 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   ANTHROPIC_BASE_URL: z.string().optional(),
   ANTHROPIC_SMALL_MODEL: z.string().default("claude-3-5-haiku-20241022"),
   ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4-20250514"),
@@ -216,6 +220,7 @@ export function loadConfig(): EnvConfig {
     openAiMaxTokens: values.OPENAI_MAX_TOKENS,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
     useLinkedClaudeCodeAuth: values.ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH,
+    claudeCodeCliFallback: values.ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK,
     anthropicBaseUrl: values.ANTHROPIC_BASE_URL,
     anthropicSmallModel: values.ANTHROPIC_SMALL_MODEL,
     anthropicLargeModel: values.ANTHROPIC_LARGE_MODEL,

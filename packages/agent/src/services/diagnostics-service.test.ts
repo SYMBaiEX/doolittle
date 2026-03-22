@@ -35,6 +35,7 @@ function buildConfig(root: string): EnvConfig {
     openAiMaxTokens: 1200,
     anthropicApiKey: undefined,
     useLinkedClaudeCodeAuth: false,
+    claudeCodeCliFallback: false,
     anthropicBaseUrl: undefined,
     anthropicSmallModel: "claude-3-5-haiku-20241022",
     anthropicLargeModel: "claude-sonnet-4-20250514",

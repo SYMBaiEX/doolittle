@@ -181,6 +181,8 @@ interface WizardAnswers {
   openaiModel: string;
   anthropicApiKey: string;
   useLinkedClaudeCodeAuth: boolean;
+  claudeCodeCliFallback: boolean;
+  claudeCodeOauthToken: string;
   anthropicModel: string;
   telegramBotToken: string;
   discordBotToken: string;
@@ -750,6 +752,28 @@ async function askYesNo(
   }
 }
 
+function runInteractiveCommand(
+  command: string,
+  args: string[],
+  label: string,
+): boolean {
+  section("Binding", label);
+  const result = spawnSync(command, args, {
+    stdio: "inherit",
+    env: process.env,
+  });
+  if (result.error) {
+    warn(`${label} failed: ${result.error.message}`);
+    return false;
+  }
+  if (result.status !== 0) {
+    warn(`${label} exited with code ${result.status ?? "unknown"}.`);
+    return false;
+  }
+  info(`${label} completed.`);
+  return true;
+}
+
 async function chooseOne<T extends string>(
   rl: ReturnType<typeof createInterface>,
   prompt: string,
@@ -835,7 +859,9 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     ? existingEnv.get("ANTHROPIC_API_KEY")
       ? "hybrid"
       : "openai"
-    : existingEnv.get("ANTHROPIC_API_KEY")
+    : existingEnv.get("ANTHROPIC_API_KEY") ||
+        existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+        existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
       ? "anthropic"
       : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true"
         ? "claude-code"
@@ -874,6 +900,12 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
     useLinkedClaudeCodeAuth:
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true",
+    claudeCodeCliFallback:
+      existingEnv.get("ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK") === "true",
+    claudeCodeOauthToken:
+      existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+      existingEnv.get("CLAUDE_CODE_SETUP_TOKEN") ||
+      "",
     anthropicModel:
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514",
     telegramBotToken: existingEnv.get("TELEGRAM_BOT_TOKEN") || "",
@@ -904,7 +936,7 @@ async function runWizard(
 
   banner();
   const dependencyProbes = getDependencyProbes(existingEnv);
-  const linkedAccounts = getLinkedProviderAccountsSnapshot();
+  let linkedAccounts = getLinkedProviderAccountsSnapshot();
   printDependencyProbes(dependencyProbes);
   const rl = createInterface({ input, output });
   try {
@@ -1000,12 +1032,15 @@ async function runWizard(
           : "anthropic"
         : existingEnv.get("OPENAI_API_KEY")
           ? "openai"
-          : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
-              "true"
+          : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+              existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
             ? "claude-code"
-            : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
-              ? "codex"
-              : "offline",
+            : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
+                "true"
+              ? "claude-code"
+              : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
+                ? "codex"
+                : "offline",
     );
 
     let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
@@ -1015,6 +1050,12 @@ async function runWizard(
     let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
     let useLinkedClaudeCodeAuth =
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true";
+    let claudeCodeCliFallback =
+      existingEnv.get("ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK") === "true";
+    let claudeCodeOauthToken =
+      existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+      existingEnv.get("CLAUDE_CODE_SETUP_TOKEN") ||
+      "";
     let anthropicModel =
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
 
@@ -1036,6 +1077,93 @@ async function runWizard(
           "Should I bind the linked Claude Code account for Anthropic-native workflows",
           useLinkedClaudeCodeAuth,
         );
+      }
+    }
+
+    if (provider === "claude-code") {
+      section(
+        "Claude Bond",
+        "Choose how I should bind to Claude Code. Native auth comes first; local CLI fallback is only the escape hatch.",
+      );
+      const claudePath = await chooseOne<
+        "login" | "setup-token" | "local-cli-fallback" | "skip"
+      >(
+        rl,
+        "How should I bind to Claude Code:",
+        [
+          {
+            value: "login",
+            label: "Claude auth login",
+            detail:
+              "Recommended first step. Use the official Claude Code login flow and then let me detect native credentials.",
+          },
+          {
+            value: "setup-token",
+            label: "Claude setup-token",
+            detail:
+              "Best native path for Eliza-owned execution. Generate a Claude token and bind it directly into my runtime.",
+          },
+          {
+            value: "local-cli-fallback",
+            label: "Use local Claude session",
+            detail:
+              "Only choose this if you do not want native auth material. I will call the local Claude CLI as a fallback.",
+          },
+          {
+            value: "skip",
+            label: "Skip for now",
+            detail: "Leave Claude unbound for now.",
+          },
+        ],
+        claudeCodeCliFallback
+          ? "local-cli-fallback"
+          : claudeCodeOauthToken
+            ? "setup-token"
+            : "login",
+      );
+
+      if (claudePath === "login") {
+        runInteractiveCommand("claude", ["auth", "login"], "Claude auth login");
+        linkedAccounts = getLinkedProviderAccountsSnapshot();
+        useLinkedClaudeCodeAuth = linkedAccounts.claudeCode.reusable;
+        if (!getLinkedProviderAccountsSnapshot().claudeCode.reusable) {
+          const continueNative = await askYesNo(
+            rl,
+            "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now",
+            true,
+          );
+          if (continueNative) {
+            runInteractiveCommand(
+              "claude",
+              ["setup-token"],
+              "Claude setup-token",
+            );
+            claudeCodeOauthToken = await askSecret(
+              rl,
+              "Paste the Claude setup token I should bind",
+              claudeCodeOauthToken,
+            );
+            useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
+          } else {
+            claudeCodeCliFallback = await askYesNo(
+              rl,
+              "Should I use the local signed-in Claude CLI as a fallback instead",
+              false,
+            );
+            useLinkedClaudeCodeAuth = claudeCodeCliFallback;
+          }
+        }
+      } else if (claudePath === "setup-token") {
+        runInteractiveCommand("claude", ["setup-token"], "Claude setup-token");
+        claudeCodeOauthToken = await askSecret(
+          rl,
+          "Paste the Claude setup token I should bind",
+          claudeCodeOauthToken,
+        );
+        useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
+      } else if (claudePath === "local-cli-fallback") {
+        claudeCodeCliFallback = true;
+        useLinkedClaudeCodeAuth = true;
       }
     }
 
@@ -1390,6 +1518,8 @@ async function runWizard(
       openaiModel,
       anthropicApiKey,
       useLinkedClaudeCodeAuth,
+      claudeCodeCliFallback,
+      claudeCodeOauthToken,
       anthropicModel,
       telegramBotToken,
       discordBotToken,
@@ -1441,10 +1571,17 @@ function applyAnswers(answers: WizardAnswers): {
       answers.provider === "anthropic" || answers.provider === "hybrid"
         ? answers.anthropicApiKey
         : "",
+    CLAUDE_CODE_OAUTH_TOKEN:
+      answers.provider === "claude-code" && !answers.claudeCodeCliFallback
+        ? answers.claudeCodeOauthToken
+        : "",
     ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH: String(
       answers.useLinkedClaudeCodeAuth ||
         answers.provider === "claude-code" ||
         answers.provider === "hybrid",
+    ),
+    ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK: String(
+      answers.provider === "claude-code" && answers.claudeCodeCliFallback,
     ),
     ANTHROPIC_LARGE_MODEL:
       answers.provider === "anthropic" ||

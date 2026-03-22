@@ -63,4 +63,27 @@ describe("linked provider account auth snapshot", () => {
     expect(snapshot.claudeCode.source).toContain(".claude/.credentials.json");
     expect(snapshot.claudeCode.loginCommand).toBe("claude auth login");
   });
+
+  it("detects reusable Claude Code setup-token from env", async () => {
+    const previous = process.env.CLAUDE_CODE_SETUP_TOKEN;
+    process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-test";
+    try {
+      const home = mkdtempSync(join(tmpdir(), "eliza-agent-claude-token-"));
+      const mod = await loadSnapshotModule();
+      const snapshot = mod.getLinkedProviderAccountsSnapshot(home);
+      expect(snapshot.claudeCode.reusable).toBe(true);
+      expect(snapshot.claudeCode.authMode).toBe("setup-token");
+      expect(snapshot.claudeCode.source).toBe("env:CLAUDE_CODE_SETUP_TOKEN");
+
+      const credentials = mod.getLinkedClaudeCodeCredentials(home);
+      expect(credentials?.accessToken).toBe("sk-ant-oat01-test");
+      expect(credentials?.authMode).toBe("setup-token");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CLAUDE_CODE_SETUP_TOKEN;
+      } else {
+        process.env.CLAUDE_CODE_SETUP_TOKEN = previous;
+      }
+    }
+  });
 });

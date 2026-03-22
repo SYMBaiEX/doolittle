@@ -20,6 +20,7 @@ interface LinkedAccountStatus {
 
 interface ClaudeCodePluginOptions {
   enabled?: boolean;
+  allowCliFallback?: boolean;
   getStatus: () => LinkedAccountStatus;
   invokeCliPrint?: (params: {
     prompt: string;
@@ -192,6 +193,11 @@ async function runClaudeCodeTextGeneration(
   const model = runtimeModel.model || "claude-sonnet-4-20250514";
 
   if (!accessToken) {
+    if (!options.allowCliFallback) {
+      throw new Error(
+        "No reusable Claude Code auth material is available for native execution. Complete `claude auth login` plus `claude setup-token`, or enable the local Claude CLI fallback explicitly.",
+      );
+    }
     const cliOutput = await (
       options.invokeCliPrint ?? invokeClaudeCodeCliPrint
     )({
@@ -275,7 +281,7 @@ export function createClaudeCodePlugin(
     static serviceType = "claude_code";
 
     capabilityDescription =
-      "Linked Claude Code bridge for OAuth-backed Claude workflows, Anthropic-native routing, and operator surfaces.";
+      "Linked Claude Code bridge for native Claude workflows, Anthropic-native routing, and optional local CLI fallback.";
 
     static async start(runtime?: IAgentRuntime): Promise<ClaudeCodeService> {
       return new ClaudeCodeService(runtime);

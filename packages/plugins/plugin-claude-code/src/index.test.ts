@@ -156,6 +156,7 @@ describe("createClaudeCodePlugin", () => {
   it("falls back to the local Claude CLI when no reusable token store is readable", async () => {
     const plugin = createClaudeCodePlugin({
       enabled: true,
+      allowCliFallback: true,
       getStatus: () => ({
         provider: "claude-code",
         available: true,
@@ -184,5 +185,33 @@ describe("createClaudeCodePlugin", () => {
       { prompt: "hello" } as never,
     );
     expect(result).toBe("LINKED_PROVIDER_OK");
+  });
+
+  it("requires native auth material when CLI fallback is disabled", async () => {
+    const plugin = createClaudeCodePlugin({
+      enabled: true,
+      allowCliFallback: false,
+      getStatus: () => ({
+        provider: "claude-code",
+        available: true,
+        reusable: false,
+        detail: "not ready",
+      }),
+    });
+
+    const handler = plugin.models?.TEXT_LARGE;
+    await expect(
+      handler?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: {
+                provider: "claude-code",
+              },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      ),
+    ).rejects.toThrow("No reusable Claude Code auth material");
   });
 });

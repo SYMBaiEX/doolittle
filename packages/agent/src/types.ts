@@ -36,6 +36,7 @@ export interface EnvConfig {
   openAiMaxTokens: number;
   anthropicApiKey?: string;
   useLinkedClaudeCodeAuth: boolean;
+  claudeCodeCliFallback: boolean;
   anthropicBaseUrl?: string;
   anthropicSmallModel: string;
   anthropicLargeModel: string;

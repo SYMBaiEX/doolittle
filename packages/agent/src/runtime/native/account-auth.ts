@@ -33,6 +33,7 @@ export interface LinkedClaudeCodeCredentials {
   refreshToken?: string;
   expiresAt?: string;
   accountLabel?: string;
+  authMode?: string;
   source?: string;
 }
 
@@ -42,6 +43,10 @@ const CLAUDE_CODE_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const CLAUDE_CODE_OAUTH_TOKEN_URL =
   "https://console.anthropic.com/v1/oauth/token";
 const DEFAULT_REFRESH_SKEW_SECONDS = 120;
+const CLAUDE_CODE_ENV_KEYS = [
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "CLAUDE_CODE_SETUP_TOKEN",
+] as const;
 
 interface CliAuthStatus {
   available: boolean;
@@ -161,6 +166,16 @@ function getClaudeCodeCliAuthStatus(homePath?: string): CliAuthStatus {
       ? `Claude Code CLI reports logged in via ${payload.authMethod ?? "unknown"} auth.`
       : "Claude Code CLI reports no active login.",
   };
+}
+
+function getClaudeCodeEnvToken(): { key: string; token: string } | undefined {
+  for (const key of CLAUDE_CODE_ENV_KEYS) {
+    const token = process.env[key]?.trim();
+    if (token) {
+      return { key, token };
+    }
+  }
+  return undefined;
 }
 
 function readJson(path: string): unknown {
@@ -428,6 +443,7 @@ function getClaudeCodeAccountStatus(
     displayName && emailAddress
       ? `${displayName} <${emailAddress}>`
       : displayName || emailAddress || undefined;
+  const envToken = getClaudeCodeEnvToken();
 
   if (accessToken || refreshToken) {
     return {
@@ -441,6 +457,23 @@ function getClaudeCodeAccountStatus(
       loginCommand: "claude auth login",
       detail:
         "Refreshable Claude Code OAuth credentials are available from the local Claude CLI store.",
+    };
+  }
+
+  if (envToken?.token) {
+    return {
+      provider: "claude-code",
+      available: true,
+      reusable: true,
+      source: `env:${envToken.key}`,
+      authMode:
+        envToken.key === "CLAUDE_CODE_SETUP_TOKEN" ? "setup-token" : "oauth",
+      accountLabel,
+      loginCommand: "claude auth login",
+      detail:
+        envToken.key === "CLAUDE_CODE_SETUP_TOKEN"
+          ? "A Claude Code setup token is configured for native Claude execution."
+          : "A Claude Code OAuth token is configured for native Claude execution.",
     };
   }
 
@@ -526,9 +559,19 @@ export function getLinkedClaudeCodeCredentials(
     displayName && emailAddress
       ? `${displayName} <${emailAddress}>`
       : displayName || emailAddress || undefined;
+  const envToken = getClaudeCodeEnvToken();
 
   if (!accessToken && !refreshToken) {
-    return undefined;
+    if (!envToken?.token) {
+      return undefined;
+    }
+    return {
+      accessToken: envToken.token,
+      accountLabel,
+      authMode:
+        envToken.key === "CLAUDE_CODE_SETUP_TOKEN" ? "setup-token" : "oauth",
+      source: `env:${envToken.key}`,
+    };
   }
 
   return {
@@ -536,6 +579,7 @@ export function getLinkedClaudeCodeCredentials(
     refreshToken: refreshToken || undefined,
     expiresAt: expiresAt || undefined,
     accountLabel,
+    authMode: "oauth",
     source: existsSync(credentialsPath) ? credentialsPath : profilePath,
   };
 }
@@ -554,6 +598,16 @@ export function claudeCodeAccessTokenIsExpiring(
 export async function refreshLinkedClaudeCodeCredentials(
   homePath?: string,
 ): Promise<LinkedClaudeCodeCredentials | undefined> {
+  const envToken = getClaudeCodeEnvToken();
+  if (envToken?.token) {
+    return {
+      accessToken: envToken.token,
+      authMode:
+        envToken.key === "CLAUDE_CODE_SETUP_TOKEN" ? "setup-token" : "oauth",
+      source: `env:${envToken.key}`,
+    };
+  }
+
   const home = resolveHome(homePath);
   const credentialsPath = join(home, ".claude", ".credentials.json");
   const payload = existsSync(credentialsPath)

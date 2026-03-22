@@ -63,6 +63,7 @@ function makeConfig(root: string): EnvConfig {
     openAiMaxTokens: 4096,
     anthropicApiKey: undefined,
     useLinkedClaudeCodeAuth: false,
+    claudeCodeCliFallback: false,
     anthropicBaseUrl: undefined,
     anthropicSmallModel: "claude-3.7-sonnet",
     anthropicLargeModel: "claude-3.7-sonnet",
