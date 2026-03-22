@@ -221,6 +221,16 @@ bun run publish:providers:check
 
 The smoke script validates linked-account discovery, provider switching, runtime service registration, and optional live request execution when local signed-in credentials are available.
 
+Provider release note:
+
+- the locally installed `elizaos` CLI on `2.0.0-alpha.85` does not expose a `publish` command
+- for these provider packages, the correct release path in this repo is still npm package packing/publishing
+- the helper script below verifies that reality before packing:
+
+```bash
+bun run publish:providers -- --provider all
+```
+
 ## Environment reference
 
 Copy `.env.example` to `.env` and fill in what you need.
