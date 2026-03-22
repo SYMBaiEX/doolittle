@@ -13,6 +13,7 @@ import {
 } from "../packages/agent/src/runtime/native/account-auth";
 import {
   DEFAULT_TUI_THEME,
+  getTuiTheme,
   listTuiThemes,
   type TuiThemeName,
 } from "../packages/agent/src/runtime/theme-catalog";
@@ -288,12 +289,14 @@ type WizardScreenContext = {
     prompt: string,
     optionsList: Array<{ value: T; label: string; detail?: string }>,
     defaultValue: T,
+    options?: { onHighlight?: (value: T) => void },
   ) => Promise<T>;
   selectMany: <T extends string>(
     prompt: string,
     optionsList: Array<{ value: T; label: string }>,
     defaults: T[],
   ) => Promise<T[]>;
+  previewTheme: (theme: TuiThemeName) => void;
   snapshot: () => WizardSnapshot;
   destroy: () => void;
 };
@@ -391,6 +394,7 @@ function createWizardScreen(
       initial?.currentDetail || "I checked the machine before waking fully.",
     logLines: initial?.logLines ? [...initial.logLines] : [],
   };
+  let activeThemeName = DEFAULT_TUI_THEME;
   const header = blessed.box({
     parent: screen,
     top: 0,
@@ -478,13 +482,37 @@ function createWizardScreen(
       " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-C exit ",
   });
 
+  const applyTheme = (themeName: TuiThemeName) => {
+    activeThemeName = themeName;
+    const theme = getTuiTheme(themeName);
+    header.style.fg = theme.baseFg;
+    header.style.bg = theme.primary;
+    sidebar.style.border = { fg: theme.primary };
+    sidebar.style.fg = theme.baseFg;
+    sidebar.style.bg = theme.panelBg;
+    detail.style.border = { fg: theme.cyanGlow };
+    detail.style.fg = theme.baseFg;
+    detail.style.bg = theme.panelBg;
+    logBox.style.border = { fg: theme.greenGlow };
+    logBox.style.fg = theme.baseFg;
+    logBox.style.bg = theme.panelBg;
+    logBox.style.scrollbar = {
+      fg: theme.cyanGlow,
+      bg: theme.panelBg,
+    };
+    _footer.style.fg = theme.cyanGlow;
+    _footer.style.bg = theme.baseBg;
+  };
+  applyTheme(DEFAULT_TUI_THEME);
+
   const render = () => {
+    const theme = getTuiTheme(activeThemeName);
     header.setContent(`{bold}${snapshot.title}{/bold}\n${snapshot.subtitle}`);
     sidebar.setContent(
       wizardSectionOrder
         .map((name) =>
           name === snapshot.currentSection
-            ? `{#ff6a00-fg}› ${name}{/}`
+            ? `{${theme.primary}-fg}› ${name}{/}`
             : `  ${name}`,
         )
         .join("\n"),
@@ -682,6 +710,7 @@ function createWizardScreen(
     prompt: string,
     optionsList: Array<{ value: T; label: string; detail?: string }>,
     defaultValue: T,
+    options?: { onHighlight?: (value: T) => void },
   ): Promise<T> =>
     showOverlay<T>(
       "Choose One",
@@ -734,6 +763,9 @@ function createWizardScreen(
         const updateDetail = () => {
           selectedIndex = clampIndex(selectedIndex);
           const current = optionsList[selectedIndex];
+          if (current) {
+            options?.onHighlight?.(current.value);
+          }
           detailBox.setContent(
             `${current?.label || ""}\n\n${current?.detail || "No extra detail."}`,
           );
@@ -893,6 +925,10 @@ function createWizardScreen(
     promptYesNo,
     selectOne,
     selectMany,
+    previewTheme: (theme: TuiThemeName) => {
+      applyTheme(theme);
+      render();
+    },
     snapshot: () => ({
       title: snapshot.title,
       subtitle: snapshot.subtitle,
@@ -1641,9 +1677,10 @@ async function chooseOne<T extends string>(
   prompt: string,
   optionsList: Array<{ value: T; label: string; detail?: string }>,
   defaultValue: T,
+  options?: { onHighlight?: (value: T) => void },
 ): Promise<T> {
   if (wizardScreen) {
-    return wizardScreen.selectOne(prompt, optionsList, defaultValue);
+    return wizardScreen.selectOne(prompt, optionsList, defaultValue, options);
   }
   const promptInterface = requireReadline(rl);
   if (supportsInteractiveMenus()) {
@@ -1656,6 +1693,9 @@ async function chooseOne<T extends string>(
 
       const render = () => {
         clearRenderedMenu(renderedLines);
+        options?.onHighlight?.(
+          optionsList[selectedIndex]?.value ?? defaultValue,
+        );
         const lines = [
           paint(prompt, color.cyan + color.bold),
           paint(
@@ -2004,6 +2044,11 @@ async function runWizard(
       "Choose the face I wake up in:",
       themeChoices,
       DEFAULT_TUI_THEME,
+      {
+        onHighlight: (nextTheme) => {
+          wizardScreen?.previewTheme(nextTheme);
+        },
+      },
     );
 
     section("Mind", "I need a mind to think with.");
