@@ -1,5 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import { benchmarkConfig } from "@elizaos/plugin-action-bench";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
@@ -204,6 +205,7 @@ interface NativeEcosystemSnapshot {
     latest: string;
     alpha: string;
   };
+  accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>;
   packageAudit: ReturnType<typeof getNativePackageAudit>;
   pluginCatalog: ReturnType<typeof getNativePluginCatalog>;
   sdk: Awaited<ReturnType<AppServices["agentSdk"]["overview"]>>;
@@ -2355,6 +2357,7 @@ export async function getNativeEcosystemSnapshot(
       latest: getNativePackageAudit(config).runtime.latest,
       alpha: getNativePackageAudit(config).runtime.alpha,
     },
+    accounts: getLinkedProviderAccountsSnapshot(),
     packageAudit: getNativePackageAudit(config),
     pluginCatalog: getNativePluginCatalog(config),
     sdk,

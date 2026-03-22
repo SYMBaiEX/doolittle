@@ -14,6 +14,7 @@ import {
   parseTransportPlatform,
 } from "@/gateway/control-plane";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -2500,6 +2501,14 @@ async function buildCommandResponse(
       null,
       2,
     );
+  }
+
+  if (
+    trimmed === "/accounts" ||
+    trimmed === "/runtime accounts" ||
+    trimmed === "/accounts status"
+  ) {
+    return JSON.stringify(getLinkedProviderAccountsSnapshot(), null, 2);
   }
 
   if (

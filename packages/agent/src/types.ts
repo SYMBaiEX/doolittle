@@ -28,12 +28,14 @@ export interface EnvConfig {
   skillsDir: string;
   timezone: string;
   openAiApiKey?: string;
+  useLinkedCodexAuth: boolean;
   openAiBaseUrl: string;
   openAiModel: string;
   openAiImageModel?: string;
   openAiTemperature: number;
   openAiMaxTokens: number;
   anthropicApiKey?: string;
+  useLinkedClaudeCodeAuth: boolean;
   anthropicBaseUrl?: string;
   anthropicSmallModel: string;
   anthropicLargeModel: string;

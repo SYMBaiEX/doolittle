@@ -14,6 +14,7 @@ import {
   runModelAnalysisTurn,
   syncProviderSettings,
 } from "@/runtime/chat";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -406,6 +407,13 @@ export function startApiServer(context: AppContext): void {
             identity: ownership.identity,
           },
         });
+      }
+
+      if (
+        request.method === "GET" &&
+        (url.pathname === "/runtime/accounts" || url.pathname === "/accounts")
+      ) {
+        return json(getLinkedProviderAccountsSnapshot());
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/ecosystem") {

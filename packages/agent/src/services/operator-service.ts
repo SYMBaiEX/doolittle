@@ -11,6 +11,7 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { getTransportRequirementRecords } from "@/gateway/transport-contract";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
@@ -261,6 +262,7 @@ export class OperatorService {
   }
 
   async setupSummary(): Promise<SetupSummary> {
+    const linkedAccounts = getLinkedProviderAccountsSnapshot();
     const ecosystem = this.agentSdk
       ? await this.agentSdk.overview()
       : undefined;
@@ -313,14 +315,18 @@ export class OperatorService {
           ready: Boolean(this.config.openAiApiKey),
           detail: this.config.openAiApiKey
             ? `Configured for ${this.config.openAiModel}.`
-            : "Missing OPENAI_API_KEY.",
+            : linkedAccounts.codex.reusable
+              ? "No OPENAI_API_KEY is set. A linked Codex account is available for Codex-native workflows, but the OpenAI provider path still needs an API key."
+              : "Missing OPENAI_API_KEY.",
         },
         {
           id: "anthropic",
           ready: Boolean(this.config.anthropicApiKey),
           detail: this.config.anthropicApiKey
             ? `Configured for ${this.config.anthropicLargeModel}.`
-            : "Missing ANTHROPIC_API_KEY.",
+            : linkedAccounts.claudeCode.reusable
+              ? "No ANTHROPIC_API_KEY is set. Linked Claude Code credentials are available for Claude-native workflows, but the Anthropic provider path still needs an API key."
+              : "Missing ANTHROPIC_API_KEY.",
         },
       ],
       transports: getTransportRequirementRecords(
