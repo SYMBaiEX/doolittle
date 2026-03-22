@@ -1,6 +1,8 @@
 import {
   Service as ElizaService,
+  type GenerateTextParams,
   type IAgentRuntime,
+  ModelType,
   type Plugin,
 } from "@elizaos/core";
 
@@ -16,10 +18,128 @@ interface LinkedAccountStatus {
 }
 
 interface CodexPluginOptions {
+  enabled?: boolean;
   getStatus: () => LinkedAccountStatus;
+  getCredentials?: () =>
+    | {
+        accessToken?: string;
+        refreshToken?: string;
+        authMode?: string;
+        lastRefresh?: string;
+        source?: string;
+      }
+    | undefined;
 }
 
 const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
+const DEFAULT_CODEX_MODEL = "gpt-5.3-codex";
+
+function getRuntimeProvider(
+  runtime: IAgentRuntime | undefined,
+): string | undefined {
+  try {
+    const raw = runtime?.getSetting("runtimeSettings");
+    if (typeof raw !== "string") {
+      return undefined;
+    }
+    const parsed = JSON.parse(raw) as {
+      model?: { provider?: string };
+    };
+    return parsed.model?.provider;
+  } catch {
+    return undefined;
+  }
+}
+
+function getRuntimeModelSettings(runtime: IAgentRuntime | undefined): {
+  model?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxTokens?: number;
+} {
+  try {
+    const raw = runtime?.getSetting("runtimeSettings");
+    if (typeof raw !== "string") {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as {
+      model?: {
+        model?: string;
+        baseUrl?: string;
+        temperature?: number;
+        maxTokens?: number;
+      };
+    };
+    return parsed.model ?? {};
+  } catch {
+    return {};
+  }
+}
+
+async function runCodexTextGeneration(
+  runtime: IAgentRuntime,
+  params: GenerateTextParams,
+  options: CodexPluginOptions,
+): Promise<string> {
+  const provider = getRuntimeProvider(runtime);
+  if (provider && provider !== "codex") {
+    throw new Error(
+      `Codex model handler is active, but runtime provider is ${provider}. Restart with the Codex provider selected to use this plugin directly.`,
+    );
+  }
+
+  const credentials = options.getCredentials?.();
+  const accessToken = credentials?.accessToken?.trim();
+  if (!accessToken) {
+    throw new Error(
+      "No reusable linked Codex access token is available for the Codex provider.",
+    );
+  }
+
+  const runtimeModel = getRuntimeModelSettings(runtime);
+  const response = await fetch(
+    `${runtimeModel.baseUrl || DEFAULT_CODEX_BASE_URL}/responses`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: runtimeModel.model || DEFAULT_CODEX_MODEL,
+        input: params.prompt,
+        store: false,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Codex request failed (${response.status}): ${body}`);
+  }
+
+  const data = (await response.json()) as {
+    output_text?: string;
+    output?: Array<{
+      type?: string;
+      content?: Array<{ type?: string; text?: string }>;
+    }>;
+  };
+
+  const directText = data.output_text?.trim();
+  if (directText) {
+    return directText;
+  }
+
+  const contentText = data.output
+    ?.flatMap((item) => item.content ?? [])
+    .filter((item) => item.type === "output_text" || item.type === "text")
+    .map((item) => item.text ?? "")
+    .join("")
+    .trim();
+
+  return contentText || "No response returned.";
+}
 
 export function createCodexPlugin(options: CodexPluginOptions): Plugin {
   class CodexService extends ElizaService {
@@ -59,8 +179,23 @@ export function createCodexPlugin(options: CodexPluginOptions): Plugin {
     description:
       "Workspace-native Codex plugin for linked-account discovery and Codex-native workflow routing.",
     services: [CodexService],
+    models: options.enabled
+      ? {
+          [ModelType.TEXT_SMALL]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.TEXT_LARGE]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.TEXT_COMPLETION]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+        }
+      : undefined,
     providers: [],
     actions: [],
     evaluators: [],
+    priority: options.enabled ? 100 : 0,
   };
 }
