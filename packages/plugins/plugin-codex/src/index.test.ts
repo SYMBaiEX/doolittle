@@ -162,4 +162,116 @@ describe("createCodexPlugin", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("parses streamed Codex SSE output into one final answer", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        [
+          "event: response.created",
+          'data: {"type":"response.created","response":{"id":"resp_1"}}',
+          "",
+          "event: response.output_text.delta",
+          'data: {"type":"response.output_text.delta","delta":"LINKED_"}',
+          "",
+          "event: response.output_text.delta",
+          'data: {"type":"response.output_text.delta","delta":"PROVIDER_"}',
+          "",
+          "event: response.output_text.done",
+          'data: {"type":"response.output_text.done","text":"LINKED_PROVIDER_OK"}',
+          "",
+          "event: response.completed",
+          'data: {"type":"response.completed","response":{"output":[{"content":[{"type":"output_text","text":"LINKED_PROVIDER_OK"}]}]}}',
+          "",
+          "data: [DONE]",
+          "",
+        ].join("\n"),
+        {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        },
+      )) as unknown as typeof fetch;
+
+    try {
+      const plugin = createCodexPlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "codex",
+          available: true,
+          reusable: true,
+          detail: "ready",
+        }),
+        getCredentials: () => ({
+          accessToken: "codex-token",
+        }),
+      });
+      const handler = plugin.models?.TEXT_LARGE;
+      const result = await handler?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: {
+                provider: "codex",
+              },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      );
+      expect(result).toBe("LINKED_PROVIDER_OK");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("falls back to event-stream parsing even when the content type is not labeled as SSE", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        [
+          "event: response.output_text.delta",
+          'data: {"type":"response.output_text.delta","delta":"LINKED_PROVIDER_OK"}',
+          "",
+          "data: [DONE]",
+          "",
+        ].join("\n"),
+        {
+          status: 200,
+          headers: {
+            "content-type": "text/plain",
+          },
+        },
+      )) as unknown as typeof fetch;
+
+    try {
+      const plugin = createCodexPlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "codex",
+          available: true,
+          reusable: true,
+          detail: "ready",
+        }),
+        getCredentials: () => ({
+          accessToken: "codex-token",
+        }),
+      });
+      const handler = plugin.models?.TEXT_LARGE;
+      const result = await handler?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: {
+                provider: "codex",
+              },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      );
+      expect(result).toBe("LINKED_PROVIDER_OK");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

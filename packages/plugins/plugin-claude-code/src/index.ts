@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import {
   Service as ElizaService,
   type GenerateTextParams,
@@ -52,7 +53,36 @@ const COMMON_BETAS = [
   "fine-grained-tool-streaming-2025-05-14",
 ];
 const OAUTH_ONLY_BETAS = ["claude-code-20250219", "oauth-2025-04-20"];
-const CLAUDE_CODE_VERSION = "2.1.74";
+const CLAUDE_CODE_VERSION_FALLBACK = "2.1.74";
+const CLAUDE_CODE_SYSTEM_PREFIX =
+  "You are Claude Code, Anthropic's official CLI for Claude.";
+
+function getClaudeCodeVersion(): string {
+  for (const command of ["claude", "claude-code"]) {
+    try {
+      const result = spawnSync(command, ["--version"], {
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      const version = result.stdout?.trim().split(/\s+/)[0];
+      if (result.status === 0 && version && /^\d/.test(version)) {
+        return version;
+      }
+    } catch {}
+  }
+  return CLAUDE_CODE_VERSION_FALLBACK;
+}
+
+const CLAUDE_CODE_VERSION = getClaudeCodeVersion();
+
+function withClaudeCodeSystemPrefix(): Array<{ type: "text"; text: string }> {
+  return [
+    {
+      type: "text",
+      text: CLAUDE_CODE_SYSTEM_PREFIX,
+    },
+  ];
+}
 
 function getRuntimeProvider(
   runtime: IAgentRuntime | undefined,
@@ -121,6 +151,18 @@ async function runClaudeCodeTextGeneration(
 
   const runtimeModel = getRuntimeModelSettings(runtime);
   const endpoint = `${runtimeModel.baseUrl || DEFAULT_ANTHROPIC_BASE_URL}/v1/messages`;
+  const requestBody = {
+    model: runtimeModel.model || "claude-sonnet-4-20250514",
+    max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
+    temperature: runtimeModel.temperature ?? 0.4,
+    system: withClaudeCodeSystemPrefix(),
+    messages: [
+      {
+        role: "user",
+        content: params.prompt,
+      },
+    ],
+  };
   let response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -131,17 +173,7 @@ async function runClaudeCodeTextGeneration(
       "user-agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
       "x-app": "cli",
     },
-    body: JSON.stringify({
-      model: runtimeModel.model || "claude-sonnet-4-20250514",
-      max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
-      temperature: runtimeModel.temperature ?? 0.4,
-      messages: [
-        {
-          role: "user",
-          content: params.prompt,
-        },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (
@@ -161,17 +193,7 @@ async function runClaudeCodeTextGeneration(
           "user-agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
           "x-app": "cli",
         },
-        body: JSON.stringify({
-          model: runtimeModel.model || "claude-sonnet-4-20250514",
-          max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
-          temperature: runtimeModel.temperature ?? 0.4,
-          messages: [
-            {
-              role: "user",
-              content: params.prompt,
-            },
-          ],
-        }),
+        body: JSON.stringify(requestBody),
       });
     }
   }
