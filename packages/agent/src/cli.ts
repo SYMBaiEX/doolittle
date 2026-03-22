@@ -1,6 +1,7 @@
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import blessed from "blessed";
+import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
@@ -58,37 +59,6 @@ function compactPreview(text: string): string {
   } catch {
     return truncate(text, 180);
   }
-}
-
-function summarizeTransportInventory(
-  inventory: Array<{
-    platform: string;
-    source: string;
-    configEnabled: boolean;
-    gatewayEnabled: boolean;
-    operational: boolean;
-    reason: string;
-    detail: string;
-  }>,
-): string {
-  const totals = {
-    operational: inventory.filter((entry) => entry.operational).length,
-    configEnabled: inventory.filter((entry) => entry.configEnabled).length,
-    gatewayEnabled: inventory.filter((entry) => entry.gatewayEnabled).length,
-    official: inventory.filter((entry) => entry.source === "official").length,
-    vendored: inventory.filter((entry) => entry.source === "vendored").length,
-    custom: inventory.filter((entry) => entry.source === "custom").length,
-    product: inventory.filter((entry) => entry.source === "product").length,
-  };
-
-  return [
-    `Inventory totals: operational=${totals.operational}/${inventory.length} config=${totals.configEnabled} gateway=${totals.gatewayEnabled}`,
-    `Sources: official=${totals.official} vendored=${totals.vendored} custom=${totals.custom} product=${totals.product}`,
-    ...inventory.map(
-      (entry) =>
-        `- ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason} :: ${truncate(entry.detail, 72)}`,
-    ),
-  ].join("\n");
 }
 
 function truncate(text: string, max = 280): string {
@@ -272,6 +242,7 @@ async function renderTransportContent(context: AppContext): Promise<string> {
   const platformStates = gatewayState.platforms.slice(0, 4);
   const inventorySummary = summarizeTransportInventory(
     runtimeStatus.transportInventory,
+    "cli",
   ).split("\n");
 
   return [
