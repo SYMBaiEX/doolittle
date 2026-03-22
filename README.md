@@ -215,6 +215,7 @@ After that, the normal local UX is:
 
 ```bash
 eliza-agent
+ea
 eliza-agent plain
 eliza-agent setup
 eliza-agent doctor
@@ -224,6 +225,8 @@ Command notes:
 
 - `eliza-agent`
   - starts the normal runtime and TUI flow
+- `ea`
+  - short alias installed only when no existing `ea` command is already present on the machine
 - `eliza-agent plain`
   - starts the plain CLI instead of the full operator deck
 - `eliza-agent setup`
