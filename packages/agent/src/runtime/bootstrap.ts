@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { AgentRuntime } from "@elizaos/core";
 import character from "@/character";
 import { loadConfig } from "@/config/env";
@@ -22,6 +25,29 @@ export interface AppContext {
 
 let contextPromise: Promise<AppContext> | undefined;
 
+function ensureSecretSalt(config: EnvConfig): string {
+  const provided =
+    process.env.SECRET_SALT?.trim() || process.env.ELIZA_SECRET_SALT?.trim();
+  if (provided) {
+    return provided;
+  }
+
+  const saltPath = join(config.dataDir, "secret-salt");
+  try {
+    const existing = readFileSync(saltPath, "utf8").trim();
+    if (existing) {
+      return existing;
+    }
+  } catch {
+    // Fall through and create a stable per-workspace salt.
+  }
+
+  const generated = randomUUID().replace(/-/g, "");
+  mkdirSync(config.dataDir, { recursive: true });
+  writeFileSync(saltPath, `${generated}\n`, "utf8");
+  return generated;
+}
+
 function buildPluginSettings(
   config: EnvConfig,
   services: AppServices,
@@ -39,6 +65,7 @@ function buildPluginSettings(
     OPENAI_LARGE_MODEL: runtimeSettings.model.model,
     ANTHROPIC_SMALL_MODEL: config.anthropicSmallModel,
     ANTHROPIC_LARGE_MODEL: config.anthropicLargeModel,
+    SECRET_SALT: ensureSecretSalt(config),
   };
 
   const modelProvider = runtimeSettings.model.provider;
@@ -149,6 +176,8 @@ export async function getAppContext(): Promise<AppContext> {
 
   contextPromise = (async () => {
     const config = loadConfig();
+    process.env.SECRET_SALT =
+      process.env.SECRET_SALT || ensureSecretSalt(config);
     const services = createServices(config);
     const runtimeSettings = services.settings.get();
     const nativePluginAssembly = buildNativePluginAssembly(services, config);
