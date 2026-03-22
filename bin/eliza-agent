@@ -35,7 +35,7 @@ fi
 case "$command_name" in
   start)
     ensure_onboarded
-    exec bun run --cwd "$ROOT/packages/agent" src/index.ts "$@"
+    ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" src/index.ts --cli "$@"
     ;;
   setup|onboard|bootstrap)
     exec bun run "$ROOT/scripts/bootstrap.ts" "$@"
@@ -48,7 +48,7 @@ case "$command_name" in
     ;;
   dev)
     ensure_onboarded
-    exec bun run --cwd "$ROOT/packages/agent" dev "$@"
+    ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" dev "$@"
     ;;
   api)
     ensure_onboarded
@@ -60,10 +60,10 @@ case "$command_name" in
     ;;
   plain|plain-cli)
     ensure_onboarded
-    exec bun run --cwd "$ROOT/packages/agent" src/index.ts --plain-cli "$@"
+    ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" src/index.ts --plain-cli "$@"
     ;;
   *)
     ensure_onboarded
-    exec bun run --cwd "$ROOT/packages/agent" src/index.ts "$command_name" "$@"
+    ELIZA_AGENT_MODE=cli exec bun run --cwd "$ROOT/packages/agent" src/index.ts "$command_name" "$@"
     ;;
 esac

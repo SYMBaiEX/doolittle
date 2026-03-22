@@ -14,10 +14,22 @@ async function main(): Promise<void> {
   const gatewayFlag = Bun.argv.includes("--gateway");
 
   if (wantsApi || apiOnlyFlag || gatewayFlag) {
-    startApiServer(context);
-    console.log(
-      `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
-    );
+    try {
+      startApiServer(context);
+      console.log(
+        `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
+      );
+    } catch (error) {
+      const code =
+        error instanceof Error && "code" in error ? String(error.code) : "";
+      if (code === "EADDRINUSE" && !apiOnlyFlag && !gatewayFlag) {
+        console.warn(
+          `API port ${context.config.port} is already in use. Continuing with local CLI only.`,
+        );
+      } else {
+        throw error;
+      }
+    }
   }
 
   if (gatewayFlag) {

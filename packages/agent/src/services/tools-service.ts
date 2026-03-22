@@ -651,6 +651,10 @@ export class ToolsService {
     },
   ];
 
+  baseDefinitions(): ToolDefinition[] {
+    return this.tools.map((tool) => ({ ...tool }));
+  }
+
   list(): ToolDefinition[] {
     const dynamic = this.getDynamicState();
     const baseTools = this.tools.map((tool) =>

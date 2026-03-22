@@ -158,3 +158,9 @@ fi
 printf "%s\n" "  eliza-agent plain"
 printf "%s\n" "  eliza-agent setup"
 printf "%s\n" "  eliza-agent doctor"
+
+if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
+  printf "\n%s\n" "${amber}Launching Eliza Agent now...${reset}"
+  printf "%s\n" "${dim}  Press Ctrl-C to return to your shell.${reset}"
+  exec "$ELIZA_BIN_LINK"
+fi
