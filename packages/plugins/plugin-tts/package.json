@@ -1,0 +1,13 @@
+{
+  "name": "@elizaos/plugin-tts",
+  "version": "2.0.0-alpha.85-patched.0",
+  "private": true,
+  "type": "module",
+  "description": "Workspace-native TTS plugin for Eliza Agent.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.0-alpha.85"
+  }
+}

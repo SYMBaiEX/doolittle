@@ -59,15 +59,6 @@ export function getNativePluginCatalog(
       notes: "First-party skills package used for native stack alignment.",
     },
     {
-      id: "foundation.bootstrap",
-      packageName: "@elizaos/plugin-bootstrap",
-      category: "foundation",
-      source: "official",
-      enabled: true,
-      notes:
-        "Official bootstrap plugin provides core actions, providers, and runtime task services.",
-    },
-    {
       id: "providers.sql",
       packageName: "@elizaos/plugin-sql",
       category: "providers",
@@ -170,10 +161,10 @@ export function getNativePluginCatalog(
       id: "media.tts",
       packageName: "@elizaos/plugin-tts",
       category: "media",
-      source: "official",
+      source: "vendored",
       enabled: enabled(config.falApiKey),
       notes:
-        "Official TTS plugin for voice generation on the alpha line when FAL is configured.",
+        "Workspace-native TTS plugin aligned to the Eliza Agent alpha runtime line.",
     },
     {
       id: "execution.shell",
@@ -273,10 +264,10 @@ export function getNativePluginCatalog(
       id: "research.action-bench",
       packageName: "@elizaos/plugin-action-bench",
       category: "research",
-      source: "official",
+      source: "vendored",
       enabled: true,
       notes:
-        "Official action benchmark plugin for agent evaluation and coverage drills.",
+        "Workspace-native benchmark plugin for evaluation and coverage drills.",
     },
     {
       id: "research.autocoder",

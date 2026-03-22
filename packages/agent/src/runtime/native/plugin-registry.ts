@@ -4,7 +4,6 @@ import { createAgentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrato
 import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
 import { createAutocoderPlugin } from "@elizaos/plugin-autocoder";
-import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
@@ -79,7 +78,7 @@ export function buildNativePluginAssembly(
   const catalog = getNativePluginCatalog(config);
   const groupedCatalog = groupNativePluginCatalog(catalog);
 
-  const foundation: Plugin[] = [normalizePlugin(bootstrapPlugin)];
+  const foundation: Plugin[] = [];
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),

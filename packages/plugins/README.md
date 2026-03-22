@@ -17,8 +17,10 @@ This workspace contains both product-native Eliza Agent plugins and vendored off
 - `plugin-coding-agent`
 - `plugin-cron`
 - `plugin-browser`
+- `plugin-action-bench`
 - `plugin-discord`
 - `plugin-experience`
+- `plugin-forms`
 - `plugin-knowledge`
 - `plugin-local-embedding`
 - `plugin-mcp`
@@ -26,15 +28,8 @@ This workspace contains both product-native Eliza Agent plugins and vendored off
 - `plugin-plugin-manager`
 - `plugin-rolodex`
 - `plugin-shell`
+- `plugin-tts`
 - `plugin-trajectory-logger`
-
-## Direct ecosystem packages
-
-These are installed at the repo root and surfaced through the native runtime, but they are not workspace folders:
-
-- `@elizaos/plugin-action-bench`
-- `@elizaos/plugin-autocoder`
-- `@elizaos/plugin-tts`
 
 ## Working rule
 

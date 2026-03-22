@@ -576,9 +576,6 @@ export class OperatorService {
         "@elizaos/plugin-browser":
           this.packageMetadata.dependencies?.["@elizaos/plugin-browser"] ??
           "unknown",
-        "@elizaos/plugin-bootstrap":
-          this.packageMetadata.dependencies?.["@elizaos/plugin-bootstrap"] ??
-          "unknown",
         "@elizaos/plugin-tts":
           this.packageMetadata.dependencies?.["@elizaos/plugin-tts"] ??
           "unknown",

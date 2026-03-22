@@ -91,10 +91,12 @@ function buildHelpText(agentName: string): string {
     "Global:",
     "  q / Ctrl-C       Quit",
     "  Esc              Focus command input",
-    "  Ctrl-L           Clear activity feed",
+    "  Ctrl-L           Clear activity feed and response pane",
     "  Ctrl-R           Refresh status panels",
-    "  Ctrl-G           Open control deck quick actions",
-    "  Alt-1..Alt-4     Switch control deck mode",
+    "  Ctrl-G           Switch to Gateway control deck",
+    "  Ctrl-P           Open command palette",
+    "  Ctrl-E           Open multiline composer",
+    "  Alt-1..Alt-4     Switch control deck mode (Assist/Ecosystem/Gateway/Responses)",
     "  Tab              Complete the top suggested command",
     "  PageUp/PageDown  Scroll activity",
     "  Up/Down          Command history in input",
@@ -185,35 +187,39 @@ function applyLayout(
   layout.footer.height = 1;
 
   if (narrow) {
+    // Fix: use "-1" on activity height and "+2" on response top so panels
+    // dock cleanly regardless of terminal height (avoids overlap on H<100).
     layout.activity.top = 3;
     layout.activity.left = 0;
     layout.activity.width = "100%";
-    layout.activity.height = short ? "34%" : "36%";
+    layout.activity.height = short ? "34%-1" : "36%-1";
 
-    layout.response.top = short ? "37%" : "39%";
+    layout.response.top = short ? "34%+2" : "36%+2";
     layout.response.left = 0;
     layout.response.width = "100%";
     layout.response.height = short ? "18%" : "20%";
 
-    layout.sidebar.top = short ? "55%" : "59%";
+    // Right-rail: recalculate tops from the response bottom so panels chain
+    // correctly, and reduce total to ≤86% so nothing overlaps the input box.
+    layout.sidebar.top = short ? "52%+2" : "56%+2";
     layout.sidebar.left = 0;
     layout.sidebar.width = "50%";
-    layout.sidebar.height = short ? "18%" : "19%";
+    layout.sidebar.height = short ? "15%" : "17%";
 
-    layout.transportBox.top = short ? "55%" : "59%";
+    layout.transportBox.top = short ? "52%+2" : "56%+2";
     layout.transportBox.left = "50%";
     layout.transportBox.width = "50%";
-    layout.transportBox.height = short ? "18%" : "19%";
+    layout.transportBox.height = short ? "15%" : "17%";
 
-    layout.executionBox.top = short ? "73%" : "78%";
+    layout.executionBox.top = short ? "67%+2" : "73%+2";
     layout.executionBox.left = 0;
     layout.executionBox.width = "50%";
-    layout.executionBox.height = short ? "16%" : "18%-1";
+    layout.executionBox.height = "13%-1";
 
-    layout.assistBox.top = short ? "73%" : "78%";
+    layout.assistBox.top = short ? "67%+2" : "73%+2";
     layout.assistBox.left = "50%";
     layout.assistBox.width = "50%";
-    layout.assistBox.height = short ? "16%" : "18%-1";
+    layout.assistBox.height = "13%-1";
   } else if (compact) {
     layout.activity.top = 3;
     layout.activity.left = 0;
@@ -225,25 +231,27 @@ function applyLayout(
     layout.response.width = "62%";
     layout.response.height = short ? "26%-2" : "22%-2";
 
+    // Right-rail: total reduced from 88% → 81% (non-short) / 70% (short)
+    // so assistBox clears the input row at H≥34.
     layout.sidebar.top = 3;
     layout.sidebar.left = "62%";
     layout.sidebar.width = "38%";
-    layout.sidebar.height = "28%";
+    layout.sidebar.height = short ? "22%" : "26%";
 
-    layout.transportBox.top = "28%+3";
+    layout.transportBox.top = short ? "22%+3" : "26%+3";
     layout.transportBox.left = "62%";
     layout.transportBox.width = "38%";
-    layout.transportBox.height = "24%";
+    layout.transportBox.height = short ? "18%" : "20%";
 
-    layout.executionBox.top = "52%+3";
+    layout.executionBox.top = short ? "40%+3" : "46%+3";
     layout.executionBox.left = "62%";
     layout.executionBox.width = "38%";
-    layout.executionBox.height = "18%";
+    layout.executionBox.height = short ? "15%" : "17%";
 
-    layout.assistBox.top = "70%+3";
+    layout.assistBox.top = short ? "55%+3" : "63%+3";
     layout.assistBox.left = "62%";
     layout.assistBox.width = "38%";
-    layout.assistBox.height = "18%-1";
+    layout.assistBox.height = short ? "15%-1" : "17%-1";
   } else {
     layout.activity.top = 3;
     layout.activity.left = 0;
@@ -255,25 +263,27 @@ function applyLayout(
     layout.response.width = "68%";
     layout.response.height = "30%-2";
 
+    // Right-rail: total reduced from 88% → 79% (non-short) / 67% (short)
+    // so assistBox clears the input row at H≥34.
     layout.sidebar.top = 3;
     layout.sidebar.left = "68%";
     layout.sidebar.width = "32%";
-    layout.sidebar.height = "30%";
+    layout.sidebar.height = short ? "22%" : "27%";
 
-    layout.transportBox.top = "30%+3";
+    layout.transportBox.top = short ? "22%+3" : "27%+3";
     layout.transportBox.left = "68%";
     layout.transportBox.width = "32%";
-    layout.transportBox.height = "22%";
+    layout.transportBox.height = short ? "17%" : "20%";
 
-    layout.executionBox.top = "52%+3";
+    layout.executionBox.top = short ? "39%+3" : "47%+3";
     layout.executionBox.left = "68%";
     layout.executionBox.width = "32%";
-    layout.executionBox.height = "18%";
+    layout.executionBox.height = short ? "14%" : "16%";
 
-    layout.assistBox.top = "70%+3";
+    layout.assistBox.top = short ? "53%+3" : "63%+3";
     layout.assistBox.left = "68%";
     layout.assistBox.width = "32%";
-    layout.assistBox.height = "18%-1";
+    layout.assistBox.height = short ? "14%-1" : "16%-1";
   }
 
   layout.paletteOverlay.width = narrow ? "94%" : compact ? "82%" : "72%";
@@ -779,6 +789,21 @@ async function executeCliInput(
     };
   }
 
+  if (trimmed.startsWith("/title ")) {
+    const title = trimmed.replace("/title ", "").trim();
+    if (!title) {
+      return { text: "Usage: /title <name>", tone: "warning" };
+    }
+    const updated = context.services.sessions.rename(
+      state.activeSessionId,
+      title,
+    );
+    return {
+      text: `Session titled: ${updated.title ?? title}`,
+      tone: "success",
+    };
+  }
+
   if (trimmed.startsWith("/terminal run ")) {
     const command = trimmed.replace("/terminal run ", "").trim();
     if (!command) {
@@ -946,6 +971,10 @@ function renderFooter(
     busy ? "{yellow-fg}processing{/}" : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
     "{magenta-fg}Tab{/} complete",
+    "{cyan-fg}Ctrl-P{/} palette",
+    "{cyan-fg}Ctrl-E{/} compose",
+    "{cyan-fg}Ctrl-T/Y{/} theme",
+    "{cyan-fg}Alt-1..4{/} deck",
     "Esc input",
     "q quit",
   ].join("  |  ");
@@ -1252,6 +1281,24 @@ async function startTui(context: AppContext): Promise<void> {
     },
   });
 
+  // Minimum usable terminal dimensions.
+  const MIN_COLS = 80;
+  const MIN_ROWS = 24;
+
+  if (
+    (screen.width as number) < MIN_COLS ||
+    (screen.height as number) < MIN_ROWS
+  ) {
+    screen.destroy();
+    output.write(
+      `Terminal too small (${screen.width as number}×${screen.height as number}). ` +
+        `Minimum required: ${MIN_COLS}×${MIN_ROWS}. Falling back to plain CLI.\n`,
+    );
+    await startPlainCli(context);
+    return;
+  }
+
+  let screenDestroyed = false;
   let busy = false;
   let queueDepth = 0;
   let controlDeckMode: ControlDeckMode = "assist";
@@ -1524,14 +1571,16 @@ async function startTui(context: AppContext): Promise<void> {
       appendActivity("err", detail, "error");
     } finally {
       busy = false;
-      await refreshPanels();
-      inputBox.clearValue();
-      if (controlDeckMode === "assist") {
-        assistBox.setContent(renderSuggestionsContent(""));
+      if (!screenDestroyed) {
+        await refreshPanels();
+        inputBox.clearValue();
+        if (controlDeckMode === "assist") {
+          assistBox.setContent(renderSuggestionsContent(""));
+        }
+        inputBox.focus();
+        screen.render();
+        void processQueue();
       }
-      inputBox.focus();
-      screen.render();
-      void processQueue();
     }
   }
 
@@ -1639,14 +1688,12 @@ async function startTui(context: AppContext): Promise<void> {
     queueCommand(selected.command);
   });
 
+  // Track the highlighted index as the user navigates — do NOT execute here.
+  // "select item" fires on every highlight change (arrow keys, mouse hover),
+  // so executing on this event would run commands during navigation.
+  // Execution is handled exclusively by the "enter" key handlers above.
   paletteList.on("select item", (_, index) => {
     paletteSelectionIndex = index;
-    const selected = suggestCommands(paletteInput.getValue(), 12)[index];
-    if (!selected) {
-      return;
-    }
-    closePalette();
-    queueCommand(selected.command);
   });
   for (const key of ["up", "down", "j", "k"]) {
     paletteList.key(key, () => {
@@ -1811,6 +1858,18 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   screen.on("resize", () => {
+    if (
+      (screen.width as number) < MIN_COLS ||
+      (screen.height as number) < MIN_ROWS
+    ) {
+      appendActivity(
+        "warn",
+        `Terminal too small (${screen.width as number}×${screen.height as number}). Resize to at least ${MIN_COLS}×${MIN_ROWS}.`,
+        "warning",
+      );
+      screen.render();
+      return;
+    }
     syncLayout();
     void refreshPanels();
   });
@@ -1883,6 +1942,7 @@ async function startTui(context: AppContext): Promise<void> {
 
   await new Promise<void>((resolve) => {
     screen.on("destroy", () => {
+      screenDestroyed = true;
       for (const unsubscribe of unsubscribers) {
         unsubscribe();
       }
