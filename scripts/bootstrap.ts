@@ -1992,7 +1992,18 @@ async function runWizard(
     return headlessAnswers(existingEnv);
   }
 
-  wizardScreen = createWizardScreen();
+  if (input.isTTY && output.isTTY) {
+    const cols = typeof output.columns === "number" ? output.columns : 0;
+    const rows = typeof output.rows === "number" ? output.rows : 0;
+    if (cols >= 96 && rows >= 28) {
+      wizardScreen = createWizardScreen();
+    } else {
+      banner();
+      warn(
+        `Terminal is ${cols || "unknown"}x${rows || "unknown"}. Falling back to the line wizard below for a cleaner setup flow.`,
+      );
+    }
+  }
   banner();
   const dependencyProbes = getDependencyProbes(existingEnv);
   let linkedAccounts = getLinkedProviderAccountsSnapshot();
