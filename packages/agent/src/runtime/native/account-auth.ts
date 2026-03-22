@@ -7,17 +7,30 @@ export interface LinkedProviderAccountStatus {
   provider: "codex" | "claude-code";
   available: boolean;
   reusable: boolean;
+  nativeReady?: boolean;
+  fallbackReady?: boolean;
   source?: string;
   authMode?: string;
   lastRefresh?: string;
   accountLabel?: string;
   loginCommand?: string;
+  setupCommand?: string;
   detail: string;
 }
 
 export interface LinkedProviderAccountsSnapshot {
   codex: LinkedProviderAccountStatus;
   claudeCode: LinkedProviderAccountStatus;
+}
+
+export interface LinkedProviderConnectAdvice {
+  provider: "codex" | "claude-code";
+  status: LinkedProviderAccountStatus;
+  ready: boolean;
+  preferredAction: "use" | "refresh" | "login" | "setup-token";
+  primaryCommand?: string;
+  secondaryCommand?: string;
+  detail: string;
 }
 
 interface ProviderAuthStoreShape {
@@ -363,6 +376,8 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
       provider: "codex",
       available: true,
       reusable: true,
+      nativeReady: true,
+      fallbackReady: false,
       source: stored.source,
       authMode: stored.authMode || "chatgpt",
       lastRefresh: stored.lastRefresh,
@@ -401,6 +416,8 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
       provider: "codex",
       available: true,
       reusable: true,
+      nativeReady: true,
+      fallbackReady: false,
       source: authPath,
       authMode: authMode || "chatgpt",
       lastRefresh,
@@ -414,6 +431,8 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
     provider: "codex",
     available: existsSync(authPath) || cliStatus.available,
     reusable: false,
+    nativeReady: false,
+    fallbackReady: false,
     source: existsSync(authPath) ? authPath : undefined,
     authMode: authMode || cliStatus.authMethod,
     lastRefresh,
@@ -557,11 +576,14 @@ function getClaudeCodeAccountStatus(
       provider: "claude-code",
       available: true,
       reusable: true,
+      nativeReady: true,
+      fallbackReady: true,
       source: stored.source,
       authMode: stored.authMode || "oauth",
       lastRefresh: stored.expiresAt,
       accountLabel: stored.accountLabel,
       loginCommand: "claude auth login",
+      setupCommand: "claude setup-token",
       detail:
         "Eliza-managed Claude Code credentials are available in the local provider auth store.",
     };
@@ -618,11 +640,14 @@ function getClaudeCodeAccountStatus(
       provider: "claude-code",
       available: true,
       reusable: true,
+      nativeReady: true,
+      fallbackReady: cliStatus.loggedIn,
       source: credentialsPath,
       authMode: "oauth",
       lastRefresh: expiresAt,
       accountLabel,
       loginCommand: "claude auth login",
+      setupCommand: "claude setup-token",
       detail:
         "Refreshable Claude Code OAuth credentials are available from the local Claude CLI store.",
     };
@@ -633,11 +658,14 @@ function getClaudeCodeAccountStatus(
       provider: "claude-code",
       available: true,
       reusable: true,
+      nativeReady: true,
+      fallbackReady: cliStatus.loggedIn,
       source: `env:${envToken.key}`,
       authMode:
         envToken.key === "CLAUDE_CODE_SETUP_TOKEN" ? "setup-token" : "oauth",
       accountLabel,
       loginCommand: "claude auth login",
+      setupCommand: "claude setup-token",
       detail:
         envToken.key === "CLAUDE_CODE_SETUP_TOKEN"
           ? "A Claude Code setup token is configured for native Claude execution."
@@ -650,6 +678,8 @@ function getClaudeCodeAccountStatus(
       provider: "claude-code",
       available: true,
       reusable: cliStatus.loggedIn,
+      nativeReady: false,
+      fallbackReady: cliStatus.loggedIn,
       source: existsSync(credentialsPath)
         ? credentialsPath
         : existsSync(profilePath)
@@ -660,6 +690,7 @@ function getClaudeCodeAccountStatus(
         (existsSync(profilePath) ? "profile" : undefined),
       accountLabel,
       loginCommand: "claude auth login",
+      setupCommand: "claude setup-token",
       detail: accountLabel
         ? cliStatus.loggedIn
           ? "Claude account profile is present and Claude CLI reports logged in. Eliza Agent can use the local Claude CLI directly even though no reusable credential file was found."
@@ -676,7 +707,10 @@ function getClaudeCodeAccountStatus(
     provider: "claude-code",
     available: false,
     reusable: false,
+    nativeReady: false,
+    fallbackReady: false,
     loginCommand: "claude auth login",
+    setupCommand: "claude setup-token",
     detail: "No Claude Code CLI login artifacts were found on this machine.",
   };
 }
@@ -938,4 +972,63 @@ export function getLinkedProviderLoginCommand(
   provider: "codex" | "claude-code",
 ): string {
   return provider === "codex" ? "codex login" : "claude auth login";
+}
+
+export function getLinkedProviderSetupCommand(
+  provider: "codex" | "claude-code",
+): string | undefined {
+  return provider === "claude-code" ? "claude setup-token" : undefined;
+}
+
+export function getLinkedProviderConnectAdvice(
+  provider: "codex" | "claude-code",
+  homePath?: string,
+): LinkedProviderConnectAdvice {
+  const snapshot = getLinkedProviderAccountsSnapshot(homePath);
+  const status = provider === "codex" ? snapshot.codex : snapshot.claudeCode;
+  const nativeReady = status.nativeReady ?? status.reusable;
+  const fallbackReady = status.fallbackReady ?? false;
+
+  if (nativeReady) {
+    return {
+      provider,
+      status,
+      ready: true,
+      preferredAction: "use",
+      primaryCommand: status.loginCommand,
+      secondaryCommand:
+        provider === "claude-code" ? status.setupCommand : undefined,
+      detail:
+        provider === "codex"
+          ? "Codex is already bound for native Eliza execution."
+          : "Claude Code is already bound for native Eliza execution.",
+    };
+  }
+
+  if (provider === "claude-code" && fallbackReady) {
+    return {
+      provider,
+      status,
+      ready: false,
+      preferredAction: "setup-token",
+      primaryCommand: status.setupCommand,
+      secondaryCommand: status.loginCommand,
+      detail:
+        "Claude Code is signed in locally, but native Eliza auth material is still missing. Run `claude setup-token` to complete the native path, or keep local CLI fallback as an escape hatch.",
+    };
+  }
+
+  return {
+    provider,
+    status,
+    ready: false,
+    preferredAction: "login",
+    primaryCommand: status.loginCommand,
+    secondaryCommand:
+      provider === "claude-code" ? status.setupCommand : undefined,
+    detail:
+      provider === "codex"
+        ? "Codex still needs a linked local login before Eliza can use it natively."
+        : "Claude Code still needs an official login before Eliza can bind it natively.",
+  };
 }

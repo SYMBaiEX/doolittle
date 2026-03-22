@@ -312,28 +312,37 @@ export class OperatorService {
       providers: [
         {
           id: "codex",
-          ready: linkedAccounts.codex.reusable,
-          detail: linkedAccounts.codex.reusable
-            ? "Linked Codex account is ready for Codex-native workflows."
-            : linkedAccounts.codex.available
-              ? linkedAccounts.codex.detail
-              : "No reusable Codex account is linked.",
+          ready:
+            linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable,
+          detail:
+            (linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable)
+              ? "Linked Codex account is ready for Codex-native workflows."
+              : linkedAccounts.codex.available
+                ? linkedAccounts.codex.detail
+                : "No reusable Codex account is linked.",
         },
         {
           id: "claude-code",
-          ready: linkedAccounts.claudeCode.reusable,
-          detail: linkedAccounts.claudeCode.reusable
-            ? "Linked Claude Code account is ready for Claude-native workflows."
-            : linkedAccounts.claudeCode.available
-              ? linkedAccounts.claudeCode.detail
-              : "No reusable Claude Code account is linked.",
+          ready:
+            linkedAccounts.claudeCode.nativeReady ??
+            linkedAccounts.claudeCode.reusable,
+          detail:
+            (linkedAccounts.claudeCode.nativeReady ??
+            linkedAccounts.claudeCode.reusable)
+              ? "Linked Claude Code account is ready for Claude-native workflows."
+              : linkedAccounts.claudeCode.fallbackReady
+                ? "Claude Code local CLI fallback is available, but native Eliza auth is not fully bound yet."
+                : linkedAccounts.claudeCode.available
+                  ? linkedAccounts.claudeCode.detail
+                  : "No reusable Claude Code account is linked.",
         },
         {
           id: "openai",
           ready: Boolean(this.config.openAiApiKey),
           detail: this.config.openAiApiKey
             ? `Configured for ${this.config.openAiModel}.`
-            : linkedAccounts.codex.reusable
+            : (linkedAccounts.codex.nativeReady ??
+                linkedAccounts.codex.reusable)
               ? "No OPENAI_API_KEY is set. A linked Codex account is available for Codex-native workflows, but the OpenAI provider path still needs an API key."
               : "Missing OPENAI_API_KEY.",
         },
@@ -342,7 +351,8 @@ export class OperatorService {
           ready: Boolean(this.config.anthropicApiKey),
           detail: this.config.anthropicApiKey
             ? `Configured for ${this.config.anthropicLargeModel}.`
-            : linkedAccounts.claudeCode.reusable
+            : (linkedAccounts.claudeCode.nativeReady ??
+                linkedAccounts.claudeCode.reusable)
               ? "No ANTHROPIC_API_KEY is set. Linked Claude Code credentials are available for Claude-native workflows, but the Anthropic provider path still needs an API key."
               : "Missing ANTHROPIC_API_KEY.",
         },

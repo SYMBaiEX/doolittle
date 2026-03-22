@@ -8,6 +8,7 @@ packages/*/dist/
 .env
 .eliza-agent/
 .eliza/
+var/
 cache/
 coverage/
 *.log

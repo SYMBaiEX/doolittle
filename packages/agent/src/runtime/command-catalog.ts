@@ -95,6 +95,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Refresh linked Codex or Claude Code credentials from their local CLI stores.",
   },
   {
+    command: "/accounts connect <codex|claude-code>",
+    category: "runtime",
+    description:
+      "Refresh, bind, and switch to the selected linked provider when native auth is ready.",
+  },
+  {
     command: "/accounts doctor",
     category: "runtime",
     description:
@@ -105,6 +111,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     category: "runtime",
     description:
       "Show the exact local CLI login command needed to bind a linked provider account.",
+  },
+  {
+    command: "/accounts setup-token claude-code",
+    category: "runtime",
+    description:
+      "Show the Claude setup-token command used to finish native Claude Code binding.",
   },
   {
     command: "/accounts use <codex|claude-code>",

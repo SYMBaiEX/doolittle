@@ -16,7 +16,9 @@ import {
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import {
   getLinkedProviderAccountsSnapshot,
+  getLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
+  getLinkedProviderSetupCommand,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
   resolveLinkedProviderCredentials,
@@ -910,6 +912,52 @@ export function activateLinkedProvider(
     model: updated.model.model,
     baseUrl: updated.model.baseUrl,
     accounts: getLinkedProviderAccountsSnapshot(),
+  };
+}
+
+export async function connectLinkedProvider(
+  context: AgentExecutionContext,
+  provider: LinkedProviderName,
+): Promise<{
+  provider: LinkedProviderName;
+  connected: boolean;
+  activated: boolean;
+  providerState?: ReturnType<typeof activateLinkedProvider>;
+  advice: ReturnType<typeof getLinkedProviderConnectAdvice>;
+  accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>;
+}> {
+  const settings = context.services.settings.get();
+  const fallbackAllowed =
+    provider === "claude-code" ? context.config.claudeCodeCliFallback : false;
+
+  await refreshLinkedAccounts(provider);
+  const accounts = getLinkedProviderAccountsSnapshot();
+  const advice = getLinkedProviderConnectAdvice(provider);
+  const status = provider === "codex" ? accounts.codex : accounts.claudeCode;
+  const nativeReady = status.nativeReady ?? status.reusable;
+  const fallbackReady = status.fallbackReady ?? false;
+  const canActivate =
+    nativeReady ||
+    (provider === "claude-code" && fallbackAllowed && fallbackReady);
+
+  if (!canActivate) {
+    return {
+      provider,
+      connected: false,
+      activated: false,
+      advice,
+      accounts,
+    };
+  }
+
+  const providerState = activateLinkedProvider(context, provider);
+  return {
+    provider,
+    connected: true,
+    activated: settings.model.provider !== provider || canActivate,
+    providerState,
+    advice,
+    accounts: providerState.accounts,
   };
 }
 
@@ -2600,18 +2648,31 @@ async function buildCommandResponse(
     trimmed === "/runtime accounts" ||
     trimmed === "/accounts status"
   ) {
-    return JSON.stringify(getLinkedProviderAccountsSnapshot(), null, 2);
+    return JSON.stringify(
+      {
+        activeProvider: context.services.settings.get().model.provider,
+        accounts: getLinkedProviderAccountsSnapshot(),
+        connect: {
+          codex: getLinkedProviderConnectAdvice("codex"),
+          claudeCode: getLinkedProviderConnectAdvice("claude-code"),
+        },
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed === "/accounts doctor") {
     const accounts = getLinkedProviderAccountsSnapshot();
+    const codexAdvice = getLinkedProviderConnectAdvice("codex");
+    const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");
     return [
-      `codex: reusable=${accounts.codex.reusable} available=${accounts.codex.available}`,
+      `codex: nativeReady=${accounts.codex.nativeReady ? "yes" : "no"} fallbackReady=${accounts.codex.fallbackReady ? "yes" : "no"} available=${accounts.codex.available ? "yes" : "no"}`,
       `  detail: ${accounts.codex.detail}`,
-      `  login: ${accounts.codex.loginCommand ?? getLinkedProviderLoginCommand("codex")}`,
-      `claude-code: reusable=${accounts.claudeCode.reusable} available=${accounts.claudeCode.available}`,
+      `  next: ${codexAdvice.preferredAction}${codexAdvice.primaryCommand ? ` -> ${codexAdvice.primaryCommand}` : ""}`,
+      `claude-code: nativeReady=${accounts.claudeCode.nativeReady ? "yes" : "no"} fallbackReady=${accounts.claudeCode.fallbackReady ? "yes" : "no"} available=${accounts.claudeCode.available ? "yes" : "no"}`,
       `  detail: ${accounts.claudeCode.detail}`,
-      `  login: ${accounts.claudeCode.loginCommand ?? getLinkedProviderLoginCommand("claude-code")}`,
+      `  next: ${claudeAdvice.preferredAction}${claudeAdvice.primaryCommand ? ` -> ${claudeAdvice.primaryCommand}` : ""}`,
     ].join("\n");
   }
 
@@ -2639,6 +2700,20 @@ async function buildCommandResponse(
     return JSON.stringify(activateLinkedProvider(context, provider), null, 2);
   }
 
+  if (trimmed.startsWith("/accounts connect ")) {
+    const provider = resolveLinkedProviderName(
+      trimmed.replace("/accounts connect ", "").trim(),
+    );
+    if (!provider) {
+      return "Usage: /accounts connect <codex|claude-code>";
+    }
+    return JSON.stringify(
+      await connectLinkedProvider(context, provider),
+      null,
+      2,
+    );
+  }
+
   if (trimmed.startsWith("/accounts login ")) {
     const provider = resolveLinkedProviderName(
       trimmed.replace("/accounts login ", "").trim(),
@@ -2650,6 +2725,27 @@ async function buildCommandResponse(
       {
         provider,
         command: getLinkedProviderLoginCommand(provider),
+        setupCommand: getLinkedProviderSetupCommand(provider),
+        advice: getLinkedProviderConnectAdvice(provider),
+        status: getLinkedProviderAccountsSnapshot(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed.startsWith("/accounts setup-token ")) {
+    const provider = resolveLinkedProviderName(
+      trimmed.replace("/accounts setup-token ", "").trim(),
+    );
+    if (provider !== "claude-code") {
+      return "Usage: /accounts setup-token claude-code";
+    }
+    return JSON.stringify(
+      {
+        provider,
+        command: getLinkedProviderSetupCommand(provider),
+        advice: getLinkedProviderConnectAdvice(provider),
         status: getLinkedProviderAccountsSnapshot(),
       },
       null,

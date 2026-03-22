@@ -375,20 +375,25 @@ function getDependencyProbes(
     {
       key: "codex-auth",
       label: "Codex account",
-      installed: accounts.codex.reusable,
+      installed: accounts.codex.nativeReady ?? accounts.codex.reusable,
       detail: accounts.codex.detail,
-      recommendation: accounts.codex.reusable
-        ? undefined
-        : `Run ${accounts.codex.loginCommand ?? "codex login"} if you want account-linked Codex workflows.`,
+      recommendation:
+        (accounts.codex.nativeReady ?? accounts.codex.reusable)
+          ? undefined
+          : `Run ${accounts.codex.loginCommand ?? "codex login"} if you want account-linked Codex workflows.`,
     },
     {
       key: "claude-auth",
       label: "Claude Code account",
-      installed: accounts.claudeCode.reusable,
+      installed:
+        accounts.claudeCode.nativeReady ?? accounts.claudeCode.reusable,
       detail: accounts.claudeCode.detail,
-      recommendation: accounts.claudeCode.reusable
-        ? undefined
-        : `Run ${accounts.claudeCode.loginCommand ?? "claude auth login"} if you want account-linked Anthropic workflows.`,
+      recommendation:
+        (accounts.claudeCode.nativeReady ?? accounts.claudeCode.reusable)
+          ? undefined
+          : accounts.claudeCode.fallbackReady
+            ? `Run ${accounts.claudeCode.setupCommand ?? "claude setup-token"} if you want the full native Claude Code path.`
+            : `Run ${accounts.claudeCode.loginCommand ?? "claude auth login"} if you want account-linked Anthropic workflows.`,
     },
   ];
 }
@@ -1059,23 +1064,35 @@ async function runWizard(
     let anthropicModel =
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
 
-    if (linkedAccounts.codex.reusable || linkedAccounts.claudeCode.reusable) {
+    if (
+      linkedAccounts.codex.nativeReady ||
+      linkedAccounts.codex.reusable ||
+      linkedAccounts.claudeCode.nativeReady ||
+      linkedAccounts.claudeCode.reusable
+    ) {
       section(
         "Threads",
         "I can feel other minds already signed into this machine.",
       );
-      if (linkedAccounts.codex.reusable) {
+      if (linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable) {
         useLinkedCodexAuth = await askYesNo(
           rl,
           "Should I bind the linked Codex account for Codex-native workflows",
           useLinkedCodexAuth,
         );
       }
-      if (linkedAccounts.claudeCode.reusable) {
+      if (
+        linkedAccounts.claudeCode.nativeReady ??
+        linkedAccounts.claudeCode.reusable
+      ) {
         useLinkedClaudeCodeAuth = await askYesNo(
           rl,
           "Should I bind the linked Claude Code account for Anthropic-native workflows",
           useLinkedClaudeCodeAuth,
+        );
+      } else if (linkedAccounts.claudeCode.fallbackReady) {
+        info(
+          "Claude Code is already signed in locally, but I still want a setup-token if you want the clean native Eliza path.",
         );
       }
     }

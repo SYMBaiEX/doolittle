@@ -10,6 +10,7 @@ import { normalizeInboundMessage } from "@/gateway/message-normalization";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   activateLinkedProvider,
+  connectLinkedProvider,
   handleAgentTurn,
   refreshLinkedAccounts,
   runDelegationTaskInWorker,
@@ -18,7 +19,9 @@ import {
 } from "@/runtime/chat";
 import {
   getLinkedProviderAccountsSnapshot,
+  getLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
+  getLinkedProviderSetupCommand,
 } from "@/runtime/native/account-auth";
 import {
   getNativePluginCatalog,
@@ -418,16 +421,23 @@ export function startApiServer(context: AppContext): void {
         request.method === "GET" &&
         (url.pathname === "/runtime/accounts" || url.pathname === "/accounts")
       ) {
-        return json(getLinkedProviderAccountsSnapshot());
+        return json({
+          activeProvider: context.services.settings.get().model.provider,
+          accounts: getLinkedProviderAccountsSnapshot(),
+          connect: {
+            codex: getLinkedProviderConnectAdvice("codex"),
+            claudeCode: getLinkedProviderConnectAdvice("claude-code"),
+          },
+        });
       }
 
       if (request.method === "GET" && url.pathname === "/accounts/doctor") {
         const accounts = getLinkedProviderAccountsSnapshot();
         return json({
           accounts,
-          login: {
-            codex: getLinkedProviderLoginCommand("codex"),
-            claudeCode: getLinkedProviderLoginCommand("claude-code"),
+          connect: {
+            codex: getLinkedProviderConnectAdvice("codex"),
+            claudeCode: getLinkedProviderConnectAdvice("claude-code"),
           },
         });
       }
@@ -470,6 +480,25 @@ export function startApiServer(context: AppContext): void {
         return json(activateLinkedProvider(context, body.provider));
       }
 
+      if (request.method === "POST" && url.pathname === "/accounts/connect") {
+        const body = (await request.json()) as {
+          provider?: string;
+        };
+        if (body.provider !== "codex" && body.provider !== "claude-code") {
+          return json({ error: "provider must be codex or claude-code" }, 400);
+        }
+        try {
+          return json(await connectLinkedProvider(context, body.provider));
+        } catch (error) {
+          return json(
+            {
+              error: error instanceof Error ? error.message : "connect failed",
+            },
+            500,
+          );
+        }
+      }
+
       if (request.method === "POST" && url.pathname === "/accounts/login") {
         const body = (await request.json()) as {
           provider?: string;
@@ -480,6 +509,26 @@ export function startApiServer(context: AppContext): void {
         return json({
           provider: body.provider,
           command: getLinkedProviderLoginCommand(body.provider),
+          setupCommand: getLinkedProviderSetupCommand(body.provider),
+          advice: getLinkedProviderConnectAdvice(body.provider),
+          accounts: getLinkedProviderAccountsSnapshot(),
+        });
+      }
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/accounts/setup-token"
+      ) {
+        const body = (await request.json()) as {
+          provider?: string;
+        };
+        if (body.provider !== "claude-code") {
+          return json({ error: "provider must be claude-code" }, 400);
+        }
+        return json({
+          provider: body.provider,
+          command: getLinkedProviderSetupCommand(body.provider),
+          advice: getLinkedProviderConnectAdvice(body.provider),
           accounts: getLinkedProviderAccountsSnapshot(),
         });
       }

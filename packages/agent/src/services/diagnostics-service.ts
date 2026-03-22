@@ -189,6 +189,8 @@ export class DiagnosticsService {
       status:
         this.config.openAiApiKey ||
         this.config.anthropicApiKey ||
+        linkedAccounts.codex.nativeReady ||
+        linkedAccounts.claudeCode.nativeReady ||
         linkedAccounts.codex.reusable ||
         linkedAccounts.claudeCode.reusable
           ? "pass"
@@ -197,19 +199,26 @@ export class DiagnosticsService {
       detail:
         this.config.openAiApiKey || this.config.anthropicApiKey
           ? "At least one provider key is present."
-          : linkedAccounts.codex.reusable || linkedAccounts.claudeCode.reusable
-            ? "A reusable linked Codex or Claude Code account is available."
-            : "No OpenAI, Anthropic, Codex, or Claude Code provider credentials are configured. Runtime will stay in offline fallback mode.",
+          : linkedAccounts.codex.nativeReady ||
+              linkedAccounts.claudeCode.nativeReady
+            ? "A native linked Codex or Claude Code account is available."
+            : linkedAccounts.codex.reusable ||
+                linkedAccounts.claudeCode.reusable
+              ? "A linked provider fallback path is available, but native auth may still need to be completed."
+              : "No OpenAI, Anthropic, Codex, or Claude Code provider credentials are configured. Runtime will stay in offline fallback mode.",
     });
 
     checks.push({
       id: "provider.linked-accounts",
       status:
-        linkedAccounts.codex.reusable || linkedAccounts.claudeCode.reusable
+        linkedAccounts.codex.nativeReady ||
+        linkedAccounts.claudeCode.nativeReady ||
+        linkedAccounts.codex.reusable ||
+        linkedAccounts.claudeCode.reusable
           ? "pass"
           : "warn",
       summary: "Linked CLI account detection",
-      detail: `codex=${linkedAccounts.codex.reusable ? "reusable" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.reusable ? "reusable" : linkedAccounts.claudeCode.available ? "detected" : "missing"}`,
+      detail: `codex=${linkedAccounts.codex.nativeReady ? "native" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.nativeReady ? "native" : linkedAccounts.claudeCode.fallbackReady ? "fallback" : linkedAccounts.claudeCode.available ? "detected" : "missing"}`,
     });
 
     checks.push({
