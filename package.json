@@ -23,6 +23,7 @@
     "onboard": "bun run scripts/bootstrap.ts",
     "smoke:linked-providers": "bun run scripts/smoke-linked-providers.ts",
     "publish:providers": "bun run scripts/publish-provider-packages.ts",
+    "publish:providers:alpha": "bun run publish:providers -- --provider all --publish --tag alpha",
     "install:deps": "bash scripts/install.sh",
     "dev": "bun run --cwd packages/agent dev",
     "start": "bun run --cwd packages/agent start",

@@ -8,6 +8,8 @@ interface PublishArgs {
   provider: "codex" | "claude-code" | "all";
   dryRun: boolean;
   json: boolean;
+  tag: string;
+  otp?: string;
 }
 
 interface PublishResult {
@@ -16,10 +18,12 @@ interface PublishResult {
   version: string;
   packagePath: string;
   cliSupportsPublish: boolean;
+  recommendedFlow: "npm-publish" | "eliza-monorepo-release";
   dryRun: boolean;
   ok: boolean;
   command: string;
   detail: string;
+  tag: string;
   output?: string;
 }
 
@@ -27,6 +31,8 @@ function parseArgs(argv: string[]): PublishArgs {
   let provider: PublishArgs["provider"] = "all";
   let dryRun = true;
   let json = false;
+  let tag = "alpha";
+  let otp: string | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -44,10 +50,26 @@ function parseArgs(argv: string[]): PublishArgs {
     }
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+    if (arg === "--tag") {
+      const value = argv[index + 1]?.trim();
+      if (value) {
+        tag = value;
+        index += 1;
+      }
+      continue;
+    }
+    if (arg === "--otp") {
+      const value = argv[index + 1]?.trim();
+      if (value) {
+        otp = value;
+        index += 1;
+      }
     }
   }
 
-  return { provider, dryRun, json };
+  return { provider, dryRun, json, tag, otp };
 }
 
 function repoRoot() {
@@ -86,17 +108,41 @@ function detectElizaCliPublishSupport(): boolean {
   return /\bpublish\b/i.test(output);
 }
 
-function runNpmPack(
+function hasOnlyStandaloneDependencies(targetPath: string): boolean {
+  const raw = readFileSync(join(targetPath, "package.json"), "utf8");
+  const manifest = JSON.parse(raw) as {
+    dependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+  };
+  const sections = [
+    manifest.dependencies,
+    manifest.peerDependencies,
+    manifest.optionalDependencies,
+  ];
+
+  return sections.every((section) =>
+    Object.values(section ?? {}).every(
+      (version) =>
+        typeof version !== "string" || !version.startsWith("workspace:"),
+    ),
+  );
+}
+
+function runNpmRelease(
   targetPath: string,
   dryRun: boolean,
+  tag: string,
+  otp?: string,
 ): { ok: boolean; command: string; output: string } {
-  const args = ["pack"];
-  if (dryRun) {
-    args.push("--dry-run");
+  const args = dryRun
+    ? ["pack", "--dry-run", targetPath]
+    : ["publish", "--tag", tag];
+  if (!dryRun && otp) {
+    args.push("--otp", otp);
   }
-  args.push(targetPath);
   const result = spawnSync("npm", args, {
-    cwd: repoRoot(),
+    cwd: dryRun ? repoRoot() : targetPath,
     encoding: "utf8",
     env: {
       ...process.env,
@@ -118,7 +164,11 @@ async function main() {
   for (const provider of getProviders(args.provider)) {
     const packagePath = providerPath(provider);
     const manifest = readPackageManifest(packagePath);
-    const run = runNpmPack(packagePath, args.dryRun);
+    const recommendedFlow: PublishResult["recommendedFlow"] =
+      hasOnlyStandaloneDependencies(packagePath) && !cliSupportsPublish
+        ? "npm-publish"
+        : "eliza-monorepo-release";
+    const run = runNpmRelease(packagePath, args.dryRun, args.tag, args.otp);
 
     results.push({
       provider,
@@ -126,12 +176,15 @@ async function main() {
       version: manifest.version,
       packagePath,
       cliSupportsPublish,
+      recommendedFlow,
       dryRun: args.dryRun,
       ok: run.ok,
       command: run.command,
-      detail: cliSupportsPublish
-        ? "elizaos CLI publish support was detected locally."
-        : "Local elizaos CLI does not expose a publish command on alpha.85, so npm pack/publish remains the correct provider package path here.",
+      detail:
+        recommendedFlow === "npm-publish"
+          ? "The local eliza repo uses monorepo release scripts around npm publishing, and these provider packages are already standalone-safe, so direct npm pack/publish is the correct release path here."
+          : "This environment exposes broader monorepo publish support, so release orchestration should follow the main eliza workspace flow instead of standalone npm publish.",
+      tag: args.tag,
       output: run.output || undefined,
     });
   }
@@ -147,7 +200,9 @@ async function main() {
         `[${result.provider}] ${result.packageName}@${result.version}`,
         `path=${result.packagePath}`,
         `cliSupportsPublish=${result.cliSupportsPublish}`,
+        `recommendedFlow=${result.recommendedFlow}`,
         `dryRun=${result.dryRun}`,
+        `tag=${result.tag}`,
         `ok=${result.ok}`,
         `command=${result.command}`,
         `detail=${result.detail}`,

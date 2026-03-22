@@ -224,11 +224,13 @@ The smoke script validates linked-account discovery, provider switching, runtime
 Provider release note:
 
 - the locally installed `elizaos` CLI on `2.0.0-alpha.85` does not expose a `publish` command
-- for these provider packages, the correct release path in this repo is still npm package packing/publishing
-- the helper script below verifies that reality before packing:
+- the local [`../eliza`](../eliza) repo uses monorepo release scripts around `lerna publish from-package`, not a plugin-specific CLI publish command
+- for these two provider packages, direct `npm pack` / `npm publish` is the correct path because they are already standalone-safe packages rather than a full monorepo release train
+- the helper script below verifies that reality and supports alpha-tag publishing:
 
 ```bash
 bun run publish:providers -- --provider all
+bun run publish:providers:alpha
 ```
 
 ## Environment reference
