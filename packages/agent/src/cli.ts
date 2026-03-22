@@ -32,17 +32,36 @@ interface CliExecutionHooks {
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
 
-const TUI_THEME = {
-  baseBg: "black",
-  baseFg: "white",
-  brandBlue: "#0B35F1",
-  cyanGlow: "cyan",
-  greenGlow: "green",
-  magentaGlow: "magenta",
-  amberGlow: "yellow",
-  muted: "gray",
-  panelBg: "black",
+const TUI_THEMES = {
+  orange: {
+    name: "orange",
+    baseBg: "black",
+    baseFg: "white",
+    primary: "#FF6A00",
+    secondary: "#FFB000",
+    amberGlow: "#FFB000",
+    cyanGlow: "cyan",
+    greenGlow: "green",
+    magentaGlow: "magenta",
+    muted: "gray",
+    panelBg: "black",
+  },
+  blue: {
+    name: "blue",
+    baseBg: "black",
+    baseFg: "white",
+    primary: "#0B35F1",
+    secondary: "cyan",
+    amberGlow: "yellow",
+    cyanGlow: "cyan",
+    greenGlow: "green",
+    magentaGlow: "magenta",
+    muted: "gray",
+    panelBg: "black",
+  },
 } as const;
+
+const TUI_THEME = TUI_THEMES.orange;
 
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
@@ -971,9 +990,9 @@ async function startTui(context: AppContext): Promise<void> {
     tags: true,
     style: {
       fg: TUI_THEME.baseFg,
-      bg: TUI_THEME.brandBlue,
+      bg: TUI_THEME.primary,
     },
-    content: `{bold}${context.config.agentName}{/bold}  {black-fg}ELIZAOS CYBERNETIC OPS DECK{/}  {white-fg}alpha-native monorepo + plugin lattice{/}`,
+    content: `{bold}${context.config.agentName}{/bold}  {black-fg}ELIZAOS CYPHERPUNK OPS DECK{/}  {white-fg}${TUI_THEME.name} default theme · alpha-native monorepo + plugin lattice{/}`,
   });
 
   const activity = blessed.log({
@@ -1136,7 +1155,7 @@ async function startTui(context: AppContext): Promise<void> {
       border: { fg: TUI_THEME.amberGlow },
       label: { fg: TUI_THEME.amberGlow, bold: true },
       focus: {
-        border: { fg: TUI_THEME.brandBlue },
+        border: { fg: TUI_THEME.primary },
       },
     },
   });
@@ -1156,7 +1175,7 @@ async function startTui(context: AppContext): Promise<void> {
     style: {
       border: { fg: TUI_THEME.cyanGlow },
       selected: {
-        bg: TUI_THEME.brandBlue,
+        bg: TUI_THEME.primary,
         fg: TUI_THEME.baseFg,
       },
       item: {
@@ -1200,7 +1219,7 @@ async function startTui(context: AppContext): Promise<void> {
       border: { fg: TUI_THEME.greenGlow },
       label: { fg: TUI_THEME.greenGlow, bold: true },
       focus: {
-        border: { fg: TUI_THEME.brandBlue },
+        border: { fg: TUI_THEME.primary },
       },
     },
   });
@@ -1231,8 +1250,8 @@ async function startTui(context: AppContext): Promise<void> {
     style: {
       fg: TUI_THEME.baseFg,
       bg: TUI_THEME.baseBg,
-      border: { fg: TUI_THEME.brandBlue },
-      label: { fg: TUI_THEME.brandBlue, bold: true },
+      border: { fg: TUI_THEME.primary },
+      label: { fg: TUI_THEME.primary, bold: true },
       focus: {
         border: { fg: TUI_THEME.cyanGlow },
       },
