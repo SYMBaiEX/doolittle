@@ -759,6 +759,53 @@ async function askYesNo(
   }
 }
 
+function supportsInteractiveMenus(): boolean {
+  return Boolean(input.isTTY && output.isTTY && input.setRawMode);
+}
+
+function clearRenderedMenu(lines: number): void {
+  if (lines <= 0) {
+    return;
+  }
+  output.write(`\u001b[${lines}F`);
+  output.write("\u001b[J");
+}
+
+async function readMenuKeypress(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const onData = (chunk: Buffer | string) => {
+      cleanup();
+      resolve(chunk.toString());
+    };
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const cleanup = () => {
+      input.off("data", onData);
+      input.off("error", onError);
+    };
+    input.on("data", onData);
+    input.on("error", onError);
+  });
+}
+
+async function withRawMenuInput<T>(run: () => Promise<T>): Promise<T> {
+  if (!supportsInteractiveMenus()) {
+    return run();
+  }
+
+  output.write("\u001b[?25l");
+  input.setRawMode?.(true);
+  input.resume();
+  try {
+    return await run();
+  } finally {
+    input.setRawMode?.(false);
+    output.write("\u001b[?25h");
+  }
+}
+
 function runInteractiveCommand(
   command: string,
   args: string[],
@@ -787,6 +834,70 @@ async function chooseOne<T extends string>(
   optionsList: Array<{ value: T; label: string; detail?: string }>,
   defaultValue: T,
 ): Promise<T> {
+  if (supportsInteractiveMenus()) {
+    return withRawMenuInput(async () => {
+      let selectedIndex = Math.max(
+        0,
+        optionsList.findIndex((item) => item.value === defaultValue),
+      );
+      let renderedLines = 0;
+
+      const render = () => {
+        clearRenderedMenu(renderedLines);
+        const lines = [
+          paint(prompt, color.cyan + color.bold),
+          paint(
+            "Use ↑/↓ to move, Enter to confirm, or press a number key.",
+            color.dim,
+          ),
+        ];
+        optionsList.forEach((item, index) => {
+          const selected = index === selectedIndex ? "●" : "○";
+          lines.push(`  ${selected} ${index + 1}. ${item.label}`);
+          if (item.detail) {
+            lines.push(`    ${item.detail}`);
+          }
+        });
+        const rendered = `${lines.join("\n")}\n`;
+        output.write(rendered);
+        renderedLines = rendered.split("\n").length - 1;
+      };
+
+      render();
+      while (true) {
+        const key = await readMenuKeypress();
+        if (key === "\u0003") {
+          throw new Error("Installer interrupted.");
+        }
+        if (key === "\r" || key === "\n" || key === " ") {
+          clearRenderedMenu(renderedLines);
+          return optionsList[selectedIndex]?.value ?? defaultValue;
+        }
+        if (key === "\u001b[A") {
+          selectedIndex =
+            selectedIndex === 0 ? optionsList.length - 1 : selectedIndex - 1;
+          render();
+          continue;
+        }
+        if (key === "\u001b[B") {
+          selectedIndex =
+            selectedIndex === optionsList.length - 1 ? 0 : selectedIndex + 1;
+          render();
+          continue;
+        }
+        const numeric = Number.parseInt(key, 10);
+        if (
+          Number.isInteger(numeric) &&
+          numeric >= 1 &&
+          numeric <= optionsList.length
+        ) {
+          selectedIndex = numeric - 1;
+          render();
+        }
+      }
+    });
+  }
+
   console.log(paint(prompt, color.cyan + color.bold));
   optionsList.forEach((item, index) => {
     const selected = item.value === defaultValue ? "●" : "○";
@@ -832,6 +943,88 @@ async function chooseMany<T extends string>(
   optionsList: Array<{ value: T; label: string }>,
   defaults: T[],
 ): Promise<T[]> {
+  if (supportsInteractiveMenus()) {
+    return withRawMenuInput(async () => {
+      const active = new Set(defaults);
+      let cursorIndex = 0;
+      let renderedLines = 0;
+
+      const render = () => {
+        clearRenderedMenu(renderedLines);
+        const lines = [
+          paint(prompt, color.cyan + color.bold),
+          paint(
+            "Use ↑/↓ to move, Space to toggle, Enter to confirm.",
+            color.dim,
+          ),
+        ];
+        optionsList.forEach((item, index) => {
+          const cursor = index === cursorIndex ? "›" : " ";
+          const selected = active.has(item.value) ? "●" : "○";
+          lines.push(`  ${cursor} ${selected} ${index + 1}. ${item.label}`);
+        });
+        const rendered = `${lines.join("\n")}\n`;
+        output.write(rendered);
+        renderedLines = rendered.split("\n").length - 1;
+      };
+
+      render();
+      while (true) {
+        const key = await readMenuKeypress();
+        if (key === "\u0003") {
+          throw new Error("Installer interrupted.");
+        }
+        if (key === "\r" || key === "\n") {
+          clearRenderedMenu(renderedLines);
+          return optionsList
+            .filter((item) => active.has(item.value))
+            .map((item) => item.value);
+        }
+        if (key === " ") {
+          const current = optionsList[cursorIndex];
+          if (current) {
+            if (active.has(current.value)) {
+              active.delete(current.value);
+            } else {
+              active.add(current.value);
+            }
+          }
+          render();
+          continue;
+        }
+        if (key === "\u001b[A") {
+          cursorIndex =
+            cursorIndex === 0 ? optionsList.length - 1 : cursorIndex - 1;
+          render();
+          continue;
+        }
+        if (key === "\u001b[B") {
+          cursorIndex =
+            cursorIndex === optionsList.length - 1 ? 0 : cursorIndex + 1;
+          render();
+          continue;
+        }
+        const numeric = Number.parseInt(key, 10);
+        if (
+          Number.isInteger(numeric) &&
+          numeric >= 1 &&
+          numeric <= optionsList.length
+        ) {
+          cursorIndex = numeric - 1;
+          const current = optionsList[cursorIndex];
+          if (current) {
+            if (active.has(current.value)) {
+              active.delete(current.value);
+            } else {
+              active.add(current.value);
+            }
+          }
+          render();
+        }
+      }
+    });
+  }
+
   console.log(paint(prompt, color.cyan + color.bold));
   optionsList.forEach((item, index) => {
     const selected = defaults.includes(item.value) ? "●" : "○";
@@ -1349,7 +1542,13 @@ async function runWizard(
         warn(`${probe.label} is not installed yet.`);
       }
     }
-    const browser = await chooseOne<BrowserMode>(
+    const preferredBrowserDefault = dependencyProbes.find(
+      (entry) => entry.key === "lightpanda",
+    )?.installed
+      ? (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
+        "lightpanda"
+      : "basic";
+    let browser = await chooseOne<BrowserMode>(
       rl,
       "Choose my eyes:",
       [
@@ -1365,8 +1564,7 @@ async function runWizard(
             "Lighter, simpler sight if browser automation is not installed yet.",
         },
       ],
-      (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
-        "lightpanda",
+      preferredBrowserDefault,
     );
     if (browser === "lightpanda") {
       const probe = dependencyProbes.find(
@@ -1376,6 +1574,14 @@ async function runWizard(
         warn(
           "Lightpanda is not installed yet. Basic HTTP is safer until you add it.",
         );
+        const fallbackToBasic = await askYesNo(
+          rl,
+          "Should I fall back to Basic HTTP for now",
+          true,
+        );
+        if (fallbackToBasic) {
+          browser = "basic";
+        }
       }
     }
 
@@ -1557,18 +1763,80 @@ async function runWizard(
     let e2bApiKey = existingEnv.get("E2B_API_KEY") || "";
     let githubToken = existingEnv.get("GITHUB_TOKEN") || "";
     if (tools.mcp) {
-      mcpServerCommand = await ask(
-        rl,
-        "What MCP server command should I speak through",
-        mcpServerCommand,
-      );
+      if (!mcpServerCommand) {
+        const mcpPreset = await chooseOne(
+          rl,
+          "How should I bind MCP on first boot?",
+          [
+            {
+              value: "filesystem",
+              label: "Filesystem bridge",
+              detail:
+                "Recommended local default for browsing and editing the workspace through MCP.",
+            },
+            {
+              value: "custom",
+              label: "Custom command",
+              detail: "I will ask for the exact MCP launch command.",
+            },
+            {
+              value: "later",
+              label: "Not now",
+              detail: "Skip MCP binding for now and configure it later.",
+            },
+          ],
+          "filesystem",
+        );
+        if (mcpPreset === "filesystem") {
+          mcpServerCommand = "npx -y @modelcontextprotocol/server-filesystem .";
+        } else if (mcpPreset === "custom") {
+          mcpServerCommand = await ask(
+            rl,
+            "What MCP server command should I speak through",
+            mcpServerCommand,
+          );
+        }
+      } else {
+        info(`Using existing MCP binding: ${mcpServerCommand}`);
+      }
     }
     if (tools.acp) {
-      acpServerCommand = await ask(
-        rl,
-        "What ACP server command should bind me to editors",
-        acpServerCommand,
-      );
+      if (!acpServerCommand) {
+        const acpPreset = await chooseOne(
+          rl,
+          "How should I present myself to ACP-aware editors?",
+          [
+            {
+              value: "local-agent",
+              label: "Local Eliza Agent ACP",
+              detail:
+                "Recommended local default. Editors can launch me through the eliza-agent command.",
+            },
+            {
+              value: "custom",
+              label: "Custom command",
+              detail: "I will ask for the exact ACP launch command.",
+            },
+            {
+              value: "later",
+              label: "Not now",
+              detail: "Skip ACP binding for now and configure it later.",
+            },
+          ],
+          "local-agent",
+        );
+        if (acpPreset === "local-agent") {
+          acpServerCommand = "eliza-agent api";
+        } else if (acpPreset === "custom") {
+          acpServerCommand = await ask(
+            rl,
+            "What ACP server command should bind me to editors",
+            acpServerCommand,
+          );
+        }
+      } else {
+        info(`Using existing ACP binding: ${acpServerCommand}`);
+      }
     }
     if (tools.tts) {
       falApiKey = await askSecret(rl, "Give me FAL_API_KEY", falApiKey);
@@ -1628,6 +1896,7 @@ function applyAnswers(answers: WizardAnswers): {
 } {
   const envMessages = updateEnvFile({
     ELIZA_AGENT_NAME: answers.agentName,
+    ELIZA_AGENT_MODE: "cli",
     ELIZA_AGENT_TIMEZONE: answers.timezone,
     OPENAI_API_KEY:
       answers.provider === "openai" || answers.provider === "hybrid"

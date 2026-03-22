@@ -358,7 +358,7 @@ export function createServices(
   let tools: ToolsService;
   const acp = new AcpService(
     config,
-    () => tools.list(),
+    () => (tools ? tools.baseDefinitions() : []),
     () => sessions.summary(),
     (limit) => sessions.listSessions(limit),
   );

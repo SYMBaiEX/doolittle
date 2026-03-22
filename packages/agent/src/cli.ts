@@ -139,6 +139,10 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
     bg: theme.panelBg,
     border: { fg: accent },
     label: { fg: accent, bold: true },
+    scrollbar: {
+      fg: accent,
+      bg: theme.panelBg,
+    },
   };
 }
 
