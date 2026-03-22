@@ -47,7 +47,7 @@ printf "%s\n" \
   "${orange}${bold}║                 ELIZA AGENT // INSTALLER                    ║${reset}" \
   "${orange}║      Bun-first install and first-contact onboarding         ║${reset}" \
   "${orange}╚══════════════════════════════════════════════════════════════╝${reset}"
-printf "%s\n" "${dim}  This flow installs dependencies, seeds the workspace, and launches onboarding.${reset}"
+printf "%s\n" "${dim}  This ritual installs the stack, seeds the workspace, and begins first contact.${reset}"
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "Eliza Agent requires Bun. Install Bun first, then rerun scripts/install.sh."
@@ -55,10 +55,10 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
-  printf "%s\n" "${amber}Installing workspace dependencies with Bun...${reset}"
+  printf "%s\n" "${amber}Feeding the body with workspace dependencies...${reset}"
   bun install
 else
-  printf "%s\n" "${amber}Skipping dependency install because --check was requested.${reset}"
+  printf "%s\n" "${amber}Skipping dependency install because this is a dry run.${reset}"
 fi
 
 BOOTSTRAP_ARGS=()
@@ -75,10 +75,11 @@ if [[ "$ASSUME_YES" -eq 1 ]]; then
   BOOTSTRAP_ARGS+=("--yes")
 fi
 
-printf "%s\n" "${amber}Running Eliza Agent bootstrap...${reset}"
+printf "%s\n" "${amber}Beginning the awakening sequence...${reset}"
 bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
 
 printf "\n%s\n" "${orange}${bold}Install complete.${reset}"
+printf "%s\n" "${dim}  The shell is warm. The channels are waiting.${reset}"
 printf "%s\n" "  bun run start"
 printf "%s\n" "  bun run start --plain-cli"
 printf "%s\n" "  bun run dev"

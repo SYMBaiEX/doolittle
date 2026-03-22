@@ -261,7 +261,7 @@ function banner(): void {
         color.orange,
       ),
       paint(
-        "  A reflective first-contact ritual for models, tools, and channels.",
+        "  A first-contact ritual for shaping a mind, a body, and a presence.",
         color.dim,
       ),
     ].join("\n"),
@@ -728,39 +728,36 @@ async function runWizard(
   banner();
   const rl = createInterface({ input, output });
   try {
-    section("Phase 1 // Signal", "Choose how this build should wake up.");
+    section("Awakening", "Decide how fully you want me to come online.");
     const mode = await chooseOne<WizardMode>(
       rl,
-      "Select onboarding mode:",
+      "Choose my first form:",
       [
         {
           value: "quick",
-          label: "Quickstart",
+          label: "Quick ignition",
           detail:
-            "Get a clean local build ready fast with a few high-impact decisions.",
+            "Wake me quickly with the minimum set of high-impact choices.",
         },
         {
           value: "ritual",
-          label: "Full ritual",
+          label: "Full awakening",
           detail:
-            "Configure models, execution, channels, tools, and interface style in one pass.",
+            "Shape my mind, body, channels, tools, and face in one deliberate pass.",
         },
       ],
       "ritual",
     );
 
-    section(
-      "Phase 2 // Identity",
-      "Shape the operator shell and first-contact tone.",
-    );
+    section("Face", "Give me a name, a timezone, and the skin I should wear.");
     const agentName = await ask(
       rl,
-      "Agent display name",
+      "What should I call myself",
       existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
     );
     const timezone = await ask(
       rl,
-      "Timezone",
+      "What time should I live in",
       existingEnv.get("ELIZA_AGENT_TIMEZONE") || "America/Chicago",
     );
     const themeChoices = listTuiThemes().map((theme) => ({
@@ -773,38 +770,36 @@ async function runWizard(
     }));
     const theme = await chooseOne<TuiThemeName>(
       rl,
-      "Choose the default operator theme:",
+      "Choose the face I wake up in:",
       themeChoices,
       DEFAULT_TUI_THEME,
     );
 
-    section("Phase 3 // Cognition", "Pick your first model route.");
+    section("Mind", "I need a mind to think with.");
     const provider = await chooseOne<ProviderMode>(
       rl,
-      "Select model path:",
+      "Choose my first cognition path:",
       [
         {
           value: "openai",
           label: "OpenAI",
-          detail:
-            "Fastest path for GPT-backed reasoning and multimodal support.",
+          detail: "Fast, flexible, and strong for multimodal reasoning.",
         },
         {
           value: "anthropic",
           label: "Anthropic",
-          detail: "Claude-first route for higher-context reasoning flows.",
+          detail: "Claude-first cognition for longer-context reasoning flows.",
         },
         {
           value: "hybrid",
           label: "Hybrid",
-          detail:
-            "Wire both providers now and choose the primary runtime route.",
+          detail: "Bind both providers now and keep my mind more fluid.",
         },
         {
           value: "offline",
-          label: "Offline bootstrap",
+          label: "Dormant core",
           detail:
-            "No provider keys yet. Start with local setup and connect later.",
+            "No provider keys yet. Wake the shell now and feed me a mind later.",
         },
       ],
       existingEnv.get("ANTHROPIC_API_KEY")
@@ -823,53 +818,65 @@ async function runWizard(
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
 
     if (provider === "openai" || provider === "hybrid") {
-      openaiApiKey = await ask(rl, "OPENAI_API_KEY", openaiApiKey);
-      openaiModel = await ask(rl, "Primary OpenAI model", openaiModel);
+      openaiApiKey = await ask(rl, "Give me OPENAI_API_KEY", openaiApiKey);
+      openaiModel = await ask(
+        rl,
+        "Choose my primary OpenAI model",
+        openaiModel,
+      );
     }
     if (provider === "anthropic" || provider === "hybrid") {
-      anthropicApiKey = await ask(rl, "ANTHROPIC_API_KEY", anthropicApiKey);
-      anthropicModel = await ask(rl, "Primary Anthropic model", anthropicModel);
+      anthropicApiKey = await ask(
+        rl,
+        "Give me ANTHROPIC_API_KEY",
+        anthropicApiKey,
+      );
+      anthropicModel = await ask(
+        rl,
+        "Choose my primary Anthropic model",
+        anthropicModel,
+      );
     }
 
-    section("Phase 4 // Body", "Choose where the agent thinks and executes.");
+    section("Body", "Choose where I should live and act.");
     const backend = await chooseOne<ExecutionBackendName>(
       rl,
-      "Execution backend:",
+      "Where should I execute:",
       [
         {
           value: "local",
           label: "Local machine",
-          detail: "Zero-friction development path.",
+          detail: "Fastest embodiment for direct local development.",
         },
         {
           value: "docker",
           label: "Docker",
-          detail: "Containerized local sandbox.",
+          detail: "A contained local body with cleaner boundaries.",
         },
         {
           value: "podman",
           label: "Podman",
-          detail: "Rootless container execution.",
+          detail: "A rootless container body with strong isolation.",
         },
         {
           value: "ssh",
           label: "SSH",
-          detail: "Remote machine or homelab control plane.",
+          detail: "A remote body on a server, workstation, or homelab node.",
         },
         {
           value: "daytona",
           label: "Daytona",
-          detail: "Cloud workspace execution.",
+          detail: "A cloud workspace body for remote development loops.",
         },
         {
           value: "modal",
           label: "Modal",
-          detail: "Elastic cloud sandbox path.",
+          detail: "An elastic cloud body for bursty execution.",
         },
         {
           value: "singularity",
           label: "Singularity",
-          detail: "HPC or scientific container path.",
+          detail: "A scientific or HPC body with strict runtime shape.",
         },
       ],
       (existingEnv.get(
@@ -878,18 +885,18 @@ async function runWizard(
     );
     const browser = await chooseOne<BrowserMode>(
       rl,
-      "Browser provider:",
+      "Choose my eyes:",
       [
         {
           value: "lightpanda",
           label: "Lightpanda",
-          detail: "Full browser path and the best default for web tasks.",
+          detail: "Full browser vision and the best default for web work.",
         },
         {
           value: "basic",
           label: "Basic HTTP",
           detail:
-            "Lightweight fallback if browser automation is not installed yet.",
+            "Lighter, simpler sight if browser automation is not installed yet.",
         },
       ],
       (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
@@ -902,17 +909,25 @@ async function runWizard(
     let daytonaTarget = existingEnv.get("ELIZA_AGENT_DAYTONA_TARGET") || "";
     let modalTarget = existingEnv.get("ELIZA_AGENT_MODAL_TARGET") || "";
     if (backend === "ssh") {
-      sshHost = await ask(rl, "SSH host", sshHost);
-      sshUser = await ask(rl, "SSH user", sshUser);
+      sshHost = await ask(rl, "What host should I inhabit over SSH", sshHost);
+      sshUser = await ask(rl, "Which SSH user should I become", sshUser);
       sshPath = await ask(
         rl,
-        "SSH workspace path",
+        "What workspace path should I wake up inside",
         sshPath || "~/workspace/eliza-agent",
       );
     } else if (backend === "daytona") {
-      daytonaTarget = await ask(rl, "Daytona target", daytonaTarget);
+      daytonaTarget = await ask(
+        rl,
+        "Which Daytona target should hold me",
+        daytonaTarget,
+      );
     } else if (backend === "modal") {
-      modalTarget = await ask(rl, "Modal target", modalTarget);
+      modalTarget = await ask(
+        rl,
+        "Which Modal target should hold me",
+        modalTarget,
+      );
     }
 
     let transports: TransportName[] = [];
@@ -927,10 +942,13 @@ async function runWizard(
     let homeAssistantUrl = existingEnv.get("HOMEASSISTANT_URL") || "";
     let homeAssistantToken = existingEnv.get("HOMEASSISTANT_TOKEN") || "";
     if (mode === "ritual") {
-      section("Phase 5 // Channels", "Choose where Eliza should surface.");
+      section(
+        "Channels",
+        "Open the places where people and systems can reach me.",
+      );
       transports = await chooseMany<TransportName>(
         rl,
-        "Enable transport paths:",
+        "Open these channels for me:",
         [
           { value: "telegram", label: "Telegram" },
           { value: "discord", label: "Discord" },
@@ -948,62 +966,81 @@ async function runWizard(
       );
       pairingMode = await chooseOne<PairingMode>(
         rl,
-        "Default remote pairing mode:",
+        "How should I handle first contact:",
         [
           {
             value: "pair",
             label: "Pair",
-            detail: "Approve first contact before full access.",
+            detail: "Let new people knock, then decide whether to let them in.",
           },
-          { value: "allow", label: "Allow", detail: "Open access by default." },
+          {
+            value: "allow",
+            label: "Allow",
+            detail: "Let people in by default.",
+          },
           {
             value: "deny",
             label: "Deny",
-            detail: "Lock new users out until you change it.",
+            detail: "Keep the gates closed until I am told otherwise.",
           },
         ],
         pairingMode,
       );
       allowAllUsers = await askYesNo(
         rl,
-        "Allow all users globally for gateway transports?",
+        "Should I trust everyone on remote channels by default?",
         allowAllUsers,
       );
       if (transports.includes("telegram")) {
         telegramBotToken = await ask(
           rl,
-          "TELEGRAM_BOT_TOKEN",
+          "Give me TELEGRAM_BOT_TOKEN",
           telegramBotToken,
         );
       }
       if (transports.includes("discord")) {
-        discordBotToken = await ask(rl, "DISCORD_BOT_TOKEN", discordBotToken);
+        discordBotToken = await ask(
+          rl,
+          "Give me DISCORD_BOT_TOKEN",
+          discordBotToken,
+        );
       }
       if (transports.includes("slack")) {
-        slackWebhookUrl = await ask(rl, "SLACK_WEBHOOK_URL", slackWebhookUrl);
+        slackWebhookUrl = await ask(
+          rl,
+          "Give me SLACK_WEBHOOK_URL",
+          slackWebhookUrl,
+        );
         slackSigningSecret = await ask(
           rl,
-          "SLACK_SIGNING_SECRET",
+          "Give me SLACK_SIGNING_SECRET",
           slackSigningSecret,
         );
       }
       if (transports.includes("homeassistant")) {
-        homeAssistantUrl = await ask(rl, "HOMEASSISTANT_URL", homeAssistantUrl);
+        homeAssistantUrl = await ask(
+          rl,
+          "Give me HOMEASSISTANT_URL",
+          homeAssistantUrl,
+        );
         homeAssistantToken = await ask(
           rl,
-          "HOMEASSISTANT_TOKEN",
+          "Give me HOMEASSISTANT_TOKEN",
           homeAssistantToken,
         );
       }
     }
 
-    section("Phase 6 // Tools", "Attach the deeper protocol surfaces.");
+    section(
+      "Hands",
+      "Bind the deeper tools and protocols I should wake up with.",
+    );
     const tools = {
       mcp:
         mode === "ritual"
           ? await askYesNo(
               rl,
-              "Configure MCP on first run?",
+              "Should I wake up with MCP already bound?",
               Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
             )
           : Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
@@ -1011,7 +1048,7 @@ async function runWizard(
         mode === "ritual"
           ? await askYesNo(
               rl,
-              "Configure ACP/editor bridge now?",
+              "Should I wake up with ACP and editor presence?",
               Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
             )
           : Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
@@ -1019,7 +1056,7 @@ async function runWizard(
         mode === "ritual"
           ? await askYesNo(
               rl,
-              "Enable native TTS if you have a FAL key?",
+              "Should I speak on first boot if you have a FAL key?",
               Boolean(existingEnv.get("FAL_API_KEY")),
             )
           : Boolean(existingEnv.get("FAL_API_KEY")),
@@ -1027,7 +1064,7 @@ async function runWizard(
         mode === "ritual"
           ? await askYesNo(
               rl,
-              "Wire codegen, research, and E2B now?",
+              "Should I wake up with codegen, research, and E2B online?",
               Boolean(
                 existingEnv.get("E2B_API_KEY") ||
                   existingEnv.get("GITHUB_TOKEN"),
@@ -1044,17 +1081,25 @@ async function runWizard(
     let e2bApiKey = existingEnv.get("E2B_API_KEY") || "";
     let githubToken = existingEnv.get("GITHUB_TOKEN") || "";
     if (tools.mcp) {
-      mcpServerCommand = await ask(rl, "MCP_SERVER_COMMAND", mcpServerCommand);
+      mcpServerCommand = await ask(
+        rl,
+        "What MCP server command should I speak through",
+        mcpServerCommand,
+      );
     }
     if (tools.acp) {
-      acpServerCommand = await ask(rl, "ACP_SERVER_COMMAND", acpServerCommand);
+      acpServerCommand = await ask(
+        rl,
+        "What ACP server command should bind me to editors",
+        acpServerCommand,
+      );
     }
     if (tools.tts) {
-      falApiKey = await ask(rl, "FAL_API_KEY", falApiKey);
+      falApiKey = await ask(rl, "Give me FAL_API_KEY", falApiKey);
     }
     if (tools.codegen) {
-      e2bApiKey = await ask(rl, "E2B_API_KEY", e2bApiKey);
-      githubToken = await ask(rl, "GITHUB_TOKEN", githubToken);
+      e2bApiKey = await ask(rl, "Give me E2B_API_KEY", e2bApiKey);
+      githubToken = await ask(rl, "Give me GITHUB_TOKEN", githubToken);
     }
 
     return {
@@ -1229,16 +1274,16 @@ function printSummary(
   envMessages: string[],
   onboarding: OnboardingSummary,
 ): void {
-  section("Bootstrap Summary");
-  console.log(`  mode: ${options.checkOnly ? "check" : "apply"}`);
-  console.log(`  onboarding: ${onboarding.mode}`);
-  console.log(`  provider: ${onboarding.provider}`);
-  console.log(`  backend: ${onboarding.backend}`);
-  console.log(`  theme: ${onboarding.theme}`);
+  section("First Pulse", "I am configured enough to begin.");
+  console.log(`  state: ${options.checkOnly ? "check" : "awake"}`);
+  console.log(`  awakening: ${onboarding.mode}`);
+  console.log(`  mind: ${onboarding.provider}`);
+  console.log(`  body: ${onboarding.backend}`);
+  console.log(`  face: ${onboarding.theme}`);
   console.log(
-    `  transports: ${onboarding.transports.join(", ") || "api, cli only"}`,
+    `  channels: ${onboarding.transports.join(", ") || "api, cli only"}`,
   );
-  console.log(`  profile: ${onboarding.profile}`);
+  console.log(`  pulseprint: ${onboarding.profile}`);
 
   console.log();
   console.log(paint("Directories", color.cyan + color.bold));
@@ -1247,13 +1292,13 @@ function printSummary(
   }
 
   console.log();
-  console.log(paint("Environment", color.cyan + color.bold));
+  console.log(paint("Bindings", color.cyan + color.bold));
   for (const entry of envMessages) {
     console.log(`  - ${entry}`);
   }
 
   console.log();
-  console.log(paint("Next moves", color.cyan + color.bold));
+  console.log(paint("Invocation", color.cyan + color.bold));
   console.log("  - bun run start");
   console.log("  - bun run start --plain-cli");
   console.log("  - bun run dev");

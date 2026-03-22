@@ -290,12 +290,12 @@ Copy `.env.example` to `.env` and fill in what you need.
 bash scripts/install.sh
 ```
 
-This Bun-first installer now behaves more like a real onboarding ritual than a plain dependency step. It:
+This Bun-first installer now behaves like a first-contact ritual instead of a plain dependency step. It:
 
 - runs `bun install`
 - creates `.env` from `.env.example` when it does not already exist
 - seeds the local workspace directories used by the agent runtime
-- launches an interactive onboarding flow for:
+- launches an interactive awakening flow for:
   - provider and model routing
   - execution backend
   - browser mode
