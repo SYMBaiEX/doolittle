@@ -377,7 +377,7 @@ function getDependencyProbes(
       detail: accounts.codex.detail,
       recommendation: accounts.codex.reusable
         ? undefined
-        : "Sign in with the Codex CLI if you want account-linked Codex workflows.",
+        : `Run ${accounts.codex.loginCommand ?? "codex login"} if you want account-linked Codex workflows.`,
     },
     {
       key: "claude-auth",
@@ -386,7 +386,7 @@ function getDependencyProbes(
       detail: accounts.claudeCode.detail,
       recommendation: accounts.claudeCode.reusable
         ? undefined
-        : "Run Claude Code login or setup-token if you want account-linked Anthropic workflows.",
+        : `Run ${accounts.claudeCode.loginCommand ?? "claude auth login"} if you want account-linked Anthropic workflows.`,
     },
   ];
 }

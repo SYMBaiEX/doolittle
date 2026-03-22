@@ -16,7 +16,10 @@ import {
   runModelAnalysisTurn,
   syncProviderSettings,
 } from "@/runtime/chat";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import {
+  getLinkedProviderAccountsSnapshot,
+  getLinkedProviderLoginCommand,
+} from "@/runtime/native/account-auth";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -418,6 +421,17 @@ export function startApiServer(context: AppContext): void {
         return json(getLinkedProviderAccountsSnapshot());
       }
 
+      if (request.method === "GET" && url.pathname === "/accounts/doctor") {
+        const accounts = getLinkedProviderAccountsSnapshot();
+        return json({
+          accounts,
+          login: {
+            codex: getLinkedProviderLoginCommand("codex"),
+            claudeCode: getLinkedProviderLoginCommand("claude-code"),
+          },
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/accounts/refresh") {
         const body = (await request.json().catch(() => ({}))) as {
           provider?: string;
@@ -454,6 +468,20 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "provider must be codex or claude-code" }, 400);
         }
         return json(activateLinkedProvider(context, body.provider));
+      }
+
+      if (request.method === "POST" && url.pathname === "/accounts/login") {
+        const body = (await request.json()) as {
+          provider?: string;
+        };
+        if (body.provider !== "codex" && body.provider !== "claude-code") {
+          return json({ error: "provider must be codex or claude-code" }, 400);
+        }
+        return json({
+          provider: body.provider,
+          command: getLinkedProviderLoginCommand(body.provider),
+          accounts: getLinkedProviderAccountsSnapshot(),
+        });
       }
 
       if (request.method === "GET" && url.pathname === "/runtime/ecosystem") {

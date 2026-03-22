@@ -61,5 +61,6 @@ describe("linked provider account auth snapshot", () => {
     expect(snapshot.claudeCode.reusable).toBe(true);
     expect(snapshot.claudeCode.accountLabel).toContain("Symbiotic Operator");
     expect(snapshot.claudeCode.source).toContain(".claude/.credentials.json");
+    expect(snapshot.claudeCode.loginCommand).toBe("claude auth login");
   });
 });

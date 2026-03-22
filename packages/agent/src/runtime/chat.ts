@@ -16,6 +16,7 @@ import {
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import {
   getLinkedProviderAccountsSnapshot,
+  getLinkedProviderLoginCommand,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
 } from "@/runtime/native/account-auth";
@@ -2597,6 +2598,18 @@ async function buildCommandResponse(
     return JSON.stringify(getLinkedProviderAccountsSnapshot(), null, 2);
   }
 
+  if (trimmed === "/accounts doctor") {
+    const accounts = getLinkedProviderAccountsSnapshot();
+    return [
+      `codex: reusable=${accounts.codex.reusable} available=${accounts.codex.available}`,
+      `  detail: ${accounts.codex.detail}`,
+      `  login: ${accounts.codex.loginCommand ?? getLinkedProviderLoginCommand("codex")}`,
+      `claude-code: reusable=${accounts.claudeCode.reusable} available=${accounts.claudeCode.available}`,
+      `  detail: ${accounts.claudeCode.detail}`,
+      `  login: ${accounts.claudeCode.loginCommand ?? getLinkedProviderLoginCommand("claude-code")}`,
+    ].join("\n");
+  }
+
   if (trimmed === "/accounts refresh") {
     return JSON.stringify(await refreshLinkedAccounts("all"), null, 2);
   }
@@ -2619,6 +2632,24 @@ async function buildCommandResponse(
       return "Usage: /accounts use <codex|claude-code>";
     }
     return JSON.stringify(activateLinkedProvider(context, provider), null, 2);
+  }
+
+  if (trimmed.startsWith("/accounts login ")) {
+    const provider = resolveLinkedProviderName(
+      trimmed.replace("/accounts login ", "").trim(),
+    );
+    if (!provider) {
+      return "Usage: /accounts login <codex|claude-code>";
+    }
+    return JSON.stringify(
+      {
+        provider,
+        command: getLinkedProviderLoginCommand(provider),
+        status: getLinkedProviderAccountsSnapshot(),
+      },
+      null,
+      2,
+    );
   }
 
   if (

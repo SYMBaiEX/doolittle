@@ -11,6 +11,7 @@ export interface LinkedProviderAccountStatus {
   authMode?: string;
   lastRefresh?: string;
   accountLabel?: string;
+  loginCommand?: string;
   detail: string;
 }
 
@@ -42,6 +43,14 @@ const CLAUDE_CODE_OAUTH_TOKEN_URL =
   "https://console.anthropic.com/v1/oauth/token";
 const DEFAULT_REFRESH_SKEW_SECONDS = 120;
 
+interface CliAuthStatus {
+  available: boolean;
+  loggedIn: boolean;
+  detail?: string;
+  authMethod?: string;
+  source?: string;
+}
+
 function resolveHome(homePath?: string): string {
   return homePath?.trim() || process.env.HOME?.trim() || homedir();
 }
@@ -51,6 +60,107 @@ function commandExists(command: string): boolean {
     stdio: "ignore",
   });
   return result.status === 0;
+}
+
+function readCommandJson(
+  command: string,
+  args: string[],
+  homePath?: string,
+): unknown {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      HOME: resolveHome(homePath),
+    },
+  });
+  if (result.status !== 0 || !result.stdout?.trim()) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(result.stdout);
+  } catch {
+    return undefined;
+  }
+}
+
+function readCommandText(
+  command: string,
+  args: string[],
+  homePath?: string,
+): string {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      HOME: resolveHome(homePath),
+    },
+  });
+  return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+}
+
+function getCodexCliAuthStatus(homePath?: string): CliAuthStatus {
+  if (!commandExists("codex")) {
+    return {
+      available: false,
+      loggedIn: false,
+    };
+  }
+
+  const output = readCommandText("codex", ["login", "status"], homePath);
+  const lowered = output.toLowerCase();
+  return {
+    available: true,
+    loggedIn: lowered.includes("logged in"),
+    authMethod: lowered.includes("chatgpt") ? "chatgpt" : undefined,
+    source: "codex login status",
+    detail: output || "Codex CLI status is available.",
+  };
+}
+
+function getClaudeCodeCliAuthStatus(homePath?: string): CliAuthStatus {
+  if (!commandExists("claude")) {
+    return {
+      available: false,
+      loggedIn: false,
+    };
+  }
+
+  const payload = readCommandJson(
+    "claude",
+    ["auth", "status", "--json"],
+    homePath,
+  ) as
+    | {
+        loggedIn?: boolean;
+        authMethod?: string;
+        apiProvider?: string;
+      }
+    | undefined;
+  if (!payload) {
+    const text = readCommandText(
+      "claude",
+      ["auth", "status", "--text"],
+      homePath,
+    );
+    return {
+      available: true,
+      loggedIn: /logged in/i.test(text),
+      source: "claude auth status",
+      detail: text || "Claude Code auth status is available.",
+    };
+  }
+
+  return {
+    available: true,
+    loggedIn: Boolean(payload.loggedIn),
+    authMethod:
+      typeof payload.authMethod === "string" ? payload.authMethod : undefined,
+    source: "claude auth status --json",
+    detail: payload.loggedIn
+      ? `Claude Code CLI reports logged in via ${payload.authMethod ?? "unknown"} auth.`
+      : "Claude Code CLI reports no active login.",
+  };
 }
 
 function readJson(path: string): unknown {
@@ -105,6 +215,7 @@ function isUnixMsExpiring(
 
 function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
   const authPath = join(resolveHome(homePath), ".codex", "auth.json");
+  const cliStatus = getCodexCliAuthStatus(homePath);
   const payload = existsSync(authPath) ? readJson(authPath) : undefined;
   const tokens =
     payload && typeof payload === "object" && "tokens" in payload
@@ -135,6 +246,7 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
       source: authPath,
       authMode: authMode || "chatgpt",
       lastRefresh,
+      loginCommand: "codex login",
       detail:
         "Signed-in Codex account detected through the local Codex CLI auth store.",
     };
@@ -142,16 +254,19 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
 
   return {
     provider: "codex",
-    available: existsSync(authPath) || commandExists("codex"),
+    available: existsSync(authPath) || cliStatus.available,
     reusable: false,
     source: existsSync(authPath) ? authPath : undefined,
-    authMode,
+    authMode: authMode || cliStatus.authMethod,
     lastRefresh,
+    loginCommand: "codex login",
     detail: existsSync(authPath)
       ? "Codex auth store exists, but no reusable access and refresh token pair was found."
-      : commandExists("codex")
-        ? "Codex CLI is installed, but no local signed-in auth store was found."
-        : "Codex CLI is not installed and no local auth store was found.",
+      : cliStatus.loggedIn
+        ? "Codex CLI reports a logged-in session, but Eliza Agent could not read a reusable local auth store yet."
+        : cliStatus.available
+          ? "Codex CLI is installed, but no reusable local signed-in auth store was found. Run `codex login`."
+          : "Codex CLI is not installed and no local auth store was found.",
   };
 }
 
@@ -270,6 +385,7 @@ function getClaudeCodeAccountStatus(
   homePath?: string,
 ): LinkedProviderAccountStatus {
   const home = resolveHome(homePath);
+  const cliStatus = getClaudeCodeCliAuthStatus(homePath);
   const credentialsPath = join(home, ".claude", ".credentials.json");
   const profilePath = join(home, ".claude.json");
   const credentialsPayload = existsSync(credentialsPath)
@@ -322,12 +438,13 @@ function getClaudeCodeAccountStatus(
       authMode: "oauth",
       lastRefresh: expiresAt,
       accountLabel,
+      loginCommand: "claude auth login",
       detail:
         "Refreshable Claude Code OAuth credentials are available from the local Claude CLI store.",
     };
   }
 
-  if (accountLabel || existsSync(profilePath) || commandExists("claude")) {
+  if (accountLabel || existsSync(profilePath) || cliStatus.available) {
     return {
       provider: "claude-code",
       available: true,
@@ -337,11 +454,20 @@ function getClaudeCodeAccountStatus(
         : existsSync(profilePath)
           ? profilePath
           : undefined,
-      authMode: existsSync(profilePath) ? "profile" : undefined,
+      authMode:
+        cliStatus.authMethod ||
+        (existsSync(profilePath) ? "profile" : undefined),
       accountLabel,
+      loginCommand: "claude auth login",
       detail: accountLabel
-        ? "Claude account profile is present locally, but no reusable refreshable credential store was found."
-        : "Claude CLI presence was detected, but no reusable OAuth credential store was found.",
+        ? cliStatus.loggedIn
+          ? "Claude account profile is present and Claude CLI reports logged in, but no reusable OAuth credential store was found yet."
+          : "Claude account profile is present locally, but no reusable refreshable credential store was found. Run `claude auth login`."
+        : cliStatus.available
+          ? cliStatus.loggedIn
+            ? "Claude CLI reports a logged-in session, but Eliza Agent could not read a reusable OAuth credential store yet."
+            : "Claude CLI is installed, but no reusable OAuth credential store was found. Run `claude auth login`."
+          : "Claude CLI presence was detected, but no reusable OAuth credential store was found.",
     };
   }
 
@@ -349,6 +475,7 @@ function getClaudeCodeAccountStatus(
     provider: "claude-code",
     available: false,
     reusable: false,
+    loginCommand: "claude auth login",
     detail: "No Claude Code CLI login artifacts were found on this machine.",
   };
 }
@@ -504,4 +631,10 @@ export function getLinkedProviderAccountsSnapshot(
     codex: getCodexAccountStatus(homePath),
     claudeCode: getClaudeCodeAccountStatus(homePath),
   };
+}
+
+export function getLinkedProviderLoginCommand(
+  provider: "codex" | "claude-code",
+): string {
+  return provider === "codex" ? "codex login" : "claude auth login";
 }

@@ -95,6 +95,18 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Refresh linked Codex or Claude Code credentials from their local CLI stores.",
   },
   {
+    command: "/accounts doctor",
+    category: "runtime",
+    description:
+      "Show linked-provider readiness, gaps, and the exact login commands to run locally.",
+  },
+  {
+    command: "/accounts login <codex|claude-code>",
+    category: "runtime",
+    description:
+      "Show the exact local CLI login command needed to bind a linked provider account.",
+  },
+  {
     command: "/accounts use <codex|claude-code>",
     category: "runtime",
     description:
