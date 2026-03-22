@@ -18,6 +18,25 @@ export interface BrowserPluginOptions {
   };
 }
 
+function summarizeBrowserCapabilities() {
+  return {
+    operations: [
+      "status",
+      "fetch",
+      "inspect",
+      "snapshot",
+      "screenshot",
+      "capture",
+      "analyze",
+      "compare",
+      "analyzeComparison",
+    ],
+    multimodal: true,
+    captureReady: true,
+    analysisReady: true,
+  };
+}
+
 export function createBrowserPlugin(options: BrowserPluginOptions): Plugin {
   class BrowserService extends ElizaService {
     static serviceType = "browser";
@@ -34,6 +53,10 @@ export function createBrowserPlugin(options: BrowserPluginOptions): Plugin {
 
     status() {
       return options.browser.status();
+    }
+
+    summary() {
+      return summarizeBrowserCapabilities();
     }
 
     fetch(url: string) {

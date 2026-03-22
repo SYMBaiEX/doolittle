@@ -46,6 +46,32 @@ export interface AgentOrchestratorPluginOptions {
   };
 }
 
+function countPending(queue: unknown): number {
+  if (Array.isArray(queue)) {
+    return queue.length;
+  }
+  if (queue && typeof queue === "object") {
+    const record = queue as Record<string, unknown>;
+    if (typeof record.pending === "number") {
+      return record.pending;
+    }
+    if (typeof record.total === "number") {
+      return record.total;
+    }
+  }
+  return 0;
+}
+
+function countActiveWorkers(queue: unknown): number {
+  if (queue && typeof queue === "object") {
+    const record = queue as Record<string, unknown>;
+    if (typeof record.activeWorkers === "number") {
+      return record.activeWorkers;
+    }
+  }
+  return 0;
+}
+
 export function createAgentOrchestratorPlugin(
   options: AgentOrchestratorPluginOptions,
 ): Plugin {
@@ -97,6 +123,19 @@ export function createAgentOrchestratorPlugin(
 
     overview() {
       return this.delegation.overview();
+    }
+
+    summary() {
+      const tasks = this.delegation.list();
+      const queue = this.delegation.queueSummary();
+      return {
+        tasks: Array.isArray(tasks) ? tasks.length : 0,
+        queuePending: countPending(queue),
+        activeWorkers: countActiveWorkers(queue),
+        childTasksSupported: Boolean(this.delegation.getChildren),
+        treeSupported: Boolean(this.delegation.tree),
+        retrySupported: Boolean(this.delegation.retryTask),
+      };
     }
 
     spawnChild(

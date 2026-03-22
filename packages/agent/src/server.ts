@@ -3352,7 +3352,14 @@ export function startApiServer(context: AppContext): void {
 
         const text = body.path
           ? nativeServices.knowledge
-            ? String(await nativeServices.knowledge.ingestPdf(body.path))
+            ? nativeServices.knowledge.extractPdf
+              ? await nativeServices.knowledge.extractPdf(body.path)
+              : await context.services.documents.extractPdfFromPath(body.path, {
+                  startPage: body.startPage,
+                  endPage: body.endPage,
+                  preserveWhitespace: body.preserveWhitespace,
+                  cleanContent: body.cleanContent,
+                })
             : await context.services.documents.extractPdfFromPath(body.path, {
                 startPage: body.startPage,
                 endPage: body.endPage,

@@ -40,6 +40,23 @@ export interface KnowledgePluginOptions {
   };
 }
 
+function summarizeRecall(
+  memory: string,
+  sessions: Array<{
+    sessionId: string;
+    createdAt: string;
+    role: "user" | "assistant" | "system";
+    text: string;
+  }>,
+) {
+  return {
+    memory,
+    sessions,
+    memoryCharacters: memory.length,
+    sessionHits: sessions.length,
+  };
+}
+
 export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
   class KnowledgeService extends ElizaService {
     static serviceType = "knowledge";
@@ -67,8 +84,20 @@ export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
       };
     }
 
+    extractPdf(path: string) {
+      return options.knowledge.extractPdf(path);
+    }
+
     remember(text: string, source = "knowledge:manual") {
       return options.memory.remember("memory", { text, source });
+    }
+
+    read(target: "memory" | "user" = "memory") {
+      return options.memory.read(target);
+    }
+
+    list(target: "memory" | "user" = "memory") {
+      return options.memory.list(target);
     }
 
     summary(target: "memory" | "user" = "memory") {
@@ -76,10 +105,17 @@ export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
     }
 
     recall(query: string, limit = 8) {
-      return {
-        memory: options.memory.read("memory"),
-        sessions: options.sessions.search(query, limit),
-      };
+      return summarizeRecall(
+        options.memory.read("memory"),
+        options.sessions.search(query, limit),
+      );
+    }
+
+    search(query: string, limit = 8) {
+      return summarizeRecall(
+        options.memory.read("memory"),
+        options.sessions.search(query, limit),
+      );
     }
   }
 

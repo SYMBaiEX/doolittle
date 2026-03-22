@@ -15,8 +15,12 @@ import { describeAutonomousAlignment } from "./autonomous-stack";
 
 interface NativeKnowledgeService {
   ingestPdf(path: string): Promise<unknown>;
+  extractPdf?(path: string): Promise<string>;
   remember(text: string, source?: string): unknown;
   recall(query: string, limit?: number): unknown;
+  search?(query: string, limit?: number): unknown;
+  read?(target?: "memory" | "user"): string;
+  list?(target?: "memory" | "user"): string[];
   summary?(target?: "memory" | "user"): unknown;
 }
 
@@ -61,6 +65,7 @@ interface NativeShellService {
 
 interface NativeBrowserService {
   status(): Promise<unknown>;
+  summary?(): unknown;
   fetch(url: string): Promise<unknown>;
   inspect(url: string): Promise<unknown>;
   snapshot(url: string): Promise<string>;
@@ -118,6 +123,14 @@ interface NativeAgentOrchestratorService {
   tree?(id: string): unknown;
   queue(): unknown;
   overview?(): unknown;
+  summary?(): {
+    tasks: number;
+    queuePending: number;
+    activeWorkers: number;
+    childTasksSupported: boolean;
+    treeSupported: boolean;
+    retrySupported: boolean;
+  };
   tasks(): unknown[];
   spawnChild?(
     parentId: string,
@@ -1673,7 +1686,11 @@ export async function getEffectiveBrowserStatus(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return (await resolveBrowserIntegrationStatus(runtime, services)).status;
+  const browser = getNativeServices(runtime).browser;
+  return (
+    browser?.summary?.() ??
+    (await resolveBrowserIntegrationStatus(runtime, services)).status
+  );
 }
 
 export async function fetchEffectiveBrowserPage(
@@ -2190,6 +2207,7 @@ export function getAutonomousControlPlane(
   const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
   const skillsSummary = getEffectiveSkillsSummary(runtime, services);
   const localSkills = getEffectiveSkills(runtime, services);
+  const orchestratorSummary = native.agentOrchestrator?.summary?.();
   const orchestratorTasks = getEffectiveDelegationTasks(runtime, services);
   const orchestratorQueue = getEffectiveDelegationQueue(runtime, services);
   const pluginInventory = getEffectivePluginManagerInventory(runtime);
@@ -2250,9 +2268,15 @@ export function getAutonomousControlPlane(
     orchestrator: {
       source: native.agentOrchestrator ? "native" : "product",
       available: Boolean(native.agentOrchestrator),
-      tasks: Array.isArray(orchestratorTasks) ? orchestratorTasks.length : 0,
-      queuePending: countQueuePending(orchestratorQueue),
-      activeWorkers: countQueueActiveWorkers(orchestratorQueue),
+      tasks:
+        orchestratorSummary?.tasks ??
+        (Array.isArray(orchestratorTasks) ? orchestratorTasks.length : 0),
+      queuePending:
+        orchestratorSummary?.queuePending ??
+        countQueuePending(orchestratorQueue),
+      activeWorkers:
+        orchestratorSummary?.activeWorkers ??
+        countQueueActiveWorkers(orchestratorQueue),
     },
     trajectories: {
       source: trajectorySource ? "native" : "product",
