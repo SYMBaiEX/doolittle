@@ -11,6 +11,7 @@ ASSUME_YES=0
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 ELIZA_BIN_LINK="${LOCAL_BIN_DIR}/eliza-agent"
 ELIZA_BIN_SOURCE="${ROOT}/bin/eliza-agent"
+ELIZA_SHORT_LINK="${LOCAL_BIN_DIR}/ea"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -107,6 +108,27 @@ setup_path() {
 
   export PATH="$LOCAL_BIN_DIR:$PATH"
   printf "%s\n" "${dim}  eliza-agent -> ${ELIZA_BIN_LINK}${reset}"
+
+  if should_install_shortcut; then
+    ln -sf "$ELIZA_BIN_SOURCE" "$ELIZA_SHORT_LINK"
+    printf "%s\n" "${dim}  ea -> ${ELIZA_SHORT_LINK}${reset}"
+  fi
+}
+
+should_install_shortcut() {
+  if [[ -L "$ELIZA_SHORT_LINK" ]]; then
+    return 0
+  fi
+
+  if [[ -e "$ELIZA_SHORT_LINK" ]]; then
+    return 1
+  fi
+
+  if command -v ea >/dev/null 2>&1; then
+    return 1
+  fi
+
+  return 0
 }
 
 BOOTSTRAP_ARGS=()
@@ -130,6 +152,9 @@ bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
 printf "\n%s\n" "${orange}${bold}Install complete.${reset}"
 printf "%s\n" "${dim}  The shell is warm. The channels are waiting.${reset}"
 printf "%s\n" "  eliza-agent"
+if [[ -L "$ELIZA_SHORT_LINK" ]]; then
+  printf "%s\n" "  ea"
+fi
 printf "%s\n" "  eliza-agent plain"
 printf "%s\n" "  eliza-agent setup"
 printf "%s\n" "  eliza-agent doctor"
