@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-codex",
   "version": "2.0.0-alpha.85",
-  "description": "Workspace-native ElizaOS provider plugin for linked ChatGPT Codex account execution.",
+  "description": "Native-first ElizaOS provider plugin for linked ChatGPT Codex account execution.",
   "license": "MIT",
   "type": "module",
   "exports": {

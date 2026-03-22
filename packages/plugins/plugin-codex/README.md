@@ -1,6 +1,6 @@
 # @elizaos/plugin-codex
 
-Workspace-native ElizaOS provider plugin for using a locally signed-in Codex account.
+Native-first ElizaOS provider plugin for using a locally signed-in Codex account.
 
 ## What It Does
 
@@ -9,6 +9,7 @@ Workspace-native ElizaOS provider plugin for using a locally signed-in Codex acc
 - Routes text generation through the Codex Responses endpoint
 - Handles Codex streaming responses and normalizes them into plain provider output
 - Refreshes expired linked credentials automatically when possible
+- Pairs cleanly with the Eliza Agent `connect` flow for one-step activation
 
 ## Expected Local Login State
 
@@ -26,11 +27,33 @@ Credential source:
 
 ## Operator Flows
 
+- `/accounts connect codex`
 - `/accounts`
 - `/accounts doctor`
 - `/accounts login codex`
 - `/accounts refresh codex`
 - `/accounts use codex`
+
+## Example
+
+```ts
+import { createCodexPlugin } from "@elizaos/plugin-codex";
+
+export const codexPlugin = createCodexPlugin({
+  enabled: true,
+  getStatus: () => ({
+    provider: "codex",
+    available: true,
+    reusable: true,
+    nativeReady: true,
+    fallbackReady: false,
+    authMode: "chatgpt",
+    source: "~/.codex/auth.json",
+    detail: "Linked Codex account detected.",
+  }),
+  getCredentials: () => ({ accessToken: "..." }),
+});
+```
 
 ## Verification
 

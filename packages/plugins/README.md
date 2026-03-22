@@ -48,3 +48,16 @@ Two workspace plugins are intentionally user-facing provider bridges rather than
 - `plugin-claude-code`
 
 They are designed for people who already use local Codex or Claude Code CLIs and want Eliza Agent to reuse those signed-in accounts directly.
+
+Suggested runtime flow:
+
+- `/accounts connect codex`
+- `/accounts connect claude-code`
+- `/accounts doctor`
+- `/accounts use codex`
+- `/accounts use claude-code`
+
+Publish-ready provider references:
+
+- [`plugin-codex`](./plugin-codex)
+- [`plugin-claude-code`](./plugin-claude-code)
