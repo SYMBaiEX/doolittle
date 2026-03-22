@@ -75,6 +75,24 @@ export function getNativePluginCatalog(
       notes: "Official PDF ingestion plugin.",
     },
     {
+      id: "providers.codex-auth",
+      packageName: "@elizaos/plugin-codex-auth",
+      category: "providers",
+      source: "custom",
+      enabled: config.useLinkedCodexAuth,
+      notes:
+        "Workspace-native linked Codex account bridge for ChatGPT-backed Codex workflows.",
+    },
+    {
+      id: "providers.claude-code-auth",
+      packageName: "@elizaos/plugin-claude-code-auth",
+      category: "providers",
+      source: "custom",
+      enabled: config.useLinkedClaudeCodeAuth,
+      notes:
+        "Workspace-native linked Claude Code OAuth bridge for Anthropic-native workflows.",
+    },
+    {
       id: "providers.openai",
       packageName: "@elizaos/plugin-openai",
       category: "providers",
