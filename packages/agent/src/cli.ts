@@ -980,7 +980,7 @@ function renderFooter(
     "{cyan-fg}Ctrl-T/Y{/} theme",
     "{cyan-fg}Alt-1..4{/} deck",
     "Esc input",
-    "q quit",
+    "{cyan-fg}Ctrl-Q{/} quit",
   ].join("  |  ");
 }
 
@@ -1322,6 +1322,14 @@ async function startTui(context: AppContext): Promise<void> {
     inputBox,
   ];
   let focusIndex = focusables.length - 1;
+
+  function textEntryFocused(): boolean {
+    return (
+      screen.focused === inputBox ||
+      screen.focused === composer ||
+      screen.focused === paletteInput
+    );
+  }
 
   function focusAt(index: number): void {
     focusIndex = (index + focusables.length) % focusables.length;
@@ -1719,7 +1727,13 @@ async function startTui(context: AppContext): Promise<void> {
     });
   }
 
-  screen.key(["q", "C-c"], () => {
+  screen.key(["C-q", "C-c"], () => {
+    screen.destroy();
+  });
+  screen.key(["q"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     screen.destroy();
   });
   screen.key(["C-p"], () => {
@@ -1745,6 +1759,9 @@ async function startTui(context: AppContext): Promise<void> {
     if (composerOpen) {
       return;
     }
+    if (screen.focused === inputBox) {
+      return;
+    }
     if (paletteOpen) {
       paletteList.focus();
       screen.render();
@@ -1754,6 +1771,9 @@ async function startTui(context: AppContext): Promise<void> {
   });
   screen.key(["S-tab"], () => {
     if (composerOpen) {
+      return;
+    }
+    if (screen.focused === inputBox) {
       return;
     }
     if (paletteOpen) {
