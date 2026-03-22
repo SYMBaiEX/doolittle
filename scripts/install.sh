@@ -8,6 +8,9 @@ HEADLESS=0
 SKIP_WIZARD=0
 CHECK_ONLY=0
 ASSUME_YES=0
+LOCAL_BIN_DIR="${HOME}/.local/bin"
+ELIZA_BIN_LINK="${LOCAL_BIN_DIR}/eliza-agent"
+ELIZA_BIN_SOURCE="${ROOT}/bin/eliza-agent"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,6 +64,51 @@ else
   printf "%s\n" "${amber}Skipping dependency install because this is a dry run.${reset}"
 fi
 
+setup_path() {
+  printf "%s\n" "${amber}Forging the local eliza-agent command...${reset}"
+  mkdir -p "$LOCAL_BIN_DIR"
+  chmod +x "$ELIZA_BIN_SOURCE"
+  ln -sf "$ELIZA_BIN_SOURCE" "$ELIZA_BIN_LINK"
+
+  if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN_DIR"; then
+    local path_line='export PATH="$HOME/.local/bin:$PATH"'
+    local shell_configs=()
+    case "$(basename "${SHELL:-/bin/bash}")" in
+      zsh)
+        [[ -f "$HOME/.zshrc" ]] && shell_configs+=("$HOME/.zshrc")
+        [[ -f "$HOME/.zprofile" ]] && shell_configs+=("$HOME/.zprofile")
+        if [[ ${#shell_configs[@]} -eq 0 ]]; then
+          touch "$HOME/.zshrc"
+          shell_configs+=("$HOME/.zshrc")
+        fi
+        ;;
+      bash)
+        [[ -f "$HOME/.bashrc" ]] && shell_configs+=("$HOME/.bashrc")
+        [[ -f "$HOME/.bash_profile" ]] && shell_configs+=("$HOME/.bash_profile")
+        ;;
+      *)
+        [[ -f "$HOME/.profile" ]] && shell_configs+=("$HOME/.profile")
+        [[ -f "$HOME/.zshrc" ]] && shell_configs+=("$HOME/.zshrc")
+        [[ -f "$HOME/.bashrc" ]] && shell_configs+=("$HOME/.bashrc")
+        ;;
+    esac
+    [[ -f "$HOME/.profile" ]] && shell_configs+=("$HOME/.profile")
+
+    for shell_config in "${shell_configs[@]}"; do
+      if ! grep -v '^[[:space:]]*#' "$shell_config" 2>/dev/null | grep -q '\.local/bin'; then
+        {
+          echo
+          echo "# Eliza Agent — ensure ~/.local/bin is on PATH"
+          echo "$path_line"
+        } >> "$shell_config"
+      fi
+    done
+  fi
+
+  export PATH="$LOCAL_BIN_DIR:$PATH"
+  printf "%s\n" "${dim}  eliza-agent -> ${ELIZA_BIN_LINK}${reset}"
+}
+
 BOOTSTRAP_ARGS=()
 if [[ "$HEADLESS" -eq 1 ]]; then
   BOOTSTRAP_ARGS+=("--headless")
@@ -76,10 +124,12 @@ if [[ "$ASSUME_YES" -eq 1 ]]; then
 fi
 
 printf "%s\n" "${amber}Beginning the awakening sequence...${reset}"
+setup_path
 bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
 
 printf "\n%s\n" "${orange}${bold}Install complete.${reset}"
 printf "%s\n" "${dim}  The shell is warm. The channels are waiting.${reset}"
-printf "%s\n" "  bun run start"
-printf "%s\n" "  bun run start --plain-cli"
-printf "%s\n" "  bun run dev"
+printf "%s\n" "  eliza-agent"
+printf "%s\n" "  eliza-agent plain"
+printf "%s\n" "  eliza-agent setup"
+printf "%s\n" "  eliza-agent doctor"

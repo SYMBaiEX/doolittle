@@ -194,6 +194,43 @@ bun run smoke:linked-providers
 bun run publish:providers:check
 ```
 
+## Local install and launch
+
+Hermes leaves you with a real shell command after install. Eliza Agent now does the same.
+
+From the repo root:
+
+```bash
+bash scripts/install.sh
+```
+
+That flow:
+
+- runs `bun install`
+- creates `~/.local/bin/eliza-agent`
+- updates your shell PATH if needed
+- launches the onboarding ritual immediately
+
+After that, the normal local UX is:
+
+```bash
+eliza-agent
+eliza-agent plain
+eliza-agent setup
+eliza-agent doctor
+```
+
+Command notes:
+
+- `eliza-agent`
+  - starts the normal runtime and TUI flow
+- `eliza-agent plain`
+  - starts the plain CLI instead of the full operator deck
+- `eliza-agent setup`
+  - reruns onboarding
+- `eliza-agent doctor`
+  - runs the installer/bootstrap readiness check
+
 ## Linked provider plugins
 
 Eliza Agent now includes first-class linked-account providers for users who are already signed into Codex or Claude Code locally.
