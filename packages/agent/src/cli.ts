@@ -917,6 +917,7 @@ function renderFooter(
   context: AppContext,
   busy: boolean,
   queueDepth: number,
+  hint = "Esc input",
 ): string {
   return [
     `${context.config.agentName} TUI`,
@@ -928,7 +929,7 @@ function renderFooter(
     "{cyan-fg}!cmd{/} shell",
     "{cyan-fg}Ctrl-T/Y{/} theme",
     "{cyan-fg}Alt-1..4{/} deck",
-    "Esc input",
+    hint,
     "{cyan-fg}Ctrl-Q{/} quit",
   ].join("  |  ");
 }
@@ -1279,6 +1280,7 @@ async function startTui(context: AppContext): Promise<void> {
     inputBox,
   ];
   let focusIndex = focusables.length - 1;
+  let footerHint = "Esc input";
 
   function textEntryFocused(): boolean {
     return (
@@ -1300,6 +1302,51 @@ async function startTui(context: AppContext): Promise<void> {
   function focusPrimaryInput(): void {
     focusIndex = focusables.length - 1;
     inputBox.focus();
+    screen.render();
+  }
+
+  function footerHintForCurrentFocus(): string {
+    if (composerOpen) {
+      return "Ctrl-S submit draft";
+    }
+    if (paletteOpen) {
+      return screen.focused === paletteList
+        ? "Enter run selected"
+        : "Enter search top match";
+    }
+    if (screen.focused === inputBox) {
+      return "Enter send  ↑/↓ history";
+    }
+    if (screen.focused === response) {
+      return "PgUp/PgDn scroll response";
+    }
+    if (screen.focused === activity) {
+      return "PgUp/PgDn scroll activity";
+    }
+    if (screen.focused === sidebar) {
+      return "Enter sessions";
+    }
+    if (screen.focused === transportBox) {
+      return "Enter gateway readiness";
+    }
+    if (screen.focused === executionBox) {
+      return "Enter execution status";
+    }
+    if (screen.focused === assistBox) {
+      return controlDeckMode === "assist"
+        ? "Enter top suggestion"
+        : controlDeckMode === "gateway"
+          ? "Enter gateway supervision"
+          : controlDeckMode === "ecosystem"
+            ? "Enter runtime ecosystem"
+            : "Enter responses list";
+    }
+    return "Esc input";
+  }
+
+  function updateFooterHint(): void {
+    footerHint = footerHintForCurrentFocus();
+    footer.setContent(renderFooter(context, busy, queueDepth, footerHint));
     screen.render();
   }
 
@@ -1371,6 +1418,7 @@ async function startTui(context: AppContext): Promise<void> {
     paletteSelectionIndex = 0;
     paletteList.select(0);
     paletteInput.focus();
+    updateFooterHint();
     screen.render();
   }
 
@@ -1380,6 +1428,7 @@ async function startTui(context: AppContext): Promise<void> {
     paletteInput.clearValue();
     paletteList.setItems([]);
     focusPrimaryInput();
+    updateFooterHint();
   }
 
   function openComposer(initialValue = ""): void {
@@ -1391,6 +1440,7 @@ async function startTui(context: AppContext): Promise<void> {
     composerOverlay.show();
     composer.setValue(preservedValue);
     composer.focus();
+    updateFooterHint();
     screen.render();
   }
 
@@ -1399,6 +1449,7 @@ async function startTui(context: AppContext): Promise<void> {
     composerOverlay.hide();
     composer.clearValue();
     focusPrimaryInput();
+    updateFooterHint();
   }
 
   function setInputValue(value: string): void {
@@ -1514,7 +1565,7 @@ async function startTui(context: AppContext): Promise<void> {
     transportBox.setContent(await renderTransportContent(context));
     executionBox.setContent(await renderExecutionContent(context));
     await renderControlDeck(controlDeckMode);
-    footer.setContent(renderFooter(context, busy, queueDepth));
+    footer.setContent(renderFooter(context, busy, queueDepth, footerHint));
     screen.render();
   }
 
@@ -1643,6 +1694,7 @@ async function startTui(context: AppContext): Promise<void> {
           assistBox.setContent(renderSuggestionsContent(""));
         }
         inputBox.focus();
+        updateFooterHint();
         screen.render();
         void processQueue();
       }
@@ -1712,6 +1764,7 @@ async function startTui(context: AppContext): Promise<void> {
     if (controlDeckMode === "assist") {
       assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
       screen.render();
+      updateFooterHint();
     }
   });
 
@@ -1730,6 +1783,7 @@ async function startTui(context: AppContext): Promise<void> {
     paletteList.setItems(renderPaletteItems(query));
     paletteSelectionIndex = 0;
     paletteList.select(0);
+    updateFooterHint();
     screen.render();
   });
 
@@ -1767,6 +1821,7 @@ async function startTui(context: AppContext): Promise<void> {
       if (!current) {
         paletteSelectionIndex = 0;
         paletteList.select(0);
+        updateFooterHint();
         screen.render();
         return;
       }
@@ -1776,6 +1831,7 @@ async function startTui(context: AppContext): Promise<void> {
           : Math.min(suggestions.length - 1, paletteSelectionIndex + 1);
       paletteSelectionIndex = nextIndex;
       paletteList.select(nextIndex);
+      updateFooterHint();
       screen.render();
     });
   }
@@ -1821,6 +1877,7 @@ async function startTui(context: AppContext): Promise<void> {
     }
     if (paletteOpen) {
       paletteList.focus();
+      updateFooterHint();
       screen.render();
       return;
     }
@@ -1836,6 +1893,7 @@ async function startTui(context: AppContext): Promise<void> {
     }
     if (paletteOpen) {
       paletteInput.focus();
+      updateFooterHint();
       screen.render();
       return;
     }
@@ -1852,6 +1910,7 @@ async function startTui(context: AppContext): Promise<void> {
       return;
     }
     inputBox.focus();
+    updateFooterHint();
     screen.render();
   });
   screen.key(["C-l"], () => {
@@ -1957,6 +2016,28 @@ async function startTui(context: AppContext): Promise<void> {
     scheduleRefreshPanels(0);
   });
 
+  screen.on("warning", (warning) => {
+    appendActivity("warn", truncate(String(warning), 160), "warning");
+    footerHint = "Check warning in activity";
+    void refreshPanels();
+  });
+
+  for (const element of [
+    activity,
+    response,
+    sidebar,
+    transportBox,
+    executionBox,
+    assistBox,
+    paletteInput,
+    paletteList,
+    composer,
+    inputBox,
+  ]) {
+    element.on("focus", () => updateFooterHint());
+    element.on("click", () => updateFooterHint());
+  }
+
   unsubscribers.push(
     context.gateway.onUpdate((event) => {
       appendActivity(
@@ -2022,6 +2103,7 @@ async function startTui(context: AppContext): Promise<void> {
   await refreshPanels();
   syncLayout();
   inputBox.focus();
+  updateFooterHint();
   screen.render();
 
   await new Promise<void>((resolve) => {

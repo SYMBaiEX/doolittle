@@ -379,6 +379,8 @@ function banner(): void {
 function createWizardScreen(
   initial?: Partial<WizardSnapshot>,
 ): WizardScreenContext {
+  const MIN_COLS = 88;
+  const MIN_ROWS = 28;
   const screen = blessed.screen({
     smartCSR: true,
     fullUnicode: true,
@@ -398,6 +400,8 @@ function createWizardScreen(
   };
   const chromeTop = 4;
   let activeThemeName = DEFAULT_TUI_THEME;
+  let footerContent =
+    " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-T next theme  Ctrl-Y previous theme  Ctrl-C exit ";
   const header = blessed.box({
     parent: screen,
     top: 0,
@@ -481,9 +485,14 @@ function createWizardScreen(
       fg: "#9dd7ff",
       bg: "#151c24",
     },
-    content:
-      " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-T next theme  Ctrl-Y previous theme  Ctrl-C exit ",
+    content: footerContent,
   });
+
+  const setFooter = (content: string) => {
+    footerContent = content;
+    _footer.setContent(content);
+    screen.render();
+  };
 
   const applyTheme = (themeName: TuiThemeName) => {
     activeThemeName = themeName;
@@ -515,7 +524,7 @@ function createWizardScreen(
     };
     _footer.style.fg = theme.cyanGlow;
     _footer.style.bg = theme.baseBg;
-    _footer.setContent(
+    setFooter(
       ` ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Theme preview ${theme.label}  Highlight ${secondaryFg === "black" ? "dark" : "light"} text `,
     );
   };
@@ -523,6 +532,9 @@ function createWizardScreen(
 
   const render = () => {
     const theme = getTuiTheme(activeThemeName);
+    const tooSmall =
+      (screen.width as number) < MIN_COLS ||
+      (screen.height as number) < MIN_ROWS;
     header.setContent(
       `{bold}${snapshot.title}{/bold}\n${snapshot.subtitle}\n{gray-fg}Theme:{/gray-fg} ${theme.label} · ${theme.tagline}`,
     );
@@ -536,13 +548,29 @@ function createWizardScreen(
         .join("\n"),
     );
     detail.setContent(
-      `{bold}${snapshot.currentSection}{/bold}\n${snapshot.currentDetail}`,
+      tooSmall
+        ? `{bold}Terminal Too Small{/bold}\nResize to at least ${MIN_COLS}×${MIN_ROWS} for the fullscreen ritual. Press Ctrl-C to exit or resize to continue.`
+        : `{bold}${snapshot.currentSection}{/bold}\n${snapshot.currentDetail}`,
     );
-    logBox.setContent(snapshot.logLines.join("\n"));
-    logBox.setScrollPerc(100);
+    logBox.setContent(
+      tooSmall
+        ? snapshot.logLines
+            .slice(-8)
+            .concat([
+              `WARNING: fullscreen ritual needs ${MIN_COLS}×${MIN_ROWS}; current terminal is ${screen.width as number}×${screen.height as number}.`,
+            ])
+            .join("\n")
+        : snapshot.logLines.join("\n"),
+    );
+    if (!tooSmall) {
+      logBox.setScrollPerc(100);
+    }
     screen.render();
   };
   screen.on("resize", render);
+  screen.on("warning", (warning) => {
+    appendLine(`WARNING: ${String(warning)}`);
+  });
 
   const appendLine = (message: string) => {
     snapshot.logLines.push(message);
@@ -602,6 +630,7 @@ function createWizardScreen(
       });
       mount(overlay, (value) => {
         overlay.destroy();
+        applyTheme(activeThemeName);
         render();
         settle(value);
       });
@@ -645,6 +674,9 @@ function createWizardScreen(
           tags: true,
           content: "{gray-fg}Enter save · Esc keep current{/gray-fg}",
         });
+        setFooter(
+          " Type and press Enter to save  |  Esc keeps current  |  Ctrl-C exits ",
+        );
         let settled = false;
         const finish = (value: string) => {
           if (settled) {
@@ -717,6 +749,9 @@ function createWizardScreen(
         };
         list.focus();
         applySelection(selectedIndex);
+        setFooter(
+          " ↑/↓ move  |  Enter or Space confirm  |  Esc keeps current ",
+        );
         list.key(["up", "left"], () => applySelection(selectedIndex - 1));
         list.key(["down", "right"], () => applySelection(selectedIndex + 1));
         list.key(["1", "2"], (_ch, key) => {
@@ -807,6 +842,9 @@ function createWizardScreen(
         list.focus();
         screen.render();
         updateDetail();
+        setFooter(
+          " ↑/↓ move  |  Enter or Space confirm  |  Esc keeps current ",
+        );
         list.key(["up", "left"], () => {
           selectedIndex = clampIndex(selectedIndex - 1);
           updateDetail();
@@ -898,6 +936,9 @@ function createWizardScreen(
         };
         list.focus();
         refresh();
+        setFooter(
+          " ↑/↓ move  |  Space toggle  |  Enter confirm  |  Esc keeps current ",
+        );
         list.on("select item", (_item, index) => {
           cursorIndex = clampIndex(index);
           refresh();
