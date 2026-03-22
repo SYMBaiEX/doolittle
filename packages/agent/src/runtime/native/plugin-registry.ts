@@ -15,6 +15,7 @@ import { createKnowledgePlugin } from "@elizaos/plugin-knowledge";
 import { createLocalEmbeddingPlugin } from "@elizaos/plugin-local-embedding";
 import { openaiPlugin } from "@elizaos/plugin-openai";
 import { pdfPlugin } from "@elizaos/plugin-pdf";
+import { createPlanningPlugin } from "@elizaos/plugin-planning";
 import { createPluginManagerPlugin } from "@elizaos/plugin-plugin-manager";
 import { createRolodexPlugin } from "@elizaos/plugin-rolodex";
 import sqlPlugin from "@elizaos/plugin-sql";
@@ -269,6 +270,16 @@ export function buildNativePluginAssembly(
             .length,
           categories: Object.keys(groupedCatalog).length,
         }),
+      },
+    }),
+    createPlanningPlugin({
+      delegation: {
+        list: () => services.delegation.list(),
+        get: (id) => services.delegation.get(id),
+      },
+      workflows: {
+        list: (limit = 50) => services.autocoderPipeline.listWorkflows(limit),
+        get: (id) => services.autocoderPipeline.workflow(id),
       },
     }),
   ];

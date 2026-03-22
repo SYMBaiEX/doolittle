@@ -297,6 +297,16 @@ export function getNativePackageAudit(config: EnvConfig): {
       note: "Official plugin-manager package is now owned directly on the alpha line.",
     },
     {
+      packageName: "@elizaos/plugin-planning",
+      role: "execution",
+      currentStrategy: "vendored",
+      currentTag: "workspace",
+      latestTagVersion: "1.2.0",
+      alphaTagVersion: "2.0.0-alpha.3",
+      compatibility: "vendored-by-design",
+      note: "Workspace-native planning plugin links native delegation and workflow graphs on the alpha.85 stack.",
+    },
+    {
       packageName: "@elizaos/plugin-cron",
       role: "automation",
       currentStrategy: "official",

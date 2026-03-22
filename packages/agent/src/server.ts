@@ -26,6 +26,7 @@ import {
   compareEffectiveBrowserPages,
   createEffectiveDelegationTask,
   createEffectiveForm,
+  createEffectivePlan,
   createEffectiveRepository,
   createEffectiveSandbox,
   deleteEffectiveRepository,
@@ -53,6 +54,7 @@ import {
   getEffectiveMemorySnapshot,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
+  getEffectivePlan,
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
   getEffectiveSecret,
@@ -80,6 +82,7 @@ import {
   getNativeMediaControlPlane,
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
+  getNativePlanningControlPlane,
   getNativeResearchControlPlane,
   getNativeServices,
   getNativeTransportControlPlane,
@@ -90,6 +93,7 @@ import {
   invokeEffectiveMcpTool,
   killEffectiveSandbox,
   listEffectiveForms,
+  listEffectivePlans,
   listEffectiveSandboxes,
   listEffectiveSecretKeys,
   performEffectiveCodeQa,
@@ -1607,10 +1611,23 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/runtime/planning") {
+        return json({
+          planning: getNativePlanningControlPlane(context.runtime),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/forms") {
         return json({
           control: getNativeFormsControlPlane(context.runtime),
           forms: await listEffectiveForms(context.runtime),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/plans") {
+        return json({
+          control: getNativePlanningControlPlane(context.runtime),
+          plans: await listEffectivePlans(context.runtime),
         });
       }
 
@@ -1639,6 +1656,24 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "POST" && url.pathname === "/plans/create") {
+        const body = (await request.json()) as {
+          title?: string;
+          objective?: string;
+          status?: "draft" | "active" | "completed";
+          taskId?: string;
+          workflowId?: string;
+          metadata?: Record<string, unknown>;
+          steps?: string[];
+        };
+        if (!body.title || !body.objective) {
+          return json({ error: "title and objective are required" }, 400);
+        }
+        return json({
+          plan: await createEffectivePlan(context.runtime, body),
+        });
+      }
+
       if (
         request.method === "GET" &&
         url.pathname.startsWith("/forms/") &&
@@ -1647,6 +1682,13 @@ export function startApiServer(context: AppContext): void {
         const formId = decodeURIComponent(url.pathname.replace("/forms/", ""));
         return json({
           form: await getEffectiveForm(context.runtime, formId),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname.startsWith("/plans/")) {
+        const planId = decodeURIComponent(url.pathname.replace("/plans/", ""));
+        return json({
+          plan: await getEffectivePlan(context.runtime, planId),
         });
       }
 

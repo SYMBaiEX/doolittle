@@ -55,6 +55,7 @@
     "@elizaos/plugin-openai": "alpha",
     "@elizaos/plugin-pdf": "alpha",
     "@elizaos/plugin-personality": "workspace:*",
+    "@elizaos/plugin-planning": "workspace:*",
     "@elizaos/plugin-plugin-manager": "workspace:*",
     "@elizaos/plugin-rolodex": "workspace:*",
     "@elizaos/plugin-shell": "workspace:*",

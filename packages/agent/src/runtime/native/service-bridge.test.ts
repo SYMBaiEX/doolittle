@@ -4,6 +4,7 @@ import type { RuntimeLike } from "./service-bridge";
 import {
   cancelEffectiveForm,
   createEffectiveForm,
+  createEffectivePlan,
   createEffectiveRepository,
   createEffectiveSandbox,
   deleteEffectiveRepository,
@@ -20,6 +21,7 @@ import {
   getEffectiveMemorySnapshot,
   getEffectiveMessagingTransportInventory,
   getEffectivePersonalitySummary,
+  getEffectivePlan,
   getEffectivePluginManagerInventory,
   getEffectiveRolodexSummary,
   getEffectiveSecret,
@@ -28,10 +30,12 @@ import {
   getNativeFormsControlPlane,
   getNativeMediaControlPlane,
   getNativeMessagingTransportState,
+  getNativePlanningControlPlane,
   getNativeResearchControlPlane,
   getNativeTransportControlPlane,
   killEffectiveSandbox,
   listEffectiveForms,
+  listEffectivePlans,
   listEffectiveSandboxes,
   listEffectiveSecretKeys,
   performEffectiveCodeQa,
@@ -77,6 +81,16 @@ describe("getEffectiveMessagingTransportInventory", () => {
             generateCodeInternal: () => undefined,
           };
         }
+        if (name === "planning") {
+          return {
+            capabilityDescription: "planning",
+            listPlans: () => [
+              { id: "plan-1", taskId: "task-1", status: "active" },
+              { id: "plan-2", workflowId: "workflow-1", status: "draft" },
+            ],
+            createPlan: async (input: unknown) => input,
+          };
+        }
         if (name === "github") {
           return {
             createRepository: () => undefined,
@@ -95,6 +109,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
     } as unknown as RuntimeLike;
 
     const forms = getNativeFormsControlPlane(runtime);
+    const planning = getNativePlanningControlPlane(runtime);
     const execution = getNativeExecutionControlPlane(runtime);
 
     expect(forms.available).toBe(true);
@@ -102,7 +117,11 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(forms.forms.total).toBe(2);
     expect(forms.forms.active).toBe(1);
     expect(forms.persistenceAvailable).toBe(true);
+    expect(planning.available).toBe(true);
+    expect(planning.plans.total).toBe(2);
     expect(execution.e2b.available).toBe(true);
+    expect(execution.planning.available).toBe(true);
+    expect(execution.planning.plans.total).toBe(2);
     expect(execution.e2b.sandboxes).toBe(1);
     expect(execution.codeGeneration.available).toBe(true);
     expect(execution.codeGeneration.ready).toBe(true);
@@ -163,6 +182,16 @@ describe("getEffectiveMessagingTransportInventory", () => {
             }),
           };
         }
+        if (name === "planning") {
+          return {
+            listPlans: () => [{ id: "plan-1", status: "active" }],
+            createPlan: async (input: unknown) => ({
+              id: "plan-created",
+              ...((input as Record<string, unknown>) ?? {}),
+            }),
+            getPlan: async (id: string) => ({ id, status: "active" }),
+          };
+        }
         if (name === "github") {
           return {
             createRepository: async (name: string, isPrivate = true) => ({
@@ -185,6 +214,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
     } as unknown as RuntimeLike;
 
     expect(await listEffectiveForms(runtime)).toHaveLength(1);
+    expect(await listEffectivePlans(runtime)).toHaveLength(1);
     expect(getEffectiveFormTemplates(runtime)).toHaveLength(1);
     expect(
       await createEffectiveForm(runtime, "intake", { owner: "eliza" }),
@@ -195,6 +225,19 @@ describe("getEffectiveMessagingTransportInventory", () => {
     });
     expect(await getEffectiveForm(runtime, "form-created")).toEqual({
       id: "form-created",
+      status: "active",
+    });
+    expect(
+      await createEffectivePlan(runtime, {
+        title: "Plan native ownership",
+        objective: "Drive execution through native services.",
+      }),
+    ).toMatchObject({
+      id: "plan-created",
+      title: "Plan native ownership",
+    });
+    expect(await getEffectivePlan(runtime, "plan-created")).toEqual({
+      id: "plan-created",
       status: "active",
     });
     expect(await cancelEffectiveForm(runtime, "form-created")).toBe(true);

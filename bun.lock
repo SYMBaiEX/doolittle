@@ -28,6 +28,7 @@
         "@elizaos/plugin-openai": "alpha",
         "@elizaos/plugin-pdf": "alpha",
         "@elizaos/plugin-personality": "workspace:*",
+        "@elizaos/plugin-planning": "workspace:*",
         "@elizaos/plugin-plugin-manager": "workspace:*",
         "@elizaos/plugin-rolodex": "workspace:*",
         "@elizaos/plugin-shell": "workspace:*",
@@ -179,6 +180,13 @@
     },
     "packages/plugins/plugin-personality": {
       "name": "@elizaos/plugin-personality",
+      "version": "2.0.0-alpha.85-patched.0",
+      "dependencies": {
+        "@elizaos/core": "2.0.0-alpha.85",
+      },
+    },
+    "packages/plugins/plugin-planning": {
+      "name": "@elizaos/plugin-planning",
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
         "@elizaos/core": "2.0.0-alpha.85",
@@ -432,6 +440,8 @@
     "@elizaos/plugin-personality": ["@elizaos/plugin-personality@workspace:packages/plugins/plugin-personality"],
 
     "@elizaos/plugin-pi-ai": ["@elizaos/plugin-pi-ai@1.7.3-alpha.3", "", { "dependencies": { "@elizaos/core": "next", "@mariozechner/pi-ai": "0.52.12", "zod": "^4.3.5" } }, "sha512-G1T8RjQzySYYXdQsJhhA16eFZuT1DFYCRh6VS3Guboz1H3NgsHjVAFFN9M/j3F0pKVNIM4RNs6q94PKzkYXAXQ=="],
+
+    "@elizaos/plugin-planning": ["@elizaos/plugin-planning@workspace:packages/plugins/plugin-planning"],
 
     "@elizaos/plugin-plugin-manager": ["@elizaos/plugin-plugin-manager@workspace:packages/plugins/plugin-plugin-manager"],
 

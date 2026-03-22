@@ -195,6 +195,7 @@ interface NativeOwnershipSnapshot {
   media: ReturnType<typeof getNativeMediaControlPlane>;
   research: ReturnType<typeof getNativeResearchControlPlane>;
   forms: ReturnType<typeof getNativeFormsControlPlane>;
+  planning: ReturnType<typeof getNativePlanningControlPlane>;
   execution: ReturnType<typeof getNativeExecutionControlPlane>;
 }
 
@@ -250,6 +251,14 @@ interface NativeFormsService {
   getForm?: (formId: string) => Promise<unknown>;
   cancelForm?: (formId: string) => Promise<boolean>;
   forcePersist?: () => Promise<unknown>;
+}
+
+interface NativePlanningService {
+  capabilityDescription?: string;
+  listPlans?: () => unknown[];
+  getPlan?: (planId: string) => Promise<unknown> | unknown;
+  createPlan?: (input: unknown) => Promise<unknown> | unknown;
+  summary?: () => unknown;
 }
 
 interface NativeE2BService {
@@ -401,6 +410,11 @@ interface AutonomousControlPlaneSummary {
       available: boolean;
       sandboxes: number;
     };
+    planning: {
+      source: "native" | "product";
+      available: boolean;
+      plans: number;
+    };
     codeGeneration: {
       source: "native" | "product";
       available: boolean;
@@ -536,6 +550,7 @@ export function getNativeServices(runtime: RuntimeLike) {
     ),
     e2b: service<NativeE2BService>(runtime, "e2b"),
     forms: service<NativeFormsService>(runtime, "forms"),
+    planning: service<NativePlanningService>(runtime, "planning"),
     github: service<NativeGitHubService>(runtime, "github"),
     secretsManager: service<NativeSecretsManagerService>(
       runtime,
@@ -607,6 +622,41 @@ export function getNativeFormsControlPlane(runtime: RuntimeLike) {
   };
 }
 
+export function getNativePlanningControlPlane(runtime: RuntimeLike) {
+  const planning = getNativeServices(runtime).planning;
+  const rawPlans = planning?.listPlans?.() ?? [];
+  const plans = Array.isArray(rawPlans) ? rawPlans : [];
+  const linkedTasks = plans.filter((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    return Boolean((entry as { taskId?: unknown }).taskId);
+  }).length;
+  const linkedWorkflows = plans.filter((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    return Boolean((entry as { workflowId?: unknown }).workflowId);
+  }).length;
+
+  return {
+    source: planning ? ("native-plugin" as const) : ("product" as const),
+    available: Boolean(planning),
+    capability:
+      planning?.capabilityDescription ??
+      "Native planning service for execution plans linked to delegation tasks and workflow graphs.",
+    plans: {
+      total: plans.length,
+      linkedTasks,
+      linkedWorkflows,
+    },
+    supportsCreate: typeof planning?.createPlan === "function",
+    detail: planning
+      ? `Planning service is live with ${plans.length} plans, ${linkedTasks} linked tasks, and ${linkedWorkflows} linked workflows.`
+      : "Planning service is not available in the native runtime.",
+  };
+}
+
 export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
   const native = getNativeServices(runtime);
   const sandboxes = native.e2b?.listSandboxes?.() ?? [];
@@ -628,6 +678,7 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
   );
   const rawSecretKeys = native.secretsManager?.listSecretKeys?.();
   const secretKeys = Array.isArray(rawSecretKeys) ? rawSecretKeys : [];
+  const planningControl = getNativePlanningControlPlane(runtime);
 
   return {
     e2b: {
@@ -644,6 +695,7 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
         ? `E2B runtime has ${sandboxes.length} active sandboxes${activeSandboxId ? ` with ${activeSandboxId} selected` : ""}.`
         : "E2B sandbox service is unavailable.",
     },
+    planning: planningControl,
     codeGeneration: {
       source: native.codeGeneration
         ? ("native-plugin" as const)
@@ -1982,6 +2034,12 @@ export async function listEffectiveForms(
   return getNativeServices(runtime).forms?.listForms?.() ?? [];
 }
 
+export async function listEffectivePlans(
+  runtime: RuntimeLike,
+): Promise<unknown[]> {
+  return getNativeServices(runtime).planning?.listPlans?.() ?? [];
+}
+
 export function getEffectiveFormTemplates(runtime: RuntimeLike) {
   const templates = getNativeServices(runtime).forms?.getTemplates?.();
   if (templates instanceof Map) {
@@ -2008,12 +2066,31 @@ export async function createEffectiveForm(
   return forms.createForm(templateOrForm, metadata);
 }
 
+export async function createEffectivePlan(
+  runtime: RuntimeLike,
+  input: unknown,
+) {
+  const planning = getNativeServices(runtime).planning;
+  if (!planning?.createPlan) {
+    throw new Error("Native planning service is unavailable.");
+  }
+  return planning.createPlan(input);
+}
+
 export async function getEffectiveForm(runtime: RuntimeLike, formId: string) {
   const forms = getNativeServices(runtime).forms;
   if (!forms?.getForm) {
     throw new Error("Native forms service is unavailable.");
   }
   return forms.getForm(formId);
+}
+
+export async function getEffectivePlan(runtime: RuntimeLike, planId: string) {
+  const planning = getNativeServices(runtime).planning;
+  if (!planning?.getPlan) {
+    throw new Error("Native planning service is unavailable.");
+  }
+  return planning.getPlan(planId);
 }
 
 export async function cancelEffectiveForm(
@@ -2113,6 +2190,7 @@ export function getAutonomousControlPlane(
     native.agentOrchestrator,
     native.trajectoryLogger,
     native.pluginManager,
+    native.planning,
   ];
 
   return {
@@ -2197,6 +2275,11 @@ export function getAutonomousControlPlane(
         available: Boolean(native.e2b),
         sandboxes: executionControl.e2b.sandboxes,
       },
+      planning: {
+        source: native.planning ? "native" : "product",
+        available: Boolean(native.planning),
+        plans: executionControl.planning.plans.total,
+      },
       codeGeneration: {
         source: native.codeGeneration ? "native" : "product",
         available: Boolean(native.codeGeneration),
@@ -2244,6 +2327,7 @@ export async function getNativeOwnershipSnapshot(
     media: getNativeMediaControlPlane(config),
     research: getNativeResearchControlPlane(runtime),
     forms: getNativeFormsControlPlane(runtime),
+    planning: getNativePlanningControlPlane(runtime),
     execution: getNativeExecutionControlPlane(runtime),
   };
 }

@@ -160,6 +160,12 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
       "Show native forms ownership, template counts, and persistence state.",
   },
   {
+    command: "/runtime planning",
+    category: "runtime",
+    description:
+      "Show native planning ownership, linked task/workflow counts, and execution readiness.",
+  },
+  {
     command: "/forms list",
     category: "runtime",
     description: "List native forms and their current status.",
@@ -183,6 +189,22 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     command: "/forms cancel <form-id>",
     category: "runtime",
     description: "Cancel one native form.",
+  },
+  {
+    command: "/plans list",
+    category: "runtime",
+    description:
+      "List native execution plans and their linked task/workflow state.",
+  },
+  {
+    command: "/plans create <title> :: <objective> [:: <json-metadata>]",
+    category: "runtime",
+    description: "Create a native execution plan with optional metadata.",
+  },
+  {
+    command: "/plans show <plan-id>",
+    category: "runtime",
+    description: "Inspect one native execution plan.",
   },
   {
     command: "/runtime e2b",

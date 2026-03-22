@@ -228,6 +228,15 @@ export function getNativePluginCatalog(
       notes: "Official plugin manager service on the alpha line.",
     },
     {
+      id: "execution.planning",
+      packageName: "@elizaos/plugin-planning",
+      category: "execution",
+      source: "vendored",
+      enabled: true,
+      notes:
+        "Workspace-native planning plugin linking native delegation tasks and workflow graphs.",
+    },
+    {
       id: "integration.mcp",
       packageName: "@elizaos/plugin-mcp",
       category: "integration",
