@@ -595,6 +595,34 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
 }
 
 function renderSuggestionsContent(inputValue: string): string {
+  if (!inputValue.trim()) {
+    return [
+      "{bold}Launchpad{/}",
+      "",
+      "{bold}Talk To Me{/}",
+      "- summarize this repo and tell me what matters",
+      "- what machine am I on and what tools can you use here",
+      "- plan the next coding step for this project",
+      "",
+      "{bold}Use The Shell{/}",
+      "- !pwd",
+      "- !git status",
+      "- !uname -a",
+      "",
+      "{bold}Operator Controls{/}",
+      `- ${canonicalizeSlashCommandSyntax("/status")}`,
+      `- ${canonicalizeSlashCommandSyntax("/accounts")}`,
+      `- ${canonicalizeSlashCommandSyntax("/theme list")}`,
+      `- ${canonicalizeSlashCommandSyntax("/gateway readiness")}`,
+      "",
+      "{bold}Quick Picks{/}",
+      ...suggestCommands("", 4).map(
+        (entry, index) =>
+          `${index === 0 ? "{green-fg}*{/} " : "- "}${entry.command}\n  {gray-fg}${entry.description}{/}`,
+      ),
+    ].join("\n");
+  }
+
   const suggestions = suggestCommands(inputValue, 6);
   const title = inputValue.trim()
     ? `{bold}Suggestions for{/} {cyan-fg}${truncate(inputValue, 24)}{/}`
@@ -1471,7 +1499,7 @@ async function startTui(context: AppContext): Promise<void> {
       case "responses":
         return " Control Deck · Responses ";
       default:
-        return " Control Deck · Assist ";
+        return " Launchpad · Assist ";
     }
   }
 
@@ -2092,12 +2120,12 @@ async function startTui(context: AppContext): Promise<void> {
   );
   appendActivity(
     "tip",
-    `Use Ctrl-E for multiline compose, ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes, and streamed local terminal output will appear live in the feed.`,
+    `Use Ctrl-E for multiline compose, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
     "info",
   );
   pushResponseEntry(
-    "Operator Cockpit Ready",
-    `Use the right rail for runtime, transport, execution, and command assist.\nTry /help, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/execution status")}, ${canonicalizeSlashCommandSyntax("/browser capture <url>")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.`,
+    "Helm Ready",
+    `You are live in the Eliza Agent cockpit.\n\nStart with a natural request like "summarize this repo" or run a shell command like !git status.\n\nWhen you want operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/execution status")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));
