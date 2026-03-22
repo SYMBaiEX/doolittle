@@ -190,7 +190,7 @@ async function runClaudeCodeTextGeneration(
   }
   const accessToken = credentials?.accessToken?.trim();
   const runtimeModel = getRuntimeModelSettings(runtime);
-  const model = runtimeModel.model || "claude-sonnet-4-20250514";
+  const model = runtimeModel.model || "claude-sonnet-4.6";
 
   if (!accessToken) {
     if (!options.allowCliFallback) {

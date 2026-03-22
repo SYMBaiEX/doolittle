@@ -29,7 +29,7 @@ const schema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   OPENAI_BASE_URL: z.string().default("https://api.openai.com/v1"),
-  OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
+  OPENAI_MODEL: z.string().default("gpt-5.4"),
   OPENAI_IMAGE_MODEL: z.string().optional(),
   OPENAI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.4),
   OPENAI_MAX_TOKENS: z.coerce.number().int().positive().default(1200),
@@ -44,7 +44,7 @@ const schema = z.object({
     .transform((value) => value === "true"),
   ANTHROPIC_BASE_URL: z.string().optional(),
   ANTHROPIC_SMALL_MODEL: z.string().default("claude-3-5-haiku-20241022"),
-  ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4-20250514"),
+  ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4.6"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_API_ROOT: z.string().optional(),
   TELEGRAM_ALLOWED_CHATS: z.string().optional(),

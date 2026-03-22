@@ -493,14 +493,14 @@ Useful commands:
 - `/user remember context :: we are shipping the final parity pass`
 - `/agent profile`
 - `/cron list`
-- `/cron create every 2h | name:deploy-review | delivery:home | skills:automation/reports | personality:focused | model:gpt-4.1-mini :: summarize recent deployment logs`
+- `/cron create every 2h | name:deploy-review | delivery:home | skills:automation/reports | personality:focused | model:gpt-5.4 :: summarize recent deployment logs`
 - `/cron show <job-id>`
 - `/cron update <job-id> every 4h | delivery:home | runtime:default :: refresh release notes`
 - `/cron runs`
 - `/personality list`
 - `/personality set autonomous`
 - `/model status`
-- `/model set model gpt-4.1-mini`
+- `/model set model gpt-5.4`
 - `/execution status`
 - `/execution backends`
 - `/execution bootstrap`

@@ -47,7 +47,7 @@ export interface CodexLiveGenerateParams {
 }
 
 const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
-const DEFAULT_CODEX_MODEL = "gpt-5.3-codex";
+const DEFAULT_CODEX_MODEL = "gpt-5.4";
 const DEFAULT_CODEX_INSTRUCTIONS =
   "You are Codex, operating as an ElizaOS-native coding agent. Be concise, accurate, and useful.";
 

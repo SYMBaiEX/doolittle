@@ -875,11 +875,56 @@ function resolveLinkedProviderName(
 }
 
 function defaultProviderModel(provider: LinkedProviderName): string {
-  return provider === "codex" ? "gpt-5.3-codex" : "claude-sonnet-4-20250514";
+  return provider === "codex" ? "gpt-5.4" : "claude-sonnet-4.6";
 }
 
 function defaultProviderBaseUrl(provider: LinkedProviderName): string {
   return provider === "codex" ? "https://chatgpt.com/backend-api/codex" : "";
+}
+
+async function getProviderReadinessMessage(
+  context: AgentExecutionContext,
+  provider: string,
+): Promise<string | undefined> {
+  const snapshot = getLinkedProviderAccountsSnapshot();
+
+  if (provider === "openai" && !context.config.openAiApiKey?.trim()) {
+    if (snapshot.codex.nativeReady || snapshot.codex.reusable) {
+      return [
+        "OpenAI is selected, but OPENAI_API_KEY is not configured.",
+        "A linked Codex account is ready on this machine.",
+        "Run `/accounts use codex` to activate it, or add OPENAI_API_KEY and try again.",
+      ].join(" ");
+    }
+    return "OpenAI is selected, but OPENAI_API_KEY is not configured. Add it in `.env` or run `/accounts` to bind a linked provider.";
+  }
+
+  if (provider === "anthropic" && !context.config.anthropicApiKey?.trim()) {
+    if (snapshot.claudeCode.nativeReady || snapshot.claudeCode.reusable) {
+      return [
+        "Anthropic is selected, but ANTHROPIC_API_KEY is not configured.",
+        "A linked Claude Code account is ready on this machine.",
+        "Run `/accounts use claude-code` to activate it, or add ANTHROPIC_API_KEY and try again.",
+      ].join(" ");
+    }
+    return "Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in `.env` or run `/accounts` to bind a linked provider.";
+  }
+
+  if (provider === "codex") {
+    const credentials = await resolveLinkedProviderCredentials("codex");
+    if (!credentials?.accessToken) {
+      return "Codex is selected, but no reusable Codex credentials are available. Run `/accounts connect codex` or `codex login`, then try again.";
+    }
+  }
+
+  if (provider === "claude-code") {
+    const credentials = await resolveLinkedProviderCredentials("claude-code");
+    if (!credentials?.accessToken) {
+      return "Claude Code is selected, but no native Claude Code credentials are available. Run `/accounts connect claude-code` or `claude setup-token`, then try again.";
+    }
+  }
+
+  return undefined;
 }
 
 export function activateLinkedProvider(
@@ -1835,7 +1880,7 @@ async function buildCommandResponse(
     const payload = trimmed.replace("/cron create ", "");
     const parsed = parseCronSegments(payload);
     if (!parsed) {
-      return "Usage: /cron create <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-4.1-mini :: <prompt>";
+      return "Usage: /cron create <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-5.4 :: <prompt>";
     }
 
     const created = context.services.cron.create({
@@ -1865,13 +1910,13 @@ async function buildCommandResponse(
     const payload = trimmed.replace("/cron update ", "").trim();
     const firstSpace = payload.indexOf(" ");
     if (firstSpace === -1) {
-      return "Usage: /cron update <job-id> <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-4.1-mini :: <prompt>";
+      return "Usage: /cron update <job-id> <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-5.4 :: <prompt>";
     }
     const id = payload.slice(0, firstSpace).trim();
     const rest = payload.slice(firstSpace + 1).trim();
     const parsed = parseCronSegments(rest);
     if (!id || !parsed) {
-      return "Usage: /cron update <job-id> <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-4.1-mini :: <prompt>";
+      return "Usage: /cron update <job-id> <schedule> | name:nightly | skills:slug-a,slug-b | personality:focus | provider:openai | model:gpt-5.4 :: <prompt>";
     }
     const updated = context.services.cron.updateConfig(id, {
       name: parsed.options.name,
@@ -5408,6 +5453,31 @@ export async function handleAgentTurn(
     return responseFromCommandLayer;
   }
 
+  let response = "";
+  const personalityBefore = context.services.personalities.getActive();
+  const settingsBefore = context.services.settings.get();
+  const settingsDuring = applyRuntimeOverrides(
+    settingsBefore,
+    options?.runtimeOverrides,
+  );
+
+  const readinessMessage = await getProviderReadinessMessage(
+    context,
+    settingsDuring.model.provider,
+  );
+  if (readinessMessage) {
+    context.services.sessions.storeMessage({
+      id: randomUUID(),
+      sessionId,
+      roomId,
+      entityId,
+      role: "assistant",
+      text: readinessMessage,
+      createdAt: nowIso(),
+    });
+    return readinessMessage;
+  }
+
   await context.runtime.ensureConnection({
     entityId: entityId as UUID,
     roomId: roomId as UUID,
@@ -5429,14 +5499,6 @@ export async function handleAgentTurn(
       channelType: ChannelType.DM,
     },
   });
-
-  let response = "";
-  const personalityBefore = context.services.personalities.getActive();
-  const settingsBefore = context.services.settings.get();
-  const settingsDuring = applyRuntimeOverrides(
-    settingsBefore,
-    options?.runtimeOverrides,
-  );
 
   if (
     settingsDuring.model.provider !== settingsBefore.model.provider ||

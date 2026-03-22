@@ -22,7 +22,7 @@ Credential source:
 ## Runtime Behavior
 
 - Provider id: `codex`
-- Default model: `gpt-5.3-codex`
+- Default model: `gpt-5.4`
 - Default base URL: `https://chatgpt.com/backend-api/codex`
 
 ## Operator Flows

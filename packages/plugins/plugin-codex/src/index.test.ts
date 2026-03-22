@@ -73,7 +73,7 @@ describe("createCodexPlugin", () => {
               ? JSON.stringify({
                   model: {
                     provider: "codex",
-                    model: "gpt-5.3-codex",
+                    model: "gpt-5.4",
                     baseUrl: "https://chatgpt.com/backend-api/codex",
                   },
                 })
@@ -90,7 +90,7 @@ describe("createCodexPlugin", () => {
       ).toBe("Bearer codex-token");
       expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(
         expect.objectContaining({
-          model: "gpt-5.3-codex",
+          model: "gpt-5.4",
           instructions: expect.stringContaining("You are Codex"),
           input: [
             {

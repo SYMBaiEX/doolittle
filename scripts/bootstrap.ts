@@ -7,7 +7,10 @@ import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import blessed from "blessed";
-import { getLinkedProviderAccountsSnapshot } from "../packages/agent/src/runtime/native/account-auth";
+import {
+  getLinkedProviderAccountsSnapshot,
+  type LinkedProviderAccountsSnapshot,
+} from "../packages/agent/src/runtime/native/account-auth";
 import {
   DEFAULT_TUI_THEME,
   listTuiThemes,
@@ -201,6 +204,11 @@ interface WizardAnswers {
   sshPath: string;
   daytonaTarget: string;
   modalTarget: string;
+}
+
+interface ReviewResult {
+  answers: WizardAnswers;
+  notices: string[];
 }
 
 const root = process.cwd();
@@ -1008,7 +1016,7 @@ function defaultSettings(theme: TuiThemeName): RuntimeSettings {
   return {
     model: {
       provider: "openai",
-      model: "gpt-4.1-mini",
+      model: "gpt-5.4",
       baseUrl: "https://api.openai.com/v1",
       temperature: 0.4,
       maxTokens: 1200,
@@ -1186,6 +1194,172 @@ function fingerprint(
 ): string {
   const stable = JSON.stringify(values, Object.keys(values).sort());
   return createHash("sha256").update(stable).digest("hex").slice(0, 12);
+}
+
+function summarizeAnswers(answers: WizardAnswers): string[] {
+  return [
+    `mind=${answers.provider} model=${answers.provider === "anthropic" || answers.provider === "claude-code" ? answers.anthropicModel : answers.openaiModel}`,
+    `threads=codex:${answers.useLinkedCodexAuth ? "bound" : "idle"} claude:${answers.useLinkedClaudeCodeAuth ? "bound" : "idle"}`,
+    `body=${answers.backend} eyes=${answers.browser}`,
+    `channels=${answers.transports.length ? answers.transports.join(", ") : "api, cli only"}`,
+    `tools=${
+      [
+        answers.tools.mcp ? "mcp" : "",
+        answers.tools.acp ? "acp" : "",
+        answers.tools.tts ? "tts" : "",
+        answers.tools.codegen ? "codegen" : "",
+      ]
+        .filter(Boolean)
+        .join(", ") || "none"
+    }`,
+    `face=${answers.theme} timezone=${answers.timezone}`,
+  ];
+}
+
+function finalizeWizardAnswers(
+  answers: WizardAnswers,
+  linkedAccounts: LinkedProviderAccountsSnapshot,
+): ReviewResult {
+  const notices: string[] = [];
+  const next: WizardAnswers = {
+    ...answers,
+    tools: { ...answers.tools },
+    transports: [...answers.transports],
+  };
+
+  const codexReady = Boolean(
+    linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable,
+  );
+  const claudeReady = Boolean(
+    linkedAccounts.claudeCode.nativeReady || linkedAccounts.claudeCode.reusable,
+  );
+
+  if (
+    next.provider === "openai" &&
+    !next.openaiApiKey.trim() &&
+    !next.useLinkedCodexAuth
+  ) {
+    if (codexReady) {
+      next.provider = "codex";
+      next.useLinkedCodexAuth = true;
+      next.openaiModel = next.openaiModel || "gpt-5.4";
+      notices.push(
+        "No OPENAI_API_KEY was provided, so I switched the active mind to linked Codex.",
+      );
+    } else if (claudeReady) {
+      next.provider = "claude-code";
+      next.useLinkedClaudeCodeAuth = true;
+      next.anthropicModel = next.anthropicModel || "claude-sonnet-4.6";
+      notices.push(
+        "OpenAI had no key, so I switched the active mind to linked Claude Code instead of leaving you with a silent boot.",
+      );
+    } else {
+      next.provider = "offline";
+      notices.push(
+        "No OpenAI key or linked account was available, so I left the mind dormant instead of writing a broken provider state.",
+      );
+    }
+  }
+
+  if (
+    next.provider === "anthropic" &&
+    !next.anthropicApiKey.trim() &&
+    !next.useLinkedClaudeCodeAuth
+  ) {
+    if (claudeReady) {
+      next.provider = "claude-code";
+      next.useLinkedClaudeCodeAuth = true;
+      notices.push(
+        "No ANTHROPIC_API_KEY was provided, so I switched the active mind to linked Claude Code.",
+      );
+    } else {
+      next.provider = "offline";
+      notices.push(
+        "No Anthropic key or linked Claude Code auth was available, so I left the mind dormant instead of writing a broken provider state.",
+      );
+    }
+  }
+
+  if (next.provider === "codex" && !next.useLinkedCodexAuth && !codexReady) {
+    if (next.openaiApiKey.trim()) {
+      next.provider = "openai";
+      notices.push(
+        "Codex was selected without linked auth, so I fell back to OpenAI API mode.",
+      );
+    } else {
+      next.provider = "offline";
+      notices.push(
+        "Codex was selected without linked auth, so I left the mind dormant instead of writing a broken provider state.",
+      );
+    }
+  }
+
+  if (
+    next.provider === "claude-code" &&
+    !next.useLinkedClaudeCodeAuth &&
+    !next.claudeCodeOauthToken.trim() &&
+    !next.claudeCodeCliFallback
+  ) {
+    if (next.anthropicApiKey.trim()) {
+      next.provider = "anthropic";
+      notices.push(
+        "Claude Code was selected without native auth, so I fell back to Anthropic API mode.",
+      );
+    } else {
+      next.provider = "offline";
+      notices.push(
+        "Claude Code was selected without native auth, so I left the mind dormant instead of writing a broken provider state.",
+      );
+    }
+  }
+
+  if (next.tools.mcp && !next.mcpServerCommand.trim()) {
+    next.tools.mcp = false;
+    notices.push("MCP stayed disabled because no server command was bound.");
+  }
+
+  if (next.tools.acp && !next.acpServerCommand.trim()) {
+    next.tools.acp = false;
+    notices.push(
+      "ACP stayed disabled because no editor binding command was set.",
+    );
+  }
+
+  if (
+    next.tools.codegen &&
+    !next.e2bApiKey.trim() &&
+    !next.githubToken.trim()
+  ) {
+    next.tools.codegen = false;
+    notices.push(
+      "Codegen stayed disabled because neither E2B nor GitHub credentials were provided.",
+    );
+  }
+
+  const requiredTransportSecrets: Partial<Record<TransportName, boolean>> = {
+    telegram: Boolean(next.telegramBotToken.trim()),
+    discord: Boolean(next.discordBotToken.trim()),
+    slack: Boolean(
+      next.slackWebhookUrl.trim() && next.slackSigningSecret.trim(),
+    ),
+    homeassistant: Boolean(
+      next.homeAssistantUrl.trim() && next.homeAssistantToken.trim(),
+    ),
+  };
+  next.transports = next.transports.filter((transport) => {
+    if (!(transport in requiredTransportSecrets)) {
+      return true;
+    }
+    const ready = requiredTransportSecrets[transport];
+    if (!ready) {
+      notices.push(
+        `${transport} was deselected because its required credentials were left blank.`,
+      );
+    }
+    return Boolean(ready);
+  });
+
+  return { answers: next, notices };
 }
 
 async function ask(
@@ -1627,7 +1801,7 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     openaiApiKey: existingEnv.get("OPENAI_API_KEY") || "",
     useLinkedCodexAuth:
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true",
-    openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-4.1-mini",
+    openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-5.4",
     anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
     useLinkedClaudeCodeAuth:
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true",
@@ -1638,7 +1812,7 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
       existingEnv.get("CLAUDE_CODE_SETUP_TOKEN") ||
       "",
     anthropicModel:
-      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514",
+      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4.6",
     telegramBotToken: existingEnv.get("TELEGRAM_BOT_TOKEN") || "",
     discordBotToken: existingEnv.get("DISCORD_BOT_TOKEN") || "",
     slackWebhookUrl: existingEnv.get("SLACK_WEBHOOK_URL") || "",
@@ -1778,7 +1952,7 @@ async function runWizard(
     let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
     let useLinkedCodexAuth =
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true";
-    let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-4.1-mini";
+    let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-5.4";
     let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
     let useLinkedClaudeCodeAuth =
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true";
@@ -1789,7 +1963,7 @@ async function runWizard(
       existingEnv.get("CLAUDE_CODE_SETUP_TOKEN") ||
       "";
     let anthropicModel =
-      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
+      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4.6";
 
     if (
       linkedAccounts.codex.nativeReady ||
@@ -1982,7 +2156,7 @@ async function runWizard(
       provider === "codex"
     ) {
       if (provider === "codex" && !openaiModel) {
-        openaiModel = "gpt-5.3-codex";
+        openaiModel = "gpt-5.4";
       }
       openaiModel = await ask(
         rl,
@@ -2378,43 +2552,72 @@ async function runWizard(
       githubToken = await askSecret(rl, "Give me GITHUB_TOKEN", githubToken);
     }
 
-    return {
-      mode,
-      agentName,
-      timezone,
-      theme,
-      provider,
-      backend,
-      browser,
-      pairingMode,
-      allowAllUsers,
-      transports,
-      tools,
-      openaiApiKey,
-      useLinkedCodexAuth,
-      openaiModel,
-      anthropicApiKey,
-      useLinkedClaudeCodeAuth,
-      claudeCodeCliFallback,
-      claudeCodeOauthToken,
-      anthropicModel,
-      telegramBotToken,
-      discordBotToken,
-      slackWebhookUrl,
-      slackSigningSecret,
-      homeAssistantUrl,
-      homeAssistantToken,
-      mcpServerCommand,
-      acpServerCommand,
-      falApiKey,
-      e2bApiKey,
-      githubToken,
-      sshHost,
-      sshUser,
-      sshPath,
-      daytonaTarget,
-      modalTarget,
-    };
+    const reviewed = finalizeWizardAnswers(
+      {
+        mode,
+        agentName,
+        timezone,
+        theme,
+        provider,
+        backend,
+        browser,
+        pairingMode,
+        allowAllUsers,
+        transports,
+        tools,
+        openaiApiKey,
+        useLinkedCodexAuth,
+        openaiModel,
+        anthropicApiKey,
+        useLinkedClaudeCodeAuth,
+        claudeCodeCliFallback,
+        claudeCodeOauthToken,
+        anthropicModel,
+        telegramBotToken,
+        discordBotToken,
+        slackWebhookUrl,
+        slackSigningSecret,
+        homeAssistantUrl,
+        homeAssistantToken,
+        mcpServerCommand,
+        acpServerCommand,
+        falApiKey,
+        e2bApiKey,
+        githubToken,
+        sshHost,
+        sshUser,
+        sshPath,
+        daytonaTarget,
+        modalTarget,
+      },
+      linkedAccounts,
+    );
+
+    section("Review", "I checked the final shape before writing it to disk.");
+    summarizeAnswers(reviewed.answers).forEach((line) => {
+      info(line);
+    });
+    if (reviewed.notices.length) {
+      reviewed.notices.forEach((notice) => {
+        warn(notice);
+      });
+    } else {
+      info("No blocking issues detected in the final setup state.");
+    }
+
+    const confirm = await askYesNo(
+      rl,
+      "Should I seal this configuration and wake with it",
+      true,
+    );
+    if (!confirm) {
+      wizardScreen?.appendLine(
+        "Restarting the awakening so you can revise the configuration.",
+      );
+      return runWizard(existingEnv);
+    }
+
+    return reviewed.answers;
   } finally {
     rl?.close();
     wizardScreen?.destroy();
@@ -2446,7 +2649,7 @@ function applyAnswers(answers: WizardAnswers): {
       answers.provider === "hybrid" ||
       answers.provider === "codex"
         ? answers.openaiModel
-        : "gpt-4.1-mini",
+        : "gpt-5.4",
     ANTHROPIC_API_KEY:
       answers.provider === "anthropic" || answers.provider === "hybrid"
         ? answers.anthropicApiKey
@@ -2468,7 +2671,7 @@ function applyAnswers(answers: WizardAnswers): {
       answers.provider === "hybrid" ||
       answers.provider === "claude-code"
         ? answers.anthropicModel
-        : "claude-sonnet-4-20250514",
+        : "claude-sonnet-4.6",
     TELEGRAM_BOT_TOKEN: answers.telegramBotToken,
     DISCORD_BOT_TOKEN: answers.discordBotToken,
     SLACK_WEBHOOK_URL: answers.slackWebhookUrl,

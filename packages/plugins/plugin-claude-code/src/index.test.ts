@@ -75,7 +75,7 @@ describe("createClaudeCodePlugin", () => {
               ? JSON.stringify({
                   model: {
                     provider: "claude-code",
-                    model: "claude-sonnet-4-20250514",
+                    model: "claude-sonnet-4.6",
                     baseUrl: "https://api.anthropic.com",
                   },
                 })
@@ -166,7 +166,7 @@ describe("createClaudeCodePlugin", () => {
       }),
       invokeCliPrint: async ({ prompt, model, appendSystemPrompt }) => {
         expect(prompt).toBe("hello");
-        expect(model).toBe("claude-sonnet-4-20250514");
+        expect(model).toBe("claude-sonnet-4.6");
         expect(appendSystemPrompt).toContain("You are Claude Code");
         return "LINKED_PROVIDER_OK";
       },

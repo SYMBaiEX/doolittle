@@ -23,7 +23,7 @@ Credential sources:
 ## Runtime Behavior
 
 - Provider id: `claude-code`
-- Default model: `claude-sonnet-4-20250514`
+- Default model: `claude-sonnet-4.6`
 - Default base URL: `https://api.anthropic.com`
 
 ## Operator Flows
