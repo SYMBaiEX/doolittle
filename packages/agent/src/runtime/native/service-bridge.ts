@@ -1,5 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import { benchmarkConfig } from "@elizaos/plugin-action-bench";
+import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { AppServices } from "@/services";
 import type { MemorySummary } from "@/services/memory-service";
@@ -190,6 +191,23 @@ interface NativeOwnershipSnapshot {
   research: ReturnType<typeof getNativeResearchControlPlane>;
   forms: ReturnType<typeof getNativeFormsControlPlane>;
   execution: ReturnType<typeof getNativeExecutionControlPlane>;
+}
+
+interface NativeEcosystemSnapshot {
+  runtime: {
+    latest: string;
+    alpha: string;
+  };
+  packageAudit: ReturnType<typeof getNativePackageAudit>;
+  pluginCatalog: ReturnType<typeof getNativePluginCatalog>;
+  sdk: Awaited<ReturnType<AppServices["agentSdk"]["overview"]>>;
+  workspace: {
+    summary: ReturnType<AppServices["ecosystem"]["summary"]>;
+    benchmarks: ReturnType<AppServices["ecosystem"]["benchmarkPacks"]>;
+    channels: ReturnType<AppServices["ecosystem"]["distributionChannels"]>;
+    modeling: ReturnType<AppServices["ecosystem"]["modelingProfiles"]>;
+  };
+  ownership: NativeOwnershipSnapshot;
 }
 
 interface NativeDiscordTransportService {
@@ -2215,5 +2233,41 @@ export async function getNativeOwnershipSnapshot(
     research: getNativeResearchControlPlane(runtime),
     forms: getNativeFormsControlPlane(runtime),
     execution: getNativeExecutionControlPlane(runtime),
+  };
+}
+
+export async function getNativeEcosystemSnapshot(
+  runtime: RuntimeLike,
+  services: AppServices,
+  config: EnvConfig,
+  gatewayConfig?: GatewayConfig,
+  refresh = false,
+): Promise<NativeEcosystemSnapshot> {
+  const [sdk, ownership] = await Promise.all([
+    services.agentSdk.overview(refresh),
+    services.nativeOwnership
+      .snapshot(refresh)
+      .then(
+        (snapshot) =>
+          snapshot ??
+          getNativeOwnershipSnapshot(runtime, services, config, gatewayConfig),
+      ),
+  ]);
+
+  return {
+    runtime: {
+      latest: getNativePackageAudit(config).runtime.latest,
+      alpha: getNativePackageAudit(config).runtime.alpha,
+    },
+    packageAudit: getNativePackageAudit(config),
+    pluginCatalog: getNativePluginCatalog(config),
+    sdk,
+    workspace: {
+      summary: services.ecosystem.summary(),
+      benchmarks: services.ecosystem.benchmarkPacks(),
+      channels: services.ecosystem.distributionChannels(),
+      modeling: services.ecosystem.modelingProfiles(),
+    },
+    ownership,
   };
 }

@@ -7,7 +7,7 @@ import { COMMAND_CATALOG, suggestCommands } from "@/runtime/command-catalog";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
-  getEffectiveServiceResolution,
+  getNativeEcosystemSnapshot,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
 
@@ -155,12 +155,38 @@ function buildHelpText(agentName: string): string {
   ].join("\n");
 }
 
-function renderEcosystemContent(context: AppContext): string {
-  const audit = getNativePackageAudit(context.config);
-  const resolution = getEffectiveServiceResolution(context.runtime);
-  const ecosystem = context.services.ecosystem.summary();
-  const latest = audit.runtime.latest;
-  const alpha = audit.runtime.alpha;
+async function renderEcosystemContent(context: AppContext): Promise<string> {
+  const snapshot = await getNativeEcosystemSnapshot(
+    context.runtime,
+    context.services,
+    context.config,
+    context.services.gatewayConfig,
+  );
+  const audit = snapshot.packageAudit;
+  const resolution = snapshot.ownership.controlPlane.serviceResolution;
+  const ecosystem = snapshot.workspace.summary;
+  const latest = snapshot.runtime.latest;
+  const alpha = snapshot.runtime.alpha;
+  const aligned = audit.packages.filter(
+    (entry: (typeof audit.packages)[number]) =>
+      entry.compatibility === "aligned",
+  ).length;
+  const alphaOnly = audit.packages.filter(
+    (entry: (typeof audit.packages)[number]) =>
+      entry.compatibility === "alpha-only",
+  ).length;
+  const laggingLatest = audit.packages.filter(
+    (entry: (typeof audit.packages)[number]) =>
+      entry.compatibility === "lagging-latest",
+  ).length;
+  const vendored = audit.packages.filter(
+    (entry: (typeof audit.packages)[number]) =>
+      entry.compatibility === "vendored-by-design",
+  ).length;
+  const workspaceOnly = audit.packages.filter(
+    (entry: (typeof audit.packages)[number]) =>
+      entry.compatibility === "workspace-only",
+  ).length;
 
   return [
     "{bold}Runtime Line{/}",
@@ -168,16 +194,16 @@ function renderEcosystemContent(context: AppContext): string {
     `Alpha: {green-fg}${alpha}{/}`,
     "",
     "{bold}Package Audit{/}",
-    `Aligned: ${audit.packages.filter((entry) => entry.compatibility === "aligned").length}`,
-    `Alpha-only: ${audit.packages.filter((entry) => entry.compatibility === "alpha-only").length}`,
-    `Lagging latest: ${audit.packages.filter((entry) => entry.compatibility === "lagging-latest").length}`,
-    `Vendored: ${audit.packages.filter((entry) => entry.compatibility === "vendored-by-design").length}`,
-    `Workspace-only: ${audit.packages.filter((entry) => entry.compatibility === "workspace-only").length}`,
+    `Aligned: ${aligned}`,
+    `Alpha-only: ${alphaOnly}`,
+    `Lagging latest: ${laggingLatest}`,
+    `Vendored: ${vendored}`,
+    `Workspace-only: ${workspaceOnly}`,
     `Native services: ${resolution.filter((entry) => entry.source === "native").length}/${resolution.length}`,
     `Workspace packs: benchmarks=${ecosystem.benchmarkPacks} channels=${ecosystem.distributionChannels} modeling=${ecosystem.modelingProfiles}`,
     "",
     "{bold}Priority Packages{/}",
-    ...audit.packages
+    ...snapshot.packageAudit.packages
       .slice(0, 6)
       .map(
         (entry) =>
@@ -1188,7 +1214,7 @@ async function startTui(context: AppContext): Promise<void> {
   async function renderControlDeck(mode: ControlDeckMode): Promise<void> {
     assistBox.setLabel(controlDeckLabel(mode));
     if (mode === "ecosystem") {
-      assistBox.setContent(renderEcosystemContent(context));
+      assistBox.setContent(await renderEcosystemContent(context));
       return;
     }
     if (mode === "gateway") {

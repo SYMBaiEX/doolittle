@@ -66,6 +66,7 @@ import {
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  getNativeEcosystemSnapshot,
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
@@ -2686,7 +2687,13 @@ async function buildCommandResponse(
   ) {
     const refresh = trimmed.endsWith(" refresh");
     return JSON.stringify(
-      await context.services.agentSdk.overview(refresh),
+      await getNativeEcosystemSnapshot(
+        context.runtime,
+        context.services,
+        context.config,
+        context.services.gatewayConfig,
+        refresh,
+      ),
       null,
       2,
     );
@@ -2694,12 +2701,12 @@ async function buildCommandResponse(
 
   if (trimmed === "/ecosystem" || trimmed === "/ecosystem packages") {
     return JSON.stringify(
-      {
-        summary: context.services.ecosystem.summary(),
-        benchmarks: context.services.ecosystem.benchmarkPacks(),
-        channels: context.services.ecosystem.distributionChannels(),
-        modeling: context.services.ecosystem.modelingProfiles(),
-      },
+      await getNativeEcosystemSnapshot(
+        context.runtime,
+        context.services,
+        context.config,
+        context.services.gatewayConfig,
+      ),
       null,
       2,
     );

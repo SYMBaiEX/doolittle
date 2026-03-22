@@ -68,6 +68,7 @@ import {
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  getNativeEcosystemSnapshot,
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
@@ -550,16 +551,26 @@ export function startApiServer(context: AppContext): void {
         const refresh =
           url.searchParams.get("refresh") === "true" ||
           url.searchParams.get("refresh") === "1";
-        return json(await context.services.agentSdk.overview(refresh));
+        return json(
+          await getNativeEcosystemSnapshot(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+            refresh,
+          ),
+        );
       }
 
       if (request.method === "GET" && url.pathname === "/ecosystem") {
-        return json({
-          summary: context.services.ecosystem.summary(),
-          benchmarks: context.services.ecosystem.benchmarkPacks(),
-          channels: context.services.ecosystem.distributionChannels(),
-          modeling: context.services.ecosystem.modelingProfiles(),
-        });
+        return json(
+          await getNativeEcosystemSnapshot(
+            context.runtime,
+            context.services,
+            context.config,
+            context.services.gatewayConfig,
+          ),
+        );
       }
 
       if (request.method === "GET" && url.pathname === "/benchmarks/packs") {
