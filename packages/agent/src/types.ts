@@ -27,6 +27,11 @@ export interface EnvConfig {
   dataDir: string;
   skillsDir: string;
   timezone: string;
+  elizaCloudApiKey?: string;
+  elizaCloudEnabled: boolean;
+  elizaCloudBaseUrl: string;
+  elizaCloudSmallModel: string;
+  elizaCloudLargeModel: string;
   openAiApiKey?: string;
   useLinkedCodexAuth: boolean;
   openAiBaseUrl: string;

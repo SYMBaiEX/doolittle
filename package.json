@@ -59,6 +59,7 @@
     "@elizaos/plugin-cron": "workspace:*",
     "@elizaos/plugin-discord": "workspace:*",
     "@elizaos/plugin-e2b": "workspace:*",
+    "@elizaos/plugin-elizacloud": "alpha",
     "@elizaos/plugin-experience": "workspace:*",
     "@elizaos/plugin-forms": "workspace:*",
     "@elizaos/plugin-knowledge": "workspace:*",

@@ -135,7 +135,7 @@ eliza-agent/
 |---|---|
 | Persona / system prompt | `packages/characters/eliza-agent.character.json` + [`packages/agent/src/character.ts`](./packages/agent/src/character.ts) |
 | Agent runtime | `AgentRuntime` from `@elizaos/core` with declarative native plugin assembly in [`packages/agent/src/runtime/native/plugin-registry.ts`](./packages/agent/src/runtime/native/plugin-registry.ts) |
-| Model provider routing | Official ElizaOS OpenAI and Anthropic plugins, with local offline fallback in [`packages/plugins/eliza-agent-plugin.ts`](./packages/plugins/eliza-agent-plugin.ts) |
+| Model provider routing | Eliza Cloud as the default managed provider, plus official OpenAI and Anthropic plugins and linked Codex / Claude Code paths, with local offline fallback in [`packages/plugins/eliza-agent-plugin.ts`](./packages/plugins/eliza-agent-plugin.ts) |
 | MEMORY.md and USER.md | [`packages/agent/src/services/memory-service.ts`](./packages/agent/src/services/memory-service.ts) |
 | Session search | [`packages/agent/src/services/session-service.ts`](./packages/agent/src/services/session-service.ts) + `/search` command |
 | Skills browsing | [`packages/agent/src/services/skills-service.ts`](./packages/agent/src/services/skills-service.ts) + `/skills` command |
@@ -212,6 +212,8 @@ The runtime now uses a wider native ElizaOS stack:
   - Official OpenAI provider plugin for API-key-backed GPT-family model routing on the current ElizaOS alpha runtime line.
 - `@elizaos/plugin-anthropic`
   - Official Anthropic provider plugin for API-key-backed Claude-family model routing on the current ElizaOS alpha runtime line.
+- `@elizaos/plugin-elizacloud`
+  - Workspace-native managed inference plugin for Eliza Cloud, used as the default native provider path during onboarding and quick start.
 - `@elizaos/plugin-codex`
   - Workspace-native linked-account provider plugin that reuses local Codex CLI login state and routes requests through the Codex Responses backend.
 - `@elizaos/plugin-claude-code`
@@ -316,16 +318,26 @@ Command notes:
 - `eliza-agent doctor`
   - runs the installer/bootstrap readiness check
 
-## Linked provider plugins
+## Managed and linked providers
 
-Eliza Agent now includes first-class linked-account providers for users who are already signed into Codex or Claude Code locally.
+Eliza Agent now treats Eliza Cloud as the default managed inference path, with linked local coding providers available when you want them.
 
+- [`packages/plugins/plugin-elizacloud`](./packages/plugins/plugin-elizacloud)
 - [`packages/plugins/plugin-codex`](./packages/plugins/plugin-codex)
 - [`packages/plugins/plugin-claude-code`](./packages/plugins/plugin-claude-code)
+
+Recommended provider order:
+
+- Eliza Cloud for the cleanest native setup and the least day-one friction
+- Codex when you want the local signed-in OpenAI coding path
+- Claude Code when you want the local signed-in Anthropic coding path
 
 Useful operator flows:
 
 - `/accounts`
+- `/accounts connect elizacloud`
+- `/accounts use elizacloud`
+- `/accounts login elizacloud`
 - `/accounts refresh`
 - `/accounts refresh codex`
 - `/accounts refresh claude-code`
@@ -336,6 +348,7 @@ Repo-level smoke and packaging flows:
 
 ```bash
 bun run smoke:linked-providers
+bun run smoke:linked-providers -- --provider elizacloud
 bun run smoke:linked-providers -- --provider codex --live
 bun run smoke:linked-providers -- --provider claude-code --live
 bun run publish:providers:check
@@ -368,6 +381,11 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZA_AGENT_DATA_DIR` | Root directory for state, memories, and cron job persistence. |
 | `ELIZA_AGENT_SKILLS_DIR` | Directory scanned recursively for `SKILL.md` files. |
 | `ELIZA_AGENT_TIMEZONE` | Default timezone used for human-facing scheduling context. |
+| `ELIZAOS_CLOUD_ENABLED` | Turns on Eliza Cloud as the active managed inference provider for this workspace. |
+| `ELIZAOS_CLOUD_API_KEY` | Native Eliza Cloud API key. The preferred local path is `elizaos login`, which writes this into the project. |
+| `ELIZAOS_CLOUD_BASE_URL` | Base URL for Eliza Cloud managed inference. Defaults to `https://www.elizacloud.ai/api/v1`. |
+| `ELIZAOS_CLOUD_SMALL_MODEL` | Default small-model identifier for Eliza Cloud. |
+| `ELIZAOS_CLOUD_LARGE_MODEL` | Default large-model identifier for Eliza Cloud. |
 | `OPENAI_API_KEY` | API key for the official ElizaOS OpenAI plugin. Optional if you use Anthropic or stay in offline bootstrap mode. |
 | `OPENAI_BASE_URL` | Base URL for the OpenAI-compatible endpoint used by the OpenAI plugin and fallback adapter. |
 | `OPENAI_MODEL` | Default OpenAI model name used to seed runtime settings. |

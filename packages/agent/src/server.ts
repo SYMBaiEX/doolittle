@@ -425,6 +425,7 @@ export function startApiServer(context: AppContext): void {
           activeProvider: context.services.settings.get().model.provider,
           accounts: getLinkedProviderAccountsSnapshot(),
           connect: {
+            elizaCloud: getLinkedProviderConnectAdvice("elizacloud"),
             codex: getLinkedProviderConnectAdvice("codex"),
             claudeCode: getLinkedProviderConnectAdvice("claude-code"),
           },
@@ -436,6 +437,7 @@ export function startApiServer(context: AppContext): void {
         return json({
           accounts,
           connect: {
+            elizaCloud: getLinkedProviderConnectAdvice("elizacloud"),
             codex: getLinkedProviderConnectAdvice("codex"),
             claudeCode: getLinkedProviderConnectAdvice("claude-code"),
           },
@@ -447,14 +449,18 @@ export function startApiServer(context: AppContext): void {
           provider?: string;
         };
         const provider =
-          body.provider === "codex" || body.provider === "claude-code"
+          body.provider === "elizacloud" ||
+          body.provider === "codex" ||
+          body.provider === "claude-code"
             ? body.provider
             : body.provider === undefined || body.provider === "all"
               ? "all"
               : undefined;
         if (!provider) {
           return json(
-            { error: "provider must be codex, claude-code, or all" },
+            {
+              error: "provider must be elizacloud, codex, claude-code, or all",
+            },
             400,
           );
         }
@@ -474,8 +480,15 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as {
           provider?: string;
         };
-        if (body.provider !== "codex" && body.provider !== "claude-code") {
-          return json({ error: "provider must be codex or claude-code" }, 400);
+        if (
+          body.provider !== "elizacloud" &&
+          body.provider !== "codex" &&
+          body.provider !== "claude-code"
+        ) {
+          return json(
+            { error: "provider must be elizacloud, codex, or claude-code" },
+            400,
+          );
         }
         return json(activateLinkedProvider(context, body.provider));
       }
@@ -484,8 +497,15 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as {
           provider?: string;
         };
-        if (body.provider !== "codex" && body.provider !== "claude-code") {
-          return json({ error: "provider must be codex or claude-code" }, 400);
+        if (
+          body.provider !== "elizacloud" &&
+          body.provider !== "codex" &&
+          body.provider !== "claude-code"
+        ) {
+          return json(
+            { error: "provider must be elizacloud, codex, or claude-code" },
+            400,
+          );
         }
         try {
           return json(await connectLinkedProvider(context, body.provider));
@@ -503,8 +523,15 @@ export function startApiServer(context: AppContext): void {
         const body = (await request.json()) as {
           provider?: string;
         };
-        if (body.provider !== "codex" && body.provider !== "claude-code") {
-          return json({ error: "provider must be codex or claude-code" }, 400);
+        if (
+          body.provider !== "elizacloud" &&
+          body.provider !== "codex" &&
+          body.provider !== "claude-code"
+        ) {
+          return json(
+            { error: "provider must be elizacloud, codex, or claude-code" },
+            400,
+          );
         }
         return json({
           provider: body.provider,

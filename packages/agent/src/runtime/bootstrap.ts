@@ -9,6 +9,7 @@ import { GatewayRunner } from "@/gateway/gateway-runner";
 import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
+  getLinkedElizaCloudCredentials,
 } from "@/runtime/native/account-auth";
 import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
@@ -60,6 +61,13 @@ function buildPluginSettings(
     runtimeSettings: JSON.stringify(runtimeSettings),
     nativeServiceRegistry: JSON.stringify(services.nativeRegistry),
     autonomousAlignment: JSON.stringify(describeAutonomousAlignment()),
+    ELIZAOS_CLOUD_BASE_URL: config.elizaCloudBaseUrl,
+    ELIZAOS_CLOUD_SMALL_MODEL: config.elizaCloudSmallModel,
+    ELIZAOS_CLOUD_LARGE_MODEL: config.elizaCloudLargeModel,
+    ELIZAOS_CLOUD_ENABLED: String(
+      config.elizaCloudEnabled ||
+        runtimeSettings.model.provider === "elizacloud",
+    ),
     OPENAI_BASE_URL: config.openAiBaseUrl,
     OPENAI_SMALL_MODEL: runtimeSettings.model.model,
     OPENAI_LARGE_MODEL: runtimeSettings.model.model,
@@ -74,10 +82,23 @@ function buildPluginSettings(
     config.useLinkedCodexAuth && modelProvider === "codex"
       ? getLinkedCodexCredentials()
       : undefined;
+  const linkedElizaCloud =
+    modelProvider === "elizacloud"
+      ? getLinkedElizaCloudCredentials()
+      : undefined;
   const linkedClaudeCode =
     config.useLinkedClaudeCodeAuth && modelProvider === "claude-code"
       ? getLinkedClaudeCodeCredentials()
       : undefined;
+
+  if (linkedElizaCloud?.apiKey) {
+    settings.ELIZAOS_CLOUD_API_KEY = linkedElizaCloud.apiKey;
+    settings.ELIZAOS_CLOUD_ENABLED = "true";
+    settings.ELIZAOS_CLOUD_BASE_URL =
+      linkedElizaCloud.baseUrl || config.elizaCloudBaseUrl;
+  } else if (config.elizaCloudApiKey) {
+    settings.ELIZAOS_CLOUD_API_KEY = config.elizaCloudApiKey;
+  }
 
   if (linkedCodex?.accessToken) {
     settings.OPENAI_API_KEY = linkedCodex.accessToken;

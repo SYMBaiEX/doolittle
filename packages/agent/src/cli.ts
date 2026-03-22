@@ -1,3 +1,6 @@
+import { appendFileSync, mkdirSync } from "node:fs";
+import { platform } from "node:os";
+import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import blessed from "blessed";
@@ -39,6 +42,19 @@ interface CliExecutionHooks {
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
 
+const IS_MACOS = platform() === "darwin";
+
+function macAwareKeyLabel(label: string): string {
+  if (!IS_MACOS) {
+    return label;
+  }
+  return label
+    .replaceAll("Alt-", "Option-")
+    .replaceAll("Alt", "Option")
+    .replaceAll("PageUp/PageDown", "Fn-↑/Fn-↓ or PageUp/PageDown")
+    .replaceAll("PgUp/PgDn", "Fn-↑/Fn-↓ or PgUp/PgDn");
+}
+
 export interface ResponseTranscriptEntry {
   label: string;
   body: string;
@@ -70,6 +86,11 @@ function compactPreview(text: string): string {
   }
 }
 
+function isConversationalInput(text: string): boolean {
+  const trimmed = text.trim();
+  return !!trimmed && !trimmed.startsWith("/") && !trimmed.startsWith("!");
+}
+
 function truncate(text: string, max = 520): string {
   const normalized = text.replace(/\s+/gu, " ").trim();
   return normalized.length > max
@@ -94,7 +115,7 @@ export function renderResponseTranscript(
   }
 
   return sections
-    .slice(-14)
+    .slice(-20)
     .map((entry) =>
       [
         `{gray-fg}${escapeBlessed(entry.at)}{/} {bold}${escapeBlessed(entry.label)}{/}`,
@@ -127,18 +148,20 @@ function buildHelpText(agentName: string): string {
     `${agentName} TUI shortcuts`,
     "",
     "Global:",
-    "  q / Ctrl-C       Quit",
+    `  q / ${macAwareKeyLabel("Ctrl-C")}       Quit`,
     "  Esc              Focus command input",
-    "  Ctrl-L           Clear activity feed and response pane",
-    "  Ctrl-R           Refresh status panels",
-    "  Ctrl-G           Switch to Gateway control deck",
-    "  Ctrl-P           Open command palette",
-    "  Ctrl-E           Open multiline composer",
-    "  Ctrl-S           Focus last response",
-    "  Alt-1..Alt-4     Switch control deck mode (Assist/Ecosystem/Gateway/Responses)",
+    `  ${macAwareKeyLabel("Ctrl-L")}           Clear activity feed and response pane`,
+    `  ${macAwareKeyLabel("Ctrl-R")}           Refresh status panels`,
+    `  ${macAwareKeyLabel("Ctrl-G")}           Switch to Gateway control deck`,
+    `  ${macAwareKeyLabel("Ctrl-P")}           Open command palette`,
+    `  ${macAwareKeyLabel("Ctrl-E")}           Open multiline composer`,
+    `  ${macAwareKeyLabel("Ctrl-S")}           Focus last response`,
+    `  ${macAwareKeyLabel("Alt-1..Alt-4")}     Switch control deck mode (Assist/Ecosystem/Gateway/Responses)`,
     "  Tab              Complete the top suggested command",
-    "  PageUp/PageDown  Scroll the focused pane",
+    `  ${macAwareKeyLabel("PageUp/PageDown")}  Scroll the focused pane`,
     "  Up/Down          Command history in input",
+    "  Ctrl-N/Ctrl-P    History + list navigation fallback",
+    "  Ctrl-U/Ctrl-D    Scroll focused pane fallback",
     "",
     "Hotkeys:",
     "  F2  /status",
@@ -153,8 +176,8 @@ function buildHelpText(agentName: string): string {
     `  F11 ${command("/gateway supervision")}`,
     `  F12 ${command("/responses list")}`,
     `  Shift-F12 ${command("/runtime transports")}`,
-    "  Ctrl-T           Next theme",
-    "  Ctrl-Y           Previous theme",
+    `  ${macAwareKeyLabel("Ctrl-T")}           Next theme`,
+    `  ${macAwareKeyLabel("Ctrl-Y")}           Previous theme`,
     "",
     "Examples:",
     `  ${command("/skills list")}`,
@@ -192,7 +215,7 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
 }
 
 function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
-  return `{bold}${agentName}{/bold}  {black-fg}ELIZAOS CYPHERPUNK OPS DECK{/}  {white-fg}${theme.label} · ${theme.name} · alpha-native monorepo + plugin lattice{/}`;
+  return `{bold}${agentName}{/bold}  {black-fg}ELIZAOS TERMINAL HELM{/}  {white-fg}${theme.label} · ${theme.name} · native cloud + local specialist models{/}`;
 }
 
 function applyLayout(
@@ -236,103 +259,95 @@ function applyLayout(
   layout.footer.height = 1;
 
   if (narrow) {
-    // Fix: use "-1" on activity height and "+2" on response top so panels
-    // dock cleanly regardless of terminal height (avoids overlap on H<100).
-    layout.activity.top = 3;
-    layout.activity.left = 0;
-    layout.activity.width = "100%";
-    layout.activity.height = short ? "34%-1" : "36%-1";
-
-    layout.response.top = short ? "34%+2" : "36%+2";
+    layout.response.top = 3;
     layout.response.left = 0;
     layout.response.width = "100%";
-    layout.response.height = short ? "18%" : "20%";
+    layout.response.height = short ? "42%-1" : "46%-1";
 
-    // Right-rail: recalculate tops from the response bottom so panels chain
-    // correctly, and reduce total to ≤86% so nothing overlaps the input box.
-    layout.sidebar.top = short ? "52%+2" : "56%+2";
+    layout.activity.top = short ? "42%+2" : "46%+2";
+    layout.activity.left = 0;
+    layout.activity.width = "100%";
+    layout.activity.height = short ? "12%" : "14%";
+
+    layout.sidebar.top = short ? "54%+2" : "60%+2";
     layout.sidebar.left = 0;
     layout.sidebar.width = "50%";
     layout.sidebar.height = short ? "15%" : "17%";
 
-    layout.transportBox.top = short ? "52%+2" : "56%+2";
+    layout.transportBox.top = short ? "54%+2" : "60%+2";
     layout.transportBox.left = "50%";
     layout.transportBox.width = "50%";
     layout.transportBox.height = short ? "15%" : "17%";
 
-    layout.executionBox.top = short ? "67%+2" : "73%+2";
+    layout.executionBox.top = short ? "69%+2" : "77%+2";
     layout.executionBox.left = 0;
     layout.executionBox.width = "50%";
     layout.executionBox.height = "13%-1";
 
-    layout.assistBox.top = short ? "67%+2" : "73%+2";
+    layout.assistBox.top = short ? "69%+2" : "77%+2";
     layout.assistBox.left = "50%";
     layout.assistBox.width = "50%";
     layout.assistBox.height = "13%-1";
   } else if (compact) {
-    layout.activity.top = 3;
-    layout.activity.left = 0;
-    layout.activity.width = "74%";
-    layout.activity.height = short ? "54%-1" : "58%-1";
-
-    layout.response.top = short ? "54%+2" : "58%+2";
+    layout.response.top = 3;
     layout.response.left = 0;
-    layout.response.width = "74%";
-    layout.response.height = short ? "36%-2" : "32%-2";
+    layout.response.width = "76%";
+    layout.response.height = short ? "63%-1" : "66%-1";
 
-    // Give the working transcript more room while keeping an always-visible
-    // operator rail on the right.
+    layout.activity.top = short ? "63%+2" : "66%+2";
+    layout.activity.left = 0;
+    layout.activity.width = "76%";
+    layout.activity.height = short ? "27%-2" : "24%-2";
+
     layout.sidebar.top = 3;
-    layout.sidebar.left = "74%";
-    layout.sidebar.width = "26%";
-    layout.sidebar.height = short ? "22%" : "26%";
+    layout.sidebar.left = "76%";
+    layout.sidebar.width = "24%";
+    layout.sidebar.height = short ? "22%" : "24%";
 
-    layout.transportBox.top = short ? "22%+3" : "26%+3";
-    layout.transportBox.left = "74%";
-    layout.transportBox.width = "26%";
-    layout.transportBox.height = short ? "18%" : "20%";
+    layout.transportBox.top = short ? "22%+3" : "24%+3";
+    layout.transportBox.left = "76%";
+    layout.transportBox.width = "24%";
+    layout.transportBox.height = short ? "18%" : "18%";
 
-    layout.executionBox.top = short ? "40%+3" : "46%+3";
-    layout.executionBox.left = "74%";
-    layout.executionBox.width = "26%";
-    layout.executionBox.height = short ? "15%" : "17%";
+    layout.executionBox.top = short ? "40%+3" : "42%+3";
+    layout.executionBox.left = "76%";
+    layout.executionBox.width = "24%";
+    layout.executionBox.height = short ? "16%" : "16%";
 
-    layout.assistBox.top = short ? "55%+3" : "63%+3";
-    layout.assistBox.left = "74%";
-    layout.assistBox.width = "26%";
-    layout.assistBox.height = short ? "15%-1" : "17%-1";
+    layout.assistBox.top = short ? "56%+3" : "58%+3";
+    layout.assistBox.left = "76%";
+    layout.assistBox.width = "24%";
+    layout.assistBox.height = short ? "32%-1" : "32%-1";
   } else {
-    layout.activity.top = 3;
-    layout.activity.left = 0;
-    layout.activity.width = "74%";
-    layout.activity.height = "54%-1";
-
-    layout.response.top = "54%+2";
+    layout.response.top = 3;
     layout.response.left = 0;
-    layout.response.width = "74%";
-    layout.response.height = "46%-2";
+    layout.response.width = "76%";
+    layout.response.height = "66%-1";
 
-    // Keep the operator rail secondary on wide terminals so the coding stream
-    // remains dominant.
+    layout.activity.top = "66%+2";
+    layout.activity.left = 0;
+    layout.activity.width = "76%";
+    layout.activity.height = "24%-2";
+
     layout.sidebar.top = 3;
-    layout.sidebar.left = "74%";
-    layout.sidebar.width = "26%";
-    layout.sidebar.height = short ? "22%" : "27%";
+    layout.sidebar.left = "76%";
+    layout.sidebar.width = "24%";
+    layout.sidebar.height = short ? "22%" : "24%";
 
-    layout.transportBox.top = short ? "22%+3" : "27%+3";
-    layout.transportBox.left = "74%";
-    layout.transportBox.width = "26%";
-    layout.transportBox.height = short ? "17%" : "20%";
+    layout.transportBox.top = short ? "22%+3" : "24%+3";
+    layout.transportBox.left = "76%";
+    layout.transportBox.width = "24%";
+    layout.transportBox.height = short ? "18%" : "18%";
 
-    layout.executionBox.top = short ? "39%+3" : "47%+3";
-    layout.executionBox.left = "74%";
-    layout.executionBox.width = "26%";
-    layout.executionBox.height = short ? "14%" : "16%";
+    layout.executionBox.top = short ? "40%+3" : "42%+3";
+    layout.executionBox.left = "76%";
+    layout.executionBox.width = "24%";
+    layout.executionBox.height = short ? "16%" : "16%";
 
-    layout.assistBox.top = short ? "53%+3" : "63%+3";
-    layout.assistBox.left = "74%";
-    layout.assistBox.width = "26%";
-    layout.assistBox.height = short ? "14%-1" : "16%-1";
+    layout.assistBox.top = short ? "56%+3" : "58%+3";
+    layout.assistBox.left = "76%";
+    layout.assistBox.width = "24%";
+    layout.assistBox.height = short ? "32%-1" : "32%-1";
   }
 
   layout.paletteOverlay.width = narrow ? "94%" : compact ? "82%" : "72%";
@@ -480,29 +495,13 @@ async function renderTransportContent(context: AppContext): Promise<string> {
 
   return [
     "{bold}Canonical Transport Inventory{/}",
-    `Configured: ${gatewayState.totals.configuredPlatforms}`,
-    `Plugin-mediated: ${gatewayState.totals.pluginMediatedAdapters}/${gatewayState.totals.configuredPlatforms}`,
+    `Live: ${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled}`,
     `Operational: ${runtimeStatus.transportControl.operationalTransports}/${runtimeStatus.transportInventory.length}`,
-    `Live bridges: ${runtimeStatus.transportControl.liveServices}/${runtimeStatus.transportControl.gatewayEnabled}`,
-    `Sources: official=${runtimeStatus.transportControl.officialPlugins} vendored=${runtimeStatus.transportControl.vendoredPlugins} custom=${runtimeStatus.transportControl.customTransports} product=${runtimeStatus.transportControl.productTransports}`,
+    `Configured: ${gatewayState.totals.configuredPlatforms}  plugin-mediated: ${gatewayState.totals.pluginMediatedAdapters}`,
+    `Sources: official=${runtimeStatus.transportControl.officialPlugins} custom=${runtimeStatus.transportControl.customTransports} product=${runtimeStatus.transportControl.productTransports}`,
+    ...(inventorySummary.length ? ["", ...inventorySummary.slice(0, 2)] : []),
     "",
-    "{bold}Inventory Summary{/}",
-    ...(inventorySummary.length
-      ? inventorySummary.slice(0, 2)
-      : ["{gray-fg}No transport inventory available.{/}"]),
-    "",
-    "{bold}Shared Inventory{/}",
-    ...(runtimeStatus.transportInventory.length
-      ? runtimeStatus.transportInventory.map(
-          (entry) =>
-            `- ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} op=${entry.operational ? "yes" : "no"} ${entry.reason}`,
-        )
-      : ["{gray-fg}No transport inventory available.{/}"]),
-    "",
-    "{bold}Drill-Down{/}",
-    `Try ${canonicalizeSlashCommandSyntax("/transport show telegram")} for a single-platform view.`,
-    "",
-    "{bold}Recent Gateway Traces{/}",
+    "{bold}Recent Trace{/}",
     ...(traces.length
       ? traces.map(
           (trace) =>
@@ -510,7 +509,7 @@ async function renderTransportContent(context: AppContext): Promise<string> {
         )
       : ["{gray-fg}No recent trace activity.{/}"]),
     "",
-    "{bold}Platform State{/}",
+    "{bold}Platforms{/}",
     ...(platformStates.length
       ? platformStates.map(
           (entry) =>
@@ -546,11 +545,11 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
   const settings = context.services.settings.get();
 
   return [
-    "{bold}Execution Backends{/}",
-    `Configured: {cyan-fg}${settings.execution.backend}{/}`,
-    `Deep backend diagnostics: ${canonicalizeSlashCommandSyntax("/execution status")}`,
+    "{bold}Execution{/}",
+    `Backend: {cyan-fg}${settings.execution.backend}{/}`,
+    `Diagnostics: ${canonicalizeSlashCommandSyntax("/execution status")}`,
     "",
-    "{bold}Recent Commands{/}",
+    "{bold}Recent Shell{/}",
     ...(recent.length
       ? recent.map(
           (entry) =>
@@ -562,15 +561,10 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
       : ["{gray-fg}No command history yet.{/}"]),
     "",
     "{bold}Delegation{/}",
-    `Pending: ${delegation.pending}`,
-    `Running: ${delegation.running}`,
-    `Workers: ${delegation.activeWorkers}`,
+    `pending=${delegation.pending} running=${delegation.running} workers=${delegation.activeWorkers}`,
     "",
-    "{bold}Native Pipeline{/}",
-    `Runs: ${pipeline.total}`,
-    `Workflows: ${pipeline.workflows}`,
-    `Failed: ${pipeline.failed}`,
-    `Failed workflows: ${pipeline.failedWorkflows}`,
+    "{bold}Pipeline{/}",
+    `runs=${pipeline.total} workflows=${pipeline.workflows} failed=${pipeline.failed}`,
     pipeline.latest
       ? `Latest: ${pipeline.latest.kind} ${truncate(pipeline.latest.projectName ?? pipeline.latest.repositoryName ?? pipeline.latest.id, 26)}`
       : "Latest: n/a",
@@ -583,14 +577,16 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
             `- ${entry.kind} ${truncate(entry.projectName ?? entry.repositoryName ?? entry.id, 24)} {gray-fg}${entry.status}{/}`,
         )
       : ["{gray-fg}No pipeline runs yet.{/}"]),
-    "",
-    "{bold}Workflow Graphs{/}",
     ...(pipelineWorkflows.length
-      ? pipelineWorkflows.map(
-          (entry) =>
-            `- ${truncate(entry.title, 24)} runs=${entry.runIds.length} {gray-fg}${entry.status}{/}`,
-        )
-      : ["{gray-fg}No workflows yet.{/}"]),
+      ? [
+          "",
+          "{bold}Workflow Graphs{/}",
+          ...pipelineWorkflows.map(
+            (entry) =>
+              `- ${truncate(entry.title, 24)} runs=${entry.runIds.length} {gray-fg}${entry.status}{/}`,
+          ),
+        ]
+      : []),
   ].join("\n");
 }
 
@@ -599,17 +595,17 @@ function renderSuggestionsContent(inputValue: string): string {
     return [
       "{bold}Launchpad{/}",
       "",
-      "{bold}Talk To Me{/}",
+      "{bold}Try This{/}",
       "- summarize this repo and tell me what matters",
       "- what machine am I on and what tools can you use here",
       "- plan the next coding step for this project",
       "",
-      "{bold}Use The Shell{/}",
+      "{bold}Shell{/}",
       "- !pwd",
       "- !git status",
       "- !uname -a",
       "",
-      "{bold}Operator Controls{/}",
+      "{bold}Operator{/}",
       `- ${canonicalizeSlashCommandSyntax("/status")}`,
       `- ${canonicalizeSlashCommandSyntax("/accounts")}`,
       `- ${canonicalizeSlashCommandSyntax("/theme list")}`,
@@ -706,14 +702,16 @@ async function executeCliInput(
   if (normalizedTrimmed.startsWith("/accounts login ")) {
     const provider = normalizedTrimmed.replace("/accounts login ", "").trim();
     const command =
-      provider === "codex"
-        ? "codex login"
-        : provider === "claude-code"
-          ? "claude auth login"
-          : "";
+      provider === "elizacloud"
+        ? "elizaos login"
+        : provider === "codex"
+          ? "codex login"
+          : provider === "claude-code"
+            ? "claude auth login"
+            : "";
     if (!command) {
       return {
-        text: `Usage: ${canonicalizeSlashCommandSyntax("/accounts login <codex|claude-code>")}`,
+        text: `Usage: ${canonicalizeSlashCommandSyntax("/accounts login <elizacloud|codex|claude-code>")}`,
         tone: "warning",
       };
     }
@@ -908,36 +906,30 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `Provider: {cyan-fg}${settings.model.provider}{/}`,
     `Model: {cyan-fg}${settings.model.model}{/}`,
     `Theme: {yellow-fg}${settings.ui.theme}{/}`,
-    `Session: {green-fg}${state.activeSessionId}{/}`,
-    active?.title ? `Title: ${active.title}` : "Title: (untitled)",
+    active?.title
+      ? `Session: {green-fg}${truncate(active.title, 28)}{/}`
+      : `Session: {green-fg}${state.activeSessionId}{/}`,
     "",
-    "{bold}Transport Control{/}",
-    `Configured: ${transportControl.totals.gatewayEnabled}`,
-    `Operational: ${transportControl.totals.operationalTransports}/${transportControl.transportInventory.length}`,
-    `Live bridges: ${transportControl.totals.liveServices}/${transportControl.totals.gatewayEnabled}`,
-    `Plugin-mediated: ${transportControl.totals.enabledPlugins}`,
-    `Sessions: ${gatewaySessions.length}`,
-    `Voice: ${gatewaySessions.filter((entry) => entry.voiceMode).length} active`,
+    "{bold}Transport{/}",
+    `live=${transportControl.totals.liveServices} configured=${transportControl.totals.gatewayEnabled} operational=${transportControl.totals.operationalTransports}`,
+    `sessions=${gatewaySessions.length} voice=${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
     "",
-    "{bold}Inventory{/}",
+    "{bold}Channels{/}",
     ...transportControl.transportInventory.slice(0, 4).map((entry) => {
       const marker = entry.operational ? "{green-fg}●{/}" : "{red-fg}●{/}";
-      return `${marker} ${entry.platform} ${entry.source} cfg=${entry.configEnabled ? "on" : "off"} gate=${entry.gatewayEnabled ? "on" : "off"} ${entry.reason}`;
+      return `${marker} ${entry.platform} ${entry.source} ${entry.operational ? "ready" : "blocked"}`;
     }),
     "",
-    "{bold}Delegation{/}",
-    `Pending: ${delegation.pending}`,
-    `Running: ${delegation.running}`,
-    `Completed: ${delegation.completed}`,
-    `Workers: ${delegation.activeWorkers}`,
+    "{bold}Work{/}",
+    `delegation=${delegation.running}/${delegation.pending}/${delegation.completed}`,
+    `workers=${delegation.activeWorkers}`,
     "",
-    "{bold}Native Plugins{/}",
-    `Enabled: ${plugins.filter((entry) => entry.enabled).length}/${plugins.length}`,
-    `Official: ${plugins.filter((entry) => entry.source === "official").length}`,
-    `Vendored: ${plugins.filter((entry) => entry.source === "vendored").length}`,
-    `Alpha: ${audit.runtime.alpha}`,
+    "{bold}Plugins{/}",
+    `enabled=${plugins.filter((entry) => entry.enabled).length}/${plugins.length}`,
+    `official=${plugins.filter((entry) => entry.source === "official").length} vendored=${plugins.filter((entry) => entry.source === "vendored").length}`,
+    `alpha=${audit.runtime.alpha}`,
     "",
-    "{bold}Recent Sessions{/}",
+    "{bold}Recent{/}",
     ...sessions.slice(0, 4).map((entry) => {
       const marker = entry.sessionId === state.activeSessionId ? "*" : "-";
       return `${marker} ${truncate(entry.title ?? entry.sessionId, 26)}`;
@@ -955,14 +947,16 @@ export function renderFooter(
     `${context.config.agentName} TUI`,
     busy ? "{yellow-fg}processing{/}" : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
+    `{cyan-fg}${escapeBlessed(context.services.settings.get().model.provider)}{/}`,
+    `{cyan-fg}${escapeBlessed(context.services.settings.get().model.model)}{/}`,
     "{magenta-fg}Tab{/} complete",
-    "{cyan-fg}Ctrl-P{/} palette",
-    "{cyan-fg}Ctrl-E{/} compose",
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} palette`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-E"))}{/} compose`,
     "{cyan-fg}!cmd{/} shell",
-    "{cyan-fg}Ctrl-T/Y{/} theme",
-    "{cyan-fg}Alt-1..4{/} deck",
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-T/Y"))}{/} theme`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Alt-1..4"))}{/} deck`,
     hint,
-    "{cyan-fg}Ctrl-Q{/} quit",
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-Q"))}{/} quit`,
   ].join("  |  ");
 }
 
@@ -997,7 +991,7 @@ async function startTui(context: AppContext): Promise<void> {
     left: 0,
     width: "68%",
     height: "70%-1",
-    label: " Activity Feed ",
+    label: " Ops Log ",
     tags: true,
     border: "line",
     scrollback: 1000,
@@ -1017,7 +1011,7 @@ async function startTui(context: AppContext): Promise<void> {
     left: 0,
     width: "68%",
     height: "30%-2",
-    label: " Last Response ",
+    label: " Conversation ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1044,7 +1038,7 @@ async function startTui(context: AppContext): Promise<void> {
     left: "68%",
     width: "32%",
     height: "30%",
-    label: " Runtime Snapshot ",
+    label: " Runtime ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1066,7 +1060,7 @@ async function startTui(context: AppContext): Promise<void> {
     left: "68%",
     width: "32%",
     height: "22%",
-    label: " Live Transport ",
+    label: " Channels ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1088,7 +1082,7 @@ async function startTui(context: AppContext): Promise<void> {
     left: "68%",
     width: "32%",
     height: "18%",
-    label: " Execution + Queue ",
+    label: " Workbench ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1302,6 +1296,8 @@ async function startTui(context: AppContext): Promise<void> {
   let paletteOpen = false;
   const responseHistory: ResponseTranscriptEntry[] = [];
   let liveResponse: ResponseTranscriptEntry | undefined;
+  const crashLogPath = join(context.config.dataDir, "cli-crash.log");
+  mkdirSync(context.config.dataDir, { recursive: true });
   const focusables: blessed.Widgets.BlessedElement[] = [
     activity,
     response,
@@ -1312,6 +1308,26 @@ async function startTui(context: AppContext): Promise<void> {
     inputBox,
   ];
   let focusIndex = focusables.length - 1;
+  let shuttingDown = false;
+  const logFatal = (label: string, error: unknown) => {
+    const detail =
+      error instanceof Error ? error.stack || error.message : String(error);
+    try {
+      appendFileSync(
+        crashLogPath,
+        `[${new Date().toISOString()}] ${label}\n${detail}\n\n`,
+        "utf8",
+      );
+    } catch {
+      // Best effort only.
+    }
+    if (!screenDestroyed) {
+      pushResponseEntry(label, `Error: ${detail}`);
+      appendActivity("err", truncate(detail, 260), "error");
+    } else {
+      output.write(`\n${label}: ${detail}\nCrash log: ${crashLogPath}\n`);
+    }
+  };
   let footerHint = "Esc input";
 
   function textEntryFocused(): boolean {
@@ -1339,7 +1355,7 @@ async function startTui(context: AppContext): Promise<void> {
 
   function footerHintForCurrentFocus(): string {
     if (composerOpen) {
-      return "Ctrl-S submit draft";
+      return macAwareKeyLabel("Ctrl-S submit draft");
     }
     if (paletteOpen) {
       return screen.focused === paletteList
@@ -1350,10 +1366,10 @@ async function startTui(context: AppContext): Promise<void> {
       return "Enter send  ↑/↓ history";
     }
     if (screen.focused === response) {
-      return "PgUp/PgDn scroll response";
+      return macAwareKeyLabel("PgUp/PgDn scroll conversation");
     }
     if (screen.focused === activity) {
-      return "PgUp/PgDn scroll activity";
+      return macAwareKeyLabel("PgUp/PgDn scroll ops log");
     }
     if (screen.focused === sidebar) {
       return "Enter sessions";
@@ -1668,7 +1684,14 @@ async function startTui(context: AppContext): Promise<void> {
     }
 
     appendActivity("cmd", line, "info");
-    setLiveResponse(`Running ${line}`, "");
+    setLiveResponse(
+      isConversationalInput(line)
+        ? context.config.agentName
+        : line.startsWith("!")
+          ? "Shell"
+          : "Command Result",
+      "",
+    );
 
     try {
       const result = await executeCliInput(line, context, state, {
@@ -1697,17 +1720,30 @@ async function startTui(context: AppContext): Promise<void> {
           );
         },
         onResponseProgress: ({ response }) => {
-          setLiveResponse(line, response);
+          setLiveResponse(
+            isConversationalInput(line)
+              ? context.config.agentName
+              : line.startsWith("!")
+                ? "Shell"
+                : "Command Result",
+            response,
+          );
         },
       });
       await syncThemeFromSettings();
       if (result.text) {
-        pushResponseEntry(line, result.text);
-        appendActivity(
-          result.tone === "agent" ? "agent" : "out",
-          compactPreview(result.text),
-          result.tone,
-        );
+        const label =
+          result.tone === "agent"
+            ? context.config.agentName
+            : line.startsWith("!")
+              ? "Shell"
+              : line.startsWith("/")
+                ? "Command Result"
+                : context.config.agentName;
+        pushResponseEntry(label, result.text);
+        if (result.tone !== "agent") {
+          appendActivity("out", compactPreview(result.text), result.tone);
+        }
       }
       if (result.shouldExit) {
         screen.destroy();
@@ -1715,19 +1751,39 @@ async function startTui(context: AppContext): Promise<void> {
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
+      try {
+        appendFileSync(
+          crashLogPath,
+          `[${new Date().toISOString()}] command-error ${line}\n${error instanceof Error ? error.stack || error.message : detail}\n\n`,
+          "utf8",
+        );
+      } catch {
+        // Best effort only.
+      }
       pushResponseEntry(line, `Error: ${detail}`);
       appendActivity("err", detail, "error");
     } finally {
       busy = false;
       if (!screenDestroyed) {
-        await refreshPanels();
-        inputBox.clearValue();
-        if (controlDeckMode === "assist") {
-          assistBox.setContent(renderSuggestionsContent(""));
+        try {
+          await refreshPanels();
+          inputBox.clearValue();
+          if (controlDeckMode === "assist") {
+            assistBox.setContent(renderSuggestionsContent(""));
+          }
+          inputBox.focus();
+          updateFooterHint();
+          screen.render();
+        } catch (error) {
+          logFatal("renderFailure", error);
+          if (!screenDestroyed) {
+            screen.destroy();
+          }
+          output.write(
+            `\nEliza Agent TUI could not recover. Crash log: ${crashLogPath}\n`,
+          );
+          process.exit(1);
         }
-        inputBox.focus();
-        updateFooterHint();
-        screen.render();
         void processQueue();
       }
     }
@@ -1749,6 +1805,13 @@ async function startTui(context: AppContext): Promise<void> {
       commandHistory.push(trimmed);
     }
     historyIndex = commandHistory.length;
+    if (isConversationalInput(trimmed)) {
+      pushResponseEntry("You", trimmed);
+    } else if (trimmed.startsWith("!")) {
+      pushResponseEntry("Shell", trimmed);
+    } else if (trimmed.startsWith("/")) {
+      pushResponseEntry("Command", trimmed);
+    }
     pendingCommands.push(trimmed);
     queueDepth = pendingCommands.length;
     inputBox.clearValue();
@@ -1777,6 +1840,22 @@ async function startTui(context: AppContext): Promise<void> {
   });
 
   inputBox.key("down", () => {
+    if (!commandHistory.length) {
+      return;
+    }
+    historyIndex = Math.min(commandHistory.length, historyIndex + 1);
+    setInputValue(commandHistory[historyIndex] ?? "");
+  });
+
+  inputBox.key("C-p", () => {
+    if (!commandHistory.length) {
+      return;
+    }
+    historyIndex = Math.max(0, historyIndex - 1);
+    setInputValue(commandHistory[historyIndex] ?? "");
+  });
+
+  inputBox.key("C-n", () => {
     if (!commandHistory.length) {
       return;
     }
@@ -1846,7 +1925,7 @@ async function startTui(context: AppContext): Promise<void> {
   paletteList.on("select item", (_, index) => {
     paletteSelectionIndex = index;
   });
-  for (const key of ["up", "down", "j", "k"]) {
+  for (const key of ["up", "down", "j", "k", "C-p", "C-n"]) {
     paletteList.key(key, () => {
       const suggestions = suggestCommands(paletteInput.getValue(), 12);
       const current = suggestions[paletteSelectionIndex];
@@ -1858,7 +1937,7 @@ async function startTui(context: AppContext): Promise<void> {
         return;
       }
       const nextIndex =
-        key === "up" || key === "k"
+        key === "up" || key === "k" || key === "C-p"
           ? Math.max(0, paletteSelectionIndex - 1)
           : Math.min(suggestions.length - 1, paletteSelectionIndex + 1);
       paletteSelectionIndex = nextIndex;
@@ -1868,14 +1947,79 @@ async function startTui(context: AppContext): Promise<void> {
     });
   }
 
+  const exitCli = () => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    if (!screenDestroyed) {
+      screen.destroy();
+    }
+    setTimeout(() => {
+      process.exit(0);
+    }, 0);
+  };
+
+  const forceTerminateCli = (signal: string) => {
+    if (shuttingDown) {
+      process.exit(signal === "SIGINT" ? 130 : 0);
+    }
+    shuttingDown = true;
+    if (!screenDestroyed) {
+      screen.destroy();
+    }
+    output.write(
+      `\n${context.config.agentName} received ${signal}. Exiting.\n`,
+    );
+    process.exit(signal === "SIGINT" ? 130 : 0);
+  };
+
+  const handleUncaughtException = (error: unknown) => {
+    logFatal("uncaughtException", error);
+    if (!screenDestroyed) {
+      screen.destroy();
+    }
+    output.write(`\nA fatal CLI error occurred. Crash log: ${crashLogPath}\n`);
+    process.exit(1);
+  };
+
+  const handleUnhandledRejection = (error: unknown) => {
+    logFatal("unhandledRejection", error);
+    if (!screenDestroyed) {
+      screen.destroy();
+    }
+    output.write(
+      `\nA fatal CLI rejection occurred. Crash log: ${crashLogPath}\n`,
+    );
+    process.exit(1);
+  };
+
+  const handleSigint = () => {
+    forceTerminateCli("SIGINT");
+  };
+  const handleSigterm = () => {
+    forceTerminateCli("SIGTERM");
+  };
+  process.once("SIGINT", handleSigint);
+  process.once("SIGTERM", handleSigterm);
+  process.once("uncaughtException", handleUncaughtException);
+  process.once("unhandledRejection", handleUnhandledRejection);
+  const handleRawCtrlC = (chunk: string | Buffer) => {
+    const value = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    if (value.includes("\u0003")) {
+      forceTerminateCli("SIGINT");
+    }
+  };
+  input.on("data", handleRawCtrlC);
+
   screen.key(["C-q", "C-c"], () => {
-    screen.destroy();
+    exitCli();
   });
   screen.key(["q"], () => {
     if (textEntryFocused() || paletteOpen || composerOpen) {
       return;
     }
-    screen.destroy();
+    exitCli();
   });
   screen.key(["C-p"], () => {
     openPalette(inputBox.getValue());
@@ -1975,6 +2119,18 @@ async function startTui(context: AppContext): Promise<void> {
     scrollFocusedPane(-8);
   });
   screen.key(["pagedown"], () => {
+    scrollFocusedPane(8);
+  });
+  screen.key(["C-u"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
+    scrollFocusedPane(-8);
+  });
+  screen.key(["C-d"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     scrollFocusedPane(8);
   });
   screen.key(["enter"], () => {
@@ -2098,6 +2254,12 @@ async function startTui(context: AppContext): Promise<void> {
   );
   unsubscribers.push(
     context.services.sessions.onActivity((event) => {
+      if (
+        event.sessionId === state.activeSessionId &&
+        (event.role === "user" || event.role === "assistant")
+      ) {
+        return;
+      }
       appendActivity("mem", truncate(event.detail, 160), "agent");
       scheduleRefreshPanels();
     }),
@@ -2115,17 +2277,17 @@ async function startTui(context: AppContext): Promise<void> {
 
   appendActivity(
     "boot",
-    `${context.config.agentName} TUI online. Type /help for shortcuts and examples.`,
+    `${context.config.agentName} helm online. Type /help for shortcuts and examples.`,
     "success",
   );
   appendActivity(
     "tip",
-    `Use Ctrl-E for multiline compose, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
+    `Use ${macAwareKeyLabel("Ctrl-E")} for multiline compose, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
     "info",
   );
   pushResponseEntry(
     "Helm Ready",
-    `You are live in the Eliza Agent cockpit.\n\nStart with a natural request like "summarize this repo" or run a shell command like !git status.\n\nWhen you want operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/execution status")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
+    `You are live in the Eliza Agent helm.\n\nTalk to me normally, or run a shell action like !git status.\n\nFor operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/execution status")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));
@@ -2141,6 +2303,11 @@ async function startTui(context: AppContext): Promise<void> {
   await new Promise<void>((resolve) => {
     screen.on("destroy", () => {
       screenDestroyed = true;
+      input.removeListener("data", handleRawCtrlC);
+      process.removeListener("SIGINT", handleSigint);
+      process.removeListener("SIGTERM", handleSigterm);
+      process.removeListener("uncaughtException", handleUncaughtException);
+      process.removeListener("unhandledRejection", handleUnhandledRejection);
       for (const unsubscribe of unsubscribers) {
         unsubscribe();
       }

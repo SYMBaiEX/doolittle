@@ -10,6 +10,7 @@ import { createCodexPlugin } from "@elizaos/plugin-codex";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
 import { createDiscordPlugin } from "@elizaos/plugin-discord";
 import { e2bPlugin } from "@elizaos/plugin-e2b";
+import elizaCloudPlugin from "@elizaos/plugin-elizacloud";
 import { createExperiencePlugin } from "@elizaos/plugin-experience";
 import formsPlugin from "@elizaos/plugin-forms";
 import { createKnowledgePlugin } from "@elizaos/plugin-knowledge";
@@ -92,6 +93,9 @@ export function buildNativePluginAssembly(
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
+    ...(selectedProvider === "elizacloud"
+      ? [normalizePlugin(elizaCloudPlugin)]
+      : []),
     createCodexPlugin({
       enabled: selectedProvider === "codex",
       getStatus: () => getLinkedProviderAccountsSnapshot().codex,

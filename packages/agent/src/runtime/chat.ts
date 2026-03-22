@@ -1184,6 +1184,18 @@ export function syncProviderSettings(
   const model = settings.model.model;
   const baseUrl = settings.model.baseUrl;
 
+  context.runtime.setSetting(
+    "ELIZAOS_CLOUD_ENABLED",
+    provider === "elizacloud" ? "true" : "false",
+  );
+
+  if (provider === "elizacloud") {
+    context.runtime.setSetting("ELIZAOS_CLOUD_SMALL_MODEL", model);
+    context.runtime.setSetting("ELIZAOS_CLOUD_LARGE_MODEL", model);
+    context.runtime.setSetting("ELIZAOS_CLOUD_BASE_URL", baseUrl);
+    return;
+  }
+
   if (provider === "anthropic" || provider === "claude-code") {
     context.runtime.setSetting("ANTHROPIC_SMALL_MODEL", model);
     context.runtime.setSetting("ANTHROPIC_LARGE_MODEL", model);
@@ -1199,7 +1211,7 @@ export function syncProviderSettings(
   );
 }
 
-export type LinkedProviderName = "codex" | "claude-code";
+export type LinkedProviderName = "elizacloud" | "codex" | "claude-code";
 
 function resolveLinkedProviderName(
   raw: string | undefined,
@@ -1211,6 +1223,9 @@ function resolveLinkedProviderName(
   if (value === "codex") {
     return "codex";
   }
+  if (value === "elizacloud" || value === "eliza-cloud" || value === "cloud") {
+    return "elizacloud";
+  }
   if (value === "claude-code" || value === "claude" || value === "claudecode") {
     return "claude-code";
   }
@@ -1218,11 +1233,23 @@ function resolveLinkedProviderName(
 }
 
 function defaultProviderModel(provider: LinkedProviderName): string {
-  return provider === "codex" ? "gpt-5.4" : "claude-sonnet-4.6";
+  if (provider === "codex") {
+    return "gpt-5.4";
+  }
+  if (provider === "elizacloud") {
+    return "anthropic/claude-sonnet-4.6";
+  }
+  return "claude-sonnet-4.6";
 }
 
 function defaultProviderBaseUrl(provider: LinkedProviderName): string {
-  return provider === "codex" ? "https://chatgpt.com/backend-api/codex" : "";
+  if (provider === "codex") {
+    return "https://chatgpt.com/backend-api/codex";
+  }
+  if (provider === "elizacloud") {
+    return "https://www.elizacloud.ai/api/v1";
+  }
+  return "";
 }
 
 async function getProviderReadinessMessage(
@@ -1253,10 +1280,26 @@ async function getProviderReadinessMessage(
     return `Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
   }
 
+  if (provider === "elizacloud") {
+    const cloudStatus = snapshot.elizaCloud;
+    const credentials = await resolveLinkedProviderCredentials("elizacloud");
+    const apiKey =
+      credentials && "apiKey" in credentials ? credentials.apiKey?.trim() : "";
+    if (!apiKey) {
+      return cloudStatus.nativeReady || cloudStatus.reusable
+        ? `Eliza Cloud is selected, but the managed cloud credentials still look incomplete. Run \`${displayCommand("/accounts connect elizacloud")}\` to refresh the bond, or run \`elizaos login\` again if the local workspace key is stale.`
+        : `Eliza Cloud is selected, but no managed cloud key is active in this workspace. Run \`elizaos login\`, then \`${displayCommand("/accounts connect elizacloud")}\` to bind the native cloud path.`;
+    }
+  }
+
   if (provider === "codex") {
     const codexStatus = snapshot.codex;
     const credentials = await resolveLinkedProviderCredentials("codex");
-    if (!credentials?.accessToken) {
+    const accessToken =
+      credentials && "accessToken" in credentials
+        ? credentials.accessToken?.trim()
+        : "";
+    if (!accessToken) {
       return codexStatus.nativeReady || codexStatus.reusable
         ? `Codex is selected, but the bound credentials still look incomplete. Run \`${displayCommand("/accounts connect codex")}\` to rebind them, or run \`codex login\` first if the local store is stale.`
         : `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
@@ -1266,7 +1309,11 @@ async function getProviderReadinessMessage(
   if (provider === "claude-code") {
     const claudeStatus = snapshot.claudeCode;
     const credentials = await resolveLinkedProviderCredentials("claude-code");
-    if (!credentials?.accessToken) {
+    const accessToken =
+      credentials && "accessToken" in credentials
+        ? credentials.accessToken?.trim()
+        : "";
+    if (!accessToken) {
       if (claudeStatus.fallbackReady) {
         return `Claude Code is selected, but native Eliza auth material is still missing. Run \`claude setup-token\` to finish the native path, or \`${displayCommand("/accounts connect claude-code")}\` to activate the local Claude CLI fallback right now.`;
       }
@@ -1281,6 +1328,9 @@ function buildProviderNoResponseMessage(
   provider: string,
   model: string,
 ): string {
+  if (provider === "elizacloud") {
+    return `I couldn't get a usable response from Eliza Cloud (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the cloud bond, then \`${displayCommand("/accounts connect elizacloud")}\` if the workspace needs a fresh Cloud activation.`;
+  }
   if (provider === "codex") {
     return `I couldn't get a usable response from Codex (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, then \`${displayCommand("/accounts connect codex")}\` if it needs a rebind.`;
   }
@@ -1388,7 +1438,12 @@ export async function connectLinkedProvider(
   await refreshLinkedAccounts(provider);
   const accounts = getLinkedProviderAccountsSnapshot();
   const advice = getLinkedProviderConnectAdvice(provider);
-  const status = provider === "codex" ? accounts.codex : accounts.claudeCode;
+  const status =
+    provider === "codex"
+      ? accounts.codex
+      : provider === "claude-code"
+        ? accounts.claudeCode
+        : accounts.elizaCloud;
   const nativeReady = status.nativeReady ?? status.reusable;
   const fallbackReady = status.fallbackReady ?? false;
   const canActivate =
@@ -1420,7 +1475,12 @@ function formatLinkedAccountSummary(
   provider: LinkedProviderName,
   snapshot: ReturnType<typeof getLinkedProviderAccountsSnapshot>,
 ): string {
-  const status = provider === "codex" ? snapshot.codex : snapshot.claudeCode;
+  const status =
+    provider === "codex"
+      ? snapshot.codex
+      : provider === "claude-code"
+        ? snapshot.claudeCode
+        : snapshot.elizaCloud;
   return [
     `${provider}`,
     `  nativeReady: ${status.nativeReady ? "yes" : "no"}`,
@@ -1452,16 +1512,81 @@ function formatLinkedProviderAdviceAlternate(
     : `alternate: ${advice.secondaryCommand}`;
 }
 
+function formatProviderModeLabel(provider: LinkedProviderName): string {
+  if (provider === "elizacloud") {
+    return "managed-cloud";
+  }
+  return "local-specialist";
+}
+
+function formatAccountsOverview(
+  activeProvider: string,
+  accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>,
+): string {
+  const elizaCloudAdvice = getLinkedProviderConnectAdvice("elizacloud");
+  const codexAdvice = getLinkedProviderConnectAdvice("codex");
+  const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");
+
+  const blocks: string[] = [
+    `active-provider: ${activeProvider}`,
+    "",
+    "Managed path",
+    `- elizacloud (${formatProviderModeLabel("elizacloud")})`,
+    `  nativeReady: ${accounts.elizaCloud.nativeReady ? "yes" : "no"}`,
+    `  detail: ${accounts.elizaCloud.detail}`,
+    `  ${formatLinkedProviderAdviceNextStep(elizaCloudAdvice)}`,
+  ];
+
+  const elizaAlt = formatLinkedProviderAdviceAlternate(elizaCloudAdvice);
+  if (elizaAlt) {
+    blocks.push(`  ${elizaAlt}`);
+  }
+
+  blocks.push(
+    "",
+    "Local specialist providers",
+    `- codex (${formatProviderModeLabel("codex")})`,
+    `  nativeReady: ${accounts.codex.nativeReady ? "yes" : "no"}`,
+    `  fallbackReady: ${accounts.codex.fallbackReady ? "yes" : "no"}`,
+    `  detail: ${accounts.codex.detail}`,
+    `  ${formatLinkedProviderAdviceNextStep(codexAdvice)}`,
+  );
+  const codexAlt = formatLinkedProviderAdviceAlternate(codexAdvice);
+  if (codexAlt) {
+    blocks.push(`  ${codexAlt}`);
+  }
+
+  blocks.push(
+    `- claude-code (${formatProviderModeLabel("claude-code")})`,
+    `  nativeReady: ${accounts.claudeCode.nativeReady ? "yes" : "no"}`,
+    `  fallbackReady: ${accounts.claudeCode.fallbackReady ? "yes" : "no"}`,
+    `  detail: ${accounts.claudeCode.detail}`,
+    `  ${formatLinkedProviderAdviceNextStep(claudeAdvice)}`,
+  );
+  const claudeAlt = formatLinkedProviderAdviceAlternate(claudeAdvice);
+  if (claudeAlt) {
+    blocks.push(`  ${claudeAlt}`);
+  }
+
+  return blocks.join("\n");
+}
+
 export async function refreshLinkedAccounts(
   provider?: LinkedProviderName | "all",
 ): Promise<ReturnType<typeof getLinkedProviderAccountsSnapshot>> {
   if (!provider || provider === "all") {
     await Promise.all([
+      resolveLinkedProviderCredentials("elizacloud").catch(() => undefined),
       resolveLinkedProviderCredentials("codex").catch(() => undefined),
       resolveLinkedProviderCredentials("claude-code").catch(() => undefined),
       refreshLinkedCodexCredentials().catch(() => undefined),
       refreshLinkedClaudeCodeCredentials().catch(() => undefined),
     ]);
+    return getLinkedProviderAccountsSnapshot();
+  }
+
+  if (provider === "elizacloud") {
+    await resolveLinkedProviderCredentials("elizacloud");
     return getLinkedProviderAccountsSnapshot();
   }
 
@@ -3372,25 +3497,27 @@ async function buildCommandResponse(
     trimmed === "/runtime accounts" ||
     trimmed === "/accounts status"
   ) {
-    return JSON.stringify(
-      {
-        activeProvider: context.services.settings.get().model.provider,
-        accounts: getLinkedProviderAccountsSnapshot(),
-        connect: {
-          codex: getLinkedProviderConnectAdvice("codex"),
-          claudeCode: getLinkedProviderConnectAdvice("claude-code"),
-        },
-      },
-      null,
-      2,
+    return formatAccountsOverview(
+      context.services.settings.get().model.provider,
+      getLinkedProviderAccountsSnapshot(),
     );
   }
 
   if (trimmed === "/accounts doctor") {
     const accounts = getLinkedProviderAccountsSnapshot();
+    const elizaCloudAdvice = getLinkedProviderConnectAdvice("elizacloud");
     const codexAdvice = getLinkedProviderConnectAdvice("codex");
     const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");
     return [
+      "Managed cloud",
+      `elizacloud: nativeReady=${accounts.elizaCloud.nativeReady ? "yes" : "no"} fallbackReady=${accounts.elizaCloud.fallbackReady ? "yes" : "no"} available=${accounts.elizaCloud.available ? "yes" : "no"}`,
+      `  detail: ${accounts.elizaCloud.detail}`,
+      `  ${formatLinkedProviderAdviceNextStep(elizaCloudAdvice)}`,
+      formatLinkedProviderAdviceAlternate(elizaCloudAdvice)
+        ? `  ${formatLinkedProviderAdviceAlternate(elizaCloudAdvice)}`
+        : "",
+      "",
+      "Local specialist providers",
       `codex: nativeReady=${accounts.codex.nativeReady ? "yes" : "no"} fallbackReady=${accounts.codex.fallbackReady ? "yes" : "no"} available=${accounts.codex.available ? "yes" : "no"}`,
       `  detail: ${accounts.codex.detail}`,
       `  ${formatLinkedProviderAdviceNextStep(codexAdvice)}`,
@@ -3411,6 +3538,8 @@ async function buildCommandResponse(
     return [
       "Refreshed linked provider state.",
       "",
+      formatLinkedAccountSummary("elizacloud", snapshot),
+      "",
       formatLinkedAccountSummary("codex", snapshot),
       "",
       formatLinkedAccountSummary("claude-code", snapshot),
@@ -3422,7 +3551,7 @@ async function buildCommandResponse(
       trimmed.replace("/accounts refresh ", "").trim(),
     );
     if (!provider) {
-      return `Usage: ${displayCommand("/accounts refresh <codex|claude-code>")}`;
+      return `Usage: ${displayCommand("/accounts refresh <elizacloud|codex|claude-code>")}`;
     }
     const snapshot = await refreshLinkedAccounts(provider);
     return [
@@ -3437,11 +3566,13 @@ async function buildCommandResponse(
       trimmed.replace("/accounts use ", "").trim(),
     );
     if (!provider) {
-      return `Usage: ${displayCommand("/accounts use <codex|claude-code>")}`;
+      return `Usage: ${displayCommand("/accounts use <elizacloud|codex|claude-code>")}`;
     }
     const activated = activateLinkedProvider(context, provider);
     return [
-      `Activated ${provider}.`,
+      provider === "elizacloud"
+        ? "Activated Eliza Cloud managed inference."
+        : `Activated ${provider} as the local specialist provider.`,
       `model: ${activated.model}`,
       activated.baseUrl
         ? `baseUrl: ${activated.baseUrl}`
@@ -3456,12 +3587,14 @@ async function buildCommandResponse(
       trimmed.replace("/accounts connect ", "").trim(),
     );
     if (!provider) {
-      return `Usage: ${displayCommand("/accounts connect <codex|claude-code>")}`;
+      return `Usage: ${displayCommand("/accounts connect <elizacloud|codex|claude-code>")}`;
     }
     const result = await connectLinkedProvider(context, provider);
     if (result.connected && result.activated && result.providerState) {
       return [
-        `${provider} is now connected and active.`,
+        provider === "elizacloud"
+          ? "Eliza Cloud is now connected and active as the managed inference path."
+          : `${provider} is now connected and active as a local specialist provider.`,
         `model: ${result.providerState.model}`,
         result.providerState.baseUrl
           ? `baseUrl: ${result.providerState.baseUrl}`
@@ -3487,11 +3620,13 @@ async function buildCommandResponse(
       trimmed.replace("/accounts login ", "").trim(),
     );
     if (!provider) {
-      return `Usage: ${displayCommand("/accounts login <codex|claude-code>")}`;
+      return `Usage: ${displayCommand("/accounts login <elizacloud|codex|claude-code>")}`;
     }
     const advice = getLinkedProviderConnectAdvice(provider);
     return [
-      `To connect ${provider}, run this in your local shell:`,
+      provider === "elizacloud"
+        ? "To activate Eliza Cloud managed mode, run this in your local shell:"
+        : `To bind ${provider} as a local specialist provider, run this in your local shell:`,
       `  ${getLinkedProviderLoginCommand(provider)}`,
       `If you're already inside the Eliza Agent cockpit, you can also run: !${getLinkedProviderLoginCommand(provider)}`,
       getLinkedProviderSetupCommand(provider)
@@ -6154,10 +6289,22 @@ export async function handleAgentTurn(
   const effectiveMessage = shouldAttachSystemFacts(input.message)
     ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
     : input.message;
+  const agentName = context.runtime.character?.name ?? "Eliza Agent";
+  const localInteractive = (input.source ?? "cli") === "cli";
+  const connectionSource = localInteractive
+    ? "client_chat"
+    : (input.source ?? "cli");
   const roomKey = input.roomId ?? `room:${input.userId}`;
-  const roomId = stringToUuid(roomKey);
-  const worldId = stringToUuid("eliza-agent-world");
+  const roomId = localInteractive
+    ? stringToUuid(`${agentName}-chat-room`)
+    : stringToUuid(roomKey);
+  const worldId = localInteractive
+    ? stringToUuid(`${agentName}-chat-world`)
+    : stringToUuid("eliza-agent-world");
   const entityId = stringToUuid(input.userId);
+  const messageServerId = localInteractive
+    ? stringToUuid(`${agentName}-cli-server`)
+    : stringToUuid("eliza-agent-message-server");
   const sessionId = roomKey;
 
   context.services.userProfiles.observe(
@@ -6276,12 +6423,21 @@ export async function handleAgentTurn(
     entityId: entityId as UUID,
     roomId: roomId as UUID,
     worldId: worldId as UUID,
-    userName: input.userId,
-    source: input.source ?? "cli",
-    channelId: roomKey,
-    serverId: "eliza-agent",
+    userName: localInteractive ? "User" : input.userId,
+    source: connectionSource,
+    channelId: localInteractive ? `${agentName}-chat` : roomKey,
+    messageServerId: messageServerId as UUID,
     type: ChannelType.DM,
+    metadata: {
+      ownership: {
+        ownerId: entityId as UUID,
+      },
+    },
   } as Parameters<typeof context.runtime.ensureConnection>[0]);
+  await context.runtime.ensureParticipantInRoom?.(
+    context.runtime.agentId as UUID,
+    roomId as UUID,
+  );
 
   const memory = createMessageMemory({
     id: randomUUID() as UUID,
@@ -6289,7 +6445,7 @@ export async function handleAgentTurn(
     roomId: roomId as UUID,
     content: {
       text: effectiveMessage,
-      source: input.source ?? "cli",
+      source: connectionSource,
       channelType: ChannelType.DM,
     },
   });

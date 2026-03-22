@@ -102,7 +102,13 @@ function createOpenAiBackedTextModel(config: EnvConfig) {
 }
 
 function hasOfficialModelProvider(config: EnvConfig): boolean {
-  return Boolean(config.openAiApiKey || config.anthropicApiKey);
+  return Boolean(
+    config.openAiApiKey ||
+      config.anthropicApiKey ||
+      (config.elizaCloudEnabled && config.elizaCloudApiKey) ||
+      config.useLinkedCodexAuth ||
+      config.useLinkedClaudeCodeAuth,
+  );
 }
 
 export function createElizaAgentPlugin(
