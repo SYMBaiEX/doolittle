@@ -196,10 +196,10 @@ export function getNativePluginCatalog(
       id: "execution.forms",
       packageName: "@elizaos/plugin-forms",
       category: "execution",
-      source: "official",
+      source: "vendored",
       enabled: true,
       notes:
-        "Official structured forms plugin used by autocoder and guided workflow flows.",
+        "Workspace-native forms plugin used by autocoder and guided workflow flows.",
     },
     {
       id: "execution.coding-agent",
@@ -273,10 +273,10 @@ export function getNativePluginCatalog(
       id: "research.autocoder",
       packageName: "@elizaos/plugin-autocoder",
       category: "research",
-      source: "official",
+      source: "vendored",
       enabled: true,
       notes:
-        "Official autocoder plugin for code generation and SWE-bench style evaluation workflows.",
+        "Workspace-native autocoder plugin for code generation, GitHub, and secrets-backed workflows.",
     },
     {
       id: "product.eliza-agent-runtime",

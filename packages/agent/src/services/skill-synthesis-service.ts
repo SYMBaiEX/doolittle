@@ -179,9 +179,16 @@ export class SkillSynthesisService {
         skills: Array.isArray(parsed.skills)
           ? parsed.skills
               .filter(
-                (record): record is Partial<GeneratedSkillRecord> &
-                  Pick<GeneratedSkillRecord, "slug" | "title" | "taskId" | "path"> =>
-                  Boolean(record.slug && record.title && record.taskId && record.path),
+                (
+                  record,
+                ): record is Partial<GeneratedSkillRecord> &
+                  Pick<
+                    GeneratedSkillRecord,
+                    "slug" | "title" | "taskId" | "path"
+                  > =>
+                  Boolean(
+                    record.slug && record.title && record.taskId && record.path,
+                  ),
               )
               .map((record) => ({
                 slug: record.slug,

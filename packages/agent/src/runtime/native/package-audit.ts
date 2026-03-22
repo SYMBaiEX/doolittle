@@ -260,11 +260,11 @@ export function getNativePackageAudit(config: EnvConfig): {
     {
       packageName: "@elizaos/plugin-forms",
       role: "execution",
-      currentStrategy: "official",
-      currentTag: "latest",
+      currentStrategy: "vendored",
+      currentTag: "workspace",
       latestTagVersion: "1.2.0",
-      compatibility: "lagging-latest",
-      note: "Official forms plugin is installed directly and used to satisfy autocoder workflow dependencies.",
+      compatibility: "vendored-by-design",
+      note: "Workspace-native forms plugin replaces the older published line so persistence and runtime lifecycle stay aligned with the alpha.85 stack.",
     },
     {
       packageName: "@elizaos/plugin-coding-agent",
@@ -338,11 +338,11 @@ export function getNativePackageAudit(config: EnvConfig): {
     {
       packageName: "@elizaos/plugin-autocoder",
       role: "research",
-      currentStrategy: "official",
-      currentTag: "latest",
+      currentStrategy: "vendored",
+      currentTag: "workspace",
       latestTagVersion: "1.3.3",
-      compatibility: "lagging-latest",
-      note: "Official autocoder plugin is installed and audited, but its heavier E2B/forms/runtime dependencies keep it in a gated state until the surrounding native service stack is available.",
+      compatibility: "vendored-by-design",
+      note: "Workspace-native autocoder plugin replaces the older published line so code generation, GitHub, and secrets services boot cleanly on the current runtime stack.",
     },
   ];
 

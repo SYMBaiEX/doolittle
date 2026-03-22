@@ -3,7 +3,7 @@ import { actionBenchPlugin } from "@elizaos/plugin-action-bench";
 import { createAgentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
 import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import anthropicPlugin from "@elizaos/plugin-anthropic";
-import { autocoderPlugin } from "@elizaos/plugin-autocoder";
+import { createAutocoderPlugin } from "@elizaos/plugin-autocoder";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import { createBrowserPlugin } from "@elizaos/plugin-browser";
 import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
@@ -178,7 +178,20 @@ export function buildNativePluginAssembly(
 
   const research: Plugin[] = [
     normalizePlugin(actionBenchPlugin),
-    normalizePlugin(autocoderPlugin),
+    createAutocoderPlugin({
+      terminal: {
+        run: (command, timeoutMs) => services.terminal.run(command, timeoutMs),
+      },
+      repository: {
+        isRepository: () => services.repository.isRepository(),
+        status: () => services.repository.status(),
+        diffStat: () => services.repository.diffStat(),
+        recentCommits: (limit = 5) => services.repository.recentCommits(limit),
+      },
+      workspace: {
+        rootDir: () => config.workspaceDir,
+      },
+    }),
   ];
 
   const execution: Plugin[] = [
