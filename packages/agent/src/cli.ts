@@ -38,6 +38,11 @@ interface CliExecutionHooks {
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
 
+interface ResponseTranscriptEntry {
+  label: string;
+  body: string;
+}
+
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -72,6 +77,28 @@ function truncate(text: string, max = 520): string {
 
 function escapeBlessed(text: string): string {
   return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
+}
+
+function renderResponseTranscript(
+  history: ResponseTranscriptEntry[],
+  live?: ResponseTranscriptEntry,
+): string {
+  const sections = [...history];
+  if (live) {
+    sections.push(live);
+  }
+  if (!sections.length) {
+    return "{gray-fg}Responses, JSON payloads, and operator output will render here.{/}";
+  }
+
+  return sections
+    .slice(-6)
+    .map((entry) =>
+      [`{bold}${escapeBlessed(entry.label)}{/}`, escapeBlessed(entry.body)]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n{gray-fg}────────────────────────────────{/}\n\n");
 }
 
 function toneTag(tone: CliExecutionResult["tone"]): string {
@@ -1289,6 +1316,8 @@ async function startTui(context: AppContext): Promise<void> {
   let historyIndex = 0;
   const pendingCommands: string[] = [];
   let paletteOpen = false;
+  const responseHistory: ResponseTranscriptEntry[] = [];
+  let liveResponse: ResponseTranscriptEntry | undefined;
   const focusables: blessed.Widgets.BlessedElement[] = [
     activity,
     response,
@@ -1338,6 +1367,27 @@ async function startTui(context: AppContext): Promise<void> {
                 : activity;
     target.scroll(delta);
     screen.render();
+  }
+
+  function renderResponsePane(): void {
+    response.setContent(
+      renderResponseTranscript(responseHistory, liveResponse),
+    );
+    response.setScrollPerc(100);
+  }
+
+  function pushResponseEntry(label: string, body: string): void {
+    responseHistory.push({ label, body });
+    if (responseHistory.length > 24) {
+      responseHistory.splice(0, responseHistory.length - 24);
+    }
+    liveResponse = undefined;
+    renderResponsePane();
+  }
+
+  function setLiveResponse(label: string, body: string): void {
+    liveResponse = { label, body };
+    renderResponsePane();
   }
 
   function focusAt(index: number): void {
@@ -1500,7 +1550,7 @@ async function startTui(context: AppContext): Promise<void> {
     tone: CliExecutionResult["tone"],
   ): void {
     activity.log(
-      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {bold}${kind}{/bold} ${escapeBlessed(message)}`,
+      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {bold}${escapeBlessed(kind)}{/bold} ${escapeBlessed(message)}`,
     );
   }
 
@@ -1551,7 +1601,8 @@ async function startTui(context: AppContext): Promise<void> {
       return;
     }
 
-    appendActivity("cmd", `{white-fg}${line}{/}`, "info");
+    appendActivity("cmd", line, "info");
+    setLiveResponse(`Running ${line}`, "");
 
     try {
       const result = await executeCliInput(line, context, state, {
@@ -1566,23 +1617,23 @@ async function startTui(context: AppContext): Promise<void> {
           for (const lineChunk of lines) {
             appendActivity(
               source === "stdout" ? "out+" : "err+",
-              truncate(`${command}: ${lineChunk}`, 180),
+              truncate(`${command}: ${lineChunk}`, 260),
               source === "stdout" ? "agent" : "warning",
             );
           }
           const streamed = lines.join("\n");
-          const current = response.getContent();
-          response.setContent(
-            current?.trim()
-              ? `${current}\n${source.toUpperCase()}: ${escapeBlessed(streamed)}`
-              : `${source.toUpperCase()}: ${escapeBlessed(streamed)}`,
+          const current = liveResponse?.body ?? "";
+          setLiveResponse(
+            `Running ${command}`,
+            current.trim()
+              ? `${current}\n${source.toUpperCase()}: ${streamed}`
+              : `${source.toUpperCase()}: ${streamed}`,
           );
-          screen.render();
         },
       });
       await syncThemeFromSettings();
       if (result.text) {
-        response.setContent(escapeBlessed(result.text));
+        pushResponseEntry(line, result.text);
         appendActivity(
           result.tone === "agent" ? "agent" : "out",
           compactPreview(result.text),
@@ -1595,7 +1646,7 @@ async function startTui(context: AppContext): Promise<void> {
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      response.setContent(escapeBlessed(`Error: ${detail}`));
+      pushResponseEntry(line, `Error: ${detail}`);
       appendActivity("err", detail, "error");
     } finally {
       busy = false;
@@ -1819,7 +1870,9 @@ async function startTui(context: AppContext): Promise<void> {
   });
   screen.key(["C-l"], () => {
     activity.setContent("");
-    response.setContent("{gray-fg}Response pane cleared.{/}");
+    responseHistory.length = 0;
+    liveResponse = undefined;
+    renderResponsePane();
     screen.render();
   });
   screen.key(["C-r"], () => {
@@ -1971,8 +2024,9 @@ async function startTui(context: AppContext): Promise<void> {
     `Use Ctrl-E for multiline compose, ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes, and streamed local terminal output will appear live in the feed.`,
     "info",
   );
-  response.setContent(
-    `{bold}Operator Cockpit Ready{/}\n\nUse the right rail for runtime, transport, execution, and command assist.\nTry /help, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/execution status")}, ${canonicalizeSlashCommandSyntax("/browser capture <url>")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.`,
+  pushResponseEntry(
+    "Operator Cockpit Ready",
+    `Use the right rail for runtime, transport, execution, and command assist.\nTry /help, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/execution status")}, ${canonicalizeSlashCommandSyntax("/browser capture <url>")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.`,
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));

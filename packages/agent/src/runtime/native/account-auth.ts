@@ -995,13 +995,11 @@ export function getLinkedProviderConnectAdvice(
       status,
       ready: true,
       preferredAction: "use",
-      primaryCommand: status.loginCommand,
-      secondaryCommand:
-        provider === "claude-code" ? status.setupCommand : undefined,
+      primaryCommand: `/accounts connect ${provider}`,
       detail:
         provider === "codex"
-          ? "Codex is already bound for native Eliza execution."
-          : "Claude Code is already bound for native Eliza execution.",
+          ? "Codex is already bound for native Eliza execution. Run `/accounts connect codex` to activate it here."
+          : "Claude Code is already bound for native Eliza execution. Run `/accounts connect claude-code` to activate it here.",
     };
   }
 
@@ -1012,9 +1010,9 @@ export function getLinkedProviderConnectAdvice(
       ready: false,
       preferredAction: "setup-token",
       primaryCommand: status.setupCommand,
-      secondaryCommand: status.loginCommand,
+      secondaryCommand: `/accounts connect ${provider}`,
       detail:
-        "Claude Code is signed in locally, but native Eliza auth material is still missing. Run `claude setup-token` to complete the native path, or keep local CLI fallback as an escape hatch.",
+        "Claude Code is signed in locally, but native Eliza auth material is still missing. Run `claude setup-token` to complete the native path, or run `/accounts connect claude-code` to use the local CLI fallback now.",
     };
   }
 
@@ -1024,11 +1022,10 @@ export function getLinkedProviderConnectAdvice(
     ready: false,
     preferredAction: "login",
     primaryCommand: status.loginCommand,
-    secondaryCommand:
-      provider === "claude-code" ? status.setupCommand : undefined,
+    secondaryCommand: `/accounts connect ${provider}`,
     detail:
       provider === "codex"
-        ? "Codex still needs a linked local login before Eliza can use it natively."
-        : "Claude Code still needs an official login before Eliza can bind it natively.",
+        ? "Codex still needs a linked local login. Run `codex login`, then `/accounts connect codex` to bind it in Eliza."
+        : "Claude Code still needs an official login. Run `claude auth login`, then `/accounts connect claude-code` to bind it in Eliza.",
   };
 }

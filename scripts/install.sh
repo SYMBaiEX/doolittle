@@ -13,6 +13,7 @@ ELIZA_BIN_LINK="${LOCAL_BIN_DIR}/eliza-agent"
 ELIZA_BIN_SOURCE="${ROOT}/bin/eliza-agent"
 ELIZA_SHORT_LINK="${LOCAL_BIN_DIR}/ea"
 OS_NAME="unknown"
+UPDATED_SHELL_CONFIGS=()
 
 detect_os() {
   case "$(uname -s)" in
@@ -115,11 +116,19 @@ setup_path() {
       bash)
         [[ -f "$HOME/.bashrc" ]] && shell_configs+=("$HOME/.bashrc")
         [[ -f "$HOME/.bash_profile" ]] && shell_configs+=("$HOME/.bash_profile")
+        if [[ ${#shell_configs[@]} -eq 0 ]]; then
+          touch "$HOME/.bashrc"
+          shell_configs+=("$HOME/.bashrc")
+        fi
         ;;
       *)
         [[ -f "$HOME/.profile" ]] && shell_configs+=("$HOME/.profile")
         [[ -f "$HOME/.zshrc" ]] && shell_configs+=("$HOME/.zshrc")
         [[ -f "$HOME/.bashrc" ]] && shell_configs+=("$HOME/.bashrc")
+        if [[ ${#shell_configs[@]} -eq 0 ]]; then
+          touch "$HOME/.profile"
+          shell_configs+=("$HOME/.profile")
+        fi
         ;;
     esac
     [[ -f "$HOME/.profile" ]] && shell_configs+=("$HOME/.profile")
@@ -131,6 +140,7 @@ setup_path() {
           echo "# Eliza Agent — ensure ~/.local/bin is on PATH"
           echo "$path_line"
         } >> "$shell_config"
+        UPDATED_SHELL_CONFIGS+=("$shell_config")
       fi
     done
   fi
@@ -141,6 +151,26 @@ setup_path() {
   if should_install_shortcut; then
     ln -sf "$ELIZA_BIN_SOURCE" "$ELIZA_SHORT_LINK"
     printf "%s\n" "${dim}  ea -> ${ELIZA_SHORT_LINK}${reset}"
+  fi
+
+  if [[ ${#UPDATED_SHELL_CONFIGS[@]} -gt 0 ]]; then
+    printf "%s\n" "${dim}  Updated shell startup file(s):${reset}"
+    for shell_config in "${UPDATED_SHELL_CONFIGS[@]}"; do
+      printf "%s\n" "${dim}    - ${shell_config}${reset}"
+    done
+    case "$(basename "${SHELL:-/bin/bash}")" in
+      zsh)
+        printf "%s\n" "${dim}  Reload with: source ~/.zshrc  (or open a new terminal)${reset}"
+        ;;
+      bash)
+        printf "%s\n" "${dim}  Reload with: source ~/.bashrc  (or open a new terminal)${reset}"
+        ;;
+      *)
+        printf "%s\n" "${dim}  Reload with: source your shell profile or open a new terminal${reset}"
+        ;;
+    esac
+  else
+    printf "%s\n" "${dim}  PATH already includes ${LOCAL_BIN_DIR}; no shell profile update needed.${reset}"
   fi
 }
 
@@ -175,11 +205,21 @@ if [[ "$ASSUME_YES" -eq 1 ]]; then
 fi
 
 printf "%s\n" "${amber}Beginning the awakening sequence...${reset}"
-setup_path
+if [[ "$CHECK_ONLY" -eq 1 ]]; then
+  printf "%s\n" "${dim}  Dry run: skipping symlink and shell profile writes.${reset}"
+  printf "%s\n" "${dim}  Would create: ${ELIZA_BIN_LINK}${reset}"
+  if should_install_shortcut; then
+    printf "%s\n" "${dim}  Would create shortcut: ${ELIZA_SHORT_LINK}${reset}"
+  fi
+  printf "%s\n" "${dim}  Run without --check to complete the install and onboarding ritual.${reset}"
+else
+  setup_path
+fi
 bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
 
 printf "\n%s\n" "${orange}${bold}Install complete.${reset}"
 printf "%s\n" "${dim}  The shell is warm. The channels are waiting.${reset}"
+printf "%s\n" "${dim}  If a fresh terminal cannot find eliza-agent, reload your shell or open a new session.${reset}"
 printf "%s\n" "  eliza-agent"
 if [[ -L "$ELIZA_SHORT_LINK" ]]; then
   printf "%s\n" "  ea"
@@ -199,8 +239,6 @@ if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
   printf "%s\n" "  eliza-agent doctor"
   printf "%s\n" "  eliza-agent plain"
   printf "%s\n" "  eliza-agent setup"
-  if [[ "$OS_NAME" == "macos" ]]; then
-    printf "%s\n" "  If this is a new shell session issue, run: source ~/.zshrc"
-  fi
+  printf "%s\n" "${dim}  If this was only a shell PATH refresh issue, restart the terminal or source your profile.${reset}"
   exit 1
 fi

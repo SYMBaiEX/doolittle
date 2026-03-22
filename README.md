@@ -211,6 +211,8 @@ That flow:
 - updates your shell PATH if needed
 - launches the onboarding ritual immediately
 
+If a fresh terminal does not see `eliza-agent` right away, restart the shell or source the shell profile that was updated during install, such as `~/.zshrc` on macOS or `~/.bashrc` on Linux.
+
 After that, the normal local UX is:
 
 ```bash
