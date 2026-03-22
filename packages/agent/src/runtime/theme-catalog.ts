@@ -1,6 +1,7 @@
 export interface TuiThemeProfile {
   name: string;
   label: string;
+  tagline: string;
   aliases?: string[];
   baseBg: string;
   baseFg: string;
@@ -18,6 +19,7 @@ export const TUI_THEMES = {
   orange: {
     name: "orange",
     label: "Neon Dune",
+    tagline: "Warm ignition for the operator cockpit.",
     aliases: ["dune", "sunwire"],
     baseBg: "black",
     baseFg: "white",
@@ -33,6 +35,7 @@ export const TUI_THEMES = {
   blue: {
     name: "blue",
     label: "Blue Static",
+    tagline: "Clean signal with official ElizaOS restraint.",
     aliases: ["static", "signalblue"],
     baseBg: "black",
     baseFg: "white",
@@ -48,6 +51,7 @@ export const TUI_THEMES = {
   matrix: {
     name: "matrix",
     label: "Ghostline",
+    tagline: "Low-light terminal residue with a living pulse.",
     aliases: ["ghost", "terminal"],
     baseBg: "black",
     baseFg: "green",
@@ -63,6 +67,7 @@ export const TUI_THEMES = {
   synthwave: {
     name: "synthwave",
     label: "Midnight Grid",
+    tagline: "Soft neon geometry for long operator nights.",
     aliases: ["grid", "midnight"],
     baseBg: "black",
     baseFg: "white",
@@ -78,6 +83,7 @@ export const TUI_THEMES = {
   ember: {
     name: "ember",
     label: "Furnace Hex",
+    tagline: "Hot copper edges with a disciplined core.",
     aliases: ["forge", "hex"],
     baseBg: "black",
     baseFg: "white",
@@ -93,6 +99,7 @@ export const TUI_THEMES = {
   arctic: {
     name: "arctic",
     label: "Polar Signal",
+    tagline: "Cold glass clarity for high-trust focus.",
     aliases: ["polar", "frostline"],
     baseBg: "black",
     baseFg: "white",
@@ -108,6 +115,7 @@ export const TUI_THEMES = {
   toxic: {
     name: "toxic",
     label: "Acid Burn",
+    tagline: "Sharp lime voltage for aggressive work.",
     aliases: ["acid", "burn"],
     baseBg: "black",
     baseFg: "white",
@@ -123,6 +131,7 @@ export const TUI_THEMES = {
   rose: {
     name: "rose",
     label: "Velvet Circuit",
+    tagline: "A quieter, more theatrical control surface.",
     aliases: ["velvet", "circuit"],
     baseBg: "black",
     baseFg: "white",
@@ -138,6 +147,7 @@ export const TUI_THEMES = {
   obsidian: {
     name: "obsidian",
     label: "Null Glass",
+    tagline: "Dark chrome for minimal interference.",
     aliases: ["null", "glass"],
     baseBg: "black",
     baseFg: "white",
@@ -153,6 +163,7 @@ export const TUI_THEMES = {
   ivory: {
     name: "ivory",
     label: "Pale Relay",
+    tagline: "Bright neutral light with a soft edge.",
     aliases: ["pale", "relay"],
     baseBg: "#101010",
     baseFg: "#F7F7F7",
@@ -174,6 +185,7 @@ export const DEFAULT_TUI_THEME: TuiThemeName = "orange";
 export function listTuiThemes(): Array<{
   name: TuiThemeName;
   label: string;
+  tagline: string;
   aliases: string[];
   primary: string;
   secondary: string;
@@ -183,6 +195,7 @@ export function listTuiThemes(): Array<{
   ).map(([name, theme]) => ({
     name,
     label: theme.label,
+    tagline: theme.tagline,
     aliases: theme.aliases ?? [],
     primary: theme.primary,
     secondary: theme.secondary,
