@@ -3,7 +3,7 @@ import { createInterface } from "node:readline/promises";
 import blessed from "blessed";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import type { AppContext } from "@/runtime/bootstrap";
-import { handleAgentTurn } from "@/runtime/chat";
+import { executeSlashCommand, handleAgentTurn } from "@/runtime/chat";
 import {
   COMMAND_CATALOG,
   canonicalizeSlashCommandSyntax,
@@ -44,10 +44,6 @@ function nowStamp(): string {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function formatJson(value: unknown): string {
-  return JSON.stringify(value, null, 2);
 }
 
 function compactJsonLine(value: unknown): string {
@@ -641,20 +637,96 @@ async function executeCliInput(
     };
   }
 
-  const localFirstCommands = [
-    "/gateway start",
-    "/gateway stop",
-    "/gateway status",
-    "/terminal run ",
-  ];
-  const shouldRouteThroughRuntime =
-    normalizedTrimmed.startsWith("/") &&
-    !localFirstCommands.some((command) =>
-      normalizedTrimmed.startsWith(command),
-    );
+  const runShellFlow = async (
+    command: string,
+    onSuccess?: () => Promise<string | undefined>,
+  ): Promise<CliExecutionResult> => {
+    const result = await context.services.terminal.runStreamingLocal(command, {
+      onStdout: (chunk) => {
+        hooks?.onStream?.({
+          source: "stdout",
+          chunk,
+          command,
+        });
+      },
+      onStderr: (chunk) => {
+        hooks?.onStream?.({
+          source: "stderr",
+          chunk,
+          command,
+        });
+      },
+    });
+    const followUp =
+      result.exitCode === 0 && onSuccess ? await onSuccess() : undefined;
+    return {
+      text: [
+        `$ ${result.command}`,
+        "",
+        result.stdout || "(no stdout)",
+        result.stderr ? `\n[stderr]\n${result.stderr}` : "",
+        `\nexit=${result.exitCode} duration=${result.durationMs ?? "n/a"}ms`,
+        followUp ? `\n${followUp}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      tone: result.exitCode === 0 ? "success" : "warning",
+    };
+  };
 
-  if (shouldRouteThroughRuntime) {
-    const response = await handleAgentTurn(
+  if (normalizedTrimmed.startsWith("/accounts login ")) {
+    const provider = normalizedTrimmed.replace("/accounts login ", "").trim();
+    const command =
+      provider === "codex"
+        ? "codex login"
+        : provider === "claude-code"
+          ? "claude auth login"
+          : "";
+    if (!command) {
+      return {
+        text: `Usage: ${canonicalizeSlashCommandSyntax("/accounts login <codex|claude-code>")}`,
+        tone: "warning",
+      };
+    }
+    return runShellFlow(command, async () =>
+      executeSlashCommand(
+        {
+          message: canonicalizeSlashCommandSyntax(
+            `/accounts connect ${provider}`,
+          ),
+          userId: "local-user",
+          roomId: state.activeSessionId,
+          source: "cli",
+        },
+        context,
+      ),
+    );
+  }
+
+  if (normalizedTrimmed === "/accounts setup-token claude-code") {
+    return runShellFlow("claude setup-token", async () =>
+      executeSlashCommand(
+        {
+          message: canonicalizeSlashCommandSyntax(
+            "/accounts connect claude-code",
+          ),
+          userId: "local-user",
+          roomId: state.activeSessionId,
+          source: "cli",
+        },
+        context,
+      ),
+    );
+  }
+
+  if (
+    normalizedTrimmed.startsWith("/") &&
+    !normalizedTrimmed.startsWith("/resume ") &&
+    normalizedTrimmed !== "/resume" &&
+    !normalizedTrimmed.startsWith("/title ") &&
+    !normalizedTrimmed.startsWith("/terminal run ")
+  ) {
+    const response = await executeSlashCommand(
       {
         message: normalizedTrimmed,
         userId: "local-user",
@@ -663,176 +735,9 @@ async function executeCliInput(
       },
       context,
     );
-    return { text: response, tone: "info" };
-  }
-
-  if (normalizedTrimmed === "/gateway start") {
-    await context.gateway.start();
-    return { text: "Gateway started.", tone: "success" };
-  }
-  if (normalizedTrimmed === "/gateway stop") {
-    await context.gateway.stop();
-    return { text: "Gateway stopped.", tone: "warning" };
-  }
-  if (normalizedTrimmed === "/gateway status") {
-    const health = await context.gateway.health();
-    return { text: formatJson(health), tone: "info" };
-  }
-  if (
-    normalizedTrimmed === "/runtime ecosystem" ||
-    normalizedTrimmed === "/plugins ecosystem"
-  ) {
-    return {
-      text: formatJson({
-        runtime: getNativePackageAudit(context.config).runtime,
-        audit: getNativePackageAudit(context.config),
-      }),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed === "/runtime status") {
-    return {
-      text: formatJson({
-        provider: context.services.settings.get().model.provider,
-        model: context.services.settings.get().model.model,
-        plugins: {
-          openai: Boolean(context.config.openAiApiKey),
-          anthropic: Boolean(context.config.anthropicApiKey),
-          pdf: true,
-          telegram: Boolean(context.config.telegramBotToken),
-        },
-      }),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed === "/gateway config") {
-    return {
-      text: formatJson(context.services.gatewayConfig),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed === "/gateway supervision") {
-    return {
-      text: formatJson(context.gateway.supervision(20)),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed === "/gateway daemon") {
-    return {
-      text: formatJson(context.gateway.runtimeStatus().daemon),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed === "/gateway journal") {
-    const history = await context.gateway.history(10);
-    return { text: formatJson(history), tone: "info" };
-  }
-  if (normalizedTrimmed.startsWith("/gateway replay ")) {
-    const raw = normalizedTrimmed.replace("/gateway replay ", "").trim();
-    const target =
-      raw === "latest" ? context.gateway.inbox(1).at(0)?.recordId : raw;
-    if (!target) {
-      return {
-        text: "No gateway inbox records available to replay.",
-        tone: "warning",
-      };
+    if (response !== undefined) {
+      return { text: response, tone: "info" };
     }
-    return {
-      text: formatJson(await context.gateway.replayInbox(target)),
-      tone: "success",
-    };
-  }
-  if (normalizedTrimmed === "/responses list") {
-    return {
-      text: formatJson(context.services.apiTransport.list(20)),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed.startsWith("/responses show ")) {
-    const id = normalizedTrimmed.replace("/responses show ", "").trim();
-    if (!id) {
-      return { text: "Usage: /responses show <id>", tone: "warning" };
-    }
-    const record = context.services.apiTransport.get(id);
-    return record
-      ? { text: formatJson(record), tone: "info" }
-      : { text: `Response ${id} not found.`, tone: "warning" };
-  }
-  if (normalizedTrimmed.startsWith("/pdf extract ")) {
-    const path = normalizedTrimmed.replace("/pdf extract ", "").trim();
-    if (!path) {
-      return { text: "Usage: /pdf extract <path>", tone: "warning" };
-    }
-    const extracted = await context.services.documents.extractPdfFromPath(path);
-    return { text: extracted, tone: "agent" };
-  }
-  if (normalizedTrimmed.startsWith("/gateway receive ")) {
-    const payload = normalizedTrimmed.replace("/gateway receive ", "");
-    const [head, text] = payload.split("::").map((part) => part.trim());
-    const [platform, userId, roomId] = head.split(/\s+/u);
-    if (!platform || !userId || !roomId || !text) {
-      return {
-        text: "Usage: /gateway receive <platform> <userId> <roomId> :: <message>",
-        tone: "warning",
-      };
-    }
-    const result = await context.gateway.receive({
-      platform: platform as never,
-      userId,
-      roomId,
-      text,
-    });
-    return { text: formatJson(result), tone: "info" };
-  }
-  if (normalizedTrimmed === "/pairing pending") {
-    return {
-      text: formatJson(context.services.pairing.listPending()),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed.startsWith("/pairing approve ")) {
-    const [, , platform, code] = normalizedTrimmed.split(/\s+/u);
-    const approved = context.services.pairing.approve(platform as never, code);
-    return { text: formatJson(approved), tone: "success" };
-  }
-  if (normalizedTrimmed.startsWith("/pairing deny ")) {
-    const [, , platform, code] = normalizedTrimmed.split(/\s+/u);
-    const denied = context.services.pairing.deny(platform as never, code);
-    return { text: formatJson(denied), tone: "warning" };
-  }
-  if (normalizedTrimmed === "/hooks list") {
-    return { text: formatJson(context.services.hooks.list()), tone: "info" };
-  }
-  if (normalizedTrimmed.startsWith("/hooks add ")) {
-    const payload = normalizedTrimmed.replace("/hooks add ", "");
-    const [head, template] = payload.split("::").map((part) => part.trim());
-    const [event, ...nameParts] = head.split(/\s+/u);
-    const name = nameParts.join(" ") || event;
-    if (!event || !template) {
-      return {
-        text: "Usage: /hooks add <event> <name?> :: <template>",
-        tone: "warning",
-      };
-    }
-    const hook = context.services.hooks.add({
-      event,
-      name,
-      enabled: true,
-      template,
-    });
-    return { text: formatJson(hook), tone: "success" };
-  }
-  if (normalizedTrimmed === "/hooks recent") {
-    return {
-      text: formatJson(context.services.hooks.recentInvocations()),
-      tone: "info",
-    };
-  }
-  if (normalizedTrimmed === "/sessions gateway") {
-    return {
-      text: formatJson(context.services.gatewaySessions.list()),
-      tone: "info",
-    };
   }
   if (normalizedTrimmed === "/resume") {
     const titled = context.services.sessions.listTitled(10);
