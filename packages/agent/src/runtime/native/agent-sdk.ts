@@ -26,14 +26,6 @@ const FOUNDATION_PACKAGES = [
   "@elizaos/plugin-mcp",
 ] as const;
 
-const LEGACY_PACKAGES = [
-  "@elizaos/server",
-  "@elizaos/cli",
-  "@elizaos/api-client",
-  "@elizaos/client",
-  "@elizaos/project-starter",
-] as const;
-
 const ECOSYSTEM_PACKAGES = [
   "@elizaos/plugin-action-bench",
   "@elizaos/plugin-autocoder",
@@ -60,16 +52,6 @@ export async function getAgentSdkAudit() {
       ]),
     ),
   );
-  const legacyPackages = [...LEGACY_PACKAGES];
-  const legacyInstalled = Object.fromEntries(
-    await Promise.all(
-      legacyPackages.map(async (packageName) => [
-        packageName,
-        await getInstalledVersion(packageName),
-      ]),
-    ),
-  );
-
   const compatibilityTargets = [
     ...new Set([
       ...AI_PROVIDER_PLUGINS,
@@ -98,8 +80,6 @@ export async function getAgentSdkAudit() {
     installed,
     ecosystemPackages,
     ecosystemInstalled,
-    legacyPackages,
-    legacyInstalled,
     coreVersion,
     channels: CHANNEL_DIST_TAGS,
     compatibility,

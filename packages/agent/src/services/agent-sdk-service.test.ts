@@ -10,8 +10,6 @@ describe("AgentSdkService", () => {
         installed: Record<string, string | undefined>;
         ecosystemPackages?: string[];
         ecosystemInstalled?: Record<string, string | undefined>;
-        legacyPackages?: string[];
-        legacyInstalled?: Record<string, string | undefined>;
         compatibility: unknown[];
         skillCatalog: { cachedSkills: number };
       }>;
