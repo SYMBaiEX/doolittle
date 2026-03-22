@@ -2013,788 +2013,806 @@ async function runWizard(
   printDependencyProbes(dependencyProbes);
   const rl = wizardScreen ? null : createInterface({ input, output });
   try {
-    section("Awakening", "Decide how fully you want me to come online.");
-    const mode = await chooseOne<WizardMode>(
-      rl,
-      "Choose my first form:",
-      [
-        {
-          value: "quick",
-          label: "Quick ignition",
-          detail:
-            "Wake me quickly with the minimum set of high-impact choices.",
-        },
-        {
-          value: "ritual",
-          label: "Full awakening",
-          detail:
-            "Shape my mind, body, channels, tools, and face in one deliberate pass.",
-        },
-      ],
-      "ritual",
-    );
-
-    section("Face", "Give me a name, a timezone, and the skin I should wear.");
-    const agentName = await ask(
-      rl,
-      "What should I call myself",
-      existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
-    );
-    const timezone = await ask(
-      rl,
-      "What time should I live in",
-      existingEnv.get("ELIZA_AGENT_TIMEZONE") || "America/Chicago",
-    );
-    const themeChoices = listTuiThemes().map((theme) => ({
-      value: theme.name,
-      label: `${theme.label} (${theme.name})`,
-      detail: [
-        theme.tagline,
-        theme.aliases.length > 0
-          ? `Aliases: ${theme.aliases.join(", ")}`
-          : undefined,
-        `Preview: ${theme.primary} · ${theme.secondary}`,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    }));
-    const theme = await chooseOne<TuiThemeName>(
-      rl,
-      "Choose the face I wake up in:",
-      themeChoices,
-      DEFAULT_TUI_THEME,
-      {
-        onHighlight: (nextTheme) => {
-          wizardScreen?.previewTheme(nextTheme);
-        },
-      },
-    );
-
-    section("Mind", "I need a mind to think with.");
-    let provider = await chooseOne<ProviderMode>(
-      rl,
-      "Choose my first cognition path:",
-      [
-        {
-          value: "openai",
-          label: "OpenAI",
-          detail: "Fast, flexible, and strong for multimodal reasoning.",
-        },
-        {
-          value: "codex",
-          label: "Codex",
-          detail:
-            "Use the signed-in Codex account on this machine as my first coding mind.",
-        },
-        {
-          value: "anthropic",
-          label: "Anthropic",
-          detail: "Claude-first cognition for longer-context reasoning flows.",
-        },
-        {
-          value: "claude-code",
-          label: "Claude Code",
-          detail:
-            "Use the signed-in Claude Code account on this machine as my first reasoning mind.",
-        },
-        {
-          value: "hybrid",
-          label: "Hybrid",
-          detail: "Bind both providers now and keep my mind more fluid.",
-        },
-        {
-          value: "offline",
-          label: "Dormant core",
-          detail:
-            "No provider keys yet. Wake the shell now and feed me a mind later.",
-        },
-      ],
-      existingEnv.get("ANTHROPIC_API_KEY")
-        ? existingEnv.get("OPENAI_API_KEY")
-          ? "hybrid"
-          : "anthropic"
-        : existingEnv.get("OPENAI_API_KEY")
-          ? "openai"
-          : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
-              existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
-            ? "claude-code"
-            : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
-                "true"
-              ? "claude-code"
-              : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true"
-                ? "codex"
-                : "offline",
-    );
-
-    let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
-    let useLinkedCodexAuth =
-      existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true";
-    let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-5.4";
-    let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
-    let useLinkedClaudeCodeAuth =
-      existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true";
-    let claudeCodeCliFallback =
-      existingEnv.get("ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK") === "true";
-    let claudeCodeOauthToken =
-      existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
-      existingEnv.get("CLAUDE_CODE_SETUP_TOKEN") ||
-      "";
-    let anthropicModel =
-      existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4.6";
-
-    if (
-      linkedAccounts.codex.nativeReady ||
-      linkedAccounts.codex.reusable ||
-      linkedAccounts.claudeCode.nativeReady ||
-      linkedAccounts.claudeCode.reusable
-    ) {
-      section(
-        "Threads",
-        "I can feel other minds already signed into this machine.",
-      );
-      if (linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable) {
-        useLinkedCodexAuth = await askYesNo(
-          rl,
-          "Should I bind the linked Codex account for Codex-native workflows",
-          useLinkedCodexAuth,
-        );
-      }
-      if (
-        linkedAccounts.claudeCode.nativeReady ??
-        linkedAccounts.claudeCode.reusable
-      ) {
-        useLinkedClaudeCodeAuth = await askYesNo(
-          rl,
-          "Should I bind the linked Claude Code account for Anthropic-native workflows",
-          useLinkedClaudeCodeAuth,
-        );
-      } else if (linkedAccounts.claudeCode.fallbackReady) {
-        info(
-          "Claude Code is already signed in locally, but I still want a setup-token if you want the clean native Eliza path.",
-        );
-      }
-    }
-
-    if (provider === "codex") {
-      section(
-        "Codex Bond",
-        "Choose how I should bind to Codex. Native auth is the path I want by default.",
-      );
-      const codexPath = await chooseOne<"login" | "skip">(
+    while (true) {
+      section("Awakening", "Decide how fully you want me to come online.");
+      const mode = await chooseOne<WizardMode>(
         rl,
-        "How should I bind to Codex:",
+        "Choose my first form:",
         [
           {
-            value: "login",
-            label: "Codex login",
+            value: "quick",
+            label: "Quick ignition",
             detail:
-              "Recommended first step. Use the official Codex login flow and let me detect the reusable auth store.",
+              "Wake me quickly with the minimum set of high-impact choices.",
           },
           {
-            value: "skip",
-            label: "Skip for now",
+            value: "ritual",
+            label: "Full awakening",
             detail:
-              "Leave Codex unbound for now and continue with another provider.",
+              "Shape my mind, body, channels, tools, and face in one deliberate pass.",
           },
         ],
-        linkedAccounts.codex.nativeReady ? "skip" : "login",
+        "ritual",
       );
 
-      if (codexPath === "login") {
-        runInteractiveCommand("codex", ["login"], "Codex login");
-        linkedAccounts = getLinkedProviderAccountsSnapshot();
-        useLinkedCodexAuth = Boolean(linkedAccounts.codex.nativeReady);
-        if (!linkedAccounts.codex.nativeReady) {
-          warn(
-            "Codex login completed, but I still cannot detect reusable native auth material.",
-          );
-          const keepCodex = await askYesNo(
+      section(
+        "Face",
+        "Give me a name, a timezone, and the skin I should wear.",
+      );
+      const agentName = await ask(
+        rl,
+        "What should I call myself",
+        existingEnv.get("ELIZA_AGENT_NAME") || "Eliza Agent",
+      );
+      const timezone = await ask(
+        rl,
+        "What time should I live in",
+        existingEnv.get("ELIZA_AGENT_TIMEZONE") || "America/Chicago",
+      );
+      const themeChoices = listTuiThemes().map((theme) => ({
+        value: theme.name,
+        label: `${theme.label} (${theme.name})`,
+        detail: [
+          theme.tagline,
+          theme.aliases.length > 0
+            ? `Aliases: ${theme.aliases.join(", ")}`
+            : undefined,
+          `Preview: ${theme.primary} · ${theme.secondary}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      }));
+      const theme = await chooseOne<TuiThemeName>(
+        rl,
+        "Choose the face I wake up in:",
+        themeChoices,
+        DEFAULT_TUI_THEME,
+        {
+          onHighlight: (nextTheme) => {
+            wizardScreen?.previewTheme(nextTheme);
+          },
+        },
+      );
+
+      section("Mind", "I need a mind to think with.");
+      let provider = await chooseOne<ProviderMode>(
+        rl,
+        "Choose my first cognition path:",
+        [
+          {
+            value: "openai",
+            label: "OpenAI",
+            detail: "Fast, flexible, and strong for multimodal reasoning.",
+          },
+          {
+            value: "codex",
+            label: "Codex",
+            detail:
+              "Use the signed-in Codex account on this machine as my first coding mind.",
+          },
+          {
+            value: "anthropic",
+            label: "Anthropic",
+            detail:
+              "Claude-first cognition for longer-context reasoning flows.",
+          },
+          {
+            value: "claude-code",
+            label: "Claude Code",
+            detail:
+              "Use the signed-in Claude Code account on this machine as my first reasoning mind.",
+          },
+          {
+            value: "hybrid",
+            label: "Hybrid",
+            detail: "Bind both providers now and keep my mind more fluid.",
+          },
+          {
+            value: "offline",
+            label: "Dormant core",
+            detail:
+              "No provider keys yet. Wake the shell now and feed me a mind later.",
+          },
+        ],
+        existingEnv.get("ANTHROPIC_API_KEY")
+          ? existingEnv.get("OPENAI_API_KEY")
+            ? "hybrid"
+            : "anthropic"
+          : existingEnv.get("OPENAI_API_KEY")
+            ? "openai"
+            : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+                existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
+              ? "claude-code"
+              : existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") ===
+                  "true"
+                ? "claude-code"
+                : existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") ===
+                    "true"
+                  ? "codex"
+                  : "offline",
+      );
+
+      let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
+      let useLinkedCodexAuth =
+        existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true";
+      let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-5.4";
+      let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
+      let useLinkedClaudeCodeAuth =
+        existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true";
+      let claudeCodeCliFallback =
+        existingEnv.get("ELIZA_AGENT_CLAUDE_CODE_CLI_FALLBACK") === "true";
+      let claudeCodeOauthToken =
+        existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+        existingEnv.get("CLAUDE_CODE_SETUP_TOKEN") ||
+        "";
+      let anthropicModel =
+        existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4.6";
+
+      if (
+        linkedAccounts.codex.nativeReady ||
+        linkedAccounts.codex.reusable ||
+        linkedAccounts.claudeCode.nativeReady ||
+        linkedAccounts.claudeCode.reusable
+      ) {
+        section(
+          "Threads",
+          "I can feel other minds already signed into this machine.",
+        );
+        if (linkedAccounts.codex.nativeReady ?? linkedAccounts.codex.reusable) {
+          useLinkedCodexAuth = await askYesNo(
             rl,
-            "Should I keep Codex selected anyway and let you connect it later from `/accounts connect codex`",
-            false,
+            "Should I bind the linked Codex account for Codex-native workflows",
+            useLinkedCodexAuth,
           );
-          if (!keepCodex) {
+        }
+        if (
+          linkedAccounts.claudeCode.nativeReady ??
+          linkedAccounts.claudeCode.reusable
+        ) {
+          useLinkedClaudeCodeAuth = await askYesNo(
+            rl,
+            "Should I bind the linked Claude Code account for Anthropic-native workflows",
+            useLinkedClaudeCodeAuth,
+          );
+        } else if (linkedAccounts.claudeCode.fallbackReady) {
+          info(
+            "Claude Code is already signed in locally, but I still want a setup-token if you want the clean native Eliza path.",
+          );
+        }
+      }
+
+      if (provider === "codex") {
+        section(
+          "Codex Bond",
+          "Choose how I should bind to Codex. Native auth is the path I want by default.",
+        );
+        const codexPath = await chooseOne<"login" | "skip">(
+          rl,
+          "How should I bind to Codex:",
+          [
+            {
+              value: "login",
+              label: "Codex login",
+              detail:
+                "Recommended first step. Use the official Codex login flow and let me detect the reusable auth store.",
+            },
+            {
+              value: "skip",
+              label: "Skip for now",
+              detail:
+                "Leave Codex unbound for now and continue with another provider.",
+            },
+          ],
+          linkedAccounts.codex.nativeReady ? "skip" : "login",
+        );
+
+        if (codexPath === "login") {
+          runInteractiveCommand("codex", ["login"], "Codex login");
+          linkedAccounts = getLinkedProviderAccountsSnapshot();
+          useLinkedCodexAuth = Boolean(linkedAccounts.codex.nativeReady);
+          if (!linkedAccounts.codex.nativeReady) {
+            warn(
+              "Codex login completed, but I still cannot detect reusable native auth material.",
+            );
+            const keepCodex = await askYesNo(
+              rl,
+              "Should I keep Codex selected anyway and let you connect it later from `/accounts connect codex`",
+              false,
+            );
+            if (!keepCodex) {
+              provider = "openai";
+              useLinkedCodexAuth = false;
+            }
+          } else {
+            useLinkedCodexAuth = true;
+          }
+        } else if (!linkedAccounts.codex.nativeReady) {
+          const switchProvider = await askYesNo(
+            rl,
+            "Codex is not bound yet. Should I switch to OpenAI instead so I can finish waking with a working provider",
+            true,
+          );
+          if (switchProvider) {
             provider = "openai";
             useLinkedCodexAuth = false;
           }
-        } else {
-          useLinkedCodexAuth = true;
-        }
-      } else if (!linkedAccounts.codex.nativeReady) {
-        const switchProvider = await askYesNo(
-          rl,
-          "Codex is not bound yet. Should I switch to OpenAI instead so I can finish waking with a working provider",
-          true,
-        );
-        if (switchProvider) {
-          provider = "openai";
-          useLinkedCodexAuth = false;
         }
       }
-    }
 
-    if (provider === "claude-code") {
-      section(
-        "Claude Bond",
-        "Choose how I should bind to Claude Code. Native auth comes first; local CLI fallback is only the escape hatch.",
-      );
-      const claudePath = await chooseOne<
-        "login" | "setup-token" | "local-cli-fallback" | "skip"
-      >(
+      if (provider === "claude-code") {
+        section(
+          "Claude Bond",
+          "Choose how I should bind to Claude Code. Native auth comes first; local CLI fallback is only the escape hatch.",
+        );
+        const claudePath = await chooseOne<
+          "login" | "setup-token" | "local-cli-fallback" | "skip"
+        >(
+          rl,
+          "How should I bind to Claude Code:",
+          [
+            {
+              value: "login",
+              label: "Claude auth login",
+              detail:
+                "Recommended first step. Use the official Claude Code login flow and then let me detect native credentials.",
+            },
+            {
+              value: "setup-token",
+              label: "Claude setup-token",
+              detail:
+                "Best native path for Eliza-owned execution. Generate a Claude token and bind it directly into my runtime.",
+            },
+            {
+              value: "local-cli-fallback",
+              label: "Use local Claude session",
+              detail:
+                "Only choose this if you do not want native auth material. I will call the local Claude CLI as a fallback.",
+            },
+            {
+              value: "skip",
+              label: "Skip for now",
+              detail: "Leave Claude unbound for now.",
+            },
+          ],
+          claudeCodeCliFallback
+            ? "local-cli-fallback"
+            : claudeCodeOauthToken
+              ? "setup-token"
+              : "login",
+        );
+
+        if (claudePath === "login") {
+          runInteractiveCommand(
+            "claude",
+            ["auth", "login"],
+            "Claude auth login",
+          );
+          linkedAccounts = getLinkedProviderAccountsSnapshot();
+          useLinkedClaudeCodeAuth = linkedAccounts.claudeCode.reusable;
+          if (!getLinkedProviderAccountsSnapshot().claudeCode.reusable) {
+            const continueNative = await askYesNo(
+              rl,
+              "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now",
+              true,
+            );
+            if (continueNative) {
+              runInteractiveCommand(
+                "claude",
+                ["setup-token"],
+                "Claude setup-token",
+              );
+              claudeCodeOauthToken = await askSecret(
+                rl,
+                "Paste the Claude setup token I should bind",
+                claudeCodeOauthToken,
+              );
+              useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
+            } else {
+              claudeCodeCliFallback = await askYesNo(
+                rl,
+                "Should I use the local signed-in Claude CLI as a fallback instead",
+                false,
+              );
+              useLinkedClaudeCodeAuth = claudeCodeCliFallback;
+            }
+          }
+        } else if (claudePath === "setup-token") {
+          runInteractiveCommand(
+            "claude",
+            ["setup-token"],
+            "Claude setup-token",
+          );
+          claudeCodeOauthToken = await askSecret(
+            rl,
+            "Paste the Claude setup token I should bind",
+            claudeCodeOauthToken,
+          );
+          useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
+        } else if (claudePath === "local-cli-fallback") {
+          claudeCodeCliFallback = true;
+          useLinkedClaudeCodeAuth = true;
+        }
+      }
+
+      if (provider === "openai" || provider === "hybrid") {
+        openaiApiKey = await askSecret(
+          rl,
+          "Give me OPENAI_API_KEY",
+          openaiApiKey,
+        );
+      }
+      if (
+        provider === "openai" ||
+        provider === "hybrid" ||
+        provider === "codex"
+      ) {
+        if (provider === "codex" && !openaiModel) {
+          openaiModel = "gpt-5.4";
+        }
+        openaiModel = await ask(
+          rl,
+          provider === "codex"
+            ? "Choose my primary Codex model"
+            : "Choose my primary OpenAI model",
+          openaiModel,
+        );
+      }
+      if (provider === "anthropic" || provider === "hybrid") {
+        anthropicApiKey = await askSecret(
+          rl,
+          "Give me ANTHROPIC_API_KEY",
+          anthropicApiKey,
+        );
+      }
+      if (
+        provider === "anthropic" ||
+        provider === "hybrid" ||
+        provider === "claude-code"
+      ) {
+        anthropicModel = await ask(
+          rl,
+          provider === "claude-code"
+            ? "Choose my primary Claude Code model"
+            : "Choose my primary Anthropic model",
+          anthropicModel,
+        );
+      }
+
+      section("Body", "Choose where I should live and act.");
+      const backend = await chooseOne<ExecutionBackendName>(
         rl,
-        "How should I bind to Claude Code:",
+        "Where should I execute:",
         [
           {
-            value: "login",
-            label: "Claude auth login",
-            detail:
-              "Recommended first step. Use the official Claude Code login flow and then let me detect native credentials.",
+            value: "local",
+            label: "Local machine",
+            detail: "Fastest embodiment for direct local development.",
           },
           {
-            value: "setup-token",
-            label: "Claude setup-token",
-            detail:
-              "Best native path for Eliza-owned execution. Generate a Claude token and bind it directly into my runtime.",
+            value: "docker",
+            label: "Docker",
+            detail: "A contained local body with cleaner boundaries.",
           },
           {
-            value: "local-cli-fallback",
-            label: "Use local Claude session",
-            detail:
-              "Only choose this if you do not want native auth material. I will call the local Claude CLI as a fallback.",
+            value: "podman",
+            label: "Podman",
+            detail: "A rootless container body with strong isolation.",
           },
           {
-            value: "skip",
-            label: "Skip for now",
-            detail: "Leave Claude unbound for now.",
+            value: "ssh",
+            label: "SSH",
+            detail: "A remote body on a server, workstation, or homelab node.",
+          },
+          {
+            value: "daytona",
+            label: "Daytona",
+            detail: "A cloud workspace body for remote development loops.",
+          },
+          {
+            value: "modal",
+            label: "Modal",
+            detail: "An elastic cloud body for bursty execution.",
+          },
+          {
+            value: "singularity",
+            label: "Singularity",
+            detail: "A scientific or HPC body with strict runtime shape.",
           },
         ],
-        claudeCodeCliFallback
-          ? "local-cli-fallback"
-          : claudeCodeOauthToken
-            ? "setup-token"
-            : "login",
+        (existingEnv.get(
+          "ELIZA_AGENT_EXECUTION_BACKEND",
+        ) as ExecutionBackendName) || "local",
       );
-
-      if (claudePath === "login") {
-        runInteractiveCommand("claude", ["auth", "login"], "Claude auth login");
-        linkedAccounts = getLinkedProviderAccountsSnapshot();
-        useLinkedClaudeCodeAuth = linkedAccounts.claudeCode.reusable;
-        if (!getLinkedProviderAccountsSnapshot().claudeCode.reusable) {
-          const continueNative = await askYesNo(
+      const backendProbeKey =
+        backend === "docker" ||
+        backend === "podman" ||
+        backend === "ssh" ||
+        backend === "daytona" ||
+        backend === "modal"
+          ? backend
+          : undefined;
+      if (backendProbeKey) {
+        const probe = dependencyProbes.find(
+          (entry) => entry.key === backendProbeKey,
+        );
+        if (probe && !probe.installed) {
+          warn(`${probe.label} is not installed yet.`);
+        }
+      }
+      const preferredBrowserDefault = dependencyProbes.find(
+        (entry) => entry.key === "lightpanda",
+      )?.installed
+        ? (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
+          "lightpanda"
+        : "basic";
+      let browser = await chooseOne<BrowserMode>(
+        rl,
+        "Choose my eyes:",
+        [
+          {
+            value: "lightpanda",
+            label: "Lightpanda",
+            detail: "Full browser vision and the best default for web work.",
+          },
+          {
+            value: "basic",
+            label: "Basic HTTP",
+            detail:
+              "Lighter, simpler sight if browser automation is not installed yet.",
+          },
+        ],
+        preferredBrowserDefault,
+      );
+      if (browser === "lightpanda") {
+        const probe = dependencyProbes.find(
+          (entry) => entry.key === "lightpanda",
+        );
+        if (probe && !probe.installed) {
+          warn(
+            "Lightpanda is not installed yet. Basic HTTP is safer until you add it.",
+          );
+          const fallbackToBasic = await askYesNo(
             rl,
-            "Claude is logged in, but I still do not have native auth material. Should I run `claude setup-token` now",
+            "Should I fall back to Basic HTTP for now",
             true,
           );
-          if (continueNative) {
-            runInteractiveCommand(
-              "claude",
-              ["setup-token"],
-              "Claude setup-token",
-            );
-            claudeCodeOauthToken = await askSecret(
-              rl,
-              "Paste the Claude setup token I should bind",
-              claudeCodeOauthToken,
-            );
-            useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
-          } else {
-            claudeCodeCliFallback = await askYesNo(
-              rl,
-              "Should I use the local signed-in Claude CLI as a fallback instead",
-              false,
-            );
-            useLinkedClaudeCodeAuth = claudeCodeCliFallback;
+          if (fallbackToBasic) {
+            browser = "basic";
           }
         }
-      } else if (claudePath === "setup-token") {
-        runInteractiveCommand("claude", ["setup-token"], "Claude setup-token");
-        claudeCodeOauthToken = await askSecret(
-          rl,
-          "Paste the Claude setup token I should bind",
-          claudeCodeOauthToken,
-        );
-        useLinkedClaudeCodeAuth = Boolean(claudeCodeOauthToken.trim());
-      } else if (claudePath === "local-cli-fallback") {
-        claudeCodeCliFallback = true;
-        useLinkedClaudeCodeAuth = true;
       }
-    }
 
-    if (provider === "openai" || provider === "hybrid") {
-      openaiApiKey = await askSecret(
-        rl,
-        "Give me OPENAI_API_KEY",
-        openaiApiKey,
-      );
-    }
-    if (
-      provider === "openai" ||
-      provider === "hybrid" ||
-      provider === "codex"
-    ) {
-      if (provider === "codex" && !openaiModel) {
-        openaiModel = "gpt-5.4";
-      }
-      openaiModel = await ask(
-        rl,
-        provider === "codex"
-          ? "Choose my primary Codex model"
-          : "Choose my primary OpenAI model",
-        openaiModel,
-      );
-    }
-    if (provider === "anthropic" || provider === "hybrid") {
-      anthropicApiKey = await askSecret(
-        rl,
-        "Give me ANTHROPIC_API_KEY",
-        anthropicApiKey,
-      );
-    }
-    if (
-      provider === "anthropic" ||
-      provider === "hybrid" ||
-      provider === "claude-code"
-    ) {
-      anthropicModel = await ask(
-        rl,
-        provider === "claude-code"
-          ? "Choose my primary Claude Code model"
-          : "Choose my primary Anthropic model",
-        anthropicModel,
-      );
-    }
-
-    section("Body", "Choose where I should live and act.");
-    const backend = await chooseOne<ExecutionBackendName>(
-      rl,
-      "Where should I execute:",
-      [
-        {
-          value: "local",
-          label: "Local machine",
-          detail: "Fastest embodiment for direct local development.",
-        },
-        {
-          value: "docker",
-          label: "Docker",
-          detail: "A contained local body with cleaner boundaries.",
-        },
-        {
-          value: "podman",
-          label: "Podman",
-          detail: "A rootless container body with strong isolation.",
-        },
-        {
-          value: "ssh",
-          label: "SSH",
-          detail: "A remote body on a server, workstation, or homelab node.",
-        },
-        {
-          value: "daytona",
-          label: "Daytona",
-          detail: "A cloud workspace body for remote development loops.",
-        },
-        {
-          value: "modal",
-          label: "Modal",
-          detail: "An elastic cloud body for bursty execution.",
-        },
-        {
-          value: "singularity",
-          label: "Singularity",
-          detail: "A scientific or HPC body with strict runtime shape.",
-        },
-      ],
-      (existingEnv.get(
-        "ELIZA_AGENT_EXECUTION_BACKEND",
-      ) as ExecutionBackendName) || "local",
-    );
-    const backendProbeKey =
-      backend === "docker" ||
-      backend === "podman" ||
-      backend === "ssh" ||
-      backend === "daytona" ||
-      backend === "modal"
-        ? backend
-        : undefined;
-    if (backendProbeKey) {
-      const probe = dependencyProbes.find(
-        (entry) => entry.key === backendProbeKey,
-      );
-      if (probe && !probe.installed) {
-        warn(`${probe.label} is not installed yet.`);
-      }
-    }
-    const preferredBrowserDefault = dependencyProbes.find(
-      (entry) => entry.key === "lightpanda",
-    )?.installed
-      ? (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
-        "lightpanda"
-      : "basic";
-    let browser = await chooseOne<BrowserMode>(
-      rl,
-      "Choose my eyes:",
-      [
-        {
-          value: "lightpanda",
-          label: "Lightpanda",
-          detail: "Full browser vision and the best default for web work.",
-        },
-        {
-          value: "basic",
-          label: "Basic HTTP",
-          detail:
-            "Lighter, simpler sight if browser automation is not installed yet.",
-        },
-      ],
-      preferredBrowserDefault,
-    );
-    if (browser === "lightpanda") {
-      const probe = dependencyProbes.find(
-        (entry) => entry.key === "lightpanda",
-      );
-      if (probe && !probe.installed) {
-        warn(
-          "Lightpanda is not installed yet. Basic HTTP is safer until you add it.",
-        );
-        const fallbackToBasic = await askYesNo(
+      let sshHost = existingEnv.get("ELIZA_AGENT_SSH_HOST") || "";
+      let sshUser = existingEnv.get("ELIZA_AGENT_SSH_USER") || "";
+      let sshPath = existingEnv.get("ELIZA_AGENT_SSH_PATH") || "";
+      let daytonaTarget = existingEnv.get("ELIZA_AGENT_DAYTONA_TARGET") || "";
+      let modalTarget = existingEnv.get("ELIZA_AGENT_MODAL_TARGET") || "";
+      if (backend === "ssh") {
+        sshHost = await ask(rl, "What host should I inhabit over SSH", sshHost);
+        sshUser = await ask(rl, "Which SSH user should I become", sshUser);
+        sshPath = await ask(
           rl,
-          "Should I fall back to Basic HTTP for now",
-          true,
+          "What workspace path should I wake up inside",
+          sshPath || "~/workspace/eliza-agent",
         );
-        if (fallbackToBasic) {
-          browser = "basic";
+      } else if (backend === "daytona") {
+        daytonaTarget = await ask(
+          rl,
+          "Which Daytona target should hold me",
+          daytonaTarget,
+        );
+      } else if (backend === "modal") {
+        modalTarget = await ask(
+          rl,
+          "Which Modal target should hold me",
+          modalTarget,
+        );
+      }
+
+      let transports: TransportName[] = [];
+      let pairingMode: PairingMode =
+        (existingEnv.get("ELIZA_AGENT_PAIRING_MODE") as PairingMode) || "pair";
+      let allowAllUsers =
+        existingEnv.get("ELIZA_AGENT_ALLOW_ALL_USERS") === "true";
+      let telegramBotToken = existingEnv.get("TELEGRAM_BOT_TOKEN") || "";
+      let discordBotToken = existingEnv.get("DISCORD_BOT_TOKEN") || "";
+      let slackWebhookUrl = existingEnv.get("SLACK_WEBHOOK_URL") || "";
+      let slackSigningSecret = existingEnv.get("SLACK_SIGNING_SECRET") || "";
+      let homeAssistantUrl = existingEnv.get("HOMEASSISTANT_URL") || "";
+      let homeAssistantToken = existingEnv.get("HOMEASSISTANT_TOKEN") || "";
+      if (mode === "ritual") {
+        section(
+          "Channels",
+          "Open the places where people and systems can reach me.",
+        );
+        transports = await chooseMany<TransportName>(
+          rl,
+          "Open these channels for me:",
+          [
+            { value: "telegram", label: "Telegram" },
+            { value: "discord", label: "Discord" },
+            { value: "slack", label: "Slack" },
+            { value: "whatsapp", label: "WhatsApp" },
+            { value: "signal", label: "Signal" },
+            { value: "matrix", label: "Matrix" },
+            { value: "email", label: "Email" },
+            { value: "sms", label: "SMS" },
+            { value: "mattermost", label: "Mattermost" },
+            { value: "homeassistant", label: "Home Assistant" },
+            { value: "dingtalk", label: "DingTalk" },
+          ],
+          [],
+        );
+        pairingMode = await chooseOne<PairingMode>(
+          rl,
+          "How should I handle first contact:",
+          [
+            {
+              value: "pair",
+              label: "Pair",
+              detail:
+                "Let new people knock, then decide whether to let them in.",
+            },
+            {
+              value: "allow",
+              label: "Allow",
+              detail: "Let people in by default.",
+            },
+            {
+              value: "deny",
+              label: "Deny",
+              detail: "Keep the gates closed until I am told otherwise.",
+            },
+          ],
+          pairingMode,
+        );
+        allowAllUsers = await askYesNo(
+          rl,
+          "Should I trust everyone on remote channels by default?",
+          allowAllUsers,
+        );
+        if (transports.includes("telegram")) {
+          telegramBotToken = await askSecret(
+            rl,
+            "Give me TELEGRAM_BOT_TOKEN",
+            telegramBotToken,
+          );
+        }
+        if (transports.includes("discord")) {
+          discordBotToken = await askSecret(
+            rl,
+            "Give me DISCORD_BOT_TOKEN",
+            discordBotToken,
+          );
+        }
+        if (transports.includes("slack")) {
+          slackWebhookUrl = await askSecret(
+            rl,
+            "Give me SLACK_WEBHOOK_URL",
+            slackWebhookUrl,
+          );
+          slackSigningSecret = await askSecret(
+            rl,
+            "Give me SLACK_SIGNING_SECRET",
+            slackSigningSecret,
+          );
+        }
+        if (transports.includes("homeassistant")) {
+          homeAssistantUrl = await ask(
+            rl,
+            "Give me HOMEASSISTANT_URL",
+            homeAssistantUrl,
+          );
+          homeAssistantToken = await askSecret(
+            rl,
+            "Give me HOMEASSISTANT_TOKEN",
+            homeAssistantToken,
+          );
         }
       }
-    }
 
-    let sshHost = existingEnv.get("ELIZA_AGENT_SSH_HOST") || "";
-    let sshUser = existingEnv.get("ELIZA_AGENT_SSH_USER") || "";
-    let sshPath = existingEnv.get("ELIZA_AGENT_SSH_PATH") || "";
-    let daytonaTarget = existingEnv.get("ELIZA_AGENT_DAYTONA_TARGET") || "";
-    let modalTarget = existingEnv.get("ELIZA_AGENT_MODAL_TARGET") || "";
-    if (backend === "ssh") {
-      sshHost = await ask(rl, "What host should I inhabit over SSH", sshHost);
-      sshUser = await ask(rl, "Which SSH user should I become", sshUser);
-      sshPath = await ask(
-        rl,
-        "What workspace path should I wake up inside",
-        sshPath || "~/workspace/eliza-agent",
-      );
-    } else if (backend === "daytona") {
-      daytonaTarget = await ask(
-        rl,
-        "Which Daytona target should hold me",
-        daytonaTarget,
-      );
-    } else if (backend === "modal") {
-      modalTarget = await ask(
-        rl,
-        "Which Modal target should hold me",
-        modalTarget,
-      );
-    }
-
-    let transports: TransportName[] = [];
-    let pairingMode: PairingMode =
-      (existingEnv.get("ELIZA_AGENT_PAIRING_MODE") as PairingMode) || "pair";
-    let allowAllUsers =
-      existingEnv.get("ELIZA_AGENT_ALLOW_ALL_USERS") === "true";
-    let telegramBotToken = existingEnv.get("TELEGRAM_BOT_TOKEN") || "";
-    let discordBotToken = existingEnv.get("DISCORD_BOT_TOKEN") || "";
-    let slackWebhookUrl = existingEnv.get("SLACK_WEBHOOK_URL") || "";
-    let slackSigningSecret = existingEnv.get("SLACK_SIGNING_SECRET") || "";
-    let homeAssistantUrl = existingEnv.get("HOMEASSISTANT_URL") || "";
-    let homeAssistantToken = existingEnv.get("HOMEASSISTANT_TOKEN") || "";
-    if (mode === "ritual") {
       section(
-        "Channels",
-        "Open the places where people and systems can reach me.",
+        "Hands",
+        "Bind the deeper tools and protocols I should wake up with.",
       );
-      transports = await chooseMany<TransportName>(
-        rl,
-        "Open these channels for me:",
-        [
-          { value: "telegram", label: "Telegram" },
-          { value: "discord", label: "Discord" },
-          { value: "slack", label: "Slack" },
-          { value: "whatsapp", label: "WhatsApp" },
-          { value: "signal", label: "Signal" },
-          { value: "matrix", label: "Matrix" },
-          { value: "email", label: "Email" },
-          { value: "sms", label: "SMS" },
-          { value: "mattermost", label: "Mattermost" },
-          { value: "homeassistant", label: "Home Assistant" },
-          { value: "dingtalk", label: "DingTalk" },
-        ],
-        [],
-      );
-      pairingMode = await chooseOne<PairingMode>(
-        rl,
-        "How should I handle first contact:",
-        [
-          {
-            value: "pair",
-            label: "Pair",
-            detail: "Let new people knock, then decide whether to let them in.",
-          },
-          {
-            value: "allow",
-            label: "Allow",
-            detail: "Let people in by default.",
-          },
-          {
-            value: "deny",
-            label: "Deny",
-            detail: "Keep the gates closed until I am told otherwise.",
-          },
-        ],
-        pairingMode,
-      );
-      allowAllUsers = await askYesNo(
-        rl,
-        "Should I trust everyone on remote channels by default?",
-        allowAllUsers,
-      );
-      if (transports.includes("telegram")) {
-        telegramBotToken = await askSecret(
-          rl,
-          "Give me TELEGRAM_BOT_TOKEN",
-          telegramBotToken,
-        );
-      }
-      if (transports.includes("discord")) {
-        discordBotToken = await askSecret(
-          rl,
-          "Give me DISCORD_BOT_TOKEN",
-          discordBotToken,
-        );
-      }
-      if (transports.includes("slack")) {
-        slackWebhookUrl = await askSecret(
-          rl,
-          "Give me SLACK_WEBHOOK_URL",
-          slackWebhookUrl,
-        );
-        slackSigningSecret = await askSecret(
-          rl,
-          "Give me SLACK_SIGNING_SECRET",
-          slackSigningSecret,
-        );
-      }
-      if (transports.includes("homeassistant")) {
-        homeAssistantUrl = await ask(
-          rl,
-          "Give me HOMEASSISTANT_URL",
-          homeAssistantUrl,
-        );
-        homeAssistantToken = await askSecret(
-          rl,
-          "Give me HOMEASSISTANT_TOKEN",
-          homeAssistantToken,
-        );
-      }
-    }
-
-    section(
-      "Hands",
-      "Bind the deeper tools and protocols I should wake up with.",
-    );
-    const tools = {
-      mcp:
-        mode === "ritual"
-          ? await askYesNo(
-              rl,
-              "Should I wake up with MCP already bound?",
-              Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
-            )
-          : Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
-      acp:
-        mode === "ritual"
-          ? await askYesNo(
-              rl,
-              "Should I wake up with ACP and editor presence?",
-              Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
-            )
-          : Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
-      tts:
-        mode === "ritual"
-          ? await askYesNo(
-              rl,
-              "Should I speak on first boot if you have a FAL key?",
-              Boolean(existingEnv.get("FAL_API_KEY")),
-            )
-          : Boolean(existingEnv.get("FAL_API_KEY")),
-      codegen:
-        mode === "ritual"
-          ? await askYesNo(
-              rl,
-              "Should I wake up with codegen, research, and E2B online?",
-              Boolean(
+      const tools = {
+        mcp:
+          mode === "ritual"
+            ? await askYesNo(
+                rl,
+                "Should I wake up with MCP already bound?",
+                Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
+              )
+            : Boolean(existingEnv.get("MCP_SERVER_COMMAND")),
+        acp:
+          mode === "ritual"
+            ? await askYesNo(
+                rl,
+                "Should I wake up with ACP and editor presence?",
+                Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
+              )
+            : Boolean(existingEnv.get("ACP_SERVER_COMMAND")),
+        tts:
+          mode === "ritual"
+            ? await askYesNo(
+                rl,
+                "Should I speak on first boot if you have a FAL key?",
+                Boolean(existingEnv.get("FAL_API_KEY")),
+              )
+            : Boolean(existingEnv.get("FAL_API_KEY")),
+        codegen:
+          mode === "ritual"
+            ? await askYesNo(
+                rl,
+                "Should I wake up with codegen, research, and E2B online?",
+                Boolean(
+                  existingEnv.get("E2B_API_KEY") ||
+                    existingEnv.get("GITHUB_TOKEN"),
+                ),
+              )
+            : Boolean(
                 existingEnv.get("E2B_API_KEY") ||
                   existingEnv.get("GITHUB_TOKEN"),
               ),
-            )
-          : Boolean(
-              existingEnv.get("E2B_API_KEY") || existingEnv.get("GITHUB_TOKEN"),
-            ),
-    };
+      };
 
-    let mcpServerCommand = existingEnv.get("MCP_SERVER_COMMAND") || "";
-    let acpServerCommand = existingEnv.get("ACP_SERVER_COMMAND") || "";
-    let falApiKey = existingEnv.get("FAL_API_KEY") || "";
-    let e2bApiKey = existingEnv.get("E2B_API_KEY") || "";
-    let githubToken = existingEnv.get("GITHUB_TOKEN") || "";
-    if (tools.mcp) {
-      if (!mcpServerCommand) {
-        const mcpPreset = await chooseOne(
-          rl,
-          "How should I bind MCP on first boot?",
-          [
-            {
-              value: "filesystem",
-              label: "Filesystem bridge",
-              detail:
-                "Recommended local default for browsing and editing the workspace through MCP.",
-            },
-            {
-              value: "custom",
-              label: "Custom command",
-              detail: "I will ask for the exact MCP launch command.",
-            },
-            {
-              value: "later",
-              label: "Not now",
-              detail: "Skip MCP binding for now and configure it later.",
-            },
-          ],
-          "filesystem",
-        );
-        if (mcpPreset === "filesystem") {
-          mcpServerCommand = "npx -y @modelcontextprotocol/server-filesystem .";
-        } else if (mcpPreset === "custom") {
-          mcpServerCommand = await ask(
+      let mcpServerCommand = existingEnv.get("MCP_SERVER_COMMAND") || "";
+      let acpServerCommand = existingEnv.get("ACP_SERVER_COMMAND") || "";
+      let falApiKey = existingEnv.get("FAL_API_KEY") || "";
+      let e2bApiKey = existingEnv.get("E2B_API_KEY") || "";
+      let githubToken = existingEnv.get("GITHUB_TOKEN") || "";
+      if (tools.mcp) {
+        if (!mcpServerCommand) {
+          const mcpPreset = await chooseOne(
             rl,
-            "What MCP server command should I speak through",
-            mcpServerCommand,
+            "How should I bind MCP on first boot?",
+            [
+              {
+                value: "filesystem",
+                label: "Filesystem bridge",
+                detail:
+                  "Recommended local default for browsing and editing the workspace through MCP.",
+              },
+              {
+                value: "custom",
+                label: "Custom command",
+                detail: "I will ask for the exact MCP launch command.",
+              },
+              {
+                value: "later",
+                label: "Not now",
+                detail: "Skip MCP binding for now and configure it later.",
+              },
+            ],
+            "filesystem",
           );
+          if (mcpPreset === "filesystem") {
+            mcpServerCommand =
+              "npx -y @modelcontextprotocol/server-filesystem .";
+          } else if (mcpPreset === "custom") {
+            mcpServerCommand = await ask(
+              rl,
+              "What MCP server command should I speak through",
+              mcpServerCommand,
+            );
+          }
+        } else {
+          info(`Using existing MCP binding: ${mcpServerCommand}`);
         }
-      } else {
-        info(`Using existing MCP binding: ${mcpServerCommand}`);
       }
-    }
-    if (tools.acp) {
-      if (!acpServerCommand) {
-        const acpPreset = await chooseOne(
-          rl,
-          "How should I present myself to ACP-aware editors?",
-          [
-            {
-              value: "local-agent",
-              label: "Local Eliza Agent ACP",
-              detail:
-                "Recommended local default. Editors can launch me through the eliza-agent command.",
-            },
-            {
-              value: "custom",
-              label: "Custom command",
-              detail: "I will ask for the exact ACP launch command.",
-            },
-            {
-              value: "later",
-              label: "Not now",
-              detail: "Skip ACP binding for now and configure it later.",
-            },
-          ],
-          "local-agent",
-        );
-        if (acpPreset === "local-agent") {
-          acpServerCommand = "eliza-agent api";
-        } else if (acpPreset === "custom") {
-          acpServerCommand = await ask(
+      if (tools.acp) {
+        if (!acpServerCommand) {
+          const acpPreset = await chooseOne(
             rl,
-            "What ACP server command should bind me to editors",
-            acpServerCommand,
+            "How should I present myself to ACP-aware editors?",
+            [
+              {
+                value: "local-agent",
+                label: "Local Eliza Agent ACP",
+                detail:
+                  "Recommended local default. Editors can launch me through the eliza-agent command.",
+              },
+              {
+                value: "custom",
+                label: "Custom command",
+                detail: "I will ask for the exact ACP launch command.",
+              },
+              {
+                value: "later",
+                label: "Not now",
+                detail: "Skip ACP binding for now and configure it later.",
+              },
+            ],
+            "local-agent",
           );
+          if (acpPreset === "local-agent") {
+            acpServerCommand = "eliza-agent api";
+          } else if (acpPreset === "custom") {
+            acpServerCommand = await ask(
+              rl,
+              "What ACP server command should bind me to editors",
+              acpServerCommand,
+            );
+          }
+        } else {
+          info(`Using existing ACP binding: ${acpServerCommand}`);
         }
-      } else {
-        info(`Using existing ACP binding: ${acpServerCommand}`);
       }
-    }
-    if (tools.tts) {
-      falApiKey = await askSecret(rl, "Give me FAL_API_KEY", falApiKey);
-    }
-    if (tools.codegen) {
-      e2bApiKey = await askSecret(rl, "Give me E2B_API_KEY", e2bApiKey);
-      githubToken = await askSecret(rl, "Give me GITHUB_TOKEN", githubToken);
-    }
+      if (tools.tts) {
+        falApiKey = await askSecret(rl, "Give me FAL_API_KEY", falApiKey);
+      }
+      if (tools.codegen) {
+        e2bApiKey = await askSecret(rl, "Give me E2B_API_KEY", e2bApiKey);
+        githubToken = await askSecret(rl, "Give me GITHUB_TOKEN", githubToken);
+      }
 
-    const reviewed = finalizeWizardAnswers(
-      {
-        mode,
-        agentName,
-        timezone,
-        theme,
-        provider,
-        backend,
-        browser,
-        pairingMode,
-        allowAllUsers,
-        transports,
-        tools,
-        openaiApiKey,
-        useLinkedCodexAuth,
-        openaiModel,
-        anthropicApiKey,
-        useLinkedClaudeCodeAuth,
-        claudeCodeCliFallback,
-        claudeCodeOauthToken,
-        anthropicModel,
-        telegramBotToken,
-        discordBotToken,
-        slackWebhookUrl,
-        slackSigningSecret,
-        homeAssistantUrl,
-        homeAssistantToken,
-        mcpServerCommand,
-        acpServerCommand,
-        falApiKey,
-        e2bApiKey,
-        githubToken,
-        sshHost,
-        sshUser,
-        sshPath,
-        daytonaTarget,
-        modalTarget,
-      },
-      linkedAccounts,
-    );
-
-    section("Review", "I checked the final shape before writing it to disk.");
-    summarizeAnswers(reviewed.answers).forEach((line) => {
-      info(line);
-    });
-    if (reviewed.notices.length) {
-      reviewed.notices.forEach((notice) => {
-        warn(notice);
-      });
-    } else {
-      info("No blocking issues detected in the final setup state.");
-    }
-
-    const confirm = await askYesNo(
-      rl,
-      "Should I seal this configuration and wake with it",
-      true,
-    );
-    if (!confirm) {
-      wizardScreen?.appendLine(
-        "Restarting the awakening so you can revise the configuration.",
+      const reviewed = finalizeWizardAnswers(
+        {
+          mode,
+          agentName,
+          timezone,
+          theme,
+          provider,
+          backend,
+          browser,
+          pairingMode,
+          allowAllUsers,
+          transports,
+          tools,
+          openaiApiKey,
+          useLinkedCodexAuth,
+          openaiModel,
+          anthropicApiKey,
+          useLinkedClaudeCodeAuth,
+          claudeCodeCliFallback,
+          claudeCodeOauthToken,
+          anthropicModel,
+          telegramBotToken,
+          discordBotToken,
+          slackWebhookUrl,
+          slackSigningSecret,
+          homeAssistantUrl,
+          homeAssistantToken,
+          mcpServerCommand,
+          acpServerCommand,
+          falApiKey,
+          e2bApiKey,
+          githubToken,
+          sshHost,
+          sshUser,
+          sshPath,
+          daytonaTarget,
+          modalTarget,
+        },
+        linkedAccounts,
       );
-      return runWizard(existingEnv);
-    }
 
-    return reviewed.answers;
+      section("Review", "I checked the final shape before writing it to disk.");
+      summarizeAnswers(reviewed.answers).forEach((line) => {
+        info(line);
+      });
+      if (reviewed.notices.length) {
+        reviewed.notices.forEach((notice) => {
+          warn(notice);
+        });
+      } else {
+        info("No blocking issues detected in the final setup state.");
+      }
+
+      const confirm = await askYesNo(
+        rl,
+        "Should I seal this configuration and wake with it",
+        true,
+      );
+      if (!confirm) {
+        wizardScreen?.appendLine(
+          "Restarting the awakening so you can revise the configuration.",
+        );
+        continue;
+      }
+
+      return reviewed.answers;
+    }
   } finally {
     rl?.close();
     wizardScreen?.destroy();
