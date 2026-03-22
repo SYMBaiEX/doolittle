@@ -1,6 +1,7 @@
 export interface TuiThemeProfile {
   name: string;
   label: string;
+  aliases?: string[];
   baseBg: string;
   baseFg: string;
   primary: string;
@@ -16,7 +17,8 @@ export interface TuiThemeProfile {
 export const TUI_THEMES = {
   orange: {
     name: "orange",
-    label: "Eliza Orange",
+    label: "Neon Dune",
+    aliases: ["dune", "sunwire"],
     baseBg: "black",
     baseFg: "white",
     primary: "#FF6A00",
@@ -30,7 +32,8 @@ export const TUI_THEMES = {
   },
   blue: {
     name: "blue",
-    label: "Eliza Blue",
+    label: "Blue Static",
+    aliases: ["static", "signalblue"],
     baseBg: "black",
     baseFg: "white",
     primary: "#0B35F1",
@@ -44,7 +47,8 @@ export const TUI_THEMES = {
   },
   matrix: {
     name: "matrix",
-    label: "Matrix Terminal",
+    label: "Ghostline",
+    aliases: ["ghost", "terminal"],
     baseBg: "black",
     baseFg: "green",
     primary: "#00FF66",
@@ -58,7 +62,8 @@ export const TUI_THEMES = {
   },
   synthwave: {
     name: "synthwave",
-    label: "Synthwave Grid",
+    label: "Midnight Grid",
+    aliases: ["grid", "midnight"],
     baseBg: "black",
     baseFg: "white",
     primary: "#FF4FD8",
@@ -72,7 +77,8 @@ export const TUI_THEMES = {
   },
   ember: {
     name: "ember",
-    label: "Ember Forge",
+    label: "Furnace Hex",
+    aliases: ["forge", "hex"],
     baseBg: "black",
     baseFg: "white",
     primary: "#FF4D2D",
@@ -86,7 +92,8 @@ export const TUI_THEMES = {
   },
   arctic: {
     name: "arctic",
-    label: "Arctic Signal",
+    label: "Polar Signal",
+    aliases: ["polar", "frostline"],
     baseBg: "black",
     baseFg: "white",
     primary: "#7DEBFF",
@@ -100,7 +107,8 @@ export const TUI_THEMES = {
   },
   toxic: {
     name: "toxic",
-    label: "Toxic Neon",
+    label: "Acid Burn",
+    aliases: ["acid", "burn"],
     baseBg: "black",
     baseFg: "white",
     primary: "#B8FF00",
@@ -114,7 +122,8 @@ export const TUI_THEMES = {
   },
   rose: {
     name: "rose",
-    label: "Rose Circuit",
+    label: "Velvet Circuit",
+    aliases: ["velvet", "circuit"],
     baseBg: "black",
     baseFg: "white",
     primary: "#FF5C93",
@@ -128,7 +137,8 @@ export const TUI_THEMES = {
   },
   obsidian: {
     name: "obsidian",
-    label: "Obsidian Pulse",
+    label: "Null Glass",
+    aliases: ["null", "glass"],
     baseBg: "black",
     baseFg: "white",
     primary: "#8D99AE",
@@ -142,7 +152,8 @@ export const TUI_THEMES = {
   },
   ivory: {
     name: "ivory",
-    label: "Ivory Ghost",
+    label: "Pale Relay",
+    aliases: ["pale", "relay"],
     baseBg: "#101010",
     baseFg: "#F7F7F7",
     primary: "#F2F2F2",
@@ -163,6 +174,7 @@ export const DEFAULT_TUI_THEME: TuiThemeName = "orange";
 export function listTuiThemes(): Array<{
   name: TuiThemeName;
   label: string;
+  aliases: string[];
   primary: string;
   secondary: string;
 }> {
@@ -171,6 +183,7 @@ export function listTuiThemes(): Array<{
   ).map(([name, theme]) => ({
     name,
     label: theme.label,
+    aliases: theme.aliases ?? [],
     primary: theme.primary,
     secondary: theme.secondary,
   }));
@@ -181,10 +194,30 @@ export function resolveTuiThemeName(value?: string): TuiThemeName | undefined {
     return undefined;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized in TUI_THEMES ? (normalized as TuiThemeName) : undefined;
+  if (normalized in TUI_THEMES) {
+    return normalized as TuiThemeName;
+  }
+  const match = (
+    Object.entries(TUI_THEMES) as Array<[TuiThemeName, TuiThemeProfile]>
+  ).find(([, theme]) => theme.aliases?.includes(normalized));
+  return match?.[0];
 }
 
 export function getTuiTheme(theme?: string): TuiThemeProfile {
   const resolved = resolveTuiThemeName(theme) ?? DEFAULT_TUI_THEME;
   return TUI_THEMES[resolved];
+}
+
+export function nextTuiTheme(theme?: string): TuiThemeName {
+  const names = Object.keys(TUI_THEMES) as TuiThemeName[];
+  const current = resolveTuiThemeName(theme) ?? DEFAULT_TUI_THEME;
+  const index = names.indexOf(current);
+  return names[(index + 1) % names.length] ?? DEFAULT_TUI_THEME;
+}
+
+export function previousTuiTheme(theme?: string): TuiThemeName {
+  const names = Object.keys(TUI_THEMES) as TuiThemeName[];
+  const current = resolveTuiThemeName(theme) ?? DEFAULT_TUI_THEME;
+  const index = names.indexOf(current);
+  return names[(index - 1 + names.length) % names.length] ?? DEFAULT_TUI_THEME;
 }

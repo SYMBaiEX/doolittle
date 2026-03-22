@@ -107,6 +107,8 @@ import {
 import {
   getTuiTheme,
   listTuiThemes,
+  nextTuiTheme,
+  previousTuiTheme,
   resolveTuiThemeName,
 } from "@/runtime/theme-catalog";
 import { DiagnosticsService } from "@/services/diagnostics-service";
@@ -3134,6 +3136,28 @@ export function startApiServer(context: AppContext): void {
             400,
           );
         }
+        const settings = context.services.settings.set("ui.theme", theme);
+        return json({
+          active: settings.ui.theme,
+          profile: getTuiTheme(settings.ui.theme),
+          themes: listTuiThemes(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/theme/next") {
+        const theme = nextTuiTheme(context.services.settings.get().ui.theme);
+        const settings = context.services.settings.set("ui.theme", theme);
+        return json({
+          active: settings.ui.theme,
+          profile: getTuiTheme(settings.ui.theme),
+          themes: listTuiThemes(),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/theme/prev") {
+        const theme = previousTuiTheme(
+          context.services.settings.get().ui.theme,
+        );
         const settings = context.services.settings.set("ui.theme", theme);
         return json({
           active: settings.ui.theme,

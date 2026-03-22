@@ -107,6 +107,8 @@ import {
   DEFAULT_TUI_THEME,
   getTuiTheme,
   listTuiThemes,
+  nextTuiTheme,
+  previousTuiTheme,
   resolveTuiThemeName,
 } from "@/runtime/theme-catalog";
 import type { RuntimeSettings } from "@/services/settings-service";
@@ -3421,9 +3423,35 @@ async function buildCommandResponse(
     return listTuiThemes()
       .map(
         (entry) =>
-          `- ${entry.name} :: ${entry.label} primary=${entry.primary} secondary=${entry.secondary}${entry.name === DEFAULT_TUI_THEME ? " default" : ""}`,
+          `- ${entry.name} :: ${entry.label} aliases=${entry.aliases.join(",") || "none"} primary=${entry.primary} secondary=${entry.secondary}${entry.name === DEFAULT_TUI_THEME ? " default" : ""}`,
       )
       .join("\n");
+  }
+
+  if (trimmed === "/theme next") {
+    const next = nextTuiTheme(context.services.settings.get().ui.theme);
+    const settings = context.services.settings.set("ui.theme", next);
+    return JSON.stringify(
+      {
+        theme: settings.ui.theme,
+        profile: getTuiTheme(settings.ui.theme),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/theme prev" || trimmed === "/theme previous") {
+    const previous = previousTuiTheme(context.services.settings.get().ui.theme);
+    const settings = context.services.settings.set("ui.theme", previous);
+    return JSON.stringify(
+      {
+        theme: settings.ui.theme,
+        profile: getTuiTheme(settings.ui.theme),
+      },
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/theme set ")) {

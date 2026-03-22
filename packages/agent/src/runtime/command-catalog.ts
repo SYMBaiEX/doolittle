@@ -93,6 +93,16 @@ export const COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "List all built-in operator cockpit themes.",
   },
   {
+    command: "/theme next",
+    category: "runtime",
+    description: "Cycle to the next built-in operator cockpit theme.",
+  },
+  {
+    command: "/theme prev",
+    category: "runtime",
+    description: "Cycle to the previous built-in operator cockpit theme.",
+  },
+  {
     command: "/theme set <name>",
     category: "runtime",
     description:

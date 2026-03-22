@@ -112,12 +112,15 @@ function buildHelpText(agentName: string): string {
     "  F11 /gateway supervision",
     "  F12 /responses list",
     "  Shift-F12 /runtime transports",
+    "  Ctrl-T           Next theme",
+    "  Ctrl-Y           Previous theme",
     "",
     "Examples:",
     "  /skills list",
     "  /execution status",
     "  /theme list",
-    "  /theme set matrix",
+    "  /theme set ghost",
+    "  /theme next",
     "  /transport inventory",
     "  /transport show telegram",
     "  /transport mismatches",
@@ -138,7 +141,7 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
 }
 
 function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
-  return `{bold}${agentName}{/bold}  {black-fg}ELIZAOS CYPHERPUNK OPS DECK{/}  {white-fg}${theme.name} theme · alpha-native monorepo + plugin lattice{/}`;
+  return `{bold}${agentName}{/bold}  {black-fg}ELIZAOS CYPHERPUNK OPS DECK{/}  {white-fg}${theme.label} · ${theme.name} · alpha-native monorepo + plugin lattice{/}`;
 }
 
 function applyLayout(
@@ -1680,6 +1683,12 @@ async function startTui(context: AppContext): Promise<void> {
       return;
     }
     openComposer(inputBox.getValue());
+  });
+  screen.key(["C-t"], () => {
+    queueCommand("/theme next");
+  });
+  screen.key(["C-y"], () => {
+    queueCommand("/theme prev");
   });
   screen.key(["tab"], () => {
     if (composerOpen) {
