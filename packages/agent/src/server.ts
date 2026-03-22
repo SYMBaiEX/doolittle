@@ -104,6 +104,11 @@ import {
   snapshotEffectiveBrowserPage,
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
+import {
+  getTuiTheme,
+  listTuiThemes,
+  resolveTuiThemeName,
+} from "@/runtime/theme-catalog";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import { OperatorService } from "@/services/operator-service";
 import { RepositoryService } from "@/services/repository-service";
@@ -3060,6 +3065,15 @@ export function startApiServer(context: AppContext): void {
         });
       }
 
+      if (request.method === "GET" && url.pathname === "/theme") {
+        const settings = context.services.settings.get();
+        return json({
+          active: settings.ui.theme,
+          profile: getTuiTheme(settings.ui.theme),
+          themes: listTuiThemes(),
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/execution/status") {
         const active = context.services.settings.get().execution;
         return json({
@@ -3103,6 +3117,28 @@ export function startApiServer(context: AppContext): void {
         syncProviderSettings(context, settings);
         return json({
           settings,
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/theme") {
+        const body = (await request.json()) as {
+          theme?: string;
+        };
+        const theme = resolveTuiThemeName(body.theme);
+        if (!theme) {
+          return json(
+            {
+              error: "valid theme is required",
+              themes: listTuiThemes(),
+            },
+            400,
+          );
+        }
+        const settings = context.services.settings.set("ui.theme", theme);
+        return json({
+          active: settings.ui.theme,
+          profile: getTuiTheme(settings.ui.theme),
+          themes: listTuiThemes(),
         });
       }
 

@@ -11,6 +11,7 @@ import {
   getNativeEcosystemSnapshot,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
+import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
 
 interface CliState {
   activeSessionId: string;
@@ -31,37 +32,6 @@ interface CliExecutionHooks {
 }
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
-
-const TUI_THEMES = {
-  orange: {
-    name: "orange",
-    baseBg: "black",
-    baseFg: "white",
-    primary: "#FF6A00",
-    secondary: "#FFB000",
-    amberGlow: "#FFB000",
-    cyanGlow: "cyan",
-    greenGlow: "green",
-    magentaGlow: "magenta",
-    muted: "gray",
-    panelBg: "black",
-  },
-  blue: {
-    name: "blue",
-    baseBg: "black",
-    baseFg: "white",
-    primary: "#0B35F1",
-    secondary: "cyan",
-    amberGlow: "yellow",
-    cyanGlow: "cyan",
-    greenGlow: "green",
-    magentaGlow: "magenta",
-    muted: "gray",
-    panelBg: "black",
-  },
-} as const;
-
-const TUI_THEME = TUI_THEMES.orange;
 
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
@@ -146,6 +116,8 @@ function buildHelpText(agentName: string): string {
     "Examples:",
     "  /skills list",
     "  /execution status",
+    "  /theme list",
+    "  /theme set matrix",
     "  /transport inventory",
     "  /transport show telegram",
     "  /transport mismatches",
@@ -156,13 +128,17 @@ function buildHelpText(agentName: string): string {
   ].join("\n");
 }
 
-function panelStyle(accent: string) {
+function panelStyle(theme: TuiThemeProfile, accent: string) {
   return {
-    fg: TUI_THEME.baseFg,
-    bg: TUI_THEME.panelBg,
+    fg: theme.baseFg,
+    bg: theme.panelBg,
     border: { fg: accent },
     label: { fg: accent, bold: true },
   };
+}
+
+function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
+  return `{bold}${agentName}{/bold}  {black-fg}ELIZAOS CYPHERPUNK OPS DECK{/}  {white-fg}${theme.name} theme · alpha-native monorepo + plugin lattice{/}`;
 }
 
 function applyLayout(
@@ -919,6 +895,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     "{bold}Runtime{/}",
     `Provider: {cyan-fg}${settings.model.provider}{/}`,
     `Model: {cyan-fg}${settings.model.model}{/}`,
+    `Theme: {yellow-fg}${settings.ui.theme}{/}`,
     `Session: {green-fg}${state.activeSessionId}{/}`,
     active?.title ? `Title: ${active.title}` : "Title: (untitled)",
     "",
@@ -974,6 +951,7 @@ function renderFooter(
 async function startTui(context: AppContext): Promise<void> {
   const state: CliState = { activeSessionId: "cli:local-user" };
   const unsubscribers: Array<() => void> = [];
+  let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const screen = blessed.screen({
     smartCSR: true,
     fullUnicode: true,
@@ -989,10 +967,10 @@ async function startTui(context: AppContext): Promise<void> {
     height: 3,
     tags: true,
     style: {
-      fg: TUI_THEME.baseFg,
-      bg: TUI_THEME.primary,
+      fg: activeTheme.baseFg,
+      bg: activeTheme.primary,
     },
-    content: `{bold}${context.config.agentName}{/bold}  {black-fg}ELIZAOS CYPHERPUNK OPS DECK{/}  {white-fg}${TUI_THEME.name} default theme · alpha-native monorepo + plugin lattice{/}`,
+    content: buildHeaderContent(context.config.agentName, activeTheme),
   });
 
   const activity = blessed.log({
@@ -1011,7 +989,7 @@ async function startTui(context: AppContext): Promise<void> {
     scrollbar: {
       ch: " ",
     },
-    style: panelStyle(TUI_THEME.cyanGlow),
+    style: panelStyle(activeTheme, activeTheme.cyanGlow),
   });
 
   const response = blessed.box({
@@ -1035,7 +1013,7 @@ async function startTui(context: AppContext): Promise<void> {
     scrollbar: {
       ch: " ",
     },
-    style: panelStyle(TUI_THEME.magentaGlow),
+    style: panelStyle(activeTheme, activeTheme.magentaGlow),
     content:
       "{gray-fg}Responses, JSON payloads, and operator output will render here.{/}",
   });
@@ -1058,7 +1036,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: panelStyle(TUI_THEME.greenGlow),
+    style: panelStyle(activeTheme, activeTheme.greenGlow),
   });
 
   const transportBox = blessed.box({
@@ -1079,7 +1057,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: panelStyle(TUI_THEME.cyanGlow),
+    style: panelStyle(activeTheme, activeTheme.cyanGlow),
   });
 
   const executionBox = blessed.box({
@@ -1100,7 +1078,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: panelStyle(TUI_THEME.greenGlow),
+    style: panelStyle(activeTheme, activeTheme.greenGlow),
   });
 
   const assistBox = blessed.box({
@@ -1121,7 +1099,7 @@ async function startTui(context: AppContext): Promise<void> {
       left: 1,
       right: 1,
     },
-    style: panelStyle(TUI_THEME.amberGlow),
+    style: panelStyle(activeTheme, activeTheme.amberGlow),
   });
 
   const paletteOverlay = blessed.box({
@@ -1135,10 +1113,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Command Palette ",
     style: {
-      fg: TUI_THEME.baseFg,
-      bg: TUI_THEME.baseBg,
-      border: { fg: TUI_THEME.magentaGlow },
-      label: { fg: TUI_THEME.magentaGlow, bold: true },
+      fg: activeTheme.baseFg,
+      bg: activeTheme.baseBg,
+      border: { fg: activeTheme.magentaGlow },
+      label: { fg: activeTheme.magentaGlow, bold: true },
     },
   });
 
@@ -1152,10 +1130,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Search ",
     style: {
-      border: { fg: TUI_THEME.amberGlow },
-      label: { fg: TUI_THEME.amberGlow, bold: true },
+      border: { fg: activeTheme.amberGlow },
+      label: { fg: activeTheme.amberGlow, bold: true },
       focus: {
-        border: { fg: TUI_THEME.primary },
+        border: { fg: activeTheme.primary },
       },
     },
   });
@@ -1173,13 +1151,13 @@ async function startTui(context: AppContext): Promise<void> {
     vi: true,
     tags: true,
     style: {
-      border: { fg: TUI_THEME.cyanGlow },
+      border: { fg: activeTheme.cyanGlow },
       selected: {
-        bg: TUI_THEME.primary,
-        fg: TUI_THEME.baseFg,
+        bg: activeTheme.primary,
+        fg: activeTheme.baseFg,
       },
       item: {
-        fg: TUI_THEME.baseFg,
+        fg: activeTheme.baseFg,
       },
     },
     items: [],
@@ -1196,10 +1174,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Multiline Composer ",
     style: {
-      fg: TUI_THEME.baseFg,
-      bg: TUI_THEME.baseBg,
-      border: { fg: TUI_THEME.greenGlow },
-      label: { fg: TUI_THEME.greenGlow, bold: true },
+      fg: activeTheme.baseFg,
+      bg: activeTheme.baseBg,
+      border: { fg: activeTheme.greenGlow },
+      label: { fg: activeTheme.greenGlow, bold: true },
     },
   });
 
@@ -1216,10 +1194,10 @@ async function startTui(context: AppContext): Promise<void> {
     border: "line",
     label: " Compose (Ctrl-S submit, Esc close) ",
     style: {
-      border: { fg: TUI_THEME.greenGlow },
-      label: { fg: TUI_THEME.greenGlow, bold: true },
+      border: { fg: activeTheme.greenGlow },
+      label: { fg: activeTheme.greenGlow, bold: true },
       focus: {
-        border: { fg: TUI_THEME.primary },
+        border: { fg: activeTheme.primary },
       },
     },
   });
@@ -1248,12 +1226,12 @@ async function startTui(context: AppContext): Promise<void> {
     keys: true,
     tags: false,
     style: {
-      fg: TUI_THEME.baseFg,
-      bg: TUI_THEME.baseBg,
-      border: { fg: TUI_THEME.primary },
-      label: { fg: TUI_THEME.primary, bold: true },
+      fg: activeTheme.baseFg,
+      bg: activeTheme.baseBg,
+      border: { fg: activeTheme.primary },
+      label: { fg: activeTheme.primary, bold: true },
       focus: {
-        border: { fg: TUI_THEME.cyanGlow },
+        border: { fg: activeTheme.cyanGlow },
       },
     },
   });
@@ -1266,8 +1244,8 @@ async function startTui(context: AppContext): Promise<void> {
     height: 1,
     tags: true,
     style: {
-      fg: TUI_THEME.baseFg,
-      bg: TUI_THEME.baseBg,
+      fg: activeTheme.baseFg,
+      bg: activeTheme.baseBg,
     },
   });
 
@@ -1376,6 +1354,68 @@ async function startTui(context: AppContext): Promise<void> {
     assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
   }
 
+  function applyThemeToScreen(theme: TuiThemeProfile): void {
+    header.style.fg = theme.baseFg;
+    header.style.bg = theme.primary;
+    header.setContent(buildHeaderContent(context.config.agentName, theme));
+
+    activity.style = panelStyle(theme, theme.cyanGlow);
+    response.style = panelStyle(theme, theme.magentaGlow);
+    sidebar.style = panelStyle(theme, theme.greenGlow);
+    transportBox.style = panelStyle(theme, theme.cyanGlow);
+    executionBox.style = panelStyle(theme, theme.greenGlow);
+    assistBox.style = panelStyle(theme, theme.amberGlow);
+
+    paletteOverlay.style.fg = theme.baseFg;
+    paletteOverlay.style.bg = theme.baseBg;
+    paletteOverlay.style.border = { fg: theme.magentaGlow };
+    paletteOverlay.style.label = { fg: theme.magentaGlow, bold: true };
+
+    paletteInput.style.border = { fg: theme.amberGlow };
+    paletteInput.style.label = { fg: theme.amberGlow, bold: true };
+    paletteInput.style.focus = { border: { fg: theme.primary } };
+
+    paletteList.style.border = { fg: theme.cyanGlow };
+    paletteList.style.selected = {
+      bg: theme.primary,
+      fg: theme.baseFg,
+    };
+    paletteList.style.item = { fg: theme.baseFg };
+
+    composerOverlay.style.fg = theme.baseFg;
+    composerOverlay.style.bg = theme.baseBg;
+    composerOverlay.style.border = { fg: theme.greenGlow };
+    composerOverlay.style.label = { fg: theme.greenGlow, bold: true };
+
+    composer.style.border = { fg: theme.greenGlow };
+    composer.style.label = { fg: theme.greenGlow, bold: true };
+    composer.style.focus = { border: { fg: theme.primary } };
+
+    inputBox.style.fg = theme.baseFg;
+    inputBox.style.bg = theme.baseBg;
+    inputBox.style.border = { fg: theme.primary };
+    inputBox.style.label = { fg: theme.primary, bold: true };
+    inputBox.style.focus = { border: { fg: theme.cyanGlow } };
+
+    footer.style.fg = theme.baseFg;
+    footer.style.bg = theme.baseBg;
+  }
+
+  async function syncThemeFromSettings(): Promise<void> {
+    const nextTheme = getTuiTheme(context.services.settings.get().ui.theme);
+    if (nextTheme.name === activeTheme.name) {
+      return;
+    }
+    activeTheme = nextTheme;
+    applyThemeToScreen(activeTheme);
+    appendActivity(
+      "theme",
+      `Operator theme switched to ${activeTheme.name}.`,
+      "success",
+    );
+    await refreshPanels();
+  }
+
   function appendActivity(
     kind: string,
     message: string,
@@ -1462,6 +1502,7 @@ async function startTui(context: AppContext): Promise<void> {
           screen.render();
         },
       });
+      await syncThemeFromSettings();
       if (result.text) {
         response.setContent(result.text);
         appendActivity(
@@ -1815,7 +1856,7 @@ async function startTui(context: AppContext): Promise<void> {
   );
   appendActivity(
     "tip",
-    "Use Ctrl-E for multiline compose, Tab for command completion, and streamed local terminal output will appear live in the feed.",
+    "Use Ctrl-E for multiline compose, /theme list to explore palettes, and streamed local terminal output will appear live in the feed.",
     "info",
   );
   response.setContent(
@@ -1825,6 +1866,7 @@ async function startTui(context: AppContext): Promise<void> {
   executionBox.setContent(await renderExecutionContent(context));
   await renderControlDeck(controlDeckMode);
 
+  applyThemeToScreen(activeTheme);
   await refreshPanels();
   syncLayout();
   inputBox.focus();

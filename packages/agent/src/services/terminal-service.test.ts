@@ -74,6 +74,9 @@ function makeSettings(): RuntimeSettings {
       serverCommand: "",
       timeoutMs: 5_000,
     },
+    ui: {
+      theme: "orange",
+    },
   };
 }
 

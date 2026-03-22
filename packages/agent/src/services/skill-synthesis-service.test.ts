@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SkillSynthesisService } from "./skill-synthesis-service";
@@ -43,6 +43,36 @@ describe("SkillSynthesisService", () => {
       expect(
         service.describeGeneratedSkill("browser-capture-workflow"),
       ).toContain("GENERATED SKILL");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("tolerates legacy generated skill index entries without updatedAt", () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-skill-synthesis-"));
+    const service = new SkillSynthesisService(root);
+
+    try {
+      writeFileSync(
+        join(root, "generated", "index.json"),
+        JSON.stringify({
+          skills: [
+            {
+              slug: "legacy-skill",
+              title: "Legacy Skill",
+              taskId: "task-legacy",
+              path: join(root, "generated", "legacy-skill", "SKILL.md"),
+              createdAt: "2026-03-21T00:00:00.000Z",
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      const generated = service.listGeneratedSkills();
+      expect(generated).toHaveLength(1);
+      expect(generated[0]?.slug).toBe("legacy-skill");
+      expect(generated[0]?.updatedAt).toBe("2026-03-21T00:00:00.000Z");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

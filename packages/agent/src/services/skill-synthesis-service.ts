@@ -120,7 +120,11 @@ export class SkillSynthesisService {
   listGeneratedSkills(limit = 20): GeneratedSkillRecord[] {
     return this.readIndex()
       .skills.slice()
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .sort((a, b) =>
+        (b.updatedAt ?? b.createdAt ?? "").localeCompare(
+          a.updatedAt ?? a.createdAt ?? "",
+        ),
+      )
       .slice(0, limit);
   }
 
@@ -168,9 +172,33 @@ export class SkillSynthesisService {
       return { skills: [] };
     }
     try {
-      return JSON.parse(
-        readFileSync(this.indexPath, "utf8"),
-      ) as GeneratedSkillIndex;
+      const parsed = JSON.parse(readFileSync(this.indexPath, "utf8")) as {
+        skills?: Array<Partial<GeneratedSkillRecord>>;
+      };
+      return {
+        skills: Array.isArray(parsed.skills)
+          ? parsed.skills
+              .filter(
+                (record): record is Partial<GeneratedSkillRecord> &
+                  Pick<GeneratedSkillRecord, "slug" | "title" | "taskId" | "path"> =>
+                  Boolean(record.slug && record.title && record.taskId && record.path),
+              )
+              .map((record) => ({
+                slug: record.slug,
+                title: record.title,
+                taskId: record.taskId,
+                path: record.path,
+                createdAt: record.createdAt ?? new Date(0).toISOString(),
+                updatedAt:
+                  record.updatedAt ??
+                  record.createdAt ??
+                  new Date(0).toISOString(),
+                noteCount: record.noteCount ?? 0,
+                signalCount: record.signalCount ?? 0,
+                objective: record.objective ?? "",
+              }))
+          : [],
+      };
     } catch {
       return { skills: [] };
     }
