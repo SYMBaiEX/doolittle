@@ -94,4 +94,59 @@ describe("createClaudeCodePlugin", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("refreshes Claude Code credentials after an auth failure", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestCount = 0;
+    globalThis.fetch = (async (_url, init) => {
+      requestCount += 1;
+      const auth = (init?.headers as Record<string, string>)?.Authorization;
+      if (requestCount === 1) {
+        expect(auth).toBe("Bearer stale-oauth");
+        return new Response("expired", { status: 401 });
+      }
+      expect(auth).toBe("Bearer fresh-oauth");
+      return new Response(
+        JSON.stringify({
+          content: [{ type: "text", text: "refreshed claude" }],
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+
+    try {
+      const plugin = createClaudeCodePlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "claude-code",
+          available: true,
+          reusable: true,
+          authMode: "oauth",
+          detail: "ready",
+        }),
+        getCredentials: () => ({
+          accessToken: "stale-oauth",
+        }),
+        refreshCredentials: async () => ({
+          accessToken: "fresh-oauth",
+        }),
+      });
+      const handler = plugin.models?.TEXT_LARGE;
+      const result = await handler?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: {
+                provider: "claude-code",
+              },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      );
+      expect(result).toBe("refreshed claude");
+      expect(requestCount).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

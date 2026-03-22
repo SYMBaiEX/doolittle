@@ -29,6 +29,16 @@ interface ClaudeCodePluginOptions {
         source?: string;
       }
     | undefined;
+  refreshCredentials?: () => Promise<
+    | {
+        accessToken?: string;
+        refreshToken?: string;
+        expiresAt?: string;
+        accountLabel?: string;
+        source?: string;
+      }
+    | undefined
+  >;
 }
 
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
@@ -93,7 +103,10 @@ async function runClaudeCodeTextGeneration(
     );
   }
 
-  const credentials = options.getCredentials?.();
+  let credentials = options.getCredentials?.();
+  if (!credentials?.accessToken?.trim() && options.refreshCredentials) {
+    credentials = await options.refreshCredentials();
+  }
   const accessToken = credentials?.accessToken?.trim();
   if (!accessToken) {
     throw new Error(
@@ -102,31 +115,61 @@ async function runClaudeCodeTextGeneration(
   }
 
   const runtimeModel = getRuntimeModelSettings(runtime);
-  const response = await fetch(
-    `${runtimeModel.baseUrl || DEFAULT_ANTHROPIC_BASE_URL}/v1/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": [...COMMON_BETAS, ...OAUTH_ONLY_BETAS].join(","),
-        "user-agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
-        "x-app": "cli",
-      },
-      body: JSON.stringify({
-        model: runtimeModel.model || "claude-sonnet-4-20250514",
-        max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
-        temperature: runtimeModel.temperature ?? 0.4,
-        messages: [
-          {
-            role: "user",
-            content: params.prompt,
-          },
-        ],
-      }),
+  const endpoint = `${runtimeModel.baseUrl || DEFAULT_ANTHROPIC_BASE_URL}/v1/messages`;
+  let response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": [...COMMON_BETAS, ...OAUTH_ONLY_BETAS].join(","),
+      "user-agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
+      "x-app": "cli",
     },
-  );
+    body: JSON.stringify({
+      model: runtimeModel.model || "claude-sonnet-4-20250514",
+      max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
+      temperature: runtimeModel.temperature ?? 0.4,
+      messages: [
+        {
+          role: "user",
+          content: params.prompt,
+        },
+      ],
+    }),
+  });
+
+  if (
+    (response.status === 401 || response.status === 403) &&
+    options.refreshCredentials
+  ) {
+    const refreshed = await options.refreshCredentials();
+    const refreshedAccessToken = refreshed?.accessToken?.trim();
+    if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${refreshedAccessToken}`,
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": [...COMMON_BETAS, ...OAUTH_ONLY_BETAS].join(","),
+          "user-agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
+          "x-app": "cli",
+        },
+        body: JSON.stringify({
+          model: runtimeModel.model || "claude-sonnet-4-20250514",
+          max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
+          temperature: runtimeModel.temperature ?? 0.4,
+          messages: [
+            {
+              role: "user",
+              content: params.prompt,
+            },
+          ],
+        }),
+      });
+    }
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -178,6 +221,10 @@ export function createClaudeCodePlugin(
         accountLabel: status.accountLabel,
         detail: status.detail,
       };
+    }
+
+    async refreshRuntimeCredentials() {
+      return options.refreshCredentials?.();
     }
   }
 

@@ -29,6 +29,8 @@ import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
   getLinkedProviderAccountsSnapshot,
+  refreshLinkedClaudeCodeCredentials,
+  refreshLinkedCodexCredentials,
 } from "./account-auth";
 import {
   getNativePluginCatalog,
@@ -94,11 +96,13 @@ export function buildNativePluginAssembly(
       enabled: selectedProvider === "codex",
       getStatus: () => getLinkedProviderAccountsSnapshot().codex,
       getCredentials: () => getLinkedCodexCredentials(),
+      refreshCredentials: () => refreshLinkedCodexCredentials(),
     }),
     createClaudeCodePlugin({
       enabled: selectedProvider === "claude-code",
       getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
       getCredentials: () => getLinkedClaudeCodeCredentials(),
+      refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),
     }),
   ];
   if (config.openAiApiKey) {
