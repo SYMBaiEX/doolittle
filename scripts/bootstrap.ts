@@ -394,13 +394,14 @@ function createWizardScreen(
       initial?.currentDetail || "I checked the machine before waking fully.",
     logLines: initial?.logLines ? [...initial.logLines] : [],
   };
+  const chromeTop = 4;
   let activeThemeName = DEFAULT_TUI_THEME;
   const header = blessed.box({
     parent: screen,
     top: 0,
     left: 0,
     width: "100%",
-    height: 3,
+    height: chromeTop,
     tags: true,
     style: {
       fg: "white",
@@ -411,7 +412,7 @@ function createWizardScreen(
   });
   const sidebar = blessed.box({
     parent: screen,
-    top: 3,
+    top: chromeTop,
     left: 0,
     width: 24,
     bottom: 1,
@@ -428,7 +429,7 @@ function createWizardScreen(
   });
   const detail = blessed.box({
     parent: screen,
-    top: 3,
+    top: chromeTop,
     left: 24,
     width: "100%-24",
     height: 6,
@@ -445,7 +446,7 @@ function createWizardScreen(
   });
   const logBox = blessed.box({
     parent: screen,
-    top: 9,
+    top: chromeTop + 6,
     left: 24,
     width: "100%-24",
     bottom: 1,
@@ -479,7 +480,7 @@ function createWizardScreen(
       bg: "#151c24",
     },
     content:
-      " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-C exit ",
+      " ↑/↓ move  Enter confirm  Space toggle  Esc keep current  Ctrl-T next theme  Ctrl-Y previous theme  Ctrl-C exit ",
   });
 
   const applyTheme = (themeName: TuiThemeName) => {
@@ -507,7 +508,9 @@ function createWizardScreen(
 
   const render = () => {
     const theme = getTuiTheme(activeThemeName);
-    header.setContent(`{bold}${snapshot.title}{/bold}\n${snapshot.subtitle}`);
+    header.setContent(
+      `{bold}${snapshot.title}{/bold}\n${snapshot.subtitle}\n{gray-fg}Theme:{/gray-fg} ${theme.label} · ${theme.tagline}`,
+    );
     sidebar.setContent(
       wizardSectionOrder
         .map((name) =>
@@ -2045,10 +2048,15 @@ async function runWizard(
     const themeChoices = listTuiThemes().map((theme) => ({
       value: theme.name,
       label: `${theme.label} (${theme.name})`,
-      detail:
+      detail: [
+        theme.tagline,
         theme.aliases.length > 0
           ? `Aliases: ${theme.aliases.join(", ")}`
           : undefined,
+        `Preview: ${theme.primary} · ${theme.secondary}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     }));
     const theme = await chooseOne<TuiThemeName>(
       rl,
@@ -2964,21 +2972,22 @@ function printSummary(
   onboarding: OnboardingSummary,
 ): void {
   section("First Pulse", "I am configured enough to begin.");
+  const theme = getTuiTheme(onboarding.theme);
   console.log(`  state: ${options.checkOnly ? "check" : "awake"}`);
   console.log(`  awakening: ${onboarding.mode}`);
   console.log(`  mind: ${onboarding.provider}`);
+  console.log(`  skin: ${theme.label} (${onboarding.theme})`);
+  console.log(`  body: ${onboarding.backend}`);
   console.log(
     `  threads: codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
   );
-  console.log(`  body: ${onboarding.backend}`);
-  console.log(`  face: ${onboarding.theme}`);
   console.log(
     `  channels: ${onboarding.transports.join(", ") || "api, cli only"}`,
   );
   console.log(`  pulseprint: ${onboarding.profile}`);
 
   console.log();
-  console.log(paint("Directories", color.cyan + color.bold));
+  console.log(paint("What Was Written", color.cyan + color.bold));
   for (const entry of createdDirs) {
     console.log(`  - ${entry}`);
   }
@@ -2990,7 +2999,7 @@ function printSummary(
   }
 
   console.log();
-  console.log(paint("Invocation", color.cyan + color.bold));
+  console.log(paint("Next Moves", color.cyan + color.bold));
   console.log("  - bun run start");
   console.log("  - bun run start --plain-cli");
   console.log("  - bun run dev");
