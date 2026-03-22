@@ -14,17 +14,22 @@ This workspace contains both product-native Eliza Agent plugins and vendored off
 - `eliza-agent-plugin.ts`
 - `plugin-agent-orchestrator`
 - `plugin-agent-skills`
+- `plugin-autocoder`
 - `plugin-coding-agent`
+- `plugin-codex`
+- `plugin-claude-code`
 - `plugin-cron`
 - `plugin-browser`
 - `plugin-action-bench`
 - `plugin-discord`
+- `plugin-e2b`
 - `plugin-experience`
 - `plugin-forms`
 - `plugin-knowledge`
 - `plugin-local-embedding`
 - `plugin-mcp`
 - `plugin-personality`
+- `plugin-planning`
 - `plugin-plugin-manager`
 - `plugin-rolodex`
 - `plugin-shell`
@@ -34,3 +39,12 @@ This workspace contains both product-native Eliza Agent plugins and vendored off
 ## Working rule
 
 If a behavior is specific to Eliza Agent as a product, keep it in `packages/agent/src/` or `packages/plugins/eliza-agent-plugin.ts`. If the change is purely about making an official ElizaOS package work on the current runtime line, keep it under the vendored plugin directories here.
+
+## Linked providers
+
+Two workspace plugins are intentionally user-facing provider bridges rather than hidden internals:
+
+- `plugin-codex`
+- `plugin-claude-code`
+
+They are designed for people who already use local Codex or Claude Code CLIs and want Eliza Agent to reuse those signed-in accounts directly.
