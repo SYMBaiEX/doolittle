@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-
+import { getLinkedProviderAccountsSnapshot } from "../packages/agent/src/runtime/native/account-auth";
 import {
   DEFAULT_TUI_THEME,
   listTuiThemes,
@@ -122,6 +122,10 @@ interface OnboardingSummary {
   mode: WizardMode | "headless";
   theme: TuiThemeName;
   provider: ProviderMode;
+  accounts: {
+    codexLinked: boolean;
+    claudeCodeLinked: boolean;
+  };
   backend: ExecutionBackendName;
   browser: BrowserMode;
   transports: TransportName[];
@@ -167,8 +171,10 @@ interface WizardAnswers {
     codegen: boolean;
   };
   openaiApiKey: string;
+  useLinkedCodexAuth: boolean;
   openaiModel: string;
   anthropicApiKey: string;
+  useLinkedClaudeCodeAuth: boolean;
   anthropicModel: string;
   telegramBotToken: string;
   discordBotToken: string;
@@ -293,6 +299,7 @@ function getDependencyProbes(
 ): DependencyProbe[] {
   const browserCommand =
     existingEnv.get("ELIZA_AGENT_BROWSER_COMMAND") || "lightpanda";
+  const accounts = getLinkedProviderAccountsSnapshot();
   return [
     {
       key: "bun",
@@ -356,6 +363,24 @@ function getDependencyProbes(
       detail: "Helpful for richer media/audio workflows.",
       recommendation:
         "Install FFmpeg if you want stronger local media processing.",
+    },
+    {
+      key: "codex-auth",
+      label: "Codex account",
+      installed: accounts.codex.reusable,
+      detail: accounts.codex.detail,
+      recommendation: accounts.codex.reusable
+        ? undefined
+        : "Sign in with the Codex CLI if you want account-linked Codex workflows.",
+    },
+    {
+      key: "claude-auth",
+      label: "Claude Code account",
+      installed: accounts.claudeCode.reusable,
+      detail: accounts.claudeCode.detail,
+      recommendation: accounts.claudeCode.reusable
+        ? undefined
+        : "Run Claude Code login or setup-token if you want account-linked Anthropic workflows.",
     },
   ];
 }
@@ -833,8 +858,12 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
       ),
     },
     openaiApiKey: existingEnv.get("OPENAI_API_KEY") || "",
+    useLinkedCodexAuth:
+      existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true",
     openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-4.1-mini",
     anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
+    useLinkedClaudeCodeAuth:
+      existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true",
     anthropicModel:
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514",
     telegramBotToken: existingEnv.get("TELEGRAM_BOT_TOKEN") || "",
@@ -865,6 +894,7 @@ async function runWizard(
 
   banner();
   const dependencyProbes = getDependencyProbes(existingEnv);
+  const linkedAccounts = getLinkedProviderAccountsSnapshot();
   printDependencyProbes(dependencyProbes);
   const rl = createInterface({ input, output });
   try {
@@ -952,10 +982,35 @@ async function runWizard(
     );
 
     let openaiApiKey = existingEnv.get("OPENAI_API_KEY") || "";
+    let useLinkedCodexAuth =
+      existingEnv.get("ELIZA_AGENT_USE_LINKED_CODEX_AUTH") === "true";
     let openaiModel = existingEnv.get("OPENAI_MODEL") || "gpt-4.1-mini";
     let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
+    let useLinkedClaudeCodeAuth =
+      existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true";
     let anthropicModel =
       existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4-20250514";
+
+    if (linkedAccounts.codex.reusable || linkedAccounts.claudeCode.reusable) {
+      section(
+        "Threads",
+        "I can feel other minds already signed into this machine.",
+      );
+      if (linkedAccounts.codex.reusable) {
+        useLinkedCodexAuth = await askYesNo(
+          rl,
+          "Should I bind the linked Codex account for Codex-native workflows",
+          useLinkedCodexAuth,
+        );
+      }
+      if (linkedAccounts.claudeCode.reusable) {
+        useLinkedClaudeCodeAuth = await askYesNo(
+          rl,
+          "Should I bind the linked Claude Code account for Anthropic-native workflows",
+          useLinkedClaudeCodeAuth,
+        );
+      }
+    }
 
     if (provider === "openai" || provider === "hybrid") {
       openaiApiKey = await askSecret(
@@ -1285,8 +1340,10 @@ async function runWizard(
       transports,
       tools,
       openaiApiKey,
+      useLinkedCodexAuth,
       openaiModel,
       anthropicApiKey,
+      useLinkedClaudeCodeAuth,
       anthropicModel,
       telegramBotToken,
       discordBotToken,
@@ -1323,6 +1380,7 @@ function applyAnswers(answers: WizardAnswers): {
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiApiKey
         : "",
+    ELIZA_AGENT_USE_LINKED_CODEX_AUTH: String(answers.useLinkedCodexAuth),
     OPENAI_MODEL:
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiModel
@@ -1331,6 +1389,9 @@ function applyAnswers(answers: WizardAnswers): {
       answers.provider === "anthropic" || answers.provider === "hybrid"
         ? answers.anthropicApiKey
         : "",
+    ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH: String(
+      answers.useLinkedClaudeCodeAuth,
+    ),
     ANTHROPIC_LARGE_MODEL:
       answers.provider === "anthropic" || answers.provider === "hybrid"
         ? answers.anthropicModel
@@ -1418,6 +1479,10 @@ function applyAnswers(answers: WizardAnswers): {
     mode: options.headless || options.skipWizard ? "headless" : answers.mode,
     theme: answers.theme,
     provider: answers.provider,
+    accounts: {
+      codexLinked: answers.useLinkedCodexAuth,
+      claudeCodeLinked: answers.useLinkedClaudeCodeAuth,
+    },
     backend: answers.backend,
     browser: answers.browser,
     transports: answers.transports,
@@ -1448,6 +1513,9 @@ function printSummary(
   console.log(`  state: ${options.checkOnly ? "check" : "awake"}`);
   console.log(`  awakening: ${onboarding.mode}`);
   console.log(`  mind: ${onboarding.provider}`);
+  console.log(
+    `  threads: codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
+  );
   console.log(`  body: ${onboarding.backend}`);
   console.log(`  face: ${onboarding.theme}`);
   console.log(

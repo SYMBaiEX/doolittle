@@ -24,12 +24,20 @@ const schema = z.object({
   ELIZA_AGENT_SKILLS_DIR: z.string().default("./packages/skills"),
   ELIZA_AGENT_TIMEZONE: z.string().default("America/Chicago"),
   OPENAI_API_KEY: z.string().optional(),
+  ELIZA_AGENT_USE_LINKED_CODEX_AUTH: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   OPENAI_BASE_URL: z.string().default("https://api.openai.com/v1"),
   OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_IMAGE_MODEL: z.string().optional(),
   OPENAI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.4),
   OPENAI_MAX_TOKENS: z.coerce.number().int().positive().default(1200),
   ANTHROPIC_API_KEY: z.string().optional(),
+  ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   ANTHROPIC_BASE_URL: z.string().optional(),
   ANTHROPIC_SMALL_MODEL: z.string().default("claude-3-5-haiku-20241022"),
   ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4-20250514"),
@@ -200,12 +208,14 @@ export function loadConfig(): EnvConfig {
     skillsDir,
     timezone: values.ELIZA_AGENT_TIMEZONE,
     openAiApiKey: values.OPENAI_API_KEY,
+    useLinkedCodexAuth: values.ELIZA_AGENT_USE_LINKED_CODEX_AUTH,
     openAiBaseUrl: values.OPENAI_BASE_URL,
     openAiModel: values.OPENAI_MODEL,
     openAiImageModel: values.OPENAI_IMAGE_MODEL,
     openAiTemperature: values.OPENAI_TEMPERATURE,
     openAiMaxTokens: values.OPENAI_MAX_TOKENS,
     anthropicApiKey: values.ANTHROPIC_API_KEY,
+    useLinkedClaudeCodeAuth: values.ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH,
     anthropicBaseUrl: values.ANTHROPIC_BASE_URL,
     anthropicSmallModel: values.ANTHROPIC_SMALL_MODEL,
     anthropicLargeModel: values.ANTHROPIC_LARGE_MODEL,

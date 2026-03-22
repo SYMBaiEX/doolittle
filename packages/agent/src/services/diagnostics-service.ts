@@ -5,6 +5,7 @@ import {
   getTransportRequirementRecords,
   summarizeTransportInventory,
 } from "@/gateway/transport-contract";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import {
   getLatestRuntimeLine,
@@ -193,6 +194,17 @@ export class DiagnosticsService {
         this.config.openAiApiKey || this.config.anthropicApiKey
           ? "At least one provider key is present."
           : "No OpenAI or Anthropic API key is configured. Runtime will stay in offline fallback mode.",
+    });
+
+    const linkedAccounts = getLinkedProviderAccountsSnapshot();
+    checks.push({
+      id: "provider.linked-accounts",
+      status:
+        linkedAccounts.codex.reusable || linkedAccounts.claudeCode.reusable
+          ? "pass"
+          : "warn",
+      summary: "Linked CLI account detection",
+      detail: `codex=${linkedAccounts.codex.reusable ? "reusable" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.reusable ? "reusable" : linkedAccounts.claudeCode.available ? "detected" : "missing"}`,
     });
 
     checks.push({
