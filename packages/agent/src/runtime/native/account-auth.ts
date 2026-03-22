@@ -20,6 +20,14 @@ export interface LinkedProviderAccountsSnapshot {
   claudeCode: LinkedProviderAccountStatus;
 }
 
+interface ProviderAuthStoreShape {
+  version: 1;
+  providers: Partial<{
+    codex: LinkedCodexCredentials & { storedAt?: string };
+    "claude-code": LinkedClaudeCodeCredentials & { storedAt?: string };
+  }>;
+}
+
 export interface LinkedCodexCredentials {
   accessToken?: string;
   refreshToken?: string;
@@ -47,6 +55,7 @@ const CLAUDE_CODE_ENV_KEYS = [
   "CLAUDE_CODE_OAUTH_TOKEN",
   "CLAUDE_CODE_SETUP_TOKEN",
 ] as const;
+const PROVIDER_AUTH_STORE_VERSION = 1 as const;
 
 interface CliAuthStatus {
   available: boolean;
@@ -191,6 +200,125 @@ function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function getProviderAuthStorePath(): string {
+  const dataDir =
+    process.env.ELIZA_AGENT_DATA_DIR?.trim() ||
+    process.env.ELIZA_AGENT_DATA_PATH?.trim() ||
+    ".eliza-agent";
+  return join(process.cwd(), dataDir, "auth", "providers.json");
+}
+
+function readProviderAuthStore(): ProviderAuthStoreShape {
+  const path = getProviderAuthStorePath();
+  const payload = existsSync(path) ? readJson(path) : undefined;
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "providers" in payload &&
+    typeof (payload as { providers?: unknown }).providers === "object"
+  ) {
+    return payload as ProviderAuthStoreShape;
+  }
+  return {
+    version: PROVIDER_AUTH_STORE_VERSION,
+    providers: {},
+  };
+}
+
+function writeProviderAuthStore(store: ProviderAuthStoreShape): void {
+  writeJson(getProviderAuthStorePath(), store);
+}
+
+function persistProviderCredentials(
+  provider: "codex" | "claude-code",
+  credentials:
+    | (LinkedCodexCredentials | LinkedClaudeCodeCredentials)
+    | undefined,
+): void {
+  if (!credentials?.accessToken && !credentials?.refreshToken) {
+    return;
+  }
+  const store = readProviderAuthStore();
+  store.providers[provider] = {
+    ...credentials,
+    storedAt: new Date().toISOString(),
+  } as never;
+  writeProviderAuthStore(store);
+}
+
+function getStoredCodexCredentials(): LinkedCodexCredentials | undefined {
+  const record = readProviderAuthStore().providers.codex;
+  if (!record?.accessToken && !record?.refreshToken) {
+    return undefined;
+  }
+  return {
+    accessToken: record.accessToken,
+    refreshToken: record.refreshToken,
+    authMode: record.authMode,
+    lastRefresh: record.lastRefresh,
+    source: "eliza-auth-store",
+  };
+}
+
+function getStoredClaudeCodeCredentials():
+  | LinkedClaudeCodeCredentials
+  | undefined {
+  const record = readProviderAuthStore().providers["claude-code"];
+  if (!record?.accessToken && !record?.refreshToken) {
+    return undefined;
+  }
+  return {
+    accessToken: record.accessToken,
+    refreshToken: record.refreshToken,
+    expiresAt: record.expiresAt,
+    accountLabel: record.accountLabel,
+    authMode: record.authMode,
+    source: "eliza-auth-store",
+  };
+}
+
+async function refreshClaudeOAuthCredentialsFromRecord(
+  refreshToken: string,
+  source: string,
+  accountLabel?: string,
+): Promise<LinkedClaudeCodeCredentials | undefined> {
+  const response = await fetch(CLAUDE_CODE_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "claude-cli/2.1.74 (external, cli)",
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: CLAUDE_CODE_CLIENT_ID,
+    }),
+  });
+  if (!response.ok) {
+    return undefined;
+  }
+  const refreshPayload = (await response.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+  if (!refreshPayload.access_token?.trim()) {
+    return undefined;
+  }
+  const expiresInSeconds =
+    typeof refreshPayload.expires_in === "number"
+      ? refreshPayload.expires_in
+      : 3600;
+  return {
+    accessToken: refreshPayload.access_token.trim(),
+    refreshToken: refreshPayload.refresh_token?.trim() || refreshToken,
+    expiresAt: String(Date.now() + expiresInSeconds * 1000),
+    accountLabel,
+    authMode: "oauth",
+    source,
+  };
+}
+
 function decodeJwtPayload(token?: string): Record<string, unknown> | undefined {
   const parts = token?.split(".");
   if (!parts || parts.length < 2) {
@@ -229,6 +357,21 @@ function isUnixMsExpiring(
 }
 
 function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
+  const stored = getStoredCodexCredentials();
+  if (stored?.accessToken || stored?.refreshToken) {
+    return {
+      provider: "codex",
+      available: true,
+      reusable: true,
+      source: stored.source,
+      authMode: stored.authMode || "chatgpt",
+      lastRefresh: stored.lastRefresh,
+      loginCommand: "codex login",
+      detail:
+        "Eliza-managed Codex credentials are available in the local provider auth store.",
+    };
+  }
+
   const authPath = join(resolveHome(homePath), ".codex", "auth.json");
   const cliStatus = getCodexCliAuthStatus(homePath);
   const payload = existsSync(authPath) ? readJson(authPath) : undefined;
@@ -288,6 +431,11 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
 export function getLinkedCodexCredentials(
   homePath?: string,
 ): LinkedCodexCredentials | undefined {
+  const stored = getStoredCodexCredentials();
+  if (stored?.accessToken || stored?.refreshToken) {
+    return stored;
+  }
+
   const authPath = join(resolveHome(homePath), ".codex", "auth.json");
   const payload = existsSync(authPath) ? readJson(authPath) : undefined;
   const tokens =
@@ -315,13 +463,15 @@ export function getLinkedCodexCredentials(
     return undefined;
   }
 
-  return {
+  const resolved = {
     accessToken: accessToken || undefined,
     refreshToken: refreshToken || undefined,
     authMode: authMode || undefined,
     lastRefresh: lastRefresh || undefined,
     source: authPath,
   };
+  persistProviderCredentials("codex", resolved);
+  return resolved;
 }
 
 export function codexAccessTokenIsExpiring(
@@ -393,12 +543,30 @@ export async function refreshLinkedCodexCredentials(
     last_refresh: new Date().toISOString(),
   };
   writeJson(authPath, updatedPayload);
-  return getLinkedCodexCredentials(homePath);
+  const resolved = getLinkedCodexCredentials(homePath);
+  persistProviderCredentials("codex", resolved);
+  return resolved;
 }
 
 function getClaudeCodeAccountStatus(
   homePath?: string,
 ): LinkedProviderAccountStatus {
+  const stored = getStoredClaudeCodeCredentials();
+  if (stored?.accessToken || stored?.refreshToken) {
+    return {
+      provider: "claude-code",
+      available: true,
+      reusable: true,
+      source: stored.source,
+      authMode: stored.authMode || "oauth",
+      lastRefresh: stored.expiresAt,
+      accountLabel: stored.accountLabel,
+      loginCommand: "claude auth login",
+      detail:
+        "Eliza-managed Claude Code credentials are available in the local provider auth store.",
+    };
+  }
+
   const home = resolveHome(homePath);
   const cliStatus = getClaudeCodeCliAuthStatus(homePath);
   const credentialsPath = join(home, ".claude", ".credentials.json");
@@ -516,6 +684,11 @@ function getClaudeCodeAccountStatus(
 export function getLinkedClaudeCodeCredentials(
   homePath?: string,
 ): LinkedClaudeCodeCredentials | undefined {
+  const stored = getStoredClaudeCodeCredentials();
+  if (stored?.accessToken || stored?.refreshToken) {
+    return stored;
+  }
+
   const home = resolveHome(homePath);
   const credentialsPath = join(home, ".claude", ".credentials.json");
   const profilePath = join(home, ".claude.json");
@@ -565,16 +738,18 @@ export function getLinkedClaudeCodeCredentials(
     if (!envToken?.token) {
       return undefined;
     }
-    return {
+    const resolved = {
       accessToken: envToken.token,
       accountLabel,
       authMode:
         envToken.key === "CLAUDE_CODE_SETUP_TOKEN" ? "setup-token" : "oauth",
       source: `env:${envToken.key}`,
     };
+    persistProviderCredentials("claude-code", resolved);
+    return resolved;
   }
 
-  return {
+  const resolved = {
     accessToken: accessToken || undefined,
     refreshToken: refreshToken || undefined,
     expiresAt: expiresAt || undefined,
@@ -582,6 +757,8 @@ export function getLinkedClaudeCodeCredentials(
     authMode: "oauth",
     source: existsSync(credentialsPath) ? credentialsPath : profilePath,
   };
+  persistProviderCredentials("claude-code", resolved);
+  return resolved;
 }
 
 export function claudeCodeAccessTokenIsExpiring(
@@ -598,14 +775,83 @@ export function claudeCodeAccessTokenIsExpiring(
 export async function refreshLinkedClaudeCodeCredentials(
   homePath?: string,
 ): Promise<LinkedClaudeCodeCredentials | undefined> {
+  const stored = getStoredClaudeCodeCredentials();
+  if (
+    stored?.refreshToken &&
+    stored.authMode === "oauth" &&
+    (!stored.expiresAt || claudeCodeAccessTokenIsExpiring(stored.expiresAt))
+  ) {
+    const updated = await refreshClaudeOAuthCredentialsFromRecord(
+      stored.refreshToken,
+      "eliza-auth-store",
+      stored.accountLabel,
+    );
+    if (updated) {
+      persistProviderCredentials("claude-code", updated);
+      return updated;
+    }
+  }
+
   const envToken = getClaudeCodeEnvToken();
   if (envToken?.token) {
-    return {
+    const resolved = {
       accessToken: envToken.token,
       authMode:
         envToken.key === "CLAUDE_CODE_SETUP_TOKEN" ? "setup-token" : "oauth",
       source: `env:${envToken.key}`,
     };
+    const fileCreds = (() => {
+      const home = resolveHome(homePath);
+      const credentialsPath = join(home, ".claude", ".credentials.json");
+      const payload = existsSync(credentialsPath)
+        ? readJson(credentialsPath)
+        : undefined;
+      const oauth =
+        payload && typeof payload === "object" && "claudeAiOauth" in payload
+          ? (payload as { claudeAiOauth?: Record<string, unknown> })
+              .claudeAiOauth
+          : undefined;
+      const accessToken =
+        oauth && typeof oauth.accessToken === "string"
+          ? oauth.accessToken.trim()
+          : "";
+      const refreshToken =
+        oauth && typeof oauth.refreshToken === "string"
+          ? oauth.refreshToken.trim()
+          : "";
+      const expiresAt =
+        oauth && typeof oauth.expiresAt !== "undefined"
+          ? String(oauth.expiresAt ?? "")
+          : undefined;
+      if (!accessToken && !refreshToken) {
+        return undefined;
+      }
+      return {
+        accessToken: accessToken || undefined,
+        refreshToken: refreshToken || undefined,
+        expiresAt,
+        accountLabel: undefined,
+        authMode: "oauth" as const,
+        source: credentialsPath,
+      };
+    })();
+    if (
+      fileCreds?.refreshToken &&
+      (!fileCreds.expiresAt ||
+        claudeCodeAccessTokenIsExpiring(fileCreds.expiresAt))
+    ) {
+      const refreshed = await refreshClaudeOAuthCredentialsFromRecord(
+        fileCreds.refreshToken,
+        fileCreds.source || "claude-code-credentials",
+        fileCreds.accountLabel,
+      );
+      if (refreshed) {
+        persistProviderCredentials("claude-code", refreshed);
+        return refreshed;
+      }
+    }
+    persistProviderCredentials("claude-code", resolved);
+    return resolved;
   }
 
   const home = resolveHome(homePath);
@@ -629,53 +875,54 @@ export async function refreshLinkedClaudeCodeCredentials(
     return undefined;
   }
 
-  const body = new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-    client_id: CLAUDE_CODE_CLIENT_ID,
-  });
-  const response = await fetch(CLAUDE_CODE_OAUTH_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "claude-cli/2.1.74 (external, cli)",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Claude Code OAuth refresh failed (${response.status}): ${detail}`,
-    );
-  }
-
-  const refreshPayload = (await response.json()) as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-  };
-  if (!refreshPayload.access_token?.trim()) {
+  const refreshed = await refreshClaudeOAuthCredentialsFromRecord(
+    refreshToken,
+    credentialsPath,
+  );
+  if (!refreshed?.accessToken) {
     throw new Error(
       "Claude Code OAuth refresh response did not include access_token",
     );
   }
-
-  const expiresInSeconds =
-    typeof refreshPayload.expires_in === "number"
-      ? refreshPayload.expires_in
-      : 3600;
   const updatedPayload = {
     ...(payload as Record<string, unknown>),
     claudeAiOauth: {
       ...oauth,
-      accessToken: refreshPayload.access_token.trim(),
-      refreshToken: refreshPayload.refresh_token?.trim() || refreshToken,
-      expiresAt: Date.now() + expiresInSeconds * 1000,
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken || refreshToken,
+      expiresAt: Number(refreshed.expiresAt),
     },
   };
   writeJson(credentialsPath, updatedPayload);
-  return getLinkedClaudeCodeCredentials(homePath);
+  const resolved = getLinkedClaudeCodeCredentials(homePath);
+  persistProviderCredentials("claude-code", resolved);
+  return resolved;
+}
+
+export async function resolveLinkedProviderCredentials(
+  provider: "codex" | "claude-code",
+  homePath?: string,
+): Promise<LinkedCodexCredentials | LinkedClaudeCodeCredentials | undefined> {
+  if (provider === "codex") {
+    const credentials = getLinkedCodexCredentials(homePath);
+    if (
+      credentials?.refreshToken &&
+      codexAccessTokenIsExpiring(credentials.accessToken)
+    ) {
+      return refreshLinkedCodexCredentials(homePath);
+    }
+    return credentials;
+  }
+
+  const credentials = getLinkedClaudeCodeCredentials(homePath);
+  if (
+    credentials?.refreshToken &&
+    (!credentials.expiresAt ||
+      claudeCodeAccessTokenIsExpiring(credentials.expiresAt))
+  ) {
+    return refreshLinkedClaudeCodeCredentials(homePath);
+  }
+  return credentials;
 }
 
 export function getLinkedProviderAccountsSnapshot(

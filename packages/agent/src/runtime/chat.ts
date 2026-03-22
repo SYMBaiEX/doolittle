@@ -19,6 +19,7 @@ import {
   getLinkedProviderLoginCommand,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
+  resolveLinkedProviderCredentials,
 } from "@/runtime/native/account-auth";
 import {
   getNativePluginCatalog,
@@ -917,6 +918,8 @@ export async function refreshLinkedAccounts(
 ): Promise<ReturnType<typeof getLinkedProviderAccountsSnapshot>> {
   if (!provider || provider === "all") {
     await Promise.all([
+      resolveLinkedProviderCredentials("codex").catch(() => undefined),
+      resolveLinkedProviderCredentials("claude-code").catch(() => undefined),
       refreshLinkedCodexCredentials().catch(() => undefined),
       refreshLinkedClaudeCodeCredentials().catch(() => undefined),
     ]);
@@ -924,10 +927,12 @@ export async function refreshLinkedAccounts(
   }
 
   if (provider === "codex") {
+    await resolveLinkedProviderCredentials("codex");
     await refreshLinkedCodexCredentials();
     return getLinkedProviderAccountsSnapshot();
   }
 
+  await resolveLinkedProviderCredentials("claude-code");
   await refreshLinkedClaudeCodeCredentials();
   return getLinkedProviderAccountsSnapshot();
 }
