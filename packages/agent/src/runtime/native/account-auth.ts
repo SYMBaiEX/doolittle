@@ -19,6 +19,22 @@ export interface LinkedProviderAccountsSnapshot {
   claudeCode: LinkedProviderAccountStatus;
 }
 
+export interface LinkedCodexCredentials {
+  accessToken?: string;
+  refreshToken?: string;
+  authMode?: string;
+  lastRefresh?: string;
+  source?: string;
+}
+
+export interface LinkedClaudeCodeCredentials {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  accountLabel?: string;
+  source?: string;
+}
+
 function resolveHome(homePath?: string): string {
   return homePath?.trim() || process.env.HOME?.trim() || homedir();
 }
@@ -87,6 +103,45 @@ function getCodexAccountStatus(homePath?: string): LinkedProviderAccountStatus {
       : commandExists("codex")
         ? "Codex CLI is installed, but no local signed-in auth store was found."
         : "Codex CLI is not installed and no local auth store was found.",
+  };
+}
+
+export function getLinkedCodexCredentials(
+  homePath?: string,
+): LinkedCodexCredentials | undefined {
+  const authPath = join(resolveHome(homePath), ".codex", "auth.json");
+  const payload = existsSync(authPath) ? readJson(authPath) : undefined;
+  const tokens =
+    payload && typeof payload === "object" && "tokens" in payload
+      ? (payload as { tokens?: Record<string, unknown> }).tokens
+      : undefined;
+  const accessToken =
+    tokens && typeof tokens.access_token === "string"
+      ? tokens.access_token.trim()
+      : "";
+  const refreshToken =
+    tokens && typeof tokens.refresh_token === "string"
+      ? tokens.refresh_token.trim()
+      : "";
+  const authMode =
+    payload && typeof payload === "object" && "auth_mode" in payload
+      ? String((payload as { auth_mode?: unknown }).auth_mode ?? "")
+      : undefined;
+  const lastRefresh =
+    payload && typeof payload === "object" && "last_refresh" in payload
+      ? String((payload as { last_refresh?: unknown }).last_refresh ?? "")
+      : undefined;
+
+  if (!accessToken && !refreshToken) {
+    return undefined;
+  }
+
+  return {
+    accessToken: accessToken || undefined,
+    refreshToken: refreshToken || undefined,
+    authMode: authMode || undefined,
+    lastRefresh: lastRefresh || undefined,
+    source: authPath,
   };
 }
 
@@ -174,6 +229,66 @@ function getClaudeCodeAccountStatus(
     available: false,
     reusable: false,
     detail: "No Claude Code CLI login artifacts were found on this machine.",
+  };
+}
+
+export function getLinkedClaudeCodeCredentials(
+  homePath?: string,
+): LinkedClaudeCodeCredentials | undefined {
+  const home = resolveHome(homePath);
+  const credentialsPath = join(home, ".claude", ".credentials.json");
+  const profilePath = join(home, ".claude.json");
+  const credentialsPayload = existsSync(credentialsPath)
+    ? readJson(credentialsPath)
+    : undefined;
+  const oauth =
+    credentialsPayload &&
+    typeof credentialsPayload === "object" &&
+    "claudeAiOauth" in credentialsPayload
+      ? (credentialsPayload as { claudeAiOauth?: Record<string, unknown> })
+          .claudeAiOauth
+      : undefined;
+  const accessToken =
+    oauth && typeof oauth.accessToken === "string"
+      ? oauth.accessToken.trim()
+      : "";
+  const refreshToken =
+    oauth && typeof oauth.refreshToken === "string"
+      ? oauth.refreshToken.trim()
+      : "";
+  const expiresAt =
+    oauth && typeof oauth.expiresAt !== "undefined"
+      ? String(oauth.expiresAt ?? "")
+      : undefined;
+
+  const profile = existsSync(profilePath) ? readJson(profilePath) : undefined;
+  const account =
+    profile && typeof profile === "object" && "oauthAccount" in profile
+      ? (profile as { oauthAccount?: Record<string, unknown> }).oauthAccount
+      : undefined;
+  const displayName =
+    account && typeof account.displayName === "string"
+      ? account.displayName.trim()
+      : "";
+  const emailAddress =
+    account && typeof account.emailAddress === "string"
+      ? account.emailAddress.trim()
+      : "";
+  const accountLabel =
+    displayName && emailAddress
+      ? `${displayName} <${emailAddress}>`
+      : displayName || emailAddress || undefined;
+
+  if (!accessToken && !refreshToken) {
+    return undefined;
+  }
+
+  return {
+    accessToken: accessToken || undefined,
+    refreshToken: refreshToken || undefined,
+    expiresAt: expiresAt || undefined,
+    accountLabel,
+    source: existsSync(credentialsPath) ? credentialsPath : profilePath,
   };
 }
 

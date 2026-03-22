@@ -183,20 +183,25 @@ export class DiagnosticsService {
       detail: this.config.gatewayDataDir,
     });
 
+    const linkedAccounts = getLinkedProviderAccountsSnapshot();
     checks.push({
       id: "provider.configured",
       status:
-        this.config.openAiApiKey || this.config.anthropicApiKey
+        this.config.openAiApiKey ||
+        this.config.anthropicApiKey ||
+        linkedAccounts.codex.reusable ||
+        linkedAccounts.claudeCode.reusable
           ? "pass"
           : "warn",
       summary: "Model provider credentials",
       detail:
         this.config.openAiApiKey || this.config.anthropicApiKey
           ? "At least one provider key is present."
-          : "No OpenAI or Anthropic API key is configured. Runtime will stay in offline fallback mode.",
+          : linkedAccounts.codex.reusable || linkedAccounts.claudeCode.reusable
+            ? "A reusable linked Codex or Claude Code account is available."
+            : "No OpenAI, Anthropic, Codex, or Claude Code provider credentials are configured. Runtime will stay in offline fallback mode.",
     });
 
-    const linkedAccounts = getLinkedProviderAccountsSnapshot();
     checks.push({
       id: "provider.linked-accounts",
       status:
@@ -649,8 +654,8 @@ export class DiagnosticsService {
 
   async setupChecklist(): Promise<string[]> {
     const steps = [
-      "Copy .env.example to .env and fill in at least one provider key.",
-      "Choose a primary provider: OpenAI or Anthropic.",
+      "Copy .env.example to .env and fill in at least one provider credential or linked account setting.",
+      "Choose a primary provider: Codex, Claude Code, OpenAI, or Anthropic.",
       "Run bun install so the vendored native Eliza workspace packages resolve before booting the runtime.",
       "Add workspace context files like AGENTS.md or MISSION.md if you want persistent operator guidance.",
       "Enable gateway platforms in gateway.json only after their credentials are configured.",

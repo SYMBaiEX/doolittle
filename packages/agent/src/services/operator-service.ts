@@ -311,6 +311,24 @@ export class OperatorService {
       ],
       providers: [
         {
+          id: "codex",
+          ready: linkedAccounts.codex.reusable,
+          detail: linkedAccounts.codex.reusable
+            ? "Linked Codex account is ready for Codex-native workflows."
+            : linkedAccounts.codex.available
+              ? linkedAccounts.codex.detail
+              : "No reusable Codex account is linked.",
+        },
+        {
+          id: "claude-code",
+          ready: linkedAccounts.claudeCode.reusable,
+          detail: linkedAccounts.claudeCode.reusable
+            ? "Linked Claude Code account is ready for Claude-native workflows."
+            : linkedAccounts.claudeCode.available
+              ? linkedAccounts.claudeCode.detail
+              : "No reusable Claude Code account is linked.",
+        },
+        {
           id: "openai",
           ready: Boolean(this.config.openAiApiKey),
           detail: this.config.openAiApiKey

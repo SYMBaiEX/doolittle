@@ -15,23 +15,21 @@ interface LinkedAccountStatus {
   detail: string;
 }
 
-interface ClaudeCodeAuthPluginOptions {
+interface CodexPluginOptions {
   getStatus: () => LinkedAccountStatus;
 }
 
-export function createClaudeCodeAuthPlugin(
-  options: ClaudeCodeAuthPluginOptions,
-): Plugin {
-  class ClaudeCodeAuthService extends ElizaService {
-    static serviceType = "claude_code_auth";
+const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
+
+export function createCodexPlugin(options: CodexPluginOptions): Plugin {
+  class CodexService extends ElizaService {
+    static serviceType = "codex";
 
     capabilityDescription =
-      "Linked Claude Code account bridge for OAuth-backed Anthropic-native workflows and operator surfaces.";
+      "Linked Codex account bridge for ChatGPT-backed Codex workflows, account-aware inference routing, and operator surfaces.";
 
-    static async start(
-      runtime?: IAgentRuntime,
-    ): Promise<ClaudeCodeAuthService> {
-      return new ClaudeCodeAuthService(runtime);
+    static async start(runtime?: IAgentRuntime): Promise<CodexService> {
+      return new CodexService(runtime);
     }
 
     async stop(): Promise<void> {}
@@ -43,23 +41,24 @@ export function createClaudeCodeAuthPlugin(
     runtimeCredentials() {
       const status = options.getStatus();
       return {
-        provider: "claude-code",
+        provider: "codex",
+        upstreamProvider: "openai-codex",
         available: status.available,
         reusable: status.reusable,
-        authMode: status.authMode ?? "oauth",
+        baseUrl: DEFAULT_CODEX_BASE_URL,
+        authMode: status.authMode ?? "chatgpt",
         source: status.source,
         lastRefresh: status.lastRefresh,
-        accountLabel: status.accountLabel,
         detail: status.detail,
       };
     }
   }
 
   return {
-    name: "@elizaos/plugin-claude-code-auth",
+    name: "@elizaos/plugin-codex",
     description:
-      "Workspace-native linked Claude Code account bridge for account-aware provider flows.",
-    services: [ClaudeCodeAuthService],
+      "Workspace-native Codex plugin for linked-account discovery and Codex-native workflow routing.",
+    services: [CodexService],
     providers: [],
     actions: [],
     evaluators: [],

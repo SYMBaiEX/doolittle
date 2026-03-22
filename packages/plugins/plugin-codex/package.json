@@ -1,5 +1,5 @@
 {
-  "name": "@elizaos/plugin-claude-code-auth",
+  "name": "@elizaos/plugin-codex",
   "version": "2.0.0-alpha.85",
   "type": "module",
   "main": "src/index.ts",

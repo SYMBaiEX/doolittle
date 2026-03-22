@@ -833,7 +833,7 @@ export function syncProviderSettings(
   const model = settings.model.model;
   const baseUrl = settings.model.baseUrl;
 
-  if (provider === "anthropic") {
+  if (provider === "anthropic" || provider === "claude-code") {
     context.runtime.setSetting("ANTHROPIC_SMALL_MODEL", model);
     context.runtime.setSetting("ANTHROPIC_LARGE_MODEL", model);
     context.runtime.setSetting("ANTHROPIC_BASE_URL", baseUrl);
@@ -842,7 +842,10 @@ export function syncProviderSettings(
 
   context.runtime.setSetting("OPENAI_SMALL_MODEL", model);
   context.runtime.setSetting("OPENAI_LARGE_MODEL", model);
-  context.runtime.setSetting("OPENAI_BASE_URL", baseUrl);
+  context.runtime.setSetting(
+    "OPENAI_BASE_URL",
+    provider === "codex" ? "https://chatgpt.com/backend-api/codex" : baseUrl,
+  );
 }
 
 async function buildCommandResponse(
