@@ -10,7 +10,9 @@ import { AcpService } from "./acp-service";
 import { AgentSdkService } from "./agent-sdk-service";
 import { ApiTransportService } from "./api-transport-service";
 import { AutocoderPipelineService } from "./autocoder-pipeline-service";
+import { AwarenessService } from "./awareness-service";
 import { ContextCompressionService } from "./context-compression-service";
+import { IterationBudgetService } from "./iteration-budget-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
 import { DelegationService } from "./delegation-service";
@@ -86,6 +88,7 @@ export interface AppServices {
   contextCompression: ContextCompressionService;
   fuzzyPatch: FuzzyPatchService;
   runController: RunControllerService;
+  awareness: AwarenessService;
   startupState: StartupStateService;
 }
 
@@ -519,6 +522,7 @@ export function createServices(
   );
   const repository = new RepositoryService(config.workspaceDir);
   const runController = new RunControllerService();
+  const awareness = new AwarenessService();
   const ecosystem = createLazySlot(() => {
     startupState.markWarming("ecosystem", "loading ecosystem inventory");
     try {
@@ -548,6 +552,7 @@ export function createServices(
         settings,
         runController,
         startupState,
+        awareness,
       );
       if (boundRuntime) {
         service.attachRuntime(boundRuntime);
@@ -869,6 +874,7 @@ export function createServices(
       fuzzyPatch.set(value);
     },
     runController,
+    awareness,
     startupState,
   } satisfies AppServices & {
     __bindRuntime?: (nextRuntime: NonNullable<typeof runtime>) => void;

@@ -24,6 +24,7 @@ import {
 } from "@/runtime/native/service-bridge";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
+import type { AwarenessService } from "./awareness-service";
 import type { EcosystemService } from "./ecosystem-service";
 import type { RunControllerService } from "./run-controller-service";
 import type { SettingsService } from "./settings-service";
@@ -41,6 +42,7 @@ export class DiagnosticsService {
     private readonly settings?: SettingsService,
     private readonly runController?: RunControllerService,
     private readonly startupState?: StartupStateService,
+    private readonly awareness?: AwarenessService,
   ) {}
 
   attachRuntime(runtime: RuntimeLike): void {
@@ -706,11 +708,21 @@ export class DiagnosticsService {
     const startupSnapshot = this.startupState?.getSnapshot();
     const runtimeBridgeAttached =
       this.runController?.hasRuntimeBridge() ?? false;
+    const agentEventBridgeAttached =
+      this.runController?.hasAgentEventBridge() ?? false;
     checks.push({
       id: "agentic.loop",
       status: runtimeBridgeAttached ? "pass" : "warn",
       summary: "Observed multi-step runtime bridge",
       detail: `multiStep=true runtimeBridge=${runtimeBridgeAttached ? "attached" : "missing"} runDepth=${runDepth} maxIterations=${maxIterations} toolProgress=${toolProgressMode}`,
+    });
+    checks.push({
+      id: "runtime.awareness",
+      status: this.awareness?.isInitialized() ? "pass" : "warn",
+      summary: "Native autonomous awareness registry",
+      detail: this.awareness?.isInitialized()
+        ? `registry=initialized contributors=${this.awareness.contributorCount()} runtimeBridge=${runtimeBridgeAttached} agentEvents=${agentEventBridgeAttached} runDepth=${runDepth} toolProgress=${toolProgressMode}`
+        : "Awareness registry is not initialized; autonomous self-status injection is inactive.",
     });
     checks.push({
       id: "runtime.startup-hydration",
@@ -751,12 +763,12 @@ export class DiagnosticsService {
       id: "runtime.agent-events",
       status:
         runtimeExecutionControl?.agentEvents.available &&
-        (this.runController?.hasAgentEventBridge() ?? false)
+        agentEventBridgeAttached
           ? "pass"
           : "warn",
       summary: "Native agent-event progress stream",
       detail: runtimeExecutionControl
-        ? `native=${runtimeExecutionControl.agentEvents.available} heartbeat=${runtimeExecutionControl.agentEvents.heartbeat} lastHeartbeat=${runtimeExecutionControl.agentEvents.lastHeartbeatStatus ?? "none"} bridge=${this.runController?.hasAgentEventBridge() ?? false}`
+        ? `native=${runtimeExecutionControl.agentEvents.available} heartbeat=${runtimeExecutionControl.agentEvents.heartbeat} lastHeartbeat=${runtimeExecutionControl.agentEvents.lastHeartbeatStatus ?? "none"} bridge=${agentEventBridgeAttached}`
         : "Runtime not attached; agent-event bridge cannot be inspected.",
     });
     checks.push({

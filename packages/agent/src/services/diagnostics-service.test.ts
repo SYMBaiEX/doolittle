@@ -249,6 +249,9 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "runtime.agent-events")).toBe(
         true,
       );
+      expect(checks.some((check) => check.id === "runtime.awareness")).toBe(
+        true,
+      );
       expect(checks.some((check) => check.id === "autonomous.connection")).toBe(
         true,
       );
