@@ -35,6 +35,12 @@ export interface AppContext {
   services: AppServices;
   runtime: AgentRuntime;
   gateway: GatewayRunner;
+  ensureDeferredHydration(reason?: string): Promise<void>;
+}
+
+export interface AppContextOptions {
+  startupMode?: "cli" | "api" | "worker";
+  eagerDeferredHydration?: boolean;
 }
 
 type RuntimeBindableServices = AppServices & {
@@ -42,6 +48,7 @@ type RuntimeBindableServices = AppServices & {
 };
 
 let contextPromise: Promise<AppContext> | undefined;
+let contextValue: AppContext | undefined;
 
 function formatError(err: unknown): string {
   if (err instanceof Error) {
@@ -223,6 +230,29 @@ async function resetPgliteDataDir(dataDir: string): Promise<void> {
   mkdirSync(normalized, { recursive: true });
 }
 
+async function resetPluginSqlPgliteSingleton(): Promise<void> {
+  const singletonKey = Symbol.for("@elizaos/plugin-sql/global-singletons");
+  const singletons = (
+    globalThis as typeof globalThis & {
+      [key: symbol]: {
+        pgLiteClientManager?: { close?: () => Promise<void> | void };
+      };
+    }
+  )[singletonKey];
+
+  if (!singletons?.pgLiteClientManager) {
+    return;
+  }
+
+  try {
+    await singletons.pgLiteClientManager.close?.();
+  } catch {
+    // Best effort only. We'll still drop the singleton reference below.
+  }
+
+  delete singletons.pgLiteClientManager;
+}
+
 function createActivePgliteLockError(dataDir: string, err: unknown): Error {
   return new Error(
     `PGLite data dir is already in use at ${dataDir}. Close the other Eliza Agent process or set a different PGLITE_DATA_DIR before retrying.`,
@@ -231,12 +261,14 @@ function createActivePgliteLockError(dataDir: string, err: unknown): Error {
 }
 
 async function initializeRuntimeWithRecovery(
-  runtime: AgentRuntime,
+  createRuntime: () => AgentRuntime,
   config: EnvConfig,
   pgliteRecoveryAttempted = false,
-): Promise<void> {
+): Promise<AgentRuntime> {
+  let runtime = createRuntime();
   try {
     await runtime.initialize();
+    return runtime;
   } catch (err) {
     const pgliteDataDir = join(config.dataDir, "pglite");
     const recoveryAction =
@@ -259,10 +291,13 @@ async function initializeRuntimeWithRecovery(
 
     if (recoveryAction === "reset-data-dir") {
       await resetPgliteDataDir(pgliteDataDir);
-      process.env.PGLITE_DATA_DIR = pgliteDataDir;
     }
 
+    process.env.PGLITE_DATA_DIR = pgliteDataDir;
+    await resetPluginSqlPgliteSingleton();
+    runtime = createRuntime();
     await runtime.initialize();
+    return runtime;
   }
 }
 
@@ -606,9 +641,25 @@ function attachRunProgressBridge(
   services.runController.markRuntimeBridgeAttached(true);
 }
 
-export async function getAppContext(): Promise<AppContext> {
+export async function getAppContext(
+  options: AppContextOptions = {},
+): Promise<AppContext> {
+  const eagerDeferredHydration =
+    options.eagerDeferredHydration ?? options.startupMode !== "cli";
+
+  if (contextValue) {
+    if (eagerDeferredHydration) {
+      await contextValue.ensureDeferredHydration(options.startupMode);
+    }
+    return contextValue;
+  }
+
   if (contextPromise) {
-    return contextPromise;
+    const resolved = await contextPromise;
+    if (eagerDeferredHydration) {
+      await resolved.ensureDeferredHydration(options.startupMode);
+    }
+    return resolved;
   }
 
   contextPromise = (async () => {
@@ -617,42 +668,41 @@ export async function getAppContext(): Promise<AppContext> {
     process.env.DEFAULT_LOG_LEVEL ||= process.env.LOG_LEVEL;
     process.env.SECRET_SALT =
       process.env.SECRET_SALT || ensureSecretSalt(config);
+    process.env.PGLITE_DATA_DIR ||= join(config.dataDir, "pglite");
     const services = createServices(config);
+    services.startupState.markWarming("runtime", "initializing core runtime");
+    services.startupState.markDeferred(
+      "gateway",
+      "will hydrate when remote transport features are needed",
+    );
+    services.startupState.markDeferred(
+      "cron",
+      "will hydrate after the shell is interactive",
+    );
     const runtimeSettings = services.settings.get();
     const nativePluginAssembly = buildNativePluginAssembly(services, config);
-    const runtime = new AgentRuntime({
-      character: {
-        ...character,
-        name: config.agentName,
-        settings: {
-          ...(character.settings ?? {}),
-          ...buildPluginSettings(config, services, runtimeSettings),
-          nativePluginCatalog: JSON.stringify(nativePluginAssembly.catalog),
+    const createRuntime = () =>
+      new AgentRuntime({
+        character: {
+          ...character,
+          name: config.agentName,
+          settings: {
+            ...(character.settings ?? {}),
+            ...buildPluginSettings(config, services, runtimeSettings),
+            nativePluginCatalog: JSON.stringify(nativePluginAssembly.catalog),
+          },
         },
-      },
-      plugins: nativePluginAssembly.all,
-    });
+        plugins: nativePluginAssembly.all,
+      });
 
     mkdirSync(join(config.dataDir, "pglite"), { recursive: true });
     reconcilePglitePidFile(join(config.dataDir, "pglite"));
-    await initializeRuntimeWithRecovery(runtime, config);
+    const runtime = await initializeRuntimeWithRecovery(createRuntime, config);
     await ensureCoreRuntimeServices(runtime);
     services.nativeOwnership.attachRuntime(runtime, services);
     (services as RuntimeBindableServices).__bindRuntime?.(runtime);
     attachRunProgressBridge(runtime, services);
-    const gatewayService = runtime.getService("eliza_agent_gateway") as {
-      runner?: GatewayRunner;
-    } | null;
-    let gateway = gatewayService?.runner;
-    if (!gateway) {
-      const gatewayContext = {
-        config,
-        services,
-        runtime,
-      } as AppContext;
-      gateway = new GatewayRunner(gatewayContext);
-      gatewayContext.gateway = gateway;
-    }
+    services.startupState.markReady("runtime", "runtime ready");
 
     services.cron.setExecutor(async (job) => {
       const { handleAgentTurn } = await import("@/runtime/chat");
@@ -674,7 +724,7 @@ export async function getAppContext(): Promise<AppContext> {
         },
       );
       if (job.delivery === "home") {
-        const deliveries = await gateway.sendToHomes(output, {
+        const deliveries = await ensureGateway().sendToHomes(output, {
           metadata: {
             cronJobId: job.id,
             cronJobName: job.name,
@@ -685,19 +735,106 @@ export async function getAppContext(): Promise<AppContext> {
       }
       return output;
     });
-    services.cron.start();
 
-    return {
+    const gatewayService = runtime.getService("eliza_agent_gateway") as {
+      runner?: GatewayRunner;
+      ensureRunner?: () => GatewayRunner;
+    } | null;
+    const schedulerService = runtime.getService("eliza_agent_scheduler") as {
+      startScheduler?: () => Promise<void>;
+    } | null;
+    let gatewayInstance = gatewayService?.runner;
+    const ensureGateway = (): GatewayRunner => {
+      if (!gatewayInstance) {
+        services.startupState.markWarming(
+          "gateway",
+          "preparing messaging gateway",
+        );
+        gatewayInstance =
+          gatewayService?.ensureRunner?.() ??
+          new GatewayRunner({
+            config,
+            services,
+            runtime,
+            get gateway() {
+              return ensureGateway();
+            },
+            ensureDeferredHydration,
+          } as AppContext);
+        services.startupState.markReady("gateway", "gateway runner ready");
+      }
+      return gatewayInstance;
+    };
+    let deferredHydrationPromise: Promise<void> | undefined;
+    const ensureDeferredHydration = async (reason?: string): Promise<void> => {
+      if (!deferredHydrationPromise) {
+        deferredHydrationPromise = (async () => {
+          const phaseSuffix = reason ? ` (${reason})` : "";
+          if (
+            services.startupState.getSnapshot().phases.gateway.status !==
+            "ready"
+          ) {
+            ensureGateway();
+          }
+          if (
+            services.startupState.getSnapshot().phases.cron.status !== "ready"
+          ) {
+            services.startupState.markWarming(
+              "cron",
+              `starting scheduler${phaseSuffix}`,
+            );
+            if (schedulerService?.startScheduler) {
+              await schedulerService.startScheduler();
+            } else {
+              services.cron.start();
+            }
+            services.startupState.markReady("cron", "scheduler ready");
+          }
+          services.diagnostics;
+          services.operator;
+          services.ecosystem;
+          services.skills;
+        })().catch((error) => {
+          const detail = formatError(error);
+          if (
+            services.startupState.getSnapshot().phases.gateway.status ===
+            "warming"
+          ) {
+            services.startupState.markError("gateway", detail);
+          }
+          if (
+            services.startupState.getSnapshot().phases.cron.status === "warming"
+          ) {
+            services.startupState.markError("cron", detail);
+          }
+          throw error;
+        });
+      }
+      await deferredHydrationPromise;
+    };
+
+    const context = {
       config,
       services,
       runtime,
-      gateway,
-    };
+      get gateway() {
+        return ensureGateway();
+      },
+      ensureDeferredHydration,
+    } as AppContext;
+
+    if (eagerDeferredHydration) {
+      await context.ensureDeferredHydration(options.startupMode);
+    }
+
+    contextValue = context;
+    return context;
   })();
   try {
     return await contextPromise;
   } catch (error) {
     contextPromise = undefined;
+    contextValue = undefined;
     throw error;
   }
 }

@@ -108,9 +108,9 @@ interface NativeAgentSkillsService {
 }
 
 interface NativeTrajectoryLoggerService {
-  exportLatest(): unknown;
-  bundles(): unknown[];
-  compareLatest(): unknown;
+  exportLatest?(): unknown;
+  bundles?(): unknown[];
+  compareLatest?(): unknown;
 }
 
 interface NativeAgentOrchestratorService {
@@ -2497,10 +2497,13 @@ export function getAutonomousControlPlane(
   const researchControl = getNativeResearchControlPlane(runtime);
   const trajectorySource = native.trajectoryLogger;
   const trajectoryBundles =
-    native.trajectoryLogger?.bundles() ?? services.trajectories.listBundles();
+    typeof native.trajectoryLogger?.bundles === "function"
+      ? native.trajectoryLogger.bundles()
+      : services.trajectories.listBundles();
   const latestTrajectory =
-    native.trajectoryLogger?.exportLatest() ??
-    services.trajectories.exportLatest();
+    typeof native.trajectoryLogger?.exportLatest === "function"
+      ? native.trajectoryLogger.exportLatest()
+      : services.trajectories.exportLatest();
 
   const serviceSources = [
     native.agentSkills,

@@ -379,6 +379,10 @@ export function startApiServer(context: AppContext): void {
         return json({
           provider: settings.model.provider,
           model: settings.model.model,
+          startup: context.services.startupState.getSnapshot(),
+          fallback: {
+            offlineBootstrapMode: context.config.offlineBootstrapMode,
+          },
           plugins: {
             openai: Boolean(context.config.openAiApiKey),
             anthropic: Boolean(context.config.anthropicApiKey),
@@ -3569,9 +3573,12 @@ export function startApiServer(context: AppContext): void {
           mode?: "dataset" | "research" | "evaluation" | "rl";
           notes?: string;
         };
+        const nativeTrajectory = nativeServices.trajectoryLogger;
         return json({
           path:
-            nativeServices.trajectoryLogger?.exportLatest() ??
+            (typeof nativeTrajectory?.exportLatest === "function"
+              ? nativeTrajectory.exportLatest()
+              : undefined) ??
             context.services.trajectories.exportDataset({
               limit: body.limit ?? 200,
               sessionId: body.sessionId,
@@ -3653,9 +3660,12 @@ export function startApiServer(context: AppContext): void {
       ) {
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw ? Number(limitRaw) : 20;
+        const nativeTrajectory = nativeServices.trajectoryLogger;
         return json({
           bundles:
-            nativeServices.trajectoryLogger?.bundles() ??
+            (typeof nativeTrajectory?.bundles === "function"
+              ? nativeTrajectory.bundles()
+              : undefined) ??
             context.services.trajectories.listBundles(
               !Number.isNaN(limit) && limit > 0 ? limit : 20,
             ),
@@ -3770,9 +3780,11 @@ export function startApiServer(context: AppContext): void {
         request.method === "GET" &&
         url.pathname === "/trajectories/compare/latest"
       ) {
+        const nativeTrajectory = nativeServices.trajectoryLogger;
         const comparison =
-          nativeServices.trajectoryLogger?.compareLatest() ??
-          context.services.trajectories.compareLatest();
+          typeof nativeTrajectory?.compareLatest === "function"
+            ? nativeTrajectory.compareLatest()
+            : context.services.trajectories.compareLatest();
         return comparison
           ? json({ comparison })
           : json(

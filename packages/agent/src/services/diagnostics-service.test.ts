@@ -33,6 +33,7 @@ function buildConfig(root: string): EnvConfig {
     elizaCloudSmallModel: "anthropic/claude-haiku-4-5-20251001",
     elizaCloudLargeModel: "anthropic/claude-sonnet-4.6",
     openAiApiKey: undefined,
+    offlineBootstrapMode: false,
     useLinkedCodexAuth: false,
     openAiBaseUrl: "https://api.openai.com/v1",
     openAiModel: "gpt-4.1-mini",

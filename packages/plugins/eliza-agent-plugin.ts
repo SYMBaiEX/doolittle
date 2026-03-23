@@ -9,10 +9,8 @@ import type {
 } from "@elizaos/core";
 import { Service as ElizaService, ModelType } from "@elizaos/core";
 import {
-  type AgentExecutionContext,
   type AppContext,
   type AppServices,
-  type CronJobRecord,
   createAgentContextProvider,
   createCronAction,
   createMemoryAction,
@@ -24,7 +22,6 @@ import {
   createWorkspaceAction,
   type EnvConfig,
   GatewayRunner,
-  handleAgentTurn,
 } from "../agent/src/plugin-api";
 
 function createOpenAiBackedTextModel(config: EnvConfig) {
@@ -101,7 +98,7 @@ function createOpenAiBackedTextModel(config: EnvConfig) {
   };
 }
 
-function hasOfficialModelProvider(config: EnvConfig): boolean {
+function hasConfiguredModelProvider(config: EnvConfig): boolean {
   return Boolean(
     config.openAiApiKey ||
       config.anthropicApiKey ||
@@ -120,27 +117,31 @@ export function createElizaAgentPlugin(
     capabilityDescription =
       "Manages the Eliza Agent gateway lifecycle and platform routing.";
 
-    runner!: GatewayRunner;
+    runner?: GatewayRunner;
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
-      const context = {
-        config,
-        services,
-        runtime: runtime as never,
-      } as unknown as AppContext;
-      const runner = new GatewayRunner(context);
-      context.gateway = runner;
       const service = new GatewayRuntimeService(runtime);
-      service.runner = runner;
       return service;
     }
 
+    ensureRunner(): GatewayRunner {
+      if (!this.runner) {
+        const context = {
+          config,
+          services,
+          runtime: this.runtime as never,
+        } as unknown as AppContext;
+        this.runner = new GatewayRunner(context);
+      }
+      return this.runner;
+    }
+
     async startGateway(): Promise<void> {
-      await this.runner.start();
+      await this.ensureRunner().start();
     }
 
     async stop(): Promise<void> {
-      await this.runner.stop();
+      await this.runner?.stop();
     }
   }
 
@@ -150,49 +151,17 @@ export function createElizaAgentPlugin(
       "Runs recurring automations and session maintenance for Eliza Agent.";
 
     #intervalId: ReturnType<typeof setInterval> | null = null;
+    #started = false;
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
-      const service = new SchedulerRuntimeService(runtime);
-      await service.startScheduler(runtime);
-      return service;
+      return new SchedulerRuntimeService(runtime);
     }
 
-    private async startScheduler(runtime: IAgentRuntime): Promise<void> {
-      const executionContext: AgentExecutionContext = {
-        config,
-        services,
-        runtime: runtime as never,
-      };
-      const gatewayService = runtime.getService("eliza_agent_gateway") as {
-        runner?: GatewayRunner;
-      } | null;
-      const gateway = gatewayService?.runner;
-
-      services.cron.setExecutor(async (job: CronJobRecord) => {
-        const output = await handleAgentTurn(
-          {
-            message: job.prompt,
-            userId: "cron",
-            roomId: `cron:${job.id}`,
-            source: "cron",
-          },
-          executionContext,
-        );
-        if (job.delivery === "home" && gateway) {
-          const deliveries = await gateway.sendToHomes(output, {
-            metadata: {
-              cronJobId: job.id,
-              cronJobName: job.name,
-            },
-            name: job.name,
-          });
-          return deliveries.length > 0
-            ? `${output}\n\nDelivered to ${deliveries.length} home channel${deliveries.length === 1 ? "" : "s"}.`
-            : `${output}\n\nNo home channels are configured yet for delivery.`;
-        }
-        return output;
-      });
-
+    async startScheduler(): Promise<void> {
+      if (this.#started) {
+        return;
+      }
+      this.#started = true;
       services.cron.start();
       this.#intervalId = setInterval(async () => {
         const settings = services.settings.get();
@@ -209,6 +178,7 @@ export function createElizaAgentPlugin(
     }
 
     async stop(): Promise<void> {
+      this.#started = false;
       services.cron.stop();
       if (this.#intervalId) {
         clearInterval(this.#intervalId);
@@ -238,7 +208,7 @@ export function createElizaAgentPlugin(
     services: [GatewayRuntimeService, SchedulerRuntimeService],
   };
 
-  if (!hasOfficialModelProvider(config)) {
+  if (config.offlineBootstrapMode && !hasConfiguredModelProvider(config)) {
     const textModel = createOpenAiBackedTextModel(config);
     plugin.models = {
       [ModelType.TEXT_SMALL]: textModel,

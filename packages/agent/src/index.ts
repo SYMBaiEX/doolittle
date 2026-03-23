@@ -2,15 +2,11 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { startCli } from "@/cli";
-import { showBootSplash } from "@/cli/splash";
 import {
   ensureOnboarded,
   loadLocalRuntimeEnv,
   runOnboardingWizard,
 } from "@/cli/startup";
-import { getAppContext } from "@/runtime/bootstrap";
-import { startApiServer } from "@/server";
 
 function repoRoot(): string {
   // packages/agent/src/index.ts → ../../../ = repo root
@@ -124,6 +120,17 @@ async function main(): Promise<void> {
 
   await ensureOnboarded();
   loadLocalRuntimeEnv();
+  const [
+    { showBootSplash },
+    { getAppContext },
+    { startApiServer },
+    { startCli },
+  ] = await Promise.all([
+    import("@/cli/splash"),
+    import("@/runtime/bootstrap"),
+    import("@/server"),
+    import("@/cli"),
+  ]);
 
   // Show splash for interactive CLI modes
   if (command === "start" || command === "dev" || command === "plain") {
@@ -135,28 +142,50 @@ async function main(): Promise<void> {
     process.env.ELIZA_AGENT_MODE ??= "cli";
   }
 
-  const context = await getAppContext();
+  const context = await getAppContext({
+    startupMode: command === "api" || command === "gateway" ? "api" : "cli",
+    eagerDeferredHydration: command === "api" || command === "gateway",
+  });
   const wantsCli =
     context.config.mode === "cli" || context.config.mode === "both";
   const wantsApi =
     context.config.mode === "api" || context.config.mode === "both";
+  const shouldStartCli =
+    command === "start" ||
+    command === "dev" ||
+    command === "plain" ||
+    (wantsCli && process.stdin.isTTY);
 
   if (wantsApi || command === "api" || command === "gateway") {
-    try {
-      startApiServer(context);
-      console.log(
-        `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
-      );
-    } catch (error) {
-      const code =
-        error instanceof Error && "code" in error ? String(error.code) : "";
-      if (code === "EADDRINUSE" && command !== "api" && command !== "gateway") {
-        console.warn(
-          `API port ${context.config.port} is already in use. Continuing with local CLI only.`,
-        );
-      } else {
-        throw error;
+    const startServer = async () => {
+      try {
+        await context.ensureDeferredHydration("api");
+        startApiServer(context);
+        if (!shouldStartCli || command === "api" || command === "gateway") {
+          console.log(
+            `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
+          );
+        }
+      } catch (error) {
+        const code =
+          error instanceof Error && "code" in error ? String(error.code) : "";
+        if (
+          code === "EADDRINUSE" &&
+          command !== "api" &&
+          command !== "gateway"
+        ) {
+          console.warn(
+            `API port ${context.config.port} is already in use. Continuing with local CLI only.`,
+          );
+        } else {
+          throw error;
+        }
       }
+    };
+    if (command === "api" || command === "gateway" || !shouldStartCli) {
+      await startServer();
+    } else {
+      void startServer();
     }
   }
 
@@ -164,12 +193,6 @@ async function main(): Promise<void> {
     await context.gateway.start();
     console.log(`${context.config.agentName} gateway started.`);
   }
-
-  const shouldStartCli =
-    command === "start" ||
-    command === "dev" ||
-    command === "plain" ||
-    (wantsCli && process.stdin.isTTY);
 
   if (shouldStartCli) {
     if (command === "plain") {
