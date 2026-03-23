@@ -7,12 +7,7 @@ import type {
   Provider,
   Service,
 } from "@elizaos/core";
-import {
-  Service as ElizaService,
-  ModelType,
-  reflectionEvaluator,
-  relationshipExtractionEvaluator,
-} from "@elizaos/core";
+import { Service as ElizaService, ModelType } from "@elizaos/core";
 import {
   type AppContext,
   type AppServices,
@@ -202,11 +197,7 @@ export function createElizaAgentPlugin(
     createRepositoryAction(services),
   ];
   const providers: Provider[] = [createAgentContextProvider(services)];
-  const evaluators: Evaluator[] = [
-    createMemoryNudgeEvaluator(services),
-    reflectionEvaluator,
-    relationshipExtractionEvaluator,
-  ];
+  const evaluators: Evaluator[] = [createMemoryNudgeEvaluator(services)];
   const plugin: Plugin = {
     name: "eliza-agent-runtime",
     description:
