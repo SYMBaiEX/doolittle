@@ -10,13 +10,14 @@ import {
 import { join } from "node:path";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
-import { handleAgentTurn } from "@/runtime/chat";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
 import { formatRunEvent, shouldRenderRunEvent } from "@/runtime/run-progress";
+import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
+import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -2416,13 +2417,24 @@ export class GatewayRunner {
     }
   }
 
-  async receive(message: IncomingPlatformMessage): Promise<{
+  async receive(
+    message: IncomingPlatformMessage,
+    options?: {
+      onResponseProgress?: (update: {
+        chunk: string;
+        response: string;
+        phase: "command" | "readiness" | "model";
+      }) => void | Promise<void>;
+      onRunUpdate?: (event: RunUpdateEvent) => void | Promise<void>;
+    },
+  ): Promise<{
     ok: boolean;
     response: string;
     pairingCode?: string;
     traceId?: string;
     sessionId?: string;
     deliveryId?: string;
+    runSessionId?: string;
   }> {
     const traceId = randomUUID();
     this.pushTrace({
@@ -2621,41 +2633,46 @@ export class GatewayRunner {
       return progressChain;
     };
 
-    const trackedSessionId = session.activeAgentSessionId ?? session.sessionKey;
-    const unsubscribeRunUpdates =
-      this.context.services.runController?.onUpdate?.((event) => {
-        if (event.sessionId !== trackedSessionId) {
-          return;
-        }
-        if (!shouldRenderRunEvent(event.run.progressMode, event)) {
-          return;
-        }
-        const detail = formatRunEvent(event, 120);
-        if (!detail) {
-          return;
-        }
-        void queueProgressFlush(`[run] ${detail}`, false);
-      }) ?? (() => {});
-
     let response = "";
+    const trackedSessionId = session.activeAgentSessionId ?? session.sessionKey;
+    const result = await executeAgentTurnWithProgress(
+      {
+        message: message.text,
+        userId: message.userId,
+        roomId: trackedSessionId,
+        source: message.platform,
+      },
+      this.context,
+      {
+        onProgress: async ({ delta, response, phase }) => {
+          if (!delta) {
+            return;
+          }
+          await queueProgressFlush(response, false);
+          await options?.onResponseProgress?.({
+            chunk: delta,
+            response,
+            phase,
+          });
+        },
+        onRunEvent: async (event) => {
+          void options?.onRunUpdate?.(event);
+          if (!shouldRenderRunEvent(event.run.progressMode, event)) {
+            return;
+          }
+          const detail = formatRunEvent(event, 120);
+          if (!detail) {
+            return;
+          }
+          await queueProgressFlush(`[run] ${detail}`, false);
+        },
+      },
+    );
+    response = result.response;
     try {
-      response = await handleAgentTurn(
-        {
-          message: message.text,
-          userId: message.userId,
-          roomId: trackedSessionId,
-          source: message.platform,
-        },
-        this.context,
-        {
-          onResponseProgress: async ({ response }) => {
-            await queueProgressFlush(response, false);
-          },
-        },
-      );
       await queueProgressFlush(response, true);
     } finally {
-      unsubscribeRunUpdates();
+      // executeAgentTurnWithProgress owns the run-progress subscription lifecycle.
     }
     this.pushTrace({
       traceId,
@@ -2815,6 +2832,7 @@ export class GatewayRunner {
       traceId,
       sessionId: session.sessionKey,
       deliveryId,
+      runSessionId: trackedSessionId,
     };
   }
 
