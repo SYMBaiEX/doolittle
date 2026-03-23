@@ -16,10 +16,12 @@ import {
   OnboardingStep,
 } from "@elizaos/core";
 import blessed from "blessed";
+import { loadConfig } from "../packages/agent/src/config/env";
 import {
   getLinkedProviderAccountsSnapshot,
   type LinkedProviderAccountsSnapshot,
 } from "../packages/agent/src/runtime/native/account-auth";
+import { summarizeAutonomousConnection } from "../packages/agent/src/runtime/native/autonomous-stack";
 import {
   DEFAULT_TUI_THEME,
   getReadableTextColor,
@@ -190,6 +192,11 @@ interface OnboardingSummary {
     complete: boolean;
     currentStep: string;
     summary: string;
+  };
+  nativeConnection: {
+    kind: string;
+    provider: string | null;
+    detail: string;
   };
   profile: string;
 }
@@ -3887,6 +3894,45 @@ async function applyAnswers(answers: WizardAnswers): Promise<{
   if (nativeOnboarding.serialized) {
     writeJson(nativeOnboardingPath, nativeOnboarding.serialized);
   }
+  const nativeConnection = summarizeAutonomousConnection({
+    ...loadConfig(),
+    elizaCloudApiKey: answers.elizaCloudApiKey || undefined,
+    elizaCloudEnabled:
+      answers.provider === "elizacloud" && Boolean(answers.elizaCloudApiKey),
+    elizaCloudLargeModel: answers.elizaCloudModel,
+    openAiApiKey:
+      answers.provider === "openai" || answers.provider === "hybrid"
+        ? answers.openaiApiKey || undefined
+        : undefined,
+    useLinkedCodexAuth:
+      answers.useLinkedCodexAuth ||
+      answers.provider === "codex" ||
+      answers.provider === "hybrid",
+    openAiModel:
+      answers.provider === "openai" ||
+      answers.provider === "hybrid" ||
+      answers.provider === "codex"
+        ? answers.openaiModel
+        : "gpt-5.4",
+    anthropicApiKey:
+      answers.provider === "anthropic" || answers.provider === "hybrid"
+        ? answers.anthropicApiKey || undefined
+        : undefined,
+    useLinkedClaudeCodeAuth:
+      answers.useLinkedClaudeCodeAuth ||
+      answers.provider === "claude-code" ||
+      answers.provider === "hybrid",
+    claudeCodeCliFallback:
+      answers.provider === "claude-code" && answers.claudeCodeCliFallback,
+    anthropicLargeModel:
+      answers.provider === "anthropic" ||
+      answers.provider === "hybrid" ||
+      answers.provider === "claude-code"
+        ? answers.anthropicModel
+        : "claude-sonnet-4.6",
+    telegramBotToken: answers.telegramBotToken || undefined,
+    discordBotToken: answers.discordBotToken || undefined,
+  });
 
   const onboarding: OnboardingSummary = {
     timestamp: new Date().toISOString(),
@@ -3911,6 +3957,11 @@ async function applyAnswers(answers: WizardAnswers): Promise<{
       complete: nativeOnboarding.complete,
       currentStep: nativeOnboarding.currentStep,
       summary: nativeOnboarding.summary,
+    },
+    nativeConnection: {
+      kind: nativeConnection.kind,
+      provider: nativeConnection.provider,
+      detail: nativeConnection.detail,
     },
     profile: fingerprint({
       provider: answers.provider,
@@ -3949,6 +4000,9 @@ function printSummary(
   );
   console.log(
     `  onboarding: ${onboarding.nativeOnboarding.complete ? "native-aligned" : "mirror-warn"} (${onboarding.nativeOnboarding.currentStep})`,
+  );
+  console.log(
+    `  native connection: ${onboarding.nativeConnection.kind}${onboarding.nativeConnection.provider ? ` via ${onboarding.nativeConnection.provider}` : ""}`,
   );
   console.log(
     `  threads: codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
