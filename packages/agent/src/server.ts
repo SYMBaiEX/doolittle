@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { featureMap } from "@/config/feature-map";
 import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
 import {
@@ -121,15 +121,23 @@ import {
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
 import {
+  createResponseTextAccumulator,
+  formatRunEvent,
+  nextResponseTextFrame,
+  shouldRenderRunEvent,
+} from "@/runtime/run-progress";
+import {
   getTuiTheme,
   listTuiThemes,
   nextTuiTheme,
   previousTuiTheme,
   resolveTuiThemeName,
 } from "@/runtime/theme-catalog";
+import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import { DiagnosticsService } from "@/services/diagnostics-service";
 import { OperatorService } from "@/services/operator-service";
 import { RepositoryService } from "@/services/repository-service";
+import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type {
   GatewayConfig,
   IncomingPlatformMessage,
@@ -171,6 +179,40 @@ function sse(events: Array<{ event: string; data: unknown }>): Response {
       "access-control-allow-origin": "*",
     },
   });
+}
+
+function streamSse(
+  stream: (
+    emit: (event: string, data: unknown) => Promise<void>,
+  ) => Promise<void>,
+): Response {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const emit = async (event: string, data: unknown): Promise<void> => {
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
+        };
+        try {
+          await stream(emit);
+        } finally {
+          controller.close();
+        }
+      },
+    }),
+    {
+      headers: {
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+        "access-control-allow-origin": "*",
+      },
+    },
+  );
 }
 
 function verifySlackSignature(
@@ -4729,13 +4771,59 @@ export function startApiServer(context: AppContext): void {
           userId?: string;
           roomId?: string;
           source?: string;
+          stream?: boolean;
         };
 
         if (!body.message) {
           return json({ error: "message is required" }, 400);
         }
 
-        const response = await handleAgentTurn(
+        if (body.stream) {
+          const responseId = randomUUID();
+          const roomId = body.roomId ?? `api:${body.userId ?? "api-user"}`;
+          const requestMessage = body.message;
+          return streamSse(async (emit) => {
+            await emit("response.created", { id: responseId, room_id: roomId });
+            const { response } = await executeAgentTurnWithProgress(
+              {
+                message: requestMessage,
+                userId: body.userId ?? "api-user",
+                roomId,
+                source: body.source ?? "api",
+              },
+              context,
+              {
+                onProgress: async ({ delta }) => {
+                  if (!delta) {
+                    return;
+                  }
+                  await emit("response.output_text.delta", {
+                    id: responseId,
+                    delta,
+                  });
+                },
+                onRunEvent: async (event, detail) => {
+                  await emit("agent.progress", {
+                    event: event.type,
+                    detail: `[run] ${detail}`,
+                    sessionId: event.sessionId,
+                  });
+                },
+                onNotice: async (notice) => {
+                  await emit("response.notice", notice);
+                },
+              },
+            );
+            await emit("response.completed", {
+              id: responseId,
+              response,
+              character: context.config.agentName,
+              room_id: roomId,
+            });
+          });
+        }
+
+        const { response } = await executeAgentTurnWithProgress(
           {
             message: body.message,
             userId: body.userId ?? "api-user",
@@ -4776,6 +4864,124 @@ export function startApiServer(context: AppContext): void {
           body.previous_response_id,
           userId,
         );
+        if (body.stream) {
+          const streamResponseId = randomUUID();
+          return streamSse(async (emit) => {
+            const responseAccumulator = createResponseTextAccumulator();
+            let observedRunSessionId: string | undefined;
+            const emitRunUpdates = async (
+              event: RunUpdateEvent,
+            ): Promise<void> => {
+              if (
+                observedRunSessionId &&
+                event.sessionId !== observedRunSessionId
+              ) {
+                return;
+              }
+              if (!observedRunSessionId) {
+                if (
+                  event.run.source === "api" &&
+                  event.run.message === inputText
+                ) {
+                  observedRunSessionId = event.sessionId;
+                } else {
+                  return;
+                }
+              }
+              if (!shouldRenderRunEvent(event.run.progressMode, event)) {
+                return;
+              }
+              const detail = formatRunEvent(event);
+              if (!detail) {
+                return;
+              }
+              await emit("agent.progress", {
+                event: event.type,
+                detail: `[run] ${detail}`,
+                sessionId: event.sessionId,
+              });
+            };
+            const result = await context.gateway.receive(
+              {
+                platform: "api",
+                userId,
+                roomId,
+                text: inputText,
+                messageId: `api-msg-${Date.now()}`,
+                replyToMessageId: body.previous_response_id,
+                metadata: {
+                  ...(body.metadata ?? {}),
+                  apiTransport: "responses",
+                },
+              },
+              {
+                onRunUpdate: emitRunUpdates,
+                onResponseProgress: async ({ response }) => {
+                  const frame = nextResponseTextFrame(
+                    responseAccumulator,
+                    response,
+                  );
+                  if (!frame?.delta) {
+                    return;
+                  }
+                  await emit("response.output_text.delta", {
+                    id: streamResponseId,
+                    delta: frame.delta,
+                  });
+                },
+              },
+            );
+            const outputText = result.response;
+            const finalFrame = nextResponseTextFrame(
+              responseAccumulator,
+              outputText,
+            );
+            if (finalFrame?.delta) {
+              await emit("response.output_text.delta", {
+                id: streamResponseId,
+                delta: finalFrame.delta,
+              });
+            }
+            if (outputText && !result.ok) {
+              await emit("agent.progress", {
+                event: "response.error",
+                detail: outputText,
+              });
+            }
+            const record = context.services.apiTransport.create({
+              input: inputText,
+              outputText,
+              userId,
+              roomId,
+              previousResponseId: body.previous_response_id,
+              metadata: {
+                ...(body.metadata ?? {}),
+                traceId: result.traceId ?? "",
+                deliveryId: result.deliveryId ?? "",
+              },
+            });
+            const responsePayload = {
+              id: record.id,
+              object: "response",
+              created_at: record.createdAt,
+              previous_response_id: record.previousResponseId,
+              output_text: record.outputText,
+              output: [
+                {
+                  type: "message",
+                  role: "assistant",
+                  content: [{ type: "output_text", text: record.outputText }],
+                },
+              ],
+              room_id: record.roomId,
+            };
+            await emit("response.created", {
+              id: record.id,
+              room_id: record.roomId,
+            });
+            await emit("response.completed", responsePayload);
+          });
+        }
         const result = await context.gateway.receive({
           platform: "api",
           userId,

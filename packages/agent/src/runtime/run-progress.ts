@@ -1,7 +1,47 @@
 import type { RunUpdateEvent } from "@/services/run-controller-service";
 
+export interface ResponseTextAccumulator {
+  text: string;
+}
+
+export type ResponseTextFrame = {
+  delta: string;
+  full: string;
+};
+
 function truncate(value: string, limit: number): string {
   return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
+export function createResponseTextAccumulator(
+  initialText = "",
+): ResponseTextAccumulator {
+  return { text: initialText };
+}
+
+export function nextResponseTextFrame(
+  accumulator: ResponseTextAccumulator,
+  nextText: string,
+): ResponseTextFrame | undefined {
+  if (nextText === accumulator.text) {
+    return undefined;
+  }
+  if (!nextText) {
+    accumulator.text = "";
+    return undefined;
+  }
+
+  if (accumulator.text && nextText.startsWith(accumulator.text)) {
+    const delta = nextText.slice(accumulator.text.length);
+    accumulator.text = nextText;
+    if (!delta) {
+      return undefined;
+    }
+    return { delta, full: nextText };
+  }
+
+  accumulator.text = nextText;
+  return { delta: nextText, full: nextText };
 }
 
 export function shouldRenderRunEvent(
