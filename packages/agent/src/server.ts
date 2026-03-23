@@ -4175,6 +4175,10 @@ export function startApiServer(context: AppContext): void {
           context.services.agentSdk,
           context.services.nativeOwnership,
           context.services.ecosystem,
+          context.services.settings,
+          context.services.runController,
+          context.services.startupState,
+          context.services.awareness,
         );
         context.services.diagnostics.attachRuntime(context.runtime);
         context.services.operator = new OperatorService(

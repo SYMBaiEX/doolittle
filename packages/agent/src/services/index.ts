@@ -12,7 +12,6 @@ import { ApiTransportService } from "./api-transport-service";
 import { AutocoderPipelineService } from "./autocoder-pipeline-service";
 import { AwarenessService } from "./awareness-service";
 import { ContextCompressionService } from "./context-compression-service";
-import { IterationBudgetService } from "./iteration-budget-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
 import { DelegationService } from "./delegation-service";

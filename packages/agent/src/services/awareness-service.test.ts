@@ -1,13 +1,28 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
-import type { AppServices } from "./index";
 import { AwarenessService } from "./awareness-service";
+import type { AppServices } from "./index";
 import { RunControllerService } from "./run-controller-service";
+import type { RuntimeSettings } from "./settings-service";
 import { SettingsService } from "./settings-service";
 import { StartupStateService } from "./startup-state-service";
 
-function createSettingsService(): SettingsService {
-  return new SettingsService("/tmp/eliza-agent-awareness-test", {
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop();
+    if (dir) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+function createDefaults(): RuntimeSettings {
+  return {
     model: {
       provider: "elizacloud",
       model: "anthropic/claude-sonnet-4.6",
@@ -16,29 +31,17 @@ function createSettingsService(): SettingsService {
       maxTokens: 1200,
     },
     gateway: {
-      platforms: {
-        telegram: false,
-        discord: false,
-        slack: false,
-        whatsapp: false,
-        signal: false,
-        matrix: false,
-        email: false,
-        sms: false,
-        mattermost: false,
-        homeassistant: false,
-        dingtalk: false,
-        api: false,
-        cli: true,
-      },
       sessionTimeoutMinutes: 120,
-      allowAllUsers: false,
       mirrorResponsesToHistory: true,
     },
     execution: {
       backend: "local",
-      mode: "local",
-      engine: "docker",
+      remoteSyncMode: "mirror",
+      remoteSyncInclude: ["**/*"],
+      remoteSyncExclude: [".git", "node_modules"],
+      remoteArtifactPaths: [".eliza-agent/remote-artifacts"],
+      remoteArtifactPolicy: "metadata-only",
+      remoteWorkspaceLabel: "eliza-agent-workspace",
       dockerImage: "oven/bun:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
@@ -85,7 +88,13 @@ function createSettingsService(): SettingsService {
     ui: {
       theme: "orange",
     },
-  });
+  };
+}
+
+function createSettingsService(): SettingsService {
+  const dir = mkdtempSync(join(tmpdir(), "eliza-agent-awareness-"));
+  tempDirs.push(dir);
+  return new SettingsService(dir, createDefaults());
 }
 
 function createServices(): AppServices {

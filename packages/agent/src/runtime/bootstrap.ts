@@ -705,6 +705,9 @@ export async function getAppContext(
           },
         },
         plugins: nativePluginAssembly.all,
+        // Enable advanced providers: knowledge, facts, relationships, contacts, roles, follow-ups
+        advancedCapabilities: true,
+        enableExtendedCapabilities: true,
       });
 
     mkdirSync(join(config.dataDir, "pglite"), { recursive: true });
