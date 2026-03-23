@@ -9,6 +9,7 @@ import { AcpService } from "./acp-service";
 import { AgentSdkService } from "./agent-sdk-service";
 import { ApiTransportService } from "./api-transport-service";
 import { AutocoderPipelineService } from "./autocoder-pipeline-service";
+import { ContextCompressionService } from "./context-compression-service";
 import { ContextFilesService } from "./context-files-service";
 import { CronService } from "./cron-service";
 import { DelegationService } from "./delegation-service";
@@ -17,6 +18,7 @@ import { DiagnosticsService } from "./diagnostics-service";
 import { DocumentsService } from "./documents-service";
 import { EcosystemService } from "./ecosystem-service";
 import { ExecutionApprovalService } from "./execution-approval-service";
+import { FuzzyPatchService } from "./fuzzy-patch-service";
 import { GatewaySessionService } from "./gateway-session-service";
 import { HooksService } from "./hooks-service";
 import { McpService } from "./mcp-service";
@@ -78,6 +80,8 @@ export interface AppServices {
   trajectories: TrajectoryService;
   skillSynthesis: SkillSynthesisService;
   userProfiles: UserProfileService;
+  contextCompression: ContextCompressionService;
+  fuzzyPatch: FuzzyPatchService;
 }
 
 export function createServices(
@@ -654,5 +658,16 @@ export function createServices(
     skillsHub,
     userProfiles: new UserProfileService(join(config.dataDir, "profiles")),
     settings,
+    contextCompression: new ContextCompressionService({
+      contextWindowTokens:
+        ContextCompressionService.resolveContextWindow(defaultModel),
+      threshold: 0.85,
+      preserveRecentTurns: 6,
+      preserveLeadingTurns: 2,
+    }),
+    fuzzyPatch: new FuzzyPatchService({
+      maxEditDistance: 4,
+      contextMatchRatio: 0.6,
+    }),
   };
 }

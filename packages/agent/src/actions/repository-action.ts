@@ -9,45 +9,133 @@ import type {
 } from "@elizaos/core";
 import type { AppServices } from "@/services";
 
+type RepositoryIntent = "status" | "diff" | "log";
+
+function nonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function resolveRepositoryIntentFromParams(
+  params: unknown,
+): RepositoryIntent | undefined {
+  if (!params || typeof params !== "object") {
+    return undefined;
+  }
+  const record = params as Record<string, unknown>;
+  const raw =
+    nonEmptyString(record.intent) ??
+    nonEmptyString(record.action) ??
+    nonEmptyString(record.mode) ??
+    nonEmptyString(record.command);
+  if (raw === "status" || raw === "diff" || raw === "log") {
+    return raw;
+  }
+  return undefined;
+}
+
+export function resolveRepositoryIntentFromText(
+  text: string,
+): RepositoryIntent | undefined {
+  const trimmed = text.trim();
+  if (trimmed === "/repo" || trimmed === "/repo status") {
+    return "status";
+  }
+  if (trimmed === "/repo diff") {
+    return "diff";
+  }
+  if (trimmed === "/repo log") {
+    return "log";
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (
+    /(git status|repo status|repository status|working tree|uncommitted changes)/u.test(
+      lower,
+    )
+  ) {
+    return "status";
+  }
+  if (
+    /(git diff|repo diff|repository diff|show diff|what changed)/u.test(lower)
+  ) {
+    return "diff";
+  }
+  if (/(git log|repo log|recent commits|commit history)/u.test(lower)) {
+    return "log";
+  }
+  return undefined;
+}
+
+export async function executeRepositoryIntent(
+  services: AppServices,
+  intent: RepositoryIntent,
+): Promise<string> {
+  if (intent === "status") {
+    return services.repository.status();
+  }
+  if (intent === "diff") {
+    return services.repository.diffStat();
+  }
+  return services.repository.recentCommits();
+}
+
 export function createRepositoryAction(services: AppServices): Action {
   return {
     name: "ELIZA_AGENT_REPOSITORY",
     similes: ["REPO_STATUS", "REPO_DIFF", "REPO_LOG", "GIT_STATUS"],
     description:
-      "Inspects repository state with `/repo status`, `/repo diff`, and `/repo log`.",
+      "Inspects the local git repository. Use this for repository status, diffs, and recent commits.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text =
         typeof message.content === "string"
           ? message.content
           : message.content?.text;
-      return Boolean(text?.trim().startsWith("/repo"));
+      return Boolean(text && resolveRepositoryIntentFromText(text));
     },
     handler: async (
       _runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
-      _options: HandlerOptions | undefined,
+      options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
       const text =
         typeof message.content === "string"
           ? message.content
           : message.content?.text;
-      const trimmed = text?.trim() ?? "";
+      const intent =
+        resolveRepositoryIntentFromParams(options?.parameters) ??
+        (text ? resolveRepositoryIntentFromText(text) : undefined);
       let response = "";
 
-      if (trimmed === "/repo" || trimmed === "/repo status") {
-        response = await services.repository.status();
-      } else if (trimmed === "/repo diff") {
-        response = await services.repository.diffStat();
-      } else if (trimmed === "/repo log") {
-        response = await services.repository.recentCommits();
+      if (intent) {
+        response = await executeRepositoryIntent(services, intent);
       } else {
-        response = "Usage: /repo status | /repo diff | /repo log";
+        response =
+          "I can inspect repository status, diffs, or recent commits. Try `/repo status` or ask `what changed in this repo?`.";
       }
 
       await callback?.({ text: response, source: "repository-action" });
-      return { success: true, text: response };
+      return { success: Boolean(intent), text: response };
     },
+    examples: [
+      [
+        {
+          name: "{{userName}}",
+          content: { text: "What changed in this repo?" },
+        },
+        {
+          name: "{{agentName}}",
+          content: {
+            text: " M packages/agent/src/cli.ts",
+            actions: ["ELIZA_AGENT_REPOSITORY"],
+          },
+        },
+      ],
+    ],
   };
 }

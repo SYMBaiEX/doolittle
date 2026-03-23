@@ -23,6 +23,11 @@ import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
 
 interface CliState {
   activeSessionId: string;
+  notices: Array<{
+    kind: "context" | "skills" | "status";
+    message: string;
+    at: string;
+  }>;
 }
 
 interface CliExecutionResult {
@@ -38,6 +43,10 @@ interface CliExecutionHooks {
     command: string;
   }) => void;
   onResponseProgress?: (event: { response: string }) => void;
+  onNotice?: (event: {
+    kind: "context" | "skills" | "status";
+    message: string;
+  }) => void;
 }
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
@@ -724,53 +733,6 @@ async function executeCliInput(
     };
   };
 
-  if (normalizedTrimmed.startsWith("/accounts login ")) {
-    const provider = normalizedTrimmed.replace("/accounts login ", "").trim();
-    const command =
-      provider === "elizacloud"
-        ? "elizaos login"
-        : provider === "codex"
-          ? "codex login"
-          : provider === "claude-code"
-            ? "claude auth login"
-            : "";
-    if (!command) {
-      return {
-        text: `Usage: ${canonicalizeSlashCommandSyntax("/accounts login <elizacloud|codex|claude-code>")}`,
-        tone: "warning",
-      };
-    }
-    return runShellFlow(command, async () =>
-      executeSlashCommand(
-        {
-          message: canonicalizeSlashCommandSyntax(
-            `/accounts connect ${provider}`,
-          ),
-          userId: "local-user",
-          roomId: state.activeSessionId,
-          source: "cli",
-        },
-        context,
-      ),
-    );
-  }
-
-  if (normalizedTrimmed === "/accounts setup-token claude-code") {
-    return runShellFlow("claude setup-token", async () =>
-      executeSlashCommand(
-        {
-          message: canonicalizeSlashCommandSyntax(
-            "/accounts connect claude-code",
-          ),
-          userId: "local-user",
-          roomId: state.activeSessionId,
-          source: "cli",
-        },
-        context,
-      ),
-    );
-  }
-
   if (
     normalizedTrimmed.startsWith("/") &&
     !normalizedTrimmed.startsWith("/resume ") &&
@@ -788,6 +750,30 @@ async function executeCliInput(
       {
         onResponseProgress: ({ response }) =>
           hooks?.onResponseProgress?.({ response }),
+        onNotice: (notice) => hooks?.onNotice?.(notice),
+        runLocalShellCommand: async ({
+          command,
+          afterSuccessConnectProvider,
+        }) => {
+          const result = await runShellFlow(
+            command,
+            afterSuccessConnectProvider
+              ? async () =>
+                  executeSlashCommand(
+                    {
+                      message: canonicalizeSlashCommandSyntax(
+                        `/accounts connect ${afterSuccessConnectProvider}`,
+                      ),
+                      userId: "local-user",
+                      roomId: state.activeSessionId,
+                      source: "cli",
+                    },
+                    context,
+                  )
+              : undefined,
+          );
+          return result.text;
+        },
       },
     );
     if (response !== undefined) {
@@ -850,6 +836,7 @@ async function executeCliInput(
     {
       onResponseProgress: ({ response }) =>
         hooks?.onResponseProgress?.({ response }),
+      onNotice: (notice) => hooks?.onNotice?.(notice),
     },
   );
 
@@ -858,7 +845,7 @@ async function executeCliInput(
 
 async function startPlainCli(context: AppContext): Promise<void> {
   const rl = createInterface({ input, output });
-  const state: CliState = { activeSessionId: "cli:local-user" };
+  const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   let closed = false;
 
   rl.on("close", () => {
@@ -935,6 +922,19 @@ function renderStatusContent(context: AppContext, state: CliState): string {
       ? `Session: {green-fg}${truncate(active.title, 28)}{/}`
       : `Session: {green-fg}${state.activeSessionId}{/}`,
     "",
+    "{bold}Notices{/}",
+    ...(state.notices.length
+      ? state.notices.slice(0, 3).map((entry) => {
+          const accent =
+            entry.kind === "context"
+              ? "{yellow-fg}CTX{/}"
+              : entry.kind === "skills"
+                ? "{magenta-fg}SKL{/}"
+                : "{cyan-fg}SYS{/}";
+          return `${accent} {gray-fg}${escapeBlessed(entry.at)}{/} ${escapeBlessed(truncate(entry.message, 84))}`;
+        })
+      : ["{gray-fg}No active notices.{/}"]),
+    "",
     "{bold}Transport{/}",
     `live=${transportControl.totals.liveServices} configured=${transportControl.totals.gatewayEnabled} operational=${transportControl.totals.operationalTransports}`,
     `sessions=${gatewaySessions.length} voice=${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
@@ -989,7 +989,7 @@ export function renderFooter(
 }
 
 async function startTui(context: AppContext): Promise<void> {
-  const state: CliState = { activeSessionId: "cli:local-user" };
+  const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   const unsubscribers: Array<() => void> = [];
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const screen = blessed.screen({
@@ -1474,6 +1474,30 @@ async function startTui(context: AppContext): Promise<void> {
     screen.render();
   }
 
+  function pushNotice(
+    kind: "context" | "skills" | "status",
+    message: string,
+  ): void {
+    const trimmed = message.trim();
+    if (!trimmed) {
+      return;
+    }
+    const existingIndex = state.notices.findIndex(
+      (entry) => entry.kind === kind && entry.message === trimmed,
+    );
+    if (existingIndex >= 0) {
+      state.notices.splice(existingIndex, 1);
+    }
+    state.notices.unshift({
+      kind,
+      message: trimmed,
+      at: nowStamp(),
+    });
+    if (state.notices.length > 6) {
+      state.notices.splice(6);
+    }
+  }
+
   function renderResponsePane(): void {
     const pinnedToBottom =
       screen.focused !== response || response.getScrollPerc() >= 96;
@@ -1856,6 +1880,10 @@ async function startTui(context: AppContext): Promise<void> {
             },
           );
         },
+        onNotice: ({ kind, message }) => {
+          pushNotice(kind, message);
+          scheduleRefreshPanels(0);
+        },
       });
       await syncThemeFromSettings();
       if (result.text) {
@@ -1953,10 +1981,6 @@ async function startTui(context: AppContext): Promise<void> {
 
   inputBox.on("submit", (value) => {
     queueCommand(value);
-  });
-
-  inputBox.key("enter", () => {
-    inputBox.submit();
   });
 
   inputBox.key("up", () => {
@@ -2262,6 +2286,9 @@ async function startTui(context: AppContext): Promise<void> {
     scrollFocusedPane(8);
   });
   screen.key(["enter"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     if (screen.focused === sidebar) {
       queueCommand(canonicalizeSlashCommandSyntax("/sessions list"));
       return;

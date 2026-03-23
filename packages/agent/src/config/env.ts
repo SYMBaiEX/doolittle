@@ -38,7 +38,7 @@ const schema = z.object({
     .default("https://www.elizacloud.ai/api/v1"),
   ELIZAOS_CLOUD_SMALL_MODEL: z
     .string()
-    .default("anthropic/claude-3-5-haiku-20241022"),
+    .default("anthropic/claude-haiku-4-5-20251001"),
   ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("anthropic/claude-sonnet-4.6"),
   OPENAI_API_KEY: z.string().optional(),
   ELIZA_AGENT_USE_LINKED_CODEX_AUTH: z
@@ -60,7 +60,7 @@ const schema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   ANTHROPIC_BASE_URL: z.string().optional(),
-  ANTHROPIC_SMALL_MODEL: z.string().default("claude-3-5-haiku-20241022"),
+  ANTHROPIC_SMALL_MODEL: z.string().default("claude-haiku-4-5-20251001"),
   ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4.6"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_API_ROOT: z.string().optional(),

@@ -222,7 +222,7 @@ export function createElizaAgentPlugin(
     createSkillsAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
     createCronAction(services),
-    createWorkspaceAction(services),
+    createWorkspaceAction(services, config.workspaceDir),
     createTerminalAction(services),
     createRepositoryAction(services),
   ];
