@@ -522,6 +522,11 @@ type RuntimeLike = Partial<Pick<IAgentRuntime, "getService" | "getAllActions">>;
 
 export type { RuntimeLike };
 
+const nativeServicesCache = new WeakMap<
+  object,
+  ReturnType<typeof buildNativeServices>
+>();
+
 export interface EffectiveTransportInventoryEntry {
   platform:
     | "api"
@@ -611,7 +616,7 @@ function countQueueActiveWorkers(queue: unknown): number {
   return 0;
 }
 
-export function getNativeServices(runtime: RuntimeLike) {
+function buildNativeServices(runtime: RuntimeLike) {
   const agentEvent =
     runtime && typeof runtime.getService === "function"
       ? getAgentEventService(
@@ -663,6 +668,19 @@ export function getNativeServices(runtime: RuntimeLike) {
       "secrets-manager",
     ),
   };
+}
+
+export function getNativeServices(runtime: RuntimeLike) {
+  if (!runtime || typeof runtime !== "object") {
+    return buildNativeServices(runtime);
+  }
+  const cached = nativeServicesCache.get(runtime);
+  if (cached) {
+    return cached;
+  }
+  const resolved = buildNativeServices(runtime);
+  nativeServicesCache.set(runtime, resolved);
+  return resolved;
 }
 
 function countRecordLikeEntries(value: unknown): number {
