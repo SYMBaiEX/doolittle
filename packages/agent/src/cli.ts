@@ -154,12 +154,15 @@ function shouldRenderRunEvent(
   if (mode === "new") {
     return [
       "started",
+      "stream",
       "action-started",
       "action-completed",
       "completed",
       "error",
       "approvals",
-    ].includes(event.type);
+    ].includes(event.type)
+      ? event.type !== "stream" || event.run.activeStream !== "assistant"
+      : false;
   }
   if (mode === "all") {
     return event.type !== "message" && event.type !== "heartbeat";
@@ -170,36 +173,36 @@ function shouldRenderRunEvent(
 function formatRunEvent(event: RunUpdateEvent): string | undefined {
   switch (event.type) {
     case "started":
-      return `run started (${event.run.runDepth}, cap ${event.run.configuredMaxIterations})`;
+      return `run started · ${event.run.runDepth} · cap ${event.run.configuredMaxIterations}`;
     case "thinking":
       return event.run.statusDetail
-        ? `thinking: ${truncate(event.run.statusDetail, 88)}`
+        ? `thinking · ${truncate(event.run.statusDetail, 88)}`
         : "thinking";
     case "acting":
     case "action-started":
       return event.run.activeAction
-        ? `${event.run.activeStream ? `${event.run.activeStream}: ` : "acting: "}${truncate(event.run.activeAction, 88)}`
-        : `acting (${event.run.observedActionCount} observed steps)`;
+        ? `tool ${event.run.observedActionCount} · ${event.run.activeStream ? `${event.run.activeStream} · ` : ""}${truncate(event.run.activeAction, 88)}`
+        : `acting · ${event.run.observedActionCount} observed steps`;
     case "action-completed":
       return event.run.lastAction
-        ? `completed: ${truncate(event.run.lastAction, 88)}`
+        ? `tool done · ${truncate(event.run.lastAction, 88)}`
         : "action completed";
     case "waiting":
       return event.run.statusDetail
-        ? `waiting: ${truncate(event.run.statusDetail, 88)}`
+        ? `waiting · ${truncate(event.run.statusDetail, 88)}`
         : "waiting for next step";
     case "stream":
       return event.run.activeStream
-        ? `${event.run.activeStream}: ${truncate(event.run.statusDetail ?? event.run.activeAction ?? "activity", 88)}`
+        ? `${event.run.activeStream} · ${truncate(event.run.statusDetail ?? event.run.activeAction ?? "activity", 88)}`
         : "stream activity";
     case "heartbeat":
       return event.run.statusDetail
-        ? `heartbeat: ${truncate(event.run.statusDetail, 88)}`
+        ? `heartbeat · ${truncate(event.run.statusDetail, 88)}`
         : "heartbeat";
     case "approvals":
       return `pending approvals: ${event.run.pendingApprovals}`;
     case "completed":
-      return `run complete (${event.run.observedActionCount} observed steps)`;
+      return `run complete · ${event.run.observedActionCount} observed steps`;
     case "error":
       return event.run.errorMessage
         ? `run error: ${truncate(event.run.errorMessage, 120)}`
@@ -1719,16 +1722,62 @@ async function startTui(context: AppContext): Promise<void> {
     renderResponsePane();
   }
 
+  function pendingRunLabel(baseLabel: string): string {
+    const activeRun = context.services.runController.getActive(
+      state.activeSessionId,
+    );
+    if (!busy || !activeRun) {
+      return baseLabel;
+    }
+
+    const markers: string[] = [activeRun.status];
+    if (activeRun.observedActionCount > 0) {
+      markers.push(
+        `${activeRun.observedActionCount} step${activeRun.observedActionCount === 1 ? "" : "s"}`,
+      );
+    }
+    if (activeRun.activeAction) {
+      markers.push(truncate(activeRun.activeAction, 24));
+    } else if (
+      activeRun.activeStream &&
+      activeRun.activeStream !== "assistant"
+    ) {
+      markers.push(truncate(activeRun.activeStream, 24));
+    } else if (activeRun.statusDetail) {
+      markers.push(truncate(activeRun.statusDetail, 24));
+    }
+
+    return `${baseLabel} · ${markers.join(" · ")}`;
+  }
+
+  function baseLabelForLiveKind(
+    kind: ResponseTranscriptEntry["kind"] | undefined,
+  ): string {
+    if (kind === "shell") {
+      return "Shell";
+    }
+    if (kind === "command") {
+      return "Command Result";
+    }
+    if (kind === "user") {
+      return "You";
+    }
+    if (kind === "system") {
+      return "System";
+    }
+    return context.config.agentName;
+  }
+
   function setLiveResponse(
     label: string,
     body: string,
     options?: { kind?: ResponseTranscriptEntry["kind"]; pending?: boolean },
   ): void {
     const toolOverlay = liveToolTrail.length
-      ? `\n\n[tool activity]\n${liveToolTrail.slice(-4).join("\n")}`
+      ? `\n\n[live activity]\n${liveToolTrail.slice(-4).join("\n")}`
       : "";
     liveResponse = {
-      label,
+      label: options?.pending ? pendingRunLabel(label) : label,
       body: `${body}${toolOverlay}`.trim(),
       at: nowStamp(),
       kind: options?.kind,
@@ -1738,12 +1787,16 @@ async function startTui(context: AppContext): Promise<void> {
   }
 
   function pushLiveToolEvent(detail: string): void {
-    liveToolTrail.push(`- ${detail}`);
+    const nextLine = `- ${detail}`;
+    if (liveToolTrail.at(-1) === nextLine) {
+      return;
+    }
+    liveToolTrail.push(nextLine);
     if (liveToolTrail.length > 6) {
       liveToolTrail = liveToolTrail.slice(-6);
     }
     if (liveResponse) {
-      const body = liveResponse.body.split("\n\n[tool activity]\n")[0] ?? "";
+      const body = liveResponse.body.split("\n\n[live activity]\n")[0] ?? "";
       setLiveResponse(liveResponse.label, body, {
         kind: liveResponse.kind,
         pending: liveResponse.pending,
@@ -2655,6 +2708,14 @@ async function startTui(context: AppContext): Promise<void> {
       );
       if (busy) {
         pushLiveToolEvent(detail);
+        if (liveResponse?.pending) {
+          const body =
+            liveResponse.body.split("\n\n[live activity]\n")[0] ?? "";
+          setLiveResponse(baseLabelForLiveKind(liveResponse.kind), body, {
+            kind: liveResponse.kind,
+            pending: true,
+          });
+        }
       }
       scheduleRefreshPanels(0);
     }),

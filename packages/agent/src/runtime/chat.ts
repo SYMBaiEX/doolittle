@@ -428,6 +428,30 @@ interface DirectLocalIntentExecution {
   execute(): Promise<string>;
 }
 
+function looksLikeDeferredActionPromise(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+
+  return [
+    "i'll ",
+    "i will ",
+    "let me ",
+    "i'm going to ",
+    "i am going to ",
+    "one moment",
+    "give me a moment",
+    "searching ",
+    "checking ",
+    "looking ",
+    "running ",
+    "inspecting ",
+    "reading ",
+    "opening ",
+  ].some((prefix) => normalized.startsWith(prefix));
+}
+
 function resolveDirectLocalIntent(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
@@ -7177,7 +7201,14 @@ export async function handleAgentTurn(
   const observedActionCount =
     context.services.runController.getActive(sessionId)?.observedActionCount ??
     0;
-  if (directLocalIntent && observedActionCount === 0) {
+  const shouldUseDirectLocalFallback =
+    Boolean(directLocalIntent) &&
+    observedActionCount === 0 &&
+    (Boolean(runFailureMessage) ||
+      !response.trim() ||
+      looksLikeDeferredActionPromise(response));
+
+  if (directLocalIntent && shouldUseDirectLocalFallback) {
     try {
       response = await executeDirectLocalIntent(
         directLocalIntent,
