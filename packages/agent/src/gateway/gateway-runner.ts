@@ -16,7 +16,7 @@ import {
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
-import type { RunUpdateEvent } from "@/services/run-controller-service";
+import { formatRunEvent, shouldRenderRunEvent } from "@/runtime/run-progress";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -66,74 +66,6 @@ const NATIVE_PLATFORM_ADAPTERS = new Set<PlatformName>([
   "homeassistant",
   "dingtalk",
 ]);
-
-function shouldStreamRunUpdate(
-  mode: "off" | "new" | "all" | "verbose",
-  event: RunUpdateEvent,
-): boolean {
-  if (mode === "off") {
-    return false;
-  }
-  if (mode === "new") {
-    return [
-      "started",
-      "action-started",
-      "action-completed",
-      "completed",
-      "error",
-      "approvals",
-    ].includes(event.type);
-  }
-  if (mode === "all") {
-    return event.type !== "message" && event.type !== "heartbeat";
-  }
-  return true;
-}
-
-function formatRunUpdate(event: RunUpdateEvent): string | undefined {
-  switch (event.type) {
-    case "started":
-      return `run started (${event.run.runDepth}, cap ${event.run.configuredMaxIterations})`;
-    case "action-started":
-      return event.run.activeAction
-        ? `${event.run.activeStream ? `${event.run.activeStream}: ` : "acting: "}${event.run.activeAction}`
-        : `acting (${event.run.observedActionCount} observed steps)`;
-    case "action-completed":
-      return event.run.lastAction
-        ? `completed: ${event.run.lastAction}`
-        : "action completed";
-    case "stream":
-      return event.run.activeStream
-        ? `${event.run.activeStream}: ${event.run.statusDetail ?? event.run.activeAction ?? "activity"}`
-        : "stream activity";
-    case "heartbeat":
-      return event.run.statusDetail
-        ? `heartbeat: ${event.run.statusDetail}`
-        : "heartbeat";
-    case "approvals":
-      return event.run.pendingApprovals > 0
-        ? `pending approvals: ${event.run.pendingApprovals}`
-        : undefined;
-    case "completed":
-      return `run complete (${event.run.observedActionCount} observed steps)`;
-    case "error":
-      return event.run.errorMessage
-        ? `run error: ${event.run.errorMessage}`
-        : "run error";
-    case "thinking":
-      return event.run.statusDetail
-        ? `thinking: ${event.run.statusDetail}`
-        : "thinking";
-    case "waiting":
-      return event.run.statusDetail
-        ? `waiting: ${event.run.statusDetail}`
-        : "waiting for next step";
-    case "message":
-      return undefined;
-    default:
-      return undefined;
-  }
-}
 
 interface GatewayTraceRecord {
   traceId: string;
@@ -2695,10 +2627,10 @@ export class GatewayRunner {
         if (event.sessionId !== trackedSessionId) {
           return;
         }
-        if (!shouldStreamRunUpdate(event.run.progressMode, event)) {
+        if (!shouldRenderRunEvent(event.run.progressMode, event)) {
           return;
         }
-        const detail = formatRunUpdate(event);
+        const detail = formatRunEvent(event, 120);
         if (!detail) {
           return;
         }
