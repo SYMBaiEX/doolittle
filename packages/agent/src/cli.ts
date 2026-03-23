@@ -16,6 +16,7 @@ import {
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
+  getAutonomousControlPlane,
   getNativeEcosystemSnapshot,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
@@ -1080,6 +1081,11 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     context.config,
     context.services.gatewayConfig,
   );
+  const autonomousControl = getAutonomousControlPlane(
+    context.runtime,
+    context.services,
+    context.config,
+  );
   const active = sessions.find(
     (entry) => entry.sessionId === state.activeSessionId,
   );
@@ -1088,6 +1094,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     "{bold}Runtime{/}",
     `Provider: {cyan-fg}${settings.model.provider}{/}`,
     `Model: {cyan-fg}${settings.model.model}{/}`,
+    `Connection: {cyan-fg}${escapeBlessed(autonomousControl.alignment.connection.kind)}{/}${autonomousControl.alignment.connection.provider ? ` via {cyan-fg}${escapeBlessed(autonomousControl.alignment.connection.provider)}{/}` : ""}`,
     `Theme: {yellow-fg}${settings.ui.theme}{/}`,
     `Run: {yellow-fg}${settings.agent.runDepth}{/} cap={yellow-fg}${settings.agent.maxIterations}{/} progress={yellow-fg}${settings.agent.toolProgressMode}{/}`,
     activeRun
