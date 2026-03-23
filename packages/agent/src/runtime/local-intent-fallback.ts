@@ -16,9 +16,12 @@ import type { ChatTurnRequest } from "@/types";
 export interface DirectLocalIntentExecution {
   label: string;
   statusLine: string;
-  preferDirectExecution?: boolean;
+  isHighConfidence?: boolean;
   execute(): Promise<string>;
 }
+
+const LOCAL_EXECUTION_HINT_PATTERN =
+  /\b(search|find|read|open|inspect|show|grep|rg|git|status|diff|log|repo|repository|workspace|directory|file|files|command|run|execute|terminal|shell|ls|list)\b/i;
 
 function looksLikeDeferredActionPromise(text: string): boolean {
   const normalized = text.trim().toLowerCase();
@@ -77,7 +80,7 @@ export function resolveDirectLocalIntent(
     return {
       label: `repo:${repositoryIntent}`,
       statusLine: "Inspecting repository status...",
-      preferDirectExecution: true,
+      isHighConfidence: true,
       execute: () =>
         executeRepositoryIntent(
           context.runtime,
@@ -101,7 +104,7 @@ export function resolveDirectLocalIntent(
               : workspaceIntent.kind === "write"
                 ? `Writing ${workspaceIntent.path}...`
                 : "Inspecting workspace structure...",
-      preferDirectExecution: workspaceIntent.kind !== "write",
+      isHighConfidence: workspaceIntent.kind !== "write",
       execute: () =>
         executeWorkspaceIntent(
           context.runtime,
@@ -117,7 +120,7 @@ export function resolveDirectLocalIntent(
     return {
       label: `shell:${terminalCommand}`,
       statusLine: `Running \`${terminalCommand}\`...`,
-      preferDirectExecution: true,
+      isHighConfidence: false,
       execute: async () => {
         const result = await executeTerminalCommand(
           context.runtime,
@@ -132,10 +135,24 @@ export function resolveDirectLocalIntent(
   return undefined;
 }
 
+export function mayNeedDirectLocalIntentInspection(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.startsWith("/") || trimmed.startsWith("!")) {
+    return false;
+  }
+  return LOCAL_EXECUTION_HINT_PATTERN.test(trimmed);
+}
+
 export function shouldPreferDirectLocalExecution(
   intent: DirectLocalIntentExecution | undefined,
 ): boolean {
-  return Boolean(intent?.preferDirectExecution);
+  return Boolean(intent?.isHighConfidence);
+}
+
+export function isHighConfidenceDirectLocalIntent(
+  intent: DirectLocalIntentExecution | undefined,
+): boolean {
+  return shouldPreferDirectLocalExecution(intent);
 }
 
 export async function executeDirectLocalIntent(
@@ -162,12 +179,14 @@ export function shouldUseDirectLocalFallback(input: {
   response: string;
   observedActionCount: number;
   runFailureMessage?: string;
+  isHighConfidenceIntent?: boolean;
 }): boolean {
   return (
     input.observedActionCount === 0 &&
     (Boolean(input.runFailureMessage) ||
       !input.response.trim() ||
       looksLikeDeferredActionPromise(input.response) ||
-      looksLikeNativeExecutionFailure(input.response))
+      looksLikeNativeExecutionFailure(input.response) ||
+      Boolean(input.isHighConfidenceIntent && !input.response.trim()))
   );
 }
