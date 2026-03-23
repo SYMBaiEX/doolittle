@@ -220,7 +220,7 @@ export function renderResponseTranscript(
   };
 
   return sections
-    .slice(-20)
+    .slice(-24)
     .map((entry) => renderEntry(entry))
     .join("\n\n{gray-fg}────────────────────────────────{/}\n\n");
 }
@@ -245,21 +245,21 @@ function buildHelpText(agentName: string): string {
   return [
     `${agentName} TUI shortcuts`,
     "",
-    "Global:",
+    "Command-First Shell:",
     `  q / ${macAwareKeyLabel("Ctrl-C")}       Quit`,
     "  Esc              Focus command input",
-    `  ${macAwareKeyLabel("Ctrl-L")}           Clear activity feed and response pane`,
+    `  ${macAwareKeyLabel("Ctrl-L")}           Clear transcript and activity`,
     `  ${macAwareKeyLabel("Ctrl-R")}           Refresh status panels`,
     `  ${macAwareKeyLabel("Ctrl-G")}           Switch to Gateway control deck`,
     `  ${macAwareKeyLabel("Ctrl-P")}           Open command palette`,
     `  ${macAwareKeyLabel("Ctrl-E")}           Open multiline composer`,
     `  ${macAwareKeyLabel("Ctrl-S")}           Focus last response`,
-    `  ${macAwareKeyLabel("Alt-1..Alt-4")}     Switch control deck mode (Assist/Ecosystem/Gateway/Responses)`,
+    `  ${macAwareKeyLabel("Alt-1..Alt-4")}     Show Launchpad/Gateway/Responses/Logs`,
+    "  Enter            Send command",
     "  Tab              Complete the top suggested command",
     `  ${macAwareKeyLabel("PageUp/PageDown")}  Scroll the focused pane`,
     "  Up/Down          Command history in input",
-    "  Ctrl-N/Ctrl-P    History + list navigation fallback",
-    "  Ctrl-U/Ctrl-D    Scroll focused pane fallback",
+    "  Ctrl-N/Ctrl-P    History + list navigation",
     "",
     "Hotkeys:",
     "  F2  /status",
@@ -267,15 +267,12 @@ function buildHelpText(agentName: string): string {
     `  F4  ${command("/delegate overview")}`,
     `  F5  ${command("/gateway readiness")}`,
     `  F6  ${command("/sessions list")}`,
-    "  F7  /doctor",
+    `  F7  ${command("/doctor")}`,
     `  F8  ${command("/runtime plugins")}`,
-    `  F9  ${command("/runtime ecosystem")}`,
     `  F10 ${command("/gateway history limit:10")}`,
     `  F11 ${command("/gateway supervision")}`,
     `  F12 ${command("/responses list")}`,
-    `  Shift-F12 ${command("/runtime transports")}`,
     `  ${macAwareKeyLabel("Ctrl-T")}           Next theme`,
-    `  ${macAwareKeyLabel("Ctrl-Y")}           Previous theme`,
     "",
     "Examples:",
     `  ${command("/skills list")}`,
@@ -336,12 +333,16 @@ function applyLayout(
     inputBox: blessed.Widgets.TextboxElement;
     footer: blessed.Widgets.BoxElement;
   },
+  options?: {
+    opsCollapsed?: boolean;
+  },
 ): void {
   const width = screen.width as number;
   const height = screen.height as number;
   const compact = width < 140;
   const narrow = width < 110;
   const short = height < 34;
+  const opsCollapsed = options?.opsCollapsed ?? true;
 
   layout.header.top = 0;
   layout.header.left = 0;
@@ -362,92 +363,140 @@ function applyLayout(
     layout.response.top = 3;
     layout.response.left = 0;
     layout.response.width = "100%";
-    layout.response.height = short ? "42%-1" : "46%-1";
+    layout.response.height = opsCollapsed
+      ? short
+        ? "66%-1"
+        : "68%-1"
+      : short
+        ? "58%-1"
+        : "60%-1";
 
-    layout.activity.top = short ? "42%+2" : "46%+2";
+    layout.activity.top = opsCollapsed
+      ? short
+        ? "66%+2"
+        : "68%+2"
+      : short
+        ? "58%+2"
+        : "60%+2";
     layout.activity.left = 0;
     layout.activity.width = "100%";
-    layout.activity.height = short ? "12%" : "14%";
+    layout.activity.height = opsCollapsed
+      ? short
+        ? "6%-2"
+        : "8%-2"
+      : short
+        ? "10%-2"
+        : "12%-2";
 
-    layout.sidebar.top = short ? "54%+2" : "60%+2";
+    layout.sidebar.top = opsCollapsed
+      ? short
+        ? "72%+2"
+        : "76%+2"
+      : short
+        ? "68%+2"
+        : "72%+2";
     layout.sidebar.left = 0;
-    layout.sidebar.width = "50%";
-    layout.sidebar.height = short ? "15%" : "17%";
+    layout.sidebar.width = "100%";
+    layout.sidebar.height = short ? "12%-2" : "14%-2";
 
-    layout.transportBox.top = short ? "54%+2" : "60%+2";
-    layout.transportBox.left = "50%";
-    layout.transportBox.width = "50%";
-    layout.transportBox.height = short ? "15%" : "17%";
+    layout.transportBox.top = "100%";
+    layout.transportBox.left = "100%";
+    layout.transportBox.width = "0%";
+    layout.transportBox.height = "0%";
 
-    layout.executionBox.top = short ? "69%+2" : "77%+2";
-    layout.executionBox.left = 0;
-    layout.executionBox.width = "50%";
-    layout.executionBox.height = "13%-1";
+    layout.executionBox.top = "100%";
+    layout.executionBox.left = "100%";
+    layout.executionBox.width = "0%";
+    layout.executionBox.height = "0%";
 
-    layout.assistBox.top = short ? "69%+2" : "77%+2";
-    layout.assistBox.left = "50%";
-    layout.assistBox.width = "50%";
-    layout.assistBox.height = "13%-1";
+    layout.assistBox.top = opsCollapsed
+      ? short
+        ? "84%+2"
+        : "88%+2"
+      : short
+        ? "80%+2"
+        : "84%+2";
+    layout.assistBox.left = 0;
+    layout.assistBox.width = "100%";
+    layout.assistBox.height = short ? "10%-2" : "12%-2";
   } else if (compact) {
     layout.response.top = 3;
     layout.response.left = 0;
-    layout.response.width = "76%";
-    layout.response.height = short ? "63%-1" : "66%-1";
+    layout.response.width = "84%";
+    layout.response.height = opsCollapsed
+      ? short
+        ? "68%-1"
+        : "70%-1"
+      : short
+        ? "61%-1"
+        : "64%-1";
 
-    layout.activity.top = short ? "63%+2" : "66%+2";
+    layout.activity.top = opsCollapsed
+      ? short
+        ? "68%+2"
+        : "70%+2"
+      : short
+        ? "61%+2"
+        : "64%+2";
     layout.activity.left = 0;
-    layout.activity.width = "76%";
-    layout.activity.height = short ? "27%-2" : "24%-2";
+    layout.activity.width = "84%";
+    layout.activity.height = opsCollapsed
+      ? short
+        ? "14%-2"
+        : "16%-2"
+      : short
+        ? "21%-2"
+        : "24%-2";
 
     layout.sidebar.top = 3;
-    layout.sidebar.left = "76%";
-    layout.sidebar.width = "24%";
-    layout.sidebar.height = short ? "22%" : "24%";
+    layout.sidebar.left = "84%";
+    layout.sidebar.width = "16%";
+    layout.sidebar.height = short ? "28%" : "30%";
 
     layout.transportBox.top = short ? "22%+3" : "24%+3";
-    layout.transportBox.left = "76%";
-    layout.transportBox.width = "24%";
-    layout.transportBox.height = short ? "18%" : "18%";
+    layout.transportBox.left = "84%";
+    layout.transportBox.width = "16%";
+    layout.transportBox.height = "0%";
 
     layout.executionBox.top = short ? "40%+3" : "42%+3";
-    layout.executionBox.left = "76%";
-    layout.executionBox.width = "24%";
-    layout.executionBox.height = short ? "16%" : "16%";
+    layout.executionBox.left = "84%";
+    layout.executionBox.width = "16%";
+    layout.executionBox.height = "0%";
 
-    layout.assistBox.top = short ? "56%+3" : "58%+3";
-    layout.assistBox.left = "76%";
-    layout.assistBox.width = "24%";
-    layout.assistBox.height = short ? "32%-1" : "32%-1";
+    layout.assistBox.top = short ? "48%+3" : "50%+3";
+    layout.assistBox.left = "84%";
+    layout.assistBox.width = "16%";
+    layout.assistBox.height = short ? "39%-1" : "38%-1";
   } else {
     layout.response.top = 3;
     layout.response.left = 0;
-    layout.response.width = "76%";
-    layout.response.height = "66%-1";
+    layout.response.width = "84%";
+    layout.response.height = opsCollapsed ? "70%-1" : "64%-1";
 
-    layout.activity.top = "66%+2";
+    layout.activity.top = opsCollapsed ? "70%+2" : "64%+2";
     layout.activity.left = 0;
-    layout.activity.width = "76%";
-    layout.activity.height = "24%-2";
+    layout.activity.width = "84%";
+    layout.activity.height = opsCollapsed ? "16%-2" : "24%-2";
 
     layout.sidebar.top = 3;
-    layout.sidebar.left = "76%";
-    layout.sidebar.width = "24%";
-    layout.sidebar.height = short ? "22%" : "24%";
+    layout.sidebar.left = "84%";
+    layout.sidebar.width = "16%";
+    layout.sidebar.height = "84%-2";
 
-    layout.transportBox.top = short ? "22%+3" : "24%+3";
-    layout.transportBox.left = "76%";
-    layout.transportBox.width = "24%";
-    layout.transportBox.height = short ? "18%" : "18%";
+    layout.transportBox.top = "3";
+    layout.transportBox.left = "84%";
+    layout.transportBox.width = "16%";
+    layout.transportBox.height = "0%";
 
-    layout.executionBox.top = short ? "40%+3" : "42%+3";
-    layout.executionBox.left = "76%";
-    layout.executionBox.width = "24%";
-    layout.executionBox.height = short ? "16%" : "16%";
+    layout.executionBox.top = "32%+2";
+    layout.executionBox.left = "84%";
+    layout.executionBox.width = "16%";
+    layout.executionBox.height = "0%";
 
-    layout.assistBox.top = short ? "56%+3" : "58%+3";
-    layout.assistBox.left = "76%";
-    layout.assistBox.width = "24%";
-    layout.assistBox.height = short ? "32%-1" : "32%-1";
+    layout.assistBox.top = "46%+3";
+    layout.assistBox.left = "84%";
+    layout.assistBox.width = "16%";
+    layout.assistBox.height = short ? "38%-1" : "40%-1";
   }
 
   layout.paletteOverlay.width = narrow ? "94%" : compact ? "82%" : "72%";
@@ -1078,21 +1127,21 @@ function renderStatusContent(context: AppContext, state: CliState): string {
   );
 
   return [
-    "{bold}Runtime{/}",
-    `Provider: {cyan-fg}${settings.model.provider}{/}`,
-    `Model: {cyan-fg}${settings.model.model}{/}`,
-    `Connection: {cyan-fg}${escapeBlessed(autonomousControl.alignment.connection.kind)}{/}${autonomousControl.alignment.connection.provider ? ` via {cyan-fg}${escapeBlessed(autonomousControl.alignment.connection.provider)}{/}` : ""}`,
-    `Startup: {yellow-fg}${startup.hotPathReady ? "hot-ready" : "warming"}{/} deferred={yellow-fg}${startup.deferredReady ? "ready" : "warming"}{/}`,
-    `Fallback: {yellow-fg}${context.config.offlineBootstrapMode ? "offline-bootstrap" : "disabled"}{/}`,
-    `Theme: {yellow-fg}${settings.ui.theme}{/}`,
-    `Run: {yellow-fg}${settings.agent.runDepth}{/} cap={yellow-fg}${settings.agent.maxIterations}{/} progress={yellow-fg}${settings.agent.toolProgressMode}{/}`,
+    "{bold}Session Rail{/}",
+    `{cyan-fg}${settings.model.provider}{/} · {cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
+    `${escapeBlessed(autonomousControl.alignment.connection.kind)}${autonomousControl.alignment.connection.provider ? ` via ${escapeBlessed(autonomousControl.alignment.connection.provider)}` : ""}`,
+    `startup ${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}`,
+    `run ${settings.agent.runDepth} · cap ${settings.agent.maxIterations} · progress ${settings.agent.toolProgressMode}`,
     activeRun
-      ? `Observed: {green-fg}${activeRun.status}{/} steps={green-fg}${activeRun.observedActionCount}{/}${activeRun.activeAction ? ` action={cyan-fg}${escapeBlessed(truncate(activeRun.activeAction, 26))}{/}` : ""}${activeRun.activeStream ? ` stream={magenta-fg}${escapeBlessed(activeRun.activeStream)}{/}` : ""}${activeRun.statusDetail && !activeRun.activeAction ? ` detail={gray-fg}${escapeBlessed(truncate(activeRun.statusDetail, 26))}{/}` : ""}`
-      : "{gray-fg}Observed: idle{/}",
-    `Hydration: gateway={cyan-fg}${startup.phases.gateway.status}{/} cron={cyan-fg}${startup.phases.cron.status}{/} diag={cyan-fg}${startup.phases.diagnostics.status}{/} skills={cyan-fg}${startup.phases.skills.status}{/}`,
+      ? `live ${activeRun.status} · ${activeRun.observedActionCount} steps${activeRun.activeAction ? ` · ${escapeBlessed(truncate(activeRun.activeAction, 26))}` : activeRun.statusDetail ? ` · ${escapeBlessed(truncate(activeRun.statusDetail, 26))}` : ""}`
+      : "{gray-fg}live idle{/}",
+    `hydration gw:${startup.phases.gateway.status} cron:${startup.phases.cron.status} diag:${startup.phases.diagnostics.status} skills:${startup.phases.skills.status}`,
+    `channels live=${transportControl.totals.liveServices} configured=${transportControl.totals.gatewayEnabled} ready=${transportControl.totals.operationalTransports}`,
+    `delegation ${delegation.running}/${delegation.pending}/${delegation.completed} · workers ${delegation.activeWorkers}`,
+    `gateway sessions ${gatewaySessions.length} · voice ${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
     active?.title
-      ? `Session: {green-fg}${truncate(active.title, 28)}{/}`
-      : `Session: {green-fg}${state.activeSessionId}{/}`,
+      ? `session ${truncate(active.title, 28)}`
+      : `session ${state.activeSessionId}`,
     "",
     "{bold}Notices{/}",
     ...(state.notices.length
@@ -1107,26 +1156,11 @@ function renderStatusContent(context: AppContext, state: CliState): string {
         })
       : ["{gray-fg}No active notices.{/}"]),
     "",
-    "{bold}Transport{/}",
-    `live=${transportControl.totals.liveServices} configured=${transportControl.totals.gatewayEnabled} operational=${transportControl.totals.operationalTransports}`,
-    `sessions=${gatewaySessions.length} voice=${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
+    "{gray-fg}plugins{/}: enabled=" +
+      `${plugins.filter((entry) => entry.enabled).length}/${plugins.length}` +
+      ` · alpha=${audit.runtime.alpha}`,
     "",
-    "{bold}Channels{/}",
-    ...transportControl.transportInventory.slice(0, 4).map((entry) => {
-      const marker = entry.operational ? "{green-fg}●{/}" : "{red-fg}●{/}";
-      return `${marker} ${entry.platform} ${entry.source} ${entry.operational ? "ready" : "blocked"}`;
-    }),
-    "",
-    "{bold}Work{/}",
-    `delegation=${delegation.running}/${delegation.pending}/${delegation.completed}`,
-    `workers=${delegation.activeWorkers}`,
-    "",
-    "{bold}Plugins{/}",
-    `enabled=${plugins.filter((entry) => entry.enabled).length}/${plugins.length}`,
-    `official=${plugins.filter((entry) => entry.source === "official").length} vendored=${plugins.filter((entry) => entry.source === "vendored").length}`,
-    `alpha=${audit.runtime.alpha}`,
-    "",
-    "{bold}Recent{/}",
+    "{bold}Recent Sessions{/}",
     ...sessions.slice(0, 4).map((entry) => {
       const marker = entry.sessionId === state.activeSessionId ? "*" : "-";
       return `${marker} ${truncate(entry.title ?? entry.sessionId, 26)}`;
@@ -1148,16 +1182,15 @@ export function renderFooter(
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
       : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
-    `{cyan-fg}${escapeBlessed(settings.model.provider)}{/}`,
-    `{cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
     `{yellow-fg}${escapeBlessed(settings.agent.runDepth)}{/}`,
-    `{yellow-fg}cap:${settings.agent.maxIterations}{/}`,
-    `{yellow-fg}prog:${escapeBlessed(settings.agent.toolProgressMode)}{/}`,
+    `cap:${settings.agent.maxIterations}`,
+    `prog:${escapeBlessed(settings.agent.toolProgressMode)}`,
     "{magenta-fg}Tab{/} complete",
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} palette`,
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-E"))}{/} compose`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-O"))}{/} ops`,
     "{cyan-fg}!cmd{/} shell",
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-T/Y"))}{/} theme`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-T"))}{/} theme`,
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Alt-1..4"))}{/} deck`,
     hint,
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-Q"))}{/} quit`,
@@ -1197,11 +1230,11 @@ async function startTui(
 
   const activity = blessed.log({
     parent: screen,
-    top: "72%+2",
+    top: "64%+2",
     left: 0,
-    width: "68%",
+    width: "82%",
     height: "28%-2",
-    label: " Ops Log ",
+    label: " Ops ",
     tags: true,
     border: "line",
     scrollback: 1000,
@@ -1219,9 +1252,9 @@ async function startTui(
     parent: screen,
     top: 3,
     left: 0,
-    width: "68%",
-    height: "72%-1",
-    label: " Conversation ",
+    width: "82%",
+    height: "64%-1",
+    label: " Chat ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1245,10 +1278,10 @@ async function startTui(
   const sidebar = blessed.box({
     parent: screen,
     top: 3,
-    left: "68%",
-    width: "32%",
+    left: "82%",
+    width: "18%",
     height: "30%",
-    label: " Runtime ",
+    label: " Session Rail ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1266,10 +1299,10 @@ async function startTui(
 
   const transportBox = blessed.box({
     parent: screen,
-    top: "30%+3",
-    left: "68%",
-    width: "32%",
-    height: "22%",
+    top: 0,
+    left: "82%",
+    width: "18%",
+    height: "0%",
     label: " Channels ",
     tags: true,
     border: "line",
@@ -1284,14 +1317,15 @@ async function startTui(
       right: 1,
     },
     style: panelStyle(activeTheme, activeTheme.cyanGlow),
+    hidden: true,
   });
 
   const executionBox = blessed.box({
     parent: screen,
-    top: "52%+3",
-    left: "68%",
-    width: "32%",
-    height: "18%",
+    top: 0,
+    left: "82%",
+    width: "18%",
+    height: "0%",
     label: " Workbench ",
     tags: true,
     border: "line",
@@ -1306,15 +1340,16 @@ async function startTui(
       right: 1,
     },
     style: panelStyle(activeTheme, activeTheme.greenGlow),
+    hidden: true,
   });
 
   const assistBox = blessed.box({
     parent: screen,
-    top: "70%+3",
-    left: "68%",
-    width: "32%",
+    top: "52%+3",
+    left: "82%",
+    width: "18%",
     height: "18%-1",
-    label: " Command Assist ",
+    label: " Quick Actions ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1497,6 +1532,7 @@ async function startTui(
   let screenDestroyed = false;
   let busy = false;
   let queueDepth = 0;
+  let opsCollapsed = true;
   let controlDeckMode: ControlDeckMode = "assist";
   let paletteSelectionIndex = 0;
   let composerOpen = false;
@@ -1513,8 +1549,6 @@ async function startTui(
     activity,
     response,
     sidebar,
-    transportBox,
-    executionBox,
     assistBox,
     inputBox,
   ];
@@ -1588,12 +1622,6 @@ async function startTui(
     if (screen.focused === sidebar) {
       return "Enter sessions";
     }
-    if (screen.focused === transportBox) {
-      return "Enter gateway readiness";
-    }
-    if (screen.focused === executionBox) {
-      return "Enter execution status";
-    }
     if (screen.focused === assistBox) {
       return controlDeckMode === "assist"
         ? "Enter top suggestion"
@@ -1645,13 +1673,9 @@ async function startTui(
         ? response
         : screen.focused === sidebar
           ? sidebar
-          : screen.focused === transportBox
-            ? transportBox
-            : screen.focused === executionBox
-              ? executionBox
-              : screen.focused === assistBox
-                ? assistBox
-                : activity;
+          : screen.focused === assistBox
+            ? assistBox
+            : activity;
     target.scroll(delta);
     screen.render();
   }
@@ -2075,8 +2099,12 @@ async function startTui(
 
   async function refreshPanels(): Promise<void> {
     sidebar.setContent(renderStatusContent(context, state));
-    transportBox.setContent(await renderTransportContent(context));
-    executionBox.setContent(await renderExecutionContent(context));
+    if (!transportBox.hidden) {
+      transportBox.setContent(await renderTransportContent(context));
+    }
+    if (!executionBox.hidden) {
+      executionBox.setContent(await renderExecutionContent(context));
+    }
     await renderControlDeck(controlDeckMode);
     footer.setContent(
       renderFooter(
@@ -2119,22 +2147,27 @@ async function startTui(
   }
 
   function syncLayout(): void {
-    applyLayout(screen, {
-      header,
-      activity,
-      response,
-      sidebar,
-      transportBox,
-      executionBox,
-      assistBox,
-      paletteOverlay,
-      paletteInput,
-      paletteList,
-      composerOverlay,
-      composer,
-      inputBox,
-      footer,
-    });
+    applyLayout(
+      screen,
+      {
+        header,
+        activity,
+        response,
+        sidebar,
+        transportBox,
+        executionBox,
+        assistBox,
+        paletteOverlay,
+        paletteInput,
+        paletteList,
+        composerOverlay,
+        composer,
+        inputBox,
+        footer,
+      },
+      { opsCollapsed },
+    );
+    activity.setLabel(opsCollapsed ? " Ops " : " Ops Log ");
     screen.render();
   }
 
@@ -2157,6 +2190,7 @@ async function startTui(
       return;
     }
 
+    const isShellCommand = line.startsWith("!");
     appendActivity("cmd", line, "info");
     setLiveResponse(
       isConversationalInput(line)
@@ -2186,11 +2220,13 @@ async function startTui(
             return;
           }
           for (const lineChunk of lines) {
-            appendActivity(
-              source === "stdout" ? "out+" : "err+",
-              truncate(`${command}: ${lineChunk}`, 260),
-              source === "stdout" ? "agent" : "warning",
-            );
+            if (!isShellCommand) {
+              appendActivity(
+                source === "stdout" ? "out+" : "err+",
+                truncate(`${command}: ${lineChunk}`, 260),
+                source === "stdout" ? "agent" : "warning",
+              );
+            }
           }
           const streamed = lines.join("\n");
           const current = liveResponse?.body ?? "";
@@ -2613,6 +2649,11 @@ async function startTui(
   screen.key(["C-r"], () => {
     void refreshPanels();
   });
+  screen.key(["C-o"], () => {
+    opsCollapsed = !opsCollapsed;
+    syncLayout();
+    updateFooterHint();
+  });
   screen.key(["M-1"], () => {
     controlDeckMode = "assist";
     void refreshPanels();
@@ -2655,14 +2696,6 @@ async function startTui(
       queueCommand(canonicalizeSlashCommandSyntax("/sessions list"));
       return;
     }
-    if (screen.focused === transportBox) {
-      queueCommand(canonicalizeSlashCommandSyntax("/gateway readiness"));
-      return;
-    }
-    if (screen.focused === executionBox) {
-      queueCommand(canonicalizeSlashCommandSyntax("/execution status"));
-      return;
-    }
     if (screen.focused === assistBox) {
       if (controlDeckMode === "assist") {
         const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
@@ -2695,7 +2728,6 @@ async function startTui(
     [["f10"], canonicalizeSlashCommandSyntax("/gateway history limit:10")],
     [["f11"], canonicalizeSlashCommandSyntax("/gateway supervision")],
     [["f12"], canonicalizeSlashCommandSyntax("/responses list")],
-    [["S-f12"], "/runtime transports"],
   ];
 
   for (const [keys, command] of hotkeys) {
@@ -2731,8 +2763,6 @@ async function startTui(
     activity,
     response,
     sidebar,
-    transportBox,
-    executionBox,
     assistBox,
     paletteInput,
     paletteList,
@@ -2755,16 +2785,23 @@ async function startTui(
   );
   unsubscribers.push(
     context.services.terminal.onUpdate((event) => {
-      appendActivity(
-        "exec",
-        `${event.detail} -> ${event.exitCode}`,
-        event.exitCode === 0 ? "success" : "warning",
-      );
       if (busy) {
+        appendActivity(
+          "exec",
+          `${event.detail} → ${event.exitCode}`,
+          event.exitCode === 0 ? "success" : "warning",
+        );
         pushLiveToolEvent(
           `shell ${truncate(event.detail, 64)} → ${event.exitCode}`,
         );
+        scheduleRefreshPanels();
+        return;
       }
+      appendActivity(
+        "exec",
+        `${event.detail} → ${event.exitCode}`,
+        event.exitCode === 0 ? "success" : "warning",
+      );
       scheduleRefreshPanels();
     }),
   );
@@ -2808,11 +2845,19 @@ async function startTui(
             pending: true,
           });
         }
-        if (event.type === "error" || event.type === "approvals") {
+        if (
+          event.type === "completed" ||
+          event.type === "error" ||
+          event.type === "approvals"
+        ) {
           appendActivity(
             "run",
             truncate(detail, 160),
-            event.type === "error" ? "warning" : "info",
+            event.type === "error"
+              ? "warning"
+              : event.type === "completed"
+                ? "success"
+                : "info",
           );
         }
       } else {
@@ -2871,8 +2916,12 @@ async function startTui(
     "Helm Ready",
     `You are live in the Eliza Agent helm.\n\nTalk to me normally, or run a shell action like !git status.\n\nFor operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
   );
-  transportBox.setContent(await renderTransportContent(context));
-  executionBox.setContent(await renderExecutionContent(context));
+  if (!transportBox.hidden) {
+    transportBox.setContent(await renderTransportContent(context));
+  }
+  if (!executionBox.hidden) {
+    executionBox.setContent(await renderExecutionContent(context));
+  }
   await renderControlDeck(controlDeckMode);
 
   applyThemeToScreen(activeTheme);
