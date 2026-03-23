@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
@@ -8,21 +8,8 @@ import {
   type Content,
   createMessageMemory,
   EventType,
-  stringToUuid,
   type UUID,
 } from "@elizaos/core";
-import {
-  executeRepositoryIntent,
-  resolveRepositoryIntentFromText,
-} from "@/actions/repository-action";
-import {
-  executeTerminalCommand,
-  resolveCommandFromText,
-} from "@/actions/terminal-action";
-import {
-  executeWorkspaceIntent,
-  resolveWorkspaceIntentFromText,
-} from "@/actions/workspace-action";
 import {
   buildTransportDrilldown,
   formatTransportDrilldown,
@@ -34,6 +21,11 @@ import {
   canonicalizeSlashCommandSyntax,
   normalizeSlashCommandSyntax,
 } from "@/runtime/command-catalog";
+import {
+  executeDirectLocalIntent,
+  resolveDirectLocalIntent,
+  shouldUseDirectLocalFallback,
+} from "@/runtime/local-intent-fallback";
 import {
   getLinkedProviderAccountsSnapshot,
   getLinkedProviderConnectAdvice,
@@ -168,6 +160,21 @@ import type { AppContext } from "./bootstrap";
 
 type StreamSource = "unset" | "callback" | "onStreamChunk";
 
+function stableRuntimeUuid(seed: string): UUID {
+  const hash = createHash("sha256").update(seed).digest("hex");
+  const variantNibble = (
+    (Number.parseInt(hash.slice(16, 17), 16) & 0x3) |
+    0x8
+  ).toString(16);
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    `4${hash.slice(13, 16)}`,
+    `${variantNibble}${hash.slice(17, 20)}`,
+    hash.slice(20, 32),
+  ].join("-") as UUID;
+}
+
 function extractCompatTextContent(content: Content | null | undefined): string {
   if (!content) {
     return "";
@@ -185,7 +192,7 @@ export type AgentExecutionContext = Pick<
   gateway?: AppContext["gateway"];
 };
 
-interface AgentTurnHooks {
+export interface AgentTurnHooks {
   onResponseProgress?: (update: {
     chunk: string;
     response: string;
@@ -422,118 +429,6 @@ function formatShellCommandResponse(result: {
     .join("\n");
 }
 
-interface DirectLocalIntentExecution {
-  label: string;
-  statusLine: string;
-  execute(): Promise<string>;
-}
-
-function looksLikeDeferredActionPromise(text: string): boolean {
-  const normalized = text.trim().toLowerCase();
-  if (!normalized) {
-    return true;
-  }
-
-  return [
-    "i'll ",
-    "i will ",
-    "let me ",
-    "i'm going to ",
-    "i am going to ",
-    "one moment",
-    "give me a moment",
-    "searching ",
-    "checking ",
-    "looking ",
-    "running ",
-    "inspecting ",
-    "reading ",
-    "opening ",
-  ].some((prefix) => normalized.startsWith(prefix));
-}
-
-function resolveDirectLocalIntent(
-  input: ChatTurnRequest,
-  context: AgentExecutionContext,
-): DirectLocalIntentExecution | undefined {
-  const text = input.message.trim();
-
-  const repositoryIntent = resolveRepositoryIntentFromText(text);
-  if (repositoryIntent) {
-    return {
-      label: `repo:${repositoryIntent}`,
-      statusLine: "Inspecting repository status...",
-      execute: () =>
-        executeRepositoryIntent(
-          context.runtime,
-          context.services,
-          repositoryIntent,
-        ),
-    };
-  }
-
-  const workspaceIntent = resolveWorkspaceIntentFromText(text);
-  if (workspaceIntent) {
-    return {
-      label: `workspace:${workspaceIntent.kind}`,
-      statusLine:
-        workspaceIntent.kind === "read"
-          ? `Reading ${workspaceIntent.path}...`
-          : workspaceIntent.kind === "search"
-            ? `Searching the workspace for "${workspaceIntent.query}"...`
-            : workspaceIntent.kind === "find-codebase"
-              ? `Searching local development roots for "${workspaceIntent.query}"...`
-              : workspaceIntent.kind === "write"
-                ? `Writing ${workspaceIntent.path}...`
-                : "Inspecting workspace structure...",
-      execute: () =>
-        executeWorkspaceIntent(
-          context.runtime,
-          context.services,
-          context.config.workspaceDir,
-          workspaceIntent,
-        ),
-    };
-  }
-
-  const terminalCommand = resolveCommandFromText(text);
-  if (terminalCommand && !text.startsWith("/")) {
-    return {
-      label: `shell:${terminalCommand}`,
-      statusLine: `Running \`${terminalCommand}\`...`,
-      execute: async () => {
-        const result = await executeTerminalCommand(
-          context.runtime,
-          context.services,
-          terminalCommand,
-        );
-        return result.response;
-      },
-    };
-  }
-
-  return undefined;
-}
-
-async function executeDirectLocalIntent(
-  intent: DirectLocalIntentExecution,
-  sessionId: string,
-  context: AgentExecutionContext,
-  hooks?: AgentTurnHooks,
-): Promise<string> {
-  await hooks?.onResponseProgress?.({
-    chunk: intent.statusLine,
-    response: intent.statusLine,
-    phase: "command",
-  });
-  context.services.runController.noteActionStarted(sessionId, intent.label);
-  try {
-    return await intent.execute();
-  } finally {
-    context.services.runController.noteActionCompleted(sessionId, intent.label);
-  }
-}
-
 async function runShellCommandForTurn(
   command: string,
   context: AgentExecutionContext,
@@ -675,9 +570,9 @@ async function maybeRequireRemoteExecutionApproval(
   const agentName = context.runtime.character?.name ?? "Eliza Agent";
   const runtimeRoomId =
     (input.source ?? "cli") === "cli"
-      ? stringToUuid(`${agentName}-chat-room`)
-      : stringToUuid(roomId);
-  const runtimeEntityId = stringToUuid(input.userId);
+      ? stableRuntimeUuid(`${agentName}-chat-room`)
+      : stableRuntimeUuid(roomId);
+  const runtimeEntityId = stableRuntimeUuid(input.userId);
   const approval =
     context.services.executionApprovals.useApproved({
       platform,
@@ -1557,6 +1452,12 @@ async function getProviderReadinessMessage(
 ): Promise<string | undefined> {
   const snapshot = getLinkedProviderAccountsSnapshot();
 
+  if (provider === "offline") {
+    return context.config.offlineBootstrapMode
+      ? undefined
+      : `No active model provider is configured. Run \`${displayCommand("/accounts")}\` to bind Eliza Cloud, Codex, or Claude Code, or set \`ELIZA_AGENT_OFFLINE_BOOTSTRAP=true\` for explicit bootstrap-only fallback replies.`;
+  }
+
   if (provider === "openai" && !context.config.openAiApiKey?.trim()) {
     if (snapshot.codex.nativeReady || snapshot.codex.reusable) {
       return [
@@ -1686,6 +1587,25 @@ function buildProviderFailureMessage(
   const compactDetail =
     detail.length > 220 ? `${detail.slice(0, 217)}...` : detail;
   return `${buildProviderNoResponseMessage(provider, model)} Last error: ${compactDetail}`;
+}
+
+function isRecoverableNativePlanningError(error: unknown): boolean {
+  const detail =
+    error instanceof Error ? error.message.trim() : String(error).trim();
+  const normalized = detail.toLowerCase();
+
+  return [
+    "dynamicpromptexecfromstate",
+    "dynamic prompt",
+    "parse error",
+    "failed to parse",
+    "unexpected token",
+    "json",
+  ].some((fragment) => normalized.includes(fragment));
+}
+
+function buildNativePlanningFailureMessage(): string {
+  return "The native planner hit a local prompt-shaping error on this turn. Try a more explicit command, or rerun with `/doctor` if it keeps happening.";
 }
 
 function shouldAttachSystemFacts(message: string): boolean {
@@ -3225,8 +3145,14 @@ async function buildCommandResponse(
   if (trimmed === "/status") {
     const personality = context.services.personalities.getActive();
     const settings = context.services.settings.get();
+    const startup = context.services.startupState.getSnapshot();
     const activeRun = context.services.runController.getActive(
       input.roomId ?? `room:${input.userId}`,
+    );
+    const autonomous = getAutonomousControlPlane(
+      context.runtime,
+      context.services,
+      context.config,
     );
     const ownership =
       context.services.nativeOwnership.controlPlane() ??
@@ -3249,9 +3175,13 @@ async function buildCommandResponse(
         `Personality summary: n/a`,
         `Provider: ${settings.model.provider}`,
         `Model: ${settings.model.model}`,
+        `Connection: ${autonomous.alignment.connection.kind}${autonomous.alignment.connection.provider ? ` via ${autonomous.alignment.connection.provider}` : ""}`,
         `Run depth: ${settings.agent.runDepth}`,
         `Run cap: ${settings.agent.maxIterations}`,
         `Tool progress: ${settings.agent.toolProgressMode}`,
+        `Startup: hotPath=${startup.hotPathReady ? "ready" : "warming"} deferred=${startup.deferredReady ? "ready" : "warming"}`,
+        `Hydration: gateway=${startup.phases.gateway.status} cron=${startup.phases.cron.status} diagnostics=${startup.phases.diagnostics.status} operator=${startup.phases.operator.status} skills=${startup.phases.skills.status}`,
+        `Fallback: ${context.config.offlineBootstrapMode ? "offline-bootstrap" : "disabled"}`,
         activeRun
           ? `Observed run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`
           : "Observed run: idle",
@@ -3269,9 +3199,13 @@ async function buildCommandResponse(
       `Personality summary: ${formatPersonalitySummary(identity.personality)}`,
       `Provider: ${settings.model.provider}`,
       `Model: ${settings.model.model}`,
+      `Connection: ${autonomous.alignment.connection.kind}${autonomous.alignment.connection.provider ? ` via ${autonomous.alignment.connection.provider}` : ""}`,
       `Run depth: ${settings.agent.runDepth}`,
       `Run cap: ${settings.agent.maxIterations}`,
       `Tool progress: ${settings.agent.toolProgressMode}`,
+      `Startup: hotPath=${startup.hotPathReady ? "ready" : "warming"} deferred=${startup.deferredReady ? "ready" : "warming"}`,
+      `Hydration: gateway=${startup.phases.gateway.status} cron=${startup.phases.cron.status} diagnostics=${startup.phases.diagnostics.status} operator=${startup.phases.operator.status} skills=${startup.phases.skills.status}`,
+      `Fallback: ${context.config.offlineBootstrapMode ? "offline-bootstrap" : "disabled"}`,
       activeRun
         ? `Observed run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`
         : "Observed run: idle",
@@ -6306,9 +6240,13 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories export") {
-    const nativeExport = getNativeServices(
+    const nativeTrajectory = getNativeServices(
       context.runtime,
-    ).trajectoryLogger?.exportLatest();
+    ).trajectoryLogger;
+    const nativeExport =
+      typeof nativeTrajectory?.exportLatest === "function"
+        ? nativeTrajectory.exportLatest()
+        : undefined;
     return typeof nativeExport === "string"
       ? nativeExport
       : context.services.trajectories.exportRecent(200);
@@ -6421,15 +6359,20 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories list") {
+    const nativeTrajectory = getNativeServices(
+      context.runtime,
+    ).trajectoryLogger;
     const bundles =
-      (getNativeServices(context.runtime).trajectoryLogger?.bundles() as Array<{
-        label: string;
-        createdAt: string;
-        messageCount: number;
-        sessionCount: number;
-        filters?: { sessionId?: string | null; role?: string | null };
-        dataPath?: string;
-      }>) ?? context.services.trajectories.listBundles(10);
+      (typeof nativeTrajectory?.bundles === "function"
+        ? (nativeTrajectory.bundles() as Array<{
+            label: string;
+            createdAt: string;
+            messageCount: number;
+            sessionCount: number;
+            filters?: { sessionId?: string | null; role?: string | null };
+            dataPath?: string;
+          }>)
+        : undefined) ?? context.services.trajectories.listBundles(10);
     return bundles.length
       ? bundles
           .map(
@@ -6532,9 +6475,13 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/trajectories compare latest") {
+    const nativeTrajectory = getNativeServices(
+      context.runtime,
+    ).trajectoryLogger;
     const comparison =
-      getNativeServices(context.runtime).trajectoryLogger?.compareLatest() ??
-      context.services.trajectories.compareLatest();
+      typeof nativeTrajectory?.compareLatest === "function"
+        ? nativeTrajectory.compareLatest()
+        : context.services.trajectories.compareLatest();
     return comparison
       ? JSON.stringify(comparison, null, 2)
       : "At least two trajectory bundles are required for comparison.";
@@ -6778,15 +6725,15 @@ export async function handleAgentTurn(
     : (input.source ?? "cli");
   const roomKey = input.roomId ?? `room:${input.userId}`;
   const roomId = localInteractive
-    ? stringToUuid(`${agentName}-chat-room`)
-    : stringToUuid(roomKey);
+    ? stableRuntimeUuid(`${agentName}-chat-room`)
+    : stableRuntimeUuid(roomKey);
   const worldId = localInteractive
-    ? stringToUuid(`${agentName}-chat-world`)
-    : stringToUuid("eliza-agent-world");
-  const entityId = stringToUuid(input.userId);
+    ? stableRuntimeUuid(`${agentName}-chat-world`)
+    : stableRuntimeUuid("eliza-agent-world");
+  const entityId = stableRuntimeUuid(input.userId);
   const messageServerId = localInteractive
-    ? stringToUuid(`${agentName}-cli-server`)
-    : stringToUuid("eliza-agent-message-server");
+    ? stableRuntimeUuid(`${agentName}-cli-server`)
+    : stableRuntimeUuid("eliza-agent-message-server");
   const sessionId = roomKey;
   const settings = context.services.settings.get();
   const runId = randomUUID();
@@ -6917,10 +6864,8 @@ export async function handleAgentTurn(
     context.services.runController.finishTurn(sessionId, "complete");
     return responseFromCommandLayer;
   }
-  const directLocalIntent = resolveDirectLocalIntent(input, context);
-
   let response = "";
-  let deferNativeStreaming = Boolean(directLocalIntent);
+  let deferNativeStreaming = false;
   const personalityBefore = context.services.personalities.getActive();
   const settingsBefore = context.services.settings.get();
   const settingsDuring = applyRuntimeOverrides(
@@ -7065,6 +7010,7 @@ export async function handleAgentTurn(
     }
     await emitSnapshot(update.nextText);
   };
+  const directLocalIntent = resolveDirectLocalIntent(input, context);
 
   try {
     if (typeof context.runtime.emitEvent === "function") {
@@ -7141,26 +7087,34 @@ export async function handleAgentTurn(
         }
       }
     } catch (error) {
-      const providerFailureMessage = buildProviderFailureMessage(
-        settingsDuring.model.provider,
-        settingsDuring.model.model,
-        error,
-      );
-      context.runtime.logger?.warn(
-        {
-          error,
-          provider: settingsDuring.model.provider,
-          model: settingsDuring.model.model,
-          roomId,
-        },
-        "Local agent turn failed in provider runtime",
-      );
-      await options?.onNotice?.({
-        kind: "status",
-        message: providerFailureMessage,
-      });
-      response = providerFailureMessage;
-      runFailureMessage = providerFailureMessage;
+      if (isRecoverableNativePlanningError(error) && directLocalIntent) {
+        runFailureMessage =
+          error instanceof Error ? error.message.trim() : String(error).trim();
+        response = "";
+      } else {
+        const failureMessage = isRecoverableNativePlanningError(error)
+          ? buildNativePlanningFailureMessage()
+          : buildProviderFailureMessage(
+              settingsDuring.model.provider,
+              settingsDuring.model.model,
+              error,
+            );
+        context.runtime.logger?.warn(
+          {
+            error,
+            provider: settingsDuring.model.provider,
+            model: settingsDuring.model.model,
+            roomId,
+          },
+          "Local agent turn failed in provider runtime",
+        );
+        await options?.onNotice?.({
+          kind: "status",
+          message: failureMessage,
+        });
+        response = failureMessage;
+        runFailureMessage = failureMessage;
+      }
     }
   } finally {
     if (
@@ -7201,15 +7155,25 @@ export async function handleAgentTurn(
   const observedActionCount =
     context.services.runController.getActive(sessionId)?.observedActionCount ??
     0;
-  const shouldUseDirectLocalFallback =
-    Boolean(directLocalIntent) &&
-    observedActionCount === 0 &&
-    (Boolean(runFailureMessage) ||
-      !response.trim() ||
-      looksLikeDeferredActionPromise(response));
 
-  if (directLocalIntent && shouldUseDirectLocalFallback) {
+  if (
+    directLocalIntent &&
+    shouldUseDirectLocalFallback({
+      message: input.message,
+      response,
+      observedActionCount,
+      runFailureMessage,
+    })
+  ) {
     try {
+      deferNativeStreaming = false;
+      if (runFailureMessage || response.trim()) {
+        await options?.onNotice?.({
+          kind: "status",
+          message:
+            "Native planning stalled on this local task, so I switched to the direct workspace executor.",
+        });
+      }
       response = await executeDirectLocalIntent(
         directLocalIntent,
         sessionId,
@@ -7281,10 +7245,7 @@ export async function handleAgentTurn(
     });
   }
 
-  const finalResponse =
-    options?.onNotice && localInteractive
-      ? baseResponse
-      : baseResponse + (usageWarning ?? "") + (skillNudge ?? "");
+  const finalResponse = baseResponse;
 
   context.services.sessions.storeMessage({
     id: randomUUID(),

@@ -39,6 +39,7 @@ import { SettingsService } from "./settings-service";
 import { SkillSynthesisService } from "./skill-synthesis-service";
 import { SkillsHubService } from "./skills-hub-service";
 import { SkillsService } from "./skills-service";
+import { StartupStateService } from "./startup-state-service";
 import { TerminalService } from "./terminal-service";
 import { ToolsService } from "./tools-service";
 import { TrajectoryService } from "./trajectory-service";
@@ -85,6 +86,7 @@ export interface AppServices {
   contextCompression: ContextCompressionService;
   fuzzyPatch: FuzzyPatchService;
   runController: RunControllerService;
+  startupState: StartupStateService;
 }
 
 function createLazySlot<T>(factory: () => T): {
@@ -117,6 +119,7 @@ export function createServices(
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
   const nativeOwnership = new NativeOwnershipCache(config, gatewayConfig);
+  const startupState = new StartupStateService();
   const cloudInferenceEnabled = config.elizaCloudEnabled;
   const provider:
     | "anthropic"
@@ -516,43 +519,92 @@ export function createServices(
   );
   const repository = new RepositoryService(config.workspaceDir);
   const runController = new RunControllerService();
-  const ecosystem = createLazySlot(() => new EcosystemService());
+  const ecosystem = createLazySlot(() => {
+    startupState.markWarming("ecosystem", "loading ecosystem inventory");
+    try {
+      const service = new EcosystemService();
+      startupState.markReady("ecosystem", "ecosystem inventory ready");
+      return service;
+    } catch (error) {
+      startupState.markError(
+        "ecosystem",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
+  });
   const autocoderPipeline = createLazySlot(
     () => new AutocoderPipelineService(join(config.dataDir, "autocoder")),
   );
   const diagnostics = createLazySlot(() => {
-    const service = new DiagnosticsService(
-      config,
-      gatewayConfig,
-      agentSdk,
-      nativeOwnership,
-      ecosystem.get(),
-      settings,
-      runController,
-    );
-    if (boundRuntime) {
-      service.attachRuntime(boundRuntime);
+    startupState.markWarming("diagnostics", "building operator diagnostics");
+    try {
+      const service = new DiagnosticsService(
+        config,
+        gatewayConfig,
+        agentSdk,
+        nativeOwnership,
+        ecosystem.get(),
+        settings,
+        runController,
+        startupState,
+      );
+      if (boundRuntime) {
+        service.attachRuntime(boundRuntime);
+      }
+      startupState.markReady("diagnostics", "operator diagnostics ready");
+      return service;
+    } catch (error) {
+      startupState.markError(
+        "diagnostics",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
     }
-    return service;
   });
   const operator = createLazySlot(() => {
-    const service = new OperatorService(
-      config,
-      diagnostics.get(),
-      repository,
-      autocoderPipeline.get(),
-      agentSdk,
-      nativeOwnership,
-      ecosystem.get(),
-    );
-    if (boundRuntime) {
-      service.attachRuntime(boundRuntime);
+    startupState.markWarming("operator", "building operator summaries");
+    try {
+      const service = new OperatorService(
+        config,
+        diagnostics.get(),
+        repository,
+        autocoderPipeline.get(),
+        agentSdk,
+        nativeOwnership,
+        ecosystem.get(),
+      );
+      if (boundRuntime) {
+        service.attachRuntime(boundRuntime);
+      }
+      startupState.markReady("operator", "operator summaries ready");
+      return service;
+    } catch (error) {
+      startupState.markError(
+        "operator",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
     }
-    return service;
   });
-  const skills = createLazySlot(
-    () => new SkillsService(config.skillsDir, agentSdk, config.workspaceDir),
-  );
+  const skills = createLazySlot(() => {
+    startupState.markWarming("skills", "loading workspace and bundled skills");
+    try {
+      const service = new SkillsService(
+        config.skillsDir,
+        agentSdk,
+        config.workspaceDir,
+      );
+      startupState.markReady("skills", "skills catalog ready");
+      return service;
+    } catch (error) {
+      startupState.markError(
+        "skills",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
+  });
   const skillSynthesis = createLazySlot(
     () => new SkillSynthesisService(config.skillsDir),
   );
@@ -817,6 +869,7 @@ export function createServices(
       fuzzyPatch.set(value);
     },
     runController,
+    startupState,
   } satisfies AppServices & {
     __bindRuntime?: (nextRuntime: NonNullable<typeof runtime>) => void;
   };

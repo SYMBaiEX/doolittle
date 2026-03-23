@@ -42,6 +42,7 @@ export interface EnvConfig {
   elizaCloudSmallModel: string;
   elizaCloudLargeModel: string;
   openAiApiKey?: string;
+  offlineBootstrapMode: boolean;
   useLinkedCodexAuth: boolean;
   openAiBaseUrl: string;
   openAiModel: string;

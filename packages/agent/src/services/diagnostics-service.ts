@@ -27,6 +27,7 @@ import type { AgentSdkService } from "./agent-sdk-service";
 import type { EcosystemService } from "./ecosystem-service";
 import type { RunControllerService } from "./run-controller-service";
 import type { SettingsService } from "./settings-service";
+import type { StartupStateService } from "./startup-state-service";
 
 export class DiagnosticsService {
   private runtime?: RuntimeLike;
@@ -39,6 +40,7 @@ export class DiagnosticsService {
     private readonly ecosystemService?: EcosystemService,
     private readonly settings?: SettingsService,
     private readonly runController?: RunControllerService,
+    private readonly startupState?: StartupStateService,
   ) {}
 
   attachRuntime(runtime: RuntimeLike): void {
@@ -231,13 +233,15 @@ export class DiagnosticsService {
       detail:
         this.config.openAiApiKey || this.config.anthropicApiKey
           ? "At least one provider key is present."
-          : linkedAccounts.codex.nativeReady ||
-              linkedAccounts.claudeCode.nativeReady
-            ? "A native linked Codex or Claude Code account is available."
-            : linkedAccounts.codex.reusable ||
-                linkedAccounts.claudeCode.reusable
-              ? "A linked provider fallback path is available, but native auth may still need to be completed."
-              : "No OpenAI, Anthropic, Codex, or Claude Code provider credentials are configured. Runtime will stay in offline fallback mode.",
+          : this.config.offlineBootstrapMode
+            ? "Explicit offline bootstrap mode is enabled; runtime can answer without a live provider while onboarding."
+            : linkedAccounts.codex.nativeReady ||
+                linkedAccounts.claudeCode.nativeReady
+              ? "A native linked Codex or Claude Code account is available."
+              : linkedAccounts.codex.reusable ||
+                  linkedAccounts.claudeCode.reusable
+                ? "A linked provider fallback path is available, but native auth may still need to be completed."
+                : "No OpenAI, Anthropic, Codex, or Claude Code provider credentials are configured, and explicit offline bootstrap mode is disabled.",
     });
 
     checks.push({
@@ -699,6 +703,7 @@ export class DiagnosticsService {
     const toolProgressMode =
       runtimeSettings?.agent.toolProgressMode ?? this.config.toolProgressMode;
     const autonomousAlignment = describeAutonomousAlignment(this.config);
+    const startupSnapshot = this.startupState?.getSnapshot();
     const runtimeBridgeAttached =
       this.runController?.hasRuntimeBridge() ?? false;
     checks.push({
@@ -708,10 +713,31 @@ export class DiagnosticsService {
       detail: `multiStep=true runtimeBridge=${runtimeBridgeAttached ? "attached" : "missing"} runDepth=${runDepth} maxIterations=${maxIterations} toolProgress=${toolProgressMode}`,
     });
     checks.push({
+      id: "runtime.startup-hydration",
+      status:
+        startupSnapshot?.hotPathReady && startupSnapshot?.deferredReady
+          ? "pass"
+          : startupSnapshot?.hotPathReady
+            ? "warn"
+            : "warn",
+      summary: "Startup hydration state",
+      detail: startupSnapshot
+        ? `hotPath=${startupSnapshot.hotPathReady ? "ready" : "warming"} runtime=${startupSnapshot.phases.runtime.status} gateway=${startupSnapshot.phases.gateway.status} cron=${startupSnapshot.phases.cron.status} diagnostics=${startupSnapshot.phases.diagnostics.status} operator=${startupSnapshot.phases.operator.status} ecosystem=${startupSnapshot.phases.ecosystem.status} skills=${startupSnapshot.phases.skills.status}`
+        : "Startup hydration state is unavailable.",
+    });
+    checks.push({
       id: "autonomous.connection",
       status: autonomousAlignment.connection.configured ? "pass" : "warn",
       summary: "Native autonomous connection view",
       detail: `${autonomousAlignment.connection.kind} source=${autonomousAlignment.connection.source} ${autonomousAlignment.connection.detail}`,
+    });
+    checks.push({
+      id: "provider.offline-bootstrap",
+      status: this.config.offlineBootstrapMode ? "warn" : "pass",
+      summary: "Explicit offline bootstrap fallback",
+      detail: this.config.offlineBootstrapMode
+        ? "Offline bootstrap mode is enabled; product fallback models may answer when no official provider is configured."
+        : "Offline bootstrap mode is disabled; a real provider is required for model-backed answers.",
     });
     checks.push({
       id: "runtime.approvals",

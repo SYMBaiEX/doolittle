@@ -42,6 +42,10 @@ const schema = z.object({
     .default("anthropic/claude-haiku-4-5-20251001"),
   ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("anthropic/claude-sonnet-4.6"),
   OPENAI_API_KEY: z.string().optional(),
+  ELIZA_AGENT_OFFLINE_BOOTSTRAP: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   ELIZA_AGENT_USE_LINKED_CODEX_AUTH: z
     .enum(["true", "false"])
     .default("false")
@@ -247,6 +251,7 @@ export function loadConfig(): EnvConfig {
     elizaCloudSmallModel: values.ELIZAOS_CLOUD_SMALL_MODEL,
     elizaCloudLargeModel: values.ELIZAOS_CLOUD_LARGE_MODEL,
     openAiApiKey: values.OPENAI_API_KEY,
+    offlineBootstrapMode: values.ELIZA_AGENT_OFFLINE_BOOTSTRAP,
     useLinkedCodexAuth: values.ELIZA_AGENT_USE_LINKED_CODEX_AUTH,
     openAiBaseUrl: values.OPENAI_BASE_URL,
     openAiModel: values.OPENAI_MODEL,
