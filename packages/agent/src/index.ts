@@ -82,6 +82,32 @@ function resolveSubcommand(): { command: Subcommand; rest: string[] } {
   };
 }
 
+function formatTopLevelError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+  return String(error);
+}
+
+function isRecoverableTopLevelRuntimeError(error: unknown): boolean {
+  const normalized = formatTopLevelError(error).toLowerCase();
+  return [
+    "cannot connect to api",
+    "unable to connect",
+    "failedtoopensocket",
+    "connectionrefused",
+    "rate limit",
+    "unauthorized",
+    "no output generated",
+    "database is shutting down",
+    "operation rejected",
+    "pglite startup failed after automatic recovery",
+  ].some((fragment) => normalized.includes(fragment));
+}
+
 // ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
@@ -156,36 +182,44 @@ async function main(): Promise<void> {
     command === "plain" ||
     (wantsCli && process.stdin.isTTY);
 
-  if (wantsApi || command === "api" || command === "gateway") {
-    const startServer = async () => {
-      try {
-        await context.ensureDeferredHydration("api");
-        startApiServer(context);
-        if (!shouldStartCli || command === "api" || command === "gateway") {
-          console.log(
-            `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
-          );
-        }
-      } catch (error) {
-        const code =
-          error instanceof Error && "code" in error ? String(error.code) : "";
-        if (
-          code === "EADDRINUSE" &&
-          command !== "api" &&
-          command !== "gateway"
-        ) {
-          console.warn(
-            `API port ${context.config.port} is already in use. Continuing with local CLI only.`,
-          );
-        } else {
-          throw error;
-        }
+  const shouldStartApi = wantsApi || command === "api" || command === "gateway";
+  let backgroundServerStarted = false;
+  const startServer = async () => {
+    try {
+      await context.ensureDeferredHydration("api");
+      startApiServer(context);
+      if (!shouldStartCli || command === "api" || command === "gateway") {
+        console.log(
+          `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
+        );
       }
-    };
+    } catch (error) {
+      const code =
+        error instanceof Error && "code" in error ? String(error.code) : "";
+      if (code === "EADDRINUSE" && command !== "api" && command !== "gateway") {
+        console.warn(
+          `API port ${context.config.port} is already in use. Continuing with local CLI only.`,
+        );
+      } else {
+        throw error;
+      }
+    }
+  };
+  const startServerWhenShellReady = () => {
+    if (!shouldStartApi || backgroundServerStarted) {
+      return;
+    }
+    backgroundServerStarted = true;
+    void startServer().catch((error) => {
+      console.warn(
+        `Background API startup failed: ${formatTopLevelError(error)}`,
+      );
+    });
+  };
+
+  if (shouldStartApi) {
     if (command === "api" || command === "gateway" || !shouldStartCli) {
       await startServer();
-    } else {
-      void startServer();
     }
   }
 
@@ -198,7 +232,9 @@ async function main(): Promise<void> {
     if (command === "plain") {
       Bun.argv.push("--plain-cli");
     }
-    await startCli(context);
+    await startCli(context, {
+      onReady: startServerWhenShellReady,
+    });
   } else if (!wantsApi && command !== "api") {
     console.log(
       `${context.config.agentName} initialized. Set ELIZA_AGENT_MODE=cli|api|both or use --cli.`,
@@ -207,6 +243,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error);
+  if (isRecoverableTopLevelRuntimeError(error)) {
+    console.error(formatTopLevelError(error));
+  } else {
+    console.error(error);
+  }
   process.exit(1);
 });

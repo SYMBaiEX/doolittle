@@ -296,8 +296,15 @@ async function initializeRuntimeWithRecovery(
     process.env.PGLITE_DATA_DIR = pgliteDataDir;
     await resetPluginSqlPgliteSingleton();
     runtime = createRuntime();
-    await runtime.initialize();
-    return runtime;
+    try {
+      await runtime.initialize();
+      return runtime;
+    } catch (retryErr) {
+      void retryErr;
+      throw new Error(
+        `PGLite startup failed after automatic recovery at ${pgliteDataDir}. Run \`eliza-agent doctor\` or remove the local DB directory if it is still corrupted.`,
+      );
+    }
   }
 }
 

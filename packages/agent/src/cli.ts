@@ -165,7 +165,10 @@ function isRecoverableProviderError(error: unknown): boolean {
     normalized.includes("no output generated") ||
     normalized.includes("unauthorized") ||
     normalized.includes("rate limit") ||
-    normalized.includes("429")
+    normalized.includes("429") ||
+    normalized.includes("database is shutting down") ||
+    normalized.includes("operation rejected") ||
+    normalized.includes("failed query: create schema")
   );
 }
 
@@ -908,7 +911,14 @@ async function executeCliInput(
   return { text: response, tone: "agent" };
 }
 
-async function startPlainCli(context: AppContext): Promise<void> {
+interface StartCliOptions {
+  onReady?: () => void;
+}
+
+async function startPlainCli(
+  context: AppContext,
+  options?: StartCliOptions,
+): Promise<void> {
   const rl = createInterface({ input, output });
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   let closed = false;
@@ -949,7 +959,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
     }
     logFatal("plain-cli-recoverable", error);
     output.write(
-      `\nProvider error: ${formatRecoverableProviderError(error)}\n\n`,
+      `\nRuntime error: ${formatRecoverableProviderError(error)}\n\n`,
     );
     return true;
   };
@@ -981,56 +991,64 @@ async function startPlainCli(context: AppContext): Promise<void> {
 
   rl.on("close", () => {
     closed = true;
-    unsubscribeRunUpdates();
-    process.removeListener("uncaughtException", handleUncaughtException);
-    process.removeListener("unhandledRejection", handleUnhandledRejection);
   });
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
     `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
   );
+  options?.onReady?.();
   if (input.isTTY && output.isTTY) {
     setTimeout(() => {
       void context.ensureDeferredHydration("plain-cli");
     }, 25).unref?.();
   }
-
-  while (true) {
-    let line = "";
-    try {
-      line = (await rl.question("> ")).trim();
-    } catch (error) {
-      if (
-        closed ||
-        (error instanceof Error &&
-          "code" in error &&
-          error.code === "ERR_USE_AFTER_CLOSE")
-      ) {
-        break;
+  try {
+    while (true) {
+      let line = "";
+      try {
+        line = (await rl.question("> ")).trim();
+      } catch (error) {
+        if (
+          closed ||
+          (error instanceof Error &&
+            "code" in error &&
+            error.code === "ERR_USE_AFTER_CLOSE")
+        ) {
+          break;
+        }
+        throw error;
       }
-      throw error;
-    }
 
-    if (!line) {
-      continue;
-    }
-
-    try {
-      const result = await executeCliInput(line, context, state);
-      if (result.text) {
-        output.write(`\n${result.text}\n\n`);
+      if (!line) {
+        continue;
       }
-      if (result.shouldExit) {
-        break;
-      }
-    } catch (error) {
-      output.write(`\nError: ${getCliErrorMessage(error)}\n\n`);
-    }
-  }
 
-  if (!closed) {
-    rl.close();
+      try {
+        const result = await executeCliInput(line, context, state);
+        if (result.text) {
+          output.write(`\n${result.text}\n\n`);
+        }
+        if (!input.isTTY) {
+          break;
+        }
+        if (result.shouldExit) {
+          break;
+        }
+      } catch (error) {
+        output.write(`\nError: ${getCliErrorMessage(error)}\n\n`);
+      }
+    }
+  } finally {
+    if (!closed) {
+      rl.close();
+    }
+    unsubscribeRunUpdates();
+    process.removeListener("uncaughtException", handleUncaughtException);
+    process.removeListener("unhandledRejection", handleUnhandledRejection);
+    if (!input.isTTY) {
+      process.exit(0);
+    }
   }
 }
 
@@ -1146,7 +1164,10 @@ export function renderFooter(
   ].join("  |  ");
 }
 
-async function startTui(context: AppContext): Promise<void> {
+async function startTui(
+  context: AppContext,
+  options?: StartCliOptions,
+): Promise<void> {
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   const unsubscribers: Array<() => void> = [];
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
@@ -2860,6 +2881,7 @@ async function startTui(context: AppContext): Promise<void> {
   inputBox.focus();
   updateFooterHint();
   screen.render();
+  options?.onReady?.();
   setTimeout(() => {
     void context.ensureDeferredHydration("tui");
   }, 25).unref?.();
@@ -2881,22 +2903,25 @@ async function startTui(context: AppContext): Promise<void> {
   });
 }
 
-export async function startCli(context: AppContext): Promise<void> {
+export async function startCli(
+  context: AppContext,
+  options?: StartCliOptions,
+): Promise<void> {
   const forcePlain = Bun.argv.includes("--plain-cli");
   const canUseTui = input.isTTY && output.isTTY && !forcePlain;
 
   if (!canUseTui) {
-    await startPlainCli(context);
+    await startPlainCli(context, options);
     return;
   }
 
   try {
-    await startTui(context);
+    await startTui(context, options);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.warn(
       `${context.config.agentName} TUI failed to start (${detail}). Falling back to plain CLI.`,
     );
-    await startPlainCli(context);
+    await startPlainCli(context, options);
   }
 }
