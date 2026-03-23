@@ -74,6 +74,11 @@ function makeSettings(): RuntimeSettings {
       serverCommand: "",
       timeoutMs: 5_000,
     },
+    agent: {
+      runDepth: "standard",
+      maxIterations: 45,
+      toolProgressMode: "new",
+    },
     ui: {
       theme: "orange",
     },

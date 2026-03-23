@@ -20,6 +20,7 @@ import {
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
 import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
+import type { RunUpdateEvent } from "@/services/run-controller-service";
 
 interface CliState {
   activeSessionId: string;
@@ -111,6 +112,90 @@ function truncate(text: string, max = 520): string {
 
 function escapeBlessed(text: string): string {
   return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
+}
+
+function getCliErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+  return String(error);
+}
+
+function isRecoverableProviderError(error: unknown): boolean {
+  const normalized = getCliErrorMessage(error).toLowerCase();
+  return (
+    normalized.includes("cannot connect to api") ||
+    normalized.includes("unable to connect") ||
+    normalized.includes("failedtoopensocket") ||
+    normalized.includes("connectionrefused") ||
+    normalized.includes("no output generated") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("429")
+  );
+}
+
+function formatRecoverableProviderError(error: unknown): string {
+  const detail = getCliErrorMessage(error);
+  return detail.length > 280 ? `${detail.slice(0, 277)}...` : detail;
+}
+
+function shouldRenderRunEvent(
+  mode: "off" | "new" | "all" | "verbose",
+  event: RunUpdateEvent,
+): boolean {
+  if (mode === "off") {
+    return false;
+  }
+  if (mode === "new") {
+    return [
+      "started",
+      "action-started",
+      "action-completed",
+      "completed",
+      "error",
+      "approvals",
+    ].includes(event.type);
+  }
+  if (mode === "all") {
+    return event.type !== "message";
+  }
+  return true;
+}
+
+function formatRunEvent(event: RunUpdateEvent): string | undefined {
+  switch (event.type) {
+    case "started":
+      return `run started (${event.run.runDepth}, cap ${event.run.configuredMaxIterations})`;
+    case "thinking":
+      return "thinking";
+    case "acting":
+    case "action-started":
+      return event.run.activeAction
+        ? `acting: ${truncate(event.run.activeAction, 88)}`
+        : `acting (${event.run.observedActionCount} observed steps)`;
+    case "action-completed":
+      return event.run.lastAction
+        ? `completed: ${truncate(event.run.lastAction, 88)}`
+        : "action completed";
+    case "waiting":
+      return "waiting for next step";
+    case "approvals":
+      return `pending approvals: ${event.run.pendingApprovals}`;
+    case "completed":
+      return `run complete (${event.run.observedActionCount} observed steps)`;
+    case "error":
+      return event.run.errorMessage
+        ? `run error: ${truncate(event.run.errorMessage, 120)}`
+        : "run error";
+    case "message":
+      return "message activity";
+    default:
+      return undefined;
+  }
 }
 
 export function renderResponseTranscript(
@@ -228,6 +313,8 @@ function buildHelpText(agentName: string): string {
     `  ${command("/trajectories ingest gateway label:review limit:100")}`,
     `  ${command("/accounts")}`,
     `  ${command("/accounts doctor")}`,
+    `  ${command("/mode")}`,
+    `  ${command("/progress")}`,
     `  ${command("/accounts connect codex")}`,
     `  ${command("/accounts connect claude-code")}`,
     "  !git status",
@@ -642,6 +729,8 @@ function renderSuggestionsContent(inputValue: string): string {
       "{bold}Operator{/}",
       `- ${canonicalizeSlashCommandSyntax("/status")}`,
       `- ${canonicalizeSlashCommandSyntax("/accounts")}`,
+      `- ${canonicalizeSlashCommandSyntax("/mode")}`,
+      `- ${canonicalizeSlashCommandSyntax("/progress")}`,
       `- ${canonicalizeSlashCommandSyntax("/theme list")}`,
       `- ${canonicalizeSlashCommandSyntax("/gateway readiness")}`,
       "",
@@ -847,14 +936,83 @@ async function startPlainCli(context: AppContext): Promise<void> {
   const rl = createInterface({ input, output });
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   let closed = false;
+  const crashLogPath = join(context.config.dataDir, "cli-crash.log");
+  const unsubscribeRunUpdates = context.services.runController.onUpdate(
+    (event) => {
+      if (event.sessionId !== state.activeSessionId) {
+        return;
+      }
+      if (!shouldRenderRunEvent(event.run.progressMode, event)) {
+        return;
+      }
+      const detail = formatRunEvent(event);
+      if (!detail) {
+        return;
+      }
+      output.write(`\n[run] ${detail}\n`);
+    },
+  );
+
+  const logFatal = (label: string, error: unknown) => {
+    const detail =
+      error instanceof Error ? error.stack || error.message : String(error);
+    try {
+      appendFileSync(
+        crashLogPath,
+        `[${new Date().toISOString()}] ${label}\n${detail}\n\n`,
+        "utf8",
+      );
+    } catch {
+      // Best effort only.
+    }
+  };
+
+  const handleRecoverableRuntimeError = (error: unknown): boolean => {
+    if (closed || !isRecoverableProviderError(error)) {
+      return false;
+    }
+    logFatal("plain-cli-recoverable", error);
+    output.write(
+      `\nProvider error: ${formatRecoverableProviderError(error)}\n\n`,
+    );
+    return true;
+  };
+
+  const handleUncaughtException = (error: unknown) => {
+    if (handleRecoverableRuntimeError(error)) {
+      return;
+    }
+    logFatal("plain-cli-uncaughtException", error);
+    output.write(`\nFatal CLI error. Crash log: ${crashLogPath}\n`);
+    if (!closed) {
+      rl.close();
+    }
+  };
+
+  const handleUnhandledRejection = (error: unknown) => {
+    if (handleRecoverableRuntimeError(error)) {
+      return;
+    }
+    logFatal("plain-cli-unhandledRejection", error);
+    output.write(`\nFatal CLI rejection. Crash log: ${crashLogPath}\n`);
+    if (!closed) {
+      rl.close();
+    }
+  };
+
+  process.on("uncaughtException", handleUncaughtException);
+  process.on("unhandledRejection", handleUnhandledRejection);
 
   rl.on("close", () => {
     closed = true;
+    unsubscribeRunUpdates();
+    process.removeListener("uncaughtException", handleUncaughtException);
+    process.removeListener("unhandledRejection", handleUnhandledRejection);
   });
 
   output.write(`${context.config.agentName} CLI\n`);
   output.write(
-    `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
+    `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
   );
 
   while (true) {
@@ -886,9 +1044,7 @@ async function startPlainCli(context: AppContext): Promise<void> {
         break;
       }
     } catch (error) {
-      output.write(
-        `\nError: ${error instanceof Error ? error.message : String(error)}\n\n`,
-      );
+      output.write(`\nError: ${getCliErrorMessage(error)}\n\n`);
     }
   }
 
@@ -899,6 +1055,9 @@ async function startPlainCli(context: AppContext): Promise<void> {
 
 function renderStatusContent(context: AppContext, state: CliState): string {
   const settings = context.services.settings.get();
+  const activeRun = context.services.runController.getActive(
+    state.activeSessionId,
+  );
   const plugins = getNativePluginCatalog(context.config);
   const audit = getNativePackageAudit(context.config);
   const sessions = context.services.sessions.listSessions(6);
@@ -918,6 +1077,10 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `Provider: {cyan-fg}${settings.model.provider}{/}`,
     `Model: {cyan-fg}${settings.model.model}{/}`,
     `Theme: {yellow-fg}${settings.ui.theme}{/}`,
+    `Run: {yellow-fg}${settings.agent.runDepth}{/} cap={yellow-fg}${settings.agent.maxIterations}{/} progress={yellow-fg}${settings.agent.toolProgressMode}{/}`,
+    activeRun
+      ? `Observed: {green-fg}${activeRun.status}{/} steps={green-fg}${activeRun.observedActionCount}{/}${activeRun.activeAction ? ` action={cyan-fg}${escapeBlessed(truncate(activeRun.activeAction, 26))}{/}` : ""}`
+      : "{gray-fg}Observed: idle{/}",
     active?.title
       ? `Session: {green-fg}${truncate(active.title, 28)}{/}`
       : `Session: {green-fg}${state.activeSessionId}{/}`,
@@ -969,14 +1132,18 @@ export function renderFooter(
   hint = "Esc input",
   busyFrame = "•",
 ): string {
+  const settings = context.services.settings.get();
   return [
     `${context.config.agentName} TUI`,
     busy
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
       : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
-    `{cyan-fg}${escapeBlessed(context.services.settings.get().model.provider)}{/}`,
-    `{cyan-fg}${escapeBlessed(context.services.settings.get().model.model)}{/}`,
+    `{cyan-fg}${escapeBlessed(settings.model.provider)}{/}`,
+    `{cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
+    `{yellow-fg}${escapeBlessed(settings.agent.runDepth)}{/}`,
+    `{yellow-fg}cap:${settings.agent.maxIterations}{/}`,
+    `{yellow-fg}prog:${escapeBlessed(settings.agent.toolProgressMode)}{/}`,
     "{magenta-fg}Tab{/} complete",
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} palette`,
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-E"))}{/} compose`,
@@ -2127,6 +2294,17 @@ async function startTui(context: AppContext): Promise<void> {
   };
 
   const handleUncaughtException = (error: unknown) => {
+    if (!screenDestroyed && isRecoverableProviderError(error)) {
+      logFatal("recoverableRuntimeError", error);
+      stopBusySpinner();
+      busy = false;
+      const detail = formatRecoverableProviderError(error);
+      appendActivity("runtime", detail, "error");
+      pushResponseEntry(context.config.agentName, `Error: ${detail}`);
+      liveResponse = undefined;
+      scheduleRefreshPanels(0);
+      return;
+    }
     logFatal("uncaughtException", error);
     if (!screenDestroyed) {
       screen.destroy();
@@ -2136,6 +2314,17 @@ async function startTui(context: AppContext): Promise<void> {
   };
 
   const handleUnhandledRejection = (error: unknown) => {
+    if (!screenDestroyed && isRecoverableProviderError(error)) {
+      logFatal("recoverableRuntimeRejection", error);
+      stopBusySpinner();
+      busy = false;
+      const detail = formatRecoverableProviderError(error);
+      appendActivity("runtime", detail, "error");
+      pushResponseEntry(context.config.agentName, `Error: ${detail}`);
+      liveResponse = undefined;
+      scheduleRefreshPanels(0);
+      return;
+    }
     logFatal("unhandledRejection", error);
     if (!screenDestroyed) {
       screen.destroy();
@@ -2416,6 +2605,42 @@ async function startTui(context: AppContext): Promise<void> {
     }),
   );
   unsubscribers.push(
+    context.services.runController.onUpdate((event) => {
+      if (event.sessionId !== state.activeSessionId) {
+        scheduleRefreshPanels();
+        return;
+      }
+      if (event.type === "approvals" && event.run.pendingApprovals > 0) {
+        pushNotice(
+          "status",
+          `Pending execution approvals: ${event.run.pendingApprovals}`,
+        );
+      }
+      if (!shouldRenderRunEvent(event.run.progressMode, event)) {
+        scheduleRefreshPanels();
+        return;
+      }
+      const detail = formatRunEvent(event);
+      if (!detail) {
+        scheduleRefreshPanels();
+        return;
+      }
+      appendActivity(
+        "run",
+        truncate(detail, 160),
+        event.type === "error"
+          ? "warning"
+          : event.type === "completed"
+            ? "success"
+            : "info",
+      );
+      if (busy) {
+        pushLiveToolEvent(detail);
+      }
+      scheduleRefreshPanels(0);
+    }),
+  );
+  unsubscribers.push(
     context.services.sessions.onActivity((event) => {
       if (
         event.sessionId === state.activeSessionId &&
@@ -2450,7 +2675,7 @@ async function startTui(context: AppContext): Promise<void> {
   );
   pushResponseEntry(
     "Helm Ready",
-    `You are live in the Eliza Agent helm.\n\nTalk to me normally, or run a shell action like !git status.\n\nFor operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/execution status")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
+    `You are live in the Eliza Agent helm.\n\nTalk to me normally, or run a shell action like !git status.\n\nFor operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
   );
   transportBox.setContent(await renderTransportContent(context));
   executionBox.setContent(await renderExecutionContent(context));

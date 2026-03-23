@@ -6,6 +6,8 @@ import type {
   ExecutionBackendName,
   RemoteArtifactPolicy,
   RemoteWorkspaceSyncMode,
+  RunDepth,
+  ToolProgressMode,
 } from "@/types";
 
 export interface RuntimeSettings {
@@ -66,6 +68,11 @@ export interface RuntimeSettings {
     serverCommand: string;
     timeoutMs: number;
   };
+  agent: {
+    runDepth: RunDepth;
+    maxIterations: number;
+    toolProgressMode: ToolProgressMode;
+  };
   ui: {
     theme: TuiThemeName;
   };
@@ -73,10 +80,12 @@ export interface RuntimeSettings {
 
 export class SettingsService {
   private readonly filePath: string;
+  private readonly defaults: RuntimeSettings;
 
   constructor(baseDir: string, defaults: RuntimeSettings) {
     mkdirSync(baseDir, { recursive: true });
     this.filePath = join(baseDir, "settings.json");
+    this.defaults = defaults;
     if (!existsSync(this.filePath)) {
       this.write(defaults);
     }
@@ -95,252 +104,234 @@ export class SettingsService {
     const execution = parsed.execution;
     if (!execution) {
       parsed.execution = {
-        backend: "local",
-        remoteSyncMode: "mirror",
-        remoteSyncInclude: ["**/*"],
-        remoteSyncExclude: [
-          ".git",
-          ".eliza-agent",
-          "node_modules",
-          "dist",
-          "coverage",
-          ".cache",
-          ".turbo",
-          ".DS_Store",
-        ],
-        remoteArtifactPaths: [
-          ".eliza-agent/remote-artifacts",
-          ".eliza-agent/trajectories",
-          ".eliza-agent/cron-output",
-        ],
-        remoteArtifactPolicy: "metadata-only",
-        remoteWorkspaceLabel: "eliza-agent-workspace",
-        dockerImage: "oven/bun:latest",
-        dockerNetwork: "host",
-        dockerWorkspacePath: "/workspace",
-        dockerEnvPassthrough: ["PATH", "HOME"],
-        singularityImage: "",
-        daytonaTarget: "",
-        daytonaCommand: "",
-        daytonaShell: "/bin/sh",
-        daytonaWorkspacePath: "/workspace",
-        daytonaSnapshot: "",
-        daytonaBootstrapCommand: "",
-        daytonaStatusCommand: "",
-        daytonaInspectCommand: "",
-        modalTarget: "",
-        modalCommand: "",
-        modalShell: "/bin/bash",
-        modalWorkspacePath: "/workspace",
-        modalEnvironment: "",
-        modalBootstrapCommand: "",
-        modalStatusCommand: "",
-        modalInspectCommand: "",
-        commandTimeoutMs: 30_000,
-        healthTimeoutMs: 5_000,
-        containerCpuLimit: "2",
-        containerMemoryLimit: "2g",
-        containerPidsLimit: 256,
-        containerReadOnlyRoot: true,
-        sshHost: "",
-        sshUser: "",
-        sshPath: "",
-        sshPort: 22,
-        sshKeyPath: "",
-        sshStrictHostKeyChecking: false,
+        ...this.defaults.execution,
       };
       dirty = true;
     } else {
       if (execution.remoteSyncMode === undefined) {
-        parsed.execution.remoteSyncMode = "mirror";
+        parsed.execution.remoteSyncMode =
+          this.defaults.execution.remoteSyncMode;
         dirty = true;
       }
       if (
         !Array.isArray(execution.remoteSyncInclude) ||
         execution.remoteSyncInclude.length === 0
       ) {
-        parsed.execution.remoteSyncInclude = ["**/*"];
+        parsed.execution.remoteSyncInclude =
+          this.defaults.execution.remoteSyncInclude;
         dirty = true;
       }
       if (
         !Array.isArray(execution.remoteSyncExclude) ||
         execution.remoteSyncExclude.length === 0
       ) {
-        parsed.execution.remoteSyncExclude = [
-          ".git",
-          ".eliza-agent",
-          "node_modules",
-          "dist",
-          "coverage",
-          ".cache",
-          ".turbo",
-          ".DS_Store",
-        ];
+        parsed.execution.remoteSyncExclude =
+          this.defaults.execution.remoteSyncExclude;
         dirty = true;
       }
       if (
         !Array.isArray(execution.remoteArtifactPaths) ||
         execution.remoteArtifactPaths.length === 0
       ) {
-        parsed.execution.remoteArtifactPaths = [
-          ".eliza-agent/remote-artifacts",
-          ".eliza-agent/trajectories",
-          ".eliza-agent/cron-output",
-        ];
+        parsed.execution.remoteArtifactPaths =
+          this.defaults.execution.remoteArtifactPaths;
         dirty = true;
       }
       if (execution.remoteArtifactPolicy === undefined) {
-        parsed.execution.remoteArtifactPolicy = "metadata-only";
+        parsed.execution.remoteArtifactPolicy =
+          this.defaults.execution.remoteArtifactPolicy;
         dirty = true;
       }
       if (execution.remoteWorkspaceLabel === undefined) {
-        parsed.execution.remoteWorkspaceLabel = "eliza-agent-workspace";
+        parsed.execution.remoteWorkspaceLabel =
+          this.defaults.execution.remoteWorkspaceLabel;
         dirty = true;
       }
       if (execution.dockerNetwork === undefined) {
-        parsed.execution.dockerNetwork = "host";
+        parsed.execution.dockerNetwork = this.defaults.execution.dockerNetwork;
         dirty = true;
       }
       if (execution.dockerWorkspacePath === undefined) {
-        parsed.execution.dockerWorkspacePath = "/workspace";
+        parsed.execution.dockerWorkspacePath =
+          this.defaults.execution.dockerWorkspacePath;
         dirty = true;
       }
       if (!Array.isArray(execution.dockerEnvPassthrough)) {
-        parsed.execution.dockerEnvPassthrough = ["PATH", "HOME"];
+        parsed.execution.dockerEnvPassthrough =
+          this.defaults.execution.dockerEnvPassthrough;
         dirty = true;
       }
       if (execution.singularityImage === undefined) {
-        parsed.execution.singularityImage = "";
+        parsed.execution.singularityImage =
+          this.defaults.execution.singularityImage;
         dirty = true;
       }
       if (execution.daytonaTarget === undefined) {
-        parsed.execution.daytonaTarget = "";
+        parsed.execution.daytonaTarget = this.defaults.execution.daytonaTarget;
         dirty = true;
       }
       if (execution.daytonaCommand === undefined) {
-        parsed.execution.daytonaCommand = "";
+        parsed.execution.daytonaCommand =
+          this.defaults.execution.daytonaCommand;
         dirty = true;
       }
       if (execution.daytonaShell === undefined) {
-        parsed.execution.daytonaShell = "/bin/sh";
+        parsed.execution.daytonaShell = this.defaults.execution.daytonaShell;
         dirty = true;
       }
       if (execution.daytonaWorkspacePath === undefined) {
-        parsed.execution.daytonaWorkspacePath = "/workspace";
+        parsed.execution.daytonaWorkspacePath =
+          this.defaults.execution.daytonaWorkspacePath;
         dirty = true;
       }
       if (execution.daytonaSnapshot === undefined) {
-        parsed.execution.daytonaSnapshot = "";
+        parsed.execution.daytonaSnapshot =
+          this.defaults.execution.daytonaSnapshot;
         dirty = true;
       }
       if (execution.daytonaBootstrapCommand === undefined) {
-        parsed.execution.daytonaBootstrapCommand = "";
+        parsed.execution.daytonaBootstrapCommand =
+          this.defaults.execution.daytonaBootstrapCommand;
         dirty = true;
       }
       if (execution.daytonaStatusCommand === undefined) {
-        parsed.execution.daytonaStatusCommand = "";
+        parsed.execution.daytonaStatusCommand =
+          this.defaults.execution.daytonaStatusCommand;
         dirty = true;
       }
       if (execution.daytonaInspectCommand === undefined) {
-        parsed.execution.daytonaInspectCommand = "";
+        parsed.execution.daytonaInspectCommand =
+          this.defaults.execution.daytonaInspectCommand;
         dirty = true;
       }
       if (execution.modalTarget === undefined) {
-        parsed.execution.modalTarget = "";
+        parsed.execution.modalTarget = this.defaults.execution.modalTarget;
         dirty = true;
       }
       if (execution.modalCommand === undefined) {
-        parsed.execution.modalCommand = "";
+        parsed.execution.modalCommand = this.defaults.execution.modalCommand;
         dirty = true;
       }
       if (execution.modalShell === undefined) {
-        parsed.execution.modalShell = "/bin/bash";
+        parsed.execution.modalShell = this.defaults.execution.modalShell;
         dirty = true;
       }
       if (execution.modalWorkspacePath === undefined) {
-        parsed.execution.modalWorkspacePath = "/workspace";
+        parsed.execution.modalWorkspacePath =
+          this.defaults.execution.modalWorkspacePath;
         dirty = true;
       }
       if (execution.modalEnvironment === undefined) {
-        parsed.execution.modalEnvironment = "";
+        parsed.execution.modalEnvironment =
+          this.defaults.execution.modalEnvironment;
         dirty = true;
       }
       if (execution.modalBootstrapCommand === undefined) {
-        parsed.execution.modalBootstrapCommand = "";
+        parsed.execution.modalBootstrapCommand =
+          this.defaults.execution.modalBootstrapCommand;
         dirty = true;
       }
       if (execution.modalStatusCommand === undefined) {
-        parsed.execution.modalStatusCommand = "";
+        parsed.execution.modalStatusCommand =
+          this.defaults.execution.modalStatusCommand;
         dirty = true;
       }
       if (execution.modalInspectCommand === undefined) {
-        parsed.execution.modalInspectCommand = "";
+        parsed.execution.modalInspectCommand =
+          this.defaults.execution.modalInspectCommand;
         dirty = true;
       }
       if (execution.commandTimeoutMs === undefined) {
-        parsed.execution.commandTimeoutMs = 30_000;
+        parsed.execution.commandTimeoutMs =
+          this.defaults.execution.commandTimeoutMs;
         dirty = true;
       }
       if (execution.healthTimeoutMs === undefined) {
-        parsed.execution.healthTimeoutMs = 5_000;
+        parsed.execution.healthTimeoutMs =
+          this.defaults.execution.healthTimeoutMs;
         dirty = true;
       }
       if (execution.containerCpuLimit === undefined) {
-        parsed.execution.containerCpuLimit = "2";
+        parsed.execution.containerCpuLimit =
+          this.defaults.execution.containerCpuLimit;
         dirty = true;
       }
       if (execution.containerMemoryLimit === undefined) {
-        parsed.execution.containerMemoryLimit = "2g";
+        parsed.execution.containerMemoryLimit =
+          this.defaults.execution.containerMemoryLimit;
         dirty = true;
       }
       if (execution.containerPidsLimit === undefined) {
-        parsed.execution.containerPidsLimit = 256;
+        parsed.execution.containerPidsLimit =
+          this.defaults.execution.containerPidsLimit;
         dirty = true;
       }
       if (execution.containerReadOnlyRoot === undefined) {
-        parsed.execution.containerReadOnlyRoot = true;
+        parsed.execution.containerReadOnlyRoot =
+          this.defaults.execution.containerReadOnlyRoot;
+        dirty = true;
+      }
+      if (execution.sshHost === undefined) {
+        parsed.execution.sshHost = this.defaults.execution.sshHost;
+        dirty = true;
+      }
+      if (execution.sshUser === undefined) {
+        parsed.execution.sshUser = this.defaults.execution.sshUser;
         dirty = true;
       }
       if (execution.sshPath === undefined) {
-        parsed.execution.sshPath = "";
+        parsed.execution.sshPath = this.defaults.execution.sshPath;
         dirty = true;
       }
       if (execution.sshPort === undefined) {
-        parsed.execution.sshPort = 22;
+        parsed.execution.sshPort = this.defaults.execution.sshPort;
         dirty = true;
       }
       if (execution.sshKeyPath === undefined) {
-        parsed.execution.sshKeyPath = "";
+        parsed.execution.sshKeyPath = this.defaults.execution.sshKeyPath;
         dirty = true;
       }
       if (execution.sshStrictHostKeyChecking === undefined) {
-        parsed.execution.sshStrictHostKeyChecking = false;
+        parsed.execution.sshStrictHostKeyChecking =
+          this.defaults.execution.sshStrictHostKeyChecking;
         dirty = true;
       }
     }
     if (!parsed.mcp) {
-      parsed.mcp = {
-        serverCommand: "",
-        timeoutMs: 10_000,
-      };
+      parsed.mcp = { ...this.defaults.mcp };
       dirty = true;
     } else {
       if (parsed.mcp.serverCommand === undefined) {
-        parsed.mcp.serverCommand = "";
+        parsed.mcp.serverCommand = this.defaults.mcp.serverCommand;
         dirty = true;
       }
       if (parsed.mcp.timeoutMs === undefined) {
-        parsed.mcp.timeoutMs = 10_000;
+        parsed.mcp.timeoutMs = this.defaults.mcp.timeoutMs;
+        dirty = true;
+      }
+    }
+    if (!parsed.agent || typeof parsed.agent !== "object") {
+      parsed.agent = { ...this.defaults.agent };
+      dirty = true;
+    } else {
+      if (parsed.agent.runDepth === undefined) {
+        parsed.agent.runDepth = this.defaults.agent.runDepth;
+        dirty = true;
+      }
+      if (parsed.agent.maxIterations === undefined) {
+        parsed.agent.maxIterations = this.defaults.agent.maxIterations;
+        dirty = true;
+      }
+      if (parsed.agent.toolProgressMode === undefined) {
+        parsed.agent.toolProgressMode = this.defaults.agent.toolProgressMode;
         dirty = true;
       }
     }
     if (!parsed.ui || typeof parsed.ui !== "object") {
-      parsed.ui = {
-        theme: "orange",
-      };
+      parsed.ui = { ...this.defaults.ui };
       dirty = true;
     } else if (!parsed.ui.theme) {
-      parsed.ui.theme = "orange";
+      parsed.ui.theme = this.defaults.ui.theme;
       dirty = true;
     }
     if (dirty) {

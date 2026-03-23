@@ -21,6 +21,11 @@ import {
   listTuiThemes,
   type TuiThemeName,
 } from "../packages/agent/src/runtime/theme-catalog";
+import {
+  RUN_DEPTH_ITERATION_PRESETS,
+  type RunDepth,
+  type ToolProgressMode,
+} from "../packages/agent/src/types";
 
 type ExecutionBackendName =
   | "local"
@@ -127,6 +132,11 @@ interface RuntimeSettings {
     serverCommand: string;
     timeoutMs: number;
   };
+  agent: {
+    runDepth: RunDepth;
+    maxIterations: number;
+    toolProgressMode: ToolProgressMode;
+  };
   ui: {
     theme: TuiThemeName;
   };
@@ -158,6 +168,11 @@ interface OnboardingSummary {
   };
   backend: ExecutionBackendName;
   browser: BrowserMode;
+  agent: {
+    runDepth: RunDepth;
+    maxIterations: number;
+    toolProgressMode: ToolProgressMode;
+  };
   transports: TransportName[];
   tools: {
     mcp: boolean;
@@ -191,6 +206,9 @@ interface WizardAnswers {
   provider: ProviderMode;
   backend: ExecutionBackendName;
   browser: BrowserMode;
+  runDepth: RunDepth;
+  maxIterations: number;
+  toolProgressMode: ToolProgressMode;
   pairingMode: PairingMode;
   allowAllUsers: boolean;
   transports: TransportName[];
@@ -1282,6 +1300,40 @@ function updateEnvFile(updates: Record<string, string | undefined>): string[] {
   return messages;
 }
 
+function resolveRunDepth(value?: string | null): RunDepth {
+  if (
+    value === "quick" ||
+    value === "standard" ||
+    value === "deep" ||
+    value === "explore"
+  ) {
+    return value;
+  }
+  return "standard";
+}
+
+function resolveToolProgressMode(value?: string | null): ToolProgressMode {
+  if (
+    value === "off" ||
+    value === "new" ||
+    value === "all" ||
+    value === "verbose"
+  ) {
+    return value;
+  }
+  return "new";
+}
+
+function resolveMaxIterations(existingEnv: Map<string, string>): number {
+  const explicit = Number(existingEnv.get("ELIZA_AGENT_MAX_ITERATIONS") || "");
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return explicit;
+  }
+  return RUN_DEPTH_ITERATION_PRESETS[
+    resolveRunDepth(existingEnv.get("ELIZA_AGENT_RUN_DEPTH"))
+  ];
+}
+
 function defaultSettings(theme: TuiThemeName): RuntimeSettings {
   return {
     model: {
@@ -1359,6 +1411,11 @@ function defaultSettings(theme: TuiThemeName): RuntimeSettings {
       serverCommand: "",
       timeoutMs: 10_000,
     },
+    agent: {
+      runDepth: "standard",
+      maxIterations: RUN_DEPTH_ITERATION_PRESETS.standard,
+      toolProgressMode: "new",
+    },
     ui: {
       theme,
     },
@@ -1380,6 +1437,7 @@ function loadSettings(theme: TuiThemeName): RuntimeSettings {
       gateway: { ...defaultSettings(theme).gateway, ...current.gateway },
       execution: { ...defaultSettings(theme).execution, ...current.execution },
       mcp: { ...defaultSettings(theme).mcp, ...current.mcp },
+      agent: { ...defaultSettings(theme).agent, ...current.agent },
       ui: { ...defaultSettings(theme).ui, ...current.ui },
     };
   } catch {
@@ -1476,6 +1534,7 @@ function summarizeAnswers(answers: WizardAnswers): string[] {
   return [
     `mind=${answers.provider} model=${model}`,
     `threads=cloud:${answers.elizaCloudApiKey ? "bound" : "idle"} codex:${answers.useLinkedCodexAuth ? "bound" : "idle"} claude:${answers.useLinkedClaudeCodeAuth ? "bound" : "idle"}`,
+    `run=${answers.runDepth} cap=${answers.maxIterations} progress=${answers.toolProgressMode}`,
     `body=${answers.backend} eyes=${answers.browser}`,
     `channels=${answers.transports.length ? answers.transports.join(", ") : "api, cli only"}`,
     `tools=${
@@ -2217,6 +2276,11 @@ async function chooseMany<T extends string>(
 }
 
 function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
+  const runDepth = resolveRunDepth(existingEnv.get("ELIZA_AGENT_RUN_DEPTH"));
+  const toolProgressMode = resolveToolProgressMode(
+    existingEnv.get("ELIZA_AGENT_TOOL_PROGRESS"),
+  );
+  const maxIterations = resolveMaxIterations(existingEnv);
   const provider: ProviderMode =
     existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true"
       ? "elizacloud"
@@ -2247,6 +2311,9 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     browser:
       (existingEnv.get("ELIZA_AGENT_BROWSER_PROVIDER") as BrowserMode) ||
       "lightpanda",
+    runDepth,
+    maxIterations,
+    toolProgressMode,
     pairingMode:
       (existingEnv.get("ELIZA_AGENT_PAIRING_MODE") as PairingMode) || "pair",
     allowAllUsers: existingEnv.get("ELIZA_AGENT_ALLOW_ALL_USERS") === "true",
@@ -2474,6 +2541,11 @@ async function runWizard(
         "";
       let anthropicModel =
         existingEnv.get("ANTHROPIC_LARGE_MODEL") || "claude-sonnet-4.6";
+      let runDepth = resolveRunDepth(existingEnv.get("ELIZA_AGENT_RUN_DEPTH"));
+      let toolProgressMode = resolveToolProgressMode(
+        existingEnv.get("ELIZA_AGENT_TOOL_PROGRESS"),
+      );
+      let maxIterations = resolveMaxIterations(existingEnv);
 
       if (
         linkedAccounts.codex.nativeReady ||
@@ -2939,6 +3011,71 @@ async function runWizard(
         );
       }
 
+      section(
+        "Cadence",
+        "Set how far I should run before I stop and how much of my work I should show while I’m acting.",
+      );
+      runDepth = await chooseOne<RunDepth>(
+        rl,
+        "How far should I run before I stop and report back?",
+        [
+          {
+            value: "quick",
+            label: "Quick report-back",
+            detail:
+              "About 15 steps. Fastest feedback with a tighter autonomy budget.",
+          },
+          {
+            value: "standard",
+            label: "Standard autonomy",
+            detail:
+              "About 45 steps. Balanced for most coding and operator tasks.",
+          },
+          {
+            value: "deep",
+            label: "Deep work",
+            detail:
+              "About 90 steps. Better for sustained implementation and debugging.",
+          },
+          {
+            value: "explore",
+            label: "Explore",
+            detail:
+              "About 150 steps. Best for long investigations and broad sweeps.",
+          },
+        ],
+        runDepth,
+      );
+      maxIterations = RUN_DEPTH_ITERATION_PRESETS[runDepth];
+      toolProgressMode = await chooseOne<ToolProgressMode>(
+        rl,
+        "How much tool activity should I show while I work?",
+        [
+          {
+            value: "off",
+            label: "Quiet",
+            detail: "Only show the final answer unless something goes wrong.",
+          },
+          {
+            value: "new",
+            label: "Changes only",
+            detail:
+              "Show phase changes and new tool activity without flooding the shell.",
+          },
+          {
+            value: "all",
+            label: "All activity",
+            detail: "Show each observed tool or action event as it happens.",
+          },
+          {
+            value: "verbose",
+            label: "Verbose operator stream",
+            detail: "Show the fullest live activity trail and status detail.",
+          },
+        ],
+        toolProgressMode,
+      );
+
       let backend =
         (existingEnv.get(
           "ELIZA_AGENT_EXECUTION_BACKEND",
@@ -3348,6 +3485,9 @@ async function runWizard(
           provider,
           backend,
           browser,
+          runDepth,
+          maxIterations,
+          toolProgressMode,
           pairingMode,
           allowAllUsers,
           transports,
@@ -3426,6 +3566,9 @@ function applyAnswers(answers: WizardAnswers): {
     ELIZA_AGENT_NAME: answers.agentName,
     ELIZA_AGENT_MODE: "cli",
     ELIZA_AGENT_TIMEZONE: answers.timezone,
+    ELIZA_AGENT_RUN_DEPTH: answers.runDepth,
+    ELIZA_AGENT_TOOL_PROGRESS: answers.toolProgressMode,
+    ELIZA_AGENT_MAX_ITERATIONS: String(answers.maxIterations),
     ELIZAOS_CLOUD_ENABLED: String(
       answers.provider === "elizacloud" && Boolean(answers.elizaCloudApiKey),
     ),
@@ -3496,6 +3639,9 @@ function applyAnswers(answers: WizardAnswers): {
 
   const settings = loadSettings(answers.theme);
   settings.ui.theme = answers.theme;
+  settings.agent.runDepth = answers.runDepth;
+  settings.agent.maxIterations = answers.maxIterations;
+  settings.agent.toolProgressMode = answers.toolProgressMode;
   settings.execution.backend = answers.backend;
   settings.mcp.serverCommand = answers.tools.mcp
     ? answers.mcpServerCommand
@@ -3576,6 +3722,11 @@ function applyAnswers(answers: WizardAnswers): {
     },
     backend: answers.backend,
     browser: answers.browser,
+    agent: {
+      runDepth: answers.runDepth,
+      maxIterations: answers.maxIterations,
+      toolProgressMode: answers.toolProgressMode,
+    },
     transports: answers.transports,
     tools: answers.tools,
     profile: fingerprint({
@@ -3583,6 +3734,9 @@ function applyAnswers(answers: WizardAnswers): {
       backend: answers.backend,
       browser: answers.browser,
       theme: answers.theme,
+      runDepth: answers.runDepth,
+      maxIterations: String(answers.maxIterations),
+      toolProgressMode: answers.toolProgressMode,
       transports: answers.transports,
       tts: answers.tools.tts,
       mcp: answers.tools.mcp,
@@ -3607,6 +3761,9 @@ function printSummary(
   console.log(`  mind: ${onboarding.provider}`);
   console.log(`  skin: ${theme.label} (${onboarding.theme})`);
   console.log(`  body: ${onboarding.backend}`);
+  console.log(
+    `  cadence: ${onboarding.agent.runDepth} cap=${onboarding.agent.maxIterations} progress=${onboarding.agent.toolProgressMode}`,
+  );
   console.log(
     `  threads: codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
   );

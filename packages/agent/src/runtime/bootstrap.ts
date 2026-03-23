@@ -9,7 +9,12 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { AgentRuntime } from "@elizaos/core";
+import {
+  AgentRuntime,
+  ApprovalService,
+  EventType,
+  ToolPolicyService,
+} from "@elizaos/core";
 import character from "@/character";
 import { loadConfig } from "@/config/env";
 import { featureMap } from "@/config/feature-map";
@@ -22,7 +27,6 @@ import {
 import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { type AppServices, createServices } from "@/services";
-import { DocumentsService } from "@/services/documents-service";
 import type { EnvConfig } from "@/types";
 
 export interface AppContext {
@@ -31,6 +35,10 @@ export interface AppContext {
   runtime: AgentRuntime;
   gateway: GatewayRunner;
 }
+
+type RuntimeBindableServices = AppServices & {
+  __bindRuntime?: (nextRuntime: AgentRuntime) => void;
+};
 
 let contextPromise: Promise<AppContext> | undefined;
 
@@ -257,6 +265,15 @@ async function initializeRuntimeWithRecovery(
   }
 }
 
+async function ensureCoreRuntimeServices(runtime: AgentRuntime): Promise<void> {
+  if (!runtime.getService(ApprovalService.serviceType)) {
+    await runtime.registerService(ApprovalService);
+  }
+  if (!runtime.getService(ToolPolicyService.serviceType)) {
+    await runtime.registerService(ToolPolicyService);
+  }
+}
+
 function ensureSecretSalt(config: EnvConfig): string {
   const provided =
     process.env.SECRET_SALT?.trim() || process.env.ELIZA_SECRET_SALT?.trim();
@@ -291,7 +308,7 @@ function buildPluginSettings(
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),
     nativeServiceRegistry: JSON.stringify(services.nativeRegistry),
-    autonomousAlignment: JSON.stringify(describeAutonomousAlignment()),
+    autonomousAlignment: JSON.stringify(describeAutonomousAlignment(config)),
     ELIZAOS_CLOUD_BASE_URL: config.elizaCloudBaseUrl,
     ELIZAOS_CLOUD_SMALL_MODEL: config.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: config.elizaCloudLargeModel,
@@ -306,6 +323,10 @@ function buildPluginSettings(
     ANTHROPIC_LARGE_MODEL: config.anthropicLargeModel,
     SECRET_SALT: ensureSecretSalt(config),
     PGLITE_DATA_DIR: join(config.dataDir, "pglite"),
+    USE_MULTI_STEP: "true",
+    MAX_MULTISTEP_ITERATIONS: String(runtimeSettings.agent.maxIterations),
+    ELIZA_AGENT_RUN_DEPTH: runtimeSettings.agent.runDepth,
+    ELIZA_AGENT_TOOL_PROGRESS: runtimeSettings.agent.toolProgressMode,
   };
 
   const modelProvider = runtimeSettings.model.provider;
@@ -422,6 +443,132 @@ function formatCronDeliverySummary(
     : "\n\nNo home channels are configured yet for delivery.";
 }
 
+function eventRoomId(payload: unknown): string | undefined {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "roomId" in payload &&
+    typeof (payload as { roomId?: unknown }).roomId === "string"
+  ) {
+    return (payload as { roomId: string }).roomId;
+  }
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "message" in payload &&
+    typeof (payload as { message?: { roomId?: unknown } }).message?.roomId ===
+      "string"
+  ) {
+    return (payload as { message: { roomId: string } }).message.roomId;
+  }
+  return undefined;
+}
+
+function eventActionLabel(payload: unknown): string | undefined {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "content" in payload &&
+    payload.content &&
+    typeof payload.content === "object"
+  ) {
+    const content = payload.content as {
+      actions?: unknown;
+      text?: unknown;
+      actionStatus?: unknown;
+    };
+    if (
+      Array.isArray(content.actions) &&
+      typeof content.actions[0] === "string"
+    ) {
+      return content.actions[0];
+    }
+    if (typeof content.text === "string" && content.text.trim()) {
+      return content.text.trim();
+    }
+    if (
+      typeof content.actionStatus === "string" &&
+      content.actionStatus.trim()
+    ) {
+      return content.actionStatus.trim();
+    }
+  }
+  return undefined;
+}
+
+function attachRunProgressBridge(
+  runtime: AgentRuntime,
+  services: AppServices,
+): void {
+  const register = (
+    event: string,
+    handler: (payload: unknown) => void | Promise<void>,
+  ) => {
+    runtime.registerEvent(event, async (payload) => {
+      await handler(payload);
+    });
+  };
+
+  register(EventType.RUN_STARTED, async (payload) => {
+    const roomId = eventRoomId(payload);
+    if (roomId) {
+      services.runController.updateRuntimeThinking(roomId);
+    }
+  });
+  register(EventType.RUN_ENDED, async (payload) => {
+    const roomId = eventRoomId(payload);
+    if (!roomId) {
+      return;
+    }
+    const status =
+      payload &&
+      typeof payload === "object" &&
+      "status" in payload &&
+      (payload.status === "completed" || payload.status === "timeout")
+        ? "complete"
+        : "error";
+    const errorMessage =
+      payload &&
+      typeof payload === "object" &&
+      "error" in payload &&
+      payload.error
+        ? formatError(payload.error)
+        : undefined;
+    services.runController.finishRuntimeRun(roomId, status, errorMessage);
+  });
+  register(EventType.ACTION_STARTED, async (payload) => {
+    const roomId = eventRoomId(payload);
+    if (roomId) {
+      services.runController.noteRuntimeActionStarted(
+        roomId,
+        eventActionLabel(payload) ?? "action",
+      );
+    }
+  });
+  register(EventType.ACTION_COMPLETED, async (payload) => {
+    const roomId = eventRoomId(payload);
+    if (roomId) {
+      services.runController.noteRuntimeActionCompleted(
+        roomId,
+        eventActionLabel(payload),
+      );
+    }
+  });
+  register(EventType.MESSAGE_RECEIVED, async (payload) => {
+    const roomId = eventRoomId(payload);
+    if (roomId) {
+      services.runController.noteRuntimeMessage(roomId);
+    }
+  });
+  register(EventType.MESSAGE_SENT, async (payload) => {
+    const roomId = eventRoomId(payload);
+    if (roomId) {
+      services.runController.updateRuntimeWaiting(roomId);
+    }
+  });
+  services.runController.markRuntimeBridgeAttached(true);
+}
+
 export async function getAppContext(): Promise<AppContext> {
   if (contextPromise) {
     return contextPromise;
@@ -429,6 +576,8 @@ export async function getAppContext(): Promise<AppContext> {
 
   contextPromise = (async () => {
     const config = loadConfig();
+    process.env.LOG_LEVEL ||= "error";
+    process.env.DEFAULT_LOG_LEVEL ||= process.env.LOG_LEVEL;
     process.env.SECRET_SALT =
       process.env.SECRET_SALT || ensureSecretSalt(config);
     const services = createServices(config);
@@ -450,10 +599,10 @@ export async function getAppContext(): Promise<AppContext> {
     mkdirSync(join(config.dataDir, "pglite"), { recursive: true });
     reconcilePglitePidFile(join(config.dataDir, "pglite"));
     await initializeRuntimeWithRecovery(runtime, config);
+    await ensureCoreRuntimeServices(runtime);
     services.nativeOwnership.attachRuntime(runtime, services);
-    services.diagnostics.attachRuntime(runtime);
-    services.operator.attachRuntime(runtime);
-    services.documents = new DocumentsService(runtime, config.workspaceDir);
+    (services as RuntimeBindableServices).__bindRuntime?.(runtime);
+    attachRunProgressBridge(runtime, services);
     const gatewayService = runtime.getService("eliza_agent_gateway") as {
       runner?: GatewayRunner;
     } | null;

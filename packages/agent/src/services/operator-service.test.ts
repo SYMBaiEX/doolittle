@@ -151,6 +151,9 @@ function makeConfig(root: string): EnvConfig {
     workspaceDir,
     allowAllUsers: true,
     pairingDefaultMode: "allow",
+    runDepth: "standard",
+    toolProgressMode: "new",
+    maxIterations: 30,
   };
 }
 

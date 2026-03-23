@@ -3,17 +3,18 @@ import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
-import type { EnvConfig } from "@/types";
+import { type EnvConfig, RUN_DEPTH_ITERATION_PRESETS } from "@/types";
 
 function defaultRepoRoot(): string {
   return fileURLToPath(new URL("../../../../", import.meta.url));
 }
 
 const repoEnvPath = resolve(defaultRepoRoot(), ".env");
+process.env.DOTENV_CONFIG_QUIET ??= "true";
 if (existsSync(repoEnvPath)) {
-  loadEnv({ path: repoEnvPath, override: true });
+  loadEnv({ path: repoEnvPath, override: true, quiet: true });
 } else {
-  loadEnv({ override: true });
+  loadEnv({ override: true, quiet: true });
 }
 
 function resolveFromRepoRoot(value: string): string {
@@ -201,10 +202,22 @@ const schema = z.object({
   MCP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   ACP_SERVER_COMMAND: z.string().optional(),
   ACP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  ELIZA_AGENT_RUN_DEPTH: z
+    .enum(["quick", "standard", "deep", "explore"])
+    .default("standard"),
+  ELIZA_AGENT_TOOL_PROGRESS: z
+    .enum(["off", "new", "all", "verbose"])
+    .default("new"),
+  ELIZA_AGENT_MAX_ITERATIONS: z.coerce.number().int().positive().default(45),
 });
 
 export function loadConfig(): EnvConfig {
   const values = schema.parse(process.env);
+  const maxIterations =
+    typeof process.env.ELIZA_AGENT_MAX_ITERATIONS === "string" &&
+    process.env.ELIZA_AGENT_MAX_ITERATIONS.trim().length > 0
+      ? values.ELIZA_AGENT_MAX_ITERATIONS
+      : RUN_DEPTH_ITERATION_PRESETS[values.ELIZA_AGENT_RUN_DEPTH];
   const dataDir = resolveFromRepoRoot(values.ELIZA_AGENT_DATA_DIR);
   const skillsDir = resolveFromRepoRoot(values.ELIZA_AGENT_SKILLS_DIR);
   const cronOutputDir = resolveFromRepoRoot(values.ELIZA_AGENT_CRON_OUTPUT_DIR);
@@ -333,5 +346,8 @@ export function loadConfig(): EnvConfig {
     workspaceDir,
     allowAllUsers: values.ELIZA_AGENT_ALLOW_ALL_USERS,
     pairingDefaultMode: values.ELIZA_AGENT_PAIRING_MODE,
+    runDepth: values.ELIZA_AGENT_RUN_DEPTH,
+    toolProgressMode: values.ELIZA_AGENT_TOOL_PROGRESS,
+    maxIterations,
   };
 }

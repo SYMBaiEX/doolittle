@@ -24,6 +24,8 @@ import {
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "./agent-sdk-service";
 import type { EcosystemService } from "./ecosystem-service";
+import type { RunControllerService } from "./run-controller-service";
+import type { SettingsService } from "./settings-service";
 
 export class DiagnosticsService {
   private runtime?: RuntimeLike;
@@ -34,6 +36,8 @@ export class DiagnosticsService {
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
     private readonly ecosystemService?: EcosystemService,
+    private readonly settings?: SettingsService,
+    private readonly runController?: RunControllerService,
   ) {}
 
   attachRuntime(runtime: RuntimeLike): void {
@@ -46,6 +50,15 @@ export class DiagnosticsService {
 
   async run(input: {
     skillsCount: number;
+    skillsSummary?: {
+      total: number;
+      workspace: number;
+      generated: number;
+      bundled: number;
+      managed: number;
+      project: number;
+      invocable: number;
+    };
     contextFilesCount: number;
     recentCronRuns: number;
     recentTerminalCommands: number;
@@ -159,7 +172,7 @@ export class DiagnosticsService {
     const formsControl = this.runtime
       ? getNativeFormsControlPlane(this.runtime)
       : undefined;
-    const executionControl = this.runtime
+    const runtimeExecutionControl = this.runtime
       ? getNativeExecutionControlPlane(this.runtime)
       : undefined;
     checks.push({
@@ -386,18 +399,18 @@ export class DiagnosticsService {
       });
     }
 
-    if (executionControl) {
+    if (runtimeExecutionControl) {
       checks.push({
         id: "native.execution.e2b",
-        status: executionControl.e2b.available ? "pass" : "warn",
+        status: runtimeExecutionControl.e2b.available ? "pass" : "warn",
         summary: "Native E2B sandbox ownership",
-        detail: `available=${executionControl.e2b.available} sandboxes=${executionControl.e2b.sandboxes} execution=${executionControl.e2b.supportsExecution} root=${executionControl.e2b.sandboxRoot ?? "n/a"}`,
+        detail: `available=${runtimeExecutionControl.e2b.available} sandboxes=${runtimeExecutionControl.e2b.sandboxes} execution=${runtimeExecutionControl.e2b.supportsExecution} root=${runtimeExecutionControl.e2b.sandboxRoot ?? "n/a"}`,
       });
       checks.push({
         id: "native.execution.codegen",
-        status: executionControl.codeGeneration.ready ? "pass" : "warn",
+        status: runtimeExecutionControl.codeGeneration.ready ? "pass" : "warn",
         summary: "Native code generation ownership",
-        detail: `available=${executionControl.codeGeneration.available} ready=${executionControl.codeGeneration.ready} methods=${executionControl.codeGeneration.methods.join(",") || "none"} github=${executionControl.github.available} secrets=${executionControl.secretsManager.available}`,
+        detail: `available=${runtimeExecutionControl.codeGeneration.available} ready=${runtimeExecutionControl.codeGeneration.ready} methods=${runtimeExecutionControl.codeGeneration.methods.join(",") || "none"} github=${runtimeExecutionControl.github.available} secrets=${runtimeExecutionControl.secretsManager.available}`,
       });
     }
 
@@ -405,7 +418,9 @@ export class DiagnosticsService {
       id: "skills.present",
       status: input.skillsCount > 0 ? "pass" : "warn",
       summary: "Installed skills",
-      detail: `${input.skillsCount} skill documents found in ${this.config.skillsDir}`,
+      detail: input.skillsSummary
+        ? `${input.skillsSummary.total} skills available (workspace=${input.skillsSummary.workspace} generated=${input.skillsSummary.generated} bundled=${input.skillsSummary.bundled} managed=${input.skillsSummary.managed} project=${input.skillsSummary.project} invocable=${input.skillsSummary.invocable})`
+        : `${input.skillsCount} skill documents found in ${this.config.skillsDir}`,
     });
 
     checks.push({
@@ -656,6 +671,37 @@ export class DiagnosticsService {
       detail: this.config.acpServerCommand
         ? `ACP bridge command configured: ${this.config.acpServerCommand}`
         : "ACP_SERVER_COMMAND is not configured.",
+    });
+
+    const runtimeSettings = this.settings?.get();
+    const runDepth = runtimeSettings?.agent.runDepth ?? this.config.runDepth;
+    const maxIterations =
+      runtimeSettings?.agent.maxIterations ?? this.config.maxIterations;
+    const toolProgressMode =
+      runtimeSettings?.agent.toolProgressMode ?? this.config.toolProgressMode;
+    const runtimeBridgeAttached =
+      this.runController?.hasRuntimeBridge() ?? false;
+    checks.push({
+      id: "agentic.loop",
+      status: runtimeBridgeAttached ? "pass" : "warn",
+      summary: "Observed multi-step runtime bridge",
+      detail: `multiStep=true runtimeBridge=${runtimeBridgeAttached ? "attached" : "missing"} runDepth=${runDepth} maxIterations=${maxIterations} toolProgress=${toolProgressMode}`,
+    });
+    checks.push({
+      id: "runtime.approvals",
+      status: runtimeExecutionControl?.approvals.available ? "pass" : "warn",
+      summary: "Native approval service bridge",
+      detail: runtimeExecutionControl
+        ? `native=${runtimeExecutionControl.approvals.available} asyncRequest=${runtimeExecutionControl.approvals.asyncRequest} selectionHandling=${runtimeExecutionControl.approvals.selectionHandling}`
+        : "Runtime not attached; approval bridge cannot be inspected.",
+    });
+    checks.push({
+      id: "runtime.tool-policy",
+      status: runtimeExecutionControl?.toolPolicy.available ? "pass" : "warn",
+      summary: "Native tool policy service",
+      detail: runtimeExecutionControl
+        ? `native=${runtimeExecutionControl.toolPolicy.available} actions=${runtimeExecutionControl.toolPolicy.actions} codingAllowed=${runtimeExecutionControl.toolPolicy.codingAllowed} messagingAllowed=${runtimeExecutionControl.toolPolicy.messagingAllowed} fullAllowed=${runtimeExecutionControl.toolPolicy.fullAllowed}`
+        : "Runtime not attached; tool policy bridge cannot be inspected.",
     });
 
     return checks;

@@ -3,8 +3,7 @@
  *
  * Monitors token usage across a session's message history and triggers
  * summarization of middle turns when the context window approaches its
- * limit (default threshold: 85%). Modelled after the Hermes Agent's
- * context_compressor approach.
+ * limit (default threshold: 85%).
  *
  * Key design decisions:
  *  - Token counts are estimated via a simple char/4 heuristic (no dependency
@@ -24,8 +23,8 @@ import type { StoredMessage } from "@/types";
 
 export interface CompressionConfig {
   /**
-   * Fraction of the model's context limit at which compression is triggered
-   * (default 0.85 ≡ 85 %).
+   * Fraction of the model's context limit at which compression is triggered.
+   * Defaults to a conversation-safe 85%.
    */
   threshold?: number;
 

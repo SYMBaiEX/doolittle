@@ -16,6 +16,7 @@ import {
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
+import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -65,6 +66,62 @@ const NATIVE_PLATFORM_ADAPTERS = new Set<PlatformName>([
   "homeassistant",
   "dingtalk",
 ]);
+
+function shouldStreamRunUpdate(
+  mode: "off" | "new" | "all" | "verbose",
+  event: RunUpdateEvent,
+): boolean {
+  if (mode === "off") {
+    return false;
+  }
+  if (mode === "new") {
+    return [
+      "started",
+      "action-started",
+      "action-completed",
+      "completed",
+      "error",
+      "approvals",
+    ].includes(event.type);
+  }
+  if (mode === "all") {
+    return event.type !== "message";
+  }
+  return true;
+}
+
+function formatRunUpdate(event: RunUpdateEvent): string | undefined {
+  switch (event.type) {
+    case "started":
+      return `run started (${event.run.runDepth}, cap ${event.run.configuredMaxIterations})`;
+    case "action-started":
+      return event.run.activeAction
+        ? `acting: ${event.run.activeAction}`
+        : `acting (${event.run.observedActionCount} observed steps)`;
+    case "action-completed":
+      return event.run.lastAction
+        ? `completed: ${event.run.lastAction}`
+        : "action completed";
+    case "approvals":
+      return event.run.pendingApprovals > 0
+        ? `pending approvals: ${event.run.pendingApprovals}`
+        : undefined;
+    case "completed":
+      return `run complete (${event.run.observedActionCount} observed steps)`;
+    case "error":
+      return event.run.errorMessage
+        ? `run error: ${event.run.errorMessage}`
+        : "run error";
+    case "thinking":
+      return "thinking";
+    case "waiting":
+      return "waiting for next step";
+    case "message":
+      return undefined;
+    default:
+      return undefined;
+  }
+}
 
 interface GatewayTraceRecord {
   traceId: string;
@@ -2620,21 +2677,42 @@ export class GatewayRunner {
       return progressChain;
     };
 
-    const response = await handleAgentTurn(
-      {
-        message: message.text,
-        userId: message.userId,
-        roomId: session.activeAgentSessionId ?? session.sessionKey,
-        source: message.platform,
-      },
-      this.context,
-      {
-        onResponseProgress: async ({ response }) => {
-          await queueProgressFlush(response, false);
+    const trackedSessionId = session.activeAgentSessionId ?? session.sessionKey;
+    const unsubscribeRunUpdates =
+      this.context.services.runController?.onUpdate?.((event) => {
+        if (event.sessionId !== trackedSessionId) {
+          return;
+        }
+        if (!shouldStreamRunUpdate(event.run.progressMode, event)) {
+          return;
+        }
+        const detail = formatRunUpdate(event);
+        if (!detail) {
+          return;
+        }
+        void queueProgressFlush(`[run] ${detail}`, false);
+      }) ?? (() => {});
+
+    let response = "";
+    try {
+      response = await handleAgentTurn(
+        {
+          message: message.text,
+          userId: message.userId,
+          roomId: trackedSessionId,
+          source: message.platform,
         },
-      },
-    );
-    await queueProgressFlush(response, true);
+        this.context,
+        {
+          onResponseProgress: async ({ response }) => {
+            await queueProgressFlush(response, false);
+          },
+        },
+      );
+      await queueProgressFlush(response, true);
+    } finally {
+      unsubscribeRunUpdates();
+    }
     this.pushTrace({
       traceId,
       at: new Date().toISOString(),

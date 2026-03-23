@@ -1,4 +1,6 @@
 export type MemoryTarget = "memory" | "user";
+export type RunDepth = "quick" | "standard" | "deep" | "explore";
+export type ToolProgressMode = "off" | "new" | "all" | "verbose";
 export type ExecutionBackendName =
   | "local"
   | "docker"
@@ -18,6 +20,13 @@ export type ExecutionBackendEngine =
 export type RemoteWorkspaceSyncMode = "mirror" | "snapshot";
 export type RemoteArtifactPolicy = "metadata-only" | "allowlisted";
 export type RemoteLifecycleEvent = "preview" | "health" | "run";
+
+export const RUN_DEPTH_ITERATION_PRESETS: Record<RunDepth, number> = {
+  quick: 15,
+  standard: 45,
+  deep: 90,
+  explore: 150,
+};
 
 export interface EnvConfig {
   agentName: string;
@@ -124,6 +133,9 @@ export interface EnvConfig {
   workspaceDir: string;
   allowAllUsers: boolean;
   pairingDefaultMode: "pair" | "deny" | "allow";
+  runDepth: RunDepth;
+  toolProgressMode: ToolProgressMode;
+  maxIterations: number;
 }
 
 export interface SkillDocument {
@@ -132,6 +144,10 @@ export interface SkillDocument {
   description: string;
   path: string;
   content: string;
+  source?: "workspace" | "generated" | "bundled" | "managed" | "project";
+  commandName?: string;
+  userInvocable?: boolean;
+  disableModelInvocation?: boolean;
 }
 
 export interface StoredMessage {

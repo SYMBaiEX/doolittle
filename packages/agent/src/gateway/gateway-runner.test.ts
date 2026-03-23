@@ -8,6 +8,7 @@ import { DeliveryService } from "@/services/delivery-service";
 import { GatewaySessionService } from "@/services/gateway-session-service";
 import { HooksService } from "@/services/hooks-service";
 import { PairingService } from "@/services/pairing-service";
+import { RunControllerService } from "@/services/run-controller-service";
 import { SessionService } from "@/services/session-service";
 import { UserProfileService } from "@/services/user-profile-service";
 import { GatewayRunner } from "./gateway-runner";
@@ -42,6 +43,26 @@ describe("GatewayRunner", () => {
         hooks: new HooksService(join(root, "hooks")),
         sessions: new SessionService(join(root, "sessions")),
         userProfiles: new UserProfileService(join(root, "profiles")),
+        runController: new RunControllerService(),
+        executionApprovals: {
+          latestPendingForSession() {
+            return undefined;
+          },
+        },
+        settings: {
+          get() {
+            return {
+              agent: {
+                runDepth: "standard",
+                maxIterations: 45,
+                toolProgressMode: "new",
+              },
+            };
+          },
+          set() {
+            return undefined;
+          },
+        },
       },
       gateway: undefined as never,
       runtime: {} as never,

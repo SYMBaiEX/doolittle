@@ -76,6 +76,11 @@ function makeDefaults(): RuntimeSettings {
       serverCommand: "",
       timeoutMs: 30_000,
     },
+    agent: {
+      runDepth: "standard",
+      maxIterations: 45,
+      toolProgressMode: "new",
+    },
     ui: {
       theme: "orange",
     },

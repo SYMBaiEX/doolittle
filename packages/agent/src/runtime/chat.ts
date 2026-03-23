@@ -4,7 +4,9 @@ import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
 import {
   ChannelType,
+  type Content,
   createMessageMemory,
+  EventType,
   stringToUuid,
   type UUID,
 } from "@elizaos/core";
@@ -47,6 +49,7 @@ import {
 import {
   analyzeEffectiveBrowserComparison,
   analyzeEffectiveBrowserPage,
+  cancelEffectiveDelegationTask,
   cancelEffectiveForm,
   captureEffectiveBrowserPage,
   compareEffectiveBrowserPages,
@@ -83,6 +86,9 @@ import {
   getEffectivePersonalitySummary,
   getEffectivePlan,
   getEffectivePluginManagerInventory,
+  getEffectiveRepositoryDiff,
+  getEffectiveRepositoryLog,
+  getEffectiveRepositoryStatus,
   getEffectiveSecret,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
@@ -124,14 +130,19 @@ import {
   listEffectiveSecretKeys,
   performEffectiveCodeQa,
   performEffectiveCodeResearch,
+  readEffectiveWorkspaceFile,
   retryEffectiveDelegationTask,
   runEffectiveShellCommand,
   screenshotEffectiveBrowserPage,
   searchEffectiveCachedMcpTools,
   searchEffectiveSkillHubCatalog,
+  searchEffectiveWorkspace,
   setEffectiveSecret,
   snapshotEffectiveBrowserPage,
+  spawnEffectiveDelegationChild,
+  superviseEffectiveDelegationQueue,
   syncEffectiveSkillHub,
+  writeEffectiveWorkspaceFile,
 } from "@/runtime/native/service-bridge";
 import {
   DEFAULT_TUI_THEME,
@@ -147,9 +158,148 @@ import type {
   CronJobRuntimeOverrides,
   MemoryTarget,
   PlatformName,
+  RunDepth,
+  ToolProgressMode,
   UserProfileWorkspaceSummary,
 } from "@/types";
+import { RUN_DEPTH_ITERATION_PRESETS } from "@/types";
 import type { AppContext } from "./bootstrap";
+
+type StreamSource = "unset" | "callback" | "onStreamChunk";
+
+function commonPrefixLength(left: string, right: string): number {
+  const maxLength = Math.min(left.length, right.length);
+  let index = 0;
+  while (
+    index < maxLength &&
+    left.charCodeAt(index) === right.charCodeAt(index)
+  ) {
+    index += 1;
+  }
+  return index;
+}
+
+function commonSuffixLength(
+  left: string,
+  right: string,
+  sharedPrefixLength: number,
+): number {
+  const maxLength = Math.min(
+    left.length - sharedPrefixLength,
+    right.length - sharedPrefixLength,
+  );
+  let length = 0;
+  while (
+    length < maxLength &&
+    left.charCodeAt(left.length - 1 - length) ===
+      right.charCodeAt(right.length - 1 - length)
+  ) {
+    length += 1;
+  }
+  return length;
+}
+
+function isLikelySnapshotReplacement(
+  existing: string,
+  incoming: string,
+): boolean {
+  const sharedPrefixLength = commonPrefixLength(existing, incoming);
+  const sharedSuffixLength = commonSuffixLength(
+    existing,
+    incoming,
+    sharedPrefixLength,
+  );
+  const sharedLength = sharedPrefixLength + sharedSuffixLength;
+  const minLength = Math.min(existing.length, incoming.length);
+
+  return (
+    sharedPrefixLength >= 8 ||
+    sharedLength >= Math.max(4, Math.ceil(minLength * 0.7))
+  );
+}
+
+function mergeStreamingText(existing: string, incoming: string): string {
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+  if (incoming === existing) return existing;
+
+  if (incoming.startsWith(existing) || incoming.includes(existing)) {
+    return incoming;
+  }
+
+  if (existing.startsWith(incoming)) {
+    return existing;
+  }
+
+  const maxOverlap = Math.min(existing.length, incoming.length);
+  const existingLength = existing.length;
+  for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+    const existingStart = existingLength - overlap;
+    let match = true;
+    for (let index = 0; index < overlap; index += 1) {
+      if (
+        existing.charCodeAt(existingStart + index) !==
+        incoming.charCodeAt(index)
+      ) {
+        match = false;
+        break;
+      }
+    }
+    if (!match) {
+      continue;
+    }
+
+    if (overlap === incoming.length) {
+      return incoming.length === 1 ? `${existing}${incoming}` : existing;
+    }
+
+    return `${existing}${incoming.slice(overlap)}`;
+  }
+
+  if (isLikelySnapshotReplacement(existing, incoming)) {
+    return incoming;
+  }
+
+  return `${existing}${incoming}`;
+}
+
+function resolveStreamingUpdate(
+  existing: string,
+  incoming: string,
+): {
+  kind: "noop" | "append" | "replace";
+  nextText: string;
+  emittedText: string;
+} {
+  const nextText = mergeStreamingText(existing, incoming);
+  if (nextText === existing) {
+    return { kind: "noop", nextText: existing, emittedText: "" };
+  }
+
+  if (nextText.startsWith(existing)) {
+    return {
+      kind: "append",
+      nextText,
+      emittedText: nextText.slice(existing.length),
+    };
+  }
+
+  return {
+    kind: "replace",
+    nextText,
+    emittedText: nextText,
+  };
+}
+
+function extractCompatTextContent(content: Content | null | undefined): string {
+  if (!content) {
+    return "";
+  }
+  if (typeof content.text === "string" && content.text.length > 0) {
+    return content.text;
+  }
+  return "";
+}
 
 export type AgentExecutionContext = Pick<
   AppContext,
@@ -395,58 +545,92 @@ function formatShellCommandResponse(result: {
     .join("\n");
 }
 
-async function maybeHandleDirectLocalIntent(
+interface DirectLocalIntentExecution {
+  label: string;
+  statusLine: string;
+  execute(): Promise<string>;
+}
+
+function resolveDirectLocalIntent(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
-  hooks?: AgentTurnHooks,
-): Promise<string | undefined> {
+): DirectLocalIntentExecution | undefined {
   const text = input.message.trim();
-
-  const emit = async (message: string) => {
-    await hooks?.onResponseProgress?.({
-      chunk: message,
-      response: message,
-      phase: "command",
-    });
-  };
 
   const repositoryIntent = resolveRepositoryIntentFromText(text);
   if (repositoryIntent) {
-    await emit("Inspecting repository status...");
-    return executeRepositoryIntent(context.services, repositoryIntent);
+    return {
+      label: `repo:${repositoryIntent}`,
+      statusLine: "Inspecting repository status...",
+      execute: () =>
+        executeRepositoryIntent(
+          context.runtime,
+          context.services,
+          repositoryIntent,
+        ),
+    };
   }
 
   const workspaceIntent = resolveWorkspaceIntentFromText(text);
   if (workspaceIntent) {
-    const statusLine =
-      workspaceIntent.kind === "read"
-        ? `Reading ${workspaceIntent.path}...`
-        : workspaceIntent.kind === "search"
-          ? `Searching the workspace for "${workspaceIntent.query}"...`
-          : workspaceIntent.kind === "find-codebase"
-            ? `Searching local development roots for "${workspaceIntent.query}"...`
-            : workspaceIntent.kind === "write"
-              ? `Writing ${workspaceIntent.path}...`
-              : "Inspecting workspace structure...";
-    await emit(statusLine);
-    return executeWorkspaceIntent(
-      context.services,
-      context.config.workspaceDir,
-      workspaceIntent,
-    );
+    return {
+      label: `workspace:${workspaceIntent.kind}`,
+      statusLine:
+        workspaceIntent.kind === "read"
+          ? `Reading ${workspaceIntent.path}...`
+          : workspaceIntent.kind === "search"
+            ? `Searching the workspace for "${workspaceIntent.query}"...`
+            : workspaceIntent.kind === "find-codebase"
+              ? `Searching local development roots for "${workspaceIntent.query}"...`
+              : workspaceIntent.kind === "write"
+                ? `Writing ${workspaceIntent.path}...`
+                : "Inspecting workspace structure...",
+      execute: () =>
+        executeWorkspaceIntent(
+          context.runtime,
+          context.services,
+          context.config.workspaceDir,
+          workspaceIntent,
+        ),
+    };
   }
 
   const terminalCommand = resolveCommandFromText(text);
   if (terminalCommand && !text.startsWith("/")) {
-    await emit(`Running \`${terminalCommand}\`...`);
-    const result = await executeTerminalCommand(
-      context.services,
-      terminalCommand,
-    );
-    return result.response;
+    return {
+      label: `shell:${terminalCommand}`,
+      statusLine: `Running \`${terminalCommand}\`...`,
+      execute: async () => {
+        const result = await executeTerminalCommand(
+          context.runtime,
+          context.services,
+          terminalCommand,
+        );
+        return result.response;
+      },
+    };
   }
 
   return undefined;
+}
+
+async function executeDirectLocalIntent(
+  intent: DirectLocalIntentExecution,
+  sessionId: string,
+  context: AgentExecutionContext,
+  hooks?: AgentTurnHooks,
+): Promise<string> {
+  await hooks?.onResponseProgress?.({
+    chunk: intent.statusLine,
+    response: intent.statusLine,
+    phase: "command",
+  });
+  context.services.runController.noteActionStarted(sessionId, intent.label);
+  try {
+    return await intent.execute();
+  } finally {
+    context.services.runController.noteActionCompleted(sessionId, intent.label);
+  }
 }
 
 async function runShellCommandForTurn(
@@ -587,6 +771,12 @@ async function maybeRequireRemoteExecutionApproval(
   }
 
   const roomId = input.roomId ?? `room:${input.userId}`;
+  const agentName = context.runtime.character?.name ?? "Eliza Agent";
+  const runtimeRoomId =
+    (input.source ?? "cli") === "cli"
+      ? stringToUuid(`${agentName}-chat-room`)
+      : stringToUuid(roomId);
+  const runtimeEntityId = stringToUuid(input.userId);
   const approval =
     context.services.executionApprovals.useApproved({
       platform,
@@ -605,13 +795,16 @@ async function maybeRequireRemoteExecutionApproval(
       roomId,
       command,
     }) ??
-    context.services.executionApprovals.request({
+    (await context.services.executionApprovals.request({
       platform,
       userId: input.userId,
       roomId,
+      sessionKey: roomId,
+      runtimeRoomId: String(runtimeRoomId),
+      runtimeEntityId: String(runtimeEntityId),
       command,
       reason,
-    });
+    }));
   const prompt = formatExecutionApprovalPrompt({
     id: pending.id,
     command,
@@ -750,21 +943,25 @@ function createAutocoderWorkflow(
   },
 ) {
   const sessionId = currentCliSessionId(context);
-  const task = context.services.delegation.create({
-    title: input.title,
-    objective: input.objective,
-    group: "autocoder",
-    profile: "native",
-    priority: "normal",
-    labels: ["autocoder", input.kind],
-    metadata: {
-      kind: input.kind,
-      sessionId,
-      projectName: input.projectName ?? "",
-      repositoryName: input.repositoryName ?? "",
+  const task = createEffectiveDelegationTask(
+    context.runtime,
+    context.services,
+    {
+      title: input.title,
+      objective: input.objective,
+      group: "autocoder",
+      profile: "native",
+      priority: "normal",
+      labels: ["autocoder", input.kind],
+      metadata: {
+        kind: input.kind,
+        sessionId,
+        projectName: input.projectName ?? "",
+        repositoryName: input.repositoryName ?? "",
+      },
+      executionMode: "local",
     },
-    executionMode: "local",
-  });
+  ) as { id: string };
   context.services.delegation.markRunning(task.id);
   const workflow = context.services.autocoderPipeline.startWorkflow({
     title: input.title,
@@ -1219,6 +1416,46 @@ function applyRuntimeOverrides(
   };
 }
 
+function getRunPolicy(context: AgentExecutionContext): {
+  runDepth: RunDepth;
+  maxIterations: number;
+  toolProgressMode: ToolProgressMode;
+} {
+  const agent = context.services.settings.get().agent;
+  return {
+    runDepth: agent.runDepth,
+    maxIterations: agent.maxIterations,
+    toolProgressMode: agent.toolProgressMode,
+  };
+}
+
+function formatRunPolicy(
+  runDepth: RunDepth,
+  maxIterations: number,
+  toolProgressMode: ToolProgressMode,
+): string {
+  return [
+    `runDepth=${runDepth}`,
+    `maxIterations=${maxIterations}`,
+    `toolProgress=${toolProgressMode}`,
+  ].join("\n");
+}
+
+function parseRunDepth(raw: string): RunDepth | undefined {
+  return raw === "quick" ||
+    raw === "standard" ||
+    raw === "deep" ||
+    raw === "explore"
+    ? raw
+    : undefined;
+}
+
+function parseToolProgressMode(raw: string): ToolProgressMode | undefined {
+  return raw === "off" || raw === "new" || raw === "all" || raw === "verbose"
+    ? raw
+    : undefined;
+}
+
 export async function runModelAnalysisTurn(
   context: AgentExecutionContext,
   prompt: string,
@@ -1505,6 +1742,49 @@ function buildProviderNoResponseMessage(
     return `I couldn't get a usable response from Anthropic (${model}). Check \`ANTHROPIC_API_KEY\` or switch to a linked provider with \`${displayCommand("/accounts")}\`.`;
   }
   return `I couldn't get a usable response from the active provider. Run \`${displayCommand("/doctor")}\` or \`${displayCommand("/accounts")}\` to repair the runtime.`;
+}
+
+function buildProviderFailureMessage(
+  provider: string,
+  model: string,
+  error: unknown,
+): string {
+  const detail =
+    error instanceof Error ? error.message.trim() : String(error).trim();
+  const normalized = detail.toLowerCase();
+
+  if (
+    normalized.includes("cannot connect to api") ||
+    normalized.includes("unable to connect") ||
+    normalized.includes("failedtoopensocket") ||
+    normalized.includes("connectionrefused")
+  ) {
+    if (provider === "elizacloud") {
+      return `Eliza Cloud (${model}) is active, but I could not reach the Cloud API from this shell. Check network access to \`https://www.elizacloud.ai\`, then run \`${displayCommand("/accounts doctor")}\` if the cloud bond still looks suspicious.`;
+    }
+    return `The active provider (${provider}:${model}) could not be reached from this shell. Check network access and provider credentials, then run \`${displayCommand("/accounts doctor")}\`.`;
+  }
+
+  if (normalized.includes("401") || normalized.includes("unauthorized")) {
+    if (provider === "elizacloud") {
+      return `Eliza Cloud (${model}) rejected this request as unauthorized. Run \`${displayCommand("/accounts doctor")}\`, then \`${displayCommand("/accounts connect elizacloud")}\` or \`elizaos login\` to refresh the managed bond.`;
+    }
+    if (provider === "codex" || provider === "claude-code") {
+      return `The linked ${provider} session for ${model} is no longer authorized. Run \`${displayCommand(`/accounts connect ${provider}`)}\` after refreshing the local login.`;
+    }
+  }
+
+  if (normalized.includes("429") || normalized.includes("rate limit")) {
+    return `The active provider (${provider}:${model}) is rate-limiting this request right now. Wait a moment or switch models with \`${displayCommand("/accounts")}\`.`;
+  }
+
+  if (normalized.includes("no output generated")) {
+    return buildProviderNoResponseMessage(provider, model);
+  }
+
+  const compactDetail =
+    detail.length > 220 ? `${detail.slice(0, 217)}...` : detail;
+  return `${buildProviderNoResponseMessage(provider, model)} Last error: ${compactDetail}`;
 }
 
 function shouldAttachSystemFacts(message: string): boolean {
@@ -1811,7 +2091,7 @@ async function buildCommandResponse(
     if (!isApprovalScopedToRequester(input, record)) {
       return "You can only deny execution approvals for your own remote session.";
     }
-    const denied = context.services.executionApprovals.deny(id);
+    const denied = await context.services.executionApprovals.deny(id);
     return [
       `Denied approval ${denied.id}.`,
       `Command: ${denied.command}`,
@@ -1843,7 +2123,7 @@ async function buildCommandResponse(
     if (!isApprovalScopedToRequester(input, record)) {
       return "You can only approve execution requests for your own remote session.";
     }
-    const approved = context.services.executionApprovals.approve(id, {
+    const approved = await context.services.executionApprovals.approve(id, {
       useImmediately: true,
     });
     const intro = `Approval ${approved.id} accepted. Executing: ${approved.command}`;
@@ -2380,7 +2660,21 @@ async function buildCommandResponse(
     ) as Array<{
       slug: string;
       description?: string;
+      source?: string;
+      commandName?: string;
     }>;
+    const summary = getEffectiveSkillsSummary(
+      context.runtime,
+      context.services,
+    ) as {
+      total: number;
+      workspace?: number;
+      generated?: number;
+      bundled?: number;
+      managed?: number;
+      project?: number;
+      invocable?: number;
+    };
     const workspace = getEffectiveSkillHubWorkspace(context.services) as Array<{
       slug: string;
       title: string;
@@ -2388,17 +2682,21 @@ async function buildCommandResponse(
       source: string;
       manifestPath: string;
     }>;
+    const visibleSkills = skills.slice(0, 50);
     return [
-      `workspace=${workspace.length} generated=${getEffectiveSkillHubGenerated(context.services).length} installed=${getEffectiveSkillHubInstalled(context.services).length}`,
+      `available=${summary.total} workspace=${summary.workspace ?? workspace.length} generated=${summary.generated ?? getEffectiveSkillHubGenerated(context.services).length} bundled=${summary.bundled ?? 0} managed=${summary.managed ?? 0} project=${summary.project ?? 0} installed=${getEffectiveSkillHubInstalled(context.services).length} invocable=${summary.invocable ?? 0}`,
       "",
-      skills.length
-        ? skills
+      visibleSkills.length
+        ? visibleSkills
             .map(
               (skill) =>
-                `- ${skill.slug}: ${skill.description ?? "No description available."}`,
+                `- ${skill.slug} [${skill.source ?? "workspace"}${skill.commandName ? ` cmd=${skill.commandName}` : ""}]: ${skill.description ?? "No description available."}`,
             )
             .join("\n")
         : "No skills found.",
+      skills.length > visibleSkills.length
+        ? `\n… ${skills.length - visibleSkills.length} more skill(s). Use /skills summary or /skills show <slug> for deeper detail.`
+        : "",
     ].join("\n");
   }
 
@@ -2980,12 +3278,22 @@ async function buildCommandResponse(
 
   if (trimmed.startsWith("/workspace read ")) {
     const path = trimmed.replace("/workspace read ", "").trim();
-    return context.services.workspace.read(path);
+    return String(
+      readEffectiveWorkspaceFile(context.runtime, context.services, path),
+    );
   }
 
   if (trimmed.startsWith("/workspace search ")) {
     const query = trimmed.replace("/workspace search ", "").trim();
-    const results = context.services.workspace.search(query, 20);
+    const results = searchEffectiveWorkspace(
+      context.runtime,
+      context.services,
+      query,
+      20,
+    ) as Array<{
+      path: string;
+      matches: string[];
+    }>;
     return results.length
       ? results
           .map(
@@ -3004,13 +3312,21 @@ async function buildCommandResponse(
     if (!relativePath || !content) {
       return "Usage: /workspace write <path> :: <content>";
     }
-    const writtenPath = context.services.workspace.write(relativePath, content);
+    const writtenPath = writeEffectiveWorkspaceFile(
+      context.runtime,
+      context.services,
+      relativePath,
+      content,
+    );
     return `Wrote ${writtenPath}.`;
   }
 
   if (trimmed === "/status") {
     const personality = context.services.personalities.getActive();
     const settings = context.services.settings.get();
+    const activeRun = context.services.runController.getActive(
+      input.roomId ?? `room:${input.userId}`,
+    );
     const ownership =
       context.services.nativeOwnership.controlPlane() ??
       getNativeOwnershipControlPlane(
@@ -3032,6 +3348,12 @@ async function buildCommandResponse(
         `Personality summary: n/a`,
         `Provider: ${settings.model.provider}`,
         `Model: ${settings.model.model}`,
+        `Run depth: ${settings.agent.runDepth}`,
+        `Run cap: ${settings.agent.maxIterations}`,
+        `Tool progress: ${settings.agent.toolProgressMode}`,
+        activeRun
+          ? `Observed run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`
+          : "Observed run: idle",
         `Transport inventory: ${controlPlane.totals.operationalTransports}/${controlPlane.transportInventory.length} operational`,
         `Gateway bridges: ${controlPlane.totals.liveServices}/${controlPlane.totals.gatewayEnabled} live`,
         `Memory summary: ${formatMemorySummary(memorySummary)}`,
@@ -3046,6 +3368,12 @@ async function buildCommandResponse(
       `Personality summary: ${formatPersonalitySummary(identity.personality)}`,
       `Provider: ${settings.model.provider}`,
       `Model: ${settings.model.model}`,
+      `Run depth: ${settings.agent.runDepth}`,
+      `Run cap: ${settings.agent.maxIterations}`,
+      `Tool progress: ${settings.agent.toolProgressMode}`,
+      activeRun
+        ? `Observed run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`
+        : "Observed run: idle",
       `Transport inventory: ${controlPlane.totals.operationalTransports}/${controlPlane.transportInventory.length} operational`,
       `Gateway bridges: ${controlPlane.totals.liveServices}/${controlPlane.totals.gatewayEnabled} live`,
       `Memory summary: ${formatMemorySummary(memorySummary)}`,
@@ -3055,6 +3383,58 @@ async function buildCommandResponse(
       `Skills: ${context.services.skills.list().length}`,
       `Cron jobs: ${context.services.cron.list().length}`,
       `Gateway sessions: ${context.services.gatewaySessions.list().length}`,
+    ].join("\n");
+  }
+
+  if (trimmed === "/mode") {
+    const policy = getRunPolicy(context);
+    return formatRunPolicy(
+      policy.runDepth,
+      policy.maxIterations,
+      policy.toolProgressMode,
+    );
+  }
+
+  if (trimmed.startsWith("/mode set ")) {
+    const nextDepth = parseRunDepth(trimmed.replace("/mode set ", "").trim());
+    if (!nextDepth) {
+      return `Usage: ${displayCommand("/mode set <quick|standard|deep|explore>")}`;
+    }
+    const nextCap = RUN_DEPTH_ITERATION_PRESETS[nextDepth];
+    context.services.settings.set("agent.runDepth", nextDepth);
+    context.services.settings.set("agent.maxIterations", nextCap);
+    const policy = getRunPolicy(context);
+    return [
+      `Run depth updated to ${nextDepth}.`,
+      formatRunPolicy(nextDepth, nextCap, policy.toolProgressMode),
+    ].join("\n");
+  }
+
+  if (trimmed === "/progress") {
+    const policy = getRunPolicy(context);
+    return formatRunPolicy(
+      policy.runDepth,
+      policy.maxIterations,
+      policy.toolProgressMode,
+    );
+  }
+
+  if (trimmed.startsWith("/progress set ")) {
+    const nextMode = parseToolProgressMode(
+      trimmed.replace("/progress set ", "").trim(),
+    );
+    if (!nextMode) {
+      return `Usage: ${displayCommand("/progress set <off|new|all|verbose>")}`;
+    }
+    context.services.settings.set("agent.toolProgressMode", nextMode);
+    const policy = getRunPolicy(context);
+    return [
+      `Tool progress updated to ${nextMode}.`,
+      formatRunPolicy(
+        policy.runDepth,
+        policy.maxIterations,
+        policy.toolProgressMode,
+      ),
     ].join("\n");
   }
 
@@ -4883,8 +5263,10 @@ async function buildCommandResponse(
     const transportOverview = context.gateway
       ? await context.gateway.transportOverview()
       : undefined;
+    const skillsSummary = context.services.skills.summary();
     const checks = await context.services.diagnostics.run({
-      skillsCount: context.services.skills.list().length,
+      skillsCount: skillsSummary.total,
+      skillsSummary,
       contextFilesCount: context.services.contextFiles.list().length,
       recentCronRuns: context.services.cron.recentRuns(5).length,
       recentTerminalCommands: context.services.terminal.recent(5).length,
@@ -5021,15 +5403,21 @@ async function buildCommandResponse(
   }
 
   if (trimmed === "/repo" || trimmed === "/repo status") {
-    return context.services.repository.status();
+    return String(
+      await getEffectiveRepositoryStatus(context.runtime, context.services),
+    );
   }
 
   if (trimmed === "/repo diff") {
-    return context.services.repository.diffStat();
+    return String(
+      await getEffectiveRepositoryDiff(context.runtime, context.services),
+    );
   }
 
   if (trimmed === "/repo log") {
-    return context.services.repository.recentCommits();
+    return String(
+      await getEffectiveRepositoryLog(context.runtime, context.services),
+    );
   }
 
   if (trimmed === "/tools" || trimmed === "/tools list") {
@@ -5698,11 +6086,13 @@ async function buildCommandResponse(
   ) {
     const raw = trimmed.replace("/delegate supervise", "").trim();
     const parsed = parseDelegationFilter(raw);
-    const report = await context.services.delegation.superviseQueued(
+    const report = await superviseEffectiveDelegationQueue(
+      context.runtime,
+      context.services,
       async (task) => {
         const completedTask = await runDelegationTaskInWorker(
           context,
-          task.id,
+          (task as { id: string }).id,
           {
             assumeRunning: true,
           },
@@ -5724,12 +6114,16 @@ async function buildCommandResponse(
           status: parsed.status,
           executionMode: parsed.executionMode,
         },
-        onComplete: async (task) => {
-          context.services.skillSynthesis.synthesizeFromTask(task);
+        onComplete: async (task: unknown) => {
+          context.services.skillSynthesis.synthesizeFromTask(
+            task as Parameters<
+              typeof context.services.skillSynthesis.synthesizeFromTask
+            >[0],
+          );
         },
-        onError: async (task, error) => {
+        onError: async (task: unknown, error: string) => {
           context.services.delegation.addNote(
-            task.id,
+            (task as { id: string }).id,
             `system: supervision error ${error}`,
           );
         },
@@ -5779,26 +6173,33 @@ async function buildCommandResponse(
     if (!parsed) {
       return "Usage: /delegate spawn <parent-id> | title:Child Task | group:research | profile:research | priority:high | labels:browser :: <objective>";
     }
-    const child = context.services.delegation.spawnChild(parsed.parentId, {
-      title: parsed.options.title ?? `${parsed.parentId} child`,
-      objective: parsed.objective,
-      group: parsed.options.group,
-      profile: parsed.options.profile,
-      priority:
-        parsed.options.priority === "low" ||
-        parsed.options.priority === "normal" ||
-        parsed.options.priority === "high"
-          ? parsed.options.priority
-          : undefined,
-      tags: parseDelegationLabels(parsed.options.labels ?? parsed.options.tags),
-      labels: parseDelegationLabels(
-        parsed.options.labels ?? parsed.options.tags,
-      ),
-      metadata: parseDelegationMetadata(
-        parsed.options.metadata ?? parsed.options.meta,
-      ),
-      executionMode: "delegated",
-    });
+    const child = spawnEffectiveDelegationChild(
+      context.runtime,
+      context.services,
+      parsed.parentId,
+      {
+        title: parsed.options.title ?? `${parsed.parentId} child`,
+        objective: parsed.objective,
+        group: parsed.options.group,
+        profile: parsed.options.profile,
+        priority:
+          parsed.options.priority === "low" ||
+          parsed.options.priority === "normal" ||
+          parsed.options.priority === "high"
+            ? parsed.options.priority
+            : undefined,
+        tags: parseDelegationLabels(
+          parsed.options.labels ?? parsed.options.tags,
+        ),
+        labels: parseDelegationLabels(
+          parsed.options.labels ?? parsed.options.tags,
+        ),
+        metadata: parseDelegationMetadata(
+          parsed.options.metadata ?? parsed.options.meta,
+        ),
+        executionMode: "delegated",
+      },
+    );
     return JSON.stringify(child, null, 2);
   }
 
@@ -5844,11 +6245,13 @@ async function buildCommandResponse(
   ) {
     const raw = trimmed.replace("/delegate execute-queued", "").trim();
     const concurrency = raw ? Number(raw) : undefined;
-    const report = await context.services.delegation.superviseQueued(
+    const report = await superviseEffectiveDelegationQueue(
+      context.runtime,
+      context.services,
       async (task) => {
         const completedTask = await runDelegationTaskInWorker(
           context,
-          task.id,
+          (task as { id: string }).id,
           {
             assumeRunning: true,
           },
@@ -5860,12 +6263,16 @@ async function buildCommandResponse(
           Number.isFinite(concurrency) && (concurrency as number) > 0
             ? (concurrency as number)
             : 2,
-        onComplete: async (task) => {
-          context.services.skillSynthesis.synthesizeFromTask(task);
+        onComplete: async (task: unknown) => {
+          context.services.skillSynthesis.synthesizeFromTask(
+            task as Parameters<
+              typeof context.services.skillSynthesis.synthesizeFromTask
+            >[0],
+          );
         },
-        onError: async (task, error) => {
+        onError: async (task: unknown, error: string) => {
           context.services.delegation.addNote(
-            task.id,
+            (task as { id: string }).id,
             `system: queue error ${error}`,
           );
         },
@@ -5962,7 +6369,12 @@ async function buildCommandResponse(
       return "Usage: /delegate cancel <id> :: <optional note>";
     }
     return JSON.stringify(
-      context.services.delegation.cancel(id, note || "Cancelled by operator."),
+      cancelEffectiveDelegationTask(
+        context.runtime,
+        context.services,
+        id,
+        note || "Cancelled by operator.",
+      ),
       null,
       2,
     );
@@ -6458,14 +6870,6 @@ export async function handleAgentTurn(
     personalityId?: string;
   } & AgentTurnHooks,
 ): Promise<string> {
-  const responseFromCommandLayer = await executeSlashCommand(
-    input,
-    context,
-    options,
-  );
-  const effectiveMessage = shouldAttachSystemFacts(input.message)
-    ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
-    : input.message;
   const agentName = context.runtime.character?.name ?? "Eliza Agent";
   const localInteractive = (input.source ?? "cli") === "cli";
   const connectionSource = localInteractive
@@ -6483,6 +6887,11 @@ export async function handleAgentTurn(
     ? stringToUuid(`${agentName}-cli-server`)
     : stringToUuid("eliza-agent-message-server");
   const sessionId = roomKey;
+  const settings = context.services.settings.get();
+  const runId = randomUUID();
+  const effectiveMessage = shouldAttachSystemFacts(input.message)
+    ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
+    : input.message;
 
   context.services.userProfiles.observe(
     input.userId,
@@ -6505,10 +6914,31 @@ export async function handleAgentTurn(
     text: input.message,
     createdAt: nowIso(),
   });
+  context.services.runController.startTurn({
+    sessionId,
+    roomId: String(roomId),
+    runId,
+    source: input.source ?? "cli",
+    message: input.message,
+    runDepth: settings.agent.runDepth,
+    configuredMaxIterations: settings.agent.maxIterations,
+    progressMode: settings.agent.toolProgressMode,
+    pendingApprovals:
+      context.services.executionApprovals.latestPendingForSession(sessionId)
+        ? 1
+        : 0,
+  });
+
+  const responseFromCommandLayer = await executeSlashCommand(
+    input,
+    context,
+    options,
+  );
 
   if (input.message.trim().startsWith("!")) {
     const command = input.message.trim().slice(1).trim();
     if (!command) {
+      context.services.runController.finishTurn(sessionId, "complete");
       return "Usage: !<shell command>";
     }
     const approvalPrompt = await maybeRequireRemoteExecutionApproval(
@@ -6518,6 +6948,7 @@ export async function handleAgentTurn(
       options,
     );
     if (approvalPrompt) {
+      context.services.runController.setPendingApprovals(sessionId, 1);
       context.services.sessions.storeMessage({
         id: randomUUID(),
         sessionId,
@@ -6527,9 +6958,27 @@ export async function handleAgentTurn(
         text: approvalPrompt,
         createdAt: nowIso(),
       });
+      context.services.runController.finishTurn(sessionId, "complete");
       return approvalPrompt;
     }
-    const result = await runShellCommandForTurn(command, context, options);
+    const shellAction = `shell:${command}`;
+    context.services.runController.noteActionStarted(sessionId, shellAction);
+    let result: Awaited<ReturnType<typeof runShellCommandForTurn>>;
+    try {
+      result = await runShellCommandForTurn(command, context, options);
+    } catch (error) {
+      context.services.runController.noteActionCompleted(
+        sessionId,
+        shellAction,
+      );
+      context.services.runController.finishTurn(
+        sessionId,
+        "error",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
+    context.services.runController.noteActionCompleted(sessionId, shellAction);
     const shellResponse = formatShellCommandResponse(result);
     await options?.onResponseProgress?.({
       chunk: shellResponse,
@@ -6545,6 +6994,7 @@ export async function handleAgentTurn(
       text: shellResponse,
       createdAt: nowIso(),
     });
+    context.services.runController.finishTurn(sessionId, "complete");
     return shellResponse;
   }
 
@@ -6563,28 +7013,13 @@ export async function handleAgentTurn(
       text: responseFromCommandLayer,
       createdAt: nowIso(),
     });
+    context.services.runController.finishTurn(sessionId, "complete");
     return responseFromCommandLayer;
   }
-
-  const directLocalIntentResponse = await maybeHandleDirectLocalIntent(
-    input,
-    context,
-    options,
-  );
-  if (directLocalIntentResponse) {
-    context.services.sessions.storeMessage({
-      id: randomUUID(),
-      sessionId,
-      roomId,
-      entityId,
-      role: "assistant",
-      text: directLocalIntentResponse,
-      createdAt: nowIso(),
-    });
-    return directLocalIntentResponse;
-  }
+  const directLocalIntent = resolveDirectLocalIntent(input, context);
 
   let response = "";
+  let deferNativeStreaming = Boolean(directLocalIntent);
   const personalityBefore = context.services.personalities.getActive();
   const settingsBefore = context.services.settings.get();
   const settingsDuring = applyRuntimeOverrides(
@@ -6611,6 +7046,7 @@ export async function handleAgentTurn(
       text: readinessMessage,
       createdAt: nowIso(),
     });
+    context.services.runController.finishTurn(sessionId, "complete");
     return readinessMessage;
   }
 
@@ -6679,22 +7115,152 @@ export async function handleAgentTurn(
     context.services.personalities.setActive(options.personalityId);
   }
 
+  let activeStreamSource: StreamSource = "unset";
+  const emitChunk = async (chunk: string): Promise<void> => {
+    if (!chunk) {
+      return;
+    }
+    response += chunk;
+    if (deferNativeStreaming) {
+      return;
+    }
+    await options?.onResponseProgress?.({
+      chunk,
+      response,
+      phase: "model",
+    });
+  };
+  const emitSnapshot = async (text: string): Promise<void> => {
+    if (!text) {
+      return;
+    }
+    response = text;
+    if (deferNativeStreaming) {
+      return;
+    }
+    await options?.onResponseProgress?.({
+      chunk: text,
+      response,
+      phase: "model",
+    });
+  };
+  const claimStreamSource = (
+    source: Exclude<StreamSource, "unset">,
+  ): boolean => {
+    if (activeStreamSource === "unset") {
+      activeStreamSource = source;
+      return true;
+    }
+    return activeStreamSource === source;
+  };
+  const appendIncomingText = async (incoming: string): Promise<void> => {
+    const update = resolveStreamingUpdate(response, incoming);
+    if (update.kind === "noop") {
+      return;
+    }
+    if (update.kind === "append") {
+      await emitChunk(update.emittedText);
+      return;
+    }
+    await emitSnapshot(update.nextText);
+  };
+
   try {
-    await context.runtime.messageService?.handleMessage(
-      context.runtime,
-      memory,
-      async (content) => {
-        if (content?.text) {
-          response += content.text;
-          await options?.onResponseProgress?.({
-            chunk: content.text,
-            response,
-            phase: "model",
+    if (typeof context.runtime.emitEvent === "function") {
+      await context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+        message: memory,
+        source: connectionSource,
+      });
+    }
+  } catch (error) {
+    context.runtime.logger?.warn(
+      { error, roomId, source: connectionSource },
+      "Failed to emit MESSAGE_RECEIVED event for local turn",
+    );
+  }
+
+  let messageResult:
+    | Awaited<
+        ReturnType<
+          NonNullable<typeof context.runtime.messageService>["handleMessage"]
+        >
+      >
+    | undefined;
+  let runFailureMessage: string | undefined;
+
+  try {
+    context.services.runController.updateThinking(sessionId);
+    try {
+      messageResult = await context.runtime.messageService?.handleMessage(
+        context.runtime,
+        memory,
+        async (content) => {
+          const chunk = extractCompatTextContent(content);
+          if (!chunk || !claimStreamSource("callback")) {
+            return [];
+          }
+          await appendIncomingText(chunk);
+          return [];
+        },
+        {
+          useMultiStep: true,
+          maxMultiStepIterations: settingsDuring.agent.maxIterations,
+          onStreamChunk: options?.onResponseProgress
+            ? async (chunk: string) => {
+                if (!chunk || !claimStreamSource("onStreamChunk")) {
+                  return;
+                }
+                await appendIncomingText(chunk);
+              }
+            : undefined,
+        },
+      );
+
+      if (
+        Array.isArray(messageResult?.responseMessages) &&
+        typeof context.runtime.emitEvent === "function"
+      ) {
+        for (const responseMessage of messageResult.responseMessages) {
+          const content = (responseMessage as { content?: Content })
+            .content ?? {
+            text: "",
+          };
+          const emittedMessage = {
+            id:
+              (responseMessage as { id?: string }).id ?? (randomUUID() as UUID),
+            roomId: memory.roomId,
+            entityId: context.runtime.agentId as UUID,
+            content,
+            metadata: memory.metadata,
+          } as typeof memory;
+          await context.runtime.emitEvent(EventType.MESSAGE_SENT, {
+            message: emittedMessage,
+            source: connectionSource,
           });
         }
-        return [];
-      },
-    );
+      }
+    } catch (error) {
+      const providerFailureMessage = buildProviderFailureMessage(
+        settingsDuring.model.provider,
+        settingsDuring.model.model,
+        error,
+      );
+      context.runtime.logger?.warn(
+        {
+          error,
+          provider: settingsDuring.model.provider,
+          model: settingsDuring.model.model,
+          roomId,
+        },
+        "Local agent turn failed in provider runtime",
+      );
+      await options?.onNotice?.({
+        kind: "status",
+        message: providerFailureMessage,
+      });
+      response = providerFailureMessage;
+      runFailureMessage = providerFailureMessage;
+    }
   } finally {
     if (
       settingsDuring.model.provider !== settingsBefore.model.provider ||
@@ -6729,6 +7295,40 @@ export async function handleAgentTurn(
     ) {
       context.services.personalities.setActive(personalityBefore.id);
     }
+  }
+
+  const observedActionCount =
+    context.services.runController.getActive(sessionId)?.observedActionCount ??
+    0;
+  if (directLocalIntent && observedActionCount === 0) {
+    try {
+      response = await executeDirectLocalIntent(
+        directLocalIntent,
+        sessionId,
+        context,
+        options,
+      );
+      runFailureMessage = undefined;
+      deferNativeStreaming = false;
+    } catch (fallbackError) {
+      if (!runFailureMessage) {
+        context.services.runController.finishTurn(
+          sessionId,
+          "error",
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError),
+        );
+        throw fallbackError;
+      }
+    }
+  } else if (deferNativeStreaming && response.trim()) {
+    deferNativeStreaming = false;
+    await options?.onResponseProgress?.({
+      chunk: response,
+      response,
+      phase: "model",
+    });
   }
 
   const baseResponse =
@@ -6787,6 +7387,12 @@ export async function handleAgentTurn(
     text: finalResponse,
     createdAt: nowIso(),
   });
+
+  context.services.runController.finishTurn(
+    sessionId,
+    runFailureMessage ? "error" : "complete",
+    runFailureMessage,
+  );
 
   return finalResponse;
 }

@@ -90,6 +90,30 @@ const RAW_COMMAND_CATALOG: CommandCatalogEntry[] = [
     description: "Print the active provider, model, and plugin state.",
   },
   {
+    command: "/mode",
+    category: "runtime",
+    description:
+      "Show the active run depth profile and configured max-iteration cap.",
+  },
+  {
+    command: "/mode set <quick|standard|deep|explore>",
+    category: "runtime",
+    description:
+      "Switch the agent autonomy profile and update the effective max-iteration cap.",
+  },
+  {
+    command: "/progress",
+    category: "runtime",
+    description:
+      "Show the active tool-progress mode used by the TUI, CLI, and gateway surfaces.",
+  },
+  {
+    command: "/progress set <off|new|all|verbose>",
+    category: "runtime",
+    description:
+      "Set how much observed tool activity should be streamed while the agent works.",
+  },
+  {
     command: "/runtime plugins",
     category: "runtime",
     description: "List native ElizaOS plugin inventory and source.",

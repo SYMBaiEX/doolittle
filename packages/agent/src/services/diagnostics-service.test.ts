@@ -127,6 +127,9 @@ function buildConfig(root: string): EnvConfig {
     workspaceDir,
     allowAllUsers: false,
     pairingDefaultMode: "pair",
+    runDepth: "standard",
+    toolProgressMode: "new",
+    maxIterations: 30,
   };
 }
 

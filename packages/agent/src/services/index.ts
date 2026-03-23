@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import type { IAgentRuntime } from "@elizaos/core";
 import { loadGatewayConfig } from "@/config/gateway";
 import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
@@ -32,6 +33,7 @@ import { OperatorService } from "./operator-service";
 import { PairingService } from "./pairing-service";
 import { PersonalityService } from "./personality-service";
 import { RepositoryService } from "./repository-service";
+import { RunControllerService } from "./run-controller-service";
 import { SessionService } from "./session-service";
 import { SettingsService } from "./settings-service";
 import { SkillSynthesisService } from "./skill-synthesis-service";
@@ -82,6 +84,29 @@ export interface AppServices {
   userProfiles: UserProfileService;
   contextCompression: ContextCompressionService;
   fuzzyPatch: FuzzyPatchService;
+  runController: RunControllerService;
+}
+
+function createLazySlot<T>(factory: () => T): {
+  get(): T;
+  set(value: T): void;
+  peek(): T | undefined;
+} {
+  let instance: T | undefined;
+  return {
+    get(): T {
+      if (instance === undefined) {
+        instance = factory();
+      }
+      return instance;
+    },
+    set(value: T): void {
+      instance = value;
+    },
+    peek(): T | undefined {
+      return instance;
+    },
+  };
 }
 
 export function createServices(
@@ -181,6 +206,11 @@ export function createServices(
     mcp: {
       serverCommand: config.mcpServerCommand ?? "",
       timeoutMs: config.mcpTimeoutMs,
+    },
+    agent: {
+      runDepth: config.runDepth,
+      maxIterations: config.maxIterations,
+      toolProgressMode: config.toolProgressMode,
     },
     ui: {
       theme: "orange",
@@ -467,10 +497,15 @@ export function createServices(
   if (!currentSettings.mcp.timeoutMs && config.mcpTimeoutMs) {
     settings.set("mcp.timeoutMs", config.mcpTimeoutMs);
   }
+  let boundRuntime = runtime;
   const sessions = new SessionService(config.dataDir);
   const apiTransport = new ApiTransportService(join(config.dataDir, "api"));
-  const nativePluginCatalog = getNativePluginCatalog(config);
-  const nativePackageAudit = getNativePackageAudit(config);
+  const nativePluginCatalog = createLazySlot(() =>
+    getNativePluginCatalog(config),
+  );
+  const nativePackageAudit = createLazySlot(() =>
+    getNativePackageAudit(config),
+  );
   const mcp = new McpService(() => settings.get().mcp);
   let tools: ToolsService;
   const acp = new AcpService(
@@ -480,59 +515,80 @@ export function createServices(
     (limit) => sessions.listSessions(limit),
   );
   const repository = new RepositoryService(config.workspaceDir);
-  const ecosystem = new EcosystemService();
-  const autocoderPipeline = new AutocoderPipelineService(
-    join(config.dataDir, "autocoder"),
+  const runController = new RunControllerService();
+  const ecosystem = createLazySlot(() => new EcosystemService());
+  const autocoderPipeline = createLazySlot(
+    () => new AutocoderPipelineService(join(config.dataDir, "autocoder")),
   );
-  const diagnostics = new DiagnosticsService(
-    config,
-    gatewayConfig,
-    agentSdk,
-    nativeOwnership,
-    ecosystem,
+  const diagnostics = createLazySlot(() => {
+    const service = new DiagnosticsService(
+      config,
+      gatewayConfig,
+      agentSdk,
+      nativeOwnership,
+      ecosystem.get(),
+      settings,
+      runController,
+    );
+    if (boundRuntime) {
+      service.attachRuntime(boundRuntime);
+    }
+    return service;
+  });
+  const operator = createLazySlot(() => {
+    const service = new OperatorService(
+      config,
+      diagnostics.get(),
+      repository,
+      autocoderPipeline.get(),
+      agentSdk,
+      nativeOwnership,
+      ecosystem.get(),
+    );
+    if (boundRuntime) {
+      service.attachRuntime(boundRuntime);
+    }
+    return service;
+  });
+  const skills = createLazySlot(
+    () => new SkillsService(config.skillsDir, agentSdk, config.workspaceDir),
   );
-  const operator = new OperatorService(
-    config,
-    diagnostics,
-    repository,
-    autocoderPipeline,
-    agentSdk,
-    nativeOwnership,
-    ecosystem,
+  const skillSynthesis = createLazySlot(
+    () => new SkillSynthesisService(config.skillsDir),
   );
-  const skills = new SkillsService(config.skillsDir, agentSdk);
-  const skillSynthesis = new SkillSynthesisService(config.skillsDir);
-  const skillsHub = new SkillsHubService(
-    skills,
-    skillSynthesis,
-    agentSdk,
-    config.dataDir,
+  const skillsHub = createLazySlot(
+    () =>
+      new SkillsHubService(
+        skills.get(),
+        skillSynthesis.get(),
+        agentSdk,
+        config.dataDir,
+      ),
   );
-  const skillsHubSummary = skillsHub.summary();
   tools = new ToolsService(() => ({
     mcpEnabled: mcp.status().enabled,
     discoveredMcpTools: mcp.getCachedTools().length,
     acpEnabled: acp.status().enabled,
-    nativePluginManagerTotal: nativePluginCatalog.length,
-    nativePluginManagerEnabled: nativePluginCatalog.filter(
-      (entry) => entry.enabled,
-    ).length,
-    nativePluginManagerOfficial: nativePluginCatalog.filter(
-      (entry) => entry.source === "official",
-    ).length,
-    nativePluginManagerVendored: nativePluginCatalog.filter(
-      (entry) => entry.source === "vendored",
-    ).length,
+    nativePluginManagerTotal: nativePluginCatalog.get().length,
+    nativePluginManagerEnabled: nativePluginCatalog
+      .get()
+      .filter((entry) => entry.enabled).length,
+    nativePluginManagerOfficial: nativePluginCatalog
+      .get()
+      .filter((entry) => entry.source === "official").length,
+    nativePluginManagerVendored: nativePluginCatalog
+      .get()
+      .filter((entry) => entry.source === "vendored").length,
     nativePluginManagerCategories: new Set(
-      nativePluginCatalog.map((entry) => entry.category),
+      nativePluginCatalog.get().map((entry) => entry.category),
     ).size,
-    nativeCatalog: nativePluginCatalog,
-    nativeRuntimeLatest: nativePackageAudit.runtime.latest,
-    nativeRuntimeAlpha: nativePackageAudit.runtime.alpha,
-    nativeAlignedPackages: nativePackageAudit.summary.aligned,
-    nativeAlphaOnlyPackages: nativePackageAudit.summary.alphaOnly,
-    nativeLaggingLatestPackages: nativePackageAudit.summary.laggingLatest,
-    nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
+    nativeCatalog: nativePluginCatalog.get(),
+    nativeRuntimeLatest: nativePackageAudit.get().runtime.latest,
+    nativeRuntimeAlpha: nativePackageAudit.get().runtime.alpha,
+    nativeAlignedPackages: nativePackageAudit.get().summary.aligned,
+    nativeAlphaOnlyPackages: nativePackageAudit.get().summary.alphaOnly,
+    nativeLaggingLatestPackages: nativePackageAudit.get().summary.laggingLatest,
+    nativeWorkspaceOnlyPackages: nativePackageAudit.get().summary.workspaceOnly,
     agentSdkRegistryAvailable: agentSdk.snapshot().registry?.available ?? false,
     agentSdkRegistryPlugins: agentSdk.snapshot().registry?.total ?? 0,
     agentSdkCatalogAvailable:
@@ -542,15 +598,16 @@ export function createServices(
       agentSdk
         .snapshot()
         .audit?.compatibility.filter((entry) => !entry.compatible).length ?? 0,
-    skillsHubTotal: skillsHubSummary.workspaceTotal,
-    skillsHubGenerated: skillsHubSummary.generatedTotal,
-    skillsHubCatalogTotal: skillsHubSummary.catalogTotal,
-    skillsHubManifestCount: skillsHubSummary.exportedManifests,
-    skillsHubInstalledTotal: skillsHubSummary.installedTotal,
-    skillsHubFamilyTotal: skillsHubSummary.familyTotal,
-    ecosystemBenchmarkPacks: ecosystem.summary().benchmarkPacks,
-    ecosystemDistributionChannels: ecosystem.summary().distributionChannels,
-    ecosystemModelingProfiles: ecosystem.summary().modelingProfiles,
+    skillsHubTotal: skillsHub.get().summary().workspaceTotal,
+    skillsHubGenerated: skillsHub.get().summary().generatedTotal,
+    skillsHubCatalogTotal: skillsHub.get().summary().catalogTotal,
+    skillsHubManifestCount: skillsHub.get().summary().exportedManifests,
+    skillsHubInstalledTotal: skillsHub.get().summary().installedTotal,
+    skillsHubFamilyTotal: skillsHub.get().summary().familyTotal,
+    ecosystemBenchmarkPacks: ecosystem.get().summary().benchmarkPacks,
+    ecosystemDistributionChannels: ecosystem.get().summary()
+      .distributionChannels,
+    ecosystemModelingProfiles: ecosystem.get().summary().modelingProfiles,
     nativeOwnershipControlPlane: nativeOwnership.controlPlane(),
     nativeOwnershipSnapshot: nativeOwnership.snapshotSync(),
   }));
@@ -587,7 +644,52 @@ export function createServices(
     falApiKey: config.falApiKey,
   });
 
-  return {
+  const contextFiles = createLazySlot(
+    () => new ContextFilesService(config.workspaceDir),
+  );
+  const documents = createLazySlot(
+    () =>
+      new DocumentsService(
+        boundRuntime ??
+          ({} as ConstructorParameters<typeof DocumentsService>[0]),
+        config.workspaceDir,
+      ),
+  );
+  const media = createLazySlot(
+    () =>
+      new MediaService(
+        config.workspaceDir,
+        join(config.dataDir, "media"),
+        getModelContext,
+      ),
+  );
+  const trajectories = createLazySlot(
+    () =>
+      new TrajectoryService(
+        join(config.dataDir, "trajectories"),
+        sessions,
+        getModelContext,
+      ),
+  );
+  const contextCompression = createLazySlot(
+    () =>
+      new ContextCompressionService({
+        contextWindowTokens:
+          ContextCompressionService.resolveContextWindow(defaultModel),
+        threshold: 0.85,
+        preserveRecentTurns: 6,
+        preserveLeadingTurns: 2,
+      }),
+  );
+  const fuzzyPatch = createLazySlot(
+    () =>
+      new FuzzyPatchService({
+        maxEditDistance: 4,
+        contextMatchRatio: 0.6,
+      }),
+  );
+
+  const services = {
     apiTransport,
     agentSdk,
     nativeRegistry: createNativeServiceRegistry(),
@@ -596,7 +698,12 @@ export function createServices(
       memory: config.memoryCharLimit,
       user: config.userCharLimit,
     }),
-    skills,
+    get skills() {
+      return skills.get();
+    },
+    set skills(value) {
+      skills.set(value);
+    },
     sessions,
     cron: new CronService(
       join(config.dataDir, "cron"),
@@ -613,14 +720,26 @@ export function createServices(
       join(config.gatewayDataDir, "approvals"),
     ),
     delivery: new DeliveryService(join(config.gatewayDataDir, "delivery")),
-    documents: new DocumentsService(
-      runtime ?? ({} as ConstructorParameters<typeof DocumentsService>[0]),
-      config.workspaceDir,
-    ),
-    ecosystem,
+    get documents() {
+      return documents.get();
+    },
+    set documents(value) {
+      documents.set(value);
+    },
+    get ecosystem() {
+      return ecosystem.get();
+    },
+    set ecosystem(value) {
+      ecosystem.set(value);
+    },
     gatewayConfig,
     personalities: new PersonalityService(config.dataDir),
-    contextFiles: new ContextFilesService(config.workspaceDir),
+    get contextFiles() {
+      return contextFiles.get();
+    },
+    set contextFiles(value) {
+      contextFiles.set(value);
+    },
     workspace: new WorkspaceService(config.workspaceDir),
     terminal: new TerminalService(
       join(config.dataDir, "terminal"),
@@ -628,12 +747,27 @@ export function createServices(
       () => settings.get(),
     ),
     repository,
-    diagnostics,
-    operator,
+    get diagnostics() {
+      return diagnostics.get();
+    },
+    set diagnostics(value) {
+      diagnostics.set(value);
+    },
+    get operator() {
+      return operator.get();
+    },
+    set operator(value) {
+      operator.set(value);
+    },
     tools,
     mcp,
     acp,
-    autocoderPipeline,
+    get autocoderPipeline() {
+      return autocoderPipeline.get();
+    },
+    set autocoderPipeline(value) {
+      autocoderPipeline.set(value);
+    },
     delegation: new DelegationService(join(config.dataDir, "delegation")),
     web: new WebService(
       () => ({
@@ -644,30 +778,61 @@ export function createServices(
       }),
       join(config.dataDir, "web"),
     ),
-    media: new MediaService(
-      config.workspaceDir,
-      join(config.dataDir, "media"),
-      getModelContext,
-    ),
-    trajectories: new TrajectoryService(
-      join(config.dataDir, "trajectories"),
-      sessions,
-      getModelContext,
-    ),
-    skillSynthesis,
-    skillsHub,
+    get media() {
+      return media.get();
+    },
+    set media(value) {
+      media.set(value);
+    },
+    get trajectories() {
+      return trajectories.get();
+    },
+    set trajectories(value) {
+      trajectories.set(value);
+    },
+    get skillSynthesis() {
+      return skillSynthesis.get();
+    },
+    set skillSynthesis(value) {
+      skillSynthesis.set(value);
+    },
+    get skillsHub() {
+      return skillsHub.get();
+    },
+    set skillsHub(value) {
+      skillsHub.set(value);
+    },
     userProfiles: new UserProfileService(join(config.dataDir, "profiles")),
     settings,
-    contextCompression: new ContextCompressionService({
-      contextWindowTokens:
-        ContextCompressionService.resolveContextWindow(defaultModel),
-      threshold: 0.85,
-      preserveRecentTurns: 6,
-      preserveLeadingTurns: 2,
-    }),
-    fuzzyPatch: new FuzzyPatchService({
-      maxEditDistance: 4,
-      contextMatchRatio: 0.6,
-    }),
+    get contextCompression() {
+      return contextCompression.get();
+    },
+    set contextCompression(value) {
+      contextCompression.set(value);
+    },
+    get fuzzyPatch() {
+      return fuzzyPatch.get();
+    },
+    set fuzzyPatch(value) {
+      fuzzyPatch.set(value);
+    },
+    runController,
+  } satisfies AppServices & {
+    __bindRuntime?: (nextRuntime: NonNullable<typeof runtime>) => void;
   };
+
+  Object.defineProperty(services, "__bindRuntime", {
+    enumerable: false,
+    value: (nextRuntime: NonNullable<typeof runtime>) => {
+      boundRuntime = nextRuntime;
+      services.executionApprovals.bindRuntime(nextRuntime as IAgentRuntime);
+      if (documents.peek()) {
+        documents.set(new DocumentsService(nextRuntime, config.workspaceDir));
+      }
+      diagnostics.peek()?.attachRuntime(nextRuntime);
+      operator.peek()?.attachRuntime(nextRuntime);
+    },
+  });
+
+  return services;
 }
