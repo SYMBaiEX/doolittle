@@ -2485,37 +2485,19 @@ async function runWizard(
           "Threads",
           "I found linked provider sessions on this machine and can carry them forward for you.",
         );
-        if (mode === "ritual") {
-          if (
-            (linkedAccounts.codex.nativeReady ||
-              linkedAccounts.codex.reusable) &&
-            provider !== "codex"
-          ) {
-            useLinkedCodexAuth = await askYesNo(
-              rl,
-              "Should I keep the linked Codex account ready for coding and repair work",
-              useLinkedCodexAuth,
-            );
-          }
-          if (
-            (linkedAccounts.claudeCode.nativeReady ||
-              linkedAccounts.claudeCode.reusable) &&
-            provider !== "claude-code"
-          ) {
-            useLinkedClaudeCodeAuth = await askYesNo(
-              rl,
-              "Should I keep the linked Claude Code account ready for long-form reasoning work",
-              useLinkedClaudeCodeAuth,
-            );
-          } else if (linkedAccounts.claudeCode.fallbackReady) {
+        if (mode !== "ritual") {
+          info(
+            "Quick ignition will quietly carry forward any native Codex or Claude Code auth already available here.",
+          );
+        } else {
+          info(
+            "I will quietly carry forward any healthy local Codex and Claude Code specialist paths unless you choose one as your main mind.",
+          );
+          if (linkedAccounts.claudeCode.fallbackReady) {
             info(
               "Claude Code is signed in locally, but I still prefer a setup-token if you want the clean native Eliza-owned path.",
             );
           }
-        } else {
-          info(
-            "Quick ignition will quietly carry forward any native Codex or Claude Code auth already available here.",
-          );
         }
         if (provider === "codex" && linkedAccounts.codex.nativeReady) {
           info(
@@ -3449,7 +3431,7 @@ function applyAnswers(answers: WizardAnswers): {
     ),
     ELIZAOS_CLOUD_API_KEY: answers.elizaCloudApiKey,
     ELIZAOS_CLOUD_BASE_URL: "https://www.elizacloud.ai/api/v1",
-    ELIZAOS_CLOUD_SMALL_MODEL: "anthropic/claude-3-5-haiku-20241022",
+    ELIZAOS_CLOUD_SMALL_MODEL: "anthropic/claude-haiku-4-5-20251001",
     ELIZAOS_CLOUD_LARGE_MODEL: answers.elizaCloudModel,
     OPENAI_API_KEY:
       answers.provider === "openai" || answers.provider === "hybrid"

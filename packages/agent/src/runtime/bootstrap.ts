@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { AgentRuntime } from "@elizaos/core";
 import character from "@/character";
@@ -25,6 +33,229 @@ export interface AppContext {
 }
 
 let contextPromise: Promise<AppContext> | undefined;
+
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message || String(err);
+  }
+  if (typeof err === "string") {
+    return err;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+function collectErrorMessages(err: unknown): string[] {
+  const messages: string[] = [];
+  const seen = new Set<unknown>();
+  let current: unknown = err;
+
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (typeof current === "string") {
+      messages.push(current);
+      break;
+    }
+    if (current instanceof Error) {
+      if (current.message) {
+        messages.push(current.message);
+      }
+      if (current.stack) {
+        messages.push(current.stack);
+      }
+      current = (current as Error & { cause?: unknown }).cause;
+      continue;
+    }
+    if (typeof current === "object") {
+      const maybeError = current as { message?: unknown; cause?: unknown };
+      if (typeof maybeError.message === "string" && maybeError.message) {
+        messages.push(maybeError.message);
+      }
+      if (maybeError.cause !== undefined) {
+        current = maybeError.cause;
+        continue;
+      }
+    }
+    break;
+  }
+
+  return messages;
+}
+
+function isRecoverablePgliteInitError(err: unknown): boolean {
+  const haystack = collectErrorMessages(err).join("\n").toLowerCase();
+  if (!haystack) {
+    return false;
+  }
+  const hasAbort = haystack.includes("aborted(). build with -sassertions");
+  const hasPglite = haystack.includes("pglite");
+  const hasSqlite = haystack.includes("sqlite");
+  const hasMigrationsSchema =
+    haystack.includes("create schema if not exists migrations") ||
+    haystack.includes("failed query: create schema if not exists migrations");
+  const hasRecoverableStorageSignal = [
+    "database disk image is malformed",
+    "file is not a database",
+    "malformed database schema",
+    "database is locked",
+    "lock file already exists",
+    "wal file",
+    "checkpoint failed",
+    "checksum mismatch",
+    "corrupt",
+  ].some((needle) => haystack.includes(needle));
+
+  if (hasMigrationsSchema) return true;
+  if (hasAbort && hasPglite) return true;
+  if (hasRecoverableStorageSignal && (hasPglite || hasSqlite)) return true;
+  return false;
+}
+
+function isPgliteLockError(err: unknown): boolean {
+  const haystack = collectErrorMessages(err).join("\n").toLowerCase();
+  if (!haystack) {
+    return false;
+  }
+  const hasPglite = haystack.includes("pglite");
+  const hasSqlite = haystack.includes("sqlite");
+  const hasLockSignal =
+    haystack.includes("database is locked") ||
+    haystack.includes("lock file already exists");
+  return hasLockSignal && (hasPglite || hasSqlite);
+}
+
+type PgliteRecoveryAction =
+  | "none"
+  | "retry-without-reset"
+  | "reset-data-dir"
+  | "fail-active-lock";
+
+type PglitePidFileStatus =
+  | "missing"
+  | "active"
+  | "active-unconfirmed"
+  | "cleared-stale"
+  | "cleared-malformed"
+  | "check-failed";
+
+function reconcilePglitePidFile(dataDir: string): PglitePidFileStatus {
+  const pidPath = join(dataDir, "postmaster.pid");
+  if (!existsSync(pidPath)) {
+    return "missing";
+  }
+
+  try {
+    const content = readFileSync(pidPath, "utf-8");
+    const firstLine = content.split("\n")[0]?.trim();
+    const pid = Number.parseInt(firstLine ?? "", 10);
+    if (Number.isNaN(pid) || pid <= 0) {
+      unlinkSync(pidPath);
+      return "cleared-malformed";
+    }
+
+    try {
+      process.kill(pid, 0);
+      return "active";
+    } catch (killErr: unknown) {
+      const code = (killErr as NodeJS.ErrnoException).code;
+      if (code === "ESRCH") {
+        unlinkSync(pidPath);
+        return "cleared-stale";
+      }
+      return "active-unconfirmed";
+    }
+  } catch {
+    return "check-failed";
+  }
+}
+
+function getPgliteRecoveryAction(
+  err: unknown,
+  dataDir: string,
+): PgliteRecoveryAction {
+  if (!isRecoverablePgliteInitError(err)) {
+    return "none";
+  }
+  if (!isPgliteLockError(err)) {
+    return "reset-data-dir";
+  }
+  const pidStatus = reconcilePglitePidFile(dataDir);
+  if (
+    pidStatus === "active" ||
+    pidStatus === "active-unconfirmed" ||
+    pidStatus === "check-failed"
+  ) {
+    return "fail-active-lock";
+  }
+  if (pidStatus === "cleared-stale" || pidStatus === "cleared-malformed") {
+    return "retry-without-reset";
+  }
+  return "reset-data-dir";
+}
+
+async function resetPgliteDataDir(dataDir: string): Promise<void> {
+  const normalized = dataDir;
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\..*$/, "")
+    .replace("T", "-");
+  const backupDir = `${normalized}.corrupt-${stamp}`;
+  if (existsSync(normalized)) {
+    try {
+      renameSync(normalized, backupDir);
+    } catch {
+      rmSync(normalized, { recursive: true, force: true });
+    }
+  }
+  mkdirSync(normalized, { recursive: true });
+}
+
+function createActivePgliteLockError(dataDir: string, err: unknown): Error {
+  return new Error(
+    `PGLite data dir is already in use at ${dataDir}. Close the other Eliza Agent process or set a different PGLITE_DATA_DIR before retrying.`,
+    { cause: err },
+  );
+}
+
+async function initializeRuntimeWithRecovery(
+  runtime: AgentRuntime,
+  config: EnvConfig,
+  pgliteRecoveryAttempted = false,
+): Promise<void> {
+  try {
+    await runtime.initialize();
+  } catch (err) {
+    const pgliteDataDir = join(config.dataDir, "pglite");
+    const recoveryAction =
+      !pgliteRecoveryAttempted && existsSync(pgliteDataDir)
+        ? getPgliteRecoveryAction(err, pgliteDataDir)
+        : "none";
+
+    if (recoveryAction === "none") {
+      throw err;
+    }
+    if (recoveryAction === "fail-active-lock") {
+      throw createActivePgliteLockError(pgliteDataDir, err);
+    }
+
+    console.warn(
+      recoveryAction === "retry-without-reset"
+        ? `[eliza-agent] PGLite startup failed (${formatError(err)}). Cleared a stale lock in ${pgliteDataDir} and retrying once.`
+        : `[eliza-agent] PGLite startup failed (${formatError(err)}). Resetting local DB at ${pgliteDataDir} and retrying once.`,
+    );
+
+    if (recoveryAction === "reset-data-dir") {
+      await resetPgliteDataDir(pgliteDataDir);
+      process.env.PGLITE_DATA_DIR = pgliteDataDir;
+    }
+
+    await runtime.initialize();
+  }
+}
 
 function ensureSecretSalt(config: EnvConfig): string {
   const provided =
@@ -216,7 +447,9 @@ export async function getAppContext(): Promise<AppContext> {
       plugins: nativePluginAssembly.all,
     });
 
-    await runtime.initialize();
+    mkdirSync(join(config.dataDir, "pglite"), { recursive: true });
+    reconcilePglitePidFile(join(config.dataDir, "pglite"));
+    await initializeRuntimeWithRecovery(runtime, config);
     services.nativeOwnership.attachRuntime(runtime, services);
     services.diagnostics.attachRuntime(runtime);
     services.operator.attachRuntime(runtime);
@@ -275,6 +508,10 @@ export async function getAppContext(): Promise<AppContext> {
       gateway,
     };
   })();
-
-  return contextPromise;
+  try {
+    return await contextPromise;
+  } catch (error) {
+    contextPromise = undefined;
+    throw error;
+  }
 }

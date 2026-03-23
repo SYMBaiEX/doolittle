@@ -9,6 +9,18 @@ import {
   type UUID,
 } from "@elizaos/core";
 import {
+  executeRepositoryIntent,
+  resolveRepositoryIntentFromText,
+} from "@/actions/repository-action";
+import {
+  executeTerminalCommand,
+  resolveCommandFromText,
+} from "@/actions/terminal-action";
+import {
+  executeWorkspaceIntent,
+  resolveWorkspaceIntentFromText,
+} from "@/actions/workspace-action";
+import {
   buildTransportDrilldown,
   formatTransportDrilldown,
   parseGatewayFiltersFromText,
@@ -152,6 +164,14 @@ interface AgentTurnHooks {
     response: string;
     phase: "command" | "readiness" | "model";
   }) => void | Promise<void>;
+  onNotice?: (notice: {
+    kind: "context" | "skills" | "status";
+    message: string;
+  }) => void | Promise<void>;
+  runLocalShellCommand?: (params: {
+    command: string;
+    afterSuccessConnectProvider?: LinkedProviderName;
+  }) => Promise<string>;
 }
 
 const REMOTE_EXECUTION_PLATFORMS = new Set<PlatformName>([
@@ -264,6 +284,93 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+// ---------------------------------------------------------------------------
+// Context compression helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Checks the current session's token usage and, when approaching the context
+ * limit, returns a brief human-readable warning to append to the response.
+ * Returns undefined when usage is below the warning threshold.
+ */
+function getContextUsageWarning(
+  context: AgentExecutionContext,
+  sessionId: string,
+): string | undefined {
+  try {
+    const compression = context.services.contextCompression;
+    if (!compression) return undefined;
+    const messages = context.services.sessions.recent(200);
+    const sessionMsgs = messages.filter(
+      (m) => (m as { sessionId?: string }).sessionId === sessionId,
+    );
+    if (sessionMsgs.length < 4) return undefined;
+    if (
+      compression.isApproachingLimit(
+        sessionMsgs as Parameters<typeof compression.isApproachingLimit>[0],
+        0.75,
+      )
+    ) {
+      const stats = compression.measure(
+        sessionMsgs as Parameters<typeof compression.measure>[0],
+      );
+      const pct = Math.round(stats.usageFraction * 100);
+      if (pct >= 85) {
+        return `\n\n⚠️ Context window at ${pct}% capacity (~${stats.estimatedTokens.toLocaleString()} tokens). Earlier turns may be summarized soon to preserve context.`;
+      }
+      if (pct >= 75) {
+        return `\n\n💡 Context window at ${pct}% — consider starting a new session for unrelated tasks.`;
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// How many turns between automatic skill-synthesis nudges (prevents spamming)
+const SKILL_SYNTHESIS_NUDGE_INTERVAL = 12;
+
+/**
+ * Checks whether the completed conversation warrants a skill synthesis nudge
+ * and returns the nudge text, or undefined if not applicable.
+ *
+ * A nudge is only emitted every SKILL_SYNTHESIS_NUDGE_INTERVAL turns and only
+ * when the conversation analysis returns `shouldSynthesize: true`.
+ */
+function maybeGetSkillSynthesisNudge(
+  context: AgentExecutionContext,
+  sessionId: string,
+  turnCount: number,
+): string | undefined {
+  try {
+    // Only check on every Nth turn
+    if (turnCount % SKILL_SYNTHESIS_NUDGE_INTERVAL !== 0) return undefined;
+
+    const messages = context.services.sessions.recent(100);
+    const sessionMsgs = messages.filter(
+      (m) => (m as { sessionId?: string }).sessionId === sessionId,
+    );
+    if (sessionMsgs.length < 6) return undefined;
+
+    const analysis = context.services.skillSynthesis.analyzeConversation(
+      sessionMsgs as Parameters<
+        typeof context.services.skillSynthesis.analyzeConversation
+      >[0],
+    );
+
+    if (!analysis.shouldSynthesize || !analysis.candidate) return undefined;
+
+    return (
+      `\n\n💡 **Skill synthesis available**: This conversation contains a reusable workflow — ` +
+      `"${analysis.candidate.title}". ` +
+      `Run \`/skills synthesize\` to save it as a skill document, or I can do it automatically.`
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 function displayCommand(command: string): string {
   return canonicalizeSlashCommandSyntax(command);
 }
@@ -286,6 +393,60 @@ function formatShellCommandResponse(result: {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+async function maybeHandleDirectLocalIntent(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  hooks?: AgentTurnHooks,
+): Promise<string | undefined> {
+  const text = input.message.trim();
+
+  const emit = async (message: string) => {
+    await hooks?.onResponseProgress?.({
+      chunk: message,
+      response: message,
+      phase: "command",
+    });
+  };
+
+  const repositoryIntent = resolveRepositoryIntentFromText(text);
+  if (repositoryIntent) {
+    await emit("Inspecting repository status...");
+    return executeRepositoryIntent(context.services, repositoryIntent);
+  }
+
+  const workspaceIntent = resolveWorkspaceIntentFromText(text);
+  if (workspaceIntent) {
+    const statusLine =
+      workspaceIntent.kind === "read"
+        ? `Reading ${workspaceIntent.path}...`
+        : workspaceIntent.kind === "search"
+          ? `Searching the workspace for "${workspaceIntent.query}"...`
+          : workspaceIntent.kind === "find-codebase"
+            ? `Searching local development roots for "${workspaceIntent.query}"...`
+            : workspaceIntent.kind === "write"
+              ? `Writing ${workspaceIntent.path}...`
+              : "Inspecting workspace structure...";
+    await emit(statusLine);
+    return executeWorkspaceIntent(
+      context.services,
+      context.config.workspaceDir,
+      workspaceIntent,
+    );
+  }
+
+  const terminalCommand = resolveCommandFromText(text);
+  if (terminalCommand && !text.startsWith("/")) {
+    await emit(`Running \`${terminalCommand}\`...`);
+    const result = await executeTerminalCommand(
+      context.services,
+      terminalCommand,
+    );
+    return result.response;
+  }
+
+  return undefined;
 }
 
 async function runShellCommandForTurn(
@@ -3622,6 +3783,12 @@ async function buildCommandResponse(
     if (!provider) {
       return `Usage: ${displayCommand("/accounts login <elizacloud|codex|claude-code>")}`;
     }
+    if (hooks?.runLocalShellCommand) {
+      return hooks.runLocalShellCommand({
+        command: getLinkedProviderLoginCommand(provider),
+        afterSuccessConnectProvider: provider,
+      });
+    }
     const advice = getLinkedProviderConnectAdvice(provider);
     return [
       provider === "elizacloud"
@@ -3647,11 +3814,21 @@ async function buildCommandResponse(
     if (provider !== "claude-code") {
       return `Usage: ${displayCommand("/accounts setup-token claude-code")}`;
     }
+    const setupCommand = getLinkedProviderSetupCommand(provider);
+    if (!setupCommand) {
+      return `No setup-token flow is available for ${provider}.`;
+    }
+    if (hooks?.runLocalShellCommand) {
+      return hooks.runLocalShellCommand({
+        command: setupCommand,
+        afterSuccessConnectProvider: provider,
+      });
+    }
     const advice = getLinkedProviderConnectAdvice(provider);
     return [
       "To bind Claude Code natively with a setup token, run this in your local shell:",
-      `  ${getLinkedProviderSetupCommand(provider)}`,
-      `From the Eliza Agent cockpit, you can also run: !${getLinkedProviderSetupCommand(provider)}`,
+      `  ${setupCommand}`,
+      `From the Eliza Agent cockpit, you can also run: !${setupCommand}`,
       "Then paste the token into onboarding or set CLAUDE_CODE_SETUP_TOKEN / CLAUDE_CODE_OAUTH_TOKEN.",
       `After that, run ${displayCommand("/accounts connect claude-code")} here.`,
       "",
@@ -6389,6 +6566,24 @@ export async function handleAgentTurn(
     return responseFromCommandLayer;
   }
 
+  const directLocalIntentResponse = await maybeHandleDirectLocalIntent(
+    input,
+    context,
+    options,
+  );
+  if (directLocalIntentResponse) {
+    context.services.sessions.storeMessage({
+      id: randomUUID(),
+      sessionId,
+      roomId,
+      entityId,
+      role: "assistant",
+      text: directLocalIntentResponse,
+      createdAt: nowIso(),
+    });
+    return directLocalIntentResponse;
+  }
+
   let response = "";
   const personalityBefore = context.services.personalities.getActive();
   const settingsBefore = context.services.settings.get();
@@ -6536,12 +6731,52 @@ export async function handleAgentTurn(
     }
   }
 
-  const finalResponse =
+  const baseResponse =
     response.trim() ||
     buildProviderNoResponseMessage(
       settingsDuring.model.provider,
       settingsDuring.model.model,
     );
+
+  // -------------------------------------------------------------------
+  // Post-response enhancements
+  // -------------------------------------------------------------------
+
+  // Count assistant turns in this session to throttle nudges
+  const sessionMessages = context.services.sessions.recent(200);
+  const sessionTurnCount = sessionMessages.filter(
+    (m) =>
+      (m as { sessionId?: string }).sessionId === sessionId &&
+      m.role === "assistant",
+  ).length;
+
+  // Context window usage warning (only for interactive sources)
+  const usageWarning = localInteractive
+    ? getContextUsageWarning(context, sessionId)
+    : undefined;
+
+  // Skill synthesis nudge (only for interactive/non-cron sources)
+  const skillNudge =
+    localInteractive && (input.source ?? "cli") !== "cron"
+      ? maybeGetSkillSynthesisNudge(context, sessionId, sessionTurnCount)
+      : undefined;
+  if (usageWarning) {
+    await options?.onNotice?.({
+      kind: "context",
+      message: usageWarning.trim(),
+    });
+  }
+  if (skillNudge) {
+    await options?.onNotice?.({
+      kind: "skills",
+      message: skillNudge.trim(),
+    });
+  }
+
+  const finalResponse =
+    options?.onNotice && localInteractive
+      ? baseResponse
+      : baseResponse + (usageWarning ?? "") + (skillNudge ?? "");
 
   context.services.sessions.storeMessage({
     id: randomUUID(),

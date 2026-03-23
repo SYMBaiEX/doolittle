@@ -1939,4 +1939,246 @@ export class TrajectoryService {
         : ["No major issues were detected in this replay bundle."],
     };
   }
+
+  // -------------------------------------------------------------------------
+  // RL-ready standardized exports (Doolittle training schema)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Export a session as an RL-ready JSONL file using a standardized schema
+   * compatible with the Doolittle Agent trajectory format. Each line is a
+   * `RlTurn` object containing the full conversation context up to that turn.
+   *
+   * Schema per line:
+   * {
+   *   "id": "<sessionId>:<turn_index>",
+   *   "sessionId": string,
+   *   "model": string,
+   *   "provider": string,
+   *   "agentName": string,
+   *   "createdAt": string (ISO),
+   *   "messages": [{"role": "user"|"assistant"|"system", "content": string}],
+   *   "response": string,          // final assistant turn in this window
+   *   "metadata": { ... }
+   * }
+   */
+  exportRlReady(
+    sessionId: string,
+    options: {
+      label?: string;
+      model?: string;
+      provider?: string;
+      agentName?: string;
+      windowSize?: number;
+      includeMetadata?: boolean;
+    } = {},
+  ): { dataPath: string; manifestPath: string; turnCount: number } {
+    const messages = this.sessions
+      .recent(500)
+      .filter(
+        (m) => (m as TrajectoryRecord).sessionId === sessionId,
+      ) as TrajectoryRecord[];
+
+    if (!messages.length) {
+      const stamp = Date.now();
+      const label = this.slug(options.label ?? sessionId);
+      const dataPath = join(this.baseDir, `rl-${stamp}-${label}.jsonl`);
+      writeFileSync(dataPath, "", "utf8");
+      const manifestPath = join(
+        this.baseDir,
+        `rl-${stamp}-${label}-manifest.json`,
+      );
+      writeFileSync(
+        manifestPath,
+        JSON.stringify({ sessionId, turnCount: 0, dataPath }, null, 2),
+        "utf8",
+      );
+      return { dataPath, manifestPath, turnCount: 0 };
+    }
+
+    const windowSize = options.windowSize ?? 20;
+    const turns: object[] = [];
+
+    // Slide a window over the conversation producing training examples
+    for (let i = 1; i < messages.length; i++) {
+      const window = messages.slice(Math.max(0, i - windowSize), i);
+      const response = messages[i];
+      if (!response || response.role !== "assistant") continue;
+
+      turns.push({
+        id: `${sessionId}:${i}`,
+        sessionId,
+        model: options.model ?? "unknown",
+        provider: options.provider ?? "unknown",
+        agentName: options.agentName ?? "eliza-agent",
+        createdAt: response.createdAt,
+        messages: window.map((m) => ({
+          role: m.role,
+          content: m.text,
+        })),
+        response: response.text,
+        metadata: options.includeMetadata
+          ? {
+              turnIndex: i,
+              windowSize: window.length,
+              sessionMessageCount: messages.length,
+            }
+          : undefined,
+      });
+    }
+
+    const stamp = Date.now();
+    const label = this.slug(options.label ?? sessionId);
+    const dataPath = join(this.baseDir, `rl-${stamp}-${label}.jsonl`);
+    const manifestPath = join(
+      this.baseDir,
+      `rl-${stamp}-${label}-manifest.json`,
+    );
+
+    writeFileSync(
+      dataPath,
+      turns.map((t) => JSON.stringify(t)).join("\n"),
+      "utf8",
+    );
+
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          schema: "eliza-agent-rl-v1",
+          createdAt: new Date().toISOString(),
+          sessionId,
+          label,
+          model: options.model ?? "unknown",
+          provider: options.provider ?? "unknown",
+          agentName: options.agentName ?? "eliza-agent",
+          turnCount: turns.length,
+          windowSize,
+          dataPath,
+          messageCount: messages.length,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    return { dataPath, manifestPath, turnCount: turns.length };
+  }
+
+  /**
+   * Export ALL sessions as a single RL-ready training dataset.
+   * Groups by session, converts each to the windowed turn format,
+   * and writes a combined JSONL file with a manifest.
+   */
+  exportRlDataset(
+    options: {
+      label?: string;
+      model?: string;
+      provider?: string;
+      agentName?: string;
+      windowSize?: number;
+      limit?: number;
+    } = {},
+  ): {
+    dataPath: string;
+    manifestPath: string;
+    turnCount: number;
+    sessionCount: number;
+  } {
+    const allMessages = this.sessions.recent(
+      options.limit ?? 1000,
+    ) as TrajectoryRecord[];
+    const bySession = new Map<string, TrajectoryRecord[]>();
+
+    for (const msg of allMessages) {
+      const group = bySession.get(msg.sessionId) ?? [];
+      group.push(msg);
+      bySession.set(msg.sessionId, group);
+    }
+
+    const windowSize = options.windowSize ?? 20;
+    const turns: object[] = [];
+
+    for (const [sessionId, messages] of bySession) {
+      // Sort by createdAt
+      messages.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+      for (let i = 1; i < messages.length; i++) {
+        const window = messages.slice(Math.max(0, i - windowSize), i);
+        const response = messages[i];
+        if (!response || response.role !== "assistant") continue;
+
+        turns.push({
+          id: `${sessionId}:${i}`,
+          sessionId,
+          model: options.model ?? "unknown",
+          provider: options.provider ?? "unknown",
+          agentName: options.agentName ?? "eliza-agent",
+          createdAt: response.createdAt,
+          messages: window.map((m) => ({ role: m.role, content: m.text })),
+          response: response.text,
+        });
+      }
+    }
+
+    const stamp = Date.now();
+    const label = this.slug(options.label ?? "rl-dataset");
+    const dataPath = join(this.baseDir, `rl-dataset-${stamp}-${label}.jsonl`);
+    const manifestPath = join(
+      this.baseDir,
+      `rl-dataset-${stamp}-${label}-manifest.json`,
+    );
+
+    writeFileSync(
+      dataPath,
+      turns.map((t) => JSON.stringify(t)).join("\n"),
+      "utf8",
+    );
+
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          schema: "eliza-agent-rl-v1",
+          createdAt: new Date().toISOString(),
+          label,
+          model: options.model ?? "unknown",
+          provider: options.provider ?? "unknown",
+          agentName: options.agentName ?? "eliza-agent",
+          turnCount: turns.length,
+          sessionCount: bySession.size,
+          windowSize,
+          dataPath,
+          totalMessages: allMessages.length,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    return {
+      dataPath,
+      manifestPath,
+      turnCount: turns.length,
+      sessionCount: bySession.size,
+    };
+  }
+
+  /**
+   * Describe the RL export capabilities available.
+   */
+  describeRlExport(): string {
+    const { totalSessions } = this.sessions.summary(50);
+    return [
+      "RL Export Capabilities:",
+      `  Sessions available: ${totalSessions}`,
+      "  Formats: JSONL (windowed turn format, Doolittle training schema)",
+      "  Schema: eliza-agent-rl-v1",
+      "  Methods:",
+      "    exportRlReady(sessionId)  — single session RL export",
+      "    exportRlDataset()         — all sessions combined RL export",
+    ].join("\n");
+  }
 }
