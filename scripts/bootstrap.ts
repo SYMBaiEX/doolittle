@@ -9,6 +9,12 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { normalizeCloudSiteUrl } from "@elizaos/autonomous/cloud/base-url";
 import { checkCloudAvailability } from "@elizaos/autonomous/runtime/cloud-onboarding";
+import {
+  createOnboardingStateMachine,
+  getOnboardingSummary,
+  isOnboardingComplete,
+  OnboardingStep,
+} from "@elizaos/core";
 import blessed from "blessed";
 import {
   getLinkedProviderAccountsSnapshot,
@@ -180,6 +186,11 @@ interface OnboardingSummary {
     tts: boolean;
     codegen: boolean;
   };
+  nativeOnboarding: {
+    complete: boolean;
+    currentStep: string;
+    summary: string;
+  };
   profile: string;
 }
 
@@ -281,6 +292,11 @@ const envExamplePath = join(root, ".env.example");
 const settingsPath = join(root, ".eliza-agent", "settings.json");
 const gatewayPath = join(root, ".eliza-agent", "gateway", "gateway.json");
 const onboardingPath = join(root, ".eliza-agent", "onboarding.json");
+const nativeOnboardingPath = join(
+  root,
+  ".eliza-agent",
+  "onboarding.state.json",
+);
 
 const color = {
   reset: "\u001b[0m",
@@ -353,6 +369,163 @@ function normalizeElizaCloudModel(value?: string | null): string {
     return "anthropic/claude-sonnet-4.6";
   }
   return trimmed;
+}
+
+async function buildNativeOnboardingMirror(answers: WizardAnswers): Promise<{
+  serialized?: unknown;
+  complete: boolean;
+  currentStep: string;
+  summary: string;
+}> {
+  try {
+    const machine = createOnboardingStateMachine({
+      platform: "cli",
+      mode: options.headless || options.skipWizard ? "cli" : "wizard",
+    });
+
+    await machine.advanceStep({
+      step: OnboardingStep.WELCOME,
+      data: {
+        acknowledged: true,
+        userName: answers.agentName,
+      },
+    });
+
+    await machine.advanceStep({
+      step: OnboardingStep.RISK_ACK,
+      data: {
+        accepted: true,
+        warningText:
+          "Eliza Agent can inspect files, run tools, and connect managed or local providers.",
+      },
+    });
+
+    const authInput =
+      answers.provider === "offline"
+        ? { method: "api_key" as const, provider: "offline", skip: true }
+        : answers.elizaCloudApiKey
+          ? {
+              method: "api_key" as const,
+              provider: "elizacloud",
+              apiKey: answers.elizaCloudApiKey,
+            }
+          : answers.openaiApiKey
+            ? {
+                method: "api_key" as const,
+                provider: answers.provider === "codex" ? "codex" : "openai",
+                apiKey: answers.openaiApiKey,
+              }
+            : answers.anthropicApiKey
+              ? {
+                  method: "api_key" as const,
+                  provider:
+                    answers.provider === "claude-code"
+                      ? "claude-code"
+                      : "anthropic",
+                  apiKey: answers.anthropicApiKey,
+                }
+              : answers.claudeCodeOauthToken
+                ? {
+                    method: "setup_token" as const,
+                    provider: "claude-code",
+                    setupToken: answers.claudeCodeOauthToken,
+                  }
+                : {
+                    method: "api_key" as const,
+                    provider: answers.provider,
+                    skip: true,
+                  };
+
+    await machine.advanceStep({
+      step: OnboardingStep.AUTH,
+      data: authInput,
+    });
+
+    const channels: Array<{
+      type: string;
+      enabled: boolean;
+      credentials?: Record<string, string>;
+      settings?: Record<string, string | boolean | number>;
+    }> = answers.transports.map((transport) => {
+      let credentials: Record<string, string> | undefined;
+      if (transport === "telegram" && answers.telegramBotToken) {
+        credentials = { botToken: answers.telegramBotToken };
+      } else if (transport === "discord" && answers.discordBotToken) {
+        credentials = { botToken: answers.discordBotToken };
+      } else if (
+        transport === "slack" &&
+        (answers.slackWebhookUrl || answers.slackSigningSecret)
+      ) {
+        credentials = {
+          webhookUrl: answers.slackWebhookUrl,
+          signingSecret: answers.slackSigningSecret,
+        };
+      } else if (
+        transport === "homeassistant" &&
+        (answers.homeAssistantUrl || answers.homeAssistantToken)
+      ) {
+        credentials = {
+          url: answers.homeAssistantUrl,
+          token: answers.homeAssistantToken,
+        };
+      }
+
+      return {
+        type: transport,
+        enabled: true,
+        credentials,
+      };
+    });
+
+    await machine.advanceStep({
+      step: OnboardingStep.CHANNELS,
+      data: {
+        channels,
+        dmPolicy: {
+          allowUnknownSenders: answers.allowAllUsers,
+          requireApproval: answers.pairingMode === "pair",
+        },
+        skip: channels.length === 0,
+      },
+    });
+
+    const skills = [
+      ...(answers.tools.mcp ? ["mcp"] : []),
+      ...(answers.tools.acp ? ["acp"] : []),
+      ...(answers.tools.tts ? ["tts"] : []),
+      ...(answers.tools.codegen ? ["codegen"] : []),
+      `run-depth:${answers.runDepth}`,
+      `tool-progress:${answers.toolProgressMode}`,
+    ];
+
+    await machine.advanceStep({
+      step: OnboardingStep.SKILLS,
+      data: {
+        skills,
+        install: [],
+        preferences: {
+          nodeManager: "bun",
+        },
+        skip: skills.length === 0,
+      },
+    });
+
+    return {
+      serialized: machine.toJSON(),
+      complete: isOnboardingComplete(machine.getContext()),
+      currentStep: machine.getCurrentStep(),
+      summary: getOnboardingSummary(machine.getContext()),
+    };
+  } catch (error) {
+    return {
+      complete: false,
+      currentStep: "ERROR",
+      summary:
+        error instanceof Error && error.message.trim()
+          ? `Native onboarding mirror unavailable: ${error.message.trim()}`
+          : "Native onboarding mirror unavailable.",
+    };
+  }
 }
 
 function requireReadline(
@@ -3556,12 +3729,12 @@ async function runWizard(
   }
 }
 
-function applyAnswers(answers: WizardAnswers): {
+async function applyAnswers(answers: WizardAnswers): Promise<{
   envMessages: string[];
   settings: RuntimeSettings;
   gateway: GatewayConfig;
   onboarding: OnboardingSummary;
-} {
+}> {
   const envMessages = updateEnvFile({
     ELIZA_AGENT_NAME: answers.agentName,
     ELIZA_AGENT_MODE: "cli",
@@ -3710,6 +3883,11 @@ function applyAnswers(answers: WizardAnswers): {
   }
   writeJson(gatewayPath, gateway);
 
+  const nativeOnboarding = await buildNativeOnboardingMirror(answers);
+  if (nativeOnboarding.serialized) {
+    writeJson(nativeOnboardingPath, nativeOnboarding.serialized);
+  }
+
   const onboarding: OnboardingSummary = {
     timestamp: new Date().toISOString(),
     mode: options.headless || options.skipWizard ? "headless" : answers.mode,
@@ -3729,6 +3907,11 @@ function applyAnswers(answers: WizardAnswers): {
     },
     transports: answers.transports,
     tools: answers.tools,
+    nativeOnboarding: {
+      complete: nativeOnboarding.complete,
+      currentStep: nativeOnboarding.currentStep,
+      summary: nativeOnboarding.summary,
+    },
     profile: fingerprint({
       provider: answers.provider,
       backend: answers.backend,
@@ -3763,6 +3946,9 @@ function printSummary(
   console.log(`  body: ${onboarding.backend}`);
   console.log(
     `  cadence: ${onboarding.agent.runDepth} cap=${onboarding.agent.maxIterations} progress=${onboarding.agent.toolProgressMode}`,
+  );
+  console.log(
+    `  onboarding: ${onboarding.nativeOnboarding.complete ? "native-aligned" : "mirror-warn"} (${onboarding.nativeOnboarding.currentStep})`,
   );
   console.log(
     `  threads: codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
@@ -3841,5 +4027,5 @@ if (options.checkOnly) {
 
 const existingEnv = readEnvEntries();
 const answers = await runWizard(existingEnv);
-const { envMessages, onboarding } = applyAnswers(answers);
+const { envMessages, onboarding } = await applyAnswers(answers);
 printSummary(createdDirs, [...initialEnvMessages, ...envMessages], onboarding);

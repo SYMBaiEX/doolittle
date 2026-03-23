@@ -161,7 +161,7 @@ function shouldRenderRunEvent(
     ].includes(event.type);
   }
   if (mode === "all") {
-    return event.type !== "message";
+    return event.type !== "message" && event.type !== "heartbeat";
   }
   return true;
 }
@@ -171,18 +171,30 @@ function formatRunEvent(event: RunUpdateEvent): string | undefined {
     case "started":
       return `run started (${event.run.runDepth}, cap ${event.run.configuredMaxIterations})`;
     case "thinking":
-      return "thinking";
+      return event.run.statusDetail
+        ? `thinking: ${truncate(event.run.statusDetail, 88)}`
+        : "thinking";
     case "acting":
     case "action-started":
       return event.run.activeAction
-        ? `acting: ${truncate(event.run.activeAction, 88)}`
+        ? `${event.run.activeStream ? `${event.run.activeStream}: ` : "acting: "}${truncate(event.run.activeAction, 88)}`
         : `acting (${event.run.observedActionCount} observed steps)`;
     case "action-completed":
       return event.run.lastAction
         ? `completed: ${truncate(event.run.lastAction, 88)}`
         : "action completed";
     case "waiting":
-      return "waiting for next step";
+      return event.run.statusDetail
+        ? `waiting: ${truncate(event.run.statusDetail, 88)}`
+        : "waiting for next step";
+    case "stream":
+      return event.run.activeStream
+        ? `${event.run.activeStream}: ${truncate(event.run.statusDetail ?? event.run.activeAction ?? "activity", 88)}`
+        : "stream activity";
+    case "heartbeat":
+      return event.run.statusDetail
+        ? `heartbeat: ${truncate(event.run.statusDetail, 88)}`
+        : "heartbeat";
     case "approvals":
       return `pending approvals: ${event.run.pendingApprovals}`;
     case "completed":
@@ -1079,7 +1091,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `Theme: {yellow-fg}${settings.ui.theme}{/}`,
     `Run: {yellow-fg}${settings.agent.runDepth}{/} cap={yellow-fg}${settings.agent.maxIterations}{/} progress={yellow-fg}${settings.agent.toolProgressMode}{/}`,
     activeRun
-      ? `Observed: {green-fg}${activeRun.status}{/} steps={green-fg}${activeRun.observedActionCount}{/}${activeRun.activeAction ? ` action={cyan-fg}${escapeBlessed(truncate(activeRun.activeAction, 26))}{/}` : ""}`
+      ? `Observed: {green-fg}${activeRun.status}{/} steps={green-fg}${activeRun.observedActionCount}{/}${activeRun.activeAction ? ` action={cyan-fg}${escapeBlessed(truncate(activeRun.activeAction, 26))}{/}` : ""}${activeRun.activeStream ? ` stream={magenta-fg}${escapeBlessed(activeRun.activeStream)}{/}` : ""}${activeRun.statusDetail && !activeRun.activeAction ? ` detail={gray-fg}${escapeBlessed(truncate(activeRun.statusDetail, 26))}{/}` : ""}`
       : "{gray-fg}Observed: idle{/}",
     active?.title
       ? `Session: {green-fg}${truncate(active.title, 28)}{/}`

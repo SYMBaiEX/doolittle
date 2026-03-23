@@ -223,6 +223,12 @@ describe("DiagnosticsService", () => {
       });
 
       expect(checks.some((check) => check.id === "data.exists")).toBe(true);
+      expect(checks.some((check) => check.id === "onboarding.summary")).toBe(
+        true,
+      );
+      expect(checks.some((check) => check.id === "onboarding.native")).toBe(
+        true,
+      );
       expect(checks.some((check) => check.id === "cron.output")).toBe(true);
       expect(checks.some((check) => check.id === "gateway.data")).toBe(true);
       expect(checks.some((check) => check.id === "execution.remote.sync")).toBe(
@@ -239,6 +245,9 @@ describe("DiagnosticsService", () => {
       expect(
         checks.some((check) => check.id === "native.messaging.control-plane"),
       ).toBe(true);
+      expect(checks.some((check) => check.id === "runtime.agent-events")).toBe(
+        true,
+      );
       expect(
         checks.some(
           (check) =>

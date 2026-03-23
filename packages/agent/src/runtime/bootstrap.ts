@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
 import {
   AgentRuntime,
   ApprovalService,
@@ -496,6 +497,19 @@ function eventActionLabel(payload: unknown): string | undefined {
   return undefined;
 }
 
+function agentEventLabel(data: Record<string, unknown>): string | undefined {
+  if (typeof data.label === "string" && data.label.trim()) {
+    return data.label.trim();
+  }
+  if (typeof data.preview === "string" && data.preview.trim()) {
+    return data.preview.trim();
+  }
+  if (typeof data.text === "string" && data.text.trim()) {
+    return data.text.trim();
+  }
+  return eventActionLabel(data);
+}
+
 function attachRunProgressBridge(
   runtime: AgentRuntime,
   services: AppServices,
@@ -566,6 +580,29 @@ function attachRunProgressBridge(
       services.runController.updateRuntimeWaiting(roomId);
     }
   });
+
+  const agentEvents = getAgentEventService(runtime);
+  if (agentEvents) {
+    agentEvents.subscribe((event) => {
+      if (!event.roomId) {
+        return;
+      }
+      const roomId = String(event.roomId);
+      const label = agentEventLabel(event.data);
+      services.runController.noteRuntimeStream(roomId, event.stream, label);
+    });
+
+    agentEvents.subscribeHeartbeat((event) => {
+      services.runController.noteHeartbeat(
+        event.status,
+        event.preview,
+        event.indicatorType,
+      );
+    });
+
+    services.runController.markAgentEventBridgeAttached(true);
+  }
+
   services.runController.markRuntimeBridgeAttached(true);
 }
 

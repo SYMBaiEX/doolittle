@@ -79,4 +79,29 @@ describe("RunControllerService", () => {
     expect(active?.status).toBe("complete");
     expect(active?.endedAt).toBeDefined();
   });
+
+  it("captures native agent-event streams and heartbeats without faking extra steps", () => {
+    const service = new RunControllerService();
+    service.startTurn({
+      sessionId: "session-a",
+      roomId: "room-a",
+      runId: "run-a",
+      source: "cli",
+      message: "find the auth flow",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "verbose",
+    });
+
+    service.noteRuntimeStream("room-a", "thought", "searching the workspace");
+    service.noteHeartbeat("thinking", "warming native tools", "autonomy");
+    service.noteRuntimeStream("room-a", "terminal", "rg linked provider auth");
+
+    const active = service.getActive("session-a");
+    expect(active?.observedActionCount).toBe(0);
+    expect(active?.status).toBe("acting");
+    expect(active?.activeStream).toBe("terminal");
+    expect(active?.activeAction).toBe("rg linked provider auth");
+    expect(active?.lastHeartbeatAt).toBeDefined();
+  });
 });

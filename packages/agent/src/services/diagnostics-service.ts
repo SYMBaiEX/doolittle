@@ -107,6 +107,24 @@ export class DiagnosticsService {
       detail: this.config.dataDir,
     });
 
+    const onboardingSummaryPath = join(this.config.dataDir, "onboarding.json");
+    const onboardingStatePath = join(
+      this.config.dataDir,
+      "onboarding.state.json",
+    );
+    checks.push({
+      id: "onboarding.summary",
+      status: existsSync(onboardingSummaryPath) ? "pass" : "warn",
+      summary: "Product onboarding summary",
+      detail: onboardingSummaryPath,
+    });
+    checks.push({
+      id: "onboarding.native",
+      status: existsSync(onboardingStatePath) ? "pass" : "warn",
+      summary: "Native onboarding state mirror",
+      detail: onboardingStatePath,
+    });
+
     const nativeWorkspacePath = join(
       this.config.workspaceDir,
       "packages",
@@ -694,6 +712,18 @@ export class DiagnosticsService {
       detail: runtimeExecutionControl
         ? `native=${runtimeExecutionControl.approvals.available} asyncRequest=${runtimeExecutionControl.approvals.asyncRequest} selectionHandling=${runtimeExecutionControl.approvals.selectionHandling}`
         : "Runtime not attached; approval bridge cannot be inspected.",
+    });
+    checks.push({
+      id: "runtime.agent-events",
+      status:
+        runtimeExecutionControl?.agentEvents.available &&
+        (this.runController?.hasAgentEventBridge() ?? false)
+          ? "pass"
+          : "warn",
+      summary: "Native agent-event progress stream",
+      detail: runtimeExecutionControl
+        ? `native=${runtimeExecutionControl.agentEvents.available} heartbeat=${runtimeExecutionControl.agentEvents.heartbeat} lastHeartbeat=${runtimeExecutionControl.agentEvents.lastHeartbeatStatus ?? "none"} bridge=${this.runController?.hasAgentEventBridge() ?? false}`
+        : "Runtime not attached; agent-event bridge cannot be inspected.",
     });
     checks.push({
       id: "runtime.tool-policy",

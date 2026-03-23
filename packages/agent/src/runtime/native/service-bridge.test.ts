@@ -106,6 +106,13 @@ describe("getEffectiveMessagingTransportInventory", () => {
             setSecret: () => undefined,
           };
         }
+        if (name === "agent_event") {
+          return {
+            subscribe: () => () => undefined,
+            subscribeHeartbeat: () => () => undefined,
+            getLastHeartbeat: () => ({ status: "thinking" }),
+          };
+        }
         return null;
       },
     } as unknown as RuntimeLike;
@@ -125,6 +132,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(execution.planning.available).toBe(true);
     expect(execution.planning.plans.total).toBe(2);
     expect(execution.e2b.sandboxes).toBe(1);
+    expect(execution.agentEvents.available).toBe(true);
+    expect(execution.agentEvents.lastHeartbeatStatus).toBe("thinking");
     expect(execution.codeGeneration.available).toBe(true);
     expect(execution.codeGeneration.ready).toBe(true);
     expect(execution.codeGeneration.methods).toContain("generateCode");
