@@ -704,7 +704,22 @@ describe("getEffectiveMessagingTransportInventory", () => {
       },
     } as unknown as AppServices;
 
-    const controlPlane = getAutonomousControlPlane(runtime, services);
+    const controlPlane = getAutonomousControlPlane(runtime, services, {
+      elizaCloudEnabled: true,
+      elizaCloudApiKey: "cloud-key",
+      elizaCloudSmallModel: "anthropic/claude-haiku-4-5-20251001",
+      elizaCloudLargeModel: "anthropic/claude-sonnet-4.6",
+      openAiApiKey: undefined,
+      anthropicApiKey: undefined,
+      useLinkedCodexAuth: false,
+      useLinkedClaudeCodeAuth: false,
+      claudeCodeCliFallback: false,
+      openAiModel: "gpt-5.4",
+      anthropicLargeModel: "claude-sonnet-4.6",
+      telegramBotToken: undefined,
+      discordBotToken: undefined,
+      falApiKey: undefined,
+    } as never);
 
     expect(controlPlane.skills.source).toBe("native");
     expect(controlPlane.skills.localSkills).toBe(1);
@@ -716,6 +731,11 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(controlPlane.pluginManager.enabled).toBe(1);
     expect(controlPlane.pluginManager.official).toBe(1);
     expect(controlPlane.pluginManager.vendored).toBe(1);
+    expect(controlPlane.alignment.connection.kind).toBe("cloud-managed");
+    expect(controlPlane.alignment.connection.provider).toBe("elizacloud");
+    expect(controlPlane.alignment.connection.smallModel).toBe(
+      "anthropic/claude-haiku-4-5-20251001",
+    );
     expect(controlPlane.media.tts.available).toBe(true);
     expect(controlPlane.research.actionBench.actions).toBeGreaterThan(0);
     expect(controlPlane.research.autocoder.ready).toBe(false);

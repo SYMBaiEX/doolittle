@@ -1,6 +1,14 @@
 import type {} from "@elizaos/agent";
 import type {} from "@elizaos/autonomous";
+import {
+  applySubscriptionProviderConfig,
+  resolveExistingOnboardingConnection,
+} from "@elizaos/autonomous/api/provider-switch-config";
 import { applyPluginAutoEnable } from "@elizaos/autonomous/config/plugin-auto-enable";
+import {
+  getOnboardingProviderOption,
+  type OnboardingConnection,
+} from "@elizaos/autonomous/contracts/onboarding";
 import type {} from "@elizaos/skills";
 import type { EnvConfig } from "@/types";
 
@@ -21,8 +29,39 @@ export const autonomousPatternAreas = [
   "tts-voice-generation",
 ] as const;
 
-function buildAutonomousCompatConfig(config: EnvConfig) {
-  return {
+interface AutonomousConnectionSummary {
+  source: "provider-switch-config";
+  configured: boolean;
+  kind: OnboardingConnection["kind"] | "missing";
+  provider: string | null;
+  detail: string;
+  primaryModel?: string;
+  smallModel?: string;
+  largeModel?: string;
+  remoteApiBase?: string;
+}
+
+function resolveAutonomousPrimaryModel(config: EnvConfig): string | undefined {
+  if (config.useLinkedCodexAuth) {
+    return config.openAiModel;
+  }
+  if (config.useLinkedClaudeCodeAuth || config.claudeCodeCliFallback) {
+    return config.anthropicLargeModel;
+  }
+  if (config.openAiApiKey) {
+    return config.openAiModel;
+  }
+  if (config.anthropicApiKey) {
+    return config.anthropicLargeModel;
+  }
+  return undefined;
+}
+
+function buildAutonomousCompatConfig(
+  config: EnvConfig,
+): Record<string, unknown> {
+  const compatConfig: Record<string, unknown> = {
+    env: buildAutonomousCompatEnv(config),
     connectors: {
       ...(config.telegramBotToken
         ? {
@@ -47,7 +86,53 @@ function buildAutonomousCompatConfig(config: EnvConfig) {
       experience: { enabled: true },
       agentSkills: { enabled: true },
     },
+    agents: {
+      defaults: {},
+    },
   };
+
+  if (config.elizaCloudEnabled || config.elizaCloudApiKey) {
+    compatConfig.cloud = {
+      enabled: config.elizaCloudEnabled,
+      provider: "elizacloud",
+      inferenceMode: "cloud",
+      runtime: "cloud",
+      ...(config.elizaCloudApiKey
+        ? {
+            apiKey: config.elizaCloudApiKey,
+          }
+        : {}),
+    };
+    compatConfig.models = {
+      small: config.elizaCloudSmallModel,
+      large: config.elizaCloudLargeModel,
+    };
+  }
+
+  if (config.useLinkedCodexAuth) {
+    applySubscriptionProviderConfig(
+      compatConfig as never,
+      "openai-subscription",
+    );
+  } else if (config.useLinkedClaudeCodeAuth || config.claudeCodeCliFallback) {
+    applySubscriptionProviderConfig(
+      compatConfig as never,
+      "anthropic-subscription",
+    );
+  } else {
+    const primaryModel = resolveAutonomousPrimaryModel(config);
+    if (primaryModel) {
+      compatConfig.agents = {
+        defaults: {
+          model: {
+            primary: primaryModel,
+          },
+        },
+      };
+    }
+  }
+
+  return compatConfig;
 }
 
 function buildAutonomousCompatEnv(config: EnvConfig): NodeJS.ProcessEnv {
@@ -85,6 +170,75 @@ function buildAutonomousCompatEnv(config: EnvConfig): NodeJS.ProcessEnv {
   };
 }
 
+export function summarizeAutonomousConnection(
+  config?: EnvConfig,
+): AutonomousConnectionSummary {
+  if (!config) {
+    return {
+      source: "provider-switch-config",
+      configured: false,
+      kind: "missing",
+      provider: null,
+      detail:
+        "No EnvConfig was supplied, so the native connection view could not be resolved.",
+    };
+  }
+
+  const connection = resolveExistingOnboardingConnection(
+    buildAutonomousCompatConfig(config),
+  );
+  if (!connection) {
+    return {
+      source: "provider-switch-config",
+      configured: false,
+      kind: "missing",
+      provider: null,
+      detail:
+        "No native cloud-managed, local-provider, or remote-provider connection could be derived from the current env.",
+    };
+  }
+
+  if (connection.kind === "cloud-managed") {
+    return {
+      source: "provider-switch-config",
+      configured: true,
+      kind: connection.kind,
+      provider: connection.cloudProvider,
+      detail: `cloud-managed via Eliza Cloud (${connection.smallModel ?? "small-model-unset"} / ${connection.largeModel ?? "large-model-unset"})`,
+      smallModel: connection.smallModel,
+      largeModel: connection.largeModel,
+    };
+  }
+
+  if (connection.kind === "remote-provider") {
+    const providerLabel = connection.provider
+      ? (getOnboardingProviderOption(connection.provider)?.name ??
+        connection.provider)
+      : "none";
+    return {
+      source: "provider-switch-config",
+      configured: true,
+      kind: connection.kind,
+      provider: connection.provider ?? "remote",
+      detail: `remote-provider via ${connection.remoteApiBase} (local=${providerLabel}${connection.primaryModel ? ` model=${connection.primaryModel}` : ""})`,
+      primaryModel: connection.primaryModel,
+      remoteApiBase: connection.remoteApiBase,
+    };
+  }
+
+  const providerLabel =
+    getOnboardingProviderOption(connection.provider)?.name ??
+    connection.provider;
+  return {
+    source: "provider-switch-config",
+    configured: true,
+    kind: connection.kind,
+    provider: connection.provider,
+    detail: `local-provider via ${providerLabel}${connection.primaryModel ? ` (${connection.primaryModel})` : ""}`,
+    primaryModel: connection.primaryModel,
+  };
+}
+
 export function describeAutonomousAlignment(config?: EnvConfig) {
   const autoEnable = config
     ? applyPluginAutoEnable({
@@ -115,5 +269,6 @@ export function describeAutonomousAlignment(config?: EnvConfig) {
           allow: [],
           changes: [],
         },
+    connection: summarizeAutonomousConnection(config),
   };
 }
