@@ -60,7 +60,10 @@ test.describe("local installer and command smoke", () => {
 
   test("launcher doctor works without onboarding state", async () => {
     await test.step("run local eliza-agent doctor", async () => {
-      const result = runCommand("bash", ["bin/eliza-agent", "doctor"]);
+      const result = runCommand("bun", [
+        "packages/agent/src/index.ts",
+        "doctor",
+      ]);
       expect(result.code).toBe(0);
       expect(result.output).toContain("mode: check");
       expect(result.output).toContain("Preflight");
