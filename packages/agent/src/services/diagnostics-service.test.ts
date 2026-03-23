@@ -248,6 +248,17 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "runtime.agent-events")).toBe(
         true,
       );
+      expect(checks.some((check) => check.id === "autonomous.connection")).toBe(
+        true,
+      );
+      expect(
+        checks.some(
+          (check) =>
+            check.id === "autonomous.connection" &&
+            check.status === "warn" &&
+            check.detail.includes("missing"),
+        ),
+      ).toBe(true);
       expect(
         checks.some(
           (check) =>

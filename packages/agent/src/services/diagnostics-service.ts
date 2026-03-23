@@ -6,6 +6,7 @@ import {
   summarizeTransportInventory,
 } from "@/gateway/transport-contract";
 import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import {
   getLatestRuntimeLine,
@@ -697,6 +698,7 @@ export class DiagnosticsService {
       runtimeSettings?.agent.maxIterations ?? this.config.maxIterations;
     const toolProgressMode =
       runtimeSettings?.agent.toolProgressMode ?? this.config.toolProgressMode;
+    const autonomousAlignment = describeAutonomousAlignment(this.config);
     const runtimeBridgeAttached =
       this.runController?.hasRuntimeBridge() ?? false;
     checks.push({
@@ -704,6 +706,12 @@ export class DiagnosticsService {
       status: runtimeBridgeAttached ? "pass" : "warn",
       summary: "Observed multi-step runtime bridge",
       detail: `multiStep=true runtimeBridge=${runtimeBridgeAttached ? "attached" : "missing"} runDepth=${runDepth} maxIterations=${maxIterations} toolProgress=${toolProgressMode}`,
+    });
+    checks.push({
+      id: "autonomous.connection",
+      status: autonomousAlignment.connection.configured ? "pass" : "warn",
+      summary: "Native autonomous connection view",
+      detail: `${autonomousAlignment.connection.kind} source=${autonomousAlignment.connection.source} ${autonomousAlignment.connection.detail}`,
     });
     checks.push({
       id: "runtime.approvals",
