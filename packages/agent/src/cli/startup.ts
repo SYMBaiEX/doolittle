@@ -11,7 +11,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 function repoRoot(): string {
-  return fileURLToPath(new URL("../../../../../", import.meta.url));
+  // packages/agent/src/cli/startup.ts → ../../../../ = repo root
+  return fileURLToPath(new URL("../../../../", import.meta.url));
 }
 
 /**

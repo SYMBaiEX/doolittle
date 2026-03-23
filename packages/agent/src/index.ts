@@ -13,7 +13,8 @@ import { getAppContext } from "@/runtime/bootstrap";
 import { startApiServer } from "@/server";
 
 function repoRoot(): string {
-  return fileURLToPath(new URL("../../../../", import.meta.url));
+  // packages/agent/src/index.ts → ../../../ = repo root
+  return fileURLToPath(new URL("../../../", import.meta.url));
 }
 
 // ---------------------------------------------------------------------------
