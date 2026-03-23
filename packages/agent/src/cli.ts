@@ -20,8 +20,8 @@ import {
   getNativeEcosystemSnapshot,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
+import { formatRunEvent, shouldRenderRunEvent } from "@/runtime/run-progress";
 import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
-import type { RunUpdateEvent } from "@/services/run-controller-service";
 
 interface CliState {
   activeSessionId: string;
@@ -115,6 +115,36 @@ function escapeBlessed(text: string): string {
   return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
 }
 
+// biome-ignore lint/complexity/useRegexLiterals: A constructor keeps control-byte escapes explicit without tripping the control-character lint.
+const ANSI_ESCAPE_PATTERN = new RegExp(
+  "\\u001B(?:\\[[0-?]*[ -/]*[@-~]|\\][^\\u0007]*(?:\\u0007|\\u001B\\\\))",
+  "gu",
+);
+
+function sanitizeForeignTerminalWrite(text: string): string {
+  return text
+    .replace(ANSI_ESCAPE_PATTERN, "")
+    .replace(/\r\n/gu, "\n")
+    .replace(/\r/gu, "\n")
+    .replaceAll(String.fromCharCode(0), "")
+    .trim();
+}
+
+function createBlessedOutputProxy(
+  stream: NodeJS.WriteStream,
+): NodeJS.WriteStream {
+  const rawWrite = stream.write.bind(stream);
+  return new Proxy(stream, {
+    get(target, prop) {
+      if (prop === "write") {
+        return rawWrite;
+      }
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
 function getCliErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -142,76 +172,6 @@ function isRecoverableProviderError(error: unknown): boolean {
 function formatRecoverableProviderError(error: unknown): string {
   const detail = getCliErrorMessage(error);
   return detail.length > 280 ? `${detail.slice(0, 277)}...` : detail;
-}
-
-function shouldRenderRunEvent(
-  mode: "off" | "new" | "all" | "verbose",
-  event: RunUpdateEvent,
-): boolean {
-  if (mode === "off") {
-    return false;
-  }
-  if (mode === "new") {
-    return [
-      "started",
-      "stream",
-      "action-started",
-      "action-completed",
-      "completed",
-      "error",
-      "approvals",
-    ].includes(event.type)
-      ? event.type !== "stream" || event.run.activeStream !== "assistant"
-      : false;
-  }
-  if (mode === "all") {
-    return event.type !== "message" && event.type !== "heartbeat";
-  }
-  return true;
-}
-
-function formatRunEvent(event: RunUpdateEvent): string | undefined {
-  switch (event.type) {
-    case "started":
-      return `run started · ${event.run.runDepth} · cap ${event.run.configuredMaxIterations}`;
-    case "thinking":
-      return event.run.statusDetail
-        ? `thinking · ${truncate(event.run.statusDetail, 88)}`
-        : "thinking";
-    case "acting":
-    case "action-started":
-      return event.run.activeAction
-        ? `tool ${event.run.observedActionCount} · ${event.run.activeStream ? `${event.run.activeStream} · ` : ""}${truncate(event.run.activeAction, 88)}`
-        : `acting · ${event.run.observedActionCount} observed steps`;
-    case "action-completed":
-      return event.run.lastAction
-        ? `tool done · ${truncate(event.run.lastAction, 88)}`
-        : "action completed";
-    case "waiting":
-      return event.run.statusDetail
-        ? `waiting · ${truncate(event.run.statusDetail, 88)}`
-        : "waiting for next step";
-    case "stream":
-      return event.run.activeStream
-        ? `${event.run.activeStream} · ${truncate(event.run.statusDetail ?? event.run.activeAction ?? "activity", 88)}`
-        : "stream activity";
-    case "heartbeat":
-      return event.run.statusDetail
-        ? `heartbeat · ${truncate(event.run.statusDetail, 88)}`
-        : "heartbeat";
-    case "approvals":
-      return `pending approvals: ${event.run.pendingApprovals}`;
-    case "completed":
-      return `run complete · ${event.run.observedActionCount} observed steps`;
-    case "error":
-      return event.run.errorMessage
-        ? `run error: ${truncate(event.run.errorMessage, 120)}`
-        : "run error";
-    case "message":
-      return "message activity";
-    default:
-      return undefined;
-  }
 }
 
 export function renderResponseTranscript(
@@ -1030,6 +990,11 @@ async function startPlainCli(context: AppContext): Promise<void> {
   output.write(
     `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
   );
+  if (input.isTTY && output.isTTY) {
+    setTimeout(() => {
+      void context.ensureDeferredHydration("plain-cli");
+    }, 25).unref?.();
+  }
 
   while (true) {
     let line = "";
@@ -1089,6 +1054,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     context.services,
     context.config,
   );
+  const startup = context.services.startupState.getSnapshot();
   const active = sessions.find(
     (entry) => entry.sessionId === state.activeSessionId,
   );
@@ -1098,11 +1064,14 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `Provider: {cyan-fg}${settings.model.provider}{/}`,
     `Model: {cyan-fg}${settings.model.model}{/}`,
     `Connection: {cyan-fg}${escapeBlessed(autonomousControl.alignment.connection.kind)}{/}${autonomousControl.alignment.connection.provider ? ` via {cyan-fg}${escapeBlessed(autonomousControl.alignment.connection.provider)}{/}` : ""}`,
+    `Startup: {yellow-fg}${startup.hotPathReady ? "hot-ready" : "warming"}{/} deferred={yellow-fg}${startup.deferredReady ? "ready" : "warming"}{/}`,
+    `Fallback: {yellow-fg}${context.config.offlineBootstrapMode ? "offline-bootstrap" : "disabled"}{/}`,
     `Theme: {yellow-fg}${settings.ui.theme}{/}`,
     `Run: {yellow-fg}${settings.agent.runDepth}{/} cap={yellow-fg}${settings.agent.maxIterations}{/} progress={yellow-fg}${settings.agent.toolProgressMode}{/}`,
     activeRun
       ? `Observed: {green-fg}${activeRun.status}{/} steps={green-fg}${activeRun.observedActionCount}{/}${activeRun.activeAction ? ` action={cyan-fg}${escapeBlessed(truncate(activeRun.activeAction, 26))}{/}` : ""}${activeRun.activeStream ? ` stream={magenta-fg}${escapeBlessed(activeRun.activeStream)}{/}` : ""}${activeRun.statusDetail && !activeRun.activeAction ? ` detail={gray-fg}${escapeBlessed(truncate(activeRun.statusDetail, 26))}{/}` : ""}`
       : "{gray-fg}Observed: idle{/}",
+    `Hydration: gateway={cyan-fg}${startup.phases.gateway.status}{/} cron={cyan-fg}${startup.phases.cron.status}{/} diag={cyan-fg}${startup.phases.diagnostics.status}{/} skills={cyan-fg}${startup.phases.skills.status}{/}`,
     active?.title
       ? `Session: {green-fg}${truncate(active.title, 28)}{/}`
       : `Session: {green-fg}${state.activeSessionId}{/}`,
@@ -1181,7 +1150,10 @@ async function startTui(context: AppContext): Promise<void> {
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   const unsubscribers: Array<() => void> = [];
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
+  const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
+    input,
+    output: tuiOutput,
     smartCSR: true,
     fullUnicode: true,
     title: `${context.config.agentName} TUI`,
@@ -1204,10 +1176,10 @@ async function startTui(context: AppContext): Promise<void> {
 
   const activity = blessed.log({
     parent: screen,
-    top: 3,
+    top: "72%+2",
     left: 0,
     width: "68%",
-    height: "70%-1",
+    height: "28%-2",
     label: " Ops Log ",
     tags: true,
     border: "line",
@@ -1224,10 +1196,10 @@ async function startTui(context: AppContext): Promise<void> {
 
   const response = blessed.box({
     parent: screen,
-    top: "70%+2",
+    top: 3,
     left: 0,
     width: "68%",
-    height: "30%-2",
+    height: "72%-1",
     label: " Conversation ",
     tags: true,
     border: "line",
@@ -1972,6 +1944,114 @@ async function startTui(context: AppContext): Promise<void> {
     );
   }
 
+  const restoreForeignTerminalWrites = (() => {
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
+
+    const flushBuffer = (source: "stdout" | "stderr") => {
+      const pending = source === "stdout" ? stdoutBuffer : stderrBuffer;
+      const sanitized = sanitizeForeignTerminalWrite(pending);
+      if (sanitized) {
+        appendActivity(
+          source === "stdout" ? "srv+" : "srv!",
+          truncate(sanitized, 220),
+          source === "stdout" ? "info" : "warning",
+        );
+      }
+      if (source === "stdout") {
+        stdoutBuffer = "";
+      } else {
+        stderrBuffer = "";
+      }
+    };
+
+    const interceptWrite = (
+      source: "stdout" | "stderr",
+      original: typeof process.stdout.write,
+    ) => {
+      return (
+        chunk: string | Uint8Array,
+        encoding?: BufferEncoding | ((error?: Error | null) => void),
+        callback?: (error?: Error | null) => void,
+      ): boolean => {
+        if (screenDestroyed || shuttingDown) {
+          return original(chunk as never, encoding as never, callback);
+        }
+
+        const text =
+          typeof chunk === "string"
+            ? chunk
+            : Buffer.from(chunk).toString(
+                typeof encoding === "string" ? encoding : "utf8",
+              );
+        const sanitized = sanitizeForeignTerminalWrite(text);
+
+        if (!sanitized) {
+          if (typeof encoding === "function") {
+            encoding();
+          }
+          callback?.();
+          return true;
+        }
+
+        if (source === "stdout") {
+          stdoutBuffer += `${sanitized}\n`;
+        } else {
+          stderrBuffer += `${sanitized}\n`;
+        }
+
+        const lines = (source === "stdout" ? stdoutBuffer : stderrBuffer).split(
+          /\n/gu,
+        );
+        const remainder = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            continue;
+          }
+          appendActivity(
+            source === "stdout" ? "srv+" : "srv!",
+            truncate(trimmed, 220),
+            source === "stdout" ? "info" : "warning",
+          );
+        }
+
+        if (source === "stdout") {
+          stdoutBuffer = remainder;
+        } else {
+          stderrBuffer = remainder;
+        }
+        scheduleRefreshPanels(0);
+
+        if (typeof encoding === "function") {
+          encoding();
+        }
+        callback?.();
+        return true;
+      };
+    };
+
+    process.stdout.write = interceptWrite(
+      "stdout",
+      originalStdoutWrite,
+    ) as typeof process.stdout.write;
+    process.stderr.write = interceptWrite(
+      "stderr",
+      originalStderrWrite,
+    ) as typeof process.stderr.write;
+
+    return () => {
+      process.stdout.write = originalStdoutWrite as typeof process.stdout.write;
+      process.stderr.write = originalStderrWrite as typeof process.stderr.write;
+      flushBuffer("stdout");
+      flushBuffer("stderr");
+    };
+  })();
+  unsubscribers.push(restoreForeignTerminalWrites);
+
   async function refreshPanels(): Promise<void> {
     sidebar.setContent(renderStatusContent(context, state));
     transportBox.setContent(await renderTransportContent(context));
@@ -2697,15 +2777,6 @@ async function startTui(context: AppContext): Promise<void> {
         scheduleRefreshPanels();
         return;
       }
-      appendActivity(
-        "run",
-        truncate(detail, 160),
-        event.type === "error"
-          ? "warning"
-          : event.type === "completed"
-            ? "success"
-            : "info",
-      );
       if (busy) {
         pushLiveToolEvent(detail);
         if (liveResponse?.pending) {
@@ -2716,7 +2787,29 @@ async function startTui(context: AppContext): Promise<void> {
             pending: true,
           });
         }
+        if (event.type === "error" || event.type === "approvals") {
+          appendActivity(
+            "run",
+            truncate(detail, 160),
+            event.type === "error" ? "warning" : "info",
+          );
+        }
+      } else {
+        appendActivity(
+          "run",
+          truncate(detail, 160),
+          event.type === "error"
+            ? "warning"
+            : event.type === "completed"
+              ? "success"
+              : "info",
+        );
       }
+      scheduleRefreshPanels(0);
+    }),
+  );
+  unsubscribers.push(
+    context.services.startupState.onUpdate(() => {
       scheduleRefreshPanels(0);
     }),
   );
@@ -2767,6 +2860,9 @@ async function startTui(context: AppContext): Promise<void> {
   inputBox.focus();
   updateFooterHint();
   screen.render();
+  setTimeout(() => {
+    void context.ensureDeferredHydration("tui");
+  }, 25).unref?.();
 
   await new Promise<void>((resolve) => {
     screen.on("destroy", () => {
