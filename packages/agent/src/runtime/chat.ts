@@ -252,6 +252,9 @@ const SAFE_REMOTE_EXECUTION_PREFIXES = [
   "npm run build",
 ];
 
+const LOCAL_TASK_FAST_PATH_PATTERN =
+  /\b(search|find|read|open|inspect|show|grep|rg|git|status|diff|log|repo|repository|workspace|directory|file|files|command|run|execute|terminal|shell|ls|list)\b/i;
+
 const REMOTE_EXECUTION_APPROVAL_RULES: Array<{
   pattern: RegExp;
   reason: string;
@@ -6906,6 +6909,8 @@ export async function handleAgentTurn(
   });
 
   const trimmedMessage = input.message.trim();
+  const shouldInspectLocalIntent =
+    localInteractive && LOCAL_TASK_FAST_PATH_PATTERN.test(trimmedMessage);
   const responseFromCommandLayer = trimmedMessage.startsWith("/")
     ? await executeSlashCommand(input, context, options)
     : undefined;
@@ -7032,8 +7037,8 @@ export async function handleAgentTurn(
     return {
       directLocalIntent,
       executeDirectLocalIntent: fallbackModule.executeDirectLocalIntent,
-      shouldPreferDirectLocalExecution:
-        fallbackModule.shouldPreferDirectLocalExecution,
+      isHighConfidenceDirectLocalIntent:
+        fallbackModule.isHighConfidenceDirectLocalIntent,
       shouldUseDirectLocalFallback: fallbackModule.shouldUseDirectLocalFallback,
     };
   };
@@ -7077,22 +7082,25 @@ export async function handleAgentTurn(
     return undefined;
   };
 
-  const fastLocalIntent = await loadDirectLocalIntent();
+  const preferredLocalIntent = shouldInspectLocalIntent
+    ? await loadDirectLocalIntent()
+    : null;
   if (
-    fastLocalIntent.shouldPreferDirectLocalExecution(
-      fastLocalIntent.directLocalIntent as never,
+    preferredLocalIntent?.directLocalIntent &&
+    preferredLocalIntent.isHighConfidenceDirectLocalIntent(
+      preferredLocalIntent.directLocalIntent as never,
     )
   ) {
     const approvalResponse = await executeApprovedDirectLocalIntent(
-      fastLocalIntent.directLocalIntent as {
+      preferredLocalIntent.directLocalIntent as {
         label?: string;
       },
     );
     if (approvalResponse) {
       return approvalResponse;
     }
-    const directResponse = await fastLocalIntent.executeDirectLocalIntent(
-      fastLocalIntent.directLocalIntent as never,
+    const directResponse = await preferredLocalIntent.executeDirectLocalIntent(
+      preferredLocalIntent.directLocalIntent as never,
       sessionId,
       context,
       options,
@@ -7108,9 +7116,9 @@ export async function handleAgentTurn(
     });
     context.services.runController.finishTurn(sessionId, "complete");
     scheduleProfileObservation();
-    perf.mark("fast-local-intent");
+    perf.mark("preferred-local-intent");
     perf.flush(context.runtime.logger, {
-      path: "fast-local-intent",
+      path: "preferred-local-intent",
       sessionId,
       source: input.source ?? "cli",
     });
@@ -7422,7 +7430,7 @@ export async function handleAgentTurn(
     0;
 
   const fallbackModule =
-    observedActionCount === 0 || runFailureMessage
+    shouldInspectLocalIntent && (observedActionCount === 0 || runFailureMessage)
       ? await loadDirectLocalIntent()
       : null;
 
@@ -7433,6 +7441,9 @@ export async function handleAgentTurn(
       response,
       observedActionCount,
       runFailureMessage,
+      isHighConfidenceIntent: fallbackModule.isHighConfidenceDirectLocalIntent(
+        fallbackModule.directLocalIntent as never,
+      ),
     })
   ) {
     try {
