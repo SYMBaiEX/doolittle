@@ -1,3 +1,4 @@
+import { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
 import type { IAgentRuntime } from "@elizaos/core";
 import { benchmarkConfig } from "@elizaos/plugin-action-bench";
 import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
@@ -481,6 +482,12 @@ interface AutonomousControlPlaneSummary {
       asyncRequest: boolean;
       selectionHandling: boolean;
     };
+    agentEvents: {
+      source: "native" | "product";
+      available: boolean;
+      heartbeat: boolean;
+      lastHeartbeatStatus: string | null;
+    };
     e2b: {
       source: "native" | "product";
       available: boolean;
@@ -605,6 +612,13 @@ function countQueueActiveWorkers(queue: unknown): number {
 }
 
 export function getNativeServices(runtime: RuntimeLike) {
+  const agentEvent =
+    runtime && typeof runtime.getService === "function"
+      ? getAgentEventService(
+          runtime as { getService: (service: string) => unknown | null },
+        )
+      : null;
+
   return {
     knowledge: service<NativeKnowledgeService>(runtime, "knowledge"),
     personality: service<NativePersonalityService>(runtime, "personality"),
@@ -625,6 +639,7 @@ export function getNativeServices(runtime: RuntimeLike) {
     ),
     codingAgent: service<NativeCodingAgentService>(runtime, "coding_agent"),
     approval: service<NativeApprovalService>(runtime, "approval"),
+    agentEvent,
     pluginManager: service<NativePluginManagerService>(
       runtime,
       "plugin_manager",
@@ -781,6 +796,13 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
       available: Boolean(native.approval),
       asyncRequest: typeof native.approval?.requestApprovalAsync === "function",
       selectionHandling: typeof native.approval?.handleSelection === "function",
+    },
+    agentEvents: {
+      source: native.agentEvent ? ("native" as const) : ("product" as const),
+      available: Boolean(native.agentEvent),
+      heartbeat: typeof native.agentEvent?.subscribeHeartbeat === "function",
+      lastHeartbeatStatus:
+        native.agentEvent?.getLastHeartbeat?.()?.status ?? null,
     },
     e2b: {
       source: native.e2b ? ("native-plugin" as const) : ("product" as const),
@@ -2488,6 +2510,7 @@ export function getAutonomousControlPlane(
     native.pluginManager,
     native.planning,
     native.approval,
+    native.agentEvent,
     native.toolPolicy,
   ];
 
@@ -2593,6 +2616,12 @@ export function getAutonomousControlPlane(
         available: Boolean(native.approval),
         asyncRequest: executionControl.approvals.asyncRequest,
         selectionHandling: executionControl.approvals.selectionHandling,
+      },
+      agentEvents: {
+        source: native.agentEvent ? "native" : "product",
+        available: Boolean(native.agentEvent),
+        heartbeat: executionControl.agentEvents.heartbeat,
+        lastHeartbeatStatus: executionControl.agentEvents.lastHeartbeatStatus,
       },
       e2b: {
         source: native.e2b ? "native" : "product",

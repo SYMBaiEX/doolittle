@@ -20,10 +20,13 @@ export interface RunSnapshot {
   progressMode: ToolProgressMode;
   status: RunStatus;
   activeAction?: string;
+  activeStream?: string;
+  statusDetail?: string;
   lastAction?: string;
   pendingApprovals: number;
   startedAt: string;
   updatedAt: string;
+  lastHeartbeatAt?: string;
   endedAt?: string;
   errorMessage?: string;
 }
@@ -37,6 +40,8 @@ export interface RunUpdateEvent {
     | "message"
     | "action-started"
     | "action-completed"
+    | "stream"
+    | "heartbeat"
     | "completed"
     | "error"
     | "approvals";
@@ -57,6 +62,7 @@ export class RunControllerService {
   private readonly activeRuns = new Map<string, RunSnapshot>();
   private readonly roomIndex = new Map<string, string>();
   private runtimeBridgeAttached = false;
+  private agentEventBridgeAttached = false;
 
   markRuntimeBridgeAttached(attached = true): void {
     this.runtimeBridgeAttached = attached;
@@ -64,6 +70,14 @@ export class RunControllerService {
 
   hasRuntimeBridge(): boolean {
     return this.runtimeBridgeAttached;
+  }
+
+  markAgentEventBridgeAttached(attached = true): void {
+    this.agentEventBridgeAttached = attached;
+  }
+
+  hasAgentEventBridge(): boolean {
+    return this.agentEventBridgeAttached;
   }
 
   startTurn(input: {
@@ -110,7 +124,12 @@ export class RunControllerService {
   updateWaiting(sessionId: string): void {
     this.patch(
       sessionId,
-      { status: "waiting", activeAction: undefined },
+      {
+        status: "waiting",
+        activeAction: undefined,
+        activeStream: undefined,
+        statusDetail: undefined,
+      },
       "waiting",
     );
   }
@@ -129,6 +148,8 @@ export class RunControllerService {
       {
         status: "acting",
         activeAction: action,
+        activeStream: "action",
+        statusDetail: undefined,
         lastAction: action,
         observedActionCount: current.observedActionCount + 1,
       },
@@ -142,9 +163,91 @@ export class RunControllerService {
       {
         status: "waiting",
         activeAction: undefined,
+        activeStream: undefined,
+        statusDetail: undefined,
         lastAction: action,
       },
       "action-completed",
+    );
+  }
+
+  noteStream(sessionId: string, stream: string, detail?: string): void {
+    const current = this.activeRuns.get(sessionId);
+    if (!current) {
+      return;
+    }
+
+    if (stream === "action" || stream === "terminal") {
+      this.patch(
+        sessionId,
+        {
+          status: "acting",
+          activeStream: stream,
+          activeAction: detail ?? current.activeAction,
+          statusDetail: detail,
+          lastAction: detail ?? current.lastAction,
+        },
+        "stream",
+      );
+      return;
+    }
+
+    if (stream === "assistant") {
+      this.patch(
+        sessionId,
+        {
+          status: "waiting",
+          activeAction: undefined,
+          activeStream: stream,
+          statusDetail: detail,
+        },
+        "stream",
+      );
+      return;
+    }
+
+    this.patch(
+      sessionId,
+      {
+        status: "thinking",
+        activeStream: stream,
+        statusDetail: detail,
+      },
+      "stream",
+    );
+  }
+
+  noteHeartbeat(
+    status: string,
+    preview?: string,
+    indicatorType?: string,
+  ): void {
+    const activeRuns = Array.from(this.activeRuns.values()).filter(
+      (run) => !run.endedAt,
+    );
+    if (activeRuns.length !== 1) {
+      return;
+    }
+
+    const [run] = activeRuns;
+    const nextStatus: RunStatus =
+      status === "waiting"
+        ? "waiting"
+        : status === "error"
+          ? "error"
+          : status === "acting"
+            ? "acting"
+            : "thinking";
+
+    this.patch(
+      run.sessionId,
+      {
+        status: nextStatus,
+        activeStream: indicatorType ?? run.activeStream,
+        statusDetail: preview ?? status,
+        lastHeartbeatAt: nowIso(),
+      },
+      "heartbeat",
     );
   }
 
@@ -166,6 +269,8 @@ export class RunControllerService {
       status,
       activeAction: undefined,
       errorMessage,
+      activeStream: undefined,
+      statusDetail: undefined,
       endedAt: nowIso(),
       updatedAt: nowIso(),
     };
@@ -219,6 +324,14 @@ export class RunControllerService {
       return;
     }
     this.noteActionCompleted(sessionId, action);
+  }
+
+  noteRuntimeStream(roomId: string, stream: string, detail?: string): void {
+    const sessionId = this.roomIndex.get(roomId);
+    if (!sessionId) {
+      return;
+    }
+    this.noteStream(sessionId, stream, detail);
   }
 
   finishRuntimeRun(

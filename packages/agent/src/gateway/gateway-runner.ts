@@ -85,7 +85,7 @@ function shouldStreamRunUpdate(
     ].includes(event.type);
   }
   if (mode === "all") {
-    return event.type !== "message";
+    return event.type !== "message" && event.type !== "heartbeat";
   }
   return true;
 }
@@ -96,12 +96,20 @@ function formatRunUpdate(event: RunUpdateEvent): string | undefined {
       return `run started (${event.run.runDepth}, cap ${event.run.configuredMaxIterations})`;
     case "action-started":
       return event.run.activeAction
-        ? `acting: ${event.run.activeAction}`
+        ? `${event.run.activeStream ? `${event.run.activeStream}: ` : "acting: "}${event.run.activeAction}`
         : `acting (${event.run.observedActionCount} observed steps)`;
     case "action-completed":
       return event.run.lastAction
         ? `completed: ${event.run.lastAction}`
         : "action completed";
+    case "stream":
+      return event.run.activeStream
+        ? `${event.run.activeStream}: ${event.run.statusDetail ?? event.run.activeAction ?? "activity"}`
+        : "stream activity";
+    case "heartbeat":
+      return event.run.statusDetail
+        ? `heartbeat: ${event.run.statusDetail}`
+        : "heartbeat";
     case "approvals":
       return event.run.pendingApprovals > 0
         ? `pending approvals: ${event.run.pendingApprovals}`
@@ -113,9 +121,13 @@ function formatRunUpdate(event: RunUpdateEvent): string | undefined {
         ? `run error: ${event.run.errorMessage}`
         : "run error";
     case "thinking":
-      return "thinking";
+      return event.run.statusDetail
+        ? `thinking: ${event.run.statusDetail}`
+        : "thinking";
     case "waiting":
-      return "waiting for next step";
+      return event.run.statusDetail
+        ? `waiting: ${event.run.statusDetail}`
+        : "waiting for next step";
     case "message":
       return undefined;
     default:
