@@ -1,33 +1,4 @@
 import type { Plugin } from "@elizaos/core";
-import { actionBenchPlugin } from "@elizaos/plugin-action-bench";
-import { createAgentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
-import { createAgentSkillsPlugin } from "@elizaos/plugin-agent-skills";
-import anthropicPlugin from "@elizaos/plugin-anthropic";
-import { createAutocoderPlugin } from "@elizaos/plugin-autocoder";
-import { createBrowserPlugin } from "@elizaos/plugin-browser";
-import { createClaudeCodePlugin } from "@elizaos/plugin-claude-code";
-import { createCodexPlugin } from "@elizaos/plugin-codex";
-import { createCodingAgentPlugin } from "@elizaos/plugin-coding-agent";
-import { createCronPlugin } from "@elizaos/plugin-cron";
-import { createDiscordPlugin } from "@elizaos/plugin-discord";
-import { e2bPlugin } from "@elizaos/plugin-e2b";
-import elizaCloudPlugin from "@elizaos/plugin-elizacloud";
-import { createExperiencePlugin } from "@elizaos/plugin-experience";
-import formsPlugin from "@elizaos/plugin-forms";
-import { createKnowledgePlugin } from "@elizaos/plugin-knowledge";
-import { createLocalEmbeddingPlugin } from "@elizaos/plugin-local-embedding";
-import { createMcpPlugin } from "@elizaos/plugin-mcp";
-import { openaiPlugin } from "@elizaos/plugin-openai";
-import { pdfPlugin } from "@elizaos/plugin-pdf";
-import { createPersonalityPlugin } from "@elizaos/plugin-personality";
-import { createPlanningPlugin } from "@elizaos/plugin-planning";
-import { createPluginManagerPlugin } from "@elizaos/plugin-plugin-manager";
-import { createRolodexPlugin } from "@elizaos/plugin-rolodex";
-import { createShellPlugin } from "@elizaos/plugin-shell";
-import sqlPlugin from "@elizaos/plugin-sql";
-import telegramPlugin from "@elizaos/plugin-telegram";
-import { createTrajectoryLoggerPlugin } from "@elizaos/plugin-trajectory-logger";
-import { TTSGenerationPlugin } from "@elizaos/plugin-tts";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
 import type { EnvConfig, MemoryTarget } from "@/types";
@@ -57,11 +28,13 @@ export interface NativePluginAssembly {
   integration: Plugin[];
   automation: Plugin[];
   product: Plugin[];
+  initial: Plugin[];
+  deferred: Plugin[];
   all: Plugin[];
 }
 
-function hasOfficialModelProvider(config: EnvConfig): boolean {
-  return Boolean(config.openAiApiKey || config.anthropicApiKey);
+export interface NativePluginAssemblyOptions {
+  hotOnly?: boolean;
 }
 
 function normalizePlugin(plugin: unknown): Plugin {
@@ -79,21 +52,26 @@ function normalizeMetadata(
   );
 }
 
-export function buildNativePluginAssembly(
+async function loadProviderPlugins(
   services: AppServices,
   config: EnvConfig,
-): NativePluginAssembly {
+): Promise<Plugin[]> {
   const selectedProvider = services.settings.get().model.provider;
-  const catalog = getNativePluginCatalog(config);
-  const groupedCatalog = groupNativePluginCatalog(catalog);
+  const [
+    { default: sqlPlugin },
+    { pdfPlugin },
+    { createCodexPlugin },
+    { createClaudeCodePlugin },
+  ] = await Promise.all([
+    import("@elizaos/plugin-sql"),
+    import("@elizaos/plugin-pdf"),
+    import("@elizaos/plugin-codex"),
+    import("@elizaos/plugin-claude-code"),
+  ]);
 
-  const foundation: Plugin[] = [];
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
-    ...(selectedProvider === "elizacloud"
-      ? [normalizePlugin(elizaCloudPlugin)]
-      : []),
     createCodexPlugin({
       enabled: selectedProvider === "codex",
       getStatus: () => getLinkedProviderAccountsSnapshot().codex,
@@ -108,128 +86,59 @@ export function buildNativePluginAssembly(
       refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),
     }),
   ];
+
+  if (selectedProvider === "elizacloud") {
+    const { default: elizaCloudPlugin } = await import(
+      "@elizaos/plugin-elizacloud"
+    );
+    providers.push(normalizePlugin(elizaCloudPlugin));
+  }
+
+  const optionalProviderImports: Promise<Plugin | null>[] = [];
   if (config.openAiApiKey) {
-    providers.push(normalizePlugin(openaiPlugin));
+    optionalProviderImports.push(
+      import("@elizaos/plugin-openai").then(({ openaiPlugin }) =>
+        normalizePlugin(openaiPlugin),
+      ),
+    );
   }
   if (config.anthropicApiKey) {
-    providers.push(normalizePlugin(anthropicPlugin));
+    optionalProviderImports.push(
+      import("@elizaos/plugin-anthropic").then(({ default: anthropicPlugin }) =>
+        normalizePlugin(anthropicPlugin),
+      ),
+    );
   }
 
-  const messaging: Plugin[] = [];
-  if (config.telegramBotToken) {
-    messaging.push(normalizePlugin(telegramPlugin));
-  }
-  messaging.push(
-    createDiscordPlugin({
-      enabled: Boolean(config.discordBotToken),
-      tokenConfigured: Boolean(config.discordBotToken),
-    }),
+  providers.push(
+    ...(await Promise.all(optionalProviderImports)).filter(
+      (plugin): plugin is Plugin => Boolean(plugin),
+    ),
   );
 
-  const knowledge: Plugin[] = [
-    createKnowledgePlugin({
-      knowledge: {
-        extractPdf: (path) => services.documents.extractPdf(path),
-      },
-      memory: {
-        list: (target: MemoryTarget = "memory") => services.memory.list(target),
-        remember: (
-          target: MemoryTarget,
-          input: { text: string; source: string },
-        ) => services.memory.remember(target, input),
-        read: (target: MemoryTarget = "memory") => services.memory.read(target),
-        summary: (target: MemoryTarget = "memory") =>
-          services.memory.summary(target),
-      },
-      sessions: services.sessions,
-    }),
-    createLocalEmbeddingPlugin(),
-    createPersonalityPlugin({
-      personalities: {
-        list: () => services.personalities.list(),
-        get: (id) => services.personalities.get(id),
-        setActive: (id) => services.personalities.setActive(id),
-        activeId: () => services.personalities.activeId(),
-        summary: () => services.personalities.summary(),
-      },
-    }),
-    createRolodexPlugin({
-      profiles: {
-        card: (userId) => services.userProfiles.card(userId),
-        remember: (input) =>
-          services.userProfiles.remember(
-            input.userId,
-            input.kind as never,
-            input.text,
-            input.source,
-          ),
-        recall: (userId, query) => services.userProfiles.recall(userId, query),
-        observeAgent: (input) =>
-          services.userProfiles.observeAgent(input.text, input.source),
-        agentProfile: () => services.userProfiles.agentProfile(),
-        search: (query, limit) => services.userProfiles.search(query, limit),
-        beliefs: (userId) => services.userProfiles.beliefs(userId),
-        relationship: (userId) => services.userProfiles.relationship(userId),
-        engagement: (userId) => services.userProfiles.engagement(userId),
-        summary: () => services.userProfiles.summary(),
-      },
-    }),
-    createExperiencePlugin({
-      sessions: {
-        usage: (sessionId) => services.sessions.usage(sessionId),
-        latest: (limit = 5) => services.sessions.latest(limit),
-        summary: () => services.sessions.summary(),
-      },
-      memory: {
-        read: (target) => services.memory.read(target),
-        summary: (target = "memory") => services.memory.summary(target),
-      },
-    }),
-  ];
+  return providers;
+}
 
-  const browser: Plugin[] = [
-    createBrowserPlugin({
-      browser: {
-        status: () => services.web.status(),
-        fetchText: (url) => services.web.fetchText(url),
-        inspect: (url) => services.web.inspect(url),
-        snapshot: (url) => services.web.snapshot(url),
-        screenshot: (url) => services.web.screenshot(url),
-        capture: (url) => services.web.capture(url),
-        analyze: (url) => services.web.analyze(url),
-        compare: (leftUrl, rightUrl) => services.web.compare(leftUrl, rightUrl),
-        analyzeComparison: (leftUrl, rightUrl) =>
-          services.web.analyzeComparison(leftUrl, rightUrl),
-      },
-    }),
-  ];
+async function loadHotExecutionPlugins(
+  services: AppServices,
+  catalog: ReturnType<typeof getNativePluginCatalog>,
+  groupedCatalog: ReturnType<typeof groupNativePluginCatalog>,
+): Promise<Plugin[]> {
+  const [
+    { createShellPlugin },
+    { createCodingAgentPlugin },
+    { createAgentOrchestratorPlugin },
+    { createPluginManagerPlugin },
+    { createPlanningPlugin },
+  ] = await Promise.all([
+    import("@elizaos/plugin-shell"),
+    import("@elizaos/plugin-coding-agent"),
+    import("@elizaos/plugin-agent-orchestrator"),
+    import("@elizaos/plugin-plugin-manager"),
+    import("@elizaos/plugin-planning"),
+  ]);
 
-  const media: Plugin[] = [];
-  if (config.falApiKey) {
-    media.push(normalizePlugin(TTSGenerationPlugin));
-  }
-
-  const research: Plugin[] = [
-    normalizePlugin(actionBenchPlugin),
-    createAutocoderPlugin({
-      terminal: {
-        run: (command, timeoutMs) => services.terminal.run(command, timeoutMs),
-      },
-      repository: {
-        isRepository: () => services.repository.isRepository(),
-        status: () => services.repository.status(),
-        diffStat: () => services.repository.diffStat(),
-        recentCommits: (limit = 5) => services.repository.recentCommits(limit),
-      },
-      workspace: {
-        rootDir: () => config.workspaceDir,
-      },
-    }),
-  ];
-
-  const execution: Plugin[] = [
-    normalizePlugin(e2bPlugin),
-    normalizePlugin(formsPlugin),
+  return [
     createShellPlugin({
       terminal: {
         run: (command) => services.terminal.run(command),
@@ -321,7 +230,172 @@ export function buildNativePluginAssembly(
       },
     }),
   ];
+}
 
+async function loadDeferredPluginGroups(
+  services: AppServices,
+  config: EnvConfig,
+): Promise<
+  Pick<
+    NativePluginAssembly,
+    | "messaging"
+    | "knowledge"
+    | "browser"
+    | "media"
+    | "research"
+    | "execution"
+    | "integration"
+    | "automation"
+  >
+> {
+  const messaging: Plugin[] = [];
+  if (config.telegramBotToken) {
+    const { default: telegramPlugin } = await import(
+      "@elizaos/plugin-telegram"
+    );
+    messaging.push(normalizePlugin(telegramPlugin));
+  }
+  {
+    const { createDiscordPlugin } = await import("@elizaos/plugin-discord");
+    messaging.push(
+      createDiscordPlugin({
+        enabled: Boolean(config.discordBotToken),
+        tokenConfigured: Boolean(config.discordBotToken),
+      }),
+    );
+  }
+
+  const [
+    { createKnowledgePlugin },
+    { createLocalEmbeddingPlugin },
+    { createPersonalityPlugin },
+    { createRolodexPlugin },
+    { createExperiencePlugin },
+  ] = await Promise.all([
+    import("@elizaos/plugin-knowledge"),
+    import("@elizaos/plugin-local-embedding"),
+    import("@elizaos/plugin-personality"),
+    import("@elizaos/plugin-rolodex"),
+    import("@elizaos/plugin-experience"),
+  ]);
+
+  const knowledge: Plugin[] = [
+    createKnowledgePlugin({
+      knowledge: {
+        extractPdf: (path) => services.documents.extractPdf(path),
+      },
+      memory: {
+        list: (target: MemoryTarget = "memory") => services.memory.list(target),
+        remember: (
+          target: MemoryTarget,
+          input: { text: string; source: string },
+        ) => services.memory.remember(target, input),
+        read: (target: MemoryTarget = "memory") => services.memory.read(target),
+        summary: (target: MemoryTarget = "memory") =>
+          services.memory.summary(target),
+      },
+      sessions: services.sessions,
+    }),
+    createLocalEmbeddingPlugin(),
+    createPersonalityPlugin({
+      personalities: {
+        list: () => services.personalities.list(),
+        get: (id) => services.personalities.get(id),
+        setActive: (id) => services.personalities.setActive(id),
+        activeId: () => services.personalities.activeId(),
+        summary: () => services.personalities.summary(),
+      },
+    }),
+    createRolodexPlugin({
+      profiles: {
+        card: (userId) => services.userProfiles.card(userId),
+        remember: (input) =>
+          services.userProfiles.remember(
+            input.userId,
+            input.kind as never,
+            input.text,
+            input.source,
+          ),
+        recall: (userId, query) => services.userProfiles.recall(userId, query),
+        observeAgent: (input) =>
+          services.userProfiles.observeAgent(input.text, input.source),
+        agentProfile: () => services.userProfiles.agentProfile(),
+        search: (query, limit) => services.userProfiles.search(query, limit),
+        beliefs: (userId) => services.userProfiles.beliefs(userId),
+        relationship: (userId) => services.userProfiles.relationship(userId),
+        engagement: (userId) => services.userProfiles.engagement(userId),
+        summary: () => services.userProfiles.summary(),
+      },
+    }),
+    createExperiencePlugin({
+      sessions: {
+        usage: (sessionId) => services.sessions.usage(sessionId),
+        latest: (limit = 5) => services.sessions.latest(limit),
+        summary: () => services.sessions.summary(),
+      },
+      memory: {
+        read: (target) => services.memory.read(target),
+        summary: (target = "memory") => services.memory.summary(target),
+      },
+    }),
+  ];
+
+  const { createBrowserPlugin } = await import("@elizaos/plugin-browser");
+  const browser: Plugin[] = [
+    createBrowserPlugin({
+      browser: {
+        status: () => services.web.status(),
+        fetchText: (url) => services.web.fetchText(url),
+        inspect: (url) => services.web.inspect(url),
+        snapshot: (url) => services.web.snapshot(url),
+        screenshot: (url) => services.web.screenshot(url),
+        capture: (url) => services.web.capture(url),
+        analyze: (url) => services.web.analyze(url),
+        compare: (leftUrl, rightUrl) => services.web.compare(leftUrl, rightUrl),
+        analyzeComparison: (leftUrl, rightUrl) =>
+          services.web.analyzeComparison(leftUrl, rightUrl),
+      },
+    }),
+  ];
+
+  const media: Plugin[] = [];
+  if (config.falApiKey) {
+    const { TTSGenerationPlugin } = await import("@elizaos/plugin-tts");
+    media.push(normalizePlugin(TTSGenerationPlugin));
+  }
+
+  const [{ actionBenchPlugin }, { createAutocoderPlugin }] = await Promise.all([
+    import("@elizaos/plugin-action-bench"),
+    import("@elizaos/plugin-autocoder"),
+  ]);
+  const research: Plugin[] = [
+    normalizePlugin(actionBenchPlugin),
+    createAutocoderPlugin({
+      terminal: {
+        run: (command, timeoutMs) => services.terminal.run(command, timeoutMs),
+      },
+      repository: {
+        isRepository: () => services.repository.isRepository(),
+        status: () => services.repository.status(),
+        diffStat: () => services.repository.diffStat(),
+        recentCommits: (limit = 5) => services.repository.recentCommits(limit),
+      },
+      workspace: {
+        rootDir: () => config.workspaceDir,
+      },
+    }),
+  ];
+
+  const [{ e2bPlugin }, { default: formsPlugin }] = await Promise.all([
+    import("@elizaos/plugin-e2b"),
+    import("@elizaos/plugin-forms"),
+  ]);
+  const execution: Plugin[] = [
+    normalizePlugin(e2bPlugin),
+    normalizePlugin(formsPlugin),
+  ];
+
+  const { createMcpPlugin } = await import("@elizaos/plugin-mcp");
   const integration: Plugin[] = [
     createMcpPlugin({
       mcp: {
@@ -339,6 +413,15 @@ export function buildNativePluginAssembly(
     }),
   ];
 
+  const [
+    { createCronPlugin },
+    { createAgentSkillsPlugin },
+    { createTrajectoryLoggerPlugin },
+  ] = await Promise.all([
+    import("@elizaos/plugin-cron"),
+    import("@elizaos/plugin-agent-skills"),
+    import("@elizaos/plugin-trajectory-logger"),
+  ]);
   const automation: Plugin[] = [
     createCronPlugin({
       cron: {
@@ -374,45 +457,7 @@ export function buildNativePluginAssembly(
     }),
   ];
 
-  const product: Plugin[] = [createElizaAgentPlugin(services, config)];
-  const all = [
-    ...foundation,
-    ...providers,
-    ...messaging,
-    ...knowledge,
-    ...browser,
-    ...media,
-    ...research,
-    ...execution,
-    ...integration,
-    ...automation,
-    ...product,
-  ];
-
-  if (!hasOfficialModelProvider(config)) {
-    return {
-      catalog,
-      groupedCatalog,
-      foundation,
-      providers,
-      messaging,
-      knowledge,
-      browser,
-      media,
-      research,
-      execution,
-      integration,
-      automation,
-      product,
-      all,
-    };
-  }
-
   return {
-    catalog,
-    groupedCatalog,
-    foundation,
-    providers,
     messaging,
     knowledge,
     browser,
@@ -421,7 +466,85 @@ export function buildNativePluginAssembly(
     execution,
     integration,
     automation,
+  };
+}
+
+export async function buildNativePluginAssembly(
+  services: AppServices,
+  config: EnvConfig,
+  options: NativePluginAssemblyOptions = {},
+): Promise<NativePluginAssembly> {
+  const catalog = getNativePluginCatalog(config);
+  const groupedCatalog = groupNativePluginCatalog(catalog);
+  const foundation: Plugin[] = [];
+  const providers = await loadProviderPlugins(services, config);
+  const execution = await loadHotExecutionPlugins(
+    services,
+    catalog,
+    groupedCatalog,
+  );
+  const product: Plugin[] = [createElizaAgentPlugin(services, config)];
+  const initial = [...foundation, ...providers, ...execution, ...product];
+
+  const emptyDeferred = {
+    messaging: [] as Plugin[],
+    knowledge: [] as Plugin[],
+    browser: [] as Plugin[],
+    media: [] as Plugin[],
+    research: [] as Plugin[],
+    integration: [] as Plugin[],
+    automation: [] as Plugin[],
+  };
+
+  if (options.hotOnly) {
+    return {
+      catalog,
+      groupedCatalog,
+      foundation,
+      providers,
+      messaging: emptyDeferred.messaging,
+      knowledge: emptyDeferred.knowledge,
+      browser: emptyDeferred.browser,
+      media: emptyDeferred.media,
+      research: emptyDeferred.research,
+      execution,
+      integration: emptyDeferred.integration,
+      automation: emptyDeferred.automation,
+      product,
+      initial,
+      deferred: [],
+      all: initial,
+    };
+  }
+
+  const deferredGroups = await loadDeferredPluginGroups(services, config);
+  const deferred = [
+    ...deferredGroups.messaging,
+    ...deferredGroups.knowledge,
+    ...deferredGroups.browser,
+    ...deferredGroups.media,
+    ...deferredGroups.research,
+    ...deferredGroups.execution,
+    ...deferredGroups.integration,
+    ...deferredGroups.automation,
+  ];
+
+  return {
+    catalog,
+    groupedCatalog,
+    foundation,
+    providers,
+    messaging: deferredGroups.messaging,
+    knowledge: deferredGroups.knowledge,
+    browser: deferredGroups.browser,
+    media: deferredGroups.media,
+    research: deferredGroups.research,
+    execution: [...execution, ...deferredGroups.execution],
+    integration: deferredGroups.integration,
+    automation: deferredGroups.automation,
     product,
-    all,
+    initial,
+    deferred,
+    all: [...initial, ...deferred],
   };
 }

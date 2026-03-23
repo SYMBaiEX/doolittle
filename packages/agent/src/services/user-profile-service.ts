@@ -200,6 +200,7 @@ function scoreCadence(touches: number): "low" | "steady" | "high" {
 
 export class UserProfileService {
   private readonly filePath: string;
+  private storeCache?: UserProfileStore;
 
   constructor(baseDir: string) {
     mkdirSync(baseDir, { recursive: true });
@@ -1170,10 +1171,13 @@ export class UserProfileService {
   }
 
   private read(): UserProfileStore {
+    if (this.storeCache) {
+      return this.storeCache;
+    }
     const parsed = JSON.parse(
       readFileSync(this.filePath, "utf8"),
     ) as Partial<UserProfileStore>;
-    return {
+    this.storeCache = {
       profiles: (parsed.profiles ?? []).map((profile) => ({
         ...createEmptyProfile(profile.userId),
         ...profile,
@@ -1204,9 +1208,11 @@ export class UserProfileService {
         workStyle: parsed.agent?.workStyle ?? [],
       },
     };
+    return this.storeCache;
   }
 
   private write(store: UserProfileStore): void {
+    this.storeCache = store;
     writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
   }
 

@@ -652,6 +652,9 @@ export class DiagnosticsService {
 
     if (this.runtime) {
       const researchControl = getNativeResearchControlPlane(this.runtime);
+      const memoryStorageAvailable = Boolean(
+        this.runtime.getService?.("memoryStorage"),
+      );
       checks.push({
         id: "research.action-bench.native",
         status: researchControl.actionBench.available ? "pass" : "warn",
@@ -663,6 +666,14 @@ export class DiagnosticsService {
         status: researchControl.autocoder.ready ? "pass" : "warn",
         summary: "Autocoder runtime readiness",
         detail: researchControl.autocoder.detail,
+      });
+      checks.push({
+        id: "runtime.memory-storage",
+        status: memoryStorageAvailable ? "pass" : "warn",
+        summary: "Advanced memory storage bridge",
+        detail: memoryStorageAvailable
+          ? "memoryStorage service is registered; advanced session summaries and long-term memories can persist locally."
+          : "memoryStorage service is not registered; core advanced memory will disable storage-backed summaries and long-term memory.",
       });
     }
 

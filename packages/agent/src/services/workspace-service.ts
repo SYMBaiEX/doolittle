@@ -48,6 +48,11 @@ export class WorkspaceService {
     query: string,
     maxResults = 25,
   ): Array<{ path: string; matches: string[] }> {
+    const ripgrepResults = this.searchWithRipgrep(query, maxResults);
+    if (ripgrepResults) {
+      return ripgrepResults;
+    }
+
     const lowerQuery = query.toLowerCase();
     const results: Array<{ path: string; matches: string[] }> = [];
 
@@ -82,6 +87,83 @@ export class WorkspaceService {
     }
 
     return results;
+  }
+
+  private searchWithRipgrep(
+    query: string,
+    maxResults: number,
+  ): Array<{ path: string; matches: string[] }> | undefined {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const proc = Bun.spawnSync({
+        cmd: [
+          "rg",
+          "--no-heading",
+          "--line-number",
+          "--color",
+          "never",
+          "--hidden",
+          "--fixed-strings",
+          "--max-count",
+          "3",
+          "--glob",
+          "!.git",
+          "--glob",
+          "!node_modules",
+          "--glob",
+          "!.eliza-agent",
+          "--glob",
+          "!dist",
+          trimmed,
+          ".",
+        ],
+        cwd: this.workspaceDir,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+
+      if (proc.exitCode !== 0 && proc.exitCode !== 1) {
+        return undefined;
+      }
+
+      const stdout = proc.stdout
+        ? Buffer.from(proc.stdout).toString("utf8")
+        : "";
+      if (!stdout.trim()) {
+        return [];
+      }
+
+      const grouped = new Map<string, string[]>();
+      for (const line of stdout.split("\n")) {
+        if (!line.trim()) {
+          continue;
+        }
+        const match = line.match(/^(.+?):\d+:(.*)$/u);
+        if (!match) {
+          continue;
+        }
+        const [, path, content] = match;
+        const existing = grouped.get(path) ?? [];
+        if (existing.length < 3) {
+          existing.push(content);
+        }
+        grouped.set(path, existing);
+        if (grouped.size >= maxResults) {
+          break;
+        }
+      }
+
+      return Array.from(grouped.entries()).map(([path, matches]) => ({
+        path: path.replaceAll("\\", "/"),
+        matches,
+      }));
+    } catch {
+      return undefined;
+    }
   }
 
   summary(maxEntries = 20): string {

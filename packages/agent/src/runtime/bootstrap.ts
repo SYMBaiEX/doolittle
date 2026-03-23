@@ -26,6 +26,7 @@ import {
   getLinkedElizaCloudCredentials,
 } from "@/runtime/native/account-auth";
 import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
+import { createMemoryStorageRuntimeService } from "@/runtime/native/memory-storage-runtime";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { type AppServices, createServices } from "@/services";
 import type { EnvConfig } from "@/types";
@@ -262,10 +263,19 @@ function createActivePgliteLockError(dataDir: string, err: unknown): Error {
 
 async function initializeRuntimeWithRecovery(
   createRuntime: () => AgentRuntime,
+  services: AppServices,
   config: EnvConfig,
   pgliteRecoveryAttempted = false,
 ): Promise<AgentRuntime> {
   let runtime = createRuntime();
+  const ensureMemoryStorageReady = async (currentRuntime: AgentRuntime) => {
+    await currentRuntime.registerService(
+      createMemoryStorageRuntimeService(services.sessions),
+    );
+    await currentRuntime.getServiceLoadPromise("memoryStorage");
+  };
+
+  await ensureMemoryStorageReady(runtime);
   try {
     await runtime.initialize();
     return runtime;
@@ -296,6 +306,7 @@ async function initializeRuntimeWithRecovery(
     process.env.PGLITE_DATA_DIR = pgliteDataDir;
     await resetPluginSqlPgliteSingleton();
     runtime = createRuntime();
+    await ensureMemoryStorageReady(runtime);
     try {
       await runtime.initialize();
       return runtime;
@@ -692,19 +703,28 @@ export async function getAppContext(
       "will hydrate after the shell is interactive",
     );
     const runtimeSettings = services.settings.get();
-    const nativePluginAssembly = buildNativePluginAssembly(services, config);
+    const nativePluginAssembly = await buildNativePluginAssembly(
+      services,
+      config,
+      {
+        hotOnly: !eagerDeferredHydration,
+      },
+    );
     const createRuntime = () =>
       new AgentRuntime({
         character: {
           ...character,
           name: config.agentName,
+          // Enable core advanced capabilities at the character level
+          advancedMemory: true,
+          advancedPlanning: true,
           settings: {
             ...(character.settings ?? {}),
             ...buildPluginSettings(config, services, runtimeSettings),
             nativePluginCatalog: JSON.stringify(nativePluginAssembly.catalog),
           },
         },
-        plugins: nativePluginAssembly.all,
+        plugins: nativePluginAssembly.initial,
         // Enable advanced providers: knowledge, facts, relationships, contacts, roles, follow-ups
         advancedCapabilities: true,
         enableExtendedCapabilities: true,
@@ -712,7 +732,11 @@ export async function getAppContext(
 
     mkdirSync(join(config.dataDir, "pglite"), { recursive: true });
     reconcilePglitePidFile(join(config.dataDir, "pglite"));
-    const runtime = await initializeRuntimeWithRecovery(createRuntime, config);
+    const runtime = await initializeRuntimeWithRecovery(
+      createRuntime,
+      services,
+      config,
+    );
     await ensureCoreRuntimeServices(runtime);
     services.nativeOwnership.attachRuntime(runtime, services);
     (services as RuntimeBindableServices).__bindRuntime?.(runtime);
@@ -759,6 +783,25 @@ export async function getAppContext(
       startScheduler?: () => Promise<void>;
     } | null;
     let gatewayInstance = gatewayService?.runner;
+    let deferredPluginsRegistered = eagerDeferredHydration;
+    const ensureDeferredPlugins = async (): Promise<void> => {
+      if (deferredPluginsRegistered) {
+        return;
+      }
+      services.startupState.markWarming(
+        "runtime",
+        "registering deferred runtime plugins",
+      );
+      const deferredAssembly = await buildNativePluginAssembly(
+        services,
+        config,
+      );
+      for (const plugin of deferredAssembly.deferred) {
+        await runtime.registerPlugin(plugin);
+      }
+      deferredPluginsRegistered = true;
+      services.startupState.markReady("runtime", "runtime ready");
+    };
     const ensureGateway = (): GatewayRunner => {
       if (!gatewayInstance) {
         services.startupState.markWarming(
@@ -785,6 +828,7 @@ export async function getAppContext(
       if (!deferredHydrationPromise) {
         deferredHydrationPromise = (async () => {
           const phaseSuffix = reason ? ` (${reason})` : "";
+          await ensureDeferredPlugins();
           if (
             services.startupState.getSnapshot().phases.gateway.status !==
             "ready"

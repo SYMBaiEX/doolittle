@@ -197,6 +197,11 @@ describe("DiagnosticsService", () => {
             history: () => [],
           };
         }
+        if (name === "memoryStorage") {
+          return {
+            getSessionSummaries: () => [],
+          };
+        }
         return null;
       },
     } as unknown as RuntimeLike;
@@ -252,6 +257,12 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "runtime.awareness")).toBe(
         true,
       );
+      expect(
+        checks.some(
+          (check) =>
+            check.id === "runtime.memory-storage" && check.status === "pass",
+        ),
+      ).toBe(true);
       expect(checks.some((check) => check.id === "autonomous.connection")).toBe(
         true,
       );

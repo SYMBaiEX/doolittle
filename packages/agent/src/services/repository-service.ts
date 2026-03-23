@@ -22,31 +22,34 @@ export class RepositoryService {
     if (!this.gitRoot()) {
       return "(workspace is not inside a git repository)";
     }
-    return this.run("git status --short --branch");
+    return this.runGit(["status", "--short", "--branch"], "git status");
   }
 
   async diffStat(): Promise<string> {
     if (!this.gitRoot()) {
       return "(workspace is not inside a git repository)";
     }
-    return this.run("git diff --stat");
+    return this.runGit(["diff", "--stat"], "git diff --stat");
   }
 
   async recentCommits(limit = 5): Promise<string> {
     if (!this.gitRoot()) {
       return "(workspace is not inside a git repository)";
     }
-    return this.run(`git log --oneline -n ${limit}`);
+    return this.runGit(
+      ["log", "--oneline", "-n", String(limit)],
+      `git log --oneline -n ${limit}`,
+    );
   }
 
-  private async run(command: string): Promise<string> {
-    const cached = this.commandCache.get(command);
+  private async runGit(args: string[], cacheKey: string): Promise<string> {
+    const cached = this.commandCache.get(cacheKey);
     const now = Date.now();
     if (cached && now - cached.capturedAt < 3_000) {
       return cached.value;
     }
 
-    const pending = this.inflight.get(command);
+    const pending = this.inflight.get(cacheKey);
     if (pending) {
       return pending;
     }
@@ -54,7 +57,7 @@ export class RepositoryService {
     const promise = (async () => {
       const cwd = this.gitRoot() ?? this.workspaceDir;
       const proc = Bun.spawn({
-        cmd: ["/bin/zsh", "-lc", command],
+        cmd: ["git", ...args],
         cwd,
         stdout: "pipe",
         stderr: "pipe",
@@ -73,18 +76,18 @@ export class RepositoryService {
       }
 
       const value = stdout.trim() || "(no output)";
-      this.commandCache.set(command, {
+      this.commandCache.set(cacheKey, {
         capturedAt: Date.now(),
         value,
       });
       return value;
     })();
 
-    this.inflight.set(command, promise);
+    this.inflight.set(cacheKey, promise);
     try {
       return await promise;
     } finally {
-      this.inflight.delete(command);
+      this.inflight.delete(cacheKey);
     }
   }
 

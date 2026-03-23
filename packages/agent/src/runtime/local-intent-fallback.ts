@@ -16,6 +16,7 @@ import type { ChatTurnRequest } from "@/types";
 export interface DirectLocalIntentExecution {
   label: string;
   statusLine: string;
+  preferDirectExecution?: boolean;
   execute(): Promise<string>;
 }
 
@@ -76,6 +77,7 @@ export function resolveDirectLocalIntent(
     return {
       label: `repo:${repositoryIntent}`,
       statusLine: "Inspecting repository status...",
+      preferDirectExecution: true,
       execute: () =>
         executeRepositoryIntent(
           context.runtime,
@@ -99,6 +101,7 @@ export function resolveDirectLocalIntent(
               : workspaceIntent.kind === "write"
                 ? `Writing ${workspaceIntent.path}...`
                 : "Inspecting workspace structure...",
+      preferDirectExecution: workspaceIntent.kind !== "write",
       execute: () =>
         executeWorkspaceIntent(
           context.runtime,
@@ -114,6 +117,7 @@ export function resolveDirectLocalIntent(
     return {
       label: `shell:${terminalCommand}`,
       statusLine: `Running \`${terminalCommand}\`...`,
+      preferDirectExecution: true,
       execute: async () => {
         const result = await executeTerminalCommand(
           context.runtime,
@@ -126,6 +130,12 @@ export function resolveDirectLocalIntent(
   }
 
   return undefined;
+}
+
+export function shouldPreferDirectLocalExecution(
+  intent: DirectLocalIntentExecution | undefined,
+): boolean {
+  return Boolean(intent?.preferDirectExecution);
 }
 
 export async function executeDirectLocalIntent(

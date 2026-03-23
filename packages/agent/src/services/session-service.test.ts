@@ -95,6 +95,78 @@ describe("SessionService", () => {
       expect(usage.userMessages).toBe(1);
       expect(usage.assistantMessages).toBe(1);
       expect(usage.estimatedTokens).toBeGreaterThan(0);
+      expect(service.countBySessionRole("cli:local-user", "assistant")).toBe(1);
+      expect(service.recentBySession("cli:local-user", 5)).toHaveLength(2);
+      expect(service.recentBySession("cli:local-user", 1)[0]?.text).toBe(
+        "General Kenobi",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("persists advanced long-term memories and session summaries", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-session-advanced-"));
+    const service = new SessionService(root);
+
+    try {
+      const memory = await service.storeLongTermMemory({
+        agentId: "agent-1",
+        entityId: "entity-1",
+        category: "semantic",
+        content: "The user prefers Eliza Cloud for default runs.",
+        metadata: { source: "test" },
+        confidence: 0.91,
+        source: "unit-test",
+      });
+
+      const memories = await service.getLongTermMemories("agent-1", "entity-1");
+      expect(memories).toHaveLength(1);
+      expect(memories[0]?.id).toBe(memory.id);
+      expect(memories[0]?.accessCount).toBeGreaterThan(0);
+      expect(memories[0]?.metadata?.source).toBe("test");
+
+      await service.updateLongTermMemory(memory.id, "agent-1", "entity-1", {
+        content: "The user prefers Eliza Cloud for managed runs.",
+        accessCount: 7,
+      });
+
+      const updated = await service.getLongTermMemories("agent-1", "entity-1");
+      expect(updated[0]?.content).toContain("managed runs");
+
+      const summary = await service.storeSessionSummary({
+        agentId: "agent-1",
+        roomId: "room-1",
+        entityId: "entity-1",
+        summary: "Discussed Cloud login behavior and runtime defaults.",
+        messageCount: 8,
+        lastMessageOffset: 8,
+        startTime: new Date("2026-03-22T00:00:00.000Z"),
+        endTime: new Date("2026-03-22T00:05:00.000Z"),
+        topics: ["cloud", "runtime"],
+        metadata: { test: true },
+      });
+
+      const current = await service.getCurrentSessionSummary(
+        "agent-1",
+        "room-1",
+      );
+      expect(current?.id).toBe(summary.id);
+      expect(current?.topics).toEqual(["cloud", "runtime"]);
+
+      await service.updateSessionSummary(summary.id, "agent-1", "room-1", {
+        summary: "Updated summary",
+        messageCount: 9,
+      });
+
+      const summaries = await service.getSessionSummaries("agent-1", "room-1");
+      expect(summaries[0]?.summary).toBe("Updated summary");
+      expect(summaries[0]?.messageCount).toBe(9);
+
+      await service.deleteLongTermMemory(memory.id, "agent-1", "entity-1");
+      expect(
+        await service.getLongTermMemories("agent-1", "entity-1"),
+      ).toHaveLength(0);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

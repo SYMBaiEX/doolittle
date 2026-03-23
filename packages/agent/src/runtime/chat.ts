@@ -22,11 +22,6 @@ import {
   normalizeSlashCommandSyntax,
 } from "@/runtime/command-catalog";
 import {
-  executeDirectLocalIntent,
-  resolveDirectLocalIntent,
-  shouldUseDirectLocalFallback,
-} from "@/runtime/local-intent-fallback";
-import {
   getLinkedProviderAccountsSnapshot,
   getLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
@@ -318,6 +313,60 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function scheduleBackgroundTask(task: () => void | Promise<void>): void {
+  const timer = setTimeout(() => {
+    void Promise.resolve()
+      .then(task)
+      .catch(() => undefined);
+  }, 0);
+  timer.unref?.();
+}
+
+class TurnPerfTrace {
+  private readonly enabled =
+    process.env.ELIZA_AGENT_PERF_TRACE === "1" ||
+    process.env.ELIZA_AGENT_PERF_TRACE === "true";
+  private readonly startedAt = performance.now();
+  private lastMark = this.startedAt;
+  private readonly spans: Array<{ phase: string; ms: number }> = [];
+
+  mark(phase: string): void {
+    if (!this.enabled) {
+      return;
+    }
+    const now = performance.now();
+    this.spans.push({
+      phase,
+      ms: Math.round((now - this.lastMark) * 100) / 100,
+    });
+    this.lastMark = now;
+  }
+
+  flush(
+    logger: AgentExecutionContext["runtime"]["logger"] | undefined,
+    metadata: Record<string, unknown>,
+  ): void {
+    if (!this.enabled || !logger) {
+      return;
+    }
+    logger.info(
+      {
+        ...metadata,
+        totalMs: Math.round((performance.now() - this.startedAt) * 100) / 100,
+        spans: this.spans,
+      },
+      "Agent turn performance trace",
+    );
+  }
+}
+
+const providerReadinessCache = new WeakMap<
+  object,
+  Map<string, { expiresAt: number; message?: string }>
+>();
+const ensuredConnectionCache = new WeakMap<object, Set<string>>();
+const ensuredParticipantCache = new WeakMap<object, Set<string>>();
+
 // ---------------------------------------------------------------------------
 // Context compression helpers
 // ---------------------------------------------------------------------------
@@ -334,9 +383,9 @@ function getContextUsageWarning(
   try {
     const compression = context.services.contextCompression;
     if (!compression) return undefined;
-    const messages = context.services.sessions.recent(200);
-    const sessionMsgs = messages.filter(
-      (m) => (m as { sessionId?: string }).sessionId === sessionId,
+    const sessionMsgs = context.services.sessions.recentBySession(
+      sessionId,
+      200,
     );
     if (sessionMsgs.length < 4) return undefined;
     if (
@@ -381,9 +430,9 @@ function maybeGetSkillSynthesisNudge(
     // Only check on every Nth turn
     if (turnCount % SKILL_SYNTHESIS_NUDGE_INTERVAL !== 0) return undefined;
 
-    const messages = context.services.sessions.recent(100);
-    const sessionMsgs = messages.filter(
-      (m) => (m as { sessionId?: string }).sessionId === sessionId,
+    const sessionMsgs = context.services.sessions.recentBySession(
+      sessionId,
+      100,
     );
     if (sessionMsgs.length < 6) return undefined;
 
@@ -1450,23 +1499,36 @@ async function getProviderReadinessMessage(
   context: AgentExecutionContext,
   provider: string,
 ): Promise<string | undefined> {
+  const runtimeKey = context.runtime as object;
+  const now = Date.now();
+  const cachedReadiness = providerReadinessCache.get(runtimeKey)?.get(provider);
+  if (cachedReadiness && cachedReadiness.expiresAt > now) {
+    return cachedReadiness.message;
+  }
   const snapshot = getLinkedProviderAccountsSnapshot();
+  let message: string | undefined;
 
   if (provider === "offline") {
-    return context.config.offlineBootstrapMode
+    message = context.config.offlineBootstrapMode
       ? undefined
       : `No active model provider is configured. Run \`${displayCommand("/accounts")}\` to bind Eliza Cloud, Codex, or Claude Code, or set \`ELIZA_AGENT_OFFLINE_BOOTSTRAP=true\` for explicit bootstrap-only fallback replies.`;
+    cacheProviderReadiness(runtimeKey, provider, message);
+    return message;
   }
 
   if (provider === "openai" && !context.config.openAiApiKey?.trim()) {
     if (snapshot.codex.nativeReady || snapshot.codex.reusable) {
-      return [
+      message = [
         "OpenAI is selected, but OPENAI_API_KEY is not configured.",
         "A linked Codex account is ready on this machine.",
         `Run \`${displayCommand("/accounts use codex")}\` to activate it, or add OPENAI_API_KEY and try again.`,
       ].join(" ");
+      cacheProviderReadiness(runtimeKey, provider, message);
+      return message;
     }
-    return `OpenAI is selected, but OPENAI_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
+    message = `OpenAI is selected, but OPENAI_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
+    cacheProviderReadiness(runtimeKey, provider, message);
+    return message;
   }
 
   if (provider === "anthropic" && !context.config.anthropicApiKey?.trim()) {
@@ -1477,7 +1539,9 @@ async function getProviderReadinessMessage(
         `Run \`${displayCommand("/accounts use claude-code")}\` to activate it, or add ANTHROPIC_API_KEY and try again.`,
       ].join(" ");
     }
-    return `Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
+    message = `Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;
+    cacheProviderReadiness(runtimeKey, provider, message);
+    return message;
   }
 
   if (provider === "elizacloud") {
@@ -1486,9 +1550,12 @@ async function getProviderReadinessMessage(
     const apiKey =
       credentials && "apiKey" in credentials ? credentials.apiKey?.trim() : "";
     if (!apiKey) {
-      return cloudStatus.nativeReady || cloudStatus.reusable
-        ? `Eliza Cloud is selected, but the managed cloud credentials still look incomplete. Run \`${displayCommand("/accounts connect elizacloud")}\` to refresh the bond, or run \`elizaos login\` again if the local workspace key is stale.`
-        : `Eliza Cloud is selected, but no managed cloud key is active in this workspace. Run \`elizaos login\`, then \`${displayCommand("/accounts connect elizacloud")}\` to bind the native cloud path.`;
+      message =
+        cloudStatus.nativeReady || cloudStatus.reusable
+          ? `Eliza Cloud is selected, but the managed cloud credentials still look incomplete. Run \`${displayCommand("/accounts connect elizacloud")}\` to refresh the bond, or run \`elizaos login\` again if the local workspace key is stale.`
+          : `Eliza Cloud is selected, but no managed cloud key is active in this workspace. Run \`elizaos login\`, then \`${displayCommand("/accounts connect elizacloud")}\` to bind the native cloud path.`;
+      cacheProviderReadiness(runtimeKey, provider, message);
+      return message;
     }
   }
 
@@ -1500,9 +1567,12 @@ async function getProviderReadinessMessage(
         ? credentials.accessToken?.trim()
         : "";
     if (!accessToken) {
-      return codexStatus.nativeReady || codexStatus.reusable
-        ? `Codex is selected, but the bound credentials still look incomplete. Run \`${displayCommand("/accounts connect codex")}\` to rebind them, or run \`codex login\` first if the local store is stale.`
-        : `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
+      message =
+        codexStatus.nativeReady || codexStatus.reusable
+          ? `Codex is selected, but the bound credentials still look incomplete. Run \`${displayCommand("/accounts connect codex")}\` to rebind them, or run \`codex login\` first if the local store is stale.`
+          : `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
+      cacheProviderReadiness(runtimeKey, provider, message);
+      return message;
     }
   }
 
@@ -1515,13 +1585,70 @@ async function getProviderReadinessMessage(
         : "";
     if (!accessToken) {
       if (claudeStatus.fallbackReady) {
-        return `Claude Code is selected, but native Eliza auth material is still missing. Run \`claude setup-token\` to finish the native path, or \`${displayCommand("/accounts connect claude-code")}\` to activate the local Claude CLI fallback right now.`;
+        message = `Claude Code is selected, but native Eliza auth material is still missing. Run \`claude setup-token\` to finish the native path, or \`${displayCommand("/accounts connect claude-code")}\` to activate the local Claude CLI fallback right now.`;
+        cacheProviderReadiness(runtimeKey, provider, message);
+        return message;
       }
-      return `Claude Code is selected, but no native Claude Code credentials are available. Run \`claude auth login\` or \`claude setup-token\`, then \`${displayCommand("/accounts connect claude-code")}\` to bind it in Eliza.`;
+      message = `Claude Code is selected, but no native Claude Code credentials are available. Run \`claude auth login\` or \`claude setup-token\`, then \`${displayCommand("/accounts connect claude-code")}\` to bind it in Eliza.`;
+      cacheProviderReadiness(runtimeKey, provider, message);
+      return message;
     }
   }
 
+  cacheProviderReadiness(runtimeKey, provider, undefined);
   return undefined;
+}
+
+function cacheProviderReadiness(
+  runtimeKey: object,
+  provider: string,
+  message: string | undefined,
+): void {
+  const cache = providerReadinessCache.get(runtimeKey) ?? new Map();
+  cache.set(provider, {
+    expiresAt: Date.now() + 3_000,
+    message,
+  });
+  providerReadinessCache.set(runtimeKey, cache);
+}
+
+async function ensureTurnConnection(
+  context: AgentExecutionContext,
+  input: Parameters<typeof context.runtime.ensureConnection>[0],
+): Promise<void> {
+  const runtimeKey = context.runtime as object;
+  const connectionKey = [
+    input.entityId,
+    input.roomId,
+    input.worldId,
+    input.source,
+    input.channelId,
+    input.messageServerId,
+  ].join(":");
+  const ensuredConnections =
+    ensuredConnectionCache.get(runtimeKey) ?? new Set<string>();
+  if (!ensuredConnections.has(connectionKey)) {
+    await context.runtime.ensureConnection(input);
+    ensuredConnections.add(connectionKey);
+    ensuredConnectionCache.set(runtimeKey, ensuredConnections);
+  }
+
+  if (typeof context.runtime.ensureParticipantInRoom !== "function") {
+    return;
+  }
+
+  const participantKey = `${context.runtime.agentId}:${String(input.roomId)}`;
+  const ensuredParticipants =
+    ensuredParticipantCache.get(runtimeKey) ?? new Set<string>();
+  if (ensuredParticipants.has(participantKey)) {
+    return;
+  }
+  await context.runtime.ensureParticipantInRoom(
+    context.runtime.agentId as UUID,
+    input.roomId as UUID,
+  );
+  ensuredParticipants.add(participantKey);
+  ensuredParticipantCache.set(runtimeKey, ensuredParticipants);
 }
 
 function buildProviderNoResponseMessage(
@@ -6718,6 +6845,7 @@ export async function handleAgentTurn(
     personalityId?: string;
   } & AgentTurnHooks,
 ): Promise<string> {
+  const perf = new TurnPerfTrace();
   const agentName = context.runtime.character?.name ?? "Eliza Agent";
   const localInteractive = (input.source ?? "cli") === "cli";
   const connectionSource = localInteractive
@@ -6737,21 +6865,21 @@ export async function handleAgentTurn(
   const sessionId = roomKey;
   const settings = context.services.settings.get();
   const runId = randomUUID();
-  const effectiveMessage = shouldAttachSystemFacts(input.message)
-    ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
-    : input.message;
-
-  context.services.userProfiles.observe(
-    input.userId,
-    effectiveMessage,
-    input.source,
-    {
-      source: input.source,
-      channel: input.source,
-      sessionId,
-      signal: input.message.slice(0, 160),
-    },
-  );
+  const scheduleProfileObservation = () => {
+    scheduleBackgroundTask(() => {
+      context.services.userProfiles.observe(
+        input.userId,
+        input.message,
+        input.source,
+        {
+          source: input.source,
+          channel: input.source,
+          sessionId,
+          signal: input.message.slice(0, 160),
+        },
+      );
+    });
+  };
 
   context.services.sessions.storeMessage({
     id: randomUUID(),
@@ -6777,16 +6905,22 @@ export async function handleAgentTurn(
         : 0,
   });
 
-  const responseFromCommandLayer = await executeSlashCommand(
-    input,
-    context,
-    options,
-  );
+  const trimmedMessage = input.message.trim();
+  const responseFromCommandLayer = trimmedMessage.startsWith("/")
+    ? await executeSlashCommand(input, context, options)
+    : undefined;
+  perf.mark("command-layer");
 
   if (input.message.trim().startsWith("!")) {
     const command = input.message.trim().slice(1).trim();
     if (!command) {
       context.services.runController.finishTurn(sessionId, "complete");
+      scheduleProfileObservation();
+      perf.flush(context.runtime.logger, {
+        path: "shell-usage-error",
+        sessionId,
+        source: input.source ?? "cli",
+      });
       return "Usage: !<shell command>";
     }
     const approvalPrompt = await maybeRequireRemoteExecutionApproval(
@@ -6807,6 +6941,12 @@ export async function handleAgentTurn(
         createdAt: nowIso(),
       });
       context.services.runController.finishTurn(sessionId, "complete");
+      scheduleProfileObservation();
+      perf.flush(context.runtime.logger, {
+        path: "shell-approval",
+        sessionId,
+        source: input.source ?? "cli",
+      });
       return approvalPrompt;
     }
     const shellAction = `shell:${command}`;
@@ -6843,6 +6983,13 @@ export async function handleAgentTurn(
       createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
+    scheduleProfileObservation();
+    perf.mark("shell-command");
+    perf.flush(context.runtime.logger, {
+      path: "shell-command",
+      sessionId,
+      source: input.source ?? "cli",
+    });
     return shellResponse;
   }
 
@@ -6862,8 +7009,114 @@ export async function handleAgentTurn(
       createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
+    scheduleProfileObservation();
+    perf.flush(context.runtime.logger, {
+      path: "slash-command",
+      sessionId,
+      source: input.source ?? "cli",
+    });
     return responseFromCommandLayer;
   }
+
+  let directLocalIntentLoaded = false;
+  let directLocalIntent: unknown;
+  const loadDirectLocalIntent = async () => {
+    const fallbackModule = await import("@/runtime/local-intent-fallback");
+    if (!directLocalIntentLoaded) {
+      directLocalIntent = fallbackModule.resolveDirectLocalIntent(
+        input,
+        context,
+      );
+      directLocalIntentLoaded = true;
+    }
+    return {
+      directLocalIntent,
+      executeDirectLocalIntent: fallbackModule.executeDirectLocalIntent,
+      shouldPreferDirectLocalExecution:
+        fallbackModule.shouldPreferDirectLocalExecution,
+      shouldUseDirectLocalFallback: fallbackModule.shouldUseDirectLocalFallback,
+    };
+  };
+
+  const executeApprovedDirectLocalIntent = async (
+    intent: {
+      label?: string;
+    },
+    pendingNotice?: string,
+  ): Promise<string | undefined> => {
+    const label = intent.label ?? "";
+    if (label.startsWith("shell:")) {
+      const command = label.slice("shell:".length).trim();
+      const approvalPrompt = await maybeRequireRemoteExecutionApproval(
+        input,
+        context,
+        command,
+        options,
+      );
+      if (approvalPrompt) {
+        context.services.runController.setPendingApprovals(sessionId, 1);
+        context.services.sessions.storeMessage({
+          id: randomUUID(),
+          sessionId,
+          roomId,
+          entityId,
+          role: "assistant",
+          text: approvalPrompt,
+          createdAt: nowIso(),
+        });
+        context.services.runController.finishTurn(sessionId, "complete");
+        return approvalPrompt;
+      }
+    }
+    if (pendingNotice) {
+      await options?.onNotice?.({
+        kind: "status",
+        message: pendingNotice,
+      });
+    }
+    return undefined;
+  };
+
+  const fastLocalIntent = await loadDirectLocalIntent();
+  if (
+    fastLocalIntent.shouldPreferDirectLocalExecution(
+      fastLocalIntent.directLocalIntent as never,
+    )
+  ) {
+    const approvalResponse = await executeApprovedDirectLocalIntent(
+      fastLocalIntent.directLocalIntent as {
+        label?: string;
+      },
+    );
+    if (approvalResponse) {
+      return approvalResponse;
+    }
+    const directResponse = await fastLocalIntent.executeDirectLocalIntent(
+      fastLocalIntent.directLocalIntent as never,
+      sessionId,
+      context,
+      options,
+    );
+    context.services.sessions.storeMessage({
+      id: randomUUID(),
+      sessionId,
+      roomId,
+      entityId,
+      role: "assistant",
+      text: directResponse,
+      createdAt: nowIso(),
+    });
+    context.services.runController.finishTurn(sessionId, "complete");
+    scheduleProfileObservation();
+    perf.mark("fast-local-intent");
+    perf.flush(context.runtime.logger, {
+      path: "fast-local-intent",
+      sessionId,
+      source: input.source ?? "cli",
+    });
+    return directResponse;
+  }
+
   let response = "";
   let deferNativeStreaming = false;
   const personalityBefore = context.services.personalities.getActive();
@@ -6872,11 +7125,15 @@ export async function handleAgentTurn(
     settingsBefore,
     options?.runtimeOverrides,
   );
+  const effectiveMessage = shouldAttachSystemFacts(input.message)
+    ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
+    : input.message;
 
   const readinessMessage = await getProviderReadinessMessage(
     context,
     settingsDuring.model.provider,
   );
+  perf.mark("provider-readiness");
   if (readinessMessage) {
     await options?.onResponseProgress?.({
       chunk: readinessMessage,
@@ -6893,10 +7150,16 @@ export async function handleAgentTurn(
       createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
+    scheduleProfileObservation();
+    perf.flush(context.runtime.logger, {
+      path: "provider-readiness",
+      sessionId,
+      source: input.source ?? "cli",
+    });
     return readinessMessage;
   }
 
-  await context.runtime.ensureConnection({
+  await ensureTurnConnection(context, {
     entityId: entityId as UUID,
     roomId: roomId as UUID,
     worldId: worldId as UUID,
@@ -6911,10 +7174,7 @@ export async function handleAgentTurn(
       },
     },
   } as Parameters<typeof context.runtime.ensureConnection>[0]);
-  await context.runtime.ensureParticipantInRoom?.(
-    context.runtime.agentId as UUID,
-    roomId as UUID,
-  );
+  perf.mark("runtime-connection");
 
   const memory = createMessageMemory({
     id: randomUUID() as UUID,
@@ -7010,8 +7270,6 @@ export async function handleAgentTurn(
     }
     await emitSnapshot(update.nextText);
   };
-  const directLocalIntent = resolveDirectLocalIntent(input, context);
-
   try {
     if (typeof context.runtime.emitEvent === "function") {
       await context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
@@ -7062,6 +7320,7 @@ export async function handleAgentTurn(
             : undefined,
         },
       );
+      perf.mark("native-handle-message");
 
       if (
         Array.isArray(messageResult?.responseMessages) &&
@@ -7087,7 +7346,13 @@ export async function handleAgentTurn(
         }
       }
     } catch (error) {
-      if (isRecoverableNativePlanningError(error) && directLocalIntent) {
+      const directFallback = isRecoverableNativePlanningError(error)
+        ? await loadDirectLocalIntent()
+        : undefined;
+      if (
+        isRecoverableNativePlanningError(error) &&
+        directFallback?.directLocalIntent
+      ) {
         runFailureMessage =
           error instanceof Error ? error.message.trim() : String(error).trim();
         response = "";
@@ -7156,9 +7421,14 @@ export async function handleAgentTurn(
     context.services.runController.getActive(sessionId)?.observedActionCount ??
     0;
 
+  const fallbackModule =
+    observedActionCount === 0 || runFailureMessage
+      ? await loadDirectLocalIntent()
+      : null;
+
   if (
-    directLocalIntent &&
-    shouldUseDirectLocalFallback({
+    fallbackModule?.directLocalIntent &&
+    fallbackModule.shouldUseDirectLocalFallback({
       message: input.message,
       response,
       observedActionCount,
@@ -7167,21 +7437,26 @@ export async function handleAgentTurn(
   ) {
     try {
       deferNativeStreaming = false;
-      if (runFailureMessage || response.trim()) {
-        await options?.onNotice?.({
-          kind: "status",
-          message:
-            "Native planning stalled on this local task, so I switched to the direct workspace executor.",
-        });
+      const approvalResponse = await executeApprovedDirectLocalIntent(
+        fallbackModule.directLocalIntent as {
+          label?: string;
+        },
+        runFailureMessage || response.trim()
+          ? "Native planning stalled on this local task, so I switched to the direct workspace executor."
+          : undefined,
+      );
+      if (approvalResponse) {
+        return approvalResponse;
       }
-      response = await executeDirectLocalIntent(
-        directLocalIntent,
+      response = await fallbackModule.executeDirectLocalIntent(
+        fallbackModule.directLocalIntent as never,
         sessionId,
         context,
         options,
       );
       runFailureMessage = undefined;
       deferNativeStreaming = false;
+      perf.mark("fallback-local-intent");
     } catch (fallbackError) {
       if (!runFailureMessage) {
         context.services.runController.finishTurn(
@@ -7215,12 +7490,10 @@ export async function handleAgentTurn(
   // -------------------------------------------------------------------
 
   // Count assistant turns in this session to throttle nudges
-  const sessionMessages = context.services.sessions.recent(200);
-  const sessionTurnCount = sessionMessages.filter(
-    (m) =>
-      (m as { sessionId?: string }).sessionId === sessionId &&
-      m.role === "assistant",
-  ).length;
+  const sessionTurnCount = context.services.sessions.countBySessionRole(
+    sessionId,
+    "assistant",
+  );
 
   // Context window usage warning (only for interactive sources)
   const usageWarning = localInteractive
@@ -7262,6 +7535,14 @@ export async function handleAgentTurn(
     runFailureMessage ? "error" : "complete",
     runFailureMessage,
   );
+  scheduleProfileObservation();
+  perf.mark("post-response");
+  perf.flush(context.runtime.logger, {
+    path: runFailureMessage ? "native-error" : "native-response",
+    sessionId,
+    source: input.source ?? "cli",
+    observedActionCount,
+  });
 
   return finalResponse;
 }

@@ -146,22 +146,36 @@ async function main(): Promise<void> {
 
   await ensureOnboarded();
   loadLocalRuntimeEnv();
-  const [
-    { showBootSplash },
-    { getAppContext },
-    { startApiServer },
-    { startCli },
-  ] = await Promise.all([
-    import("@/cli/splash"),
-    import("@/runtime/bootstrap"),
-    import("@/server"),
-    import("@/cli"),
-  ]);
+  const shouldUseCliSurface =
+    command === "start" || command === "dev" || command === "plain";
+  const shouldUseApiSurface = command === "api" || command === "gateway";
+  const splashModulePromise = shouldUseCliSurface
+    ? import("@/cli/splash")
+    : undefined;
+  const bootstrapModulePromise = import("@/runtime/bootstrap");
+  const cliModulePromise = shouldUseCliSurface ? import("@/cli") : undefined;
+  const serverModulePromise = shouldUseApiSurface
+    ? import("@/server")
+    : undefined;
 
   // Show splash for interactive CLI modes
-  if (command === "start" || command === "dev" || command === "plain") {
-    await showBootSplash();
+  if (shouldUseCliSurface && splashModulePromise) {
+    const [{ showBootSplash }] = await Promise.all([splashModulePromise]);
+    const splashPromise = showBootSplash();
+    await Promise.all([
+      splashPromise,
+      bootstrapModulePromise,
+      cliModulePromise,
+    ]);
   }
+
+  const [{ getAppContext }, cliModule, serverModule] = await Promise.all([
+    bootstrapModulePromise,
+    cliModulePromise,
+    serverModulePromise,
+  ]);
+  const startCli = cliModule?.startCli;
+  const startApiServer = serverModule?.startApiServer;
 
   // Ensure ELIZA_AGENT_MODE is set for the runtime
   if (command === "start" || command === "dev" || command === "plain") {
@@ -187,7 +201,12 @@ async function main(): Promise<void> {
   const startServer = async () => {
     try {
       await context.ensureDeferredHydration("api");
-      startApiServer(context);
+      if (!startApiServer) {
+        const server = await import("@/server");
+        server.startApiServer(context);
+      } else {
+        startApiServer(context);
+      }
       if (!shouldStartCli || command === "api" || command === "gateway") {
         console.log(
           `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
@@ -232,7 +251,7 @@ async function main(): Promise<void> {
     if (command === "plain") {
       Bun.argv.push("--plain-cli");
     }
-    await startCli(context, {
+    await startCli?.(context, {
       onReady: startServerWhenShellReady,
     });
   } else if (!wantsApi && command !== "api") {
