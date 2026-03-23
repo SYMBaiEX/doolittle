@@ -7,6 +7,11 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import {
+  getEffectiveRepositoryDiff,
+  getEffectiveRepositoryLog,
+  getEffectiveRepositoryStatus,
+} from "@/runtime/native/service-bridge";
 import type { AppServices } from "@/services";
 
 type RepositoryIntent = "status" | "diff" | "log";
@@ -71,16 +76,17 @@ export function resolveRepositoryIntentFromText(
 }
 
 export async function executeRepositoryIntent(
+  runtime: IAgentRuntime,
   services: AppServices,
   intent: RepositoryIntent,
 ): Promise<string> {
   if (intent === "status") {
-    return services.repository.status();
+    return String(await getEffectiveRepositoryStatus(runtime, services));
   }
   if (intent === "diff") {
-    return services.repository.diffStat();
+    return String(await getEffectiveRepositoryDiff(runtime, services));
   }
-  return services.repository.recentCommits();
+  return String(await getEffectiveRepositoryLog(runtime, services));
 }
 
 export function createRepositoryAction(services: AppServices): Action {
@@ -97,7 +103,7 @@ export function createRepositoryAction(services: AppServices): Action {
       return Boolean(text && resolveRepositoryIntentFromText(text));
     },
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
@@ -113,7 +119,7 @@ export function createRepositoryAction(services: AppServices): Action {
       let response = "";
 
       if (intent) {
-        response = await executeRepositoryIntent(services, intent);
+        response = await executeRepositoryIntent(runtime, services, intent);
       } else {
         response =
           "I can inspect repository status, diffs, or recent commits. Try `/repo status` or ask `what changed in this repo?`.";

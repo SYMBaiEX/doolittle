@@ -7,6 +7,12 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import {
+  readEffectiveWorkspaceFile,
+  runEffectiveShellCommand,
+  searchEffectiveWorkspace,
+  writeEffectiveWorkspaceFile,
+} from "@/runtime/native/service-bridge";
 import type { AppServices } from "@/services";
 
 type WorkspaceIntent =
@@ -161,6 +167,7 @@ function sanitizeFindQuery(value: string): string {
 }
 
 export async function executeWorkspaceIntent(
+  runtime: IAgentRuntime,
   services: AppServices,
   workspaceDir: string,
   intent: WorkspaceIntent,
@@ -169,10 +176,18 @@ export async function executeWorkspaceIntent(
     return services.workspace.summary(40);
   }
   if (intent.kind === "read") {
-    return services.workspace.read(intent.path);
+    return String(readEffectiveWorkspaceFile(runtime, services, intent.path));
   }
   if (intent.kind === "search") {
-    const results = services.workspace.search(intent.query, 20);
+    const results = searchEffectiveWorkspace(
+      runtime,
+      services,
+      intent.query,
+      20,
+    ) as Array<{
+      path: string;
+      matches: string[];
+    }>;
     return results.length
       ? results
           .map(
@@ -183,7 +198,7 @@ export async function executeWorkspaceIntent(
       : "No workspace matches found.";
   }
   if (intent.kind === "write") {
-    return `Wrote ${services.workspace.write(intent.path, intent.content)}.`;
+    return `Wrote ${String(writeEffectiveWorkspaceFile(runtime, services, intent.path, intent.content))}.`;
   }
 
   const query = sanitizeFindQuery(intent.query);
@@ -203,7 +218,16 @@ export async function executeWorkspaceIntent(
         `[ -d "${root}" ] && find "${root}" -maxdepth 4 -type d \\( -name .git -prune -o -iname "*${query}*" -print \\) 2>/dev/null`,
     )
     .join(" ; ");
-  const result = await services.terminal.run(`${command} | head -50`);
+  const result = (await runEffectiveShellCommand(
+    runtime,
+    services,
+    `${command} | head -50`,
+  )) as {
+    command: string;
+    exitCode?: number;
+    stdout?: string;
+    stderr?: string;
+  };
   return [
     `Command: ${result.command}`,
     result.exitCode !== undefined ? `Exit: ${result.exitCode}` : undefined,
@@ -236,7 +260,7 @@ export function createWorkspaceAction(
       return Boolean(text && resolveWorkspaceIntentFromText(text));
     },
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
@@ -252,7 +276,12 @@ export function createWorkspaceAction(
       let response = "";
 
       if (intent) {
-        response = await executeWorkspaceIntent(services, workspaceDir, intent);
+        response = await executeWorkspaceIntent(
+          runtime,
+          services,
+          workspaceDir,
+          intent,
+        );
       } else {
         response =
           "I can list files, read a file, search the workspace, or write a file. Try `/workspace tree` or ask `search the repo for auth middleware`.";

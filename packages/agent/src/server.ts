@@ -30,6 +30,7 @@ import {
 import {
   analyzeEffectiveBrowserComparison,
   analyzeEffectiveBrowserPage,
+  cancelEffectiveDelegationTask,
   cancelEffectiveForm,
   captureEffectiveBrowserPage,
   compareEffectiveBrowserPages,
@@ -115,6 +116,8 @@ import {
   searchEffectiveSkillHubCatalog,
   setEffectiveSecret,
   snapshotEffectiveBrowserPage,
+  spawnEffectiveDelegationChild,
+  superviseEffectiveDelegationQueue,
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge";
 import {
@@ -223,21 +226,25 @@ function createAutocoderWorkflowContext(
   },
 ) {
   const sessionId = input.sessionId ?? "api:local-user";
-  const task = context.services.delegation.create({
-    title: input.title,
-    objective: input.objective,
-    group: "autocoder",
-    profile: "native",
-    priority: "normal",
-    labels: ["autocoder", input.kind],
-    metadata: {
-      kind: input.kind,
-      sessionId,
-      projectName: input.projectName ?? "",
-      repositoryName: input.repositoryName ?? "",
+  const task = createEffectiveDelegationTask(
+    context.runtime,
+    context.services,
+    {
+      title: input.title,
+      objective: input.objective,
+      group: "autocoder",
+      profile: "native",
+      priority: "normal",
+      labels: ["autocoder", input.kind],
+      metadata: {
+        kind: input.kind,
+        sessionId,
+        projectName: input.projectName ?? "",
+        repositoryName: input.repositoryName ?? "",
+      },
+      executionMode: "local",
     },
-    executionMode: "local",
-  });
+  ) as { id: string };
   context.services.delegation.markRunning(task.id);
   const workflow = context.services.autocoderPipeline.startWorkflow({
     title: input.title,
@@ -2605,18 +2612,23 @@ export function startApiServer(context: AppContext): void {
           return json({ error: "objective is required" }, 400);
         }
         return json({
-          task: context.services.delegation.spawnChild(id, {
-            title: body.title ?? "Child task",
-            objective: body.objective,
-            group: body.group,
-            profile: body.profile,
-            priority: body.priority,
-            tags: body.tags ?? body.labels,
-            labels: body.labels ?? body.tags,
-            metadata: body.metadata,
-            executionMode: body.executionMode,
-            maxAttempts: body.maxAttempts,
-          }),
+          task: spawnEffectiveDelegationChild(
+            context.runtime,
+            context.services,
+            id,
+            {
+              title: body.title ?? "Child task",
+              objective: body.objective,
+              group: body.group,
+              profile: body.profile,
+              priority: body.priority,
+              tags: body.tags ?? body.labels,
+              labels: body.labels ?? body.tags,
+              metadata: body.metadata,
+              executionMode: body.executionMode,
+              maxAttempts: body.maxAttempts,
+            },
+          ),
         });
       }
 
@@ -2627,20 +2639,30 @@ export function startApiServer(context: AppContext): void {
         const body = ((await request.json().catch(() => ({}))) ?? {}) as {
           concurrency?: number;
         };
-        const report = await context.services.delegation.superviseQueued(
+        const report = await superviseEffectiveDelegationQueue(
+          context.runtime,
+          context.services,
           async (task) =>
             (
-              await runDelegationTaskInWorker(context, task.id, {
-                assumeRunning: true,
-              })
+              await runDelegationTaskInWorker(
+                context,
+                (task as { id: string }).id,
+                {
+                  assumeRunning: true,
+                },
+              )
             ).notes.at(-1) ?? "Delegated worker completed.",
           {
             concurrency:
               typeof body.concurrency === "number" && body.concurrency > 0
                 ? body.concurrency
                 : 2,
-            onComplete: async (task) => {
-              context.services.skillSynthesis.synthesizeFromTask(task);
+            onComplete: async (task: unknown) => {
+              context.services.skillSynthesis.synthesizeFromTask(
+                task as Parameters<
+                  typeof context.services.skillSynthesis.synthesizeFromTask
+                >[0],
+              );
             },
           },
         );
@@ -2694,7 +2716,9 @@ export function startApiServer(context: AppContext): void {
         }
         if (action === "cancel") {
           return json({
-            task: context.services.delegation.cancel(
+            task: cancelEffectiveDelegationTask(
+              context.runtime,
+              context.services,
               id,
               body.note ?? "Cancelled via API.",
               {

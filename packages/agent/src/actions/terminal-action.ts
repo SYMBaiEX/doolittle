@@ -7,6 +7,7 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import { runEffectiveShellCommand } from "@/runtime/native/service-bridge";
 import type { AppServices } from "@/services";
 
 type ActionParams = Record<string, unknown>;
@@ -121,6 +122,7 @@ export function resolveCommandFromText(text: unknown): string | undefined {
 }
 
 export async function executeTerminalCommand(
+  runtime: IAgentRuntime,
   services: AppServices,
   command: string,
 ): Promise<{
@@ -128,7 +130,16 @@ export async function executeTerminalCommand(
   exitCode: number | undefined;
   command: string;
 }> {
-  const result = await services.terminal.run(command);
+  const result = (await runEffectiveShellCommand(
+    runtime,
+    services,
+    command,
+  )) as {
+    command: string;
+    exitCode?: number;
+    stdout?: string;
+    stderr?: string;
+  };
   const response = [
     `Ran: ${result.command}`,
     `Exit: ${result.exitCode}`,
@@ -174,7 +185,7 @@ export function createTerminalAction(services: AppServices): Action {
       );
     },
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
@@ -195,7 +206,7 @@ export function createTerminalAction(services: AppServices): Action {
         return { success: false, text: response };
       }
 
-      const result = await executeTerminalCommand(services, command);
+      const result = await executeTerminalCommand(runtime, services, command);
       const response = result.response;
 
       await callback?.({ text: response, source: "terminal-action" });

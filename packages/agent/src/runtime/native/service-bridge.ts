@@ -149,6 +149,50 @@ interface NativeAgentOrchestratorService {
     options?: { cascadeChildren?: boolean },
   ): unknown;
   cancelTask?(id: string, note?: string): unknown;
+  supervise?(
+    runner: (task: unknown) => Promise<string>,
+    runOptions?: Record<string, unknown>,
+  ): Promise<unknown>;
+}
+
+interface NativeCodingAgentService {
+  read(path: string): unknown;
+  write(path: string, content: string): unknown;
+  search(query: string, limit?: number): unknown;
+  repoStatus(): Promise<unknown>;
+  repoDiff(): Promise<unknown>;
+  repoLog(limit?: number): Promise<unknown>;
+  run(command: string): Promise<unknown>;
+  delegate?(
+    title: string,
+    objective: string,
+    metadata?: Record<string, unknown>,
+  ): unknown;
+  tasks?(): unknown[];
+}
+
+interface NativeApprovalService {
+  requestApprovalAsync?(input: unknown): Promise<string>;
+  handleSelection?(taskId: string, selectedOption: string): Promise<void>;
+  getPendingApprovals?(roomId: string): Promise<unknown[]>;
+}
+
+interface NativeToolPolicyService {
+  getAllowedTools?(
+    context: {
+      profile?: "minimal" | "coding" | "messaging" | "full";
+    },
+    availableTools: string[],
+  ): string[];
+  getDeniedTools?(
+    context: {
+      profile?: "minimal" | "coding" | "messaging" | "full";
+    },
+    availableTools: string[],
+  ): Array<{ name: string; reason: string }>;
+  getEffectivePolicy?(context?: {
+    profile?: "minimal" | "coding" | "messaging" | "full";
+  }): unknown;
 }
 
 interface NativePluginManagerService {
@@ -381,6 +425,14 @@ interface AutonomousControlPlaneSummary {
     queuePending: number;
     activeWorkers: number;
   };
+  codingAgent: {
+    source: "native" | "product";
+    available: boolean;
+    workspace: boolean;
+    repository: boolean;
+    shell: boolean;
+    delegation: boolean;
+  };
   trajectories: {
     source: "native" | "product";
     available: boolean;
@@ -423,10 +475,24 @@ interface AutonomousControlPlaneSummary {
     templates: number;
   };
   execution: {
+    approvals: {
+      source: "native" | "product";
+      available: boolean;
+      asyncRequest: boolean;
+      selectionHandling: boolean;
+    };
     e2b: {
       source: "native" | "product";
       available: boolean;
       sandboxes: number;
+    };
+    toolPolicy: {
+      source: "native" | "product";
+      available: boolean;
+      actions: number;
+      codingAllowed: number;
+      messagingAllowed: number;
+      fullAllowed: number;
     };
     planning: {
       source: "native" | "product";
@@ -445,7 +511,7 @@ interface AutonomousControlPlaneSummary {
   };
 }
 
-type RuntimeLike = Partial<Pick<IAgentRuntime, "getService">>;
+type RuntimeLike = Partial<Pick<IAgentRuntime, "getService" | "getAllActions">>;
 
 export type { RuntimeLike };
 
@@ -557,10 +623,13 @@ export function getNativeServices(runtime: RuntimeLike) {
       runtime,
       "agent_orchestrator",
     ),
+    codingAgent: service<NativeCodingAgentService>(runtime, "coding_agent"),
+    approval: service<NativeApprovalService>(runtime, "approval"),
     pluginManager: service<NativePluginManagerService>(
       runtime,
       "plugin_manager",
     ),
+    toolPolicy: service<NativeToolPolicyService>(runtime, "tool_policy"),
     telegram: service<NativeTelegramTransportService>(runtime, "telegram"),
     discordTransport: service<NativeDiscordTransportService>(
       runtime,
@@ -681,6 +750,10 @@ export function getNativePlanningControlPlane(runtime: RuntimeLike) {
 
 export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
   const native = getNativeServices(runtime);
+  const runtimeActions =
+    typeof runtime.getAllActions === "function"
+      ? runtime.getAllActions().map((action: { name: string }) => action.name)
+      : [];
   const sandboxes = native.e2b?.listSandboxes?.() ?? [];
   const activeSandboxId = sandboxes[0]?.id;
   const codeGenerationMethods = [
@@ -703,6 +776,12 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
   const planningControl = getNativePlanningControlPlane(runtime);
 
   return {
+    approvals: {
+      source: native.approval ? ("native" as const) : ("product" as const),
+      available: Boolean(native.approval),
+      asyncRequest: typeof native.approval?.requestApprovalAsync === "function",
+      selectionHandling: typeof native.approval?.handleSelection === "function",
+    },
     e2b: {
       source: native.e2b ? ("native-plugin" as const) : ("product" as const),
       available: Boolean(native.e2b),
@@ -716,6 +795,26 @@ export function getNativeExecutionControlPlane(runtime: RuntimeLike) {
       detail: native.e2b
         ? `E2B runtime has ${sandboxes.length} active sandboxes${activeSandboxId ? ` with ${activeSandboxId} selected` : ""}.`
         : "E2B sandbox service is unavailable.",
+    },
+    toolPolicy: {
+      source: native.toolPolicy ? ("native" as const) : ("product" as const),
+      available: Boolean(native.toolPolicy),
+      actions: runtimeActions.length,
+      codingAllowed:
+        native.toolPolicy?.getAllowedTools?.(
+          { profile: "coding" },
+          runtimeActions,
+        ).length ?? runtimeActions.length,
+      messagingAllowed:
+        native.toolPolicy?.getAllowedTools?.(
+          { profile: "messaging" },
+          runtimeActions,
+        ).length ?? runtimeActions.length,
+      fullAllowed:
+        native.toolPolicy?.getAllowedTools?.(
+          { profile: "full" },
+          runtimeActions,
+        ).length ?? runtimeActions.length,
     },
     planning: planningControl,
     codeGeneration: {
@@ -1360,6 +1459,14 @@ export function getEffectiveServiceResolution(
       available: Boolean(native.agentOrchestrator),
     },
     {
+      capability: "codingAgent",
+      nativeService: "coding_agent",
+      source: native.codingAgent ? "native" : "product",
+      ownership: resolveOwnership(native.codingAgent),
+      fallback: "workspace + repository + terminal + delegation",
+      available: Boolean(native.codingAgent),
+    },
+    {
       capability: "pluginManager",
       nativeService: "plugin_manager",
       source: native.pluginManager ? "native" : "product",
@@ -1678,6 +1785,7 @@ export async function runEffectiveShellCommand(
 ) {
   return (
     (await getNativeServices(runtime).shell?.run(command)) ??
+    (await getNativeServices(runtime).codingAgent?.run(command)) ??
     services.terminal.run(command)
   );
 }
@@ -1898,12 +2006,79 @@ export async function getEffectiveShellStatus(
   );
 }
 
+export function readEffectiveWorkspaceFile(
+  runtime: RuntimeLike,
+  services: AppServices,
+  path: string,
+) {
+  return (
+    getNativeServices(runtime).codingAgent?.read(path) ??
+    services.workspace.read(path)
+  );
+}
+
+export function searchEffectiveWorkspace(
+  runtime: RuntimeLike,
+  services: AppServices,
+  query: string,
+  limit = 20,
+) {
+  return (
+    getNativeServices(runtime).codingAgent?.search(query, limit) ??
+    services.workspace.search(query, limit)
+  );
+}
+
+export function writeEffectiveWorkspaceFile(
+  runtime: RuntimeLike,
+  services: AppServices,
+  path: string,
+  content: string,
+) {
+  return (
+    getNativeServices(runtime).codingAgent?.write(path, content) ??
+    services.workspace.write(path, content)
+  );
+}
+
+export async function getEffectiveRepositoryStatus(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    (await getNativeServices(runtime).codingAgent?.repoStatus()) ??
+    services.repository.status()
+  );
+}
+
+export async function getEffectiveRepositoryDiff(
+  runtime: RuntimeLike,
+  services: AppServices,
+) {
+  return (
+    (await getNativeServices(runtime).codingAgent?.repoDiff()) ??
+    services.repository.diffStat()
+  );
+}
+
+export async function getEffectiveRepositoryLog(
+  runtime: RuntimeLike,
+  services: AppServices,
+  limit = 10,
+) {
+  return (
+    (await getNativeServices(runtime).codingAgent?.repoLog(limit)) ??
+    services.repository.recentCommits(limit)
+  );
+}
+
 export function getEffectiveDelegationTasks(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
   return (
     getNativeServices(runtime).agentOrchestrator?.tasks() ??
+    getNativeServices(runtime).codingAgent?.tasks?.() ??
     services.delegation.list()
   );
 }
@@ -1997,6 +2172,20 @@ export function createEffectiveDelegationTask(
         ...input.metadata,
       },
     ) ??
+    getNativeServices(runtime).codingAgent?.delegate?.(
+      input.title,
+      input.objective,
+      {
+        group: input.group,
+        profile: input.profile,
+        priority: input.priority,
+        labels: input.labels ?? input.tags,
+        tags: input.tags ?? input.labels,
+        executionMode: input.executionMode,
+        maxAttempts: input.maxAttempts,
+        ...input.metadata,
+      },
+    ) ??
     services.delegation.create({
       title: input.title,
       objective: input.objective,
@@ -2016,6 +2205,67 @@ export function createEffectiveDelegationTask(
       executionMode: input.executionMode,
       maxAttempts: input.maxAttempts,
     })
+  );
+}
+
+export function spawnEffectiveDelegationChild(
+  runtime: RuntimeLike,
+  services: AppServices,
+  parentId: string,
+  input: {
+    title: string;
+    objective: string;
+    group?: string;
+    profile?: string;
+    priority?: "low" | "normal" | "high";
+    tags?: string[];
+    labels?: string[];
+    metadata?: Record<string, string>;
+    executionMode?: "local" | "delegated";
+    maxAttempts?: number;
+  },
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.spawnChild?.(parentId, {
+      title: input.title,
+      objective: input.objective,
+      metadata: input.metadata,
+      profile: input.profile,
+      priority: input.priority,
+      tags: input.tags ?? input.labels,
+    }) ?? services.delegation.spawnChild(parentId, input)
+  );
+}
+
+export function cancelEffectiveDelegationTask(
+  runtime: RuntimeLike,
+  services: AppServices,
+  id: string,
+  note?: string,
+  options?: { cascadeChildren?: boolean },
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.cancelTask?.(id, note) ??
+    services.delegation.cancel(id, note, options)
+  );
+}
+
+export async function superviseEffectiveDelegationQueue(
+  runtime: RuntimeLike,
+  services: AppServices,
+  runner: (task: unknown) => Promise<string>,
+  options?: {
+    concurrency?: number;
+    filter?: Record<string, unknown>;
+    onComplete?: (task: unknown) => Promise<void> | void;
+    onError?: (task: unknown, error: string) => Promise<void> | void;
+  },
+) {
+  return (
+    (await getNativeServices(runtime).agentOrchestrator?.supervise?.(
+      runner,
+      options,
+    )) ?? services.delegation.supervise(runner as never, options as never)
   );
 }
 
@@ -2210,6 +2460,7 @@ export function getAutonomousControlPlane(
   const orchestratorSummary = native.agentOrchestrator?.summary?.();
   const orchestratorTasks = getEffectiveDelegationTasks(runtime, services);
   const orchestratorQueue = getEffectiveDelegationQueue(runtime, services);
+  const codingAgent = native.codingAgent;
   const pluginInventory = getEffectivePluginManagerInventory(runtime);
   const mediaControl = config
     ? getNativeMediaControlPlane(config)
@@ -2232,13 +2483,16 @@ export function getAutonomousControlPlane(
   const serviceSources = [
     native.agentSkills,
     native.agentOrchestrator,
+    native.codingAgent,
     native.trajectoryLogger,
     native.pluginManager,
     native.planning,
+    native.approval,
+    native.toolPolicy,
   ];
 
   return {
-    alignment: describeAutonomousAlignment(),
+    alignment: describeAutonomousAlignment(config),
     skills: {
       source: native.agentSkills ? "native" : "product",
       available: Boolean(native.agentSkills),
@@ -2277,6 +2531,20 @@ export function getAutonomousControlPlane(
       activeWorkers:
         orchestratorSummary?.activeWorkers ??
         countQueueActiveWorkers(orchestratorQueue),
+    },
+    codingAgent: {
+      source: codingAgent ? "native" : "product",
+      available: Boolean(codingAgent),
+      workspace:
+        typeof codingAgent?.read === "function" &&
+        typeof codingAgent?.write === "function" &&
+        typeof codingAgent?.search === "function",
+      repository:
+        typeof codingAgent?.repoStatus === "function" &&
+        typeof codingAgent?.repoDiff === "function" &&
+        typeof codingAgent?.repoLog === "function",
+      shell: typeof codingAgent?.run === "function",
+      delegation: typeof codingAgent?.delegate === "function",
     },
     trajectories: {
       source: trajectorySource ? "native" : "product",
@@ -2320,10 +2588,24 @@ export function getAutonomousControlPlane(
       templates: formsControl.templates,
     },
     execution: {
+      approvals: {
+        source: native.approval ? "native" : "product",
+        available: Boolean(native.approval),
+        asyncRequest: executionControl.approvals.asyncRequest,
+        selectionHandling: executionControl.approvals.selectionHandling,
+      },
       e2b: {
         source: native.e2b ? "native" : "product",
         available: Boolean(native.e2b),
         sandboxes: executionControl.e2b.sandboxes,
+      },
+      toolPolicy: {
+        source: native.toolPolicy ? "native" : "product",
+        available: Boolean(native.toolPolicy),
+        actions: executionControl.toolPolicy.actions,
+        codingAllowed: executionControl.toolPolicy.codingAllowed,
+        messagingAllowed: executionControl.toolPolicy.messagingAllowed,
+        fullAllowed: executionControl.toolPolicy.fullAllowed,
       },
       planning: {
         source: native.planning ? "native" : "product",

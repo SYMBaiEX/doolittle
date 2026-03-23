@@ -60,15 +60,25 @@ describe("SkillsService", () => {
     const service = new SkillsService(
       "/Users/symbiex/dev/elizaos/eliza-agent/eliza-agent/packages/skills",
       agentSdk,
+      "/Users/symbiex/dev/elizaos/eliza-agent/eliza-agent",
     );
 
     const summary = service.summary();
 
-    expect(summary.total).toBeGreaterThan(10);
-    expect(summary.curated).toBeGreaterThan(10);
+    expect(summary.total).toBeGreaterThan(50);
+    expect(summary.curated).toBeGreaterThan(50);
     expect(summary.generated).toBeGreaterThan(0);
+    expect(summary.bundled).toBeGreaterThan(0);
+    expect(summary.workspace).toBeGreaterThan(10);
+    expect(summary.invocable).toBeGreaterThan(0);
     expect(summary.roots.map((entry) => entry.name)).toContain("platform");
     expect(summary.roots.map((entry) => entry.name)).toContain("research");
     expect(summary.roots.map((entry) => entry.name)).toContain("generated");
+    expect(
+      service.workspace().every((skill) => skill.source !== "bundled"),
+    ).toBe(true);
+    expect(service.list().some((skill) => skill.source === "bundled")).toBe(
+      true,
+    );
   });
 });
