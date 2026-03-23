@@ -645,6 +645,11 @@ function attachRunProgressBridge(
     services.runController.markAgentEventBridgeAttached(true);
   }
 
+  // Initialize the self-awareness registry so autonomous consumers can
+  // compose truthful self-status from the current runtime, run, and startup
+  // state without mutating the transcript.
+  services.awareness.initialize(services);
+
   services.runController.markRuntimeBridgeAttached(true);
 }
 
