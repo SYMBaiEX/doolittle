@@ -43,14 +43,24 @@ export function createSkillsAction(services: AppServices): Action {
       ) {
         const skills = services.skills.list();
         const summary = services.skills.summary();
+        const visibleSkills = skills.slice(0, 40);
         response = [
-          `Skills workspace: total=${summary.total} curated=${summary.curated} generated=${summary.generated}`,
+          `Skills available: total=${summary.total} workspace=${summary.workspace} generated=${summary.generated} bundled=${summary.bundled} managed=${summary.managed} project=${summary.project} invocable=${summary.invocable}`,
           `Families: ${summary.roots.map((entry) => `${entry.name}(${entry.count})`).join(", ") || "none"}`,
-          skills.length
-            ? skills
-                .map((skill) => `- ${skill.slug}: ${skill.description}`)
+          visibleSkills.length
+            ? visibleSkills
+                .map((skill) => {
+                  const source = skill.source ?? "workspace";
+                  const commandHint = skill.commandName
+                    ? ` cmd=${skill.commandName}`
+                    : "";
+                  return `- ${skill.slug} [${source}${commandHint}]: ${skill.description}`;
+                })
                 .join("\n")
             : "No skills found.",
+          skills.length > visibleSkills.length
+            ? `… ${skills.length - visibleSkills.length} more skill(s). Use /skills show <slug> or /skills summary for more detail.`
+            : "",
         ].join("\n");
       } else if (trimmed.startsWith("/skills show ")) {
         const slug = trimmed.replace("/skills show ", "").trim();

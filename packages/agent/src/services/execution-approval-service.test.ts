@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { ExecutionApprovalService } from "./execution-approval-service";
 
 describe("ExecutionApprovalService", () => {
-  it("reuses pending approvals and consumes approved ones", () => {
+  it("reuses pending approvals and consumes approved ones", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-exec-approvals-"));
     const service = new ExecutionApprovalService(root);
 
     try {
-      const requested = service.request({
+      const requested = await service.request({
         platform: "telegram",
         userId: "user-1",
         roomId: "telegram:room-1:user-1:root",
@@ -26,7 +26,7 @@ describe("ExecutionApprovalService", () => {
       });
       expect(pending?.id).toBe(requested.id);
 
-      const approved = service.approve(requested.id);
+      const approved = await service.approve(requested.id);
       expect(approved.status).toBe("approved");
 
       const consumed = service.useApproved({
@@ -42,30 +42,32 @@ describe("ExecutionApprovalService", () => {
     }
   });
 
-  it("can approve for immediate use or deny a request", () => {
+  it("can approve for immediate use or deny a request", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-exec-approvals-"));
     const service = new ExecutionApprovalService(root);
 
     try {
-      const immediate = service.request({
+      const immediate = await service.request({
         platform: "discord",
         userId: "user-2",
         roomId: "discord:room-2:user-2:root",
         command: "rm -rf build",
         reason: "can delete files",
       });
-      const used = service.approve(immediate.id, { useImmediately: true });
+      const used = await service.approve(immediate.id, {
+        useImmediately: true,
+      });
       expect(used.status).toBe("used");
       expect(used.usedAt).toBeDefined();
 
-      const denied = service.request({
+      const denied = await service.request({
         platform: "discord",
         userId: "user-2",
         roomId: "discord:room-2:user-2:root",
         command: "sudo reboot",
         reason: "uses elevated privileges",
       });
-      const result = service.deny(denied.id);
+      const result = await service.deny(denied.id);
       expect(result.status).toBe("denied");
       expect(result.deniedAt).toBeDefined();
     } finally {

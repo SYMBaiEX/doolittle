@@ -61,7 +61,13 @@ export function createAgentContextProvider(services: AppServices): Provider {
       const userProfileEntries = services.userProfiles.list();
       const skills = skillEntries
         .slice(0, 12)
-        .map((skill) => `- ${skill.slug}: ${skill.description}`)
+        .map((skill) => {
+          const source = skill.source ?? "workspace";
+          const commandHint = skill.commandName
+            ? ` cmd=${skill.commandName}`
+            : "";
+          return `- ${skill.slug} [${source}${commandHint}]: ${skill.description}`;
+        })
         .join("\n");
       const cronSummary = cronJobs
         .slice(0, 8)

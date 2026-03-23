@@ -352,7 +352,7 @@ export class SkillsHubService {
         .listGeneratedSkills()
         .map((record) => [record.slug, record]),
     );
-    return this.skills.list().map((skill) => {
+    return this.skills.workspace().map((skill) => {
       const normalized = normalizeSlug(skill.slug);
       const generatedRecord = generated.get(normalized);
       const content = skill.content;
