@@ -316,6 +316,27 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function storeSessionMessage(
+  context: AgentExecutionContext,
+  input: {
+    sessionId: string;
+    roomId: string;
+    entityId: string;
+    role: "user" | "assistant" | "system";
+    text: string;
+  },
+): void {
+  context.services.sessions.storeMessage({
+    id: randomUUID(),
+    sessionId: input.sessionId,
+    roomId: input.roomId,
+    entityId: input.entityId,
+    role: input.role,
+    text: input.text,
+    createdAt: nowIso(),
+  });
+}
+
 function scheduleBackgroundTask(task: () => void | Promise<void>): void {
   const timer = setTimeout(() => {
     void Promise.resolve()
@@ -6884,14 +6905,12 @@ export async function handleAgentTurn(
     });
   };
 
-  context.services.sessions.storeMessage({
-    id: randomUUID(),
+  storeSessionMessage(context, {
     sessionId,
     roomId,
     entityId,
     role: "user",
     text: input.message,
-    createdAt: nowIso(),
   });
   context.services.runController.startTurn({
     sessionId,
@@ -6936,14 +6955,12 @@ export async function handleAgentTurn(
     );
     if (approvalPrompt) {
       context.services.runController.setPendingApprovals(sessionId, 1);
-      context.services.sessions.storeMessage({
-        id: randomUUID(),
+      storeSessionMessage(context, {
         sessionId,
         roomId,
         entityId,
         role: "assistant",
         text: approvalPrompt,
-        createdAt: nowIso(),
       });
       context.services.runController.finishTurn(sessionId, "complete");
       scheduleProfileObservation();
@@ -6978,14 +6995,12 @@ export async function handleAgentTurn(
       response: shellResponse,
       phase: "command",
     });
-    context.services.sessions.storeMessage({
-      id: randomUUID(),
+    storeSessionMessage(context, {
       sessionId,
       roomId,
       entityId,
       role: "assistant",
       text: shellResponse,
-      createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
     scheduleProfileObservation();
@@ -7004,14 +7019,12 @@ export async function handleAgentTurn(
       response: responseFromCommandLayer,
       phase: "command",
     });
-    context.services.sessions.storeMessage({
-      id: randomUUID(),
+    storeSessionMessage(context, {
       sessionId,
       roomId,
       entityId,
       role: "assistant",
       text: responseFromCommandLayer,
-      createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
     scheduleProfileObservation();
@@ -7060,14 +7073,12 @@ export async function handleAgentTurn(
       );
       if (approvalPrompt) {
         context.services.runController.setPendingApprovals(sessionId, 1);
-        context.services.sessions.storeMessage({
-          id: randomUUID(),
+        storeSessionMessage(context, {
           sessionId,
           roomId,
           entityId,
           role: "assistant",
           text: approvalPrompt,
-          createdAt: nowIso(),
         });
         context.services.runController.finishTurn(sessionId, "complete");
         return approvalPrompt;
@@ -7105,14 +7116,12 @@ export async function handleAgentTurn(
       context,
       options,
     );
-    context.services.sessions.storeMessage({
-      id: randomUUID(),
+    storeSessionMessage(context, {
       sessionId,
       roomId,
       entityId,
       role: "assistant",
       text: directResponse,
-      createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
     scheduleProfileObservation();
@@ -7148,14 +7157,12 @@ export async function handleAgentTurn(
       response: readinessMessage,
       phase: "readiness",
     });
-    context.services.sessions.storeMessage({
-      id: randomUUID(),
+    storeSessionMessage(context, {
       sessionId,
       roomId,
       entityId,
       role: "assistant",
       text: readinessMessage,
-      createdAt: nowIso(),
     });
     context.services.runController.finishTurn(sessionId, "complete");
     scheduleProfileObservation();
@@ -7531,14 +7538,12 @@ export async function handleAgentTurn(
 
   const finalResponse = baseResponse;
 
-  context.services.sessions.storeMessage({
-    id: randomUUID(),
+  storeSessionMessage(context, {
     sessionId,
     roomId,
     entityId,
     role: "assistant",
     text: finalResponse,
-    createdAt: nowIso(),
   });
 
   context.services.runController.finishTurn(
