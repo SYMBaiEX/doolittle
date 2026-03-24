@@ -108,6 +108,90 @@ function isRecoverableTopLevelRuntimeError(error: unknown): boolean {
   ].some((fragment) => normalized.includes(fragment));
 }
 
+function sanitizeBootLogLine(text: string): string {
+  const esc = String.fromCharCode(27);
+  const bel = String.fromCharCode(7);
+  const controlChars = new RegExp(
+    `[${[
+      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0b, 0x0c, 0x0d,
+      0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+      0x1a, 0x1c, 0x1d, 0x1e, 0x1f, 0x7f,
+    ]
+      .map((value) => `\\x${value.toString(16).padStart(2, "0")}`)
+      .join("")}]`,
+    "g",
+  );
+
+  return text
+    .replace(new RegExp(`${esc}\\[[0-?]*[ -/]*[@-~]`, "g"), "")
+    .replace(new RegExp(`${esc}\\][^${bel}]*(?:${bel}|${esc}\\\\)`, "g"), "")
+    .replace(controlChars, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function captureBootLogs<T>(
+  enabled: boolean,
+  task: () => Promise<T>,
+): Promise<{
+  result: T;
+  logs: Array<{ source: "stdout" | "stderr"; text: string }>;
+}> {
+  if (!enabled) {
+    return {
+      result: await task(),
+      logs: [],
+    };
+  }
+
+  const logs: Array<{ source: "stdout" | "stderr"; text: string }> = [];
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+  const intercept =
+    (source: "stdout" | "stderr", _original: typeof process.stdout.write) =>
+    (
+      chunk: string | Uint8Array,
+      encoding?: BufferEncoding | ((error?: Error | null) => void),
+      callback?: (error?: Error | null) => void,
+    ): boolean => {
+      const text =
+        typeof chunk === "string"
+          ? chunk
+          : Buffer.from(chunk).toString(
+              typeof encoding === "string" ? encoding : "utf8",
+            );
+      const sanitized = sanitizeBootLogLine(text);
+      if (sanitized) {
+        logs.push({ source, text: sanitized });
+      }
+      if (typeof encoding === "function") {
+        encoding();
+      }
+      callback?.();
+      return true;
+    };
+
+  process.stdout.write = intercept(
+    "stdout",
+    originalStdoutWrite,
+  ) as typeof process.stdout.write;
+  process.stderr.write = intercept(
+    "stderr",
+    originalStderrWrite,
+  ) as typeof process.stderr.write;
+
+  try {
+    return {
+      result: await task(),
+      logs,
+    };
+  } finally {
+    process.stdout.write = originalStdoutWrite as typeof process.stdout.write;
+    process.stderr.write = originalStderrWrite as typeof process.stderr.write;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
@@ -175,10 +259,17 @@ async function main(): Promise<void> {
     process.env.ELIZA_AGENT_MODE ??= "cli";
   }
 
-  const context = await getAppContext({
-    startupMode: command === "api" || command === "gateway" ? "api" : "cli",
-    eagerDeferredHydration: command === "api" || command === "gateway",
-  });
+  const startupMode =
+    command === "api" || command === "gateway" ? "api" : "cli";
+  const eagerDeferredHydration = command === "api" || command === "gateway";
+  const { result: context, logs: bootLogs } = await captureBootLogs(
+    shouldUseCliSurface,
+    async () =>
+      getAppContext({
+        startupMode,
+        eagerDeferredHydration,
+      }),
+  );
   const wantsCli =
     context.config.mode === "cli" || context.config.mode === "both";
   const wantsApi =
@@ -246,6 +337,7 @@ async function main(): Promise<void> {
     }
     await startCli?.(context, {
       onReady: startServerWhenShellReady,
+      bootLogs,
     });
   } else if (!wantsApi && command !== "api") {
     console.log(

@@ -130,6 +130,21 @@ function sanitizeForeignTerminalWrite(text: string): string {
     .trim();
 }
 
+function createBlessedOutputProxy(
+  stream: NodeJS.WriteStream,
+): NodeJS.WriteStream {
+  const rawWrite = stream.write.bind(stream);
+  return new Proxy(stream, {
+    get(target, prop) {
+      if (prop === "write") {
+        return rawWrite;
+      }
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
 function getCliErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -170,6 +185,25 @@ function isBenignCliShutdownError(error: unknown): boolean {
 function formatRecoverableProviderError(error: unknown): string {
   const detail = getCliErrorMessage(error);
   return detail.length > 280 ? `${detail.slice(0, 277)}...` : detail;
+}
+
+function appendCliTrace(
+  crashLogPath: string,
+  label: string,
+  detail?: string,
+): void {
+  if (process.env.ELIZA_AGENT_TUI_TRACE !== "1") {
+    return;
+  }
+  try {
+    appendFileSync(
+      crashLogPath,
+      `[${new Date().toISOString()}] ${label}${detail ? ` ${detail}` : ""}\n`,
+      "utf8",
+    );
+  } catch {
+    // Best effort only.
+  }
 }
 
 export function renderResponseTranscript(
@@ -957,6 +991,10 @@ async function executeCliInput(
 
 interface StartCliOptions {
   onReady?: () => void;
+  bootLogs?: Array<{
+    source: "stdout" | "stderr";
+    text: string;
+  }>;
 }
 
 async function startPlainCli(
@@ -1044,6 +1082,14 @@ async function startPlainCli(
   output.write(
     `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
   );
+  for (const entry of options?.bootLogs ?? []) {
+    output.write(
+      `[boot:${entry.source === "stderr" ? "warn" : "info"}] ${entry.text}\n`,
+    );
+  }
+  if ((options?.bootLogs?.length ?? 0) > 0) {
+    output.write("\n");
+  }
   options?.onReady?.();
   if (input.isTTY && output.isTTY) {
     setTimeout(() => {
@@ -1211,9 +1257,10 @@ async function startTui(
   const unsubscribers: Array<() => void> = [];
   input.resume();
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
+  const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
     input,
-    output,
+    output: tuiOutput,
     smartCSR: true,
     fullUnicode: true,
     title: `${context.config.agentName} TUI`,
@@ -1551,6 +1598,7 @@ async function startTui(
   let liveToolTrail: string[] = [];
   const crashLogPath = join(context.config.dataDir, "cli-crash.log");
   mkdirSync(context.config.dataDir, { recursive: true });
+  appendCliTrace(crashLogPath, "tui:start");
   const focusables: blessed.Widgets.BlessedElement[] = [
     activity,
     response,
@@ -2115,6 +2163,7 @@ async function startTui(
   unsubscribers.push(restoreForeignTerminalWrites);
 
   async function refreshPanels(): Promise<void> {
+    appendCliTrace(crashLogPath, "tui:refreshPanels:start");
     try {
       sidebar.setContent(renderStatusContent(context, state));
     } catch (error) {
@@ -2161,6 +2210,11 @@ async function startTui(
       ),
     );
     screen.render();
+    appendCliTrace(
+      crashLogPath,
+      "tui:refreshPanels:rendered",
+      `renders=${String((screen as blessed.Widgets.Screen & { renders?: number }).renders ?? "n/a")} width=${String(screen.width)} height=${String(screen.height)}`,
+    );
   }
 
   let refreshPanelsPromise: Promise<void> | null = null;
@@ -2963,6 +3017,13 @@ async function startTui(
     `Use ${macAwareKeyLabel("Ctrl-E")} for multiline compose, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
     "info",
   );
+  for (const entry of options?.bootLogs ?? []) {
+    appendActivity(
+      entry.source === "stderr" ? "boot!" : "boot+",
+      truncate(entry.text, 180),
+      entry.source === "stderr" ? "warning" : "info",
+    );
+  }
   pushResponseEntry(
     "Helm Ready",
     `You are live in the Eliza Agent helm.\n\nTalk to me normally, or run a shell action like !git status.\n\nFor operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
@@ -2976,11 +3037,19 @@ async function startTui(
   await renderControlDeck(controlDeckMode);
 
   applyThemeToScreen(activeTheme);
+  appendCliTrace(crashLogPath, "tui:before-refresh");
   await refreshPanels();
+  appendCliTrace(crashLogPath, "tui:after-refresh");
   syncLayout();
+  appendCliTrace(crashLogPath, "tui:after-layout");
   inputBox.focus();
   updateFooterHint();
   screen.render();
+  appendCliTrace(
+    crashLogPath,
+    "tui:after-final-render",
+    `renders=${String((screen as blessed.Widgets.Screen & { renders?: number }).renders ?? "n/a")} focused=${screen.focused?.type ?? "none"}`,
+  );
   options?.onReady?.();
   setTimeout(() => {
     void context.ensureDeferredHydration("tui").catch((error) => {

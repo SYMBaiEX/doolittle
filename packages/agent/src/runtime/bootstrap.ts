@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -50,6 +51,25 @@ type RuntimeBindableServices = AppServices & {
 
 let contextPromise: Promise<AppContext> | undefined;
 let contextValue: AppContext | undefined;
+
+function appendBootstrapTrace(message: string, detail?: string): void {
+  if (process.env.ELIZA_AGENT_TUI_TRACE !== "1") {
+    return;
+  }
+
+  const dataDir = process.env.ELIZA_AGENT_DATA_DIR?.trim() || process.cwd();
+  const tracePath = join(dataDir, "cli-crash.log");
+  const suffix = detail ? ` ${detail}` : "";
+  try {
+    appendFileSync(
+      tracePath,
+      `[${new Date().toISOString()}] bootstrap:${message}${suffix}\n`,
+      "utf8",
+    );
+  } catch {
+    // Best effort only.
+  }
+}
 
 function formatError(err: unknown): string {
   if (err instanceof Error) {
@@ -268,18 +288,56 @@ async function initializeRuntimeWithRecovery(
   pgliteRecoveryAttempted = false,
 ): Promise<AgentRuntime> {
   let runtime = createRuntime();
-  const ensureMemoryStorageReady = async (currentRuntime: AgentRuntime) => {
-    await currentRuntime.registerService(
-      createMemoryStorageRuntimeService(services.sessions),
+  const registerMemoryStorage = async (currentRuntime: AgentRuntime) => {
+    const memoryStorageService = createMemoryStorageRuntimeService(
+      services.sessions,
     );
-    await currentRuntime.getServiceLoadPromise("memoryStorage");
+    const runtimeWithInternals = currentRuntime as unknown as {
+      services?: Map<string, unknown[]>;
+      serviceRegistrationStatus?: Map<string, string>;
+      servicePromiseHandlers?: Map<
+        string,
+        {
+          resolve: (service: unknown) => void;
+          reject: (error: unknown) => void;
+        }
+      >;
+    };
+    const serviceType = String(memoryStorageService.serviceType);
+    if (currentRuntime.getService(serviceType)) {
+      appendBootstrapTrace("phase:memoryStorage:register:skip");
+      return;
+    }
+    appendBootstrapTrace("phase:memoryStorage:register:start");
+    await currentRuntime.registerService(memoryStorageService);
+    const startedService = await memoryStorageService.start(currentRuntime);
+    const servicesMap =
+      runtimeWithInternals.services ?? currentRuntime.getAllServices();
+    const existing = servicesMap.get(serviceType) ?? [];
+    if (!existing.includes(startedService)) {
+      servicesMap.set(serviceType, [...existing, startedService]);
+    }
+    runtimeWithInternals.serviceRegistrationStatus?.set(
+      serviceType,
+      "registered",
+    );
+    runtimeWithInternals.servicePromiseHandlers
+      ?.get(serviceType)
+      ?.resolve(startedService);
+    appendBootstrapTrace("phase:memoryStorage:register:done");
   };
 
-  await ensureMemoryStorageReady(runtime);
+  await registerMemoryStorage(runtime);
   try {
+    appendBootstrapTrace("phase:runtime.initialize:call");
     await runtime.initialize();
+    appendBootstrapTrace("phase:runtime.initialize:done");
+    appendBootstrapTrace("phase:memoryStorage:load:start");
+    await runtime.getServiceLoadPromise("memoryStorage");
+    appendBootstrapTrace("phase:memoryStorage:load:done");
     return runtime;
   } catch (err) {
+    appendBootstrapTrace("phase:runtime.initialize:error", formatError(err));
     const pgliteDataDir = join(config.dataDir, "pglite");
     const recoveryAction =
       !pgliteRecoveryAttempted && existsSync(pgliteDataDir)
@@ -306,11 +364,20 @@ async function initializeRuntimeWithRecovery(
     process.env.PGLITE_DATA_DIR = pgliteDataDir;
     await resetPluginSqlPgliteSingleton();
     runtime = createRuntime();
-    await ensureMemoryStorageReady(runtime);
+    await registerMemoryStorage(runtime);
     try {
+      appendBootstrapTrace("phase:runtime.initialize:retry-call");
       await runtime.initialize();
+      appendBootstrapTrace("phase:runtime.initialize:retry-done");
+      appendBootstrapTrace("phase:memoryStorage:retry-load:start");
+      await runtime.getServiceLoadPromise("memoryStorage");
+      appendBootstrapTrace("phase:memoryStorage:retry-load:done");
       return runtime;
     } catch (retryErr) {
+      appendBootstrapTrace(
+        "phase:runtime.initialize:retry-error",
+        formatError(retryErr),
+      );
       void retryErr;
       throw new Error(
         `PGLite startup failed after automatic recovery at ${pgliteDataDir}. Run \`eliza-agent doctor\` or remove the local DB directory if it is still corrupted.`,
@@ -667,6 +734,10 @@ function attachRunProgressBridge(
 export async function getAppContext(
   options: AppContextOptions = {},
 ): Promise<AppContext> {
+  appendBootstrapTrace(
+    "getAppContext:enter",
+    `startupMode=${options.startupMode ?? "unset"} eager=${String(options.eagerDeferredHydration ?? "auto")}`,
+  );
   const eagerDeferredHydration =
     options.eagerDeferredHydration ?? options.startupMode !== "cli";
 
@@ -686,13 +757,17 @@ export async function getAppContext(
   }
 
   contextPromise = (async () => {
+    appendBootstrapTrace("phase:loadConfig:start");
     const config = loadConfig();
+    appendBootstrapTrace("phase:loadConfig:done");
     process.env.LOG_LEVEL ||= "error";
     process.env.DEFAULT_LOG_LEVEL ||= process.env.LOG_LEVEL;
     process.env.SECRET_SALT =
       process.env.SECRET_SALT || ensureSecretSalt(config);
     process.env.PGLITE_DATA_DIR ||= join(config.dataDir, "pglite");
+    appendBootstrapTrace("phase:createServices:start");
     const services = createServices(config);
+    appendBootstrapTrace("phase:createServices:done");
     services.startupState.markWarming("runtime", "initializing core runtime");
     services.startupState.markDeferred(
       "gateway",
@@ -703,12 +778,17 @@ export async function getAppContext(
       "will hydrate after the shell is interactive",
     );
     const runtimeSettings = services.settings.get();
+    appendBootstrapTrace("phase:buildNativePluginAssembly:start");
     const nativePluginAssembly = await buildNativePluginAssembly(
       services,
       config,
       {
         hotOnly: !eagerDeferredHydration,
       },
+    );
+    appendBootstrapTrace(
+      "phase:buildNativePluginAssembly:done",
+      `initial=${String(nativePluginAssembly.initial.length)} deferred=${String(nativePluginAssembly.deferred.length)}`,
     );
     const createRuntime = () =>
       new AgentRuntime({
@@ -732,15 +812,20 @@ export async function getAppContext(
 
     mkdirSync(join(config.dataDir, "pglite"), { recursive: true });
     reconcilePglitePidFile(join(config.dataDir, "pglite"));
+    appendBootstrapTrace("phase:initializeRuntime:start");
     const runtime = await initializeRuntimeWithRecovery(
       createRuntime,
       services,
       config,
     );
+    appendBootstrapTrace("phase:initializeRuntime:done");
+    appendBootstrapTrace("phase:ensureCoreRuntimeServices:start");
     await ensureCoreRuntimeServices(runtime);
+    appendBootstrapTrace("phase:ensureCoreRuntimeServices:done");
     services.nativeOwnership.attachRuntime(runtime, services);
     (services as RuntimeBindableServices).__bindRuntime?.(runtime);
     attachRunProgressBridge(runtime, services);
+    appendBootstrapTrace("phase:attachRunProgressBridge:done");
     services.startupState.markReady("runtime", "runtime ready");
 
     services.cron.setExecutor(async (job) => {
@@ -883,10 +968,13 @@ export async function getAppContext(
     } as AppContext;
 
     if (eagerDeferredHydration) {
+      appendBootstrapTrace("phase:deferredHydration:start");
       await context.ensureDeferredHydration(options.startupMode);
+      appendBootstrapTrace("phase:deferredHydration:done");
     }
 
     contextValue = context;
+    appendBootstrapTrace("getAppContext:return");
     return context;
   })();
   try {
