@@ -40,7 +40,7 @@ The installer runs `bun install`, forges `~/.local/bin/eliza-agent`, wires your 
 eliza-agent
 ```
 
-That's it. Open the cockpit.
+That's it. You land in the plain interactive CLI first.
 
 Installer modes:
 
@@ -142,13 +142,24 @@ You can see this live in `/status`, `/doctor`, the TUI runtime rail, and `GET /r
 
 Eliza Agent meets you where you are.
 
-### Operator cockpit (TUI)
+### Plain interactive CLI
 
-The default mode. A full-screen Blessed terminal UI with a transcript-first conversation pane, compact runtime rail, minimized ops log, shared run/progress stream, live transport state, command input, and foreign runtime stdout/stderr captured into the ops log instead of tearing the screen.
+The default mode. A conversation-first terminal shell with the same runtime core, slash commands, approvals, and run-progress contract as the cockpit, but without fullscreen assumptions. This is the primary everyday surface.
 
 ```bash
-eliza-agent          # full TUI
-eliza-agent plain    # line-based fallback if you prefer simplicity
+eliza-agent          # plain interactive CLI (default)
+eliza-agent help     # top-level command help without booting the runtime
+eliza-agent plain    # explicit alias for the same plain shell
+eliza-agent exec -p "summarize this repo"   # one-shot execution
+eliza-agent exec -p "status" --json         # machine-readable one-shot output
+```
+
+### Operator cockpit (TUI)
+
+The optional fullscreen operator view. Use it when you want the richer transcript-first Blessed UI, status rail, activity log, command palette, and long-running observability surfaces.
+
+```bash
+eliza-agent cockpit  # fullscreen cockpit
 ```
 
 Quick shortcuts:
@@ -410,18 +421,28 @@ eliza-agent gateway
 All routing happens in TypeScript — `packages/agent/src/index.ts` dispatches based on the first argument.
 
 ```bash
-eliza-agent          # Start the operator cockpit (default)
+eliza-agent          # Start the plain interactive CLI (default)
 eliza-agent plain    # Plain line-based CLI
+eliza-agent cockpit  # Fullscreen operator cockpit
 eliza-agent dev      # Development mode
 eliza-agent setup    # Re-run the onboarding wizard
 eliza-agent doctor   # Readiness diagnostics and health checks
 eliza-agent install  # Re-run the installer
-eliza-agent api      # API server only, no TUI
+eliza-agent api      # API server only, no cockpit
 eliza-agent gateway  # Start the gateway runner
 ea                   # Short alias (installed when no existing `ea` exists)
 ```
 
-Legacy flag-based invocation is still supported for backward compatibility: `--cli`, `--plain-cli`, `--api-only`, `--gateway`.
+Legacy flag-based invocation is still supported for backward compatibility: `--cli` launches the cockpit, `--plain-cli` launches the plain shell, plus `--api-only` and `--gateway`.
+
+### One-shot mode
+
+For scripting, editor actions, and CI-safe terminal usage:
+
+```bash
+eliza-agent exec -p "summarize this repo and tell me where to start"
+eliza-agent exec --prompt "review the latest changes" --json
+```
 
 ---
 
@@ -541,7 +562,7 @@ Eliza Agent doesn't lock you to one inference path.
 | **OpenAI API key** | Direct `OPENAI_API_KEY` via `@elizaos/plugin-openai` |
 | **Anthropic API key** | Direct `ANTHROPIC_API_KEY` via `@elizaos/plugin-anthropic` |
 
-Switch live from the cockpit:
+Switch live from the plain shell or the cockpit:
 
 ```
 /accounts
@@ -1158,6 +1179,6 @@ Features not covered by official ElizaOS packages are implemented as custom acti
 
 ---
 
-> Once the cockpit is open, try: *summarize this repo and tell me where to start*
+> Once the shell is open, try: *summarize this repo and tell me where to start*
 >
 > Or run a shell action directly: *!git status*

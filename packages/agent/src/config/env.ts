@@ -36,7 +36,9 @@ const schema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   ELIZAOS_CLOUD_BASE_URL: z.string().default(resolveCloudApiBaseUrl()),
-  ELIZAOS_CLOUD_SMALL_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
+  ELIZAOS_CLOUD_SMALL_MODEL: z
+    .string()
+    .default("xai/grok-4.1-fast-non-reasoning"),
   ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
   ELIZAOS_CLOUD_EMBEDDING_MODEL: z
     .string()

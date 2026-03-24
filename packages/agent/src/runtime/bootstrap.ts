@@ -291,9 +291,17 @@ function coerceRelationshipEntityId(params: unknown): string | undefined {
   const record = params as {
     entityId?: unknown;
     entityIds?: unknown;
+    sourceEntityId?: unknown;
+    targetEntityId?: unknown;
   };
-  if (typeof record.entityId === "string" && record.entityId.trim()) {
-    return record.entityId.trim();
+  for (const candidate of [
+    record.entityId,
+    record.sourceEntityId,
+    record.targetEntityId,
+  ]) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
   }
   if (!Array.isArray(record.entityIds)) {
     return undefined;
@@ -357,6 +365,18 @@ async function initializeRuntimeWithRecovery(
   pgliteRecoveryAttempted = false,
 ): Promise<AgentRuntime> {
   let runtime = createRuntime();
+  const disposeRuntime = async (currentRuntime: AgentRuntime) => {
+    try {
+      await currentRuntime.stop();
+    } catch {
+      // Best effort only.
+    }
+    try {
+      await currentRuntime.close();
+    } catch {
+      // Best effort only.
+    }
+  };
   const registerMemoryStorage = async (currentRuntime: AgentRuntime) => {
     const memoryStorageService = createMemoryStorageRuntimeService(
       services.sessions,
@@ -417,6 +437,7 @@ async function initializeRuntimeWithRecovery(
       throw err;
     }
     if (recoveryAction === "fail-active-lock") {
+      await disposeRuntime(runtime);
       throw createActivePgliteLockError(pgliteDataDir, err);
     }
 
@@ -431,6 +452,7 @@ async function initializeRuntimeWithRecovery(
     }
 
     process.env.PGLITE_DATA_DIR = pgliteDataDir;
+    await disposeRuntime(runtime);
     await resetPluginSqlPgliteSingleton();
     runtime = createRuntime();
     await registerMemoryStorage(runtime);

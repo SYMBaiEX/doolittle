@@ -31,7 +31,7 @@ interface ElizaCloudPluginOptions {
 }
 
 const DEFAULT_ELIZA_CLOUD_BASE_URL = resolveCloudApiBaseUrl();
-const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
+const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-non-reasoning";
 const DEFAULT_ELIZA_CLOUD_MODEL = "xai/grok-4.1-fast-reasoning";
 const DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 const ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL = "xai/grok-4.1-fast-reasoning";
@@ -180,7 +180,7 @@ function resolveElizaCloudModelSelection(
     DEFAULT_ELIZA_CLOUD_MODEL;
 
   if (isStructuredPlannerPrompt(prompt)) {
-    return configuredSmall;
+    return configuredLarge;
   }
 
   switch (preferredType) {

@@ -231,7 +231,7 @@ describe("createElizaCloudPlugin", () => {
               });
             }
             if (key === "ELIZAOS_CLOUD_SMALL_MODEL") {
-              return "xai/grok-4.1-fast-reasoning";
+              return "xai/grok-4.1-fast-non-reasoning";
             }
             if (key === "ELIZAOS_CLOUD_LARGE_MODEL") {
               return "xai/grok-4.1-fast-reasoning";

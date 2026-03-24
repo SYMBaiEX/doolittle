@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import type {
   Action,
   ActionResult,
@@ -38,6 +40,101 @@ function normalizeQuotedSegment(value: string): string | undefined {
   const quoted = value.match(/"([^"\n]+)"|'([^'\n]+)'/u);
   const candidate = quoted?.[1] ?? quoted?.[2];
   return candidate?.trim() || undefined;
+}
+
+function extractExplicitProjectPath(text: string): string | undefined {
+  const quoted = normalizeQuotedSegment(text);
+  if (quoted && /^(~|\/|\.{1,2}\/|(?:dev|code|projects)\/)/u.test(quoted)) {
+    return quoted;
+  }
+
+  const locatedPath =
+    text.match(
+      /(?:located|living|sitting)\s+(?:at|in|under)\s+((?:~|\/|\.{1,2}\/|(?:dev|code|projects)\/)[^\s,;:!?]+)/iu,
+    )?.[1] ??
+    text.match(
+      /\b((?:~|\/|\.{1,2}\/|(?:dev|code|projects)\/)[A-Za-z0-9._/-]+)/u,
+    )?.[1];
+  return locatedPath?.trim() || undefined;
+}
+
+function resolveLocalProjectPath(
+  inputPath: string,
+  workspaceDir: string,
+): string | undefined {
+  const trimmed = inputPath.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const home = process.env.HOME ?? workspaceDir;
+  const expanded = trimmed.startsWith("~/")
+    ? join(home, trimmed.slice(2))
+    : trimmed;
+  const resolved = isAbsolute(expanded)
+    ? resolve(expanded)
+    : /^(dev|code|projects)\//u.test(expanded)
+      ? resolve(home, expanded)
+      : resolve(workspaceDir, expanded);
+  return existsSync(resolved) ? resolved : undefined;
+}
+
+function detectProjectKind(projectPath: string): string {
+  const markers = [
+    ["package.json", "Node/Bun package"],
+    ["bun.lock", "Bun workspace"],
+    ["pnpm-workspace.yaml", "pnpm workspace"],
+    ["pyproject.toml", "Python project"],
+    ["Cargo.toml", "Rust crate"],
+    ["go.mod", "Go module"],
+    ["Gemfile", "Ruby project"],
+  ] as const;
+  const detected = markers
+    .filter(([file]) => existsSync(join(projectPath, file)))
+    .map(([, label]) => label);
+  return detected.length > 0 ? detected.join(", ") : "project directory";
+}
+
+function readProjectReadme(projectPath: string): string | undefined {
+  for (const candidate of ["README.md", "README", "readme.md"]) {
+    const target = join(projectPath, candidate);
+    if (!existsSync(target)) {
+      continue;
+    }
+    try {
+      const preview = readFileSync(target, "utf8")
+        .split(/\r?\n/u)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 8)
+        .join("\n");
+      if (preview) {
+        return preview;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function summarizeLocalProject(projectPath: string): string {
+  const entries = readdirSync(projectPath)
+    .filter((entry) => ![".git", "node_modules", "dist"].includes(entry))
+    .sort((left, right) => left.localeCompare(right))
+    .slice(0, 12);
+  const isGitRepository = existsSync(join(projectPath, ".git"));
+  const readmePreview = readProjectReadme(projectPath);
+
+  return [
+    `Project: ${basename(projectPath)}`,
+    `Path: ${projectPath}`,
+    `Type: ${detectProjectKind(projectPath)}`,
+    `Git: ${isGitRepository ? "yes" : "no"}`,
+    entries.length > 0 ? `Top entries: ${entries.join(", ")}` : undefined,
+    readmePreview ? `README preview:\n${readmePreview}` : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function resolveWorkspaceIntentFromParams(
@@ -134,6 +231,16 @@ export function resolveWorkspaceIntentFromText(
     return path ? { kind: "read", path } : undefined;
   }
 
+  const explicitProjectPath = extractExplicitProjectPath(trimmed);
+  if (
+    explicitProjectPath &&
+    /\b(repo|repository|project|codebase|directory|folder|overview|inspect|look at|what is)\b/iu.test(
+      trimmed,
+    )
+  ) {
+    return { kind: "find-codebase", query: explicitProjectPath };
+  }
+
   if (
     /(search|find|look for).*(workspace|repo|repository|codebase|project|files?)/u.test(
       lower,
@@ -205,6 +312,19 @@ export async function executeWorkspaceIntent(
   if (!query) {
     return "I couldn't determine the codebase name to search for.";
   }
+  const explicitProjectPath = resolveLocalProjectPath(query, workspaceDir);
+  if (explicitProjectPath) {
+    try {
+      if (statSync(explicitProjectPath).isDirectory()) {
+        return summarizeLocalProject(explicitProjectPath);
+      }
+      return `Found file path: ${explicitProjectPath}`;
+    } catch (error) {
+      return `I found ${explicitProjectPath}, but couldn't inspect it: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  const searchQuery = query.includes("/") ? basename(query) : query;
   const home = process.env.HOME ?? workspaceDir;
   const searchRoots = [
     `${home}/dev`,
@@ -215,7 +335,7 @@ export async function executeWorkspaceIntent(
   const command = searchRoots
     .map(
       (root) =>
-        `[ -d "${root}" ] && find "${root}" -maxdepth 4 -type d \\( -name .git -prune -o -iname "*${query}*" -print \\) 2>/dev/null`,
+        `[ -d "${root}" ] && find "${root}" -maxdepth 4 -type d \\( -name .git -prune -o -iname "*${searchQuery}*" -print \\) 2>/dev/null`,
     )
     .join(" ; ");
   const result = (await runEffectiveShellCommand(
@@ -228,14 +348,33 @@ export async function executeWorkspaceIntent(
     stdout?: string;
     stderr?: string;
   };
-  return [
-    `Command: ${result.command}`,
-    result.exitCode !== undefined ? `Exit: ${result.exitCode}` : undefined,
-    `STDOUT:\n${result.stdout || "(empty)"}`,
-    `STDERR:\n${result.stderr || "(empty)"}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const matches = (result.stdout || "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (matches.length === 1 && existsSync(matches[0] || "")) {
+    try {
+      if (statSync(matches[0] as string).isDirectory()) {
+        return summarizeLocalProject(matches[0] as string);
+      }
+    } catch {
+      // Fall back to raw command output below.
+    }
+  }
+
+  return matches.length > 0
+    ? [
+        `Found matching local codebases:`,
+        ...matches.map((line) => `- ${line}`),
+      ].join("\n")
+    : [
+        `Command: ${result.command}`,
+        result.exitCode !== undefined ? `Exit: ${result.exitCode}` : undefined,
+        `STDOUT:\n${result.stdout || "(empty)"}`,
+        `STDERR:\n${result.stderr || "(empty)"}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
 }
 
 export function createWorkspaceAction(

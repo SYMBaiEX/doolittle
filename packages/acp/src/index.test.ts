@@ -21,7 +21,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     agentName: "Eliza Agent",
     description: "Eliza Agent runtime",
     package: pkg,
-    command: "bun run start --cli",
+    command: "bun run start",
     toolCount: 7,
   });
   const editor = buildAcpEditorSummary({
@@ -30,7 +30,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     exportDir: "/tmp/exports",
     importDir: "/tmp/imports",
     commandConfigured: true,
-    command: "bun run start --cli",
+    command: "bun run start",
   });
   const bundle = buildAcpBundlePayload({
     exportedAt: "2026-03-21T00:00:00.000Z",

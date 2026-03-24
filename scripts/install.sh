@@ -224,10 +224,12 @@ printf "%s\n" "  eliza-agent"
 if [[ -L "$ELIZA_SHORT_LINK" ]]; then
   printf "%s\n" "  ea"
 fi
+printf "%s\n" "  eliza-agent cockpit"
 printf "%s\n" "  eliza-agent plain"
+printf "%s\n" "  eliza-agent exec -p \"summarize this repo\""
 printf "%s\n" "  eliza-agent setup"
 printf "%s\n" "  eliza-agent doctor"
-printf "%s\n" "${dim}  Once the cockpit is open, try: summarize this repo and tell me where to start${reset}"
+printf "%s\n" "${dim}  Try: summarize this repo and tell me where to start${reset}"
 printf "%s\n" "${dim}  Or run a shell action directly: !git status${reset}"
 
 if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then

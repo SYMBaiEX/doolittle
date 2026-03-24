@@ -2,11 +2,26 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildHelpText } from "@/cli/help-text";
+import {
+  appendCliJobEvent,
+  attachCliJob,
+  cancelCliJob,
+  cliJobStatusSummary,
+  finalizeCliJob,
+  getCliJob,
+  launchCliBackgroundJob,
+  markCliJobStarted,
+  renderCliJobReplay,
+  summarizeCliJob,
+} from "@/cli/jobs";
 import {
   ensureOnboarded,
   loadLocalRuntimeEnv,
   runOnboardingWizard,
 } from "@/cli/startup";
+import { encodeCliTurnEvent, renderCliTurnEvent } from "@/cli/turn-events";
+import { loadConfig } from "@/config/env";
 
 function repoRoot(): string {
   // packages/agent/src/index.ts → ../../../ = repo root
@@ -18,14 +33,101 @@ function repoRoot(): string {
 // ---------------------------------------------------------------------------
 
 type Subcommand =
+  | "help"
   | "start"
+  | "cockpit"
   | "setup"
   | "install"
   | "doctor"
   | "dev"
   | "api"
   | "gateway"
-  | "plain";
+  | "plain"
+  | "exec"
+  | "jobs";
+
+interface OneShotOptions {
+  prompt?: string;
+  json: boolean;
+  jsonStream: boolean;
+  background: boolean;
+  jobId?: string;
+  sessionId?: string;
+}
+
+interface StaticResult {
+  text: string;
+  tone?: "info" | "success" | "warning" | "error" | "agent";
+  shouldExit?: boolean;
+}
+
+function printOneShotResult(result: StaticResult, json: boolean): void {
+  if (json) {
+    console.log(
+      JSON.stringify({
+        ok: !result.shouldExit,
+        tone: result.tone ?? "info",
+        text: result.text,
+      }),
+    );
+    return;
+  }
+
+  if (result.text) {
+    console.log(result.text);
+  }
+}
+
+function printCliJobRecord(
+  job: ReturnType<typeof getCliJob> | ReturnType<typeof launchCliBackgroundJob>,
+  json: boolean,
+): void {
+  if (!job) {
+    return;
+  }
+
+  if (json) {
+    console.log(JSON.stringify(job));
+    return;
+  }
+
+  console.log(summarizeCliJob(job));
+}
+
+async function emitStaticPromptEvents(
+  prompt: string,
+  result: StaticResult,
+  options?: {
+    sessionId?: string;
+  },
+): Promise<void> {
+  const timestamp = new Date().toISOString();
+  const sessionId = options?.sessionId?.trim() || `static:${Date.now()}`;
+  process.stdout.write(
+    encodeCliTurnEvent({
+      type: "start",
+      timestamp,
+      sessionId,
+      command: prompt,
+    }),
+  );
+  process.stdout.write(
+    encodeCliTurnEvent({
+      type: "result",
+      timestamp: new Date().toISOString(),
+      text: result.text,
+      tone: result.tone ?? "info",
+      shouldExit: result.shouldExit ?? false,
+    }),
+  );
+  process.stdout.write(
+    encodeCliTurnEvent({
+      type: "completed",
+      timestamp: new Date().toISOString(),
+      status: result.shouldExit ? "cancelled" : "completed",
+    }),
+  );
+}
 
 function resolveSubcommand(): { command: Subcommand; rest: string[] } {
   // The first non-flag argument after the script path is the subcommand.
@@ -35,8 +137,20 @@ function resolveSubcommand(): { command: Subcommand; rest: string[] } {
   // Legacy flag-based invocation from the old bash wrapper
   if (userArgs.includes("--cli")) {
     return {
-      command: "start",
+      command: "cockpit",
       rest: userArgs.filter((a) => a !== "--cli"),
+    };
+  }
+  if (userArgs.includes("--help") || userArgs.includes("-h")) {
+    return {
+      command: "help",
+      rest: userArgs.filter((a) => a !== "--help" && a !== "-h"),
+    };
+  }
+  if (userArgs.includes("--cockpit")) {
+    return {
+      command: "cockpit",
+      rest: userArgs.filter((a) => a !== "--cockpit"),
     };
   }
   if (userArgs.includes("--plain-cli")) {
@@ -63,6 +177,9 @@ function resolveSubcommand(): { command: Subcommand; rest: string[] } {
 
   const aliases: Record<string, Subcommand> = {
     start: "start",
+    help: "help",
+    cockpit: "cockpit",
+    tui: "cockpit",
     setup: "setup",
     onboard: "setup",
     bootstrap: "setup",
@@ -74,12 +191,93 @@ function resolveSubcommand(): { command: Subcommand; rest: string[] } {
     gateway: "gateway",
     plain: "plain",
     "plain-cli": "plain",
+    exec: "exec",
+    run: "exec",
+    jobs: "jobs",
   };
 
   return {
     command: aliases[first] ?? "start",
     rest: aliases[first] ? rest : userArgs,
   };
+}
+
+function renderTopLevelHelp(): string {
+  return [
+    "Eliza Agent",
+    "",
+    "Terminal-first ElizaOS-native coding agent.",
+    "",
+    "Usage:",
+    "  eliza-agent                 Start the plain interactive shell",
+    "  eliza-agent cockpit         Open the fullscreen observability cockpit",
+    '  eliza-agent exec -p "..."   Run one prompt and exit',
+    '  eliza-agent exec -p "..." --json-stream',
+    '  eliza-agent exec -p "..." --background',
+    "  eliza-agent jobs list      Inspect background jobs",
+    "  eliza-agent setup           Run onboarding",
+    "  eliza-agent doctor          Check readiness and local setup",
+    "",
+    "Examples:",
+    '  eliza-agent exec -p "summarize this repo"',
+    '  eliza-agent exec -p "/status" --json',
+    '  eliza-agent exec -p "review the repo" --background',
+    "  eliza-agent jobs attach <job-id>",
+    "  eliza-agent cockpit",
+    "",
+    "Legacy aliases:",
+    "  eliza-agent plain",
+    "  eliza-agent --cockpit",
+    "  eliza-agent --plain-cli",
+  ].join("\n");
+}
+
+function parseOneShotOptions(args: string[]): OneShotOptions {
+  let prompt: string | undefined;
+  let json = false;
+  let jsonStream = false;
+  let background = false;
+  let jobId: string | undefined;
+  let sessionId: string | undefined;
+  const positional: string[] = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const value = args[index];
+    if (value === "--json") {
+      json = true;
+      continue;
+    }
+    if (value === "--json-stream") {
+      jsonStream = true;
+      continue;
+    }
+    if (value === "--background") {
+      background = true;
+      continue;
+    }
+    if (value === "--prompt" || value === "-p") {
+      prompt = args[index + 1] ?? "";
+      index += 1;
+      continue;
+    }
+    if (value === "--job-id") {
+      jobId = args[index + 1] ?? "";
+      index += 1;
+      continue;
+    }
+    if (value === "--session-id") {
+      sessionId = args[index + 1] ?? "";
+      index += 1;
+      continue;
+    }
+    positional.push(value);
+  }
+
+  if (!prompt && positional.length > 0) {
+    prompt = positional.join(" ");
+  }
+
+  return { prompt, json, jsonStream, background, jobId, sessionId };
 }
 
 function formatTopLevelError(error: unknown): string {
@@ -90,6 +288,38 @@ function formatTopLevelError(error: unknown): string {
     return error.trim();
   }
   return String(error);
+}
+
+async function readStdinText(): Promise<string> {
+  if (process.stdin.isTTY) {
+    return "";
+  }
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function resolveStaticPrompt(
+  prompt: string | undefined,
+  agentName: string,
+): StaticResult | undefined {
+  const trimmed = prompt?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed === "/help") {
+    return { text: buildHelpText(agentName) };
+  }
+
+  if (trimmed === "exit" || trimmed === "quit") {
+    return { text: "Closing Eliza Agent.", shouldExit: true };
+  }
+
+  return undefined;
 }
 
 function isRecoverableTopLevelRuntimeError(error: unknown): boolean {
@@ -198,6 +428,117 @@ async function captureBootLogs<T>(
 
 async function main(): Promise<void> {
   const { command, rest: _rest } = resolveSubcommand();
+  const shellIsInteractive = process.stdin.isTTY && process.stdout.isTTY;
+  const oneShot = command === "exec" ? parseOneShotOptions(_rest) : undefined;
+  const pipedPrompt =
+    !shellIsInteractive && (command === "start" || command === "plain")
+      ? await readStdinText()
+      : undefined;
+  const immediatePrompt = command === "exec" ? oneShot?.prompt : pipedPrompt;
+  const staticPromptResult = resolveStaticPrompt(
+    immediatePrompt,
+    process.env.ELIZA_AGENT_NAME?.trim() || "Eliza",
+  );
+  const jobControlDir = process.env.ELIZA_AGENT_JOB_CONTROL_DIR?.trim();
+
+  if (command === "help") {
+    console.log(renderTopLevelHelp());
+    return;
+  }
+
+  if (
+    command === "jobs" ||
+    (command === "exec" && oneShot?.background) ||
+    (command === "exec" && oneShot?.jsonStream)
+  ) {
+    loadLocalRuntimeEnv();
+  }
+
+  if (command === "jobs") {
+    const config = loadConfig();
+    const dataDir = jobControlDir || config.dataDir;
+    const jobCommand = _rest[0] ?? "list";
+    const jobArgs = _rest.slice(1);
+
+    if (jobCommand === "list") {
+      console.log(cliJobStatusSummary(dataDir));
+      return;
+    }
+
+    if (jobCommand === "show") {
+      const jobId = jobArgs[0]?.trim();
+      if (!jobId) {
+        console.error("Usage: eliza-agent jobs show <job-id>");
+        process.exit(1);
+      }
+      const job = getCliJob(dataDir, jobId);
+      if (!job) {
+        console.error(`Background job not found: ${jobId}`);
+        process.exit(1);
+      }
+      console.log(renderCliJobReplay(dataDir, jobId));
+      return;
+    }
+
+    if (jobCommand === "attach") {
+      const jobId = jobArgs[0]?.trim();
+      if (!jobId) {
+        console.error("Usage: eliza-agent jobs attach <job-id>");
+        process.exit(1);
+      }
+      const job = await attachCliJob(dataDir, jobId, {
+        onEvent: (event) => {
+          process.stdout.write(`${renderCliTurnEvent(event)}\n`);
+        },
+      });
+      if (!job) {
+        console.error(`Background job not found: ${jobId}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (jobCommand === "cancel") {
+      const jobId = jobArgs[0]?.trim();
+      if (!jobId) {
+        console.error("Usage: eliza-agent jobs cancel <job-id>");
+        process.exit(1);
+      }
+      const job = cancelCliJob(dataDir, jobId);
+      if (!job) {
+        console.error(`Background job not found: ${jobId}`);
+        process.exit(1);
+      }
+      console.log(`Cancelled background job ${job.id}.`);
+      return;
+    }
+
+    console.error("Usage: eliza-agent jobs <list|show|attach|cancel> [job-id]");
+    process.exit(1);
+  }
+
+  if (staticPromptResult && !(command === "exec" && oneShot?.background)) {
+    if (command === "exec" && oneShot?.jsonStream) {
+      const activeJobId = oneShot.jobId?.trim() || undefined;
+      await emitStaticPromptEvents(immediatePrompt ?? "", staticPromptResult, {
+        sessionId: oneShot.sessionId,
+      });
+      if (activeJobId) {
+        finalizeCliJob(
+          jobControlDir || loadConfig().dataDir,
+          activeJobId,
+          staticPromptResult.shouldExit ? "cancelled" : "completed",
+          0,
+        );
+      }
+      return;
+    }
+    printOneShotResult(
+      staticPromptResult,
+      command === "exec" && !!oneShot?.json,
+    );
+    return;
+  }
 
   // ----- Delegated subcommands that don't need the full runtime -----
 
@@ -226,16 +567,63 @@ async function main(): Promise<void> {
     process.exit(result.status ?? 0);
   }
 
+  if (command === "exec" && oneShot?.background) {
+    if (!immediatePrompt?.trim()) {
+      console.error(
+        'Usage: eliza-agent exec --prompt "your request" --background',
+      );
+      process.exit(1);
+    }
+    if (oneShot.jsonStream) {
+      console.error("Cannot combine --background with --json-stream.");
+      process.exit(1);
+    }
+    await ensureOnboarded();
+    loadLocalRuntimeEnv();
+    const config = loadConfig();
+    const launcherPath = Bun.argv[1];
+    if (!launcherPath) {
+      console.error("The launcher path is unavailable for background runs.");
+      process.exit(1);
+    }
+    const job = launchCliBackgroundJob({
+      config: {
+        ...config,
+        dataDir: jobControlDir || config.dataDir,
+      },
+      launcherPath,
+      prompt: immediatePrompt,
+      sessionId: oneShot.sessionId,
+    });
+    if (oneShot.json) {
+      printCliJobRecord(job, true);
+    } else {
+      console.log(
+        `Started background job ${job.id}. Use "eliza-agent jobs attach ${job.id}" to follow it live.`,
+      );
+    }
+    return;
+  }
+
   // ----- Runtime subcommands need env + onboarding -----
+
+  if (command === "exec" && !immediatePrompt?.trim()) {
+    console.error('Usage: eliza-agent exec --prompt "your request" [--json]');
+    process.exit(1);
+  }
 
   await ensureOnboarded();
   loadLocalRuntimeEnv();
   const shouldUseCliSurface =
-    command === "start" || command === "dev" || command === "plain";
+    command === "start" ||
+    command === "cockpit" ||
+    command === "dev" ||
+    command === "plain" ||
+    command === "exec";
   const shouldUseApiSurface = command === "api" || command === "gateway";
+  const shouldUseCockpitSurface = command === "cockpit";
 
-  // Show splash for interactive CLI modes
-  if (shouldUseCliSurface) {
+  if (shouldUseCockpitSurface) {
     const { showBootSplash } = await import("@/cli/splash");
     await showBootSplash();
   }
@@ -252,18 +640,29 @@ async function main(): Promise<void> {
     serverModulePromise,
   ]);
   const startCli = cliModule?.startCli;
+  const runCliPrompt = cliModule?.runCliPrompt;
+  const runCliPromptWithEvents = cliModule?.runCliPromptWithEvents;
   const startApiServer = serverModule?.startApiServer;
 
   // Ensure ELIZA_AGENT_MODE is set for the runtime
-  if (command === "start" || command === "dev" || command === "plain") {
+  if (
+    command === "start" ||
+    command === "cockpit" ||
+    command === "dev" ||
+    command === "plain" ||
+    command === "exec"
+  ) {
     process.env.ELIZA_AGENT_MODE ??= "cli";
   }
 
   const startupMode =
     command === "api" || command === "gateway" ? "api" : "cli";
   const eagerDeferredHydration = command === "api" || command === "gateway";
+  const shouldCaptureBootLogs =
+    command === "cockpit" ||
+    ((command === "start" || command === "plain") && shellIsInteractive);
   const { result: context, logs: bootLogs } = await captureBootLogs(
-    shouldUseCliSurface,
+    shouldCaptureBootLogs,
     async () =>
       getAppContext({
         startupMode,
@@ -275,10 +674,12 @@ async function main(): Promise<void> {
   const wantsApi =
     context.config.mode === "api" || context.config.mode === "both";
   const shouldStartCli =
-    command === "start" ||
-    command === "dev" ||
-    command === "plain" ||
-    (wantsCli && process.stdin.isTTY);
+    shellIsInteractive &&
+    (command === "start" ||
+      command === "cockpit" ||
+      command === "dev" ||
+      command === "plain" ||
+      (wantsCli && process.stdin.isTTY));
 
   const shouldStartApi = wantsApi || command === "api" || command === "gateway";
   let backgroundServerStarted = false;
@@ -331,9 +732,80 @@ async function main(): Promise<void> {
     console.log(`${context.config.agentName} gateway started.`);
   }
 
+  if (
+    (command === "exec" || (!shellIsInteractive && immediatePrompt?.trim())) &&
+    immediatePrompt?.trim()
+  ) {
+    const controlDataDir = jobControlDir || context.config.dataDir;
+
+    if (command === "exec" && oneShot?.jsonStream) {
+      if (!runCliPromptWithEvents) {
+        process.exit(1);
+      }
+      const sessionController = new AbortController();
+      const activeJobId = oneShot.jobId?.trim() || undefined;
+      if (activeJobId) {
+        markCliJobStarted(controlDataDir, activeJobId, {
+          pid: process.pid,
+          sessionId: oneShot.sessionId,
+        });
+      }
+      const writeEvent = (event: Parameters<typeof encodeCliTurnEvent>[0]) => {
+        if (activeJobId) {
+          appendCliJobEvent(controlDataDir, activeJobId, event);
+        }
+        process.stdout.write(encodeCliTurnEvent(event));
+      };
+      const finalizeActiveJob = (
+        status: "completed" | "failed" | "cancelled",
+        exitCode?: number,
+      ) => {
+        if (!activeJobId) {
+          return;
+        }
+        finalizeCliJob(controlDataDir, activeJobId, status, exitCode);
+      };
+      try {
+        await runCliPromptWithEvents(
+          context,
+          immediatePrompt,
+          {
+            onEvent: async (event) => {
+              writeEvent(event);
+            },
+          },
+          {
+            abortSignal: sessionController.signal,
+            sessionId: oneShot.sessionId,
+          },
+        );
+        finalizeActiveJob("completed", 0);
+      } catch (_error) {
+        finalizeActiveJob(
+          sessionController.signal.aborted ? "cancelled" : "failed",
+          1,
+        );
+        process.exitCode = 1;
+        return;
+      }
+      return;
+    }
+
+    const result = await runCliPrompt?.(context, immediatePrompt, {
+      sessionId: oneShot?.sessionId,
+    });
+    if (!result) {
+      process.exit(1);
+    }
+    printOneShotResult(result, command === "exec" && !!oneShot?.json);
+    return;
+  }
+
   if (shouldStartCli) {
     if (command === "plain") {
       Bun.argv.push("--plain-cli");
+    } else if (command === "cockpit") {
+      Bun.argv.push("--cockpit");
     }
     await startCli?.(context, {
       onReady: startServerWhenShellReady,
@@ -341,7 +813,7 @@ async function main(): Promise<void> {
     });
   } else if (!wantsApi && command !== "api") {
     console.log(
-      `${context.config.agentName} initialized. Set ELIZA_AGENT_MODE=cli|api|both or use --cli.`,
+      `${context.config.agentName} initialized. Set ELIZA_AGENT_MODE=cli|api|both or launch the plain shell/cockpit explicitly.`,
     );
   }
 }

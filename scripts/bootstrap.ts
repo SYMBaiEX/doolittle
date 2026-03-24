@@ -368,7 +368,7 @@ type WizardScreenContext = {
 
 let wizardScreen: WizardScreenContext | null = null;
 
-const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
+const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-non-reasoning";
 const DEFAULT_ELIZA_CLOUD_LARGE_MODEL = "xai/grok-4.1-fast-reasoning";
 const DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
@@ -401,7 +401,9 @@ function normalizeElizaCloudSmallModel(value?: string | null): string {
     normalized === "openai/gpt-5-mini" ||
     normalized === "anthropic/claude-haiku-4-5-20251001" ||
     normalized === "xai/grok-4-fast-reasoning" ||
-    normalized === "xai/grok-4.1-fast-reasoning-beta"
+    normalized === "xai/grok-4.1-fast-reasoning" ||
+    normalized === "xai/grok-4.1-fast-reasoning-beta" ||
+    normalized === "xai/grok-4.1-fast-non-reasoning-beta"
   ) {
     return DEFAULT_ELIZA_CLOUD_SMALL_MODEL;
   }
@@ -4129,7 +4131,7 @@ function printSummary(
   console.log();
   console.log(paint("Next Moves", color.cyan + color.bold));
   console.log("  - bun run start");
-  console.log("  - bun run start --plain-cli");
+  console.log("  - bun run start cockpit");
   console.log("  - bun run dev");
   console.log("  - bun run bootstrap --check");
   console.log("  - /theme list");

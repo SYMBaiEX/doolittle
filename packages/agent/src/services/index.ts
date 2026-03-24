@@ -117,6 +117,7 @@ export function createServices(
   config: EnvConfig,
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
 ): AppServices {
+  const stableElizaCloudSmallModel = "xai/grok-4.1-fast-non-reasoning";
   const stableElizaCloudLargeModel = "xai/grok-4.1-fast-reasoning";
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
@@ -236,6 +237,17 @@ export function createServices(
       normalized === "xai/grok-4.20-multi-agent-beta"
     );
   };
+  const cloudSmallModelLooksStale = (model: string): boolean => {
+    const normalized = model.trim().toLowerCase();
+    return (
+      normalized === "openai/gpt-5-mini" ||
+      normalized === "anthropic/claude-haiku-4-5-20251001" ||
+      normalized === "xai/grok-4-fast-reasoning" ||
+      normalized === "xai/grok-4.1-fast-reasoning" ||
+      normalized === "xai/grok-4.1-fast-reasoning-beta" ||
+      normalized === "xai/grok-4.1-fast-non-reasoning-beta"
+    );
+  };
   const persistedProvider = currentSettings.model.provider;
   const persistedHasOpenAi =
     persistedProvider === "openai" && Boolean(config.openAiApiKey?.trim());
@@ -257,6 +269,11 @@ export function createServices(
     );
 
   if (config.elizaCloudEnabled && config.elizaCloudApiKey?.trim()) {
+    const desiredCloudSmallModel = cloudSmallModelLooksStale(
+      config.elizaCloudSmallModel,
+    )
+      ? stableElizaCloudSmallModel
+      : config.elizaCloudSmallModel;
     const desiredCloudModel = cloudModelLooksStale(config.elizaCloudLargeModel)
       ? stableElizaCloudLargeModel
       : config.elizaCloudLargeModel;
@@ -281,6 +298,12 @@ export function createServices(
       settings.set("model.provider", "elizacloud");
       settings.set("model.model", targetCloudModel);
       settings.set("model.baseUrl", config.elizaCloudBaseUrl);
+    }
+    if (config.elizaCloudSmallModel !== desiredCloudSmallModel) {
+      config.elizaCloudSmallModel = desiredCloudSmallModel;
+    }
+    if (config.elizaCloudLargeModel !== desiredCloudModel) {
+      config.elizaCloudLargeModel = desiredCloudModel;
     }
   } else if (
     persistedProvider === "elizacloud" &&
