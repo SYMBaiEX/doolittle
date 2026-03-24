@@ -130,21 +130,6 @@ function sanitizeForeignTerminalWrite(text: string): string {
     .trim();
 }
 
-function createBlessedOutputProxy(
-  stream: NodeJS.WriteStream,
-): NodeJS.WriteStream {
-  const rawWrite = stream.write.bind(stream);
-  return new Proxy(stream, {
-    get(target, prop) {
-      if (prop === "write") {
-        return rawWrite;
-      }
-      const value = Reflect.get(target, prop, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
-}
-
 function getCliErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -1226,10 +1211,9 @@ async function startTui(
   const unsubscribers: Array<() => void> = [];
   input.resume();
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
-  const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
     input,
-    output: tuiOutput,
+    output,
     smartCSR: true,
     fullUnicode: true,
     title: `${context.config.agentName} TUI`,
