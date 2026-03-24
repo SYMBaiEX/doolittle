@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AppServices } from "@/services";
+import type { DelegationTaskRecord } from "@/types";
 import type { RuntimeLike } from "./service-bridge";
 import {
   cancelEffectiveForm,
@@ -45,6 +46,24 @@ import {
   retryEffectiveDelegationTask,
   setEffectiveSecret,
 } from "./service-bridge";
+
+function makeDelegationTask(
+  id: string,
+  overrides: Partial<DelegationTaskRecord> = {},
+): DelegationTaskRecord {
+  const createdAt = "2026-03-24T00:00:00.000Z";
+  return {
+    id,
+    title: `Task ${id}`,
+    objective: `Objective ${id}`,
+    status: "pending",
+    executionMode: "local",
+    notes: [],
+    createdAt,
+    updatedAt: createdAt,
+    ...overrides,
+  };
+}
 
 describe("getEffectiveMessagingTransportInventory", () => {
   it("builds native forms and execution control planes from installed services", () => {
@@ -177,14 +196,36 @@ describe("getEffectiveMessagingTransportInventory", () => {
 
     const services = {
       web: {
-        status: async () => ({ mode: "fallback" }),
+        status: async () => ({
+          provider: "basic",
+          ready: true,
+          mode: "fallback",
+          detail: "fallback",
+          artifacts: {
+            snapshot: false,
+            screenshot: false,
+            comparison: false,
+          },
+        }),
       },
       mcp: {
         status: () => ({ mode: "fallback" }),
         getCachedTools: () => [],
       },
     } as never as {
-      web: { status(): Promise<unknown> };
+      web: {
+        status(): Promise<{
+          provider: "basic";
+          ready: true;
+          mode: "fallback";
+          detail: "fallback";
+          artifacts: {
+            snapshot: false;
+            screenshot: false;
+            comparison: false;
+          };
+        }>;
+      };
       mcp: { status(): unknown; getCachedTools(): unknown[] };
     };
 
@@ -213,14 +254,38 @@ describe("getEffectiveMessagingTransportInventory", () => {
       getService(name: string) {
         if (name === "forms") {
           return {
-            listForms: () => [{ id: "form-1", status: "active" }],
+            listForms: () => [
+              {
+                id: "form-1",
+                templateId: "intake",
+                status: "active",
+                metadata: {},
+                createdAt: "2026-03-24T00:00:00.000Z",
+                updatedAt: "2026-03-24T00:00:00.000Z",
+              },
+            ],
             getTemplates: () => new Map([["intake", { name: "Intake" }]]),
             createForm: async (template: unknown, metadata?: unknown) => ({
               id: "form-created",
-              template,
-              metadata,
+              templateId: typeof template === "string" ? template : "intake",
+              status: "active" as const,
+              metadata:
+                metadata &&
+                typeof metadata === "object" &&
+                !Array.isArray(metadata)
+                  ? metadata
+                  : {},
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
             }),
-            getForm: async (id: string) => ({ id, status: "active" }),
+            getForm: async (id: string) => ({
+              id,
+              templateId: "intake",
+              status: "active" as const,
+              metadata: {},
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
+            }),
             cancelForm: async (id: string) => id === "form-created",
           };
         }
@@ -262,12 +327,39 @@ describe("getEffectiveMessagingTransportInventory", () => {
         }
         if (name === "planning") {
           return {
-            listPlans: () => [{ id: "plan-1", status: "active" }],
+            listPlans: () => [
+              {
+                id: "plan-1",
+                title: "Plan one",
+                objective: "Do the thing",
+                status: "active" as const,
+                metadata: {},
+                steps: [],
+                createdAt: "2026-03-24T00:00:00.000Z",
+                updatedAt: "2026-03-24T00:00:00.000Z",
+              },
+            ],
             createPlan: async (input: unknown) => ({
               id: "plan-created",
+              title: "Plan native ownership",
+              objective: "Drive execution through native services.",
+              status: "active" as const,
+              metadata: {},
+              steps: [],
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
               ...((input as Record<string, unknown>) ?? {}),
             }),
-            getPlan: async (id: string) => ({ id, status: "active" }),
+            getPlan: async (id: string) => ({
+              id,
+              title: "Plan one",
+              objective: "Do the thing",
+              status: "active" as const,
+              metadata: {},
+              steps: [],
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
+            }),
           };
         }
         if (name === "github") {
@@ -298,12 +390,19 @@ describe("getEffectiveMessagingTransportInventory", () => {
       await createEffectiveForm(runtime, "intake", { owner: "eliza" }),
     ).toEqual({
       id: "form-created",
-      template: "intake",
+      templateId: "intake",
+      status: "active",
       metadata: { owner: "eliza" },
+      createdAt: "2026-03-24T00:00:00.000Z",
+      updatedAt: "2026-03-24T00:00:00.000Z",
     });
     expect(await getEffectiveForm(runtime, "form-created")).toEqual({
       id: "form-created",
+      templateId: "intake",
       status: "active",
+      metadata: {},
+      createdAt: "2026-03-24T00:00:00.000Z",
+      updatedAt: "2026-03-24T00:00:00.000Z",
     });
     expect(
       await createEffectivePlan(runtime, {
@@ -316,7 +415,13 @@ describe("getEffectiveMessagingTransportInventory", () => {
     });
     expect(await getEffectivePlan(runtime, "plan-created")).toEqual({
       id: "plan-created",
+      title: "Plan one",
+      objective: "Do the thing",
       status: "active",
+      metadata: {},
+      steps: [],
+      createdAt: "2026-03-24T00:00:00.000Z",
+      updatedAt: "2026-03-24T00:00:00.000Z",
     });
     expect(await cancelEffectiveForm(runtime, "form-created")).toBe(true);
     expect(listEffectiveSandboxes(runtime)).toHaveLength(1);
@@ -825,21 +930,35 @@ describe("delegation bridge helpers", () => {
       getService(name: string) {
         if (name === "agent_orchestrator") {
           return {
-            getTask: (id: string) => ({ id, source: "native-task" }),
+            getTask: (id: string) =>
+              makeDelegationTask(id, {
+                title: "Native task",
+                objective: "Native orchestrator task",
+              }),
             getChildren: (id: string) => [
-              { id: `${id}-child`, source: "native-child" },
+              makeDelegationTask(`${id}-child`, {
+                title: "Native child",
+                objective: "Native orchestrator child",
+              }),
             ],
-            tree: (id: string) => ({ id, source: "native-tree" }),
+            tree: (id: string) =>
+              makeDelegationTask(id, {
+                title: "Native tree",
+                objective: "Native orchestrator tree",
+              }),
             retryTask: (
               id: string,
-              note?: string,
+              _note?: string,
               options?: { cascadeChildren?: boolean },
-            ) => ({
-              id,
-              note,
-              cascadeChildren: options?.cascadeChildren ?? false,
-              source: "native-retry",
-            }),
+            ) =>
+              makeDelegationTask(id, {
+                title: "Native retry",
+                objective: "Native orchestrator retry",
+                status: "pending",
+                metadata: {
+                  cascadeChildren: String(options?.cascadeChildren ?? false),
+                },
+              }),
           };
         }
         return null;
@@ -848,53 +967,73 @@ describe("delegation bridge helpers", () => {
 
     const services = {
       delegation: {
-        get: (id: string) => ({ id, source: "fallback-task" }),
+        get: (id: string) =>
+          makeDelegationTask(id, {
+            title: "Fallback task",
+            objective: "Fallback delegation task",
+          }),
         listChildren: (id: string) => [
-          { id: `${id}-child`, source: "fallback-child" },
+          makeDelegationTask(`${id}-child`, {
+            title: "Fallback child",
+            objective: "Fallback delegation child",
+          }),
         ],
-        tree: (id: string) => ({ id, source: "fallback-tree" }),
-        requeue: (id: string, note?: string) => ({
-          id,
-          note,
-          source: "fallback-retry",
-        }),
+        tree: (id: string) =>
+          makeDelegationTask(id, {
+            title: "Fallback tree",
+            objective: "Fallback delegation tree",
+          }),
+        requeue: (id: string, note?: string) =>
+          makeDelegationTask(id, {
+            title: "Fallback retry",
+            objective: "Fallback delegation retry",
+            metadata: note ? { note } : undefined,
+          }),
       },
     } as never as AppServices;
 
-    expect(getEffectiveDelegationTask(runtime, services, "task-1")).toEqual({
-      id: "task-1",
-      source: "native-task",
-    });
+    expect(getEffectiveDelegationTask(runtime, services, "task-1")).toEqual(
+      makeDelegationTask("task-1", {
+        title: "Native task",
+        objective: "Native orchestrator task",
+      }),
+    );
     expect(getEffectiveDelegationChildren(runtime, services, "task-1")).toEqual(
       [
-        {
-          id: "task-1-child",
-          source: "native-child",
-        },
+        makeDelegationTask("task-1-child", {
+          title: "Native child",
+          objective: "Native orchestrator child",
+        }),
       ],
     );
-    expect(getEffectiveDelegationTree(runtime, services, "task-1")).toEqual({
-      id: "task-1",
-      source: "native-tree",
-    });
+    expect(getEffectiveDelegationTree(runtime, services, "task-1")).toEqual(
+      makeDelegationTask("task-1", {
+        title: "Native tree",
+        objective: "Native orchestrator tree",
+      }),
+    );
     expect(
       retryEffectiveDelegationTask(runtime, services, "task-1", "note"),
-    ).toEqual({
-      id: "task-1",
-      note: "note",
-      cascadeChildren: false,
-      source: "native-retry",
-    });
+    ).toEqual(
+      makeDelegationTask("task-1", {
+        title: "Native retry",
+        objective: "Native orchestrator retry",
+        status: "pending",
+        metadata: { cascadeChildren: "false" },
+      }),
+    );
     expect(
       retryEffectiveDelegationTask(runtime, services, "task-1", "note", {
         cascadeChildren: true,
       }),
-    ).toEqual({
-      id: "task-1",
-      note: "note",
-      cascadeChildren: true,
-      source: "native-retry",
-    });
+    ).toEqual(
+      makeDelegationTask("task-1", {
+        title: "Native retry",
+        objective: "Native orchestrator retry",
+        status: "pending",
+        metadata: { cascadeChildren: "true" },
+      }),
+    );
   });
 });
 

@@ -15,6 +15,7 @@ import {
   AgentRuntime,
   ApprovalService,
   EventType,
+  type IAgentRuntime,
   type Relationship,
   ToolPolicyService,
   type UUID,
@@ -37,7 +38,7 @@ import type { EnvConfig } from "@/types";
 export interface AppContext {
   config: EnvConfig;
   services: AppServices;
-  runtime: AgentRuntime;
+  runtime: IAgentRuntime;
   gateway: GatewayRunner;
   ensureDeferredHydration(reason?: string): Promise<void>;
 }

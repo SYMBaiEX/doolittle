@@ -27,7 +27,7 @@ interface PlanningPluginOptions {
   };
 }
 
-interface StoredPlanRecord {
+export interface StoredPlanRecord {
   id: string;
   title: string;
   objective: string;

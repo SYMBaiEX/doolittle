@@ -6,12 +6,33 @@ import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
 import type { AppServices } from "@/services";
+import type {
+  DelegationOverview,
+  DelegationSupervisionReport,
+  DelegationTaskTree,
+} from "@/services/delegation-service";
 import type { MemorySummary } from "@/services/memory-service";
 import type {
+  TrajectoryBundleEntry,
+  TrajectoryService,
+} from "@/services/trajectory-service";
+import type {
+  BrowserAnalysisBundle,
+  BrowserCaptureBundle,
+  BrowserComparisonAnalysisBundle,
+  BrowserComparisonBundle,
+  BrowserInspection,
+  BrowserStatus,
+} from "@/services/web-service";
+import type {
+  DelegationTaskRecord,
   EnvConfig,
   GatewayConfig,
+  SkillDocument,
   UserProfileWorkspaceSummary,
 } from "@/types";
+import type { StoredFormRecord } from "../../../../plugins/plugin-forms/src";
+import type { StoredPlanRecord } from "../../../../plugins/plugin-planning/src";
 import { describeAutonomousAlignment } from "./autonomous-stack";
 
 interface NativeKnowledgeService {
@@ -65,16 +86,24 @@ interface NativeShellService {
 }
 
 interface NativeBrowserService {
-  status(): Promise<unknown>;
-  summary?(): unknown;
-  fetch(url: string): Promise<unknown>;
-  inspect(url: string): Promise<unknown>;
+  status(): Promise<BrowserStatus>;
+  summary?(): {
+    operations: string[];
+    multimodal: boolean;
+    captureReady: boolean;
+    analysisReady: boolean;
+  };
+  fetch(url: string): Promise<string>;
+  inspect(url: string): Promise<BrowserInspection>;
   snapshot(url: string): Promise<string>;
   screenshot(url: string): Promise<string>;
-  capture(url: string): Promise<unknown>;
-  analyze(url: string): Promise<unknown>;
-  compare(leftUrl: string, rightUrl: string): Promise<unknown>;
-  analyzeComparison(leftUrl: string, rightUrl: string): Promise<unknown>;
+  capture(url: string): Promise<BrowserCaptureBundle>;
+  analyze(url: string): Promise<BrowserAnalysisBundle>;
+  compare(leftUrl: string, rightUrl: string): Promise<BrowserComparisonBundle>;
+  analyzeComparison(
+    leftUrl: string,
+    rightUrl: string,
+  ): Promise<BrowserComparisonAnalysisBundle>;
 }
 
 interface NativeMcpService {
@@ -98,32 +127,38 @@ interface NativeCronService {
 }
 
 interface NativeAgentSkillsService {
-  list(): unknown[];
-  get(slug: string): unknown;
-  generated?(): unknown[];
-  summary?(): unknown;
-  catalog?(limit?: number): Promise<unknown>;
-  searchCatalog?(query: string, limit?: number): Promise<unknown>;
-  synthesize(taskId: string): Promise<unknown>;
+  list(): SkillDocument[];
+  get(slug: string): SkillDocument | undefined;
+  generated?(): SkillDocument[];
+  summary?(): ReturnType<AppServices["skills"]["summary"]>;
+  catalog?(limit?: number): ReturnType<AppServices["skills"]["catalog"]>;
+  searchCatalog?(
+    query: string,
+    limit?: number,
+  ): ReturnType<AppServices["skills"]["searchCatalog"]>;
+  synthesize(
+    taskId: string,
+  ): ReturnType<AppServices["skillSynthesis"]["synthesize"]>;
 }
 
-interface NativeTrajectoryLoggerService {
-  exportLatest?(): unknown;
-  bundles?(): unknown[];
-  compareLatest?(): unknown;
-}
+type NativeTrajectoryLoggerService = Pick<
+  TrajectoryService,
+  "exportLatest" | "listBundles" | "compareLatest"
+> & {
+  bundles?(): TrajectoryBundleEntry[];
+};
 
 interface NativeAgentOrchestratorService {
   createTask(
     title: string,
     objective: string,
     metadata?: Record<string, unknown>,
-  ): unknown;
-  getTask?(id: string): unknown;
-  getChildren?(id: string): unknown[];
-  tree?(id: string): unknown;
-  queue(): unknown;
-  overview?(): unknown;
+  ): DelegationTaskRecord;
+  getTask?(id: string): DelegationTaskRecord;
+  getChildren?(id: string): DelegationTaskRecord[];
+  tree?(id: string): DelegationTaskTree | DelegationTaskRecord;
+  queue(): DelegationOverview;
+  overview?(): DelegationOverview;
   summary?(): {
     tasks: number;
     queuePending: number;
@@ -132,7 +167,7 @@ interface NativeAgentOrchestratorService {
     treeSupported: boolean;
     retrySupported: boolean;
   };
-  tasks(): unknown[];
+  tasks(): DelegationTaskRecord[];
   spawnChild?(
     parentId: string,
     input: {
@@ -143,17 +178,17 @@ interface NativeAgentOrchestratorService {
       priority?: string;
       tags?: string[];
     },
-  ): unknown;
+  ): DelegationTaskRecord;
   retryTask?(
     id: string,
     note?: string,
     options?: { cascadeChildren?: boolean },
-  ): unknown;
-  cancelTask?(id: string, note?: string): unknown;
+  ): DelegationTaskRecord | undefined;
+  cancelTask?(id: string, note?: string): DelegationTaskRecord;
   supervise?(
-    runner: (task: unknown) => Promise<string>,
+    runner: (task: DelegationTaskRecord) => Promise<string>,
     runOptions?: Record<string, unknown>,
-  ): Promise<unknown>;
+  ): Promise<DelegationSupervisionReport>;
 }
 
 interface NativeCodingAgentService {
@@ -299,26 +334,34 @@ interface NativeCodeGenerationService {
 interface NativeFormsService {
   capabilityDescription?: string;
   isPersistenceAvailable?: () => boolean;
-  listForms?: () => unknown[];
-  getTemplates?: () =>
-    | Map<string, unknown>
-    | unknown[]
-    | Record<string, unknown>;
+  listForms?: () => StoredFormRecord[];
+  getTemplates?: () => Map<string, object> | object[] | Record<string, object>;
   createForm?: (
     templateOrForm: unknown,
     metadata?: unknown,
-  ) => Promise<unknown>;
-  getForm?: (formId: string) => Promise<unknown>;
+  ) => Promise<StoredFormRecord>;
+  getForm?: (formId: string) => Promise<StoredFormRecord | undefined>;
   cancelForm?: (formId: string) => Promise<boolean>;
-  forcePersist?: () => Promise<unknown>;
+  forcePersist?: () => Promise<{ path: string; total: number }>;
 }
 
 interface NativePlanningService {
   capabilityDescription?: string;
-  listPlans?: () => unknown[];
-  getPlan?: (planId: string) => Promise<unknown> | unknown;
-  createPlan?: (input: unknown) => Promise<unknown> | unknown;
-  summary?: () => unknown;
+  listPlans?: () => StoredPlanRecord[];
+  getPlan?: (
+    planId: string,
+  ) => Promise<StoredPlanRecord | undefined> | StoredPlanRecord | undefined;
+  createPlan?: (input: unknown) => Promise<StoredPlanRecord> | StoredPlanRecord;
+  summary?: () => {
+    total: number;
+    active: number;
+    draft: number;
+    completed: number;
+    linkedTasks: number;
+    linkedWorkflows: number;
+    delegationTasks: number;
+    workflows: number;
+  };
 }
 
 interface NativeE2BService {
@@ -382,7 +425,7 @@ interface EffectiveServiceResolutionRecord {
 
 export type BrowserMcpServices = {
   web: {
-    status(): Promise<unknown>;
+    status(): Promise<BrowserStatus>;
   };
   mcp: {
     status(): unknown;
@@ -395,7 +438,7 @@ export interface NativeIntegrationControlPlane {
     source: "native" | "product";
     ownership: "plugin" | "product";
     available: boolean;
-    status: unknown;
+    status: BrowserStatus;
   };
   mcp: {
     source: "native" | "product";
@@ -2363,13 +2406,13 @@ export function getEffectivePluginManagerInventory(runtime: RuntimeLike): {
 
 export async function listEffectiveForms(
   runtime: RuntimeLike,
-): Promise<unknown[]> {
+): Promise<StoredFormRecord[]> {
   return getNativeServices(runtime).forms?.listForms?.() ?? [];
 }
 
 export async function listEffectivePlans(
   runtime: RuntimeLike,
-): Promise<unknown[]> {
+): Promise<StoredPlanRecord[]> {
   return getNativeServices(runtime).planning?.listPlans?.() ?? [];
 }
 

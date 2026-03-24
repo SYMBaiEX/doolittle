@@ -6,14 +6,29 @@ import {
   type Plugin,
 } from "@elizaos/core";
 
-interface StoredFormRecord {
+type FormMetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | FormMetadataValue[]
+  | { [key: string]: FormMetadataValue };
+
+interface FormTemplateRef {
+  id?: string;
+  templateId?: string;
+}
+
+export interface StoredFormRecord {
   id: string;
   templateId: string;
   status: "active" | "completed" | "cancelled";
-  metadata: Record<string, unknown>;
+  metadata: Record<string, FormMetadataValue>;
   createdAt: string;
   updatedAt: string;
 }
+
+export type FormsTemplateCatalog = typeof DEFAULT_TEMPLATES;
 
 interface FormsStore {
   forms: StoredFormRecord[];
@@ -52,6 +67,49 @@ function nowIso(): string {
 
 function nextId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isFormMetadataValue(value: unknown): value is FormMetadataValue {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every((entry) => isFormMetadataValue(entry));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).every((entry) => isFormMetadataValue(entry));
+  }
+  return false;
+}
+
+function normalizeMetadata(
+  metadata: unknown,
+): Record<string, FormMetadataValue> {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return {};
+  }
+
+  const normalized = Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => isFormMetadataValue(value)),
+  );
+
+  return normalized;
+}
+
+function isTemplateRef(input: unknown): input is FormTemplateRef {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return false;
+  }
+
+  const candidate = input as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" || typeof candidate.templateId === "string"
+  );
 }
 
 class FormsService extends ElizaService {
@@ -98,10 +156,7 @@ class FormsService extends ElizaService {
       id: nextId("form"),
       templateId,
       status: "active",
-      metadata:
-        metadata && typeof metadata === "object"
-          ? { ...(metadata as Record<string, unknown>) }
-          : {},
+      metadata: normalizeMetadata(metadata),
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };
@@ -140,10 +195,8 @@ class FormsService extends ElizaService {
     if (typeof input === "string" && input in DEFAULT_TEMPLATES) {
       return input;
     }
-    if (input && typeof input === "object") {
-      const candidate =
-        (input as { id?: unknown; templateId?: unknown }).templateId ??
-        (input as { id?: unknown; templateId?: unknown }).id;
+    if (isTemplateRef(input)) {
+      const candidate = input.templateId ?? input.id;
       if (typeof candidate === "string" && candidate in DEFAULT_TEMPLATES) {
         return candidate;
       }
@@ -173,10 +226,7 @@ class FormsService extends ElizaService {
                   entry.status === "completed" || entry.status === "cancelled"
                     ? entry.status
                     : "active",
-                metadata:
-                  entry.metadata && typeof entry.metadata === "object"
-                    ? { ...(entry.metadata as Record<string, unknown>) }
-                    : {},
+                metadata: normalizeMetadata(entry.metadata),
                 createdAt: entry.createdAt ?? nowIso(),
                 updatedAt: entry.updatedAt ?? entry.createdAt ?? nowIso(),
               }))

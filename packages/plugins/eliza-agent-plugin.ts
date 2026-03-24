@@ -26,15 +26,10 @@ import {
 
 function createOpenAiBackedTextModel(config: EnvConfig) {
   return async (
-    runtime: { getSetting?: (key: string) => Promise<unknown> } | unknown,
+    runtime: IAgentRuntime,
     params: GenerateTextParams,
   ): Promise<string> => {
-    const runtimeSettingsRaw =
-      runtime && typeof runtime === "object" && "getSetting" in runtime
-        ? await (
-            runtime as { getSetting: (key: string) => Promise<unknown> }
-          ).getSetting("runtimeSettings")
-        : undefined;
+    const runtimeSettingsRaw = runtime.getSetting("runtimeSettings");
     const runtimeSettings =
       typeof runtimeSettingsRaw === "string"
         ? (JSON.parse(runtimeSettingsRaw) as {
@@ -98,6 +93,10 @@ function createOpenAiBackedTextModel(config: EnvConfig) {
   };
 }
 
+type GatewayRuntimeContext = Pick<AppContext, "config" | "services"> & {
+  runtime: IAgentRuntime;
+};
+
 function hasConfiguredModelProvider(config: EnvConfig): boolean {
   return Boolean(
     config.openAiApiKey ||
@@ -126,11 +125,11 @@ export function createElizaAgentPlugin(
 
     ensureRunner(): GatewayRunner {
       if (!this.runner) {
-        const context = {
+        const context: GatewayRuntimeContext = {
           config,
           services,
-          runtime: this.runtime as never,
-        } as unknown as AppContext;
+          runtime: this.runtime,
+        };
         this.runner = new GatewayRunner(context);
       }
       return this.runner;
