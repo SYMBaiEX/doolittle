@@ -153,8 +153,11 @@ function shouldSuppressForeignTerminalLine(text: string): boolean {
   return (
     normalized.includes("dynamicpromptexecfromstate failed") ||
     normalized.includes("no settings state found for server") ||
+    normalized.includes("[plugin:advanced-capabilities:action:settings]") ||
     normalized.includes("[batchembeddings] api error:") ||
-    normalized.includes("model call failed:")
+    normalized.includes("model call failed:") ||
+    normalized.includes("was there a typo in the url or port") ||
+    normalized.includes("is the computer able to access the url")
   );
 }
 
@@ -1668,6 +1671,7 @@ async function startTui(
   let busyFrameIndex = 0;
   let busySpinnerTimer: ReturnType<typeof setInterval> | null = null;
   let deferredForeignRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastTextEntryAt = 0;
   let lastPanelFailureSignature = "";
   const deferredForeignActivity: Array<{
     kind: string;
@@ -1701,6 +1705,24 @@ async function startTui(
       screen.focused === inputBox ||
       screen.focused === composer ||
       screen.focused === paletteInput
+    );
+  }
+
+  function noteTextEntryActivity(): void {
+    lastTextEntryAt = Date.now();
+  }
+
+  function textEntryRecentlyActive(): boolean {
+    return Date.now() - lastTextEntryAt < 180;
+  }
+
+  function shouldDeferForeignActivity(): boolean {
+    return (
+      busy ||
+      textEntryFocused() ||
+      textEntryRecentlyActive() ||
+      paletteOpen ||
+      composerOpen
     );
   }
 
@@ -1758,8 +1780,13 @@ async function startTui(
     return "Esc input";
   }
 
-  function updateFooterHint(): void {
-    flushDeferredForeignActivity();
+  function updateFooterHint(options?: {
+    flushForeign?: boolean;
+    render?: boolean;
+  }): void {
+    if (options?.flushForeign !== false) {
+      flushDeferredForeignActivity();
+    }
     footerHint = footerHintForCurrentFocus();
     footer.setContent(
       renderFooter(
@@ -1770,7 +1797,9 @@ async function startTui(
         busyFrames[busyFrameIndex % busyFrames.length] ?? "•",
       ),
     );
-    screen.render();
+    if (options?.render !== false) {
+      screen.render();
+    }
   }
 
   function startBusySpinner(): void {
@@ -2009,6 +2038,7 @@ async function startTui(
   }
 
   function setInputValue(value: string): void {
+    noteTextEntryActivity();
     inputBox.setValue(value);
     assistBox.setContent(renderSuggestionsContent(value));
     screen.render();
@@ -2129,12 +2159,7 @@ async function startTui(
   }
 
   function flushDeferredForeignActivity(): void {
-    if (
-      textEntryFocused() ||
-      paletteOpen ||
-      composerOpen ||
-      deferredForeignActivity.length === 0
-    ) {
+    if (shouldDeferForeignActivity() || deferredForeignActivity.length === 0) {
       return;
     }
 
@@ -2157,7 +2182,7 @@ async function startTui(
       tone: source === "stdout" ? ("info" as const) : ("warning" as const),
     };
 
-    if (busy || textEntryFocused() || paletteOpen || composerOpen) {
+    if (shouldDeferForeignActivity()) {
       deferredForeignActivity.push(nextEntry);
       scheduleDeferredForeignRefresh();
       return;
@@ -2669,10 +2694,11 @@ async function startTui(
   });
 
   inputBox.on("keypress", () => {
+    noteTextEntryActivity();
     if (controlDeckMode === "assist") {
       assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+      updateFooterHint({ flushForeign: false, render: false });
       screen.render();
-      updateFooterHint();
     }
   });
 
@@ -2687,11 +2713,12 @@ async function startTui(
   });
 
   paletteInput.on("keypress", () => {
+    noteTextEntryActivity();
     const query = paletteInput.getValue();
     paletteList.setItems(renderPaletteItems(query));
     paletteSelectionIndex = 0;
     paletteList.select(0);
-    updateFooterHint();
+    updateFooterHint({ flushForeign: false });
     screen.render();
   });
 
@@ -3069,8 +3096,26 @@ async function startTui(
     composer,
     inputBox,
   ]) {
-    element.on("focus", () => updateFooterHint());
-    element.on("click", () => updateFooterHint());
+    element.on("focus", () => {
+      if (
+        element === inputBox ||
+        element === composer ||
+        element === paletteInput
+      ) {
+        noteTextEntryActivity();
+      }
+      updateFooterHint();
+    });
+    element.on("click", () => {
+      if (
+        element === inputBox ||
+        element === composer ||
+        element === paletteInput
+      ) {
+        noteTextEntryActivity();
+      }
+      updateFooterHint();
+    });
   }
 
   unsubscribers.push(

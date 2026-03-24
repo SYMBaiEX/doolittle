@@ -1,3 +1,4 @@
+import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
 import {
   Service as ElizaService,
   type GenerateTextParams,
@@ -28,10 +29,12 @@ interface ElizaCloudPluginOptions {
     | undefined;
 }
 
-const DEFAULT_ELIZA_CLOUD_BASE_URL = "https://www.elizacloud.ai/api/v1";
-const DEFAULT_ELIZA_CLOUD_MODEL = "xai/grok-4.20-multi-agent";
-const ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL = "xai/grok-4.20-multi-agent";
+const DEFAULT_ELIZA_CLOUD_BASE_URL = resolveCloudApiBaseUrl();
+const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
+const DEFAULT_ELIZA_CLOUD_MODEL = "xai/grok-4.1-fast-reasoning";
+const ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL = "xai/grok-4.1-fast-reasoning";
 const ELIZA_CLOUD_EMPTY_RESPONSE_MODEL_PREFIXES = ["openai/gpt-5"];
+const ELIZA_CLOUD_RESPONSES_MODEL_MARKERS = ["xai/grok-"];
 
 function getRuntimeProvider(
   runtime: IAgentRuntime | undefined,
@@ -75,6 +78,61 @@ function getRuntimeModelSettings(runtime: IAgentRuntime | undefined): {
   }
 }
 
+function getRuntimeStringSetting(
+  runtime: IAgentRuntime | undefined,
+  key: string,
+): string | undefined {
+  try {
+    const raw = runtime?.getSetting(key);
+    return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isStructuredPlannerPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  const hasPlannerKeys =
+    normalized.includes("thought") &&
+    normalized.includes("providers") &&
+    normalized.includes("action") &&
+    normalized.includes("params") &&
+    normalized.includes("isfinish");
+  const hasJsonConstraint =
+    normalized.includes("json") ||
+    normalized.includes("schema") ||
+    normalized.includes("valid object") ||
+    normalized.includes("double quotes");
+  return hasPlannerKeys || (hasJsonConstraint && normalized.includes("action"));
+}
+
+function resolveElizaCloudModelSelection(
+  runtime: IAgentRuntime,
+  preferredType: (typeof ModelType)[keyof typeof ModelType],
+  prompt: string,
+): string {
+  const runtimeModel = getRuntimeModelSettings(runtime);
+  const configuredSmall =
+    getRuntimeStringSetting(runtime, "ELIZAOS_CLOUD_SMALL_MODEL") ||
+    DEFAULT_ELIZA_CLOUD_SMALL_MODEL;
+  const configuredLarge =
+    runtimeModel.model ||
+    getRuntimeStringSetting(runtime, "ELIZAOS_CLOUD_LARGE_MODEL") ||
+    DEFAULT_ELIZA_CLOUD_MODEL;
+
+  if (isStructuredPlannerPrompt(prompt)) {
+    return configuredSmall;
+  }
+
+  switch (preferredType) {
+    case ModelType.TEXT_SMALL:
+    case ModelType.TEXT_REASONING_SMALL:
+      return configuredSmall;
+    default:
+      return configuredLarge;
+  }
+}
+
 function extractTextFromChatCompletions(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
     return "";
@@ -99,6 +157,56 @@ function extractTextFromChatCompletions(payload: unknown): string {
       .trim();
   }
   return "";
+}
+
+function extractTextFromResponsesApi(payload: unknown): string {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  const parsed = payload as {
+    output_text?: string;
+    output?: Array<{
+      type?: string;
+      text?: string;
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+  };
+
+  if (typeof parsed.output_text === "string" && parsed.output_text.trim()) {
+    return parsed.output_text.trim();
+  }
+
+  if (!Array.isArray(parsed.output)) {
+    return "";
+  }
+
+  return parsed.output
+    .flatMap((entry) => {
+      if (typeof entry.text === "string" && entry.text.trim()) {
+        return [entry.text.trim()];
+      }
+      if (!Array.isArray(entry.content)) {
+        return [];
+      }
+      return entry.content
+        .map((content) =>
+          typeof content.text === "string" ? content.text.trim() : "",
+        )
+        .filter(Boolean);
+    })
+    .join("\n")
+    .trim();
+}
+
+function shouldUseResponsesApi(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return ELIZA_CLOUD_RESPONSES_MODEL_MARKERS.some((prefix) =>
+    normalized.startsWith(prefix),
+  );
 }
 
 function shouldRetryEmptyCloudResponse(model: string): boolean {
@@ -138,10 +246,39 @@ async function postElizaCloudChatCompletion(
   });
 }
 
+async function postElizaCloudResponse(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  params: GenerateTextParams,
+  maxTokens: number,
+): Promise<Response> {
+  return fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "X-Api-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "user",
+          content: params.prompt,
+        },
+      ],
+      max_output_tokens: maxTokens,
+      store: false,
+    }),
+  });
+}
+
 async function runElizaCloudTextGeneration(
   runtime: IAgentRuntime,
   params: GenerateTextParams,
   options: ElizaCloudPluginOptions,
+  preferredType: (typeof ModelType)[keyof typeof ModelType],
 ): Promise<string> {
   const provider = getRuntimeProvider(runtime);
   if (provider && provider !== "elizacloud") {
@@ -159,12 +296,43 @@ async function runElizaCloudTextGeneration(
   }
 
   const runtimeModel = getRuntimeModelSettings(runtime);
-  const endpoint = `${runtimeModel.baseUrl || DEFAULT_ELIZA_CLOUD_BASE_URL}/chat/completions`;
-  const requestedModel = runtimeModel.model || DEFAULT_ELIZA_CLOUD_MODEL;
+  const baseUrl = resolveCloudApiBaseUrl(
+    runtimeModel.baseUrl || DEFAULT_ELIZA_CLOUD_BASE_URL,
+  );
+  const requestedModel = resolveElizaCloudModelSelection(
+    runtime,
+    preferredType,
+    params.prompt,
+  );
   const temperature = runtimeModel.temperature ?? 0.4;
   const maxTokens = params.maxTokens ?? runtimeModel.maxTokens ?? 1200;
+
+  if (shouldUseResponsesApi(requestedModel)) {
+    const response = await postElizaCloudResponse(
+      `${baseUrl}/responses`,
+      apiKey,
+      requestedModel,
+      params,
+      maxTokens,
+    );
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(
+        `Eliza Cloud responses request failed (${response.status}): ${body || "empty response"}`,
+      );
+    }
+    const payload = (await response.json()) as unknown;
+    const text = extractTextFromResponsesApi(payload);
+    if (text) {
+      return text;
+    }
+    throw new Error(
+      `Eliza Cloud responses request returned no output text for ${requestedModel}.`,
+    );
+  }
+
   let response = await postElizaCloudChatCompletion(
-    endpoint,
+    `${baseUrl}/chat/completions`,
     apiKey,
     requestedModel,
     params,
@@ -183,7 +351,7 @@ async function runElizaCloudTextGeneration(
   let text = extractTextFromChatCompletions(payload);
   if (!text && shouldRetryEmptyCloudResponse(requestedModel)) {
     response = await postElizaCloudChatCompletion(
-      endpoint,
+      `${baseUrl}/chat/completions`,
       apiKey,
       ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL,
       params,
@@ -236,7 +404,12 @@ export function createElizaCloudPlugin(
     }
 
     async generateText(params: { prompt: string; maxTokens?: number }) {
-      return runElizaCloudTextGeneration(this.runtime, params, options);
+      return runElizaCloudTextGeneration(
+        this.runtime,
+        params,
+        options,
+        ModelType.TEXT_LARGE,
+      );
     }
   }
 
@@ -248,15 +421,40 @@ export function createElizaCloudPlugin(
     models: options.enabled
       ? {
           [ModelType.TEXT_SMALL]: (runtime, params) =>
-            runElizaCloudTextGeneration(runtime, params, options),
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_SMALL,
+            ),
           [ModelType.TEXT_LARGE]: (runtime, params) =>
-            runElizaCloudTextGeneration(runtime, params, options),
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_LARGE,
+            ),
           [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
-            runElizaCloudTextGeneration(runtime, params, options),
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_REASONING_SMALL,
+            ),
           [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
-            runElizaCloudTextGeneration(runtime, params, options),
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_REASONING_LARGE,
+            ),
           [ModelType.TEXT_COMPLETION]: (runtime, params) =>
-            runElizaCloudTextGeneration(runtime, params, options),
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_COMPLETION,
+            ),
         }
       : undefined,
     providers: [],

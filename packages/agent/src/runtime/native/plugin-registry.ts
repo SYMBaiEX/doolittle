@@ -39,6 +39,29 @@ export interface NativePluginAssemblyOptions {
   hotOnly?: boolean;
 }
 
+export function shouldIncludeDirectProviderPlugin(
+  selectedProvider: string,
+  directProvider: "openai" | "anthropic",
+): boolean {
+  if (
+    selectedProvider === "elizacloud" ||
+    selectedProvider === "codex" ||
+    selectedProvider === "claude-code"
+  ) {
+    return false;
+  }
+
+  if (selectedProvider === "openai") {
+    return directProvider === "openai";
+  }
+
+  if (selectedProvider === "anthropic") {
+    return directProvider === "anthropic";
+  }
+
+  return true;
+}
+
 function normalizePlugin(plugin: unknown): Plugin {
   return plugin as Plugin;
 }
@@ -114,14 +137,20 @@ async function loadProviderPlugins(
   }
 
   const optionalProviderImports: Promise<Plugin | null>[] = [];
-  if (config.openAiApiKey) {
+  if (
+    config.openAiApiKey &&
+    shouldIncludeDirectProviderPlugin(selectedProvider, "openai")
+  ) {
     optionalProviderImports.push(
       import("@elizaos/plugin-openai").then(({ openaiPlugin }) =>
         normalizePlugin(openaiPlugin),
       ),
     );
   }
-  if (config.anthropicApiKey) {
+  if (
+    config.anthropicApiKey &&
+    shouldIncludeDirectProviderPlugin(selectedProvider, "anthropic")
+  ) {
     optionalProviderImports.push(
       import("@elizaos/plugin-anthropic").then(({ default: anthropicPlugin }) =>
         normalizePlugin(anthropicPlugin),

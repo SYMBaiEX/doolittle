@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Primary Eliza Agent application package.",
   "dependencies": {
-    "@eliza-agent/acp": "workspace:*"
+    "@eliza-agent/acp": "workspace:*",
+    "@elizaos/agent": "2.0.0-alpha.85"
   },
   "scripts": {
     "dev": "bun --watch src/index.ts",

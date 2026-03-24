@@ -1,6 +1,8 @@
 import { existsSync, constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
+import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { validateCloudBaseUrl } from "@elizaos/agent/cloud/validate-url";
 import {
   getTransportRequirementRecords,
   summarizeTransportInventory,
@@ -220,11 +222,19 @@ export class DiagnosticsService {
     });
 
     const linkedAccounts = getLinkedProviderAccountsSnapshot();
+    const normalizedCloudBaseUrl = resolveCloudApiBaseUrl(
+      this.config.elizaCloudBaseUrl,
+    );
+    const cloudBaseUrlValidation = await validateCloudBaseUrl(
+      normalizedCloudBaseUrl,
+    );
     checks.push({
       id: "provider.configured",
       status:
         this.config.openAiApiKey ||
         this.config.anthropicApiKey ||
+        linkedAccounts.elizaCloud.nativeReady ||
+        linkedAccounts.elizaCloud.reusable ||
         linkedAccounts.codex.nativeReady ||
         linkedAccounts.claudeCode.nativeReady ||
         linkedAccounts.codex.reusable ||
@@ -237,18 +247,23 @@ export class DiagnosticsService {
           ? "At least one provider key is present."
           : this.config.offlineBootstrapMode
             ? "Explicit offline bootstrap mode is enabled; runtime can answer without a live provider while onboarding."
-            : linkedAccounts.codex.nativeReady ||
-                linkedAccounts.claudeCode.nativeReady
-              ? "A native linked Codex or Claude Code account is available."
-              : linkedAccounts.codex.reusable ||
-                  linkedAccounts.claudeCode.reusable
-                ? "A linked provider fallback path is available, but native auth may still need to be completed."
-                : "No OpenAI, Anthropic, Codex, or Claude Code provider credentials are configured, and explicit offline bootstrap mode is disabled.",
+            : linkedAccounts.elizaCloud.nativeReady ||
+                linkedAccounts.elizaCloud.reusable
+              ? "A managed Eliza Cloud account is available."
+              : linkedAccounts.codex.nativeReady ||
+                  linkedAccounts.claudeCode.nativeReady
+                ? "A native linked Codex or Claude Code account is available."
+                : linkedAccounts.codex.reusable ||
+                    linkedAccounts.claudeCode.reusable
+                  ? "A linked provider fallback path is available, but native auth may still need to be completed."
+                  : "No OpenAI, Anthropic, Eliza Cloud, Codex, or Claude Code provider credentials are configured, and explicit offline bootstrap mode is disabled.",
     });
 
     checks.push({
       id: "provider.linked-accounts",
       status:
+        linkedAccounts.elizaCloud.nativeReady ||
+        linkedAccounts.elizaCloud.reusable ||
         linkedAccounts.codex.nativeReady ||
         linkedAccounts.claudeCode.nativeReady ||
         linkedAccounts.codex.reusable ||
@@ -256,7 +271,16 @@ export class DiagnosticsService {
           ? "pass"
           : "warn",
       summary: "Linked CLI account detection",
-      detail: `codex=${linkedAccounts.codex.nativeReady ? "native" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.nativeReady ? "native" : linkedAccounts.claudeCode.fallbackReady ? "fallback" : linkedAccounts.claudeCode.available ? "detected" : "missing"}`,
+      detail: `elizacloud=${linkedAccounts.elizaCloud.nativeReady ? "native" : linkedAccounts.elizaCloud.available ? "detected" : "missing"} codex=${linkedAccounts.codex.nativeReady ? "native" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.nativeReady ? "native" : linkedAccounts.claudeCode.fallbackReady ? "fallback" : linkedAccounts.claudeCode.available ? "detected" : "missing"}`,
+    });
+
+    checks.push({
+      id: "provider.elizacloud-base-url",
+      status: cloudBaseUrlValidation ? "warn" : "pass",
+      summary: "Eliza Cloud API base URL",
+      detail: cloudBaseUrlValidation
+        ? `${cloudBaseUrlValidation} normalized=${normalizedCloudBaseUrl}`
+        : `normalized=${normalizedCloudBaseUrl}`,
     });
 
     checks.push({

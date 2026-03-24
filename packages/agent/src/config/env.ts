@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 import { type EnvConfig, RUN_DEPTH_ITERATION_PRESETS } from "@/types";
@@ -34,11 +35,9 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
-  ELIZAOS_CLOUD_BASE_URL: z
-    .string()
-    .default("https://www.elizacloud.ai/api/v1"),
+  ELIZAOS_CLOUD_BASE_URL: z.string().default(resolveCloudApiBaseUrl()),
   ELIZAOS_CLOUD_SMALL_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
-  ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("xai/grok-4.20-multi-agent"),
+  ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
   OPENAI_API_KEY: z.string().optional(),
   ELIZA_AGENT_OFFLINE_BOOTSTRAP: z
     .enum(["true", "false"])

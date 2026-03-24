@@ -117,7 +117,7 @@ export function createServices(
   config: EnvConfig,
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
 ): AppServices {
-  const stableElizaCloudLargeModel = "xai/grok-4.20-multi-agent";
+  const stableElizaCloudLargeModel = "xai/grok-4.1-fast-reasoning";
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
   const nativeOwnership = new NativeOwnershipCache(config, gatewayConfig);
@@ -232,6 +232,7 @@ export function createServices(
       normalized === "anthropic/claude-sonnet-4.6" ||
       normalized === "xai/grok-4-fast-reasoning" ||
       normalized === "xai/grok-4.1-fast-reasoning-beta" ||
+      normalized === "xai/grok-4.20-multi-agent" ||
       normalized === "xai/grok-4.20-multi-agent-beta"
     );
   };

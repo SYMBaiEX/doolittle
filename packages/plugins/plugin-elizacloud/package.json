@@ -28,6 +28,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@elizaos/agent": "2.0.0-alpha.85",
     "@elizaos/core": "2.0.0-alpha.85"
   }
 }

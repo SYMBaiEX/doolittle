@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
+import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { validateCloudBaseUrl } from "@elizaos/agent/cloud/validate-url";
 import { resolveStreamingUpdate } from "@elizaos/autonomous/api/streaming-text";
 import {
   ChannelType,
@@ -142,6 +144,11 @@ import {
   previousTuiTheme,
   resolveTuiThemeName,
 } from "@/runtime/theme-catalog";
+import {
+  classifyTurnMessage,
+  deriveTurnExecutionPolicy,
+  isSimpleGreetingMessage,
+} from "@/runtime/turn-classification";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
   ChatTurnRequest,
@@ -253,9 +260,6 @@ const SAFE_REMOTE_EXECUTION_PREFIXES = [
   "npm run lint",
   "npm run build",
 ];
-
-const LOCAL_TASK_FAST_PATH_PATTERN =
-  /\b(search|find|read|open|inspect|show|grep|rg|git|status|diff|log|repo|repository|workspace|directory|file|files|command|run|execute|terminal|shell|ls|list)\b/i;
 
 const REMOTE_EXECUTION_APPROVAL_RULES: Array<{
   pattern: RegExp;
@@ -435,6 +439,17 @@ function getContextUsageWarning(
   } catch {
     return undefined;
   }
+}
+
+function buildSimpleGreetingReply(message: string): string {
+  const normalized = message.trim().toLowerCase();
+  if (normalized.startsWith("yo")) {
+    return "Yo. What do you want to work on?";
+  }
+  if (normalized.startsWith("howdy")) {
+    return "Howdy. What can I help you with?";
+  }
+  return "Hey! What can I help you with?";
 }
 
 // How many turns between automatic skill-synthesis nudges (prevents spamming)
@@ -1461,7 +1476,10 @@ export function syncProviderSettings(
   if (provider === "elizacloud") {
     context.runtime.setSetting("ELIZAOS_CLOUD_SMALL_MODEL", model);
     context.runtime.setSetting("ELIZAOS_CLOUD_LARGE_MODEL", model);
-    context.runtime.setSetting("ELIZAOS_CLOUD_BASE_URL", baseUrl);
+    context.runtime.setSetting(
+      "ELIZAOS_CLOUD_BASE_URL",
+      normalizeElizaCloudBaseUrl(baseUrl),
+    );
     return;
   }
 
@@ -1481,6 +1499,9 @@ export function syncProviderSettings(
 }
 
 export type LinkedProviderName = "elizacloud" | "codex" | "claude-code";
+
+const ELIZA_CLOUD_BILLING_URL =
+  "https://www.elizacloud.ai/dashboard/settings?tab=billing";
 
 function resolveLinkedProviderName(
   raw: string | undefined,
@@ -1519,9 +1540,54 @@ function defaultProviderBaseUrl(provider: LinkedProviderName): string {
     return "https://chatgpt.com/backend-api/codex";
   }
   if (provider === "elizacloud") {
-    return "https://www.elizacloud.ai/api/v1";
+    return resolveCloudApiBaseUrl();
   }
   return "";
+}
+
+function normalizeElizaCloudBaseUrl(raw?: string): string {
+  return resolveCloudApiBaseUrl(raw || defaultProviderBaseUrl("elizacloud"));
+}
+
+async function describeElizaCloudDoctorState(
+  context: AgentExecutionContext,
+): Promise<{
+  configuredBaseUrl: string;
+  normalizedBaseUrl: string;
+  baseUrlValidation: string | null;
+  credentialSource: string;
+  authMode: string;
+  hasApiKey: boolean;
+}> {
+  const settings = context.services.settings.get();
+  const credentials = await resolveLinkedProviderCredentials("elizacloud");
+  const configuredBaseUrl =
+    (settings.model.provider === "elizacloud"
+      ? settings.model.baseUrl
+      : context.config.elizaCloudBaseUrl) ||
+    defaultProviderBaseUrl("elizacloud");
+  const normalizedBaseUrl = normalizeElizaCloudBaseUrl(
+    credentials && "baseUrl" in credentials
+      ? credentials.baseUrl || configuredBaseUrl
+      : configuredBaseUrl,
+  );
+
+  return {
+    configuredBaseUrl,
+    normalizedBaseUrl,
+    baseUrlValidation: await validateCloudBaseUrl(normalizedBaseUrl),
+    credentialSource:
+      credentials && "source" in credentials && credentials.source?.trim()
+        ? credentials.source
+        : "missing",
+    authMode:
+      credentials && "authMode" in credentials && credentials.authMode?.trim()
+        ? credentials.authMode
+        : "missing",
+    hasApiKey: Boolean(
+      credentials && "apiKey" in credentials && credentials.apiKey?.trim(),
+    ),
+  };
 }
 
 async function getProviderReadinessMessage(
@@ -1706,10 +1772,12 @@ function buildProviderFailureMessage(
   provider: string,
   model: string,
   error: unknown,
+  baseUrl?: string,
 ): string {
   const detail =
     error instanceof Error ? error.message.trim() : String(error).trim();
   const normalized = detail.toLowerCase();
+  const cloudBaseUrl = normalizeElizaCloudBaseUrl(baseUrl);
 
   if (
     normalized.includes("cannot connect to api") ||
@@ -1718,9 +1786,33 @@ function buildProviderFailureMessage(
     normalized.includes("connectionrefused")
   ) {
     if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) is active, but I could not reach the Cloud API from this shell. Check network access to \`https://www.elizacloud.ai\`, then run \`${displayCommand("/accounts doctor")}\` if the cloud bond still looks suspicious.`;
+      return `Eliza Cloud (${model}) is active, but I could not reach the Cloud API at \`${cloudBaseUrl}\`. Check network access and the configured base URL, then run \`${displayCommand("/accounts doctor")}\` for a provider-specific diagnosis.`;
     }
     return `The active provider (${provider}:${model}) could not be reached from this shell. Check network access and provider credentials, then run \`${displayCommand("/accounts doctor")}\`.`;
+  }
+
+  if (
+    normalized.includes("typo in the url or port") ||
+    normalized.includes("could not be resolved") ||
+    normalized.includes("getaddrinfo") ||
+    normalized.includes("dns")
+  ) {
+    if (provider === "elizacloud") {
+      return `Eliza Cloud (${model}) could not resolve the configured API base URL \`${cloudBaseUrl}\`. Compare \`ELIZAOS_CLOUD_BASE_URL\` with the native cloud path, then run \`${displayCommand("/accounts doctor")}\` to verify the normalized URL.`;
+    }
+    return `The active provider (${provider}:${model}) could not resolve its configured endpoint. Check the base URL/host configuration, then run \`${displayCommand("/accounts doctor")}\`.`;
+  }
+
+  if (
+    normalized.includes("timed out") ||
+    normalized.includes("timeout") ||
+    normalized.includes("abortedsignal") ||
+    normalized.includes("network timeout")
+  ) {
+    if (provider === "elizacloud") {
+      return `Eliza Cloud (${model}) timed out while waiting for \`${cloudBaseUrl}\`. Check latency or service availability, then run \`${displayCommand("/accounts doctor")}\` if it keeps happening.`;
+    }
+    return `The active provider (${provider}:${model}) timed out before returning a response.`;
   }
 
   if (normalized.includes("401") || normalized.includes("unauthorized")) {
@@ -1734,6 +1826,29 @@ function buildProviderFailureMessage(
 
   if (normalized.includes("429") || normalized.includes("rate limit")) {
     return `The active provider (${provider}:${model}) is rate-limiting this request right now. Wait a moment or switch models with \`${displayCommand("/accounts")}\`.`;
+  }
+
+  if (
+    normalized.includes("402") ||
+    normalized.includes("payment required") ||
+    normalized.includes("insufficient credits") ||
+    normalized.includes("insufficient funds")
+  ) {
+    if (provider === "elizacloud") {
+      return `Eliza Cloud (${model}) rejected the request because the managed cloud account is out of credits or billing is blocked. Add credits in ${ELIZA_CLOUD_BILLING_URL} and rerun \`${displayCommand("/accounts doctor")}\` if the shell still reports Cloud auth issues.`;
+    }
+    return `The active provider (${provider}:${model}) rejected the request because the account is out of credits or billing is blocked.`;
+  }
+
+  if (
+    normalized.includes("invalid cloud base url") ||
+    normalized.includes("must use https") ||
+    normalized.includes("blocked local hostname") ||
+    normalized.includes("blocked address")
+  ) {
+    if (provider === "elizacloud") {
+      return `Eliza Cloud (${model}) is configured with an invalid base URL: \`${cloudBaseUrl}\`. Run \`${displayCommand("/accounts doctor")}\` and correct \`ELIZAOS_CLOUD_BASE_URL\` before retrying.`;
+    }
   }
 
   if (normalized.includes("no output generated")) {
@@ -1823,10 +1938,14 @@ export function activateLinkedProvider(
     settings.model.provider === provider
       ? settings.model.baseUrl
       : defaultProviderBaseUrl(provider);
+  const normalizedBaseUrl =
+    provider === "elizacloud"
+      ? normalizeElizaCloudBaseUrl(nextBaseUrl)
+      : nextBaseUrl;
 
   context.services.settings.set("model.provider", provider);
   context.services.settings.set("model.model", nextModel);
-  context.services.settings.set("model.baseUrl", nextBaseUrl);
+  context.services.settings.set("model.baseUrl", normalizedBaseUrl);
   const updated = context.services.settings.get();
   syncProviderSettings(context, updated);
 
@@ -4040,10 +4159,16 @@ async function buildCommandResponse(
     const elizaCloudAdvice = getLinkedProviderConnectAdvice("elizacloud");
     const codexAdvice = getLinkedProviderConnectAdvice("codex");
     const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");
+    const cloudDoctor = await describeElizaCloudDoctorState(context);
     return [
       "Managed cloud",
       `elizacloud: nativeReady=${accounts.elizaCloud.nativeReady ? "yes" : "no"} fallbackReady=${accounts.elizaCloud.fallbackReady ? "yes" : "no"} available=${accounts.elizaCloud.available ? "yes" : "no"}`,
       `  detail: ${accounts.elizaCloud.detail}`,
+      `  cloud: baseUrl=${cloudDoctor.configuredBaseUrl}`,
+      `  cloud: normalized=${cloudDoctor.normalizedBaseUrl}`,
+      `  cloud: validation=${cloudDoctor.baseUrlValidation ?? "ok"}`,
+      `  cloud: auth=${cloudDoctor.authMode} source=${cloudDoctor.credentialSource} apiKey=${cloudDoctor.hasApiKey ? "present" : "missing"}`,
+      `  cloud: models fast=${context.config.elizaCloudSmallModel} deep=${context.config.elizaCloudLargeModel}`,
       `  ${formatLinkedProviderAdviceNextStep(elizaCloudAdvice)}`,
       formatLinkedProviderAdviceAlternate(elizaCloudAdvice)
         ? `  ${formatLinkedProviderAdviceAlternate(elizaCloudAdvice)}`
@@ -6951,6 +7076,11 @@ function startTrackedTurn(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
   turn: TurnState,
+  effectiveAgentPolicy?: {
+    runDepth: RunDepth;
+    maxIterations: number;
+    toolProgressMode: ToolProgressMode;
+  },
 ): void {
   storeSessionMessage(context, {
     sessionId: turn.sessionId,
@@ -6965,9 +7095,12 @@ function startTrackedTurn(
     runId: turn.runId,
     source: input.source ?? "cli",
     message: input.message,
-    runDepth: turn.settings.agent.runDepth,
-    configuredMaxIterations: turn.settings.agent.maxIterations,
-    progressMode: turn.settings.agent.toolProgressMode,
+    runDepth: effectiveAgentPolicy?.runDepth ?? turn.settings.agent.runDepth,
+    configuredMaxIterations:
+      effectiveAgentPolicy?.maxIterations ?? turn.settings.agent.maxIterations,
+    progressMode:
+      effectiveAgentPolicy?.toolProgressMode ??
+      turn.settings.agent.toolProgressMode,
     pendingApprovals:
       context.services.executionApprovals.latestPendingForSession(
         turn.sessionId,
@@ -7085,16 +7218,24 @@ export async function handleAgentTurn(
 ): Promise<string> {
   const perf = new TurnPerfTrace();
   const turn = createTurnState(input, context);
+  const derivedTurnPolicy = deriveTurnExecutionPolicy(
+    input.message,
+    turn.settings.agent,
+    {
+      localInteractive: turn.localInteractive,
+    },
+  );
   const scheduleProfileObservation = createProfileObservationScheduler(
     input,
     context,
     turn.sessionId,
   );
-  startTrackedTurn(input, context, turn);
+  startTrackedTurn(input, context, turn, derivedTurnPolicy);
 
   const trimmedMessage = input.message.trim();
+  const turnClassification = classifyTurnMessage(trimmedMessage);
   const shouldInspectLocalIntent =
-    turn.localInteractive && LOCAL_TASK_FAST_PATH_PATTERN.test(trimmedMessage);
+    turn.localInteractive && turnClassification.likelyLocalTask;
   const responseFromCommandLayer = trimmedMessage.startsWith("/")
     ? await executeSlashCommand(input, context, options)
     : undefined;
@@ -7193,6 +7334,24 @@ export async function handleAgentTurn(
       source: input.source ?? "cli",
     });
     return responseFromCommandLayer;
+  }
+
+  if (turn.localInteractive && isSimpleGreetingMessage(input.message)) {
+    const greetingResponse = buildSimpleGreetingReply(input.message);
+    await finalizeTurnResponse(
+      context,
+      turn,
+      greetingResponse,
+      scheduleProfileObservation,
+      options,
+      "model",
+    );
+    perf.flush(context.runtime.logger, {
+      path: "simple-greeting",
+      sessionId: turn.sessionId,
+      source: input.source ?? "cli",
+    });
+    return greetingResponse;
   }
 
   const loadDirectLocalIntent = createDirectLocalIntentLoader(input, context);
@@ -7462,8 +7621,10 @@ export async function handleAgentTurn(
           return [];
         },
         {
-          useMultiStep: true,
-          maxMultiStepIterations: settingsDuring.agent.maxIterations,
+          useMultiStep: derivedTurnPolicy.useMultiStep,
+          maxMultiStepIterations: derivedTurnPolicy.useMultiStep
+            ? derivedTurnPolicy.maxIterations
+            : 1,
           onStreamChunk: options?.onResponseProgress
             ? async (chunk: string) => {
                 if (!chunk || !claimStreamSource("onStreamChunk")) {
@@ -7517,6 +7678,7 @@ export async function handleAgentTurn(
               settingsDuring.model.provider,
               settingsDuring.model.model,
               error,
+              settingsDuring.model.baseUrl,
             );
         context.runtime.logger?.warn(
           {
@@ -7635,12 +7797,17 @@ export async function handleAgentTurn(
     });
   }
 
+  const normalizedResponse = response.trim();
   const baseResponse =
-    response.trim() ||
-    buildProviderNoResponseMessage(
-      settingsDuring.model.provider,
-      settingsDuring.model.model,
-    );
+    runFailureMessage &&
+    observedActionCount === 0 &&
+    isSimpleGreetingMessage(input.message)
+      ? buildSimpleGreetingReply(input.message)
+      : normalizedResponse ||
+        buildProviderNoResponseMessage(
+          settingsDuring.model.provider,
+          settingsDuring.model.model,
+        );
 
   // -------------------------------------------------------------------
   // Post-response enhancements

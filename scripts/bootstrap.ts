@@ -368,7 +368,7 @@ type WizardScreenContext = {
 let wizardScreen: WizardScreenContext | null = null;
 
 const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
-const DEFAULT_ELIZA_CLOUD_LARGE_MODEL = "xai/grok-4.20-multi-agent";
+const DEFAULT_ELIZA_CLOUD_LARGE_MODEL = "xai/grok-4.1-fast-reasoning";
 
 function normalizeElizaCloudLargeModel(value?: string | null): string {
   const trimmed = value?.trim();
@@ -381,6 +381,7 @@ function normalizeElizaCloudLargeModel(value?: string | null): string {
     normalized === "openai/gpt-5-mini" ||
     normalized === "anthropic/claude-sonnet-4.5" ||
     normalized === "anthropic/claude-sonnet-4.6" ||
+    normalized === "xai/grok-4.20-multi-agent" ||
     normalized === "xai/grok-4.20-multi-agent-beta"
   ) {
     return DEFAULT_ELIZA_CLOUD_LARGE_MODEL;

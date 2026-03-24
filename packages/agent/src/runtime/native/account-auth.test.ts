@@ -169,4 +169,30 @@ exit 0
       }
     });
   });
+
+  it("canonicalizes Eliza Cloud base URL from env credentials", async () => {
+    const previousKey = process.env.ELIZAOS_CLOUD_API_KEY;
+    const previousBaseUrl = process.env.ELIZAOS_CLOUD_BASE_URL;
+    process.env.ELIZAOS_CLOUD_API_KEY = "cloud-test-key";
+    process.env.ELIZAOS_CLOUD_BASE_URL = "https://elizacloud.ai/api/v1/";
+    try {
+      await withIsolatedAuthStore(async () => {
+        const mod = await loadSnapshotModule();
+        const credentials = mod.getLinkedElizaCloudCredentials();
+        expect(credentials?.apiKey).toBe("cloud-test-key");
+        expect(credentials?.baseUrl).toBe("https://www.elizacloud.ai/api/v1");
+      });
+    } finally {
+      if (previousKey === undefined) {
+        delete process.env.ELIZAOS_CLOUD_API_KEY;
+      } else {
+        process.env.ELIZAOS_CLOUD_API_KEY = previousKey;
+      }
+      if (previousBaseUrl === undefined) {
+        delete process.env.ELIZAOS_CLOUD_BASE_URL;
+      } else {
+        process.env.ELIZAOS_CLOUD_BASE_URL = previousBaseUrl;
+      }
+    }
+  });
 });

@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
 
 export interface LinkedProviderAccountStatus {
   provider: "codex" | "claude-code" | "elizacloud";
@@ -301,6 +302,14 @@ function persistProviderCredentials(
   const store = readProviderAuthStore();
   store.providers[provider] = {
     ...credentials,
+    ...((provider === "elizacloud" &&
+    "baseUrl" in credentials &&
+    typeof credentials.baseUrl === "string" &&
+    credentials.baseUrl.trim()
+      ? {
+          baseUrl: resolveCloudApiBaseUrl(credentials.baseUrl),
+        }
+      : {}) as object),
     storedAt: new Date().toISOString(),
   } as never;
   writeProviderAuthStore(store);
@@ -347,7 +356,7 @@ function getStoredElizaCloudCredentials():
   return {
     apiKey: record.apiKey,
     authMode: record.authMode,
-    baseUrl: record.baseUrl,
+    baseUrl: resolveCloudApiBaseUrl(record.baseUrl),
     source: "eliza-auth-store",
   };
 }
@@ -924,9 +933,7 @@ export function getLinkedElizaCloudCredentials(
   const resolved = {
     apiKey: envKey.value,
     authMode: "api-key",
-    baseUrl:
-      process.env.ELIZAOS_CLOUD_BASE_URL?.trim() ||
-      "https://www.elizacloud.ai/api/v1",
+    baseUrl: resolveCloudApiBaseUrl(process.env.ELIZAOS_CLOUD_BASE_URL),
     source: `env:${envKey.key}`,
   };
   persistProviderCredentials("elizacloud", resolved);
