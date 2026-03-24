@@ -1,7 +1,7 @@
 {
-  "name": "@elizaos/plugin-elizacloud",
+  "name": "@elizaos/plugin-sql",
   "version": "2.0.0-alpha.85",
-  "description": "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference.",
+  "description": "Workspace-native SQL plugin aligned with ElizaOS core 2.0.0-alpha.85.",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -14,20 +14,21 @@
   "keywords": [
     "elizaos",
     "plugin",
-    "elizacloud",
-    "cloud",
-    "inference"
+    "sql",
+    "database",
+    "pglite"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SYMBaiEX/eliza-agent.git",
-    "directory": "packages/plugins/plugin-elizacloud"
+    "directory": "packages/plugins/plugin-sql"
   },
-  "homepage": "https://github.com/SYMBaiEX/eliza-agent/tree/main/packages/plugins/plugin-elizacloud",
+  "homepage": "https://github.com/SYMBaiEX/eliza-agent/tree/main/packages/plugins/plugin-sql",
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
+    "@elizaos-official/plugin-sql": "npm:@elizaos/plugin-sql@2.0.0-alpha.17",
     "@elizaos/core": "2.0.0-alpha.85"
   }
 }

@@ -6,7 +6,7 @@ import {
   type Plugin,
 } from "@elizaos/core";
 
-interface ElizaCloudStatus {
+export interface ElizaCloudStatus {
   provider: "elizacloud";
   available: boolean;
   reusable: boolean;
@@ -29,8 +29,8 @@ interface ElizaCloudPluginOptions {
 }
 
 const DEFAULT_ELIZA_CLOUD_BASE_URL = "https://www.elizacloud.ai/api/v1";
-const DEFAULT_ELIZA_CLOUD_MODEL = "anthropic/claude-sonnet-4.6";
-const ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
+const DEFAULT_ELIZA_CLOUD_MODEL = "xai/grok-4.20-multi-agent";
+const ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL = "xai/grok-4.20-multi-agent";
 const ELIZA_CLOUD_EMPTY_RESPONSE_MODEL_PREFIXES = ["openai/gpt-5"];
 
 function getRuntimeProvider(

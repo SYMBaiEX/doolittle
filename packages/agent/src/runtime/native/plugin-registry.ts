@@ -1,10 +1,12 @@
 import type { Plugin } from "@elizaos/core";
+import type { ElizaCloudStatus } from "@elizaos/plugin-elizacloud";
 import { createElizaAgentPlugin } from "@plugins/eliza-agent-plugin";
 import type { AppServices } from "@/services";
 import type { EnvConfig, MemoryTarget } from "@/types";
 import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
+  getLinkedElizaCloudCredentials,
   getLinkedProviderAccountsSnapshot,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
@@ -88,10 +90,27 @@ async function loadProviderPlugins(
   ];
 
   if (selectedProvider === "elizacloud") {
-    const { default: elizaCloudPlugin } = await import(
+    const { createElizaCloudPlugin } = await import(
       "@elizaos/plugin-elizacloud"
     );
-    providers.push(normalizePlugin(elizaCloudPlugin));
+    providers.push(
+      createElizaCloudPlugin({
+        enabled: true,
+        getStatus: (): ElizaCloudStatus => {
+          const status = getLinkedProviderAccountsSnapshot().elizaCloud;
+          return {
+            provider: "elizacloud" as const,
+            available: status.available,
+            reusable: status.reusable,
+            nativeReady: status.nativeReady,
+            source: status.source,
+            authMode: status.authMode,
+            detail: status.detail,
+          };
+        },
+        getCredentials: () => getLinkedElizaCloudCredentials(),
+      }),
+    );
   }
 
   const optionalProviderImports: Promise<Plugin | null>[] = [];

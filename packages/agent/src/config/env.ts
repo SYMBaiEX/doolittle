@@ -37,10 +37,8 @@ const schema = z.object({
   ELIZAOS_CLOUD_BASE_URL: z
     .string()
     .default("https://www.elizacloud.ai/api/v1"),
-  ELIZAOS_CLOUD_SMALL_MODEL: z
-    .string()
-    .default("anthropic/claude-haiku-4-5-20251001"),
-  ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("anthropic/claude-sonnet-4.6"),
+  ELIZAOS_CLOUD_SMALL_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
+  ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("xai/grok-4.20-multi-agent"),
   OPENAI_API_KEY: z.string().optional(),
   ELIZA_AGENT_OFFLINE_BOOTSTRAP: z
     .enum(["true", "false"])

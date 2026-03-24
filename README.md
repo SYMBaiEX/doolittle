@@ -857,8 +857,8 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZAOS_CLOUD_ENABLED` | Turns on Eliza Cloud as the active managed inference provider |
 | `ELIZAOS_CLOUD_API_KEY` | Native Eliza Cloud API key (preferred path: `elizaos login`) |
 | `ELIZAOS_CLOUD_BASE_URL` | Base URL for Eliza Cloud managed inference |
-| `ELIZAOS_CLOUD_SMALL_MODEL` | Default small-model identifier for Eliza Cloud |
-| `ELIZAOS_CLOUD_LARGE_MODEL` | Default large-model identifier for Eliza Cloud |
+| `ELIZAOS_CLOUD_SMALL_MODEL` | Default small-model identifier for Eliza Cloud. Current default: `xai/grok-4.1-fast-reasoning` |
+| `ELIZAOS_CLOUD_LARGE_MODEL` | Default large-model identifier for Eliza Cloud. Current default: `xai/grok-4.20-multi-agent` |
 
 ### OpenAI
 

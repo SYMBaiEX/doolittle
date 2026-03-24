@@ -117,7 +117,7 @@ export function createServices(
   config: EnvConfig,
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
 ): AppServices {
-  const stableElizaCloudLargeModel = "anthropic/claude-sonnet-4.6";
+  const stableElizaCloudLargeModel = "xai/grok-4.20-multi-agent";
   const gatewayConfig = loadGatewayConfig(config);
   const agentSdk = new AgentSdkService();
   const nativeOwnership = new NativeOwnershipCache(config, gatewayConfig);
@@ -225,7 +225,15 @@ export function createServices(
   const currentSettings = settings.get();
   const cloudModelLooksStale = (model: string): boolean => {
     const normalized = model.trim().toLowerCase();
-    return normalized === "openai/gpt-5" || normalized === "openai/gpt-5-mini";
+    return (
+      normalized === "openai/gpt-5" ||
+      normalized === "openai/gpt-5-mini" ||
+      normalized === "anthropic/claude-sonnet-4.5" ||
+      normalized === "anthropic/claude-sonnet-4.6" ||
+      normalized === "xai/grok-4-fast-reasoning" ||
+      normalized === "xai/grok-4.1-fast-reasoning-beta" ||
+      normalized === "xai/grok-4.20-multi-agent-beta"
+    );
   };
   const persistedProvider = currentSettings.model.provider;
   const persistedHasOpenAi =
@@ -251,11 +259,19 @@ export function createServices(
     const desiredCloudModel = cloudModelLooksStale(config.elizaCloudLargeModel)
       ? stableElizaCloudLargeModel
       : config.elizaCloudLargeModel;
+    const currentCloudModelNormalized = currentSettings.model.model
+      .trim()
+      .toLowerCase();
+    const currentCloudModelIsSmallDefault =
+      currentCloudModelNormalized ===
+      config.elizaCloudSmallModel.trim().toLowerCase();
     const targetCloudModel = cloudModelLooksStale(currentSettings.model.model)
       ? desiredCloudModel
-      : currentSettings.model.provider === "elizacloud"
-        ? currentSettings.model.model
-        : desiredCloudModel;
+      : currentCloudModelIsSmallDefault
+        ? desiredCloudModel
+        : currentSettings.model.provider === "elizacloud"
+          ? currentSettings.model.model
+          : desiredCloudModel;
     if (
       currentSettings.model.provider !== "elizacloud" ||
       currentSettings.model.model !== targetCloudModel ||

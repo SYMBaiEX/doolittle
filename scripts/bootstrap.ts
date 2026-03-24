@@ -241,6 +241,7 @@ interface WizardAnswers {
   openaiModel: string;
   elizaCloudApiKey: string;
   elizaCloudEnabled: boolean;
+  elizaCloudSmallModel: string;
   elizaCloudModel: string;
   anthropicApiKey: string;
   useLinkedClaudeCodeAuth: boolean;
@@ -366,14 +367,40 @@ type WizardScreenContext = {
 
 let wizardScreen: WizardScreenContext | null = null;
 
-function normalizeElizaCloudModel(value?: string | null): string {
+const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
+const DEFAULT_ELIZA_CLOUD_LARGE_MODEL = "xai/grok-4.20-multi-agent";
+
+function normalizeElizaCloudLargeModel(value?: string | null): string {
   const trimmed = value?.trim();
   if (!trimmed) {
-    return "anthropic/claude-sonnet-4.6";
+    return DEFAULT_ELIZA_CLOUD_LARGE_MODEL;
   }
   const normalized = trimmed.toLowerCase();
-  if (normalized === "openai/gpt-5" || normalized === "openai/gpt-5-mini") {
-    return "anthropic/claude-sonnet-4.6";
+  if (
+    normalized === "openai/gpt-5" ||
+    normalized === "openai/gpt-5-mini" ||
+    normalized === "anthropic/claude-sonnet-4.5" ||
+    normalized === "anthropic/claude-sonnet-4.6" ||
+    normalized === "xai/grok-4.20-multi-agent-beta"
+  ) {
+    return DEFAULT_ELIZA_CLOUD_LARGE_MODEL;
+  }
+  return trimmed;
+}
+
+function normalizeElizaCloudSmallModel(value?: string | null): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return DEFAULT_ELIZA_CLOUD_SMALL_MODEL;
+  }
+  const normalized = trimmed.toLowerCase();
+  if (
+    normalized === "openai/gpt-5-mini" ||
+    normalized === "anthropic/claude-haiku-4-5-20251001" ||
+    normalized === "xai/grok-4-fast-reasoning" ||
+    normalized === "xai/grok-4.1-fast-reasoning-beta"
+  ) {
+    return DEFAULT_ELIZA_CLOUD_SMALL_MODEL;
   }
   return trimmed;
 }
@@ -2512,7 +2539,10 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-5.4",
     elizaCloudApiKey: existingEnv.get("ELIZAOS_CLOUD_API_KEY") || "",
     elizaCloudEnabled: existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true",
-    elizaCloudModel: normalizeElizaCloudModel(
+    elizaCloudSmallModel: normalizeElizaCloudSmallModel(
+      existingEnv.get("ELIZAOS_CLOUD_SMALL_MODEL"),
+    ),
+    elizaCloudModel: normalizeElizaCloudLargeModel(
       existingEnv.get("ELIZAOS_CLOUD_LARGE_MODEL"),
     ),
     anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
@@ -2706,7 +2736,10 @@ async function runWizard(
       let elizaCloudEnabled =
         existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true" ||
         Boolean(elizaCloudApiKey);
-      let elizaCloudModel = normalizeElizaCloudModel(
+      let elizaCloudSmallModel = normalizeElizaCloudSmallModel(
+        existingEnv.get("ELIZAOS_CLOUD_SMALL_MODEL"),
+      );
+      let elizaCloudModel = normalizeElizaCloudLargeModel(
         existingEnv.get("ELIZAOS_CLOUD_LARGE_MODEL"),
       );
       let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
@@ -2827,9 +2860,14 @@ async function runWizard(
           }
 
           if (elizaCloudApiKey) {
+            elizaCloudSmallModel = await ask(
+              rl,
+              "Choose my fast Eliza Cloud model",
+              elizaCloudSmallModel,
+            );
             elizaCloudModel = await ask(
               rl,
-              "Choose my primary Eliza Cloud model",
+              "Choose my deep Eliza Cloud model",
               elizaCloudModel,
             );
           } else if (cloudPath !== "skip") {
@@ -2926,9 +2964,14 @@ async function runWizard(
               if (retryKey) {
                 elizaCloudApiKey = retryKey;
                 elizaCloudEnabled = true;
+                elizaCloudSmallModel = await ask(
+                  rl,
+                  "Choose my fast Eliza Cloud model",
+                  elizaCloudSmallModel,
+                );
                 elizaCloudModel = await ask(
                   rl,
-                  "Choose my primary Eliza Cloud model",
+                  "Choose my deep Eliza Cloud model",
                   elizaCloudModel,
                 );
               } else {
@@ -2942,9 +2985,14 @@ async function runWizard(
               );
               elizaCloudEnabled = Boolean(elizaCloudApiKey);
               if (elizaCloudApiKey) {
+                elizaCloudSmallModel = await ask(
+                  rl,
+                  "Choose my fast Eliza Cloud model",
+                  elizaCloudSmallModel,
+                );
                 elizaCloudModel = await ask(
                   rl,
-                  "Choose my primary Eliza Cloud model",
+                  "Choose my deep Eliza Cloud model",
                   elizaCloudModel,
                 );
               } else {
@@ -3184,9 +3232,14 @@ async function runWizard(
         );
       }
       if (provider === "elizacloud" && elizaCloudApiKey) {
+        elizaCloudSmallModel = await ask(
+          rl,
+          "Which fast Eliza Cloud model should handle quick turns and tool routing",
+          elizaCloudSmallModel,
+        );
         elizaCloudModel = await ask(
           rl,
-          "Which Eliza Cloud model should lead my first sessions",
+          "Which deep Eliza Cloud model should lead my first sessions",
           elizaCloudModel,
         );
       }
@@ -3677,6 +3730,7 @@ async function runWizard(
           openaiModel,
           elizaCloudApiKey,
           elizaCloudEnabled,
+          elizaCloudSmallModel,
           elizaCloudModel,
           anthropicApiKey,
           useLinkedClaudeCodeAuth,
@@ -3754,7 +3808,7 @@ async function applyAnswers(answers: WizardAnswers): Promise<{
     ),
     ELIZAOS_CLOUD_API_KEY: answers.elizaCloudApiKey,
     ELIZAOS_CLOUD_BASE_URL: "https://www.elizacloud.ai/api/v1",
-    ELIZAOS_CLOUD_SMALL_MODEL: "anthropic/claude-haiku-4-5-20251001",
+    ELIZAOS_CLOUD_SMALL_MODEL: answers.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: answers.elizaCloudModel,
     OPENAI_API_KEY:
       answers.provider === "openai" || answers.provider === "hybrid"
@@ -3899,6 +3953,7 @@ async function applyAnswers(answers: WizardAnswers): Promise<{
     elizaCloudApiKey: answers.elizaCloudApiKey || undefined,
     elizaCloudEnabled:
       answers.provider === "elizacloud" && Boolean(answers.elizaCloudApiKey),
+    elizaCloudSmallModel: answers.elizaCloudSmallModel,
     elizaCloudLargeModel: answers.elizaCloudModel,
     openAiApiKey:
       answers.provider === "openai" || answers.provider === "hybrid"
