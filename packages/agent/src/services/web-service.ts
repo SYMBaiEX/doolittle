@@ -9,7 +9,7 @@ interface BrowserConfig {
   obeyRobots: boolean;
 }
 
-interface BrowserStatus {
+export interface BrowserStatus {
   provider: "lightpanda" | "basic";
   ready: boolean;
   mode: "browser" | "fallback";
@@ -28,7 +28,7 @@ interface BrowserStatus {
   };
 }
 
-interface WebPageSnapshot {
+export interface WebPageSnapshot {
   url: string;
   title?: string;
   metaDescription?: string;
@@ -47,7 +47,7 @@ interface WebPageSnapshot {
   contentHash: string;
 }
 
-interface BrowserInspection {
+export interface BrowserInspection {
   page: WebPageSnapshot;
   snapshotPath: string;
   screenshotPath: string;
@@ -55,7 +55,7 @@ interface BrowserInspection {
   status: BrowserStatus;
 }
 
-interface BrowserCaptureBundle {
+export interface BrowserCaptureBundle {
   page: WebPageSnapshot;
   snapshotPath: string;
   screenshotPath: string;
@@ -65,7 +65,7 @@ interface BrowserCaptureBundle {
   status: BrowserStatus;
 }
 
-interface BrowserComparisonBundle {
+export interface BrowserComparisonBundle {
   left: BrowserCaptureBundle;
   right: BrowserCaptureBundle;
   manifestPath: string;
@@ -80,16 +80,16 @@ interface BrowserComparisonBundle {
   };
 }
 
-type BrowserAnalysisFocus = "browser" | "vision" | "research";
+export type BrowserAnalysisFocus = "browser" | "vision" | "research";
 
-interface BrowserAnalysisBundle {
+export interface BrowserAnalysisBundle {
   focus: BrowserAnalysisFocus;
   capture: BrowserCaptureBundle;
   prompt: string;
   highlights: string[];
 }
 
-interface BrowserComparisonAnalysisBundle {
+export interface BrowserComparisonAnalysisBundle {
   focus: BrowserAnalysisFocus;
   comparison: BrowserComparisonBundle;
   prompt: string;

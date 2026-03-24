@@ -315,13 +315,11 @@ async function loadDeferredPluginGroups(
 
   const [
     { createKnowledgePlugin },
-    { createLocalEmbeddingPlugin },
     { createPersonalityPlugin },
     { createRolodexPlugin },
     { createExperiencePlugin },
   ] = await Promise.all([
     import("@elizaos/plugin-knowledge"),
-    import("@elizaos/plugin-local-embedding"),
     import("@elizaos/plugin-personality"),
     import("@elizaos/plugin-rolodex"),
     import("@elizaos/plugin-experience"),
@@ -344,7 +342,6 @@ async function loadDeferredPluginGroups(
       },
       sessions: services.sessions,
     }),
-    createLocalEmbeddingPlugin(),
     createPersonalityPlugin({
       personalities: {
         list: () => services.personalities.list(),

@@ -5,6 +5,7 @@ import {
   type IAgentRuntime,
   ModelType,
   type Plugin,
+  type TextEmbeddingParams,
 } from "@elizaos/core";
 
 export interface ElizaCloudStatus {
@@ -32,6 +33,7 @@ interface ElizaCloudPluginOptions {
 const DEFAULT_ELIZA_CLOUD_BASE_URL = resolveCloudApiBaseUrl();
 const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
 const DEFAULT_ELIZA_CLOUD_MODEL = "xai/grok-4.1-fast-reasoning";
+const DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 const ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL = "xai/grok-4.1-fast-reasoning";
 const ELIZA_CLOUD_EMPTY_RESPONSE_MODEL_PREFIXES = ["openai/gpt-5"];
 const ELIZA_CLOUD_RESPONSES_MODEL_MARKERS = ["xai/grok-"];
@@ -88,6 +90,63 @@ function getRuntimeStringSetting(
   } catch {
     return undefined;
   }
+}
+
+function getRuntimeNumberSetting(
+  runtime: IAgentRuntime | undefined,
+  key: string,
+): number | undefined {
+  const raw = getRuntimeStringSetting(runtime, key);
+  if (!raw) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function resolveElizaCloudEmbeddingEndpoint(runtime: IAgentRuntime): string {
+  const configured = getRuntimeStringSetting(
+    runtime,
+    "ELIZAOS_CLOUD_EMBEDDING_URL",
+  );
+  const baseUrl = configured
+    ? configured
+    : resolveCloudApiBaseUrl(
+        getRuntimeModelSettings(runtime).baseUrl ||
+          DEFAULT_ELIZA_CLOUD_BASE_URL,
+      );
+  const normalized = baseUrl.trim().replace(/\/$/, "");
+  return normalized.endsWith("/embeddings")
+    ? normalized
+    : `${normalized}/embeddings`;
+}
+
+function resolveElizaCloudEmbeddingModel(runtime: IAgentRuntime): string {
+  return (
+    getRuntimeStringSetting(runtime, "ELIZAOS_CLOUD_EMBEDDING_MODEL") ||
+    DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL
+  );
+}
+
+function extractEmbeddingInput(
+  params: TextEmbeddingParams | string | null,
+): string {
+  if (typeof params === "string" && params.trim()) {
+    return params.trim();
+  }
+  if (params && typeof params === "object") {
+    const candidate =
+      ("text" in params && typeof params.text === "string"
+        ? params.text
+        : "") ||
+      ("input" in params && typeof params.input === "string"
+        ? params.input
+        : "");
+    if (candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return "embedding dimension probe";
 }
 
 function isStructuredPlannerPrompt(prompt: string): boolean {
@@ -274,6 +333,44 @@ async function postElizaCloudResponse(
   });
 }
 
+async function postElizaCloudEmbedding(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  input: string,
+  dimensions?: number,
+): Promise<Response> {
+  return fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "X-Api-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      input,
+      encoding_format: "float",
+      ...(dimensions ? { dimensions } : {}),
+    }),
+  });
+}
+
+function extractEmbeddingVector(payload: unknown): number[] {
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const parsed = payload as {
+    data?: Array<{
+      embedding?: number[];
+    }>;
+  };
+
+  const vector = parsed.data?.[0]?.embedding;
+  return Array.isArray(vector) ? vector : [];
+}
+
 async function runElizaCloudTextGeneration(
   runtime: IAgentRuntime,
   params: GenerateTextParams,
@@ -370,6 +467,54 @@ async function runElizaCloudTextGeneration(
   return text || "No response returned.";
 }
 
+async function runElizaCloudEmbeddingGeneration(
+  runtime: IAgentRuntime,
+  params: TextEmbeddingParams | string | null,
+  options: ElizaCloudPluginOptions,
+): Promise<number[]> {
+  const provider = getRuntimeProvider(runtime);
+  if (provider && provider !== "elizacloud") {
+    throw new Error(
+      `Eliza Cloud embedding handler is active, but runtime provider is ${provider}. Restart with the Eliza Cloud provider selected to use this plugin directly.`,
+    );
+  }
+
+  const credentials = options.getCredentials?.();
+  const apiKey =
+    getRuntimeStringSetting(runtime, "ELIZAOS_CLOUD_EMBEDDING_API_KEY") ||
+    credentials?.apiKey?.trim();
+  if (!apiKey) {
+    throw new Error(
+      "No Eliza Cloud embedding API key is available. Set ELIZAOS_CLOUD_EMBEDDING_API_KEY or run `elizaos login`.",
+    );
+  }
+
+  const response = await postElizaCloudEmbedding(
+    resolveElizaCloudEmbeddingEndpoint(runtime),
+    apiKey,
+    resolveElizaCloudEmbeddingModel(runtime),
+    extractEmbeddingInput(params),
+    getRuntimeNumberSetting(runtime, "ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS"),
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      `Eliza Cloud embeddings request failed (${response.status}): ${body || "empty response"}`,
+    );
+  }
+
+  const payload = (await response.json()) as unknown;
+  const vector = extractEmbeddingVector(payload);
+  if (vector.length > 0) {
+    return vector;
+  }
+
+  throw new Error(
+    "Eliza Cloud embeddings request returned no embedding vector.",
+  );
+}
+
 export function createElizaCloudPlugin(
   options: ElizaCloudPluginOptions,
 ): Plugin {
@@ -455,6 +600,8 @@ export function createElizaCloudPlugin(
               options,
               ModelType.TEXT_COMPLETION,
             ),
+          [ModelType.TEXT_EMBEDDING]: (runtime, params) =>
+            runElizaCloudEmbeddingGeneration(runtime, params, options),
         }
       : undefined,
     providers: [],

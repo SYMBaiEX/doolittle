@@ -63,7 +63,11 @@ export function createAgentContextProvider(services: AppServices): Provider {
       const roomKey = String(message.roomId ?? "global");
       const now = Date.now();
       const cacheTtlMs =
-        scope === "minimal" ? Number.POSITIVE_INFINITY : scope === "local" ? 20_000 : 3_000;
+        scope === "minimal"
+          ? Number.POSITIVE_INFINITY
+          : scope === "local"
+            ? 20_000
+            : 3_000;
       const sessionCache =
         sessionScopedCache.get(roomKey) ??
         (() => {
@@ -103,8 +107,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
       const recentTerminal = services.terminal.recent(
         scope === "minimal" ? 2 : 5,
       );
-      const enabledTools =
-        scope === "full" ? services.tools.enabled() : [];
+      const enabledTools = scope === "full" ? services.tools.enabled() : [];
       const delegationTasks =
         scope === "full" ? services.delegation.list() : [];
       const delegationOverview =
@@ -131,7 +134,9 @@ export function createAgentContextProvider(services: AppServices): Provider {
         )
         .join("\n");
       const workspaceSummary =
-        scope === "minimal" ? "" : services.workspace.summary(scope === "full" ? 16 : 8);
+        scope === "minimal"
+          ? ""
+          : services.workspace.summary(scope === "full" ? 16 : 8);
       const recentCommands =
         scope === "minimal"
           ? ""
@@ -219,11 +224,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
           repoSummary || "(none)",
         );
       } else {
-        sections.push(
-          "",
-          "AVAILABLE SKILLS",
-          skills || "(none)",
-        );
+        sections.push("", "AVAILABLE SKILLS", skills || "(none)");
       }
 
       if (scope === "full") {

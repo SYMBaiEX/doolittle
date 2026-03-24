@@ -243,6 +243,7 @@ interface WizardAnswers {
   elizaCloudEnabled: boolean;
   elizaCloudSmallModel: string;
   elizaCloudModel: string;
+  elizaCloudEmbeddingModel: string;
   anthropicApiKey: string;
   useLinkedClaudeCodeAuth: boolean;
   claudeCodeCliFallback: boolean;
@@ -369,6 +370,7 @@ let wizardScreen: WizardScreenContext | null = null;
 
 const DEFAULT_ELIZA_CLOUD_SMALL_MODEL = "xai/grok-4.1-fast-reasoning";
 const DEFAULT_ELIZA_CLOUD_LARGE_MODEL = "xai/grok-4.1-fast-reasoning";
+const DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
 function normalizeElizaCloudLargeModel(value?: string | null): string {
   const trimmed = value?.trim();
@@ -402,6 +404,21 @@ function normalizeElizaCloudSmallModel(value?: string | null): string {
     normalized === "xai/grok-4.1-fast-reasoning-beta"
   ) {
     return DEFAULT_ELIZA_CLOUD_SMALL_MODEL;
+  }
+  return trimmed;
+}
+
+function normalizeElizaCloudEmbeddingModel(value?: string | null): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL;
+  }
+  const normalized = trimmed.toLowerCase();
+  if (
+    normalized === "text-embedding-3-small" ||
+    normalized === "openai/text-embedding-3-small"
+  ) {
+    return DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL;
   }
   return trimmed;
 }
@@ -1740,7 +1757,7 @@ function summarizeAnswers(answers: WizardAnswers): string[] {
         ? answers.elizaCloudModel
         : answers.openaiModel;
   return [
-    `mind=${answers.provider} model=${model}`,
+    `mind=${answers.provider} model=${model}${answers.provider === "elizacloud" ? ` embed=${answers.elizaCloudEmbeddingModel}` : ""}`,
     `threads=cloud:${answers.elizaCloudApiKey ? "bound" : "idle"} codex:${answers.useLinkedCodexAuth ? "bound" : "idle"} claude:${answers.useLinkedClaudeCodeAuth ? "bound" : "idle"}`,
     `run=${answers.runDepth} cap=${answers.maxIterations} progress=${answers.toolProgressMode}`,
     `body=${answers.backend} eyes=${answers.browser}`,
@@ -2546,6 +2563,9 @@ function headlessAnswers(existingEnv: Map<string, string>): WizardAnswers {
     elizaCloudModel: normalizeElizaCloudLargeModel(
       existingEnv.get("ELIZAOS_CLOUD_LARGE_MODEL"),
     ),
+    elizaCloudEmbeddingModel: normalizeElizaCloudEmbeddingModel(
+      existingEnv.get("ELIZAOS_CLOUD_EMBEDDING_MODEL"),
+    ),
     anthropicApiKey: existingEnv.get("ANTHROPIC_API_KEY") || "",
     useLinkedClaudeCodeAuth:
       existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true",
@@ -2743,6 +2763,9 @@ async function runWizard(
       let elizaCloudModel = normalizeElizaCloudLargeModel(
         existingEnv.get("ELIZAOS_CLOUD_LARGE_MODEL"),
       );
+      let elizaCloudEmbeddingModel = normalizeElizaCloudEmbeddingModel(
+        existingEnv.get("ELIZAOS_CLOUD_EMBEDDING_MODEL"),
+      );
       let anthropicApiKey = existingEnv.get("ANTHROPIC_API_KEY") || "";
       let useLinkedClaudeCodeAuth =
         existingEnv.get("ELIZA_AGENT_USE_LINKED_CLAUDE_CODE_AUTH") === "true" ||
@@ -2871,6 +2894,11 @@ async function runWizard(
               "Choose my deep Eliza Cloud model",
               elizaCloudModel,
             );
+            elizaCloudEmbeddingModel = await ask(
+              rl,
+              "Choose my Eliza Cloud embedding model",
+              elizaCloudEmbeddingModel,
+            );
           } else if (cloudPath !== "skip") {
             warn(
               "I still do not see ELIZAOS_CLOUD_API_KEY in this workspace, so Eliza Cloud is not fully bonded yet.",
@@ -2975,6 +3003,11 @@ async function runWizard(
                   "Choose my deep Eliza Cloud model",
                   elizaCloudModel,
                 );
+                elizaCloudEmbeddingModel = await ask(
+                  rl,
+                  "Choose my Eliza Cloud embedding model",
+                  elizaCloudEmbeddingModel,
+                );
               } else {
                 provider = "offline";
               }
@@ -2995,6 +3028,11 @@ async function runWizard(
                   rl,
                   "Choose my deep Eliza Cloud model",
                   elizaCloudModel,
+                );
+                elizaCloudEmbeddingModel = await ask(
+                  rl,
+                  "Choose my Eliza Cloud embedding model",
+                  elizaCloudEmbeddingModel,
                 );
               } else {
                 provider = "offline";
@@ -3242,6 +3280,11 @@ async function runWizard(
           rl,
           "Which deep Eliza Cloud model should lead my first sessions",
           elizaCloudModel,
+        );
+        elizaCloudEmbeddingModel = await ask(
+          rl,
+          "Which Eliza Cloud embedding model should power memory and knowledge search",
+          elizaCloudEmbeddingModel,
         );
       }
 
@@ -3733,6 +3776,7 @@ async function runWizard(
           elizaCloudEnabled,
           elizaCloudSmallModel,
           elizaCloudModel,
+          elizaCloudEmbeddingModel,
           anthropicApiKey,
           useLinkedClaudeCodeAuth,
           claudeCodeCliFallback,
@@ -3811,6 +3855,7 @@ async function applyAnswers(answers: WizardAnswers): Promise<{
     ELIZAOS_CLOUD_BASE_URL: "https://www.elizacloud.ai/api/v1",
     ELIZAOS_CLOUD_SMALL_MODEL: answers.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: answers.elizaCloudModel,
+    ELIZAOS_CLOUD_EMBEDDING_MODEL: answers.elizaCloudEmbeddingModel,
     OPENAI_API_KEY:
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiApiKey
@@ -3956,6 +4001,7 @@ async function applyAnswers(answers: WizardAnswers): Promise<{
       answers.provider === "elizacloud" && Boolean(answers.elizaCloudApiKey),
     elizaCloudSmallModel: answers.elizaCloudSmallModel,
     elizaCloudLargeModel: answers.elizaCloudModel,
+    elizaCloudEmbeddingModel: answers.elizaCloudEmbeddingModel,
     openAiApiKey:
       answers.provider === "openai" || answers.provider === "hybrid"
         ? answers.openaiApiKey || undefined

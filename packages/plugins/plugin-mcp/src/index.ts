@@ -3,19 +3,21 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type { McpService as AgentMcpService } from "@/services/mcp-service";
 
 export interface McpPluginOptions {
-  mcp: {
-    status(): unknown;
-    probe(): Promise<unknown>;
-    discoverTools(): Promise<unknown>;
-    invoke(input: string): Promise<unknown>;
-    invokeTool(name: string, input: Record<string, unknown>): Promise<unknown>;
-    getCachedTools(): unknown[];
-    searchCachedTools(query: string): unknown[];
-    describeCachedTools(limit?: number): string;
-    describeTool(name: string): string;
-  };
+  mcp: Pick<
+    AgentMcpService,
+    | "status"
+    | "probe"
+    | "discoverTools"
+    | "invoke"
+    | "invokeTool"
+    | "getCachedTools"
+    | "searchCachedTools"
+    | "describeCachedTools"
+    | "describeTool"
+  >;
 }
 
 export function createMcpPlugin(options: McpPluginOptions): Plugin {
@@ -48,7 +50,8 @@ export function createMcpPlugin(options: McpPluginOptions): Plugin {
       return options.mcp.invoke(input);
     }
 
-    invokeTool(name: string, input: Record<string, unknown>) {
+    invokeTool(...args: Parameters<AgentMcpService["invokeTool"]>) {
+      const [name, input] = args;
       return options.mcp.invokeTool(name, input);
     }
 

@@ -1780,6 +1780,13 @@ function buildProviderFailureMessage(
   const cloudBaseUrl = normalizeElizaCloudBaseUrl(baseUrl);
 
   if (
+    normalized.includes("failed query:") &&
+    normalized.includes("relationships")
+  ) {
+    return `The Eliza runtime hit an internal relationships query error while building turn context. Retry the turn after startup finishes, and run \`${displayCommand("/doctor")}\` if it keeps happening.`;
+  }
+
+  if (
     normalized.includes("cannot connect to api") ||
     normalized.includes("unable to connect") ||
     normalized.includes("failedtoopensocket") ||
@@ -4169,6 +4176,7 @@ async function buildCommandResponse(
       `  cloud: validation=${cloudDoctor.baseUrlValidation ?? "ok"}`,
       `  cloud: auth=${cloudDoctor.authMode} source=${cloudDoctor.credentialSource} apiKey=${cloudDoctor.hasApiKey ? "present" : "missing"}`,
       `  cloud: models fast=${context.config.elizaCloudSmallModel} deep=${context.config.elizaCloudLargeModel}`,
+      `  cloud: embeddings model=${context.config.elizaCloudEmbeddingModel} url=${context.config.elizaCloudEmbeddingUrl ?? context.config.elizaCloudBaseUrl}`,
       `  ${formatLinkedProviderAdviceNextStep(elizaCloudAdvice)}`,
       formatLinkedProviderAdviceAlternate(elizaCloudAdvice)
         ? `  ${formatLinkedProviderAdviceAlternate(elizaCloudAdvice)}`

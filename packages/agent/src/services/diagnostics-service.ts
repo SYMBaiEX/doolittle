@@ -16,6 +16,7 @@ import {
 } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import {
+  type BrowserMcpServices,
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
@@ -192,7 +193,7 @@ export class DiagnosticsService {
             }),
             getCachedTools: () => [],
           },
-        } as unknown as Parameters<typeof getNativeIntegrationControlPlane>[1])
+        } satisfies BrowserMcpServices)
       : undefined;
     const formsControl = this.runtime
       ? getNativeFormsControlPlane(this.runtime)
@@ -281,6 +282,16 @@ export class DiagnosticsService {
       detail: cloudBaseUrlValidation
         ? `${cloudBaseUrlValidation} normalized=${normalizedCloudBaseUrl}`
         : `normalized=${normalizedCloudBaseUrl}`,
+    });
+
+    checks.push({
+      id: "provider.elizacloud-embeddings",
+      status:
+        this.config.elizaCloudEnabled && this.config.elizaCloudEmbeddingModel
+          ? "pass"
+          : "warn",
+      summary: "Eliza Cloud embedding route",
+      detail: `model=${this.config.elizaCloudEmbeddingModel} url=${this.config.elizaCloudEmbeddingUrl ?? normalizedCloudBaseUrl} dimensions=${this.config.elizaCloudEmbeddingDimensions ?? "default"} apiKey=${this.config.elizaCloudEmbeddingApiKey ? "dedicated" : this.config.elizaCloudApiKey ? "shared-cloud-key" : "missing"}`,
     });
 
     checks.push({

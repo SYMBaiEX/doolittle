@@ -1,75 +1,93 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import type {
+  DelegationOverview,
+  DelegationSupervisionReport,
+  DelegationTaskTree,
+} from "@/services/delegation-service";
+import type { DelegationTaskRecord } from "@/types";
+
+type DelegationTaskLike = DelegationTaskRecord;
+type DelegationQueueSummaryLike = DelegationOverview;
+type DelegationTreeLike = DelegationTaskTree;
+type DelegationSupervisionReportLike = DelegationSupervisionReport;
+
+function normalizeMetadata(
+  metadata?: Record<string, unknown>,
+): Record<string, string> | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+  const normalized = Object.fromEntries(
+    Object.entries(metadata)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => [
+        key,
+        typeof value === "string" ? value : String(value),
+      ]),
+  );
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizePriority(
+  priority?: string,
+): "low" | "normal" | "high" | undefined {
+  return priority === "low" || priority === "high" || priority === "normal"
+    ? priority
+    : undefined;
+}
 
 export interface AgentOrchestratorPluginOptions {
   delegation: {
     create(input: {
       title: string;
       objective: string;
-      metadata?: Record<string, unknown>;
+      metadata?: Record<string, string>;
       profile?: string;
-      priority?: string;
+      priority?: "low" | "normal" | "high";
       tags?: string[];
       parentTaskId?: string;
-    }): unknown;
-    list(): unknown[];
-    get(id: string): unknown;
-    queueSummary(): unknown;
-    overview(): unknown;
-    getChildren?(id: string): unknown[];
-    tree?(id: string): unknown;
+    }): DelegationTaskLike;
+    list(): DelegationTaskLike[];
+    get(id: string): DelegationTaskLike;
+    queueSummary(): DelegationQueueSummaryLike;
+    overview(): DelegationOverview;
+    getChildren?(id: string): DelegationTaskLike[];
+    tree?(id: string): DelegationTreeLike;
     spawnChild(
       parentId: string,
       input: {
         title: string;
         objective: string;
-        metadata?: Record<string, unknown>;
+        metadata?: Record<string, string>;
         profile?: string;
-        priority?: string;
+        priority?: "low" | "normal" | "high";
         tags?: string[];
       },
-    ): unknown;
+    ): DelegationTaskLike;
     retryTask?(
       id: string,
       note?: string,
       options?: { cascadeChildren?: boolean },
-    ): unknown;
-    cancel(id: string, note?: string): unknown;
+    ): DelegationTaskLike;
+    cancel(id: string, note?: string): DelegationTaskLike;
     supervise(
-      runner: (task: unknown) => Promise<string>,
+      runner: (task: DelegationTaskLike) => Promise<string>,
       options?: Record<string, unknown>,
-    ): Promise<unknown>;
+    ): Promise<DelegationSupervisionReportLike>;
     runQueued(
-      runner: (task: unknown) => Promise<string>,
+      runner: (task: DelegationTaskLike) => Promise<string>,
       options?: Record<string, unknown>,
-    ): Promise<unknown>;
+    ): Promise<DelegationTaskLike[]>;
   };
 }
 
-function countPending(queue: unknown): number {
-  if (Array.isArray(queue)) {
-    return queue.length;
-  }
-  if (queue && typeof queue === "object") {
-    const record = queue as Record<string, unknown>;
-    if (typeof record.pending === "number") {
-      return record.pending;
-    }
-    if (typeof record.total === "number") {
-      return record.total;
-    }
-  }
-  return 0;
+function countPending(queue: DelegationQueueSummaryLike): number {
+  return queue.pending ?? queue.total ?? 0;
 }
 
-function countActiveWorkers(queue: unknown): number {
-  if (queue && typeof queue === "object") {
-    const record = queue as Record<string, unknown>;
-    if (typeof record.activeWorkers === "number") {
-      return record.activeWorkers;
-    }
-  }
-  return 0;
+function countActiveWorkers(queue: DelegationQueueSummaryLike): number {
+  return queue.activeWorkers ?? 0;
 }
 
 export function createAgentOrchestratorPlugin(
@@ -98,7 +116,11 @@ export function createAgentOrchestratorPlugin(
       objective: string,
       metadata?: Record<string, unknown>,
     ) {
-      return this.delegation.create({ title, objective, metadata });
+      return this.delegation.create({
+        title,
+        objective,
+        metadata: normalizeMetadata(metadata),
+      });
     }
 
     queue() {
@@ -149,7 +171,11 @@ export function createAgentOrchestratorPlugin(
         tags?: string[];
       },
     ) {
-      return this.delegation.spawnChild(parentId, input);
+      return this.delegation.spawnChild(parentId, {
+        ...input,
+        metadata: normalizeMetadata(input.metadata),
+        priority: normalizePriority(input.priority),
+      });
     }
 
     retryTask(
@@ -165,14 +191,14 @@ export function createAgentOrchestratorPlugin(
     }
 
     supervise(
-      runner: (task: unknown) => Promise<string>,
+      runner: (task: DelegationTaskLike) => Promise<string>,
       runOptions?: Record<string, unknown>,
     ) {
       return this.delegation.supervise(runner, runOptions);
     }
 
     runQueued(
-      runner: (task: unknown) => Promise<string>,
+      runner: (task: DelegationTaskLike) => Promise<string>,
       runOptions?: Record<string, unknown>,
     ) {
       return this.delegation.runQueued(runner, runOptions);

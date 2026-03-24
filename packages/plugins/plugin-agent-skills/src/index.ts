@@ -1,16 +1,20 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import type { SkillsService } from "@/services/skills-service";
 
 export interface AgentSkillsPluginOptions {
-  skills: {
-    list(): unknown[];
-    get(slug: string): unknown;
-    generated(): unknown[];
-    catalog(limit?: number): Promise<unknown>;
-    searchCatalog(query: string, limit?: number): Promise<unknown>;
+  skills: Pick<SkillsService, "list" | "get" | "catalog" | "searchCatalog"> & {
+    generated(): Array<{
+      slug: string;
+      title: string;
+      path: string;
+      taskId: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
   };
   synthesis: {
-    synthesize(taskId: string): Promise<unknown>;
+    synthesize(taskId: string): Promise<string>;
   };
 }
 

@@ -5,15 +5,25 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type {
+  AutocoderPipelineService,
+  AutocoderPipelineWorkflowRecord,
+} from "@/services/autocoder-pipeline-service";
+import type { DelegationService } from "@/services/delegation-service";
+import type { DelegationTaskRecord } from "@/types";
 
 interface PlanningPluginOptions {
-  delegation: {
-    list(): unknown[];
-    get?(id: string): unknown;
+  delegation: Pick<DelegationService, "list"> & {
+    get?(id: string): DelegationTaskRecord;
   };
   workflows: {
-    list(limit?: number): unknown[];
-    get?(id: string): unknown;
+    list(limit?: number): ReturnType<AutocoderPipelineService["listWorkflows"]>;
+    get?(
+      id: string,
+    ):
+      | ReturnType<AutocoderPipelineService["workflow"]>
+      | AutocoderPipelineWorkflowRecord
+      | undefined;
   };
 }
 

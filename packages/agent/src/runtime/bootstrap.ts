@@ -15,7 +15,9 @@ import {
   AgentRuntime,
   ApprovalService,
   EventType,
+  type Relationship,
   ToolPolicyService,
+  type UUID,
 } from "@elizaos/core";
 import character from "@/character";
 import { loadConfig } from "@/config/env";
@@ -281,6 +283,72 @@ function createActivePgliteLockError(dataDir: string, err: unknown): Error {
   );
 }
 
+function coerceRelationshipEntityId(params: unknown): string | undefined {
+  if (!params || typeof params !== "object") {
+    return undefined;
+  }
+  const record = params as {
+    entityId?: unknown;
+    entityIds?: unknown;
+  };
+  if (typeof record.entityId === "string" && record.entityId.trim()) {
+    return record.entityId.trim();
+  }
+  if (!Array.isArray(record.entityIds)) {
+    return undefined;
+  }
+  const firstEntityId = record.entityIds.find(
+    (value): value is string =>
+      typeof value === "string" && value.trim().length > 0,
+  );
+  return firstEntityId?.trim();
+}
+
+type RuntimeRelationshipParams = Parameters<
+  AgentRuntime["getRelationships"]
+>[0] & {
+  entityIds?: UUID[];
+};
+
+type RuntimeRelationshipResult = Awaited<
+  ReturnType<AgentRuntime["getRelationships"]>
+>;
+
+function patchRuntimeRelationshipCompatibility(runtime: AgentRuntime): void {
+  const runtimeWithPatch = runtime as AgentRuntime & {
+    __elizaAgentRelationshipCompatibilityPatched?: boolean;
+  };
+  if (
+    runtimeWithPatch.__elizaAgentRelationshipCompatibilityPatched ||
+    typeof runtimeWithPatch.getRelationships !== "function"
+  ) {
+    return;
+  }
+
+  const originalGetRelationships =
+    runtimeWithPatch.getRelationships.bind(runtimeWithPatch);
+  const patchedGetRelationships: AgentRuntime["getRelationships"] = async (
+    params,
+  ): Promise<Relationship[]> => {
+    const runtimeParams = params as RuntimeRelationshipParams;
+    const entityId = coerceRelationshipEntityId(params);
+    if (!entityId) {
+      if (Array.isArray(runtimeParams.entityIds)) {
+        return [] satisfies RuntimeRelationshipResult;
+      }
+      return originalGetRelationships(params);
+    }
+
+    const normalizedParams: Parameters<AgentRuntime["getRelationships"]>[0] = {
+      ...runtimeParams,
+      entityId: entityId as UUID,
+    };
+    return originalGetRelationships(normalizedParams);
+  };
+  runtimeWithPatch.getRelationships = patchedGetRelationships;
+  runtimeWithPatch.__elizaAgentRelationshipCompatibilityPatched = true;
+}
+
 async function initializeRuntimeWithRecovery(
   createRuntime: () => AgentRuntime,
   services: AppServices,
@@ -433,6 +501,7 @@ function buildPluginSettings(
     ELIZAOS_CLOUD_BASE_URL: config.elizaCloudBaseUrl,
     ELIZAOS_CLOUD_SMALL_MODEL: config.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: config.elizaCloudLargeModel,
+    ELIZAOS_CLOUD_EMBEDDING_MODEL: config.elizaCloudEmbeddingModel,
     ELIZAOS_CLOUD_ENABLED: String(
       config.elizaCloudEnabled ||
         runtimeSettings.model.provider === "elizacloud",
@@ -471,6 +540,18 @@ function buildPluginSettings(
       linkedElizaCloud.baseUrl || config.elizaCloudBaseUrl;
   } else if (config.elizaCloudApiKey) {
     settings.ELIZAOS_CLOUD_API_KEY = config.elizaCloudApiKey;
+  }
+
+  if (config.elizaCloudEmbeddingUrl) {
+    settings.ELIZAOS_CLOUD_EMBEDDING_URL = config.elizaCloudEmbeddingUrl;
+  }
+  if (config.elizaCloudEmbeddingApiKey) {
+    settings.ELIZAOS_CLOUD_EMBEDDING_API_KEY = config.elizaCloudEmbeddingApiKey;
+  }
+  if (config.elizaCloudEmbeddingDimensions) {
+    settings.ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS = String(
+      config.elizaCloudEmbeddingDimensions,
+    );
   }
 
   if (linkedCodex?.accessToken) {
@@ -819,6 +900,8 @@ export async function getAppContext(
       config,
     );
     appendBootstrapTrace("phase:initializeRuntime:done");
+    patchRuntimeRelationshipCompatibility(runtime);
+    appendBootstrapTrace("phase:patchRelationshipsCompatibility:done");
     appendBootstrapTrace("phase:ensureCoreRuntimeServices:start");
     await ensureCoreRuntimeServices(runtime);
     appendBootstrapTrace("phase:ensureCoreRuntimeServices:done");

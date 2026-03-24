@@ -256,4 +256,76 @@ describe("createElizaCloudPlugin", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("registers a native TEXT_EMBEDDING handler for cloud embeddings", async () => {
+    const originalFetch = globalThis.fetch;
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              embedding: [0.1, 0.2, 0.3],
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+
+    try {
+      const plugin = createElizaCloudPlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "elizacloud",
+          available: true,
+          reusable: true,
+          nativeReady: true,
+          detail: "ready",
+        }),
+        getCredentials: () => ({
+          apiKey: "eliza-token",
+        }),
+      });
+      const handler = plugin.models?.TEXT_EMBEDDING;
+      const result = await handler?.(
+        {
+          getSetting: (key: string) => {
+            if (key === "runtimeSettings") {
+              return JSON.stringify({
+                model: {
+                  provider: "elizacloud",
+                  baseUrl: "https://www.elizacloud.ai/api/v1",
+                },
+              });
+            }
+            if (key === "ELIZAOS_CLOUD_EMBEDDING_MODEL") {
+              return "openai/text-embedding-3-small";
+            }
+            if (key === "ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS") {
+              return "1536";
+            }
+            return null;
+          },
+        } as never,
+        {
+          text: "hello embeddings",
+        } as never,
+      );
+
+      expect(result).toEqual([0.1, 0.2, 0.3]);
+      expect(calls[0]?.url).toContain("/embeddings");
+      expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(
+        expect.objectContaining({
+          model: "openai/text-embedding-3-small",
+          input: "hello embeddings",
+          encoding_format: "float",
+          dimensions: 1536,
+        }),
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

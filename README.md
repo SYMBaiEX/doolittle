@@ -859,6 +859,10 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZAOS_CLOUD_BASE_URL` | Base URL for Eliza Cloud managed inference |
 | `ELIZAOS_CLOUD_SMALL_MODEL` | Default small-model identifier for Eliza Cloud. Current default: `xai/grok-4.1-fast-reasoning` |
 | `ELIZAOS_CLOUD_LARGE_MODEL` | Default large-model identifier for Eliza Cloud. Current default: `xai/grok-4.1-fast-reasoning` |
+| `ELIZAOS_CLOUD_EMBEDDING_MODEL` | Default embedding-model identifier for Eliza Cloud. Current default: `openai/text-embedding-3-small` |
+| `ELIZAOS_CLOUD_EMBEDDING_URL` | Optional custom base URL for the Eliza Cloud embeddings endpoint |
+| `ELIZAOS_CLOUD_EMBEDDING_API_KEY` | Optional dedicated API key for Eliza Cloud embeddings. Falls back to `ELIZAOS_CLOUD_API_KEY` |
+| `ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS` | Optional embedding dimension override for `text-embedding-3` models |
 
 ### OpenAI
 
