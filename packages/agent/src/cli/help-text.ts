@@ -1,5 +1,4 @@
 import { platform } from "node:os";
-import { canonicalizeSlashCommandSyntax } from "@/runtime/command-catalog";
 
 const IS_MACOS = platform() === "darwin";
 
@@ -15,7 +14,7 @@ function macAwareKeyLabel(label: string): string {
 }
 
 export function buildHelpText(agentName: string): string {
-  const command = (value: string) => canonicalizeSlashCommandSyntax(value);
+  const command = (value: string) => value.trim();
   return [
     `${agentName} command surfaces`,
     "",
@@ -41,11 +40,12 @@ export function buildHelpText(agentName: string): string {
     `  ${macAwareKeyLabel("Ctrl-L")}           Clear transcript and activity`,
     `  ${macAwareKeyLabel("Ctrl-R")}           Refresh status panels`,
     `  ${macAwareKeyLabel("Ctrl-G")}           Switch to Gateway control deck`,
+    `  ${macAwareKeyLabel("Ctrl-B")}           Switch to Background Jobs`,
     `  ${macAwareKeyLabel("Ctrl-P")}           Open command palette`,
     `  ${macAwareKeyLabel("Ctrl-E")}           Open multiline composer`,
     `  ${macAwareKeyLabel("Ctrl-S")}           Focus last response`,
     `  ${macAwareKeyLabel("Ctrl-X")}           Export transcript to clipboard/file`,
-    `  ${macAwareKeyLabel("Alt-1..Alt-4")}     Show Launchpad/Gateway/Responses/Logs`,
+    `  ${macAwareKeyLabel("Alt-1..Alt-5")}     Show Assist/Ecosystem/Gateway/Responses/Jobs`,
     "  Tab              Complete the top suggested command",
     `  ${macAwareKeyLabel("PageUp/PageDown")}  Scroll the focused pane`,
     "  Up/Down          Command history in input",

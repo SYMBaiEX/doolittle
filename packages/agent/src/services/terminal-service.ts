@@ -267,7 +267,12 @@ interface ExecutionBackend {
   ): Promise<ExecutionBackendHealth>;
   run(
     command: string,
-    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      cwd: string;
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult>;
 }
 
@@ -328,7 +333,7 @@ const LOCAL_SHELL = resolveLocalShell();
 
 async function runCommand(
   cmd: string[],
-  options: { cwd?: string; timeoutMs: number },
+  options: { cwd?: string; timeoutMs: number; abortSignal?: AbortSignal },
 ): Promise<TerminalRunResult> {
   const startedAt = Date.now();
   const proc = Bun.spawn({
@@ -339,6 +344,12 @@ async function runCommand(
   });
 
   let timedOut = false;
+  let aborted = options.abortSignal?.aborted === true;
+  const handleAbort = () => {
+    aborted = true;
+    proc.kill();
+  };
+  options.abortSignal?.addEventListener("abort", handleAbort, { once: true });
   const timer = setTimeout(() => {
     timedOut = true;
     proc.kill();
@@ -353,18 +364,21 @@ async function runCommand(
     const durationMs = Date.now() - startedAt;
 
     return {
-      exitCode: timedOut ? 124 : exitCode,
+      exitCode: timedOut ? 124 : aborted ? 130 : exitCode,
       stdout: stdout.trim(),
       stderr:
         stderr.trim() ||
         (timedOut
           ? `Command timed out after ${options.timeoutMs}ms (${durationMs}ms elapsed).`
-          : ""),
+          : aborted
+            ? `Command cancelled after ${durationMs}ms.`
+            : ""),
       timedOut,
       durationMs,
     };
   } finally {
     clearTimeout(timer);
+    options.abortSignal?.removeEventListener("abort", handleAbort);
   }
 }
 
@@ -375,6 +389,7 @@ async function runCommandStreaming(
     timeoutMs: number;
     onStdout?: (chunk: string) => void;
     onStderr?: (chunk: string) => void;
+    abortSignal?: AbortSignal;
   },
 ): Promise<TerminalRunResult> {
   const startedAt = Date.now();
@@ -386,8 +401,14 @@ async function runCommandStreaming(
   });
 
   let timedOut = false;
+  let aborted = options.abortSignal?.aborted === true;
   let stdout = "";
   let stderr = "";
+  const handleAbort = () => {
+    aborted = true;
+    proc.kill();
+  };
+  options.abortSignal?.addEventListener("abort", handleAbort, { once: true });
   const timer = setTimeout(() => {
     timedOut = true;
     proc.kill();
@@ -438,18 +459,21 @@ async function runCommandStreaming(
     ]);
     const durationMs = Date.now() - startedAt;
     return {
-      exitCode: timedOut ? 124 : exitCode,
+      exitCode: timedOut ? 124 : aborted ? 130 : exitCode,
       stdout: stdout.trim(),
       stderr:
         stderr.trim() ||
         (timedOut
           ? `Command timed out after ${options.timeoutMs}ms (${durationMs}ms elapsed).`
-          : ""),
+          : aborted
+            ? `Command cancelled after ${durationMs}ms.`
+            : ""),
       timedOut,
       durationMs,
     };
   } finally {
     clearTimeout(timer);
+    options.abortSignal?.removeEventListener("abort", handleAbort);
   }
 }
 
@@ -1406,7 +1430,7 @@ class LocalExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { cwd: string; timeoutMs: number },
+    options: { cwd: string; timeoutMs: number; abortSignal?: AbortSignal },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
       await runCommand([LOCAL_SHELL, "-lc", command], options),
@@ -1557,13 +1581,19 @@ class DockerExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      cwd: string;
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
       await runCommand(
         buildContainerCommand("docker", command, options.cwd, options.settings),
         {
           timeoutMs: options.timeoutMs,
+          abortSignal: options.abortSignal,
         },
       ),
     );
@@ -1710,13 +1740,19 @@ class PodmanExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      cwd: string;
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult> {
     return normalizeBackendError(
       await runCommand(
         buildContainerCommand("podman", command, options.cwd, options.settings),
         {
           timeoutMs: options.timeoutMs,
+          abortSignal: options.abortSignal,
         },
       ),
     );
@@ -1853,7 +1889,11 @@ class SshExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult> {
     const execution = options.settings.execution;
     if (!execution.sshHost || !execution.sshUser || !execution.sshPath) {
@@ -1876,7 +1916,7 @@ class SshExecutionBackend implements ExecutionBackend {
           `${execution.sshUser}@${execution.sshHost}`,
           remoteCommand,
         ],
-        { timeoutMs: options.timeoutMs },
+        { timeoutMs: options.timeoutMs, abortSignal: options.abortSignal },
       ),
     );
   }
@@ -1956,7 +1996,12 @@ class SingularityExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      cwd: string;
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult> {
     if (!options.settings.execution.singularityImage) {
       return {
@@ -1973,6 +2018,7 @@ class SingularityExecutionBackend implements ExecutionBackend {
         buildSingularityCommand(command, options.cwd, options.settings),
         {
           timeoutMs: options.timeoutMs,
+          abortSignal: options.abortSignal,
         },
       ),
     );
@@ -2256,7 +2302,12 @@ class DaytonaExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      cwd: string;
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult> {
     const cloud = buildCloudProfile("daytona", options.settings, options.cwd);
     const safeCommand = sanitizeCommand(command);
@@ -2284,6 +2335,7 @@ class DaytonaExecutionBackend implements ExecutionBackend {
         ),
         {
           timeoutMs: options.timeoutMs,
+          abortSignal: options.abortSignal,
         },
       ),
     );
@@ -2495,7 +2547,12 @@ class ModalExecutionBackend implements ExecutionBackend {
 
   async run(
     command: string,
-    options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
+    options: {
+      cwd: string;
+      timeoutMs: number;
+      settings: RuntimeSettings;
+      abortSignal?: AbortSignal;
+    },
   ): Promise<TerminalRunResult> {
     const cloud = buildCloudProfile("modal", options.settings, options.cwd);
     const safeCommand = sanitizeCommand(command);
@@ -2518,6 +2575,7 @@ class ModalExecutionBackend implements ExecutionBackend {
         buildModalShellArgs(options.settings, safeCommand, options.cwd),
         {
           timeoutMs: options.timeoutMs,
+          abortSignal: options.abortSignal,
         },
       ),
     );
@@ -2587,6 +2645,7 @@ export class TerminalService {
   async run(
     command: string,
     timeoutMs?: number,
+    abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
     this.invalidateHealthCache();
     const settings = this.getSettings();
@@ -2610,6 +2669,7 @@ export class TerminalService {
       cwd: this.workspaceDir,
       timeoutMs: effectiveTimeoutMs,
       settings,
+      abortSignal,
     });
     const latestCloudSnapshot = preview.cloud
       ? (this.cloudState.latestSnapshot(preview.cloud) ?? preview.cloudSnapshot)
@@ -2681,12 +2741,13 @@ export class TerminalService {
       onStderr?: (chunk: string) => void;
     },
     timeoutMs?: number,
+    abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
     this.invalidateHealthCache();
     const settings = this.getSettings();
     const backendName = settings.execution.backend as ExecutionBackendName;
     if (backendName !== "local") {
-      return this.run(command, timeoutMs);
+      return this.run(command, timeoutMs, abortSignal);
     }
 
     const safeCommand = sanitizeCommand(command);
@@ -2708,6 +2769,7 @@ export class TerminalService {
         timeoutMs: effectiveTimeoutMs,
         onStdout: callbacks?.onStdout,
         onStderr: callbacks?.onStderr,
+        abortSignal,
       }),
     );
 

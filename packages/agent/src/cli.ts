@@ -14,6 +14,7 @@ import {
   cliJobStatusSummary,
   getCliJob,
   launchCliBackgroundJob,
+  listCliJobs,
   renderCliJobReplay,
 } from "@/cli/jobs";
 import type { CliTurnEvent } from "@/cli/turn-events";
@@ -73,7 +74,12 @@ export interface CliPromptEventHandlers {
   onEvent?: (event: CliTurnEvent) => void | Promise<void>;
 }
 
-type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
+type ControlDeckMode =
+  | "assist"
+  | "ecosystem"
+  | "gateway"
+  | "responses"
+  | "jobs";
 
 const IS_MACOS = platform() === "darwin";
 
@@ -866,6 +872,44 @@ function renderResponsesContent(context: AppContext): string {
   ].join("\n");
 }
 
+function renderJobsContent(context: AppContext): string {
+  const jobs = listCliJobs(context.config.dataDir).slice(0, 8);
+  return [
+    "{bold}Background Jobs{/}",
+    `Tracked: ${jobs.length}`,
+    "",
+    ...(jobs.length
+      ? jobs.map((job) => {
+          const statusColor =
+            job.status === "completed"
+              ? "green-fg"
+              : job.status === "running"
+                ? "yellow-fg"
+                : job.status === "failed"
+                  ? "red-fg"
+                  : job.status === "cancelled"
+                    ? "magenta-fg"
+                    : "cyan-fg";
+          return [
+            `- ${job.id.slice(0, 8)} {${statusColor}}[${job.status}]{/}`,
+            `  prompt=${truncate(job.prompt, 34)}`,
+            job.completedAt
+              ? `  done=${job.completedAt.slice(11, 19)} exit=${job.exitCode ?? "n/a"}`
+              : job.startedAt
+                ? `  started=${job.startedAt.slice(11, 19)} pid=${job.pid ?? "n/a"}`
+                : `  queued=${job.createdAt.slice(11, 19)}`,
+          ].join("\n");
+        })
+      : ["{gray-fg}No detached jobs yet.{/}"]),
+    "",
+    "{bold}Shell{/}",
+    `- ${canonicalizeSlashCommandSyntax("/jobs")}`,
+    `- ${canonicalizeSlashCommandSyntax("/jobs show <id>")}`,
+    `- ${canonicalizeSlashCommandSyntax("/jobs attach <id>")}`,
+    `- ${canonicalizeSlashCommandSyntax("/jobs cancel <id>")}`,
+  ].join("\n");
+}
+
 async function renderTransportContent(context: AppContext): Promise<string> {
   const traces = context.gateway.trace(6);
   const inbox = context.gateway.inbox(3);
@@ -1144,22 +1188,27 @@ async function executeCliInput(
     command: string,
     onSuccess?: () => Promise<string | undefined>,
   ): Promise<CliExecutionResult> => {
-    const result = await context.services.terminal.runStreamingLocal(command, {
-      onStdout: (chunk) => {
-        hooks?.onStream?.({
-          source: "stdout",
-          chunk,
-          command,
-        });
+    const result = await context.services.terminal.runStreamingLocal(
+      command,
+      {
+        onStdout: (chunk) => {
+          hooks?.onStream?.({
+            source: "stdout",
+            chunk,
+            command,
+          });
+        },
+        onStderr: (chunk) => {
+          hooks?.onStream?.({
+            source: "stderr",
+            chunk,
+            command,
+          });
+        },
       },
-      onStderr: (chunk) => {
-        hooks?.onStream?.({
-          source: "stderr",
-          chunk,
-          command,
-        });
-      },
-    });
+      undefined,
+      hooks?.abortSignal,
+    );
     const followUp =
       result.exitCode === 0 && onSuccess ? await onSuccess() : undefined;
     return {
@@ -2300,7 +2349,9 @@ async function startTui(
           ? "Enter gateway supervision"
           : controlDeckMode === "ecosystem"
             ? "Enter runtime ecosystem"
-            : "Enter responses list";
+            : controlDeckMode === "jobs"
+              ? "Enter background jobs"
+              : "Enter responses list";
     }
     return "Esc input";
   }
@@ -2618,7 +2669,9 @@ async function startTui(
   function setInputValue(value: string): void {
     noteTextEntryActivity();
     inputBox.setValue(value);
-    assistBox.setContent(renderSuggestionsContent(value));
+    if (controlDeckMode === "assist") {
+      assistBox.setContent(renderSuggestionsContent(value));
+    }
     screen.render();
   }
 
@@ -2628,6 +2681,8 @@ async function startTui(
         return " Launchpad · Ecosystem ";
       case "gateway":
         return " Launchpad · Gateway ";
+      case "jobs":
+        return " Launchpad · Jobs ";
       case "responses":
         return " Launchpad · Responses ";
       default:
@@ -2647,6 +2702,10 @@ async function startTui(
     }
     if (mode === "responses") {
       assistBox.setContent(renderResponsesContent(context));
+      return;
+    }
+    if (mode === "jobs") {
+      assistBox.setContent(renderJobsContent(context));
       return;
     }
     assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
@@ -3488,6 +3547,13 @@ async function startTui(
     controlDeckMode = "gateway";
     void refreshPanels();
   });
+  screen.key(["C-b"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
+    controlDeckMode = "jobs";
+    void refreshPanels();
+  });
   screen.key(["C-e"], () => {
     if (textEntryFocused() || paletteOpen || composerOpen) {
       return;
@@ -3608,6 +3674,13 @@ async function startTui(
     controlDeckMode = "responses";
     void refreshPanels();
   });
+  screen.key(["M-5"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
+    controlDeckMode = "jobs";
+    void refreshPanels();
+  });
   screen.key(["pageup"], () => {
     scrollFocusedPane(-8);
   });
@@ -3648,6 +3721,10 @@ async function startTui(
       }
       if (controlDeckMode === "gateway") {
         queueCommand(canonicalizeSlashCommandSyntax("/gateway supervision"));
+        return;
+      }
+      if (controlDeckMode === "jobs") {
+        queueCommand(canonicalizeSlashCommandSyntax("/jobs"));
         return;
       }
       queueCommand(canonicalizeSlashCommandSyntax("/responses list"));

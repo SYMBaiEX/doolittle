@@ -546,16 +546,21 @@ async function runShellCommandForTurn(
         phase: "command",
       });
     };
-    const result = await context.services.terminal.runStreamingLocal(command, {
-      onStdout: (chunk) => {
-        stdout += chunk;
-        void emit(chunk);
+    const result = await context.services.terminal.runStreamingLocal(
+      command,
+      {
+        onStdout: (chunk) => {
+          stdout += chunk;
+          void emit(chunk);
+        },
+        onStderr: (chunk) => {
+          stderr += chunk;
+          void emit(chunk);
+        },
       },
-      onStderr: (chunk) => {
-        stderr += chunk;
-        void emit(chunk);
-      },
-    });
+      undefined,
+      hooks?.abortSignal,
+    );
     return {
       command: result.command,
       exitCode: result.exitCode,
