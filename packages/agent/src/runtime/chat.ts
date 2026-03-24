@@ -6861,35 +6861,74 @@ export async function executeSlashCommand(
   return buildCommandResponse(input, context, hooks);
 }
 
-export async function handleAgentTurn(
+interface TurnState {
+  agentName: string;
+  localInteractive: boolean;
+  connectionSource: string;
+  sessionId: string;
+  roomId: string;
+  worldId: string;
+  entityId: string;
+  messageServerId: string;
+  settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+  runId: string;
+}
+
+interface DirectLocalIntentLoader {
+  directLocalIntent: unknown;
+  executeDirectLocalIntent: (
+    intent: never,
+    sessionId: string,
+    context: AgentExecutionContext,
+    hooks?: AgentTurnHooks,
+  ) => Promise<string>;
+  isHighConfidenceDirectLocalIntent: (intent: never) => boolean;
+  shouldUseDirectLocalFallback: (input: {
+    message: string;
+    response: string;
+    observedActionCount: number;
+    runFailureMessage?: string;
+    isHighConfidenceIntent?: boolean;
+  }) => boolean;
+}
+
+function createTurnState(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
-  options?: {
-    runtimeOverrides?: CronJobRuntimeOverrides;
-    personalityId?: string;
-  } & AgentTurnHooks,
-): Promise<string> {
-  const perf = new TurnPerfTrace();
+): TurnState {
   const agentName = context.runtime.character?.name ?? "Eliza Agent";
   const localInteractive = (input.source ?? "cli") === "cli";
   const connectionSource = localInteractive
     ? "client_chat"
     : (input.source ?? "cli");
   const roomKey = input.roomId ?? `room:${input.userId}`;
-  const roomId = localInteractive
-    ? stableRuntimeUuid(`${agentName}-chat-room`)
-    : stableRuntimeUuid(roomKey);
-  const worldId = localInteractive
-    ? stableRuntimeUuid(`${agentName}-chat-world`)
-    : stableRuntimeUuid("eliza-agent-world");
-  const entityId = stableRuntimeUuid(input.userId);
-  const messageServerId = localInteractive
-    ? stableRuntimeUuid(`${agentName}-cli-server`)
-    : stableRuntimeUuid("eliza-agent-message-server");
-  const sessionId = roomKey;
-  const settings = context.services.settings.get();
-  const runId = randomUUID();
-  const scheduleProfileObservation = () => {
+
+  return {
+    agentName,
+    localInteractive,
+    connectionSource,
+    sessionId: roomKey,
+    roomId: localInteractive
+      ? stableRuntimeUuid(`${agentName}-chat-room`)
+      : stableRuntimeUuid(roomKey),
+    worldId: localInteractive
+      ? stableRuntimeUuid(`${agentName}-chat-world`)
+      : stableRuntimeUuid("eliza-agent-world"),
+    entityId: stableRuntimeUuid(input.userId),
+    messageServerId: localInteractive
+      ? stableRuntimeUuid(`${agentName}-cli-server`)
+      : stableRuntimeUuid("eliza-agent-message-server"),
+    settings: context.services.settings.get(),
+    runId: randomUUID(),
+  };
+}
+
+function createProfileObservationScheduler(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  sessionId: string,
+): () => void {
+  return () => {
     scheduleBackgroundTask(() => {
       context.services.userProfiles.observe(
         input.userId,
@@ -6904,32 +6943,108 @@ export async function handleAgentTurn(
       );
     });
   };
+}
 
+function startTrackedTurn(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  turn: TurnState,
+): void {
   storeSessionMessage(context, {
-    sessionId,
-    roomId,
-    entityId,
+    sessionId: turn.sessionId,
+    roomId: turn.roomId,
+    entityId: turn.entityId,
     role: "user",
     text: input.message,
   });
   context.services.runController.startTurn({
-    sessionId,
-    roomId: String(roomId),
-    runId,
+    sessionId: turn.sessionId,
+    roomId: String(turn.roomId),
+    runId: turn.runId,
     source: input.source ?? "cli",
     message: input.message,
-    runDepth: settings.agent.runDepth,
-    configuredMaxIterations: settings.agent.maxIterations,
-    progressMode: settings.agent.toolProgressMode,
+    runDepth: turn.settings.agent.runDepth,
+    configuredMaxIterations: turn.settings.agent.maxIterations,
+    progressMode: turn.settings.agent.toolProgressMode,
     pendingApprovals:
-      context.services.executionApprovals.latestPendingForSession(sessionId)
+      context.services.executionApprovals.latestPendingForSession(
+        turn.sessionId,
+      )
         ? 1
         : 0,
   });
+}
+
+async function finalizeTurnResponse(
+  context: AgentExecutionContext,
+  turn: TurnState,
+  text: string,
+  scheduleProfileObservation: () => void,
+  options?: AgentTurnHooks,
+  phase: "command" | "readiness" | "model" = "command",
+): Promise<string> {
+  await options?.onResponseProgress?.({
+    chunk: text,
+    response: text,
+    phase,
+  });
+  storeSessionMessage(context, {
+    sessionId: turn.sessionId,
+    roomId: turn.roomId,
+    entityId: turn.entityId,
+    role: "assistant",
+    text,
+  });
+  context.services.runController.finishTurn(turn.sessionId, "complete");
+  scheduleProfileObservation();
+  return text;
+}
+
+function createDirectLocalIntentLoader(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+): () => Promise<DirectLocalIntentLoader> {
+  let loaded = false;
+  let directLocalIntent: unknown;
+  return async () => {
+    const fallbackModule = await import("@/runtime/local-intent-fallback");
+    if (!loaded) {
+      directLocalIntent = fallbackModule.resolveDirectLocalIntent(
+        input,
+        context,
+      );
+      loaded = true;
+    }
+    return {
+      directLocalIntent,
+      executeDirectLocalIntent: fallbackModule.executeDirectLocalIntent,
+      isHighConfidenceDirectLocalIntent:
+        fallbackModule.isHighConfidenceDirectLocalIntent,
+      shouldUseDirectLocalFallback: fallbackModule.shouldUseDirectLocalFallback,
+    };
+  };
+}
+
+export async function handleAgentTurn(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  options?: {
+    runtimeOverrides?: CronJobRuntimeOverrides;
+    personalityId?: string;
+  } & AgentTurnHooks,
+): Promise<string> {
+  const perf = new TurnPerfTrace();
+  const turn = createTurnState(input, context);
+  const scheduleProfileObservation = createProfileObservationScheduler(
+    input,
+    context,
+    turn.sessionId,
+  );
+  startTrackedTurn(input, context, turn);
 
   const trimmedMessage = input.message.trim();
   const shouldInspectLocalIntent =
-    localInteractive && LOCAL_TASK_FAST_PATH_PATTERN.test(trimmedMessage);
+    turn.localInteractive && LOCAL_TASK_FAST_PATH_PATTERN.test(trimmedMessage);
   const responseFromCommandLayer = trimmedMessage.startsWith("/")
     ? await executeSlashCommand(input, context, options)
     : undefined;
@@ -6938,11 +7053,11 @@ export async function handleAgentTurn(
   if (input.message.trim().startsWith("!")) {
     const command = input.message.trim().slice(1).trim();
     if (!command) {
-      context.services.runController.finishTurn(sessionId, "complete");
+      context.services.runController.finishTurn(turn.sessionId, "complete");
       scheduleProfileObservation();
       perf.flush(context.runtime.logger, {
         path: "shell-usage-error",
-        sessionId,
+        sessionId: turn.sessionId,
         source: input.source ?? "cli",
       });
       return "Usage: !<shell command>";
@@ -6954,107 +7069,83 @@ export async function handleAgentTurn(
       options,
     );
     if (approvalPrompt) {
-      context.services.runController.setPendingApprovals(sessionId, 1);
+      context.services.runController.setPendingApprovals(turn.sessionId, 1);
       storeSessionMessage(context, {
-        sessionId,
-        roomId,
-        entityId,
+        sessionId: turn.sessionId,
+        roomId: turn.roomId,
+        entityId: turn.entityId,
         role: "assistant",
         text: approvalPrompt,
       });
-      context.services.runController.finishTurn(sessionId, "complete");
+      context.services.runController.finishTurn(turn.sessionId, "complete");
       scheduleProfileObservation();
       perf.flush(context.runtime.logger, {
         path: "shell-approval",
-        sessionId,
+        sessionId: turn.sessionId,
         source: input.source ?? "cli",
       });
       return approvalPrompt;
     }
     const shellAction = `shell:${command}`;
-    context.services.runController.noteActionStarted(sessionId, shellAction);
+    context.services.runController.noteActionStarted(
+      turn.sessionId,
+      shellAction,
+    );
     let result: Awaited<ReturnType<typeof runShellCommandForTurn>>;
     try {
       result = await runShellCommandForTurn(command, context, options);
     } catch (error) {
       context.services.runController.noteActionCompleted(
-        sessionId,
+        turn.sessionId,
         shellAction,
       );
       context.services.runController.finishTurn(
-        sessionId,
+        turn.sessionId,
         "error",
         error instanceof Error ? error.message : String(error),
       );
       throw error;
     }
-    context.services.runController.noteActionCompleted(sessionId, shellAction);
+    context.services.runController.noteActionCompleted(
+      turn.sessionId,
+      shellAction,
+    );
     const shellResponse = formatShellCommandResponse(result);
-    await options?.onResponseProgress?.({
-      chunk: shellResponse,
-      response: shellResponse,
-      phase: "command",
-    });
-    storeSessionMessage(context, {
-      sessionId,
-      roomId,
-      entityId,
-      role: "assistant",
-      text: shellResponse,
-    });
-    context.services.runController.finishTurn(sessionId, "complete");
-    scheduleProfileObservation();
+    await finalizeTurnResponse(
+      context,
+      turn,
+      shellResponse,
+      scheduleProfileObservation,
+      options,
+      "command",
+    );
     perf.mark("shell-command");
     perf.flush(context.runtime.logger, {
       path: "shell-command",
-      sessionId,
+      sessionId: turn.sessionId,
       source: input.source ?? "cli",
     });
     return shellResponse;
   }
 
   if (responseFromCommandLayer) {
-    await options?.onResponseProgress?.({
-      chunk: responseFromCommandLayer,
-      response: responseFromCommandLayer,
-      phase: "command",
-    });
-    storeSessionMessage(context, {
-      sessionId,
-      roomId,
-      entityId,
-      role: "assistant",
-      text: responseFromCommandLayer,
-    });
-    context.services.runController.finishTurn(sessionId, "complete");
-    scheduleProfileObservation();
+    await finalizeTurnResponse(
+      context,
+      turn,
+      responseFromCommandLayer,
+      scheduleProfileObservation,
+      options,
+      "command",
+    );
     perf.flush(context.runtime.logger, {
       path: "slash-command",
-      sessionId,
+      sessionId: turn.sessionId,
       source: input.source ?? "cli",
     });
     return responseFromCommandLayer;
   }
 
-  let directLocalIntentLoaded = false;
-  let directLocalIntent: unknown;
-  const loadDirectLocalIntent = async () => {
-    const fallbackModule = await import("@/runtime/local-intent-fallback");
-    if (!directLocalIntentLoaded) {
-      directLocalIntent = fallbackModule.resolveDirectLocalIntent(
-        input,
-        context,
-      );
-      directLocalIntentLoaded = true;
-    }
-    return {
-      directLocalIntent,
-      executeDirectLocalIntent: fallbackModule.executeDirectLocalIntent,
-      isHighConfidenceDirectLocalIntent:
-        fallbackModule.isHighConfidenceDirectLocalIntent,
-      shouldUseDirectLocalFallback: fallbackModule.shouldUseDirectLocalFallback,
-    };
-  };
+  const loadDirectLocalIntent = createDirectLocalIntentLoader(input, context);
 
   const executeApprovedDirectLocalIntent = async (
     intent: {
@@ -7072,15 +7163,15 @@ export async function handleAgentTurn(
         options,
       );
       if (approvalPrompt) {
-        context.services.runController.setPendingApprovals(sessionId, 1);
+        context.services.runController.setPendingApprovals(turn.sessionId, 1);
         storeSessionMessage(context, {
-          sessionId,
-          roomId,
-          entityId,
+          sessionId: turn.sessionId,
+          roomId: turn.roomId,
+          entityId: turn.entityId,
           role: "assistant",
           text: approvalPrompt,
         });
-        context.services.runController.finishTurn(sessionId, "complete");
+        context.services.runController.finishTurn(turn.sessionId, "complete");
         return approvalPrompt;
       }
     }
@@ -7112,23 +7203,23 @@ export async function handleAgentTurn(
     }
     const directResponse = await preferredLocalIntent.executeDirectLocalIntent(
       preferredLocalIntent.directLocalIntent as never,
-      sessionId,
+      turn.sessionId,
       context,
       options,
     );
     storeSessionMessage(context, {
-      sessionId,
-      roomId,
-      entityId,
+      sessionId: turn.sessionId,
+      roomId: turn.roomId,
+      entityId: turn.entityId,
       role: "assistant",
       text: directResponse,
     });
-    context.services.runController.finishTurn(sessionId, "complete");
+    context.services.runController.finishTurn(turn.sessionId, "complete");
     scheduleProfileObservation();
     perf.mark("preferred-local-intent");
     perf.flush(context.runtime.logger, {
       path: "preferred-local-intent",
-      sessionId,
+      sessionId: turn.sessionId,
       source: input.source ?? "cli",
     });
     return directResponse;
@@ -7152,40 +7243,36 @@ export async function handleAgentTurn(
   );
   perf.mark("provider-readiness");
   if (readinessMessage) {
-    await options?.onResponseProgress?.({
-      chunk: readinessMessage,
-      response: readinessMessage,
-      phase: "readiness",
-    });
-    storeSessionMessage(context, {
-      sessionId,
-      roomId,
-      entityId,
-      role: "assistant",
-      text: readinessMessage,
-    });
-    context.services.runController.finishTurn(sessionId, "complete");
-    scheduleProfileObservation();
+    await finalizeTurnResponse(
+      context,
+      turn,
+      readinessMessage,
+      scheduleProfileObservation,
+      options,
+      "readiness",
+    );
     perf.flush(context.runtime.logger, {
       path: "provider-readiness",
-      sessionId,
+      sessionId: turn.sessionId,
       source: input.source ?? "cli",
     });
     return readinessMessage;
   }
 
   await ensureTurnConnection(context, {
-    entityId: entityId as UUID,
-    roomId: roomId as UUID,
-    worldId: worldId as UUID,
-    userName: localInteractive ? "User" : input.userId,
-    source: connectionSource,
-    channelId: localInteractive ? `${agentName}-chat` : roomKey,
-    messageServerId: messageServerId as UUID,
+    entityId: turn.entityId as UUID,
+    roomId: turn.roomId as UUID,
+    worldId: turn.worldId as UUID,
+    userName: turn.localInteractive ? "User" : input.userId,
+    source: turn.connectionSource,
+    channelId: turn.localInteractive
+      ? `${turn.agentName}-chat`
+      : turn.sessionId,
+    messageServerId: turn.messageServerId as UUID,
     type: ChannelType.DM,
     metadata: {
       ownership: {
-        ownerId: entityId as UUID,
+        ownerId: turn.entityId as UUID,
       },
     },
   } as Parameters<typeof context.runtime.ensureConnection>[0]);
@@ -7193,11 +7280,11 @@ export async function handleAgentTurn(
 
   const memory = createMessageMemory({
     id: randomUUID() as UUID,
-    entityId: entityId as UUID,
-    roomId: roomId as UUID,
+    entityId: turn.entityId as UUID,
+    roomId: turn.roomId as UUID,
     content: {
       text: effectiveMessage,
-      source: connectionSource,
+      source: turn.connectionSource,
       channelType: ChannelType.DM,
     },
   });
@@ -7289,12 +7376,12 @@ export async function handleAgentTurn(
     if (typeof context.runtime.emitEvent === "function") {
       await context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
         message: memory,
-        source: connectionSource,
+        source: turn.connectionSource,
       });
     }
   } catch (error) {
     context.runtime.logger?.warn(
-      { error, roomId, source: connectionSource },
+      { error, roomId: turn.roomId, source: turn.connectionSource },
       "Failed to emit MESSAGE_RECEIVED event for local turn",
     );
   }
@@ -7309,7 +7396,7 @@ export async function handleAgentTurn(
   let runFailureMessage: string | undefined;
 
   try {
-    context.services.runController.updateThinking(sessionId);
+    context.services.runController.updateThinking(turn.sessionId);
     try {
       messageResult = await context.runtime.messageService?.handleMessage(
         context.runtime,
@@ -7356,7 +7443,7 @@ export async function handleAgentTurn(
           } as typeof memory;
           await context.runtime.emitEvent(EventType.MESSAGE_SENT, {
             message: emittedMessage,
-            source: connectionSource,
+            source: turn.connectionSource,
           });
         }
       }
@@ -7384,7 +7471,7 @@ export async function handleAgentTurn(
             error,
             provider: settingsDuring.model.provider,
             model: settingsDuring.model.model,
-            roomId,
+            roomId: turn.roomId,
           },
           "Local agent turn failed in provider runtime",
         );
@@ -7433,8 +7520,8 @@ export async function handleAgentTurn(
   }
 
   const observedActionCount =
-    context.services.runController.getActive(sessionId)?.observedActionCount ??
-    0;
+    context.services.runController.getActive(turn.sessionId)
+      ?.observedActionCount ?? 0;
 
   const fallbackModule =
     shouldInspectLocalIntent && (observedActionCount === 0 || runFailureMessage)
@@ -7468,7 +7555,7 @@ export async function handleAgentTurn(
       }
       response = await fallbackModule.executeDirectLocalIntent(
         fallbackModule.directLocalIntent as never,
-        sessionId,
+        turn.sessionId,
         context,
         options,
       );
@@ -7478,7 +7565,7 @@ export async function handleAgentTurn(
     } catch (fallbackError) {
       if (!runFailureMessage) {
         context.services.runController.finishTurn(
-          sessionId,
+          turn.sessionId,
           "error",
           fallbackError instanceof Error
             ? fallbackError.message
@@ -7509,19 +7596,19 @@ export async function handleAgentTurn(
 
   // Count assistant turns in this session to throttle nudges
   const sessionTurnCount = context.services.sessions.countBySessionRole(
-    sessionId,
+    turn.sessionId,
     "assistant",
   );
 
   // Context window usage warning (only for interactive sources)
-  const usageWarning = localInteractive
-    ? getContextUsageWarning(context, sessionId)
+  const usageWarning = turn.localInteractive
+    ? getContextUsageWarning(context, turn.sessionId)
     : undefined;
 
   // Skill synthesis nudge (only for interactive/non-cron sources)
   const skillNudge =
-    localInteractive && (input.source ?? "cli") !== "cron"
-      ? maybeGetSkillSynthesisNudge(context, sessionId, sessionTurnCount)
+    turn.localInteractive && (input.source ?? "cli") !== "cron"
+      ? maybeGetSkillSynthesisNudge(context, turn.sessionId, sessionTurnCount)
       : undefined;
   if (usageWarning) {
     await options?.onNotice?.({
@@ -7539,15 +7626,15 @@ export async function handleAgentTurn(
   const finalResponse = baseResponse;
 
   storeSessionMessage(context, {
-    sessionId,
-    roomId,
-    entityId,
+    sessionId: turn.sessionId,
+    roomId: turn.roomId,
+    entityId: turn.entityId,
     role: "assistant",
     text: finalResponse,
   });
 
   context.services.runController.finishTurn(
-    sessionId,
+    turn.sessionId,
     runFailureMessage ? "error" : "complete",
     runFailureMessage,
   );
@@ -7555,7 +7642,7 @@ export async function handleAgentTurn(
   perf.mark("post-response");
   perf.flush(context.runtime.logger, {
     path: runFailureMessage ? "native-error" : "native-response",
-    sessionId,
+    sessionId: turn.sessionId,
     source: input.source ?? "cli",
     observedActionCount,
   });
