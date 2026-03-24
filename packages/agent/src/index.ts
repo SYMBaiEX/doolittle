@@ -149,25 +149,18 @@ async function main(): Promise<void> {
   const shouldUseCliSurface =
     command === "start" || command === "dev" || command === "plain";
   const shouldUseApiSurface = command === "api" || command === "gateway";
-  const splashModulePromise = shouldUseCliSurface
-    ? import("@/cli/splash")
-    : undefined;
+
+  // Show splash for interactive CLI modes
+  if (shouldUseCliSurface) {
+    const { showBootSplash } = await import("@/cli/splash");
+    await showBootSplash();
+  }
+
   const bootstrapModulePromise = import("@/runtime/bootstrap");
   const cliModulePromise = shouldUseCliSurface ? import("@/cli") : undefined;
   const serverModulePromise = shouldUseApiSurface
     ? import("@/server")
     : undefined;
-
-  // Show splash for interactive CLI modes
-  if (shouldUseCliSurface && splashModulePromise) {
-    const [{ showBootSplash }] = await Promise.all([splashModulePromise]);
-    const splashPromise = showBootSplash();
-    await Promise.all([
-      splashPromise,
-      bootstrapModulePromise,
-      cliModulePromise,
-    ]);
-  }
 
   const [{ getAppContext }, cliModule, serverModule] = await Promise.all([
     bootstrapModulePromise,
@@ -261,11 +254,20 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  if (isRecoverableTopLevelRuntimeError(error)) {
-    console.error(formatTopLevelError(error));
-  } else {
-    console.error(error);
-  }
-  process.exit(1);
-});
+// Bun can exit early from executable entrypoints while long-lived async
+// startup is still awaiting TUI/server promises. Keep one lightweight
+// handle alive for the lifetime of main().
+const entryKeepAlive = setInterval(() => {}, 60_000);
+
+main()
+  .catch((error) => {
+    if (isRecoverableTopLevelRuntimeError(error)) {
+      console.error(formatTopLevelError(error));
+    } else {
+      console.error(error);
+    }
+    process.exit(1);
+  })
+  .finally(() => {
+    clearInterval(entryKeepAlive);
+  });

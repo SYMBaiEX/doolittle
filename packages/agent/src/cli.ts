@@ -1221,9 +1221,10 @@ export function renderFooter(
 async function startTui(
   context: AppContext,
   options?: StartCliOptions,
-): Promise<void> {
+): Promise<"exited" | "unexpected"> {
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   const unsubscribers: Array<() => void> = [];
+  input.resume();
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
@@ -1547,7 +1548,7 @@ async function startTui(
         `Minimum required: ${MIN_COLS}×${MIN_ROWS}. Falling back to plain CLI.\n`,
     );
     await startPlainCli(context);
-    return;
+    return "exited";
   }
 
   let screenDestroyed = false;
@@ -3030,8 +3031,12 @@ async function startTui(
     });
   }, 25).unref?.();
 
-  await new Promise<void>((resolve) => {
+  return await new Promise<"exited" | "unexpected">((resolve) => {
+    // Bun can exit when only Blessed's terminal listeners remain active.
+    // Keep one lightweight timer alive for the lifetime of the TUI.
+    const tuiKeepAlive = setInterval(() => {}, 60_000);
     screen.on("destroy", () => {
+      clearInterval(tuiKeepAlive);
       screenDestroyed = true;
       stopBusySpinner();
       input.removeListener("data", handleRawCtrlC);
@@ -3042,7 +3047,18 @@ async function startTui(
       for (const unsubscribe of unsubscribers) {
         unsubscribe();
       }
-      resolve();
+      if (!shuttingDown) {
+        try {
+          appendFileSync(
+            crashLogPath,
+            `[${new Date().toISOString()}] unexpected-screen-destroy\nTUI screen destroyed before an explicit shutdown path.\n\n`,
+            "utf8",
+          );
+        } catch {
+          // Best effort only.
+        }
+      }
+      resolve(shuttingDown ? "exited" : "unexpected");
     });
   });
 }
@@ -3060,7 +3076,13 @@ export async function startCli(
   }
 
   try {
-    await startTui(context, options);
+    const tuiResult = await startTui(context, options);
+    if (tuiResult === "unexpected") {
+      console.warn(
+        `${context.config.agentName} TUI closed unexpectedly. Falling back to plain CLI.`,
+      );
+      await startPlainCli(context, options);
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.warn(
