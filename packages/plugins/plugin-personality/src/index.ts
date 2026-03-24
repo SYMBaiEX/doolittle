@@ -3,13 +3,11 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type { PersonalityService as AgentPersonalityService } from "@/services/personality-service";
 
 export interface PersonalityPluginOptions {
-  personalities: {
-    list(): unknown[];
-    get(id: string): unknown;
-    setActive(id: string): unknown;
-    activeId(): string | undefined;
+  personalities: Pick<AgentPersonalityService, "list" | "get" | "activeId"> & {
+    setActive(id: string): ReturnType<AgentPersonalityService["setActive"]>;
     summary(): {
       total: number;
       activeId?: string;

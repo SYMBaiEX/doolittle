@@ -3,19 +3,21 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type { WebService } from "@/services/web-service";
 
 export interface BrowserPluginOptions {
-  browser: {
-    status(): Promise<unknown>;
-    fetchText(url: string): Promise<unknown>;
-    inspect(url: string): Promise<unknown>;
-    snapshot(url: string): Promise<string>;
-    screenshot(url: string): Promise<string>;
-    capture(url: string): Promise<unknown>;
-    analyze(url: string): Promise<unknown>;
-    compare(leftUrl: string, rightUrl: string): Promise<unknown>;
-    analyzeComparison(leftUrl: string, rightUrl: string): Promise<unknown>;
-  };
+  browser: Pick<
+    WebService,
+    | "status"
+    | "fetchText"
+    | "inspect"
+    | "snapshot"
+    | "screenshot"
+    | "capture"
+    | "analyze"
+    | "compare"
+    | "analyzeComparison"
+  >;
 }
 
 function summarizeBrowserCapabilities() {

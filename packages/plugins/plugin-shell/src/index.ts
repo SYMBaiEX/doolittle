@@ -3,13 +3,10 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type { TerminalService } from "@/services/terminal-service";
 
 export interface ShellPluginOptions {
-  terminal: {
-    run(command: string): Promise<unknown>;
-    getHistory(limit?: number): unknown[];
-    status(): Promise<unknown>;
-  };
+  terminal: Pick<TerminalService, "run" | "getHistory" | "status">;
 }
 
 export function createShellPlugin(options: ShellPluginOptions): Plugin {

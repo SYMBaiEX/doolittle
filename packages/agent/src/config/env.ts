@@ -38,6 +38,16 @@ const schema = z.object({
   ELIZAOS_CLOUD_BASE_URL: z.string().default(resolveCloudApiBaseUrl()),
   ELIZAOS_CLOUD_SMALL_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
   ELIZAOS_CLOUD_LARGE_MODEL: z.string().default("xai/grok-4.1-fast-reasoning"),
+  ELIZAOS_CLOUD_EMBEDDING_MODEL: z
+    .string()
+    .default("openai/text-embedding-3-small"),
+  ELIZAOS_CLOUD_EMBEDDING_URL: z.string().optional(),
+  ELIZAOS_CLOUD_EMBEDDING_API_KEY: z.string().optional(),
+  ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
   OPENAI_API_KEY: z.string().optional(),
   ELIZA_AGENT_OFFLINE_BOOTSTRAP: z
     .enum(["true", "false"])
@@ -247,6 +257,10 @@ export function loadConfig(): EnvConfig {
     elizaCloudBaseUrl: values.ELIZAOS_CLOUD_BASE_URL,
     elizaCloudSmallModel: values.ELIZAOS_CLOUD_SMALL_MODEL,
     elizaCloudLargeModel: values.ELIZAOS_CLOUD_LARGE_MODEL,
+    elizaCloudEmbeddingModel: values.ELIZAOS_CLOUD_EMBEDDING_MODEL,
+    elizaCloudEmbeddingUrl: values.ELIZAOS_CLOUD_EMBEDDING_URL,
+    elizaCloudEmbeddingApiKey: values.ELIZAOS_CLOUD_EMBEDDING_API_KEY,
+    elizaCloudEmbeddingDimensions: values.ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS,
     openAiApiKey: values.OPENAI_API_KEY,
     offlineBootstrapMode: values.ELIZA_AGENT_OFFLINE_BOOTSTRAP,
     useLinkedCodexAuth: values.ELIZA_AGENT_USE_LINKED_CODEX_AUTH,

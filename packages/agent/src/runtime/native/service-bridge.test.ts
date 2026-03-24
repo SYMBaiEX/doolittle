@@ -709,6 +709,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       elizaCloudApiKey: "cloud-key",
       elizaCloudSmallModel: "anthropic/claude-haiku-4-5-20251001",
       elizaCloudLargeModel: "anthropic/claude-sonnet-4.6",
+      elizaCloudEmbeddingModel: "openai/text-embedding-3-small",
       openAiApiKey: undefined,
       anthropicApiKey: undefined,
       useLinkedCodexAuth: false,

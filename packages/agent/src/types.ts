@@ -41,6 +41,10 @@ export interface EnvConfig {
   elizaCloudBaseUrl: string;
   elizaCloudSmallModel: string;
   elizaCloudLargeModel: string;
+  elizaCloudEmbeddingModel: string;
+  elizaCloudEmbeddingUrl?: string;
+  elizaCloudEmbeddingApiKey?: string;
+  elizaCloudEmbeddingDimensions?: number;
   openAiApiKey?: string;
   offlineBootstrapMode: boolean;
   useLinkedCodexAuth: boolean;

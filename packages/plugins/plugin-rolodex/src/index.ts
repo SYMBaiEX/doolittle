@@ -3,32 +3,40 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type {
+  UserProfileRecallHit,
+  UserProfileService,
+} from "@/services/user-profile-service";
+import type {
+  UserProfileBeliefSummary,
+  UserProfileEngagementSummary,
+  UserProfileRelationshipSummary,
+  UserProfileSearchHit,
+  UserProfileWorkspaceSummary,
+} from "@/types";
+
+type RolodexRememberKind = Parameters<UserProfileService["remember"]>[1];
 
 export interface RolodexPluginOptions {
   profiles: {
-    card(userId: string): unknown;
+    card: UserProfileService["card"];
     remember(input: {
       userId: string;
-      kind: string;
+      kind: RolodexRememberKind;
       text: string;
       source: string;
-    }): unknown;
-    recall(userId: string, query: string): unknown;
-    observeAgent(input: { text: string; source: string }): unknown;
-    agentProfile(): unknown;
-    search(query: string, limit?: number): unknown;
-    beliefs(userId: string): unknown;
-    relationship(userId: string): unknown;
-    engagement(userId: string): unknown;
-    summary(): {
-      totalProfiles: number;
-      agentName?: string;
-      recentProfiles: string[];
-      totalBeliefs: number;
-      activeRelationships: number;
-      engagedProfiles: number;
-      recentSignals: string[];
-    };
+    }): ReturnType<UserProfileService["remember"]>;
+    recall(userId: string, query: string): UserProfileRecallHit[];
+    observeAgent(input: {
+      text: string;
+      source: string;
+    }): ReturnType<UserProfileService["observeAgent"]>;
+    agentProfile: UserProfileService["agentProfile"];
+    search(query: string, limit?: number): UserProfileSearchHit[];
+    beliefs(userId: string): UserProfileBeliefSummary;
+    relationship(userId: string): UserProfileRelationshipSummary;
+    engagement(userId: string): UserProfileEngagementSummary;
+    summary(): UserProfileWorkspaceSummary;
   };
 }
 
@@ -50,7 +58,12 @@ export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
       return options.profiles.card(userId);
     }
 
-    remember(userId: string, kind: string, text: string, source = "rolodex") {
+    remember(
+      userId: string,
+      kind: RolodexRememberKind,
+      text: string,
+      source = "rolodex",
+    ) {
       return options.profiles.remember({
         userId,
         kind,

@@ -6,11 +6,42 @@ describe("createRolodexPlugin", () => {
     const plugin = createRolodexPlugin({
       profiles: {
         card: (userId: string) => `card:${userId}`,
-        remember: (input) => input,
-        recall: (userId: string, query: string) => ({ userId, query }),
-        observeAgent: (input) => input,
-        agentProfile: () => ({ name: "Eliza Agent" }),
-        search: (query: string, limit = 10) => ({ query, limit }),
+        remember: (input) => ({
+          userId: input.userId,
+          preferences: [],
+          facts: [],
+          beliefs: [],
+          beliefSources: [],
+          notes: [input.text],
+          lastSource: input.source,
+          lastSeenAt: "2026-03-24T00:00:00.000Z",
+          updatedAt: "2026-03-24T00:00:00.000Z",
+        }),
+        recall: (_userId: string, _query: string) => [
+          {
+            kind: "belief",
+            value: "bun",
+            score: 0.9,
+          },
+        ],
+        observeAgent: (input) => ({
+          name: "Eliza Agent",
+          notes: [input.text],
+          goals: [],
+          strengths: [],
+          workStyle: [],
+          lastSource: input.source,
+          updatedAt: "2026-03-24T00:00:00.000Z",
+        }),
+        agentProfile: () => "agent:Eliza Agent",
+        search: (_query: string, _limit = 10) => [
+          {
+            userId: "user-1",
+            score: 0.9,
+            matchedFields: ["beliefs"],
+            preview: ["bun"],
+          },
+        ],
         beliefs: (userId: string) => ({
           userId,
           count: 1,
@@ -78,7 +109,14 @@ describe("createRolodexPlugin", () => {
     };
 
     expect(service.card("user-1")).toBe("card:user-1");
-    expect(service.search("bun", 5)).toEqual({ query: "bun", limit: 5 });
+    expect(service.search("bun", 5)).toEqual([
+      {
+        userId: "user-1",
+        score: 0.9,
+        matchedFields: ["beliefs"],
+        preview: ["bun"],
+      },
+    ]);
     expect(service.beliefs("user-1")).toEqual({
       userId: "user-1",
       count: 1,

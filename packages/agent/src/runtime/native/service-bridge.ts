@@ -380,7 +380,7 @@ interface EffectiveServiceResolutionRecord {
   available: boolean;
 }
 
-type BrowserMcpServices = {
+export type BrowserMcpServices = {
   web: {
     status(): Promise<unknown>;
   };
@@ -390,7 +390,7 @@ type BrowserMcpServices = {
   };
 };
 
-interface NativeIntegrationControlPlane {
+export interface NativeIntegrationControlPlane {
   browser: {
     source: "native" | "product";
     ownership: "plugin" | "product";

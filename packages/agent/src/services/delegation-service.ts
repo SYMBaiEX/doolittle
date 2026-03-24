@@ -36,7 +36,7 @@ interface DelegationWorkerStatus {
   notesCount: number;
 }
 
-interface DelegationOverview {
+export interface DelegationOverview {
   total: number;
   pending: number;
   running: number;
@@ -68,7 +68,7 @@ interface DelegationTaskFilter {
   executionMode?: DelegationTaskRecord["executionMode"];
 }
 
-interface DelegationTaskTree {
+export interface DelegationTaskTree {
   task: DelegationTaskRecord;
   children: DelegationTaskTree[];
 }
@@ -86,7 +86,7 @@ interface DelegationSpawnInput {
   maxAttempts?: number;
 }
 
-interface DelegationSupervisionReport {
+export interface DelegationSupervisionReport {
   concurrency: number;
   started: string[];
   completed: string[];

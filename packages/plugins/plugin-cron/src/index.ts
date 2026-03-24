@@ -1,13 +1,16 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import type { CronService as AgentCronService } from "@/services/cron-service";
 
 export interface CronPluginOptions {
-  cron: {
-    list(): unknown[];
-    get(id: string): unknown;
-    create(input: unknown): unknown;
-    update(id: string, patch: unknown): unknown;
-    runs(limit?: number): unknown[];
+  cron: Pick<AgentCronService, "list" | "get" | "runs"> & {
+    create(
+      input: Parameters<AgentCronService["create"]>[0],
+    ): ReturnType<AgentCronService["create"]>;
+    update(
+      id: string,
+      patch: Parameters<AgentCronService["update"]>[1],
+    ): ReturnType<AgentCronService["update"]>;
   };
 }
 
@@ -38,11 +41,11 @@ export function createCronPlugin(options: CronPluginOptions): Plugin {
       return this.cron.get(id);
     }
 
-    create(input: unknown) {
+    create(input: Parameters<AgentCronService["create"]>[0]) {
       return this.cron.create(input);
     }
 
-    update(id: string, patch: unknown) {
+    update(id: string, patch: Parameters<AgentCronService["update"]>[1]) {
       return this.cron.update(id, patch);
     }
 

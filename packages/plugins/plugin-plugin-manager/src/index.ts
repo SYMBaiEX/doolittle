@@ -1,17 +1,28 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import type {
+  NativePluginCategory,
+  NativePluginDescriptor,
+} from "@/runtime/native/plugin-catalog";
+
+export interface PluginManagerSummary {
+  total: number;
+  enabled: number;
+  official: number;
+  vendored: number;
+  categories: number;
+}
+
+export type PluginManagerCategoryMap = Record<
+  NativePluginCategory | string,
+  Array<string | NativePluginDescriptor>
+>;
 
 export interface PluginManagerPluginOptions {
   plugins: {
-    list(): unknown[];
-    categories(): unknown;
-    summary(): {
-      total: number;
-      enabled: number;
-      official: number;
-      vendored: number;
-      categories: number;
-    };
+    list(): NativePluginDescriptor[];
+    categories(): PluginManagerCategoryMap;
+    summary(): PluginManagerSummary;
   };
 }
 

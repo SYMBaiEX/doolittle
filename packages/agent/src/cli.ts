@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { platform } from "node:os";
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
@@ -155,6 +156,8 @@ function shouldSuppressForeignTerminalLine(text: string): boolean {
     normalized.includes("no settings state found for server") ||
     normalized.includes("[plugin:advanced-capabilities:action:settings]") ||
     normalized.includes("[batchembeddings] api error:") ||
+    normalized.includes("failed query:") ||
+    normalized.includes('"relationships"."source_entity_id"') ||
     normalized.includes("model call failed:") ||
     normalized.includes("was there a typo in the url or port") ||
     normalized.includes("is the computer able to access the url")
@@ -174,25 +177,6 @@ function createBlessedOutputProxy(
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-}
-
-function enableTuiRawInputMode(): () => void {
-  const terminalInput = input as typeof input & {
-    isRaw?: boolean;
-    isTTY?: boolean;
-    setRawMode?: (mode: boolean) => void;
-  };
-  if (!terminalInput.isTTY || typeof terminalInput.setRawMode !== "function") {
-    return () => {};
-  }
-
-  const wasRaw = Boolean(terminalInput.isRaw);
-  terminalInput.setRawMode(true);
-  return () => {
-    if (!wasRaw) {
-      terminalInput.setRawMode?.(false);
-    }
-  };
 }
 
 function getCliErrorMessage(error: unknown): string {
@@ -314,6 +298,59 @@ export function renderResponseTranscript(
     .join("\n\n{gray-fg}────────────────────────────────{/}\n\n");
 }
 
+function renderPlainTranscript(
+  history: ResponseTranscriptEntry[],
+  live?: ResponseTranscriptEntry,
+): string {
+  const sections = [...history];
+  if (live) {
+    sections.push(live);
+  }
+  if (!sections.length) {
+    return "Responses will appear here.";
+  }
+
+  return sections
+    .slice(-24)
+    .map((entry) => {
+      const role =
+        entry.kind === "user"
+          ? "You"
+          : entry.kind === "assistant"
+            ? "Agent"
+            : entry.kind === "shell"
+              ? "Shell"
+              : entry.kind === "command"
+                ? "Command"
+                : "System";
+      const customLabel =
+        entry.label &&
+        !["You", "Shell", "Command", "Command Result", "Helm Ready"].includes(
+          entry.label,
+        )
+          ? ` ${entry.label}`
+          : "";
+      const body = entry.body.trim()
+        ? entry.body.trim()
+        : entry.pending
+          ? "thinking..."
+          : "waiting...";
+      const liveActivity =
+        entry.liveActivity && entry.liveActivity.length > 0
+          ? `\n[live activity]\n${entry.liveActivity.join("\n")}`
+          : "";
+
+      return [
+        `${entry.at} ${role}${customLabel}${entry.pending ? " ..." : ""}`,
+        body,
+        liveActivity,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n----------------------------------------\n\n");
+}
+
 function toneTag(tone: CliExecutionResult["tone"]): string {
   switch (tone) {
     case "success":
@@ -343,6 +380,7 @@ function buildHelpText(agentName: string): string {
     `  ${macAwareKeyLabel("Ctrl-P")}           Open command palette`,
     `  ${macAwareKeyLabel("Ctrl-E")}           Open multiline composer`,
     `  ${macAwareKeyLabel("Ctrl-S")}           Focus last response`,
+    `  ${macAwareKeyLabel("Ctrl-X")}           Export transcript to clipboard/file`,
     `  ${macAwareKeyLabel("Alt-1..Alt-4")}     Show Launchpad/Gateway/Responses/Logs`,
     "  Enter            Send command",
     "  Tab              Complete the top suggested command",
@@ -1315,7 +1353,6 @@ async function startTui(
 ): Promise<"exited" | "unexpected"> {
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   const unsubscribers: Array<() => void> = [];
-  unsubscribers.push(enableTuiRawInputMode());
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
@@ -1353,7 +1390,7 @@ async function startTui(
     scrollback: 1000,
     wrap: true,
     keys: true,
-    mouse: true,
+    mouse: false,
     vi: true,
     scrollbar: {
       ch: " ",
@@ -1374,7 +1411,7 @@ async function startTui(
     alwaysScroll: true,
     wrap: true,
     keys: true,
-    mouse: true,
+    mouse: false,
     vi: true,
     padding: {
       left: 1,
@@ -1400,7 +1437,7 @@ async function startTui(
     scrollable: true,
     alwaysScroll: true,
     wrap: true,
-    mouse: true,
+    mouse: false,
     keys: true,
     vi: true,
     padding: {
@@ -1422,7 +1459,7 @@ async function startTui(
     scrollable: true,
     alwaysScroll: true,
     wrap: true,
-    mouse: true,
+    mouse: false,
     keys: true,
     vi: true,
     padding: {
@@ -1445,7 +1482,7 @@ async function startTui(
     scrollable: true,
     alwaysScroll: true,
     wrap: true,
-    mouse: true,
+    mouse: false,
     keys: true,
     vi: true,
     padding: {
@@ -1468,7 +1505,7 @@ async function startTui(
     scrollable: true,
     alwaysScroll: true,
     wrap: true,
-    mouse: true,
+    mouse: false,
     keys: true,
     vi: true,
     padding: {
@@ -1523,7 +1560,7 @@ async function startTui(
     border: "line",
     label: " Matches ",
     keys: true,
-    mouse: true,
+    mouse: false,
     vi: true,
     tags: true,
     style: {
@@ -1565,7 +1602,7 @@ async function startTui(
     height: "100%-4",
     inputOnFocus: true,
     keys: true,
-    mouse: true,
+    mouse: false,
     vi: true,
     border: "line",
     label: " Compose (Ctrl-S submit, Esc close) ",
@@ -1598,7 +1635,7 @@ async function startTui(
     label: " Message / Command ",
     inputOnFocus: true,
     border: "line",
-    mouse: true,
+    mouse: false,
     keys: true,
     tags: false,
     style: {
@@ -1659,6 +1696,10 @@ async function startTui(
   const crashLogPath = join(context.config.dataDir, "cli-crash.log");
   mkdirSync(context.config.dataDir, { recursive: true });
   appendCliTrace(crashLogPath, "tui:start");
+  const transcriptExportPath = join(
+    context.config.dataDir,
+    "latest-transcript.txt",
+  );
   const focusables: blessed.Widgets.BlessedElement[] = [
     activity,
     response,
@@ -1864,9 +1905,53 @@ async function startTui(
     response.setContent(
       renderResponseTranscript(responseHistory, liveResponse),
     );
+    try {
+      writeFileSync(
+        transcriptExportPath,
+        `${renderPlainTranscript(responseHistory, liveResponse)}\n`,
+        "utf8",
+      );
+    } catch {
+      // Best effort only.
+    }
     if (pinnedToBottom) {
       response.setScrollPerc(100);
     }
+  }
+
+  function exportTranscript(): void {
+    const transcript = `${renderPlainTranscript(responseHistory, liveResponse)}\n`;
+    try {
+      writeFileSync(transcriptExportPath, transcript, "utf8");
+    } catch (error) {
+      appendActivity(
+        "copy",
+        `Could not write transcript export: ${formatRecoverableProviderError(error)}`,
+        "warning",
+      );
+      scheduleRefreshPanels(0);
+      return;
+    }
+
+    let copied = false;
+    try {
+      if (IS_MACOS && typeof Bun.which === "function" && Bun.which("pbcopy")) {
+        const result = spawnSync("pbcopy", [], {
+          input: transcript,
+          stdio: ["pipe", "ignore", "ignore"],
+        });
+        copied = result.status === 0;
+      }
+    } catch {
+      copied = false;
+    }
+
+    const detail = copied
+      ? `Transcript copied to clipboard and saved to ${transcriptExportPath}.`
+      : `Transcript saved to ${transcriptExportPath}.`;
+    pushNotice("status", detail);
+    appendActivity("copy", detail, copied ? "success" : "info");
+    scheduleRefreshPanels(0);
   }
 
   function pushResponseEntry(label: string, body: string): void {
@@ -2954,6 +3039,9 @@ async function startTui(
     liveResponse = undefined;
     renderResponsePane();
     screen.render();
+  });
+  screen.key(["C-x"], () => {
+    exportTranscript();
   });
   screen.key(["C-r"], () => {
     void refreshPanels();

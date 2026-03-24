@@ -4,7 +4,7 @@ Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference in El
 
 ## What it does
 
-- Uses Eliza Cloud as an OpenAI-compatible managed inference endpoint
+- Uses Eliza Cloud as a managed inference and embeddings endpoint
 - Authenticates with `ELIZAOS_CLOUD_API_KEY`
 - Treats Eliza Cloud as the preferred default provider path during onboarding
 - Works with the native local auth flow: `elizaos login`
@@ -15,6 +15,10 @@ Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference in El
 - `ELIZAOS_CLOUD_BASE_URL`
 - `ELIZAOS_CLOUD_SMALL_MODEL`
 - `ELIZAOS_CLOUD_LARGE_MODEL`
+- `ELIZAOS_CLOUD_EMBEDDING_MODEL`
+- `ELIZAOS_CLOUD_EMBEDDING_URL`
+- `ELIZAOS_CLOUD_EMBEDDING_API_KEY`
+- `ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS`
 - `ELIZAOS_CLOUD_ENABLED`
 
 ## Local flow

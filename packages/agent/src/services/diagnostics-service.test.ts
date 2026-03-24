@@ -32,6 +32,7 @@ function buildConfig(root: string): EnvConfig {
     elizaCloudBaseUrl: "https://www.elizacloud.ai/api/v1",
     elizaCloudSmallModel: "anthropic/claude-haiku-4-5-20251001",
     elizaCloudLargeModel: "anthropic/claude-sonnet-4.6",
+    elizaCloudEmbeddingModel: "openai/text-embedding-3-small",
     openAiApiKey: undefined,
     offlineBootstrapMode: false,
     useLinkedCodexAuth: false,

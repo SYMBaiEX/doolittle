@@ -1,27 +1,25 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import type { DelegationService } from "@/services/delegation-service";
+import type { RepositoryService } from "@/services/repository-service";
+import type { TerminalService } from "@/services/terminal-service";
+import type { WorkspaceService } from "@/services/workspace-service";
 
 export interface CodingAgentPluginOptions {
-  workspace: {
-    read(path: string): string;
-    write(path: string, content: string): unknown;
-    search(query: string, limit?: number): unknown;
-  };
+  workspace: Pick<WorkspaceService, "read" | "write" | "search">;
   repository: {
-    status(): Promise<string>;
-    diff(): Promise<string>;
-    log(limit?: number): Promise<string>;
+    status(): ReturnType<RepositoryService["status"]>;
+    diff(): ReturnType<RepositoryService["diffStat"]>;
+    log(limit?: number): ReturnType<RepositoryService["recentCommits"]>;
   };
-  shell: {
-    run(command: string): Promise<unknown>;
-  };
-  delegation: {
-    create(input: {
-      title: string;
-      objective: string;
-      metadata?: Record<string, unknown>;
-    }): unknown;
-    list(): unknown[];
+  shell: Pick<TerminalService, "run">;
+  delegation: Pick<DelegationService, "list"> & {
+    create(
+      input: Pick<
+        Parameters<DelegationService["create"]>[0],
+        "title" | "objective" | "metadata"
+      >,
+    ): ReturnType<DelegationService["create"]>;
   };
 }
 
@@ -80,7 +78,7 @@ export function createCodingAgentPlugin(
     delegate(
       title: string,
       objective: string,
-      metadata?: Record<string, unknown>,
+      metadata?: Record<string, string>,
     ) {
       return this.delegation.create({ title, objective, metadata });
     }

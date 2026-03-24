@@ -3,24 +3,22 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
+import type { MemoryService, MemorySummary } from "@/services/memory-service";
+import type { SessionService } from "@/services/session-service";
+import type { SessionUsageSummary } from "@/types";
 
 export interface ExperiencePluginOptions {
-  sessions: {
-    usage(sessionId: string): unknown;
-    latest(limit?: number): unknown;
+  sessions: Pick<SessionService, "usage" | "latest"> & {
+    usage(sessionId: string): SessionUsageSummary;
+    latest(limit?: number): ReturnType<SessionService["latest"]>;
     summary(): {
       totalSessions: number;
       recentSessionIds: string[];
     };
   };
-  memory: {
+  memory: Pick<MemoryService, "read" | "summary"> & {
     read(target?: "memory" | "user"): string;
-    summary(target?: "memory" | "user"): {
-      target: "memory" | "user";
-      entries: number;
-      characters: number;
-      preview: string[];
-    };
+    summary(target?: "memory" | "user"): MemorySummary;
   };
 }
 

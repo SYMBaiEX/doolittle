@@ -8,13 +8,19 @@ describe("createPluginManagerPlugin", () => {
         list: () => [
           {
             id: "messaging.telegram",
+            packageName: "@elizaos/plugin-telegram",
+            category: "messaging",
             enabled: true,
             source: "official",
+            notes: "Telegram transport",
           },
           {
             id: "messaging.discord",
+            packageName: "@elizaos/plugin-discord",
+            category: "messaging",
             enabled: false,
             source: "vendored",
+            notes: "Discord transport",
           },
         ],
         categories: () => ({

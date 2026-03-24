@@ -13,12 +13,56 @@ describe("plugin-planning", () => {
     try {
       const plugin = createPlanningPlugin({
         delegation: {
-          list: () => [{ id: "task-1" }],
-          get: (id) => ({ id }),
+          list: () => [
+            {
+              id: "task-1",
+              title: "Task 1",
+              objective: "Do task 1",
+              status: "pending",
+              executionMode: "local",
+              notes: [],
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
+            },
+          ],
+          get: (id) => ({
+            id,
+            title: "Task 1",
+            objective: "Do task 1",
+            status: "pending",
+            executionMode: "local",
+            notes: [],
+            createdAt: "2026-03-24T00:00:00.000Z",
+            updatedAt: "2026-03-24T00:00:00.000Z",
+          }),
         },
         workflows: {
-          list: () => [{ id: "workflow-1" }],
-          get: (id) => ({ id }),
+          list: () => [
+            {
+              id: "workflow-1",
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
+              startedAt: "2026-03-24T00:00:00.000Z",
+              title: "Workflow 1",
+              objective: "Ship workflow 1",
+              kind: "generate",
+              status: "running",
+              runIds: [],
+              artifactPaths: [],
+            },
+          ],
+          get: (id) => ({
+            id,
+            createdAt: "2026-03-24T00:00:00.000Z",
+            updatedAt: "2026-03-24T00:00:00.000Z",
+            startedAt: "2026-03-24T00:00:00.000Z",
+            title: "Workflow 1",
+            objective: "Ship workflow 1",
+            kind: "generate",
+            status: "running",
+            runIds: [],
+            artifactPaths: [],
+          }),
         },
       });
       const PlanningService = plugin.services?.[0] as ServiceClass | undefined;
