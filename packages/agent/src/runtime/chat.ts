@@ -7594,6 +7594,7 @@ export async function handleAgentTurn(
   try {
     if (typeof context.runtime.emitEvent === "function") {
       await context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+        runtime: context.runtime,
         message: memory,
         source: turn.connectionSource,
       });
@@ -7663,6 +7664,7 @@ export async function handleAgentTurn(
             metadata: memory.metadata,
           } as typeof memory;
           await context.runtime.emitEvent(EventType.MESSAGE_SENT, {
+            runtime: context.runtime,
             message: emittedMessage,
             source: turn.connectionSource,
           });

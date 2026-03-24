@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import type { IAgentRuntime } from "@elizaos/core";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
@@ -68,7 +69,7 @@ const NATIVE_PLATFORM_ADAPTERS = new Set<PlatformName>([
   "dingtalk",
 ]);
 
-interface GatewayTraceRecord {
+export interface GatewayTraceRecord {
   traceId: string;
   at: string;
   kind:
@@ -170,13 +171,13 @@ interface GatewayAttachmentRecord {
   metadata: Record<string, string>;
 }
 
-interface GatewayHistoryFilter {
+export interface GatewayHistoryFilter {
   platform?: PlatformName;
   kind?: GatewayTraceRecord["kind"];
   sessionId?: string;
 }
 
-interface GatewayPlatformState {
+export interface GatewayPlatformState {
   platform: PlatformName;
   nativePluginId?: string;
   nativePluginSource?: "official" | "vendored" | "custom";
@@ -235,7 +236,7 @@ interface GatewayPlatformState {
   lastUpdatedAt?: string;
 }
 
-interface GatewayHistorySnapshot {
+export interface GatewayHistorySnapshot {
   updatedAt: string;
   reason: string;
   snapshotPath: string;
@@ -291,7 +292,7 @@ interface GatewayHistorySnapshot {
   state: GatewayStateSnapshot;
 }
 
-interface GatewayStateSnapshot {
+export interface GatewayStateSnapshot {
   running: boolean;
   updatedAt: string;
   reason: string;
@@ -376,7 +377,7 @@ interface GatewayStateSnapshot {
   sessionsByPlatform: Array<{ platform: PlatformName; count: number }>;
 }
 
-interface GatewayRuntimeStatus {
+export interface GatewayRuntimeStatus {
   pid: number;
   running: boolean;
   updatedAt: string;
@@ -493,6 +494,12 @@ const GATEWAY_DAEMON_POLICY: GatewayDaemonPolicy = {
   restartMultiplier: 2,
   restartJitterMs: 750,
 };
+
+export interface GatewayRunnerContext {
+  config: AppContext["config"];
+  services: AppContext["services"];
+  runtime: IAgentRuntime;
+}
 
 export class GatewayRunner {
   private readonly events = new EventEmitter();
@@ -639,7 +646,7 @@ export class GatewayRunner {
       .join(" ");
   }
 
-  constructor(private readonly context: AppContext) {
+  constructor(private readonly context: GatewayRunnerContext) {
     this.snapshotDir = join(this.context.config.gatewayDataDir, "snapshots");
     this.journalDir = join(this.context.config.gatewayDataDir, "journals");
     this.snapshotPath = join(this.snapshotDir, "gateway-state.json");

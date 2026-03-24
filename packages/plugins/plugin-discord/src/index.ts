@@ -2,11 +2,23 @@ import {
   Service as ElizaService,
   type IAgentRuntime,
   type Plugin,
+  type Service,
 } from "@elizaos/core";
+import type {
+  GatewayHistoryFilter,
+  GatewayRunner,
+  GatewayRuntimeStatus,
+  GatewayTraceRecord,
+} from "@/gateway/gateway-runner";
 
 export interface DiscordPluginOptions {
   enabled: boolean;
   tokenConfigured: boolean;
+}
+
+interface GatewayRuntimeServiceLike extends Service {
+  startGateway?: () => Promise<void>;
+  runner?: Pick<GatewayRunner, "runtimeStatus" | "trace">;
 }
 
 export function createDiscordPlugin(options: DiscordPluginOptions): Plugin {
@@ -20,9 +32,9 @@ export function createDiscordPlugin(options: DiscordPluginOptions): Plugin {
     }
 
     async start(): Promise<void> {
-      const gateway = this.runtime.getService("eliza_agent_gateway") as {
-        startGateway?: () => Promise<void>;
-      } | null;
+      const gateway = this.runtime.getService<GatewayRuntimeServiceLike>(
+        "eliza_agent_gateway",
+      );
       await gateway?.startGateway?.();
     }
 
@@ -31,25 +43,25 @@ export function createDiscordPlugin(options: DiscordPluginOptions): Plugin {
     }
 
     async status() {
-      const gateway = this.runtime.getService("eliza_agent_gateway") as {
-        runner?: {
-          runtimeStatus(): unknown;
-        };
-      } | null;
+      const gateway = this.runtime.getService<GatewayRuntimeServiceLike>(
+        "eliza_agent_gateway",
+      );
       return {
         enabled: options.enabled,
         tokenConfigured: options.tokenConfigured,
-        gateway: gateway?.runner?.runtimeStatus() ?? null,
+        gateway: (gateway?.runner?.runtimeStatus() ??
+          null) as GatewayRuntimeStatus | null,
       };
     }
 
     history(limit = 20) {
-      const gateway = this.runtime.getService("eliza_agent_gateway") as {
-        runner?: {
-          trace(limit?: number, filters?: { platform?: string }): unknown[];
-        };
-      } | null;
-      return gateway?.runner?.trace(limit, { platform: "discord" }) ?? [];
+      const gateway = this.runtime.getService<GatewayRuntimeServiceLike>(
+        "eliza_agent_gateway",
+      );
+      const filters: GatewayHistoryFilter = { platform: "discord" };
+      return (
+        (gateway?.runner?.trace(limit, filters) as GatewayTraceRecord[]) ?? []
+      );
     }
   }
 

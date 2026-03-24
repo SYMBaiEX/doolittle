@@ -55,7 +55,7 @@ interface GatewayMessageLike {
   status?: string;
 }
 
-interface TrajectoryBundleEntry {
+export interface TrajectoryBundleEntry {
   manifestPath: string;
   dataPath: string;
   summaryPath?: string;
@@ -76,7 +76,7 @@ interface TrajectoryBundleEntry {
   roleCounts: Record<string, number>;
 }
 
-interface TrajectoryReplayResult extends TrajectoryBundleEntry {
+export interface TrajectoryReplayResult extends TrajectoryBundleEntry {
   replayPath: string;
   replaySummaryPath: string;
   replayCount: number;

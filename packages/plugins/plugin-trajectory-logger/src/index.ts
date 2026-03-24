@@ -1,12 +1,12 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import type { TrajectoryService } from "@/services/trajectory-service";
 
 export interface TrajectoryLoggerPluginOptions {
-  trajectories: {
-    exportLatest(): unknown;
-    listBundles(): unknown[];
-    compareLatest(): unknown;
-  };
+  trajectories: Pick<
+    TrajectoryService,
+    "exportLatest" | "listBundles" | "compareLatest"
+  >;
 }
 
 export function createTrajectoryLoggerPlugin(
