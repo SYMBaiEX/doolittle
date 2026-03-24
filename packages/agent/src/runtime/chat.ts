@@ -210,6 +210,7 @@ export interface AgentTurnHooks {
     command: string;
     afterSuccessConnectProvider?: LinkedProviderName;
   }) => Promise<string>;
+  abortSignal?: AbortSignal;
 }
 
 const REMOTE_EXECUTION_PLATFORMS = new Set<PlatformName>([
@@ -1474,7 +1475,13 @@ export function syncProviderSettings(
   );
 
   if (provider === "elizacloud") {
-    context.runtime.setSetting("ELIZAOS_CLOUD_SMALL_MODEL", model);
+    const preservedSmallModel =
+      context.runtime.getSetting("ELIZAOS_CLOUD_SMALL_MODEL") ||
+      context.config.elizaCloudSmallModel;
+    context.runtime.setSetting(
+      "ELIZAOS_CLOUD_SMALL_MODEL",
+      String(preservedSmallModel),
+    );
     context.runtime.setSetting("ELIZAOS_CLOUD_LARGE_MODEL", model);
     context.runtime.setSetting(
       "ELIZAOS_CLOUD_BASE_URL",
@@ -1778,6 +1785,14 @@ function buildProviderFailureMessage(
     error instanceof Error ? error.message.trim() : String(error).trim();
   const normalized = detail.toLowerCase();
   const cloudBaseUrl = normalizeElizaCloudBaseUrl(baseUrl);
+
+  if (
+    normalized.includes("aborted") ||
+    normalized.includes("aborterror") ||
+    normalized.includes("signal is aborted")
+  ) {
+    return "The turn was cancelled before the provider finished responding.";
+  }
 
   if (
     normalized.includes("failed query:") &&
@@ -4299,7 +4314,7 @@ async function buildCommandResponse(
         ? "To activate Eliza Cloud managed mode, run this in your local shell:"
         : `To bind ${provider} as a local specialist provider, run this in your local shell:`,
       `  ${getLinkedProviderLoginCommand(provider)}`,
-      `If you're already inside the Eliza Agent cockpit, you can also run: !${getLinkedProviderLoginCommand(provider)}`,
+      `If you're already inside the Eliza Agent shell or cockpit, you can also run: !${getLinkedProviderLoginCommand(provider)}`,
       getLinkedProviderSetupCommand(provider)
         ? `Optional setup-token path: ${getLinkedProviderSetupCommand(provider)}`
         : "",
@@ -4332,7 +4347,7 @@ async function buildCommandResponse(
     return [
       "To bind Claude Code natively with a setup token, run this in your local shell:",
       `  ${setupCommand}`,
-      `From the Eliza Agent cockpit, you can also run: !${setupCommand}`,
+      `From the Eliza Agent shell or cockpit, you can also run: !${setupCommand}`,
       "Then paste the token into onboarding or set CLAUDE_CODE_SETUP_TOKEN / CLAUDE_CODE_OAUTH_TOKEN.",
       `After that, run ${displayCommand("/accounts connect claude-code")} here.`,
       "",
@@ -7634,6 +7649,7 @@ export async function handleAgentTurn(
           maxMultiStepIterations: derivedTurnPolicy.useMultiStep
             ? derivedTurnPolicy.maxIterations
             : 1,
+          abortSignal: options?.abortSignal,
           onStreamChunk: options?.onResponseProgress
             ? async (chunk: string) => {
                 if (!chunk || !claimStreamSource("onStreamChunk")) {

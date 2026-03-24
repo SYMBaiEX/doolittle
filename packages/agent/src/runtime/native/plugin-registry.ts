@@ -280,68 +280,20 @@ async function loadHotExecutionPlugins(
   ];
 }
 
-async function loadDeferredPluginGroups(
+async function loadHotIdentityPlugins(
   services: AppServices,
-  config: EnvConfig,
-): Promise<
-  Pick<
-    NativePluginAssembly,
-    | "messaging"
-    | "knowledge"
-    | "browser"
-    | "media"
-    | "research"
-    | "execution"
-    | "integration"
-    | "automation"
-  >
-> {
-  const messaging: Plugin[] = [];
-  if (config.telegramBotToken) {
-    const { default: telegramPlugin } = await import(
-      "@elizaos/plugin-telegram"
-    );
-    messaging.push(normalizePlugin(telegramPlugin));
-  }
-  {
-    const { createDiscordPlugin } = await import("@elizaos/plugin-discord");
-    messaging.push(
-      createDiscordPlugin({
-        enabled: Boolean(config.discordBotToken),
-        tokenConfigured: Boolean(config.discordBotToken),
-      }),
-    );
-  }
-
+): Promise<Plugin[]> {
   const [
-    { createKnowledgePlugin },
     { createPersonalityPlugin },
     { createRolodexPlugin },
     { createExperiencePlugin },
   ] = await Promise.all([
-    import("@elizaos/plugin-knowledge"),
     import("@elizaos/plugin-personality"),
     import("@elizaos/plugin-rolodex"),
     import("@elizaos/plugin-experience"),
   ]);
 
-  const knowledge: Plugin[] = [
-    createKnowledgePlugin({
-      knowledge: {
-        extractPdf: (path) => services.documents.extractPdf(path),
-      },
-      memory: {
-        list: (target: MemoryTarget = "memory") => services.memory.list(target),
-        remember: (
-          target: MemoryTarget,
-          input: { text: string; source: string },
-        ) => services.memory.remember(target, input),
-        read: (target: MemoryTarget = "memory") => services.memory.read(target),
-        summary: (target: MemoryTarget = "memory") =>
-          services.memory.summary(target),
-      },
-      sessions: services.sessions,
-    }),
+  return [
     createPersonalityPlugin({
       personalities: {
         list: () => services.personalities.list(),
@@ -382,6 +334,63 @@ async function loadDeferredPluginGroups(
         read: (target) => services.memory.read(target),
         summary: (target = "memory") => services.memory.summary(target),
       },
+    }),
+  ];
+}
+
+async function loadDeferredPluginGroups(
+  services: AppServices,
+  config: EnvConfig,
+): Promise<
+  Pick<
+    NativePluginAssembly,
+    | "messaging"
+    | "knowledge"
+    | "browser"
+    | "media"
+    | "research"
+    | "execution"
+    | "integration"
+    | "automation"
+  >
+> {
+  const messaging: Plugin[] = [];
+  if (config.telegramBotToken) {
+    const { default: telegramPlugin } = await import(
+      "@elizaos/plugin-telegram"
+    );
+    messaging.push(normalizePlugin(telegramPlugin));
+  }
+  {
+    const { createDiscordPlugin } = await import("@elizaos/plugin-discord");
+    messaging.push(
+      createDiscordPlugin({
+        enabled: Boolean(config.discordBotToken),
+        tokenConfigured: Boolean(config.discordBotToken),
+      }),
+    );
+  }
+
+  const [{ createKnowledgePlugin }] = await Promise.all([
+    import("@elizaos/plugin-knowledge"),
+  ]);
+
+  const knowledge: Plugin[] = [
+    createKnowledgePlugin({
+      knowledge: {
+        extractPdf: (path) => services.documents.extractPdf(path),
+      },
+      memory: {
+        list: (target: MemoryTarget = "memory") => services.memory.list(target),
+        remember: (
+          target: MemoryTarget,
+          input: { text: string; source: string },
+        ) => services.memory.remember(target, input),
+        read: (target: MemoryTarget = "memory") => services.memory.read(target),
+        summary: (target: MemoryTarget = "memory") =>
+          services.memory.summary(target),
+      },
+      sessions: services.sessions,
     }),
   ];
 
@@ -523,13 +532,20 @@ export async function buildNativePluginAssembly(
   const groupedCatalog = groupNativePluginCatalog(catalog);
   const foundation: Plugin[] = [];
   const providers = await loadProviderPlugins(services, config);
+  const identity = await loadHotIdentityPlugins(services);
   const execution = await loadHotExecutionPlugins(
     services,
     catalog,
     groupedCatalog,
   );
   const product: Plugin[] = [createElizaAgentPlugin(services, config)];
-  const initial = [...foundation, ...providers, ...execution, ...product];
+  const initial = [
+    ...foundation,
+    ...providers,
+    ...identity,
+    ...execution,
+    ...product,
+  ];
 
   const emptyDeferred = {
     messaging: [] as Plugin[],
@@ -548,7 +564,7 @@ export async function buildNativePluginAssembly(
       foundation,
       providers,
       messaging: emptyDeferred.messaging,
-      knowledge: emptyDeferred.knowledge,
+      knowledge: identity,
       browser: emptyDeferred.browser,
       media: emptyDeferred.media,
       research: emptyDeferred.research,
@@ -579,8 +595,8 @@ export async function buildNativePluginAssembly(
     groupedCatalog,
     foundation,
     providers,
+    knowledge: [...identity, ...deferredGroups.knowledge],
     messaging: deferredGroups.messaging,
-    knowledge: deferredGroups.knowledge,
     browser: deferredGroups.browser,
     media: deferredGroups.media,
     research: deferredGroups.research,

@@ -1,0 +1,84 @@
+export type CliTurnEvent =
+  | {
+      type: "start";
+      timestamp: string;
+      sessionId: string;
+      command: string;
+    }
+  | {
+      type: "progress";
+      timestamp: string;
+      phase: "command" | "readiness" | "model";
+      chunk: string;
+      response: string;
+      delta: string;
+    }
+  | {
+      type: "notice";
+      timestamp: string;
+      kind: "context" | "skills" | "status";
+      message: string;
+    }
+  | {
+      type: "run";
+      timestamp: string;
+      runEventType: string;
+      detail: string;
+    }
+  | {
+      type: "result";
+      timestamp: string;
+      text: string;
+      tone: "info" | "success" | "warning" | "error" | "agent";
+      shouldExit: boolean;
+    }
+  | {
+      type: "error";
+      timestamp: string;
+      message: string;
+    }
+  | {
+      type: "completed";
+      timestamp: string;
+      status: "completed" | "failed" | "cancelled";
+    };
+
+export function encodeCliTurnEvent(event: CliTurnEvent): string {
+  return `${JSON.stringify(event)}\n`;
+}
+
+export function parseCliTurnEvent(line: string): CliTurnEvent | undefined {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as { type?: string };
+    if (!parsed || typeof parsed.type !== "string") {
+      return undefined;
+    }
+    return parsed as CliTurnEvent;
+  } catch {
+    return undefined;
+  }
+}
+
+export function renderCliTurnEvent(event: CliTurnEvent): string {
+  switch (event.type) {
+    case "start":
+      return `job started · session ${event.sessionId} · ${event.command}`;
+    case "progress":
+      return event.delta || event.response || event.chunk;
+    case "notice":
+      return `${event.kind}: ${event.message}`;
+    case "run":
+      return `[run] ${event.detail}`;
+    case "result":
+      return event.text;
+    case "error":
+      return `error: ${event.message}`;
+    case "completed":
+      return `job ${event.status}`;
+  }
+}

@@ -1,11 +1,22 @@
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { platform } from "node:os";
-import { join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { inspect } from "node:util";
 import blessed from "blessed";
+import { buildHelpText } from "@/cli/help-text";
+import {
+  attachCliJob,
+  cancelCliJob,
+  cliJobStatusSummary,
+  getCliJob,
+  launchCliBackgroundJob,
+  renderCliJobReplay,
+} from "@/cli/jobs";
+import type { CliTurnEvent } from "@/cli/turn-events";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import type { AppContext } from "@/runtime/bootstrap";
 import { executeSlashCommand, handleAgentTurn } from "@/runtime/chat";
@@ -51,6 +62,15 @@ interface CliExecutionHooks {
     kind: "context" | "skills" | "status";
     message: string;
   }) => void;
+  abortSignal?: AbortSignal;
+}
+
+export interface CliPromptRunOptions {
+  sessionId?: string;
+}
+
+export interface CliPromptEventHandlers {
+  onEvent?: (event: CliTurnEvent) => void | Promise<void>;
 }
 
 type ControlDeckMode = "assist" | "ecosystem" | "gateway" | "responses";
@@ -85,6 +105,10 @@ function nowStamp(): string {
   });
 }
 
+function createCliSessionId(prefix = "cli"): string {
+  return `${prefix}:${randomUUID()}`;
+}
+
 function compactJsonLine(value: unknown): string {
   const raw = JSON.stringify(value);
   return raw.length > 320 ? `${raw.slice(0, 317)}...` : raw;
@@ -116,6 +140,150 @@ function truncate(text: string, max = 520): string {
 
 function escapeBlessed(text: string): string {
   return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
+}
+
+const ANSI = {
+  reset: "\x1b[0m",
+  dim: "\x1b[2m",
+  bold: "\x1b[1m",
+  cyan: "\x1b[36m",
+  magenta: "\x1b[35m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  gray: "\x1b[90m",
+};
+
+function paint(text: string, color: string, enabled: boolean): string {
+  return enabled ? `${color}${text}${ANSI.reset}` : text;
+}
+
+function shortModelId(model: string): string {
+  const normalized = model.trim();
+  if (!normalized) {
+    return "unconfigured";
+  }
+  const segments = normalized.split("/");
+  return segments.at(-1) ?? normalized;
+}
+
+function currentWorkspaceLabel(): string {
+  const cwd = process.cwd();
+  const home = process.env.HOME;
+  if (home && cwd.startsWith(home)) {
+    const rel = relative(home, cwd);
+    return rel ? `~/${rel}` : "~";
+  }
+  return cwd;
+}
+
+function currentProjectLabel(): string {
+  return basename(process.cwd()) || currentWorkspaceLabel();
+}
+
+function shortSessionLabel(sessionId: string): string {
+  return sessionId.startsWith("cli:")
+    ? sessionId.slice(4, 12)
+    : truncate(sessionId, 12);
+}
+
+function renderPlainBanner(context: AppContext, state: CliState): string {
+  const settings = context.services.settings.get();
+  const cwd = currentWorkspaceLabel();
+  const project = currentProjectLabel();
+  const smallModel =
+    settings.model.provider === "elizacloud"
+      ? context.config.elizaCloudSmallModel
+      : settings.model.model;
+  const sessionSummary = context.services.sessions
+    .listSessions(20)
+    .find((entry) => entry.sessionId === state.activeSessionId);
+  const session =
+    sessionSummary?.title ?? shortSessionLabel(state.activeSessionId);
+
+  return [
+    `${context.config.agentName} plain shell`,
+    `${project}  ·  ${cwd}`,
+    `${settings.model.provider}  ·  small ${shortModelId(smallModel)}  ·  large ${shortModelId(settings.model.model)}`,
+    `${settings.agent.runDepth} cap ${settings.agent.maxIterations}  ·  progress ${settings.agent.toolProgressMode}  ·  session ${session}`,
+  ].join("\n");
+}
+
+function renderPlainShellHints(): string {
+  return [
+    "Ask naturally, run !shell commands, or use /slash commands.",
+    `Try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/sessions list")}, or ${canonicalizeSlashCommandSyntax("/resume <title>")}.`,
+    'Use "eliza-agent cockpit" when you want the fullscreen observability view.',
+  ].join("\n");
+}
+
+function renderPlainPrompt(context: AppContext, _state: CliState): string {
+  const settings = context.services.settings.get();
+  return `${context.config.agentName.toLowerCase()} ${paint(currentProjectLabel(), ANSI.cyan, output.isTTY)} ${paint(`(${settings.agent.runDepth}/${settings.agent.maxIterations})`, ANSI.gray, output.isTTY)} ${paint("›", ANSI.magenta, output.isTTY)} `;
+}
+
+function renderPlainRunLine(detail: string): string {
+  return `${paint("  ·", ANSI.gray, output.isTTY)} ${detail}`;
+}
+
+function renderPlainEntry(
+  entry: ResponseTranscriptEntry,
+  tone?: CliExecutionResult["tone"],
+): string {
+  const accent =
+    entry.kind === "user"
+      ? ANSI.yellow
+      : entry.kind === "assistant"
+        ? ANSI.cyan
+        : entry.kind === "shell"
+          ? ANSI.green
+          : entry.kind === "command"
+            ? ANSI.magenta
+            : ANSI.blue;
+  const label = paint(entry.label, accent, output.isTTY);
+  const at = paint(entry.at, ANSI.gray, output.isTTY);
+  const pending = entry.pending
+    ? ` ${paint("…", ANSI.gray, output.isTTY)}`
+    : "";
+  const body =
+    entry.body.trim() || (entry.pending ? "thinking..." : "waiting...");
+  const liveActivity =
+    entry.liveActivity && entry.liveActivity.length > 0
+      ? `\n${paint("activity", ANSI.gray, output.isTTY)}\n${entry.liveActivity
+          .map((line) => `  ${line}`)
+          .join("\n")}`
+      : "";
+  const prefix =
+    tone === "warning"
+      ? paint("warn", ANSI.yellow, output.isTTY)
+      : tone === "error"
+        ? paint("error", ANSI.magenta, output.isTTY)
+        : tone === "success"
+          ? paint("done", ANSI.green, output.isTTY)
+          : "";
+
+  return [
+    `${at}  ${label}${pending}${prefix ? `  ${prefix}` : ""}`,
+    body,
+    liveActivity,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function writeTranscriptExport(
+  context: AppContext,
+  history: ResponseTranscriptEntry[],
+): void {
+  try {
+    writeFileSync(
+      join(context.config.dataDir, "latest-transcript.txt"),
+      `${renderPlainTranscript(history)}\n`,
+      "utf8",
+    );
+  } catch {
+    // Best effort only.
+  }
 }
 
 // biome-ignore lint/complexity/useRegexLiterals: A constructor keeps control-byte escapes explicit without tripping the control-character lint.
@@ -278,7 +446,7 @@ export function renderResponseTranscript(
     const liveActivity =
       entry.liveActivity && entry.liveActivity.length > 0
         ? [
-            "{gray-fg}[live activity]{/}",
+            "{gray-fg}activity{/}",
             ...entry.liveActivity.map((line) => escapeBlessed(line)),
           ].join("\n")
         : "";
@@ -366,65 +534,6 @@ function toneTag(tone: CliExecutionResult["tone"]): string {
   }
 }
 
-function buildHelpText(agentName: string): string {
-  const command = (value: string) => canonicalizeSlashCommandSyntax(value);
-  return [
-    `${agentName} TUI shortcuts`,
-    "",
-    "Command-First Shell:",
-    `  q / ${macAwareKeyLabel("Ctrl-C")}       Quit`,
-    "  Esc              Focus command input",
-    `  ${macAwareKeyLabel("Ctrl-L")}           Clear transcript and activity`,
-    `  ${macAwareKeyLabel("Ctrl-R")}           Refresh status panels`,
-    `  ${macAwareKeyLabel("Ctrl-G")}           Switch to Gateway control deck`,
-    `  ${macAwareKeyLabel("Ctrl-P")}           Open command palette`,
-    `  ${macAwareKeyLabel("Ctrl-E")}           Open multiline composer`,
-    `  ${macAwareKeyLabel("Ctrl-S")}           Focus last response`,
-    `  ${macAwareKeyLabel("Ctrl-X")}           Export transcript to clipboard/file`,
-    `  ${macAwareKeyLabel("Alt-1..Alt-4")}     Show Launchpad/Gateway/Responses/Logs`,
-    "  Enter            Send command",
-    "  Tab              Complete the top suggested command",
-    `  ${macAwareKeyLabel("PageUp/PageDown")}  Scroll the focused pane`,
-    "  Up/Down          Command history in input",
-    "  Ctrl-N/Ctrl-P    History + list navigation",
-    "",
-    "Hotkeys:",
-    "  F2  /status",
-    `  F3  ${command("/tools summary")}`,
-    `  F4  ${command("/delegate overview")}`,
-    `  F5  ${command("/gateway readiness")}`,
-    `  F6  ${command("/sessions list")}`,
-    `  F7  ${command("/doctor")}`,
-    `  F8  ${command("/runtime plugins")}`,
-    `  F10 ${command("/gateway history limit:10")}`,
-    `  F11 ${command("/gateway supervision")}`,
-    `  F12 ${command("/responses list")}`,
-    `  ${macAwareKeyLabel("Ctrl-T")}           Next theme`,
-    "",
-    "Examples:",
-    `  ${command("/skills list")}`,
-    `  ${command("/execution status")}`,
-    `  ${command("/theme list")}`,
-    `  ${command("/theme set ghost")}`,
-    `  ${command("/theme next")}`,
-    `  ${command("/transport inventory")}`,
-    `  ${command("/transport show telegram")}`,
-    `  ${command("/transport mismatches")}`,
-    "  /browser capture https://example.com",
-    "  /media analyze ./recordings/demo.wav",
-    `  ${command("/delegate create Research spike :: validate a transport path")}`,
-    `  ${command("/trajectories ingest gateway label:review limit:100")}`,
-    `  ${command("/accounts")}`,
-    `  ${command("/accounts doctor")}`,
-    `  ${command("/mode")}`,
-    `  ${command("/progress")}`,
-    `  ${command("/accounts connect codex")}`,
-    `  ${command("/accounts connect claude-code")}`,
-    "  !git status",
-    "  !uname -a",
-  ].join("\n");
-}
-
 function panelStyle(theme: TuiThemeProfile, accent: string) {
   return {
     fg: theme.baseFg,
@@ -439,7 +548,7 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
 }
 
 function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
-  return `{bold}${agentName}{/bold}  {black-fg}ELIZAOS TERMINAL HELM{/}  {white-fg}${theme.label} · ${theme.name} · native cloud + local specialist models{/}`;
+  return `{bold}${agentName}{/bold}  {black-fg}conversation shell{/}  {white-fg}${theme.label} · ${theme.name} · cockpit for observability, shell for everyday work{/}`;
 }
 
 function applyLayout(
@@ -549,7 +658,7 @@ function applyLayout(
   } else if (compact) {
     layout.response.top = 3;
     layout.response.left = 0;
-    layout.response.width = "84%";
+    layout.response.width = "86%";
     layout.response.height = opsCollapsed
       ? short
         ? "68%-1"
@@ -566,7 +675,7 @@ function applyLayout(
         ? "61%+2"
         : "64%+2";
     layout.activity.left = 0;
-    layout.activity.width = "84%";
+    layout.activity.width = "86%";
     layout.activity.height = opsCollapsed
       ? short
         ? "14%-2"
@@ -576,53 +685,53 @@ function applyLayout(
         : "24%-2";
 
     layout.sidebar.top = 3;
-    layout.sidebar.left = "84%";
-    layout.sidebar.width = "16%";
+    layout.sidebar.left = "86%";
+    layout.sidebar.width = "14%";
     layout.sidebar.height = short ? "28%" : "30%";
 
     layout.transportBox.top = short ? "22%+3" : "24%+3";
-    layout.transportBox.left = "84%";
-    layout.transportBox.width = "16%";
+    layout.transportBox.left = "86%";
+    layout.transportBox.width = "14%";
     layout.transportBox.height = "0%";
 
     layout.executionBox.top = short ? "40%+3" : "42%+3";
-    layout.executionBox.left = "84%";
-    layout.executionBox.width = "16%";
+    layout.executionBox.left = "86%";
+    layout.executionBox.width = "14%";
     layout.executionBox.height = "0%";
 
     layout.assistBox.top = short ? "48%+3" : "50%+3";
-    layout.assistBox.left = "84%";
-    layout.assistBox.width = "16%";
+    layout.assistBox.left = "86%";
+    layout.assistBox.width = "14%";
     layout.assistBox.height = short ? "39%-1" : "38%-1";
   } else {
     layout.response.top = 3;
     layout.response.left = 0;
-    layout.response.width = "84%";
+    layout.response.width = "86%";
     layout.response.height = opsCollapsed ? "70%-1" : "64%-1";
 
     layout.activity.top = opsCollapsed ? "70%+2" : "64%+2";
     layout.activity.left = 0;
-    layout.activity.width = "84%";
+    layout.activity.width = "86%";
     layout.activity.height = opsCollapsed ? "16%-2" : "24%-2";
 
     layout.sidebar.top = 3;
-    layout.sidebar.left = "84%";
-    layout.sidebar.width = "16%";
+    layout.sidebar.left = "86%";
+    layout.sidebar.width = "14%";
     layout.sidebar.height = "84%-2";
 
     layout.transportBox.top = "3";
-    layout.transportBox.left = "84%";
-    layout.transportBox.width = "16%";
+    layout.transportBox.left = "86%";
+    layout.transportBox.width = "14%";
     layout.transportBox.height = "0%";
 
     layout.executionBox.top = "32%+2";
-    layout.executionBox.left = "84%";
-    layout.executionBox.width = "16%";
+    layout.executionBox.left = "86%";
+    layout.executionBox.width = "14%";
     layout.executionBox.height = "0%";
 
     layout.assistBox.top = "46%+3";
-    layout.assistBox.left = "84%";
-    layout.assistBox.width = "16%";
+    layout.assistBox.left = "86%";
+    layout.assistBox.width = "14%";
     layout.assistBox.height = short ? "38%-1" : "40%-1";
   }
 
@@ -869,14 +978,14 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
 function renderSuggestionsContent(inputValue: string): string {
   if (!inputValue.trim()) {
     return [
-      "{bold}Launchpad{/}",
+      "{bold}Start Here{/}",
       "",
-      "{bold}Try This{/}",
+      "{bold}Conversation{/}",
       "- summarize this repo and tell me what matters",
       "- what machine am I on and what tools can you use here",
       "- plan the next coding step for this project",
       "",
-      "{bold}Shell{/}",
+      "{bold}Local Work{/}",
       "- !pwd",
       "- !git status",
       "- !uname -a",
@@ -910,7 +1019,7 @@ function renderSuggestionsContent(inputValue: string): string {
         `${index === 0 ? "{green-fg}*{/} " : "- "}${entry.command}\n  {gray-fg}${entry.description}{/}`,
     ),
     "",
-    "{bold}Categories{/}",
+    "{bold}Explore{/}",
     ...Array.from(
       new Set(COMMAND_CATALOG.slice(0, 8).map((entry) => entry.category)),
     ).map((category) => `- ${category}`),
@@ -938,6 +1047,97 @@ async function executeCliInput(
   }
   if (normalizedTrimmed === "/help") {
     return { text: buildHelpText(context.config.agentName), tone: "info" };
+  }
+  if (normalizedTrimmed === "/jobs") {
+    return {
+      text: cliJobStatusSummary(context.config.dataDir),
+      tone: "info",
+    };
+  }
+  if (normalizedTrimmed.startsWith("/jobs start ")) {
+    const prompt = normalizedTrimmed.replace("/jobs start ", "").trim();
+    if (!prompt) {
+      return { text: "Usage: /jobs start <prompt>", tone: "warning" };
+    }
+    const launcherPath = Bun.argv[1];
+    if (!launcherPath) {
+      return {
+        text: "The launcher path is not available for background jobs in this shell.",
+        tone: "error",
+      };
+    }
+    const job = launchCliBackgroundJob({
+      config: context.config,
+      launcherPath,
+      prompt,
+      sessionId: createCliSessionId("job"),
+    });
+    return {
+      text: `Started background job ${job.id}.\nUse /jobs to list jobs, /jobs show ${job.id} to replay output, or /jobs attach ${job.id} to follow it live.`,
+      tone: "success",
+    };
+  }
+  if (normalizedTrimmed.startsWith("/jobs cancel ")) {
+    const jobId = normalizedTrimmed.replace("/jobs cancel ", "").trim();
+    if (!jobId) {
+      return { text: "Usage: /jobs cancel <job-id>", tone: "warning" };
+    }
+    const cancelled = cancelCliJob(context.config.dataDir, jobId);
+    return cancelled
+      ? {
+          text: `Cancelled background job ${cancelled.id}.`,
+          tone: "success",
+        }
+      : {
+          text: `Background job not found: ${jobId}`,
+          tone: "warning",
+        };
+  }
+  if (normalizedTrimmed.startsWith("/jobs show ")) {
+    const jobId = normalizedTrimmed.replace("/jobs show ", "").trim();
+    if (!jobId) {
+      return { text: "Usage: /jobs show <job-id>", tone: "warning" };
+    }
+    const job = getCliJob(context.config.dataDir, jobId);
+    if (!job) {
+      return { text: `Background job not found: ${jobId}`, tone: "warning" };
+    }
+    return {
+      text: renderCliJobReplay(context.config.dataDir, jobId),
+      tone: "info",
+    };
+  }
+  if (normalizedTrimmed.startsWith("/jobs attach ")) {
+    const jobId = normalizedTrimmed.replace("/jobs attach ", "").trim();
+    if (!jobId) {
+      return { text: "Usage: /jobs attach <job-id>", tone: "warning" };
+    }
+    const job = await attachCliJob(context.config.dataDir, jobId, {
+      onEvent: async (event) => {
+        if (event.type === "run") {
+          await hooks?.onNotice?.({
+            kind: "status",
+            message: event.detail,
+          });
+          return;
+        }
+        if (event.type === "progress") {
+          await hooks?.onResponseProgress?.({ response: event.response });
+        }
+      },
+    });
+    if (!job) {
+      return { text: `Background job not found: ${jobId}`, tone: "warning" };
+    }
+    return {
+      text: renderCliJobReplay(context.config.dataDir, jobId),
+      tone:
+        job.status === "failed"
+          ? "warning"
+          : job.status === "cancelled"
+            ? "warning"
+            : "success",
+    };
   }
 
   const runShellFlow = async (
@@ -1081,10 +1281,146 @@ async function executeCliInput(
       onResponseProgress: ({ response }) =>
         hooks?.onResponseProgress?.({ response }),
       onNotice: (notice) => hooks?.onNotice?.(notice),
+      abortSignal: hooks?.abortSignal,
     },
   );
 
   return { text: response, tone: "agent" };
+}
+
+export async function runCliPrompt(
+  context: AppContext,
+  line: string,
+  options?: CliPromptRunOptions,
+): Promise<CliExecutionResult> {
+  const state: CliState = {
+    activeSessionId: options?.sessionId ?? createCliSessionId("cli"),
+    notices: [],
+  };
+  return executeCliInput(line, context, state);
+}
+
+export async function runCliPromptWithEvents(
+  context: AppContext,
+  line: string,
+  handlers?: CliPromptEventHandlers,
+  options?: CliPromptRunOptions & { abortSignal?: AbortSignal },
+): Promise<{ result: CliExecutionResult; sessionId: string }> {
+  const state: CliState = {
+    activeSessionId: options?.sessionId ?? createCliSessionId("cli"),
+    notices: [],
+  };
+  let previousResponse = "";
+  const command = line.trim();
+
+  await handlers?.onEvent?.({
+    type: "start",
+    timestamp: new Date().toISOString(),
+    sessionId: state.activeSessionId,
+    command,
+  });
+
+  const unsubscribeRunUpdates = context.services.runController.onUpdate(
+    async (event) => {
+      if (event.sessionId !== state.activeSessionId) {
+        return;
+      }
+      if (!shouldRenderRunEvent(event.run.progressMode, event)) {
+        return;
+      }
+      const detail = formatRunEvent(event, 120);
+      if (!detail) {
+        return;
+      }
+      await handlers?.onEvent?.({
+        type: "run",
+        timestamp: new Date().toISOString(),
+        runEventType: event.type,
+        detail,
+      });
+    },
+  );
+
+  try {
+    const result = await executeCliInput(line, context, state, {
+      abortSignal: options?.abortSignal,
+      onNotice: async (notice) => {
+        await handlers?.onEvent?.({
+          type: "notice",
+          timestamp: new Date().toISOString(),
+          kind: notice.kind,
+          message: notice.message,
+        });
+      },
+      onResponseProgress: async ({ response }) => {
+        const delta = response.startsWith(previousResponse)
+          ? response.slice(previousResponse.length)
+          : response;
+        previousResponse = response;
+        await handlers?.onEvent?.({
+          type: "progress",
+          timestamp: new Date().toISOString(),
+          phase: "model",
+          chunk: delta,
+          response,
+          delta,
+        });
+      },
+    });
+    await handlers?.onEvent?.({
+      type: "result",
+      timestamp: new Date().toISOString(),
+      text: result.text,
+      tone: result.tone ?? "info",
+      shouldExit: result.shouldExit ?? false,
+    });
+    await handlers?.onEvent?.({
+      type: "completed",
+      timestamp: new Date().toISOString(),
+      status: result.shouldExit ? "cancelled" : "completed",
+    });
+    return {
+      result,
+      sessionId: state.activeSessionId,
+    };
+  } catch (error) {
+    const message = getCliErrorMessage(error);
+    await handlers?.onEvent?.({
+      type: "error",
+      timestamp: new Date().toISOString(),
+      message,
+    });
+    await handlers?.onEvent?.({
+      type: "completed",
+      timestamp: new Date().toISOString(),
+      status: options?.abortSignal?.aborted === true ? "cancelled" : "failed",
+    });
+    throw error;
+  } finally {
+    unsubscribeRunUpdates();
+  }
+}
+
+export function resolveStaticCliInput(
+  line: string,
+  agentName: string,
+): CliExecutionResult | undefined {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return { text: "", tone: "info" };
+  }
+  const normalizedTrimmed = normalizeSlashCommandSyntax(trimmed);
+  if (trimmed === "exit" || trimmed === "quit") {
+    return {
+      text: `Closing ${agentName}.`,
+      tone: "success",
+      shouldExit: true,
+    };
+  }
+  if (normalizedTrimmed === "/help") {
+    return { text: buildHelpText(agentName), tone: "info" };
+  }
+  return undefined;
 }
 
 interface StartCliOptions {
@@ -1095,16 +1431,61 @@ interface StartCliOptions {
   }>;
 }
 
+type InteractiveTextEntry = blessed.Widgets.TextboxElement &
+  blessed.Widgets.TextareaElement & {
+    _reading?: boolean;
+    readInput?: () => void;
+    cancel?: () => void;
+  };
+
 async function startPlainCli(
   context: AppContext,
   options?: StartCliOptions,
 ): Promise<void> {
   const rl = createInterface({ input, output });
-  const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
+  const interactiveShell = input.isTTY && output.isTTY;
+  const state: CliState = {
+    activeSessionId: createCliSessionId("cli"),
+    notices: [],
+  };
   let closed = false;
+  let activeTurnAbortController: AbortController | null = null;
+  let lastRenderedRunEventKey = "";
+  const responseHistory: ResponseTranscriptEntry[] = [];
   const crashLogPath = join(context.config.dataDir, "cli-crash.log");
+  const requestActiveTurnCancellation = (): boolean => {
+    if (
+      !activeTurnAbortController ||
+      activeTurnAbortController.signal.aborted
+    ) {
+      return false;
+    }
+    activeTurnAbortController.abort();
+    output.write(
+      `${interactiveShell ? "\n" : ""}${renderPlainRunLine("cancel requested · waiting for the active turn to stop")}\n`,
+    );
+    return true;
+  };
+  const pushPlainEntry = (
+    entry: ResponseTranscriptEntry,
+    tone?: CliExecutionResult["tone"],
+  ) => {
+    responseHistory.push(entry);
+    if (responseHistory.length > 48) {
+      responseHistory.splice(0, responseHistory.length - 48);
+    }
+    writeTranscriptExport(context, responseHistory);
+    if (!interactiveShell) {
+      output.write(`${entry.body.trim()}\n`);
+      return;
+    }
+    output.write(`\n${renderPlainEntry(entry, tone)}\n\n`);
+  };
   const unsubscribeRunUpdates = context.services.runController.onUpdate(
     (event) => {
+      if (!interactiveShell) {
+        return;
+      }
       if (event.sessionId !== state.activeSessionId) {
         return;
       }
@@ -1115,7 +1496,12 @@ async function startPlainCli(
       if (!detail) {
         return;
       }
-      output.write(`\n[run] ${detail}\n`);
+      const renderKey = `${event.type}:${detail}`;
+      if (renderKey === lastRenderedRunEventKey) {
+        return;
+      }
+      lastRenderedRunEventKey = renderKey;
+      output.write(`\n${renderPlainRunLine(detail)}\n`);
     },
   );
 
@@ -1171,24 +1557,37 @@ async function startPlainCli(
 
   process.on("uncaughtException", handleUncaughtException);
   process.on("unhandledRejection", handleUnhandledRejection);
+  const handleSigint = () => {
+    if (requestActiveTurnCancellation()) {
+      return;
+    }
+    if (!closed) {
+      rl.close();
+    }
+  };
+  process.on("SIGINT", handleSigint);
 
   rl.on("close", () => {
     closed = true;
   });
 
-  output.write(`${context.config.agentName} CLI\n`);
-  output.write(
-    `Type "exit" to quit. Try /help, /status, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/transport inventory")}, ${canonicalizeSlashCommandSyntax("/transport mismatches")}, ${canonicalizeSlashCommandSyntax("/gateway readiness")}, ${canonicalizeSlashCommandSyntax("/runtime plugins")}, or ${canonicalizeSlashCommandSyntax("/delegate overview")}.\n\n`,
-  );
-  for (const entry of options?.bootLogs ?? []) {
+  if (interactiveShell) {
     output.write(
-      `[boot:${entry.source === "stderr" ? "warn" : "info"}] ${entry.text}\n`,
+      `${paint(renderPlainBanner(context, state), ANSI.bold, true)}\n`,
     );
+    output.write(`${paint(renderPlainShellHints(), ANSI.gray, true)}\n\n`);
+    for (const entry of options?.bootLogs ?? []) {
+      output.write(
+        `${renderPlainRunLine(`boot ${entry.source === "stderr" ? "warn" : "info"} · ${entry.text}`)}\n`,
+      );
+    }
+    if ((options?.bootLogs?.length ?? 0) > 0) {
+      output.write("\n");
+    }
   }
-  if ((options?.bootLogs?.length ?? 0) > 0) {
-    output.write("\n");
+  if (interactiveShell) {
+    options?.onReady?.();
   }
-  options?.onReady?.();
   if (input.isTTY && output.isTTY) {
     setTimeout(() => {
       void context.ensureDeferredHydration("plain-cli").catch((error) => {
@@ -1206,7 +1605,11 @@ async function startPlainCli(
     while (true) {
       let line = "";
       try {
-        line = (await rl.question("> ")).trim();
+        line = (
+          await rl.question(
+            interactiveShell ? renderPlainPrompt(context, state) : "",
+          )
+        ).trim();
       } catch (error) {
         if (
           closed ||
@@ -1222,20 +1625,77 @@ async function startPlainCli(
       if (!line) {
         continue;
       }
+      lastRenderedRunEventKey = "";
+      const entryAt = nowStamp();
+      const entryKind: ResponseTranscriptEntry["kind"] = isConversationalInput(
+        line,
+      )
+        ? "user"
+        : line.startsWith("!")
+          ? "shell"
+          : "command";
+      const entryLabel =
+        entryKind === "user"
+          ? "You"
+          : entryKind === "shell"
+            ? "Shell"
+            : "Command";
+      responseHistory.push({
+        label: entryLabel,
+        body: line,
+        at: entryAt,
+        kind: entryKind,
+      });
+      writeTranscriptExport(context, responseHistory);
 
       try {
-        const result = await executeCliInput(line, context, state);
+        activeTurnAbortController = new AbortController();
+        const result = await executeCliInput(line, context, state, {
+          abortSignal: activeTurnAbortController.signal,
+        });
         if (result.text) {
-          output.write(`\n${result.text}\n\n`);
+          pushPlainEntry(
+            {
+              label:
+                result.tone === "agent"
+                  ? context.config.agentName
+                  : line.startsWith("!")
+                    ? "Shell"
+                    : line.startsWith("/")
+                      ? "Command Result"
+                      : context.config.agentName,
+              body: result.text,
+              at: nowStamp(),
+              kind:
+                result.tone === "agent"
+                  ? "assistant"
+                  : line.startsWith("!")
+                    ? "shell"
+                    : line.startsWith("/")
+                      ? "command"
+                      : "assistant",
+            },
+            result.tone,
+          );
         }
-        if (!input.isTTY) {
+        if (!interactiveShell) {
           break;
         }
         if (result.shouldExit) {
           break;
         }
       } catch (error) {
-        output.write(`\nError: ${getCliErrorMessage(error)}\n\n`);
+        pushPlainEntry(
+          {
+            label: "Error",
+            body: getCliErrorMessage(error),
+            at: nowStamp(),
+            kind: "system",
+          },
+          "error",
+        );
+      } finally {
+        activeTurnAbortController = null;
       }
     }
   } finally {
@@ -1245,7 +1705,8 @@ async function startPlainCli(
     unsubscribeRunUpdates();
     process.removeListener("uncaughtException", handleUncaughtException);
     process.removeListener("unhandledRejection", handleUnhandledRejection);
-    if (!input.isTTY) {
+    process.removeListener("SIGINT", handleSigint);
+    if (!interactiveShell) {
       process.exit(0);
     }
   }
@@ -1277,7 +1738,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
   );
 
   return [
-    "{bold}Session Rail{/}",
+    "{bold}Status{/}",
     `{cyan-fg}${settings.model.provider}{/} · {cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
     `${escapeBlessed(autonomousControl.alignment.connection.kind)}${autonomousControl.alignment.connection.provider ? ` via ${escapeBlessed(autonomousControl.alignment.connection.provider)}` : ""}`,
     `startup ${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}`,
@@ -1327,7 +1788,7 @@ export function renderFooter(
 ): string {
   const settings = context.services.settings.get();
   return [
-    `${context.config.agentName} TUI`,
+    `${context.config.agentName} cockpit`,
     busy
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
       : "{green-fg}ready{/}",
@@ -1335,13 +1796,13 @@ export function renderFooter(
     `{yellow-fg}${escapeBlessed(settings.agent.runDepth)}{/}`,
     `cap:${settings.agent.maxIterations}`,
     `prog:${escapeBlessed(settings.agent.toolProgressMode)}`,
-    "{magenta-fg}Tab{/} complete",
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} palette`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-E"))}{/} compose`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-O"))}{/} ops`,
+    "{magenta-fg}Tab{/} cycle",
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} commands`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-E"))}{/} draft`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-O"))}{/} activity`,
     "{cyan-fg}!cmd{/} shell",
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-T"))}{/} theme`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Alt-1..4"))}{/} deck`,
+    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Alt-1..4"))}{/} decks`,
     hint,
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-Q"))}{/} quit`,
   ].join("  |  ");
@@ -1351,7 +1812,10 @@ async function startTui(
   context: AppContext,
   options?: StartCliOptions,
 ): Promise<"exited" | "unexpected"> {
-  const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
+  const state: CliState = {
+    activeSessionId: createCliSessionId("cli"),
+    notices: [],
+  };
   const unsubscribers: Array<() => void> = [];
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const tuiOutput = createBlessedOutputProxy(output);
@@ -1384,7 +1848,7 @@ async function startTui(
     left: 0,
     width: "82%",
     height: "28%-2",
-    label: " Ops ",
+    label: " Activity ",
     tags: true,
     border: "line",
     scrollback: 1000,
@@ -1404,7 +1868,7 @@ async function startTui(
     left: 0,
     width: "82%",
     height: "64%-1",
-    label: " Chat ",
+    label: " Conversation ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1422,7 +1886,7 @@ async function startTui(
     },
     style: panelStyle(activeTheme, activeTheme.magentaGlow),
     content:
-      "{gray-fg}Responses, JSON payloads, and operator output will render here.{/}",
+      "{gray-fg}Conversation and live agent activity will render here.{/}",
   });
 
   const sidebar = blessed.box({
@@ -1431,7 +1895,7 @@ async function startTui(
     left: "82%",
     width: "18%",
     height: "30%",
-    label: " Session Rail ",
+    label: " Status ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1499,7 +1963,7 @@ async function startTui(
     left: "82%",
     width: "18%",
     height: "18%-1",
-    label: " Quick Actions ",
+    label: " Launchpad ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1539,7 +2003,7 @@ async function startTui(
     left: 0,
     width: "100%-2",
     height: 3,
-    inputOnFocus: true,
+    inputOnFocus: false,
     border: "line",
     label: " Search ",
     style: {
@@ -1600,7 +2064,7 @@ async function startTui(
     left: 0,
     width: "100%-2",
     height: "100%-4",
-    inputOnFocus: true,
+    inputOnFocus: false,
     keys: true,
     mouse: false,
     vi: true,
@@ -1632,8 +2096,8 @@ async function startTui(
     left: 0,
     width: "100%",
     height: 3,
-    label: " Message / Command ",
-    inputOnFocus: true,
+    label: " Ask / Command ",
+    inputOnFocus: false,
     border: "line",
     mouse: false,
     keys: true,
@@ -1686,6 +2150,7 @@ async function startTui(
   let controlDeckMode: ControlDeckMode = "assist";
   let paletteSelectionIndex = 0;
   let composerOpen = false;
+  let activeTurnAbortController: AbortController | null = null;
   const commandHistory: string[] = [];
   let historyIndex = 0;
   const pendingCommands: string[] = [];
@@ -1741,6 +2206,24 @@ async function startTui(
   let footerHint = "Esc input";
   const busyFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+  function isEntryReading(entry: InteractiveTextEntry): boolean {
+    return entry._reading === true;
+  }
+
+  function activateTextEntry(entry: InteractiveTextEntry): void {
+    if (!isEntryReading(entry)) {
+      entry.readInput?.();
+    }
+    entry.focus();
+    noteTextEntryActivity();
+  }
+
+  function deactivateTextEntry(entry: InteractiveTextEntry): void {
+    if (isEntryReading(entry)) {
+      entry.cancel?.();
+    }
+  }
+
   function textEntryFocused(): boolean {
     return (
       screen.focused === inputBox ||
@@ -1778,11 +2261,12 @@ async function startTui(
 
   function focusPrimaryInput(): void {
     focusIndex = focusables.length - 1;
-    inputBox.focus();
+    activateTextEntry(inputBox as InteractiveTextEntry);
     screen.render();
   }
 
   function focusProcessingSurface(): void {
+    deactivateTextEntry(inputBox as InteractiveTextEntry);
     response.focus();
     updateFooterHint();
     screen.render();
@@ -2065,7 +2549,12 @@ async function startTui(
   function focusAt(index: number): void {
     syncFocusIndexFromCurrentFocus();
     focusIndex = (index + focusables.length) % focusables.length;
-    focusables[focusIndex]?.focus();
+    const nextTarget = focusables[focusIndex];
+    if (nextTarget === inputBox) {
+      activateTextEntry(inputBox as InteractiveTextEntry);
+    } else {
+      nextTarget?.focus();
+    }
     screen.render();
   }
 
@@ -2081,18 +2570,20 @@ async function startTui(
     if (composerOpen) {
       closeComposer();
     }
+    deactivateTextEntry(inputBox as InteractiveTextEntry);
     paletteOpen = true;
     paletteOverlay.show();
     paletteInput.setValue(preservedValue);
     paletteList.setItems(renderPaletteItems(preservedValue));
     paletteSelectionIndex = 0;
     paletteList.select(0);
-    paletteInput.focus();
+    activateTextEntry(paletteInput as InteractiveTextEntry);
     updateFooterHint();
     screen.render();
   }
 
   function closePalette(): void {
+    deactivateTextEntry(paletteInput as InteractiveTextEntry);
     paletteOpen = false;
     paletteOverlay.hide();
     paletteInput.clearValue();
@@ -2106,15 +2597,17 @@ async function startTui(
     if (paletteOpen) {
       closePalette();
     }
+    deactivateTextEntry(inputBox as InteractiveTextEntry);
     composerOpen = true;
     composerOverlay.show();
     composer.setValue(preservedValue);
-    composer.focus();
+    activateTextEntry(composer as InteractiveTextEntry);
     updateFooterHint();
     screen.render();
   }
 
   function closeComposer(): void {
+    deactivateTextEntry(composer as InteractiveTextEntry);
     composerOpen = false;
     composerOverlay.hide();
     composer.clearValue();
@@ -2132,11 +2625,11 @@ async function startTui(
   function controlDeckLabel(mode: ControlDeckMode): string {
     switch (mode) {
       case "ecosystem":
-        return " Control Deck · Ecosystem ";
+        return " Launchpad · Ecosystem ";
       case "gateway":
-        return " Control Deck · Gateway ";
+        return " Launchpad · Gateway ";
       case "responses":
-        return " Control Deck · Responses ";
+        return " Launchpad · Responses ";
       default:
         return " Launchpad · Assist ";
     }
@@ -2544,7 +3037,7 @@ async function startTui(
       },
       { opsCollapsed },
     );
-    activity.setLabel(opsCollapsed ? " Ops " : " Ops Log ");
+    activity.setLabel(opsCollapsed ? " Activity " : " Activity Log ");
     screen.render();
   }
 
@@ -2588,7 +3081,9 @@ async function startTui(
     );
 
     try {
+      activeTurnAbortController = new AbortController();
       const result = await executeCliInput(line, context, state, {
+        abortSignal: activeTurnAbortController.signal,
         onStream: ({ source, chunk, command }) => {
           const lines = chunk
             .split(/\r?\n/gu)
@@ -2672,6 +3167,7 @@ async function startTui(
       pushResponseEntry(line, `Error: ${detail}`);
       appendActivity("err", detail, "error");
     } finally {
+      activeTurnAbortController = null;
       busy = false;
       stopBusySpinner();
       if (!screenDestroyed) {
@@ -2682,7 +3178,7 @@ async function startTui(
           if (controlDeckMode === "assist") {
             assistBox.setContent(renderSuggestionsContent(""));
           }
-          inputBox.focus();
+          activateTextEntry(inputBox as InteractiveTextEntry);
           updateFooterHint();
           screen.render();
         } catch (error) {
@@ -2704,7 +3200,7 @@ async function startTui(
     const trimmed = line.trim();
     if (!trimmed) {
       inputBox.clearValue();
-      inputBox.focus();
+      activateTextEntry(inputBox as InteractiveTextEntry);
       screen.render();
       return;
     }
@@ -2729,7 +3225,6 @@ async function startTui(
     if (controlDeckMode === "assist") {
       assistBox.setContent(renderSuggestionsContent(""));
     }
-    inputBox.focus();
     screen.render();
     void processQueue();
   }
@@ -2869,6 +3364,27 @@ async function startTui(
     }, 0);
   };
 
+  const requestActiveTurnCancellation = (): boolean => {
+    if (
+      !activeTurnAbortController ||
+      activeTurnAbortController.signal.aborted
+    ) {
+      return false;
+    }
+    activeTurnAbortController.abort();
+    appendActivity(
+      "stop",
+      "Cancellation requested for the active turn.",
+      "warning",
+    );
+    pushNotice(
+      "status",
+      "Cancellation requested. Waiting for the current turn to stop.",
+    );
+    scheduleRefreshPanels(0);
+    return true;
+  };
+
   const forceTerminateCli = (signal: string) => {
     if (shuttingDown) {
       process.exit(signal === "SIGINT" ? 130 : 0);
@@ -2932,6 +3448,9 @@ async function startTui(
   };
 
   const handleSigint = () => {
+    if (requestActiveTurnCancellation()) {
+      return;
+    }
     forceTerminateCli("SIGINT");
   };
   const handleSigterm = () => {
@@ -2941,7 +3460,13 @@ async function startTui(
   process.once("SIGTERM", handleSigterm);
   process.once("uncaughtException", handleUncaughtException);
   process.once("unhandledRejection", handleUnhandledRejection);
-  screen.key(["C-q", "C-c"], () => {
+  screen.key(["C-q"], () => {
+    exitCli();
+  });
+  screen.key(["C-c"], () => {
+    if (requestActiveTurnCancellation()) {
+      return;
+    }
     exitCli();
   });
   screen.key(["q"], () => {
@@ -2996,6 +3521,7 @@ async function startTui(
       return;
     }
     if (paletteOpen) {
+      deactivateTextEntry(paletteInput as InteractiveTextEntry);
       paletteList.focus();
       updateFooterHint();
       screen.render();
@@ -3012,7 +3538,7 @@ async function startTui(
       return;
     }
     if (paletteOpen) {
-      paletteInput.focus();
+      activateTextEntry(paletteInput as InteractiveTextEntry);
       updateFooterHint();
       screen.render();
       return;
@@ -3029,7 +3555,7 @@ async function startTui(
       closePalette();
       return;
     }
-    inputBox.focus();
+    activateTextEntry(inputBox as InteractiveTextEntry);
     updateFooterHint();
     screen.render();
   });
@@ -3347,12 +3873,12 @@ async function startTui(
 
   appendActivity(
     "boot",
-    `${context.config.agentName} helm online. Type /help for shortcuts and examples.`,
+    `${context.config.agentName} cockpit online. Type /help for shortcuts and examples.`,
     "success",
   );
   appendActivity(
     "tip",
-    `Use ${macAwareKeyLabel("Ctrl-E")} for multiline compose, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
+    `Use ${macAwareKeyLabel("Ctrl-E")} for drafts, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
     "info",
   );
   for (const entry of options?.bootLogs ?? []) {
@@ -3364,7 +3890,7 @@ async function startTui(
   }
   pushResponseEntry(
     "Helm Ready",
-    `You are live in the Eliza Agent helm.\n\nTalk to me normally, or run a shell action like !git status.\n\nFor operator state, try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
+    `You are live in the Eliza Agent cockpit.\n\nUse the plain shell for everyday work, or stay here when you want conversation plus live observability.\n\nTalk to me normally, run !git status, or check ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
   );
   if (!transportBox.hidden) {
     transportBox.setContent(await renderTransportContent(context));
@@ -3380,7 +3906,7 @@ async function startTui(
   appendCliTrace(crashLogPath, "tui:after-refresh");
   syncLayout();
   appendCliTrace(crashLogPath, "tui:after-layout");
-  inputBox.focus();
+  activateTextEntry(inputBox as InteractiveTextEntry);
   updateFooterHint();
   screen.render();
   appendCliTrace(
@@ -3462,7 +3988,9 @@ export async function startCli(
   options?: StartCliOptions,
 ): Promise<void> {
   const forcePlain = Bun.argv.includes("--plain-cli");
-  const canUseTui = input.isTTY && output.isTTY && !forcePlain;
+  const forceCockpit =
+    Bun.argv.includes("--cockpit") || Bun.argv.includes("--cli");
+  const canUseTui = input.isTTY && output.isTTY && forceCockpit && !forcePlain;
 
   if (!canUseTui) {
     await startPlainCli(context, options);
