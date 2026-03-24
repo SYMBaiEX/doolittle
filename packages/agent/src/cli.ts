@@ -172,6 +172,16 @@ function isRecoverableProviderError(error: unknown): boolean {
   );
 }
 
+function isBenignCliShutdownError(error: unknown): boolean {
+  const normalized = getCliErrorMessage(error).toLowerCase();
+  return (
+    normalized.includes("database is shutting down") ||
+    normalized.includes("operation rejected") ||
+    normalized.includes("err_use_after_close") ||
+    normalized.includes("readline was closed")
+  );
+}
+
 function formatRecoverableProviderError(error: unknown): string {
   const detail = getCliErrorMessage(error);
   return detail.length > 280 ? `${detail.slice(0, 277)}...` : detail;
@@ -1003,6 +1013,9 @@ async function startPlainCli(
   };
 
   const handleRecoverableRuntimeError = (error: unknown): boolean => {
+    if (closed && isBenignCliShutdownError(error)) {
+      return true;
+    }
     if (closed || !isRecoverableProviderError(error)) {
       return false;
     }
@@ -1049,7 +1062,15 @@ async function startPlainCli(
   options?.onReady?.();
   if (input.isTTY && output.isTTY) {
     setTimeout(() => {
-      void context.ensureDeferredHydration("plain-cli");
+      void context.ensureDeferredHydration("plain-cli").catch((error) => {
+        if (handleRecoverableRuntimeError(error)) {
+          return;
+        }
+        logFatal("plain-cli-deferred-hydration", error);
+        output.write(
+          `\nDeferred startup failed: ${formatRecoverableProviderError(error)}\n\n`,
+        );
+      });
     }, 25).unref?.();
   }
   try {
@@ -1556,6 +1577,7 @@ async function startTui(
   let shuttingDown = false;
   let busyFrameIndex = 0;
   let busySpinnerTimer: ReturnType<typeof setInterval> | null = null;
+  let lastPanelFailureSignature = "";
   const logFatal = (label: string, error: unknown) => {
     const detail =
       error instanceof Error ? error.stack || error.message : String(error);
@@ -1989,6 +2011,16 @@ async function startTui(
     );
   }
 
+  function notePanelFailure(panel: string, error: unknown): void {
+    const detail = formatRecoverableProviderError(error);
+    const signature = `${panel}:${detail}`;
+    if (signature === lastPanelFailureSignature) {
+      return;
+    }
+    lastPanelFailureSignature = signature;
+    appendActivity(panel, truncate(detail, 180), "warning");
+  }
+
   const restoreForeignTerminalWrites = (() => {
     const originalStdoutWrite = process.stdout.write.bind(process.stdout);
     const originalStderrWrite = process.stderr.write.bind(process.stderr);
@@ -2098,14 +2130,42 @@ async function startTui(
   unsubscribers.push(restoreForeignTerminalWrites);
 
   async function refreshPanels(): Promise<void> {
-    sidebar.setContent(renderStatusContent(context, state));
+    try {
+      sidebar.setContent(renderStatusContent(context, state));
+    } catch (error) {
+      notePanelFailure("status", error);
+      sidebar.setContent(
+        `{bold}Session Rail{/}\n{yellow-fg}Status temporarily unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
+      );
+    }
     if (!transportBox.hidden) {
-      transportBox.setContent(await renderTransportContent(context));
+      try {
+        transportBox.setContent(await renderTransportContent(context));
+      } catch (error) {
+        notePanelFailure("channels", error);
+        transportBox.setContent(
+          `{bold}Channels{/}\n{yellow-fg}Transport state unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
+        );
+      }
     }
     if (!executionBox.hidden) {
-      executionBox.setContent(await renderExecutionContent(context));
+      try {
+        executionBox.setContent(await renderExecutionContent(context));
+      } catch (error) {
+        notePanelFailure("workbench", error);
+        executionBox.setContent(
+          `{bold}Workbench{/}\n{yellow-fg}Execution state unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
+        );
+      }
     }
-    await renderControlDeck(controlDeckMode);
+    try {
+      await renderControlDeck(controlDeckMode);
+    } catch (error) {
+      notePanelFailure("launchpad", error);
+      assistBox.setContent(
+        `{bold}Launchpad{/}\n{yellow-fg}Control deck unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
+      );
+    }
     footer.setContent(
       renderFooter(
         context,
@@ -2503,6 +2563,9 @@ async function startTui(
   };
 
   const handleUncaughtException = (error: unknown) => {
+    if (shuttingDown && isBenignCliShutdownError(error)) {
+      return;
+    }
     if (!screenDestroyed && isRecoverableProviderError(error)) {
       logFatal("recoverableRuntimeError", error);
       stopBusySpinner();
@@ -2523,6 +2586,9 @@ async function startTui(
   };
 
   const handleUnhandledRejection = (error: unknown) => {
+    if (shuttingDown && isBenignCliShutdownError(error)) {
+      return;
+    }
     if (!screenDestroyed && isRecoverableProviderError(error)) {
       logFatal("recoverableRuntimeRejection", error);
       stopBusySpinner();
@@ -2932,7 +2998,36 @@ async function startTui(
   screen.render();
   options?.onReady?.();
   setTimeout(() => {
-    void context.ensureDeferredHydration("tui");
+    void context.ensureDeferredHydration("tui").catch((error) => {
+      if (screenDestroyed && isBenignCliShutdownError(error)) {
+        return;
+      }
+      if (isRecoverableProviderError(error)) {
+        logFatal("recoverableDeferredHydration", error);
+        appendActivity(
+          "startup",
+          truncate(formatRecoverableProviderError(error), 180),
+          "warning",
+        );
+        pushNotice(
+          "status",
+          `Deferred startup hit a recoverable error: ${formatRecoverableProviderError(error)}`,
+        );
+        scheduleRefreshPanels(0);
+        return;
+      }
+      logFatal("deferredHydrationFailure", error);
+      appendActivity(
+        "startup",
+        truncate(formatRecoverableProviderError(error), 180),
+        "error",
+      );
+      pushNotice(
+        "status",
+        `Deferred startup failed: ${formatRecoverableProviderError(error)}`,
+      );
+      scheduleRefreshPanels(0);
+    });
   }, 25).unref?.();
 
   await new Promise<void>((resolve) => {
