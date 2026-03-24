@@ -3,6 +3,7 @@ import { platform } from "node:os";
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { inspect } from "node:util";
 import blessed from "blessed";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import type { AppContext } from "@/runtime/bootstrap";
@@ -72,6 +73,7 @@ export interface ResponseTranscriptEntry {
   at: string;
   kind?: "user" | "assistant" | "shell" | "command" | "system";
   pending?: boolean;
+  liveActivity?: string[];
 }
 
 function nowStamp(): string {
@@ -125,9 +127,35 @@ function sanitizeForeignTerminalWrite(text: string): string {
   return text
     .replace(ANSI_ESCAPE_PATTERN, "")
     .replace(/\r\n/gu, "\n")
-    .replace(/\r/gu, "\n")
+    .replace(/\r/gu, "")
     .replaceAll(String.fromCharCode(0), "")
     .trim();
+}
+
+function formatForeignTerminalArgs(args: unknown[]): string {
+  return args
+    .map((value) => {
+      if (typeof value === "string") {
+        return value;
+      }
+      return inspect(value, {
+        depth: 4,
+        colors: false,
+        compact: true,
+        breakLength: 120,
+      });
+    })
+    .join(" ");
+}
+
+function shouldSuppressForeignTerminalLine(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return (
+    normalized.includes("dynamicpromptexecfromstate failed") ||
+    normalized.includes("no settings state found for server") ||
+    normalized.includes("[batchembeddings] api error:") ||
+    normalized.includes("model call failed:")
+  );
 }
 
 function createBlessedOutputProxy(
@@ -143,6 +171,25 @@ function createBlessedOutputProxy(
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
+}
+
+function enableTuiRawInputMode(): () => void {
+  const terminalInput = input as typeof input & {
+    isRaw?: boolean;
+    isTTY?: boolean;
+    setRawMode?: (mode: boolean) => void;
+  };
+  if (!terminalInput.isTTY || typeof terminalInput.setRawMode !== "function") {
+    return () => {};
+  }
+
+  const wasRaw = Boolean(terminalInput.isRaw);
+  terminalInput.setRawMode(true);
+  return () => {
+    if (!wasRaw) {
+      terminalInput.setRawMode?.(false);
+    }
+  };
 }
 
 function getCliErrorMessage(error: unknown): string {
@@ -241,11 +288,21 @@ export function renderResponseTranscript(
       : entry.pending
         ? "{gray-fg}thinking…{/}"
         : "{gray-fg}waiting…{/}";
+    const liveActivity =
+      entry.liveActivity && entry.liveActivity.length > 0
+        ? [
+            "{gray-fg}[live activity]{/}",
+            ...entry.liveActivity.map((line) => escapeBlessed(line)),
+          ].join("\n")
+        : "";
 
     return [
       `{gray-fg}${escapeBlessed(entry.at)}{/} ${roleTag}${customLabel}${entry.pending ? " {gray-fg}…{/}" : ""}`,
       body,
-    ].join("\n");
+      liveActivity,
+    ]
+      .filter(Boolean)
+      .join("\n");
   };
 
   return sections
@@ -1255,7 +1312,7 @@ async function startTui(
 ): Promise<"exited" | "unexpected"> {
   const state: CliState = { activeSessionId: "cli:local-user", notices: [] };
   const unsubscribers: Array<() => void> = [];
-  input.resume();
+  unsubscribers.push(enableTuiRawInputMode());
   let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
@@ -1610,7 +1667,13 @@ async function startTui(
   let shuttingDown = false;
   let busyFrameIndex = 0;
   let busySpinnerTimer: ReturnType<typeof setInterval> | null = null;
+  let deferredForeignRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   let lastPanelFailureSignature = "";
+  const deferredForeignActivity: Array<{
+    kind: string;
+    message: string;
+    tone: CliExecutionResult["tone"];
+  }> = [];
   const logFatal = (label: string, error: unknown) => {
     const detail =
       error instanceof Error ? error.stack || error.message : String(error);
@@ -1656,6 +1719,12 @@ async function startTui(
     screen.render();
   }
 
+  function focusProcessingSurface(): void {
+    response.focus();
+    updateFooterHint();
+    screen.render();
+  }
+
   function footerHintForCurrentFocus(): string {
     if (composerOpen) {
       return macAwareKeyLabel("Ctrl-S submit draft");
@@ -1690,6 +1759,7 @@ async function startTui(
   }
 
   function updateFooterHint(): void {
+    flushDeferredForeignActivity();
     footerHint = footerHintForCurrentFocus();
     footer.setContent(
       renderFooter(
@@ -1845,15 +1915,14 @@ async function startTui(
     body: string,
     options?: { kind?: ResponseTranscriptEntry["kind"]; pending?: boolean },
   ): void {
-    const toolOverlay = liveToolTrail.length
-      ? `\n\n[live activity]\n${liveToolTrail.slice(-4).join("\n")}`
-      : "";
     liveResponse = {
       label: options?.pending ? pendingRunLabel(label) : label,
-      body: `${body}${toolOverlay}`.trim(),
+      body: body.trim(),
       at: nowStamp(),
       kind: options?.kind,
       pending: options?.pending,
+      liveActivity:
+        liveToolTrail.length > 0 ? liveToolTrail.slice(-4) : undefined,
     };
     renderResponsePane();
   }
@@ -1868,11 +1937,14 @@ async function startTui(
       liveToolTrail = liveToolTrail.slice(-6);
     }
     if (liveResponse) {
-      const body = liveResponse.body.split("\n\n[live activity]\n")[0] ?? "";
-      setLiveResponse(liveResponse.label, body, {
-        kind: liveResponse.kind,
-        pending: liveResponse.pending,
-      });
+      setLiveResponse(
+        baseLabelForLiveKind(liveResponse.kind),
+        liveResponse.body,
+        {
+          kind: liveResponse.kind,
+          pending: liveResponse.pending,
+        },
+      );
     }
   }
 
@@ -2044,6 +2116,57 @@ async function startTui(
     );
   }
 
+  function scheduleDeferredForeignRefresh(delayMs = 90): void {
+    if (deferredForeignRefreshTimer) {
+      return;
+    }
+    deferredForeignRefreshTimer = setTimeout(() => {
+      deferredForeignRefreshTimer = null;
+      flushDeferredForeignActivity();
+      scheduleRefreshPanels(0);
+    }, delayMs);
+    deferredForeignRefreshTimer.unref?.();
+  }
+
+  function flushDeferredForeignActivity(): void {
+    if (
+      textEntryFocused() ||
+      paletteOpen ||
+      composerOpen ||
+      deferredForeignActivity.length === 0
+    ) {
+      return;
+    }
+
+    for (const entry of deferredForeignActivity.splice(
+      0,
+      deferredForeignActivity.length,
+    )) {
+      appendActivity(entry.kind, entry.message, entry.tone);
+    }
+  }
+
+  function routeForeignActivity(
+    source: "stdout" | "stderr" | "console",
+    text: string,
+  ): void {
+    const nextEntry = {
+      kind:
+        source === "stdout" ? "srv+" : source === "stderr" ? "srv!" : "log!",
+      message: truncate(text, 220),
+      tone: source === "stdout" ? ("info" as const) : ("warning" as const),
+    };
+
+    if (busy || textEntryFocused() || paletteOpen || composerOpen) {
+      deferredForeignActivity.push(nextEntry);
+      scheduleDeferredForeignRefresh();
+      return;
+    }
+
+    appendActivity(nextEntry.kind, nextEntry.message, nextEntry.tone);
+    scheduleRefreshPanels(0);
+  }
+
   function notePanelFailure(panel: string, error: unknown): void {
     const detail = formatRecoverableProviderError(error);
     const signature = `${panel}:${detail}`;
@@ -2122,11 +2245,11 @@ async function startTui(
           if (!trimmed) {
             continue;
           }
-          appendActivity(
-            source === "stdout" ? "srv+" : "srv!",
-            truncate(trimmed, 220),
-            source === "stdout" ? "info" : "warning",
-          );
+          if (shouldSuppressForeignTerminalLine(trimmed)) {
+            appendCliTrace(crashLogPath, `tui:suppressed-${source}`, trimmed);
+            continue;
+          }
+          routeForeignActivity(source, trimmed);
         }
 
         if (source === "stdout") {
@@ -2134,7 +2257,12 @@ async function startTui(
         } else {
           stderrBuffer = remainder;
         }
-        scheduleRefreshPanels(0);
+        if (textEntryFocused() || paletteOpen || composerOpen) {
+          scheduleDeferredForeignRefresh();
+        } else {
+          flushDeferredForeignActivity();
+          scheduleRefreshPanels(0);
+        }
 
         if (typeof encoding === "function") {
           encoding();
@@ -2161,6 +2289,46 @@ async function startTui(
     };
   })();
   unsubscribers.push(restoreForeignTerminalWrites);
+
+  const restoreConsoleWriters = (() => {
+    const original = {
+      log: console.log,
+      info: console.info,
+      warn: console.warn,
+      error: console.error,
+    };
+
+    const interceptConsole =
+      (method: keyof typeof original) =>
+      (...args: unknown[]): void => {
+        if (screenDestroyed || shuttingDown) {
+          original[method](...args);
+          return;
+        }
+
+        const sanitized = sanitizeForeignTerminalWrite(
+          formatForeignTerminalArgs(args),
+        );
+        if (!sanitized || shouldSuppressForeignTerminalLine(sanitized)) {
+          return;
+        }
+
+        routeForeignActivity("console", sanitized);
+      };
+
+    console.log = interceptConsole("log");
+    console.info = interceptConsole("info");
+    console.warn = interceptConsole("warn");
+    console.error = interceptConsole("error");
+
+    return () => {
+      console.log = original.log;
+      console.info = original.info;
+      console.warn = original.warn;
+      console.error = original.error;
+    };
+  })();
+  unsubscribers.push(restoreConsoleWriters);
 
   async function refreshPanels(): Promise<void> {
     appendCliTrace(crashLogPath, "tui:refreshPanels:start");
@@ -2277,6 +2445,7 @@ async function startTui(
 
     busy = true;
     startBusySpinner();
+    focusProcessingSurface();
     queueDepth = pendingCommands.length;
     await refreshPanels();
 
@@ -2397,6 +2566,7 @@ async function startTui(
       stopBusySpinner();
       if (!screenDestroyed) {
         try {
+          flushDeferredForeignActivity();
           await refreshPanels();
           inputBox.clearValue();
           if (controlDeckMode === "assist") {
@@ -2659,14 +2829,6 @@ async function startTui(
   process.once("SIGTERM", handleSigterm);
   process.once("uncaughtException", handleUncaughtException);
   process.once("unhandledRejection", handleUnhandledRejection);
-  const handleRawCtrlC = (chunk: string | Buffer) => {
-    const value = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-    if (value.includes("\u0003")) {
-      forceTerminateCli("SIGINT");
-    }
-  };
-  input.on("data", handleRawCtrlC);
-
   screen.key(["C-q", "C-c"], () => {
     exitCli();
   });
@@ -2677,26 +2839,41 @@ async function startTui(
     exitCli();
   });
   screen.key(["C-p"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     openPalette(inputBox.getValue());
   });
   screen.key(["C-g"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     controlDeckMode = "gateway";
     void refreshPanels();
   });
   screen.key(["C-e"], () => {
-    if (paletteOpen) {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
       return;
     }
     openComposer(inputBox.getValue());
   });
   screen.key(["C-s"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     response.focus();
     screen.render();
   });
   screen.key(["C-t"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     queueCommand(canonicalizeSlashCommandSyntax("/theme next"));
   });
   screen.key(["C-y"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     queueCommand(canonicalizeSlashCommandSyntax("/theme prev"));
   });
   screen.key(["tab"], () => {
@@ -2755,23 +2932,38 @@ async function startTui(
     void refreshPanels();
   });
   screen.key(["C-o"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     opsCollapsed = !opsCollapsed;
     syncLayout();
     updateFooterHint();
   });
   screen.key(["M-1"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     controlDeckMode = "assist";
     void refreshPanels();
   });
   screen.key(["M-2"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     controlDeckMode = "ecosystem";
     void refreshPanels();
   });
   screen.key(["M-3"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     controlDeckMode = "gateway";
     void refreshPanels();
   });
   screen.key(["M-4"], () => {
+    if (textEntryFocused() || paletteOpen || composerOpen) {
+      return;
+    }
     controlDeckMode = "responses";
     void refreshPanels();
   });
@@ -2837,6 +3029,9 @@ async function startTui(
 
   for (const [keys, command] of hotkeys) {
     screen.key(keys, () => {
+      if (textEntryFocused() || paletteOpen || composerOpen) {
+        return;
+      }
       queueCommand(command);
     });
   }
@@ -2941,14 +3136,24 @@ async function startTui(
         return;
       }
       if (busy) {
-        pushLiveToolEvent(detail);
+        if (
+          event.type === "action-started" ||
+          event.type === "action-completed" ||
+          event.type === "approvals" ||
+          event.type === "error" ||
+          (event.type === "stream" && event.run.activeStream !== "assistant")
+        ) {
+          pushLiveToolEvent(detail);
+        }
         if (liveResponse?.pending) {
-          const body =
-            liveResponse.body.split("\n\n[live activity]\n")[0] ?? "";
-          setLiveResponse(baseLabelForLiveKind(liveResponse.kind), body, {
-            kind: liveResponse.kind,
-            pending: true,
-          });
+          setLiveResponse(
+            baseLabelForLiveKind(liveResponse.kind),
+            liveResponse.body,
+            {
+              kind: liveResponse.kind,
+              pending: true,
+            },
+          );
         }
         if (
           event.type === "completed" ||
@@ -3092,11 +3297,14 @@ async function startTui(
       clearInterval(tuiKeepAlive);
       screenDestroyed = true;
       stopBusySpinner();
-      input.removeListener("data", handleRawCtrlC);
       process.removeListener("SIGINT", handleSigint);
       process.removeListener("SIGTERM", handleSigterm);
       process.removeListener("uncaughtException", handleUncaughtException);
       process.removeListener("unhandledRejection", handleUnhandledRejection);
+      if (deferredForeignRefreshTimer) {
+        clearTimeout(deferredForeignRefreshTimer);
+        deferredForeignRefreshTimer = null;
+      }
       for (const unsubscribe of unsubscribers) {
         unsubscribe();
       }
