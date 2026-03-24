@@ -7,7 +7,9 @@ import {
   ChannelType,
   type Content,
   createMessageMemory,
+  createUniqueUuid,
   EventType,
+  initializeOnboarding,
   type UUID,
 } from "@elizaos/core";
 import {
@@ -1499,12 +1501,15 @@ function resolveLinkedProviderName(
   return undefined;
 }
 
-function defaultProviderModel(provider: LinkedProviderName): string {
+function defaultProviderModel(
+  context: AgentExecutionContext,
+  provider: LinkedProviderName,
+): string {
   if (provider === "codex") {
     return "gpt-5.4";
   }
   if (provider === "elizacloud") {
-    return "anthropic/claude-sonnet-4.6";
+    return context.config.elizaCloudLargeModel;
   }
   return "claude-sonnet-4.6";
 }
@@ -1813,7 +1818,7 @@ export function activateLinkedProvider(
   const nextModel =
     settings.model.provider === provider && settings.model.model.trim()
       ? settings.model.model
-      : defaultProviderModel(provider);
+      : defaultProviderModel(context, provider);
   const nextBaseUrl =
     settings.model.provider === provider
       ? settings.model.baseUrl
@@ -6898,10 +6903,11 @@ function createTurnState(
 ): TurnState {
   const agentName = context.runtime.character?.name ?? "Eliza Agent";
   const localInteractive = (input.source ?? "cli") === "cli";
-  const connectionSource = localInteractive
-    ? "client_chat"
-    : (input.source ?? "cli");
+  const connectionSource = localInteractive ? "cli" : (input.source ?? "cli");
   const roomKey = input.roomId ?? `room:${input.userId}`;
+  const messageServerId = localInteractive
+    ? stableRuntimeUuid(`${agentName}-cli-server`)
+    : stableRuntimeUuid("eliza-agent-message-server");
 
   return {
     agentName,
@@ -6911,13 +6917,9 @@ function createTurnState(
     roomId: localInteractive
       ? stableRuntimeUuid(`${agentName}-chat-room`)
       : stableRuntimeUuid(roomKey),
-    worldId: localInteractive
-      ? stableRuntimeUuid(`${agentName}-chat-world`)
-      : stableRuntimeUuid("eliza-agent-world"),
+    worldId: createUniqueUuid(context.runtime, messageServerId),
     entityId: stableRuntimeUuid(input.userId),
-    messageServerId: localInteractive
-      ? stableRuntimeUuid(`${agentName}-cli-server`)
-      : stableRuntimeUuid("eliza-agent-message-server"),
+    messageServerId,
     settings: context.services.settings.get(),
     runId: randomUUID(),
   };
@@ -6973,6 +6975,54 @@ function startTrackedTurn(
         ? 1
         : 0,
   });
+}
+
+async function ensureLocalInteractiveSettingsState(
+  context: AgentExecutionContext,
+  turn: TurnState,
+): Promise<void> {
+  if (!turn.localInteractive) {
+    return;
+  }
+
+  try {
+    const world = await context.runtime.getWorld(turn.worldId as UUID);
+    if (!world) {
+      return;
+    }
+
+    const metadata =
+      world.metadata && typeof world.metadata === "object"
+        ? world.metadata
+        : {};
+    const hasSettings =
+      "settings" in metadata &&
+      metadata.settings &&
+      typeof metadata.settings === "object";
+    const ownership =
+      metadata.ownership && typeof metadata.ownership === "object"
+        ? metadata.ownership
+        : {};
+    const hasOwner =
+      "ownerId" in ownership && ownership.ownerId === turn.entityId;
+    if (!hasOwner) {
+      world.metadata = {
+        ...metadata,
+        ownership: {
+          ...ownership,
+          ownerId: turn.entityId,
+        },
+      };
+      await context.runtime.updateWorld(world);
+    }
+    if (!hasSettings) {
+      await initializeOnboarding(context.runtime, world, {
+        settings: {},
+      });
+    }
+  } catch {
+    // Best effort only; chat should still proceed if local settings bootstrap fails.
+  }
 }
 
 async function finalizeTurnResponse(
@@ -7277,6 +7327,8 @@ export async function handleAgentTurn(
     },
   } as Parameters<typeof context.runtime.ensureConnection>[0]);
   perf.mark("runtime-connection");
+  await ensureLocalInteractiveSettingsState(context, turn);
+  perf.mark("local-settings-state");
 
   const memory = createMessageMemory({
     id: randomUUID() as UUID,
