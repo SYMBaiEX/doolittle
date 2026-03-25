@@ -112,19 +112,37 @@ async function summarizeProjectForOutput(
     projectPath,
   );
   return [
-    `Project: ${inspection.name}`,
+    `Repo: ${inspection.name}`,
     `Path: ${inspection.path}`,
     `Type: ${inspection.type}`,
-    `Git: ${inspection.git.available ? "yes" : "no"}`,
-    inspection.git.recentCommit
-      ? `Recent commit: ${inspection.git.recentCommit}`
+    "",
+    "What matters:",
+    inspection.packageName ? `- package: ${inspection.packageName}` : undefined,
+    inspection.packageManager
+      ? `- package manager: ${inspection.packageManager}`
       : undefined,
-    inspection.git.status ? `Git status:\n${inspection.git.status}` : undefined,
+    inspection.workspacePatterns.length > 0
+      ? `- workspaces: ${inspection.workspacePatterns.join(", ")}`
+      : undefined,
+    inspection.scripts.length > 0
+      ? `- scripts: ${inspection.scripts.join(", ")}`
+      : undefined,
+    inspection.keyFolders.length > 0
+      ? `- key folders: ${inspection.keyFolders.join(", ")}`
+      : undefined,
     inspection.topEntries.length > 0
-      ? `Top entries: ${inspection.topEntries.join(", ")}`
+      ? `- top entries: ${inspection.topEntries.join(", ")}`
       : undefined,
+    "",
+    "Git:",
+    inspection.git.available
+      ? inspection.git.recentCommit
+        ? `- recent commit: ${inspection.git.recentCommit}`
+        : "- repository detected"
+      : "- not detected",
+    inspection.git.status ? `- status:\n${inspection.git.status}` : undefined,
     inspection.readmePreview
-      ? `README preview:\n${inspection.readmePreview}`
+      ? `\nREADME preview:\n${inspection.readmePreview}`
       : undefined,
   ]
     .filter(Boolean)
@@ -232,7 +250,7 @@ export function resolveWorkspaceIntentFromText(
   }
 
   if (
-    /(summari[sz]e|overview|what is|inspect|look at).*(repo|repository|project|codebase|workspace)/u.test(
+    /(summari[sz]e|overview|what is|inspect|look at|breakdown|review|map out).*(repo|repository|project|codebase|workspace)/u.test(
       lower,
     )
   ) {

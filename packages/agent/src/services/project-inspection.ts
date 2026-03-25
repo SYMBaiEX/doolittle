@@ -11,6 +11,11 @@ export interface LocalProjectInspection {
   name: string;
   path: string;
   type: string;
+  packageName?: string;
+  packageManager?: string;
+  workspacePatterns: string[];
+  scripts: string[];
+  keyFolders: string[];
   git: {
     available: boolean;
     status?: string;
@@ -57,6 +62,96 @@ function readProjectReadme(projectPath: string): string | undefined {
     }
   }
   return undefined;
+}
+
+interface PackageJsonSummary {
+  packageName?: string;
+  packageManager?: string;
+  workspacePatterns: string[];
+  scripts: string[];
+}
+
+function readPackageJsonSummary(projectPath: string): PackageJsonSummary {
+  const packageJsonPath = join(projectPath, "package.json");
+  if (!existsSync(packageJsonPath)) {
+    return { workspacePatterns: [], scripts: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      name?: unknown;
+      packageManager?: unknown;
+      workspaces?: unknown;
+      scripts?: unknown;
+    };
+    const workspaces = Array.isArray(parsed.workspaces)
+      ? parsed.workspaces
+      : parsed.workspaces &&
+          typeof parsed.workspaces === "object" &&
+          Array.isArray((parsed.workspaces as { packages?: unknown }).packages)
+        ? ((parsed.workspaces as { packages: unknown[] }).packages ?? [])
+        : [];
+
+    return {
+      packageName:
+        typeof parsed.name === "string" && parsed.name.trim()
+          ? parsed.name.trim()
+          : undefined,
+      packageManager:
+        typeof parsed.packageManager === "string" &&
+        parsed.packageManager.trim()
+          ? parsed.packageManager.trim()
+          : undefined,
+      workspacePatterns: workspaces
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, 8),
+      scripts:
+        parsed.scripts && typeof parsed.scripts === "object"
+          ? Object.keys(parsed.scripts as Record<string, unknown>)
+              .filter(Boolean)
+              .sort((left, right) => left.localeCompare(right))
+              .slice(0, 10)
+          : [],
+    };
+  } catch {
+    return { workspacePatterns: [], scripts: [] };
+  }
+}
+
+function collectKeyFolders(projectPath: string): string[] {
+  const prominentRoots = [
+    "packages",
+    "apps",
+    "services",
+    "plugins",
+    "scripts",
+    "docs",
+    "examples",
+    "src",
+  ];
+  const keyFolders: string[] = [];
+
+  for (const rootName of prominentRoots) {
+    const rootPath = join(projectPath, rootName);
+    if (!existsSync(rootPath)) {
+      continue;
+    }
+    keyFolders.push(rootName);
+    try {
+      const children = readdirSync(rootPath)
+        .filter((entry) => !entry.startsWith("."))
+        .sort((left, right) => left.localeCompare(right))
+        .slice(0, 4)
+        .map((entry) => `${rootName}/${entry}`);
+      keyFolders.push(...children);
+    } catch {
+      // Best effort only.
+    }
+  }
+
+  return [...new Set(keyFolders)].slice(0, 12);
 }
 
 function resolveSearchRoots(workspaceDir: string): string[] {
@@ -165,6 +260,7 @@ export async function inspectLocalProject(
     readmeLines?: number;
   },
 ): Promise<LocalProjectInspection> {
+  const packageJson = readPackageJsonSummary(projectPath);
   const topEntriesLimit = options?.topEntriesLimit ?? 12;
   const topEntries = readdirSync(projectPath)
     .filter((entry) => ![".git", "node_modules", "dist"].includes(entry))
@@ -202,6 +298,11 @@ export async function inspectLocalProject(
     name: basename(projectPath),
     path: projectPath,
     type: detectProjectKind(projectPath),
+    packageName: packageJson.packageName,
+    packageManager: packageJson.packageManager,
+    workspacePatterns: packageJson.workspacePatterns,
+    scripts: packageJson.scripts,
+    keyFolders: collectKeyFolders(projectPath),
     git: {
       available: existsSync(gitDirectory),
       status: gitStatus || undefined,

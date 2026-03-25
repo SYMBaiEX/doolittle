@@ -125,6 +125,22 @@ describe("TerminalService", () => {
     }
   });
 
+  it("cancels local commands via abort signal", async () => {
+    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-abort-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+    const controller = new AbortController();
+
+    try {
+      const runPromise = service.run("sleep 10", 30_000, controller.signal);
+      setTimeout(() => controller.abort(), 25);
+      const result = await runPromise;
+      expect(result.exitCode).toBe(130);
+      expect(result.stderr).toContain("cancelled");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("previews docker execution with hardened flags", async () => {
     const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-preview-"));
     const settings = makeSettings();

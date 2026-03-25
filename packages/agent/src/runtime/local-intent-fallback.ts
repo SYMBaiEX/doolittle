@@ -69,6 +69,23 @@ function looksLikeNativeExecutionFailure(text: string): boolean {
   ].some((fragment) => normalized.includes(fragment));
 }
 
+function looksLikeIncompleteLocalReview(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    (normalized.includes("what was completed:") &&
+      normalized.includes("what was not completed:")) ||
+    normalized.includes("if you want, i can now do the actual repo review") ||
+    normalized.includes("i searched the local workspace") ||
+    normalized.includes("deeper repo inspection did not finish") ||
+    normalized.includes("no verified breakdown") ||
+    normalized.includes("execution trace ended in a parse_error")
+  );
+}
+
 export function resolveDirectLocalIntent(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
@@ -191,6 +208,10 @@ export function shouldUseDirectLocalFallback(input: {
       !input.response.trim() ||
       looksLikeDeferredActionPromise(input.response) ||
       looksLikeNativeExecutionFailure(input.response) ||
+      Boolean(
+        input.isHighConfidenceIntent &&
+          looksLikeIncompleteLocalReview(input.response),
+      ) ||
       Boolean(input.isHighConfidenceIntent && !input.response.trim()))
   );
 }

@@ -1,3 +1,8 @@
+import {
+  sanitizeSingleLineTerminalText,
+  sanitizeTerminalText,
+} from "@/cli/render-utils";
+
 export type CliTurnEvent =
   | {
       type: "start";
@@ -87,17 +92,17 @@ function formatElapsedMs(elapsedMs?: number): string | undefined {
 export function renderCliTurnEvent(event: CliTurnEvent): string {
   switch (event.type) {
     case "start":
-      return `job started · session ${event.sessionId} · ${event.command}`;
+      return `job started · session ${sanitizeSingleLineTerminalText(event.sessionId)} · ${sanitizeSingleLineTerminalText(event.command)}`;
     case "progress":
-      return event.delta || event.response || event.chunk;
+      return sanitizeTerminalText(event.delta || event.response || event.chunk);
     case "notice":
-      return `${event.kind}: ${event.message}`;
+      return `${event.kind}: ${sanitizeTerminalText(event.message)}`;
     case "run":
-      return `[run] ${event.detail}`;
+      return `[run] ${sanitizeTerminalText(event.detail)}`;
     case "result":
-      return event.text;
+      return sanitizeTerminalText(event.text);
     case "error":
-      return `error: ${event.message}`;
+      return `error: ${sanitizeTerminalText(event.message)}`;
     case "completed":
       return `job ${event.status}${formatElapsedMs(event.elapsedMs) ? ` · ${formatElapsedMs(event.elapsedMs)}` : ""}`;
   }

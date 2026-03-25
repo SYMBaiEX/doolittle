@@ -1,6 +1,6 @@
 import { escapeBlessed } from "@/cli/render-utils";
 import { currentProjectLabel, macAwareKeyLabel } from "@/cli/shell-chrome";
-import { canonicalizeSlashCommandSyntax } from "@/runtime/command-catalog";
+import { normalizeSlashCommandSyntax } from "@/runtime/command-catalog";
 import type { TuiThemeProfile } from "@/runtime/theme-catalog";
 
 export function buildHeaderContent(
@@ -18,9 +18,9 @@ export function buildCockpitBootMessage(agentName: string): string {
 }
 
 export function buildCockpitTipMessage(): string {
-  return `Use ${macAwareKeyLabel("Ctrl-E")} for longform drafts, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to shift the operator palette.`;
+  return `Use ${macAwareKeyLabel("Ctrl-E")} for longform drafts, start a shell action with !, and use ${normalizeSlashCommandSyntax("/theme list")} to shift the operator palette.`;
 }
 
 export function buildCockpitWelcomeMessage(): string {
-  return `You are live in the Eliza Agent cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`;
+  return `You are live in the Eliza Agent cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts")}, or ${normalizeSlashCommandSyntax("/gateway readiness")}.`;
 }

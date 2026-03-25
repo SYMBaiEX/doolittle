@@ -1,8 +1,9 @@
 import { platform } from "node:os";
 import { basename, relative } from "node:path";
 import { stdout as output } from "node:process";
+import { sanitizeSingleLineTerminalText } from "@/cli/render-utils";
 import type { AppContext } from "@/runtime/bootstrap";
-import { canonicalizeSlashCommandSyntax } from "@/runtime/command-catalog";
+import { normalizeSlashCommandSyntax } from "@/runtime/command-catalog";
 import { formatElapsedMs, getRunElapsedMs } from "@/runtime/run-progress";
 import { getTuiTheme } from "@/runtime/theme-catalog";
 
@@ -107,7 +108,7 @@ export function renderPlainBanner(
 export function renderPlainShellHints(): string {
   return [
     "Talk naturally for paired work, use !cmd for shell execution, or use /slash commands for control-plane actions.",
-    `Good first moves: ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/sessions list")}.`,
+    `Good first moves: ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts doctor")}, ${normalizeSlashCommandSyntax("/sessions list")}.`,
     'Use "eliza-agent cockpit" when you want the fullscreen operator deck.',
   ].join("\n");
 }
@@ -122,7 +123,7 @@ export function renderPlainPrompt(
 }
 
 export function renderPlainRunLine(detail: string, badge: string): string {
-  return `${paint("  •", ANSI.gray, output.isTTY)} ${paint(badge, ANSI.cyan, output.isTTY)} ${detail}`;
+  return `${paint("  •", ANSI.gray, output.isTTY)} ${paint(badge, ANSI.cyan, output.isTTY)} ${sanitizeSingleLineTerminalText(detail)}`;
 }
 
 export function currentSessionElapsed(

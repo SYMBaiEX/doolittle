@@ -1,9 +1,16 @@
-import type { IAgentRuntime, Plugin } from "@elizaos/core";
+import type {
+  IAgentRuntime,
+  Metadata,
+  MetadataValue,
+  Plugin,
+  Relationship,
+} from "@elizaos/core";
 import officialSqlPlugin from "@elizaos-official/plugin-sql";
 
 type LegacySqlAdapter = {
   __elizaAgentCountMemoriesPatched?: boolean;
   __elizaAgentRelationshipCompatibilityPatched?: boolean;
+  __elizaAgentRelationshipWriteCompatibilityPatched?: boolean;
   getMemories?: (
     params: { tableName?: string } & Record<string, unknown>,
   ) => Promise<unknown>;
@@ -23,9 +30,93 @@ type LegacySqlAdapter = {
       offset?: number;
     } & Record<string, unknown>,
   ) => Promise<unknown>;
+  createRelationship?: (params: {
+    sourceEntityId: string;
+    targetEntityId: string;
+    tags?: string[];
+    metadata?: Record<string, unknown>;
+  }) => Promise<boolean>;
+  getRelationship?: (params: {
+    sourceEntityId: string;
+    targetEntityId: string;
+  }) => Promise<Relationship | null>;
+  updateRelationship?: (relationship: Relationship) => Promise<void>;
 };
 
 const DEFAULT_MEMORY_TABLE = "messages";
+
+function normalizeRelationshipTags(tags: unknown): string[] {
+  if (Array.isArray(tags)) {
+    return Array.from(
+      new Set(
+        tags
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
+  if (tags instanceof Set) {
+    return normalizeRelationshipTags(Array.from(tags));
+  }
+
+  if (
+    tags &&
+    typeof tags === "object" &&
+    typeof (tags as Iterable<unknown>)[Symbol.iterator] === "function"
+  ) {
+    return normalizeRelationshipTags(Array.from(tags as Iterable<unknown>));
+  }
+
+  return [];
+}
+
+function toMetadataValue(value: unknown): MetadataValue {
+  if (
+    value == null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toMetadataValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, toMetadataValue(item)]),
+    );
+  }
+
+  return String(value);
+}
+
+function normalizeRelationshipMetadata(metadata: unknown): Metadata {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(metadata).map(([key, value]) => [
+      key,
+      toMetadataValue(value),
+    ]),
+  );
+}
+
+function mergeRelationshipMetadata(
+  existing: unknown,
+  incoming: unknown,
+): Metadata {
+  return {
+    ...normalizeRelationshipMetadata(existing),
+    ...normalizeRelationshipMetadata(incoming),
+  };
+}
 
 function getRuntimeDatabaseAdapter(
   runtime: IAgentRuntime,
@@ -112,44 +203,116 @@ function patchDatabaseAdapter(runtime: IAgentRuntime): void {
     adapter.__elizaAgentCountMemoriesPatched = true;
   }
 
-  if (adapter.__elizaAgentRelationshipCompatibilityPatched) {
-    return;
-  }
+  if (!adapter.__elizaAgentRelationshipCompatibilityPatched) {
+    const originalGetRelationships = adapter.getRelationships?.bind(adapter);
+    if (originalGetRelationships) {
+      adapter.getRelationships = async (params) => {
+        const candidates = [
+          params.entityId,
+          Array.isArray(params.entityIds) ? params.entityIds[0] : undefined,
+          params.sourceEntityId,
+          params.targetEntityId,
+        ];
+        const entityId = candidates
+          .find(
+            (value): value is string =>
+              typeof value === "string" && value.trim().length > 0,
+          )
+          ?.trim();
 
-  const originalGetRelationships = adapter.getRelationships?.bind(adapter);
-  if (!originalGetRelationships) {
-    adapter.__elizaAgentRelationshipCompatibilityPatched = true;
-    return;
-  }
+        if (!entityId) {
+          return [];
+        }
 
-  adapter.getRelationships = async (params) => {
-    const candidates = [
-      params.entityId,
-      Array.isArray(params.entityIds) ? params.entityIds[0] : undefined,
-      params.sourceEntityId,
-      params.targetEntityId,
-    ];
-    const entityId = candidates
-      .find(
-        (value): value is string =>
-          typeof value === "string" && value.trim().length > 0,
-      )
-      ?.trim();
-
-    if (!entityId) {
-      return [];
+        return originalGetRelationships({
+          ...params,
+          entityId,
+          entityIds: undefined,
+          sourceEntityId: undefined,
+          targetEntityId: undefined,
+        });
+      };
     }
+    adapter.__elizaAgentRelationshipCompatibilityPatched = true;
+  }
 
-    return originalGetRelationships({
-      ...params,
-      entityId,
-      entityIds: undefined,
-      sourceEntityId: undefined,
-      targetEntityId: undefined,
-    });
-  };
-  adapter.__elizaAgentRelationshipCompatibilityPatched = true;
+  if (adapter.__elizaAgentRelationshipWriteCompatibilityPatched) {
+    return;
+  }
+
+  const originalCreateRelationship = adapter.createRelationship?.bind(adapter);
+  const originalGetRelationship = adapter.getRelationship?.bind(adapter);
+  const originalUpdateRelationship = adapter.updateRelationship?.bind(adapter);
+  if (
+    originalCreateRelationship &&
+    originalGetRelationship &&
+    originalUpdateRelationship
+  ) {
+    adapter.createRelationship = async (params) => {
+      const sourceEntityId = params.sourceEntityId?.trim();
+      const targetEntityId = params.targetEntityId?.trim();
+      if (!sourceEntityId || !targetEntityId) {
+        return false;
+      }
+
+      const nextTags = normalizeRelationshipTags(params.tags);
+      const nextMetadata = normalizeRelationshipMetadata(params.metadata);
+
+      const mergeIntoExisting = async (
+        existing: Relationship | null,
+      ): Promise<boolean> => {
+        if (!existing) {
+          return false;
+        }
+        await originalUpdateRelationship({
+          ...existing,
+          tags: Array.from(
+            new Set([...normalizeRelationshipTags(existing.tags), ...nextTags]),
+          ),
+          metadata: mergeRelationshipMetadata(existing.metadata, nextMetadata),
+        });
+        return true;
+      };
+
+      if (
+        await mergeIntoExisting(
+          await originalGetRelationship({
+            sourceEntityId,
+            targetEntityId,
+          }),
+        )
+      ) {
+        return true;
+      }
+
+      const created = await originalCreateRelationship({
+        ...params,
+        sourceEntityId,
+        targetEntityId,
+        tags: nextTags,
+        metadata: nextMetadata,
+      });
+      if (created) {
+        return true;
+      }
+
+      return mergeIntoExisting(
+        await originalGetRelationship({
+          sourceEntityId,
+          targetEntityId,
+        }),
+      );
+    };
+  }
+  adapter.__elizaAgentRelationshipWriteCompatibilityPatched = true;
 }
+
+export const __testing = {
+  patchDatabaseAdapter,
+  normalizeRelationshipTags,
+  normalizeRelationshipMetadata,
+  mergeRelationshipMetadata,
+};
 
 const plugin: Plugin = {
   ...officialSqlPlugin,

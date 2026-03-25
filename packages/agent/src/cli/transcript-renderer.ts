@@ -1,6 +1,6 @@
 import { stdout as output } from "node:process";
 import type { CliTone } from "@/cli/activity-chrome";
-import { escapeBlessed } from "@/cli/render-utils";
+import { escapeBlessed, sanitizeTerminalText } from "@/cli/render-utils";
 
 const RESERVED_LABELS = new Set([
   "You",
@@ -73,11 +73,12 @@ export function renderPlainEntry(
     ? ` ${paint("…", ANSI.gray, output.isTTY)}`
     : "";
   const body =
-    entry.body.trim() || (entry.pending ? "thinking..." : "waiting...");
+    sanitizeTerminalText(entry.body).trim() ||
+    (entry.pending ? "thinking..." : "waiting...");
   const liveActivity =
     entry.liveActivity && entry.liveActivity.length > 0
       ? `\n${paint("activity", ANSI.gray, output.isTTY)}\n${entry.liveActivity
-          .map((line) => `  ${line}`)
+          .map((line) => `  ${sanitizeTerminalText(line)}`)
           .join("\n")}`
       : "";
   const prefix =
@@ -123,10 +124,11 @@ export function renderResponseTranscript(
               : "{gray-fg}:: System{/}";
     const customLabel =
       entry.label && !RESERVED_LABELS.has(entry.label)
-        ? ` ${escapeBlessed(entry.label)}`
+        ? ` ${escapeBlessed(sanitizeTerminalText(entry.label, { preserveNewlines: false, collapseWhitespace: true }))}`
         : "";
-    const body = entry.body.trim()
-      ? escapeBlessed(entry.body)
+    const safeBody = sanitizeTerminalText(entry.body);
+    const body = safeBody.trim()
+      ? escapeBlessed(safeBody)
       : entry.pending
         ? "{gray-fg}thinking…{/}"
         : "{gray-fg}waiting…{/}";
@@ -134,12 +136,14 @@ export function renderResponseTranscript(
       entry.liveActivity && entry.liveActivity.length > 0
         ? [
             "{gray-fg}activity{/}",
-            ...entry.liveActivity.map((line) => escapeBlessed(line)),
+            ...entry.liveActivity.map((line) =>
+              escapeBlessed(sanitizeTerminalText(line)),
+            ),
           ].join("\n")
         : "";
 
     return [
-      `{gray-fg}${escapeBlessed(entry.at)}{/} ${roleTag}${customLabel}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(entry.elapsed)}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
+      `{gray-fg}${escapeBlessed(sanitizeTerminalText(entry.at, { preserveNewlines: false, collapseWhitespace: true }))}{/} ${roleTag}${customLabel}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(sanitizeTerminalText(entry.elapsed, { preserveNewlines: false, collapseWhitespace: true }))}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
       body,
       liveActivity,
     ]
@@ -180,20 +184,26 @@ export function renderPlainTranscript(
                 : ":: System";
       const customLabel =
         entry.label && !RESERVED_LABELS.has(entry.label)
-          ? ` ${entry.label}`
+          ? ` ${sanitizeTerminalText(entry.label, {
+              preserveNewlines: false,
+              collapseWhitespace: true,
+            })}`
           : "";
-      const body = entry.body.trim()
-        ? entry.body.trim()
+      const safeBody = sanitizeTerminalText(entry.body);
+      const body = safeBody.trim()
+        ? safeBody.trim()
         : entry.pending
           ? "thinking..."
           : "waiting...";
       const liveActivity =
         entry.liveActivity && entry.liveActivity.length > 0
-          ? `\n[live activity]\n${entry.liveActivity.join("\n")}`
+          ? `\n[live activity]\n${entry.liveActivity
+              .map((line) => sanitizeTerminalText(line))
+              .join("\n")}`
           : "";
 
       return [
-        `${entry.at} ${role}${customLabel}${entry.elapsed ? ` · ${entry.elapsed}` : ""}${entry.pending ? " ..." : ""}`,
+        `${sanitizeTerminalText(entry.at, { preserveNewlines: false, collapseWhitespace: true })} ${role}${customLabel}${entry.elapsed ? ` · ${sanitizeTerminalText(entry.elapsed, { preserveNewlines: false, collapseWhitespace: true })}` : ""}${entry.pending ? " ..." : ""}`,
         body,
         liveActivity,
       ]

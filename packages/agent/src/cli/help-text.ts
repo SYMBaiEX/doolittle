@@ -17,6 +17,7 @@ export function buildHelpText(agentName: string): string {
     "  exit / quit      Leave the shell",
     "  !cmd             Run a local shell command",
     "  /help            Show this guide",
+    "  /commands        Browse slash commands and bundled workflows",
     `  ${command("/status")}        Runtime and provider status`,
     `  ${command("/resume <title>")} Resume a named session`,
     `  ${command("/title <name>")}   Name the current session`,
