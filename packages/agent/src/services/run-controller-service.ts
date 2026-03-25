@@ -264,6 +264,13 @@ export class RunControllerService {
     if (!run) {
       return;
     }
+    if (
+      run.endedAt &&
+      run.status === status &&
+      run.errorMessage === errorMessage
+    ) {
+      return;
+    }
     const next: RunSnapshot = {
       ...run,
       status,
@@ -369,6 +376,9 @@ export class RunControllerService {
   ): void {
     const current = this.activeRuns.get(sessionId);
     if (!current) {
+      return;
+    }
+    if (current.endedAt) {
       return;
     }
     const next: RunSnapshot = {

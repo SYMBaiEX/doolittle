@@ -126,42 +126,43 @@ export function formatRunEvent(
   event: RunUpdateEvent,
   limit = 88,
 ): string | undefined {
+  const elapsed = formatRunElapsed(event.run);
   switch (event.type) {
     case "started":
-      return `run started · ${event.run.runDepth} · cap ${event.run.configuredMaxIterations}`;
+      return `run started · ${event.run.runDepth} · cap ${event.run.configuredMaxIterations}${elapsed ? ` · ${elapsed}` : ""}`;
     case "thinking":
       return event.run.statusDetail
-        ? `thinking · ${truncate(event.run.statusDetail, limit)}`
-        : "thinking";
+        ? `thinking${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.statusDetail, limit)}`
+        : `thinking${elapsed ? ` · ${elapsed}` : ""}`;
     case "acting":
     case "action-started":
       return event.run.activeAction
-        ? `tool ${event.run.observedActionCount} · ${event.run.activeStream ? `${event.run.activeStream} · ` : ""}${truncate(event.run.activeAction, limit)}`
-        : `acting · ${event.run.observedActionCount} observed steps`;
+        ? `tool ${event.run.observedActionCount}${elapsed ? ` · ${elapsed}` : ""} · ${event.run.activeStream ? `${event.run.activeStream} · ` : ""}${truncate(event.run.activeAction, limit)}`
+        : `acting${elapsed ? ` · ${elapsed}` : ""} · ${event.run.observedActionCount} observed steps`;
     case "action-completed":
       return event.run.lastAction
-        ? `tool done · ${truncate(event.run.lastAction, limit)}`
-        : "action completed";
+        ? `tool done${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.lastAction, limit)}`
+        : `action completed${elapsed ? ` · ${elapsed}` : ""}`;
     case "waiting":
       return event.run.statusDetail
-        ? `waiting · ${truncate(event.run.statusDetail, limit)}`
-        : "waiting for next step";
+        ? `waiting${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.statusDetail, limit)}`
+        : `waiting for next step${elapsed ? ` · ${elapsed}` : ""}`;
     case "stream":
       return event.run.activeStream
-        ? `${event.run.activeStream} · ${truncate(event.run.statusDetail ?? event.run.activeAction ?? "activity", limit)}`
+        ? `${event.run.activeStream}${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.statusDetail ?? event.run.activeAction ?? "activity", limit)}`
         : "stream activity";
     case "heartbeat":
       return event.run.statusDetail
-        ? `heartbeat · ${truncate(event.run.statusDetail, limit)}`
-        : "heartbeat";
+        ? `heartbeat${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.statusDetail, limit)}`
+        : `heartbeat${elapsed ? ` · ${elapsed}` : ""}`;
     case "approvals":
-      return `pending approvals · ${event.run.pendingApprovals}`;
+      return `pending approvals${elapsed ? ` · ${elapsed}` : ""} · ${event.run.pendingApprovals}`;
     case "completed":
-      return `run complete · ${event.run.observedActionCount} observed steps${formatRunElapsed(event.run) ? ` · ${formatRunElapsed(event.run)}` : ""}`;
+      return `run complete · ${event.run.observedActionCount} observed steps${elapsed ? ` · ${elapsed}` : ""}`;
     case "error":
       return event.run.errorMessage
-        ? `run error${formatRunElapsed(event.run) ? ` · ${formatRunElapsed(event.run)}` : ""} · ${truncate(event.run.errorMessage, Math.max(limit, 120))}`
-        : `run error${formatRunElapsed(event.run) ? ` · ${formatRunElapsed(event.run)}` : ""}`;
+        ? `run error${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.errorMessage, Math.max(limit, 120))}`
+        : `run error${elapsed ? ` · ${elapsed}` : ""}`;
     case "message":
       return undefined;
     default:
