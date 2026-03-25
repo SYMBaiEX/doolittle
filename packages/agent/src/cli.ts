@@ -1310,7 +1310,8 @@ async function startPlainCli(
   let closed = false;
   let requestedExitCode = 0;
   let activeTurnAbortController: AbortController | null = null;
-  const turnCancellationPending = false;
+  let turnCancellationPending = false;
+  let forceExitTimer: ReturnType<typeof setTimeout> | null = null;
   let cleanedUp = false;
   let lastRenderedRunEventKey = "";
   let lastInterruptAt = 0;
@@ -1323,11 +1324,22 @@ async function startPlainCli(
     ) {
       return false;
     }
+    turnCancellationPending = true;
     activeTurnAbortController.abort();
     output.write(
       `${interactiveShell ? "\n" : ""}${renderPlainRunLine("cancel requested · waiting for the active turn to stop · press Ctrl-C again to force exit", "[!!]")}\n`,
     );
     return true;
+  };
+  const scheduleForcedPlainExit = (exitCode = 130) => {
+    if (forceExitTimer) {
+      return;
+    }
+    forceExitTimer = setTimeout(() => {
+      cleanupPlainCli();
+      process.exit(exitCode);
+    }, 750);
+    forceExitTimer.unref?.();
   };
   const cleanupPlainCli = () => {
     if (cleanedUp) {
@@ -1342,6 +1354,10 @@ async function startPlainCli(
     process.removeListener("unhandledRejection", handleUnhandledRejection);
     process.removeListener("SIGINT", handleSigint);
     rl.removeListener("SIGINT", handleSigint);
+    if (forceExitTimer) {
+      clearTimeout(forceExitTimer);
+      forceExitTimer = null;
+    }
     restoreTerminalState(output);
   };
   const pushPlainEntry = (
@@ -1447,16 +1463,15 @@ async function startPlainCli(
     if (shouldIgnoreDuplicateInterrupt()) {
       return;
     }
-    if (requestActiveTurnCancellation()) {
-      requestedExitCode = 130;
-      return;
-    }
     requestedExitCode = 130;
-    if (turnCancellationPending) {
+    if (requestActiveTurnCancellation()) {
       if (!closed) {
         rl.close();
-        return;
       }
+      scheduleForcedPlainExit(130);
+      return;
+    }
+    if (turnCancellationPending) {
       cleanupPlainCli();
       process.exit(130);
     }
@@ -1601,6 +1616,7 @@ async function startPlainCli(
         );
       } finally {
         activeTurnAbortController = null;
+        turnCancellationPending = false;
       }
     }
   } finally {
@@ -2085,6 +2101,9 @@ async function startTui(
   ];
   let focusIndex = focusables.length - 1;
   let shuttingDown = false;
+  let requestedExitCode = 0;
+  let exitAfterTurnCancellation = false;
+  let forceExitTimer: ReturnType<typeof setTimeout> | null = null;
   let busyFrameIndex = 0;
   let busySpinnerTimer: ReturnType<typeof setInterval> | null = null;
   let deferredForeignRefreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -3120,6 +3139,11 @@ async function startTui(
       turnCancellationPending = false;
       busy = false;
       stopBusySpinner();
+      if (exitAfterTurnCancellation) {
+        exitAfterTurnCancellation = false;
+        exitCli(requestedExitCode || 130);
+        return;
+      }
       if (!screenDestroyed) {
         try {
           flushDeferredForeignActivity();
@@ -3334,6 +3358,11 @@ async function startTui(
       return;
     }
     shuttingDown = true;
+    requestedExitCode = exitCode;
+    if (forceExitTimer) {
+      clearTimeout(forceExitTimer);
+      forceExitTimer = null;
+    }
     if (!screenDestroyed) {
       screen.destroy();
     }
@@ -3343,7 +3372,9 @@ async function startTui(
     }, 0);
   };
 
-  const requestActiveTurnCancellation = (): boolean => {
+  const requestActiveTurnCancellation = (
+    shouldExitAfterCancellation = false,
+  ): boolean => {
     if (
       !activeTurnAbortController ||
       activeTurnAbortController.signal.aborted
@@ -3352,17 +3383,32 @@ async function startTui(
     }
     activeTurnAbortController.abort();
     turnCancellationPending = true;
+    exitAfterTurnCancellation ||= shouldExitAfterCancellation;
     appendActivity(
       "stop",
-      "Cancellation requested for the active turn. Press Ctrl-C again to force exit.",
+      shouldExitAfterCancellation
+        ? "Stopping the active turn and exiting."
+        : "Cancellation requested for the active turn. Press Ctrl-C again to force exit.",
       "warning",
     );
     pushNotice(
       "status",
-      "Cancellation requested. Waiting for the current turn to stop. Press Ctrl-C again to force exit.",
+      shouldExitAfterCancellation
+        ? "Stopping the current turn and exiting."
+        : "Cancellation requested. Waiting for the current turn to stop. Press Ctrl-C again to force exit.",
     );
     scheduleRefreshPanels(0);
     return true;
+  };
+
+  const scheduleForcedTuiExit = (signal: string) => {
+    if (forceExitTimer) {
+      return;
+    }
+    forceExitTimer = setTimeout(() => {
+      forceTerminateCli(signal);
+    }, 750);
+    forceExitTimer.unref?.();
   };
 
   const forceTerminateCli = (signal: string) => {
@@ -3371,6 +3417,11 @@ async function startTui(
       process.exit(signal === "SIGINT" ? 130 : 0);
     }
     shuttingDown = true;
+    requestedExitCode = signal === "SIGINT" ? 130 : 0;
+    if (forceExitTimer) {
+      clearTimeout(forceExitTimer);
+      forceExitTimer = null;
+    }
     if (!screenDestroyed) {
       screen.destroy();
     }
@@ -3448,11 +3499,9 @@ async function startTui(
     if (shouldIgnoreDuplicateInterrupt()) {
       return;
     }
-    if (requestActiveTurnCancellation()) {
-      return;
-    }
-    if (turnCancellationPending) {
-      forceTerminateCli("SIGINT");
+    requestedExitCode = 130;
+    if (requestActiveTurnCancellation(true)) {
+      scheduleForcedTuiExit("SIGINT");
       return;
     }
     forceTerminateCli("SIGINT");
