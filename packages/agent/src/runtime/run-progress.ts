@@ -1,4 +1,7 @@
-import type { RunUpdateEvent } from "@/services/run-controller-service";
+import type {
+  RunSnapshot,
+  RunUpdateEvent,
+} from "@/services/run-controller-service";
 
 export interface ResponseTextAccumulator {
   text: string;
@@ -11,6 +14,53 @@ export type ResponseTextFrame = {
 
 function truncate(value: string, limit: number): string {
   return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
+function parseRunTime(value?: string): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function getRunElapsedMs(
+  run: Pick<RunSnapshot, "startedAt" | "endedAt" | "updatedAt">,
+): number | undefined {
+  const startedAt = parseRunTime(run.startedAt);
+  if (startedAt === undefined) {
+    return undefined;
+  }
+  const finishedAt = parseRunTime(run.endedAt) ?? parseRunTime(run.updatedAt);
+  if (finishedAt === undefined) {
+    return undefined;
+  }
+  return Math.max(0, finishedAt - startedAt);
+}
+
+export function formatElapsedMs(elapsedMs?: number): string | undefined {
+  if (elapsedMs === undefined) {
+    return undefined;
+  }
+  if (elapsedMs < 1_000) {
+    return `${Math.round(elapsedMs)}ms`;
+  }
+  const seconds = elapsedMs / 1_000;
+  if (seconds < 10) {
+    return `${seconds.toFixed(1)}s`;
+  }
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+function formatRunElapsed(
+  run: Pick<RunSnapshot, "startedAt" | "endedAt" | "updatedAt">,
+): string | undefined {
+  return formatElapsedMs(getRunElapsedMs(run));
 }
 
 export function createResponseTextAccumulator(
@@ -107,11 +157,11 @@ export function formatRunEvent(
     case "approvals":
       return `pending approvals · ${event.run.pendingApprovals}`;
     case "completed":
-      return `run complete · ${event.run.observedActionCount} observed steps`;
+      return `run complete · ${event.run.observedActionCount} observed steps${formatRunElapsed(event.run) ? ` · ${formatRunElapsed(event.run)}` : ""}`;
     case "error":
       return event.run.errorMessage
-        ? `run error · ${truncate(event.run.errorMessage, Math.max(limit, 120))}`
-        : "run error";
+        ? `run error${formatRunElapsed(event.run) ? ` · ${formatRunElapsed(event.run)}` : ""} · ${truncate(event.run.errorMessage, Math.max(limit, 120))}`
+        : `run error${formatRunElapsed(event.run) ? ` · ${formatRunElapsed(event.run)}` : ""}`;
     case "message":
       return undefined;
     default:
