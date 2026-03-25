@@ -182,6 +182,24 @@ export function deriveTurnExecutionPolicy(
     };
   }
 
+  if (turn.requiresFullContext && localInteractive) {
+    const interactiveCap =
+      base.runDepth === "quick"
+        ? 4
+        : base.runDepth === "standard"
+          ? 10
+          : base.runDepth === "deep"
+            ? 16
+            : 24;
+    return {
+      runDepth: base.runDepth,
+      maxIterations: Math.max(3, Math.min(base.maxIterations, interactiveCap)),
+      toolProgressMode:
+        base.toolProgressMode === "verbose" ? "all" : base.toolProgressMode,
+      useMultiStep: turn.shouldUseMultiStep,
+    };
+  }
+
   return {
     runDepth: base.runDepth,
     maxIterations: base.maxIterations,

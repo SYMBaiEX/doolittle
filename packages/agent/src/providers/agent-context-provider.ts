@@ -9,6 +9,29 @@ import type {
 import { resolveAgentContextScope } from "@/runtime/turn-classification";
 import type { AppServices } from "@/services";
 
+function formatDelegationOverview(
+  overview: ReturnType<AppServices["delegation"]["overview"]>,
+): string {
+  return [
+    `total=${overview.total} pending=${overview.pending} running=${overview.running} completed=${overview.completed} failed=${overview.failed} cancelled=${overview.cancelled}`,
+    `workers active=${overview.activeWorkers} alive=${overview.aliveWorkers} stalled=${overview.stalledWorkers} concurrency=${overview.concurrency}`,
+    overview.byProfile.length
+      ? `profiles=${overview.byProfile
+          .slice(0, 4)
+          .map((entry) => `${entry.profile}:${entry.count}`)
+          .join(", ")}`
+      : undefined,
+    overview.byPriority.length
+      ? `priority=${overview.byPriority
+          .slice(0, 4)
+          .map((entry) => `${entry.priority}:${entry.count}`)
+          .join(", ")}`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function createAgentContextProvider(services: AppServices): Provider {
   const sessionScopedCache = new Map<
     string,
@@ -26,20 +49,6 @@ export function createAgentContextProvider(services: AppServices): Provider {
         };
       }
     >
-  >();
-  const providerCache = new Map<
-    "minimal" | "local" | "full",
-    {
-      capturedAt: number;
-      text: string;
-      data: {
-        scope: "minimal" | "local" | "full";
-        skillsCount: number;
-        cronJobs: number;
-        personality: string;
-        terminalCommands: number;
-      };
-    }
   >();
   let repoCache:
     | {
@@ -66,8 +75,8 @@ export function createAgentContextProvider(services: AppServices): Provider {
         scope === "minimal"
           ? Number.POSITIVE_INFINITY
           : scope === "local"
-            ? 20_000
-            : 3_000;
+            ? 30_000
+            : 20_000;
       const sessionCache =
         sessionScopedCache.get(roomKey) ??
         (() => {
@@ -75,10 +84,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
           sessionScopedCache.set(roomKey, next);
           return next;
         })();
-      const cached =
-        scope === "minimal" || scope === "local"
-          ? sessionCache.get(scope)
-          : providerCache.get(scope);
+      const cached = sessionCache.get(scope);
       if (cached && now - cached.capturedAt < cacheTtlMs) {
         return {
           text: cached.text,
@@ -145,7 +151,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
               .join("\n");
       const needsRepoSummary = scope !== "minimal";
       const repoSummary = needsRepoSummary
-        ? repoCache && now - repoCache.capturedAt < 10_000
+        ? repoCache && now - repoCache.capturedAt < 30_000
           ? repoCache.summary
           : await services.repository
               .status()
@@ -162,11 +168,11 @@ export function createAgentContextProvider(services: AppServices): Provider {
               )
         : "";
       const toolsSummary = enabledTools
-        .slice(0, 8)
+        .slice(0, 6)
         .map((tool) => `- ${tool.id}: ${tool.description}`)
         .join("\n");
       const delegationSummary = delegationTasks
-        .slice(0, 5)
+        .slice(0, 4)
         .map((task) => `- ${task.title} [${task.status}]`)
         .join("\n");
       const delegationWorkersSummary = delegationWorkers
@@ -176,7 +182,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
         )
         .join("\n");
       const userProfiles = userProfileEntries
-        .slice(0, 5)
+        .slice(0, 4)
         .map(
           (profile) =>
             `- ${profile.displayName ?? profile.userId}: prefs=${profile.preferences.length} facts=${profile.facts.length} notes=${profile.notes.length}`,
@@ -240,7 +246,9 @@ export function createAgentContextProvider(services: AppServices): Provider {
           delegationSummary || "(none)",
           "",
           "DELEGATION OVERVIEW",
-          JSON.stringify(delegationOverview, null, 2),
+          delegationOverview
+            ? formatDelegationOverview(delegationOverview)
+            : "(none)",
           "",
           "DELEGATION WORKERS",
           delegationWorkersSummary || "(none)",
@@ -268,7 +276,7 @@ export function createAgentContextProvider(services: AppServices): Provider {
       if (scope === "minimal" || scope === "local") {
         sessionCache.set(scope, nextCacheEntry);
       } else {
-        providerCache.set(scope, nextCacheEntry);
+        sessionCache.set(scope, nextCacheEntry);
       }
 
       return {
