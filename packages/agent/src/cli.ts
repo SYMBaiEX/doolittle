@@ -207,29 +207,44 @@ function renderPlainBanner(context: AppContext, state: CliState): string {
   const session =
     sessionSummary?.title ?? shortSessionLabel(state.activeSessionId);
 
+  const lines = [
+    `┌─ ${context.config.agentName.toUpperCase()} // conversation shell`,
+    `│ project   ${project}`,
+    `│ workspace ${cwd}`,
+    `│ provider  ${settings.model.provider}   fast ${shortModelId(smallModel)}   deep ${shortModelId(settings.model.model)}`,
+    `│ run       ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}   session ${session}`,
+    "└─ terminal-first · cockpit optional · !shell · /help",
+  ];
+
+  if (!output.isTTY) {
+    return lines.join("\n");
+  }
+
   return [
-    `${context.config.agentName} plain shell`,
-    `${project}  ·  ${cwd}`,
-    `${settings.model.provider}  ·  small ${shortModelId(smallModel)}  ·  large ${shortModelId(settings.model.model)}`,
-    `${settings.agent.runDepth} cap ${settings.agent.maxIterations}  ·  progress ${settings.agent.toolProgressMode}  ·  session ${session}`,
+    paint(lines[0] ?? "", ANSI.bold + ANSI.magenta, true),
+    paint(lines[1] ?? "", ANSI.cyan, true),
+    paint(lines[2] ?? "", ANSI.gray, true),
+    paint(lines[3] ?? "", ANSI.green, true),
+    paint(lines[4] ?? "", ANSI.yellow, true),
+    paint(lines[5] ?? "", ANSI.gray, true),
   ].join("\n");
 }
 
 function renderPlainShellHints(): string {
   return [
-    "Ask naturally, run !shell commands, or use /slash commands.",
-    `Try ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/sessions list")}, or ${canonicalizeSlashCommandSyntax("/resume <title>")}.`,
-    'Use "eliza-agent cockpit" when you want the fullscreen observability view.',
+    "Talk naturally for paired work, use !cmd for shell execution, or use /slash commands for control-plane actions.",
+    `Good first moves: ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/sessions list")}.`,
+    'Use "eliza-agent cockpit" when you want the fullscreen operator deck.',
   ].join("\n");
 }
 
 function renderPlainPrompt(context: AppContext, _state: CliState): string {
   const settings = context.services.settings.get();
-  return `${context.config.agentName.toLowerCase()} ${paint(currentProjectLabel(), ANSI.cyan, output.isTTY)} ${paint(`(${settings.agent.runDepth}/${settings.agent.maxIterations})`, ANSI.gray, output.isTTY)} ${paint("›", ANSI.magenta, output.isTTY)} `;
+  return `${paint(context.config.agentName.toLowerCase(), ANSI.magenta, output.isTTY)}@${paint(currentProjectLabel(), ANSI.cyan, output.isTTY)} ${paint(`${settings.agent.runDepth}/${settings.agent.maxIterations}`, ANSI.gray, output.isTTY)} ${paint("::", ANSI.yellow, output.isTTY)} `;
 }
 
 function renderPlainRunLine(detail: string): string {
-  return `${paint("  ·", ANSI.gray, output.isTTY)} ${detail}`;
+  return `${paint("  •", ANSI.gray, output.isTTY)} ${detail}`;
 }
 
 function renderPlainEntry(
@@ -554,7 +569,10 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
 }
 
 function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
-  return `{bold}${agentName}{/bold}  {black-fg}conversation shell{/}  {white-fg}${theme.label} · ${theme.name} · cockpit for observability, shell for everyday work{/}`;
+  return [
+    `{bold}${agentName}{/bold}  {black-fg}conversation shell{/}  {white-fg}${escapeBlessed(currentProjectLabel())}{/}`,
+    `{white-fg}${theme.label}{/} · {gray-fg}${escapeBlessed(theme.tagline)}{/} · {cyan-fg}cockpit for observability{/} · {green-fg}shell for everyday work{/}`,
+  ].join("\n");
 }
 
 function applyLayout(
@@ -902,7 +920,7 @@ function renderJobsContent(context: AppContext): string {
         })
       : ["{gray-fg}No detached jobs yet.{/}"]),
     "",
-    "{bold}Shell{/}",
+    "{bold}Shell Surface{/}",
     `- ${canonicalizeSlashCommandSyntax("/jobs")}`,
     `- ${canonicalizeSlashCommandSyntax("/jobs show <id>")}`,
     `- ${canonicalizeSlashCommandSyntax("/jobs attach <id>")}`,
@@ -974,7 +992,7 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
   const settings = context.services.settings.get();
 
   return [
-    "{bold}Execution{/}",
+    "{bold}Execution Deck{/}",
     `Backend: {cyan-fg}${settings.execution.backend}{/}`,
     `Diagnostics: ${canonicalizeSlashCommandSyntax("/execution status")}`,
     "",
@@ -1022,7 +1040,7 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
 function renderSuggestionsContent(inputValue: string): string {
   if (!inputValue.trim()) {
     return [
-      "{bold}Start Here{/}",
+      "{bold}Quick Ignition{/}",
       "",
       "{bold}Conversation{/}",
       "- summarize this repo and tell me what matters",
@@ -1034,7 +1052,7 @@ function renderSuggestionsContent(inputValue: string): string {
       "- !git status",
       "- !uname -a",
       "",
-      "{bold}Operator{/}",
+      "{bold}Operator Surface{/}",
       `- ${canonicalizeSlashCommandSyntax("/status")}`,
       `- ${canonicalizeSlashCommandSyntax("/accounts")}`,
       `- ${canonicalizeSlashCommandSyntax("/mode")}`,
@@ -1047,6 +1065,8 @@ function renderSuggestionsContent(inputValue: string): string {
         (entry, index) =>
           `${index === 0 ? "{green-fg}*{/} " : "- "}${entry.command}\n  {gray-fg}${entry.description}{/}`,
       ),
+      "",
+      "{gray-fg}Tip: use Tab for the top suggestion, Ctrl-P for the command deck, and Ctrl-E for longform prompts.{/}",
     ].join("\n");
   }
 
@@ -1787,7 +1807,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
   );
 
   return [
-    "{bold}Status{/}",
+    "{bold}Signal Rail{/}",
     `{cyan-fg}${settings.model.provider}{/} · {cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
     `${escapeBlessed(autonomousControl.alignment.connection.kind)}${autonomousControl.alignment.connection.provider ? ` via ${escapeBlessed(autonomousControl.alignment.connection.provider)}` : ""}`,
     `startup ${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}`,
@@ -1803,7 +1823,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
       ? `session ${truncate(active.title, 28)}`
       : `session ${state.activeSessionId}`,
     "",
-    "{bold}Notices{/}",
+    "{bold}Live Notices{/}",
     ...(state.notices.length
       ? state.notices.slice(0, 3).map((entry) => {
           const accent =
@@ -1837,11 +1857,12 @@ export function renderFooter(
 ): string {
   const settings = context.services.settings.get();
   return [
-    `${context.config.agentName} cockpit`,
+    `${context.config.agentName} // cockpit`,
     busy
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
       : "{green-fg}ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
+    `{cyan-fg}${escapeBlessed(shortModelId(settings.model.model))}{/}`,
     `{yellow-fg}${escapeBlessed(settings.agent.runDepth)}{/}`,
     `cap:${settings.agent.maxIterations}`,
     `prog:${escapeBlessed(settings.agent.toolProgressMode)}`,
@@ -1897,7 +1918,7 @@ async function startTui(
     left: 0,
     width: "82%",
     height: "28%-2",
-    label: " Activity ",
+    label: " Ops Stream ",
     tags: true,
     border: "line",
     scrollback: 1000,
@@ -1917,7 +1938,7 @@ async function startTui(
     left: 0,
     width: "82%",
     height: "64%-1",
-    label: " Conversation ",
+    label: " Dialogue ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1935,7 +1956,7 @@ async function startTui(
     },
     style: panelStyle(activeTheme, activeTheme.magentaGlow),
     content:
-      "{gray-fg}Conversation and live agent activity will render here.{/}",
+      "{gray-fg}Dialogue, streamed replies, and active tool motion will render here.{/}",
   });
 
   const sidebar = blessed.box({
@@ -1944,7 +1965,7 @@ async function startTui(
     left: "82%",
     width: "18%",
     height: "30%",
-    label: " Status ",
+    label: " Signal Rail ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1966,7 +1987,7 @@ async function startTui(
     left: "82%",
     width: "18%",
     height: "0%",
-    label: " Channels ",
+    label: " Transport Mesh ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -1989,7 +2010,7 @@ async function startTui(
     left: "82%",
     width: "18%",
     height: "0%",
-    label: " Workbench ",
+    label: " Execution Deck ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -2012,7 +2033,7 @@ async function startTui(
     left: "82%",
     width: "18%",
     height: "18%-1",
-    label: " Launchpad ",
+    label: " Control Deck ",
     tags: true,
     border: "line",
     scrollable: true,
@@ -2037,7 +2058,7 @@ async function startTui(
     hidden: true,
     tags: true,
     border: "line",
-    label: " Command Palette ",
+    label: " Command Deck ",
     style: {
       fg: activeTheme.baseFg,
       bg: activeTheme.baseBg,
@@ -2098,7 +2119,7 @@ async function startTui(
     hidden: true,
     tags: true,
     border: "line",
-    label: " Multiline Composer ",
+    label: " Longform Composer ",
     style: {
       fg: activeTheme.baseFg,
       bg: activeTheme.baseBg,
@@ -2145,7 +2166,7 @@ async function startTui(
     left: 0,
     width: "100%",
     height: 3,
-    label: " Ask / Command ",
+    label: " Transmit / Command ",
     inputOnFocus: false,
     border: "line",
     mouse: false,
@@ -2678,15 +2699,15 @@ async function startTui(
   function controlDeckLabel(mode: ControlDeckMode): string {
     switch (mode) {
       case "ecosystem":
-        return " Launchpad · Ecosystem ";
+        return " Control Deck · Ecosystem ";
       case "gateway":
-        return " Launchpad · Gateway ";
+        return " Control Deck · Gateway ";
       case "jobs":
-        return " Launchpad · Jobs ";
+        return " Control Deck · Jobs ";
       case "responses":
-        return " Launchpad · Responses ";
+        return " Control Deck · Responses ";
       default:
-        return " Launchpad · Assist ";
+        return " Control Deck · Assist ";
     }
   }
 
@@ -3096,7 +3117,9 @@ async function startTui(
       },
       { opsCollapsed },
     );
-    activity.setLabel(opsCollapsed ? " Activity " : " Activity Log ");
+    activity.setLabel(
+      opsCollapsed ? " Ops Stream " : " Ops Stream · Expanded ",
+    );
     screen.render();
   }
 
@@ -3950,12 +3973,12 @@ async function startTui(
 
   appendActivity(
     "boot",
-    `${context.config.agentName} cockpit online. Type /help for shortcuts and examples.`,
+    `${context.config.agentName} cockpit online. Type /help for shortcuts, or stay in the plain shell for everyday paired work.`,
     "success",
   );
   appendActivity(
     "tip",
-    `Use ${macAwareKeyLabel("Ctrl-E")} for drafts, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to explore palettes.`,
+    `Use ${macAwareKeyLabel("Ctrl-E")} for longform drafts, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to shift the operator palette.`,
     "info",
   );
   for (const entry of options?.bootLogs ?? []) {
@@ -3967,7 +3990,7 @@ async function startTui(
   }
   pushResponseEntry(
     "Helm Ready",
-    `You are live in the Eliza Agent cockpit.\n\nUse the plain shell for everyday work, or stay here when you want conversation plus live observability.\n\nTalk to me normally, run !git status, or check ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
+    `You are live in the Eliza Agent cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
   );
   if (!transportBox.hidden) {
     transportBox.setContent(await renderTransportContent(context));
