@@ -19,6 +19,11 @@ import type {
   DelegationTaskTree,
 } from "@/services/delegation-service";
 import type { MemorySummary } from "@/services/memory-service";
+import {
+  findLocalCodebases,
+  inspectLocalProject,
+  type LocalProjectInspection,
+} from "@/services/project-inspection";
 import type {
   TrajectoryBundleEntry,
   TrajectoryService,
@@ -209,6 +214,7 @@ interface NativeCodingAgentService {
   repoDiff(): Promise<unknown>;
   repoLog(limit?: number): Promise<unknown>;
   run(command: string): Promise<unknown>;
+  inspectProject?(targetPath?: string): Promise<unknown> | unknown;
   delegate?(
     title: string,
     objective: string,
@@ -250,6 +256,12 @@ interface NativeToolPolicyService {
   getEffectivePolicy?(context?: {
     profile?: "minimal" | "coding" | "messaging" | "full";
   }): unknown;
+}
+
+export interface EffectiveTurnCapabilityPolicy {
+  profile: "minimal" | "coding" | "messaging" | "full";
+  preferredTools: string[];
+  deniedTools: Array<{ name: string; reason: string }>;
 }
 
 interface NativePluginManagerService {
@@ -2204,6 +2216,67 @@ export function getEffectiveCodingAgentContext(
     );
   }
   return validated.data;
+}
+
+export async function inspectEffectiveProject(
+  runtime: RuntimeLike,
+  _services: AppServices,
+  projectPath: string,
+): Promise<LocalProjectInspection> {
+  const nativeInspection =
+    await getNativeServices(runtime).codingAgent?.inspectProject?.(projectPath);
+  if (nativeInspection) {
+    return nativeInspection as LocalProjectInspection;
+  }
+  return inspectLocalProject(projectPath);
+}
+
+export async function findEffectiveLocalCodebases(
+  _runtime: RuntimeLike,
+  services: AppServices,
+  query: string,
+) {
+  return findLocalCodebases(query, services.workspace.root());
+}
+
+export function getEffectiveTurnCapabilityPolicy(
+  runtime: RuntimeLike,
+  profile: "minimal" | "coding" | "messaging" | "full",
+): EffectiveTurnCapabilityPolicy {
+  const nativeToolPolicy = getNativeServices(runtime).toolPolicy;
+  const availableTools = getEffectiveServiceResolution(runtime)
+    .filter((entry) => entry.available)
+    .map((entry) => entry.capability);
+
+  const preferredTools =
+    nativeToolPolicy?.getAllowedTools?.({ profile }, availableTools) ??
+    (profile === "minimal"
+      ? []
+      : profile === "coding"
+        ? availableTools.filter((tool) =>
+            ["codingAgent", "agentOrchestrator", "mcp"].includes(tool),
+          )
+        : profile === "messaging"
+          ? availableTools.filter((tool) =>
+              ["browser", "knowledge", "mcp"].includes(tool),
+            )
+          : availableTools);
+
+  const deniedTools =
+    nativeToolPolicy?.getDeniedTools?.({ profile }, availableTools) ??
+    (profile === "minimal"
+      ? availableTools.map((tool) => ({
+          name: tool,
+          reason:
+            "avoid unless the user explicitly asks for tools or local execution",
+        }))
+      : []);
+
+  return {
+    profile,
+    preferredTools,
+    deniedTools,
+  };
 }
 
 export async function getEffectiveRepositoryStatus(

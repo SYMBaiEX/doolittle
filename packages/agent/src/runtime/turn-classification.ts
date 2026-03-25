@@ -69,6 +69,7 @@ export interface TurnClassification {
 }
 
 export type AgentContextScope = "minimal" | "local" | "full";
+export type TurnCapabilityProfile = "minimal" | "coding" | "messaging" | "full";
 
 export interface TurnExecutionPolicy {
   runDepth: RunDepth;
@@ -164,6 +165,28 @@ export function resolveAgentContextScope(message: string): AgentContextScope {
     return "local";
   }
   return "minimal";
+}
+
+export function resolveTurnCapabilityProfile(
+  message: string,
+  options?: { localInteractive?: boolean },
+): TurnCapabilityProfile {
+  const turn = classifyTurnMessage(message);
+  if (turn.requiresFullContext) {
+    return "full";
+  }
+  if (
+    turn.likelyLocalTask ||
+    (options?.localInteractive &&
+      turn.actionOriented &&
+      !turn.informationalOnly)
+  ) {
+    return "coding";
+  }
+  if (turn.informationalOnly) {
+    return "minimal";
+  }
+  return "messaging";
 }
 
 export function deriveTurnExecutionPolicy(

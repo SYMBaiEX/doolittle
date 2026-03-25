@@ -183,8 +183,10 @@ export function shouldUseDirectLocalFallback(input: {
   runFailureMessage?: string;
   isHighConfidenceIntent?: boolean;
 }): boolean {
+  const stalledAfterMinimalWork =
+    Boolean(input.isHighConfidenceIntent) && input.observedActionCount <= 1;
   return (
-    input.observedActionCount === 0 &&
+    (input.observedActionCount === 0 || stalledAfterMinimalWork) &&
     (Boolean(input.runFailureMessage) ||
       !input.response.trim() ||
       looksLikeDeferredActionPromise(input.response) ||

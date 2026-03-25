@@ -2,11 +2,25 @@ import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { platform } from "node:os";
-import { basename, join, relative } from "node:path";
+import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { inspect } from "node:util";
 import blessed from "blessed";
+import {
+  asciiActivityBadge,
+  asciiRunBadge,
+  decorateLiveActivity,
+  runStatusFace,
+  toneTag,
+} from "@/cli/activity-chrome";
+import {
+  buildCockpitBootMessage,
+  buildCockpitTipMessage,
+  buildCockpitWelcomeMessage,
+  buildHeaderContent,
+} from "@/cli/cockpit-chrome";
+import { getCliHotkeyBindings } from "@/cli/command-surface";
 import { buildHelpText } from "@/cli/help-text";
 import {
   attachCliJob,
@@ -17,6 +31,22 @@ import {
   listCliJobs,
   renderCliJobReplay,
 } from "@/cli/jobs";
+import { escapeBlessed } from "@/cli/render-utils";
+import {
+  currentSessionElapsed,
+  macAwareKeyLabel,
+  renderPlainBanner,
+  renderPlainPrompt,
+  renderPlainRunLine,
+  renderPlainShellHints,
+  shortModelId,
+} from "@/cli/shell-chrome";
+import {
+  type ResponseTranscriptEntry,
+  renderPlainEntry,
+  renderPlainTranscript,
+  renderResponseTranscript,
+} from "@/cli/transcript-renderer";
 import type { CliTurnEvent } from "@/cli/turn-events";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import type { AppContext } from "@/runtime/bootstrap";
@@ -88,27 +118,6 @@ type ControlDeckMode =
 
 const IS_MACOS = platform() === "darwin";
 
-function macAwareKeyLabel(label: string): string {
-  if (!IS_MACOS) {
-    return label;
-  }
-  return label
-    .replaceAll("Alt-", "Option-")
-    .replaceAll("Alt", "Option")
-    .replaceAll("PageUp/PageDown", "Fn-↑/Fn-↓ or PageUp/PageDown")
-    .replaceAll("PgUp/PgDn", "Fn-↑/Fn-↓ or PgUp/PgDn");
-}
-
-export interface ResponseTranscriptEntry {
-  label: string;
-  body: string;
-  at: string;
-  elapsed?: string;
-  kind?: "user" | "assistant" | "shell" | "command" | "system";
-  pending?: boolean;
-  liveActivity?: string[];
-}
-
 function nowStamp(): string {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -150,10 +159,6 @@ function truncate(text: string, max = 520): string {
     : normalized;
 }
 
-function escapeBlessed(text: string): string {
-  return text.replaceAll("{", "\\{").replaceAll("}", "\\}");
-}
-
 const ANSI = {
   reset: "\x1b[0m",
   dim: "\x1b[2m",
@@ -168,271 +173,6 @@ const ANSI = {
 
 function paint(text: string, color: string, enabled: boolean): string {
   return enabled ? `${color}${text}${ANSI.reset}` : text;
-}
-
-function shortModelId(model: string): string {
-  const normalized = model.trim();
-  if (!normalized) {
-    return "unconfigured";
-  }
-  const segments = normalized.split("/");
-  return segments.at(-1) ?? normalized;
-}
-
-function currentWorkspaceLabel(): string {
-  const cwd = process.cwd();
-  const home = process.env.HOME;
-  if (home && cwd.startsWith(home)) {
-    const rel = relative(home, cwd);
-    return rel ? `~/${rel}` : "~";
-  }
-  return cwd;
-}
-
-function currentProjectLabel(): string {
-  return basename(process.cwd()) || currentWorkspaceLabel();
-}
-
-function shortSessionLabel(sessionId: string): string {
-  return sessionId.startsWith("cli:")
-    ? sessionId.slice(4, 12)
-    : truncate(sessionId, 12);
-}
-
-function renderPlainBanner(context: AppContext, state: CliState): string {
-  const settings = context.services.settings.get();
-  const theme = getTuiTheme(settings.ui.theme);
-  const cwd = currentWorkspaceLabel();
-  const project = currentProjectLabel();
-  const smallModel =
-    settings.model.provider === "elizacloud"
-      ? context.config.elizaCloudSmallModel
-      : settings.model.model;
-  const sessionSummary = context.services.sessions
-    .listSessions(20)
-    .find((entry) => entry.sessionId === state.activeSessionId);
-  const session =
-    sessionSummary?.title ?? shortSessionLabel(state.activeSessionId);
-
-  const lines = [
-    `┌─ ${theme.sigil} ${context.config.agentName.toUpperCase()} // conversation shell`,
-    `│ project   ${project}`,
-    `│ workspace ${cwd}`,
-    `│ provider  ${settings.model.provider}   fast ${shortModelId(smallModel)}   deep ${shortModelId(settings.model.model)}`,
-    `│ signal    ${theme.label} ${theme.idleFace}   run ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}`,
-    `│ session   ${session}`,
-    `└─ ${theme.shellGlyph} terminal-first · cockpit optional · !shell · /help`,
-  ];
-
-  if (!output.isTTY) {
-    return lines.join("\n");
-  }
-
-  return [
-    paint(lines[0] ?? "", ANSI.bold + ANSI.magenta, true),
-    paint(lines[1] ?? "", ANSI.cyan, true),
-    paint(lines[2] ?? "", ANSI.gray, true),
-    paint(lines[3] ?? "", ANSI.green, true),
-    paint(lines[4] ?? "", ANSI.yellow, true),
-    paint(lines[5] ?? "", ANSI.gray, true),
-  ].join("\n");
-}
-
-function renderPlainShellHints(): string {
-  return [
-    "Talk naturally for paired work, use !cmd for shell execution, or use /slash commands for control-plane actions.",
-    `Good first moves: ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts doctor")}, ${canonicalizeSlashCommandSyntax("/sessions list")}.`,
-    'Use "eliza-agent cockpit" when you want the fullscreen operator deck.',
-  ].join("\n");
-}
-
-function renderPlainPrompt(context: AppContext, _state: CliState): string {
-  const settings = context.services.settings.get();
-  const theme = getTuiTheme(settings.ui.theme);
-  return `${paint(context.config.agentName.toLowerCase(), ANSI.magenta, output.isTTY)}@${paint(currentProjectLabel(), ANSI.cyan, output.isTTY)} ${paint(`${settings.agent.runDepth}/${settings.agent.maxIterations}`, ANSI.gray, output.isTTY)} ${paint(theme.shellGlyph, ANSI.yellow, output.isTTY)} `;
-}
-
-function renderPlainRunLine(detail: string): string {
-  return `${paint("  •", ANSI.gray, output.isTTY)} ${paint(asciiRunBadge(detail), ANSI.blue, output.isTTY)} ${detail}`;
-}
-
-function currentSessionElapsed(
-  context: AppContext,
-  sessionId: string,
-): string | undefined {
-  const run = context.services.runController.getActive(sessionId);
-  return run ? formatElapsedMs(getRunElapsedMs(run)) : undefined;
-}
-
-function asciiRoleBadge(kind?: ResponseTranscriptEntry["kind"]): string {
-  switch (kind) {
-    case "user":
-      return ">>";
-    case "assistant":
-      return "<>";
-    case "shell":
-      return "$>";
-    case "command":
-      return "//";
-    default:
-      return "::";
-  }
-}
-
-function asciiActivityBadge(kind: string): string {
-  const normalized = kind.trim().toLowerCase();
-  if (
-    normalized === "exec" ||
-    normalized === "shell" ||
-    normalized === "cmd" ||
-    normalized === "out"
-  ) {
-    return "$>";
-  }
-  if (
-    normalized === "task" ||
-    normalized === "delegate" ||
-    normalized === "agent"
-  ) {
-    return "<>";
-  }
-  if (
-    normalized === "gw" ||
-    normalized === "gateway" ||
-    normalized.startsWith("srv")
-  ) {
-    return "::";
-  }
-  if (normalized === "copy" || normalized === "theme") {
-    return "[*]";
-  }
-  if (normalized === "warn") {
-    return "[!]";
-  }
-  if (normalized === "err" || normalized === "runtime") {
-    return "[x]";
-  }
-  if (normalized === "mem") {
-    return "[#]";
-  }
-  return "[.]";
-}
-
-function asciiRunBadge(detail: string): string {
-  const normalized = detail.toLowerCase();
-  if (normalized.startsWith("run started")) {
-    return "[boot]";
-  }
-  if (normalized.startsWith("thinking")) {
-    return "(..)";
-  }
-  if (normalized.startsWith("tool ") || normalized.startsWith("acting")) {
-    if (normalized.includes("workspace:search")) {
-      return "[rg]";
-    }
-    if (normalized.includes("shell") || normalized.includes("terminal")) {
-      return "$>";
-    }
-    if (normalized.includes("delegate")) {
-      return "<>";
-    }
-    if (normalized.includes("repo") || normalized.includes("git")) {
-      return "{g}";
-    }
-    return "[tool]";
-  }
-  if (
-    normalized.startsWith("tool done") ||
-    normalized.startsWith("action completed")
-  ) {
-    return "[ok]";
-  }
-  if (normalized.startsWith("waiting")) {
-    return "(. )";
-  }
-  if (normalized.startsWith("pending approvals")) {
-    return "[?]";
-  }
-  if (normalized.startsWith("run complete")) {
-    return "[fin]";
-  }
-  if (normalized.startsWith("run error")) {
-    return "[!!]";
-  }
-  if (normalized.startsWith("heartbeat")) {
-    return "[hb]";
-  }
-  return "[..]";
-}
-
-function runStatusFace(theme: TuiThemeProfile, status?: string): string {
-  switch (status) {
-    case "thinking":
-      return "(..)";
-    case "acting":
-      return "<>";
-    case "waiting":
-      return "(. )";
-    case "complete":
-      return "[ok]";
-    case "error":
-      return "[!!]";
-    default:
-      return theme.idleFace;
-  }
-}
-
-function decorateLiveActivity(detail: string): string {
-  return `${asciiRunBadge(detail)} ${detail}`;
-}
-
-function renderPlainEntry(
-  entry: ResponseTranscriptEntry,
-  tone?: CliExecutionResult["tone"],
-): string {
-  const accent =
-    entry.kind === "user"
-      ? ANSI.yellow
-      : entry.kind === "assistant"
-        ? ANSI.cyan
-        : entry.kind === "shell"
-          ? ANSI.green
-          : entry.kind === "command"
-            ? ANSI.magenta
-            : ANSI.blue;
-  const label = paint(entry.label, accent, output.isTTY);
-  const badge = paint(asciiRoleBadge(entry.kind), ANSI.gray, output.isTTY);
-  const at = paint(entry.at, ANSI.gray, output.isTTY);
-  const elapsed = entry.elapsed
-    ? paint(`· ${entry.elapsed}`, ANSI.gray, output.isTTY)
-    : "";
-  const pending = entry.pending
-    ? ` ${paint("…", ANSI.gray, output.isTTY)}`
-    : "";
-  const body =
-    entry.body.trim() || (entry.pending ? "thinking..." : "waiting...");
-  const liveActivity =
-    entry.liveActivity && entry.liveActivity.length > 0
-      ? `\n${paint("activity", ANSI.gray, output.isTTY)}\n${entry.liveActivity
-          .map((line) => `  ${line}`)
-          .join("\n")}`
-      : "";
-  const prefix =
-    tone === "warning"
-      ? paint("warn", ANSI.yellow, output.isTTY)
-      : tone === "error"
-        ? paint("error", ANSI.magenta, output.isTTY)
-        : tone === "success"
-          ? paint("done", ANSI.green, output.isTTY)
-          : "";
-
-  return [
-    `${at}  ${badge} ${label}${elapsed ? ` ${elapsed}` : ""}${pending}${prefix ? `  ${prefix}` : ""}`,
-    body,
-    liveActivity,
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 function writeTranscriptExport(
@@ -572,132 +312,6 @@ function appendCliTrace(
   }
 }
 
-export function renderResponseTranscript(
-  history: ResponseTranscriptEntry[],
-  live?: ResponseTranscriptEntry,
-): string {
-  const sections = [...history];
-  if (live) {
-    sections.push(live);
-  }
-  if (!sections.length) {
-    return "{gray-fg}Responses, JSON payloads, and operator output will render here.{/}";
-  }
-
-  const renderEntry = (entry: ResponseTranscriptEntry): string => {
-    const roleTag =
-      entry.kind === "user"
-        ? "{yellow-fg}>> You{/}"
-        : entry.kind === "assistant"
-          ? "{cyan-fg}<> Agent{/}"
-          : entry.kind === "shell"
-            ? "{green-fg}$> Shell{/}"
-            : entry.kind === "command"
-              ? "{magenta-fg}// Command{/}"
-              : "{gray-fg}:: System{/}";
-    const customLabel =
-      entry.label &&
-      !["You", "Shell", "Command", "Command Result", "Helm Ready"].includes(
-        entry.label,
-      )
-        ? ` ${escapeBlessed(entry.label)}`
-        : "";
-    const body = entry.body.trim()
-      ? escapeBlessed(entry.body)
-      : entry.pending
-        ? "{gray-fg}thinking…{/}"
-        : "{gray-fg}waiting…{/}";
-    const liveActivity =
-      entry.liveActivity && entry.liveActivity.length > 0
-        ? [
-            "{gray-fg}activity{/}",
-            ...entry.liveActivity.map((line) => escapeBlessed(line)),
-          ].join("\n")
-        : "";
-
-    return [
-      `{gray-fg}${escapeBlessed(entry.at)}{/} ${roleTag}${customLabel}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(entry.elapsed)}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
-      body,
-      liveActivity,
-    ]
-      .filter(Boolean)
-      .join("\n");
-  };
-
-  return sections
-    .slice(-24)
-    .map((entry) => renderEntry(entry))
-    .join("\n\n{gray-fg}────────────────────────────────{/}\n\n");
-}
-
-function renderPlainTranscript(
-  history: ResponseTranscriptEntry[],
-  live?: ResponseTranscriptEntry,
-): string {
-  const sections = [...history];
-  if (live) {
-    sections.push(live);
-  }
-  if (!sections.length) {
-    return "Responses will appear here.";
-  }
-
-  return sections
-    .slice(-24)
-    .map((entry) => {
-      const role =
-        entry.kind === "user"
-          ? ">> You"
-          : entry.kind === "assistant"
-            ? "<> Agent"
-            : entry.kind === "shell"
-              ? "$> Shell"
-              : entry.kind === "command"
-                ? "// Command"
-                : ":: System";
-      const customLabel =
-        entry.label &&
-        !["You", "Shell", "Command", "Command Result", "Helm Ready"].includes(
-          entry.label,
-        )
-          ? ` ${entry.label}`
-          : "";
-      const body = entry.body.trim()
-        ? entry.body.trim()
-        : entry.pending
-          ? "thinking..."
-          : "waiting...";
-      const liveActivity =
-        entry.liveActivity && entry.liveActivity.length > 0
-          ? `\n[live activity]\n${entry.liveActivity.join("\n")}`
-          : "";
-
-      return [
-        `${entry.at} ${role}${customLabel}${entry.elapsed ? ` · ${entry.elapsed}` : ""}${entry.pending ? " ..." : ""}`,
-        body,
-        liveActivity,
-      ]
-        .filter(Boolean)
-        .join("\n");
-    })
-    .join("\n\n----------------------------------------\n\n");
-}
-
-function toneTag(tone: CliExecutionResult["tone"]): string {
-  switch (tone) {
-    case "success":
-      return "{green-fg}[ok]{/}";
-    case "warning":
-      return "{yellow-fg}[!]{/}";
-    case "error":
-      return "{red-fg}[x]{/}";
-    case "agent":
-      return "{cyan-fg}<> {/}";
-    default:
-      return "{blue-fg}:: {/}";
-  }
-}
-
 function panelStyle(theme: TuiThemeProfile, accent: string) {
   return {
     fg: theme.baseFg,
@@ -709,13 +323,6 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
       bg: theme.panelBg,
     },
   };
-}
-
-function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
-  return [
-    `{bold}${escapeBlessed(theme.sigil)} ${agentName}{/bold}  {black-fg}${escapeBlessed(theme.shellGlyph)} conversation shell{/}  {white-fg}${escapeBlessed(currentProjectLabel())}{/}`,
-    `{white-fg}${theme.label}{/} ${escapeBlessed(theme.idleFace)} · {gray-fg}${escapeBlessed(theme.tagline)}{/} · {cyan-fg}cockpit for observability{/} · {green-fg}shell for everyday work{/}`,
-  ].join("\n");
 }
 
 function applyLayout(
@@ -1683,7 +1290,7 @@ async function startPlainCli(
     }
     activeTurnAbortController.abort();
     output.write(
-      `${interactiveShell ? "\n" : ""}${renderPlainRunLine("cancel requested · waiting for the active turn to stop")}\n`,
+      `${interactiveShell ? "\n" : ""}${renderPlainRunLine("cancel requested · waiting for the active turn to stop", "[!!]")}\n`,
     );
     return true;
   };
@@ -1722,7 +1329,7 @@ async function startPlainCli(
         return;
       }
       lastRenderedRunEventKey = renderKey;
-      output.write(`\n${renderPlainRunLine(detail)}\n`);
+      output.write(`\n${renderPlainRunLine(detail, asciiRunBadge(detail))}\n`);
     },
   );
 
@@ -1799,7 +1406,7 @@ async function startPlainCli(
     output.write(`${paint(renderPlainShellHints(), ANSI.gray, true)}\n\n`);
     for (const entry of options?.bootLogs ?? []) {
       output.write(
-        `${renderPlainRunLine(`boot ${entry.source === "stderr" ? "warn" : "info"} · ${entry.text}`)}\n`,
+        `${renderPlainRunLine(`boot ${entry.source === "stderr" ? "warn" : "info"} · ${entry.text}`, "[boot]")}\n`,
       );
     }
     if ((options?.bootLogs?.length ?? 0) > 0) {
@@ -3941,21 +3548,7 @@ async function startTui(
     }
   });
 
-  const hotkeys: Array<[string[], string]> = [
-    [["f2"], "/status"],
-    [["f3"], canonicalizeSlashCommandSyntax("/tools summary")],
-    [["f4"], canonicalizeSlashCommandSyntax("/delegate overview")],
-    [["f5"], canonicalizeSlashCommandSyntax("/gateway readiness")],
-    [["f6"], canonicalizeSlashCommandSyntax("/sessions list")],
-    [["f7"], "/doctor"],
-    [["f8"], canonicalizeSlashCommandSyntax("/runtime plugins")],
-    [["f9"], canonicalizeSlashCommandSyntax("/runtime ecosystem")],
-    [["f10"], canonicalizeSlashCommandSyntax("/gateway history limit:10")],
-    [["f11"], canonicalizeSlashCommandSyntax("/gateway supervision")],
-    [["f12"], canonicalizeSlashCommandSyntax("/responses list")],
-  ];
-
-  for (const [keys, command] of hotkeys) {
+  for (const { keys, command } of getCliHotkeyBindings()) {
     screen.key(keys, () => {
       if (textEntryFocused() || paletteOpen || composerOpen) {
         return;
@@ -4160,14 +3753,10 @@ async function startTui(
 
   appendActivity(
     "boot",
-    `${context.config.agentName} cockpit online. Type /help for shortcuts, or stay in the plain shell for everyday paired work.`,
+    buildCockpitBootMessage(context.config.agentName),
     "success",
   );
-  appendActivity(
-    "tip",
-    `Use ${macAwareKeyLabel("Ctrl-E")} for longform drafts, start a shell action with !, and use ${canonicalizeSlashCommandSyntax("/theme list")} to shift the operator palette.`,
-    "info",
-  );
+  appendActivity("tip", buildCockpitTipMessage(), "info");
   for (const entry of options?.bootLogs ?? []) {
     appendActivity(
       entry.source === "stderr" ? "boot!" : "boot+",
@@ -4175,10 +3764,7 @@ async function startTui(
       entry.source === "stderr" ? "warning" : "info",
     );
   }
-  pushResponseEntry(
-    "Helm Ready",
-    `You are live in the Eliza Agent cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${canonicalizeSlashCommandSyntax("/status")}, ${canonicalizeSlashCommandSyntax("/mode")}, ${canonicalizeSlashCommandSyntax("/progress")}, ${canonicalizeSlashCommandSyntax("/accounts")}, or ${canonicalizeSlashCommandSyntax("/gateway readiness")}.`,
-  );
+  pushResponseEntry("Helm Ready", buildCockpitWelcomeMessage());
   if (!transportBox.hidden) {
     transportBox.setContent(await renderTransportContent(context));
   }

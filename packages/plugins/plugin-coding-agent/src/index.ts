@@ -8,6 +8,7 @@ import {
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
 import type { DelegationService } from "@/services/delegation-service";
+import { inspectLocalProject } from "@/services/project-inspection";
 import type { RepositoryService } from "@/services/repository-service";
 import type { TerminalService } from "@/services/terminal-service";
 import type { WorkspaceService } from "@/services/workspace-service";
@@ -91,6 +92,10 @@ export function createCodingAgentPlugin(
 
     run(command: string) {
       return this.shell.run(command);
+    }
+
+    inspectProject(targetPath?: string) {
+      return inspectLocalProject(targetPath ?? options.workspaceRoot);
     }
 
     delegate(

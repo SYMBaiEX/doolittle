@@ -1,20 +1,13 @@
-import { platform } from "node:os";
-
-const IS_MACOS = platform() === "darwin";
-
-function macAwareKeyLabel(label: string): string {
-  if (!IS_MACOS) {
-    return label;
-  }
-  return label
-    .replaceAll("Alt-", "Option-")
-    .replaceAll("Alt", "Option")
-    .replaceAll("PageUp/PageDown", "Fn-\u2191/Fn-\u2193 or PageUp/PageDown")
-    .replaceAll("PgUp/PgDn", "Fn-\u2191/Fn-\u2193 or PgUp/PgDn");
-}
+import {
+  getCliHelpExamples,
+  getCliHotkeyBindings,
+} from "@/cli/command-surface";
+import { macAwareKeyLabel } from "@/cli/shell-chrome";
 
 export function buildHelpText(agentName: string): string {
   const command = (value: string) => value.trim();
+  const hotkeys = getCliHotkeyBindings();
+  const examples = getCliHelpExamples();
   return [
     `${agentName} command surfaces`,
     "",
@@ -52,42 +45,12 @@ export function buildHelpText(agentName: string): string {
     "  Ctrl-N/Ctrl-P    History + list navigation",
     "",
     "Hotkeys:",
-    "  F2  /status",
-    `  F3  ${command("/tools summary")}`,
-    `  F4  ${command("/delegate overview")}`,
-    `  F5  ${command("/gateway readiness")}`,
-    `  F6  ${command("/sessions list")}`,
-    `  F7  ${command("/doctor")}`,
-    `  F8  ${command("/runtime plugins")}`,
-    `  F10 ${command("/gateway history limit:10")}`,
-    `  F11 ${command("/gateway supervision")}`,
-    `  F12 ${command("/responses list")}`,
+    ...hotkeys.map(
+      (entry) => `  ${entry.keys[0]?.toUpperCase()} ${command(entry.label)}`,
+    ),
     `  ${macAwareKeyLabel("Ctrl-T")}           Next theme`,
     "",
     "Examples:",
-    `  ${command("/skills list")}`,
-    `  ${command("/execution status")}`,
-    `  ${command("/theme list")}`,
-    `  ${command("/theme set ghost")}`,
-    `  ${command("/theme next")}`,
-    `  ${command("/transport inventory")}`,
-    `  ${command("/transport show telegram")}`,
-    `  ${command("/transport mismatches")}`,
-    "  /browser capture https://example.com",
-    "  /media analyze ./recordings/demo.wav",
-    `  ${command("/delegate create Research spike :: validate a transport path")}`,
-    `  ${command("/trajectories ingest gateway label:review limit:100")}`,
-    `  ${command("/accounts")}`,
-    `  ${command("/accounts doctor")}`,
-    `  ${command("/mode")}`,
-    `  ${command("/progress")}`,
-    `  ${command("/accounts connect codex")}`,
-    `  ${command("/accounts connect claude-code")}`,
-    `  ${command("/jobs start summarize this repo and report back")}`,
-    "  !git status",
-    "  !uname -a",
-    '  eliza-agent exec -p "review the repo" --json-stream',
-    '  eliza-agent exec -p "scan this project" --background',
-    "  eliza-agent jobs list",
+    ...examples.map((entry) => `  ${command(entry)}`),
   ].join("\n");
 }
