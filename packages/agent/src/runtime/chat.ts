@@ -7452,8 +7452,7 @@ export async function handleAgentTurn(
 
   const effectiveTrimmedMessage = effectiveInput.message.trim();
   const turnClassification = classifyTurnMessage(effectiveTrimmedMessage);
-  const shouldInspectLocalIntent =
-    turn.localInteractive && turnClassification.likelyLocalTask;
+  const shouldInspectLocalIntent = turn.localInteractive;
   const responseFromCommandLayer =
     !workflowCommand && trimmedMessage.startsWith("/")
       ? await executeSlashCommand(input, context, options)

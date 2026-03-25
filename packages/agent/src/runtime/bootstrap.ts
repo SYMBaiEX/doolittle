@@ -17,6 +17,7 @@ import {
   EventType,
   type IAgentRuntime,
   type Relationship,
+  stringToUuid,
   ToolPolicyService,
   type UUID,
 } from "@elizaos/core";
@@ -125,7 +126,7 @@ function collectErrorMessages(err: unknown): string[] {
   return messages;
 }
 
-function isRecoverablePgliteInitError(err: unknown): boolean {
+export function isRecoverablePgliteInitError(err: unknown): boolean {
   const haystack = collectErrorMessages(err).join("\n").toLowerCase();
   if (!haystack) {
     return false;
@@ -133,6 +134,10 @@ function isRecoverablePgliteInitError(err: unknown): boolean {
   const hasAbort = haystack.includes("aborted(). build with -sassertions");
   const hasPglite = haystack.includes("pglite");
   const hasSqlite = haystack.includes("sqlite");
+  const hasSqlPlugin =
+    haystack.includes("plugin:sql") ||
+    haystack.includes("database adapter") ||
+    haystack.includes("migrator");
   const hasMigrationsSchema =
     haystack.includes("create schema if not exists migrations") ||
     haystack.includes("failed query: create schema if not exists migrations");
@@ -147,10 +152,22 @@ function isRecoverablePgliteInitError(err: unknown): boolean {
     "checksum mismatch",
     "corrupt",
   ].some((needle) => haystack.includes(needle));
+  const hasRecoverableStartupSignal = [
+    "pglite recovery failed for",
+    "pglite initialization failed",
+    "[followupservice] rolodexservice is not available",
+    "service rolodex not found or failed to start",
+    "service follow_up not found or failed to start",
+    "[rolodexservice] failed to ensure rolodex world",
+    "database adapter not initialized",
+    "database or migrator not initialized in databasemigrationservice",
+  ].some((needle) => haystack.includes(needle));
+  const hasStorageContext = hasPglite || hasSqlite || hasSqlPlugin;
 
   if (hasMigrationsSchema) return true;
   if (hasAbort && hasPglite) return true;
-  if (hasRecoverableStorageSignal && (hasPglite || hasSqlite)) return true;
+  if (hasRecoverableStorageSignal && hasStorageContext) return true;
+  if (hasRecoverableStartupSignal && hasStorageContext) return true;
   return false;
 }
 
@@ -358,6 +375,17 @@ function patchRuntimeRelationshipCompatibility(runtime: AgentRuntime): void {
   runtimeWithPatch.__elizaAgentRelationshipCompatibilityPatched = true;
 }
 
+export async function validateCriticalRuntimeServices(
+  runtime: AgentRuntime,
+): Promise<void> {
+  appendBootstrapTrace("phase:rolodex:load:start");
+  await runtime.getServiceLoadPromise("rolodex");
+  appendBootstrapTrace("phase:rolodex:load:done");
+  appendBootstrapTrace("phase:worldRooms:probe:start");
+  await runtime.getRooms(stringToUuid(`world-${runtime.agentId}`));
+  appendBootstrapTrace("phase:worldRooms:probe:done");
+}
+
 async function initializeRuntimeWithRecovery(
   createRuntime: () => AgentRuntime,
   services: AppServices,
@@ -424,6 +452,7 @@ async function initializeRuntimeWithRecovery(
     appendBootstrapTrace("phase:memoryStorage:load:start");
     await runtime.getServiceLoadPromise("memoryStorage");
     appendBootstrapTrace("phase:memoryStorage:load:done");
+    await validateCriticalRuntimeServices(runtime);
     return runtime;
   } catch (err) {
     appendBootstrapTrace("phase:runtime.initialize:error", formatError(err));
@@ -447,13 +476,13 @@ async function initializeRuntimeWithRecovery(
         : `[eliza-agent] PGLite startup failed (${formatError(err)}). Resetting local DB at ${pgliteDataDir} and retrying once.`,
     );
 
-    if (recoveryAction === "reset-data-dir") {
-      await resetPgliteDataDir(pgliteDataDir);
-    }
-
     process.env.PGLITE_DATA_DIR = pgliteDataDir;
     await disposeRuntime(runtime);
     await resetPluginSqlPgliteSingleton();
+    reconcilePglitePidFile(pgliteDataDir);
+    if (recoveryAction === "reset-data-dir") {
+      await resetPgliteDataDir(pgliteDataDir);
+    }
     runtime = createRuntime();
     await registerMemoryStorage(runtime);
     try {
@@ -463,6 +492,7 @@ async function initializeRuntimeWithRecovery(
       appendBootstrapTrace("phase:memoryStorage:retry-load:start");
       await runtime.getServiceLoadPromise("memoryStorage");
       appendBootstrapTrace("phase:memoryStorage:retry-load:done");
+      await validateCriticalRuntimeServices(runtime);
       return runtime;
     } catch (retryErr) {
       appendBootstrapTrace(
@@ -471,7 +501,8 @@ async function initializeRuntimeWithRecovery(
       );
       void retryErr;
       throw new Error(
-        `PGLite startup failed after automatic recovery at ${pgliteDataDir}. Run \`eliza-agent doctor\` or remove the local DB directory if it is still corrupted.`,
+        `PGLite startup failed after automatic recovery at ${pgliteDataDir}: ${formatError(retryErr)}. Run \`eliza-agent doctor\` or remove the local DB directory if it is still corrupted.`,
+        { cause: retryErr },
       );
     }
   }

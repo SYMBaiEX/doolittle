@@ -1,7 +1,7 @@
 import type { RunDepth, ToolProgressMode } from "@/types";
 
 const LOCAL_TASK_FAST_PATH_PATTERN =
-  /\b(search|find|read|open|inspect|show|grep|rg|git|status|diff|log|repo|repository|workspace|directory|file|files|command|run|execute|terminal|shell|ls|list)\b/i;
+  /\b(search|find|read|open|inspect|show|grep|rg|git|status|diff|log|repo|repository|workspace|directory|folder|path|file|files|command|run|execute|terminal|shell|ls|list)\b/i;
 
 const FULL_CONTEXT_PATTERN =
   /\b(delegat(?:e|ion|ed|ing)?|worker|queue|cron|schedule|gateway|transport|plugin|plugins|skills?|memory|profile|profiles|belief|relationship|operator|doctor|diagnostic|status|settings|accounts?|provider|providers?)\b/i;
@@ -80,7 +80,7 @@ export interface TurnExecutionPolicy {
 
 export function isSimpleGreetingMessage(message: string): boolean {
   const normalized = message.trim().toLowerCase();
-  return /^(hi|hey|hello|yo|sup|what'?s up|howdy|hiya)[!.?]*$/iu.test(
+  return /^(hi|hey|hello|yo|sup|what'?s up|howdy|hiya)(?:\s+(?:there|eliza|agent|buddy|friend))?[!.?]*$/iu.test(
     normalized,
   );
 }

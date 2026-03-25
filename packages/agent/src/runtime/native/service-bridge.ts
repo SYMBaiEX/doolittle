@@ -2247,10 +2247,8 @@ export function getEffectiveTurnCapabilityPolicy(
   const availableTools = getEffectiveServiceResolution(runtime)
     .filter((entry) => entry.available)
     .map((entry) => entry.capability);
-
-  const preferredTools =
-    nativeToolPolicy?.getAllowedTools?.({ profile }, availableTools) ??
-    (profile === "minimal"
+  const fallbackPreferredTools =
+    profile === "minimal"
       ? []
       : profile === "coding"
         ? availableTools.filter((tool) =>
@@ -2260,7 +2258,17 @@ export function getEffectiveTurnCapabilityPolicy(
           ? availableTools.filter((tool) =>
               ["browser", "knowledge", "mcp"].includes(tool),
             )
-          : availableTools);
+          : availableTools;
+  const nativePreferredTools = nativeToolPolicy?.getAllowedTools?.(
+    { profile },
+    availableTools,
+  );
+
+  const preferredTools =
+    nativePreferredTools &&
+    (nativePreferredTools.length > 0 || profile === "minimal")
+      ? nativePreferredTools
+      : fallbackPreferredTools;
 
   const deniedTools =
     nativeToolPolicy?.getDeniedTools?.({ profile }, availableTools) ??
