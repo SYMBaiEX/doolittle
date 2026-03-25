@@ -2144,19 +2144,22 @@ async function startTui(
     return entry._reading === true;
   }
 
+  function hasLiveTextEntryCompletion(entry: InteractiveTextEntry): boolean {
+    return typeof (entry as { _done?: unknown })._done === "function";
+  }
+
   function activateTextEntry(entry: InteractiveTextEntry): void {
+    if (screen.focused !== entry) {
+      entry.focus();
+    }
     if (!isEntryReading(entry)) {
       entry.readInput?.();
     }
-    entry.focus();
     noteTextEntryActivity();
   }
 
   function deactivateTextEntry(entry: InteractiveTextEntry): void {
-    if (
-      isEntryReading(entry) &&
-      typeof (entry as { _done?: unknown })._done === "function"
-    ) {
+    if (isEntryReading(entry) && hasLiveTextEntryCompletion(entry)) {
       entry.cancel?.();
     }
   }
@@ -3219,6 +3222,14 @@ async function startTui(
 
   inputBox.on("submit", (value) => {
     queueCommand(value);
+  });
+
+  inputBox.key("enter", () => {
+    const inputEntry = inputBox as InteractiveTextEntry;
+    if (hasLiveTextEntryCompletion(inputEntry)) {
+      return;
+    }
+    queueCommand(inputBox.getValue());
   });
 
   inputBox.key("up", () => {
