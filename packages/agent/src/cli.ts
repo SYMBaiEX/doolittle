@@ -244,7 +244,112 @@ function renderPlainPrompt(context: AppContext, _state: CliState): string {
 }
 
 function renderPlainRunLine(detail: string): string {
-  return `${paint("  •", ANSI.gray, output.isTTY)} ${detail}`;
+  return `${paint("  •", ANSI.gray, output.isTTY)} ${paint(asciiRunBadge(detail), ANSI.blue, output.isTTY)} ${detail}`;
+}
+
+function asciiRoleBadge(kind?: ResponseTranscriptEntry["kind"]): string {
+  switch (kind) {
+    case "user":
+      return ">>";
+    case "assistant":
+      return "<>";
+    case "shell":
+      return "$>";
+    case "command":
+      return "//";
+    default:
+      return "::";
+  }
+}
+
+function asciiActivityBadge(kind: string): string {
+  const normalized = kind.trim().toLowerCase();
+  if (
+    normalized === "exec" ||
+    normalized === "shell" ||
+    normalized === "cmd" ||
+    normalized === "out"
+  ) {
+    return "$>";
+  }
+  if (
+    normalized === "task" ||
+    normalized === "delegate" ||
+    normalized === "agent"
+  ) {
+    return "<>";
+  }
+  if (
+    normalized === "gw" ||
+    normalized === "gateway" ||
+    normalized.startsWith("srv")
+  ) {
+    return "::";
+  }
+  if (normalized === "copy" || normalized === "theme") {
+    return "[*]";
+  }
+  if (normalized === "warn") {
+    return "[!]";
+  }
+  if (normalized === "err" || normalized === "runtime") {
+    return "[x]";
+  }
+  if (normalized === "mem") {
+    return "[#]";
+  }
+  return "[.]";
+}
+
+function asciiRunBadge(detail: string): string {
+  const normalized = detail.toLowerCase();
+  if (normalized.startsWith("run started")) {
+    return "[boot]";
+  }
+  if (normalized.startsWith("thinking")) {
+    return "(..)";
+  }
+  if (normalized.startsWith("tool ") || normalized.startsWith("acting")) {
+    if (normalized.includes("workspace:search")) {
+      return "[rg]";
+    }
+    if (normalized.includes("shell") || normalized.includes("terminal")) {
+      return "$>";
+    }
+    if (normalized.includes("delegate")) {
+      return "<>";
+    }
+    if (normalized.includes("repo") || normalized.includes("git")) {
+      return "{g}";
+    }
+    return "[tool]";
+  }
+  if (
+    normalized.startsWith("tool done") ||
+    normalized.startsWith("action completed")
+  ) {
+    return "[ok]";
+  }
+  if (normalized.startsWith("waiting")) {
+    return "(. )";
+  }
+  if (normalized.startsWith("pending approvals")) {
+    return "[?]";
+  }
+  if (normalized.startsWith("run complete")) {
+    return "[fin]";
+  }
+  if (normalized.startsWith("run error")) {
+    return "[!!]";
+  }
+  if (normalized.startsWith("heartbeat")) {
+    return "[hb]";
+  }
+  return "[..]";
+}
+
+function decorateLiveActivity(detail: string): string {
+  return `${asciiRunBadge(detail)} ${detail}`;
 }
 
 function renderPlainEntry(
@@ -262,6 +367,7 @@ function renderPlainEntry(
             ? ANSI.magenta
             : ANSI.blue;
   const label = paint(entry.label, accent, output.isTTY);
+  const badge = paint(asciiRoleBadge(entry.kind), ANSI.gray, output.isTTY);
   const at = paint(entry.at, ANSI.gray, output.isTTY);
   const pending = entry.pending
     ? ` ${paint("…", ANSI.gray, output.isTTY)}`
@@ -284,7 +390,7 @@ function renderPlainEntry(
           : "";
 
   return [
-    `${at}  ${label}${pending}${prefix ? `  ${prefix}` : ""}`,
+    `${at}  ${badge} ${label}${pending}${prefix ? `  ${prefix}` : ""}`,
     body,
     liveActivity,
   ]
@@ -444,14 +550,14 @@ export function renderResponseTranscript(
   const renderEntry = (entry: ResponseTranscriptEntry): string => {
     const roleTag =
       entry.kind === "user"
-        ? "{yellow-fg}You{/}"
+        ? "{yellow-fg}>> You{/}"
         : entry.kind === "assistant"
-          ? "{cyan-fg}Agent{/}"
+          ? "{cyan-fg}<> Agent{/}"
           : entry.kind === "shell"
-            ? "{green-fg}Shell{/}"
+            ? "{green-fg}$> Shell{/}"
             : entry.kind === "command"
-              ? "{magenta-fg}Command{/}"
-              : "{gray-fg}System{/}";
+              ? "{magenta-fg}// Command{/}"
+              : "{gray-fg}:: System{/}";
     const customLabel =
       entry.label &&
       !["You", "Shell", "Command", "Command Result", "Helm Ready"].includes(
@@ -504,14 +610,14 @@ function renderPlainTranscript(
     .map((entry) => {
       const role =
         entry.kind === "user"
-          ? "You"
+          ? ">> You"
           : entry.kind === "assistant"
-            ? "Agent"
+            ? "<> Agent"
             : entry.kind === "shell"
-              ? "Shell"
+              ? "$> Shell"
               : entry.kind === "command"
-                ? "Command"
-                : "System";
+                ? "// Command"
+                : ":: System";
       const customLabel =
         entry.label &&
         !["You", "Shell", "Command", "Command Result", "Helm Ready"].includes(
@@ -543,15 +649,15 @@ function renderPlainTranscript(
 function toneTag(tone: CliExecutionResult["tone"]): string {
   switch (tone) {
     case "success":
-      return "{green-fg}OK{/}";
+      return "{green-fg}[ok]{/}";
     case "warning":
-      return "{yellow-fg}WARN{/}";
+      return "{yellow-fg}[!]{/}";
     case "error":
-      return "{red-fg}ERR{/}";
+      return "{red-fg}[x]{/}";
     case "agent":
-      return "{cyan-fg}AI{/}";
+      return "{cyan-fg}<> {/}";
     default:
-      return "{blue-fg}SYS{/}";
+      return "{blue-fg}:: {/}";
   }
 }
 
@@ -1040,6 +1146,8 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
 function renderSuggestionsContent(inputValue: string): string {
   if (!inputValue.trim()) {
     return [
+      "{gray-fg}   .:: eliza signal deck ::.{/}",
+      "",
       "{bold}Quick Ignition{/}",
       "",
       "{bold}Conversation{/}",
@@ -1860,7 +1968,7 @@ export function renderFooter(
     `${context.config.agentName} // cockpit`,
     busy
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
-      : "{green-fg}ready{/}",
+      : "{green-fg}[ok] ready{/}",
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
     `{cyan-fg}${escapeBlessed(shortModelId(settings.model.model))}{/}`,
     `{yellow-fg}${escapeBlessed(settings.agent.runDepth)}{/}`,
@@ -2274,7 +2382,7 @@ async function startTui(
     }
   };
   let footerHint = "Esc input";
-  const busyFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  const busyFrames = ["(::)", "(.:)", "(..)", "(:.)", "(<>)", "(^_)"];
 
   function isEntryReading(entry: InteractiveTextEntry): boolean {
     return entry._reading === true;
@@ -2598,7 +2706,7 @@ async function startTui(
   }
 
   function pushLiveToolEvent(detail: string): void {
-    const nextLine = `- ${detail}`;
+    const nextLine = decorateLiveActivity(detail);
     if (liveToolTrail.at(-1) === nextLine) {
       return;
     }
@@ -2800,7 +2908,7 @@ async function startTui(
     tone: CliExecutionResult["tone"],
   ): void {
     activity.log(
-      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {bold}${escapeBlessed(kind)}{/bold} ${escapeBlessed(message)}`,
+      `{gray-fg}${nowStamp()}{/} ${toneTag(tone)} {gray-fg}${escapeBlessed(asciiActivityBadge(kind))}{/} {bold}${escapeBlessed(kind)}{/bold} ${escapeBlessed(message)}`,
     );
   }
 
