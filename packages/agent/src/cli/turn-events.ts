@@ -41,6 +41,7 @@ export type CliTurnEvent =
       type: "completed";
       timestamp: string;
       status: "completed" | "failed" | "cancelled";
+      elapsedMs?: number;
     };
 
 export function encodeCliTurnEvent(event: CliTurnEvent): string {
@@ -64,6 +65,25 @@ export function parseCliTurnEvent(line: string): CliTurnEvent | undefined {
   }
 }
 
+function formatElapsedMs(elapsedMs?: number): string | undefined {
+  if (elapsedMs === undefined) {
+    return undefined;
+  }
+  if (elapsedMs < 1_000) {
+    return `${Math.round(elapsedMs)}ms`;
+  }
+  const seconds = elapsedMs / 1_000;
+  if (seconds < 10) {
+    return `${seconds.toFixed(1)}s`;
+  }
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
 export function renderCliTurnEvent(event: CliTurnEvent): string {
   switch (event.type) {
     case "start":
@@ -79,6 +99,6 @@ export function renderCliTurnEvent(event: CliTurnEvent): string {
     case "error":
       return `error: ${event.message}`;
     case "completed":
-      return `job ${event.status}`;
+      return `job ${event.status}${formatElapsedMs(event.elapsedMs) ? ` · ${formatElapsedMs(event.elapsedMs)}` : ""}`;
   }
 }

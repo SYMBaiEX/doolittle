@@ -34,7 +34,12 @@ import {
   getNativeEcosystemSnapshot,
   getNativeTransportControlPlane,
 } from "@/runtime/native/service-bridge";
-import { formatRunEvent, shouldRenderRunEvent } from "@/runtime/run-progress";
+import {
+  formatElapsedMs,
+  formatRunEvent,
+  getRunElapsedMs,
+  shouldRenderRunEvent,
+} from "@/runtime/run-progress";
 import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
 
 interface CliState {
@@ -1511,6 +1516,7 @@ export async function runCliPromptWithEvents(
     notices: [],
   };
   let previousResponse = "";
+  let latestRunElapsedMs: number | undefined;
   const command = line.trim();
 
   await handlers?.onEvent?.({
@@ -1532,6 +1538,7 @@ export async function runCliPromptWithEvents(
       if (!detail) {
         return;
       }
+      latestRunElapsedMs = getRunElapsedMs(event.run);
       await handlers?.onEvent?.({
         type: "run",
         timestamp: new Date().toISOString(),
@@ -1578,6 +1585,7 @@ export async function runCliPromptWithEvents(
       type: "completed",
       timestamp: new Date().toISOString(),
       status: result.shouldExit ? "cancelled" : "completed",
+      elapsedMs: latestRunElapsedMs,
     });
     return {
       result,
@@ -1594,6 +1602,7 @@ export async function runCliPromptWithEvents(
       type: "completed",
       timestamp: new Date().toISOString(),
       status: options?.abortSignal?.aborted === true ? "cancelled" : "failed",
+      elapsedMs: latestRunElapsedMs,
     });
     throw error;
   } finally {
@@ -1946,7 +1955,15 @@ function renderStatusContent(context: AppContext, state: CliState): string {
     `startup ${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}`,
     `run ${settings.agent.runDepth} · cap ${settings.agent.maxIterations} · progress ${settings.agent.toolProgressMode}`,
     activeRun
-      ? `live ${activeRun.status} · ${activeRun.observedActionCount} steps${activeRun.activeAction ? ` · ${escapeBlessed(truncate(activeRun.activeAction, 26))}` : activeRun.statusDetail ? ` · ${escapeBlessed(truncate(activeRun.statusDetail, 26))}` : ""}`
+      ? (() => {
+          const elapsed = formatElapsedMs(getRunElapsedMs(activeRun));
+          const tail = activeRun.activeAction
+            ? ` · ${escapeBlessed(truncate(activeRun.activeAction, 26))}`
+            : activeRun.statusDetail
+              ? ` · ${escapeBlessed(truncate(activeRun.statusDetail, 26))}`
+              : "";
+          return `live ${activeRun.status}${elapsed ? ` · ${escapeBlessed(elapsed)}` : ""} · ${activeRun.observedActionCount} steps${tail}`;
+        })()
       : "{gray-fg}live idle{/}",
     `hydration gw:${startup.phases.gateway.status} cron:${startup.phases.cron.status} diag:${startup.phases.diagnostics.status} skills:${startup.phases.skills.status}`,
     `channels live=${transportControl.totals.liveServices} configured=${transportControl.totals.gatewayEnabled} ready=${transportControl.totals.operationalTransports}`,
@@ -2677,6 +2694,10 @@ async function startTui(
     }
 
     const markers: string[] = [activeRun.status];
+    const elapsed = formatElapsedMs(getRunElapsedMs(activeRun));
+    if (elapsed) {
+      markers.push(elapsed);
+    }
     if (activeRun.observedActionCount > 0) {
       markers.push(
         `${activeRun.observedActionCount} step${activeRun.observedActionCount === 1 ? "" : "s"}`,
