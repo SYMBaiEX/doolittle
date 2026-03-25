@@ -23,6 +23,10 @@ const ignoredNames = new Set([
 export class WorkspaceService {
   constructor(private readonly workspaceDir: string) {}
 
+  root(): string {
+    return this.workspaceDir;
+  }
+
   tree(maxDepth = 2): WorkspaceEntry[] {
     const entries: WorkspaceEntry[] = [];
     this.walk(this.workspaceDir, 0, maxDepth, entries);

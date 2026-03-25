@@ -62,6 +62,7 @@ import {
   getAutonomousControlPlane,
   getEffectiveBrowserStatus,
   getEffectiveCachedMcpTools,
+  getEffectiveCodingAgentContext,
   getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
   getEffectiveDelegationQueue,
@@ -163,6 +164,16 @@ import { RUN_DEPTH_ITERATION_PRESETS } from "@/types";
 import type { AppContext } from "./bootstrap";
 
 type StreamSource = "unset" | "callback" | "onStreamChunk";
+
+const INFORMATIONAL_RESPONSE_CACHE_TTL_MS = 45_000;
+
+const informationalResponseCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    text: string;
+  }
+>();
 
 function stableRuntimeUuid(seed: string): UUID {
   const hash = createHash("sha256").update(seed).digest("hex");
@@ -397,6 +408,110 @@ const providerReadinessCache = new WeakMap<
 >();
 const ensuredConnectionCache = new WeakMap<object, Set<string>>();
 const ensuredParticipantCache = new WeakMap<object, Set<string>>();
+
+function shouldUseInformationalResponseCache(input: {
+  localInteractive: boolean;
+  classification: ReturnType<typeof classifyTurnMessage>;
+  policy: ReturnType<typeof deriveTurnExecutionPolicy>;
+}): boolean {
+  return (
+    input.localInteractive &&
+    !input.classification.likelyLocalTask &&
+    !input.classification.requiresFullContext &&
+    input.classification.informationalOnly &&
+    !input.classification.actionOriented &&
+    !input.policy.useMultiStep &&
+    input.policy.maxIterations <= 1
+  );
+}
+
+function buildInformationalResponseCacheKey(input: {
+  sessionId: string;
+  provider: string;
+  model: string;
+  personalityId?: string;
+  message: string;
+}): string {
+  return createHash("sha256")
+    .update(
+      [
+        input.sessionId,
+        input.provider,
+        input.model,
+        input.personalityId ?? "",
+        input.message.trim(),
+      ].join("\n"),
+    )
+    .digest("hex");
+}
+
+function readInformationalResponseCache(key: string): string | undefined {
+  const cached = informationalResponseCache.get(key);
+  if (!cached) {
+    return undefined;
+  }
+  if (cached.expiresAt <= Date.now()) {
+    informationalResponseCache.delete(key);
+    return undefined;
+  }
+  return cached.text;
+}
+
+function writeInformationalResponseCache(key: string, text: string): void {
+  informationalResponseCache.set(key, {
+    expiresAt: Date.now() + INFORMATIONAL_RESPONSE_CACHE_TTL_MS,
+    text,
+  });
+
+  if (informationalResponseCache.size <= 128) {
+    return;
+  }
+  for (const [entryKey, value] of informationalResponseCache.entries()) {
+    if (value.expiresAt <= Date.now()) {
+      informationalResponseCache.delete(entryKey);
+    }
+    if (informationalResponseCache.size <= 96) {
+      break;
+    }
+  }
+}
+
+function buildCodingContextPrelude(input: {
+  taskDescription: string;
+  sessionId: string;
+  workspaceRoot: string;
+  maxIterations: number;
+  context: AgentExecutionContext;
+}): string | undefined {
+  try {
+    const codingContext = getEffectiveCodingAgentContext(
+      input.context.runtime,
+      input.context.services,
+      {
+        sessionId: input.sessionId,
+        taskDescription: input.taskDescription,
+        workspaceRoot: input.workspaceRoot,
+        maxIterations: input.maxIterations,
+        interactionMode: "human-in-the-loop",
+        metadata: {
+          provider: input.context.services.settings.get().model.provider,
+          source: "interactive-turn",
+        },
+      },
+    );
+
+    return [
+      "CODING CONTEXT",
+      `task=${codingContext.taskDescription}`,
+      `cwd=${codingContext.workingDirectory}`,
+      `connector=${codingContext.connector.type}`,
+      `mode=${codingContext.interactionMode}`,
+      `maxIterations=${codingContext.maxIterations}`,
+    ].join("\n");
+  } catch {
+    return undefined;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Context compression helpers
@@ -7470,8 +7585,59 @@ export async function handleAgentTurn(
     settingsBefore,
     options?.runtimeOverrides,
   );
-  const effectiveMessage = shouldAttachSystemFacts(input.message)
-    ? `${buildSystemFactsContext(context)}\n\nUser request:\n${input.message}`
+  const shouldUseResponseCache = shouldUseInformationalResponseCache({
+    localInteractive: turn.localInteractive,
+    classification: turnClassification,
+    policy: derivedTurnPolicy,
+  });
+  const responseCacheKey = shouldUseResponseCache
+    ? buildInformationalResponseCacheKey({
+        sessionId: turn.sessionId,
+        provider: settingsDuring.model.provider,
+        model: settingsDuring.model.model,
+        personalityId: options?.personalityId ?? personalityBefore.id,
+        message: input.message,
+      })
+    : undefined;
+  if (responseCacheKey) {
+    const cachedResponse = readInformationalResponseCache(responseCacheKey);
+    if (cachedResponse) {
+      await finalizeTurnResponse(
+        context,
+        turn,
+        cachedResponse,
+        scheduleProfileObservation,
+        options,
+        "model",
+      );
+      perf.flush(context.runtime.logger, {
+        path: "informational-response-cache",
+        sessionId: turn.sessionId,
+        source: input.source ?? "cli",
+      });
+      return cachedResponse;
+    }
+  }
+  const systemFactsPrelude = shouldAttachSystemFacts(input.message)
+    ? buildSystemFactsContext(context)
+    : undefined;
+  const codingPrelude =
+    turn.localInteractive &&
+    turnClassification.likelyLocalTask &&
+    turnClassification.actionOriented
+      ? buildCodingContextPrelude({
+          context,
+          sessionId: turn.sessionId,
+          taskDescription: input.message,
+          workspaceRoot: context.config.workspaceDir,
+          maxIterations: derivedTurnPolicy.maxIterations,
+        })
+      : undefined;
+  const messagePrelude = [systemFactsPrelude, codingPrelude]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n\n");
+  const effectiveMessage = messagePrelude
+    ? `${messagePrelude}\n\nUser request:\n${input.message}`
     : input.message;
 
   const readinessMessage = await getProviderReadinessMessage(
@@ -7612,6 +7778,10 @@ export async function handleAgentTurn(
     await emitSnapshot(update.nextText);
   };
   try {
+    context.runtime.setSetting(
+      "ELIZAOS_CLOUD_CONVERSATION_ID",
+      stableRuntimeUuid(`grok:${turn.sessionId}`),
+    );
     if (typeof context.runtime.emitEvent === "function") {
       await context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: context.runtime,
@@ -7874,6 +8044,15 @@ export async function handleAgentTurn(
   }
 
   const finalResponse = baseResponse;
+
+  if (
+    responseCacheKey &&
+    !runFailureMessage &&
+    observedActionCount === 0 &&
+    finalResponse.trim()
+  ) {
+    writeInformationalResponseCache(responseCacheKey, finalResponse);
+  }
 
   storeSessionMessage(context, {
     sessionId: turn.sessionId,

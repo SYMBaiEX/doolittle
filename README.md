@@ -95,6 +95,8 @@ This means the shell stays thin over ElizaOS:
 1. **Native first**: natural requests go through the Eliza runtime before product rescue logic.
 2. **Observed truth**: the UI shows configured iteration caps plus observed steps, not fake decremented counters.
 3. **Deferred hydration**: the shell becomes interactive first, then gateway/cron/diagnostics/operator surfaces hydrate behind it.
+4. **Prompt reuse where it matters**: simple conversational turns are cached safely in-session, and Eliza Cloud turns carry a stable conversation id so xAI prompt caching can reduce repeated prompt cost on managed Cloud runs.
+5. **Native coding context**: local coding turns now flow with a real ElizaOS `coding-agent-context` instead of an ad hoc workspace prelude.
 
 ### Run depth
 
@@ -878,12 +880,14 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZAOS_CLOUD_ENABLED` | Turns on Eliza Cloud as the active managed inference provider |
 | `ELIZAOS_CLOUD_API_KEY` | Native Eliza Cloud API key (preferred path: `elizaos login`) |
 | `ELIZAOS_CLOUD_BASE_URL` | Base URL for Eliza Cloud managed inference |
-| `ELIZAOS_CLOUD_SMALL_MODEL` | Default small-model identifier for Eliza Cloud. Current default: `xai/grok-4.1-fast-reasoning` |
+| `ELIZAOS_CLOUD_SMALL_MODEL` | Default small-model identifier for Eliza Cloud. Current default: `xai/grok-4.1-fast-non-reasoning` |
 | `ELIZAOS_CLOUD_LARGE_MODEL` | Default large-model identifier for Eliza Cloud. Current default: `xai/grok-4.1-fast-reasoning` |
 | `ELIZAOS_CLOUD_EMBEDDING_MODEL` | Default embedding-model identifier for Eliza Cloud. Current default: `openai/text-embedding-3-small` |
 | `ELIZAOS_CLOUD_EMBEDDING_URL` | Optional custom base URL for the Eliza Cloud embeddings endpoint |
 | `ELIZAOS_CLOUD_EMBEDDING_API_KEY` | Optional dedicated API key for Eliza Cloud embeddings. Falls back to `ELIZAOS_CLOUD_API_KEY` |
 | `ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS` | Optional embedding dimension override for `text-embedding-3` models |
+
+Eliza Agent uses a stable per-session conversation id with Eliza Cloud so managed xAI-backed runs can benefit from provider-side prompt caching when the upstream supports cached prompt tokens.
 
 ### OpenAI
 

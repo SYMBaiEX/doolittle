@@ -282,6 +282,7 @@ async function postElizaCloudChatCompletion(
   params: GenerateTextParams,
   temperature: number,
   maxTokens: number,
+  conversationId?: string,
 ): Promise<Response> {
   return fetch(endpoint, {
     method: "POST",
@@ -289,6 +290,7 @@ async function postElizaCloudChatCompletion(
       Authorization: `Bearer ${apiKey}`,
       "X-Api-Key": apiKey,
       "Content-Type": "application/json",
+      ...(conversationId ? { "x-grok-conv-id": conversationId } : {}),
     },
     body: JSON.stringify({
       model,
@@ -311,6 +313,7 @@ async function postElizaCloudResponse(
   model: string,
   params: GenerateTextParams,
   maxTokens: number,
+  conversationId?: string,
 ): Promise<Response> {
   return fetch(endpoint, {
     method: "POST",
@@ -318,6 +321,7 @@ async function postElizaCloudResponse(
       Authorization: `Bearer ${apiKey}`,
       "X-Api-Key": apiKey,
       "Content-Type": "application/json",
+      ...(conversationId ? { "x-grok-conv-id": conversationId } : {}),
     },
     body: JSON.stringify({
       model,
@@ -401,6 +405,10 @@ async function runElizaCloudTextGeneration(
     preferredType,
     params.prompt,
   );
+  const conversationId = getRuntimeStringSetting(
+    runtime,
+    "ELIZAOS_CLOUD_CONVERSATION_ID",
+  );
   const temperature = runtimeModel.temperature ?? 0.4;
   const maxTokens = params.maxTokens ?? runtimeModel.maxTokens ?? 1200;
 
@@ -411,6 +419,7 @@ async function runElizaCloudTextGeneration(
       requestedModel,
       params,
       maxTokens,
+      conversationId,
     );
     if (!response.ok) {
       const body = await response.text();
@@ -435,6 +444,7 @@ async function runElizaCloudTextGeneration(
     params,
     temperature,
     maxTokens,
+    conversationId,
   );
 
   if (!response.ok) {
@@ -454,6 +464,7 @@ async function runElizaCloudTextGeneration(
       params,
       temperature,
       maxTokens,
+      conversationId,
     );
     if (!response.ok) {
       const body = await response.text();

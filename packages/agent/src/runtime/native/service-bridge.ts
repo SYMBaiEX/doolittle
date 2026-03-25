@@ -1,3 +1,9 @@
+import {
+  type CodingAgentContext,
+  type ConnectorType,
+  type InteractionMode,
+  validateCodingAgentContext,
+} from "@elizaos/agent/services/coding-agent-context";
 import { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
 import type { IAgentRuntime } from "@elizaos/core";
 import { benchmarkConfig } from "@elizaos/plugin-action-bench";
@@ -209,6 +215,17 @@ interface NativeCodingAgentService {
     metadata?: Record<string, unknown>,
   ): unknown;
   tasks?(): unknown[];
+  context?(
+    taskDescription: string,
+    options?: {
+      sessionId?: string;
+      workingDirectory?: string;
+      maxIterations?: number;
+      interactionMode?: InteractionMode;
+      connectorType?: ConnectorType;
+      metadata?: Record<string, string>;
+    },
+  ): CodingAgentContext;
 }
 
 interface NativeApprovalService {
@@ -2127,6 +2144,66 @@ export function writeEffectiveWorkspaceFile(
     getNativeServices(runtime).codingAgent?.write(path, content) ??
     services.workspace.write(path, content)
   );
+}
+
+export function getEffectiveCodingAgentContext(
+  runtime: RuntimeLike,
+  services: AppServices,
+  input: {
+    sessionId: string;
+    taskDescription: string;
+    workspaceRoot: string;
+    maxIterations?: number;
+    interactionMode?: InteractionMode;
+    connectorType?: ConnectorType;
+    metadata?: Record<string, string>;
+  },
+): CodingAgentContext {
+  const nativeContext = getNativeServices(runtime).codingAgent?.context?.(
+    input.taskDescription,
+    {
+      sessionId: input.sessionId,
+      workingDirectory: input.workspaceRoot,
+      maxIterations: input.maxIterations,
+      interactionMode: input.interactionMode,
+      connectorType: input.connectorType,
+      metadata: input.metadata,
+    },
+  );
+  if (nativeContext) {
+    return nativeContext;
+  }
+
+  const candidate = {
+    sessionId: input.sessionId,
+    taskDescription: input.taskDescription,
+    workingDirectory: input.workspaceRoot,
+    connector: {
+      type:
+        input.connectorType ??
+        (services.repository.isRepository() ? "git-repo" : "local-fs"),
+      basePath: input.workspaceRoot,
+      available: true,
+      metadata: input.metadata,
+    },
+    interactionMode: input.interactionMode ?? "human-in-the-loop",
+    maxIterations: input.maxIterations ?? 8,
+    active: true,
+    iterations: [],
+    allFeedback: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  } satisfies Record<string, unknown>;
+
+  const validated = validateCodingAgentContext(candidate);
+  if (!validated.ok) {
+    throw new Error(
+      `Invalid effective coding agent context: ${validated.errors
+        .map((entry) => `${entry.path}: ${entry.message}`)
+        .join(", ")}`,
+    );
+  }
+  return validated.data;
 }
 
 export async function getEffectiveRepositoryStatus(

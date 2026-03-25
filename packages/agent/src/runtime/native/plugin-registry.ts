@@ -195,8 +195,10 @@ async function loadHotExecutionPlugins(
       },
     }),
     createCodingAgentPlugin({
+      workspaceRoot: services.workspace.root(),
       workspace: services.workspace,
       repository: {
+        isRepository: () => services.repository.isRepository(),
         status: () => services.repository.status(),
         diff: () => services.repository.diffStat(),
         log: (limit = 10) => services.repository.recentCommits(limit),
