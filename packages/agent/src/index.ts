@@ -16,12 +16,17 @@ import {
   summarizeCliJob,
 } from "@/cli/jobs";
 import {
+  restoreTerminalState,
+  sanitizeSingleLineTerminalText,
+} from "@/cli/render-utils";
+import {
   ensureOnboarded,
   loadLocalRuntimeEnv,
   runOnboardingWizard,
 } from "@/cli/startup";
 import { encodeCliTurnEvent, renderCliTurnEvent } from "@/cli/turn-events";
 import { loadConfig } from "@/config/env";
+import { renderCommandCatalog } from "@/runtime/command-catalog";
 
 function repoRoot(): string {
   // packages/agent/src/index.ts → ../../../ = repo root
@@ -34,6 +39,7 @@ function repoRoot(): string {
 
 type Subcommand =
   | "help"
+  | "commands"
   | "start"
   | "cockpit"
   | "setup"
@@ -178,6 +184,7 @@ function resolveSubcommand(): { command: Subcommand; rest: string[] } {
   const aliases: Record<string, Subcommand> = {
     start: "start",
     help: "help",
+    commands: "commands",
     cockpit: "cockpit",
     tui: "cockpit",
     setup: "setup",
@@ -210,6 +217,7 @@ function renderTopLevelHelp(): string {
     "",
     "Usage:",
     "  eliza-agent                 Start the plain interactive shell",
+    "  eliza-agent commands        Browse slash commands and bundled workflows",
     "  eliza-agent cockpit         Open the fullscreen observability cockpit",
     '  eliza-agent exec -p "..."   Run one prompt and exit',
     '  eliza-agent exec -p "..." --json-stream',
@@ -305,6 +313,7 @@ async function readStdinText(): Promise<string> {
 function resolveStaticPrompt(
   prompt: string | undefined,
   agentName: string,
+  workspaceDir = repoRoot(),
 ): StaticResult | undefined {
   const trimmed = prompt?.trim();
   if (!trimmed) {
@@ -313,6 +322,17 @@ function resolveStaticPrompt(
 
   if (trimmed === "/help") {
     return { text: buildHelpText(agentName) };
+  }
+  if (trimmed === "/commands") {
+    return { text: renderCommandCatalog(undefined, 80, workspaceDir) };
+  }
+  if (trimmed.startsWith("/commands search ")) {
+    const query = trimmed.replace("/commands search ", "").trim();
+    return {
+      text: query
+        ? renderCommandCatalog(query, 80, workspaceDir)
+        : "Usage: /commands search <query>",
+    };
   }
 
   if (trimmed === "exit" || trimmed === "quit") {
@@ -339,25 +359,7 @@ function isRecoverableTopLevelRuntimeError(error: unknown): boolean {
 }
 
 function sanitizeBootLogLine(text: string): string {
-  const esc = String.fromCharCode(27);
-  const bel = String.fromCharCode(7);
-  const controlChars = new RegExp(
-    `[${[
-      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0b, 0x0c, 0x0d,
-      0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-      0x1a, 0x1c, 0x1d, 0x1e, 0x1f, 0x7f,
-    ]
-      .map((value) => `\\x${value.toString(16).padStart(2, "0")}`)
-      .join("")}]`,
-    "g",
-  );
-
-  return text
-    .replace(new RegExp(`${esc}\\[[0-?]*[ -/]*[@-~]`, "g"), "")
-    .replace(new RegExp(`${esc}\\][^${bel}]*(?:${bel}|${esc}\\\\)`, "g"), "")
-    .replace(controlChars, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return sanitizeSingleLineTerminalText(text);
 }
 
 async function captureBootLogs<T>(
@@ -438,11 +440,19 @@ async function main(): Promise<void> {
   const staticPromptResult = resolveStaticPrompt(
     immediatePrompt,
     process.env.ELIZA_AGENT_NAME?.trim() || "Eliza",
+    repoRoot(),
   );
   const jobControlDir = process.env.ELIZA_AGENT_JOB_CONTROL_DIR?.trim();
 
   if (command === "help") {
     console.log(renderTopLevelHelp());
+    return;
+  }
+
+  if (command === "commands") {
+    console.log(
+      renderCommandCatalog(_rest.join(" ").trim() || undefined, 80, repoRoot()),
+    );
     return;
   }
 
@@ -825,6 +835,7 @@ const entryKeepAlive = setInterval(() => {}, 60_000);
 
 main()
   .catch((error) => {
+    restoreTerminalState();
     if (isRecoverableTopLevelRuntimeError(error)) {
       console.error(formatTopLevelError(error));
     } else {

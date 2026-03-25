@@ -1,4 +1,7 @@
-import { canonicalizeSlashCommandSyntax } from "@/runtime/command-catalog";
+import {
+  canonicalizeSlashCommandSyntax,
+  normalizeSlashCommandSyntax,
+} from "@/runtime/command-catalog";
 
 export interface CliHotkeyBinding {
   keys: string[];
@@ -25,6 +28,10 @@ const HOTKEY_DEFINITIONS: Array<{
 ];
 
 const HELP_EXAMPLES = [
+  "/commands",
+  "/review",
+  "/security-review",
+  "/release-check",
   "/skills list",
   "/execution status",
   "/theme list",
@@ -57,13 +64,13 @@ export function getCliHotkeyBindings(): CliHotkeyBinding[] {
     return {
       keys: entry.keys,
       command,
-      label: entry.label ?? command,
+      label: entry.label ?? normalizeSlashCommandSyntax(command),
     };
   });
 }
 
 export function getCliHelpExamples(): string[] {
   return HELP_EXAMPLES.map((entry) =>
-    entry.startsWith("/") ? canonicalizeSlashCommandSyntax(entry) : entry,
+    entry.startsWith("/") ? normalizeSlashCommandSyntax(entry) : entry,
   );
 }

@@ -94,4 +94,16 @@ describe("local intent fallback", () => {
       }),
     ).toBe(true);
   });
+
+  it("treats meta repo-review recap output as an incomplete local review", () => {
+    expect(
+      shouldUseDirectLocalFallback({
+        message: "Give me a breakdown of this repo",
+        response:
+          "I searched the local workspace.\n\nWhat was completed:\n- confirmed the repo\n\nWhat was not completed:\n- deeper repo inspection did not finish\n\nIf you want, I can now do the actual repo review.",
+        observedActionCount: 0,
+        isHighConfidenceIntent: true,
+      }),
+    ).toBe(true);
+  });
 });

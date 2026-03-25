@@ -18,12 +18,26 @@ describe("project inspection", () => {
     tempDirs.push(root);
     writeFileSync(
       join(root, "package.json"),
-      JSON.stringify({ name: "sample-project" }, null, 2),
+      JSON.stringify(
+        {
+          name: "sample-project",
+          packageManager: "bun@1.3.11",
+          workspaces: ["packages/*", "apps/*"],
+          scripts: {
+            dev: "bun run dev",
+            check: "bun run check",
+          },
+        },
+        null,
+        2,
+      ),
     );
     writeFileSync(
       join(root, "README.md"),
       "# Sample Project\n\nA small test project.\n\n## Notes\n\nShip it.\n",
     );
+    mkdirSync(join(root, "packages"));
+    mkdirSync(join(root, "packages", "core"));
     mkdirSync(join(root, "src"));
     writeFileSync(join(root, "src", "index.ts"), "export const value = 1;\n");
 
@@ -31,6 +45,12 @@ describe("project inspection", () => {
 
     expect(inspection.name).toBe(root.split("/").at(-1) ?? "");
     expect(inspection.type).toContain("Node/Bun package");
+    expect(inspection.packageName).toBe("sample-project");
+    expect(inspection.packageManager).toBe("bun@1.3.11");
+    expect(inspection.workspacePatterns).toEqual(["packages/*", "apps/*"]);
+    expect(inspection.scripts).toContain("dev");
+    expect(inspection.keyFolders).toContain("packages");
+    expect(inspection.keyFolders).toContain("packages/core");
     expect(inspection.topEntries).toContain("README.md");
     expect(inspection.topEntries).toContain("src");
     expect(inspection.readmePreview).toBeDefined();

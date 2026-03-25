@@ -31,7 +31,12 @@ import {
   listCliJobs,
   renderCliJobReplay,
 } from "@/cli/jobs";
-import { escapeBlessed } from "@/cli/render-utils";
+import {
+  escapeBlessed,
+  restoreTerminalState,
+  sanitizeSingleLineTerminalText,
+  sanitizeTerminalText,
+} from "@/cli/render-utils";
 import {
   currentSessionElapsed,
   macAwareKeyLabel,
@@ -55,6 +60,7 @@ import {
   COMMAND_CATALOG,
   canonicalizeSlashCommandSyntax,
   normalizeSlashCommandSyntax,
+  renderCommandCatalog,
   suggestCommands,
 } from "@/runtime/command-catalog";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
@@ -190,35 +196,26 @@ function writeTranscriptExport(
   }
 }
 
-// biome-ignore lint/complexity/useRegexLiterals: A constructor keeps control-byte escapes explicit without tripping the control-character lint.
-const ANSI_ESCAPE_PATTERN = new RegExp(
-  "\\u001B(?:\\[[0-?]*[ -/]*[@-~]|\\][^\\u0007]*(?:\\u0007|\\u001B\\\\))",
-  "gu",
-);
-
 function sanitizeForeignTerminalWrite(text: string): string {
-  return text
-    .replace(ANSI_ESCAPE_PATTERN, "")
-    .replace(/\r\n/gu, "\n")
-    .replace(/\r/gu, "")
-    .replaceAll(String.fromCharCode(0), "")
-    .trim();
+  return sanitizeTerminalText(text);
 }
 
 function formatForeignTerminalArgs(args: unknown[]): string {
-  return args
-    .map((value) => {
-      if (typeof value === "string") {
-        return value;
-      }
-      return inspect(value, {
-        depth: 4,
-        colors: false,
-        compact: true,
-        breakLength: 120,
-      });
-    })
-    .join(" ");
+  return sanitizeSingleLineTerminalText(
+    args
+      .map((value) => {
+        if (typeof value === "string") {
+          return value;
+        }
+        return inspect(value, {
+          depth: 4,
+          colors: false,
+          compact: true,
+          breakLength: 120,
+        });
+      })
+      .join(" "),
+  );
 }
 
 function shouldSuppressForeignTerminalLine(text: string): boolean {
@@ -228,6 +225,8 @@ function shouldSuppressForeignTerminalLine(text: string): boolean {
     normalized.includes("no settings state found for server") ||
     normalized.includes("[plugin:advanced-capabilities:action:settings]") ||
     normalized.includes("[batchembeddings] api error:") ||
+    normalized.includes("error creating relationship") ||
+    normalized.includes("error updating relationship") ||
     normalized.includes("failed query:") ||
     normalized.includes('"relationships"."source_entity_id"') ||
     normalized.includes("model call failed:") ||
@@ -788,6 +787,7 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
 }
 
 function renderSuggestionsContent(
+  workspaceDir: string,
   inputValue: string,
   theme = getTuiTheme(),
 ): string {
@@ -816,7 +816,7 @@ function renderSuggestionsContent(
       `- ${canonicalizeSlashCommandSyntax("/gateway readiness")}`,
       "",
       "{bold}Quick Picks{/}",
-      ...suggestCommands("", 4).map(
+      ...suggestCommands("", 4, workspaceDir).map(
         (entry, index) =>
           `${index === 0 ? "{green-fg}*{/} " : "- "}${entry.command}\n  {gray-fg}${entry.description}{/}`,
       ),
@@ -825,7 +825,7 @@ function renderSuggestionsContent(
     ].join("\n");
   }
 
-  const suggestions = suggestCommands(inputValue, 6);
+  const suggestions = suggestCommands(inputValue, 6, workspaceDir);
   const title = inputValue.trim()
     ? `{bold}Suggestions for{/} {cyan-fg}${truncate(inputValue, 24)}{/}`
     : "{bold}Suggested Commands{/}";
@@ -866,6 +866,21 @@ async function executeCliInput(
   }
   if (normalizedTrimmed === "/help") {
     return { text: buildHelpText(context.config.agentName), tone: "info" };
+  }
+  if (normalizedTrimmed === "/commands") {
+    return {
+      text: renderCommandCatalog(undefined, 80, context.config.workspaceDir),
+      tone: "info",
+    };
+  }
+  if (normalizedTrimmed.startsWith("/commands search ")) {
+    const query = normalizedTrimmed.replace("/commands search ", "").trim();
+    return {
+      text: query
+        ? renderCommandCatalog(query, 80, context.config.workspaceDir)
+        : "Usage: /commands search <query>",
+      tone: "info",
+    };
   }
   if (normalizedTrimmed === "/jobs") {
     return {
@@ -1232,6 +1247,7 @@ export async function runCliPromptWithEvents(
 export function resolveStaticCliInput(
   line: string,
   agentName: string,
+  workspaceDir?: string,
 ): CliExecutionResult | undefined {
   const trimmed = line.trim();
   if (!trimmed) {
@@ -1247,6 +1263,21 @@ export function resolveStaticCliInput(
   }
   if (normalizedTrimmed === "/help") {
     return { text: buildHelpText(agentName), tone: "info" };
+  }
+  if (normalizedTrimmed === "/commands") {
+    return {
+      text: renderCommandCatalog(undefined, 80, workspaceDir),
+      tone: "info",
+    };
+  }
+  if (normalizedTrimmed.startsWith("/commands search ")) {
+    const query = normalizedTrimmed.replace("/commands search ", "").trim();
+    return {
+      text: query
+        ? renderCommandCatalog(query, 80, workspaceDir)
+        : "Usage: /commands search <query>",
+      tone: "info",
+    };
   }
   return undefined;
 }
@@ -1277,8 +1308,12 @@ async function startPlainCli(
     notices: [],
   };
   let closed = false;
+  let requestedExitCode = 0;
   let activeTurnAbortController: AbortController | null = null;
+  const turnCancellationPending = false;
+  let cleanedUp = false;
   let lastRenderedRunEventKey = "";
+  let lastInterruptAt = 0;
   const responseHistory: ResponseTranscriptEntry[] = [];
   const crashLogPath = join(context.config.dataDir, "cli-crash.log");
   const requestActiveTurnCancellation = (): boolean => {
@@ -1290,9 +1325,24 @@ async function startPlainCli(
     }
     activeTurnAbortController.abort();
     output.write(
-      `${interactiveShell ? "\n" : ""}${renderPlainRunLine("cancel requested · waiting for the active turn to stop", "[!!]")}\n`,
+      `${interactiveShell ? "\n" : ""}${renderPlainRunLine("cancel requested · waiting for the active turn to stop · press Ctrl-C again to force exit", "[!!]")}\n`,
     );
     return true;
+  };
+  const cleanupPlainCli = () => {
+    if (cleanedUp) {
+      return;
+    }
+    cleanedUp = true;
+    if (!closed) {
+      rl.close();
+    }
+    unsubscribeRunUpdates();
+    process.removeListener("uncaughtException", handleUncaughtException);
+    process.removeListener("unhandledRejection", handleUnhandledRejection);
+    process.removeListener("SIGINT", handleSigint);
+    rl.removeListener("SIGINT", handleSigint);
+    restoreTerminalState(output);
   };
   const pushPlainEntry = (
     entry: ResponseTranscriptEntry,
@@ -1385,15 +1435,40 @@ async function startPlainCli(
 
   process.on("uncaughtException", handleUncaughtException);
   process.on("unhandledRejection", handleUnhandledRejection);
+  const shouldIgnoreDuplicateInterrupt = () => {
+    const now = Date.now();
+    if (now - lastInterruptAt < 150) {
+      return true;
+    }
+    lastInterruptAt = now;
+    return false;
+  };
   const handleSigint = () => {
-    if (requestActiveTurnCancellation()) {
+    if (shouldIgnoreDuplicateInterrupt()) {
       return;
+    }
+    if (requestActiveTurnCancellation()) {
+      requestedExitCode = 130;
+      return;
+    }
+    requestedExitCode = 130;
+    if (turnCancellationPending) {
+      if (!closed) {
+        rl.close();
+        return;
+      }
+      cleanupPlainCli();
+      process.exit(130);
     }
     if (!closed) {
       rl.close();
+      return;
     }
+    cleanupPlainCli();
+    process.exit(130);
   };
   process.on("SIGINT", handleSigint);
+  rl.on("SIGINT", handleSigint);
 
   rl.on("close", () => {
     closed = true;
@@ -1529,16 +1604,8 @@ async function startPlainCli(
       }
     }
   } finally {
-    if (!closed) {
-      rl.close();
-    }
-    unsubscribeRunUpdates();
-    process.removeListener("uncaughtException", handleUncaughtException);
-    process.removeListener("unhandledRejection", handleUnhandledRejection);
-    process.removeListener("SIGINT", handleSigint);
-    if (!interactiveShell) {
-      process.exit(0);
-    }
+    cleanupPlainCli();
+    process.exit(requestedExitCode);
   }
 }
 
@@ -1993,6 +2060,8 @@ async function startTui(
   let paletteSelectionIndex = 0;
   let composerOpen = false;
   let activeTurnAbortController: AbortController | null = null;
+  let turnCancellationPending = false;
+  let lastInterruptAt = 0;
   const commandHistory: string[] = [];
   let historyIndex = 0;
   const pendingCommands: string[] = [];
@@ -2412,7 +2481,7 @@ async function startTui(
   }
 
   function renderPaletteItems(query: string): string[] {
-    return suggestCommands(query, 12).map(
+    return suggestCommands(query, 12, context.config.workspaceDir).map(
       (entry) =>
         `{bold}${entry.command}{/bold} {gray-fg}[${entry.category}]{/}`,
     );
@@ -2472,7 +2541,13 @@ async function startTui(
     noteTextEntryActivity();
     inputBox.setValue(value);
     if (controlDeckMode === "assist") {
-      assistBox.setContent(renderSuggestionsContent(value, activeTheme));
+      assistBox.setContent(
+        renderSuggestionsContent(
+          context.config.workspaceDir,
+          value,
+          activeTheme,
+        ),
+      );
     }
     screen.render();
   }
@@ -2511,7 +2586,11 @@ async function startTui(
       return;
     }
     assistBox.setContent(
-      renderSuggestionsContent(inputBox.getValue(), activeTheme),
+      renderSuggestionsContent(
+        context.config.workspaceDir,
+        inputBox.getValue(),
+        activeTheme,
+      ),
     );
   }
 
@@ -3038,6 +3117,7 @@ async function startTui(
       appendActivity("err", detail, "error");
     } finally {
       activeTurnAbortController = null;
+      turnCancellationPending = false;
       busy = false;
       stopBusySpinner();
       if (!screenDestroyed) {
@@ -3046,7 +3126,13 @@ async function startTui(
           await refreshPanels();
           inputBox.clearValue();
           if (controlDeckMode === "assist") {
-            assistBox.setContent(renderSuggestionsContent("", activeTheme));
+            assistBox.setContent(
+              renderSuggestionsContent(
+                context.config.workspaceDir,
+                "",
+                activeTheme,
+              ),
+            );
           }
           activateTextEntry(inputBox as InteractiveTextEntry);
           updateFooterHint();
@@ -3093,7 +3179,9 @@ async function startTui(
     queueDepth = pendingCommands.length;
     inputBox.clearValue();
     if (controlDeckMode === "assist") {
-      assistBox.setContent(renderSuggestionsContent("", activeTheme));
+      assistBox.setContent(
+        renderSuggestionsContent(context.config.workspaceDir, "", activeTheme),
+      );
     }
     screen.render();
     void processQueue();
@@ -3136,7 +3224,11 @@ async function startTui(
   });
 
   inputBox.key("tab", () => {
-    const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
+    const suggestion = suggestCommands(
+      inputBox.getValue(),
+      1,
+      context.config.workspaceDir,
+    )[0];
     if (!suggestion) {
       return;
     }
@@ -3147,7 +3239,11 @@ async function startTui(
     noteTextEntryActivity();
     if (controlDeckMode === "assist") {
       assistBox.setContent(
-        renderSuggestionsContent(inputBox.getValue(), activeTheme),
+        renderSuggestionsContent(
+          context.config.workspaceDir,
+          inputBox.getValue(),
+          activeTheme,
+        ),
       );
       updateFooterHint({ flushForeign: false, render: false });
       screen.render();
@@ -3175,7 +3271,11 @@ async function startTui(
   });
 
   paletteInput.key("enter", () => {
-    const selected = suggestCommands(paletteInput.getValue(), 1)[0];
+    const selected = suggestCommands(
+      paletteInput.getValue(),
+      1,
+      context.config.workspaceDir,
+    )[0];
     if (!selected) {
       return;
     }
@@ -3184,9 +3284,11 @@ async function startTui(
   });
 
   paletteList.key("enter", () => {
-    const selected = suggestCommands(paletteInput.getValue(), 12)[
-      paletteSelectionIndex
-    ];
+    const selected = suggestCommands(
+      paletteInput.getValue(),
+      12,
+      context.config.workspaceDir,
+    )[paletteSelectionIndex];
     if (!selected) {
       return;
     }
@@ -3203,7 +3305,11 @@ async function startTui(
   });
   for (const key of ["up", "down", "j", "k", "C-p", "C-n"]) {
     paletteList.key(key, () => {
-      const suggestions = suggestCommands(paletteInput.getValue(), 12);
+      const suggestions = suggestCommands(
+        paletteInput.getValue(),
+        12,
+        context.config.workspaceDir,
+      );
       const current = suggestions[paletteSelectionIndex];
       if (!current) {
         paletteSelectionIndex = 0;
@@ -3223,7 +3329,7 @@ async function startTui(
     });
   }
 
-  const exitCli = () => {
+  const exitCli = (exitCode = 0) => {
     if (shuttingDown) {
       return;
     }
@@ -3231,8 +3337,9 @@ async function startTui(
     if (!screenDestroyed) {
       screen.destroy();
     }
+    restoreTerminalState(output);
     setTimeout(() => {
-      process.exit(0);
+      process.exit(exitCode);
     }, 0);
   };
 
@@ -3244,14 +3351,15 @@ async function startTui(
       return false;
     }
     activeTurnAbortController.abort();
+    turnCancellationPending = true;
     appendActivity(
       "stop",
-      "Cancellation requested for the active turn.",
+      "Cancellation requested for the active turn. Press Ctrl-C again to force exit.",
       "warning",
     );
     pushNotice(
       "status",
-      "Cancellation requested. Waiting for the current turn to stop.",
+      "Cancellation requested. Waiting for the current turn to stop. Press Ctrl-C again to force exit.",
     );
     scheduleRefreshPanels(0);
     return true;
@@ -3259,12 +3367,14 @@ async function startTui(
 
   const forceTerminateCli = (signal: string) => {
     if (shuttingDown) {
+      restoreTerminalState(output);
       process.exit(signal === "SIGINT" ? 130 : 0);
     }
     shuttingDown = true;
     if (!screenDestroyed) {
       screen.destroy();
     }
+    restoreTerminalState(output);
     output.write(
       `\n${context.config.agentName} received ${signal}. Exiting.\n`,
     );
@@ -3292,6 +3402,7 @@ async function startTui(
     if (!screenDestroyed) {
       screen.destroy();
     }
+    restoreTerminalState(output);
     output.write(`\nA fatal CLI error occurred. Crash log: ${crashLogPath}\n`);
     process.exit(1);
   };
@@ -3317,14 +3428,31 @@ async function startTui(
     if (!screenDestroyed) {
       screen.destroy();
     }
+    restoreTerminalState(output);
     output.write(
       `\nA fatal CLI rejection occurred. Crash log: ${crashLogPath}\n`,
     );
     process.exit(1);
   };
 
+  const shouldIgnoreDuplicateInterrupt = () => {
+    const now = Date.now();
+    if (now - lastInterruptAt < 150) {
+      return true;
+    }
+    lastInterruptAt = now;
+    return false;
+  };
+
   const handleSigint = () => {
+    if (shouldIgnoreDuplicateInterrupt()) {
+      return;
+    }
     if (requestActiveTurnCancellation()) {
+      return;
+    }
+    if (turnCancellationPending) {
+      forceTerminateCli("SIGINT");
       return;
     }
     forceTerminateCli("SIGINT");
@@ -3332,18 +3460,15 @@ async function startTui(
   const handleSigterm = () => {
     forceTerminateCli("SIGTERM");
   };
-  process.once("SIGINT", handleSigint);
-  process.once("SIGTERM", handleSigterm);
-  process.once("uncaughtException", handleUncaughtException);
-  process.once("unhandledRejection", handleUnhandledRejection);
+  process.on("SIGINT", handleSigint);
+  process.on("SIGTERM", handleSigterm);
+  process.on("uncaughtException", handleUncaughtException);
+  process.on("unhandledRejection", handleUnhandledRejection);
   screen.key(["C-q"], () => {
     exitCli();
   });
   screen.key(["C-c"], () => {
-    if (requestActiveTurnCancellation()) {
-      return;
-    }
-    exitCli();
+    handleSigint();
   });
   screen.key(["q"], () => {
     if (textEntryFocused() || paletteOpen || composerOpen) {
@@ -3526,7 +3651,11 @@ async function startTui(
     }
     if (screen.focused === assistBox) {
       if (controlDeckMode === "assist") {
-        const suggestion = suggestCommands(inputBox.getValue(), 1)[0];
+        const suggestion = suggestCommands(
+          inputBox.getValue(),
+          1,
+          context.config.workspaceDir,
+        )[0];
         if (suggestion) {
           queueCommand(suggestion.command);
         }

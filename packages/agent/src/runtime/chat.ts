@@ -22,8 +22,8 @@ import {
 } from "@/gateway/control-plane";
 import { summarizeTransportInventory } from "@/gateway/transport-contract";
 import {
-  canonicalizeSlashCommandSyntax,
   normalizeSlashCommandSyntax,
+  renderCommandCatalog,
 } from "@/runtime/command-catalog";
 import {
   getLinkedProviderAccountsSnapshot,
@@ -152,6 +152,7 @@ import {
   isSimpleGreetingMessage,
   resolveTurnCapabilityProfile,
 } from "@/runtime/turn-classification";
+import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
   ChatTurnRequest,
@@ -163,6 +164,7 @@ import type {
   UserProfileWorkspaceSummary,
 } from "@/types";
 import { RUN_DEPTH_ITERATION_PRESETS } from "@/types";
+import { sanitizeTerminalText } from "@/utils/terminal-text";
 import type { AppContext } from "./bootstrap";
 
 type StreamSource = "unset" | "callback" | "onStreamChunk";
@@ -527,8 +529,11 @@ function buildCapabilityPrelude(input: {
     return [
       "CAPABILITY PROFILE",
       "profile=minimal",
+      "Respond like a strong terminal-native teammate: direct, concrete, and natural.",
       "Answer directly first.",
       "Avoid tools, delegation, and broad planning unless the user explicitly asks for execution.",
+      "Do not use meta sections like 'What was completed' or offer to do work you should already have done.",
+      "Do not narrate that you searched or inspected something unless that detail materially helps the answer.",
     ].join("\n");
   }
 
@@ -542,7 +547,16 @@ function buildCapabilityPrelude(input: {
         .join(", ")}`
     : undefined;
 
-  return ["CAPABILITY PROFILE", `profile=${policy.profile}`, preferred, denied]
+  return [
+    "CAPABILITY PROFILE",
+    `profile=${policy.profile}`,
+    "Be direct, useful, and terminal-friendly.",
+    "Lead with the answer, not process narration.",
+    "Avoid filler, defensive caveats, and meta recap sections unless the user explicitly asks for them.",
+    "Do not narrate tool usage unless it helps the user understand the result or next decision.",
+    preferred,
+    denied,
+  ]
     .filter(Boolean)
     .join("\n");
 }
@@ -646,7 +660,7 @@ function maybeGetSkillSynthesisNudge(
 }
 
 function displayCommand(command: string): string {
-  return canonicalizeSlashCommandSyntax(command);
+  return normalizeSlashCommandSyntax(command);
 }
 
 function formatShellCommandResponse(result: {
@@ -657,13 +671,16 @@ function formatShellCommandResponse(result: {
   durationMs?: number;
 }): string {
   return [
-    `Command: ${result.command}`,
+    `Command: ${sanitizeTerminalText(result.command, {
+      preserveNewlines: false,
+      collapseWhitespace: true,
+    })}`,
     result.exitCode !== undefined ? `Exit: ${result.exitCode}` : undefined,
     result.durationMs !== undefined
       ? `Duration: ${result.durationMs}ms`
       : undefined,
-    `STDOUT:\n${result.stdout || "(empty)"}`,
-    `STDERR:\n${result.stderr || "(empty)"}`,
+    `STDOUT:\n${sanitizeTerminalText(result.stdout || "(empty)")}`,
+    `STDERR:\n${sanitizeTerminalText(result.stderr || "(empty)")}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -2324,6 +2341,17 @@ async function buildCommandResponse(
   const sessionKey = input.roomId ?? `room:${input.userId}`;
   const nativeServices = getNativeServices(context.runtime);
   const sourcePlatform = resolveRemoteExecutionPlatform(input.source);
+
+  if (trimmed === "/commands") {
+    return renderCommandCatalog(undefined, 80, context.config.workspaceDir);
+  }
+
+  if (trimmed.startsWith("/commands search ")) {
+    const query = trimmed.replace("/commands search ", "").trim();
+    return query
+      ? renderCommandCatalog(query, 80, context.config.workspaceDir)
+      : "Usage: /commands search <query>";
+  }
 
   if (trimmed === "/approvals" || trimmed === "/approvals list") {
     const approvals = context.services.executionApprovals
@@ -7395,8 +7423,21 @@ export async function handleAgentTurn(
 ): Promise<string> {
   const perf = new TurnPerfTrace();
   const turn = createTurnState(input, context);
+  const trimmedMessage = input.message.trim();
+  const workflowCommand = trimmedMessage.startsWith("/")
+    ? resolveWorkflowCommandPrompt({
+        message: trimmedMessage,
+        workspaceDir: context.config.workspaceDir,
+      })
+    : undefined;
+  const effectiveInput = workflowCommand
+    ? {
+        ...input,
+        message: workflowCommand.prompt,
+      }
+    : input;
   const derivedTurnPolicy = deriveTurnExecutionPolicy(
-    input.message,
+    effectiveInput.message,
     turn.settings.agent,
     {
       localInteractive: turn.localInteractive,
@@ -7409,17 +7450,18 @@ export async function handleAgentTurn(
   );
   startTrackedTurn(input, context, turn, derivedTurnPolicy);
 
-  const trimmedMessage = input.message.trim();
-  const turnClassification = classifyTurnMessage(trimmedMessage);
+  const effectiveTrimmedMessage = effectiveInput.message.trim();
+  const turnClassification = classifyTurnMessage(effectiveTrimmedMessage);
   const shouldInspectLocalIntent =
     turn.localInteractive && turnClassification.likelyLocalTask;
-  const responseFromCommandLayer = trimmedMessage.startsWith("/")
-    ? await executeSlashCommand(input, context, options)
-    : undefined;
+  const responseFromCommandLayer =
+    !workflowCommand && trimmedMessage.startsWith("/")
+      ? await executeSlashCommand(input, context, options)
+      : undefined;
   perf.mark("command-layer");
 
-  if (input.message.trim().startsWith("!")) {
-    const command = input.message.trim().slice(1).trim();
+  if (effectiveTrimmedMessage.startsWith("!")) {
+    const command = effectiveTrimmedMessage.slice(1).trim();
     if (!command) {
       context.services.runController.finishTurn(turn.sessionId, "complete");
       scheduleProfileObservation();
@@ -7513,8 +7555,11 @@ export async function handleAgentTurn(
     return responseFromCommandLayer;
   }
 
-  if (turn.localInteractive && isSimpleGreetingMessage(input.message)) {
-    const greetingResponse = buildSimpleGreetingReply(input.message);
+  if (
+    turn.localInteractive &&
+    isSimpleGreetingMessage(effectiveInput.message)
+  ) {
+    const greetingResponse = buildSimpleGreetingReply(effectiveInput.message);
     await finalizeTurnResponse(
       context,
       turn,
@@ -7531,7 +7576,10 @@ export async function handleAgentTurn(
     return greetingResponse;
   }
 
-  const loadDirectLocalIntent = createDirectLocalIntentLoader(input, context);
+  const loadDirectLocalIntent = createDirectLocalIntentLoader(
+    effectiveInput,
+    context,
+  );
 
   const executeApprovedDirectLocalIntent = async (
     intent: {
@@ -7630,7 +7678,7 @@ export async function handleAgentTurn(
         provider: settingsDuring.model.provider,
         model: settingsDuring.model.model,
         personalityId: options?.personalityId ?? personalityBefore.id,
-        message: input.message,
+        message: effectiveInput.message,
       })
     : undefined;
   if (responseCacheKey) {
@@ -7652,12 +7700,15 @@ export async function handleAgentTurn(
       return cachedResponse;
     }
   }
-  const systemFactsPrelude = shouldAttachSystemFacts(input.message)
+  const systemFactsPrelude = shouldAttachSystemFacts(effectiveInput.message)
     ? buildSystemFactsContext(context)
     : undefined;
-  const capabilityProfile = resolveTurnCapabilityProfile(input.message, {
-    localInteractive: turn.localInteractive,
-  });
+  const capabilityProfile = resolveTurnCapabilityProfile(
+    effectiveInput.message,
+    {
+      localInteractive: turn.localInteractive,
+    },
+  );
   const capabilityPrelude = buildCapabilityPrelude({
     context,
     profile: capabilityProfile,
@@ -7669,7 +7720,7 @@ export async function handleAgentTurn(
       ? buildCodingContextPrelude({
           context,
           sessionId: turn.sessionId,
-          taskDescription: input.message,
+          taskDescription: effectiveInput.message,
           workspaceRoot: context.config.workspaceDir,
           maxIterations: derivedTurnPolicy.maxIterations,
         })
@@ -7678,8 +7729,8 @@ export async function handleAgentTurn(
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n\n");
   const effectiveMessage = messagePrelude
-    ? `${messagePrelude}\n\nUser request:\n${input.message}`
-    : input.message;
+    ? `${messagePrelude}\n\nUser request:\n${effectiveInput.message}`
+    : effectiveInput.message;
 
   const readinessMessage = await getProviderReadinessMessage(
     context,
@@ -7995,7 +8046,7 @@ export async function handleAgentTurn(
   if (
     fallbackModule?.directLocalIntent &&
     fallbackModule.shouldUseDirectLocalFallback({
-      message: input.message,
+      message: effectiveInput.message,
       response,
       observedActionCount,
       runFailureMessage,
@@ -8051,8 +8102,8 @@ export async function handleAgentTurn(
   const baseResponse =
     runFailureMessage &&
     observedActionCount === 0 &&
-    isSimpleGreetingMessage(input.message)
-      ? buildSimpleGreetingReply(input.message)
+    isSimpleGreetingMessage(effectiveInput.message)
+      ? buildSimpleGreetingReply(effectiveInput.message)
       : normalizedResponse ||
         buildProviderNoResponseMessage(
           settingsDuring.model.provider,

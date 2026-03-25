@@ -9,6 +9,7 @@ import type {
 } from "@elizaos/core";
 import { runEffectiveShellCommand } from "@/runtime/native/service-bridge";
 import type { AppServices } from "@/services";
+import { sanitizeTerminalText } from "@/utils/terminal-text";
 
 type ActionParams = Record<string, unknown>;
 
@@ -141,10 +142,17 @@ export async function executeTerminalCommand(
     stderr?: string;
   };
   const response = [
-    `Ran: ${result.command}`,
+    `Ran: ${sanitizeTerminalText(result.command, {
+      preserveNewlines: false,
+      collapseWhitespace: true,
+    })}`,
     `Exit: ${result.exitCode}`,
-    result.stdout?.trim() ? `STDOUT:\n${result.stdout.trim()}` : undefined,
-    result.stderr?.trim() ? `STDERR:\n${result.stderr.trim()}` : undefined,
+    result.stdout?.trim()
+      ? `STDOUT:\n${sanitizeTerminalText(result.stdout.trim())}`
+      : undefined,
+    result.stderr?.trim()
+      ? `STDERR:\n${sanitizeTerminalText(result.stderr.trim())}`
+      : undefined,
   ]
     .filter(Boolean)
     .join("\n");

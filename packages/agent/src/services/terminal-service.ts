@@ -331,6 +331,26 @@ function resolveLocalShell(): string {
 
 const LOCAL_SHELL = resolveLocalShell();
 
+function terminateSubprocess(
+  proc: Bun.Subprocess<"ignore", "pipe", "pipe">,
+  signal: string | number,
+): void {
+  const useProcessGroup = process.platform !== "win32";
+  if (useProcessGroup && typeof proc.pid === "number") {
+    try {
+      process.kill(-proc.pid, signal as NodeJS.Signals);
+      return;
+    } catch {
+      // Fall back to direct child termination below.
+    }
+  }
+  try {
+    proc.kill(signal as NodeJS.Signals | number);
+  } catch {
+    // Best effort only.
+  }
+}
+
 async function runCommand(
   cmd: string[],
   options: { cwd?: string; timeoutMs: number; abortSignal?: AbortSignal },
@@ -341,18 +361,31 @@ async function runCommand(
     cwd: options.cwd,
     stdout: "pipe",
     stderr: "pipe",
+    detached: process.platform !== "win32",
   });
 
   let timedOut = false;
   let aborted = options.abortSignal?.aborted === true;
+  let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleForceKill = () => {
+    if (forceKillTimer) {
+      return;
+    }
+    forceKillTimer = setTimeout(() => {
+      terminateSubprocess(proc, "SIGKILL");
+    }, 250);
+    forceKillTimer.unref?.();
+  };
   const handleAbort = () => {
     aborted = true;
-    proc.kill();
+    terminateSubprocess(proc, "SIGINT");
+    scheduleForceKill();
   };
   options.abortSignal?.addEventListener("abort", handleAbort, { once: true });
   const timer = setTimeout(() => {
     timedOut = true;
-    proc.kill();
+    terminateSubprocess(proc, "SIGTERM");
+    scheduleForceKill();
   }, options.timeoutMs);
 
   try {
@@ -378,6 +411,9 @@ async function runCommand(
     };
   } finally {
     clearTimeout(timer);
+    if (forceKillTimer) {
+      clearTimeout(forceKillTimer);
+    }
     options.abortSignal?.removeEventListener("abort", handleAbort);
   }
 }
@@ -398,20 +434,33 @@ async function runCommandStreaming(
     cwd: options.cwd,
     stdout: "pipe",
     stderr: "pipe",
+    detached: process.platform !== "win32",
   });
 
   let timedOut = false;
   let aborted = options.abortSignal?.aborted === true;
   let stdout = "";
   let stderr = "";
+  let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleForceKill = () => {
+    if (forceKillTimer) {
+      return;
+    }
+    forceKillTimer = setTimeout(() => {
+      terminateSubprocess(proc, "SIGKILL");
+    }, 250);
+    forceKillTimer.unref?.();
+  };
   const handleAbort = () => {
     aborted = true;
-    proc.kill();
+    terminateSubprocess(proc, "SIGINT");
+    scheduleForceKill();
   };
   options.abortSignal?.addEventListener("abort", handleAbort, { once: true });
   const timer = setTimeout(() => {
     timedOut = true;
-    proc.kill();
+    terminateSubprocess(proc, "SIGTERM");
+    scheduleForceKill();
   }, options.timeoutMs);
 
   const readStream = async (
@@ -473,6 +522,9 @@ async function runCommandStreaming(
     };
   } finally {
     clearTimeout(timer);
+    if (forceKillTimer) {
+      clearTimeout(forceKillTimer);
+    }
     options.abortSignal?.removeEventListener("abort", handleAbort);
   }
 }

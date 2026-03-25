@@ -235,7 +235,9 @@ printf "%s\n" "${dim}  Or run a shell action directly: !git status${reset}"
 if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
   printf "\n%s\n" "${amber}Launching Eliza Agent now...${reset}"
   printf "%s\n" "${dim}  Press Ctrl-C to return to your shell.${reset}"
-  if "$ELIZA_BIN_LINK"; then
+  launch_status=0
+  "$ELIZA_BIN_LINK" || launch_status=$?
+  if [[ "$launch_status" -eq 0 || "$launch_status" -eq 130 || "$launch_status" -eq 143 ]]; then
     exit 0
   fi
   printf "\n%s\n" "${orange}${bold}The first launch tripped over something local.${reset}"
