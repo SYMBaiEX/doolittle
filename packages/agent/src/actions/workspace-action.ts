@@ -19,6 +19,7 @@ import type { AppServices } from "@/services";
 
 type WorkspaceIntent =
   | { kind: "tree" }
+  | { kind: "overview"; path?: string }
   | { kind: "read"; path: string }
   | { kind: "search"; query: string }
   | { kind: "write"; path: string; content: string }
@@ -152,6 +153,13 @@ export function resolveWorkspaceIntentFromParams(
   if (rawKind === "tree") {
     return { kind: "tree" };
   }
+  if (rawKind === "overview") {
+    const path =
+      nonEmptyString(record.path) ??
+      nonEmptyString(record.target) ??
+      nonEmptyString(record.project);
+    return { kind: "overview", path };
+  }
   if (rawKind === "read") {
     const path =
       nonEmptyString(record.path) ??
@@ -211,12 +219,23 @@ export function resolveWorkspaceIntentFromText(
   }
 
   const lower = trimmed.toLowerCase();
+  const explicitProjectPath = extractExplicitProjectPath(trimmed);
   if (
     /(workspace tree|show (?:me )?(?:the )?(?:repo|workspace) tree|list files|show files|show structure|project structure)/u.test(
       lower,
     )
   ) {
     return { kind: "tree" };
+  }
+
+  if (
+    /(summari[sz]e|overview|what is|inspect|look at).*(repo|repository|project|codebase|workspace)/u.test(
+      lower,
+    )
+  ) {
+    return explicitProjectPath
+      ? { kind: "overview", path: explicitProjectPath }
+      : { kind: "overview" };
   }
 
   if (
@@ -231,7 +250,6 @@ export function resolveWorkspaceIntentFromText(
     return path ? { kind: "read", path } : undefined;
   }
 
-  const explicitProjectPath = extractExplicitProjectPath(trimmed);
   if (
     explicitProjectPath &&
     /\b(repo|repository|project|codebase|directory|folder|overview|inspect|look at|what is)\b/iu.test(
@@ -281,6 +299,12 @@ export async function executeWorkspaceIntent(
 ): Promise<string> {
   if (intent.kind === "tree") {
     return services.workspace.summary(40);
+  }
+  if (intent.kind === "overview") {
+    const projectPath = intent.path
+      ? (resolveLocalProjectPath(intent.path, workspaceDir) ?? workspaceDir)
+      : workspaceDir;
+    return summarizeLocalProject(projectPath);
   }
   if (intent.kind === "read") {
     return String(readEffectiveWorkspaceFile(runtime, services, intent.path));

@@ -99,11 +99,13 @@ export function resolveDirectLocalIntent(
           ? `Reading ${workspaceIntent.path}...`
           : workspaceIntent.kind === "search"
             ? `Searching the workspace for "${workspaceIntent.query}"...`
-            : workspaceIntent.kind === "find-codebase"
-              ? `Searching local development roots for "${workspaceIntent.query}"...`
-              : workspaceIntent.kind === "write"
-                ? `Writing ${workspaceIntent.path}...`
-                : "Inspecting workspace structure...",
+            : workspaceIntent.kind === "overview"
+              ? "Summarizing the local project..."
+              : workspaceIntent.kind === "find-codebase"
+                ? `Searching local development roots for "${workspaceIntent.query}"...`
+                : workspaceIntent.kind === "write"
+                  ? `Writing ${workspaceIntent.path}...`
+                  : "Inspecting workspace structure...",
       isHighConfidence: workspaceIntent.kind !== "write",
       execute: () =>
         executeWorkspaceIntent(
