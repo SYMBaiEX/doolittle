@@ -59,6 +59,27 @@ function extractExplicitProjectPath(text: string): string | undefined {
   return locatedPath?.trim() || undefined;
 }
 
+function extractNamedLocalCodebase(text: string): string | undefined {
+  const explicitPath = extractExplicitProjectPath(text);
+  if (explicitPath) {
+    return explicitPath;
+  }
+
+  const patterns = [
+    /(?:review|inspect|analy[sz]e|breakdown|summari[sz]e|overview|look at|open|check|scan)\s+(?:the\s+)?([a-zA-Z0-9._/-]+)\s+(?:repo|repository|project|codebase|folder|directory)\b/iu,
+    /(?:the\s+)?([a-zA-Z0-9._/-]+)\s+(?:repo|repository|project|codebase|folder|directory)\b.*\b(?:locally|local|on my mac|on this machine|on my computer)\b/iu,
+  ];
+
+  for (const pattern of patterns) {
+    const candidate = text.match(pattern)?.[1]?.trim();
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
 function resolveLocalProjectPath(
   inputPath: string,
   workspaceDir: string,
@@ -220,6 +241,16 @@ export function resolveWorkspaceIntentFromText(
 
   const lower = trimmed.toLowerCase();
   const explicitProjectPath = extractExplicitProjectPath(trimmed);
+  const namedLocalCodebase = extractNamedLocalCodebase(trimmed);
+
+  if (
+    namedLocalCodebase &&
+    /\b(locally|local|on my mac|on this machine|on my computer)\b/iu.test(
+      trimmed,
+    )
+  ) {
+    return { kind: "find-codebase", query: namedLocalCodebase };
+  }
   if (
     /(workspace tree|show (?:me )?(?:the )?(?:repo|workspace) tree|list files|show files|show structure|project structure)/u.test(
       lower,
@@ -356,7 +387,13 @@ export async function executeWorkspaceIntent(
     `${home}/projects`,
     workspaceDir,
   ];
-  const command = searchRoots
+  const fdCommand = searchRoots
+    .map(
+      (root) =>
+        `[ -d "${root}" ] && fd -HI -t d "${searchQuery}" "${root}" 2>/dev/null`,
+    )
+    .join(" ; ");
+  const findCommand = searchRoots
     .map(
       (root) =>
         `[ -d "${root}" ] && find "${root}" -maxdepth 4 -type d \\( -name .git -prune -o -iname "*${searchQuery}*" -print \\) 2>/dev/null`,
@@ -365,7 +402,7 @@ export async function executeWorkspaceIntent(
   const result = (await runEffectiveShellCommand(
     runtime,
     services,
-    `${command} | head -50`,
+    `if command -v fd >/dev/null 2>&1; then ${fdCommand}; else ${findCommand}; fi | head -50`,
   )) as {
     command: string;
     exitCode?: number;
@@ -375,7 +412,18 @@ export async function executeWorkspaceIntent(
   const matches = (result.stdout || "")
     .split(/\r?\n/u)
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftBase = basename(left).toLowerCase();
+      const rightBase = basename(right).toLowerCase();
+      const target = searchQuery.toLowerCase();
+      const leftExact = leftBase === target ? 0 : 1;
+      const rightExact = rightBase === target ? 0 : 1;
+      if (leftExact !== rightExact) {
+        return leftExact - rightExact;
+      }
+      return left.length - right.length;
+    });
   if (matches.length === 1 && existsSync(matches[0] || "")) {
     try {
       if (statSync(matches[0] as string).isDirectory()) {

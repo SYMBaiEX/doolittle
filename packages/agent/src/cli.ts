@@ -103,6 +103,7 @@ export interface ResponseTranscriptEntry {
   label: string;
   body: string;
   at: string;
+  elapsed?: string;
   kind?: "user" | "assistant" | "shell" | "command" | "system";
   pending?: boolean;
   liveActivity?: string[];
@@ -255,6 +256,14 @@ function renderPlainRunLine(detail: string): string {
   return `${paint("  •", ANSI.gray, output.isTTY)} ${paint(asciiRunBadge(detail), ANSI.blue, output.isTTY)} ${detail}`;
 }
 
+function currentSessionElapsed(
+  context: AppContext,
+  sessionId: string,
+): string | undefined {
+  const run = context.services.runController.getActive(sessionId);
+  return run ? formatElapsedMs(getRunElapsedMs(run)) : undefined;
+}
+
 function asciiRoleBadge(kind?: ResponseTranscriptEntry["kind"]): string {
   switch (kind) {
     case "user":
@@ -394,6 +403,9 @@ function renderPlainEntry(
   const label = paint(entry.label, accent, output.isTTY);
   const badge = paint(asciiRoleBadge(entry.kind), ANSI.gray, output.isTTY);
   const at = paint(entry.at, ANSI.gray, output.isTTY);
+  const elapsed = entry.elapsed
+    ? paint(`· ${entry.elapsed}`, ANSI.gray, output.isTTY)
+    : "";
   const pending = entry.pending
     ? ` ${paint("…", ANSI.gray, output.isTTY)}`
     : "";
@@ -415,7 +427,7 @@ function renderPlainEntry(
           : "";
 
   return [
-    `${at}  ${badge} ${label}${pending}${prefix ? `  ${prefix}` : ""}`,
+    `${at}  ${badge} ${label}${elapsed ? ` ${elapsed}` : ""}${pending}${prefix ? `  ${prefix}` : ""}`,
     body,
     liveActivity,
   ]
@@ -604,7 +616,7 @@ export function renderResponseTranscript(
         : "";
 
     return [
-      `{gray-fg}${escapeBlessed(entry.at)}{/} ${roleTag}${customLabel}${entry.pending ? " {gray-fg}…{/}" : ""}`,
+      `{gray-fg}${escapeBlessed(entry.at)}{/} ${roleTag}${customLabel}${entry.elapsed ? ` {gray-fg}· ${escapeBlessed(entry.elapsed)}{/}` : ""}${entry.pending ? " {gray-fg}…{/}" : ""}`,
       body,
       liveActivity,
     ]
@@ -661,7 +673,7 @@ function renderPlainTranscript(
           : "";
 
       return [
-        `${entry.at} ${role}${customLabel}${entry.pending ? " ..." : ""}`,
+        `${entry.at} ${role}${customLabel}${entry.elapsed ? ` · ${entry.elapsed}` : ""}${entry.pending ? " ..." : ""}`,
         body,
         liveActivity,
       ]
@@ -1875,6 +1887,7 @@ async function startPlainCli(
                       : context.config.agentName,
               body: result.text,
               at: nowStamp(),
+              elapsed: currentSessionElapsed(context, state.activeSessionId),
               kind:
                 result.tone === "agent"
                   ? "assistant"
@@ -1899,6 +1912,7 @@ async function startPlainCli(
             label: "Error",
             body: getCliErrorMessage(error),
             at: nowStamp(),
+            elapsed: currentSessionElapsed(context, state.activeSessionId),
             kind: "system",
           },
           "error",
@@ -2661,11 +2675,16 @@ async function startTui(
     scheduleRefreshPanels(0);
   }
 
-  function pushResponseEntry(label: string, body: string): void {
+  function pushResponseEntry(
+    label: string,
+    body: string,
+    options?: { elapsed?: string },
+  ): void {
     responseHistory.push({
       label,
       body,
       at: nowStamp(),
+      elapsed: options?.elapsed,
       kind:
         label === "You"
           ? "user"
@@ -3384,7 +3403,9 @@ async function startTui(
               : line.startsWith("/")
                 ? "Command Result"
                 : context.config.agentName;
-        pushResponseEntry(label, result.text);
+        pushResponseEntry(label, result.text, {
+          elapsed: currentSessionElapsed(context, state.activeSessionId),
+        });
         if (result.tone !== "agent") {
           appendActivity("out", compactPreview(result.text), result.tone);
         }
@@ -3404,7 +3425,9 @@ async function startTui(
       } catch {
         // Best effort only.
       }
-      pushResponseEntry(line, `Error: ${detail}`);
+      pushResponseEntry(line, `Error: ${detail}`, {
+        elapsed: currentSessionElapsed(context, state.activeSessionId),
+      });
       appendActivity("err", detail, "error");
     } finally {
       activeTurnAbortController = null;
@@ -3651,7 +3674,9 @@ async function startTui(
       busy = false;
       const detail = formatRecoverableProviderError(error);
       appendActivity("runtime", detail, "error");
-      pushResponseEntry(context.config.agentName, `Error: ${detail}`);
+      pushResponseEntry(context.config.agentName, `Error: ${detail}`, {
+        elapsed: currentSessionElapsed(context, state.activeSessionId),
+      });
       liveResponse = undefined;
       scheduleRefreshPanels(0);
       return;
@@ -3674,7 +3699,9 @@ async function startTui(
       busy = false;
       const detail = formatRecoverableProviderError(error);
       appendActivity("runtime", detail, "error");
-      pushResponseEntry(context.config.agentName, `Error: ${detail}`);
+      pushResponseEntry(context.config.agentName, `Error: ${detail}`, {
+        elapsed: currentSessionElapsed(context, state.activeSessionId),
+      });
       liveResponse = undefined;
       scheduleRefreshPanels(0);
       return;
