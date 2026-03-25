@@ -1,11 +1,15 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
 import type {
+  DelegationAggregationSummary,
   DelegationOverview,
   DelegationSupervisionReport,
   DelegationTaskTree,
 } from "@/services/delegation-service";
-import type { DelegationTaskRecord } from "@/types";
+import type {
+  DelegationOrchestrationMode,
+  DelegationTaskRecord,
+} from "@/types";
 
 type DelegationTaskLike = DelegationTaskRecord;
 type DelegationQueueSummaryLike = DelegationOverview;
@@ -37,16 +41,63 @@ function normalizePriority(
     : undefined;
 }
 
+function normalizeOrchestrationMode(
+  mode?: string,
+): DelegationOrchestrationMode | undefined {
+  return mode === "sequential" || mode === "parallel" || mode === "hierarchical"
+    ? mode
+    : undefined;
+}
+
+function normalizeStringList(value?: unknown): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    const list = value
+      .map((entry) =>
+        typeof entry === "string" ? entry.trim() : String(entry).trim(),
+      )
+      .filter(Boolean);
+    return list.length > 0 ? list : undefined;
+  }
+  if (typeof value === "string") {
+    const list = value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    return list.length > 0 ? list : undefined;
+  }
+  return undefined;
+}
+
+function normalizePositiveInteger(value?: unknown): number | undefined {
+  const numeric =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  return Number.isFinite(numeric) && numeric > 0
+    ? Math.floor(numeric)
+    : undefined;
+}
+
 export interface AgentOrchestratorPluginOptions {
   delegation: {
     create(input: {
       title: string;
       objective: string;
       metadata?: Record<string, string>;
+      group?: string;
       profile?: string;
       priority?: "low" | "normal" | "high";
+      labels?: string[];
       tags?: string[];
       parentTaskId?: string;
+      executionMode?: "local" | "delegated";
+      orchestrationMode?: DelegationOrchestrationMode;
+      maxAttempts?: number;
     }): DelegationTaskLike;
     list(): DelegationTaskLike[];
     get(id: string): DelegationTaskLike;
@@ -54,6 +105,7 @@ export interface AgentOrchestratorPluginOptions {
     overview(): DelegationOverview;
     getChildren?(id: string): DelegationTaskLike[];
     tree?(id: string): DelegationTreeLike;
+    aggregate?(id: string): DelegationAggregationSummary;
     spawnChild(
       parentId: string,
       input: {
@@ -63,6 +115,7 @@ export interface AgentOrchestratorPluginOptions {
         profile?: string;
         priority?: "low" | "normal" | "high";
         tags?: string[];
+        orchestrationMode?: DelegationOrchestrationMode;
       },
     ): DelegationTaskLike;
     retryTask?(
@@ -116,10 +169,43 @@ export function createAgentOrchestratorPlugin(
       objective: string,
       metadata?: Record<string, unknown>,
     ) {
+      const normalizedMetadata = normalizeMetadata(metadata);
       return this.delegation.create({
         title,
         objective,
-        metadata: normalizeMetadata(metadata),
+        metadata: normalizedMetadata,
+        group:
+          typeof metadata?.group === "string"
+            ? metadata.group.trim()
+            : undefined,
+        profile:
+          typeof metadata?.profile === "string"
+            ? metadata.profile.trim()
+            : undefined,
+        priority: normalizePriority(
+          typeof metadata?.priority === "string"
+            ? metadata.priority
+            : undefined,
+        ),
+        labels: normalizeStringList(metadata?.labels),
+        tags:
+          normalizeStringList(metadata?.tags) ??
+          normalizeStringList(metadata?.labels),
+        parentTaskId:
+          typeof metadata?.parentTaskId === "string"
+            ? metadata.parentTaskId.trim()
+            : undefined,
+        executionMode:
+          metadata?.executionMode === "local" ||
+          metadata?.executionMode === "delegated"
+            ? metadata.executionMode
+            : undefined,
+        orchestrationMode: normalizeOrchestrationMode(
+          typeof metadata?.orchestrationMode === "string"
+            ? metadata.orchestrationMode
+            : undefined,
+        ),
+        maxAttempts: normalizePositiveInteger(metadata?.maxAttempts),
       });
     }
 
@@ -141,6 +227,10 @@ export function createAgentOrchestratorPlugin(
 
     tree(id: string) {
       return this.delegation.tree?.(id) ?? this.delegation.get(id);
+    }
+
+    aggregate(id: string) {
+      return this.delegation.aggregate?.(id);
     }
 
     overview() {
@@ -169,12 +259,14 @@ export function createAgentOrchestratorPlugin(
         profile?: string;
         priority?: string;
         tags?: string[];
+        orchestrationMode?: string;
       },
     ) {
       return this.delegation.spawnChild(parentId, {
         ...input,
         metadata: normalizeMetadata(input.metadata),
         priority: normalizePriority(input.priority),
+        orchestrationMode: normalizeOrchestrationMode(input.orchestrationMode),
       });
     }
 

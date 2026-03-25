@@ -7,6 +7,7 @@ import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
 import type { AppServices } from "@/services";
 import type {
+  DelegationAggregationSummary,
   DelegationOverview,
   DelegationSupervisionReport,
   DelegationTaskTree,
@@ -25,6 +26,7 @@ import type {
   BrowserStatus,
 } from "@/services/web-service";
 import type {
+  DelegationOrchestrationMode,
   DelegationTaskRecord,
   EnvConfig,
   GatewayConfig,
@@ -157,6 +159,7 @@ interface NativeAgentOrchestratorService {
   getTask?(id: string): DelegationTaskRecord;
   getChildren?(id: string): DelegationTaskRecord[];
   tree?(id: string): DelegationTaskTree | DelegationTaskRecord;
+  aggregate?(id: string): DelegationAggregationSummary | undefined;
   queue(): DelegationOverview;
   overview?(): DelegationOverview;
   summary?(): {
@@ -177,6 +180,7 @@ interface NativeAgentOrchestratorService {
       profile?: string;
       priority?: string;
       tags?: string[];
+      orchestrationMode?: DelegationOrchestrationMode;
     },
   ): DelegationTaskRecord;
   retryTask?(
@@ -411,6 +415,7 @@ interface EffectiveDelegationCreateInput {
   labels?: string[];
   tags?: string[];
   executionMode?: "local" | "delegated";
+  orchestrationMode?: DelegationOrchestrationMode;
   maxAttempts?: number;
 }
 
@@ -2219,6 +2224,17 @@ export function getEffectiveDelegationTree(
   );
 }
 
+export function getEffectiveDelegationAggregation(
+  runtime: RuntimeLike,
+  services: AppServices,
+  id: string,
+) {
+  return (
+    getNativeServices(runtime).agentOrchestrator?.aggregate?.(id) ??
+    services.delegation.aggregate(id)
+  );
+}
+
 export function retryEffectiveDelegationTask(
   runtime: RuntimeLike,
   services: AppServices,
@@ -2251,6 +2267,7 @@ export function createEffectiveDelegationTask(
         labels: input.labels ?? input.tags,
         tags: input.tags ?? input.labels,
         executionMode: input.executionMode,
+        orchestrationMode: input.orchestrationMode,
         maxAttempts: input.maxAttempts,
         ...input.metadata,
       },
@@ -2265,6 +2282,7 @@ export function createEffectiveDelegationTask(
         labels: input.labels ?? input.tags,
         tags: input.tags ?? input.labels,
         executionMode: input.executionMode,
+        orchestrationMode: input.orchestrationMode,
         maxAttempts: input.maxAttempts,
         ...input.metadata,
       },
@@ -2286,6 +2304,7 @@ export function createEffectiveDelegationTask(
           )
         : undefined,
       executionMode: input.executionMode,
+      orchestrationMode: input.orchestrationMode,
       maxAttempts: input.maxAttempts,
     })
   );
@@ -2305,6 +2324,7 @@ export function spawnEffectiveDelegationChild(
     labels?: string[];
     metadata?: Record<string, string>;
     executionMode?: "local" | "delegated";
+    orchestrationMode?: DelegationOrchestrationMode;
     maxAttempts?: number;
   },
 ) {
@@ -2316,6 +2336,7 @@ export function spawnEffectiveDelegationChild(
       profile: input.profile,
       priority: input.priority,
       tags: input.tags ?? input.labels,
+      orchestrationMode: input.orchestrationMode,
     }) ?? services.delegation.spawnChild(parentId, input)
   );
 }

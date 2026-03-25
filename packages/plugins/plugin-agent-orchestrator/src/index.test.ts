@@ -1,5 +1,38 @@
 import { describe, expect, it } from "bun:test";
+import type { DelegationAggregationSummary } from "@/services/delegation-service";
 import { createAgentOrchestratorPlugin } from "./index";
+
+const orchestrationBreakdown = [{ mode: "sequential", count: 2 }] as const;
+const completedAggregation: DelegationAggregationSummary[] = [
+  {
+    rootTaskId: "task-1",
+    orchestrationMode: "sequential",
+    totalTasks: 1,
+    completedTasks: 1,
+    failedTasks: 0,
+    cancelledTasks: 0,
+    runningTasks: 0,
+    pendingTasks: 0,
+    completionRate: 1,
+    maxDepth: 0,
+    activeWorkers: 0,
+    stalledWorkers: 0,
+    leafTasks: 1,
+    completedOutputs: [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "completed",
+        depth: 0,
+        executionMode: "local",
+        orchestrationMode: "sequential",
+        attempts: 1,
+        maxAttempts: 3,
+      },
+    ],
+    blockers: [],
+  },
+];
 
 describe("createAgentOrchestratorPlugin", () => {
   it("exposes orchestration summary metadata from the native service", async () => {
@@ -67,6 +100,7 @@ describe("createAgentOrchestratorPlugin", () => {
           byPriority: [],
           byGroup: [],
           byLabel: [],
+          byOrchestration: [...orchestrationBreakdown],
         }),
         overview: () => ({
           total: 2,
@@ -88,6 +122,7 @@ describe("createAgentOrchestratorPlugin", () => {
           byPriority: [],
           byGroup: [],
           byLabel: [],
+          byOrchestration: [...orchestrationBreakdown],
         }),
         getChildren: () => [
           {
@@ -150,6 +185,7 @@ describe("createAgentOrchestratorPlugin", () => {
           completed: ["task-1"],
           failed: [],
           skipped: [],
+          aggregations: completedAggregation,
           overview: {
             total: 2,
             pending: 1,
@@ -170,6 +206,7 @@ describe("createAgentOrchestratorPlugin", () => {
             byPriority: [],
             byGroup: [],
             byLabel: [],
+            byOrchestration: [...orchestrationBreakdown],
           },
         }),
         runQueued: async () => [

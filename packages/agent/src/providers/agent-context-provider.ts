@@ -27,6 +27,12 @@ function formatDelegationOverview(
           .map((entry) => `${entry.priority}:${entry.count}`)
           .join(", ")}`
       : undefined,
+    overview.byOrchestration.length
+      ? `orchestration=${overview.byOrchestration
+          .slice(0, 4)
+          .map((entry) => `${entry.mode}:${entry.count}`)
+          .join(", ")}`
+      : undefined,
   ]
     .filter(Boolean)
     .join("\n");
@@ -50,6 +56,26 @@ export function createAgentContextProvider(services: AppServices): Provider {
       }
     >
   >();
+  const turnScopedCache = new Map<
+    string,
+    {
+      capturedAt: number;
+      scopes: Map<
+        "minimal" | "local" | "full",
+        {
+          capturedAt: number;
+          text: string;
+          data: {
+            scope: "minimal" | "local" | "full";
+            skillsCount: number;
+            cronJobs: number;
+            personality: string;
+            terminalCommands: number;
+          };
+        }
+      >;
+    }
+  >();
   let repoCache:
     | {
         capturedAt: number;
@@ -70,6 +96,9 @@ export function createAgentContextProvider(services: AppServices): Provider {
         typeof message.content?.text === "string" ? message.content.text : "";
       const scope = resolveAgentContextScope(messageText);
       const roomKey = String(message.roomId ?? "global");
+      const turnKey = String(
+        message.id ?? `${roomKey}:${message.createdAt ?? Date.now()}`,
+      );
       const now = Date.now();
       const cacheTtlMs =
         scope === "minimal"
@@ -77,6 +106,14 @@ export function createAgentContextProvider(services: AppServices): Provider {
           : scope === "local"
             ? 30_000
             : 20_000;
+      const frozenTurn = turnScopedCache.get(turnKey)?.scopes.get(scope);
+      if (frozenTurn) {
+        return {
+          text: frozenTurn.text,
+          values: {},
+          data: frozenTurn.data,
+        };
+      }
       const sessionCache =
         sessionScopedCache.get(roomKey) ??
         (() => {
@@ -273,10 +310,23 @@ export function createAgentContextProvider(services: AppServices): Provider {
         text,
         data,
       };
-      if (scope === "minimal" || scope === "local") {
-        sessionCache.set(scope, nextCacheEntry);
-      } else {
-        sessionCache.set(scope, nextCacheEntry);
+      sessionCache.set(scope, nextCacheEntry);
+      const frozenTurnEntry = turnScopedCache.get(turnKey) ?? {
+        capturedAt: Date.now(),
+        scopes: new Map(),
+      };
+      frozenTurnEntry.capturedAt = Date.now();
+      frozenTurnEntry.scopes.set(scope, nextCacheEntry);
+      turnScopedCache.set(turnKey, frozenTurnEntry);
+      if (turnScopedCache.size > 64) {
+        for (const [key, entry] of turnScopedCache.entries()) {
+          if (Date.now() - entry.capturedAt > 5 * 60_000) {
+            turnScopedCache.delete(key);
+          }
+          if (turnScopedCache.size <= 48) {
+            break;
+          }
+        }
       }
 
       return {

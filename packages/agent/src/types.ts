@@ -1,6 +1,10 @@
 export type MemoryTarget = "memory" | "user";
 export type RunDepth = "quick" | "standard" | "deep" | "explore";
 export type ToolProgressMode = "off" | "new" | "all" | "verbose";
+export type DelegationOrchestrationMode =
+  | "sequential"
+  | "parallel"
+  | "hierarchical";
 export type ExecutionBackendName =
   | "local"
   | "docker"
@@ -873,6 +877,7 @@ export interface DelegationTaskRecord {
   childTaskIds?: string[];
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   executionMode: "local" | "delegated";
+  orchestrationMode?: DelegationOrchestrationMode;
   workerMode?: "inline" | "process";
   workerPid?: number;
   attempts?: number;

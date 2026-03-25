@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { DelegationTaskRecord } from "@/types";
+import type {
+  DelegationOrchestrationMode,
+  DelegationTaskRecord,
+} from "@/types";
 
 interface DelegationStore {
   tasks: DelegationTaskRecord[];
@@ -56,6 +59,7 @@ export interface DelegationOverview {
   byPriority: Array<{ priority: string; count: number }>;
   byGroup: Array<{ group: string; count: number }>;
   byLabel: Array<{ label: string; count: number }>;
+  byOrchestration: Array<{ mode: DelegationOrchestrationMode; count: number }>;
 }
 
 interface DelegationTaskFilter {
@@ -83,7 +87,39 @@ interface DelegationSpawnInput {
   labels?: string[];
   metadata?: Record<string, string>;
   executionMode?: "local" | "delegated";
+  orchestrationMode?: DelegationOrchestrationMode;
   maxAttempts?: number;
+}
+
+export interface DelegationAggregationItem {
+  id: string;
+  title: string;
+  status: DelegationTaskRecord["status"];
+  depth: number;
+  executionMode: DelegationTaskRecord["executionMode"];
+  orchestrationMode: DelegationOrchestrationMode;
+  attempts: number;
+  maxAttempts: number;
+  lastNote?: string;
+  lastOutputPath?: string;
+}
+
+export interface DelegationAggregationSummary {
+  rootTaskId: string;
+  orchestrationMode: DelegationOrchestrationMode;
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  cancelledTasks: number;
+  runningTasks: number;
+  pendingTasks: number;
+  completionRate: number;
+  maxDepth: number;
+  activeWorkers: number;
+  stalledWorkers: number;
+  leafTasks: number;
+  completedOutputs: DelegationAggregationItem[];
+  blockers: DelegationAggregationItem[];
 }
 
 export interface DelegationSupervisionReport {
@@ -92,7 +128,18 @@ export interface DelegationSupervisionReport {
   completed: string[];
   failed: { id: string; error: string }[];
   skipped: { id: string; reason: string }[];
+  aggregations: DelegationAggregationSummary[];
   overview: DelegationOverview;
+}
+
+function resolveOrchestrationMode(
+  mode?: DelegationOrchestrationMode,
+  executionMode?: DelegationTaskRecord["executionMode"],
+): DelegationOrchestrationMode {
+  if (mode) {
+    return mode;
+  }
+  return executionMode === "delegated" ? "parallel" : "sequential";
 }
 
 function nowIso(): string {
@@ -148,12 +195,18 @@ export class DelegationService {
     metadata?: Record<string, string>;
     parentTaskId?: string;
     executionMode?: "local" | "delegated";
+    orchestrationMode?: DelegationOrchestrationMode;
     maxAttempts?: number;
   }): DelegationTaskRecord {
     const store = this.read();
     const now = nowIso();
     const labels = this.normalizeLabels(input.labels ?? input.tags);
     const metadata = this.normalizeMetadata(input.metadata);
+    const executionMode = input.executionMode ?? "local";
+    const orchestrationMode = resolveOrchestrationMode(
+      input.orchestrationMode,
+      executionMode,
+    );
     const task: DelegationTaskRecord = {
       id: randomUUID(),
       title: input.title,
@@ -167,11 +220,12 @@ export class DelegationService {
       parentTaskId: input.parentTaskId,
       childTaskIds: [],
       status: "pending",
-      executionMode: input.executionMode ?? "local",
-      workerMode: input.executionMode === "delegated" ? "process" : "inline",
+      executionMode,
+      orchestrationMode,
+      workerMode: executionMode === "delegated" ? "process" : "inline",
       attempts: 0,
       maxAttempts: input.maxAttempts ?? 3,
-      notes: [`system: queued (${input.executionMode ?? "local"})`],
+      notes: [`system: queued (${executionMode}/${orchestrationMode})`],
       createdAt: now,
       updatedAt: now,
     };
@@ -216,6 +270,10 @@ export class DelegationService {
       },
       parentTaskId: parent.id,
       executionMode: input.executionMode ?? "delegated",
+      orchestrationMode:
+        input.orchestrationMode ??
+        parent.orchestrationMode ??
+        resolveOrchestrationMode(undefined, input.executionMode ?? "delegated"),
       maxAttempts: input.maxAttempts,
     });
   }
@@ -373,6 +431,7 @@ export class DelegationService {
     const priorityCounts = new Map<string, number>();
     const groupCounts = new Map<string, number>();
     const labelCounts = new Map<string, number>();
+    const orchestrationCounts = new Map<DelegationOrchestrationMode, number>();
     const counts = tasks.reduce<DelegationOverview>(
       (acc, task) => {
         acc.total += 1;
@@ -415,6 +474,14 @@ export class DelegationService {
         for (const label of task.labels ?? task.tags ?? []) {
           labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
         }
+        const orchestrationMode = resolveOrchestrationMode(
+          task.orchestrationMode,
+          task.executionMode,
+        );
+        orchestrationCounts.set(
+          orchestrationMode,
+          (orchestrationCounts.get(orchestrationMode) ?? 0) + 1,
+        );
         return acc;
       },
       {
@@ -437,6 +504,7 @@ export class DelegationService {
         byPriority: [],
         byGroup: [],
         byLabel: [],
+        byOrchestration: [],
       },
     );
 
@@ -464,6 +532,12 @@ export class DelegationService {
       .sort(
         (left, right) =>
           right.count - left.count || left.label.localeCompare(right.label),
+      );
+    counts.byOrchestration = Array.from(orchestrationCounts.entries())
+      .map(([mode, count]) => ({ mode, count }))
+      .sort(
+        (left, right) =>
+          right.count - left.count || left.mode.localeCompare(right.mode),
       );
 
     return counts;
@@ -588,12 +662,17 @@ export class DelegationService {
     }
 
     const overview = this.overview();
+    const startedRoots = started.filter((id) => {
+      const task = this.get(id);
+      return !task.parentTaskId || !started.includes(task.parentTaskId);
+    });
     return {
       concurrency,
       started,
       completed,
       failed,
       skipped,
+      aggregations: startedRoots.map((id) => this.aggregate(id)),
       overview,
     };
   }
@@ -649,6 +728,105 @@ export class DelegationService {
     return {
       task,
       children: this.listChildren(id).map((child) => this.tree(child.id)),
+    };
+  }
+
+  aggregate(id: string): DelegationAggregationSummary {
+    const root = this.get(id);
+    const rows: Array<{ task: DelegationTaskRecord; depth: number }> = [];
+    const visit = (taskId: string, depth: number): void => {
+      const task = this.get(taskId);
+      rows.push({ task, depth });
+      for (const childId of task.childTaskIds ?? []) {
+        visit(childId, depth + 1);
+      }
+    };
+    visit(id, 0);
+
+    const completedOutputs: DelegationAggregationItem[] = [];
+    const blockers: DelegationAggregationItem[] = [];
+    let completedTasks = 0;
+    let failedTasks = 0;
+    let cancelledTasks = 0;
+    let runningTasks = 0;
+    let pendingTasks = 0;
+    let maxDepth = 0;
+    let activeWorkers = 0;
+    let stalledWorkers = 0;
+    let leafTasks = 0;
+
+    for (const { task, depth } of rows) {
+      maxDepth = Math.max(maxDepth, depth);
+      if ((task.childTaskIds ?? []).length === 0) {
+        leafTasks += 1;
+      }
+      if (task.workerPid) {
+        activeWorkers += 1;
+        if (!this.isProcessAlive(task.workerPid)) {
+          stalledWorkers += 1;
+        }
+      }
+
+      const item: DelegationAggregationItem = {
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        depth,
+        executionMode: task.executionMode,
+        orchestrationMode: resolveOrchestrationMode(
+          task.orchestrationMode,
+          task.executionMode,
+        ),
+        attempts: task.attempts ?? 0,
+        maxAttempts: task.maxAttempts ?? 3,
+        lastNote: task.notes.at(-1),
+        lastOutputPath: task.lastOutputPath,
+      };
+
+      if (task.status === "completed") {
+        completedTasks += 1;
+        completedOutputs.push(item);
+        continue;
+      }
+      if (task.status === "failed") {
+        failedTasks += 1;
+        blockers.push(item);
+        continue;
+      }
+      if (task.status === "cancelled") {
+        cancelledTasks += 1;
+        blockers.push(item);
+        continue;
+      }
+      if (task.status === "running") {
+        runningTasks += 1;
+        blockers.push(item);
+        continue;
+      }
+      pendingTasks += 1;
+      blockers.push(item);
+    }
+
+    return {
+      rootTaskId: root.id,
+      orchestrationMode: resolveOrchestrationMode(
+        root.orchestrationMode,
+        root.executionMode,
+      ),
+      totalTasks: rows.length,
+      completedTasks,
+      failedTasks,
+      cancelledTasks,
+      runningTasks,
+      pendingTasks,
+      completionRate:
+        rows.length > 0 ? Number((completedTasks / rows.length).toFixed(3)) : 0,
+      maxDepth,
+      activeWorkers,
+      stalledWorkers,
+      leafTasks,
+      completedOutputs,
+      blockers,
     };
   }
 
