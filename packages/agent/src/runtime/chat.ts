@@ -95,6 +95,7 @@ import {
   getEffectiveSkillHubWorkspace,
   getEffectiveSkills,
   getEffectiveSkillsSummary,
+  getEffectiveTurnCapabilityPolicy,
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
   getEffectiveUserProfileSearch,
@@ -149,6 +150,7 @@ import {
   classifyTurnMessage,
   deriveTurnExecutionPolicy,
   isSimpleGreetingMessage,
+  resolveTurnCapabilityProfile,
 } from "@/runtime/turn-classification";
 import type { RuntimeSettings } from "@/services/settings-service";
 import type {
@@ -511,6 +513,38 @@ function buildCodingContextPrelude(input: {
   } catch {
     return undefined;
   }
+}
+
+function buildCapabilityPrelude(input: {
+  context: AgentExecutionContext;
+  profile: ReturnType<typeof resolveTurnCapabilityProfile>;
+}): string | undefined {
+  const policy = getEffectiveTurnCapabilityPolicy(
+    input.context.runtime,
+    input.profile,
+  );
+  if (policy.profile === "minimal") {
+    return [
+      "CAPABILITY PROFILE",
+      "profile=minimal",
+      "Answer directly first.",
+      "Avoid tools, delegation, and broad planning unless the user explicitly asks for execution.",
+    ].join("\n");
+  }
+
+  const preferred = policy.preferredTools.length
+    ? `Prefer: ${policy.preferredTools.join(", ")}`
+    : undefined;
+  const denied = policy.deniedTools.length
+    ? `Avoid: ${policy.deniedTools
+        .slice(0, 5)
+        .map((entry) => entry.name)
+        .join(", ")}`
+    : undefined;
+
+  return ["CAPABILITY PROFILE", `profile=${policy.profile}`, preferred, denied]
+    .filter(Boolean)
+    .join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -7621,6 +7655,13 @@ export async function handleAgentTurn(
   const systemFactsPrelude = shouldAttachSystemFacts(input.message)
     ? buildSystemFactsContext(context)
     : undefined;
+  const capabilityProfile = resolveTurnCapabilityProfile(input.message, {
+    localInteractive: turn.localInteractive,
+  });
+  const capabilityPrelude = buildCapabilityPrelude({
+    context,
+    profile: capabilityProfile,
+  });
   const codingPrelude =
     turn.localInteractive &&
     turnClassification.likelyLocalTask &&
@@ -7633,7 +7674,7 @@ export async function handleAgentTurn(
           maxIterations: derivedTurnPolicy.maxIterations,
         })
       : undefined;
-  const messagePrelude = [systemFactsPrelude, codingPrelude]
+  const messagePrelude = [systemFactsPrelude, capabilityPrelude, codingPrelude]
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n\n");
   const effectiveMessage = messagePrelude
@@ -7727,6 +7768,9 @@ export async function handleAgentTurn(
   ) {
     context.services.personalities.setActive(options.personalityId);
   }
+  const previousToolProfile = context.runtime.getSetting(
+    "ELIZA_AGENT_TOOL_PROFILE",
+  );
 
   let activeStreamSource: StreamSource = "unset";
   const emitChunk = async (chunk: string): Promise<void> => {
@@ -7778,9 +7822,10 @@ export async function handleAgentTurn(
     await emitSnapshot(update.nextText);
   };
   try {
+    context.runtime.setSetting("ELIZA_AGENT_TOOL_PROFILE", capabilityProfile);
     context.runtime.setSetting(
       "ELIZAOS_CLOUD_CONVERSATION_ID",
-      stableRuntimeUuid(`grok:${turn.sessionId}`),
+      context.services.sessions.continuityKey(turn.sessionId),
     );
     if (typeof context.runtime.emitEvent === "function") {
       await context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
@@ -7932,6 +7977,10 @@ export async function handleAgentTurn(
     ) {
       context.services.personalities.setActive(personalityBefore.id);
     }
+    context.runtime.setSetting(
+      "ELIZA_AGENT_TOOL_PROFILE",
+      typeof previousToolProfile === "string" ? previousToolProfile : null,
+    );
   }
 
   const observedActionCount =

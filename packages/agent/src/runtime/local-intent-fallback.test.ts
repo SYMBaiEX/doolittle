@@ -82,4 +82,16 @@ describe("local intent fallback", () => {
       }),
     ).toBe(false);
   });
+
+  it("allows stalled high-confidence local tasks to recover after one tool step", () => {
+    expect(
+      shouldUseDirectLocalFallback({
+        message: "review the babylon repo locally",
+        response: "",
+        observedActionCount: 1,
+        runFailureMessage: "dynamicPromptExecFromState failed",
+        isHighConfidenceIntent: true,
+      }),
+    ).toBe(true);
+  });
 });

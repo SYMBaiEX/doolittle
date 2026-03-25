@@ -462,6 +462,13 @@ export class SessionService {
     return rows.map((row) => this.summarize(row.sessionId, 6));
   }
 
+  continuityKey(sessionId: string): string {
+    return (
+      this.metadata(sessionId)?.continuityKey ??
+      this.continuityKeyFor(sessionId)
+    );
+  }
+
   async storeLongTermMemory(
     memory: Omit<
       AdvancedLongTermMemory,
