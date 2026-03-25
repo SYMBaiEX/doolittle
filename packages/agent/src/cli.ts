@@ -14,6 +14,7 @@ import {
   runStatusFace,
   toneTag,
 } from "@/cli/activity-chrome";
+import { installBlessedTextboxGuard } from "@/cli/blessed-guards";
 import {
   buildCockpitBootMessage,
   buildCockpitTipMessage,
@@ -77,6 +78,10 @@ import {
   shouldRenderRunEvent,
 } from "@/runtime/run-progress";
 import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
+
+installBlessedTextboxGuard(
+  blessed as unknown as Parameters<typeof installBlessedTextboxGuard>[0],
+);
 
 interface CliState {
   activeSessionId: string;
@@ -2076,7 +2081,6 @@ async function startTui(
   let paletteSelectionIndex = 0;
   let composerOpen = false;
   let activeTurnAbortController: AbortController | null = null;
-  let turnCancellationPending = false;
   let lastInterruptAt = 0;
   const commandHistory: string[] = [];
   let historyIndex = 0;
@@ -2149,7 +2153,10 @@ async function startTui(
   }
 
   function deactivateTextEntry(entry: InteractiveTextEntry): void {
-    if (isEntryReading(entry)) {
+    if (
+      isEntryReading(entry) &&
+      typeof (entry as { _done?: unknown })._done === "function"
+    ) {
       entry.cancel?.();
     }
   }
@@ -3136,15 +3143,11 @@ async function startTui(
       appendActivity("err", detail, "error");
     } finally {
       activeTurnAbortController = null;
-      turnCancellationPending = false;
       busy = false;
       stopBusySpinner();
-      if (exitAfterTurnCancellation) {
-        exitAfterTurnCancellation = false;
-        exitCli(requestedExitCode || 130);
-        return;
-      }
-      if (!screenDestroyed) {
+      const shouldExitAfterRun = exitAfterTurnCancellation;
+      exitAfterTurnCancellation = false;
+      if (!screenDestroyed && !shouldExitAfterRun) {
         try {
           flushDeferredForeignActivity();
           await refreshPanels();
@@ -3172,6 +3175,9 @@ async function startTui(
           process.exit(1);
         }
         void processQueue();
+      }
+      if (shouldExitAfterRun) {
+        exitCli(requestedExitCode || 130);
       }
     }
   }
@@ -3382,7 +3388,6 @@ async function startTui(
       return false;
     }
     activeTurnAbortController.abort();
-    turnCancellationPending = true;
     exitAfterTurnCancellation ||= shouldExitAfterCancellation;
     appendActivity(
       "stop",
