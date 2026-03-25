@@ -195,6 +195,7 @@ function shortSessionLabel(sessionId: string): string {
 
 function renderPlainBanner(context: AppContext, state: CliState): string {
   const settings = context.services.settings.get();
+  const theme = getTuiTheme(settings.ui.theme);
   const cwd = currentWorkspaceLabel();
   const project = currentProjectLabel();
   const smallModel =
@@ -208,12 +209,13 @@ function renderPlainBanner(context: AppContext, state: CliState): string {
     sessionSummary?.title ?? shortSessionLabel(state.activeSessionId);
 
   const lines = [
-    `┌─ ${context.config.agentName.toUpperCase()} // conversation shell`,
+    `┌─ ${theme.sigil} ${context.config.agentName.toUpperCase()} // conversation shell`,
     `│ project   ${project}`,
     `│ workspace ${cwd}`,
     `│ provider  ${settings.model.provider}   fast ${shortModelId(smallModel)}   deep ${shortModelId(settings.model.model)}`,
-    `│ run       ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}   session ${session}`,
-    "└─ terminal-first · cockpit optional · !shell · /help",
+    `│ signal    ${theme.label} ${theme.idleFace}   run ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}`,
+    `│ session   ${session}`,
+    `└─ ${theme.shellGlyph} terminal-first · cockpit optional · !shell · /help`,
   ];
 
   if (!output.isTTY) {
@@ -240,7 +242,8 @@ function renderPlainShellHints(): string {
 
 function renderPlainPrompt(context: AppContext, _state: CliState): string {
   const settings = context.services.settings.get();
-  return `${paint(context.config.agentName.toLowerCase(), ANSI.magenta, output.isTTY)}@${paint(currentProjectLabel(), ANSI.cyan, output.isTTY)} ${paint(`${settings.agent.runDepth}/${settings.agent.maxIterations}`, ANSI.gray, output.isTTY)} ${paint("::", ANSI.yellow, output.isTTY)} `;
+  const theme = getTuiTheme(settings.ui.theme);
+  return `${paint(context.config.agentName.toLowerCase(), ANSI.magenta, output.isTTY)}@${paint(currentProjectLabel(), ANSI.cyan, output.isTTY)} ${paint(`${settings.agent.runDepth}/${settings.agent.maxIterations}`, ANSI.gray, output.isTTY)} ${paint(theme.shellGlyph, ANSI.yellow, output.isTTY)} `;
 }
 
 function renderPlainRunLine(detail: string): string {
@@ -346,6 +349,23 @@ function asciiRunBadge(detail: string): string {
     return "[hb]";
   }
   return "[..]";
+}
+
+function runStatusFace(theme: TuiThemeProfile, status?: string): string {
+  switch (status) {
+    case "thinking":
+      return "(..)";
+    case "acting":
+      return "<>";
+    case "waiting":
+      return "(. )";
+    case "complete":
+      return "[ok]";
+    case "error":
+      return "[!!]";
+    default:
+      return theme.idleFace;
+  }
 }
 
 function decorateLiveActivity(detail: string): string {
@@ -676,8 +696,8 @@ function panelStyle(theme: TuiThemeProfile, accent: string) {
 
 function buildHeaderContent(agentName: string, theme: TuiThemeProfile): string {
   return [
-    `{bold}${agentName}{/bold}  {black-fg}conversation shell{/}  {white-fg}${escapeBlessed(currentProjectLabel())}{/}`,
-    `{white-fg}${theme.label}{/} · {gray-fg}${escapeBlessed(theme.tagline)}{/} · {cyan-fg}cockpit for observability{/} · {green-fg}shell for everyday work{/}`,
+    `{bold}${escapeBlessed(theme.sigil)} ${agentName}{/bold}  {black-fg}${escapeBlessed(theme.shellGlyph)} conversation shell{/}  {white-fg}${escapeBlessed(currentProjectLabel())}{/}`,
+    `{white-fg}${theme.label}{/} ${escapeBlessed(theme.idleFace)} · {gray-fg}${escapeBlessed(theme.tagline)}{/} · {cyan-fg}cockpit for observability{/} · {green-fg}shell for everyday work{/}`,
   ].join("\n");
 }
 
@@ -1058,7 +1078,7 @@ async function renderTransportContent(context: AppContext): Promise<string> {
     ...(traces.length
       ? traces.map(
           (trace) =>
-            `- ${trace.platform}:${trace.kind} ${truncate(trace.detail ?? trace.traceId, 34)}`,
+            `:: ${trace.platform}:${trace.kind} ${truncate(trace.detail ?? trace.traceId, 34)}`,
         )
       : ["{gray-fg}No recent trace activity.{/}"]),
     "",
@@ -1073,7 +1093,7 @@ async function renderTransportContent(context: AppContext): Promise<string> {
     "{bold}Recent Inbox{/}",
     ...(inbox.length
       ? inbox.map(
-          (entry) => `- ${entry.platform} ${truncate(entry.textPreview, 32)}`,
+          (entry) => `>> ${entry.platform} ${truncate(entry.textPreview, 32)}`,
         )
       : ["{gray-fg}No inbound messages recorded.{/}"]),
     "",
@@ -1106,7 +1126,7 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
     ...(recent.length
       ? recent.map(
           (entry) =>
-            `- ${entry.backend} ${truncate(
+            `$> ${entry.backend} ${truncate(
               entry.command,
               32,
             )} (${entry.exitCode})`,
@@ -1143,10 +1163,13 @@ async function renderExecutionContent(context: AppContext): Promise<string> {
   ].join("\n");
 }
 
-function renderSuggestionsContent(inputValue: string): string {
+function renderSuggestionsContent(
+  inputValue: string,
+  theme = getTuiTheme(),
+): string {
   if (!inputValue.trim()) {
     return [
-      "{gray-fg}   .:: eliza signal deck ::.{/}",
+      `{gray-fg}   ${escapeBlessed(theme.sigil)} eliza signal deck ${escapeBlessed(theme.sigil)}{/}`,
       "",
       "{bold}Quick Ignition{/}",
       "",
@@ -1891,6 +1914,7 @@ async function startPlainCli(
 
 function renderStatusContent(context: AppContext, state: CliState): string {
   const settings = context.services.settings.get();
+  const theme = getTuiTheme(settings.ui.theme);
   const activeRun = context.services.runController.getActive(
     state.activeSessionId,
   );
@@ -1916,6 +1940,7 @@ function renderStatusContent(context: AppContext, state: CliState): string {
 
   return [
     "{bold}Signal Rail{/}",
+    `{gray-fg}${escapeBlessed(theme.sigil)} ${escapeBlessed(theme.label)} ${escapeBlessed(runStatusFace(theme, activeRun?.status))}{/}`,
     `{cyan-fg}${settings.model.provider}{/} · {cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
     `${escapeBlessed(autonomousControl.alignment.connection.kind)}${autonomousControl.alignment.connection.provider ? ` via ${escapeBlessed(autonomousControl.alignment.connection.provider)}` : ""}`,
     `startup ${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}`,
@@ -1964,11 +1989,12 @@ export function renderFooter(
   busyFrame = "•",
 ): string {
   const settings = context.services.settings.get();
+  const theme = getTuiTheme(settings.ui.theme);
   return [
-    `${context.config.agentName} // cockpit`,
+    `${theme.sigil} ${context.config.agentName} // cockpit`,
     busy
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
-      : "{green-fg}[ok] ready{/}",
+      : `{green-fg}${escapeBlessed(theme.idleFace)} ready{/}`,
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
     `{cyan-fg}${escapeBlessed(shortModelId(settings.model.model))}{/}`,
     `{yellow-fg}${escapeBlessed(settings.agent.runDepth)}{/}`,
@@ -2382,7 +2408,7 @@ async function startTui(
     }
   };
   let footerHint = "Esc input";
-  const busyFrames = ["(::)", "(.:)", "(..)", "(:.)", "(<>)", "(^_)"];
+  let busyFrames = activeTheme.busyFrames;
 
   function isEntryReading(entry: InteractiveTextEntry): boolean {
     return entry._reading === true;
@@ -2799,7 +2825,7 @@ async function startTui(
     noteTextEntryActivity();
     inputBox.setValue(value);
     if (controlDeckMode === "assist") {
-      assistBox.setContent(renderSuggestionsContent(value));
+      assistBox.setContent(renderSuggestionsContent(value, activeTheme));
     }
     screen.render();
   }
@@ -2837,7 +2863,9 @@ async function startTui(
       assistBox.setContent(renderJobsContent(context));
       return;
     }
-    assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+    assistBox.setContent(
+      renderSuggestionsContent(inputBox.getValue(), activeTheme),
+    );
   }
 
   function applyThemeToScreen(theme: TuiThemeProfile): void {
@@ -2893,6 +2921,7 @@ async function startTui(
       return;
     }
     activeTheme = nextTheme;
+    busyFrames = activeTheme.busyFrames;
     applyThemeToScreen(activeTheme);
     appendActivity(
       "theme",
@@ -3366,7 +3395,7 @@ async function startTui(
           await refreshPanels();
           inputBox.clearValue();
           if (controlDeckMode === "assist") {
-            assistBox.setContent(renderSuggestionsContent(""));
+            assistBox.setContent(renderSuggestionsContent("", activeTheme));
           }
           activateTextEntry(inputBox as InteractiveTextEntry);
           updateFooterHint();
@@ -3413,7 +3442,7 @@ async function startTui(
     queueDepth = pendingCommands.length;
     inputBox.clearValue();
     if (controlDeckMode === "assist") {
-      assistBox.setContent(renderSuggestionsContent(""));
+      assistBox.setContent(renderSuggestionsContent("", activeTheme));
     }
     screen.render();
     void processQueue();
@@ -3466,7 +3495,9 @@ async function startTui(
   inputBox.on("keypress", () => {
     noteTextEntryActivity();
     if (controlDeckMode === "assist") {
-      assistBox.setContent(renderSuggestionsContent(inputBox.getValue()));
+      assistBox.setContent(
+        renderSuggestionsContent(inputBox.getValue(), activeTheme),
+      );
       updateFooterHint({ flushForeign: false, render: false });
       screen.render();
     }
