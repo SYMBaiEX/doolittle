@@ -4,22 +4,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 async function loadSnapshotModule() {
-  return import(`./account-auth.ts?test=${Date.now()}-${Math.random()}`);
+  return import(`./index.ts?test=${Date.now()}-${Math.random()}`);
 }
 
 async function withIsolatedAuthStore<T>(
   fn: (paths: { dataDir: string }) => Promise<T> | T,
 ): Promise<T> {
-  const previous = process.env.ELIZA_AGENT_DATA_DIR;
-  const dataDir = mkdtempSync(join(tmpdir(), "eliza-agent-auth-store-"));
-  process.env.ELIZA_AGENT_DATA_DIR = dataDir;
+  const previous = process.env.DOOLITTLE_DATA_DIR;
+  const dataDir = mkdtempSync(join(tmpdir(), "doolittle-auth-store-"));
+  process.env.DOOLITTLE_DATA_DIR = dataDir;
   try {
     return await fn({ dataDir });
   } finally {
     if (previous === undefined) {
-      delete process.env.ELIZA_AGENT_DATA_DIR;
+      delete process.env.DOOLITTLE_DATA_DIR;
     } else {
-      process.env.ELIZA_AGENT_DATA_DIR = previous;
+      process.env.DOOLITTLE_DATA_DIR = previous;
     }
   }
 }
@@ -27,7 +27,7 @@ async function withIsolatedAuthStore<T>(
 describe("linked provider account auth snapshot", () => {
   it("detects reusable Codex auth from the local CLI store", async () => {
     await withIsolatedAuthStore(async () => {
-      const home = mkdtempSync(join(tmpdir(), "eliza-agent-codex-auth-"));
+      const home = mkdtempSync(join(tmpdir(), "doolittle-codex-auth-"));
       mkdirSync(join(home, ".codex"), { recursive: true });
       writeFileSync(
         join(home, ".codex", "auth.json"),
@@ -57,7 +57,7 @@ describe("linked provider account auth snapshot", () => {
 
   it("detects reusable Claude Code oauth credentials", async () => {
     await withIsolatedAuthStore(async () => {
-      const home = mkdtempSync(join(tmpdir(), "eliza-agent-claude-auth-"));
+      const home = mkdtempSync(join(tmpdir(), "doolittle-claude-auth-"));
       mkdirSync(join(home, ".claude"), { recursive: true });
       writeFileSync(
         join(home, ".claude", ".credentials.json"),
@@ -97,7 +97,7 @@ describe("linked provider account auth snapshot", () => {
     process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-test";
     try {
       await withIsolatedAuthStore(async () => {
-        const home = mkdtempSync(join(tmpdir(), "eliza-agent-claude-token-"));
+        const home = mkdtempSync(join(tmpdir(), "doolittle-claude-token-"));
         const mod = await loadSnapshotModule();
         const snapshot = mod.getLinkedProviderAccountsSnapshot(home);
         expect(snapshot.claudeCode.reusable).toBe(true);
@@ -120,7 +120,7 @@ describe("linked provider account auth snapshot", () => {
 
   it("treats local logged-in Claude CLI without native creds as fallback-only", async () => {
     await withIsolatedAuthStore(async () => {
-      const home = mkdtempSync(join(tmpdir(), "eliza-agent-claude-fallback-"));
+      const home = mkdtempSync(join(tmpdir(), "doolittle-claude-fallback-"));
       writeFileSync(
         join(home, ".claude.json"),
         JSON.stringify({
