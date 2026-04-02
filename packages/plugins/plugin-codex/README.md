@@ -9,7 +9,7 @@ Native-first ElizaOS provider plugin for using a locally signed-in Codex account
 - Routes text generation through the Codex Responses endpoint
 - Handles Codex streaming responses and normalizes them into plain provider output
 - Refreshes expired linked credentials automatically when possible
-- Pairs cleanly with the Eliza Agent `connect` flow for one-step activation
+- Pairs cleanly with the Doolittle `connect` flow for one-step activation
 
 ## Expected Local Login State
 
@@ -68,4 +68,4 @@ The live smoke path was verified in this workspace against a locally signed-in C
 
 ## Notes
 
-This package is intended for the Eliza Agent alpha-native workspace and is designed for linked-account flows rather than API-key-only OpenAI usage.
+This package is intended for the Doolittle alpha-native workspace and is designed for linked-account flows rather than API-key-only OpenAI usage.
