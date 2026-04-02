@@ -8,7 +8,7 @@ Native-first ElizaOS provider plugin for using a locally signed-in Claude Code a
 - Exposes Claude Code-linked provider state to the Eliza runtime
 - Routes text generation through the Anthropic Messages API with Claude Code headers
 - Refreshes expired linked OAuth credentials automatically when possible
-- Supports the Eliza Agent `connect` flow so native auth is the default path
+- Supports the Doolittle `connect` flow so native auth is the default path
 - Keeps local Claude CLI fallback available only as an explicit escape hatch
 
 ## Expected Local Login State
@@ -71,4 +71,4 @@ The live smoke path was verified in this workspace against a locally signed-in C
 
 ## Notes
 
-This package is intended for the Eliza Agent alpha-native workspace and is designed for linked-account flows rather than API-key-only Anthropic usage.
+This package is intended for the Doolittle alpha-native workspace and is designed for linked-account flows rather than API-key-only Anthropic usage.
