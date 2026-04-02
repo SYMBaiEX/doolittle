@@ -1,0 +1,77 @@
+import type { NativePluginCatalogSeed } from "./types";
+
+export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
+  {
+    id: "providers.sql",
+    packageName: "@elizaos/plugin-sql",
+    category: "providers",
+    source: "official",
+    kind: "provider",
+    maturity: "production",
+    enablement: "always",
+    notes: "Primary SQL persistence plugin on the current runtime line.",
+  },
+  {
+    id: "providers.pdf",
+    packageName: "@elizaos/plugin-pdf",
+    category: "providers",
+    source: "official",
+    kind: "provider",
+    maturity: "production",
+    enablement: "always",
+    notes: "Official PDF ingestion plugin.",
+  },
+  {
+    id: "providers.elizacloud",
+    packageName: "@elizaos/plugin-elizacloud",
+    category: "providers",
+    source: "custom",
+    kind: "provider",
+    maturity: "alpha",
+    enablement: "elizaCloud",
+    notes:
+      "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference and cloud-native defaults.",
+  },
+  {
+    id: "providers.codex",
+    packageName: "@elizaos/plugin-codex",
+    category: "providers",
+    source: "custom",
+    kind: "provider",
+    maturity: "alpha",
+    enablement: "codex",
+    notes:
+      "Workspace-native Codex provider plugin for ChatGPT-backed Codex workflows.",
+  },
+  {
+    id: "providers.claude-code",
+    packageName: "@elizaos/plugin-claude-code",
+    category: "providers",
+    source: "custom",
+    kind: "provider",
+    maturity: "alpha",
+    enablement: "claudeCode",
+    notes:
+      "Workspace-native Claude Code provider plugin for Claude-native workflows.",
+  },
+  {
+    id: "providers.openai",
+    packageName: "@elizaos/plugin-openai",
+    category: "providers",
+    source: "official",
+    kind: "provider",
+    maturity: "production",
+    enablement: "openai",
+    notes: "Official OpenAI provider plugin.",
+  },
+  {
+    id: "providers.anthropic",
+    packageName: "@elizaos/plugin-anthropic",
+    category: "providers",
+    source: "official",
+    kind: "provider",
+    maturity: "production",
+    enablement: "anthropic",
+    notes: "Official Anthropic provider plugin.",
+  },
+];
