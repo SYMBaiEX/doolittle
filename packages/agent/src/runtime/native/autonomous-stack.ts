@@ -10,7 +10,7 @@ import {
   type OnboardingConnection,
 } from "@elizaos/autonomous/contracts/onboarding";
 import type {} from "@elizaos/skills";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "@/types/runtime";
 
 export const autonomousFoundationPackages = [
   "@elizaos/agent",

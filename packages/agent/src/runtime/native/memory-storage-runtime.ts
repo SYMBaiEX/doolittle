@@ -8,13 +8,13 @@ import type {
   AdvancedLongTermMemoryCategory,
   AdvancedSessionSummary,
   SessionService,
-} from "@/services/session-service";
+} from "@/services/session/service";
 
 export function createMemoryStorageRuntimeService(sessions: SessionService) {
   class MemoryStorageRuntimeService extends ElizaService {
     static serviceType = "memoryStorage";
     capabilityDescription =
-      "Provides advanced memory storage backed by Eliza Agent local state.";
+      "Provides advanced memory storage backed by Doolittle local state.";
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
       return new MemoryStorageRuntimeService(runtime);
