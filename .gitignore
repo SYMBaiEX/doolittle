@@ -1,11 +1,8 @@
 node_modules/
 dist/
 packages/*/dist/
-!packages/plugins/plugin-browser/dist/
-!packages/plugins/plugin-browser/dist/**
-!packages/plugins/plugin-mcp/dist/
-!packages/plugins/plugin-mcp/dist/**
 .env
+.doolittle/
 .eliza-agent/
 .eliza/
 var/
@@ -15,5 +12,8 @@ playwright-report/
 test-results/
 *.log
 *.tgz
-docs/
+*.tsbuildinfo
 skills/generated/index.json
+tmp/
+e2e/
+docs/
