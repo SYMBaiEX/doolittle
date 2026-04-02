@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { getEffectiveTurnCapabilityPolicy } from "./service-bridge";
+import { getEffectiveTurnCapabilityPolicy } from "./index";
 
 describe("effective turn capability policy", () => {
   it("falls back to curated coding tools when native policy returns an empty allowlist", () => {
@@ -46,7 +46,10 @@ describe("effective turn capability policy", () => {
       },
     } as const;
 
-    const policy = getEffectiveTurnCapabilityPolicy(runtime as never, "minimal");
+    const policy = getEffectiveTurnCapabilityPolicy(
+      runtime as never,
+      "minimal",
+    );
 
     expect(policy.preferredTools).toEqual([]);
     expect(policy.deniedTools.length).toBeGreaterThan(0);
