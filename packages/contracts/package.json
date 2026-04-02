@@ -1,10 +1,12 @@
 {
-  "name": "@doolittle/acp",
+  "name": "@doolittle/contracts",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "First-class ACP packaging helpers for Doolittle.",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.0-alpha.85"
   }
 }

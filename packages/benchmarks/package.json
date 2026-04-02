@@ -1,7 +1,7 @@
 {
-  "name": "@eliza-agent/benchmarks",
+  "name": "@doolittle/benchmarks",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Eliza Agent benchmark packs and environment manifests."
+  "description": "Doolittle benchmark packs and environment manifests."
 }
