@@ -1,6 +1,6 @@
 # @elizaos/plugin-elizacloud
 
-Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference in Eliza Agent.
+Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference in Doolittle.
 
 ## What it does
 
@@ -27,7 +27,7 @@ From the repo root:
 
 ```bash
 elizaos login
-eliza-agent setup
+doolittle setup
 ```
 
 Or, during first install:
