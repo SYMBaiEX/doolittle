@@ -1,0 +1,10 @@
+{
+  "name": "@doolittle/logger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable Bun-first structured logger for Doolittle, codenamed Dr. Mochibi.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "name": "@eliza-agent/distributions",
+  "name": "@doolittle/distributions",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Eliza Agent skill and runtime distribution channels."
+  "description": "Doolittle skill and runtime distribution channels."
 }

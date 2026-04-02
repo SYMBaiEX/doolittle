@@ -3,9 +3,11 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "eliza-agent",
+      "name": "doolittle",
       "dependencies": {
-        "@eliza-agent/acp": "workspace:*",
+        "@doolittle/acp": "workspace:*",
+        "@doolittle/contracts": "workspace:*",
+        "@doolittle/logger": "workspace:*",
         "@elizaos/agent": "2.0.0-alpha.85",
         "@elizaos/autonomous": "2.0.0-alpha.85",
         "@elizaos/core": "2.0.0-alpha.85",
@@ -56,35 +58,48 @@
       },
     },
     "packages/acp": {
-      "name": "@eliza-agent/acp",
+      "name": "@doolittle/acp",
       "version": "0.1.0",
     },
     "packages/agent": {
-      "name": "@eliza-agent/agent",
+      "name": "@doolittle/agent",
       "version": "0.1.0",
       "dependencies": {
-        "@eliza-agent/acp": "workspace:*",
+        "@doolittle/acp": "workspace:*",
+        "@doolittle/contracts": "workspace:*",
+        "@doolittle/logger": "workspace:*",
         "@elizaos/agent": "2.0.0-alpha.85",
       },
     },
     "packages/benchmarks": {
-      "name": "@eliza-agent/benchmarks",
+      "name": "@doolittle/benchmarks",
       "version": "0.1.0",
     },
     "packages/characters": {
-      "name": "@eliza-agent/characters",
+      "name": "@doolittle/characters",
       "version": "0.1.0",
     },
+    "packages/contracts": {
+      "name": "@doolittle/contracts",
+      "version": "0.1.0",
+      "dependencies": {
+        "@elizaos/core": "2.0.0-alpha.85",
+      },
+    },
     "packages/distributions": {
-      "name": "@eliza-agent/distributions",
+      "name": "@doolittle/distributions",
+      "version": "0.1.0",
+    },
+    "packages/logger": {
+      "name": "@doolittle/logger",
       "version": "0.1.0",
     },
     "packages/modeling": {
-      "name": "@eliza-agent/modeling",
+      "name": "@doolittle/modeling",
       "version": "0.1.0",
     },
     "packages/plugins": {
-      "name": "@eliza-agent/plugins",
+      "name": "@doolittle/plugins",
       "version": "0.1.0",
     },
     "packages/plugins/plugin-action-bench": {
@@ -112,6 +127,7 @@
       "name": "@elizaos/plugin-autocoder",
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
+        "@doolittle/contracts": "workspace:*",
         "@elizaos/core": "2.0.0-alpha.85",
       },
     },
@@ -119,6 +135,7 @@
       "name": "@elizaos/plugin-browser",
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
+        "@doolittle/contracts": "workspace:*",
         "@elizaos/core": "2.0.0-alpha.85",
       },
     },
@@ -141,6 +158,13 @@
       "version": "0.1.0-next.1-patched.0",
       "dependencies": {
         "@elizaos/core": "2.0.0-alpha.85",
+      },
+    },
+    "packages/plugins/plugin-contracts": {
+      "name": "@elizaos/plugin-contracts",
+      "version": "2.0.0-alpha.85-patched.0",
+      "dependencies": {
+        "@doolittle/contracts": "workspace:*",
       },
     },
     "packages/plugins/plugin-cron": {
@@ -187,6 +211,7 @@
       "name": "@elizaos/plugin-forms",
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
+        "@doolittle/contracts": "workspace:*",
         "@elizaos/core": "2.0.0-alpha.85",
       },
     },
@@ -222,6 +247,7 @@
       "name": "@elizaos/plugin-planning",
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
+        "@doolittle/contracts": "workspace:*",
         "@elizaos/core": "2.0.0-alpha.85",
       },
     },
@@ -229,6 +255,7 @@
       "name": "@elizaos/plugin-plugin-manager",
       "version": "2.0.0-alpha.85-patched.0",
       "dependencies": {
+        "@doolittle/contracts": "workspace:*",
         "@elizaos/core": "2.0.0-alpha.85",
       },
     },
@@ -269,11 +296,11 @@
       },
     },
     "packages/skill-packs-optional": {
-      "name": "@eliza-agent/skill-packs-optional",
+      "name": "@doolittle/skill-packs-optional",
       "version": "0.1.0",
     },
     "packages/skills": {
-      "name": "@eliza-agent/skills",
+      "name": "@doolittle/skills",
       "version": "0.1.0",
     },
   },
@@ -411,29 +438,33 @@
 
     "@connectrpc/connect-web": ["@connectrpc/connect-web@2.0.0-rc.3", "", { "peerDependencies": { "@bufbuild/protobuf": "^2.2.0", "@connectrpc/connect": "2.0.0-rc.3" } }, "sha512-w88P8Lsn5CCsA7MFRl2e6oLY4J/5toiNtJns/YJrlyQaWOy3RO8pDgkz+iIkG98RPMhj2thuBvsd3Cn4DKKCkw=="],
 
+    "@doolittle/acp": ["@doolittle/acp@workspace:packages/acp"],
+
+    "@doolittle/agent": ["@doolittle/agent@workspace:packages/agent"],
+
+    "@doolittle/benchmarks": ["@doolittle/benchmarks@workspace:packages/benchmarks"],
+
+    "@doolittle/characters": ["@doolittle/characters@workspace:packages/characters"],
+
+    "@doolittle/contracts": ["@doolittle/contracts@workspace:packages/contracts"],
+
+    "@doolittle/distributions": ["@doolittle/distributions@workspace:packages/distributions"],
+
+    "@doolittle/logger": ["@doolittle/logger@workspace:packages/logger"],
+
+    "@doolittle/modeling": ["@doolittle/modeling@workspace:packages/modeling"],
+
+    "@doolittle/plugins": ["@doolittle/plugins@workspace:packages/plugins"],
+
+    "@doolittle/skill-packs-optional": ["@doolittle/skill-packs-optional@workspace:packages/skill-packs-optional"],
+
+    "@doolittle/skills": ["@doolittle/skills@workspace:packages/skills"],
+
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
     "@e2b/code-interpreter": ["@e2b/code-interpreter@1.5.1", "", { "dependencies": { "e2b": "^1.4.0" } }, "sha512-mkyKjAW2KN5Yt0R1I+1lbH3lo+W/g/1+C2lnwlitXk5wqi/g94SEO41XKdmDf5WWpKG3mnxWDR5d6S/lyjmMEw=="],
 
     "@electric-sql/pglite": ["@electric-sql/pglite@0.3.16", "", {}, "sha512-mZkZfOd9OqTMHsK+1cje8OSzfAQcpD7JmILXTl5ahdempjUDdmg4euf1biDex5/LfQIDJ3gvCu6qDgdnDxfJmA=="],
-
-    "@eliza-agent/acp": ["@eliza-agent/acp@workspace:packages/acp"],
-
-    "@eliza-agent/agent": ["@eliza-agent/agent@workspace:packages/agent"],
-
-    "@eliza-agent/benchmarks": ["@eliza-agent/benchmarks@workspace:packages/benchmarks"],
-
-    "@eliza-agent/characters": ["@eliza-agent/characters@workspace:packages/characters"],
-
-    "@eliza-agent/distributions": ["@eliza-agent/distributions@workspace:packages/distributions"],
-
-    "@eliza-agent/modeling": ["@eliza-agent/modeling@workspace:packages/modeling"],
-
-    "@eliza-agent/plugins": ["@eliza-agent/plugins@workspace:packages/plugins"],
-
-    "@eliza-agent/skill-packs-optional": ["@eliza-agent/skill-packs-optional@workspace:packages/skill-packs-optional"],
-
-    "@eliza-agent/skills": ["@eliza-agent/skills@workspace:packages/skills"],
 
     "@elizaos-official/plugin-sql": ["@elizaos/plugin-sql@2.0.0-alpha.17", "", { "dependencies": { "@electric-sql/pglite": "^0.3.3", "@elizaos/core": "alpha", "@neondatabase/serverless": "^1.0.2", "dotenv": "^17.2.3", "drizzle-kit": "^0.31.8", "drizzle-orm": "^0.45.1", "pg": "^8.16.3", "uuid": "^13.0.0" } }, "sha512-O3I7ZX73DFMMCXWtjITi4QBYdo/01MI0neNBfqf6kbCBsE6j1r3ejZDoPBbRi/Ticsj3jlCc9nuwiOnKgWt+mQ=="],
 
@@ -462,6 +493,8 @@
     "@elizaos/plugin-codex": ["@elizaos/plugin-codex@workspace:packages/plugins/plugin-codex"],
 
     "@elizaos/plugin-coding-agent": ["@elizaos/plugin-coding-agent@workspace:packages/plugins/plugin-coding-agent"],
+
+    "@elizaos/plugin-contracts": ["@elizaos/plugin-contracts@workspace:packages/plugins/plugin-contracts"],
 
     "@elizaos/plugin-cron": ["@elizaos/plugin-cron@workspace:packages/plugins/plugin-cron"],
 

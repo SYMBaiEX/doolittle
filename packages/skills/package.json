@@ -1,11 +1,11 @@
 {
-  "name": "@eliza-agent/skills",
+  "name": "@doolittle/skills",
   "version": "0.1.0",
   "private": true,
-  "description": "Eliza Agent skills workspace for identity, memory, communications, documentation, data, planning, support, transport, execution, media, testing, and research families.",
+  "description": "Doolittle skills workspace for identity, memory, communications, documentation, data, planning, support, transport, execution, media, testing, and research families.",
   "type": "module",
   "keywords": [
-    "eliza-agent",
+    "doolittle",
     "skills",
     "identity",
     "memory",

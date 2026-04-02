@@ -1,4 +1,4 @@
-# Eliza Agent Skills Index
+# Doolittle Skills Index
 
 Curated skill families:
 

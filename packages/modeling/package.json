@@ -1,7 +1,7 @@
 {
-  "name": "@eliza-agent/modeling",
+  "name": "@doolittle/modeling",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Eliza Agent user and assistant modeling profiles."
+  "description": "Doolittle user and assistant modeling profiles."
 }

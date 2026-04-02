@@ -1,7 +1,7 @@
 {
-  "name": "@eliza-agent/characters",
+  "name": "@doolittle/characters",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local Eliza Agent character definitions."
+  "description": "Local Doolittle character definitions."
 }
