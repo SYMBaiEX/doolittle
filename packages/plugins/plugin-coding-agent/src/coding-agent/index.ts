@@ -1,7 +1,7 @@
+export { createCodingAgentPlugin } from "./plugin";
 export type {
   CodingAgentContextOptions,
   CodingAgentPluginOptions,
   CodingProjectInspection,
   InspectLocalProject,
-} from "./coding-agent";
-export { createCodingAgentPlugin } from "./coding-agent";
+} from "./types";
