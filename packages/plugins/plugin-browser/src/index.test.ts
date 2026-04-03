@@ -1,21 +1,25 @@
 import { describe, expect, it } from "bun:test";
 import { createBrowserPlugin } from "./index";
 
+const browserStatus = {
+  provider: "basic" as const,
+  ready: true,
+  mode: "browser" as const,
+  detail: "ok",
+  captureMode: "pixel" as const,
+  captureReady: true,
+  artifacts: {
+    snapshot: true,
+    screenshot: true,
+    comparison: true,
+  },
+};
+
 describe("createBrowserPlugin", () => {
   it("exposes browser-native operations and summary metadata", async () => {
     const plugin = createBrowserPlugin({
       browser: {
-        status: async () => ({
-          provider: "basic",
-          ready: true,
-          mode: "browser",
-          detail: "ok",
-          artifacts: {
-            snapshot: true,
-            screenshot: true,
-            comparison: true,
-          },
-        }),
+        status: async () => browserStatus,
         fetchText: async (url) => ({
           url,
           text: "hello",
@@ -51,17 +55,8 @@ describe("createBrowserPlugin", () => {
           snapshotPath: `/tmp/${encodeURIComponent(url)}.md`,
           screenshotPath: `/tmp/${encodeURIComponent(url)}.png`,
           screenshotSvgPath: `/tmp/${encodeURIComponent(url)}.svg`,
-          status: {
-            provider: "basic",
-            ready: true,
-            mode: "browser",
-            detail: "ok",
-            artifacts: {
-              snapshot: true,
-              screenshot: true,
-              comparison: true,
-            },
-          },
+          captureMode: "pixel",
+          status: browserStatus,
         }),
         snapshot: async (url) => `/tmp/${encodeURIComponent(url)}.md`,
         screenshot: async (url) => `/tmp/${encodeURIComponent(url)}.png`,
@@ -84,19 +79,10 @@ describe("createBrowserPlugin", () => {
           snapshotPath: `/tmp/${encodeURIComponent(url)}.md`,
           screenshotPath: `/tmp/${encodeURIComponent(url)}.png`,
           screenshotSvgPath: `/tmp/${encodeURIComponent(url)}.svg`,
+          captureMode: "pixel",
           manifestPath: `/tmp/${encodeURIComponent(url)}.json`,
           reportPath: `/tmp/${encodeURIComponent(url)}.report.md`,
-          status: {
-            provider: "basic",
-            ready: true,
-            mode: "browser",
-            detail: "ok",
-            artifacts: {
-              snapshot: true,
-              screenshot: true,
-              comparison: true,
-            },
-          },
+          status: browserStatus,
         }),
         analyze: async (url) => ({
           focus: "browser",
@@ -119,19 +105,10 @@ describe("createBrowserPlugin", () => {
             snapshotPath: `/tmp/${encodeURIComponent(url)}.md`,
             screenshotPath: `/tmp/${encodeURIComponent(url)}.png`,
             screenshotSvgPath: `/tmp/${encodeURIComponent(url)}.svg`,
+            captureMode: "pixel",
             manifestPath: `/tmp/${encodeURIComponent(url)}.json`,
             reportPath: `/tmp/${encodeURIComponent(url)}.report.md`,
-            status: {
-              provider: "basic",
-              ready: true,
-              mode: "browser",
-              detail: "ok",
-              artifacts: {
-                snapshot: true,
-                screenshot: true,
-                comparison: true,
-              },
-            },
+            status: browserStatus,
           },
           prompt: "analyze",
           highlights: [],
@@ -156,19 +133,10 @@ describe("createBrowserPlugin", () => {
             snapshotPath: "/tmp/left.md",
             screenshotPath: "/tmp/left.png",
             screenshotSvgPath: "/tmp/left.svg",
+            captureMode: "pixel",
             manifestPath: "/tmp/left.json",
             reportPath: "/tmp/left.report.md",
-            status: {
-              provider: "basic",
-              ready: true,
-              mode: "browser",
-              detail: "ok",
-              artifacts: {
-                snapshot: true,
-                screenshot: true,
-                comparison: true,
-              },
-            },
+            status: browserStatus,
           },
           right: {
             page: {
@@ -189,19 +157,10 @@ describe("createBrowserPlugin", () => {
             snapshotPath: "/tmp/right.md",
             screenshotPath: "/tmp/right.png",
             screenshotSvgPath: "/tmp/right.svg",
+            captureMode: "pixel",
             manifestPath: "/tmp/right.json",
             reportPath: "/tmp/right.report.md",
-            status: {
-              provider: "basic",
-              ready: true,
-              mode: "browser",
-              detail: "ok",
-              artifacts: {
-                snapshot: true,
-                screenshot: true,
-                comparison: true,
-              },
-            },
+            status: browserStatus,
           },
           manifestPath: "/tmp/compare.json",
           reportPath: "/tmp/compare.md",
@@ -236,19 +195,10 @@ describe("createBrowserPlugin", () => {
               snapshotPath: "/tmp/left.md",
               screenshotPath: "/tmp/left.png",
               screenshotSvgPath: "/tmp/left.svg",
+              captureMode: "pixel",
               manifestPath: "/tmp/left.json",
               reportPath: "/tmp/left.report.md",
-              status: {
-                provider: "basic",
-                ready: true,
-                mode: "browser",
-                detail: "ok",
-                artifacts: {
-                  snapshot: true,
-                  screenshot: true,
-                  comparison: true,
-                },
-              },
+              status: browserStatus,
             },
             right: {
               page: {
@@ -269,19 +219,10 @@ describe("createBrowserPlugin", () => {
               snapshotPath: "/tmp/right.md",
               screenshotPath: "/tmp/right.png",
               screenshotSvgPath: "/tmp/right.svg",
+              captureMode: "pixel",
               manifestPath: "/tmp/right.json",
               reportPath: "/tmp/right.report.md",
-              status: {
-                provider: "basic",
-                ready: true,
-                mode: "browser",
-                detail: "ok",
-                artifacts: {
-                  snapshot: true,
-                  screenshot: true,
-                  comparison: true,
-                },
-              },
+              status: browserStatus,
             },
             manifestPath: "/tmp/compare.json",
             reportPath: "/tmp/compare.md",
@@ -302,12 +243,12 @@ describe("createBrowserPlugin", () => {
 
     const ServiceCtor = plugin.services?.[0] as unknown as {
       start(runtime?: unknown): Promise<{
-        summary(): unknown;
+        summary(): Promise<unknown>;
         fetch(url: string): Promise<unknown>;
       }>;
     };
     const service = await ServiceCtor.start();
-    expect(service.summary()).toEqual({
+    expect(await service.summary()).toEqual({
       operations: [
         "status",
         "fetch",
@@ -321,6 +262,7 @@ describe("createBrowserPlugin", () => {
       ],
       multimodal: true,
       captureReady: true,
+      captureMode: "pixel",
       analysisReady: true,
     });
     expect(await service.fetch("https://example.com")).toEqual({

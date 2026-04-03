@@ -1,117 +1,42 @@
-# Browser Automation Plugin for ElizaOS (vendored workspace package)
+# @elizaos/plugin-browser
 
-Browser automation plugin enabling AI agents to browse websites, interact with elements, and extract data.
+This workspace package is documented from the stabilized Doolittle runtime contract.
+Do not edit it by hand; run `bun run scripts/sync-doc-truth.ts --write`.
 
-This workspace copy is vendored into `packages/plugins/plugin-browser` and normalized for the current ElizaOS alpha line used by Eliza Agent.
+## Status
 
-## Features
+- Runtime ID: `browser.browser`
+- Category: `browser`
+- Kind: `adapter`
+- Maturity: `alpha`
+- Persistence: `injected`
+- Publish intent: `internal-adapter`
+- Tests: `covered`
 
-- **Navigation**: Navigate to URLs, go back/forward, refresh pages
-- **AI-Powered Interactions**: Click, type, and select elements using natural language
-- **Data Extraction**: Extract structured data from web pages
-- **Screenshots**: Capture page screenshots
-- **CAPTCHA Solving**: Automatic CAPTCHA solving (Turnstile, reCAPTCHA, hCaptcha)
-- **Session Management**: Handle multiple browser sessions
-- **Security**: URL validation, domain filtering, rate limiting
+## Runtime Contract
 
-## Installation
+- Browser capture is truthful about pixel versus placeholder output.
+- The browser adapter exposes browser-backed capture when a Lightpanda-compatible command is available, and it falls back to placeholder artifacts when browser execution is unavailable.
+- Runtime surfaces: `GET /browser/status`, `POST /browser/capture`, `POST /browser/screenshot`, `POST /browser/analyze`
+- Required status fields: `captureMode`, `captureReady`, `provider`, `mode`
 
-```bash
-npm install @elizaos/plugin-browser
-```
+## Real Behavior
 
-## Configuration
+- Returns pixel-backed PNG screenshot artifacts when the configured browser backend is executable.
+- Keeps browser status explicit so the caller can see whether capture is running in browser or fallback mode.
+- Preserves placeholder markdown and SVG artifacts as the degraded path instead of pretending screenshots are real.
 
-```bash
-# Optional - for cloud browser
-BROWSERBASE_API_KEY=your_api_key
-BROWSERBASE_PROJECT_ID=your_project_id
+## Degraded Behavior
 
-# Optional - for AI-powered interactions
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
+- Falls back to placeholder markdown capture output when the browser backend is unavailable or fetch execution fails.
+- Reports captureMode=placeholder and captureReady=false instead of claiming full screenshot readiness.
 
-# Optional - for CAPTCHA solving
-CAPSOLVER_API_KEY=your_capsolver_key
+## Caveats
 
-# Browser settings
-BROWSER_HEADLESS=true
-BROWSER_ENABLED=true
-```
+- Pixel capture is a lightweight raster card generated from the fetched page snapshot, not a full DOM screenshot engine.
+- Interactive upstream browser claims such as CAPTCHA solving and session management are not part of the documented Doolittle runtime contract.
 
-## Usage
+## Cross References
 
-```typescript
-import { browserPlugin } from '@elizaos/plugin-browser';
-
-const agent = {
-  name: 'BrowserAgent',
-  plugins: [browserPlugin],
-};
-```
-
-## Actions
-
-| Action               | Description        | Examples                            |
-| -------------------- | ------------------ | ----------------------------------- |
-| `BROWSER_NAVIGATE`   | Navigate to URL    | "Go to google.com"                  |
-| `BROWSER_BACK`       | Go back in history | "Go back"                           |
-| `BROWSER_FORWARD`    | Go forward         | "Go forward"                        |
-| `BROWSER_REFRESH`    | Refresh page       | "Refresh the page"                  |
-| `BROWSER_CLICK`      | Click element      | "Click the search button"           |
-| `BROWSER_TYPE`       | Type text          | "Type 'hello' in the search box"    |
-| `BROWSER_SELECT`     | Select option      | "Select 'US' from country dropdown" |
-| `BROWSER_EXTRACT`    | Extract data       | "Extract the main heading"          |
-| `BROWSER_SCREENSHOT` | Take screenshot    | "Take a screenshot"                 |
-
-## Providers
-
-| Provider        | Description                   |
-| --------------- | ----------------------------- |
-| `BROWSER_STATE` | Current browser session state |
-
-## API
-
-### BrowserService
-
-```typescript
-class BrowserService extends Service {
-  async createSession(sessionId: string): Promise<BrowserSession>;
-  async getSession(sessionId: string): Promise<BrowserSession | undefined>;
-  async getCurrentSession(): Promise<BrowserSession | undefined>;
-  async destroySession(sessionId: string): Promise<void>;
-}
-```
-
-### BrowserSession
-
-```typescript
-interface BrowserSession {
-  id: string;
-  createdAt: Date;
-  url?: string;
-  title?: string;
-}
-```
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run tests
-npm test
-
-# Type check
-npm run typecheck
-```
-
-## License
-
-MIT
-
-
+- Canonical plugin inventory: `docs/plugin-inventory.md`
+- Canonical capability truth: `docs/capability-truth.md`

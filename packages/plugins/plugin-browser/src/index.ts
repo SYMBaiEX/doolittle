@@ -1,26 +1,33 @@
+import type {
+  BrowserPluginSummary,
+  BrowserStatusContract,
+} from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import type { WebService } from "@/services/web-service";
 
-export interface BrowserPluginOptions {
-  browser: Pick<
-    WebService,
-    | "status"
-    | "fetchText"
-    | "inspect"
-    | "snapshot"
-    | "screenshot"
-    | "capture"
-    | "analyze"
-    | "compare"
-    | "analyzeComparison"
-  >;
+interface BrowserPluginDriver {
+  status(): Promise<BrowserStatusContract>;
+  fetchText(url: string): Promise<unknown>;
+  inspect(url: string): Promise<unknown>;
+  snapshot(url: string): Promise<string>;
+  screenshot(url: string): Promise<string>;
+  capture(url: string): Promise<unknown>;
+  analyze(url: string): Promise<unknown>;
+  compare(leftUrl: string, rightUrl: string): Promise<unknown>;
+  analyzeComparison(leftUrl: string, rightUrl: string): Promise<unknown>;
 }
 
-function summarizeBrowserCapabilities() {
+export interface BrowserPluginOptions {
+  browser: BrowserPluginDriver;
+}
+
+async function summarizeBrowserCapabilities(
+  browser: Pick<BrowserPluginDriver, "status">,
+): Promise<BrowserPluginSummary> {
+  const status = await browser.status();
   return {
     operations: [
       "status",
@@ -34,7 +41,8 @@ function summarizeBrowserCapabilities() {
       "analyzeComparison",
     ],
     multimodal: true,
-    captureReady: true,
+    captureReady: status.captureReady ?? false,
+    captureMode: status.captureMode ?? "placeholder",
     analysisReady: true,
   };
 }
@@ -43,7 +51,7 @@ export function createBrowserPlugin(options: BrowserPluginOptions): Plugin {
   class BrowserService extends ElizaService {
     static serviceType = "browser";
     capabilityDescription =
-      "Official-style browser automation service backed by Eliza Agent web capture and analysis workflows.";
+      "Browser automation service backed by Doolittle web capture and analysis workflows, with explicit pixel-versus-placeholder screenshot reporting.";
 
     static async start(runtime: IAgentRuntime): Promise<ElizaService> {
       return new BrowserService(runtime);
@@ -57,8 +65,8 @@ export function createBrowserPlugin(options: BrowserPluginOptions): Plugin {
       return options.browser.status();
     }
 
-    summary() {
-      return summarizeBrowserCapabilities();
+    async summary() {
+      return summarizeBrowserCapabilities(options.browser);
     }
 
     fetch(url: string) {
@@ -97,7 +105,7 @@ export function createBrowserPlugin(options: BrowserPluginOptions): Plugin {
   return {
     name: "browser",
     description:
-      "Official-style browser plugin layered onto Eliza Agent web automation and analysis.",
+      "Browser plugin layered onto Doolittle web automation and analysis with truthful capture readiness reporting.",
     services: [BrowserService],
   };
 }
