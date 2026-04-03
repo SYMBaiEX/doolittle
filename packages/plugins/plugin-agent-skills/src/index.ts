@@ -1,9 +1,12 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
-import type { SkillsService } from "@/services/skills-service";
+import type { SkillsServiceLike } from "./types";
 
 export interface AgentSkillsPluginOptions {
-  skills: Pick<SkillsService, "list" | "get" | "catalog" | "searchCatalog"> & {
+  skills: Pick<
+    SkillsServiceLike,
+    "list" | "get" | "catalog" | "searchCatalog"
+  > & {
     generated(): Array<{
       slug: string;
       title: string;
@@ -24,7 +27,7 @@ export function createAgentSkillsPlugin(
   class AgentSkillsService extends ElizaService {
     static serviceType = "agent_skills";
     capabilityDescription =
-      "Agent skills service backed by Eliza Agent skill discovery and synthesis.";
+      "Agent skills service backed by Doolittle skill discovery and synthesis.";
 
     private readonly skills = options.skills;
     private readonly synthesis = options.synthesis;
@@ -68,7 +71,7 @@ export function createAgentSkillsPlugin(
   return {
     name: "agent-skills",
     description:
-      "Agent skills plugin layered onto Eliza Agent skills and synthesis.",
+      "Agent skills plugin layered onto Doolittle skills and synthesis.",
     services: [AgentSkillsService],
   };
 }
