@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@doolittle/contracts": "workspace:*",
     "@elizaos/core": "2.0.0-alpha.85"
   }
 }
