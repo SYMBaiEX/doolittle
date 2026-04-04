@@ -20,6 +20,15 @@ export function createLocalEmbeddingPlugin(): Plugin {
       return;
     }
 
+    status() {
+      return {
+        provider: "local",
+        available: true,
+        detail:
+          "Deterministic local embeddings are active for startup-safe memory and knowledge operations.",
+      };
+    }
+
     embed(text: string, dimensions = 16) {
       return stableHashVector(text, dimensions);
     }
@@ -37,7 +46,7 @@ export function createLocalEmbeddingPlugin(): Plugin {
   return {
     name: "local-embedding",
     description:
-      "Official-style local embedding plugin for offline Eliza Agent vector operations.",
+      "Official-style local embedding plugin for offline Doolittle vector operations.",
     services: [LocalEmbeddingService],
   };
 }
