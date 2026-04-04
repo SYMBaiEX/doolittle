@@ -25,7 +25,7 @@ describe("createRolodexPlugin", () => {
           },
         ],
         observeAgent: (input) => ({
-          name: "Eliza Agent",
+          name: "Doolittle",
           notes: [input.text],
           goals: [],
           strengths: [],
@@ -33,7 +33,7 @@ describe("createRolodexPlugin", () => {
           lastSource: input.source,
           updatedAt: "2026-03-24T00:00:00.000Z",
         }),
-        agentProfile: () => "agent:Eliza Agent",
+        agentProfile: () => "agent:Doolittle",
         search: (_query: string, _limit = 10) => [
           {
             userId: "user-1",
@@ -71,7 +71,7 @@ describe("createRolodexPlugin", () => {
         }),
         summary: () => ({
           totalProfiles: 1,
-          agentName: "Eliza Agent",
+          agentName: "Doolittle",
           recentProfiles: ["user-1"],
           totalBeliefs: 1,
           totalBeliefSources: 1,
@@ -146,7 +146,7 @@ describe("createRolodexPlugin", () => {
     });
     expect(service.summary()).toMatchObject({
       totalProfiles: 1,
-      agentName: "Eliza Agent",
+      agentName: "Doolittle",
       recentProfiles: ["user-1"],
       totalBeliefs: 1,
       totalBeliefSources: 1,
