@@ -146,7 +146,7 @@ function runNpmRelease(
     encoding: "utf8",
     env: {
       ...process.env,
-      npm_config_cache: join(repoRoot(), ".eliza-agent", ".npm-cache"),
+      npm_config_cache: join(repoRoot(), ".doolittle", ".npm-cache"),
     },
   });
   return {
