@@ -3,17 +3,17 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import type { TerminalService } from "@/services/terminal-service";
+import type { TerminalServiceLike } from "./types";
 
 export interface ShellPluginOptions {
-  terminal: Pick<TerminalService, "run" | "getHistory" | "status">;
+  terminal: Pick<TerminalServiceLike, "run" | "getHistory" | "status">;
 }
 
 export function createShellPlugin(options: ShellPluginOptions): Plugin {
   class ShellService extends ElizaService {
     static serviceType = "shell";
     capabilityDescription =
-      "Official-style shell plugin backed by Eliza Agent execution services.";
+      "Official-style shell plugin backed by Doolittle execution services.";
 
     static async start(runtime: IAgentRuntime): Promise<ElizaService> {
       return new ShellService(runtime);
@@ -39,7 +39,7 @@ export function createShellPlugin(options: ShellPluginOptions): Plugin {
   return {
     name: "shell",
     description:
-      "Official-style shell plugin aligned with Eliza Agent execution backends.",
+      "Official-style shell plugin aligned with Doolittle execution backends.",
     services: [ShellService],
   };
 }
