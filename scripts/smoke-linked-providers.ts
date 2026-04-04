@@ -4,7 +4,7 @@ import {
   type LinkedProviderName,
   syncProviderSettings,
 } from "../packages/agent/src/runtime/chat";
-import { getLinkedProviderAccountsSnapshot } from "../packages/agent/src/runtime/native/account-auth";
+import { getLinkedProviderAccountsSnapshot } from "../packages/agent/src/runtime/native/account-auth/index";
 
 interface SmokeArgs {
   provider: LinkedProviderName | "all";
