@@ -1,0 +1,147 @@
+import { type EnvConfig, RUN_DEPTH_ITERATION_PRESETS } from "@/types/runtime";
+import type { ManagedDirectories } from "./directories";
+import type { ParsedEnvValues } from "./schema";
+
+function splitList(value: string): string[] {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function resolveMaxIterations(
+  values: ParsedEnvValues,
+  env: NodeJS.ProcessEnv,
+): number {
+  const rawMaxIterations = env.DOOLITTLE_MAX_ITERATIONS;
+
+  if (
+    typeof rawMaxIterations === "string" &&
+    rawMaxIterations.trim().length > 0
+  ) {
+    return values.DOOLITTLE_MAX_ITERATIONS;
+  }
+
+  return RUN_DEPTH_ITERATION_PRESETS[values.DOOLITTLE_RUN_DEPTH];
+}
+
+export function buildEnvConfig(
+  values: ParsedEnvValues,
+  directories: ManagedDirectories,
+  env: NodeJS.ProcessEnv = process.env,
+): EnvConfig {
+  return {
+    agentName: values.DOOLITTLE_NAME,
+    mode: values.DOOLITTLE_MODE,
+    host: values.DOOLITTLE_HOST,
+    port: values.DOOLITTLE_PORT,
+    dataDir: directories.dataDir,
+    skillsDir: directories.skillsDir,
+    timezone: values.DOOLITTLE_TIMEZONE,
+    elizaCloudApiKey: values.ELIZAOS_CLOUD_API_KEY,
+    elizaCloudEnabled: values.ELIZAOS_CLOUD_ENABLED,
+    elizaCloudBaseUrl: values.ELIZAOS_CLOUD_BASE_URL,
+    elizaCloudSmallModel: values.ELIZAOS_CLOUD_SMALL_MODEL,
+    elizaCloudLargeModel: values.ELIZAOS_CLOUD_LARGE_MODEL,
+    elizaCloudEmbeddingModel: values.ELIZAOS_CLOUD_EMBEDDING_MODEL,
+    elizaCloudEmbeddingUrl: values.ELIZAOS_CLOUD_EMBEDDING_URL,
+    elizaCloudEmbeddingApiKey: values.ELIZAOS_CLOUD_EMBEDDING_API_KEY,
+    elizaCloudEmbeddingDimensions: values.ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS,
+    openAiApiKey: values.OPENAI_API_KEY,
+    offlineBootstrapMode: values.DOOLITTLE_OFFLINE_BOOTSTRAP,
+    useLinkedCodexAuth: values.DOOLITTLE_USE_LINKED_CODEX_AUTH,
+    openAiBaseUrl: values.OPENAI_BASE_URL,
+    openAiModel: values.OPENAI_MODEL,
+    openAiImageModel: values.OPENAI_IMAGE_MODEL,
+    openAiTemperature: values.OPENAI_TEMPERATURE,
+    openAiMaxTokens: values.OPENAI_MAX_TOKENS,
+    anthropicApiKey: values.ANTHROPIC_API_KEY,
+    useLinkedClaudeCodeAuth: values.DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH,
+    claudeCodeCliFallback: values.DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK,
+    anthropicBaseUrl: values.ANTHROPIC_BASE_URL,
+    anthropicSmallModel: values.ANTHROPIC_SMALL_MODEL,
+    anthropicLargeModel: values.ANTHROPIC_LARGE_MODEL,
+    telegramBotToken: values.TELEGRAM_BOT_TOKEN,
+    telegramApiRoot: values.TELEGRAM_API_ROOT,
+    telegramAllowedChats: values.TELEGRAM_ALLOWED_CHATS,
+    discordBotToken: values.DISCORD_BOT_TOKEN,
+    slackWebhookUrl: values.SLACK_WEBHOOK_URL,
+    slackSigningSecret: values.SLACK_SIGNING_SECRET,
+    whatsappAccessToken: values.WHATSAPP_ACCESS_TOKEN,
+    whatsappPhoneNumberId: values.WHATSAPP_PHONE_NUMBER_ID,
+    whatsappVerifyToken: values.WHATSAPP_VERIFY_TOKEN,
+    signalCliCommand: values.SIGNAL_CLI_COMMAND,
+    matrixHomeserver: values.MATRIX_HOMESERVER,
+    matrixAccessToken: values.MATRIX_ACCESS_TOKEN,
+    emailSendCommand: values.EMAIL_SEND_COMMAND,
+    falApiKey: values.FAL_API_KEY,
+    smsSendCommand: values.SMS_SEND_COMMAND,
+    mattermostUrl: values.MATTERMOST_URL,
+    mattermostToken: values.MATTERMOST_TOKEN,
+    homeAssistantUrl: values.HOMEASSISTANT_URL,
+    homeAssistantToken: values.HOMEASSISTANT_TOKEN,
+    dingtalkWebhookUrl: values.DINGTALK_WEBHOOK_URL,
+    dingtalkAccessToken: values.DINGTALK_ACCESS_TOKEN,
+    browserProvider: values.DOOLITTLE_BROWSER_PROVIDER,
+    browserCommand: values.DOOLITTLE_BROWSER_COMMAND,
+    browserCdpUrl: values.DOOLITTLE_BROWSER_CDP_URL,
+    browserObeyRobots: values.DOOLITTLE_BROWSER_OBEY_ROBOTS,
+    remoteSyncMode: values.DOOLITTLE_REMOTE_SYNC_MODE,
+    remoteSyncInclude: splitList(values.DOOLITTLE_REMOTE_SYNC_INCLUDE),
+    remoteSyncExclude: splitList(values.DOOLITTLE_REMOTE_SYNC_EXCLUDE),
+    remoteArtifactPaths: splitList(values.DOOLITTLE_REMOTE_ARTIFACT_PATHS),
+    remoteArtifactPolicy: values.DOOLITTLE_REMOTE_ARTIFACT_POLICY,
+    remoteWorkspaceLabel: values.DOOLITTLE_REMOTE_WORKSPACE_LABEL,
+    executionBackend: values.DOOLITTLE_EXECUTION_BACKEND,
+    dockerImage: values.DOOLITTLE_DOCKER_IMAGE,
+    dockerNetwork: values.DOOLITTLE_DOCKER_NETWORK,
+    dockerWorkspacePath: values.DOOLITTLE_DOCKER_WORKSPACE_PATH,
+    dockerEnvPassthrough: splitList(values.DOOLITTLE_DOCKER_ENV_PASSTHROUGH),
+    singularityImage: values.DOOLITTLE_SINGULARITY_IMAGE,
+    daytonaTarget: values.DOOLITTLE_DAYTONA_TARGET,
+    daytonaCommand: values.DOOLITTLE_DAYTONA_COMMAND,
+    daytonaShell: values.DOOLITTLE_DAYTONA_SHELL,
+    daytonaWorkspacePath: values.DOOLITTLE_DAYTONA_WORKSPACE_PATH,
+    daytonaSnapshot: values.DOOLITTLE_DAYTONA_SNAPSHOT,
+    daytonaBootstrapCommand: values.DOOLITTLE_DAYTONA_BOOTSTRAP_COMMAND,
+    daytonaStatusCommand: values.DOOLITTLE_DAYTONA_STATUS_COMMAND,
+    daytonaInspectCommand: values.DOOLITTLE_DAYTONA_INSPECT_COMMAND,
+    modalTarget: values.DOOLITTLE_MODAL_TARGET,
+    modalCommand: values.DOOLITTLE_MODAL_COMMAND,
+    modalShell: values.DOOLITTLE_MODAL_SHELL,
+    modalWorkspacePath: values.DOOLITTLE_MODAL_WORKSPACE_PATH,
+    modalEnvironment: values.DOOLITTLE_MODAL_ENVIRONMENT,
+    modalBootstrapCommand: values.DOOLITTLE_MODAL_BOOTSTRAP_COMMAND,
+    modalStatusCommand: values.DOOLITTLE_MODAL_STATUS_COMMAND,
+    modalInspectCommand: values.DOOLITTLE_MODAL_INSPECT_COMMAND,
+    executionCommandTimeoutMs: values.DOOLITTLE_EXECUTION_COMMAND_TIMEOUT_MS,
+    executionHealthTimeoutMs: values.DOOLITTLE_EXECUTION_HEALTH_TIMEOUT_MS,
+    containerCpuLimit: values.DOOLITTLE_CONTAINER_CPU_LIMIT,
+    containerMemoryLimit: values.DOOLITTLE_CONTAINER_MEMORY_LIMIT,
+    containerPidsLimit: values.DOOLITTLE_CONTAINER_PIDS_LIMIT,
+    containerReadOnlyRoot: values.DOOLITTLE_CONTAINER_READ_ONLY_ROOT,
+    sshHost: values.DOOLITTLE_SSH_HOST,
+    sshUser: values.DOOLITTLE_SSH_USER,
+    sshPath: values.DOOLITTLE_SSH_PATH,
+    sshPort: values.DOOLITTLE_SSH_PORT,
+    sshKeyPath: values.DOOLITTLE_SSH_KEY_PATH,
+    sshStrictHostKeyChecking: values.DOOLITTLE_SSH_STRICT_HOST_KEY_CHECKING,
+    mcpServerCommand: values.MCP_SERVER_COMMAND,
+    mcpTimeoutMs: values.MCP_TIMEOUT_MS,
+    acpServerCommand: values.ACP_SERVER_COMMAND,
+    acpTimeoutMs: values.ACP_TIMEOUT_MS,
+    memoryCharLimit: values.DOOLITTLE_MEMORY_CHAR_LIMIT,
+    userCharLimit: values.DOOLITTLE_USER_CHAR_LIMIT,
+    sessionSearchLimit: values.DOOLITTLE_SESSION_SEARCH_LIMIT,
+    cronTickSeconds: values.DOOLITTLE_CRON_TICK_SECONDS,
+    cronOutputDir: directories.cronOutputDir,
+    gatewayDataDir: directories.gatewayDataDir,
+    hooksDir: directories.hooksDir,
+    workspaceDir: directories.workspaceDir,
+    allowAllUsers: values.DOOLITTLE_ALLOW_ALL_USERS,
+    pairingDefaultMode: values.DOOLITTLE_PAIRING_MODE,
+    runDepth: values.DOOLITTLE_RUN_DEPTH,
+    toolProgressMode: values.DOOLITTLE_TOOL_PROGRESS,
+    maxIterations: resolveMaxIterations(values, env),
+  };
+}
