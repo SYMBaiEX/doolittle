@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  requiresModelSynthesisForLocalIntent,
   resolveDirectLocalIntent,
   shouldPreferDirectLocalExecution,
   shouldUseDirectLocalFallback,
@@ -34,6 +35,16 @@ describe("local intent fallback", () => {
     expect(workspaceIntent?.isHighConfidence).toBe(true);
     expect(shouldPreferDirectLocalExecution(repoIntent)).toBe(true);
     expect(shouldPreferDirectLocalExecution(workspaceIntent)).toBe(true);
+  });
+
+  it("routes overview intents through local inspection before model synthesis", () => {
+    const overviewIntent = resolveDirectLocalIntent(
+      fakeChatRequest("Give me a breakdown of this repo"),
+      fakeContext,
+    );
+
+    expect(overviewIntent?.isHighConfidence).toBe(true);
+    expect(requiresModelSynthesisForLocalIntent(overviewIntent)).toBe(true);
   });
 
   it("treats shell execution as non-high-confidence fallback", () => {
@@ -93,6 +104,18 @@ describe("local intent fallback", () => {
         isHighConfidenceIntent: true,
       }),
     ).toBe(true);
+  });
+
+  it("does not skip directly to deterministic fallback for synthesis intents without a runtime failure", () => {
+    expect(
+      shouldUseDirectLocalFallback({
+        message: "Give me a breakdown of this repo",
+        response: "",
+        observedActionCount: 0,
+        isHighConfidenceIntent: true,
+        requiresModelSynthesis: true,
+      }),
+    ).toBe(false);
   });
 
   it("treats meta repo-review recap output as an incomplete local review", () => {
