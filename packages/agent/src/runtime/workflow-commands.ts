@@ -139,7 +139,7 @@ function discoverWorkspaceWorkflowDefinitions(
   workspaceDir: string,
 ): WorkflowCommandDefinition[] {
   const candidates = [
-    join(workspaceDir, ".eliza-agent", "commands"),
+    join(workspaceDir, ".doolittle", "commands"),
     join(workspaceDir, "commands", "workflows"),
   ];
   const definitions: WorkflowCommandDefinition[] = [];
