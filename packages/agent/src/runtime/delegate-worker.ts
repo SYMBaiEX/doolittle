@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { getEntrypointLogger } from "@/logging/entrypoint-logger";
 import { getAppContext } from "./bootstrap";
 import { handleAgentTurn } from "./chat";
 
@@ -16,10 +17,14 @@ interface WorkerPayload {
 
 const [, , inputPath, outputPath] = process.argv;
 const startedAt = new Date().toISOString();
+const fallbackLogger = getEntrypointLogger("delegate-worker");
 
 if (!inputPath || !outputPath) {
-  console.error(
-    "Usage: bun run packages/agent/src/runtime/delegate-worker.ts <input-path> <output-path>",
+  fallbackLogger.error("delegate-worker-usage", {
+    argv: process.argv.slice(2),
+  });
+  process.stderr.write(
+    "Usage: bun run packages/agent/src/runtime/delegate-worker.ts <input-path> <output-path>\n",
   );
   process.exit(1);
 }
@@ -27,6 +32,17 @@ if (!inputPath || !outputPath) {
 async function main(): Promise<void> {
   const payload = JSON.parse(readFileSync(inputPath, "utf8")) as WorkerPayload;
   const context = await getAppContext();
+  const logger = context.services.logger
+    .child("runtime.delegate-worker")
+    .withFields({
+      taskId: payload.taskId,
+      workerPid: process.pid,
+    });
+  logger.info("delegate-worker-started", {
+    profile: payload.profile,
+    priority: payload.priority,
+    group: payload.group,
+  });
   const result = await handleAgentTurn(
     {
       message: [
@@ -69,10 +85,18 @@ async function main(): Promise<void> {
     ),
     "utf8",
   );
+  logger.info("delegate-worker-completed", {
+    durationMs: Date.now() - Date.parse(startedAt),
+  });
 }
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
+  fallbackLogger.captureError("delegate-worker-failed", error, {
+    workerPid: process.pid,
+    inputPath,
+    outputPath,
+  });
   writeFileSync(
     outputPath,
     JSON.stringify(
@@ -89,6 +113,6 @@ main().catch((error) => {
     ),
     "utf8",
   );
-  console.error(message);
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 });
