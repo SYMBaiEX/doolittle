@@ -53,9 +53,9 @@ const HELP_EXAMPLES = [
   "/jobs start summarize this repo and report back",
   "!git status",
   "!uname -a",
-  'eliza-agent exec -p "review the repo" --json-stream',
-  'eliza-agent exec -p "scan this project" --background',
-  "eliza-agent jobs list",
+  'doolittle exec -p "review the repo" --json-stream',
+  'doolittle exec -p "scan this project" --background',
+  "doolittle jobs list",
 ];
 
 export function getCliHotkeyBindings(): CliHotkeyBinding[] {
