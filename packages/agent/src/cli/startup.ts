@@ -2,13 +2,14 @@
  * Pre-boot startup logic.
  *
  * Consolidates the environment setup and onboarding checks that were
- * previously scattered across the former bash `bin/eliza-agent` wrapper.
+ * previously scattered across the former bash `bin/doolittle` wrapper.
  * This lets the entire startup flow live in TypeScript.
  */
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getEntrypointLogger } from "@/logging/entrypoint-logger";
 
 function repoRoot(): string {
   // packages/agent/src/cli/startup.ts → ../../../../ = repo root
@@ -27,7 +28,7 @@ function repoRoot(): string {
  */
 export function loadLocalRuntimeEnv(): void {
   const root = repoRoot();
-  const dataDir = resolve(root, ".eliza-agent");
+  const dataDir = resolve(root, ".doolittle");
 
   process.env.PGLITE_DATA_DIR ??= resolve(dataDir, "pglite");
   process.env.LOG_LEVEL ??= "error";
@@ -63,7 +64,7 @@ export function loadLocalRuntimeEnv(): void {
  */
 export function isOnboarded(): boolean {
   const root = repoRoot();
-  return existsSync(resolve(root, ".eliza-agent", "onboarding.json"));
+  return existsSync(resolve(root, ".doolittle", "onboarding.json"));
 }
 
 /**
@@ -73,8 +74,14 @@ export function isOnboarded(): boolean {
 export async function runOnboardingWizard(args: string[] = []): Promise<void> {
   const root = repoRoot();
   const bootstrapPath = resolve(root, "scripts", "bootstrap.ts");
+  const logger = getEntrypointLogger("cli.startup", {
+    dataDir: resolve(root, ".doolittle"),
+  });
 
   if (!existsSync(bootstrapPath)) {
+    logger.error("bootstrap-script-missing", {
+      bootstrapPath,
+    });
     console.error(
       "Onboarding script not found at scripts/bootstrap.ts. Run 'bun install' first.",
     );
@@ -87,6 +94,10 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
     cwd: root,
   });
   if (result.status !== 0) {
+    logger.warn("bootstrap-wizard-exited-nonzero", {
+      status: result.status ?? 1,
+      args,
+    });
     process.exit(result.status ?? 1);
   }
 }
@@ -100,14 +111,19 @@ export async function ensureOnboarded(): Promise<void> {
     return;
   }
 
+  const logger = getEntrypointLogger("cli.startup", {
+    dataDir: resolve(repoRoot(), ".doolittle"),
+  });
   if (process.stdin.isTTY && process.stdout.isTTY) {
+    logger.info("onboarding-missing-starting-wizard");
     console.log(
       "No onboarding state found. Beginning first contact so I can finish setup.",
     );
     await runOnboardingWizard();
   } else {
+    logger.warn("onboarding-missing-noninteractive");
     console.error(
-      "No onboarding state found. Run 'eliza-agent setup' to finish onboarding, or 'eliza-agent doctor' to inspect readiness first.",
+      "No onboarding state found. Run 'doolittle setup' to finish onboarding, or 'doolittle doctor' to inspect readiness first.",
     );
     process.exit(1);
   }
