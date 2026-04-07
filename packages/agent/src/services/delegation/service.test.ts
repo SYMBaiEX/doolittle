@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DelegationService } from "./delegation-service";
+import { DelegationService } from "./service";
 
 describe("DelegationService", () => {
   it("tracks worker lifecycle metadata", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delegation-test-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delegation-test-"));
     const service = new DelegationService(root);
 
     try {
@@ -47,7 +47,7 @@ describe("DelegationService", () => {
   });
 
   it("supports retry queues and cancellation", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delegation-queue-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delegation-queue-"));
     const service = new DelegationService(root);
 
     try {
@@ -82,7 +82,7 @@ describe("DelegationService", () => {
   });
 
   it("spawns child tasks and builds task trees", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delegation-tree-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delegation-tree-"));
     const service = new DelegationService(root);
 
     try {
@@ -123,9 +123,57 @@ describe("DelegationService", () => {
     }
   });
 
+  it("cascades cancellation and requeue decisions through nested children", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delegation-cascade-"));
+    const service = new DelegationService(root);
+
+    try {
+      const parent = service.create({
+        title: "Parent Cascade",
+        objective: "Cascade across nested descendants",
+        group: "browser",
+        executionMode: "delegated",
+      });
+      const child = service.spawnChild(parent.id, {
+        title: "Child Cascade",
+        objective: "Propagate through the first layer",
+      });
+      const grandchild = service.spawnChild(child.id, {
+        title: "Grandchild Cascade",
+        objective: "Propagate through the second layer",
+      });
+
+      const cancelled = service.cancel(parent.id);
+      expect(cancelled.status).toBe("cancelled");
+      expect(service.get(child.id).status).toBe("cancelled");
+      expect(service.get(grandchild.id).status).toBe("cancelled");
+      expect(service.get(child.id).notes).toContain(
+        `Cancelled because parent ${parent.id} was cancelled.`,
+      );
+      expect(service.get(grandchild.id).notes).toContain(
+        `Cancelled because parent ${child.id} was cancelled.`,
+      );
+
+      const requeued = service.requeue(parent.id, undefined, {
+        cascadeChildren: true,
+      });
+      expect(requeued.status).toBe("pending");
+      expect(service.get(child.id).status).toBe("pending");
+      expect(service.get(grandchild.id).status).toBe("pending");
+      expect(service.get(child.id).notes).toContain(
+        `Requeued because parent ${parent.id} was requeued.`,
+      );
+      expect(service.get(grandchild.id).notes).toContain(
+        `Requeued because parent ${child.id} was requeued.`,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("summarizes queue health and supervises queued workers", async () => {
     const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-delegation-supervision-"),
+      join(tmpdir(), "doolittle-delegation-supervision-"),
     );
     const service = new DelegationService(root);
 
