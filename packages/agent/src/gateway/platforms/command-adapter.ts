@@ -1,5 +1,5 @@
 import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage, PlatformName } from "@/types";
+import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
 import {
   buildConfiguredTransportHealth,
   capabilitiesForPlatform,
@@ -121,12 +121,12 @@ export class CommandPlatformAdapter implements PlatformAdapter {
     }
 
     const result = await runShellCommand(this.command, {
-      ELIZA_AGENT_PLATFORM: this.name,
-      ELIZA_AGENT_ROOM_ID: message.roomId,
-      ELIZA_AGENT_USER_ID: message.userId ?? "",
-      ELIZA_AGENT_MESSAGE_TEXT: message.text,
-      ELIZA_AGENT_THREAD_ID: message.threadId ?? "",
-      ELIZA_AGENT_REPLY_TO_ID: message.replyToId ?? "",
+      DOOLITTLE_PLATFORM: this.name,
+      DOOLITTLE_ROOM_ID: message.roomId,
+      DOOLITTLE_USER_ID: message.userId ?? "",
+      DOOLITTLE_MESSAGE_TEXT: message.text,
+      DOOLITTLE_THREAD_ID: message.threadId ?? "",
+      DOOLITTLE_REPLY_TO_ID: message.replyToId ?? "",
     });
 
     if (result.exitCode !== 0) {

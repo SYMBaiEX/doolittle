@@ -7,14 +7,14 @@ import { CommandPlatformAdapter } from "./command-adapter";
 
 describe("CommandPlatformAdapter", () => {
   it("executes the configured shell command and records delivery metadata", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-command-adapter-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-command-adapter-"));
     const scriptPath = join(root, "send.sh");
     writeFileSync(
       scriptPath,
       [
         "#!/bin/sh",
         "set -eu",
-        'printf \'sent:%s:%s\' "$ELIZA_AGENT_PLATFORM" "$ELIZA_AGENT_ROOM_ID"',
+        'printf \'sent:%s:%s\' "$DOOLITTLE_PLATFORM" "$DOOLITTLE_ROOM_ID"',
       ].join("\n"),
       "utf8",
     );
