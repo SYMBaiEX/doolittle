@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { McpService } from "./mcp-service";
+import { McpService } from "./service";
 
-const fixturePath = join(import.meta.dir, "..", "testing", "mock-mcp.ts");
+const fixturePath = join(import.meta.dir, "..", "..", "testing", "mock-mcp.ts");
 const service = new McpService(() => ({
   serverCommand: `bun run ${fixturePath}`,
   timeoutMs: 5_000,

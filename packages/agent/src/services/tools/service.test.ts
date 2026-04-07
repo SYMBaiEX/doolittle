@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ToolsService } from "./tools-service";
+import { ToolsService } from "./service";
 
 describe("ToolsService", () => {
   it("summarizes the registry and exposes lookup helpers", () => {

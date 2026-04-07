@@ -6,7 +6,7 @@ import {
   buildAcpPackageMetadata,
   buildAcpRegistryEntry,
   guessAcpToolKind,
-} from "@eliza-agent/acp";
+} from "@doolittle/acp";
 import type {
   AcpEditorSummary,
   AcpPackageMetadata,
@@ -17,21 +17,8 @@ import type {
   SessionSummary,
   ToolDefinition,
 } from "@/types";
-
-interface AcpCommandResult {
-  ok: boolean;
-  output: string;
-  exitCode: number;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
-}
-
-function buildShellCommand(command: string, args: string[]): string {
-  const suffix = args.map((arg) => shellQuote(arg)).join(" ");
-  return suffix ? `${command} ${suffix}` : command;
-}
+import { runShellCommand } from "../command-process";
+import { createAcpServiceStatus } from "./status";
 
 export class AcpService {
   private readonly registryDir: string;
@@ -66,25 +53,20 @@ export class AcpService {
   }
 
   status() {
-    const tools = this.tools();
-    return {
-      enabled: Boolean(this.config.acpServerCommand),
-      detail: this.config.acpServerCommand
-        ? `ACP bridge command is configured for Eliza Agent editor and protocol integrations. Tools: ${tools.length}.`
-        : "ACP bridge surface is available locally, but ACP_SERVER_COMMAND is not configured yet.",
-      command: this.config.acpServerCommand,
+    return createAcpServiceStatus({
+      command: this.config.acpServerCommand?.trim(),
       timeoutMs: this.config.acpTimeoutMs,
       registryPath: this.registryPath,
       exportDir: this.exportDir,
       importDir: this.importDir,
-      toolCount: tools.length,
+      toolCount: this.tools().length,
       lastProbeAt: this.lastProbeAt,
       lastInvocationAt: this.lastInvocationAt,
       lastPublishAt: this.lastPublishAt,
       lastExportAt: this.lastExportAt,
       lastImportAt: this.lastImportAt,
       lastError: this.lastError,
-    };
+    });
   }
 
   packageMetadata(): AcpPackageMetadata {
@@ -138,7 +120,7 @@ export class AcpService {
     return buildAcpRegistryEntry({
       agentName: this.config.agentName,
       description:
-        "Eliza Agent on ElizaOS with persistent memory, gateway transports, execution backends, and research tooling.",
+        "Doolittle on ElizaOS with persistent memory, gateway transports, execution backends, and research tooling.",
       package: this.packageMetadata(),
       command,
       toolCount: this.tools().length,
@@ -160,7 +142,7 @@ export class AcpService {
       name: tool.id,
       description: tool.description,
       kind: guessAcpToolKind(tool),
-      source: tool.transport === "native" ? "mcp" : "eliza-agent",
+      source: tool.transport === "native" ? "mcp" : "doolittle",
     }));
   }
 
@@ -302,7 +284,7 @@ export class AcpService {
   private async run(
     args: string[],
     overrideTimeoutMs?: number,
-  ): Promise<AcpCommandResult> {
+  ): Promise<{ ok: boolean; output: string; exitCode: number }> {
     const command = this.config.acpServerCommand?.trim();
     if (!command) {
       this.lastError = "ACP_SERVER_COMMAND is not configured.";
@@ -313,28 +295,16 @@ export class AcpService {
       };
     }
 
-    const proc = Bun.spawn({
-      cmd: ["/bin/zsh", "-lc", buildShellCommand(command, args)],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const timer = setTimeout(
-      () => proc.kill(),
+    const result = await runShellCommand(
+      command,
+      args,
       overrideTimeoutMs ?? this.config.acpTimeoutMs,
     );
 
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-
-    clearTimeout(timer);
     return {
-      ok: exitCode === 0,
-      output: [stdout.trim(), stderr.trim()].filter(Boolean).join("\n"),
-      exitCode,
+      ok: result.ok,
+      output: [result.stdout, result.stderr].filter(Boolean).join("\n"),
+      exitCode: result.exitCode,
     };
   }
 

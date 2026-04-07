@@ -3,14 +3,20 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { EnvConfig, ToolDefinition } from "@/types";
-import { AcpService } from "./acp-service";
+import { AcpService } from "./service";
 
 describe("AcpService", () => {
   it("publishes a registry and exposes ACP-style tools", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-acp-"));
-    const fixturePath = join(import.meta.dir, "..", "testing", "mock-mcp.ts");
+    const root = mkdtempSync(join(tmpdir(), "doolittle-acp-"));
+    const fixturePath = join(
+      import.meta.dir,
+      "..",
+      "..",
+      "testing",
+      "mock-mcp.ts",
+    );
     const config = {
-      agentName: "Eliza Agent",
+      agentName: "Doolittle",
       dataDir: root,
       acpServerCommand: `bun run ${fixturePath}`,
       acpTimeoutMs: 5_000,
@@ -63,13 +69,13 @@ describe("AcpService", () => {
     );
 
     try {
-      expect(service.packageMetadata().name).toBe("eliza-agent");
+      expect(service.packageMetadata().name).toBe("doolittle");
       expect(service.editorSummary().registryPath).toContain("agent.json");
       expect(service.sessionSummary().titledSessions).toBe(2);
 
       const published = service.publishRegistry();
       expect(published.path).toContain("agent.json");
-      expect(readFileSync(published.path, "utf8")).toContain("eliza-agent");
+      expect(readFileSync(published.path, "utf8")).toContain("doolittle");
       expect(service.tools().some((tool) => tool.kind === "read")).toBe(true);
       expect(service.tools().some((tool) => tool.kind === "execute")).toBe(
         true,
@@ -85,11 +91,11 @@ describe("AcpService", () => {
       const imported = service.importBundle(
         JSON.stringify({
           label: "zed",
-          package: { name: "eliza-agent" },
+          package: { name: "doolittle" },
           tools: [{ name: "workspace.read" }],
         }),
       );
-      expect(imported.packageName).toBe("eliza-agent");
+      expect(imported.packageName).toBe("doolittle");
       expect(imported.toolCount).toBe(1);
 
       const result = await service.invokeTool("sum", { a: 2, b: 3 });
