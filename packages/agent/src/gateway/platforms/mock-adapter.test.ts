@@ -7,7 +7,7 @@ import { MockPlatformAdapter } from "./mock-adapter";
 
 describe("MockPlatformAdapter", () => {
   it("records lifecycle events and returns delivery traces", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-mock-adapter-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-mock-adapter-"));
     const delivery = new DeliveryService(join(root, "delivery"));
     const adapter = new MockPlatformAdapter("api", delivery);
 

@@ -3,12 +3,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryService } from "@/services/delivery-service";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "@/types/runtime";
 import { HomeAssistantPlatformAdapter } from "./homeassistant-adapter";
 
 describe("HomeAssistantPlatformAdapter", () => {
   it("watches Home Assistant state and records the latest cycle", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-homeassistant-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-homeassistant-"));
     const delivery = new DeliveryService(join(root, "delivery"));
     const config = {
       homeAssistantUrl: "https://homeassistant.local",

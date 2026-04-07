@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DeliveryService } from "@/services/delivery-service";
-import type { EnvConfig, OutboundPlatformMessage, PlatformName } from "@/types";
+import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
+import type { EnvConfig } from "@/types/runtime";
 import {
   buildConfiguredTransportHealth,
   capabilitiesForPlatform,
