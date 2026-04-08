@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { RuntimeSettings } from "@/services/settings-service";
+import type { RuntimeSettings } from "@/services/settings/runtime-settings";
 import { SettingsService } from "@/services/settings-service";
 
 const tempDirs: string[] = [];
@@ -35,9 +35,9 @@ function makeDefaults(): RuntimeSettings {
       remoteSyncMode: "mirror",
       remoteSyncInclude: ["**/*"],
       remoteSyncExclude: [".git", "node_modules"],
-      remoteArtifactPaths: [".eliza-agent/remote-artifacts"],
+      remoteArtifactPaths: [".doolittle/remote-artifacts"],
       remoteArtifactPolicy: "metadata-only",
-      remoteWorkspaceLabel: "eliza-agent-workspace",
+      remoteWorkspaceLabel: "doolittle-workspace",
       dockerImage: "oven/bun:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
