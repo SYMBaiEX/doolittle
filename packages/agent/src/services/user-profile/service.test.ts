@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { UserProfileService } from "./user-profile-service";
+import { UserProfileService } from "./service";
 
 describe("UserProfileService", () => {
   it("learns simple preferences and facts from observations", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-user-profile-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-user-profile-"));
     const service = new UserProfileService(root);
 
     try {
@@ -28,9 +28,7 @@ describe("UserProfileService", () => {
   });
 
   it("extracts aliases, goals, tools, and work style signals", () => {
-    const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-user-profile-signals-"),
-    );
+    const root = mkdtempSync(join(tmpdir(), "doolittle-user-profile-signals-"));
     const service = new UserProfileService(root);
 
     try {
@@ -78,14 +76,14 @@ describe("UserProfileService", () => {
   });
 
   it("tracks beliefs, relationship signals, and engagement summaries", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-user-profile-rel-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-user-profile-rel-"));
     const service = new UserProfileService(root);
 
     try {
       service.remember(
         "user-4",
         "belief",
-        "Eliza Agent should stay Eliza-native.",
+        "Doolittle should stay Eliza-native.",
         "cli",
       );
       service.observe(
@@ -150,7 +148,7 @@ describe("UserProfileService", () => {
   });
 
   it("supports explicit memories, mode switches, and agent profile cards", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-user-profile-cards-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-user-profile-cards-"));
     const service = new UserProfileService(root);
 
     try {
@@ -167,7 +165,7 @@ describe("UserProfileService", () => {
       service.remember("user-3", "memory", "Use Bun as the default toolchain.");
       service.setMode("user-3", "local");
       service.observeAgent(
-        "goal: keep Eliza Agent native and operator-friendly",
+        "goal: keep Doolittle native and operator-friendly",
         "cli",
       );
       service.observeAgent(
@@ -188,7 +186,7 @@ describe("UserProfileService", () => {
         "Use Bun as the default toolchain.",
       );
       expect(
-        agent.goals.some((entry) => entry.includes("Eliza Agent native")),
+        agent.goals.some((entry) => entry.includes("Doolittle native")),
       ).toBe(true);
       expect(
         agent.strengths.some((entry) => entry.includes("TypeScript execution")),
@@ -202,11 +200,11 @@ describe("UserProfileService", () => {
       expect(recall.some((entry) => entry.value.includes("Bun"))).toBe(true);
 
       const seeded = service.seedAgent({
-        name: "Eliza Agent Prime",
+        name: "Doolittle Prime",
         goals: ["Ship operator-grade automation"],
         strengths: ["Structured runtime orchestration"],
       });
-      expect(seeded.name).toBe("Eliza Agent Prime");
+      expect(seeded.name).toBe("Doolittle Prime");
       expect(seeded.goals).toContain("Ship operator-grade automation");
       expect(seeded.strengths).toContain("Structured runtime orchestration");
     } finally {
@@ -215,9 +213,7 @@ describe("UserProfileService", () => {
   });
 
   it("supports synthesized profile context, conclusions, and split modeling controls", () => {
-    const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-user-profile-context-"),
-    );
+    const root = mkdtempSync(join(tmpdir(), "doolittle-user-profile-context-"));
     const service = new UserProfileService(root);
 
     try {
