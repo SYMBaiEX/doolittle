@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RuntimeLike } from "@/runtime/native/service-bridge";
+import type { RuntimeLike } from "@/runtime/native/service-bridge/index";
 import type { EnvConfig, GatewayConfig } from "@/types";
-import { DiagnosticsService } from "./diagnostics-service";
+import { DiagnosticsService } from "./index";
 
 function buildConfig(root: string): EnvConfig {
-  const dataDir = join(root, ".eliza-agent");
+  const dataDir = join(root, ".doolittle");
   const skillsDir = join(root, "skills");
   const cronOutputDir = join(dataDir, "cron-output");
   const gatewayDataDir = join(dataDir, "gateway");
@@ -20,7 +20,7 @@ function buildConfig(root: string): EnvConfig {
   mkdirSync(hooksDir, { recursive: true });
 
   return {
-    agentName: "Eliza Agent",
+    agentName: "Doolittle",
     mode: "cli",
     host: "127.0.0.1",
     port: 3000,
@@ -73,14 +73,14 @@ function buildConfig(root: string): EnvConfig {
     browserObeyRobots: true,
     remoteSyncMode: "mirror",
     remoteSyncInclude: ["**/*"],
-    remoteSyncExclude: [".git", ".eliza-agent", "node_modules"],
+    remoteSyncExclude: [".git", ".doolittle", "node_modules"],
     remoteArtifactPaths: [
-      ".eliza-agent/remote-artifacts",
-      ".eliza-agent/trajectories",
-      ".eliza-agent/cron-output",
+      ".doolittle/remote-artifacts",
+      ".doolittle/trajectories",
+      ".doolittle/cron-output",
     ],
     remoteArtifactPolicy: "metadata-only",
-    remoteWorkspaceLabel: "eliza-agent-workspace",
+    remoteWorkspaceLabel: "doolittle-workspace",
     executionBackend: "docker",
     dockerImage: "oven/bun:latest",
     dockerNetwork: "host",
@@ -160,7 +160,7 @@ function buildGatewayConfig(): GatewayConfig {
 
 describe("DiagnosticsService", () => {
   it("reports richer operator checks and setup checklist hints", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-diagnostics-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-diagnostics-"));
     const service = new DiagnosticsService(
       buildConfig(root),
       buildGatewayConfig(),
@@ -329,7 +329,7 @@ describe("DiagnosticsService", () => {
       ).toBe(true);
       expect(
         checklist.some((item) =>
-          item.includes("ELIZA_AGENT_REMOTE_SYNC_INCLUDE"),
+          item.includes("DOOLITTLE_REMOTE_SYNC_INCLUDE"),
         ),
       ).toBe(true);
       expect(
