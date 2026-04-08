@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AutocoderPipelineService } from "./autocoder-pipeline-service";
+import { AutocoderPipelineService } from "./service";
 
 describe("AutocoderPipelineService", () => {
   it("persists workflow-linked runs with request/result artifacts and summaries", () => {
