@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SkillSynthesisService } from "./skill-synthesis-service";
+import { SkillSynthesisService } from "./service";
 
 describe("SkillSynthesisService", () => {
   it("writes generated skill manifests and indexes them", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-skill-synthesis-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-skill-synthesis-"));
     const service = new SkillSynthesisService(root);
     const task = {
       id: "task-1",
@@ -49,7 +49,7 @@ describe("SkillSynthesisService", () => {
   });
 
   it("tolerates legacy generated skill index entries without updatedAt", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-skill-synthesis-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-skill-synthesis-"));
     const service = new SkillSynthesisService(root);
 
     try {

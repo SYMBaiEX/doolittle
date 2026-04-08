@@ -1,6 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DelegationTaskRecord, StoredMessage } from "@/types";
+import {
+  analyzeConversationForSkill,
+  buildConversationGeneratedSkillRecord,
+  type ConversationAnalysisResult,
+  type ConversationSkillCandidate,
+  writeConversationSkillDocument,
+} from "./conversation";
 
 interface GeneratedSkillRecord {
   slug: string;
@@ -18,58 +25,10 @@ interface GeneratedSkillIndex {
   skills: GeneratedSkillRecord[];
 }
 
-// ---------------------------------------------------------------------------
-// Post-session conversation analysis types
-// ---------------------------------------------------------------------------
-
-export interface ConversationSkillCandidate {
-  /** Suggested skill slug (kebab-case). */
-  slug: string;
-  /** Human-readable title. */
-  title: string;
-  /** Why this conversation warrants a new skill. */
-  rationale: string;
-  /** Detected category for organisation. */
-  category: string;
-  /** Key steps or patterns extracted from the conversation. */
-  steps: string[];
-  /** Keywords / signals that triggered detection. */
-  signals: string[];
-}
-
-export interface ConversationAnalysisResult {
-  /** Whether the conversation is worth synthesising a skill for. */
-  shouldSynthesize: boolean;
-  candidate?: ConversationSkillCandidate;
-  /** Human-readable reason when shouldSynthesize is false. */
-  reason?: string;
-}
-
-// Phrases that suggest a novel, reusable workflow was performed
-const NOVELTY_SIGNALS = [
-  // Multi-step workflows
-  /\b(?:step\s+\d+|first[\s,].*then|finally|workflow|pipeline)\b/iu,
-  // Shell/code patterns
-  /\b(?:bash|shell|script|python|typescript|function|class|module)\b/iu,
-  // Successful completion
-  /\b(?:success(?:fully)?|complete[d]?|done|finished|solved|fixed)\b/iu,
-  // Learning moments
-  /\b(?:turns? out|it seems|found that|discovered|learned|realized)\b/iu,
-  // Repeated actions
-  /\b(?:repeat|rerun|run\s+again|same\s+approach|similar)\b/iu,
-  // Important patterns
-  /\b(?:important|remember|note[: ]|tip[: ]|warning[: ]|pattern)\b/iu,
-];
-
-// Phrases that indicate a simple Q&A that doesn't warrant a skill
-const TRIVIAL_SIGNALS = [
-  /\b(?:what\s+is|what'?s|who\s+is|how\s+do\s+i|can\s+you\s+explain)\b/iu,
-  /\b(?:hi|hello|thanks|thank\s+you|goodbye|bye)\b/iu,
-];
-
-// Minimum thresholds
-const MIN_MESSAGES_FOR_SYNTHESIS = 4;
-const MIN_NOVELTY_SIGNAL_COUNT = 2;
+export type {
+  ConversationAnalysisResult,
+  ConversationSkillCandidate,
+} from "./conversation";
 
 export class SkillSynthesisService {
   private readonly generatedDir: string;
@@ -173,62 +132,7 @@ export class SkillSynthesisService {
    *   2. Immediately synthesize without confirmation (autonomous mode)
    */
   analyzeConversation(messages: StoredMessage[]): ConversationAnalysisResult {
-    if (messages.length < MIN_MESSAGES_FOR_SYNTHESIS) {
-      return { shouldSynthesize: false, reason: "Conversation too short" };
-    }
-
-    const assistantMessages = messages.filter((m) => m.role === "assistant");
-    const fullText = messages.map((m) => m.text).join("\n");
-
-    // Check for trivial Q&A (first user message heuristic)
-    const firstUser = messages.find((m) => m.role === "user");
-    if (firstUser && TRIVIAL_SIGNALS.some((r) => r.test(firstUser.text))) {
-      return { shouldSynthesize: false, reason: "Appears to be a simple Q&A" };
-    }
-
-    // Count novelty signals across all text
-    const matchedSignals: string[] = [];
-    for (const pattern of NOVELTY_SIGNALS) {
-      const matches = fullText.match(pattern);
-      if (matches) {
-        matchedSignals.push(matches[0]);
-      }
-    }
-
-    if (matchedSignals.length < MIN_NOVELTY_SIGNAL_COUNT) {
-      return {
-        shouldSynthesize: false,
-        reason: `Only ${matchedSignals.length} novelty signal(s) detected (minimum ${MIN_NOVELTY_SIGNAL_COUNT})`,
-      };
-    }
-
-    // Extract a title from the first user message
-    const rawTitle =
-      firstUser?.text.split("\n")[0]?.slice(0, 80).trim() ?? "Learned Workflow";
-    const title =
-      rawTitle.replace(/[^\w\s-]/g, "").trim() || "Learned Workflow";
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-
-    // Extract key steps from assistant messages
-    const steps = this.extractStepsFromMessages(assistantMessages);
-
-    // Determine category from signals
-    const category = this.inferCategory(fullText);
-
-    return {
-      shouldSynthesize: true,
-      candidate: {
-        slug: slug || "learned-workflow",
-        title,
-        rationale: `Detected ${matchedSignals.length} novelty signals in a ${messages.length}-turn conversation: ${matchedSignals.slice(0, 3).join(", ")}`,
-        category,
-        steps,
-        signals: matchedSignals.slice(0, 8),
-      },
-    };
+    return analyzeConversationForSkill(messages);
   }
 
   /**
@@ -240,72 +144,29 @@ export class SkillSynthesisService {
     messages: StoredMessage[],
     sessionId: string,
   ): string {
-    const dir = join(this.generatedDir, candidate.slug);
-    mkdirSync(dir, { recursive: true });
-    const path = join(dir, "SKILL.md");
-
     const index = this.readIndex();
     const existing = index.skills.find((r) => r.slug === candidate.slug);
     const createdAt = existing?.createdAt ?? new Date().toISOString();
     const updatedAt = new Date().toISOString();
+    const path = writeConversationSkillDocument({
+      generatedDir: this.generatedDir,
+      candidate,
+      messages,
+      sessionId,
+      createdAt,
+      updatedAt,
+    });
 
-    // Extract a concise conversation excerpt for context
-    const excerpt = messages
-      .slice(0, 6)
-      .map((m) => `**[${m.role}]** ${m.text.slice(0, 200)}`)
-      .join("\n\n");
-
-    const content = [
-      `# ${candidate.title}`,
-      "",
-      `> Auto-synthesized from session \`${sessionId}\` on ${updatedAt.split("T")[0]}.`,
-      "",
-      "## Category",
-      candidate.category,
-      "",
-      "## When to Use",
-      `Use this skill when a task resembles: "${candidate.title.toLowerCase()}"`,
-      "",
-      "## Why This Was Saved",
-      candidate.rationale,
-      "",
-      "## Key Steps",
-      ...candidate.steps.map((step, i) => `${i + 1}. ${step}`),
-      "",
-      "## Novelty Signals Detected",
-      ...candidate.signals.map((s) => `- ${s}`),
-      "",
-      "## Conversation Context (excerpt)",
-      excerpt,
-      "",
-      "## Metadata",
-      `- Session ID: ${sessionId}`,
-      `- Turn count: ${messages.length}`,
-      `- Category: ${candidate.category}`,
-      `- Created: ${createdAt}`,
-      `- Updated: ${updatedAt}`,
-      "",
-      "## Usage",
-      "Review the key steps above and adapt them to the current task context.",
-    ].join("\n");
-
-    writeFileSync(path, content, "utf8");
-
-    const fakeTaskId = `conversation:${sessionId}`;
     this.writeIndex({
       skills: [
         ...index.skills.filter((r) => r.slug !== candidate.slug),
-        {
-          slug: candidate.slug,
-          title: candidate.title,
-          taskId: fakeTaskId,
+        buildConversationGeneratedSkillRecord({
+          candidate,
+          sessionId,
           path,
           createdAt,
           updatedAt,
-          noteCount: candidate.steps.length,
-          signalCount: candidate.signals.length,
-          objective: candidate.rationale,
-        },
+        }),
       ],
     });
 
@@ -330,80 +191,6 @@ export class SkillSynthesisService {
       sessionId,
     );
     return { path, candidate: analysis.candidate };
-  }
-
-  // -------------------------------------------------------------------------
-  // Private helpers for conversation analysis
-  // -------------------------------------------------------------------------
-
-  private extractStepsFromMessages(messages: StoredMessage[]): string[] {
-    const steps: string[] = [];
-    const stepPattern = /^\s*(?:\d+\.|[-*])\s+(.+)/mu;
-
-    for (const msg of messages) {
-      for (const line of msg.text.split("\n")) {
-        const match = line.match(stepPattern);
-        if (match?.[1] && match[1].length > 10 && match[1].length < 200) {
-          steps.push(match[1].trim());
-          if (steps.length >= 8) break;
-        }
-      }
-      if (steps.length >= 8) break;
-    }
-
-    if (!steps.length) {
-      // Fallback: take first meaningful sentences from assistant messages
-      for (const msg of messages) {
-        const sentences = msg.text
-          .split(/[.!?]\s+/)
-          .filter((s) => s.length > 20 && s.length < 200)
-          .slice(0, 2);
-        steps.push(...sentences);
-        if (steps.length >= 4) break;
-      }
-    }
-
-    return steps.slice(0, 8);
-  }
-
-  private inferCategory(fullText: string): string {
-    const categories: Array<[string, RegExp]> = [
-      [
-        "software-development",
-        /\b(?:code|function|class|typescript|javascript|python|rust|go|compile|build|test)\b/iu,
-      ],
-      [
-        "data-science",
-        /\b(?:dataset|dataframe|pandas|numpy|analysis|plot|chart|model|train)\b/iu,
-      ],
-      [
-        "operations",
-        /\b(?:deploy|docker|kubernetes|ssh|server|nginx|systemd|cron|daemon)\b/iu,
-      ],
-      [
-        "research",
-        /\b(?:research|analyse|investigate|compare|benchmark|evaluate|study)\b/iu,
-      ],
-      [
-        "automation",
-        /\b(?:automate|script|workflow|pipeline|schedule|batch)\b/iu,
-      ],
-      [
-        "documentation",
-        /\b(?:document|readme|wiki|guide|spec|rfc|changelog)\b/iu,
-      ],
-      [
-        "productivity",
-        /\b(?:task|todo|plan|organize|manage|track|project)\b/iu,
-      ],
-    ];
-
-    for (const [category, pattern] of categories) {
-      if (pattern.test(fullText)) {
-        return category;
-      }
-    }
-    return "general";
   }
 
   hasGeneratedSkill(task: DelegationTaskRecord): boolean {
