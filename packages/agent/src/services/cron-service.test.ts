@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CronService } from "./cron-service";
+import { CronService } from "./cron/service";
 
 describe("CronService", () => {
   it("creates jobs with skills and runtime overrides", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-cron-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-cron-"));
     const service = new CronService(
       join(root, "data"),
       join(root, "output"),
@@ -43,8 +43,38 @@ describe("CronService", () => {
     }
   });
 
+  it("pauses one-shot jobs after they run", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-cron-oneshot-"));
+    const service = new CronService(
+      join(root, "data"),
+      join(root, "output"),
+      30,
+      "America/Chicago",
+    );
+
+    service.setExecutor(async () => "completed");
+
+    try {
+      const job = service.create({
+        name: "one-off",
+        prompt: "Run once and stop.",
+        schedule: "2h",
+      });
+
+      service.runNow(job.id);
+      await service.tick();
+
+      const updated = service.get(job.id);
+      expect(updated?.status).toBe("paused");
+      expect(updated?.nextRunAt).toBeUndefined();
+      expect(service.runs(1)[0]?.jobId).toBe(job.id);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("updates existing jobs and can clear runtime overrides", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-cron-update-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-cron-update-"));
     const service = new CronService(
       join(root, "data"),
       join(root, "output"),
@@ -95,7 +125,7 @@ describe("CronService", () => {
   });
 
   it("uses autonomous cron scheduling for 5-field cron expressions", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-cron-cronexpr-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-cron-cronexpr-"));
     const service = new CronService(
       join(root, "data"),
       join(root, "output"),
