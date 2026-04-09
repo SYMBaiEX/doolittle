@@ -11,7 +11,7 @@ import type { AppServices } from "@/services";
 
 export function createCronAction(services: AppServices): Action {
   return {
-    name: "ELIZA_AGENT_CRON",
+    name: "DOOLITTLE_CRON",
     similes: ["CRONJOB", "SCHEDULE_TASK", "AUTOMATION"],
     description:
       "Manages scheduled jobs. Supports `/cron list`, `/cron create <schedule> :: <prompt>`, `/cron pause <id>`, `/cron resume <id>`, `/cron run <id>`, and `/cron remove <id>`.",
@@ -99,7 +99,7 @@ export function createCronAction(services: AppServices): Action {
           name: "{{agentName}}",
           content: {
             text: "Created cron job ...",
-            actions: ["ELIZA_AGENT_CRON"],
+            actions: ["DOOLITTLE_CRON"],
           },
         },
       ],
