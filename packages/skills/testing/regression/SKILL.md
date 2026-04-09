@@ -1,6 +1,6 @@
-# Eliza Agent Regression Testing
+# Doolittle Regression Testing
 
-Use this skill when protecting Eliza Agent behavior with repeatable tests, smoke checks, or regression comparisons.
+Use this skill when protecting Doolittle behavior with repeatable tests, smoke checks, or regression comparisons.
 
 Guidelines:
 

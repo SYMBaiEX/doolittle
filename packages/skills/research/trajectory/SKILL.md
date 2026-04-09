@@ -1,4 +1,4 @@
-# Eliza Agent Trajectory Research
+# Doolittle Trajectory Research
 
 Use this skill when exporting, replaying, or analyzing session trajectories and evaluation bundles.
 

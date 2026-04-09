@@ -1,4 +1,4 @@
-# Eliza Agent Batch Research
+# Doolittle Batch Research
 
 Use this skill when reviewing multiple trajectories, replays, or evaluation bundles at once.
 

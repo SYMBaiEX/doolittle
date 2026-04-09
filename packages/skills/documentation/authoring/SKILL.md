@@ -1,13 +1,13 @@
-# Eliza Agent Documentation Authoring
+# Doolittle Documentation Authoring
 
-Use this skill when writing or updating operator docs, usage notes, or workspace guides for Eliza Agent.
+Use this skill when writing or updating operator docs, usage notes, or workspace guides for Doolittle.
 
 Guidelines:
 
 - Keep language direct and task-focused.
 - Document the user-facing outcome first, then the implementation detail.
 - Note commands, paths, and expectations clearly.
-- Prefer examples that match the current Eliza Agent workspace layout.
+- Prefer examples that match the current Doolittle workspace layout.
 
 Deliverables:
 

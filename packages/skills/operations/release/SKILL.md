@@ -1,6 +1,6 @@
-# Eliza Agent Release Operations
+# Doolittle Release Operations
 
-Use this skill when preparing, validating, or documenting a release, rollout, or runtime upgrade for Eliza Agent.
+Use this skill when preparing, validating, or documenting a release, rollout, or runtime upgrade for Doolittle.
 
 Guidelines:
 

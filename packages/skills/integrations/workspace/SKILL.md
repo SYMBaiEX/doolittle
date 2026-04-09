@@ -1,6 +1,6 @@
-# Eliza Agent Integrations Workspace
+# Doolittle Integrations Workspace
 
-Use this skill when evaluating, wiring, or documenting external integrations and native plugin coverage for Eliza Agent.
+Use this skill when evaluating, wiring, or documenting external integrations and native plugin coverage for Doolittle.
 
 Guidelines:
 

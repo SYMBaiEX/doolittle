@@ -1,4 +1,4 @@
-# Eliza Agent Action Bench Research
+# Doolittle Action Bench Research
 
 Use this skill when you need to evaluate action-calling breadth, benchmark coverage, or the impact of benchmark plugins on the runtime surface.
 

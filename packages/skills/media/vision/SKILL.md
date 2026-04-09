@@ -1,6 +1,6 @@
-# Eliza Agent Vision
+# Doolittle Vision
 
-Use this skill when analyzing images, screenshots, or visual evidence for Eliza Agent.
+Use this skill when analyzing images, screenshots, or visual evidence for Doolittle.
 
 Guidelines:
 

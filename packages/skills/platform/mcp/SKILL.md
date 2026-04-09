@@ -1,4 +1,4 @@
-# Eliza Agent MCP
+# Doolittle MCP
 
 Use this skill when discovering or invoking Model Context Protocol tools and servers.
 

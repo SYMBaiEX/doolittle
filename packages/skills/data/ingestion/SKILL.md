@@ -1,6 +1,6 @@
-# Eliza Agent Data Ingestion
+# Doolittle Data Ingestion
 
-Use this skill when pulling external data into Eliza Agent memory, catalogs, or research bundles.
+Use this skill when pulling external data into Doolittle memory, catalogs, or research bundles.
 
 Guidelines:
 

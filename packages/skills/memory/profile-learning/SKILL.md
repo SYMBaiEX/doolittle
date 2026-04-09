@@ -1,4 +1,4 @@
-# Eliza Agent Memory Profile Learning
+# Doolittle Memory Profile Learning
 
 Use this skill when distilling session history into reusable memory for future turns.
 

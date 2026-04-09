@@ -1,6 +1,6 @@
-# Eliza Agent Knowledge Retrieval
+# Doolittle Knowledge Retrieval
 
-Use this skill when ingesting documents, retrieving supporting context, or wiring Eliza Agent memory to a source-backed answer.
+Use this skill when ingesting documents, retrieving supporting context, or wiring Doolittle memory to a source-backed answer.
 
 Guidelines:
 

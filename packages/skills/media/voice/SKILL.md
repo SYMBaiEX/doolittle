@@ -1,6 +1,6 @@
-# Eliza Agent Media and Voice
+# Doolittle Media and Voice
 
-Use this skill when handling audio, video, images, speech synthesis, or transcription work for Eliza Agent.
+Use this skill when handling audio, video, images, speech synthesis, or transcription work for Doolittle.
 
 Guidelines:
 

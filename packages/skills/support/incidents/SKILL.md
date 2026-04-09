@@ -1,4 +1,4 @@
-# Eliza Agent Incident Support
+# Doolittle Incident Support
 
 Use this skill when triaging outages, degraded behavior, or operator-visible regressions that need a fast, calm response.
 

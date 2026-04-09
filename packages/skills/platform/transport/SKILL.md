@@ -1,4 +1,4 @@
-# Eliza Agent Transport Lifecycle
+# Doolittle Transport Lifecycle
 
 Use this skill when working on gateway delivery, platform routing, or message lifecycle behavior.
 

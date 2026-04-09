@@ -1,6 +1,6 @@
-# Eliza Agent Distribution Install
+# Doolittle Distribution Install
 
-Use this skill when preparing installation, bootstrap, or delivery guidance for Eliza Agent and its workspace packages.
+Use this skill when preparing installation, bootstrap, or delivery guidance for Doolittle and its workspace packages.
 
 Guidelines:
 
