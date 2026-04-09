@@ -6,7 +6,7 @@ import { GatewaySessionService } from "./gateway-session-service";
 
 describe("GatewaySessionService", () => {
   it("tracks voice mode and home channel state on sessions", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-gateway-sessions-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-gateway-sessions-"));
     const service = new GatewaySessionService(root);
 
     try {

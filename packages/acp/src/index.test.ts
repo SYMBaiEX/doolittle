@@ -9,7 +9,7 @@ import {
 
 it("builds ACP metadata, registry, editor, and bundle payloads", () => {
   const pkg = buildAcpPackageMetadata({
-    name: "eliza-agent",
+    name: "doolittle",
     version: "1.2.3",
     description: "Example",
     packageManager: "bun@1.3.11",
@@ -18,8 +18,8 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     rootPath: "/repo",
   });
   const registry = buildAcpRegistryEntry({
-    agentName: "Eliza Agent",
-    description: "Eliza Agent runtime",
+    agentName: "Doolittle",
+    description: "Doolittle runtime",
     package: pkg,
     command: "bun run start",
     toolCount: 7,
@@ -45,7 +45,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
         name: "workspace.read",
         description: "Read workspace files",
         kind: guessAcpToolKind({ id: "workspace.read" }),
-        source: "eliza-agent",
+        source: "doolittle",
       },
     ],
   });

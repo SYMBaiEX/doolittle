@@ -1,4 +1,4 @@
-import type { FeatureMapping } from "@/types";
+import type { FeatureMapping } from "@/types/runtime";
 
 export const featureMap: FeatureMapping[] = [
   {
@@ -18,7 +18,7 @@ export const featureMap: FeatureMapping[] = [
     elizaImplementation:
       "User profile service with explicit memories, dual profile cards, and operator APIs",
     notes:
-      "Tracks preferences, goals, project context, constraints, explicit memories, and a first-class Eliza Agent identity profile for cross-session operator continuity.",
+      "Tracks preferences, goals, project context, constraints, explicit memories, and a first-class Doolittle identity profile for cross-session operator continuity.",
   },
   {
     platformCapability: "Session search across prior conversations",
@@ -85,7 +85,7 @@ export const featureMap: FeatureMapping[] = [
     elizaImplementation:
       "Media service with analysis, voice, vision, transcription, speech, and image generation bundles",
     notes:
-      "Creates model-assisted reports for audio, image, and document artifacts, can transcribe audio through provider-native speech endpoints, can synthesize Eliza Agent speech audio when the provider supports it, and can emit concept image bundles or SVG fallbacks.",
+      "Creates model-assisted reports for audio, image, and document artifacts, can transcribe audio through provider-native speech endpoints, can synthesize Doolittle speech audio when the provider supports it, and can emit concept image bundles or SVG fallbacks.",
   },
   {
     platformCapability: "Action benchmarks and code-generation evaluation",
