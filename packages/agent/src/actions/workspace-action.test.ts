@@ -12,5 +12,12 @@ describe("resolveWorkspaceIntentFromText", () => {
     expect(resolveWorkspaceIntentFromText("Map out this repository")).toEqual({
       kind: "overview",
     });
+    expect(
+      resolveWorkspaceIntentFromText(
+        "Research that repo now and give me a breakdown",
+      ),
+    ).toEqual({
+      kind: "overview",
+    });
   });
 });
