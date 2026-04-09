@@ -11,7 +11,7 @@ import type {
   AwarenessInvalidationEvent,
 } from "@elizaos/autonomous/contracts/awareness";
 import type { IAgentRuntime } from "@elizaos/core";
-import type { AppServices } from "./index";
+import type { AppServices } from "./types";
 
 function activeRuns(services: AppServices) {
   return services.runController
@@ -27,7 +27,7 @@ function createRuntimeContributor(): AwarenessContributor {
     cacheTtl: 30_000,
     invalidateOn: ["runtime-restarted", "config-changed"],
     summary: async (runtime) => {
-      const name = runtime.character?.name ?? "Eliza Agent";
+      const name = runtime.character?.name ?? "Doolittle";
       const pluginCount =
         (runtime as { plugins?: unknown[] }).plugins?.length ?? "?";
       return `${name} · ${pluginCount} plugins · runtime ok`;
