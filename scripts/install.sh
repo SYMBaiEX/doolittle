@@ -9,9 +9,9 @@ SKIP_WIZARD=0
 CHECK_ONLY=0
 ASSUME_YES=0
 LOCAL_BIN_DIR="${HOME}/.local/bin"
-ELIZA_BIN_LINK="${LOCAL_BIN_DIR}/eliza-agent"
-ELIZA_BIN_SOURCE="${ROOT}/packages/agent/src/index.ts"
-ELIZA_SHORT_LINK="${LOCAL_BIN_DIR}/ea"
+DOOLITTLE_BIN_LINK="${LOCAL_BIN_DIR}/doolittle"
+DOOLITTLE_BIN_SOURCE="${ROOT}/packages/agent/src/index.ts"
+DOOLITTLE_SHORT_LINK="${LOCAL_BIN_DIR}/dl"
 OS_NAME="unknown"
 UPDATED_SHELL_CONFIGS=()
 
@@ -67,7 +67,7 @@ reset=$'\033[0m'
 
 printf "%s\n" \
   "${orange}╔══════════════════════════════════════════════════════════════╗${reset}" \
-  "${orange}${bold}║                 ELIZA AGENT // INSTALLER                    ║${reset}" \
+  "${orange}${bold}║                  DOOLITTLE // INSTALLER                     ║${reset}" \
   "${orange}║      Bun-first install and first-contact onboarding         ║${reset}" \
   "${orange}╚══════════════════════════════════════════════════════════════╝${reset}"
 printf "%s\n" "${dim}  This ritual installs the stack, seeds the workspace, and begins first contact.${reset}"
@@ -84,7 +84,7 @@ elif [[ "$OS_NAME" == "linux" ]]; then
 fi
 
 if ! command -v bun >/dev/null 2>&1; then
-  echo "Eliza Agent requires Bun. Install Bun first, then rerun scripts/install.sh."
+  echo "Doolittle requires Bun. Install Bun first, then rerun scripts/install.sh."
   exit 1
 fi
 
@@ -96,10 +96,10 @@ else
 fi
 
 setup_path() {
-  printf "%s\n" "${amber}Forging the local eliza-agent command...${reset}"
+  printf "%s\n" "${amber}Forging the local doolittle command...${reset}"
   mkdir -p "$LOCAL_BIN_DIR"
-  chmod +x "$ELIZA_BIN_SOURCE"
-  ln -sf "$ELIZA_BIN_SOURCE" "$ELIZA_BIN_LINK"
+  chmod +x "$DOOLITTLE_BIN_SOURCE"
+  ln -sf "$DOOLITTLE_BIN_SOURCE" "$DOOLITTLE_BIN_LINK"
 
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN_DIR"; then
     local path_line='export PATH="$HOME/.local/bin:$PATH"'
@@ -137,7 +137,7 @@ setup_path() {
       if ! grep -v '^[[:space:]]*#' "$shell_config" 2>/dev/null | grep -q '\.local/bin'; then
         {
           echo
-          echo "# Eliza Agent — ensure ~/.local/bin is on PATH"
+          echo "# Doolittle — ensure ~/.local/bin is on PATH"
           echo "$path_line"
         } >> "$shell_config"
         UPDATED_SHELL_CONFIGS+=("$shell_config")
@@ -146,11 +146,11 @@ setup_path() {
   fi
 
   export PATH="$LOCAL_BIN_DIR:$PATH"
-  printf "%s\n" "${dim}  eliza-agent -> ${ELIZA_BIN_LINK}${reset}"
+  printf "%s\n" "${dim}  doolittle -> ${DOOLITTLE_BIN_LINK}${reset}"
 
   if should_install_shortcut; then
-    ln -sf "$ELIZA_BIN_SOURCE" "$ELIZA_SHORT_LINK"
-    printf "%s\n" "${dim}  ea -> ${ELIZA_SHORT_LINK}${reset}"
+    ln -sf "$DOOLITTLE_BIN_SOURCE" "$DOOLITTLE_SHORT_LINK"
+    printf "%s\n" "${dim}  dl -> ${DOOLITTLE_SHORT_LINK}${reset}"
   fi
 
   if [[ ${#UPDATED_SHELL_CONFIGS[@]} -gt 0 ]]; then
@@ -175,15 +175,15 @@ setup_path() {
 }
 
 should_install_shortcut() {
-  if [[ -L "$ELIZA_SHORT_LINK" ]]; then
+  if [[ -L "$DOOLITTLE_SHORT_LINK" ]]; then
     return 0
   fi
 
-  if [[ -e "$ELIZA_SHORT_LINK" ]]; then
+  if [[ -e "$DOOLITTLE_SHORT_LINK" ]]; then
     return 1
   fi
 
-  if command -v ea >/dev/null 2>&1; then
+  if command -v dl >/dev/null 2>&1; then
     return 1
   fi
 
@@ -204,12 +204,12 @@ if [[ "$ASSUME_YES" -eq 1 ]]; then
   BOOTSTRAP_ARGS+=("--yes")
 fi
 
-printf "%s\n" "${amber}Beginning the awakening sequence...${reset}"
+  printf "%s\n" "${amber}Beginning the awakening sequence...${reset}"
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   printf "%s\n" "${dim}  Dry run: skipping symlink and shell profile writes.${reset}"
-  printf "%s\n" "${dim}  Would create: ${ELIZA_BIN_LINK}${reset}"
+  printf "%s\n" "${dim}  Would create: ${DOOLITTLE_BIN_LINK}${reset}"
   if should_install_shortcut; then
-    printf "%s\n" "${dim}  Would create shortcut: ${ELIZA_SHORT_LINK}${reset}"
+    printf "%s\n" "${dim}  Would create shortcut: ${DOOLITTLE_SHORT_LINK}${reset}"
   fi
   printf "%s\n" "${dim}  Run without --check to complete the install and onboarding ritual.${reset}"
 else
@@ -219,32 +219,32 @@ bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
 
 printf "\n%s\n" "${orange}${bold}Install complete.${reset}"
 printf "%s\n" "${dim}  The shell is warm. The channels are waiting.${reset}"
-printf "%s\n" "${dim}  If a fresh terminal cannot find eliza-agent, reload your shell or open a new session.${reset}"
-printf "%s\n" "  eliza-agent"
-if [[ -L "$ELIZA_SHORT_LINK" ]]; then
-  printf "%s\n" "  ea"
+printf "%s\n" "${dim}  If a fresh terminal cannot find doolittle, reload your shell or open a new session.${reset}"
+printf "%s\n" "  doolittle"
+if [[ -L "$DOOLITTLE_SHORT_LINK" ]]; then
+  printf "%s\n" "  dl"
 fi
-printf "%s\n" "  eliza-agent cockpit"
-printf "%s\n" "  eliza-agent plain"
-printf "%s\n" "  eliza-agent exec -p \"summarize this repo\""
-printf "%s\n" "  eliza-agent setup"
-printf "%s\n" "  eliza-agent doctor"
+printf "%s\n" "  doolittle cockpit"
+printf "%s\n" "  doolittle plain"
+printf "%s\n" "  doolittle exec -p \"summarize this repo\""
+printf "%s\n" "  doolittle setup"
+printf "%s\n" "  doolittle doctor"
 printf "%s\n" "${dim}  Try: summarize this repo and tell me where to start${reset}"
 printf "%s\n" "${dim}  Or run a shell action directly: !git status${reset}"
 
 if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
-  printf "\n%s\n" "${amber}Launching Eliza Agent now...${reset}"
+  printf "\n%s\n" "${amber}Launching Doolittle now...${reset}"
   printf "%s\n" "${dim}  Press Ctrl-C to return to your shell.${reset}"
   launch_status=0
-  "$ELIZA_BIN_LINK" || launch_status=$?
+  "$DOOLITTLE_BIN_LINK" || launch_status=$?
   if [[ "$launch_status" -eq 0 || "$launch_status" -eq 130 || "$launch_status" -eq 143 ]]; then
     exit 0
   fi
   printf "\n%s\n" "${orange}${bold}The first launch tripped over something local.${reset}"
   printf "%s\n" "${dim}  Your install is still in place. The fastest recovery steps are below.${reset}"
-  printf "%s\n" "  eliza-agent doctor"
-  printf "%s\n" "  eliza-agent plain"
-  printf "%s\n" "  eliza-agent setup"
+  printf "%s\n" "  doolittle doctor"
+  printf "%s\n" "  doolittle plain"
+  printf "%s\n" "  doolittle setup"
   printf "%s\n" "${dim}  If this was only a shell PATH refresh issue, restart the terminal or source your profile.${reset}"
   exit 1
 fi
