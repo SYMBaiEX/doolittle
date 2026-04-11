@@ -109,7 +109,7 @@ export function renderPlainShellHints(): string {
   return [
     "Talk naturally for paired work, use !cmd for shell execution, or use /slash commands for control-plane actions.",
     `Good first moves: ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts doctor")}, ${normalizeSlashCommandSyntax("/sessions list")}.`,
-    'Use "eliza-agent cockpit" when you want the fullscreen operator deck.',
+    'Use "doolittle cockpit" when you want the fullscreen operator deck.',
   ].join("\n");
 }
 
