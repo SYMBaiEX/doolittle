@@ -12,7 +12,7 @@ function runCommand(
   args: string[],
   extraEnv: Record<string, string> = {},
 ) {
-  const sandboxHome = mkdtempSync(join(tmpdir(), "eliza-agent-e2e-"));
+  const sandboxHome = mkdtempSync(join(tmpdir(), "doolittle-e2e-"));
   const result = spawnSync(command, args, {
     cwd: ROOT,
     env: {
@@ -38,9 +38,10 @@ describe("installer and launcher smoke tests", () => {
   it("installer check reports first-contact flow and local command links", () => {
     const result = runCommand("bash", ["scripts/install.sh", "--check"]);
     expect(result.code).toBe(0);
-    expect(result.output).toContain("ELIZA AGENT // INSTALLER");
+    expect(result.output).toContain("DOOLITTLE // INSTALLER");
     expect(result.output).toContain("Beginning the awakening sequence");
     expect(result.output).toContain("Would create:");
+    expect(result.output).toContain(".local/bin/doolittle");
     expect(result.output).toContain("Install complete.");
   });
 
