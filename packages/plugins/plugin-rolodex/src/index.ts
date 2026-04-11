@@ -4,34 +4,32 @@ import {
   type Plugin,
 } from "@elizaos/core";
 import type {
-  UserProfileRecallHit,
-  UserProfileService,
-} from "@/services/user-profile-service";
-import type {
   UserProfileBeliefSummary,
   UserProfileEngagementSummary,
+  UserProfileRecallHit,
   UserProfileRelationshipSummary,
   UserProfileSearchHit,
+  UserProfileServiceLike,
   UserProfileWorkspaceSummary,
-} from "@/types";
+} from "./types";
 
-type RolodexRememberKind = Parameters<UserProfileService["remember"]>[1];
+type RolodexRememberKind = Parameters<UserProfileServiceLike["remember"]>[1];
 
 export interface RolodexPluginOptions {
   profiles: {
-    card: UserProfileService["card"];
+    card: UserProfileServiceLike["card"];
     remember(input: {
       userId: string;
       kind: RolodexRememberKind;
       text: string;
       source: string;
-    }): ReturnType<UserProfileService["remember"]>;
+    }): ReturnType<UserProfileServiceLike["remember"]>;
     recall(userId: string, query: string): UserProfileRecallHit[];
     observeAgent(input: {
       text: string;
       source: string;
-    }): ReturnType<UserProfileService["observeAgent"]>;
-    agentProfile: UserProfileService["agentProfile"];
+    }): ReturnType<UserProfileServiceLike["observeAgent"]>;
+    agentProfile: UserProfileServiceLike["agentProfile"];
     search(query: string, limit?: number): UserProfileSearchHit[];
     beliefs(userId: string): UserProfileBeliefSummary;
     relationship(userId: string): UserProfileRelationshipSummary;
@@ -44,7 +42,7 @@ export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
   class RolodexService extends ElizaService {
     static serviceType = "rolodex";
     capabilityDescription =
-      "Official-style rolodex/profile memory service layered onto Eliza Agent profiles.";
+      "Official-style rolodex/profile memory service layered onto Doolittle profiles.";
 
     static async start(_runtime: IAgentRuntime): Promise<ElizaService> {
       return new RolodexService(_runtime);
