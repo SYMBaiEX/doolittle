@@ -12,7 +12,7 @@ export interface AcpToolDefinition {
   description: string;
   kind: AcpToolKind;
   inputSchema?: Record<string, unknown>;
-  source: "eliza-agent" | "mcp";
+  source: "doolittle" | "mcp";
 }
 
 export interface AcpRegistryEntry {
@@ -126,7 +126,7 @@ export function buildAcpPackageMetadata(input: {
   rootPath: string;
 }): AcpPackageMetadata {
   return {
-    name: typeof input.name === "string" ? input.name : "eliza-agent",
+    name: typeof input.name === "string" ? input.name : "doolittle",
     version: typeof input.version === "string" ? input.version : "0.0.0",
     description:
       typeof input.description === "string" ? input.description : undefined,
@@ -149,7 +149,7 @@ export function buildAcpRegistryEntry(input: {
 }): AcpRegistryEntry {
   return {
     schema_version: 1,
-    name: "eliza-agent",
+    name: "doolittle",
     display_name: input.agentName,
     description: input.description,
     package: {

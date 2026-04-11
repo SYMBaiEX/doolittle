@@ -6,7 +6,7 @@ import { WorkspaceService } from "./workspace-service";
 
 describe("WorkspaceService", () => {
   it("searches the workspace and returns matching lines", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-workspace-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-"));
     const service = new WorkspaceService(root);
 
     try {

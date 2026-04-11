@@ -6,7 +6,7 @@ import { ApiTransportService } from "./api-transport-service";
 
 describe("ApiTransportService", () => {
   it("persists responses and reuses room ids via previous response id", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-api-transport-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-api-transport-"));
     const service = new ApiTransportService(root);
 
     try {
@@ -32,7 +32,7 @@ describe("ApiTransportService", () => {
   });
 
   it("emits update events when a response is created", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-api-transport-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-api-transport-"));
     const service = new ApiTransportService(root);
     const seen: string[] = [];
 

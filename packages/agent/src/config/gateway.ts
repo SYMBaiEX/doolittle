@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EnvConfig, GatewayConfig, PlatformName } from "@/types";
+import type { GatewayConfig, PlatformName } from "@/types/gateway";
+import type { EnvConfig } from "@/types/runtime";
 
 function basePlatformConfig() {
   return {

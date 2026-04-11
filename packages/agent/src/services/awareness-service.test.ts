@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
 import { AwarenessService } from "./awareness-service";
-import type { AppServices } from "./index";
 import { RunControllerService } from "./run-controller-service";
-import type { RuntimeSettings } from "./settings-service";
+import type { RuntimeSettings } from "./settings/runtime-settings";
 import { SettingsService } from "./settings-service";
 import { StartupStateService } from "./startup-state-service";
+import type { AppServices } from "./types";
 
 const tempDirs: string[] = [];
 
@@ -39,9 +39,9 @@ function createDefaults(): RuntimeSettings {
       remoteSyncMode: "mirror",
       remoteSyncInclude: ["**/*"],
       remoteSyncExclude: [".git", "node_modules"],
-      remoteArtifactPaths: [".eliza-agent/remote-artifacts"],
+      remoteArtifactPaths: [".doolittle/remote-artifacts"],
       remoteArtifactPolicy: "metadata-only",
-      remoteWorkspaceLabel: "eliza-agent-workspace",
+      remoteWorkspaceLabel: "doolittle-workspace",
       dockerImage: "oven/bun:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
@@ -92,7 +92,7 @@ function createDefaults(): RuntimeSettings {
 }
 
 function createSettingsService(): SettingsService {
-  const dir = mkdtempSync(join(tmpdir(), "eliza-agent-awareness-"));
+  const dir = mkdtempSync(join(tmpdir(), "doolittle-awareness-"));
   tempDirs.push(dir);
   return new SettingsService(dir, createDefaults());
 }
@@ -112,7 +112,7 @@ function createRuntime(): IAgentRuntime {
   return {
     agentId: "agent-1",
     character: {
-      name: "Eliza Agent",
+      name: "Doolittle",
       bio: ["Operator"],
       advancedMemory: true,
       advancedPlanning: true,

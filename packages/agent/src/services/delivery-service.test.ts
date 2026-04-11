@@ -6,7 +6,7 @@ import { DeliveryService } from "./delivery-service";
 
 describe("DeliveryService", () => {
   it("persists reply metadata", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delivery-test-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delivery-test-"));
     const service = new DeliveryService(root);
 
     try {
@@ -34,7 +34,7 @@ describe("DeliveryService", () => {
   });
 
   it("updates an existing delivery record in place", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-delivery-test-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delivery-test-"));
     const service = new DeliveryService(root);
 
     try {

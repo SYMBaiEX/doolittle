@@ -15,7 +15,7 @@ const ignoredNames = new Set([
   ".idea",
   ".next",
   ".turbo",
-  ".eliza-agent",
+  ".doolittle",
   "dist",
   "node_modules",
 ]);
@@ -119,7 +119,7 @@ export class WorkspaceService {
           "--glob",
           "!node_modules",
           "--glob",
-          "!.eliza-agent",
+          "!.doolittle",
           "--glob",
           "!dist",
           trimmed,
