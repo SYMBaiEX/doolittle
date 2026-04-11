@@ -1,66 +1,36 @@
-import { EventEmitter } from "node:events";
-import type { RunDepth, ToolProgressMode } from "@/types";
+import { RunUpdateEventBus } from "@/services/run-controller/event-bus";
+import { RunControllerStore } from "@/services/run-controller/store";
+import {
+  actionCompletedTransition,
+  actionStartedTransition,
+  createRunStartTransition,
+  finishTransition,
+  heartbeatTransition,
+  messageTransition,
+  pendingApprovalsTransition,
+  streamTransition,
+  thinkingTransition,
+  waitingTransition,
+} from "@/services/run-controller/transitions";
+import type {
+  RunSnapshot,
+  RunStatus,
+  RunUpdateEvent,
+  RunUpdateType,
+  StartTurnInput,
+} from "@/services/run-controller/types";
+import { cloneRun } from "@/services/run-controller/utils";
 
-export type RunStatus =
-  | "thinking"
-  | "acting"
-  | "waiting"
-  | "complete"
-  | "error";
-
-export interface RunSnapshot {
-  runId: string;
-  sessionId: string;
-  roomId: string;
-  source: string;
-  message: string;
-  runDepth: RunDepth;
-  configuredMaxIterations: number;
-  observedActionCount: number;
-  progressMode: ToolProgressMode;
-  status: RunStatus;
-  activeAction?: string;
-  activeStream?: string;
-  statusDetail?: string;
-  lastAction?: string;
-  pendingApprovals: number;
-  startedAt: string;
-  updatedAt: string;
-  lastHeartbeatAt?: string;
-  endedAt?: string;
-  errorMessage?: string;
-}
-
-export interface RunUpdateEvent {
-  type:
-    | "started"
-    | "thinking"
-    | "acting"
-    | "waiting"
-    | "message"
-    | "action-started"
-    | "action-completed"
-    | "stream"
-    | "heartbeat"
-    | "completed"
-    | "error"
-    | "approvals";
-  sessionId: string;
-  run: RunSnapshot;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-function cloneRun(run: RunSnapshot): RunSnapshot {
-  return { ...run };
-}
+export type {
+  RunSnapshot,
+  RunStatus,
+  RunUpdateEvent,
+  StartTurnInput,
+} from "@/services/run-controller/types";
 
 export class RunControllerService {
-  private readonly events = new EventEmitter();
-  private readonly activeRuns = new Map<string, RunSnapshot>();
-  private readonly roomIndex = new Map<string, string>();
+  private readonly events = new RunUpdateEventBus();
+  private readonly store = new RunControllerStore();
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
 
@@ -80,140 +50,44 @@ export class RunControllerService {
     return this.agentEventBridgeAttached;
   }
 
-  startTurn(input: {
-    sessionId: string;
-    roomId: string;
-    runId: string;
-    source: string;
-    message: string;
-    runDepth: RunDepth;
-    configuredMaxIterations: number;
-    progressMode: ToolProgressMode;
-    pendingApprovals?: number;
-  }): RunSnapshot {
-    const existing = this.activeRuns.get(input.sessionId);
+  startTurn(input: StartTurnInput): RunSnapshot {
+    const existing = this.store.getInternal(input.sessionId);
     if (existing && !existing.endedAt) {
       this.finishTurn(input.sessionId, "complete");
     }
-    const now = nowIso();
-    const run: RunSnapshot = {
-      runId: input.runId,
-      sessionId: input.sessionId,
-      roomId: input.roomId,
-      source: input.source,
-      message: input.message,
-      runDepth: input.runDepth,
-      configuredMaxIterations: input.configuredMaxIterations,
-      observedActionCount: 0,
-      progressMode: input.progressMode,
-      status: "thinking",
-      pendingApprovals: input.pendingApprovals ?? 0,
-      startedAt: now,
-      updatedAt: now,
-    };
-    this.activeRuns.set(input.sessionId, run);
-    this.roomIndex.set(input.roomId, input.sessionId);
-    this.emit("started", run);
-    return cloneRun(run);
+    const transition = createRunStartTransition(input);
+    this.store.save(transition.run);
+    this.emit(transition.type, transition.run);
+    return cloneRun(transition.run);
   }
 
   updateThinking(sessionId: string): void {
-    this.patch(sessionId, { status: "thinking" }, "thinking");
+    this.applyTransition(sessionId, thinkingTransition);
   }
 
   updateWaiting(sessionId: string): void {
-    this.patch(
-      sessionId,
-      {
-        status: "waiting",
-        activeAction: undefined,
-        activeStream: undefined,
-        statusDetail: undefined,
-      },
-      "waiting",
-    );
+    this.applyTransition(sessionId, waitingTransition);
   }
 
   noteMessage(sessionId: string): void {
-    this.patch(sessionId, { status: "thinking" }, "message");
+    this.applyTransition(sessionId, messageTransition);
   }
 
   noteActionStarted(sessionId: string, action: string): void {
-    const current = this.activeRuns.get(sessionId);
-    if (!current) {
-      return;
-    }
-    this.patch(
-      sessionId,
-      {
-        status: "acting",
-        activeAction: action,
-        activeStream: "action",
-        statusDetail: undefined,
-        lastAction: action,
-        observedActionCount: current.observedActionCount + 1,
-      },
-      "action-started",
+    this.applyTransition(sessionId, (current) =>
+      actionStartedTransition(current, action),
     );
   }
 
   noteActionCompleted(sessionId: string, action?: string): void {
-    this.patch(
-      sessionId,
-      {
-        status: "waiting",
-        activeAction: undefined,
-        activeStream: undefined,
-        statusDetail: undefined,
-        lastAction: action,
-      },
-      "action-completed",
+    this.applyTransition(sessionId, (current) =>
+      actionCompletedTransition(current, action),
     );
   }
 
   noteStream(sessionId: string, stream: string, detail?: string): void {
-    const current = this.activeRuns.get(sessionId);
-    if (!current) {
-      return;
-    }
-
-    if (stream === "action" || stream === "terminal") {
-      this.patch(
-        sessionId,
-        {
-          status: "acting",
-          activeStream: stream,
-          activeAction: detail ?? current.activeAction,
-          statusDetail: detail,
-          lastAction: detail ?? current.lastAction,
-        },
-        "stream",
-      );
-      return;
-    }
-
-    if (stream === "assistant") {
-      this.patch(
-        sessionId,
-        {
-          status: "waiting",
-          activeAction: undefined,
-          activeStream: stream,
-          statusDetail: detail,
-        },
-        "stream",
-      );
-      return;
-    }
-
-    this.patch(
-      sessionId,
-      {
-        status: "thinking",
-        activeStream: stream,
-        statusDetail: detail,
-      },
-      "stream",
+    this.applyTransition(sessionId, (current) =>
+      streamTransition(current, stream, detail),
     );
   }
 
@@ -222,37 +96,20 @@ export class RunControllerService {
     preview?: string,
     indicatorType?: string,
   ): void {
-    const activeRuns = Array.from(this.activeRuns.values()).filter(
-      (run) => !run.endedAt,
-    );
+    const activeRuns = this.store.list().filter((run) => !run.endedAt);
     if (activeRuns.length !== 1) {
       return;
     }
-
     const [run] = activeRuns;
-    const nextStatus: RunStatus =
-      status === "waiting"
-        ? "waiting"
-        : status === "error"
-          ? "error"
-          : status === "acting"
-            ? "acting"
-            : "thinking";
-
-    this.patch(
-      run.sessionId,
-      {
-        status: nextStatus,
-        activeStream: indicatorType ?? run.activeStream,
-        statusDetail: preview ?? status,
-        lastHeartbeatAt: nowIso(),
-      },
-      "heartbeat",
+    this.applyTransition(run.sessionId, () =>
+      heartbeatTransition(run, status, preview, indicatorType),
     );
   }
 
   setPendingApprovals(sessionId: string, pendingApprovals: number): void {
-    this.patch(sessionId, { pendingApprovals }, "approvals");
+    this.applyTransition(sessionId, (current) =>
+      pendingApprovalsTransition(current, pendingApprovals),
+    );
   }
 
   finishTurn(
@@ -260,7 +117,7 @@ export class RunControllerService {
     status: Extract<RunStatus, "complete" | "error">,
     errorMessage?: string,
   ): void {
-    const run = this.activeRuns.get(sessionId);
+    const run = this.store.getInternal(sessionId);
     if (!run) {
       return;
     }
@@ -271,22 +128,13 @@ export class RunControllerService {
     ) {
       return;
     }
-    const next: RunSnapshot = {
-      ...run,
-      status,
-      activeAction: undefined,
-      errorMessage,
-      activeStream: undefined,
-      statusDetail: undefined,
-      endedAt: nowIso(),
-      updatedAt: nowIso(),
-    };
-    this.activeRuns.set(sessionId, next);
-    this.emit(status === "error" ? "error" : "completed", next);
+    const transition = finishTransition(run, status, errorMessage);
+    this.store.apply(sessionId, transition.run);
+    this.emit(transition.type, transition.run);
   }
 
   getByRoomId(roomId: string): RunSnapshot | undefined {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return undefined;
     }
@@ -294,7 +142,7 @@ export class RunControllerService {
   }
 
   noteRuntimeMessage(roomId: string): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -302,7 +150,7 @@ export class RunControllerService {
   }
 
   updateRuntimeThinking(roomId: string): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -310,7 +158,7 @@ export class RunControllerService {
   }
 
   updateRuntimeWaiting(roomId: string): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -318,7 +166,7 @@ export class RunControllerService {
   }
 
   noteRuntimeActionStarted(roomId: string, action: string): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -326,7 +174,7 @@ export class RunControllerService {
   }
 
   noteRuntimeActionCompleted(roomId: string, action?: string): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -334,7 +182,7 @@ export class RunControllerService {
   }
 
   noteRuntimeStream(roomId: string, stream: string, detail?: string): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -346,7 +194,7 @@ export class RunControllerService {
     status: Extract<RunStatus, "complete" | "error">,
     errorMessage?: string,
   ): void {
-    const sessionId = this.roomIndex.get(roomId);
+    const sessionId = this.store.getSessionByRoom(roomId);
     if (!sessionId) {
       return;
     }
@@ -354,47 +202,35 @@ export class RunControllerService {
   }
 
   getActive(sessionId: string): RunSnapshot | undefined {
-    const run = this.activeRuns.get(sessionId);
+    const run = this.store.get(sessionId);
     return run ? cloneRun(run) : undefined;
   }
 
   listActive(): RunSnapshot[] {
-    return Array.from(this.activeRuns.values(), (run) => cloneRun(run));
+    return this.store.list();
   }
 
   onUpdate(listener: (event: RunUpdateEvent) => void): () => void {
-    this.events.on("update", listener);
-    return () => {
-      this.events.off("update", listener);
-    };
+    return this.events.onUpdate(listener);
   }
 
-  private patch(
+  private applyTransition(
     sessionId: string,
-    patch: Partial<RunSnapshot>,
-    type: RunUpdateEvent["type"],
+    transitionFactory: (current: RunSnapshot) => {
+      run: RunSnapshot;
+      type: RunUpdateType;
+    },
   ): void {
-    const current = this.activeRuns.get(sessionId);
-    if (!current) {
+    const current = this.store.getInternal(sessionId);
+    if (!current || current.endedAt) {
       return;
     }
-    if (current.endedAt) {
-      return;
-    }
-    const next: RunSnapshot = {
-      ...current,
-      ...patch,
-      updatedAt: nowIso(),
-    };
-    this.activeRuns.set(sessionId, next);
-    this.emit(type, next);
+    const transition = transitionFactory(current);
+    this.store.apply(sessionId, transition.run);
+    this.emit(transition.type, transition.run);
   }
 
   private emit(type: RunUpdateEvent["type"], run: RunSnapshot): void {
-    this.events.emit("update", {
-      type,
-      sessionId: run.sessionId,
-      run: cloneRun(run),
-    } satisfies RunUpdateEvent);
+    this.events.emit(type, run);
   }
 }
