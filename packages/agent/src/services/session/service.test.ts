@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SessionService } from "./session-service";
+import { SessionService } from "./service";
 
 describe("SessionService", () => {
   it("summarizes sessions and lists recent session summaries", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-session-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-session-"));
     const service = new SessionService(root);
 
     try {
@@ -61,7 +61,7 @@ describe("SessionService", () => {
   });
 
   it("resolves titled sessions and reports usage", () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-session-usage-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-session-usage-"));
     const service = new SessionService(root);
 
     try {
@@ -106,7 +106,7 @@ describe("SessionService", () => {
   });
 
   it("persists advanced long-term memories and session summaries", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-session-advanced-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-session-advanced-"));
     const service = new SessionService(root);
 
     try {
