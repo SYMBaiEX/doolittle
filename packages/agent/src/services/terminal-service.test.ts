@@ -9,8 +9,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RuntimeSettings } from "./settings-service";
-import { TerminalService } from "./terminal-service";
+import type { RuntimeSettings } from "./settings/runtime-settings";
+import { TerminalService } from "./terminal/service";
 
 function makeSettings(): RuntimeSettings {
   return {
@@ -29,13 +29,13 @@ function makeSettings(): RuntimeSettings {
       backend: "local",
       remoteSyncMode: "mirror",
       remoteSyncInclude: ["packages/agent/src/**", "packages/skills/**"],
-      remoteSyncExclude: [".git", ".eliza-agent", "node_modules"],
+      remoteSyncExclude: [".git", ".doolittle", "node_modules"],
       remoteArtifactPaths: [
-        ".eliza-agent/remote-artifacts",
-        ".eliza-agent/trajectories",
+        ".doolittle/remote-artifacts",
+        ".doolittle/trajectories",
       ],
       remoteArtifactPolicy: "metadata-only",
-      remoteWorkspaceLabel: "eliza-agent-workspace",
+      remoteWorkspaceLabel: "doolittle-workspace",
       dockerImage: "oven/bun:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
@@ -92,7 +92,7 @@ function writeExecutable(filePath: string, content: string): void {
 
 describe("TerminalService", () => {
   it("runs local commands and records them", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-test-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-test-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
 
     try {
@@ -111,7 +111,7 @@ describe("TerminalService", () => {
   });
 
   it("reports command timeouts cleanly", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-timeout-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-timeout-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
 
     try {
@@ -126,7 +126,7 @@ describe("TerminalService", () => {
   });
 
   it("cancels local commands via abort signal", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-abort-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-abort-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
     const controller = new AbortController();
 
@@ -142,7 +142,7 @@ describe("TerminalService", () => {
   });
 
   it("previews docker execution with hardened flags", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-preview-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-preview-"));
     const settings = makeSettings();
     settings.execution.backend = "docker";
     const service = new TerminalService(
@@ -171,9 +171,7 @@ describe("TerminalService", () => {
   });
 
   it("previews ssh execution with explicit key and remote shell hardening", async () => {
-    const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-terminal-ssh-preview-"),
-    );
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-ssh-preview-"));
     const keyPath = join(root, "id_ed25519");
     writeExecutable(keyPath, "dummy-key");
     const settings = makeSettings();
@@ -208,7 +206,7 @@ describe("TerminalService", () => {
   });
 
   it("reports local backend health", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-terminal-health-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-health-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
 
     try {
@@ -236,7 +234,7 @@ describe("TerminalService", () => {
 
   it("surfaces container and ssh health through structured checks", async () => {
     const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-terminal-health-backends-"),
+      join(tmpdir(), "doolittle-terminal-health-backends-"),
     );
     const fakeBin = join(root, "bin");
     const fakeData = join(root, "data");
@@ -335,7 +333,7 @@ describe("TerminalService", () => {
 
   it("previews daytona and modal execution with explicit targets", () => {
     const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-terminal-cloud-preview-"),
+      join(tmpdir(), "doolittle-terminal-cloud-preview-"),
     );
     const settings = makeSettings();
     settings.execution.backend = "daytona";
@@ -344,7 +342,7 @@ describe("TerminalService", () => {
     settings.execution.daytonaShell = "/bin/bash";
     settings.execution.daytonaSnapshot = "snapshot-dev";
     settings.execution.daytonaBootstrapCommand =
-      "test -d .eliza-agent || mkdir -p .eliza-agent";
+      "test -d .doolittle || mkdir -p .doolittle";
     settings.execution.daytonaStatusCommand =
       "daytona info sandbox-dev --format json";
     const daytonaService = new TerminalService(
@@ -362,9 +360,7 @@ describe("TerminalService", () => {
       expect(daytonaPreview.engine).toBe("daytona");
       expect(daytonaPreview.cloud?.provider).toBe("daytona");
       expect(daytonaPreview.cloud?.workspacePath).toBe("/workspace");
-      expect(daytonaPreview.cloud?.workspaceLabel).toBe(
-        "eliza-agent-workspace",
-      );
+      expect(daytonaPreview.cloud?.workspaceLabel).toBe("doolittle-workspace");
       expect(daytonaPreview.cloud?.syncPlan.mode).toBe("snapshot");
       expect(daytonaPreview.cloud?.syncPlan.include).toContain(
         "packages/agent/src/**",
@@ -373,7 +369,7 @@ describe("TerminalService", () => {
       expect(daytonaPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
       expect(daytonaPreview.cloud?.snapshot).toBe("snapshot-dev");
       expect(daytonaPreview.cloud?.bootstrapCommand).toContain(
-        "mkdir -p .eliza-agent",
+        "mkdir -p .doolittle",
       );
       expect(daytonaPreview.cloud?.statusCommand).toContain(
         "daytona info sandbox-dev",
@@ -404,7 +400,7 @@ describe("TerminalService", () => {
       settings.execution.modalShell = "/bin/zsh";
       settings.execution.modalEnvironment = "sandbox-prod-env";
       settings.execution.modalBootstrapCommand =
-        "test -d .eliza-agent || mkdir -p .eliza-agent";
+        "test -d .doolittle || mkdir -p .doolittle";
       settings.execution.modalStatusCommand =
         "modal shell sandbox-prod --cmd pwd";
       const modalService = new TerminalService(
@@ -424,12 +420,12 @@ describe("TerminalService", () => {
       expect(modalPreview.cloud?.provider).toBe("modal");
       expect(modalPreview.cloud?.workspacePath).toBe("/workspace");
       expect(modalPreview.cloud?.environment).toBe("sandbox-prod-env");
-      expect(modalPreview.cloud?.workspaceLabel).toBe("eliza-agent-workspace");
+      expect(modalPreview.cloud?.workspaceLabel).toBe("doolittle-workspace");
       expect(modalPreview.cloud?.syncPlan.mode).toBe("mirror");
       expect(modalPreview.cloudSnapshot?.event).toBe("preview");
       expect(modalPreview.cloudSnapshot?.artifacts.length).toBeGreaterThan(0);
       expect(modalPreview.cloud?.bootstrapCommand).toContain(
-        "mkdir -p .eliza-agent",
+        "mkdir -p .doolittle",
       );
       expect(modalPreview.cloud?.inspectCommand).toContain(
         "modal shell sandbox-prod",
@@ -455,7 +451,7 @@ describe("TerminalService", () => {
 
   it("probes daytona and modal cloud backends with sandbox-aware checks", async () => {
     const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-terminal-cloud-health-"),
+      join(tmpdir(), "doolittle-terminal-cloud-health-"),
     );
     const fakeBin = join(root, "bin");
     const fakeData = join(root, "data");
@@ -546,7 +542,7 @@ describe("TerminalService", () => {
     settings.execution.daytonaCommand = "daytona";
     settings.execution.daytonaShell = "/bin/bash";
     settings.execution.daytonaSnapshot = "snapshot-dev";
-    settings.execution.daytonaBootstrapCommand = "mkdir -p .eliza-agent";
+    settings.execution.daytonaBootstrapCommand = "mkdir -p .doolittle";
     settings.execution.daytonaStatusCommand =
       "daytona info sandbox-dev --format json";
     settings.execution.daytonaInspectCommand =
@@ -556,7 +552,7 @@ describe("TerminalService", () => {
     settings.execution.modalShell = "/bin/zsh";
     settings.execution.modalWorkspacePath = "/workspace/remote";
     settings.execution.modalEnvironment = "sandbox-prod-env";
-    settings.execution.modalBootstrapCommand = "mkdir -p .eliza-agent";
+    settings.execution.modalBootstrapCommand = "mkdir -p .doolittle";
     settings.execution.modalStatusCommand =
       "modal shell sandbox-prod --cmd pwd";
     settings.execution.modalInspectCommand =
