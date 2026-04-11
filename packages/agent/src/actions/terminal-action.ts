@@ -7,7 +7,7 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import { runEffectiveShellCommand } from "@/runtime/native/service-bridge";
+import { runEffectiveShellCommand } from "@/runtime/native/service-bridge/index";
 import type { AppServices } from "@/services";
 import { sanitizeTerminalText } from "@/utils/terminal-text";
 
@@ -178,7 +178,7 @@ export function createTerminalAction(services: AppServices): Action {
       "CALL_MCP_TOOL",
     ],
     description:
-      "Runs a shell command in the local Eliza Agent terminal. Use this when the user asks to run, search, inspect, list, or execute something in the terminal.",
+      "Runs a shell command in the local Doolittle terminal. Use this when the user asks to run, search, inspect, list, or execute something in the terminal.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text =
         typeof message.content === "string"

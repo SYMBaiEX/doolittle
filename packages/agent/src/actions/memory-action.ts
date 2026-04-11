@@ -68,7 +68,7 @@ function parseMemoryCommand(text: string):
 
 export function createMemoryAction(services: AppServices): Action {
   return {
-    name: "ELIZA_AGENT_MEMORY",
+    name: "DOOLITTLE_MEMORY",
     similes: ["MEMORY_STORE", "SAVE_MEMORY", "EDIT_MEMORY"],
     description:
       "Manages persistent memory stores. Understands `/memory list|add|replace|remove` commands.",
@@ -129,7 +129,7 @@ export function createMemoryAction(services: AppServices): Action {
           name: "{{agentName}}",
           content: {
             text: "Memory entry added.",
-            actions: ["ELIZA_AGENT_MEMORY"],
+            actions: ["DOOLITTLE_MEMORY"],
           },
         },
       ],

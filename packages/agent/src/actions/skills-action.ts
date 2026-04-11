@@ -11,7 +11,7 @@ import type { AppServices } from "@/services";
 
 export function createSkillsAction(services: AppServices): Action {
   return {
-    name: "ELIZA_AGENT_SKILLS",
+    name: "DOOLITTLE_SKILLS",
     similes: ["SKILLS_LIST", "SKILLS_SHOW", "LOAD_SKILL", "SKILLS_SUMMARY"],
     description:
       "Lists or shows available skills via `/skills list` or `/skills show <slug>`.",
@@ -86,7 +86,7 @@ export function createSkillsAction(services: AppServices): Action {
           name: "{{agentName}}",
           content: {
             text: "- productivity/google-workspace: Google Workspace helpers",
-            actions: ["ELIZA_AGENT_SKILLS"],
+            actions: ["DOOLITTLE_SKILLS"],
           },
         },
       ],

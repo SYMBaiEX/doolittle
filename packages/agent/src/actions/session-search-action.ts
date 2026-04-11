@@ -14,7 +14,7 @@ export function createSessionSearchAction(
   limit: number,
 ): Action {
   return {
-    name: "ELIZA_AGENT_SESSION_SEARCH",
+    name: "DOOLITTLE_SESSION_SEARCH",
     similes: ["SEARCH_SESSIONS", "LOOK_UP_HISTORY"],
     description:
       "Searches persisted conversation history with `/search <query>`.",
@@ -60,7 +60,7 @@ export function createSessionSearchAction(
           name: "{{agentName}}",
           content: {
             text: "- [2026-03-19T00:00:00.000Z] (user) session=abc: Remember that this repo uses Bun only.",
-            actions: ["ELIZA_AGENT_SESSION_SEARCH"],
+            actions: ["DOOLITTLE_SESSION_SEARCH"],
           },
         },
       ],

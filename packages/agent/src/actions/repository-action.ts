@@ -11,7 +11,7 @@ import {
   getEffectiveRepositoryDiff,
   getEffectiveRepositoryLog,
   getEffectiveRepositoryStatus,
-} from "@/runtime/native/service-bridge";
+} from "@/runtime/native/service-bridge/index";
 import type { AppServices } from "@/services";
 
 type RepositoryIntent = "status" | "diff" | "log";
@@ -91,7 +91,7 @@ export async function executeRepositoryIntent(
 
 export function createRepositoryAction(services: AppServices): Action {
   return {
-    name: "ELIZA_AGENT_REPOSITORY",
+    name: "DOOLITTLE_REPOSITORY",
     similes: ["REPO_STATUS", "REPO_DIFF", "REPO_LOG", "GIT_STATUS"],
     description:
       "Inspects the local git repository. Use this for repository status, diffs, and recent commits.",
@@ -138,7 +138,7 @@ export function createRepositoryAction(services: AppServices): Action {
           name: "{{agentName}}",
           content: {
             text: " M packages/agent/src/cli.ts",
-            actions: ["ELIZA_AGENT_REPOSITORY"],
+            actions: ["DOOLITTLE_REPOSITORY"],
           },
         },
       ],
