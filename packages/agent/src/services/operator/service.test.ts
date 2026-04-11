@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RuntimeLike } from "@/runtime/native/service-bridge";
+import type { RuntimeLike } from "@/runtime/native/service-bridge/index";
 import type { EnvConfig, GatewayConfig } from "@/types";
-import { DiagnosticsService } from "./diagnostics-service";
-import { OperatorService } from "./operator-service";
-import { RepositoryService } from "./repository-service";
+import { DiagnosticsService } from "../diagnostics/service";
+import { RepositoryService } from "../repository-service";
+import { OperatorService } from "./index";
 
 const roots: string[] = [];
 
@@ -47,7 +47,7 @@ function makeConfig(root: string): EnvConfig {
   mkdirSync(hooksDir, { recursive: true });
   mkdirSync(workspaceDir, { recursive: true });
   return {
-    agentName: "Eliza Agent",
+    agentName: "Doolittle",
     mode: "cli",
     host: "127.0.0.1",
     port: 3456,
@@ -101,10 +101,10 @@ function makeConfig(root: string): EnvConfig {
     browserObeyRobots: true,
     remoteSyncMode: "mirror",
     remoteSyncInclude: ["**/*"],
-    remoteSyncExclude: [".git", ".eliza-agent"],
-    remoteArtifactPaths: [".eliza-agent/remote-artifacts"],
+    remoteSyncExclude: [".git", ".doolittle"],
+    remoteArtifactPaths: [".doolittle/remote-artifacts"],
     remoteArtifactPolicy: "metadata-only",
-    remoteWorkspaceLabel: "eliza-agent-workspace",
+    remoteWorkspaceLabel: "doolittle-workspace",
     executionBackend: "local",
     dockerImage: "oven/bun:latest",
     dockerNetwork: "host",
@@ -170,7 +170,7 @@ afterEach(() => {
 
 describe("OperatorService", () => {
   it("builds setup and update summaries", async () => {
-    const base = join(tmpdir(), `eliza-agent-operator-${Date.now()}`);
+    const base = join(tmpdir(), `doolittle-operator-${Date.now()}`);
     mkdirSync(base, { recursive: true });
     roots.push(base);
     const config = makeConfig(base);
@@ -219,7 +219,7 @@ describe("OperatorService", () => {
     const setup = await service.setupSummary();
     const update = await service.updatePreview();
 
-    expect(setup.version.name).toBe("eliza-agent");
+    expect(setup.version.name).toBe("doolittle");
     expect(
       setup.providers.some((entry) => entry.id === "openai" && entry.ready),
     ).toBe(true);
@@ -262,7 +262,7 @@ describe("OperatorService", () => {
   });
 
   it("inspects and applies a filesystem migration", () => {
-    const base = join(tmpdir(), `eliza-agent-operator-migrate-${Date.now()}`);
+    const base = join(tmpdir(), `doolittle-operator-migrate-${Date.now()}`);
     mkdirSync(base, { recursive: true });
     roots.push(base);
     const config = makeConfig(base);
