@@ -1,16 +1,16 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
-import type { CronService as AgentCronService } from "@/services/cron-service";
+import type { CronServiceLike } from "./types";
 
 export interface CronPluginOptions {
-  cron: Pick<AgentCronService, "list" | "get" | "runs"> & {
+  cron: Pick<CronServiceLike, "list" | "get" | "runs"> & {
     create(
-      input: Parameters<AgentCronService["create"]>[0],
-    ): ReturnType<AgentCronService["create"]>;
+      input: Parameters<CronServiceLike["create"]>[0],
+    ): ReturnType<CronServiceLike["create"]>;
     update(
       id: string,
-      patch: Parameters<AgentCronService["update"]>[1],
-    ): ReturnType<AgentCronService["update"]>;
+      patch: Parameters<CronServiceLike["update"]>[1],
+    ): ReturnType<CronServiceLike["update"]>;
   };
 }
 
@@ -18,7 +18,7 @@ export function createCronPlugin(options: CronPluginOptions): Plugin {
   class CronService extends ElizaService {
     static serviceType = "cron";
     capabilityDescription =
-      "Cron automation service backed by Eliza Agent automations.";
+      "Cron automation service backed by Doolittle automations.";
 
     private readonly cron = options.cron;
 
@@ -41,11 +41,11 @@ export function createCronPlugin(options: CronPluginOptions): Plugin {
       return this.cron.get(id);
     }
 
-    create(input: Parameters<AgentCronService["create"]>[0]) {
+    create(input: Parameters<CronServiceLike["create"]>[0]) {
       return this.cron.create(input);
     }
 
-    update(id: string, patch: Parameters<AgentCronService["update"]>[1]) {
+    update(id: string, patch: Parameters<CronServiceLike["update"]>[1]) {
       return this.cron.update(id, patch);
     }
 
@@ -56,7 +56,7 @@ export function createCronPlugin(options: CronPluginOptions): Plugin {
 
   return {
     name: "cron",
-    description: "Cron plugin for Eliza Agent scheduled workflows.",
+    description: "Cron plugin for Doolittle scheduled workflows.",
     services: [CronService],
   };
 }

@@ -3,11 +3,11 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import type { PersonalityService as AgentPersonalityService } from "@/services/personality-service";
+import type { PersonalityServiceLike } from "./types";
 
 export interface PersonalityPluginOptions {
-  personalities: Pick<AgentPersonalityService, "list" | "get" | "activeId"> & {
-    setActive(id: string): ReturnType<AgentPersonalityService["setActive"]>;
+  personalities: Pick<PersonalityServiceLike, "list" | "get" | "activeId"> & {
+    setActive(id: string): ReturnType<PersonalityServiceLike["setActive"]>;
     summary(): {
       total: number;
       activeId?: string;
@@ -22,7 +22,7 @@ export function createPersonalityPlugin(
   class PersonalityService extends ElizaService {
     static serviceType = "personality";
     capabilityDescription =
-      "Official-style personality service backed by Eliza Agent personality profiles.";
+      "Official-style personality service backed by Doolittle personality profiles.";
 
     static async start(_runtime: IAgentRuntime): Promise<ElizaService> {
       return new PersonalityService(_runtime);
@@ -56,7 +56,7 @@ export function createPersonalityPlugin(
   return {
     name: "personality",
     description:
-      "Official-style personality plugin bridged to Eliza Agent profiles.",
+      "Official-style personality plugin bridged to Doolittle profiles.",
     services: [PersonalityService],
   };
 }

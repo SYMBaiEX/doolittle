@@ -3,20 +3,23 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import type { MemoryService, MemorySummary } from "@/services/memory-service";
-import type { SessionService } from "@/services/session-service";
-import type { SessionUsageSummary } from "@/types";
+import type {
+  MemoryServiceLike,
+  MemorySummary,
+  SessionServiceLike,
+  SessionUsageSummary,
+} from "./types";
 
 export interface ExperiencePluginOptions {
-  sessions: Pick<SessionService, "usage" | "latest"> & {
+  sessions: Pick<SessionServiceLike, "usage" | "latest"> & {
     usage(sessionId: string): SessionUsageSummary;
-    latest(limit?: number): ReturnType<SessionService["latest"]>;
+    latest(limit?: number): ReturnType<SessionServiceLike["latest"]>;
     summary(): {
       totalSessions: number;
       recentSessionIds: string[];
     };
   };
-  memory: Pick<MemoryService, "read" | "summary"> & {
+  memory: Pick<MemoryServiceLike, "read" | "summary"> & {
     read(target?: "memory" | "user"): string;
     summary(target?: "memory" | "user"): MemorySummary;
   };
@@ -67,7 +70,7 @@ export function createExperiencePlugin(
   return {
     name: "experience",
     description:
-      "Official-style experience plugin powered by Eliza Agent sessions and memory.",
+      "Official-style experience plugin powered by Doolittle sessions and memory.",
     services: [ExperienceService],
   };
 }
