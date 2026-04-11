@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "files": [
-    "src/index.ts",
+    "src/**/*.ts",
     "README.md"
   ],
   "keywords": [
@@ -20,10 +20,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SYMBaiEX/eliza-agent.git",
+    "url": "git+https://github.com/SYMBaiEX/doolittle.git",
     "directory": "packages/plugins/plugin-sql"
   },
-  "homepage": "https://github.com/SYMBaiEX/eliza-agent/tree/main/packages/plugins/plugin-sql",
+  "homepage": "https://github.com/SYMBaiEX/doolittle/tree/main/packages/plugins/plugin-sql",
   "publishConfig": {
     "access": "public"
   },
