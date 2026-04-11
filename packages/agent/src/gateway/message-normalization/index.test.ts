@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeInboundMessage } from "./message-normalization";
+import { normalizeInboundMessage } from "./index";
 
 describe("normalizeInboundMessage", () => {
   it("normalizes telegram messages", () => {
