@@ -22,5 +22,5 @@ export function buildCockpitTipMessage(): string {
 }
 
 export function buildCockpitWelcomeMessage(): string {
-  return `You are live in the Eliza Agent cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts")}, or ${normalizeSlashCommandSyntax("/gateway readiness")}.`;
+  return `You are live in the Doolittle cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts")}, or ${normalizeSlashCommandSyntax("/gateway readiness")}.`;
 }
