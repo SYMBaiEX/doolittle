@@ -1,15 +1,20 @@
-import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
-import { Service as ElizaService } from "@elizaos/core";
 import type {
   NativePluginCategory,
   NativePluginDescriptor,
-} from "@/runtime/native/plugin-catalog";
+} from "@doolittle/contracts";
+import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
+import { Service as ElizaService } from "@elizaos/core";
 
 export interface PluginManagerSummary {
   total: number;
   enabled: number;
   official: number;
   vendored: number;
+  providers: number;
+  adapters: number;
+  experimental: number;
+  placeholders: number;
+  injectedPersistence: number;
   categories: number;
 }
 
@@ -62,7 +67,7 @@ export function createPluginManagerPlugin(
 
   return {
     name: "plugin-manager",
-    description: "Plugin manager plugin for Eliza Agent's native registry.",
+    description: "Plugin manager plugin for Doolittle's native registry.",
     services: [PluginManagerService],
   };
 }
