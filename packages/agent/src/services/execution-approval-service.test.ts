@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ExecutionApprovalService } from "./execution-approval-service";
+import { ExecutionApprovalService } from "./execution-approval/service";
 
 describe("ExecutionApprovalService", () => {
   it("reuses pending approvals and consumes approved ones", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-exec-approvals-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-exec-approvals-"));
     const service = new ExecutionApprovalService(root);
 
     try {
@@ -43,7 +43,7 @@ describe("ExecutionApprovalService", () => {
   });
 
   it("can approve for immediate use or deny a request", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-exec-approvals-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-exec-approvals-"));
     const service = new ExecutionApprovalService(root);
 
     try {
@@ -70,6 +70,55 @@ describe("ExecutionApprovalService", () => {
       const result = await service.deny(denied.id);
       expect(result.status).toBe("denied");
       expect(result.deniedAt).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("expires stale approvals and returns the latest pending approval per session", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-exec-approvals-"));
+    const service = new ExecutionApprovalService(root);
+
+    try {
+      await service.request({
+        platform: "telegram",
+        userId: "user-3",
+        roomId: "telegram:room-3:user-3:root",
+        sessionKey: "telegram:room-3:user-3:root",
+        command: "echo first",
+        reason: "can run commands remotely",
+      });
+      const latest = await service.request({
+        platform: "telegram",
+        userId: "user-3",
+        roomId: "telegram:room-3:user-3:root",
+        sessionKey: "telegram:room-3:user-3:root",
+        command: "echo second",
+        reason: "can run commands remotely",
+      });
+      const expired = await service.request({
+        platform: "telegram",
+        userId: "user-3",
+        roomId: "telegram:room-3:user-3:root",
+        sessionKey: "telegram:room-3:user-3:root",
+        command: "echo stale",
+        reason: "can run commands remotely",
+        ttlMinutes: -1,
+      });
+
+      expect(
+        service.latestPendingForSession("telegram:room-3:user-3:root")?.id,
+      ).toBe(latest.id);
+      expect(
+        service.findPending({
+          platform: "telegram",
+          userId: "user-3",
+          roomId: "telegram:room-3:user-3:root",
+          sessionKey: "telegram:room-3:user-3:root",
+          command: "echo stale",
+        }),
+      ).toBeUndefined();
+      expect(service.get(expired.id)?.status).toBe("expired");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
