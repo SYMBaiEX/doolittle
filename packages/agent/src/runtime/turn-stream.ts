@@ -8,7 +8,7 @@ import {
   shouldRenderRunEvent,
 } from "@/runtime/run-progress";
 import type { RunUpdateEvent } from "@/services/run-controller-service";
-import type { ChatTurnRequest } from "@/types";
+import type { ChatTurnRequest } from "@/types/runtime";
 
 export interface StreamedTurnHandlers {
   onProgress?: (event: {
