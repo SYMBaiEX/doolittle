@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { DelegationAggregationSummary } from "@/services/delegation-service";
+import type { DelegationAggregationSummary } from "./contracts";
 import { createAgentOrchestratorPlugin } from "./index";
 
 const orchestrationBreakdown = [{ mode: "sequential", count: 2 }] as const;
