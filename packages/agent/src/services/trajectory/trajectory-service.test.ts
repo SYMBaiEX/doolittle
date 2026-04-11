@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TrajectoryService } from "./trajectory-service";
+import { TrajectoryService } from "./index";
 
 describe("TrajectoryService", () => {
   it("exports filtered bundles with manifest, analysis, and evaluation metadata", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-trajectory-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-trajectory-"));
     const sessions = {
       recent(limit: number) {
         return [
@@ -185,7 +185,7 @@ describe("TrajectoryService", () => {
             at: "2026-03-20T00:00:05.000Z",
             platform: "telegram",
             sessionId: "gateway-session",
-            text: "Hello back from Eliza Agent",
+            text: "Hello back from Doolittle",
           },
         ],
       });
