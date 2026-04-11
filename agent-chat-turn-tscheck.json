@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "files": [
+    "packages/agent/src/runtime/chat-turn/native.ts",
+    "packages/agent/src/runtime/chat-turn/post-command.ts",
+    "packages/agent/src/runtime/chat-turn/connection.ts",
+    "packages/agent/src/runtime/chat-turn/overrides.ts",
+    "packages/agent/src/runtime/chat-turn/core.ts",
+    "packages/agent/src/runtime/chat-turn/shell.ts",
+    "packages/agent/src/runtime/chat-turn-core.test.ts",
+    "packages/agent/src/runtime/chat-turn-connection.test.ts",
+    "packages/agent/src/runtime/chat-turn-native.test.ts",
+    "packages/agent/src/runtime/chat-turn-post-command.test.ts"
+  ]
+}
