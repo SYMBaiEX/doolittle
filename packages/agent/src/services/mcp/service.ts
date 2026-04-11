@@ -1,24 +1,6 @@
 import type { McpToolDefinition } from "@/types";
-
-interface McpSettings {
-  serverCommand: string;
-  timeoutMs: number;
-}
-
-interface McpCommandResult {
-  ok: boolean;
-  output: string;
-  exitCode: number;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
-}
-
-function buildShellCommand(command: string, args: string[]): string {
-  const suffix = args.map((arg) => shellQuote(arg)).join(" ");
-  return suffix ? `${command} ${suffix}` : command;
-}
+import { runShellCommand } from "../command-process";
+import { createMcpServiceStatus, type McpSettings } from "./status";
 
 export class McpService {
   private discoveredTools: McpToolDefinition[] = [];
@@ -29,33 +11,17 @@ export class McpService {
 
   constructor(private readonly getSettings: () => McpSettings) {}
 
-  status(): {
-    enabled: boolean;
-    detail: string;
-    command?: string;
-    timeoutMs: number;
-    discoveredTools: number;
-    cachedToolNames: string[];
-    lastProbeAt?: string;
-    lastDiscoveryAt?: string;
-    lastInvocationAt?: string;
-    lastError?: string;
-  } {
+  status() {
     const settings = this.getSettings();
-    return {
-      enabled: Boolean(settings.serverCommand),
-      detail: settings.serverCommand
-        ? `MCP bridge command is configured for structured discovery and invocation. Cached tools: ${this.discoveredTools.length}.`
-        : "MCP bridge surface is reserved locally but no MCP client is configured yet.",
-      command: settings.serverCommand || undefined,
+    return createMcpServiceStatus({
+      command: settings.serverCommand?.trim(),
       timeoutMs: settings.timeoutMs,
-      discoveredTools: this.discoveredTools.length,
-      cachedToolNames: this.discoveredTools.map((tool) => tool.name),
+      discoveredTools: this.discoveredTools.map((tool) => tool.name),
       lastProbeAt: this.lastProbeAt,
       lastDiscoveryAt: this.lastDiscoveryAt,
       lastInvocationAt: this.lastInvocationAt,
       lastError: this.lastError,
-    };
+    });
   }
 
   async probe(): Promise<{
@@ -136,7 +102,7 @@ export class McpService {
     ok: boolean;
     output: string;
   }> {
-    const args = input.trim() ? input.trim().split(/\s+/) : [];
+    const args = input.trim() ? input.trim().split(/\s+/u) : [];
     const result = await this.run(args);
     this.lastInvocationAt = new Date().toISOString();
     if (!result.ok) {
@@ -240,7 +206,7 @@ export class McpService {
   private async run(
     args: string[],
     overrideTimeoutMs?: number,
-  ): Promise<McpCommandResult> {
+  ): Promise<{ ok: boolean; output: string; exitCode: number }> {
     const settings = this.getSettings();
     if (!settings.serverCommand) {
       this.lastError = "MCP_SERVER_COMMAND is not configured.";
@@ -251,25 +217,16 @@ export class McpService {
       };
     }
 
-    const proc = Bun.spawn({
-      cmd: ["/bin/zsh", "-lc", buildShellCommand(settings.serverCommand, args)],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const timer = setTimeout(
-      () => proc.kill(),
+    const result = await runShellCommand(
+      settings.serverCommand,
+      args,
       overrideTimeoutMs ?? settings.timeoutMs,
     );
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]).finally(() => clearTimeout(timer));
 
     return {
-      ok: exitCode === 0,
-      output: (exitCode === 0 ? stdout : stderr || stdout).trim(),
-      exitCode,
+      ok: result.ok,
+      output: result.output,
+      exitCode: result.exitCode,
     };
   }
 
