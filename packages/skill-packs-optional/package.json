@@ -1,11 +1,11 @@
 {
-  "name": "@eliza-agent/skill-packs-optional",
+  "name": "@doolittle/skill-packs-optional",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Eliza Agent optional skill-pack tier for experimental, domain-specific, and higher-breadth skills.",
+  "description": "Doolittle optional skill-pack tier for experimental, domain-specific, and higher-breadth skills.",
   "keywords": [
-    "eliza-agent",
+    "doolittle",
     "skills",
     "optional",
     "experimental",

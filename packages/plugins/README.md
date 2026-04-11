@@ -1,63 +1,45 @@
 # Plugin Workspace
 
-This workspace contains both product-native Eliza Agent plugins and vendored official ElizaOS plugin packages updated locally for the current runtime line.
+This workspace mixes three different kinds of package-shaped code:
 
-## Purpose
+- public provider bridges such as [`plugin-codex`](./plugin-codex) and [`plugin-claude-code`](./plugin-claude-code)
+- vendored compatibility packages kept local for the current ElizaOS alpha line
+- internal adapters that expose Doolittle runtime services through plugin contracts
 
-- preserve official package names where possible
-- keep upstream adjustments close to the package boundary
-- avoid scattering runtime-line changes across the product code in `packages/agent/src/`
-- keep all plugin-shaped code under `packages/plugins/*` so the monorepo stays coherent
+## Canonical Truth
 
-## Workspace contents
+Human-readable truth now lives in generated docs backed by the runtime catalog:
 
-- `eliza-agent-plugin.ts`
-- `plugin-agent-orchestrator`
-- `plugin-agent-skills`
-- `plugin-autocoder`
-- `plugin-coding-agent`
-- `plugin-codex`
-- `plugin-claude-code`
-- `plugin-cron`
-- `plugin-browser`
-- `plugin-action-bench`
-- `plugin-discord`
-- `plugin-e2b`
-- `plugin-experience`
-- `plugin-forms`
-- `plugin-knowledge`
-- `plugin-local-embedding`
-- `plugin-mcp`
-- `plugin-personality`
-- `plugin-planning`
-- `plugin-plugin-manager`
-- `plugin-rolodex`
-- `plugin-shell`
-- `plugin-tts`
-- `plugin-trajectory-logger`
+- [`docs/plugin-inventory.md`](../../docs/plugin-inventory.md)
+- [`docs/capability-truth.md`](../../docs/capability-truth.md)
 
-## Working rule
+Runtime truth is exposed directly from:
 
-If a behavior is specific to Eliza Agent as a product, keep it in `packages/agent/src/` or `packages/plugins/eliza-agent-plugin.ts`. If the change is purely about making an official ElizaOS package work on the current runtime line, keep it under the vendored plugin directories here.
+- `GET /runtime/plugins`
+- `GET /browser/status`
+- `GET /runtime/media`
 
-## Linked providers
+## Working Rule
 
-Two workspace plugins are intentionally user-facing provider bridges rather than hidden internals:
+- Product-specific orchestration belongs in `packages/agent/src/` or [`doolittle-plugin`](./doolittle-plugin).
+- Public provider bridges should stay honest about readiness and publish intent.
+- Internal adapters should not present themselves as independent subsystems when they are thin wrappers over runtime services.
+- Vendored compatibility work should stay close to the package boundary instead of leaking runtime-line patches deeper into the product.
 
-- `plugin-codex`
-- `plugin-claude-code`
+## Linked Providers
 
-They are designed for people who already use local Codex or Claude Code CLIs and want Eliza Agent to reuse those signed-in accounts directly.
+The intentionally user-facing provider bridges are:
+
+- [`plugin-codex`](./plugin-codex)
+- [`plugin-claude-code`](./plugin-claude-code)
+- [`plugin-elizacloud`](./plugin-elizacloud)
 
 Suggested runtime flow:
 
 - `/accounts connect codex`
 - `/accounts connect claude-code`
+- `/accounts connect elizacloud`
 - `/accounts doctor`
 - `/accounts use codex`
 - `/accounts use claude-code`
-
-Publish-ready provider references:
-
-- [`plugin-codex`](./plugin-codex)
-- [`plugin-claude-code`](./plugin-claude-code)
+- `/accounts use elizacloud`

@@ -1,9 +1,9 @@
 {
-  "name": "@eliza-agent/acp",
+  "name": "@doolittle/acp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "First-class ACP packaging helpers for Eliza Agent.",
+  "description": "First-class ACP packaging helpers for Doolittle.",
   "exports": {
     ".": "./src/index.ts"
   }

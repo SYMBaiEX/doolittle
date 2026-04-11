@@ -1,30 +1,27 @@
-# Eliza Agent
+# Doolittle
 
 ```
-           @@@@@@@@@@
-         @@@@@@@@@@@@@@
-       @@@@@@@@@@@@@@@@@@
-      @@@@@@@@@@@@@@@@@@@@@
-     @@@@@@@@@@@@@@@@@@@@@@
-    @@@@@@@@@@@@@@@@@@@@@@@@          lll  oo                    OOOOO   SSSSS
-    @@@@@@@@@@@@@@@@@@@@@@@@@   eeeee  ll  ii zzzzz  aaaa          OO  OO SS
-   @@@@@@@@@@@@@@@@@@@@@@@@@@  ee   ee ll  ii    zz aa  aa         OO  OO  SSSS
-   @@@@@@@@@@@@@@@@@@@@@@@@@@  eeeee  ll  ii   zz  aa  aa         OO  OO     SS
-    @@@@@@@@@@@@@@@@@@@@@@@@@  ee     ll  ii  zz   aa  aa         OO  OO SS  SS
-     @@@@@@@@@@@@@@@@@@@@@@     eeeee lll ii zzzzz  aaaa  ......  OOOOO  SSSSS
-      @@@@@@@@@@@@@@@@@@@@@
-       @@@@@@@@@@@@@@@@@@@@              AGENT // CYPHERPUNK OPERATOR SHELL
-      @@@@@@@@@@@@@@@@@@@@@@
-     @@@@@@@@@@@@@@@@@@@@@@@@
-    @@@@@@@@@@@@@@@@@@@@@@@@@@
-    @@@@@@@@  @@@@  @@@@@@@@@@
-     @@@@@@@  @@@@  @@@@@@@@@
-      @@@@@@  @@@@  @@@@@@@@
+            @@@@@@@@@@@
+          @@@@@@@@@@@@@@@
+        @@@@@@@@@@@@@@@@@@@
+       @@@@@@@@@@@@@@@@@@@@@@
+      @@@@@@@@@@@@oo@@@@@@@@@@      DOOLITTLE
+     @@@@@@@@@@@@____@@@@@@@@@@      ELIZA // CYPHERPUNK OPERATOR SHELL
+     @@@@@@@@@@@/ __ \\@@@@@@@@@
+      @@@@@@@@@@\\____/@@@@@@@@@      Booting workspace...
+       @@@@@@@@@@@@@@@@@@@@@@@
+        _____@@___@@_____
+       / ____\\   /____ \\
+      / / __  \\ /  __ \\ \\
+     / /_/ /\\  V  / /_/ /
+    /_____/_/\\___/\\____/
+       /_/        \\_\\
+      /_/          \\_\\
 ```
 
 > The shell is warm. The channels are waiting.
 
-A terminal-native AI agent that thinks in loops, not single shots. Eliza Agent runs a Cloud-first, ElizaOS-native multi-step shell: native runtime first, direct local rescue when needed, observed run progress, and a transcript-first terminal UI. Built on [ElizaOS](https://github.com/elizaos/eliza) with Bun and TypeScript.
+A terminal-native AI agent that thinks in loops, not single shots. Doolittle runs a Cloud-first, ElizaOS-native multi-step shell: native runtime first, direct local rescue when needed, observed run progress, and a transcript-first terminal UI. Built on [ElizaOS](https://github.com/elizaos/eliza) with Bun and TypeScript.
 
 ---
 
@@ -34,10 +31,10 @@ A terminal-native AI agent that thinks in loops, not single shots. Eliza Agent r
 bash scripts/install.sh
 ```
 
-The installer runs `bun install`, forges `~/.local/bin/eliza-agent`, wires your shell PATH, and begins the awakening sequence — an interactive onboarding ritual that configures your provider, execution backend, browser mode, transports, and workspace. When it finishes, you have a real shell command.
+The installer runs `bun install`, forges `~/.local/bin/doolittle`, wires your shell PATH, and begins the awakening sequence — an interactive onboarding ritual that configures your provider, execution backend, browser mode, transports, and workspace. When it finishes, you have a real shell command.
 
 ```bash
-eliza-agent
+doolittle
 ```
 
 That's it. You land in the plain interactive CLI first.
@@ -54,17 +51,17 @@ bash scripts/install.sh --yes           # auto-accept prompts
 The onboarding writes directly into:
 
 - `.env` — provider keys, model routing, transport tokens
-- `.eliza-agent/settings.json` — runtime configuration
-- `.eliza-agent/gateway/gateway.json` — gateway and transport config
-- `.eliza-agent/onboarding.json` — completion state
+- `.doolittle/settings.json` — runtime configuration
+- `.doolittle/gateway/gateway.json` — gateway and transport config
+- `.doolittle/onboarding.json` — completion state
 
-If a fresh terminal can't find `eliza-agent`, restart the shell or source the profile that was updated (`~/.zshrc` on macOS, `~/.bashrc` on Linux).
+If a fresh terminal can't find `doolittle`, restart the shell or source the profile that was updated (`~/.zshrc` on macOS, `~/.bashrc` on Linux).
 
 ---
 
 ## How it thinks
 
-Eliza Agent is now native-first:
+Doolittle is now native-first:
 
 ```
 You ask for something
@@ -86,7 +83,7 @@ You ask for something
       approvals
       active tool stream
   → if native planning stalls with no observed action,
-      Eliza Agent rescues with the direct local executor
+      Doolittle rescues with the direct local executor
   → final answer returns through one shared shell/gateway progress contract
 ```
 
@@ -110,8 +107,8 @@ How deep should the agent go? Set a preset or override with an explicit cap:
 | `explore` | 150 | Open-ended research, deep analysis runs |
 
 ```bash
-ELIZA_AGENT_RUN_DEPTH=deep eliza-agent
-ELIZA_AGENT_MAX_ITERATIONS=120 eliza-agent  # explicit override
+DOOLITTLE_RUN_DEPTH=deep doolittle
+DOOLITTLE_MAX_ITERATIONS=120 doolittle  # explicit override
 ```
 
 ### Tool progress
@@ -126,7 +123,7 @@ Progress density is explicit and shared across the TUI, plain CLI, diagnostics, 
 | `verbose` | Full run and stream detail |
 
 ```bash
-ELIZA_AGENT_TOOL_PROGRESS=verbose eliza-agent
+DOOLITTLE_TOOL_PROGRESS=verbose doolittle
 ```
 
 ### Startup model
@@ -142,18 +139,18 @@ You can see this live in `/status`, `/doctor`, the TUI runtime rail, and `GET /r
 
 ## Surfaces
 
-Eliza Agent meets you where you are.
+Doolittle meets you where you are.
 
 ### Plain interactive CLI
 
 The default mode. A conversation-first terminal shell with the same runtime core, slash commands, approvals, and run-progress contract as the cockpit, but without fullscreen assumptions. This is the primary everyday surface.
 
 ```bash
-eliza-agent          # plain interactive CLI (default)
-eliza-agent help     # top-level command help without booting the runtime
-eliza-agent plain    # explicit alias for the same plain shell
-eliza-agent exec -p "summarize this repo"   # one-shot execution
-eliza-agent exec -p "status" --json         # machine-readable one-shot output
+doolittle          # plain interactive CLI (default)
+doolittle help     # top-level command help without booting the runtime
+doolittle plain    # explicit alias for the same plain shell
+doolittle exec -p "summarize this repo"   # one-shot execution
+doolittle exec -p "status" --json         # machine-readable one-shot output
 ```
 
 ### Operator cockpit (TUI)
@@ -161,7 +158,7 @@ eliza-agent exec -p "status" --json         # machine-readable one-shot output
 The optional fullscreen operator view. Use it when you want the richer transcript-first Blessed UI, status rail, activity log, command palette, and long-running observability surfaces.
 
 ```bash
-eliza-agent cockpit  # fullscreen cockpit
+doolittle cockpit  # fullscreen cockpit
 ```
 
 Quick shortcuts:
@@ -183,7 +180,7 @@ Quick shortcuts:
 
 ### HTTP API
 
-When `ELIZA_AGENT_MODE=api` or `both`, a Bun-native HTTP server exposes every capability as REST endpoints:
+When `DOOLITTLE_MODE=api` or `both`, a Bun-native HTTP server exposes every capability as REST endpoints:
 
 ```bash
 curl -X POST http://localhost:3000/chat \
@@ -413,7 +410,7 @@ Gateway observability is route-aware and attachment-aware: `/gateway/state` incl
 Multi-platform message routing for Telegram, Discord, Slack, WhatsApp, Signal, Matrix, email, SMS, Mattermost, Home Assistant, and DingTalk. Webhook ingestion, pairing workflows, delivery persistence, and session orchestration — all through the same runtime.
 
 ```bash
-eliza-agent gateway
+doolittle gateway
 ```
 
 ---
@@ -423,16 +420,16 @@ eliza-agent gateway
 All routing happens in TypeScript — `packages/agent/src/index.ts` dispatches based on the first argument.
 
 ```bash
-eliza-agent          # Start the plain interactive CLI (default)
-eliza-agent plain    # Plain line-based CLI
-eliza-agent cockpit  # Fullscreen operator cockpit
-eliza-agent dev      # Development mode
-eliza-agent setup    # Re-run the onboarding wizard
-eliza-agent doctor   # Readiness diagnostics and health checks
-eliza-agent install  # Re-run the installer
-eliza-agent api      # API server only, no cockpit
-eliza-agent gateway  # Start the gateway runner
-ea                   # Short alias (installed when no existing `ea` exists)
+doolittle          # Start the plain interactive CLI (default)
+doolittle plain    # Plain line-based CLI
+doolittle cockpit  # Fullscreen operator cockpit
+doolittle dev      # Development mode
+doolittle setup    # Re-run the onboarding wizard
+doolittle doctor   # Readiness diagnostics and health checks
+doolittle install  # Re-run the installer
+doolittle api      # API server only, no cockpit
+doolittle gateway  # Start the gateway runner
+dl                 # Short alias (installed when no existing `dl` exists)
 ```
 
 Legacy flag-based invocation is still supported for backward compatibility: `--cli` launches the cockpit, `--plain-cli` launches the plain shell, plus `--api-only` and `--gateway`.
@@ -442,21 +439,21 @@ Legacy flag-based invocation is still supported for backward compatibility: `--c
 For scripting, editor actions, and CI-safe terminal usage:
 
 ```bash
-eliza-agent exec -p "summarize this repo and tell me where to start"
-eliza-agent exec --prompt "review the latest changes" --json
+doolittle exec -p "summarize this repo and tell me where to start"
+doolittle exec --prompt "review the latest changes" --json
 ```
 
 ---
 
 ## The operator's toolkit
 
-Eliza Agent ships with a large service graph, but it no longer blocks the shell on all of it. Core runtime services come up first; operator-heavy surfaces hydrate after the shell is already interactive.
+Doolittle ships with a large service graph, but it no longer blocks the shell on all of it. Core runtime services come up first; operator-heavy surfaces hydrate after the shell is already interactive.
 
 ### Works on your code
 
 | Capability | Implementation | CLI | API |
 |---|---|---|---|
-| Terminal execution (local, Docker, Podman, SSH, Singularity, Daytona, Modal) | [`terminal-service.ts`](./packages/agent/src/services/terminal-service.ts) | `/execution status`, `/execution backends`, `/execution set backend`, `/terminal run` | `GET /execution/status`, `POST /terminal/run` |
+| Terminal execution (local, Docker, Podman, SSH, Singularity, Daytona, Modal) | [`terminal/service.ts`](./packages/agent/src/services/terminal/service.ts) | `/execution status`, `/execution backends`, `/execution set backend`, `/terminal run` | `GET /execution/status`, `POST /terminal/run` |
 | Repository inspection | [`repository-service.ts`](./packages/agent/src/services/repository-service.ts) | `/repo status`, `/repo diff`, `/repo log` | `GET /repo/status`, `GET /repo/diff` |
 | Autocoder | [`plugin-autocoder`](./packages/plugins/plugin-autocoder/) | Native codegen actions | Via runtime actions |
 | Workspace exploration | [`workspace-service.ts`](./packages/agent/src/services/workspace-service.ts) | `/workspace tree`, `/workspace read`, `/workspace search` | `GET /workspace/tree`, `GET /workspace/read` |
@@ -467,8 +464,8 @@ Eliza Agent ships with a large service graph, but it no longer blocks the shell 
 | Capability | Implementation | CLI | API |
 |---|---|---|---|
 | MEMORY.md / USER.md persistence | [`memory-service.ts`](./packages/agent/src/services/memory-service.ts) | `/memory list memory`, `/memory add user` | `GET /memory?target=memory` |
-| Cross-session search | [`session-service.ts`](./packages/agent/src/services/session-service.ts) | `/search <query>` | `GET /search` |
-| User profiles | [`session-service.ts`](./packages/agent/src/services/session-service.ts) | `/user profile`, `/user card`, `/user beliefs`, `/user relationship`, `/user engagement` | `GET /profiles/users/card` |
+| Cross-session search | [`session/service.ts`](./packages/agent/src/services/session/service.ts) | `/search <query>` | `GET /search` |
+| User profiles | [`user-profile/service.ts`](./packages/agent/src/services/user-profile/service.ts) | `/user profile`, `/user card`, `/user beliefs`, `/user relationship`, `/user engagement` | `GET /profiles/users/card` |
 | Memory nudges | [`memory-nudge-evaluator.ts`](./packages/agent/src/evaluators/memory-nudge-evaluator.ts) | Automatic | Evaluator-driven |
 | Shared task context | [`agent-context-provider.ts`](./packages/agent/src/providers/agent-context-provider.ts) | Automatic | Provider-driven |
 
@@ -476,9 +473,9 @@ Eliza Agent ships with a large service graph, but it no longer blocks the shell 
 
 | Capability | Implementation | CLI |
 |---|---|---|
-| Skill discovery (20 categories) | [`skills-service.ts`](./packages/agent/src/services/skills-service.ts) | `/skills list`, `/skills show <slug>` |
-| Skill synthesis from delegation | [`skills-service.ts`](./packages/agent/src/services/skills-service.ts) | `/skills synthesize <task-id>` |
-| Skills hub distribution | [`skills-hub-service.ts`](./packages/agent/src/services/skills-hub-service.ts) | `/skills hub`, `/skills sync`, `/skills export`, `/skills import`, `/skills install` |
+| Skill discovery (20 categories) | [`skills/service.ts`](./packages/agent/src/services/skills/service.ts) | `/skills list`, `/skills show <slug>` |
+| Skill synthesis from delegation | [`skills/service.ts`](./packages/agent/src/services/skills/service.ts) | `/skills synthesize <task-id>` |
+| Skills hub distribution | [`skills-hub/service.ts`](./packages/agent/src/services/skills-hub/service.ts) | `/skills hub`, `/skills sync`, `/skills export`, `/skills import`, `/skills install` |
 | Personality switching | [`personality-service.ts`](./packages/agent/src/services/personality-service.ts) | `/personality list`, `/personality set autonomous` |
 | Runtime settings | [`settings-service.ts`](./packages/agent/src/services/settings-service.ts) | `/settings`, `/model status`, `/model set model`, `/config show` |
 
@@ -486,37 +483,37 @@ Eliza Agent ships with a large service graph, but it no longer blocks the shell 
 
 | Capability | Implementation | CLI |
 |---|---|---|
-| Delegation queue | [`delegation-service.ts`](./packages/agent/src/services/delegation-service.ts) | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
+| Delegation queue | [`delegation/service.ts`](./packages/agent/src/services/delegation/service.ts) | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
 | Run controller and observed progress | [`run-controller-service.ts`](./packages/agent/src/services/run-controller-service.ts) | `/mode`, `/progress`, automatic live run state |
-| Trajectory research | [`trajectory-service.ts`](./packages/agent/src/services/trajectory-service.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
+| Trajectory research | [`trajectory/service.ts`](./packages/agent/src/services/trajectory/service.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
 | Planning boards | [`plugin-planning`](./packages/plugins/plugin-planning/) | `/planning` flows |
-| Cron scheduling | [`cron-service.ts`](./packages/agent/src/services/cron-service.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
+| Cron scheduling | [`cron/service.ts`](./packages/agent/src/services/cron/service.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
 
 ### Reaches the outside world
 
 | Capability | Implementation | CLI |
 |---|---|---|
-| Browser (Lightpanda) | [`web-service.ts`](./packages/agent/src/services/web-service.ts) | `/browser fetch`, `/browser inspect`, `/browser snapshot`, `/browser screenshot`, `/browser capture`, `/browser analyze`, `/browser compare` |
+| Browser (Lightpanda) | [`web/service.ts`](./packages/agent/src/services/web/service.ts) | `/browser fetch`, `/browser inspect`, `/browser snapshot`, `/browser screenshot`, `/browser capture`, `/browser analyze`, `/browser compare` |
 | MCP bridge | [`mcp-service.ts`](./packages/agent/src/services/mcp-service.ts) | `/mcp status`, `/mcp tools`, `/mcp cached`, `/mcp invoke`, `/mcp call` |
 | ACP registry | [`acp-service.ts`](./packages/agent/src/services/acp-service.ts) | `/acp status`, `/acp registry`, `/acp publish`, `/acp tools`, `/acp call` |
 | Delivery routing | [`delivery-service.ts`](./packages/agent/src/services/delivery-service.ts) | Via gateway — Telegram, Discord, Slack, WhatsApp, Signal, Matrix, email, SMS |
-| Media processing | [`media-service.ts`](./packages/agent/src/services/media-service.ts) | `/media transcript`, `/media caption`, `/media analyze`, `/media voice`, `/media vision`, `/media generate`, `/media speak` |
+| Media processing | [`media/service.ts`](./packages/agent/src/services/media/service.ts) | `/media transcript`, `/media caption`, `/media analyze`, `/media voice`, `/media vision`, `/media generate`, `/media speak` |
 | PDF extraction | [`documents-service.ts`](./packages/agent/src/services/documents-service.ts) | `/pdf extract` |
 
 ### Observes itself
 
 | Capability | Implementation | CLI |
 |---|---|---|
-| Diagnostics | [`diagnostics-service.ts`](./packages/agent/src/services/diagnostics-service.ts) | `eliza-agent doctor`, `/doctor` |
+| Diagnostics | [`diagnostics/service.ts`](./packages/agent/src/services/diagnostics/service.ts) | `doolittle doctor`, `/doctor` |
 | Startup hydration state | [`startup-state-service.ts`](./packages/agent/src/services/startup-state-service.ts) | `/status`, `/doctor`, `GET /runtime/status` |
-| Context compression | [`context-compression-service.ts`](./packages/agent/src/services/context-compression-service.ts) | Automatic history pressure management |
+| Context compression | [`context-compression/service.ts`](./packages/agent/src/services/context-compression/service.ts) | Automatic history pressure management |
 | Run progress streaming | [`run-controller-service.ts`](./packages/agent/src/services/run-controller-service.ts) | Automatic |
 | Event hooks | [`hooks-service.ts`](./packages/agent/src/services/hooks-service.ts) | `/hooks add`, `/hooks recent` |
-| Operator summaries | [`operator-service.ts`](./packages/agent/src/services/operator-service.ts) | `/status`, `/runtime status` |
-| Tool registry | [`tools-service.ts`](./packages/agent/src/services/tools-service.ts) | `/tools list`, `/tools summary`, `/tools search` |
+| Operator summaries | [`operator/service.ts`](./packages/agent/src/services/operator/service.ts) | `/status`, `/runtime status` |
+| Tool registry | [`tools/service.ts`](./packages/agent/src/services/tools/service.ts) | `/tools list`, `/tools summary`, `/tools search` |
 | Gateway orchestration | [`gateway-session-service.ts`](./packages/agent/src/services/gateway-session-service.ts) | `/gateway state`, `/gateway trace` |
 | Pairing and allowlists | [`pairing-service.ts`](./packages/agent/src/services/pairing-service.ts) | `/pairing pending` |
-| Account management | [`account-service.ts`](./packages/agent/src/services/account-service.ts) | `/accounts`, `/accounts connect`, `/accounts use` |
+| Account management | [`accounts-commands.ts`](./packages/agent/src/runtime/commands/accounts-commands.ts) | `/accounts`, `/accounts connect`, `/accounts use` |
 
 ---
 
@@ -554,7 +551,7 @@ Skills hub distribution, manifest export/import, and install workflows are docum
 
 ## Providers
 
-Eliza Agent doesn't lock you to one inference path.
+Doolittle doesn't lock you to one inference path.
 
 | Provider | What it does |
 |---|---|
@@ -592,7 +589,16 @@ bun run publish:providers:check
 
 ## Plugin inventory
 
-The runtime assembles a wide native ElizaOS stack:
+The runtime assembles a wide native ElizaOS stack.
+
+Canonical inventory and capability truth now live in:
+
+- [`docs/plugin-inventory.md`](./docs/plugin-inventory.md)
+- [`docs/capability-truth.md`](./docs/capability-truth.md)
+
+The runtime endpoint remains:
+
+- `GET /runtime/plugins`
 
 | Package | Role |
 |---|---|
@@ -605,16 +611,16 @@ The runtime assembles a wide native ElizaOS stack:
 | `@elizaos/plugin-pdf` | Official PDF service plugin for document extraction |
 | `@elizaos/plugin-sql` | Required database adapter for runtime initialization (PGLite) |
 | `@elizaos/plugin-telegram` | Official Telegram transport — enabled when `TELEGRAM_BOT_TOKEN` is set |
-| `@elizaos/plugin-tts` | Text-to-speech plugin — enabled when `FAL_API_KEY` is set |
+| `@elizaos/plugin-tts` | Runtime TTS adapter over media generation — reports `ready` / `backend` / `mode` and degrades truthfully when no speech backend is configured |
 | `@elizaos/plugin-action-bench` | Action benchmark plugin for coverage sweeps and evaluation drills |
-| `@elizaos/plugin-autocoder` | Autocoder plugin for native codegen, repository, and secrets workflows |
+| `@elizaos/plugin-autocoder` | Experimental autocoder plugin for planning, research, repository, and secrets workflows — planning-only flows are explicit and non-mutating |
 | `@elizaos/plugin-e2b` | E2B sandbox integration for cloud execution profiles |
 | `@elizaos/plugin-forms` | Forms plugin for operator intake and structured workflow prompts |
 | `@elizaos/plugin-planning` | Planning plugin for plans, milestones, and coordination |
 | `@elizaos/autonomous` | First-party architectural reference for native stack alignment |
 | `@elizaos/skills` | First-party skills package for native ElizaOS alignment |
 | Vendored packages (`packages/plugins/*`) | Browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, trajectory-logger, and more |
-| `eliza-agent-runtime` custom plugin | Product layer: gateway/session orchestration, scheduler lifecycle, session search, skill inventory, offline fallback |
+| `doolittle-runtime` custom plugin | Product layer: gateway/session orchestration, scheduler lifecycle, session search, skill inventory, offline fallback |
 
 ---
 
@@ -710,10 +716,10 @@ Everything the cockpit can do. Use these from the TUI input or the plain CLI:
 - `/media analyze ./recordings/daily-sync.wav`
 - `/media voice ./recordings/daily-sync.wav`
 - `/media vision ./artifacts/screenshot.png`
-- `/media generate a cinematic dusk skyline over the Eliza Agent workspace`
-- `/media speak Eliza Agent is ready for the next workspace pass.`
+- `/media generate a cinematic dusk skyline over the Doolittle workspace`
+- `/media speak Doolittle is ready for the next workspace pass.`
 - `/media transcribe ./recordings/daily-sync.wav`
-- `/media inspect ./packages/characters/eliza-agent.character.json`
+- `/media inspect ./packages/characters/doolittle.character.json`
 
 **MCP bridge**
 
@@ -857,21 +863,21 @@ Copy `.env.example` to `.env` and fill in what you need.
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `ELIZA_AGENT_NAME` | Runtime agent display name | `Eliza Agent` |
-| `ELIZA_AGENT_MODE` | `api`, `cli`, or `both` | `both` |
-| `ELIZA_AGENT_HOST` | Host for the Bun API server | `0.0.0.0` |
-| `ELIZA_AGENT_PORT` | Port for the Bun API server | `3000` |
-| `ELIZA_AGENT_DATA_DIR` | Root directory for state, memories, and cron persistence | `.eliza-agent` |
-| `ELIZA_AGENT_SKILLS_DIR` | Directory scanned recursively for `SKILL.md` files | `./packages/skills` |
-| `ELIZA_AGENT_TIMEZONE` | Default timezone for scheduling context | `America/Chicago` |
+| `DOOLITTLE_NAME` | Runtime agent display name | `Doolittle` |
+| `DOOLITTLE_MODE` | `api`, `cli`, or `both` | `both` |
+| `DOOLITTLE_HOST` | Host for the Bun API server | `0.0.0.0` |
+| `DOOLITTLE_PORT` | Port for the Bun API server | `3000` |
+| `DOOLITTLE_DATA_DIR` | Root directory for state, memories, and cron persistence | `.doolittle` |
+| `DOOLITTLE_SKILLS_DIR` | Directory scanned recursively for `SKILL.md` files | `./packages/skills` |
+| `DOOLITTLE_TIMEZONE` | Default timezone for scheduling context | `America/Chicago` |
 
 ### Agentic loop
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `ELIZA_AGENT_RUN_DEPTH` | Run depth preset: `quick`, `standard`, `deep`, `explore` | `standard` |
-| `ELIZA_AGENT_MAX_ITERATIONS` | Explicit iteration limit (overrides run depth preset) | Per depth preset |
-| `ELIZA_AGENT_TOOL_PROGRESS` | Tool progress display: `off`, `new`, `all`, `verbose` | `new` |
+| `DOOLITTLE_RUN_DEPTH` | Run depth preset: `quick`, `standard`, `deep`, `explore` | `standard` |
+| `DOOLITTLE_MAX_ITERATIONS` | Explicit iteration limit (overrides run depth preset) | Per depth preset |
+| `DOOLITTLE_TOOL_PROGRESS` | Tool progress display: `off`, `new`, `all`, `verbose` | `new` |
 
 ### Eliza Cloud
 
@@ -887,7 +893,7 @@ Copy `.env.example` to `.env` and fill in what you need.
 | `ELIZAOS_CLOUD_EMBEDDING_API_KEY` | Optional dedicated API key for Eliza Cloud embeddings. Falls back to `ELIZAOS_CLOUD_API_KEY` |
 | `ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS` | Optional embedding dimension override for `text-embedding-3` models |
 
-Eliza Agent uses a stable per-session conversation id with Eliza Cloud so managed xAI-backed runs can benefit from provider-side prompt caching when the upstream supports cached prompt tokens.
+Doolittle uses a stable per-session conversation id with Eliza Cloud so managed xAI-backed runs can benefit from provider-side prompt caching when the upstream supports cached prompt tokens.
 
 ### OpenAI
 
@@ -919,26 +925,26 @@ Eliza Agent uses a stable per-session conversation id with Eliza Cloud so manage
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_MEMORY_CHAR_LIMIT` | Max characters for `MEMORY.md` |
-| `ELIZA_AGENT_USER_CHAR_LIMIT` | Max characters for `USER.md` |
-| `ELIZA_AGENT_SESSION_SEARCH_LIMIT` | Default number of search hits returned by `/search` |
+| `DOOLITTLE_MEMORY_CHAR_LIMIT` | Max characters for `MEMORY.md` |
+| `DOOLITTLE_USER_CHAR_LIMIT` | Max characters for `USER.md` |
+| `DOOLITTLE_SESSION_SEARCH_LIMIT` | Default number of search hits returned by `/search` |
 
 ### Scheduling
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_CRON_TICK_SECONDS` | Scheduler polling interval |
-| `ELIZA_AGENT_CRON_OUTPUT_DIR` | Output directory for scheduled report exports |
+| `DOOLITTLE_CRON_TICK_SECONDS` | Scheduler polling interval |
+| `DOOLITTLE_CRON_OUTPUT_DIR` | Output directory for scheduled report exports |
 
 ### Gateway and transports
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_GATEWAY_DATA_DIR` | Persistent gateway state directory |
-| `ELIZA_AGENT_HOOKS_DIR` | Directory for hook state |
-| `ELIZA_AGENT_WORKSPACE_DIR` | Workspace directory scanned for context files |
-| `ELIZA_AGENT_ALLOW_ALL_USERS` | Global gateway allow-all switch |
-| `ELIZA_AGENT_PAIRING_MODE` | Default pairing mode for remote platforms |
+| `DOOLITTLE_GATEWAY_DATA_DIR` | Persistent gateway state directory |
+| `DOOLITTLE_HOOKS_DIR` | Directory for hook state |
+| `DOOLITTLE_WORKSPACE_DIR` | Workspace directory scanned for context files |
+| `DOOLITTLE_ALLOW_ALL_USERS` | Global gateway allow-all switch |
+| `DOOLITTLE_PAIRING_MODE` | Default pairing mode for remote platforms |
 | `TELEGRAM_BOT_TOKEN` | Enables Telegram transport |
 | `TELEGRAM_API_ROOT` | Optional Telegram Bot API root override |
 | `TELEGRAM_ALLOWED_CHATS` | JSON-encoded Telegram chat allowlist |
@@ -958,69 +964,69 @@ Eliza Agent uses a stable per-session conversation id with Eliza Cloud so manage
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_BROWSER_PROVIDER` | Browser backend: `lightpanda` (default) or `basic` |
-| `ELIZA_AGENT_BROWSER_COMMAND` | Local Lightpanda command |
-| `ELIZA_AGENT_BROWSER_CDP_URL` | Optional CDP endpoint for deeper automation |
-| `ELIZA_AGENT_BROWSER_OBEY_ROBOTS` | Enables robot-policy aware fetching |
+| `DOOLITTLE_BROWSER_PROVIDER` | Browser backend: `lightpanda` (default) or `basic` |
+| `DOOLITTLE_BROWSER_COMMAND` | Local Lightpanda command |
+| `DOOLITTLE_BROWSER_CDP_URL` | Optional CDP endpoint for deeper automation |
+| `DOOLITTLE_BROWSER_OBEY_ROBOTS` | Enables robot-policy aware fetching |
 
 ### Execution backends
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_EXECUTION_COMMAND_TIMEOUT_MS` | Default command timeout |
-| `ELIZA_AGENT_EXECUTION_HEALTH_TIMEOUT_MS` | Backend health probe timeout |
-| `ELIZA_AGENT_CONTAINER_CPU_LIMIT` | CPU limit for Docker/Podman containers |
-| `ELIZA_AGENT_CONTAINER_MEMORY_LIMIT` | Memory limit for Docker/Podman containers |
-| `ELIZA_AGENT_CONTAINER_PIDS_LIMIT` | PIDs limit for Docker/Podman containers |
-| `ELIZA_AGENT_CONTAINER_READ_ONLY_ROOT` | Read-only container root with tmpfs for `/tmp` and `/run` |
-| `ELIZA_AGENT_DOCKER_IMAGE` | Container image for Docker/Podman |
-| `ELIZA_AGENT_DOCKER_NETWORK` | Container network mode |
-| `ELIZA_AGENT_DOCKER_WORKSPACE_PATH` | Mount path inside containers |
-| `ELIZA_AGENT_DOCKER_ENV_PASSTHROUGH` | Comma-separated env vars forwarded into containers |
-| `ELIZA_AGENT_SINGULARITY_IMAGE` | Local SIF path or remote image for Singularity |
-| `ELIZA_AGENT_SSH_HOST` | Remote SSH host |
-| `ELIZA_AGENT_SSH_USER` | Remote SSH user |
-| `ELIZA_AGENT_SSH_PATH` | Remote workspace path |
-| `ELIZA_AGENT_SSH_PORT` | SSH port |
-| `ELIZA_AGENT_SSH_KEY_PATH` | Optional SSH private key |
-| `ELIZA_AGENT_SSH_STRICT_HOST_KEY_CHECKING` | Strict host verification |
+| `DOOLITTLE_EXECUTION_COMMAND_TIMEOUT_MS` | Default command timeout |
+| `DOOLITTLE_EXECUTION_HEALTH_TIMEOUT_MS` | Backend health probe timeout |
+| `DOOLITTLE_CONTAINER_CPU_LIMIT` | CPU limit for Docker/Podman containers |
+| `DOOLITTLE_CONTAINER_MEMORY_LIMIT` | Memory limit for Docker/Podman containers |
+| `DOOLITTLE_CONTAINER_PIDS_LIMIT` | PIDs limit for Docker/Podman containers |
+| `DOOLITTLE_CONTAINER_READ_ONLY_ROOT` | Read-only container root with tmpfs for `/tmp` and `/run` |
+| `DOOLITTLE_DOCKER_IMAGE` | Container image for Docker/Podman |
+| `DOOLITTLE_DOCKER_NETWORK` | Container network mode |
+| `DOOLITTLE_DOCKER_WORKSPACE_PATH` | Mount path inside containers |
+| `DOOLITTLE_DOCKER_ENV_PASSTHROUGH` | Comma-separated env vars forwarded into containers |
+| `DOOLITTLE_SINGULARITY_IMAGE` | Local SIF path or remote image for Singularity |
+| `DOOLITTLE_SSH_HOST` | Remote SSH host |
+| `DOOLITTLE_SSH_USER` | Remote SSH user |
+| `DOOLITTLE_SSH_PATH` | Remote workspace path |
+| `DOOLITTLE_SSH_PORT` | SSH port |
+| `DOOLITTLE_SSH_KEY_PATH` | Optional SSH private key |
+| `DOOLITTLE_SSH_STRICT_HOST_KEY_CHECKING` | Strict host verification |
 
 ### Daytona
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_DAYTONA_TARGET` | Target sandbox or workspace |
-| `ELIZA_AGENT_DAYTONA_COMMAND` | Optional CLI command override |
-| `ELIZA_AGENT_DAYTONA_SHELL` | Shell inside sandboxes |
-| `ELIZA_AGENT_DAYTONA_WORKSPACE_PATH` | Remote workspace path |
-| `ELIZA_AGENT_DAYTONA_SNAPSHOT` | Optional snapshot anchor |
-| `ELIZA_AGENT_DAYTONA_BOOTSTRAP_COMMAND` | Optional pre-command bootstrap |
-| `ELIZA_AGENT_DAYTONA_STATUS_COMMAND` | Optional status command |
-| `ELIZA_AGENT_DAYTONA_INSPECT_COMMAND` | Optional inspect command override |
+| `DOOLITTLE_DAYTONA_TARGET` | Target sandbox or workspace |
+| `DOOLITTLE_DAYTONA_COMMAND` | Optional CLI command override |
+| `DOOLITTLE_DAYTONA_SHELL` | Shell inside sandboxes |
+| `DOOLITTLE_DAYTONA_WORKSPACE_PATH` | Remote workspace path |
+| `DOOLITTLE_DAYTONA_SNAPSHOT` | Optional snapshot anchor |
+| `DOOLITTLE_DAYTONA_BOOTSTRAP_COMMAND` | Optional pre-command bootstrap |
+| `DOOLITTLE_DAYTONA_STATUS_COMMAND` | Optional status command |
+| `DOOLITTLE_DAYTONA_INSPECT_COMMAND` | Optional inspect command override |
 
 ### Modal
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_MODAL_TARGET` | Target sandbox or environment |
-| `ELIZA_AGENT_MODAL_COMMAND` | Optional CLI command override |
-| `ELIZA_AGENT_MODAL_SHELL` | Shell inside sandboxes |
-| `ELIZA_AGENT_MODAL_WORKSPACE_PATH` | Remote workspace path |
-| `ELIZA_AGENT_MODAL_ENVIRONMENT` | Optional environment name |
-| `ELIZA_AGENT_MODAL_BOOTSTRAP_COMMAND` | Optional pre-command bootstrap |
-| `ELIZA_AGENT_MODAL_STATUS_COMMAND` | Optional status command |
-| `ELIZA_AGENT_MODAL_INSPECT_COMMAND` | Optional inspect command override |
+| `DOOLITTLE_MODAL_TARGET` | Target sandbox or environment |
+| `DOOLITTLE_MODAL_COMMAND` | Optional CLI command override |
+| `DOOLITTLE_MODAL_SHELL` | Shell inside sandboxes |
+| `DOOLITTLE_MODAL_WORKSPACE_PATH` | Remote workspace path |
+| `DOOLITTLE_MODAL_ENVIRONMENT` | Optional environment name |
+| `DOOLITTLE_MODAL_BOOTSTRAP_COMMAND` | Optional pre-command bootstrap |
+| `DOOLITTLE_MODAL_STATUS_COMMAND` | Optional status command |
+| `DOOLITTLE_MODAL_INSPECT_COMMAND` | Optional inspect command override |
 
 ### Remote sync
 
 | Variable | Purpose |
 |---|---|
-| `ELIZA_AGENT_REMOTE_SYNC_MODE` | `mirror` or `snapshot` |
-| `ELIZA_AGENT_REMOTE_SYNC_INCLUDE` | Comma-separated workspace paths to sync |
-| `ELIZA_AGENT_REMOTE_SYNC_EXCLUDE` | Comma-separated paths excluded from sync |
-| `ELIZA_AGENT_REMOTE_ARTIFACT_PATHS` | Comma-separated remote artifact paths |
-| `ELIZA_AGENT_REMOTE_ARTIFACT_POLICY` | `metadata-only` or `allowlisted` |
-| `ELIZA_AGENT_REMOTE_WORKSPACE_LABEL` | Human-readable label for remote sessions |
+| `DOOLITTLE_REMOTE_SYNC_MODE` | `mirror` or `snapshot` |
+| `DOOLITTLE_REMOTE_SYNC_INCLUDE` | Comma-separated workspace paths to sync |
+| `DOOLITTLE_REMOTE_SYNC_EXCLUDE` | Comma-separated paths excluded from sync |
+| `DOOLITTLE_REMOTE_ARTIFACT_PATHS` | Comma-separated remote artifact paths |
+| `DOOLITTLE_REMOTE_ARTIFACT_POLICY` | `metadata-only` or `allowlisted` |
+| `DOOLITTLE_REMOTE_WORKSPACE_LABEL` | Human-readable label for remote sessions |
 
 ### MCP / ACP
 
@@ -1036,7 +1042,7 @@ Eliza Agent uses a stable per-session conversation id with Eliza Cloud so manage
 ## Architecture
 
 ```text
-eliza-agent/
+doolittle/
 ├── package.json                    # bin: packages/agent/src/index.ts
 ├── scripts/
 │   ├── install.sh                  # First-contact installer
@@ -1054,15 +1060,15 @@ eliza-agent/
 │   │   │   ├── bootstrap.ts        # ElizaOS AgentRuntime assembly
 │   │   │   ├── chat.ts             # Agent turn handler + agentic loop bridge
 │   │   │   └── native/
-│   │   │       ├── plugin-registry.ts  # Declarative native plugin assembly
-│   │   │       ├── plugin-catalog.ts   # Native plugin inventory
+│   │   │       ├── plugin-registry/    # Declarative native plugin assembly
+│   │   │       ├── plugin-catalog/     # Native plugin inventory
 │   │   │       └── package-audit.ts    # Ecosystem and package audit views
 │   │   ├── services/               # 35+ service modules
 │   │   ├── evaluators/             # Memory nudge, context evaluators
 │   │   ├── providers/              # Context providers
 │   │   └── gateway/                # Multi-platform gateway runner
 │   ├── plugins/                    # ElizaOS plugins (local + vendored)
-│   │   ├── eliza-agent-plugin.ts   # Product-layer custom plugin
+│   │   ├── doolittle-plugin.ts   # Product-layer custom plugin
 │   │   ├── plugin-action-bench/
 │   │   ├── plugin-agent-orchestrator/
 │   │   ├── plugin-agent-skills/
@@ -1110,7 +1116,7 @@ eliza-agent/
 │   │   └── testing/
 │   ├── skill-packs-optional/       # Broader optional skill packs
 │   ├── characters/                 # Character definitions
-│   │   └── eliza-agent.character.json
+│   │   └── doolittle.character.json
 │   ├── acp/                        # Agent Communication Protocol
 │   ├── modeling/                   # Persona-alignment assets
 │   ├── benchmarks/                 # Evaluation scaffolding

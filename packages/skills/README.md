@@ -1,6 +1,6 @@
-# Eliza Agent Skills
+# Doolittle Skills
 
-This workspace holds curated and generated Eliza Agent skill documents.
+This workspace holds curated and generated Doolittle skill documents.
 
 See the current registry in [`index.md`](./index.md).
 The skills hub surfaces these families directly through `/skills families` and `/skills hub families`.
@@ -42,7 +42,7 @@ Optional, higher-breadth packs live in the sibling [`packages/skill-packs-option
 - `support/incidents`
   - outage triage, containment, operator impact, and follow-up investigation
 - `community/engagement`
-  - outward-facing replies, onboarding guidance, and Eliza Agent communication
+  - outward-facing replies, onboarding guidance, and Doolittle communication
 - `platform/execution`
   - local, container, and remote execution backend planning
 - `platform/transport`
@@ -74,6 +74,6 @@ Optional, higher-breadth packs live in the sibling [`packages/skill-packs-option
 
 ## Conventions
 
-- Keep each `SKILL.md` short, specific, and Eliza Agent branded.
+- Keep each `SKILL.md` short, specific, and Doolittle branded.
 - Prefer concrete deliverables over broad advisory language.
 - Use the smallest category that still captures the work cleanly.

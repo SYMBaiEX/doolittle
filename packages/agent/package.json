@@ -1,11 +1,13 @@
 {
-  "name": "@eliza-agent/agent",
+  "name": "@doolittle/agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Primary Eliza Agent application package.",
+  "description": "Primary Doolittle application package.",
   "dependencies": {
-    "@eliza-agent/acp": "workspace:*",
+    "@doolittle/acp": "workspace:*",
+    "@doolittle/contracts": "workspace:*",
+    "@doolittle/logger": "workspace:*",
     "@elizaos/agent": "2.0.0-alpha.85"
   },
   "scripts": {
