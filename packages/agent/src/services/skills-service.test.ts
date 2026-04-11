@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { resolve } from "node:path";
 import type { AgentSdkService } from "./agent-sdk-service";
-import { SkillsService } from "./skills-service";
+import { SkillsService } from "./skills/service";
 
 describe("SkillsService", () => {
   test("delegates catalog and search lookups to the shared agent sdk service", async () => {
@@ -57,11 +58,9 @@ describe("SkillsService", () => {
       },
     } as unknown as AgentSdkService;
 
-    const service = new SkillsService(
-      "/Users/symbiex/dev/elizaos/eliza-agent/eliza-agent/packages/skills",
-      agentSdk,
-      "/Users/symbiex/dev/elizaos/eliza-agent/eliza-agent",
-    );
+    const workspaceDir = resolve(import.meta.dir, "../../../../");
+    const skillsDir = resolve(workspaceDir, "packages/skills");
+    const service = new SkillsService(skillsDir, agentSdk, workspaceDir);
 
     const summary = service.summary();
 
