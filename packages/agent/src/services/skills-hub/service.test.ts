@@ -3,16 +3,16 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DelegationTaskRecord } from "@/types";
-import { AgentSdkService } from "./agent-sdk-service";
-import { SkillSynthesisService } from "./skill-synthesis-service";
-import { SkillsHubService } from "./skills-hub-service";
-import { SkillsService } from "./skills-service";
+import { AgentSdkService } from "../agent-sdk-service";
+import { SkillSynthesisService } from "../skill-synthesis/service";
+import { SkillsService } from "../skills/service";
+import { SkillsHubService } from "./service";
 
 type AgentCatalogSkill = Awaited<ReturnType<AgentSdkService["catalogSkill"]>>;
 
 describe("SkillsHubService", () => {
   it("syncs, exports, imports, and installs skill manifests", async () => {
-    const root = join(tmpdir(), `eliza-agent-skills-hub-${Date.now()}`);
+    const root = join(tmpdir(), `doolittle-skills-hub-${Date.now()}`);
     const skillsDir = join(root, "skills");
     const dataDir = join(root, "data");
     mkdirSync(join(dataDir, "exports"), { recursive: true });
