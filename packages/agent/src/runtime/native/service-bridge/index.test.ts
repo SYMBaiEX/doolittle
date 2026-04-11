@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { AppServices } from "@/services";
-import type { DelegationTaskRecord } from "@/types";
-import type { RuntimeLike } from "./service-bridge";
+import type { DelegationTaskRecord } from "@/types/delegation";
+import type { RuntimeLike } from "./index";
 import {
   cancelEffectiveForm,
   createEffectiveForm,
@@ -45,7 +45,7 @@ import {
   performEffectiveCodeResearch,
   retryEffectiveDelegationTask,
   setEffectiveSecret,
-} from "./service-bridge";
+} from "./index";
 
 function makeDelegationTask(
   id: string,
@@ -89,7 +89,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
           return {
             capabilityDescription: "e2b",
             listSandboxes: () => [
-              { id: "sandbox-1", path: "/tmp/eliza-agent-e2b/sandbox-1" },
+              { id: "sandbox-1", path: "/tmp/doolittle-e2b/sandbox-1" },
             ],
             executeCode: async () => ({ success: true }),
           };
@@ -200,6 +200,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
           provider: "basic",
           ready: true,
           mode: "fallback",
+          captureMode: "placeholder",
+          captureReady: false,
           detail: "fallback",
           artifacts: {
             snapshot: false,
@@ -218,6 +220,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
           provider: "basic";
           ready: true;
           mode: "fallback";
+          captureMode: "placeholder";
+          captureReady: false;
           detail: "fallback";
           artifacts: {
             snapshot: false;
@@ -922,6 +926,58 @@ describe("plugin manager bridge helper", () => {
     });
     expect(inventory?.plugins).toHaveLength(2);
   });
+
+  it("falls back to derived summary values when plugin manager summary is missing", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "plugin_manager") {
+          return {
+            list: () => [
+              { enabled: true, source: "official" },
+              { enabled: false, source: "vendored" },
+              { enabled: true, source: "vendored" },
+            ],
+            categories: () => ({ foundation: 1, adapter: 1 }),
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const inventory = getEffectivePluginManagerInventory(runtime);
+
+    expect(inventory?.summary).toEqual({
+      total: 3,
+      enabled: 2,
+      official: 1,
+      vendored: 2,
+      categories: 2,
+    });
+    expect(inventory?.plugins).toHaveLength(3);
+  });
+
+  it("maps plugin-manager capability ownership from runtime presence", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "plugin_manager") {
+          return {};
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+    const resolution = getEffectiveServiceResolution(runtime);
+
+    const pluginManager = resolution.find(
+      (entry) => entry.capability === "pluginManager",
+    );
+
+    expect(pluginManager).toMatchObject({
+      nativeService: "plugin_manager",
+      source: "native",
+      ownership: "plugin",
+      available: true,
+    });
+  });
 });
 
 describe("delegation bridge helpers", () => {
@@ -1064,7 +1120,7 @@ describe("identity bridge helpers", () => {
           return {
             summary: () => ({
               totalProfiles: 2,
-              agentName: "Eliza Agent",
+              agentName: "Doolittle",
               recentProfiles: ["alice", "bob"],
               totalBeliefs: 4,
               totalBeliefSources: 2,
@@ -1164,7 +1220,7 @@ describe("identity bridge helpers", () => {
     });
     expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
       totalProfiles: 2,
-      agentName: "Eliza Agent",
+      agentName: "Doolittle",
       recentProfiles: ["alice", "bob"],
       totalBeliefs: 4,
       totalBeliefSources: 2,
@@ -1232,7 +1288,7 @@ describe("identity bridge helpers", () => {
       userProfiles: {
         summary: () => ({
           totalProfiles: 7,
-          agentName: "Eliza Agent",
+          agentName: "Doolittle",
           recentProfiles: ["carol", "dave"],
           totalBeliefs: 1,
           totalBeliefSources: 0,
@@ -1274,7 +1330,7 @@ describe("identity bridge helpers", () => {
     });
     expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
       totalProfiles: 7,
-      agentName: "Eliza Agent",
+      agentName: "Doolittle",
       recentProfiles: ["carol", "dave"],
       totalBeliefs: 1,
       totalBeliefSources: 0,
