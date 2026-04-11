@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { WebService } from "./web-service";
+import { WebService } from "./service";
 
 describe("WebService", () => {
   it("reports fallback mode when lightpanda is unavailable", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-test-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-test-"));
     const service = new WebService(
       () => ({
         provider: "lightpanda",
@@ -29,7 +29,7 @@ describe("WebService", () => {
   });
 
   it("fetches readable text in basic mode", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-basic-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-basic-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -52,7 +52,7 @@ describe("WebService", () => {
   });
 
   it("extracts page metadata and structured line breaks", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-meta-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-meta-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -80,7 +80,7 @@ describe("WebService", () => {
   });
 
   it("creates screenshot artifacts in fallback mode", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-shot-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-shot-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -112,7 +112,7 @@ describe("WebService", () => {
   });
 
   it("inspects a page and emits both browser artifacts", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-inspect-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-inspect-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -138,7 +138,7 @@ describe("WebService", () => {
   });
 
   it("creates a reusable browser capture bundle with manifest and report", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-capture-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-capture-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -170,7 +170,7 @@ describe("WebService", () => {
   });
 
   it("creates a browser comparison bundle between two captures", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-compare-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-compare-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -203,7 +203,7 @@ describe("WebService", () => {
   });
 
   it("builds a model-ready browser analysis brief", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-web-analyze-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-analyze-"));
     const service = new WebService(
       () => ({
         provider: "basic",
@@ -228,9 +228,7 @@ describe("WebService", () => {
   });
 
   it("builds a model-ready browser comparison analysis brief", async () => {
-    const root = mkdtempSync(
-      join(tmpdir(), "eliza-agent-web-compare-analyze-"),
-    );
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-compare-analyze-"));
     const service = new WebService(
       () => ({
         provider: "basic",
