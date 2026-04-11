@@ -1,10 +1,11 @@
 import type { AppServices } from "@/services";
-import type { EnvConfig, GatewayConfig } from "@/types";
+import type { GatewayConfig } from "@/types/gateway";
+import type { EnvConfig } from "@/types/runtime";
 import {
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
-  type RuntimeLike,
-} from "./service-bridge";
+} from "./service-bridge/ownership";
+import type { RuntimeLike } from "./service-bridge/runtime";
 
 type NativeOwnershipControlPlane = ReturnType<
   typeof getNativeOwnershipControlPlane
