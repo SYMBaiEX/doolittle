@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   classifyTurnMessage,
   isSimpleGreetingMessage,
+  isSimpleSocialMessage,
 } from "./turn-classification";
 
 describe("turn classification", () => {
@@ -14,6 +15,16 @@ describe("turn classification", () => {
     expect(greeting.simpleChat).toBe(true);
     expect(greeting.informationalOnly).toBe(true);
     expect(greeting.shouldUseMultiStep).toBe(false);
+  });
+
+  it("treats short social turns as simple chat", () => {
+    expect(isSimpleSocialMessage("How are you today")).toBe(true);
+    expect(isSimpleSocialMessage("thanks")).toBe(true);
+
+    const social = classifyTurnMessage("How are you today");
+    expect(social.simpleChat).toBe(true);
+    expect(social.informationalOnly).toBe(true);
+    expect(social.shouldUseMultiStep).toBe(false);
   });
 
   it("marks local folder overviews as actionable local tasks", () => {

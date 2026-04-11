@@ -1,4 +1,4 @@
-import type { RunDepth, ToolProgressMode } from "@/types";
+import type { RunDepth, ToolProgressMode } from "@/types/runtime";
 
 const LOCAL_TASK_FAST_PATH_PATTERN =
   /\b(search|find|read|open|inspect|show|grep|rg|git|status|diff|log|repo|repository|workspace|directory|folder|path|file|files|command|run|execute|terminal|shell|ls|list)\b/i;
@@ -85,6 +85,16 @@ export function isSimpleGreetingMessage(message: string): boolean {
   );
 }
 
+export function isSimpleSocialMessage(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  if (isSimpleGreetingMessage(normalized)) {
+    return true;
+  }
+  return /^(how are you(?: doing)?(?: today)?|how'?s it going|how are things|thanks|thank you)[!.?]*$/iu.test(
+    normalized,
+  );
+}
+
 export function classifyTurnMessage(message: string): TurnClassification {
   const text = message.trim();
   const lowered = text.toLowerCase();
@@ -103,7 +113,7 @@ export function classifyTurnMessage(message: string): TurnClassification {
   const likelyLocalTask = LOCAL_TASK_FAST_PATH_PATTERN.test(text);
   const requiresFullContext = FULL_CONTEXT_PATTERN.test(text);
 
-  if (isSimpleGreetingMessage(text)) {
+  if (isSimpleSocialMessage(text)) {
     return {
       simpleChat: true,
       likelyLocalTask: false,

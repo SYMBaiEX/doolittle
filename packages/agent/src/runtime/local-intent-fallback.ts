@@ -11,12 +11,13 @@ import {
   resolveWorkspaceIntentFromText,
 } from "@/actions/workspace-action";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import type { ChatTurnRequest } from "@/types";
+import type { ChatTurnRequest } from "@/types/runtime";
 
 export interface DirectLocalIntentExecution {
   label: string;
   statusLine: string;
   isHighConfidence?: boolean;
+  kind?: "retrieval" | "synthesis";
   execute(): Promise<string>;
 }
 
@@ -98,6 +99,7 @@ export function resolveDirectLocalIntent(
       label: `repo:${repositoryIntent}`,
       statusLine: "Inspecting repository status...",
       isHighConfidence: true,
+      kind: "retrieval",
       execute: () =>
         executeRepositoryIntent(
           context.runtime,
@@ -124,6 +126,11 @@ export function resolveDirectLocalIntent(
                   ? `Writing ${workspaceIntent.path}...`
                   : "Inspecting workspace structure...",
       isHighConfidence: workspaceIntent.kind !== "write",
+      kind:
+        workspaceIntent.kind === "overview" ||
+        workspaceIntent.kind === "find-codebase"
+          ? "synthesis"
+          : "retrieval",
       execute: () =>
         executeWorkspaceIntent(
           context.runtime,
@@ -140,6 +147,7 @@ export function resolveDirectLocalIntent(
       label: `shell:${terminalCommand}`,
       statusLine: `Running \`${terminalCommand}\`...`,
       isHighConfidence: false,
+      kind: "retrieval",
       execute: async () => {
         const result = await executeTerminalCommand(
           context.runtime,
@@ -174,6 +182,12 @@ export function isHighConfidenceDirectLocalIntent(
   return shouldPreferDirectLocalExecution(intent);
 }
 
+export function requiresModelSynthesisForLocalIntent(
+  intent: DirectLocalIntentExecution | undefined,
+): boolean {
+  return intent?.kind === "synthesis";
+}
+
 export async function executeDirectLocalIntent(
   intent: DirectLocalIntentExecution,
   sessionId: string,
@@ -199,9 +213,13 @@ export function shouldUseDirectLocalFallback(input: {
   observedActionCount: number;
   runFailureMessage?: string;
   isHighConfidenceIntent?: boolean;
+  requiresModelSynthesis?: boolean;
 }): boolean {
   const stalledAfterMinimalWork =
     Boolean(input.isHighConfidenceIntent) && input.observedActionCount <= 1;
+  if (!input.runFailureMessage && input.requiresModelSynthesis) {
+    return false;
+  }
   return (
     (input.observedActionCount === 0 || stalledAfterMinimalWork) &&
     (Boolean(input.runFailureMessage) ||
