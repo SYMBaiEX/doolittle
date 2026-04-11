@@ -9,13 +9,13 @@ import { GatewaySessionService } from "@/services/gateway-session-service";
 import { HooksService } from "@/services/hooks-service";
 import { PairingService } from "@/services/pairing-service";
 import { RunControllerService } from "@/services/run-controller-service";
-import { SessionService } from "@/services/session-service";
-import { UserProfileService } from "@/services/user-profile-service";
-import { GatewayRunner } from "./gateway-runner";
+import { SessionService } from "@/services/session/service";
+import { UserProfileService } from "@/services/user-profile/service";
+import { GatewayRunner } from "./runner/service";
 
 describe("GatewayRunner", () => {
   it("records transport traces and lifecycle events for inbound messages", async () => {
-    const root = mkdtempSync(join(tmpdir(), "eliza-agent-gateway-runner-"));
+    const root = mkdtempSync(join(tmpdir(), "doolittle-gateway-service-"));
     const config = {
       agentName: "test-agent",
       mode: "cli",
