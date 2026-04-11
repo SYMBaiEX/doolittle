@@ -1,5 +1,5 @@
 import type { PairingService } from "@/services/pairing-service";
-import type { GatewayConfig, IncomingPlatformMessage } from "@/types";
+import type { GatewayConfig, IncomingPlatformMessage } from "@/types/gateway";
 
 export function authorizeMessage(
   message: IncomingPlatformMessage,

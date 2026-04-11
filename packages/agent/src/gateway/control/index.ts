@@ -2,9 +2,9 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge";
-import type { PlatformName } from "@/types";
+} from "@/runtime/native/plugin-catalog/index";
+import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/index";
+import type { PlatformName } from "@/types/gateway";
 
 export type GatewayTraceKind =
   | "receive"
