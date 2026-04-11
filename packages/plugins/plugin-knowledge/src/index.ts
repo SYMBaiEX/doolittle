@@ -61,7 +61,7 @@ export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
   class KnowledgeService extends ElizaService {
     static serviceType = "knowledge";
     capabilityDescription =
-      "Official-style knowledge ingestion and recall service for Eliza Agent.";
+      "Official-style knowledge ingestion and recall service for Doolittle.";
 
     static async start(_runtime: IAgentRuntime): Promise<ElizaService> {
       return new KnowledgeService(_runtime);
@@ -122,7 +122,7 @@ export function createKnowledgePlugin(options: KnowledgePluginOptions): Plugin {
   return {
     name: "knowledge",
     description:
-      "Official-style knowledge service layered onto Eliza Agent memory and document ingestion.",
+      "Official-style knowledge service layered onto Doolittle memory and document ingestion.",
     services: [KnowledgeService],
   };
 }

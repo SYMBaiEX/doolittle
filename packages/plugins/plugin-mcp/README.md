@@ -2,7 +2,7 @@
 
 Model Context Protocol integration plugin for ElizaOS.
 
-This workspace copy is vendored into `packages/plugins/plugin-mcp` and normalized for the current ElizaOS alpha line used by Eliza Agent.
+This workspace copy is vendored into `packages/plugins/plugin-mcp` and normalized for the current ElizaOS alpha line used by Doolittle.
 
 ## Provenance
 

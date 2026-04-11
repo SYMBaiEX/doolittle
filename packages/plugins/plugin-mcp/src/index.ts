@@ -3,11 +3,11 @@ import {
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import type { McpService as AgentMcpService } from "@/services/mcp-service";
+import type { McpServiceLike } from "./types";
 
 export interface McpPluginOptions {
   mcp: Pick<
-    AgentMcpService,
+    McpServiceLike,
     | "status"
     | "probe"
     | "discoverTools"
@@ -24,7 +24,7 @@ export function createMcpPlugin(options: McpPluginOptions): Plugin {
   class McpService extends ElizaService {
     static serviceType = "mcp";
     capabilityDescription =
-      "Official-style MCP service backed by Eliza Agent tool discovery and invocation.";
+      "Official-style MCP service backed by Doolittle tool discovery and invocation.";
 
     static async start(runtime: IAgentRuntime): Promise<ElizaService> {
       return new McpService(runtime);
@@ -50,7 +50,7 @@ export function createMcpPlugin(options: McpPluginOptions): Plugin {
       return options.mcp.invoke(input);
     }
 
-    invokeTool(...args: Parameters<AgentMcpService["invokeTool"]>) {
+    invokeTool(...args: Parameters<McpServiceLike["invokeTool"]>) {
       const [name, input] = args;
       return options.mcp.invokeTool(name, input);
     }
@@ -75,7 +75,7 @@ export function createMcpPlugin(options: McpPluginOptions): Plugin {
   return {
     name: "mcp",
     description:
-      "Official-style MCP plugin layered onto Eliza Agent MCP discovery and invocation.",
+      "Official-style MCP plugin layered onto Doolittle MCP discovery and invocation.",
     services: [McpService],
   };
 }
