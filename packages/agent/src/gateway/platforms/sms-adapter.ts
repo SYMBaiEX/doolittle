@@ -1,5 +1,6 @@
 import type { DeliveryService } from "@/services/delivery-service";
-import type { EnvConfig, PlatformName } from "@/types";
+import type { PlatformName } from "@/types/gateway";
+import type { EnvConfig } from "@/types/runtime";
 import { CommandPlatformAdapter } from "./command-adapter";
 
 export class SmsPlatformAdapter extends CommandPlatformAdapter {
