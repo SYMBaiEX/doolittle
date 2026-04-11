@@ -1,10 +1,10 @@
 import type { IAgentRuntime, Plugin, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
-import type { TrajectoryService } from "@/services/trajectory-service";
+import type { TrajectoryServiceLike } from "./types";
 
 export interface TrajectoryLoggerPluginOptions {
   trajectories: Pick<
-    TrajectoryService,
+    TrajectoryServiceLike,
     "exportLatest" | "listBundles" | "compareLatest"
   >;
 }
@@ -15,7 +15,7 @@ export function createTrajectoryLoggerPlugin(
   class TrajectoryLoggerService extends ElizaService {
     static serviceType = "trajectory_logger";
     capabilityDescription =
-      "Trajectory logger service backed by Eliza Agent trajectory workflows.";
+      "Trajectory logger service backed by Doolittle trajectory workflows.";
 
     private readonly trajectories = options.trajectories;
 
@@ -45,7 +45,7 @@ export function createTrajectoryLoggerPlugin(
 
   return {
     name: "trajectory-logger",
-    description: "Trajectory logger plugin for Eliza Agent research workflows.",
+    description: "Trajectory logger plugin for Doolittle research workflows.",
     services: [TrajectoryLoggerService],
   };
 }
