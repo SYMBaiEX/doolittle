@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { shouldIncludeDirectProviderPlugin } from "./plugin-registry";
+import { shouldIncludeDirectProviderPlugin } from "./support";
 
 describe("shouldIncludeDirectProviderPlugin", () => {
   it("excludes direct providers when Eliza Cloud owns the runtime", () => {
