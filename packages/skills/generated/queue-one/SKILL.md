@@ -6,7 +6,7 @@ Generated from delegated task 46207110-6dc3-4be8-b3cd-bf8d854c292a.
 /status
 
 ## Notes
-Agent: Eliza Agent
+Agent: Doolittle
 Personality: Operator
 Provider: openai
 Model: gpt-4.1-mini

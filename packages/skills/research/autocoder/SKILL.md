@@ -1,6 +1,6 @@
-# Eliza Agent Autocoder Research
+# Doolittle Autocoder Research
 
-Use this skill when evaluating code-generation workflows, SWE-bench style tasks, or the impact of autocoder-style plugins on Eliza Agent.
+Use this skill when evaluating code-generation workflows, SWE-bench style tasks, or the impact of autocoder-style plugins on Doolittle.
 
 Guidelines:
 

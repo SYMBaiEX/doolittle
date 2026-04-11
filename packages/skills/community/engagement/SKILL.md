@@ -1,6 +1,6 @@
-# Eliza Agent Community Engagement
+# Doolittle Community Engagement
 
-Use this skill when drafting replies, onboarding guidance, or outward-facing notes for Eliza Agent users and collaborators.
+Use this skill when drafting replies, onboarding guidance, or outward-facing notes for Doolittle users and collaborators.
 
 Guidelines:
 

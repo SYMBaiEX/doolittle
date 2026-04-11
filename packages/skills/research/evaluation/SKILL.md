@@ -1,6 +1,6 @@
-# Eliza Agent Research Evaluation
+# Doolittle Research Evaluation
 
-Use this skill when comparing workflows, scoring bundles, or evaluating whether Eliza Agent behavior has improved.
+Use this skill when comparing workflows, scoring bundles, or evaluating whether Doolittle behavior has improved.
 
 Guidelines:
 

@@ -1,4 +1,4 @@
-# Eliza Agent Planning Coordination
+# Doolittle Planning Coordination
 
 Use this skill when shaping roadmaps, aligning workstreams, or keeping a multi-step build effort moving cleanly.
 

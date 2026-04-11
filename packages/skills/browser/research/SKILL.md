@@ -1,4 +1,4 @@
-# Eliza Agent Browser Research
+# Doolittle Browser Research
 
 Use this skill when capturing web pages, comparing browser artifacts, or collecting evidence from a remote page.
 

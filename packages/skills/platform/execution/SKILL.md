@@ -1,6 +1,6 @@
-# Eliza Agent Execution Backends
+# Doolittle Execution Backends
 
-Use this skill when choosing, validating, or documenting an execution backend for Eliza Agent work.
+Use this skill when choosing, validating, or documenting an execution backend for Doolittle work.
 
 Guidelines:
 
