@@ -18,6 +18,7 @@ const NATIVE_RUNTIME_ROOT = join(
 );
 const CONTRACTS_ROOT = join(ROOT, "packages", "contracts", "src");
 const BOOTSTRAP_SCRIPTS_ROOT = join(ROOT, "scripts", "bootstrap");
+const AGENT_SRC_ROOT = join(ROOT, "packages", "agent", "src");
 const ALLOWED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const FORBIDDEN_IMPORT_PATTERNS: Array<{
   pattern: RegExp;
@@ -25,7 +26,7 @@ const FORBIDDEN_IMPORT_PATTERNS: Array<{
 }> = [
   {
     pattern: /from\s+["']@\/.+["']/u,
-    reason: "imports agent source through the repo-local @/ alias",
+    reason: "imports agent source through the repo-local @/alias",
   },
   {
     pattern: /from\s+["'](?:\.\.\/)+(?:packages\/)?agent\/src\/.+["']/u,
@@ -33,11 +34,33 @@ const FORBIDDEN_IMPORT_PATTERNS: Array<{
   },
 ];
 
+const SERVICE_BRIDGE_ROOT_IMPORT_PATTERN =
+  /^\s*import(?:\s+type)?[\s\S]*?from\s+["'](?:@\/runtime\/native\/service-bridge|(?:\.\.\/|\.\/)+(?:[^"']+\/)*service-bridge)["']/mu;
+
+const SERVICE_BRIDGE_ROOT_TYPEOF_IMPORT_PATTERN =
+  /typeof\s+import\(\s*["'](?:@\/runtime\/native\/service-bridge|(?:\.\.\/|\.\/)+(?:[^"']+\/)*service-bridge)["']\s*\)/mu;
+
 const INTERNAL_FACADE_GUARDS: Array<{
   root: string;
   include: RegExp;
   patterns: Array<{ pattern: RegExp; reason: string }>;
 }> = [
+  {
+    root: AGENT_SRC_ROOT,
+    include: /packages\/agent\/src\/.+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: SERVICE_BRIDGE_ROOT_IMPORT_PATTERN,
+        reason:
+          "imports from the runtime/native service-bridge root instead of a domain entrypoint",
+      },
+      {
+        pattern: SERVICE_BRIDGE_ROOT_TYPEOF_IMPORT_PATTERN,
+        reason:
+          "depends on the runtime/native service-bridge root for types instead of a domain entrypoint",
+      },
+    ],
+  },
   {
     root: SERVICES_ROOT,
     include: /packages\/agent\/src\/services\/.+\.(?:[cm]?ts|tsx)$/u,
@@ -106,9 +129,9 @@ const INTERNAL_FACADE_GUARDS: Array<{
     patterns: [
       {
         pattern:
-          /^\s*import(?:\s+type)?[\s\S]*?from\s+["'](?:@\/runtime\/native\/|(?:\.\.\/|\.\/)+)(account-auth|plugin-catalog|plugin-registry|service-bridge)["']/mu,
+          /^\s*import(?:\s+type)?[\s\S]*?from\s+["'](?:@\/runtime\/native\/|(?:\.\.\/|\.\/)+)(account-auth|plugin-catalog|plugin-registry|service-bridge)\/index["']/mu,
         reason:
-          "imports through a runtime/native compatibility facade instead of a folder-owned module",
+          "imports through an explicit runtime/native index path instead of the folder-owned module",
       },
     ],
   },

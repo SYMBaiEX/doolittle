@@ -8,7 +8,7 @@ import {
   createDefaultSettings,
   loadBootstrapGatewayConfig,
   loadBootstrapSettings,
-} from "./index";
+} from "./defaults";
 
 describe("bootstrap persistence defaults", () => {
   it("creates stable default settings and gateway config", () => {

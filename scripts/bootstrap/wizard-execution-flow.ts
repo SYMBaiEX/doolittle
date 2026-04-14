@@ -1,10 +1,10 @@
 import { RUN_DEPTH_ITERATION_PRESETS } from "../../packages/agent/src/types";
 import type { BootstrapWizardContext } from "./bootstrap-context";
 import { chooseOne } from "./core/prompt-ops";
-import type { PromptHandle } from "./core/prompts";
 import { applyExecutionFlowResult } from "./execution-flow/helpers";
+import type { PromptHandle } from "./prompting/types";
 import type { BootstrapDependencyProbe, WizardAnswers } from "./types";
-import { runExecutionBodySelectionFlow } from "./wizard-execution/body";
+import { runExecutionBodySelectionFlow } from "./wizard-execution/body/selection";
 import { runExecutionHandsSelectionFlow } from "./wizard-execution/hands";
 
 export async function runExecutionSelectionFlow(

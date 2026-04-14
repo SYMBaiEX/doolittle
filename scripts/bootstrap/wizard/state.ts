@@ -1,4 +1,4 @@
-import type { LinkedProviderAccountsSnapshot } from "../../../packages/agent/src/runtime/native/account-auth/index";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { readEnvBase } from "../answers";
 import type { WizardAnswers } from "../types";
 

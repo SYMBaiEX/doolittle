@@ -1,13 +1,14 @@
 import type { BootstrapWizardContext } from "../bootstrap-context";
+import { askSecret as promptAskSecret } from "../prompting/secret";
 import {
-  type PromptHandle,
-  type PromptRuntime,
-  ask as promptAsk,
-  askSecret as promptAskSecret,
-  askYesNo as promptAskYesNo,
   chooseMany as promptChooseMany,
   chooseOne as promptChooseOne,
-} from "./prompts";
+} from "../prompting/selection";
+import {
+  ask as promptAsk,
+  askYesNo as promptAskYesNo,
+} from "../prompting/text-prompts";
+import type { PromptHandle, PromptRuntime } from "../prompting/types";
 
 export function createPromptRuntime(
   context: BootstrapWizardContext,

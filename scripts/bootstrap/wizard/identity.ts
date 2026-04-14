@@ -5,7 +5,7 @@ import {
 } from "../../../packages/agent/src/runtime/theme-catalog";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { ask, chooseOne } from "../core/prompt-ops";
-import type { PromptHandle } from "../core/prompts";
+import type { PromptHandle } from "../prompting/types";
 import type { WizardMode } from "../types";
 
 export interface WizardIdentitySelection {

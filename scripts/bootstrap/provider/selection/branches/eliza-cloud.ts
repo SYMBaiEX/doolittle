@@ -1,7 +1,7 @@
-import type { LinkedProviderAccountsSnapshot } from "../../../../../packages/agent/src/runtime/native/account-auth/index";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { BootstrapWizardContext } from "../../../bootstrap-context";
 import { ask, askSecret, chooseOne } from "../../../core/prompt-ops";
-import type { PromptHandle } from "../../../core/prompts";
+import type { PromptHandle } from "../../../prompting/types";
 import { runElizaCloudLoginFlow } from "../../cloud-login";
 import {
   buildCloudRecoveryOptions,

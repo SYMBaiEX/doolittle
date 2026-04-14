@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { BootstrapWizardContext } from "../bootstrap-context";
-import type { PromptHandle } from "../core/prompts";
+import type { PromptHandle } from "../prompting/types";
 import type { ReviewResult, WizardAnswers } from "../types";
 import { type ReviewFlowDeps, runReviewAndConfirmFlow } from "./review";
 

@@ -1,10 +1,13 @@
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { AppContext } from "../packages/agent/src/runtime/bootstrap";
 import { getAppContext } from "../packages/agent/src/runtime/bootstrap";
 import {
   connectLinkedProvider,
   type LinkedProviderName,
   syncProviderSettings,
 } from "../packages/agent/src/runtime/chat";
-import { getLinkedProviderAccountsSnapshot } from "../packages/agent/src/runtime/native/account-auth/index";
+
+type SmokeContext = AppContext;
 
 interface SmokeArgs {
   provider: LinkedProviderName | "all";
@@ -27,6 +30,19 @@ interface SmokeResult {
   liveResponse?: string;
   detail: string;
   error?: string;
+}
+
+interface SmokeDependencies {
+  getContext: () => Promise<SmokeContext>;
+  getSnapshot: () => ReturnType<typeof getLinkedProviderAccountsSnapshot>;
+  connect: (
+    context: SmokeContext,
+    provider: LinkedProviderName,
+  ) => ReturnType<typeof connectLinkedProvider>;
+  syncSettings: (
+    context: SmokeContext,
+    settings: ReturnType<SmokeContext["services"]["settings"]["get"]>,
+  ) => void;
 }
 
 function parseArgs(argv: string[]): SmokeArgs {
@@ -67,25 +83,39 @@ function parseArgs(argv: string[]): SmokeArgs {
   };
 }
 
+function mapProviderToServiceType(provider: LinkedProviderName): string {
+  return provider === "codex" ? "codex" : "claude_code";
+}
+
+function buildDependencies(): SmokeDependencies {
+  return {
+    getContext: async () => getAppContext(),
+    getSnapshot: () => getLinkedProviderAccountsSnapshot(),
+    connect: (context, provider) => connectLinkedProvider(context, provider),
+    syncSettings: syncProviderSettings,
+  };
+}
+
 function normalizeLiveResponse(text: string | undefined): string | undefined {
   return text?.replace(/\s+/g, " ").trim() || undefined;
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(Bun.argv.slice(2));
+export async function runSmokeChecks(
+  args: SmokeArgs,
+  deps: SmokeDependencies = buildDependencies(),
+): Promise<SmokeResult[]> {
   const providers: LinkedProviderName[] =
     args.provider === "all" ? ["codex", "claude-code"] : [args.provider];
-
-  const context = await getAppContext();
+  const context = await deps.getContext();
   const settingsBefore = context.services.settings.get();
   const results: SmokeResult[] = [];
-  const snapshot = getLinkedProviderAccountsSnapshot();
+  const snapshot = deps.getSnapshot();
 
   try {
     for (const provider of providers) {
       const account =
         provider === "codex" ? snapshot.codex : snapshot.claudeCode;
-      const serviceType = provider === "codex" ? "codex" : "claude_code";
+      const serviceType = mapProviderToServiceType(provider);
       const result: SmokeResult = {
         provider,
         available: account.available,
@@ -102,7 +132,7 @@ async function main(): Promise<void> {
         continue;
       }
 
-      const connect = await connectLinkedProvider(context, provider);
+      const connect = await deps.connect(context, provider);
       result.connected = connect.connected;
       result.activated = connect.activated;
       result.advice = connect.advice;
@@ -144,9 +174,13 @@ async function main(): Promise<void> {
       "model.maxTokens",
       settingsBefore.model.maxTokens,
     );
-    syncProviderSettings(context, context.services.settings.get());
+    deps.syncSettings(context, context.services.settings.get());
   }
 
+  return results;
+}
+
+function printSmokeResults(results: SmokeResult[], args: SmokeArgs): void {
   if (args.json) {
     console.log(JSON.stringify({ results }, null, 2));
     return;
@@ -172,7 +206,18 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+export async function main(
+  argv: string[] = Bun.argv.slice(2),
+  deps: SmokeDependencies = buildDependencies(),
+): Promise<void> {
+  const args = parseArgs(argv);
+  const results = await runSmokeChecks(args, deps);
+  printSmokeResults(results, args);
+}
+
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

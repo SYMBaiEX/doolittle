@@ -1,10 +1,10 @@
 import type { BootstrapWizardContext } from "../bootstrap-context";
-import type { PromptHandle } from "../core/prompts";
 import {
   resolveAcpPresetCommand,
   resolveExecutionToolDefaults,
   resolveMcpPresetCommand,
 } from "../execution-flow/helpers";
+import type { PromptHandle } from "../prompting/types";
 import type { WizardAnswers } from "../types";
 import type {
   ExecutionHandsPromptDeps,

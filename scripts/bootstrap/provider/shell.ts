@@ -1,6 +1,9 @@
 import { spawnSync } from "node:child_process";
 import type { BootstrapWizardContext } from "../bootstrap-context";
-import { createWizardScreen } from "../wizard-screen/surface";
+import {
+  restoreWizardScreen,
+  suspendWizardScreen,
+} from "../wizard-screen/lifecycle";
 
 export function runInteractiveCommand(
   context: BootstrapWizardContext,
@@ -8,26 +11,13 @@ export function runInteractiveCommand(
   args: string[],
   label: string,
 ): boolean {
-  const snapshot = context.getWizardScreen()?.snapshot();
-  if (context.getWizardScreen()) {
-    context.getWizardScreen()?.destroy();
-    context.setWizardScreen(null);
-    console.log();
-  }
+  const snapshot = suspendWizardScreen(context);
   context.section("Binding", label);
   const result = spawnSync(command, args, {
     stdio: "inherit",
     env: process.env,
   });
-  if (snapshot) {
-    context.setWizardScreen(
-      createWizardScreen({
-        initial: snapshot,
-        formatKeyLabel: context.formatKeyLabel,
-        onAbort: () => process.exit(1),
-      }),
-    );
-  }
+  restoreWizardScreen(context, snapshot);
   if (result.error) {
     context.warn(`${label} failed: ${result.error.message}`);
     return false;

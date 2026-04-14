@@ -1,5 +1,5 @@
 import type { BootstrapWizardContext } from "../bootstrap-context";
-import type { PromptHandle } from "../core/prompts";
+import type { PromptHandle } from "../prompting/types";
 import type { PairingMode, TransportName, WizardAnswers } from "../types";
 import type {
   ExecutionChannelsSelectionResult,

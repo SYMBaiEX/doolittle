@@ -1,10 +1,10 @@
 import {
   getLinkedProviderAccountsSnapshot,
   type LinkedProviderAccountsSnapshot,
-} from "../../../../../packages/agent/src/runtime/native/account-auth/index";
+} from "@/runtime/native/account-auth";
 import type { BootstrapWizardContext } from "../../../bootstrap-context";
 import { askYesNo, chooseOne } from "../../../core/prompt-ops";
-import type { PromptHandle } from "../../../core/prompts";
+import type { PromptHandle } from "../../../prompting/types";
 import { runInteractiveCommand } from "../../shell";
 import { resolveCodexBondDefault } from "./codex-defaults";
 import type { ProviderSelectionState } from "./state";

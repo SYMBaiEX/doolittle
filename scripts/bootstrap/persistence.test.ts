@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { DEFAULT_TUI_THEME } from "../../packages/agent/src/runtime/theme-catalog";
-import { buildBootstrapPersistencePlan } from "./persistence/index";
+import { buildBootstrapPersistencePlan } from "./persistence/plan";
 import type { GatewayConfig, RuntimeSettings, WizardAnswers } from "./types";
 
 const answers: WizardAnswers = {
