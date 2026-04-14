@@ -94,9 +94,20 @@ export interface CliOperatorSnapshot {
   nextCockpitHint: string;
 }
 
+type ShellChromeDependencies = {
+  getNativePluginCatalog: typeof getNativePluginCatalog;
+  getNativeTransportControlPlane: typeof getNativeTransportControlPlane;
+};
+
+const defaultShellChromeDependencies: ShellChromeDependencies = {
+  getNativePluginCatalog,
+  getNativeTransportControlPlane,
+};
+
 export function buildCliOperatorSnapshot(
   context: AppContext,
   state: { activeSessionId: string },
+  dependencies: ShellChromeDependencies = defaultShellChromeDependencies,
 ): CliOperatorSnapshot {
   const settings = context.services.settings.get();
   const startup = context.services.startupState.getSnapshot();
@@ -107,12 +118,12 @@ export function buildCliOperatorSnapshot(
   const sessionSummary = sessions.find(
     (entry) => entry.sessionId === state.activeSessionId,
   );
-  const transportControl = getNativeTransportControlPlane(
+  const transportControl = dependencies.getNativeTransportControlPlane(
     context.runtime,
     context.config,
     context.services.gatewayConfig,
   );
-  const plugins = getNativePluginCatalog(context.config);
+  const plugins = dependencies.getNativePluginCatalog(context.config);
   const enabledPlugins = plugins.filter((entry) => entry.enabled);
   const productionPlugins = enabledPlugins.filter(
     (entry) => entry.maturity === "production",
@@ -193,10 +204,11 @@ export function buildCliOperatorSnapshot(
 export function renderPlainBanner(
   context: AppContext,
   state: { activeSessionId: string },
+  dependencies: ShellChromeDependencies = defaultShellChromeDependencies,
 ): string {
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
-  const snapshot = buildCliOperatorSnapshot(context, state);
+  const snapshot = buildCliOperatorSnapshot(context, state, dependencies);
 
   const lines = [
     `┌─ ${theme.sigil} ${context.config.agentName.toUpperCase()} // conversation shell`,
@@ -233,8 +245,9 @@ export function renderPlainBanner(
 export function renderPlainShellHints(
   context: AppContext,
   state: { activeSessionId: string },
+  dependencies: ShellChromeDependencies = defaultShellChromeDependencies,
 ): string {
-  const snapshot = buildCliOperatorSnapshot(context, state);
+  const snapshot = buildCliOperatorSnapshot(context, state, dependencies);
   return [
     "Talk naturally for paired work, use !cmd for shell execution, or use /slash commands for control-plane actions.",
     snapshot.nextPlainHint,

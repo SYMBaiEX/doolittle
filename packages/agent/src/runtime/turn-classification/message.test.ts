@@ -57,9 +57,9 @@ describe("message classification edge cases", () => {
   });
 
   it("prefers full context when full-context cues are present", () => {
-    expect(resolveAgentContextScope("check provider settings and plugin health")).toBe(
-      "full",
-    );
+    expect(
+      resolveAgentContextScope("check provider settings and plugin health"),
+    ).toBe("full");
   });
 
   it("uses capability profile boundaries for action vs info turns", () => {

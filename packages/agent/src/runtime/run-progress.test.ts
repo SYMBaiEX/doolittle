@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { RunSnapshot, RunUpdateEvent } from "@/services/run-controller/types";
+import type {
+  RunSnapshot,
+  RunUpdateEvent,
+} from "@/services/run-controller/types";
 import {
   createResponseTextAccumulator,
   formatElapsedMs,
@@ -55,7 +58,9 @@ describe("runtime run progress helpers", () => {
         }),
       ),
     ).toBe(5000);
-    expect(getRunElapsedMs(createRun({ startedAt: "invalid" }))).toBeUndefined();
+    expect(
+      getRunElapsedMs(createRun({ startedAt: "invalid" })),
+    ).toBeUndefined();
   });
 
   it("formats elapsed values across subsecond, second, and minute ranges", () => {
@@ -129,7 +134,8 @@ describe("runtime run progress helpers", () => {
     expect(
       formatRunEvent(
         createEvent("error", {
-          errorMessage: "remote execution failed because the sandbox is offline",
+          errorMessage:
+            "remote execution failed because the sandbox is offline",
         }),
       ),
     ).toContain("run error");

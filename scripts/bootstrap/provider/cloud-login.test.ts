@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 
 function createContext(): {
@@ -51,7 +44,9 @@ function asFetchMock(
 }
 
 async function loadFlowModule() {
-  return import(`./cloud-login?cloud-login-tests=${Date.now()}-${Math.random()}`);
+  return import(
+    `./cloud-login?cloud-login-tests=${Date.now()}-${Math.random()}`
+  );
 }
 
 function withPatchedSetTimeout(fn: () => Promise<void>) {
@@ -109,13 +104,15 @@ describe("runElizaCloudLoginFlow", () => {
     }));
 
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = asFetchMock(mock(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/api/auth/cli-session")) {
-        return new Response("bad credentials", { status: 500 });
-      }
-      return new Response("missing", { status: 500 });
-    }));
+    globalThis.fetch = asFetchMock(
+      mock(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/api/auth/cli-session")) {
+          return new Response("bad credentials", { status: 500 });
+        }
+        return new Response("missing", { status: 500 });
+      }),
+    );
 
     const { runElizaCloudLoginFlow } = await loadFlowModule();
     const apiKey = await runElizaCloudLoginFlow(context, "Eliza Cloud login");
@@ -125,9 +122,11 @@ describe("runElizaCloudLoginFlow", () => {
       title: "Binding",
       detail: "Eliza Cloud login",
     });
-    expect(warnCalls.some((message) => message.includes("Failed to create auth session (HTTP 500)"))).toBe(
-      true,
-    );
+    expect(
+      warnCalls.some((message) =>
+        message.includes("Failed to create auth session (HTTP 500)"),
+      ),
+    ).toBe(true);
     expect(restoreWizardScreen).toHaveBeenCalledTimes(1);
 
     globalThis.fetch = originalFetch;
@@ -137,7 +136,8 @@ describe("runElizaCloudLoginFlow", () => {
     const { context, sectionCalls } = createContext();
 
     mock.module("@elizaos/autonomous/runtime/cloud-onboarding", () => ({
-      checkCloudAvailability: async () => "Cloud service temporarily unavailable",
+      checkCloudAvailability: async () =>
+        "Cloud service temporarily unavailable",
     }));
     const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
     const restoreWizardScreen = mock(() => {});
@@ -147,9 +147,11 @@ describe("runElizaCloudLoginFlow", () => {
     }));
 
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = asFetchMock(mock(async () => {
-      throw new Error("should not call fetch when availability blocked");
-    }));
+    globalThis.fetch = asFetchMock(
+      mock(async () => {
+        throw new Error("should not call fetch when availability blocked");
+      }),
+    );
 
     const { runElizaCloudLoginFlow } = await loadFlowModule();
     const apiKey = await runElizaCloudLoginFlow(context, "Eliza Cloud login");
@@ -179,17 +181,19 @@ describe("runElizaCloudLoginFlow", () => {
 
     const originalFetch = globalThis.fetch;
     let calledCreateSession = false;
-    globalThis.fetch = asFetchMock(mock(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/api/auth/cli-session")) {
-        calledCreateSession = true;
-        return new Response("{}");
-      }
-      if (url.includes("/api/auth/cli-session/") && calledCreateSession) {
-        return new Response("gone", { status: 404 });
-      }
-      return new Response("missing", { status: 500 });
-    }));
+    globalThis.fetch = asFetchMock(
+      mock(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/api/auth/cli-session")) {
+          calledCreateSession = true;
+          return new Response("{}");
+        }
+        if (url.includes("/api/auth/cli-session/") && calledCreateSession) {
+          return new Response("gone", { status: 404 });
+        }
+        return new Response("missing", { status: 500 });
+      }),
+    );
 
     const { runElizaCloudLoginFlow } = await loadFlowModule();
     const apiKey = await withPatchedSetTimeout(() =>
@@ -217,13 +221,17 @@ describe("runElizaCloudLoginFlow", () => {
     }));
 
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = asFetchMock(mock(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/api/auth/cli-session")) {
-        return new Response("{}", { status: 200 });
-      }
-      return new Response(JSON.stringify({ status: "waiting" }), { status: 200 });
-    }));
+    globalThis.fetch = asFetchMock(
+      mock(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/api/auth/cli-session")) {
+          return new Response("{}", { status: 200 });
+        }
+        return new Response(JSON.stringify({ status: "waiting" }), {
+          status: 200,
+        });
+      }),
+    );
 
     const { runElizaCloudLoginFlow } = await loadFlowModule();
     const apiKey = await withPatchedSetTimeoutAndVirtualTime(() =>

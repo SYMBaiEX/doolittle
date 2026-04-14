@@ -31,8 +31,9 @@ describe("bootstrap program options", () => {
     const formatted = formatBootstrapInstallerKeyLabel(
       "Alt-Enter then Ctrl-C to cancel",
     );
-    expect(formatted === "Option-Enter then Control-C to cancel" || formatted === "Alt-Enter then Ctrl-C to cancel").toBe(
-      true,
-    );
+    expect(
+      formatted === "Option-Enter then Control-C to cancel" ||
+        formatted === "Alt-Enter then Ctrl-C to cancel",
+    ).toBe(true);
   });
 });

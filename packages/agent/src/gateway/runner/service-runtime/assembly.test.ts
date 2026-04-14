@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
 import type {
@@ -11,6 +11,16 @@ import type { PlatformName } from "@/types/gateway";
 import { GatewayRunnerRuntimeState } from "./state";
 
 describe("assembleGatewayRunnerRuntime", () => {
+  beforeEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
+  afterEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
   it("passes platform accessors, state bindings, and native wrappers into composition", async () => {
     const platformAccessors = {
       getConfiguredPlatforms: mock(
@@ -45,33 +55,6 @@ describe("assembleGatewayRunnerRuntime", () => {
     } as never;
     let capturedCompositionInput: GatewayRunnerRuntimeAssemblyInput | undefined;
     let composedRuntimeAssembly: GatewayRunnerRuntimeAssembly;
-
-    mock.module("@/gateway/runner/composition/compose", () => ({
-      composeGatewayRunnerRuntime: (
-        input: GatewayRunnerRuntimeAssemblyInput,
-      ) => {
-        capturedCompositionInput = input;
-        return composedRuntimeAssembly;
-      },
-    }));
-
-    mock.module("@/gateway/runner/platform-accessors", () => ({
-      createGatewayRunnerPlatformAccessors: (_context: unknown) => {
-        return platformAccessors;
-      },
-    }));
-
-    mock.module("@/gateway/runner/native-resolution", () => ({
-      resolveNativeMessagingPlugin: (_input: unknown) => resolvedPlugin,
-    }));
-
-    mock.module("@/runtime/native/service-bridge/transport-control", () => ({
-      getNativeTransportControlPlane: (
-        _runtime: unknown,
-        _config: unknown,
-        _gatewayConfig: unknown,
-      ) => transportControlPlane,
-    }));
 
     const context = {
       config: { id: "config" },
@@ -174,6 +157,17 @@ describe("assembleGatewayRunnerRuntime", () => {
         observeAdapter,
         snapshotState,
         getRuntimeStatus,
+        dependencies: {
+          composeGatewayRunnerRuntime: (
+            input: GatewayRunnerRuntimeAssemblyInput,
+          ) => {
+            capturedCompositionInput = input;
+            return composedRuntimeAssembly;
+          },
+          createGatewayRunnerPlatformAccessors: () => platformAccessors,
+          resolveNativeMessagingPlugin: () => resolvedPlugin,
+          getNativeTransportControlPlane: () => transportControlPlane,
+        },
       });
 
       expect(assembled).toBe(composedRuntimeAssembly);

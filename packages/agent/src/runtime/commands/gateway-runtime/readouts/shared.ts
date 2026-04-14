@@ -12,7 +12,9 @@ export const GATEWAY_UNAVAILABLE_MESSAGE =
 export function getMessagingPluginLines(
   context: AgentExecutionContext,
 ): string[] {
-  const grouped = groupNativePluginCatalog(getNativePluginCatalog(context.config));
+  const grouped = groupNativePluginCatalog(
+    getNativePluginCatalog(context.config),
+  );
   return (grouped.messaging ?? []).map(
     (entry) =>
       `- plugin ${entry.id} [${entry.enabled ? "enabled" : "disabled"}] source=${entry.source} :: ${entry.notes}`,

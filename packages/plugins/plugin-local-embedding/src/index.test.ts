@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { IAgentRuntime, Plugin } from "@elizaos/core";
-import createLocalEmbeddingPlugin from "./index";
 import { stableHashVector } from "./hash";
+import createLocalEmbeddingPlugin from "./index";
 
 type LocalEmbeddingServiceShape = {
   status(): {
@@ -35,7 +35,8 @@ describe("local embedding plugin", () => {
     const plugin = createLocalEmbeddingPlugin() as Plugin & {
       services: unknown[];
     };
-    const ServiceClass = plugin.services[0] as unknown as LocalEmbeddingServiceClass;
+    const ServiceClass = plugin
+      .services[0] as unknown as LocalEmbeddingServiceClass;
     const service = await ServiceClass.start({} as IAgentRuntime);
 
     expect(plugin.name).toBe("local-embedding");

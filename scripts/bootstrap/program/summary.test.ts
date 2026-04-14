@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { printBootstrapSummary } from "./summary";
 import type { OnboardingSummary } from "../types";
+import { printBootstrapSummary } from "./summary";
 
-const stripAnsi = (value: string) => value.replace(/\x1b\[[0-9;]*m/g, "");
+const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+const stripAnsi = (value: string) => value.replace(ANSI_PATTERN, "");
 
 const onboardingSummary: OnboardingSummary = {
   timestamp: "2026-04-13T12:00:00.000Z",
@@ -49,9 +50,11 @@ describe("printBootstrapSummary", () => {
   it("prints the pulse summary with a first section and rendered sections", () => {
     const lines: string[] = [];
     const sections: Array<[string, string | undefined]> = [];
-    const logSpy = spyOn(console, "log").mockImplementation((value?: unknown) => {
-      lines.push(String(value ?? ""));
-    });
+    const logSpy = spyOn(console, "log").mockImplementation(
+      (value?: unknown) => {
+        lines.push(String(value ?? ""));
+      },
+    );
 
     printBootstrapSummary({
       checkOnly: false,

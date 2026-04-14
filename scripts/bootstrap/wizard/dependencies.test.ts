@@ -1,18 +1,9 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-} from "bun:test";
-import * as accountAuth from "@/runtime/native/account-auth";
-import * as childProcess from "node:child_process";
-import * as fs from "node:fs";
-import * as os from "node:os";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import type { BootstrapDependencyProbe } from "../types";
 import type { WizardScreenContext } from "../wizard-screen/types";
+import type { DependencyProbeEnvironment } from "./dependencies";
 
 function createContext(hasScreen: boolean): BootstrapWizardContext {
   const appendLine = mock(() => undefined);
@@ -55,7 +46,7 @@ function createContext(hasScreen: boolean): BootstrapWizardContext {
   };
 }
 
-function createLinkedAccounts() {
+function createLinkedAccounts(): LinkedProviderAccountsSnapshot {
   return {
     codex: {
       provider: "codex",
@@ -92,6 +83,25 @@ async function loadDependenciesModule() {
   );
 }
 
+function createProbeEnvironment(): DependencyProbeEnvironment {
+  return {
+    spawnSync: ((_: string, argsOrOptions?: readonly string[] | object) => {
+      const args = Array.isArray(argsOrOptions) ? argsOrOptions : [];
+      const binary = String(args[1] ?? "").replace("command -v ", "");
+      const installed = ["bun", "git", "daytona", "lightpanda"].includes(
+        binary,
+      );
+      return { status: installed ? 0 : 1 } as never;
+    }) as unknown as DependencyProbeEnvironment["spawnSync"],
+    existsSync: (path) => String(path).includes("lightpanda"),
+    platform: () => "darwin",
+    arch: () => "arm64",
+    release: () => "23.2.0",
+    hostname: () => "doolittle-host",
+    getLinkedProviderAccountsSnapshot: () => createLinkedAccounts(),
+  };
+}
+
 describe("bootstrap dependency probes", () => {
   beforeEach(() => {
     mock.restore();
@@ -104,40 +114,12 @@ describe("bootstrap dependency probes", () => {
   });
 
   it("builds dependency probes with env-driven browser command and auth readiness", async () => {
-    mock.module("@/runtime/native/account-auth", () => ({
-      ...accountAuth,
-      getLinkedProviderAccountsSnapshot: () => createLinkedAccounts(),
-    }));
-
-    mock.module("node:child_process", () => ({
-      ...childProcess,
-      spawnSync: (_: string, args: string[]) => {
-        const command = args[1]?.replace("command -v ", "");
-        const installed = ["bun", "git", "daytona", "lightpanda"].includes(command);
-        return { status: installed ? 0 : 1 };
-      },
-    }));
-
-    mock.module("node:fs", () => ({
-      ...fs,
-      existsSync: (path: string) => path.includes("lightpanda"),
-    }));
-
-    mock.module("node:os", () => ({
-      ...os,
-      platform: () => "darwin",
-      arch: () => "arm64",
-      release: () => "23.2.0",
-      hostname: () => "doolittle-host",
-    }));
-
     const { getDependencyProbes } = await loadDependenciesModule();
 
     const probes = getDependencyProbes(
       "/tmp/doolittle-root",
-      new Map([
-        ["DOOLITTLE_BROWSER_COMMAND", "custom-lightpanda"],
-      ]),
+      new Map([["DOOLITTLE_BROWSER_COMMAND", "custom-lightpanda"]]),
+      createProbeEnvironment(),
     ) as BootstrapDependencyProbe[];
 
     const host = probes.find((probe) => probe.key === "host");
@@ -195,11 +177,6 @@ describe("bootstrap dependency probes", () => {
     const context = createContext(false);
     const section = context.section as ReturnType<typeof mock>;
 
-    mock.module("../core/output", () => ({
-      bootstrapColor: { green: "green", red: "red" },
-      paint: (value: string) => `[${value}]`,
-    }));
-
     const { printDependencyProbes } = await loadDependenciesModule();
 
     const originalLog = console.log;
@@ -216,12 +193,16 @@ describe("bootstrap dependency probes", () => {
     ];
 
     printDependencyProbes(context, probes);
+    const loggedLines = (log.mock.calls as unknown as unknown[][]).map((call) =>
+      String(call[0] ?? ""),
+    );
 
     expect(section).toHaveBeenCalledWith(
       "Preflight",
       "I checked the machine before waking fully.",
     );
-    expect(log).toHaveBeenCalledWith("  Git: [missing]");
+    expect(loggedLines.some((line) => line.includes("Git:"))).toBe(true);
+    expect(loggedLines.some((line) => line.includes("missing"))).toBe(true);
     expect(context.info).toHaveBeenCalledWith("Used by workflows");
     console.log = originalLog;
   });

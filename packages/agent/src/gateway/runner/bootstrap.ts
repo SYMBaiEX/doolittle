@@ -24,8 +24,8 @@ import type {
   GatewayPlatformStateView,
 } from "@/gateway/state/state-snapshot";
 import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type { IncomingPlatformMessage, PlatformName } from "@/types/gateway";
 import type { NativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
+import type { IncomingPlatformMessage, PlatformName } from "@/types/gateway";
 import type { PlatformAdapter } from "../platforms/base";
 
 export interface GatewayRunnerRuntimeMeta {

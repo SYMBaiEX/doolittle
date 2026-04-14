@@ -2,10 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  ensureBootstrapDirectories,
-  resolveBootstrapPaths,
-} from "./paths";
+import { ensureBootstrapDirectories, resolveBootstrapPaths } from "./paths";
 
 describe("bootstrap program paths", () => {
   it("resolves persistence paths from the repo root", () => {

@@ -1,5 +1,9 @@
-import { formatDoctorSummary, formatSetupSummary, formatUpdatePreview } from "./formatters";
 import type { AgentExecutionContext } from "../../chat";
+import {
+  formatDoctorSummary,
+  formatSetupSummary,
+  formatUpdatePreview,
+} from "./formatters";
 
 export async function handleOperatorStatusCommand(
   trimmed: string,

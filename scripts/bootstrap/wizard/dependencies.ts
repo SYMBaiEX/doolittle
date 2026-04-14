@@ -7,24 +7,52 @@ import type { BootstrapWizardContext } from "../bootstrap-context";
 import { bootstrapColor as color, paint } from "../core/output";
 import type { BootstrapDependencyProbe } from "../types";
 
-function commandExists(command: string): boolean {
-  const result = spawnSync("sh", ["-lc", `command -v ${command}`], {
+export interface DependencyProbeEnvironment {
+  spawnSync: typeof spawnSync;
+  existsSync: typeof existsSync;
+  platform: typeof platform;
+  arch: typeof arch;
+  release: typeof release;
+  hostname: typeof hostname;
+  getLinkedProviderAccountsSnapshot: typeof getLinkedProviderAccountsSnapshot;
+}
+
+const defaultDependencyProbeEnvironment: DependencyProbeEnvironment = {
+  spawnSync,
+  existsSync,
+  platform,
+  arch,
+  release,
+  hostname,
+  getLinkedProviderAccountsSnapshot,
+};
+
+function commandExists(
+  command: string,
+  environment: DependencyProbeEnvironment,
+): boolean {
+  const result = environment.spawnSync("sh", ["-lc", `command -v ${command}`], {
     stdio: "ignore",
   });
   return result.status === 0;
 }
 
-function hasPackage(root: string, path: string): boolean {
-  return existsSync(join(root, "node_modules", ...path.split("/")));
+function hasPackage(
+  root: string,
+  path: string,
+  environment: DependencyProbeEnvironment,
+): boolean {
+  return environment.existsSync(join(root, "node_modules", ...path.split("/")));
 }
 
 export function getDependencyProbes(
   root: string,
   existingEnv: Map<string, string>,
+  environment: DependencyProbeEnvironment = defaultDependencyProbeEnvironment,
 ): BootstrapDependencyProbe[] {
   const browserCommand =
     existingEnv.get("DOOLITTLE_BROWSER_COMMAND") || "lightpanda";
-  const accounts = getLinkedProviderAccountsSnapshot();
+  const accounts = environment.getLinkedProviderAccountsSnapshot();
   const codexNativeReady =
     accounts.codex.nativeReady === true || accounts.codex.reusable === true;
   const claudeNativeReady =
@@ -35,56 +63,56 @@ export function getDependencyProbes(
       key: "host",
       label: "Host system",
       installed: true,
-      detail: `${platform()} ${release()} · ${arch()} · ${hostname()}`,
+      detail: `${environment.platform()} ${environment.release()} · ${environment.arch()} · ${environment.hostname()}`,
       recommendation:
-        platform() === "darwin"
+        environment.platform() === "darwin"
           ? "macOS detected. I will favor zsh-friendly paths and local app-style defaults."
           : undefined,
     },
     {
       key: "bun",
       label: "Bun runtime",
-      installed: commandExists("bun"),
+      installed: commandExists("bun", environment),
       detail: "Required for install, build, and runtime entrypoints.",
     },
     {
       key: "git",
       label: "Git",
-      installed: commandExists("git"),
+      installed: commandExists("git", environment),
       detail: "Used by repository workflows, codegen, and status tooling.",
     },
     {
       key: "docker",
       label: "Docker",
-      installed: commandExists("docker"),
+      installed: commandExists("docker", environment),
       detail: "Container execution backend.",
       recommendation: "Install Docker Desktop or switch execution to Local.",
     },
     {
       key: "podman",
       label: "Podman",
-      installed: commandExists("podman"),
+      installed: commandExists("podman", environment),
       detail: "Rootless container execution backend.",
       recommendation: "Install Podman or choose a different body.",
     },
     {
       key: "ssh",
       label: "SSH",
-      installed: commandExists("ssh"),
+      installed: commandExists("ssh", environment),
       detail: "Remote execution backend.",
       recommendation: "Install OpenSSH or stay local.",
     },
     {
       key: "daytona",
       label: "Daytona",
-      installed: commandExists("daytona"),
+      installed: commandExists("daytona", environment),
       detail: "Cloud workspace backend.",
       recommendation: "Install Daytona CLI before choosing the Daytona body.",
     },
     {
       key: "modal",
       label: "Modal",
-      installed: commandExists("modal"),
+      installed: commandExists("modal", environment),
       detail: "Elastic cloud backend.",
       recommendation: "Install and authenticate the Modal CLI first.",
     },
@@ -92,7 +120,8 @@ export function getDependencyProbes(
       key: "lightpanda",
       label: "Lightpanda vision",
       installed:
-        commandExists(browserCommand) || hasPackage(root, "lightpanda"),
+        commandExists(browserCommand, environment) ||
+        hasPackage(root, "lightpanda", environment),
       detail: "Preferred browser automation path.",
       recommendation:
         "Install Lightpanda or choose Basic HTTP eyes during onboarding.",
@@ -100,7 +129,7 @@ export function getDependencyProbes(
     {
       key: "ffmpeg",
       label: "FFmpeg",
-      installed: commandExists("ffmpeg"),
+      installed: commandExists("ffmpeg", environment),
       detail: "Helpful for richer media/audio workflows.",
       recommendation:
         "Install FFmpeg if you want stronger local media processing.",

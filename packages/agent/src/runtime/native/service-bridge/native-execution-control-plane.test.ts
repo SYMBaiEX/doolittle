@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { RuntimeLike } from "./runtime";
 import { getNativeExecutionControlPlaneDetails } from "./native-execution-control-plane";
+import type { RuntimeLike } from "./runtime";
 
 function createRuntime(
   services: Record<string, unknown>,

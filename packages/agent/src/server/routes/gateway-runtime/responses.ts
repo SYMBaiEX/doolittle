@@ -50,8 +50,8 @@ export async function buildGatewayHealthResponse(context: AppContext) {
       context.services.gatewayConfig,
     );
   const messagingPlugins =
-    groupNativePluginCatalog(getNativePluginCatalog(context.config)).messaging ??
-    [];
+    groupNativePluginCatalog(getNativePluginCatalog(context.config))
+      .messaging ?? [];
   const counts = describeGatewayHealthCounts(readiness);
   const sessions = context.services.gatewaySessions.list();
 
@@ -97,8 +97,8 @@ export async function buildGatewayHealthResponse(context: AppContext) {
 export function buildGatewayRuntimeResponse(context: AppContext) {
   const runtimeStatus = context.gateway.runtimeStatus();
   const messagingPlugins =
-    groupNativePluginCatalog(getNativePluginCatalog(context.config)).messaging ??
-    [];
+    groupNativePluginCatalog(getNativePluginCatalog(context.config))
+      .messaging ?? [];
   return {
     summary: buildGatewaySummaryBlock({
       headline: runtimeStatus.daemon?.watchdog?.running

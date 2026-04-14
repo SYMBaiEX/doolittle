@@ -139,7 +139,13 @@ describe("provider selection flow", () => {
     }));
     mock.module("./branches/codex", () => ({
       runCodexProviderBranch: mock(
-        async ({ linkedAccounts, state }: { linkedAccounts: unknown; state: { useLinkedCodexAuth: boolean } }) => {
+        async ({
+          linkedAccounts,
+          state,
+        }: {
+          linkedAccounts: unknown;
+          state: { useLinkedCodexAuth: boolean };
+        }) => {
           branchCalls.push(`codex:${state.useLinkedCodexAuth}`);
           return linkedAccounts;
         },
@@ -179,11 +185,7 @@ describe("provider selection flow", () => {
     expect(chooseOne).toHaveBeenCalledTimes(1);
     expect(ask).toHaveBeenCalledTimes(1);
     expect(askSecret).not.toHaveBeenCalled();
-    expect(branchCalls).toEqual([
-      "elizacloud",
-      "codex:true",
-      "claude-code",
-    ]);
+    expect(branchCalls).toEqual(["elizacloud", "codex:true", "claude-code"]);
     expect(answers.provider).toBe("codex");
     expect(answers.useLinkedCodexAuth).toBe(true);
     expect(answers.openaiModel).toBe("gpt-5.4-codex");
@@ -209,10 +211,12 @@ describe("provider selection flow", () => {
         return currentValue;
       },
     );
-    const askSecret = mock(async (_context: unknown, _rl: unknown, prompt: string) => {
-      secretPrompts.push(prompt);
-      return prompt.includes("OPENAI") ? "openai-key" : "anthropic-key";
-    });
+    const askSecret = mock(
+      async (_context: unknown, _rl: unknown, prompt: string) => {
+        secretPrompts.push(prompt);
+        return prompt.includes("OPENAI") ? "openai-key" : "anthropic-key";
+      },
+    );
     const chooseOne = mock(async () => "hybrid");
 
     mock.module("../../core/prompt-ops", () => ({
@@ -224,13 +228,19 @@ describe("provider selection flow", () => {
       resolveInteractiveProviderDefault: () => "openai",
     }));
     mock.module("./branches/eliza-cloud", () => ({
-      runElizaCloudProviderBranch: mock(async ({ linkedAccounts }: never) => linkedAccounts),
+      runElizaCloudProviderBranch: mock(
+        async ({ linkedAccounts }: never) => linkedAccounts,
+      ),
     }));
     mock.module("./branches/codex", () => ({
-      runCodexProviderBranch: mock(async ({ linkedAccounts }: never) => linkedAccounts),
+      runCodexProviderBranch: mock(
+        async ({ linkedAccounts }: never) => linkedAccounts,
+      ),
     }));
     mock.module("./branches/claude-code", () => ({
-      runClaudeCodeProviderBranch: mock(async ({ linkedAccounts }: never) => linkedAccounts),
+      runClaudeCodeProviderBranch: mock(
+        async ({ linkedAccounts }: never) => linkedAccounts,
+      ),
     }));
 
     const { runProviderSelectionFlow } = await loadFlowModule();
