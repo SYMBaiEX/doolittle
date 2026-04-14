@@ -72,10 +72,10 @@ describe("gateway runtime command router", () => {
       context,
     );
 
-    expect(voice).toContain('"mode": "voice_only"');
-    expect(channel).toContain('"roomId": "discord:room-1:user-1:root"');
-    expect(home).toContain('"label": "discord home"');
-    expect(expire).toContain('"expired": 15');
+    expect(voice).toContain("Mode: voice_only");
+    expect(channel).toContain("Channel: discord:room-1:user-1:root");
+    expect(home).toContain("Label: discord home");
+    expect(expire).toContain("Expired: 15");
     expect(calls).toEqual([
       { sessionKey: "discord:room-1:user-1:root", mode: "voice_only" },
       {
@@ -110,6 +110,7 @@ describe("gateway runtime command router", () => {
       context,
     );
 
-    expect(history).toContain('"delivery-1"');
+    expect(history).toContain("Gateway History");
+    expect(history).toContain("Latest delivery: delivery-1");
   });
 });

@@ -1,9 +1,9 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { getNativeResearchControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import {
   getEffectiveShellHistory,
-  getNativeResearchControlPlane,
   runEffectiveShellCommand,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/tooling";
 import { json } from "@/server/responses";
 
 export async function handleOperationsRoutes(

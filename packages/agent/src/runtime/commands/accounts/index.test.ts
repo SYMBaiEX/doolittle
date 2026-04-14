@@ -74,4 +74,30 @@ describe("accounts command router", () => {
 
     expect(response).toContain("/accounts setup-token claude-code");
   });
+
+  it("returns stable usage guidance for invalid refresh targets", async () => {
+    const context = {
+      runtime: {},
+      config: {},
+      services: {
+        settings: {
+          get: () => ({
+            model: {
+              provider: "codex",
+            },
+          }),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    const response = await handleAccountsCommand(
+      createInput("/accounts refresh azure"),
+      "/accounts refresh azure",
+      context,
+    );
+
+    expect(response).toContain(
+      "/accounts refresh <elizacloud|codex|claude-code>",
+    );
+  });
 });

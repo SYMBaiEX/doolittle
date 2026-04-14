@@ -9,7 +9,7 @@ import {
   invokeEffectiveMcpTool,
   probeEffectiveMcp,
   searchEffectiveCachedMcpTools,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/tooling";
 import { json } from "@/server/responses";
 
 export async function handleMcpRoutes(

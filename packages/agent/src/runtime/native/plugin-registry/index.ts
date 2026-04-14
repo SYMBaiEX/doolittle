@@ -7,7 +7,7 @@ import {
   groupNativePluginCatalog,
   type NativePluginCatalog,
   type NativePluginCatalogGroups,
-} from "../plugin-catalog/index";
+} from "../plugin-catalog";
 import {
   createEmptyDeferredPluginGroups,
   loadDeferredPluginGroups,

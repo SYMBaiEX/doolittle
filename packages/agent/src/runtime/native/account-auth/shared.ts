@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 
@@ -59,6 +59,13 @@ export function readJson(path: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+export function readJsonIfExists(
+  path: string,
+  readJsonValue: (path: string) => unknown = readJson,
+): unknown {
+  return existsSync(path) ? readJsonValue(path) : undefined;
 }
 
 export function writeJson(path: string, value: unknown): void {

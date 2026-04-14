@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { reconcilePglitePidFile } from "@/runtime/bootstrap/recovery";
+import { reconcilePglitePidFile } from "@/runtime/bootstrap/recovery/pid-file";
 import type { EnvConfig } from "@/types/runtime";
 
 export function getPgliteDataDir(

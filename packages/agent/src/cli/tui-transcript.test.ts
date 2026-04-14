@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createTuiTranscriptController } from "@/cli/tui-transcript";
+import { createTuiTranscriptController } from "@/cli/tui-transcript/controller";
 import type { AppContext } from "@/runtime/bootstrap";
 
 function createContext(agentName = "Doolittle"): AppContext {

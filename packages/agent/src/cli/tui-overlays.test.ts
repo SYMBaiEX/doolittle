@@ -164,4 +164,49 @@ describe("installTuiOverlays", () => {
     expect(composerOverlay.isVisible()).toBe(false);
     expect(queued).toEqual(["draft request"]);
   });
+
+  it("navigates palette suggestions and queues the selected command", () => {
+    const state: TuiOverlayState = {
+      paletteOpen: false,
+      composerOpen: false,
+      paletteSelectionIndex: 0,
+    };
+    const paletteOverlay = createTextbox();
+    const paletteInput = createTextbox();
+    const paletteList = createTextbox();
+    const composerOverlay = createTextbox();
+    const composer = createTextbox();
+    const inputBox = createTextbox();
+    const queued: string[] = [];
+
+    const overlays = installTuiOverlays({
+      workspaceDir: "/tmp",
+      paletteOverlay: paletteOverlay as never,
+      paletteInput: paletteInput as never,
+      paletteList: paletteList as never,
+      composerOverlay: composerOverlay as never,
+      composer: composer as never,
+      inputBox: inputBox as never,
+      overlayState: state,
+      activateTextEntry: (entry) => {
+        (entry as unknown as { focus(): void }).focus();
+      },
+      deactivateTextEntry: () => {},
+      focusPrimaryInput: () => {},
+      updateFooterHint: () => {},
+      noteTextEntryActivity: () => {},
+      queueCommand: (line) => {
+        queued.push(line);
+      },
+      screenRender: () => {},
+    });
+
+    overlays.openPalette();
+    paletteList.triggerKey("down");
+    paletteList.triggerKey("enter");
+
+    expect(state.paletteOpen).toBe(false);
+    expect(state.paletteSelectionIndex).toBe(1);
+    expect(queued).toEqual(["/commands-search <query>"]);
+  });
 });

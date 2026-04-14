@@ -21,3 +21,9 @@ export interface NativePackageAuditSummary {
   laggingLatest: number;
   workspaceOnly: number;
 }
+
+export interface NativePackageAuditRuntimeLine {
+  date: string;
+  latest: string;
+  alpha: string;
+}

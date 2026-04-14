@@ -1,4 +1,4 @@
-import type { BrowserMcpServices } from "@/runtime/native/service-bridge/index";
+import type { BrowserMcpServices } from "@/runtime/native/service-bridge/control-planes";
 import type { EnvConfig } from "@/types";
 
 export function buildBrowserMcpServices(config: EnvConfig): BrowserMcpServices {

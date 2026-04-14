@@ -1,8 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import {
-  getAutonomousControlPlane,
-  getNativeEcosystemSnapshot,
-} from "@/runtime/native/service-bridge/index";
+import { getAutonomousControlPlane } from "@/runtime/native/service-bridge/autonomous";
+import { getNativeEcosystemSnapshot } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import { resolveOwnership } from "./shared";
 

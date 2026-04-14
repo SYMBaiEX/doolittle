@@ -1,4 +1,4 @@
-import { getEffectiveServiceResolution } from "./control-planes/index";
+import { getEffectiveServiceResolution } from "./control-planes";
 import { getNativeServices, type RuntimeLike } from "./runtime";
 
 export interface EffectiveTurnCapabilityPolicy {

@@ -264,4 +264,48 @@ describe("UserProfileService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("returns defensive copies from read APIs", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-user-profile-copy-"));
+    const service = new UserProfileService(root);
+
+    try {
+      service.observe("user-copy", "My name is Mira and I prefer Bun.", "cli");
+      service.seedAgent({
+        name: "Doolittle Prime",
+        goals: ["Keep things clean"],
+      });
+
+      const listed = service.list();
+      const [listedProfile] = listed;
+      expect(listedProfile).toBeDefined();
+      listedProfile?.preferences.push("mutated");
+      if (listedProfile) {
+        listedProfile.relationship = {
+          status: "active",
+          trust: 99,
+          collaboration: 99,
+          notes: ["mutated"],
+        };
+      }
+
+      const fetched = service.get("user-copy");
+      fetched.preferences.push("mutated-again");
+
+      const agent = service.getAgent();
+      agent.goals.push("mutated-agent");
+
+      const freshProfile = service.get("user-copy");
+      const freshList = service.list();
+      const freshAgent = service.getAgent();
+
+      expect(freshProfile.preferences).not.toContain("mutated");
+      expect(freshProfile.preferences).not.toContain("mutated-again");
+      expect(freshProfile.relationship?.notes ?? []).not.toContain("mutated");
+      expect(freshList[0]?.preferences ?? []).not.toContain("mutated");
+      expect(freshAgent.goals).not.toContain("mutated-agent");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

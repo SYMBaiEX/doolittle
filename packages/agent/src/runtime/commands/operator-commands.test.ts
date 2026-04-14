@@ -72,17 +72,56 @@ function createContext() {
           events.doctorInput = input;
           return [
             {
-              status: "ok",
-              summary: "Doctor",
+              status: "pass",
+              summary: "Core runtime",
               detail: "healthy",
+            },
+            {
+              status: "warn",
+              summary: "Gateway",
+              detail: "telegram not configured",
             },
           ];
         },
         setupChecklist: async () => ["Install deps", "Run check"],
       },
       operator: {
-        setupSummary: async () => ({ setup: true }),
-        updatePreview: async () => ({ update: true }),
+        setupSummary: async () => ({
+          readiness: {
+            level: "needs-attention",
+            headline: "Shell is usable, but setup still needs attention.",
+            detail: "providers 1/4 ready · transports 1/3 ready",
+            nextSteps: ["Link a provider", "Enable a transport"],
+          },
+          providers: [
+            { id: "openai", ready: true, detail: "Configured." },
+            {
+              id: "anthropic",
+              ready: false,
+              detail: "Missing ANTHROPIC_API_KEY.",
+            },
+          ],
+          transports: [
+            { id: "api", ready: true, detail: "API ready." },
+            { id: "telegram", ready: false, detail: "Telegram disabled." },
+          ],
+          directories: [
+            { label: "workspace", path: "/workspace/demo", exists: true },
+            { label: "data", path: "/workspace/demo/.doolittle", exists: true },
+          ],
+        }),
+        updatePreview: async () => ({
+          readiness: {
+            level: "ready",
+            headline: "Update planning looks healthy.",
+            detail: "git repository detected · workspace is clean",
+            nextSteps: ["Run the standard validation loop."],
+          },
+          repositoryAvailable: true,
+          repositoryStatus: "clean",
+          recentCommits: "abc123 fix router extraction",
+          recommendedSteps: ["Run bun test"],
+        }),
         migrationSources: () => [{ path: "/tmp/source" }],
         migrationHistory: () => [{ id: "migration-1" }],
         inspectMigrationSource: (sourcePath: string) => ({ sourcePath }),
@@ -164,7 +203,9 @@ describe("operator command router", () => {
       hooks,
     );
 
-    expect(doctor).toBe("[OK] Doctor: healthy");
+    expect(doctor).toContain("Doctor");
+    expect(doctor).toContain("Overall: 1 pass, 1 warn, 0 fail");
+    expect(doctor).toContain("Gateway: telegram not configured");
     expect(events.doctorInput).toMatchObject({
       skillsCount: 3,
       contextFilesCount: 2,
@@ -174,8 +215,14 @@ describe("operator command router", () => {
       gatewayTransportOverview: { transports: 2 },
     });
     expect(setup).toBe("1. Install deps\n2. Run check");
-    expect(setupSummary).toContain('"setup": true');
-    expect(update).toContain('"update": true');
+    expect(setupSummary).toContain("Setup Summary");
+    expect(setupSummary).toContain(
+      "Shell is usable, but setup still needs attention.",
+    );
+    expect(setupSummary).toContain("Providers needing attention:");
+    expect(update).toContain("Update Preview");
+    expect(update).toContain("Git status: clean");
+    expect(update).toContain("Validation loop:");
     expect(migrate).toContain("/tmp/source");
     expect(history).toContain("migration-1");
     expect(inspect).toContain("/tmp/source");

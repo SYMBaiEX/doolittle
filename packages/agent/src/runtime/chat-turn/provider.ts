@@ -1,126 +1,26 @@
 import { randomUUID } from "node:crypto";
-import { resolveStreamingUpdate } from "@elizaos/autonomous/api/streaming-text";
+import { ChannelType, EventType, type UUID } from "@elizaos/core";
+import type { AgentExecutionContext } from "@/runtime/chat";
+import type { TurnCapabilityProfile } from "@/runtime/turn-classification/types";
+import { withProviderRuntimeLock } from "./provider/lock";
 import {
-  ChannelType,
-  createMessageMemory,
-  EventType,
-  type UUID,
-} from "@elizaos/core";
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
+  applyModelSettings,
+  hasModelOverride,
+  restoreRuntimeSetting,
+} from "./provider/settings";
 import {
-  buildProviderFailureMessage,
-  syncProviderSettings,
-} from "@/runtime/linked-provider-accounts";
-import type { TurnCapabilityProfile } from "@/runtime/turn-classification";
+  type ModelSettingsSnapshot,
+  type ProviderModelTurnExecutionContext,
+  type ProviderTurnOptions,
+  providerModelTurnContext,
+} from "./provider/types";
 import {
   type DirectLocalIntentFallbackLoader,
   executeProviderMessageTurn,
   type ProviderTurnSettingsSnapshot,
 } from "./provider-handler";
 import { createProviderStreamState } from "./provider-streaming";
-import {
-  buildNativePlanningFailureMessage,
-  isRecoverableNativePlanningError,
-} from "./response-shaping";
 import type { TurnState } from "./state";
-import { extractCompatTextContent } from "./state";
-
-export type ModelSettingsSnapshot = ReturnType<
-  AgentExecutionContext["services"]["settings"]["get"]
->;
-
-type ProviderTurnOptions = AgentTurnHooks & {
-  personalityId?: string;
-};
-
-type ProviderModelTurnExecutionContext = {
-  resolveStreamingUpdate: typeof resolveStreamingUpdate;
-  createMessageMemory: typeof createMessageMemory;
-  extractCompatTextContent: typeof extractCompatTextContent;
-  buildNativePlanningFailureMessage: typeof buildNativePlanningFailureMessage;
-  isRecoverableNativePlanningError: typeof isRecoverableNativePlanningError;
-  buildProviderFailureMessage: typeof buildProviderFailureMessage;
-  syncProviderSettings: typeof syncProviderSettings;
-};
-
-const providerModelTurnContext: ProviderModelTurnExecutionContext = {
-  resolveStreamingUpdate,
-  createMessageMemory,
-  extractCompatTextContent,
-  buildNativePlanningFailureMessage,
-  isRecoverableNativePlanningError,
-  buildProviderFailureMessage,
-  syncProviderSettings,
-};
-
-const providerRuntimeLocks = new WeakMap<object, Promise<void>>();
-
-function hasModelOverride(
-  before: ModelSettingsSnapshot,
-  during: ModelSettingsSnapshot,
-): boolean {
-  return (
-    during.model.provider !== before.model.provider ||
-    during.model.model !== before.model.model ||
-    during.model.baseUrl !== before.model.baseUrl ||
-    during.model.temperature !== before.model.temperature ||
-    during.model.maxTokens !== before.model.maxTokens
-  );
-}
-
-function applyModelSettings(
-  context: AgentExecutionContext,
-  settings: ModelSettingsSnapshot,
-  executionContext: ProviderModelTurnExecutionContext,
-): void {
-  context.services.settings.set("model.provider", settings.model.provider);
-  context.services.settings.set("model.model", settings.model.model);
-  context.services.settings.set("model.baseUrl", settings.model.baseUrl);
-  context.services.settings.set(
-    "model.temperature",
-    settings.model.temperature,
-  );
-  context.services.settings.set("model.maxTokens", settings.model.maxTokens);
-  executionContext.syncProviderSettings(
-    context,
-    context.services.settings.get(),
-  );
-}
-
-function restoreRuntimeSetting(
-  context: AgentExecutionContext,
-  key: string,
-  value: unknown,
-): void {
-  context.runtime.setSetting(
-    key,
-    typeof value === "string" || typeof value === "boolean" || value === null
-      ? value
-      : null,
-  );
-}
-
-async function withProviderRuntimeLock<T>(
-  runtime: AgentExecutionContext["runtime"],
-  task: () => Promise<T>,
-): Promise<T> {
-  const previous = providerRuntimeLocks.get(runtime) ?? Promise.resolve();
-  let release!: () => void;
-  const completion = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const next = previous.catch(() => undefined).then(() => completion);
-  providerRuntimeLocks.set(runtime, next);
-  await previous.catch(() => undefined);
-  try {
-    return await task();
-  } finally {
-    release();
-    if (providerRuntimeLocks.get(runtime) === next) {
-      providerRuntimeLocks.delete(runtime);
-    }
-  }
-}
 
 export async function runProviderModelTurn(
   input: {

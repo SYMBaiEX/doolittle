@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -13,7 +12,8 @@ function runCommand(
   extraEnv: Record<string, string> = {},
 ) {
   const sandboxHome = mkdtempSync(join(tmpdir(), "doolittle-e2e-"));
-  const result = spawnSync(command, args, {
+  const result = Bun.spawnSync({
+    cmd: [command, ...args],
     cwd: ROOT,
     env: {
       ...process.env,
@@ -24,12 +24,13 @@ function runCommand(
       NO_COLOR: "1",
       ...extraEnv,
     },
-    encoding: "utf8",
   });
-  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
+  const output = `${Buffer.from(result.stdout).toString("utf8")}\n${Buffer.from(
+    result.stderr,
+  ).toString("utf8")}`.trim();
   rmSync(sandboxHome, { recursive: true, force: true });
   return {
-    code: result.status ?? 1,
+    code: result.exitCode,
     output,
   };
 }

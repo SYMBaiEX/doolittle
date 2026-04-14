@@ -2,14 +2,18 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentRuntime } from "@elizaos/core";
 import { getEntrypointLogger } from "@/logging/entrypoint-logger";
+import { getPgliteRecoveryAction } from "@/runtime/bootstrap/recovery/actions";
+import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import {
   createActivePgliteLockError,
-  formatError,
-  getPgliteRecoveryAction,
-  reconcilePglitePidFile,
+  createPgliteRecoveryMessage,
+  createPgliteRetryFailureError,
+} from "@/runtime/bootstrap/recovery/messaging";
+import { reconcilePglitePidFile } from "@/runtime/bootstrap/recovery/pid-file";
+import {
   resetPgliteDataDir,
   resetPluginSqlPgliteSingleton,
-} from "@/runtime/bootstrap/recovery";
+} from "@/runtime/bootstrap/recovery/storage";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
@@ -51,10 +55,11 @@ export async function initializeRuntimeWithRecovery(
       throw createActivePgliteLockError(pgliteDataDir, err);
     }
 
-    const recoveryMessage =
-      recoveryAction === "retry-without-reset"
-        ? `[doolittle] PGLite startup failed (${formatError(err)}). Cleared a stale lock in ${pgliteDataDir} and retrying once.`
-        : `[doolittle] PGLite startup failed (${formatError(err)}). Resetting local DB at ${pgliteDataDir} and retrying once.`;
+    const recoveryMessage = createPgliteRecoveryMessage(
+      recoveryAction,
+      pgliteDataDir,
+      err,
+    );
     getEntrypointLogger("bootstrap", {
       dataDir: config.dataDir,
     }).warn("pglite-startup-recovery", {
@@ -89,10 +94,7 @@ export async function initializeRuntimeWithRecovery(
         "phase:runtime.initialize:retry-error",
         formatError(retryErr),
       );
-      throw new Error(
-        `PGLite startup failed after automatic recovery at ${pgliteDataDir}: ${formatError(retryErr)}. Run \`doolittle doctor\` or remove the local DB directory if it is still corrupted.`,
-        { cause: retryErr },
-      );
+      throw createPgliteRetryFailureError(pgliteDataDir, retryErr);
     }
   }
 }

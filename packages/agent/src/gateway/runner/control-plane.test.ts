@@ -4,7 +4,7 @@ import type {
   GatewayRunnerLifecycleHostInputs,
   GatewayRunnerSupervisionHostInputs,
 } from "@/gateway/runner/host";
-import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle";
+import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
 import type {
   GatewayHistorySnapshot,
   GatewayStateSnapshot,

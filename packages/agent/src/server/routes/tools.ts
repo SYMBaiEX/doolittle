@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectivePluginManagerInventory } from "@/runtime/native/service-bridge/index";
+import { getEffectivePluginManagerInventory } from "@/runtime/native/service-bridge/service-resolution";
 import { json } from "@/server/responses";
 
 export async function handleToolRoutes(

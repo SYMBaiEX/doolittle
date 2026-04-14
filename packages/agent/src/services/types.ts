@@ -38,7 +38,7 @@ import type { ToolsService } from "./tools/service";
 import type { TrajectoryService } from "./trajectory/service";
 import type { UserProfileService } from "./user-profile/service";
 import type { WebService } from "./web/service";
-import type { WorkspaceService } from "./workspace-service";
+import type { WorkspaceService } from "./workspace-service/index";
 
 export interface AppServices {
   apiTransport: ApiTransportService;

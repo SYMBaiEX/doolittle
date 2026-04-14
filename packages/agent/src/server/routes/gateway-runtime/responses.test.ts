@@ -97,7 +97,7 @@ function createContext() {
       runtimeStatus: () => {
         calls.runtimeStatus += 1;
         return {
-          daemon: { running: true },
+          daemon: { watchdog: { running: true } },
           messagingBridge: [{ platform: "telegram", live: true }],
           transportInventory: [{ platform: "api", gatewayEnabled: true }],
           transportControl: { configured: 2 },
@@ -153,6 +153,8 @@ describe("gateway runtime response helpers", () => {
 
     expect(calls.health).toBe(1);
     expect(calls.history).toEqual([{ limit: 25 }]);
+    expect(body.summary.headline).toContain("Gateway health");
+    expect(body.summary.nextActions.length).toBeGreaterThan(0);
     expect(body.health).toMatchObject({ ready: true });
     expect(
       (body.ownership.pluginManager as Record<string, unknown>).available,
@@ -174,15 +176,23 @@ describe("gateway runtime response helpers", () => {
     const daemon = buildGatewayDaemonResponse(context);
 
     expect(calls.runtimeStatus).toBe(2);
+    expect(runtime.summary.headline).toContain("Gateway runtime");
+    expect(daemon.summary.headline).toContain("Gateway daemon");
     expect(
-      (runtime.runtime.daemon as unknown as Record<string, unknown>).running,
+      (
+        (runtime.runtime.daemon as unknown as Record<string, unknown>)
+          .watchdog as Record<string, unknown>
+      ).running,
     ).toBe(true);
     expect(
       (runtime.transportControl as Record<string, unknown>).configured,
     ).toBe(2);
-    expect((daemon.daemon as unknown as Record<string, unknown>).running).toBe(
-      true,
-    );
+    expect(
+      (
+        (daemon.daemon as unknown as Record<string, unknown>)
+          .watchdog as Record<string, unknown>
+      ).running,
+    ).toBe(true);
     expect(
       (daemon.runtime.transportControl as Record<string, unknown>).configured,
     ).toBe(2);
@@ -195,6 +205,7 @@ describe("gateway runtime response helpers", () => {
       new URL("http://localhost/gateway/journal?limit=7"),
     );
 
+    expect(body.summary.headline).toContain("Gateway journal");
     expect(calls.trace).toEqual([{ limit: 7 }]);
     expect(calls.inbox).toEqual([{ limit: 7 }]);
     expect(calls.outbox).toEqual([{ limit: 7 }]);

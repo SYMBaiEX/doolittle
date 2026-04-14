@@ -11,6 +11,22 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getEntrypointLogger } from "@/logging/entrypoint-logger";
 
+export class CliStartupExitError extends Error {
+  readonly exitCode: number;
+
+  constructor(exitCode: number) {
+    super(`CLI startup requested exit ${exitCode}`);
+    this.name = "CliStartupExitError";
+    this.exitCode = exitCode;
+  }
+}
+
+export function isCliStartupExitError(
+  error: unknown,
+): error is CliStartupExitError {
+  return error instanceof CliStartupExitError;
+}
+
 function repoRoot(): string {
   // packages/agent/src/cli/startup.ts → ../../../../ = repo root
   return fileURLToPath(new URL("../../../../", import.meta.url));
@@ -85,7 +101,7 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
     console.error(
       "Onboarding script not found at scripts/bootstrap.ts. Run 'bun install' first.",
     );
-    process.exit(1);
+    throw new CliStartupExitError(1);
   }
 
   const { spawnSync } = await import("node:child_process");
@@ -98,7 +114,7 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
       status: result.status ?? 1,
       args,
     });
-    process.exit(result.status ?? 1);
+    throw new CliStartupExitError(result.status ?? 1);
   }
 }
 
@@ -125,6 +141,6 @@ export async function ensureOnboarded(): Promise<void> {
     console.error(
       "No onboarding state found. Run 'doolittle setup' to finish onboarding, or 'doolittle doctor' to inspect readiness first.",
     );
-    process.exit(1);
+    throw new CliStartupExitError(1);
   }
 }

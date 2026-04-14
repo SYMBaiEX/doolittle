@@ -79,6 +79,53 @@ describe("installTuiControlDeck", () => {
     expect(footer.readContent()).toBe("Enter top suggestion :: •");
   });
 
+  it("prefers palette and composer hints over focused pane hints", () => {
+    const responsePane = {};
+    const assistBox = createBox();
+    const footer = createBox();
+    const inputBox = {
+      getValue: () => "",
+    };
+    const paletteList = {};
+    let renderCount = 0;
+    let paletteOpen = true;
+    let composerOpen = false;
+
+    const controlDeck = installTuiControlDeck({
+      screen: {
+        focused: responsePane,
+        render() {
+          renderCount += 1;
+        },
+      } as never,
+      responsePane: responsePane as never,
+      activityPane: {} as never,
+      sidebarPane: {} as never,
+      assistBox,
+      footer,
+      inputBox: inputBox as never,
+      paletteList: paletteList as never,
+      getCurrentMode: () => "gateway",
+      isPaletteOpen: () => paletteOpen,
+      isComposerOpen: () => composerOpen,
+      formatKeyLabel: (label) => `fmt:${label}`,
+      flushDeferredForeignActivity: () => {},
+      getBusyFrames: () => ["•", "◦"],
+      buildFooterContent: (hint, busyFrame) => `${hint} :: ${busyFrame}`,
+      renderAssistSuggestionsContent: (value) => `assist:${value}`,
+      renderNonAssistControlDeckContent: async (mode) => mode,
+    });
+
+    controlDeck.updateFooterHint();
+    expect(footer.readContent()).toBe("Enter search top match :: •");
+
+    paletteOpen = false;
+    composerOpen = true;
+    controlDeck.updateFooterHint();
+    expect(footer.readContent()).toBe("fmt:Ctrl-S submit draft :: •");
+    expect(renderCount).toBe(2);
+  });
+
   it("prevents stale async control-deck renders from overwriting newer assist content", async () => {
     const responsePane = {};
     const activityPane = {};

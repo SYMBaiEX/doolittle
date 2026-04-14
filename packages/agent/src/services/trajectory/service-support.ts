@@ -1,13 +1,6 @@
 import type {
-  TrajectoryAnalysisBundle,
-  TrajectoryBenchmarkManifest,
-  TrajectoryBundleEntry,
-  TrajectoryComparisonBundle,
-  TrajectoryEvaluationBundle,
-  TrajectoryExportOptions,
   TrajectoryModelContext,
   TrajectoryRecord,
-  TrajectoryReplayResult,
 } from "../../types/trajectory";
 import type { SessionService } from "../session/service";
 import type { TrajectoryBenchmarkHost } from "./benchmark";
@@ -15,35 +8,15 @@ import type { TrajectoryBundleOperationsHost } from "./bundle-ops";
 import type { TrajectoryBundleStorageHost } from "./bundle-storage";
 import type { TrajectoryEvaluationHost } from "./evaluation";
 import type { TrajectoryServiceRlExportHost } from "./rl-export-orchestration";
+import type { TrajectoryServiceHostBindings } from "./service-types";
 
-export interface TrajectoryServiceSupportSource {
+export interface TrajectoryServiceSupportSource
+  extends TrajectoryServiceHostBindings {
   baseDir: string;
   sessions: Pick<SessionService, "recent" | "summary">;
   getModelContext?: () => TrajectoryModelContext;
   slug(value: string): string;
-  describeBundle(manifestPath: string): TrajectoryBundleEntry;
-  replayBundle(manifestPath: string): TrajectoryReplayResult;
-  compareBundles(
-    leftManifestPath: string,
-    rightManifestPath: string,
-  ): TrajectoryComparisonBundle;
-  evaluateBundle(
-    manifestPath: string,
-    options?: {
-      rubric?: string[];
-      tags?: string[];
-      replay?: TrajectoryReplayResult;
-      prompt?: string;
-      highlights?: string[];
-      mode?: "dataset" | "research" | "evaluation" | "rl";
-      purpose?: string;
-    },
-  ): Promise<TrajectoryEvaluationBundle>;
-  analyze(options?: TrajectoryExportOptions): TrajectoryAnalysisBundle;
   readRecords(dataPath: string): TrajectoryRecord[];
-  listBundles(limit?: number): TrajectoryBundleEntry[];
-  listBenchmarkManifests(limit?: number): TrajectoryBenchmarkManifest[];
-  describeBenchmarkManifest(manifestPath: string): TrajectoryBenchmarkManifest;
 }
 
 export interface TrajectoryServiceHosts {

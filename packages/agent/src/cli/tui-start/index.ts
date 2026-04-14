@@ -42,7 +42,7 @@ function isConversationalInput(text: string): boolean {
 export async function startTui(
   context: AppContext,
   options?: StartCliOptions,
-): Promise<"exited" | "unexpected" | "too-small"> {
+): Promise<number | "unexpected" | "too-small"> {
   const tuiLogger = context.services.logger.child("cli.tui");
   const state: CliState = {
     activeSessionId: createCliSessionId("cli"),
@@ -58,42 +58,11 @@ export async function startTui(
     title: `${context.config.agentName} TUI`,
     dockBorders: true,
   });
-  const {
-    header,
-    activity,
-    response,
-    sidebar,
-    transportBox,
-    executionBox,
-    assistBox,
-    paletteOverlay,
-    paletteInput,
-    paletteList,
-    composerOverlay,
-    composer,
-    inputBox,
-    footer,
-  } = createTuiWidgets({
+  const tuiWidgets = createTuiWidgets({
     screen,
     theme: activeTheme,
     agentName: context.config.agentName,
   });
-  const tuiWidgets = {
-    header,
-    activity,
-    response,
-    sidebar,
-    transportBox,
-    executionBox,
-    assistBox,
-    paletteOverlay,
-    paletteInput,
-    paletteList,
-    composerOverlay,
-    composer,
-    inputBox,
-    footer,
-  };
 
   const MIN_COLS = 80;
   const MIN_ROWS = 24;
@@ -118,11 +87,11 @@ export async function startTui(
     "latest-transcript.txt",
   );
   const focusables: blessed.Widgets.BlessedElement[] = [
-    activity,
-    response,
-    sidebar,
-    assistBox,
-    inputBox,
+    tuiWidgets.activity,
+    tuiWidgets.response,
+    tuiWidgets.sidebar,
+    tuiWidgets.assistBox,
+    tuiWidgets.inputBox,
   ];
   const {
     state: tuiState,
@@ -165,8 +134,8 @@ export async function startTui(
     })),
     appendActivity: tuiAssembly.appendActivity,
     pushResponseEntry: tuiAssembly.pushResponseEntry,
-    transportBox,
-    executionBox,
+    transportBox: tuiWidgets.transportBox,
+    executionBox: tuiWidgets.executionBox,
     renderTransportPanel: tuiAssembly.renderTransportPanel,
     renderExecutionPanel: tuiAssembly.renderExecutionPanel,
     renderCurrentControlDeck: tuiAssembly.renderCurrentControlDeck,
@@ -201,6 +170,7 @@ export async function startTui(
     },
     cleanup: tuiAssembly.dispose,
     isShuttingDown: () => tuiState.shuttingDown,
+    getExitCode: () => tuiState.requestedExitCode,
     onUnexpectedDestroy: () => {
       tuiLogger.recordCrash(
         "unexpected-screen-destroy",

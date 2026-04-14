@@ -22,6 +22,7 @@ interface WaitForTuiDestroyOptions {
   markScreenDestroyed: () => void;
   cleanup: () => void;
   isShuttingDown: () => boolean;
+  getExitCode: () => number;
   onUnexpectedDestroy: () => void;
 }
 
@@ -162,16 +163,17 @@ export async function runTuiBootSequence(
 
 export function waitForTuiDestroy(
   options: WaitForTuiDestroyOptions,
-): Promise<"exited" | "unexpected"> {
+): Promise<number | "unexpected"> {
   const {
     screen,
     markScreenDestroyed,
     cleanup,
     isShuttingDown,
+    getExitCode,
     onUnexpectedDestroy,
   } = options;
 
-  return new Promise<"exited" | "unexpected">((resolve) => {
+  return new Promise<number | "unexpected">((resolve) => {
     const tuiKeepAlive = setInterval(() => {}, 60_000);
     screen.on("destroy", () => {
       clearInterval(tuiKeepAlive);
@@ -180,7 +182,7 @@ export function waitForTuiDestroy(
       if (!isShuttingDown()) {
         onUnexpectedDestroy();
       }
-      resolve(isShuttingDown() ? "exited" : "unexpected");
+      resolve(isShuttingDown() ? getExitCode() : "unexpected");
     });
   });
 }

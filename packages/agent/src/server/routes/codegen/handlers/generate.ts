@@ -1,4 +1,4 @@
-import { generateEffectiveCode } from "@/runtime/native/service-bridge/index";
+import { generateEffectiveCode } from "@/runtime/native/service-bridge/autocoder";
 import {
   completeAutocoderWorkflowContext,
   createAutocoderWorkflowContext,

@@ -4,7 +4,7 @@ import type {
 } from "@/gateway/daemon-state";
 import type { GatewayTraceRecord } from "@/gateway/read/history-view";
 import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle";
+import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
 import type {
   GatewayHistorySnapshot,
   GatewayPlatformStateView,

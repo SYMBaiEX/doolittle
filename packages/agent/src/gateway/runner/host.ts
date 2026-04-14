@@ -8,7 +8,7 @@ import {
   createGatewayRunnerLifecycleHost,
   createGatewayRunnerSupervisionDeps,
 } from "@/gateway/runner/factories";
-import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle";
+import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
 import type {
   GatewayHistorySnapshot,
   GatewayPlatformStateView,
@@ -157,4 +157,4 @@ export function buildGatewayRunnerSupervisionDeps(
   });
 }
 
-export type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle";
+export type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";

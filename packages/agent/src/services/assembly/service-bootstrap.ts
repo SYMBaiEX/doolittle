@@ -1,5 +1,5 @@
 import { loadGatewayConfig } from "@/config/gateway";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/index";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { EnvConfig } from "@/types";
 import type {

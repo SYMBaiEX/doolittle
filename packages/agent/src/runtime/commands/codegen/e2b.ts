@@ -1,10 +1,10 @@
 import {
   createEffectiveSandbox,
   executeEffectiveSandboxCode,
-  getNativeExecutionControlPlane,
   killEffectiveSandbox,
   listEffectiveSandboxes,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/autocoder";
+import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import type { AgentExecutionContext } from "../../chat";
 import { stringifyCodegenResponse } from "./support";
 

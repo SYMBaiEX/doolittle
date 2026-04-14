@@ -1,4 +1,4 @@
-import type { DelegationOrchestrationMode } from "./runtime";
+import type { DelegationOrchestrationMode } from "./runtime/primitives";
 
 export interface DelegationTaskRecord {
   id: string;

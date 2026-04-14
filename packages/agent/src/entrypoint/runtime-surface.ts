@@ -12,7 +12,7 @@ type StartCli = (
     onReady?: () => void;
     bootLogs?: BootLogEntry[];
   },
-) => Promise<void> | void;
+) => Promise<number> | number;
 
 type RunCliPrompt = Parameters<
   typeof handleRuntimePromptCommand
@@ -20,6 +20,11 @@ type RunCliPrompt = Parameters<
 type RunCliPromptWithEvents = Parameters<
   typeof handleRuntimePromptCommand
 >[0]["runCliPromptWithEvents"];
+
+export interface EntrypointRuntimeSurfaceResult {
+  handled: boolean;
+  exitCode?: number;
+}
 
 export async function handleEntrypointRuntimeSurface(input: {
   command: EntrypointSubcommand;
@@ -37,7 +42,7 @@ export async function handleEntrypointRuntimeSurface(input: {
   bootLogs: BootLogEntry[];
   printLine?: (message: string) => void;
   pushArg?: (arg: string) => void;
-}): Promise<boolean> {
+}): Promise<EntrypointRuntimeSurfaceResult> {
   const printLine = input.printLine ?? console.log;
   const pushArg = input.pushArg ?? ((arg: string) => Bun.argv.push(arg));
 
@@ -61,7 +66,7 @@ export async function handleEntrypointRuntimeSurface(input: {
       runCliPromptWithEvents: input.runCliPromptWithEvents,
     })
   ) {
-    return true;
+    return { handled: true };
   }
 
   if (input.runtimePlan.shouldStartCli) {
@@ -70,11 +75,12 @@ export async function handleEntrypointRuntimeSurface(input: {
     } else if (input.command === "cockpit") {
       pushArg("--cockpit");
     }
-    await input.startCli?.(input.context, {
-      onReady: input.startServerWhenShellReady,
-      bootLogs: input.bootLogs,
-    });
-    return true;
+    const exitCode =
+      (await input.startCli?.(input.context, {
+        onReady: input.startServerWhenShellReady,
+        bootLogs: input.bootLogs,
+      })) ?? 0;
+    return { handled: true, exitCode };
   }
 
   if (!input.runtimePlan.wantsApi && input.command !== "api") {
@@ -82,10 +88,10 @@ export async function handleEntrypointRuntimeSurface(input: {
       mode: input.context.config.mode,
     });
     printLine(
-      `${input.context.config.agentName} initialized. Set DOOLITTLE_MODE=cli|api|both or launch the plain shell/cockpit explicitly.`,
+      `${input.context.config.agentName} initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.`,
     );
-    return true;
+    return { handled: true };
   }
 
-  return false;
+  return { handled: false };
 }

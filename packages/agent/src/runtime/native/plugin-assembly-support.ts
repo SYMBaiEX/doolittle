@@ -1,6 +1,6 @@
 import type { NativePluginDescriptor } from "@doolittle/contracts";
 import type { EnvConfig } from "@/types/runtime";
-import { listNativePluginCategories } from "./plugin-catalog/index";
+import { listNativePluginCategories } from "./plugin-catalog";
 
 export interface NativePluginManagerSummary {
   total: number;

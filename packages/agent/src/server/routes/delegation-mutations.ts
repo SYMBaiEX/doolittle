@@ -2,7 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   cancelEffectiveDelegationTask,
   retryEffectiveDelegationTask,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
 
 export async function handleDelegationMutationRoutes(

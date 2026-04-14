@@ -103,7 +103,7 @@ const server = createServer(async (req, res) => {
 
   if (method === "GET" && url.pathname === "/browser/status") {
     const { getEffectiveBrowserStatus } = await import(
-      "./packages/agent/src/runtime/native/service-bridge/index.ts"
+      "./packages/agent/src/runtime/native/service-bridge/browser/index.ts"
     );
     sendJson(res, {
       browser: await getEffectiveBrowserStatus(context.runtime, context.services),
@@ -113,7 +113,7 @@ const server = createServer(async (req, res) => {
 
   if (method === "POST" && url.pathname === "/browser/capture") {
     const { captureEffectiveBrowserPage } = await import(
-      "./packages/agent/src/runtime/native/service-bridge/index.ts"
+      "./packages/agent/src/runtime/native/service-bridge/browser/index.ts"
     );
     const body = await readJson(req);
     if (!body.url) {

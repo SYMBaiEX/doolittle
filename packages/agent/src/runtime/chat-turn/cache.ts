@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
-import type {
-  classifyTurnMessage,
-  deriveTurnExecutionPolicy,
-} from "@/runtime/turn-classification";
+import type { classifyTurnMessage } from "@/runtime/turn-classification/message";
+import type { deriveTurnExecutionPolicy } from "@/runtime/turn-classification/policy";
 
 const INFORMATIONAL_RESPONSE_CACHE_TTL_MS = 45_000;
 

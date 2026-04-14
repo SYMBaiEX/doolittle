@@ -1,4 +1,4 @@
-import { getNativeMessagingTransportState } from "@/runtime/native/service-bridge/index";
+import { getNativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
 import type { PlatformName } from "@/types/gateway";
 import type { PlatformAdapter } from "../platforms/base";
 import { DingtalkPlatformAdapter } from "../platforms/dingtalk-adapter";

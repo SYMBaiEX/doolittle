@@ -5,6 +5,10 @@ import {
 import type { PlatformName } from "@/types/gateway";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
+import {
+  describeGatewayRuntimeSnapshot,
+  renderGatewayOperatorBlock,
+} from "./readouts/shared";
 
 function gatewayUnavailableMessage(): string {
   return "Gateway runtime is not attached to this execution context.";
@@ -20,14 +24,20 @@ export async function handleGatewayRuntimeOperationCommand(
       return gatewayUnavailableMessage();
     }
     const reason = trimmed.replace("/gateway watchdog", "").trim() || "cli";
-    return JSON.stringify(
-      {
-        reason,
-        records: await context.gateway.watchdog(reason),
-        runtime: context.gateway.runtimeStatus(),
-      },
-      null,
-      2,
+    const records = await context.gateway.watchdog(reason);
+    const snapshot = describeGatewayRuntimeSnapshot(context);
+    return renderGatewayOperatorBlock(
+      "Gateway Watchdog",
+      [
+        `Reason: ${reason}`,
+        `Records: ${records.length}`,
+        `Daemon: ${snapshot.daemonRunning ? "running" : "stopped"}`,
+        `Operational transports: ${snapshot.operational}/${snapshot.configured}`,
+      ],
+      [
+        "Use `/gateway supervision` to review accumulated supervision records.",
+        "Run `/gateway readiness` if the watchdog reported repeated instability.",
+      ],
     );
   }
 
@@ -42,15 +52,17 @@ export async function handleGatewayRuntimeOperationCommand(
         ? "all"
         : (parseTransportPlatform(candidate) ?? "all");
     const reason = reasonParts.join(" ").trim() || "cli";
-    return JSON.stringify(
-      {
-        platform,
-        reason,
-        records: await context.gateway.watch(platform, reason),
-        runtime: context.gateway.runtimeStatus(),
-      },
-      null,
-      2,
+    const records = await context.gateway.watch(platform, reason);
+    return renderGatewayOperatorBlock(
+      "Gateway Watch",
+      [
+        `Target: ${platform}`,
+        `Reason: ${reason}`,
+        `Records: ${records.length}`,
+      ],
+      [
+        "Run `/gateway readiness` to confirm the transport state after watch operations.",
+      ],
     );
   }
 
@@ -65,15 +77,17 @@ export async function handleGatewayRuntimeOperationCommand(
         ? "all"
         : (parseTransportPlatform(candidate) ?? "all");
     const reason = reasonParts.join(" ").trim() || "cli";
-    return JSON.stringify(
-      {
-        platform,
-        reason,
-        records: await context.gateway.restart(platform, reason),
-        runtime: context.gateway.runtimeStatus(),
-      },
-      null,
-      2,
+    const records = await context.gateway.restart(platform, reason);
+    return renderGatewayOperatorBlock(
+      "Gateway Restart",
+      [
+        `Target: ${platform}`,
+        `Reason: ${reason}`,
+        `Records: ${records.length}`,
+      ],
+      [
+        "Re-run `/gateway readiness` before assuming the restart fixed delivery.",
+      ],
     );
   }
 
@@ -81,13 +95,21 @@ export async function handleGatewayRuntimeOperationCommand(
     if (!context.gateway) {
       return gatewayUnavailableMessage();
     }
-    return JSON.stringify(
-      {
-        runtime: context.gateway.runtimeStatus(),
-        records: context.gateway.supervision(50),
-      },
-      null,
-      2,
+    const records = context.gateway.supervision(50);
+    const snapshot = describeGatewayRuntimeSnapshot(context);
+    return renderGatewayOperatorBlock(
+      "Gateway Supervision",
+      [
+        `Records: ${records.length}`,
+        `Daemon: ${snapshot.daemonRunning ? "running" : "stopped"}`,
+        `Operational transports: ${snapshot.operational}/${snapshot.configured}`,
+        ...(records[0]
+          ? [`Latest: ${JSON.stringify(records[0])}`]
+          : ["Latest: none"]),
+      ],
+      [
+        "Use `/gateway trace` for message-level history after supervision events.",
+      ],
     );
   }
 
@@ -101,7 +123,15 @@ export async function handleGatewayRuntimeOperationCommand(
       return "Usage: /gateway edit <delivery-id> :: <text>";
     }
     const updated = await context.gateway.editDelivery(left, text);
-    return JSON.stringify(updated, null, 2);
+    return renderGatewayOperatorBlock(
+      "Gateway Edit",
+      [
+        `Delivery: ${left}`,
+        `Text length: ${text.length}`,
+        `Result: ${JSON.stringify(updated)}`,
+      ],
+      ["Use `/gateway deliveries` to inspect the updated outbound record."],
+    );
   }
 
   if (trimmed.startsWith("/gateway progressive ")) {
@@ -132,7 +162,15 @@ export async function handleGatewayRuntimeOperationCommand(
       },
       parts,
     );
-    return JSON.stringify(delivery, null, 2);
+    return renderGatewayOperatorBlock(
+      "Gateway Progressive Delivery",
+      [
+        `Target: ${platform} ${roomId}`,
+        `Parts: ${parts.length}`,
+        `Result: ${JSON.stringify(delivery)}`,
+      ],
+      ["Use `/gateway deliveries` to inspect the resulting delivery record."],
+    );
   }
 
   if (trimmed === "/gateway trace" || trimmed.startsWith("/gateway trace ")) {
@@ -185,10 +223,30 @@ export async function handleGatewayRuntimeOperationCommand(
     const filters = parseGatewayFiltersFromText(
       trimmed.replace("/gateway history", "").trim(),
     );
-    return JSON.stringify(
-      await context.gateway.history(filters.limit ?? 20, filters),
-      null,
-      2,
+    const history = await context.gateway.history(filters.limit ?? 20, filters);
+    const traces = history.traces ?? [];
+    const inbox = history.inbox ?? [];
+    const outbox = history.outbox ?? [];
+    const attachments = history.attachments ?? [];
+    const deliveries = history.deliveries ?? [];
+    const totals = history.state?.totals;
+    return renderGatewayOperatorBlock(
+      "Gateway History",
+      [
+        `Records: traces=${traces.length} inbox=${inbox.length} outbox=${outbox.length} attachments=${attachments.length} deliveries=${deliveries.length}`,
+        `State totals: configured=${totals?.configuredPlatforms ?? 0} ready=${totals?.readyAdapters ?? 0} traces=${totals?.totalTraces ?? traces.length} inbox=${totals?.inboxMessages ?? inbox.length} outbox=${totals?.outboxMessages ?? outbox.length}`,
+        ...(deliveries[0]
+          ? [`Latest delivery: ${deliveries[0].id}`]
+          : []),
+        ...(traces[0]
+          ? [`Latest trace: ${traces[0].traceId ?? "n/a"}`]
+          : []),
+      ],
+      [
+        "Use `/gateway trace` for event-by-event history.",
+        "Use `/gateway deliveries` for outbound message records.",
+        "Use `GET /gateway/history` if you need the raw structured payload.",
+      ],
     );
   }
 

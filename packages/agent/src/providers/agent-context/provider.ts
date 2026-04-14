@@ -5,7 +5,7 @@ import type {
   ProviderResult,
   State,
 } from "@elizaos/core";
-import { resolveAgentContextScope } from "@/runtime/turn-classification";
+import { resolveAgentContextScope } from "@/runtime/turn-classification/message";
 import type { AppServices } from "@/services";
 import { AgentContextCache } from "./cache";
 import { renderIdentitySections } from "./sections/identity";

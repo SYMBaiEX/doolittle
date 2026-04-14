@@ -267,4 +267,39 @@ describe("DelegationService", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("preserves queue alias entrypoints", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-delegation-aliases-"));
+    const service = new DelegationService(root);
+
+    try {
+      const first = service.create({
+        title: "Alias Task One",
+        objective: "Exercise the supervision alias",
+        group: "ops",
+        executionMode: "delegated",
+      });
+      expect(service.queueSummary()).toEqual(service.overview());
+
+      const supervised = await service.supervise(
+        async (task) => `completed: ${task.id}`,
+        { concurrency: 1 },
+      );
+      expect(supervised.completed).toContain(first.id);
+
+      const second = service.create({
+        title: "Alias Task Two",
+        objective: "Exercise the execution alias",
+        group: "ops",
+        executionMode: "delegated",
+      });
+      const executed = await service.runQueued(
+        async (task) => `completed: ${task.id}`,
+        { concurrency: 1 },
+      );
+      expect(executed.map((task) => task.id)).toContain(second.id);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

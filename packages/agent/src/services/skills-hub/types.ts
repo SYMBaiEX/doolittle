@@ -33,6 +33,16 @@ export interface SkillHubCatalogRecord {
   source: "catalog" | "workspace";
 }
 
+export interface SkillHubInstalledRecord {
+  slug: string;
+  title: string;
+  path: string;
+  installedAt: string;
+  source: string;
+  root: string;
+  category: string;
+}
+
 export interface SkillHubDistributionRecord {
   sources: Array<{
     source: "workspace" | "generated" | "catalog" | "installed";

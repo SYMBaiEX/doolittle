@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { CliExecutionResult, CliState } from "@/cli/execution";
-import {
-  type PlainCliLoopExecutionState,
-  processPlainCliLine,
-} from "@/cli/plain-loop";
+import { processPlainCliLine } from "@/cli/plain-loop/process-line";
+import type { PlainCliLoopExecutionState } from "@/cli/plain-loop/types";
 import type { ResponseTranscriptEntry } from "@/cli/transcript-renderer";
 
 function createContext(agentName = "Doolittle") {

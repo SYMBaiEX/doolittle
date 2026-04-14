@@ -11,7 +11,7 @@ import type {
   AppContext,
   AppContextBuildOptions,
 } from "@/runtime/bootstrap/types";
-import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry/index";
+import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { createServices } from "@/services";
 
 export async function buildAppContext({

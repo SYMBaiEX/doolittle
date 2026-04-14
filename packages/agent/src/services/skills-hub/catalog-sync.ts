@@ -15,20 +15,11 @@ import {
 import type {
   SkillHubCatalogRecord,
   SkillHubImportResult,
+  SkillHubInstalledRecord,
   SkillHubManifest,
   SkillHubSyncReport,
   SkillHubWorkspaceRecord,
 } from "./types";
-
-interface InstalledSkillHubManifestRecord {
-  slug: string;
-  title: string;
-  path: string;
-  installedAt: string;
-  source: string;
-  root: string;
-  category: string;
-}
 
 export interface SkillHubBundleSummary {
   bundlePath: string;
@@ -91,7 +82,7 @@ export async function loadSkillHubCatalogEntry(input: {
 export function buildSkillHubSyncArtifacts(input: {
   workspace: SkillHubWorkspaceRecord[];
   catalog: SkillHubCatalogRecord[];
-  installed: InstalledSkillHubManifestRecord[];
+  installed: SkillHubInstalledRecord[];
   manifestsDir: string;
   exportManifest(slug: string): SkillHubManifest;
 }): {
@@ -158,7 +149,7 @@ export function writeSkillHubBundle(input: {
   exportsDir: string;
   label: string;
   workspace: SkillHubWorkspaceRecord[];
-  installed: InstalledSkillHubManifestRecord[];
+  installed: SkillHubInstalledRecord[];
   sync: SkillHubSyncReport;
   exportManifest(slug: string): SkillHubManifest;
 }): SkillHubBundleSummary {

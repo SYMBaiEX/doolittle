@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { EnvConfig } from "@/types/runtime";
 import { getLatestRuntimeLine, getNativePackageAudit } from "./package-audit";
+import { getNativePackageAuditRecords } from "./package-audit/records";
 
 describe("native package audit", () => {
   it("keeps the runtime line and summary derived from package records", () => {
@@ -21,5 +22,17 @@ describe("native package audit", () => {
       ).length,
     );
     expect(audit.activeCatalog.length).toBeGreaterThan(0);
+  });
+
+  it("returns a defensive copy of the static package records", () => {
+    const original = getNativePackageAuditRecords();
+    const snapshot = getNativePackageAuditRecords();
+
+    snapshot.pop();
+
+    expect(snapshot).not.toBe(original);
+    expect(original.length).toBeGreaterThan(snapshot.length);
+    expect(original[0]?.packageName).toBe("elizaos");
+    expect(original.at(-1)?.packageName).toBe("@elizaos/plugin-autocoder");
   });
 });

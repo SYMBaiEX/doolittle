@@ -4,7 +4,7 @@ import {
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
   resolveLinkedProviderCredentials,
-} from "@/runtime/native/account-auth/index";
+} from "@/runtime/native/account-auth";
 import type { AgentExecutionContext } from "../chat";
 import { activateLinkedProvider } from "./activation";
 import type { LinkedProviderName } from "./types";

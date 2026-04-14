@@ -4,8 +4,8 @@ import {
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
-  getNativeServices,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/ownership";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import { stringifyCommandResult } from "./shared";

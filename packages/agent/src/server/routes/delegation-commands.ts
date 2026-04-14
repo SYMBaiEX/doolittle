@@ -5,7 +5,7 @@ import {
   createEffectiveDelegationTask,
   spawnEffectiveDelegationChild,
   superviseEffectiveDelegationQueue,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
 
 type DelegationTaskBody = {

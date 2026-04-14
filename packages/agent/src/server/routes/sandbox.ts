@@ -2,10 +2,10 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   createEffectiveSandbox,
   executeEffectiveSandboxCode,
-  getNativeExecutionControlPlane,
   killEffectiveSandbox,
   listEffectiveSandboxes,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/autocoder";
+import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import { json } from "@/server/responses";
 
 export async function handleSandboxRoutes(

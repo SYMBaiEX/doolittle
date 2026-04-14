@@ -3,8 +3,8 @@ import {
   getEffectiveExperienceSummary,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
-  getNativeServices,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/ownership";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 import { handleIdentityProfileRoutes } from "./identity/profiles";
 

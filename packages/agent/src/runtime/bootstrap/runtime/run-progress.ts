@@ -1,6 +1,6 @@
 import { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
 import { type AgentRuntime, EventType } from "@elizaos/core";
-import { formatError } from "@/runtime/bootstrap/recovery";
+import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import type { AppServices } from "@/services";
 
 export type RuntimePayload = unknown;

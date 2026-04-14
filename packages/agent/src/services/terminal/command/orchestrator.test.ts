@@ -162,6 +162,37 @@ function createFakeBackend(input: {
 }
 
 describe("command orchestrator", () => {
+  it("falls back to the local backend when previewing an unavailable backend", () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-terminal-orchestrator-preview-"),
+    );
+    const historyStore = new TerminalCommandHistoryStore(
+      join(root, "terminal-history.json"),
+    );
+    const settings = makeSettings();
+    settings.execution.backend = "docker";
+    const orchestrator = new TerminalServiceCommandOrchestrator({
+      workspaceDir: root,
+      getSettings: () => settings,
+      backends: new Map([
+        ["local", createFakeBackend({ name: "local", mode: "local" })],
+      ]),
+      historyStore,
+    });
+
+    try {
+      const preview = orchestrator.preview("printf 'fallback'");
+
+      expect(preview.backend).toBe("local");
+      expect(preview.command).toBe("printf 'fallback'");
+      expect(preview.timeoutMs).toBe(
+        settings.execution.commandTimeoutMs ?? 30_000,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("runs through the configured backend, persists history, and emits updates", async () => {
     const root = mkdtempSync(
       join(tmpdir(), "doolittle-terminal-orchestrator-"),

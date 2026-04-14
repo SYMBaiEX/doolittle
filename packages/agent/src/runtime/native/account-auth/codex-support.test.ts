@@ -11,7 +11,7 @@ describe("codex auth support helpers", () => {
     expect(typeof deps.readCommandText).toBe("function");
     expect(typeof deps.readJson).toBe("function");
     expect(typeof deps.writeJson).toBe("function");
-    expect(typeof deps.readProviderAuthStore).toBe("function");
+    expect(typeof deps.getStoredCodexCredentials).toBe("function");
     expect(typeof deps.persistProviderCredentials).toBe("function");
     expect(typeof deps.decodeJwtPayload).toBe("function");
     expect(typeof deps.isUnixSecondsExpiring).toBe("function");

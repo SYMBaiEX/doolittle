@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import {
   createProfileObservationScheduler,
   createTurnState,
@@ -48,6 +49,40 @@ describe("chat turn state helpers", () => {
     expect(turnA.sessionId).toBe("room:alice");
     expect(turnA.runId).toBeDefined();
     expect(turnA.roomId).toBe(turnB.roomId);
+  });
+
+  it("uses deterministic non-cli session fields", () => {
+    const context = {
+      runtime: {},
+      services: {
+        settings: {
+          get: () => ({
+            agent: {
+              runDepth: "standard",
+              maxIterations: 2,
+              toolProgressMode: "off",
+            },
+          }),
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    const state = createTurnState(
+      {
+        userId: "bob",
+        message: "status report",
+        source: "gateway",
+      },
+      context,
+    );
+
+    expect(state.localInteractive).toBe(false);
+    expect(state.connectionSource).toBe("gateway");
+    expect(state.sessionId).toBe("room:bob");
+    expect(state.messageServerId).toBe(
+      stableRuntimeUuid("doolittle-message-server"),
+    );
   });
 
   it("tracks user-facing turn events and startTurn payload", () => {
@@ -111,6 +146,66 @@ describe("chat turn state helpers", () => {
     expect((startPayload[0] as { message: string }).message).toBe(
       "status check",
     );
+  });
+
+  it("defaults to configured runtime policy and marks pending approvals", () => {
+    const startPayload: unknown[] = [];
+    const context = {
+      runtime: {},
+      services: {
+        executionApprovals: {
+          latestPendingForSession: () => ({ id: "pending-1" }),
+        },
+        sessions: {
+          storeMessage: () => undefined,
+        },
+        runController: {
+          startTurn: (payload: unknown) => {
+            startPayload.push(payload);
+          },
+        },
+        settings: {
+          get: () => ({
+            agent: {
+              runDepth: "deep",
+              maxIterations: 11,
+              toolProgressMode: "all",
+            },
+          }),
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    const turn = {
+      sessionId: "session-2",
+      roomId: "room-2",
+      entityId: "entity-2",
+      runId: "run-2",
+      agentName: "Doolittle",
+      localInteractive: false,
+      connectionSource: "gateway",
+      worldId: "world-2",
+      messageServerId: "msg-2",
+      settings: context.services.settings.get(),
+    } as Parameters<typeof startTrackedTurn>[2];
+
+    startTrackedTurn(
+      { message: "report", source: "gateway", userId: "bob" },
+      context,
+      turn,
+      undefined,
+    );
+
+    expect(startPayload).toHaveLength(1);
+    expect(
+      (startPayload[0] as { pendingApprovals: number }).pendingApprovals,
+    ).toBe(1);
+    expect((startPayload[0] as { runDepth: string }).runDepth).toBe("deep");
+    expect(
+      (startPayload[0] as { configuredMaxIterations: number })
+        .configuredMaxIterations,
+    ).toBe(11);
   });
 
   it("schedules profile observation on the next macrotask", async () => {

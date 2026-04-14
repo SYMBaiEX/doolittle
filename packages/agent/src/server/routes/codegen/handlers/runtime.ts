@@ -1,4 +1,4 @@
-import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/index";
+import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import { json } from "@/server/responses";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
 

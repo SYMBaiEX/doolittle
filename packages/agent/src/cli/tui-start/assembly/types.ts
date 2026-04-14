@@ -1,6 +1,6 @@
 import type blessed from "blessed";
 import type { CliExecutionResult, CliState } from "@/cli/execution";
-import type { TuiLifecycleState } from "@/cli/tui-lifecycle";
+import type { TuiLifecycleState } from "@/cli/tui-lifecycle/types";
 import type { TuiOverlayState } from "@/cli/tui-overlays";
 import type { TuiStateStore } from "@/cli/tui-state";
 import type { TuiWidgetSet } from "@/cli/tui-widget-factory";

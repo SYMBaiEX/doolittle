@@ -1,25 +1,40 @@
 import { describe, expect, it } from "bun:test";
-import {
-  listWorkflowCommands,
-  resolveWorkflowCommandPrompt,
-} from "./workflow-commands";
+import { readFileSync } from "node:fs";
+import { parseWorkflowFrontmatter } from "./workflow-commands/frontmatter";
+
+function readBundledWorkflowMarkdown(fileName: string): string {
+  return readFileSync(
+    new URL(`./workflow-commands/${fileName}`, import.meta.url),
+    "utf8",
+  );
+}
 
 describe("workflow commands", () => {
-  it("lists built-in workflow commands", () => {
-    const commands = listWorkflowCommands().map((entry) => entry.command);
-    expect(commands).toContain("/review");
-    expect(commands).toContain("/security-review");
-    expect(commands).toContain("/release-check");
+  it("ships the built-in workflow command prompts", () => {
+    const review = parseWorkflowFrontmatter(
+      readBundledWorkflowMarkdown("review.md"),
+    );
+    const security = parseWorkflowFrontmatter(
+      readBundledWorkflowMarkdown("security-review.md"),
+    );
+    const release = parseWorkflowFrontmatter(
+      readBundledWorkflowMarkdown("release-check.md"),
+    );
+
+    expect(review.command).toBe("/review");
+    expect(security.command).toBe("/security-review");
+    expect(release.command).toBe("/release-check");
   });
 
-  it("expands workflow command prompts with the target", () => {
-    const resolved = resolveWorkflowCommandPrompt({
-      message: "/review packages/agent",
-      workspaceDir: "/tmp/workspace",
-    });
+  it("expands bundled workflow prompts with a target", () => {
+    const review = parseWorkflowFrontmatter(
+      readBundledWorkflowMarkdown("review.md"),
+    );
+    const prompt = review.body
+      .replaceAll("{{TARGET}}", "packages/agent")
+      .trim();
 
-    expect(resolved?.definition.command).toBe("/review");
-    expect(resolved?.prompt).toContain("packages/agent");
-    expect(resolved?.prompt).not.toContain("{{TARGET}}");
+    expect(prompt).toContain("packages/agent");
+    expect(prompt).not.toContain("{{TARGET}}");
   });
 });

@@ -6,11 +6,11 @@ import type {
   GatewayTraceRecord,
 } from "@/gateway/read/history-view";
 import type { GatewayRunnerBootstrapInputs } from "@/gateway/runner/bootstrap";
-import {
-  composeGatewayRunnerRuntime,
-  type GatewayRunnerRuntimeAssemblyFactories,
-  type GatewayRunnerRuntimeAssemblyInput,
-} from "@/gateway/runner/composition";
+import { composeGatewayRunnerRuntime } from "@/gateway/runner/composition/compose";
+import type {
+  GatewayRunnerRuntimeAssemblyFactories,
+  GatewayRunnerRuntimeAssemblyInput,
+} from "@/gateway/runner/composition/types";
 import type {
   GatewayRunnerControlPlane,
   GatewayRunnerControlPlaneDependencies,
@@ -200,7 +200,6 @@ describe("composeGatewayRunnerRuntime", () => {
             updatePlatformStateFromTrace: () => {},
           } as never,
           readModel: {} as never,
-          readSurface: {} as never,
         };
       },
       buildOperations: () => {

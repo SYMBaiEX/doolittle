@@ -2,8 +2,8 @@ import {
   getEffectiveExperienceSummary,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
-  getNativeServices,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/ownership";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { AgentExecutionContext } from "../chat";
 
 export async function handleIdentityStatusCommand(

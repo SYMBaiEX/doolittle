@@ -150,4 +150,38 @@ describe("handleRuntimePromptCommand", () => {
       true,
     );
   });
+
+  it("runs top-level alias commands through the same prompt execution path", async () => {
+    const printOneShotResult = mock(() => {});
+    const runCliPrompt = mock(async () => {
+      return { text: "status ok", tone: "success" } as CliExecutionResult;
+    });
+
+    await expect(
+      handleRuntimePromptCommand(
+        {
+          command: "status",
+          shellIsInteractive: true,
+          immediatePrompt: "/status",
+          context: createContext(),
+          runCliPrompt,
+        },
+        {
+          markCliJobStarted: mock(() => undefined),
+          appendCliJobEvent: mock(() => {}),
+          finalizeCliJob: mock(() => undefined),
+          encodeCliTurnEvent: (event) => JSON.stringify(event),
+          printOneShotResult,
+        },
+      ),
+    ).resolves.toBe(true);
+
+    expect(runCliPrompt).toHaveBeenCalledWith(expect.anything(), "/status", {
+      sessionId: undefined,
+    });
+    expect(printOneShotResult).toHaveBeenCalledWith(
+      { text: "status ok", tone: "success" },
+      false,
+    );
+  });
 });

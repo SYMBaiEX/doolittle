@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeEcosystemSnapshot } from "@/runtime/native/service-bridge/index";
+import { getNativeEcosystemSnapshot } from "@/runtime/native/service-bridge/ownership";
 
 export async function renderEcosystemContent(
   context: AppContext,

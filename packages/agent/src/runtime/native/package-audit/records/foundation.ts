@@ -1,0 +1,55 @@
+import type { NativePackageAuditRecord } from "../types";
+
+export const NATIVE_FOUNDATION_PACKAGE_AUDIT_RECORDS: NativePackageAuditRecord[] =
+  [
+    {
+      packageName: "elizaos",
+      role: "runtime",
+      currentStrategy: "official",
+      currentTag: "alpha",
+      latestTagVersion: "2.0.0-alpha.77",
+      alphaTagVersion: "2.0.0-alpha.85",
+      compatibility: "alpha-only",
+      note: "Primary runtime package now tracks the explicit alpha line.",
+    },
+    {
+      packageName: "@elizaos/core",
+      role: "runtime-core",
+      currentStrategy: "official",
+      currentTag: "alpha",
+      latestTagVersion: "2.0.0-alpha.77",
+      alphaTagVersion: "2.0.0-alpha.85",
+      compatibility: "alpha-only",
+      note: "Core runtime now tracks the explicit alpha line.",
+    },
+    {
+      packageName: "@elizaos/agent",
+      role: "foundation",
+      currentStrategy: "official",
+      currentTag: "alpha",
+      latestTagVersion: "0.25.9",
+      alphaTagVersion: "2.0.0-alpha.85",
+      compatibility: "alpha-only",
+      note: "Standalone Eliza agent package is now installed for registry and runtime-shape alignment on the alpha line.",
+    },
+    {
+      packageName: "@elizaos/autonomous",
+      role: "foundation",
+      currentStrategy: "official",
+      currentTag: "alpha",
+      latestTagVersion: "2.0.0-alpha.77",
+      alphaTagVersion: "2.0.0-alpha.85",
+      compatibility: "alpha-only",
+      note: "Used as a first-party architectural source on the explicit alpha line.",
+    },
+    {
+      packageName: "@elizaos/skills",
+      role: "foundation",
+      currentStrategy: "official",
+      currentTag: "alpha",
+      latestTagVersion: "2.0.0-alpha.77",
+      alphaTagVersion: "2.0.0-alpha.85",
+      compatibility: "alpha-only",
+      note: "Skills package now tracks the explicit alpha line.",
+    },
+  ];

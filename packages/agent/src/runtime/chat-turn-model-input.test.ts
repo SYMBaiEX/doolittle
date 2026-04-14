@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import { classifyTurnMessage } from "@/runtime/turn-classification";
+import { classifyTurnMessage } from "@/runtime/turn-classification/message";
 import { buildInformationalResponseCacheKey } from "./chat-turn/cache";
 import { createModelInputAssembly } from "./chat-turn/model-input";
 

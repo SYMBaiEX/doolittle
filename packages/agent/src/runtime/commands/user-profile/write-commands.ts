@@ -1,4 +1,4 @@
-import { getNativeServices } from "@/runtime/native/service-bridge/index";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import {

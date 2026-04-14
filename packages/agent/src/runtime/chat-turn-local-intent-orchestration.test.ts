@@ -1,12 +1,14 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import {
-  buildPreferredLocalIntentSynthesisPrelude,
-  type createDirectLocalIntentLoader,
-  executeApprovedDirectLocalIntent,
-  runPreferredLocalIntentFastPath,
-} from "./chat-turn/local-intent-orchestration";
+import { executeApprovedDirectLocalIntent } from "./chat-turn/local-intent-orchestration/approval";
+import { runPreferredLocalIntentFastPath } from "./chat-turn/local-intent-orchestration/fast-path";
+import { buildPreferredLocalIntentSynthesisPrelude } from "./chat-turn/local-intent-orchestration/synthesis";
+import type { PreferredLocalIntentFastPathDependencies } from "./chat-turn/local-intent-orchestration/types";
 import type { TurnState } from "./chat-turn/state";
+
+type CreateDirectLocalIntentLoader = NonNullable<
+  PreferredLocalIntentFastPathDependencies["createDirectLocalIntentLoader"]
+>;
 
 function createContext() {
   const storedMessages: string[] = [];
@@ -105,13 +107,16 @@ describe("chat turn local intent orchestration", () => {
         scheduleProfileObservation,
       },
       {
-        createDirectLocalIntentLoader: ((_) => async () => ({
-          directLocalIntent: { label: "workspace:read" },
-          executeDirectLocalIntent,
-          isHighConfidenceDirectLocalIntent: () => true,
-          requiresModelSynthesisForLocalIntent: () => false,
-          shouldUseDirectLocalFallback: () => false,
-        })) as typeof createDirectLocalIntentLoader,
+        createDirectLocalIntentLoader: ((
+          ..._args: Parameters<CreateDirectLocalIntentLoader>
+        ) =>
+          async () => ({
+            directLocalIntent: { label: "workspace:read" },
+            executeDirectLocalIntent,
+            isHighConfidenceDirectLocalIntent: () => true,
+            requiresModelSynthesisForLocalIntent: () => false,
+            shouldUseDirectLocalFallback: () => false,
+          })) as CreateDirectLocalIntentLoader,
         executeApprovedDirectLocalIntent: async () => "approval required",
       },
     );
@@ -143,13 +148,16 @@ describe("chat turn local intent orchestration", () => {
         scheduleProfileObservation,
       },
       {
-        createDirectLocalIntentLoader: ((_) => async () => ({
-          directLocalIntent: { label: "repo:status" },
-          executeDirectLocalIntent,
-          isHighConfidenceDirectLocalIntent: () => true,
-          requiresModelSynthesisForLocalIntent: () => false,
-          shouldUseDirectLocalFallback: () => false,
-        })) as typeof createDirectLocalIntentLoader,
+        createDirectLocalIntentLoader: ((
+          ..._args: Parameters<CreateDirectLocalIntentLoader>
+        ) =>
+          async () => ({
+            directLocalIntent: { label: "repo:status" },
+            executeDirectLocalIntent,
+            isHighConfidenceDirectLocalIntent: () => true,
+            requiresModelSynthesisForLocalIntent: () => false,
+            shouldUseDirectLocalFallback: () => false,
+          })) as CreateDirectLocalIntentLoader,
         executeApprovedDirectLocalIntent: async () => undefined,
       },
     );

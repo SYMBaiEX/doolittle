@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog/index";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 
 interface PackageMetadata {

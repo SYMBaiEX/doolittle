@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { TuiStartSetupResult } from "../setup";
 
 const setupCalls: Array<unknown[]> = [];
@@ -66,30 +66,34 @@ const lifecycle = {
   handleEmptyQueueSubmit: () => {},
 };
 
-mock.module("../setup", () => ({
-  createTuiStartSetup: (...args: unknown[]) => {
-    setupCalls.push(args);
-    return setupResult;
-  },
-}));
+function installBootstrapMocks() {
+  mock.module("../setup", () => ({
+    createTuiStartSetup: (...args: unknown[]) => {
+      setupCalls.push(args);
+      return setupResult;
+    },
+  }));
 
-mock.module("../../tui-foreign-output", () => ({
-  installTuiForeignOutput: (...args: unknown[]) => {
-    foreignOutputCalls.push(args);
-    return () => {
-      foreignOutputCalls.push(["disposed"]);
-    };
-  },
-}));
+  mock.module("../../tui-foreign-output", () => ({
+    installTuiForeignOutput: (...args: unknown[]) => {
+      foreignOutputCalls.push(args);
+      return () => {
+        foreignOutputCalls.push(["disposed"]);
+      };
+    },
+  }));
 
-mock.module("../../tui-input-lifecycle", () => ({
-  installTuiInputLifecycle: (...args: unknown[]) => {
-    inputLifecycleCalls.push(args);
-    return lifecycle;
-  },
-}));
+  mock.module("../../tui-input-lifecycle", () => ({
+    installTuiInputLifecycle: (...args: unknown[]) => {
+      inputLifecycleCalls.push(args);
+      return lifecycle;
+    },
+  }));
+}
 
-const { bootstrapTuiStartRuntime } = await import("./bootstrap");
+async function loadBootstrapTuiStartRuntime() {
+  return import(`./bootstrap?bootstrap-test=${Date.now()}-${Math.random()}`);
+}
 
 const logger = {
   child: () => logger,
@@ -112,7 +116,22 @@ const widgets = {
 } as never;
 
 describe("bootstrapTuiStartRuntime", () => {
-  it("assembles setup and lifecycle hooks", () => {
+  beforeEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+    setupCalls.length = 0;
+    foreignOutputCalls.length = 0;
+    inputLifecycleCalls.length = 0;
+    installBootstrapMocks();
+  });
+
+  afterEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
+  it("assembles setup and lifecycle hooks", async () => {
+    const { bootstrapTuiStartRuntime } = await loadBootstrapTuiStartRuntime();
     const result = bootstrapTuiStartRuntime({
       context: {} as never,
       state: {} as never,
@@ -128,7 +147,7 @@ describe("bootstrapTuiStartRuntime", () => {
       getActiveTheme: () => ({}) as never,
       setActiveTheme: () => {},
       isConversationalInput: () => false,
-      truncate: (text) => text,
+      truncate: (text: string) => text,
       canCopyToClipboard: false,
       isScreenDestroyed: () => false,
       isShuttingDown: () => false,

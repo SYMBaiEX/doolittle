@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import type { SessionMetadataResolver } from "./read-summary";
-import { SessionReadSummaryHelpers } from "./read-summary";
+import type { SessionMetadataResolver } from "@/services/session/read-summary";
+import { SessionReadSummaryHelpers } from "@/services/session/read-summary";
 
 function createDb(): Database {
   const db = new Database(":memory:");

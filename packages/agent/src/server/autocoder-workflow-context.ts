@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/index";
+import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 
 export function createAutocoderWorkflowContext(
   context: AppContext,

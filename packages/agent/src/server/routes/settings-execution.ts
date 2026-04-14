@@ -1,6 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
-import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/index";
+import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
   getTuiTheme,
   listTuiThemes,

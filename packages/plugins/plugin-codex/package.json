@@ -28,6 +28,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@elizaos/core": "alpha"
+    "@elizaos/core": "2.0.0-alpha.85"
   }
 }

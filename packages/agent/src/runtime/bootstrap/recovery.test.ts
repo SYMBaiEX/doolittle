@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
-
-import { isRecoverablePgliteInitError } from "./recovery";
+import {
+  createPgliteRecoveryMessage,
+  createPgliteRetryFailureError,
+} from "./recovery/messaging";
+import { isRecoverablePgliteInitError } from "./recovery/recoverable";
 
 describe("bootstrap recovery", () => {
   it("treats rolodex startup failures with a database cause as recoverable", () => {
@@ -30,5 +33,28 @@ describe("bootstrap recovery", () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  it("formats stale-lock recovery messaging without changing the wording", () => {
+    expect(
+      createPgliteRecoveryMessage(
+        "retry-without-reset",
+        "/tmp/pglite",
+        new Error("lock file already exists"),
+      ),
+    ).toBe(
+      "[doolittle] PGLite startup failed (lock file already exists). Cleared a stale lock in /tmp/pglite and retrying once.",
+    );
+  });
+
+  it("keeps the retry failure guidance user-facing and actionable", () => {
+    expect(
+      createPgliteRetryFailureError(
+        "/tmp/pglite",
+        new Error("database disk image is malformed"),
+      ).message,
+    ).toBe(
+      "PGLite startup failed after automatic recovery at /tmp/pglite: database disk image is malformed. Run `doolittle doctor` or remove the local DB directory if it is still corrupted.",
+    );
   });
 });

@@ -10,7 +10,7 @@ import {
   inspectEffectiveBrowserPage,
   screenshotEffectiveBrowserPage,
   snapshotEffectiveBrowserPage,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/browser";
 import { json } from "@/server/responses";
 
 type BrowserAnalysisTurn = typeof runModelAnalysisTurn;

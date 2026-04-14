@@ -4,6 +4,8 @@ import { stdout as output } from "node:process";
 import { sanitizeSingleLineTerminalText } from "@/cli/render-utils";
 import type { AppContext } from "@/runtime/bootstrap";
 import { normalizeSlashCommandSyntax } from "@/runtime/command-catalog";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import { formatElapsedMs, getRunElapsedMs } from "@/runtime/run-progress";
 import { getTuiTheme } from "@/runtime/theme-catalog";
 
@@ -63,31 +65,150 @@ export function shortSessionLabel(sessionId: string): string {
     : sessionId.slice(0, 12);
 }
 
+function truncateInline(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, Math.max(1, maxLength - 1))}…`;
+}
+
+function summarizeLaggingStartupPhases(
+  startup: ReturnType<AppContext["services"]["startupState"]["getSnapshot"]>,
+): string {
+  const lagging = Object.entries(startup.phases)
+    .filter(([, phase]) => phase.status !== "ready")
+    .map(([name, phase]) => `${name}:${phase.status}`);
+  return lagging.length > 0 ? ` · ${lagging.join(" · ")}` : "";
+}
+
+export interface CliOperatorSnapshot {
+  project: string;
+  workspace: string;
+  sessionLabel: string;
+  providerSummary: string;
+  startupSummary: string;
+  transportSummary: string;
+  pluginSummary: string;
+  liveSummary: string;
+  nextPlainHint: string;
+  nextCockpitHint: string;
+}
+
+export function buildCliOperatorSnapshot(
+  context: AppContext,
+  state: { activeSessionId: string },
+): CliOperatorSnapshot {
+  const settings = context.services.settings.get();
+  const startup = context.services.startupState.getSnapshot();
+  const activeRun = context.services.runController.getActive(
+    state.activeSessionId,
+  );
+  const sessions = context.services.sessions.listSessions(20);
+  const sessionSummary = sessions.find(
+    (entry) => entry.sessionId === state.activeSessionId,
+  );
+  const transportControl = getNativeTransportControlPlane(
+    context.runtime,
+    context.config,
+    context.services.gatewayConfig,
+  );
+  const plugins = getNativePluginCatalog(context.config);
+  const enabledPlugins = plugins.filter((entry) => entry.enabled);
+  const productionPlugins = enabledPlugins.filter(
+    (entry) => entry.maturity === "production",
+  ).length;
+  const alphaPlugins = enabledPlugins.filter(
+    (entry) => entry.maturity === "alpha",
+  ).length;
+  const experimentalPlugins = enabledPlugins.filter(
+    (entry) => entry.maturity === "experimental",
+  ).length;
+
+  const project = currentProjectLabel();
+  const workspace = currentWorkspaceLabel();
+  const smallModel =
+    settings.model.provider === "elizacloud"
+      ? context.config.elizaCloudSmallModel
+      : settings.model.model;
+
+  const liveSummary = activeRun
+    ? [
+        activeRun.status,
+        `${activeRun.observedActionCount} steps`,
+        activeRun.activeAction
+          ? truncateInline(activeRun.activeAction, 28)
+          : activeRun.statusDetail
+            ? truncateInline(activeRun.statusDetail, 28)
+            : null,
+      ]
+        .filter((entry) => Boolean(entry))
+        .join(" · ")
+    : "idle";
+
+  const startupSummary =
+    `${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}` +
+    summarizeLaggingStartupPhases(startup);
+  const transportSummary = `live ${transportControl.totals.liveServices} · ready ${transportControl.totals.operationalTransports} · configured ${transportControl.totals.gatewayEnabled}`;
+  const pluginSummary = [
+    `enabled ${enabledPlugins.length}/${plugins.length}`,
+    productionPlugins > 0 ? `prod ${productionPlugins}` : null,
+    alphaPlugins > 0 ? `alpha ${alphaPlugins}` : null,
+    experimentalPlugins > 0 ? `exp ${experimentalPlugins}` : null,
+  ]
+    .filter((entry) => Boolean(entry))
+    .join(" · ");
+
+  const nextPlainHint = activeRun
+    ? `Live turn in progress. Check ${normalizeSlashCommandSyntax("/progress")} or let the run finish before starting another deep task.`
+    : !startup.deferredReady || !startup.hotPathReady
+      ? `Startup is still warming. Use ${normalizeSlashCommandSyntax("/status")} if you want a readiness check before heavier work.`
+      : transportControl.totals.gatewayEnabled > 0 &&
+          transportControl.totals.operationalTransports === 0
+        ? `Gateway is configured but not live yet. Use ${normalizeSlashCommandSyntax("/gateway readiness")} before relying on transports.`
+        : `Daily checks: ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/commands")}, ${normalizeSlashCommandSyntax("/jobs")}, ${normalizeSlashCommandSyntax("/accounts doctor")}.`;
+  const nextCockpitHint = activeRun
+    ? `${macAwareKeyLabel("Ctrl-S")} focuses the live response. ${normalizeSlashCommandSyntax("/progress")} gives the structured run view.`
+    : !startup.deferredReady || !startup.hotPathReady
+      ? `Hydration is still warming. Stay on the signal rail or run ${normalizeSlashCommandSyntax("/status")}.`
+      : transportControl.totals.gatewayEnabled > 0 &&
+          transportControl.totals.operationalTransports === 0
+        ? `${macAwareKeyLabel("Ctrl-G")} opens gateway detail. ${normalizeSlashCommandSyntax("/gateway readiness")} explains what is missing.`
+        : `${macAwareKeyLabel("Ctrl-P")} opens the command palette. ${normalizeSlashCommandSyntax("/commands")} shows the full operator catalog.`;
+
+  return {
+    project,
+    workspace,
+    sessionLabel:
+      sessionSummary?.title ?? shortSessionLabel(state.activeSessionId),
+    providerSummary: `${settings.model.provider}   fast ${shortModelId(smallModel)}   deep ${shortModelId(settings.model.model)}`,
+    startupSummary,
+    transportSummary,
+    pluginSummary,
+    liveSummary,
+    nextPlainHint,
+    nextCockpitHint,
+  };
+}
+
 export function renderPlainBanner(
   context: AppContext,
   state: { activeSessionId: string },
 ): string {
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
-  const cwd = currentWorkspaceLabel();
-  const project = currentProjectLabel();
-  const smallModel =
-    settings.model.provider === "elizacloud"
-      ? context.config.elizaCloudSmallModel
-      : settings.model.model;
-  const sessionSummary = context.services.sessions
-    .listSessions(20)
-    .find((entry) => entry.sessionId === state.activeSessionId);
-  const session =
-    sessionSummary?.title ?? shortSessionLabel(state.activeSessionId);
+  const snapshot = buildCliOperatorSnapshot(context, state);
 
   const lines = [
     `┌─ ${theme.sigil} ${context.config.agentName.toUpperCase()} // conversation shell`,
-    `│ project   ${project}`,
-    `│ workspace ${cwd}`,
-    `│ provider  ${settings.model.provider}   fast ${shortModelId(smallModel)}   deep ${shortModelId(settings.model.model)}`,
+    `│ project   ${snapshot.project}`,
+    `│ workspace ${snapshot.workspace}`,
+    `│ provider  ${snapshot.providerSummary}`,
     `│ signal    ${theme.label} ${theme.idleFace}   run ${settings.agent.runDepth} cap ${settings.agent.maxIterations}   progress ${settings.agent.toolProgressMode}`,
-    `│ session   ${session}`,
+    `│ startup   ${snapshot.startupSummary}`,
+    `│ channels  ${snapshot.transportSummary}`,
+    `│ plugins   ${snapshot.pluginSummary}`,
+    `│ live      ${snapshot.liveSummary}`,
+    `│ session   ${snapshot.sessionLabel}`,
     `└─ ${theme.shellGlyph} terminal-first · cockpit optional · !shell · /help`,
   ];
 
@@ -101,14 +222,23 @@ export function renderPlainBanner(
     paint(lines[2] ?? "", ANSI.gray, true),
     paint(lines[3] ?? "", ANSI.green, true),
     paint(lines[4] ?? "", ANSI.yellow, true),
-    paint(lines[5] ?? "", ANSI.gray, true),
+    paint(lines[5] ?? "", ANSI.yellow, true),
+    paint(lines[6] ?? "", ANSI.cyan, true),
+    paint(lines[7] ?? "", ANSI.green, true),
+    paint(lines[8] ?? "", ANSI.magenta, true),
+    paint(lines[9] ?? "", ANSI.gray, true),
   ].join("\n");
 }
 
-export function renderPlainShellHints(): string {
+export function renderPlainShellHints(
+  context: AppContext,
+  state: { activeSessionId: string },
+): string {
+  const snapshot = buildCliOperatorSnapshot(context, state);
   return [
     "Talk naturally for paired work, use !cmd for shell execution, or use /slash commands for control-plane actions.",
-    `Good first moves: ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts doctor")}, ${normalizeSlashCommandSyntax("/sessions list")}.`,
+    snapshot.nextPlainHint,
+    "Quick checks outside the shell: doolittle status, doolittle progress, doolittle tools.",
     'Use "doolittle cockpit" when you want the fullscreen operator deck.',
   ].join("\n");
 }

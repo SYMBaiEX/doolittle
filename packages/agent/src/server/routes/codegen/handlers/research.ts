@@ -1,4 +1,4 @@
-import { performEffectiveCodeResearch } from "@/runtime/native/service-bridge/index";
+import { performEffectiveCodeResearch } from "@/runtime/native/service-bridge/autocoder";
 import {
   completeAutocoderWorkflowContext,
   createAutocoderWorkflowContext,

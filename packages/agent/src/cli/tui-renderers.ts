@@ -1,15 +1,16 @@
 import { runStatusFace } from "@/cli/activity-chrome";
 import type { CliState } from "@/cli/execution";
 import { escapeBlessed } from "@/cli/render-utils";
-import { macAwareKeyLabel, shortModelId } from "@/cli/shell-chrome";
+import {
+  buildCliOperatorSnapshot,
+  currentProjectLabel,
+  macAwareKeyLabel,
+  shortModelId,
+} from "@/cli/shell-chrome";
 import { truncate } from "@/cli/text-utils";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog/index";
-import {
-  getAutonomousControlPlane,
-  getNativeTransportControlPlane,
-} from "@/runtime/native/service-bridge/index";
+import { getAutonomousControlPlane } from "@/runtime/native/service-bridge/autonomous";
 import { formatElapsedMs, getRunElapsedMs } from "@/runtime/run-progress";
 import { getTuiTheme } from "@/runtime/theme-catalog";
 
@@ -19,19 +20,14 @@ export function renderStatusContent(
 ): string {
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
+  const snapshot = buildCliOperatorSnapshot(context, state);
   const activeRun = context.services.runController.getActive(
     state.activeSessionId,
   );
-  const plugins = getNativePluginCatalog(context.config);
   const audit = getNativePackageAudit(context.config);
   const sessions = context.services.sessions.listSessions(6);
   const delegation = context.services.delegation.overview();
   const gatewaySessions = context.services.gatewaySessions.list();
-  const transportControl = getNativeTransportControlPlane(
-    context.runtime,
-    context.config,
-    context.services.gatewayConfig,
-  );
   const autonomousControl = getAutonomousControlPlane(
     context.runtime,
     context.services,
@@ -43,11 +39,12 @@ export function renderStatusContent(
   );
 
   return [
-    "{bold}Signal Rail{/}",
+    "{bold}Operator Snapshot{/}",
     `{gray-fg}${escapeBlessed(theme.sigil)} ${escapeBlessed(theme.label)} ${escapeBlessed(runStatusFace(theme, activeRun?.status))}{/}`,
+    `workspace {cyan-fg}${escapeBlessed(currentProjectLabel())}{/} · session ${escapeBlessed(truncate(snapshot.sessionLabel, 28))}`,
     `{cyan-fg}${settings.model.provider}{/} · {cyan-fg}${escapeBlessed(settings.model.model)}{/}`,
     `${escapeBlessed(autonomousControl.alignment.connection.kind)}${autonomousControl.alignment.connection.provider ? ` via ${escapeBlessed(autonomousControl.alignment.connection.provider)}` : ""}`,
-    `startup ${startup.hotPathReady ? "hot-ready" : "warming"} · deferred ${startup.deferredReady ? "ready" : "warming"}`,
+    `startup ${escapeBlessed(snapshot.startupSummary)}`,
     `run ${settings.agent.runDepth} · cap ${settings.agent.maxIterations} · progress ${settings.agent.toolProgressMode}`,
     activeRun
       ? (() => {
@@ -61,12 +58,12 @@ export function renderStatusContent(
         })()
       : "{gray-fg}live idle{/}",
     `hydration gw:${startup.phases.gateway.status} cron:${startup.phases.cron.status} diag:${startup.phases.diagnostics.status} skills:${startup.phases.skills.status}`,
-    `channels live=${transportControl.totals.liveServices} configured=${transportControl.totals.gatewayEnabled} ready=${transportControl.totals.operationalTransports}`,
+    `channels ${escapeBlessed(snapshot.transportSummary)}`,
     `delegation ${delegation.running}/${delegation.pending}/${delegation.completed} · workers ${delegation.activeWorkers}`,
     `gateway sessions ${gatewaySessions.length} · voice ${gatewaySessions.filter((entry) => entry.voiceMode).length}`,
     active?.title
-      ? `session ${truncate(active.title, 28)}`
-      : `session ${state.activeSessionId}`,
+      ? `focus ${truncate(active.title, 28)}`
+      : `focus ${state.activeSessionId}`,
     "",
     "{bold}Live Notices{/}",
     ...(state.notices.length
@@ -81,9 +78,12 @@ export function renderStatusContent(
         })
       : ["{gray-fg}No active notices.{/}"]),
     "",
-    "{gray-fg}plugins{/}: enabled=" +
-      `${plugins.filter((entry) => entry.enabled).length}/${plugins.length}` +
-      ` · alpha=${audit.runtime.alpha}`,
+    "{bold}Native Surface{/}",
+    `plugins ${escapeBlessed(snapshot.pluginSummary)}`,
+    `runtime {gray-fg}${escapeBlessed(audit.runtime.alpha)}{/}`,
+    "",
+    "{bold}Next Step{/}",
+    escapeBlessed(snapshot.nextCockpitHint),
     "",
     "{bold}Recent Sessions{/}",
     ...sessions.slice(0, 4).map((entry) => {

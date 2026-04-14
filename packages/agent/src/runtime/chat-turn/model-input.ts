@@ -1,10 +1,10 @@
 import type { AgentExecutionContext } from "@/runtime/chat";
-import {
-  resolveTurnCapabilityProfile,
-  type TurnCapabilityProfile,
-  type TurnClassification,
-  type TurnExecutionPolicy,
-} from "@/runtime/turn-classification";
+import { resolveTurnCapabilityProfile } from "@/runtime/turn-classification/message";
+import type {
+  TurnCapabilityProfile,
+  TurnClassification,
+  TurnExecutionPolicy,
+} from "@/runtime/turn-classification/types";
 import type { ChatTurnRequest } from "@/types/runtime";
 import {
   buildInformationalResponseCacheKey,

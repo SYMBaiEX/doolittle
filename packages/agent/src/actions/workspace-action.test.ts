@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { resolveWorkspaceIntentFromText } from "./workspace-action";
+import {
+  resolveWorkspaceIntentFromParams,
+  resolveWorkspaceIntentFromText,
+} from "./workspace-action";
 
 describe("resolveWorkspaceIntentFromText", () => {
   it("routes repo breakdown prompts to the deterministic overview path", () => {
@@ -18,6 +21,22 @@ describe("resolveWorkspaceIntentFromText", () => {
       ),
     ).toEqual({
       kind: "overview",
+    });
+  });
+});
+
+describe("resolveWorkspaceIntentFromParams", () => {
+  it("parses write intents from action parameters", () => {
+    expect(
+      resolveWorkspaceIntentFromParams({
+        action: "write",
+        file: "packages/agent/src/foo.ts",
+        text: "export const ok = true;",
+      }),
+    ).toEqual({
+      kind: "write",
+      path: "packages/agent/src/foo.ts",
+      content: "export const ok = true;",
     });
   });
 });

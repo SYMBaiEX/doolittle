@@ -16,7 +16,6 @@ import type {
 import { persistGatewaySnapshotFiles } from "@/gateway/recording/journal";
 import type { GatewayRunnerContext } from "@/gateway/runner/context";
 import { initializeGatewayRunnerPersistence } from "@/gateway/runner/persistence";
-import { GatewayRunnerReadSurface } from "@/gateway/runner/read-surface";
 import { GatewayRunnerStateBookkeeping } from "@/gateway/runner/state";
 import type { GatewayNativePluginInfo } from "@/gateway/state/platform-state";
 import type {
@@ -26,6 +25,7 @@ import type {
 } from "@/gateway/state/state-snapshot";
 import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
 import type { IncomingPlatformMessage, PlatformName } from "@/types/gateway";
+import type { NativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
 import type { PlatformAdapter } from "../platforms/base";
 
 export interface GatewayRunnerRuntimeMeta {
@@ -51,9 +51,7 @@ export interface GatewayRunnerBootstrapInputs {
   ) => GatewayNativePluginInfo | undefined;
   getConfiguredPlatforms: () => PlatformName[];
   isPlatformEnabled: (platform: PlatformName) => boolean;
-  getTransportControlPlane: () => ReturnType<
-    typeof import("@/runtime/native/service-bridge/index").getNativeTransportControlPlane
-  >;
+  getTransportControlPlane: () => NativeTransportControlPlane;
   isRunning: () => boolean;
   getWatchdogAt: () => string | undefined;
   getRuntimeMeta: () => GatewayRunnerRuntimeMeta;
@@ -85,7 +83,6 @@ export interface GatewayRunnerBootstrapResult {
   supervisionLog: GatewaySupervisionRecord[];
   stateBookkeeping: GatewayRunnerStateBookkeeping;
   readModel: InstanceType<typeof GatewayRunnerReadModel>;
-  readSurface: GatewayRunnerReadSurface;
 }
 
 function persistSnapshotFile(
@@ -167,8 +164,6 @@ export function bootstrapGatewayRunnerReadPlane(
     receive: params.receive,
   });
 
-  const readSurface = new GatewayRunnerReadSurface({ readModel });
-
   return {
     snapshotPath: persistence.snapshotPath,
     snapshotHistoryPath: persistence.snapshotHistoryPath,
@@ -184,6 +179,5 @@ export function bootstrapGatewayRunnerReadPlane(
     supervisionLog: persistence.supervisionLog,
     stateBookkeeping,
     readModel,
-    readSurface,
   };
 }

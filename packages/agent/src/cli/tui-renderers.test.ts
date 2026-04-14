@@ -129,17 +129,26 @@ describe("tui render helpers", () => {
 
     const content = renderStatusContent(createContext(), state);
 
-    expect(content).toContain("Signal Rail");
+    expect(content).toContain("Operator Snapshot");
     expect(content).toContain("Live Notices");
+    expect(content).toContain("Native Surface");
+    expect(content).toContain("Next Step");
     expect(content).toContain("Recent Sessions");
+    expect(content).toContain("workspace {cyan-fg}doolittle{/}");
     expect(content).toContain("openai");
-    expect(content).toContain("startup warming · deferred ready");
+    expect(content).toContain(
+      "startup warming · deferred ready · diagnostics:warming",
+    );
     expect(content).toContain("live running");
-    expect(content).toContain("plugins{/}: enabled=");
-    expect(content).toContain("alpha=2.0.0-alpha.85");
+    expect(content).toContain("plugins enabled ");
+    expect(content).toContain("prod 3");
+    expect(content).toContain("alpha 22");
+    expect(content).toContain("exp 1");
+    expect(content).toContain("runtime {gray-fg}2.0.0-alpha.85{/}");
     expect(content).toContain("gateway sessions 2 · voice 1");
     expect(content).toContain("Current cockpit session");
     expect(content).toContain("Synthesized a router extraction helper.");
+    expect(content).toContain("Ctrl-S focuses the live response.");
   });
 
   it("renders an idle status rail when notices are empty", () => {
@@ -154,7 +163,7 @@ describe("tui render helpers", () => {
 
     expect(content).toContain("No active notices.");
     expect(content).toContain("live idle");
-    expect(content).toContain("session cli:unknown");
+    expect(content).toContain("focus cli:unknown");
   });
 
   it("renders footer state for busy and idle modes", () => {

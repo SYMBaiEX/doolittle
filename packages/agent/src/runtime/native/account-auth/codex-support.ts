@@ -1,30 +1,24 @@
-import {
-  commandExists,
-  DEFAULT_REFRESH_SKEW_SECONDS,
-  decodeJwtPayload,
-  isUnixSecondsExpiring,
-  readCommandText,
-  readJson,
-  resolveHome,
-  writeJson,
-} from "./shared";
-import { persistProviderCredentials, readProviderAuthStore } from "./store";
+import { createTokenProviderAuthDependencies } from "./provider-support";
+import { getStoredCodexCredentials } from "./store";
 import type { LinkedCodexCredentials } from "./types";
 
+export type CodexAuthDependencies = ReturnType<typeof getCodexAuthDependencies>;
+
 export function getCodexAuthDependencies() {
+  const base = createTokenProviderAuthDependencies<LinkedCodexCredentials>(
+    "codex",
+    getStoredCodexCredentials,
+  );
   return {
-    defaultRefreshSkewSeconds: DEFAULT_REFRESH_SKEW_SECONDS,
-    resolveHome,
-    commandExists,
-    readCommandText,
-    readJson,
-    writeJson,
-    readProviderAuthStore,
+    ...base,
+    getStoredCodexCredentials: base.getStoredCredentials,
     persistProviderCredentials: (
       provider: "codex",
       credentials: LinkedCodexCredentials | undefined,
-    ) => persistProviderCredentials(provider, credentials),
-    decodeJwtPayload,
-    isUnixSecondsExpiring,
+    ) => {
+      if (provider === "codex") {
+        base.persistCredentials(credentials);
+      }
+    },
   };
 }

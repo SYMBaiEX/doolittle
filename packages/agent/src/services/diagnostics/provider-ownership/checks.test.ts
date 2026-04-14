@@ -214,4 +214,48 @@ describe("buildProviderOwnershipChecks", () => {
     expect(ids.has("native.messaging.control-plane")).toBe(true);
     expect(ids.has("gateway.transport.overview")).toBe(false);
   });
+
+  it("adds forms and execution ownership checks when runtime control is available", () => {
+    const checks = buildProviderOwnershipChecks({
+      ...baseContext,
+      formsControl: {
+        available: true,
+        templates: 4,
+        forms: {
+          total: 8,
+          active: 2,
+        },
+        persistenceAvailable: true,
+      },
+      runtimeExecutionControl: {
+        e2b: {
+          available: true,
+          sandboxes: 2,
+          supportsExecution: true,
+          sandboxRoot: "/tmp/e2b",
+        },
+        codeGeneration: {
+          available: true,
+          ready: false,
+          methods: ["plan"],
+        },
+        github: {
+          available: true,
+        },
+        secretsManager: {
+          available: false,
+        },
+      },
+    } as ProviderOwnershipContext);
+
+    expect(checks.find((check) => check.id === "native.forms")?.status).toBe(
+      "pass",
+    );
+    expect(
+      checks.find((check) => check.id === "native.execution.e2b")?.status,
+    ).toBe("pass");
+    expect(
+      checks.find((check) => check.id === "native.execution.codegen")?.status,
+    ).toBe("warn");
+  });
 });

@@ -1,7 +1,7 @@
 import type {
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/ownership";
 
 type NativeOwnershipControlPlane = ReturnType<
   typeof getNativeOwnershipControlPlane

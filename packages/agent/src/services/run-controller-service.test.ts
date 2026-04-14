@@ -104,4 +104,37 @@ describe("RunControllerService", () => {
     expect(active?.activeAction).toBe("rg linked provider auth");
     expect(active?.lastHeartbeatAt).toBeDefined();
   });
+
+  it("emits lifecycle updates as turns reset and complete", () => {
+    const service = new RunControllerService();
+    const observed: string[] = [];
+    const unsubscribe = service.onUpdate((event) => {
+      observed.push(event.type);
+    });
+
+    service.startTurn({
+      sessionId: "session-a",
+      roomId: "room-a",
+      runId: "run-a",
+      source: "cli",
+      message: "first task",
+      runDepth: "quick",
+      configuredMaxIterations: 15,
+      progressMode: "new",
+    });
+    service.startTurn({
+      sessionId: "session-a",
+      roomId: "room-a",
+      runId: "run-b",
+      source: "cli",
+      message: "second task",
+      runDepth: "deep",
+      configuredMaxIterations: 90,
+      progressMode: "verbose",
+    });
+    service.finishTurn("session-a", "error", "boom");
+    unsubscribe();
+
+    expect(observed).toEqual(["started", "completed", "started", "error"]);
+  });
 });

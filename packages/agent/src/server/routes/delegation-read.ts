@@ -5,7 +5,7 @@ import {
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
 
 function parseDelegationFilters(url: URL): {

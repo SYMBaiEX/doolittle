@@ -1,78 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { RuntimeSettings } from "../../settings/runtime-settings";
 import { LOCAL_SHELL } from "../execution/subprocess";
 import { buildSingularityCommand } from "../planning";
 import { createCoreExecutionBackends } from "./core";
-
-function makeSettings(): RuntimeSettings {
-  return {
-    model: {
-      provider: "offline",
-      model: "local",
-      baseUrl: "http://localhost",
-      temperature: 0.2,
-      maxTokens: 400,
-    },
-    gateway: {
-      sessionTimeoutMinutes: 120,
-      mirrorResponsesToHistory: true,
-    },
-    execution: {
-      backend: "local",
-      remoteSyncMode: "mirror",
-      remoteSyncInclude: ["packages/agent/src/**", "packages/skills/**"],
-      remoteSyncExclude: [".git", ".doolittle", "node_modules"],
-      remoteArtifactPaths: [".doolittle/remote-artifacts"],
-      remoteArtifactPolicy: "metadata-only",
-      remoteWorkspaceLabel: "doolittle-workspace",
-      dockerImage: "oven/bun:latest",
-      dockerNetwork: "host",
-      dockerWorkspacePath: "/workspace",
-      dockerEnvPassthrough: ["PATH", "HOME"],
-      singularityImage: "",
-      daytonaTarget: "",
-      daytonaCommand: "daytona",
-      daytonaShell: "/bin/sh",
-      daytonaWorkspacePath: "/workspace",
-      daytonaSnapshot: "",
-      daytonaBootstrapCommand: "",
-      daytonaStatusCommand: "",
-      daytonaInspectCommand: "",
-      modalTarget: "",
-      modalCommand: "modal",
-      modalShell: "/bin/bash",
-      modalWorkspacePath: "/workspace",
-      modalEnvironment: "",
-      modalBootstrapCommand: "",
-      modalStatusCommand: "",
-      modalInspectCommand: "",
-      commandTimeoutMs: 30_000,
-      healthTimeoutMs: 5_000,
-      containerCpuLimit: "2",
-      containerMemoryLimit: "2g",
-      containerPidsLimit: 256,
-      containerReadOnlyRoot: true,
-      sshHost: "",
-      sshUser: "",
-      sshPath: "",
-      sshPort: 22,
-      sshKeyPath: "",
-      sshStrictHostKeyChecking: false,
-    },
-    mcp: {
-      serverCommand: "",
-      timeoutMs: 5_000,
-    },
-    agent: {
-      runDepth: "standard",
-      maxIterations: 45,
-      toolProgressMode: "new",
-    },
-    ui: {
-      theme: "orange",
-    },
-  };
-}
+import { makeSettings } from "./testing";
 
 describe("core execution backends", () => {
   it("creates the built-in execution backends", () => {

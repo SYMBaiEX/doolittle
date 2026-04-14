@@ -1,9 +1,7 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import {
-  getEffectiveCodingAgentContext,
-  getEffectiveTurnCapabilityPolicy,
-} from "@/runtime/native/service-bridge/index";
-import type { resolveTurnCapabilityProfile } from "@/runtime/turn-classification";
+import { getEffectiveTurnCapabilityPolicy } from "@/runtime/native/service-bridge/tool-policy";
+import { getEffectiveCodingAgentContext } from "@/runtime/native/service-bridge/tooling";
+import type { resolveTurnCapabilityProfile } from "@/runtime/turn-classification/message";
 
 type ChatRuntimeContext = Pick<
   AppContext,

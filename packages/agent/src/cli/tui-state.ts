@@ -1,6 +1,6 @@
 import type { TuiCommandQueueState } from "@/cli/tui-command-queue";
 import type { ControlDeckMode } from "@/cli/tui-control-deck";
-import type { TuiLifecycleState } from "@/cli/tui-lifecycle";
+import type { TuiLifecycleState } from "@/cli/tui-lifecycle/types";
 import type { TuiOverlayState } from "@/cli/tui-overlays";
 
 export interface TuiStateStore {

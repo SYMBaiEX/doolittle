@@ -3,9 +3,9 @@ import {
   createEffectiveForm,
   getEffectiveForm,
   getEffectiveFormTemplates,
-  getNativeFormsControlPlane,
   listEffectiveForms,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/autocoder";
+import { getNativeFormsControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import type { AgentExecutionContext } from "../../chat";
 
 export async function handleFormsCommand(

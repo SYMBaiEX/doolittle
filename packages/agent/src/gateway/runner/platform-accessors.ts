@@ -1,6 +1,6 @@
 import type { GatewayRunnerContext } from "@/gateway/runner/context";
 import type { GatewayNativeMessagingStateView } from "@/gateway/state/state-snapshot";
-import { getNativeMessagingTransportState } from "@/runtime/native/service-bridge/index";
+import { getNativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
 import type { PlatformName } from "@/types/gateway";
 
 export interface GatewayRunnerPlatformAccessors {

@@ -4,12 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
 import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import {
-  type GatewayRunnerLifecycleHost,
-  heartbeatGatewayRunner,
-  startGatewayRunnerLifecycle,
-  stopGatewayRunnerLifecycle,
-} from "@/gateway/runner/lifecycle";
+import { heartbeatGatewayRunner } from "@/gateway/runner/lifecycle/heartbeat";
+import { startGatewayRunnerLifecycle } from "@/gateway/runner/lifecycle/startup";
+import { stopGatewayRunnerLifecycle } from "@/gateway/runner/lifecycle/stop";
+import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
 import type {
   GatewayHistorySnapshot,
   GatewayStateSnapshot,

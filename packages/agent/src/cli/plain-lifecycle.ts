@@ -78,13 +78,19 @@ export function installPlainCliLifecycle(
     restoreTerminalState(output);
   };
 
+  // Forced termination is still intentional here: by the time we use it,
+  // normal prompt-loop shutdown has already failed or been explicitly skipped.
+  const forceTerminatePlainCli = (exitCode = 130) => {
+    cleanup();
+    process.exit(exitCode);
+  };
+
   const scheduleForcedPlainExit = (exitCode = 130) => {
     if (state.forceExitTimer) {
       return;
     }
     state.forceExitTimer = setTimeout(() => {
-      cleanup();
-      process.exit(exitCode);
+      forceTerminatePlainCli(exitCode);
     }, 750);
     state.forceExitTimer.unref?.();
   };
@@ -147,15 +153,13 @@ export function installPlainCliLifecycle(
       return;
     }
     if (state.turnCancellationPending) {
-      cleanup();
-      process.exit(130);
+      forceTerminatePlainCli(130);
     }
     if (!state.closed) {
       rl.close();
       return;
     }
-    cleanup();
-    process.exit(130);
+    forceTerminatePlainCli(130);
   };
 
   process.on("uncaughtException", handleUncaughtException);

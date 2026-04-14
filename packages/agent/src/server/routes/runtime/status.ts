@@ -2,7 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog/index";
+} from "@/runtime/native/plugin-catalog";
 import { json } from "@/server/responses";
 import { resolveOwnership } from "./shared";
 

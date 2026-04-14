@@ -5,7 +5,7 @@ import type { EnvConfig } from "../../../types/runtime";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "../plugin-catalog/index";
+} from "../plugin-catalog";
 import {
   createEmptyDeferredPluginGroups,
   loadDeferredPluginGroups,

@@ -77,7 +77,7 @@ function createContext() {
     attachments: (limit: number) => [{ id: `attachment:${limit}` }],
     state: async (limit: number) => ({ limit }),
     runtimeStatus: () => ({
-      daemon: { running: true },
+      daemon: { watchdog: { running: true } },
       messagingBridge: [{ platform: "telegram", live: true }],
       transportInventory: [{ platform: "api", gatewayEnabled: true }],
       transportControl: { configured: 2 },
@@ -286,11 +286,15 @@ describe("handleGatewayRuntimeRoutes", () => {
     expect(invalidMessage?.status).toBe(400);
     expect(replayMissing?.status).toBe(400);
     const runtimeBody = (await runtimeResponse?.json()) as {
+      summary: {
+        headline: string;
+      };
       runtime: {
-        daemon: { running: boolean };
+        daemon: { watchdog: { running: boolean } };
       };
     };
-    expect(runtimeBody.runtime.daemon.running).toBe(true);
+    expect(runtimeBody.summary.headline).toContain("Gateway runtime");
+    expect(runtimeBody.runtime.daemon.watchdog.running).toBe(true);
   });
 
   it("returns null for unrelated routes", async () => {

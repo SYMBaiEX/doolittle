@@ -48,7 +48,7 @@ describe("gateway runtime command operations", () => {
         "/gateway history",
         context,
       ),
-    ).toContain('"delivery-1"');
+    ).toContain("Latest delivery: delivery-1");
     expect(
       await handleGatewayRuntimeOperationCommand(
         createInput("/gateway trace"),

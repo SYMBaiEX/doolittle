@@ -1,5 +1,5 @@
 import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
-import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/index";
+import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
   DEFAULT_TUI_THEME,
   getTuiTheme,

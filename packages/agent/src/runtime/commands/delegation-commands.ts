@@ -1,6 +1,6 @@
 import type { AgentExecutionContext } from "../chat";
 import { handleDelegationMutationCommand } from "./delegation-command-mutations";
-import { handleDelegationReadCommand } from "./delegation-command-read";
+import { handleDelegationReadCommand } from "./delegation-read";
 
 export async function handleDelegationCommand(
   trimmed: string,

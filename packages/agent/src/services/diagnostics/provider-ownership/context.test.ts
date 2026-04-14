@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/index";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { getNativePackageAudit } from "@/runtime/native/package-audit";
-import type { getNativePluginCatalog } from "@/runtime/native/plugin-catalog/index";
+import type { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
@@ -38,7 +38,9 @@ function buildConfig() {
   } as EnvConfig;
 }
 
-const linkedAccounts = getLinkedProviderAccountsSnapshot("fake-home");
+const linkedAccounts = getLinkedProviderAccountsSnapshot(
+  join(import.meta.dir, "fixtures", "fake-home"),
+);
 
 const nativeAudit = {
   runtime: {

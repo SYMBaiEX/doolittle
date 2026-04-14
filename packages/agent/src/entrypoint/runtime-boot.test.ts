@@ -73,7 +73,7 @@ describe("prepareEntrypointRuntimeBoot", () => {
         }),
         importCli: async () =>
           ({
-            startCli: async () => undefined,
+            startCli: async () => 0,
             runCliPrompt: async () => undefined,
             runCliPromptWithEvents: async () => undefined,
           }) as never,

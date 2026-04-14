@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/index";
+import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 
 function resolveMemoryTarget(url: URL): "memory" | "user" {

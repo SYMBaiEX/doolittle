@@ -1,5 +1,5 @@
 import type { Plugin } from "@elizaos/core";
-import { formatError } from "@/runtime/bootstrap/recovery";
+import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import type { AppServices } from "@/services";
 
 export function createDeferredHydrator(params: {

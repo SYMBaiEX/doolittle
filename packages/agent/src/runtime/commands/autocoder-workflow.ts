@@ -1,4 +1,4 @@
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/index";
+import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../chat";
 
 function currentCliSessionId(context: AgentExecutionContext): string {

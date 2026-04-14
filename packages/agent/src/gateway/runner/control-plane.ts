@@ -7,11 +7,9 @@ import {
   buildGatewayRunnerLifecycleHost,
   buildGatewayRunnerSupervisionDeps,
 } from "@/gateway/runner/host";
-import {
-  heartbeatGatewayRunner,
-  startGatewayRunnerLifecycle,
-  stopGatewayRunnerLifecycle,
-} from "@/gateway/runner/lifecycle";
+import { heartbeatGatewayRunner } from "@/gateway/runner/lifecycle/heartbeat";
+import { startGatewayRunnerLifecycle } from "@/gateway/runner/lifecycle/startup";
+import { stopGatewayRunnerLifecycle } from "@/gateway/runner/lifecycle/stop";
 import type { GatewayStateSnapshot } from "@/gateway/state/state-snapshot";
 import type {
   GatewaySupervisionDependencies,

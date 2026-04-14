@@ -8,7 +8,7 @@ import { buildNativePluginManagerSummary } from "../plugin-assembly-support";
 import type {
   NativePluginCatalog,
   NativePluginCatalogGroups,
-} from "../plugin-catalog/index";
+} from "../plugin-catalog";
 
 export async function loadHotExecutionPlugins(
   services: AppServices,

@@ -1,9 +1,9 @@
 import {
   createEffectivePlan,
   getEffectivePlan,
-  getNativePlanningControlPlane,
   listEffectivePlans,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/autocoder";
+import { getNativePlanningControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import type { AgentExecutionContext } from "../../chat";
 
 export async function handlePlansCommand(

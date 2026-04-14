@@ -152,6 +152,7 @@ describe("tui runtime shell helpers", () => {
         cleaned += 1;
       },
       isShuttingDown: () => shuttingDown,
+      getExitCode: () => 0,
       onUnexpectedDestroy: () => {
         unexpected += 1;
       },
@@ -174,6 +175,7 @@ describe("tui runtime shell helpers", () => {
       markScreenDestroyed: () => {},
       cleanup: () => {},
       isShuttingDown: () => true,
+      getExitCode: () => 7,
       onUnexpectedDestroy: () => {
         throw new Error("should not fire");
       },
@@ -181,6 +183,6 @@ describe("tui runtime shell helpers", () => {
 
     shuttingDown = true;
     destroyHandler?.();
-    await expect(second).resolves.toBe("exited");
+    await expect(second).resolves.toBe(7);
   });
 });

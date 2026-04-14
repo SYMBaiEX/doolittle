@@ -6,13 +6,13 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog/index";
+} from "@/runtime/native/plugin-catalog";
+import { getNativeIntegrationControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import {
-  getNativeIntegrationControlPlane,
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
-  getNativeTransportControlPlane,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/ownership";
+import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
 import { json } from "@/server/responses";
 
 export async function handleTransportRoutes(

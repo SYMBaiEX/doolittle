@@ -9,8 +9,8 @@ import {
   getLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
   getLinkedProviderSetupCommand,
-} from "@/runtime/native/account-auth/index";
-import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/account-auth";
+import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
 
 type LinkedProvider = "elizacloud" | "codex" | "claude-code";
 

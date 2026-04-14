@@ -1,9 +1,9 @@
 import {
-  claudeCodeAccessTokenIsExpiring,
   getClaudeCodeAccountStatus,
   getLinkedClaudeCodeCredentials,
   refreshLinkedClaudeCodeCredentials,
 } from "./claude-code";
+import { claudeCodeAccessTokenIsExpiring } from "./claude-code-support/files";
 import {
   codexAccessTokenIsExpiring as codexAccessTokenIsExpiringImpl,
   getCodexAccountStatus as getCodexAccountStatusImpl,

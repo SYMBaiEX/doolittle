@@ -3,7 +3,7 @@ import {
   getEffectiveSecret,
   listEffectiveSecretKeys,
   setEffectiveSecret,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/autocoder";
 import {
   completeAutocoderWorkflowContext,
   createAutocoderWorkflowContext,

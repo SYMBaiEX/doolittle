@@ -2,7 +2,7 @@ import { displayCommand } from "@/runtime/commands/command-execution";
 import {
   type getLinkedProviderAccountsSnapshot,
   getLinkedProviderConnectAdvice,
-} from "@/runtime/native/account-auth/index";
+} from "@/runtime/native/account-auth";
 import type { LinkedProviderName } from "./types";
 
 export function formatLinkedAccountSummary(

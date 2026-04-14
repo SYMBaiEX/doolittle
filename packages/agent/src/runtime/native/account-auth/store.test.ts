@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import {
   getProviderAuthStorePath,
   getStoredClaudeCodeCredentials,
+  getStoredCodexCredentials,
   getStoredElizaCloudCredentials,
   persistProviderCredentials,
   readProviderAuthStore,
@@ -29,7 +30,7 @@ function createDataDir(): string {
   return dir;
 }
 
-describe("account-auth store helpers", () => {
+describe.serial("account-auth store helpers", () => {
   it("uses absolute DOOLITTLE_DATA_DIR values without rebasing them onto cwd", () => {
     const dataDir = createDataDir();
     process.env.DOOLITTLE_DATA_DIR = dataDir;
@@ -94,6 +95,27 @@ describe("account-auth store helpers", () => {
       expiresAt: "1710000000000",
       accountLabel: "Symbiotic Operator",
       authMode: "oauth",
+      source: "eliza-auth-store",
+    });
+  });
+
+  it("persists and reloads canonical Codex credentials", () => {
+    const dataDir = createDataDir();
+    process.env.DOOLITTLE_DATA_DIR = dataDir;
+
+    persistProviderCredentials("codex", {
+      accessToken: "codex-access-token",
+      refreshToken: "codex-refresh-token",
+      authMode: "chatgpt",
+      lastRefresh: "2026-04-11T12:00:00.000Z",
+      source: "fixture",
+    });
+
+    expect(getStoredCodexCredentials()).toEqual({
+      accessToken: "codex-access-token",
+      refreshToken: "codex-refresh-token",
+      authMode: "chatgpt",
+      lastRefresh: "2026-04-11T12:00:00.000Z",
       source: "eliza-auth-store",
     });
   });

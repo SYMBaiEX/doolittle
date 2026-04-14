@@ -31,7 +31,7 @@ export function renderPlainStartup(options: PlainStartupOptions): void {
     options;
   if (interactiveShell) {
     output.write(`${renderPlainBanner(context, state)}\n`);
-    output.write(`${renderPlainShellHints()}\n\n`);
+    output.write(`${renderPlainShellHints(context, state)}\n\n`);
     for (const entry of bootLogs ?? []) {
       output.write(
         `${renderPlainRunLine(`boot ${entry.source === "stderr" ? "warn" : "info"} · ${entry.text}`, "[boot]")}\n`,

@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import { runSlashCommandTurn } from "./command";
 import type { PreparedTurnState } from "./state";
 
 function createContext(state: {
@@ -68,8 +67,19 @@ function createPreparedTurn(
   };
 }
 
+async function loadRunSlashCommandTurn() {
+  const { runSlashCommandTurn } = await import(
+    `./command?slash-command-turn-test=${Date.now()}-${Math.random()}`
+  );
+  return runSlashCommandTurn;
+}
+
 describe("slash command turn runner", () => {
   it("returns undefined when the command layer does not handle the input", async () => {
+    mock.restore();
+    mock.clearAllMocks();
+    const runSlashCommandTurn = await loadRunSlashCommandTurn();
+
     const state = {
       startPayloads: [] as Array<Record<string, unknown>>,
       finishPayloads: [] as Array<{ sessionId: string; status: string }>,
@@ -87,7 +97,10 @@ describe("slash command turn runner", () => {
         },
         context,
         perf: {
-          flush: (_logger, metadata) => {
+          flush: (
+            _logger: unknown,
+            metadata: { path: string; sessionId: string; source: string },
+          ) => {
             perfFlushes.push(metadata);
           },
         },
@@ -111,6 +124,10 @@ describe("slash command turn runner", () => {
   });
 
   it("tracks lifecycle and stores both user and assistant messages for handled commands", async () => {
+    mock.restore();
+    mock.clearAllMocks();
+    const runSlashCommandTurn = await loadRunSlashCommandTurn();
+
     const state = {
       startPayloads: [] as Array<Record<string, unknown>>,
       finishPayloads: [] as Array<{ sessionId: string; status: string }>,
@@ -129,7 +146,10 @@ describe("slash command turn runner", () => {
         },
         context,
         perf: {
-          flush: (_logger, metadata) => {
+          flush: (
+            _logger: unknown,
+            metadata: { path: string; sessionId: string; source: string },
+          ) => {
             perfFlushes.push(metadata);
           },
         },

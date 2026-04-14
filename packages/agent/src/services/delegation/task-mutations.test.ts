@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+  applyDelegationTaskCancellation,
+  applyDelegationTaskCompletion,
   applyDelegationTaskFailure,
   applyDelegationTaskRequeue,
+  applyDelegationTaskRunning,
+  applyDelegationWorkerStarted,
   createDelegationChildInput,
   createDelegationTaskRecord,
   linkDelegationChildTask,
@@ -74,6 +78,50 @@ describe("delegation task mutation helpers", () => {
     expect(task.startedAt).toBeUndefined();
     expect(task.completedAt).toBeUndefined();
     expect(task.notes.at(-1)).toContain("requeued with 4 max attempts");
+  });
+
+  it("tracks running, worker start, and completion details", () => {
+    const task = createDelegationTaskRecord({
+      title: "Delegated",
+      objective: "Do the work",
+      executionMode: "delegated",
+      maxAttempts: 2,
+    });
+
+    applyDelegationTaskRunning(task);
+    applyDelegationWorkerStarted(task, {
+      pid: 1234,
+      outputPath: "/tmp/delegation.log",
+    });
+    applyDelegationTaskCompletion(task, "all set");
+
+    expect(String(task.status)).toBe("completed");
+    expect(task.attempts).toBe(1);
+    expect(task.startedAt).toBeTruthy();
+    expect(task.completedAt).toBeTruthy();
+    expect(task.workerPid).toBeUndefined();
+    expect(task.workerMode).toBe("process");
+    expect(task.lastOutputPath).toBe("/tmp/delegation.log");
+    expect(task.notes).toContain("all set");
+    expect(task.notes.some((note) => note.includes("worker started"))).toBe(
+      true,
+    );
+  });
+
+  it("cancels a running task and records the cancellation note", () => {
+    const task = createDelegationTaskRecord({
+      title: "Cancelable",
+      objective: "Stop me",
+    });
+
+    applyDelegationTaskRunning(task);
+    applyDelegationTaskCancellation(task, "user requested stop");
+
+    expect(String(task.status)).toBe("cancelled");
+    expect(task.completedAt).toBeTruthy();
+    expect(task.workerPid).toBeUndefined();
+    expect(task.notes).toContain("user requested stop");
+    expect(task.notes.at(-1)).toContain("cancelled at");
   });
 
   it("links child task ids back onto the parent record", () => {

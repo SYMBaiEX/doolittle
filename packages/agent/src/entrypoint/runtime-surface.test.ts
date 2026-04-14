@@ -26,7 +26,7 @@ describe("handleEntrypointRuntimeSurface", () => {
     const runtimeLogger = createLogger();
     const printLine = mock(() => {});
 
-    const handled = await handleEntrypointRuntimeSurface({
+    const result = await handleEntrypointRuntimeSurface({
       command: "gateway",
       shellIsInteractive: false,
       context: context as never,
@@ -50,7 +50,7 @@ describe("handleEntrypointRuntimeSurface", () => {
       printLine,
     });
 
-    expect(handled).toBe(false);
+    expect(result).toEqual({ handled: false });
     expect(context.gateway.start).toHaveBeenCalledTimes(1);
     expect(runtimeLogger.info).toHaveBeenCalledWith("gateway-started", {
       agentName: "Doolittle",
@@ -62,9 +62,9 @@ describe("handleEntrypointRuntimeSurface", () => {
     const context = createContext();
     const runtimeLogger = createLogger();
     const pushedArgs: string[] = [];
-    const startCli = mock(async () => {});
+    const startCli = mock(async () => 7);
 
-    const handled = await handleEntrypointRuntimeSurface({
+    const result = await handleEntrypointRuntimeSurface({
       command: "plain",
       shellIsInteractive: true,
       context: context as never,
@@ -89,7 +89,7 @@ describe("handleEntrypointRuntimeSurface", () => {
       pushArg: (arg) => pushedArgs.push(arg),
     });
 
-    expect(handled).toBe(true);
+    expect(result).toEqual({ handled: true, exitCode: 7 });
     expect(pushedArgs).toEqual(["--plain-cli"]);
     expect(startCli).toHaveBeenCalledTimes(1);
     expect(startCli).toHaveBeenCalledWith(context, {
@@ -103,7 +103,7 @@ describe("handleEntrypointRuntimeSurface", () => {
     const runtimeLogger = createLogger();
     const printLine = mock(() => {});
 
-    const handled = await handleEntrypointRuntimeSurface({
+    const result = await handleEntrypointRuntimeSurface({
       command: "start",
       shellIsInteractive: false,
       context: context as never,
@@ -127,7 +127,7 @@ describe("handleEntrypointRuntimeSurface", () => {
       printLine,
     });
 
-    expect(handled).toBe(true);
+    expect(result).toEqual({ handled: true });
     expect(runtimeLogger.info).toHaveBeenCalledWith(
       "runtime-initialized-no-surface",
       {
@@ -135,7 +135,7 @@ describe("handleEntrypointRuntimeSurface", () => {
       },
     );
     expect(printLine).toHaveBeenCalledWith(
-      "Doolittle initialized. Set DOOLITTLE_MODE=cli|api|both or launch the plain shell/cockpit explicitly.",
+      'Doolittle initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.',
     );
   });
 });

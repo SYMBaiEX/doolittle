@@ -1,0 +1,23 @@
+import type { ToolDefinition } from "@/types";
+import { AUTOMATION_CONTROL_PLANES } from "./automation";
+import {
+  ACP_CATALOG_CONTROL_PLANES,
+  RUNTIME_CATALOG_CONTROL_PLANES,
+  SKILL_CATALOG_CONTROL_PLANES,
+} from "./catalogs";
+import { OWNERSHIP_CONTROL_PLANES } from "./ownership";
+import {
+  CORE_STATUS_CONTROL_PLANES,
+  RUNTIME_STATUS_CONTROL_PLANES,
+} from "./status";
+
+export const TOOL_CONTROL_PLANE_CATALOG = [
+  ...CORE_STATUS_CONTROL_PLANES,
+  ...ACP_CATALOG_CONTROL_PLANES,
+  OWNERSHIP_CONTROL_PLANES[0],
+  ...RUNTIME_CATALOG_CONTROL_PLANES,
+  ...AUTOMATION_CONTROL_PLANES,
+  ...RUNTIME_STATUS_CONTROL_PLANES,
+  ...OWNERSHIP_CONTROL_PLANES.slice(1),
+  ...SKILL_CATALOG_CONTROL_PLANES,
+] as const satisfies readonly ToolDefinition[];

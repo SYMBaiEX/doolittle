@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeServices } from "@/runtime/native/service-bridge/index";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { TrajectoryBundleRecord, TrajectoryDatasetBody } from "./types";
 
 export function getTrajectoryLogger(context: AppContext) {

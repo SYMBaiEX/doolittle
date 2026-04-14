@@ -11,7 +11,7 @@ import {
   getEffectiveRepositoryDiff,
   getEffectiveRepositoryLog,
   getEffectiveRepositoryStatus,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/tooling";
 import type { AppServices } from "@/services";
 
 type RepositoryIntent = "status" | "diff" | "log";

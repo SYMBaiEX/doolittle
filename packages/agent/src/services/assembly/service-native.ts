@@ -1,5 +1,5 @@
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog/index";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
 import type { LazySlot } from "../lazy-slot";
 import { createLazySlot } from "../lazy-slot";

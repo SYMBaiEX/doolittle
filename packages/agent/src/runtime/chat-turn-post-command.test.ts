@@ -1,7 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { NativeTurnSetup } from "./chat-turn/native";
-import { runPostCommandTurn } from "./chat-turn/post-command";
 
 function createContext(): AgentExecutionContext {
   return {
@@ -45,8 +44,19 @@ function createPerf() {
   };
 }
 
+async function loadRunPostCommandTurn() {
+  const { runPostCommandTurn } = await import(
+    `./chat-turn/post-command?chat-turn-post-command-test=${Date.now()}-${Math.random()}`
+  );
+  return runPostCommandTurn;
+}
+
 describe("chat turn post-command seam", () => {
   it("returns shell responses without entering native flow", async () => {
+    mock.restore();
+    mock.clearAllMocks();
+    const runPostCommandTurn = await loadRunPostCommandTurn();
+
     const context = createContext();
     const perf = createPerf();
     const turnSetupLog: string[] = [];
@@ -90,6 +100,10 @@ describe("chat turn post-command seam", () => {
   });
 
   it("builds native overrides and forwards them into native turn", async () => {
+    mock.restore();
+    mock.clearAllMocks();
+    const runPostCommandTurn = await loadRunPostCommandTurn();
+
     const context = createContext();
     const perf = createPerf();
     let observedSetupInput:
@@ -196,7 +210,28 @@ describe("chat turn post-command seam", () => {
             },
           } as NativeTurnSetup;
         },
-        runNativeMessageTurn: async (input) => {
+        runNativeMessageTurn: async (input: {
+          options:
+            | {
+                runtimeOverrides?: {
+                  model?: string;
+                  provider?: string;
+                  baseUrl?: string;
+                  temperature?: number;
+                  maxTokens?: number;
+                };
+              }
+            | undefined;
+          settingsDuring: {
+            model: {
+              provider: string;
+              model: string;
+              baseUrl: string;
+              temperature: number;
+              maxTokens: number;
+            };
+          };
+        }) => {
           observedNativeOptions = input.options;
           observedSettingsDuring = input.settingsDuring as {
             model: {

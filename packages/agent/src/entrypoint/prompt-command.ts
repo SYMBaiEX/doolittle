@@ -8,6 +8,7 @@ import { encodeCliTurnEvent } from "@/cli/turn-events";
 import type { AppContext } from "@/runtime/bootstrap";
 import { printOneShotResult } from "./output";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
+import { isEntrypointAliasCommand } from "./subcommand";
 
 type RunCliPrompt = (
   context: AppContext,
@@ -59,7 +60,11 @@ export async function handleRuntimePromptCommand(
 ): Promise<boolean> {
   const trimmedPrompt = input.immediatePrompt?.trim();
   if (
-    !(input.command === "exec" || (!input.shellIsInteractive && trimmedPrompt))
+    !(
+      input.command === "exec" ||
+      isEntrypointAliasCommand(input.command) ||
+      (!input.shellIsInteractive && trimmedPrompt)
+    )
   ) {
     return false;
   }

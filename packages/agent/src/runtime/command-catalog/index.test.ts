@@ -12,9 +12,9 @@ import {
   RuntimeCommandCatalogEntries,
   SkillsCommandCatalogEntries,
   WorkspaceCommandCatalogEntries,
-} from "./index";
+} from "./definitions";
 
-describe("command catalog namespace barrel", () => {
+describe("command catalog definitions", () => {
   it("re-exports the topical definition sets in canonical order", () => {
     expect(COMMAND_CATALOG_DEFINITION_SETS).toEqual([
       RuntimeCommandCatalogEntries,

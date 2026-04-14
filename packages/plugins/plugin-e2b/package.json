@@ -7,10 +7,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@elizaos/core": "2.0.0-alpha.85",
-    "@e2b/code-interpreter": "^1.5.1",
-    "@octokit/rest": "^22.0.0",
-    "dotenv": "^17.2.0",
-    "uuid": "^11.1.0"
+    "@elizaos/core": "2.0.0-alpha.85"
   }
 }

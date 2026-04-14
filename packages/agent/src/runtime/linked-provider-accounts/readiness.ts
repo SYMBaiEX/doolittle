@@ -3,7 +3,7 @@ import { displayCommand } from "@/runtime/commands/command-execution";
 import {
   getLinkedProviderAccountsSnapshot,
   resolveLinkedProviderCredentials,
-} from "@/runtime/native/account-auth/index";
+} from "@/runtime/native/account-auth";
 import type { AgentExecutionContext } from "../chat";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 
@@ -124,6 +124,7 @@ async function computeProviderReadinessMessage(
         "A linked Claude Code account is ready on this machine.",
         `Run \`${displayCommand("/accounts use claude-code")}\` to activate it, or add ANTHROPIC_API_KEY and try again.`,
       ].join(" ");
+      cacheProviderReadiness(runtimeKey, provider, message);
       return message;
     }
     message = `Anthropic is selected, but ANTHROPIC_API_KEY is not configured. Add it in \`.env\` or run \`${displayCommand("/accounts")}\` to bind a linked provider.`;

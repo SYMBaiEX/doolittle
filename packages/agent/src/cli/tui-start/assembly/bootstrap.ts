@@ -1,33 +1,10 @@
-import type blessed from "blessed";
-import type { AppLogger } from "@/logging/logger";
-import type { AppContext } from "@/runtime/bootstrap";
-import type { TuiThemeProfile } from "@/runtime/theme-catalog";
 import { installTuiForeignOutput } from "../../tui-foreign-output";
 import { installTuiInputLifecycle } from "../../tui-input-lifecycle";
-import type { TuiOverlayState } from "../../tui-overlays";
-import type { TuiStateStore } from "../../tui-state";
-import type { TuiWidgetSet } from "../../tui-widget-factory";
-import { createTuiStartSetup, type TuiStartSetupResult } from "../setup";
-import type { TuiStartAssemblyOptions } from "./types";
-
-interface TuiStartBootstrapOptions {
-  context: AppContext;
-  state: TuiStartAssemblyOptions["state"];
-  logger: AppLogger;
-  screen: blessed.Widgets.Screen;
-  output: NodeJS.WriteStream;
-  crashLogPath: string;
-  transcriptExportPath: string;
-  widgets: TuiWidgetSet;
-  focusables: blessed.Widgets.BlessedElement[];
-  tuiState: TuiStateStore;
-  overlayState: TuiOverlayState;
-  getActiveTheme: () => TuiThemeProfile;
-  setActiveTheme: (theme: TuiThemeProfile) => void;
-  isConversationalInput: (text: string) => boolean;
-  truncate: (text: string, maxLength: number) => string;
-  canCopyToClipboard: boolean;
-}
+import {
+  createTuiStartSetup,
+  type TuiStartSetupOptions,
+  type TuiStartSetupResult,
+} from "../setup";
 
 interface TuiStartBootstrapDependencies {
   isScreenDestroyed: () => boolean;
@@ -43,48 +20,20 @@ export interface TuiStartBootstrapResult {
 }
 
 export function bootstrapTuiStartRuntime(
-  options: TuiStartBootstrapOptions & TuiStartBootstrapDependencies,
+  options: TuiStartSetupOptions & TuiStartBootstrapDependencies,
 ): TuiStartBootstrapResult {
   const {
-    context,
-    state,
     logger,
     screen,
-    output,
-    crashLogPath,
-    transcriptExportPath,
     widgets,
-    focusables,
     tuiState,
-    overlayState,
-    getActiveTheme,
-    setActiveTheme,
-    truncate,
-    canCopyToClipboard,
     isScreenDestroyed,
     isShuttingDown,
     scheduleRefreshPanels,
     updateFooterHint,
   } = options;
 
-  const surfaces = createTuiStartSetup({
-    context,
-    state,
-    logger,
-    screen,
-    output,
-    crashLogPath,
-    transcriptExportPath,
-    widgets,
-    focusables,
-    tuiState,
-    overlayState,
-    getActiveTheme,
-    setActiveTheme,
-    isConversationalInput: options.isConversationalInput,
-    truncate,
-    canCopyToClipboard,
-  });
+  const surfaces = createTuiStartSetup(options);
 
   const unsubscribers: Array<() => void> = [];
 

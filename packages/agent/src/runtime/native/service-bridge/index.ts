@@ -1,4 +1,4 @@
-import {
+export {
   cancelEffectiveForm,
   createEffectiveForm,
   createEffectivePlan,
@@ -21,13 +21,13 @@ import {
   performEffectiveCodeQa,
   performEffectiveCodeResearch,
   setEffectiveSecret,
-} from "./autocoder/index";
-import {
+} from "./autocoder";
+export {
   getAutonomousControlPlane,
   getEffectiveSkills,
   getEffectiveSkillsSummary,
-} from "./autonomous/index";
-import {
+} from "./autonomous";
+export {
   analyzeEffectiveBrowserComparison,
   analyzeEffectiveBrowserPage,
   captureEffectiveBrowserPage,
@@ -37,12 +37,17 @@ import {
   inspectEffectiveBrowserPage,
   screenshotEffectiveBrowserPage,
   snapshotEffectiveBrowserPage,
-} from "./browser/index";
-import {
-  type BrowserMcpServices,
-  type EffectiveMessagingTransportEntry,
-  type EffectiveServiceResolutionRecord,
-  type EffectiveTransportInventoryEntry,
+} from "./browser";
+export type {
+  BrowserMcpServices,
+  EffectiveMessagingTransportEntry,
+  EffectiveServiceResolutionRecord,
+  EffectiveTransportInventoryEntry,
+  NativeIntegrationControlPlane,
+  NativeMessagingTransportState,
+  NativePluginManagerSummary,
+} from "./control-planes";
+export {
   getEffectiveMessagingTransportInventory,
   getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
@@ -55,11 +60,8 @@ import {
   getNativePlanningControlPlane,
   getNativeResearchControlPlane,
   getNativeTransportControlPlane,
-  type NativeIntegrationControlPlane,
-  type NativeMessagingTransportState,
-  type NativePluginManagerSummary,
-} from "./control-planes/index";
-import {
+} from "./control-planes";
+export {
   cancelEffectiveDelegationTask,
   createEffectiveDelegationTask,
   getEffectiveDelegationAggregation,
@@ -72,53 +74,7 @@ import {
   retryEffectiveDelegationTask,
   spawnEffectiveDelegationChild,
   superviseEffectiveDelegationQueue,
-} from "./delegation/index";
-import { getNativeServices, type RuntimeLike } from "./runtime";
-import {
-  exportEffectiveSkillHubManifest,
-  getEffectiveSkillCatalog,
-  getEffectiveSkillHubCatalog,
-  getEffectiveSkillHubFamilies,
-  getEffectiveSkillHubFamily,
-  getEffectiveSkillHubGenerated,
-  getEffectiveSkillHubInstalled,
-  getEffectiveSkillHubInstalledManifest,
-  getEffectiveSkillHubSummary,
-  getEffectiveSkillHubWorkspace,
-  importEffectiveSkillHubManifest,
-  installEffectiveSkillHubManifest,
-  searchEffectiveSkillCatalog,
-  searchEffectiveSkillHubCatalog,
-  syncEffectiveSkillHub,
-} from "./skill-hub/index";
-import {
-  type EffectiveTurnCapabilityPolicy,
-  getEffectiveTurnCapabilityPolicy,
-} from "./tool-policy";
-import {
-  describeEffectiveCachedMcpTools,
-  describeEffectiveMcpTool,
-  discoverEffectiveMcpTools,
-  findEffectiveLocalCodebases,
-  getEffectiveCachedMcpTools,
-  getEffectiveCodingAgentContext,
-  getEffectiveMcpStatus,
-  getEffectiveRepositoryDiff,
-  getEffectiveRepositoryLog,
-  getEffectiveRepositoryStatus,
-  getEffectiveShellHistory,
-  getEffectiveShellStatus,
-  inspectEffectiveProject,
-  invokeEffectiveMcp,
-  invokeEffectiveMcpTool,
-  probeEffectiveMcp,
-  readEffectiveWorkspaceFile,
-  runEffectiveShellCommand,
-  searchEffectiveCachedMcpTools,
-  searchEffectiveWorkspace,
-  writeEffectiveWorkspaceFile,
-} from "./tooling/index";
-
+} from "./delegation";
 export {
   getEffectiveExperienceSummary,
   getEffectiveGeneratedSkills,
@@ -134,65 +90,11 @@ export {
   getNativeEcosystemSnapshot,
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
-} from "./ownership/index";
-
-export type {
-  BrowserMcpServices,
-  EffectiveMessagingTransportEntry,
-  EffectiveServiceResolutionRecord,
-  EffectiveTransportInventoryEntry,
-  EffectiveTurnCapabilityPolicy,
-  NativeIntegrationControlPlane,
-  NativeMessagingTransportState,
-  NativePluginManagerSummary,
-  RuntimeLike,
-};
+} from "./ownership";
+export type { RuntimeLike } from "./runtime";
+export { getNativeServices } from "./runtime";
 export {
-  analyzeEffectiveBrowserComparison,
-  analyzeEffectiveBrowserPage,
-  cancelEffectiveDelegationTask,
-  cancelEffectiveForm,
-  captureEffectiveBrowserPage,
-  compareEffectiveBrowserPages,
-  createEffectiveDelegationTask,
-  createEffectiveForm,
-  createEffectivePlan,
-  createEffectiveRepository,
-  createEffectiveSandbox,
-  deleteEffectiveRepository,
-  describeEffectiveCachedMcpTools,
-  describeEffectiveMcpTool,
-  discoverEffectiveMcpTools,
-  executeEffectiveSandboxCode,
   exportEffectiveSkillHubManifest,
-  fetchEffectiveBrowserPage,
-  findEffectiveLocalCodebases,
-  generateEffectiveCode,
-  generateEffectivePrd,
-  getAutonomousControlPlane,
-  getEffectiveBrowserStatus,
-  getEffectiveCachedMcpTools,
-  getEffectiveCodingAgentContext,
-  getEffectiveDelegationAggregation,
-  getEffectiveDelegationChildren,
-  getEffectiveDelegationOverview,
-  getEffectiveDelegationQueue,
-  getEffectiveDelegationTask,
-  getEffectiveDelegationTasks,
-  getEffectiveDelegationTree,
-  getEffectiveForm,
-  getEffectiveFormTemplates,
-  getEffectiveMcpStatus,
-  getEffectiveMessagingTransportInventory,
-  getEffectivePlan,
-  getEffectivePluginManagerInventory,
-  getEffectiveRepositoryDiff,
-  getEffectiveRepositoryLog,
-  getEffectiveRepositoryStatus,
-  getEffectiveSecret,
-  getEffectiveServiceResolution,
-  getEffectiveShellHistory,
-  getEffectiveShellStatus,
   getEffectiveSkillCatalog,
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubFamilies,
@@ -202,46 +104,34 @@ export {
   getEffectiveSkillHubInstalledManifest,
   getEffectiveSkillHubSummary,
   getEffectiveSkillHubWorkspace,
-  getEffectiveSkills,
-  getEffectiveSkillsSummary,
-  getEffectiveTransportInventory,
-  getEffectiveTurnCapabilityPolicy,
-  getNativeExecutionControlPlane,
-  getNativeFormsControlPlane,
-  getNativeIntegrationControlPlane,
-  getNativeMediaControlPlane,
-  getNativeMessagingTransportState,
-  getNativePlanningControlPlane,
-  getNativeResearchControlPlane,
-  getNativeServices,
-  getNativeTransportControlPlane,
-  hasEffectiveSecret,
   importEffectiveSkillHubManifest,
-  inspectEffectiveBrowserPage,
-  inspectEffectiveProject,
   installEffectiveSkillHubManifest,
-  invokeEffectiveMcp,
-  invokeEffectiveMcpTool,
-  killEffectiveSandbox,
-  listEffectiveForms,
-  listEffectivePlans,
-  listEffectiveSandboxes,
-  listEffectiveSecretKeys,
-  performEffectiveCodeQa,
-  performEffectiveCodeResearch,
-  probeEffectiveMcp,
-  readEffectiveWorkspaceFile,
-  retryEffectiveDelegationTask,
-  runEffectiveShellCommand,
-  screenshotEffectiveBrowserPage,
-  searchEffectiveCachedMcpTools,
   searchEffectiveSkillCatalog,
   searchEffectiveSkillHubCatalog,
-  searchEffectiveWorkspace,
-  setEffectiveSecret,
-  snapshotEffectiveBrowserPage,
-  spawnEffectiveDelegationChild,
-  superviseEffectiveDelegationQueue,
   syncEffectiveSkillHub,
+} from "./skill-hub";
+export type { EffectiveTurnCapabilityPolicy } from "./tool-policy";
+export { getEffectiveTurnCapabilityPolicy } from "./tool-policy";
+export {
+  describeEffectiveCachedMcpTools,
+  describeEffectiveMcpTool,
+  discoverEffectiveMcpTools,
+  findEffectiveLocalCodebases,
+  getEffectiveCachedMcpTools,
+  getEffectiveCodingAgentContext,
+  getEffectiveMcpStatus,
+  getEffectiveRepositoryDiff,
+  getEffectiveRepositoryLog,
+  getEffectiveRepositoryStatus,
+  getEffectiveShellHistory,
+  getEffectiveShellStatus,
+  inspectEffectiveProject,
+  invokeEffectiveMcp,
+  invokeEffectiveMcpTool,
+  probeEffectiveMcp,
+  readEffectiveWorkspaceFile,
+  runEffectiveShellCommand,
+  searchEffectiveCachedMcpTools,
+  searchEffectiveWorkspace,
   writeEffectiveWorkspaceFile,
-};
+} from "./tooling";

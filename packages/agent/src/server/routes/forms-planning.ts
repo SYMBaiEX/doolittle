@@ -6,11 +6,13 @@ import {
   getEffectiveForm,
   getEffectiveFormTemplates,
   getEffectivePlan,
-  getNativeFormsControlPlane,
-  getNativePlanningControlPlane,
   listEffectiveForms,
   listEffectivePlans,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/autocoder";
+import {
+  getNativeFormsControlPlane,
+  getNativePlanningControlPlane,
+} from "@/runtime/native/service-bridge/control-planes";
 import { json } from "@/server/responses";
 
 export async function handleFormsPlanningRoutes(

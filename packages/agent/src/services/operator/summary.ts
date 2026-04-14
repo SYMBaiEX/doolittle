@@ -1,4 +1,4 @@
-import type { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/index";
+import type { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
 import type { AgentSdkService } from "@/services/agent-sdk-service";
 import type { AutocoderPipelineService } from "@/services/autocoder-pipeline/service";
 import type { EcosystemService } from "@/services/ecosystem-service";

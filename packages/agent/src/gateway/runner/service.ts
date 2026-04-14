@@ -24,33 +24,42 @@ import type {
 } from "@/types/gateway";
 import type { PlatformHealth } from "../platforms/base";
 import type { GatewayRunnerContext } from "./context";
-import { GatewayRunnerRuntime } from "./service-runtime";
+import type { GatewayRunnerRuntimeApi } from "./service-runtime/api";
+import { GatewayRunnerRuntimeState } from "./service-runtime/state";
+import type {
+  GatewayRunnerEditDeliveryOptions,
+  GatewayRunnerProgressiveTarget,
+  GatewayRunnerSendToHomesOptions,
+  GatewayRunnerUpdateListener,
+} from "./service-runtime/types";
+import { wireGatewayRunnerRuntime } from "./service-runtime/wire";
 
 export class GatewayRunner {
-  private readonly runtime: GatewayRunnerRuntime;
+  private readonly api: GatewayRunnerRuntimeApi;
 
   constructor(context: GatewayRunnerContext) {
-    this.runtime = new GatewayRunnerRuntime(context);
+    const runtimeState = new GatewayRunnerRuntimeState();
+    this.api = wireGatewayRunnerRuntime(context, runtimeState);
   }
 
-  start(): Promise<void> {
-    return this.runtime.start();
+  async start(): Promise<void> {
+    await this.api.control.start();
   }
 
-  stop(): Promise<void> {
-    return this.runtime.stop();
+  async stop(): Promise<void> {
+    await this.api.control.stop();
   }
 
   heartbeat(reason = "heartbeat"): Promise<GatewayStateSnapshot> {
-    return this.runtime.heartbeat(reason);
+    return this.api.control.heartbeat(reason);
   }
 
   runtimeStatus(): GatewayRuntimeStatus {
-    return this.runtime.runtimeStatus();
+    return this.api.read.runtimeStatus();
   }
 
   async transport(platform: PlatformName): Promise<GatewayTransportDetail> {
-    return this.runtime.transport(platform);
+    return this.api.read.transport(platform);
   }
 
   async transportOverview(): Promise<{
@@ -58,128 +67,107 @@ export class GatewayRunner {
     mismatchCount: number;
     operationalCount: number;
   }> {
-    return this.runtime.transportOverview();
+    return this.api.read.transportOverview();
   }
 
   supervise(reason = "manual"): Promise<GatewaySupervisionRecord[]> {
-    return this.runtime.supervise(reason);
+    return this.api.control.supervise(reason);
   }
 
   watchdog(reason = "watchdog"): Promise<GatewaySupervisionRecord[]> {
-    return this.runtime.watchdog(reason);
+    return this.api.control.watchdog(reason);
   }
 
   watch(
     platform: PlatformName | "all",
     reason = "manual-watch",
   ): Promise<GatewaySupervisionRecord[]> {
-    return this.runtime.watch(platform, reason);
+    return this.api.control.watch(platform, reason);
   }
 
   restart(
     platform: PlatformName | "all",
     reason = "manual",
   ): Promise<GatewaySupervisionRecord[]> {
-    return this.runtime.restart(platform, reason);
+    return this.api.control.restart(platform, reason);
   }
 
   receive(
     message: IncomingPlatformMessage,
     options?: GatewayReceiveOptions,
   ): Promise<GatewayReceiveResult> {
-    return this.runtime.receive(message, options);
+    return this.api.delivery.receive(message, options);
   }
 
   sendToHomes(
     text: string,
-    options?: {
-      metadata?: Record<string, string>;
-      platforms?: PlatformName[];
-      name?: string;
-    },
+    options?: GatewayRunnerSendToHomesOptions,
   ): Promise<DeliveredMessageRecord[]> {
-    return this.runtime.sendToHomes(text, options);
+    return this.api.delivery.sendToHomes(text, options);
   }
 
   editDelivery(
     deliveryId: string,
     text: string,
-    options?: {
-      metadata?: Record<string, string>;
-      threadId?: string;
-      replyToId?: string;
-    },
+    options?: GatewayRunnerEditDeliveryOptions,
   ): Promise<DeliveredMessageRecord> {
-    return this.runtime.editDelivery(deliveryId, text, options);
+    return this.api.delivery.editDelivery(deliveryId, text, options);
   }
 
   sendProgressive(
-    target: {
-      platform: PlatformName;
-      roomId: string;
-      userId?: string;
-      threadId?: string;
-      replyToId?: string;
-      metadata?: Record<string, string>;
-    },
+    target: GatewayRunnerProgressiveTarget,
     parts: string[],
   ): Promise<DeliveredMessageRecord> {
-    return this.runtime.sendProgressive(target, parts);
+    return this.api.delivery.sendProgressive(target, parts);
   }
 
   health(): Promise<Array<PlatformHealth>> {
-    return this.runtime.health();
+    return this.api.read.health();
   }
 
   trace(limit = 20, filters?: GatewayHistoryFilter): GatewayTraceRecord[] {
-    return this.runtime.trace(limit, filters);
+    return this.api.read.trace(limit, filters);
   }
 
   state(
     limit = 20,
     filters?: GatewayHistoryFilter,
   ): Promise<GatewayStateSnapshot> {
-    return this.runtime.state(limit, filters);
+    return this.api.read.state(limit, filters);
   }
 
   history(
     limit = 20,
     filters?: GatewayHistoryFilter,
   ): Promise<GatewayHistorySnapshot> {
-    return this.runtime.history(limit, filters);
+    return this.api.read.history(limit, filters);
   }
 
   inbox(limit = 20, filters?: GatewayHistoryFilter): GatewayInboxRecord[] {
-    return this.runtime.inbox(limit, filters);
+    return this.api.read.inbox(limit, filters);
   }
 
   outbox(limit = 20, filters?: GatewayHistoryFilter): GatewayOutboxRecord[] {
-    return this.runtime.outbox(limit, filters);
+    return this.api.read.outbox(limit, filters);
   }
 
   attachments(
     limit = 20,
     filters?: GatewayHistoryFilter,
   ): GatewayAttachmentRecord[] {
-    return this.runtime.attachments(limit, filters);
+    return this.api.read.attachments(limit, filters);
   }
 
   supervision(limit = 20): GatewaySupervisionRecord[] {
-    return this.runtime.supervision(limit);
+    return this.api.read.supervision(limit);
   }
 
   replayInbox(recordId: string): Promise<GatewayInboxReplayResult> {
-    return this.runtime.replayInbox(recordId);
+    return this.api.read.replayInbox(recordId);
   }
 
-  onUpdate(
-    listener: (event: {
-      kind: GatewayTraceRecord["kind"];
-      platform: GatewayTraceRecord["platform"];
-      detail: string;
-    }) => void,
-  ): () => void {
-    return this.runtime.onUpdate(listener);
+  onUpdate(listener: GatewayRunnerUpdateListener): () => void {
+    return this.api.recording.onUpdate(listener);
   }
 }
 

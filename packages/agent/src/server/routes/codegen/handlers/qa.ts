@@ -1,4 +1,4 @@
-import { performEffectiveCodeQa } from "@/runtime/native/service-bridge/index";
+import { performEffectiveCodeQa } from "@/runtime/native/service-bridge/autocoder";
 import {
   completeAutocoderWorkflowContext,
   createAutocoderWorkflowContext,

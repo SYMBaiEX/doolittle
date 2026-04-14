@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeMediaControlPlane } from "@/runtime/native/service-bridge/index";
+import { getNativeMediaControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import { json } from "@/server/responses";
 
 export async function handleMediaRoutes(

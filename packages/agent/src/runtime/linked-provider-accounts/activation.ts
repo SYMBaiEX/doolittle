@@ -1,4 +1,4 @@
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/index";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { AgentExecutionContext } from "../chat";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 import {

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import { buildCloudProfile, buildContainerCommand } from "../planning";
-import { runCommandStreaming, sanitizeCommand } from "./subprocess";
+import { runCommand, runCommandStreaming, sanitizeCommand } from "./subprocess";
 
 function makeSettings(): RuntimeSettings {
   return {
@@ -145,5 +145,15 @@ describe("execution subprocess helpers", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("returns process metadata for non-streamed runs", async () => {
+    const result = await runCommand(["sh", "-c", "echo alpha"], {
+      timeoutMs: 5_000,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.timedOut).toBe(false);
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
 });

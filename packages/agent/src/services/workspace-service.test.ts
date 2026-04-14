@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { WorkspaceService } from "./workspace-service";
+import { WorkspaceService } from "./workspace-service/index";
 
 describe("WorkspaceService", () => {
   it("searches the workspace and returns matching lines", () => {

@@ -378,8 +378,13 @@ describe("GatewayRunnerReadModel", () => {
     const { readModel, runtimeStatusMeta, snapshotCalls } = buildReadModel();
 
     const runtimeStatus = readModel.runtimeStatus();
+    const health = await readModel.health();
     const transport = await readModel.transport("api");
     const overview = await readModel.transportOverview();
+    const stateSnapshot = await readModel.state(1, { platform: "api" });
+    const historySnapshot = await readModel.history(2, {
+      sessionId: "session-1",
+    });
     const traces = readModel.trace(1, { platform: "api" });
     const inbox = readModel.inbox(1, { platform: "api" });
     const outbox = readModel.outbox(1, { platform: "api" });
@@ -392,6 +397,7 @@ describe("GatewayRunnerReadModel", () => {
       adapters: ["api"],
       supervisionEvents: 2,
     });
+    expect(health[0]?.platform).toBe("api");
     expect(transport.platform).toBe("api");
     expect(transport.summary).toContain("api:");
     expect(transport.traceCount).toBe(2);
@@ -403,6 +409,8 @@ describe("GatewayRunnerReadModel", () => {
     expect(overview.operationalCount).toBe(1);
     expect(overview.mismatchCount).toBe(1);
     expect(overview.details[0]?.platform).toBe("api");
+    expect(stateSnapshot.platforms[0]?.platform).toBe("api");
+    expect(historySnapshot.state.reason).toBe("history");
     expect(traces[0]?.traceId).toBe("trace-2");
     expect(inbox[0]?.recordId).toBe("inbox-1");
     expect(outbox[0]?.recordId).toBe("outbox-1");
@@ -410,7 +418,26 @@ describe("GatewayRunnerReadModel", () => {
     expect(supervision[0]?.action).toBe("recover");
     expect(
       snapshotCalls.some(
-        (call) => call.reason === "history" && call.filters?.platform === "api",
+        (call) =>
+          call.reason === "history" &&
+          call.limit === 100 &&
+          call.filters?.platform === "api",
+      ),
+    ).toBe(true);
+    expect(
+      snapshotCalls.some(
+        (call) =>
+          call.reason === "history" &&
+          call.limit === 1 &&
+          call.filters?.platform === "api",
+      ),
+    ).toBe(true);
+    expect(
+      snapshotCalls.some(
+        (call) =>
+          call.reason === "history" &&
+          call.limit === 2 &&
+          call.filters?.sessionId === "session-1",
       ),
     ).toBe(true);
     expect(

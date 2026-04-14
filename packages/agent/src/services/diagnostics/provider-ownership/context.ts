@@ -1,16 +1,16 @@
 import { join } from "node:path";
 import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
 import { validateCloudBaseUrl } from "@elizaos/agent/cloud/validate-url";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/index";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog/index";
-import type { BrowserMcpServices } from "@/runtime/native/service-bridge/index";
+import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import type { BrowserMcpServices } from "@/runtime/native/service-bridge/control-planes";
 import {
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
-  getNativeOwnershipControlPlane,
-} from "@/runtime/native/service-bridge/index";
+} from "@/runtime/native/service-bridge/control-planes";
+import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
 import type { EnvConfig } from "@/types";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";

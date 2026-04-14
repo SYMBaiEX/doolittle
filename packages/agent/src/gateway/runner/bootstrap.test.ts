@@ -106,7 +106,7 @@ describe("bootstrapGatewayRunnerReadPlane", () => {
         getNativeMessagingState: () => undefined,
       });
 
-      const status = result.readSurface.runtimeStatus();
+      const status = result.readModel.runtimeStatus();
       const snapshotPath = join(
         root,
         "gateway",
@@ -136,7 +136,7 @@ describe("bootstrapGatewayRunnerReadPlane", () => {
       expect(status.journalPaths.snapshot).toBe(snapshotPath);
       expect(status.journalPaths.runtime).toBe(runtimeStatusPath);
 
-      const state = await result.readSurface.state(5);
+      const state = await result.readModel.state(5);
       expect(state.snapshotPath).toBe(snapshotPath);
     } finally {
       rmSync(root, { recursive: true, force: true });

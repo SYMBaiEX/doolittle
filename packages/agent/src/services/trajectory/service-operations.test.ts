@@ -3,14 +3,18 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  analyzeTrajectoryService,
   createTrajectoryServiceBenchmarkManifest,
   describeTrajectoryServiceBenchmarkEnvironment,
+  runTrajectoryServiceBenchmark,
+} from "./service-operations/benchmark";
+import {
+  analyzeTrajectoryService,
   exportTrajectoryServiceRecent,
+} from "./service-operations/exports";
+import {
   exportTrajectoryServiceRlDataset,
   exportTrajectoryServiceRlReady,
-  runTrajectoryServiceBenchmark,
-} from "./service-operations";
+} from "./service-operations/rl";
 import { createTrajectoryServiceHosts } from "./service-support";
 
 describe("trajectory service orchestration", () => {
@@ -114,7 +118,7 @@ describe("trajectory service orchestration", () => {
           .trim()
           .split("\n")
           .filter(Boolean)
-          .map((line) => JSON.parse(line));
+          .map((line: string) => JSON.parse(line));
       },
       listBundles(limit: number) {
         return [].slice(0, limit);

@@ -9,7 +9,7 @@ import {
   getLinkedProviderAccountsSnapshot,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
-} from "../account-auth/index";
+} from "../account-auth";
 import { normalizePlugin, shouldIncludeDirectProviderPlugin } from "./support";
 
 export async function loadProviderPlugins(

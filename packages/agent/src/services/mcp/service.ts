@@ -1,6 +1,18 @@
 import type { McpToolDefinition } from "@/types";
-import { runShellCommand } from "../command-process";
+import {
+  getMissingMcpCommandResult,
+  type McpCommandResult,
+  runMcpCommand,
+} from "./command-runner";
 import { createMcpServiceStatus, type McpSettings } from "./status";
+import {
+  describeCachedMcpTool,
+  describeCachedMcpTools,
+  findCachedMcpTool,
+  parseLineOrientedMcpTools,
+  parseStructuredMcpTools,
+  searchCachedMcpTools,
+} from "./tools";
 
 export class McpService {
   private discoveredTools: McpToolDefinition[] = [];
@@ -53,7 +65,7 @@ export class McpService {
   }> {
     const jsonResult = await this.run(["list-tools", "--json"]);
     if (jsonResult.ok) {
-      const parsed = this.tryParseTools(jsonResult.output);
+      const parsed = parseStructuredMcpTools(jsonResult.output);
       if (parsed.length) {
         this.discoveredTools = parsed;
         this.lastDiscoveryAt = new Date().toISOString();
@@ -76,17 +88,7 @@ export class McpService {
       };
     }
 
-    const tools = fallbackResult.output
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const [name, ...descriptionParts] = line.split(" - ");
-        return {
-          name,
-          description: descriptionParts.join(" - ") || "MCP-discovered tool.",
-        } satisfies McpToolDefinition;
-      });
+    const tools = parseLineOrientedMcpTools(fallbackResult.output);
 
     this.discoveredTools = tools;
     this.lastDiscoveryAt = new Date().toISOString();
@@ -155,121 +157,30 @@ export class McpService {
   }
 
   getTool(name: string): McpToolDefinition | undefined {
-    return this.discoveredTools.find((tool) => tool.name === name);
+    return findCachedMcpTool(this.discoveredTools, name);
   }
 
   searchCachedTools(query: string): McpToolDefinition[] {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return this.getCachedTools();
-    }
-    return this.discoveredTools.filter((tool) =>
-      [tool.name, tool.description, JSON.stringify(tool.inputSchema ?? {})]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized),
-    );
+    return searchCachedMcpTools(this.discoveredTools, query);
   }
 
   describeCachedTools(limit = 20): string {
-    const tools = this.getCachedTools().slice(0, limit);
-    return tools.length
-      ? tools
-          .map(
-            (tool) =>
-              `- ${tool.name}${tool.description ? `\n  ${tool.description}` : ""}${
-                tool.inputSchema
-                  ? `\n  schema=${JSON.stringify(tool.inputSchema)}`
-                  : ""
-              }`,
-          )
-          .join("\n\n")
-      : "No MCP tools have been cached yet.";
+    return describeCachedMcpTools(this.discoveredTools, limit);
   }
 
   describeTool(name: string): string {
-    const tool = this.getTool(name);
-    if (!tool) {
-      return `Tool not found: ${name}`;
-    }
-    return [
-      `MCP TOOL: ${tool.name}`,
-      tool.description ? `Description: ${tool.description}` : undefined,
-      tool.inputSchema
-        ? `Schema: ${JSON.stringify(tool.inputSchema, null, 2)}`
-        : undefined,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    return describeCachedMcpTool(this.getTool(name), name);
   }
 
   private async run(
     args: string[],
     overrideTimeoutMs?: number,
-  ): Promise<{ ok: boolean; output: string; exitCode: number }> {
+  ): Promise<McpCommandResult> {
     const settings = this.getSettings();
     if (!settings.serverCommand) {
       this.lastError = "MCP_SERVER_COMMAND is not configured.";
-      return {
-        ok: false,
-        output: "MCP_SERVER_COMMAND is not configured.",
-        exitCode: 1,
-      };
+      return getMissingMcpCommandResult();
     }
-
-    const result = await runShellCommand(
-      settings.serverCommand,
-      args,
-      overrideTimeoutMs ?? settings.timeoutMs,
-    );
-
-    return {
-      ok: result.ok,
-      output: result.output,
-      exitCode: result.exitCode,
-    };
-  }
-
-  private tryParseTools(raw: string): McpToolDefinition[] {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return parsed
-        .flatMap((entry) => {
-          if (
-            entry &&
-            typeof entry === "object" &&
-            "tools" in entry &&
-            Array.isArray((entry as Record<string, unknown>).tools)
-          ) {
-            return (entry as Record<string, unknown>).tools as Record<
-              string,
-              unknown
-            >[];
-          }
-          return [entry];
-        })
-        .filter(
-          (entry) => entry && typeof entry === "object" && "name" in entry,
-        )
-        .map((entry) => ({
-          name: String((entry as Record<string, unknown>).name),
-          description: String(
-            (entry as Record<string, unknown>).description ??
-              "MCP-discovered tool.",
-          ),
-          inputSchema:
-            typeof (entry as Record<string, unknown>).inputSchema === "object"
-              ? ((entry as Record<string, unknown>).inputSchema as Record<
-                  string,
-                  unknown
-                >)
-              : undefined,
-        }));
-    } catch {
-      return [];
-    }
+    return runMcpCommand(settings, args, overrideTimeoutMs);
   }
 }

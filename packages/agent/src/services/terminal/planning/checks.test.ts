@@ -104,6 +104,24 @@ describe("planning checks", () => {
     ).toBe("pass");
   });
 
+  it("marks writable preview rootfs as warn for container planning", () => {
+    const settings = makeSettings();
+    settings.execution.containerReadOnlyRoot = false;
+
+    const checks = buildContainerPreviewChecks(
+      "podman",
+      settings,
+      process.cwd(),
+    );
+
+    expect(
+      checks.find((check) => check.id === "podman.preview.rootfs")?.status,
+    ).toBe("warn");
+    expect(
+      checks.find((check) => check.id === "podman.preview.rootfs")?.detail,
+    ).toContain("writable");
+  });
+
   it("summarizes ssh runtime and preview readiness", () => {
     const settings = makeSettings();
     settings.execution.sshHost = "example.com";

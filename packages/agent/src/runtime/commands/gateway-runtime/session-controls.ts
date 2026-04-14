@@ -1,5 +1,6 @@
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
+import { renderGatewayOperatorBlock } from "./readouts/shared";
 
 export async function handleGatewaySessionControlCommand(
   input: ChatTurnRequest,
@@ -12,76 +13,77 @@ export async function handleGatewaySessionControlCommand(
     if (!session) {
       return "No active gateway session is attached to this conversation yet.";
     }
-    return JSON.stringify(
-      {
-        sessionKey: session.sessionKey,
-        platform: session.platform,
-        roomId: session.roomId,
-        voiceMode: session.voiceMode ?? "off",
-        voiceChannelId: session.voiceChannelId ?? null,
-        voiceChannelState: session.voiceChannelState ?? "disconnected",
-        voiceUpdatedAt: session.voiceUpdatedAt ?? null,
-        voiceUpdatedReason: session.voiceUpdatedReason ?? null,
-        isHome: session.isHome ?? false,
-        homeLabel: session.homeLabel ?? null,
-        homeUpdatedAt: session.homeUpdatedAt ?? null,
-      },
-      null,
-      2,
+    return renderGatewayOperatorBlock(
+      "Voice Session",
+      [
+        `Session: ${session.sessionKey}`,
+        `Platform: ${session.platform} room=${session.roomId}`,
+        `Voice mode: ${session.voiceMode ?? "off"}`,
+        `Channel: ${session.voiceChannelId ?? "none"} state=${session.voiceChannelState ?? "disconnected"}`,
+        `Home: ${session.isHome ? "yes" : "no"}${session.homeLabel ? ` (${session.homeLabel})` : ""}`,
+      ],
+      [
+        "Use `/voice on`, `/voice off`, or `/voice tts` to change delivery mode.",
+      ],
     );
   }
 
   if (trimmed === "/voice on") {
-    return JSON.stringify(
-      context.services.gatewaySessions.setVoiceMode(sessionKey, "voice_only"),
-      null,
-      2,
+    context.services.gatewaySessions.setVoiceMode(sessionKey, "voice_only");
+    return renderGatewayOperatorBlock(
+      "Voice Session Updated",
+      [`Session: ${sessionKey}`, "Mode: voice_only"],
+      ["Use `/voice status` to confirm the active voice route."],
     );
   }
 
   if (trimmed === "/voice off") {
-    return JSON.stringify(
-      context.services.gatewaySessions.setVoiceMode(sessionKey, "off"),
-      null,
-      2,
+    context.services.gatewaySessions.setVoiceMode(sessionKey, "off");
+    return renderGatewayOperatorBlock(
+      "Voice Session Updated",
+      [`Session: ${sessionKey}`, "Mode: off"],
+      ["Use `/voice status` to confirm the session is back to text-only."],
     );
   }
 
   if (trimmed === "/voice tts") {
-    return JSON.stringify(
-      context.services.gatewaySessions.setVoiceMode(sessionKey, "all"),
-      null,
-      2,
+    context.services.gatewaySessions.setVoiceMode(sessionKey, "all");
+    return renderGatewayOperatorBlock(
+      "Voice Session Updated",
+      [`Session: ${sessionKey}`, "Mode: all"],
+      ["Use `/voice status` to confirm voice + text delivery mode."],
     );
   }
 
   if (trimmed === "/voice join" || trimmed === "/voice channel") {
-    return JSON.stringify(
-      context.services.gatewaySessions.setVoiceChannel(
-        sessionKey,
-        input.roomId ?? sessionKey,
-      ),
-      null,
-      2,
+    const roomId = input.roomId ?? sessionKey;
+    context.services.gatewaySessions.setVoiceChannel(sessionKey, roomId);
+    return renderGatewayOperatorBlock(
+      "Voice Channel Updated",
+      [`Session: ${sessionKey}`, `Channel: ${roomId}`],
+      ["Use `/voice status` to confirm the connected voice channel."],
     );
   }
 
   if (trimmed === "/voice leave") {
-    return JSON.stringify(
-      context.services.gatewaySessions.setVoiceChannel(sessionKey, undefined),
-      null,
-      2,
+    context.services.gatewaySessions.setVoiceChannel(sessionKey, undefined);
+    return renderGatewayOperatorBlock(
+      "Voice Channel Updated",
+      [`Session: ${sessionKey}`, "Channel: disconnected"],
+      ["Use `/voice status` if you want to verify the session state."],
     );
   }
 
   if (trimmed === "/sethome") {
-    return JSON.stringify(
-      context.services.gatewaySessions.markHome(sessionKey, {
-        isHome: true,
-        label: input.source ? `${input.source} home` : "home",
-      }),
-      null,
-      2,
+    const label = input.source ? `${input.source} home` : "home";
+    context.services.gatewaySessions.markHome(sessionKey, {
+      isHome: true,
+      label,
+    });
+    return renderGatewayOperatorBlock(
+      "Gateway Home Updated",
+      [`Session: ${sessionKey}`, `Label: ${label}`],
+      ["Use `/voice status` to see the current home-session binding."],
     );
   }
 
@@ -92,12 +94,13 @@ export async function handleGatewaySessionControlCommand(
     if (Number.isNaN(value) || value <= 0) {
       return "Usage: /sessions gateway expire <minutes>";
     }
-    return JSON.stringify(
-      {
-        expired: context.services.gatewaySessions.expireOlderThan(value),
-      },
-      null,
-      2,
+    const expired = context.services.gatewaySessions.expireOlderThan(value);
+    return renderGatewayOperatorBlock(
+      "Gateway Sessions Expired",
+      [`Window: older than ${value} minute(s)`, `Expired: ${expired}`],
+      [
+        "Run `/voice status` in an active conversation if you need to recreate session bindings.",
+      ],
     );
   }
 

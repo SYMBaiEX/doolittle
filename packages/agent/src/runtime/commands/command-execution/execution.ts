@@ -1,4 +1,4 @@
-import { runEffectiveShellCommand } from "@/runtime/native/service-bridge/index";
+import { runEffectiveShellCommand } from "@/runtime/native/service-bridge/tooling";
 import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
 import { formatShellCommandResponse } from "./formatting";
 import type { ShellCommandTurnResult } from "./types";

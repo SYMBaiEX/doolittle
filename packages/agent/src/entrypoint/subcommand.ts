@@ -1,6 +1,11 @@
 export type EntrypointSubcommand =
   | "help"
   | "commands"
+  | "status"
+  | "progress"
+  | "tools"
+  | "skills"
+  | "runtime"
   | "start"
   | "cockpit"
   | "setup"
@@ -70,6 +75,11 @@ export function resolveSubcommand(userArgs: string[] = Bun.argv.slice(2)): {
     start: "start",
     help: "help",
     commands: "commands",
+    status: "status",
+    progress: "progress",
+    tools: "tools",
+    skills: "skills",
+    runtime: "runtime",
     cockpit: "cockpit",
     tui: "cockpit",
     setup: "setup",
@@ -92,6 +102,41 @@ export function resolveSubcommand(userArgs: string[] = Bun.argv.slice(2)): {
     command: aliases[first] ?? "start",
     rest: aliases[first] ? rest : userArgs,
   };
+}
+
+export function resolveEntrypointAliasPrompt(
+  command: EntrypointSubcommand,
+  rest: string[],
+): string | undefined {
+  const suffix = rest.join(" ").trim();
+  if (command === "status") {
+    return suffix ? `/status ${suffix}` : "/status";
+  }
+  if (command === "progress") {
+    return suffix ? `/progress ${suffix}` : "/progress";
+  }
+  if (command === "tools") {
+    return suffix ? `/tools ${suffix}` : "/tools summary";
+  }
+  if (command === "skills") {
+    return suffix ? `/skills ${suffix}` : "/skills";
+  }
+  if (command === "runtime") {
+    return suffix ? `/runtime ${suffix}` : "/runtime status";
+  }
+  return undefined;
+}
+
+export function isEntrypointAliasCommand(
+  command: EntrypointSubcommand,
+): boolean {
+  return (
+    command === "status" ||
+    command === "progress" ||
+    command === "tools" ||
+    command === "skills" ||
+    command === "runtime"
+  );
 }
 
 export function parseOneShotOptions(args: string[]): OneShotOptions {

@@ -1,26 +1,19 @@
 import type blessed from "blessed";
 import {
-  renderEcosystemContent,
   renderExecutionContent,
-  renderGatewayOpsContent,
-  renderJobsContent,
-  renderResponsesContent,
-  renderSuggestionsContent,
   renderTransportContent,
 } from "@/cli/control-deck";
 import type { CliState } from "@/cli/execution";
-import { macAwareKeyLabel } from "@/cli/shell-chrome";
 import type { AppLogger } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getTuiTheme, type TuiThemeProfile } from "@/runtime/theme-catalog";
-import { installTuiControlDeck } from "../../tui-control-deck";
 import { applyTuiLayout } from "../../tui-layout";
-import { installTuiPanels } from "../../tui-panels";
-import { renderFooter, renderStatusContent } from "../../tui-renderers";
 import type { TuiStateStore } from "../../tui-state";
 import { applyTuiTheme } from "../../tui-theme";
 import type { TuiWidgetSet } from "../../tui-widget-factory";
 import type { TuiStartAssemblyHintOptions } from "../assembly-state";
+import { createTuiStartControlDeck } from "./presentation-control-deck";
+import { createTuiStartPanels } from "./presentation-panels";
 
 export interface TuiStartPresentationOptions {
   context: AppContext;
@@ -73,84 +66,30 @@ export function createTuiStartPresentation(
     flushDeferredForeignActivity,
     truncate,
   } = options;
-  const {
-    activity,
-    response,
-    sidebar,
-    transportBox,
-    executionBox,
-    assistBox,
-    paletteList,
-    inputBox,
-    footer,
-  } = widgets;
+  const { activity } = widgets;
 
-  let refreshPanels: () => Promise<void> = async () => {};
-  let scheduleRefreshPanels = (_delayMs = 120): void => {};
-
-  const controlDeck = installTuiControlDeck({
+  const controlDeck = createTuiStartControlDeck({
+    context,
     screen,
-    responsePane: response,
-    activityPane: activity,
-    sidebarPane: sidebar,
-    assistBox,
-    footer,
-    inputBox,
-    paletteList,
-    getCurrentMode: () => tuiState.controlDeckMode,
-    isPaletteOpen: () => tuiState.paletteOpen,
-    isComposerOpen: () => tuiState.composerOpen,
-    formatKeyLabel: macAwareKeyLabel,
+    widgets,
+    tuiState,
+    getActiveTheme,
     flushDeferredForeignActivity,
-    getBusyFrames: () => getActiveTheme().busyFrames,
-    buildFooterContent: (hint, busyFrame) =>
-      renderFooter(
-        context,
-        tuiState.busy,
-        tuiState.queueDepth,
-        hint,
-        busyFrame,
-      ),
-    renderAssistSuggestionsContent: (value) =>
-      renderSuggestionsContent(
-        context.config.workspaceDir,
-        value,
-        getActiveTheme(),
-      ),
-    renderNonAssistControlDeckContent: async (mode) => {
-      if (mode === "ecosystem") {
-        return await renderEcosystemContent(context);
-      }
-      if (mode === "gateway") {
-        return await renderGatewayOpsContent(context);
-      }
-      if (mode === "responses") {
-        return renderResponsesContent(context);
-      }
-      return renderJobsContent(context);
-    },
   });
 
-  const panels = installTuiPanels({
-    logger: logger.child("panels"),
+  const panels = createTuiStartPanels({
+    context,
+    state,
     screen,
-    sidebar,
-    transportBox,
-    executionBox,
-    assistBox,
-    footer,
-    renderStatusRail: () => renderStatusContent(context, state),
-    renderTransportPanel: async () => renderTransportContent(context),
-    renderExecutionPanel: async () => renderExecutionContent(context),
-    renderControlDeck: () => controlDeck.renderCurrentControlDeck(),
-    renderFooterContent: () => controlDeck.renderFooterContent(),
-    appendActivity: (kind, message, tone) => {
-      appendActivity(kind, truncate(message, 180), tone);
-    },
+    widgets,
+    logger,
+    controlDeck,
+    appendActivity,
+    truncate,
   });
 
-  refreshPanels = () => panels.refreshPanels();
-  scheduleRefreshPanels = (delayMs = 120) => {
+  const refreshPanels = () => panels.refreshPanels();
+  const scheduleRefreshPanels = (delayMs = 120) => {
     panels.scheduleRefreshPanels(delayMs);
   };
 
