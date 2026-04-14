@@ -197,6 +197,52 @@ describe("handleConversationRoutes", () => {
     });
   });
 
+  it("streams response events through the legacy responses route", async () => {
+    const context = createContext();
+    context.gateway = {
+      receive: async (
+        _payload: unknown,
+        hooks?: {
+          onResponseProgress?: (update: { response: string }) => Promise<void>;
+        },
+      ) => {
+        await hooks?.onResponseProgress?.({ response: "assistant " });
+        await hooks?.onResponseProgress?.({ response: "assistant reply" });
+        return {
+          ok: true,
+          response: "assistant reply",
+          traceId: "trace-1",
+          deliveryId: "delivery-1",
+        };
+      },
+    } as typeof context.gateway;
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({
+          input: "hello",
+          user: "user-1",
+          stream: true,
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.headers.get("content-type")).toContain(
+      "text/event-stream",
+    );
+    const body = await response?.text();
+    expect(body).toContain("event: response.created");
+    expect(body).toContain("event: response.output_text.delta");
+    expect(body).toContain("assistant reply");
+    expect(body).toContain("event: response.completed");
+  });
+
   it("returns null for unrelated routes", async () => {
     const response = await handleConversationRoutes(
       createContext(),
