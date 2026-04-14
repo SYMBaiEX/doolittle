@@ -43,7 +43,7 @@ export async function resolveEntrypointInvocation(options: {
       : undefined;
   const aliasPrompt = resolveEntrypointAliasPrompt(command, rest);
   const immediatePrompt =
-    command === "exec" ? oneShot?.prompt : aliasPrompt ?? pipedPrompt;
+    command === "exec" ? oneShot?.prompt : (aliasPrompt ?? pipedPrompt);
 
   return {
     command,

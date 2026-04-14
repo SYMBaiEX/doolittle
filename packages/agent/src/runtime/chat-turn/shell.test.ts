@@ -9,8 +9,6 @@ type RecordedPerfMetadata = {
   source: string;
 };
 
-type ShellCallEvents = string[];
-
 type TestContextState = {
   startCalls: Array<{ sessionId: string; runId: string }>;
   completeCalls: Array<{ sessionId: string; status: string; reason?: string }>;
@@ -98,7 +96,10 @@ function createPerf() {
   };
 }
 
-function makeRequest(message: string, source: ChatTurnRequest["source"] = "cli") {
+function makeRequest(
+  message: string,
+  source: ChatTurnRequest["source"] = "cli",
+) {
   return {
     userId: "alice",
     message,
@@ -158,10 +159,7 @@ describe("chat-turn/shell edge cases", () => {
     expect(state.completeCalls).toEqual([
       { sessionId: "room:alice", status: "complete" },
     ]);
-    expect(state.storedMessages).toEqual([
-      "   !\n",
-      "Usage: !<shell command>",
-    ]);
+    expect(state.storedMessages).toEqual(["   !\n", "Usage: !<shell command>"]);
     expect(perf.flushed).toEqual([
       {
         path: "shell-usage-error",
@@ -213,10 +211,7 @@ describe("chat-turn/shell edge cases", () => {
     expect(state.completeCalls).toEqual([
       { sessionId: "room:alice", status: "complete" },
     ]);
-    expect(state.storedMessages).toEqual([
-      "!   ls -la /tmp",
-      "rc:0 out:ok",
-    ]);
+    expect(state.storedMessages).toEqual(["!   ls -la /tmp", "rc:0 out:ok"]);
     expect(perf.flushed).toContainEqual({
       path: "shell-command",
       sessionId: "room:alice",
@@ -243,7 +238,8 @@ describe("chat-turn/shell edge cases", () => {
         perf,
       },
       {
-        maybeRequireRemoteExecutionApproval: async () => "approve this action first",
+        maybeRequireRemoteExecutionApproval: async () =>
+          "approve this action first",
         runShellCommandForTurn: async () => {
           throw new Error("should not execute");
         },

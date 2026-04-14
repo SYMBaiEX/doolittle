@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { WizardAnswers } from "../types";
+import { buildNativeOnboardingMirror } from "./native-onboarding";
 
 const baseAnswers: WizardAnswers = {
   mode: "quick",
@@ -52,6 +53,18 @@ const baseAnswers: WizardAnswers = {
   modalTarget: "",
 };
 
+function createNativeOnboardingHelpers() {
+  return {
+    OnboardingStep: {
+      WELCOME: "WELCOME",
+      RISK_ACK: "RISK_ACK",
+      AUTH: "AUTH",
+      CHANNELS: "CHANNELS",
+      SKILLS: "SKILLS",
+    },
+  };
+}
+
 function installSuccessMocks() {
   const advanceStep = mock(async () => {});
   const machine = {
@@ -61,22 +74,15 @@ function installSuccessMocks() {
     toJSON: () => ({ payload: "mirror" }),
   };
 
-  mock.module("@elizaos/core", () => ({
-    createOnboardingStateMachine: () => machine,
-    OnboardingStep: {
-      WELCOME: "WELCOME",
-      RISK_ACK: "RISK_ACK",
-      AUTH: "AUTH",
-      CHANNELS: "CHANNELS",
-      SKILLS: "SKILLS",
-    },
-    isOnboardingComplete: () => true,
-    getOnboardingSummary: () => "mirror-summary",
-  }));
-
   return {
     advanceStep,
     machine,
+    helpers: {
+      ...createNativeOnboardingHelpers(),
+      createOnboardingStateMachine: () => machine,
+      isOnboardingComplete: () => true,
+      getOnboardingSummary: () => "mirror-summary",
+    },
   };
 }
 
@@ -93,20 +99,16 @@ function installFailureMocks(error: string) {
     toJSON: () => ({}),
   };
 
-  mock.module("@elizaos/core", () => ({
-    createOnboardingStateMachine: () => machine,
-    OnboardingStep: {
-      WELCOME: "WELCOME",
-      RISK_ACK: "RISK_ACK",
-      AUTH: "AUTH",
-      CHANNELS: "CHANNELS",
-      SKILLS: "SKILLS",
+  return {
+    advanceStep,
+    machine,
+    helpers: {
+      ...createNativeOnboardingHelpers(),
+      createOnboardingStateMachine: () => machine,
+      isOnboardingComplete: () => false,
+      getOnboardingSummary: () => "summary",
     },
-    isOnboardingComplete: () => false,
-    getOnboardingSummary: () => "summary",
-  }));
-
-  return { advanceStep, machine };
+  };
 }
 
 beforeEach(() => {
@@ -121,12 +123,13 @@ afterEach(() => {
 
 describe("bootstrap native onboarding mirror", () => {
   it("builds a serializable, complete mirror for valid answer input", async () => {
-    const { advanceStep } = installSuccessMocks();
-    const { buildNativeOnboardingMirror } = await import(
-      `./native-onboarding?native-onboarding-success=${Date.now()}-${Math.random()}`
-    );
+    const { advanceStep, helpers } = installSuccessMocks();
 
-    const mirror = await buildNativeOnboardingMirror(baseAnswers, "cli");
+    const mirror = await buildNativeOnboardingMirror(
+      baseAnswers,
+      "cli",
+      helpers,
+    );
 
     expect(mirror.complete).toBe(true);
     expect(mirror.currentStep).toBe("SKILLS");
@@ -153,12 +156,13 @@ describe("bootstrap native onboarding mirror", () => {
   });
 
   it("returns a graceful failure result when machine steps throw", async () => {
-    installFailureMocks("state-machine unavailable");
-    const { buildNativeOnboardingMirror } = await import(
-      `./native-onboarding?native-onboarding-failure=${Date.now()}-${Math.random()}`
-    );
+    const { helpers } = installFailureMocks("state-machine unavailable");
 
-    const mirror = await buildNativeOnboardingMirror(baseAnswers, "wizard");
+    const mirror = await buildNativeOnboardingMirror(
+      baseAnswers,
+      "wizard",
+      helpers,
+    );
 
     expect(mirror.complete).toBe(false);
     expect(mirror.currentStep).toBe("ERROR");

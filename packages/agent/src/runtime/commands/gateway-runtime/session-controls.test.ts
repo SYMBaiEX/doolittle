@@ -53,7 +53,7 @@ describe("gateway runtime command session controls", () => {
         "discord:room-1:user-1:root",
         context,
       ),
-    ).toContain('"mode": "voice_only"');
+    ).toContain("Mode: voice_only");
     expect(
       await handleGatewaySessionControlCommand(
         createInput("/voice join"),
@@ -61,7 +61,7 @@ describe("gateway runtime command session controls", () => {
         "discord:room-1:user-1:root",
         context,
       ),
-    ).toContain('"roomId": "discord:room-1:user-1:root"');
+    ).toContain("Channel: discord:room-1:user-1:root");
     expect(
       await handleGatewaySessionControlCommand(
         createInput("/sethome"),
@@ -69,7 +69,7 @@ describe("gateway runtime command session controls", () => {
         "discord:room-1:user-1:root",
         context,
       ),
-    ).toContain('"label": "discord home"');
+    ).toContain("Label: discord home");
     expect(
       await handleGatewaySessionControlCommand(
         createInput("/sessions gateway expire 15"),
@@ -77,7 +77,7 @@ describe("gateway runtime command session controls", () => {
         "discord:room-1:user-1:root",
         context,
       ),
-    ).toContain('"expired": 15');
+    ).toContain("Expired: 15");
 
     expect(calls).toEqual([
       { sessionKey: "discord:room-1:user-1:root", mode: "voice_only" },

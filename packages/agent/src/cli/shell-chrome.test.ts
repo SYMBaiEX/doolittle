@@ -61,97 +61,25 @@ function createContext() {
   } as never;
 }
 
+const shellChromeDependencies = {
+  getNativePluginCatalog: () => [
+    { enabled: true, maturity: "production" },
+    { enabled: true, maturity: "alpha" },
+    { enabled: true, maturity: "experimental" },
+    { enabled: false, maturity: "alpha" },
+  ],
+  getNativeTransportControlPlane: () => ({
+    totals: {
+      liveServices: 1,
+      operationalTransports: 1,
+      gatewayEnabled: 2,
+    },
+  }),
+};
+
 describe("shell chrome", () => {
   beforeEach(() => {
     mock.restore();
-    mock.module("@/runtime/native/plugin-catalog", () => ({
-      getNativePluginCatalog: () => [
-        { enabled: true, maturity: "production" },
-        { enabled: true, maturity: "alpha" },
-        { enabled: true, maturity: "experimental" },
-        { enabled: false, maturity: "alpha" },
-      ],
-      groupNativePluginCatalog: () => ({
-        foundation: [],
-        providers: [],
-        messaging: [
-          {
-            id: "plugin-telegram",
-            enabled: true,
-            source: "official",
-            notes: "telegram bridge ready",
-          },
-          {
-            id: "plugin-discord",
-            enabled: false,
-            source: "official",
-            notes: "discord bridge disabled",
-          },
-        ],
-        knowledge: [],
-        browser: [],
-        media: [],
-        research: [],
-        execution: [],
-        integration: [],
-        automation: [],
-        product: [],
-      }),
-      listNativePluginCategories: () => [
-        "foundation",
-        "providers",
-        "messaging",
-        "knowledge",
-        "browser",
-        "media",
-        "research",
-        "execution",
-        "integration",
-        "automation",
-        "product",
-      ],
-    }));
-    mock.module("@/runtime/native/service-bridge/control-planes", () => ({
-      getNativeTransportControlPlane: () => ({
-        totals: {
-          liveServices: 1,
-          operationalTransports: 1,
-          gatewayEnabled: 2,
-        },
-      }),
-      getNativeExecutionControlPlane: () => ({
-        e2b: { available: false },
-      }),
-      getNativeFormsControlPlane: () => ({
-        enabled: false,
-      }),
-      getNativePlanningControlPlane: () => ({
-        planning: { enabled: false },
-      }),
-      getNativeResearchControlPlane: () => ({
-        enabled: false,
-      }),
-      getNativeIntegrationControlPlane: () => ({
-        browser: { ready: false },
-        mcp: { ready: false },
-      }),
-      getNativeMediaControlPlane: () => ({
-        ready: false,
-      }),
-      getEffectivePluginManagerInventory: () => [],
-      getEffectiveServiceResolution: () => [],
-      getEffectiveMessagingTransportInventory: () => [],
-      getEffectiveTransportInventory: () => [],
-      getNativeMessagingTransportState: () => ({
-        transports: [],
-        totals: {
-          configured: 0,
-          operationalTransports: 0,
-          liveServices: 0,
-          gatewayEnabled: 0,
-        },
-      }),
-    }));
   });
 
   afterEach(() => {
@@ -160,9 +88,13 @@ describe("shell chrome", () => {
 
   it("renders a plain banner with operator snapshot lines", async () => {
     const mod = await loadShellChromeModule();
-    const content = mod.renderPlainBanner(createContext(), {
-      activeSessionId: "cli:active",
-    });
+    const content = mod.renderPlainBanner(
+      createContext(),
+      {
+        activeSessionId: "cli:active",
+      },
+      shellChromeDependencies as never,
+    );
 
     expect(content).toContain("conversation shell");
     expect(content).toContain(
@@ -180,9 +112,13 @@ describe("shell chrome", () => {
 
   it("renders plain-shell hints that adapt to the current run state", async () => {
     const mod = await loadShellChromeModule();
-    const content = mod.renderPlainShellHints(createContext(), {
-      activeSessionId: "cli:active",
-    });
+    const content = mod.renderPlainShellHints(
+      createContext(),
+      {
+        activeSessionId: "cli:active",
+      },
+      shellChromeDependencies as never,
+    );
 
     expect(content).toContain("Talk naturally for paired work");
     expect(content).toContain("/progress");

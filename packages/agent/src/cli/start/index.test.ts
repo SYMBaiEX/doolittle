@@ -14,8 +14,8 @@ const context = {
     agentName: "Doolittle",
   },
   services: {
-      logger,
-    },
+    logger,
+  },
 } as unknown as AppContext;
 
 describe("startCli", () => {

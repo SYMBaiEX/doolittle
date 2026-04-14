@@ -70,9 +70,9 @@ describe("discord plugin", () => {
 
     const runtime = {
       getService<T>(name: string) {
-        return (name === "doolittle_gateway"
-          ? gatewayService
-          : null) as T | null;
+        return (
+          name === "doolittle_gateway" ? gatewayService : null
+        ) as T | null;
       },
     } as unknown as IAgentRuntime;
 

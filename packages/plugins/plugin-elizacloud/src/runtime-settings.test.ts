@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { IAgentRuntime } from "@elizaos/core";
 import { ModelType } from "@elizaos/core";
-import { DEFAULT_ELIZA_CLOUD_BASE_URL, DEFAULT_ELIZA_CLOUD_MODEL, DEFAULT_ELIZA_CLOUD_SMALL_MODEL } from "./constants";
+import {
+  DEFAULT_ELIZA_CLOUD_BASE_URL,
+  DEFAULT_ELIZA_CLOUD_MODEL,
+  DEFAULT_ELIZA_CLOUD_SMALL_MODEL,
+} from "./constants";
 import {
   getRuntimeModelSettings,
   getRuntimeNumberSetting,
@@ -21,10 +25,17 @@ describe("runtimeSettings helpers", () => {
     const withProvider: MockRuntime = {
       getSetting: (key) =>
         key === "runtimeSettings"
-          ? JSON.stringify({ model: { provider: "elizacloud", model: "xai/grok-4.1-fast-reasoning" } })
+          ? JSON.stringify({
+              model: {
+                provider: "elizacloud",
+                model: "xai/grok-4.1-fast-reasoning",
+              },
+            })
           : null,
     };
-    expect(getRuntimeProvider(withProvider as IAgentRuntime)).toBe("elizacloud");
+    expect(getRuntimeProvider(withProvider as IAgentRuntime)).toBe(
+      "elizacloud",
+    );
 
     const invalid: MockRuntime = {
       getSetting: () => "not-json" as never,
@@ -48,18 +59,30 @@ describe("runtimeSettings helpers", () => {
       },
     };
 
-    expect(getRuntimeStringSetting(runtime as IAgentRuntime, "STR")).toBe("value-with-whitespace");
-    expect(getRuntimeStringSetting(runtime as IAgentRuntime, "BAD_STR")).toBeUndefined();
+    expect(getRuntimeStringSetting(runtime as IAgentRuntime, "STR")).toBe(
+      "value-with-whitespace",
+    );
+    expect(
+      getRuntimeStringSetting(runtime as IAgentRuntime, "BAD_STR"),
+    ).toBeUndefined();
     expect(getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM")).toBe(1536);
-    expect(getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM_NEG")).toBeUndefined();
-    expect(getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM_FLOAT")).toBe(12);
-    expect(getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM_TEXT")).toBeUndefined();
+    expect(
+      getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM_NEG"),
+    ).toBeUndefined();
+    expect(getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM_FLOAT")).toBe(
+      12,
+    );
+    expect(
+      getRuntimeNumberSetting(runtime as IAgentRuntime, "DIM_TEXT"),
+    ).toBeUndefined();
   });
 
   it("resolves embedding endpoint with /embeddings normalization", () => {
     const runtime: MockRuntime = {
       getSetting: (key) =>
-        key === "ELIZAOS_CLOUD_EMBEDDING_URL" ? "https://www.elizacloud.ai/api/v1/embeddings" : null,
+        key === "ELIZAOS_CLOUD_EMBEDDING_URL"
+          ? "https://www.elizacloud.ai/api/v1/embeddings"
+          : null,
     };
     expect(resolveElizaCloudEmbeddingEndpoint(runtime as IAgentRuntime)).toBe(
       "https://www.elizacloud.ai/api/v1/embeddings",
@@ -68,21 +91,28 @@ describe("runtimeSettings helpers", () => {
     const runtimeWithoutConfigured: MockRuntime = {
       getSetting: (key) => {
         if (key === "runtimeSettings") {
-          return JSON.stringify({ model: { baseUrl: `${DEFAULT_ELIZA_CLOUD_BASE_URL}/` } });
+          return JSON.stringify({
+            model: { baseUrl: `${DEFAULT_ELIZA_CLOUD_BASE_URL}/` },
+          });
         }
         return null;
       },
     };
-    expect(resolveElizaCloudEmbeddingEndpoint(runtimeWithoutConfigured as IAgentRuntime)).toBe(
-      `${DEFAULT_ELIZA_CLOUD_BASE_URL}/embeddings`,
-    );
+    expect(
+      resolveElizaCloudEmbeddingEndpoint(
+        runtimeWithoutConfigured as IAgentRuntime,
+      ),
+    ).toBe(`${DEFAULT_ELIZA_CLOUD_BASE_URL}/embeddings`);
   });
 
   it("resolves embedding model with fallback defaults", () => {
     const runtime: MockRuntime = {
-      getSetting: (key) => (key === "ELIZAOS_CLOUD_EMBEDDING_MODEL" ? null : null),
+      getSetting: (key) =>
+        key === "ELIZAOS_CLOUD_EMBEDDING_MODEL" ? null : null,
     };
-    expect(resolveElizaCloudEmbeddingModel(runtime as IAgentRuntime)).toBe("openai/text-embedding-3-small");
+    expect(resolveElizaCloudEmbeddingModel(runtime as IAgentRuntime)).toBe(
+      "openai/text-embedding-3-small",
+    );
   });
 
   it("selects model based on planner detection and requested model type", () => {
@@ -115,7 +145,11 @@ describe("runtimeSettings helpers", () => {
       ),
     ).toBe("runtime-large");
     expect(
-      resolveElizaCloudModelSelection(runtime as IAgentRuntime, ModelType.TEXT_SMALL, "short normal prompt"),
+      resolveElizaCloudModelSelection(
+        runtime as IAgentRuntime,
+        ModelType.TEXT_SMALL,
+        "short normal prompt",
+      ),
     ).toBe("runtime-small");
     expect(
       resolveElizaCloudModelSelection(
@@ -131,12 +165,20 @@ describe("runtimeSettings helpers", () => {
       getSetting: () => null,
     };
 
-    expect(resolveElizaCloudModelSelection(runtime as IAgentRuntime, ModelType.TEXT_SMALL, "hi")).toBe(
-      DEFAULT_ELIZA_CLOUD_SMALL_MODEL,
-    );
-    expect(resolveElizaCloudModelSelection(runtime as IAgentRuntime, ModelType.TEXT_LARGE, "hi")).toBe(
-      DEFAULT_ELIZA_CLOUD_MODEL,
-    );
+    expect(
+      resolveElizaCloudModelSelection(
+        runtime as IAgentRuntime,
+        ModelType.TEXT_SMALL,
+        "hi",
+      ),
+    ).toBe(DEFAULT_ELIZA_CLOUD_SMALL_MODEL);
+    expect(
+      resolveElizaCloudModelSelection(
+        runtime as IAgentRuntime,
+        ModelType.TEXT_LARGE,
+        "hi",
+      ),
+    ).toBe(DEFAULT_ELIZA_CLOUD_MODEL);
   });
 
   it("detects structured planner prompts", () => {

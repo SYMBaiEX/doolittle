@@ -17,6 +17,13 @@ import type { PlatformLifecycleEvent } from "../../platforms/base";
 import { composeGatewayRunnerRuntime } from "../composition/compose";
 import type { GatewayRunnerRuntimeState } from "./state";
 
+interface GatewayRunnerRuntimeDependencies {
+  createGatewayRunnerPlatformAccessors: typeof createGatewayRunnerPlatformAccessors;
+  resolveNativeMessagingPlugin: typeof resolveNativeMessagingPlugin;
+  getNativeTransportControlPlane: typeof getNativeTransportControlPlane;
+  composeGatewayRunnerRuntime: typeof composeGatewayRunnerRuntime;
+}
+
 interface GatewayRunnerRuntimeAssemblyOptions {
   context: GatewayRunnerContext;
   state: GatewayRunnerRuntimeState;
@@ -33,7 +40,15 @@ interface GatewayRunnerRuntimeAssemblyOptions {
     filters?: GatewayHistoryFilter,
   ) => Promise<GatewayHistorySnapshot>;
   getRuntimeStatus: () => GatewayRuntimeStatus;
+  dependencies?: Partial<GatewayRunnerRuntimeDependencies>;
 }
+
+const defaultDependencies: GatewayRunnerRuntimeDependencies = {
+  createGatewayRunnerPlatformAccessors,
+  resolveNativeMessagingPlugin,
+  getNativeTransportControlPlane,
+  composeGatewayRunnerRuntime,
+};
 
 export function assembleGatewayRunnerRuntime({
   context,
@@ -44,18 +59,24 @@ export function assembleGatewayRunnerRuntime({
   observeAdapter,
   snapshotState,
   getRuntimeStatus,
+  dependencies,
 }: GatewayRunnerRuntimeAssemblyOptions): GatewayRunnerRuntimeAssembly {
-  const platformAccessors = createGatewayRunnerPlatformAccessors(context);
+  const resolvedDependencies = {
+    ...defaultDependencies,
+    ...dependencies,
+  };
+  const platformAccessors =
+    resolvedDependencies.createGatewayRunnerPlatformAccessors(context);
   let outboxLog: GatewayOutboxRecord[] = [];
 
-  const assembled = composeGatewayRunnerRuntime({
+  const assembled = resolvedDependencies.composeGatewayRunnerRuntime({
     context,
     adapters: state.adapters,
     platformStates: state.platformStates,
     daemonState: state.daemonState,
     restartBackoffByPlatform: state.restartBackoffByPlatform,
     resolveNativeMessagingPlugin: (platform) =>
-      resolveNativeMessagingPlugin({
+      resolvedDependencies.resolveNativeMessagingPlugin({
         config: context.config,
         gatewayConfig: context.services.gatewayConfig,
         runtime: context.runtime,
@@ -64,7 +85,7 @@ export function assembleGatewayRunnerRuntime({
     getConfiguredPlatforms: platformAccessors.getConfiguredPlatforms,
     isPlatformEnabled: platformAccessors.isPlatformEnabled,
     getTransportControlPlane: () =>
-      getNativeTransportControlPlane(
+      resolvedDependencies.getNativeTransportControlPlane(
         context.runtime,
         context.config,
         context.services.gatewayConfig,

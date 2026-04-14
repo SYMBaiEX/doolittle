@@ -46,10 +46,10 @@ describe("codex sse helpers", () => {
 
   it("reads event-stream payloads and ignores done markers", () => {
     const raw = [
-      'event: response.output_text.delta',
+      "event: response.output_text.delta",
       'data: {"delta":"hello "}',
       "",
-      'event: response.output_text.delta',
+      "event: response.output_text.delta",
       'data: {"response":{"output":[{"content":[{"type":"output_text","text":"world"}]}]}}',
       "",
       "data: [DONE]",

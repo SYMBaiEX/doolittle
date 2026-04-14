@@ -235,12 +235,8 @@ export async function handleGatewayRuntimeOperationCommand(
       [
         `Records: traces=${traces.length} inbox=${inbox.length} outbox=${outbox.length} attachments=${attachments.length} deliveries=${deliveries.length}`,
         `State totals: configured=${totals?.configuredPlatforms ?? 0} ready=${totals?.readyAdapters ?? 0} traces=${totals?.totalTraces ?? traces.length} inbox=${totals?.inboxMessages ?? inbox.length} outbox=${totals?.outboxMessages ?? outbox.length}`,
-        ...(deliveries[0]
-          ? [`Latest delivery: ${deliveries[0].id}`]
-          : []),
-        ...(traces[0]
-          ? [`Latest trace: ${traces[0].traceId ?? "n/a"}`]
-          : []),
+        ...(deliveries[0] ? [`Latest delivery: ${deliveries[0].id}`] : []),
+        ...(traces[0] ? [`Latest trace: ${traces[0].traceId ?? "n/a"}`] : []),
       ],
       [
         "Use `/gateway trace` for event-by-event history.",

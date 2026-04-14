@@ -1,18 +1,16 @@
-import { readEnvEntries, ensureEnvFile } from "../core/env-file";
+import { ensureEnvFile, readEnvEntries } from "../core/env-file";
 import { applyBootstrapAnswers } from "../persistence/apply";
-import {
-  buildBootstrapCheckSummary,
-} from "../summary";
+import { buildBootstrapCheckSummary } from "../summary";
 import type { WizardAnswers } from "../types";
 import { getDependencyProbes } from "../wizard/dependencies";
 import { runWizard } from "../wizard-flow";
 import { createBootstrapProgramContext } from "./context";
+import { resolveBootstrapOptions } from "./options";
 import {
   ensureBootstrapDirectories,
   resolveBootstrapDirectories,
   resolveBootstrapPaths,
 } from "./paths";
-import { resolveBootstrapOptions } from "./options";
 import { printBootstrapSummary } from "./summary";
 
 export async function runBootstrapProgram(

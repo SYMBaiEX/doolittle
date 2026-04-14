@@ -1,7 +1,6 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
-import { createLazyApiGuard } from "@/gateway/runner/service-runtime/wire";
 
 type CapturedAssemblyOptions = {
   runHeartbeat: (reason?: string) => Promise<unknown>;
@@ -14,15 +13,23 @@ type CapturedAssemblyOptions = {
   getRuntimeStatus: () => GatewayRuntimeStatus;
 };
 
+async function loadWireModule() {
+  return (await import(
+    `./wire?wire-runtime-test=${Date.now()}-${Math.random()}`
+  )) as typeof import("./wire");
+}
+
 describe("createLazyApiGuard", () => {
-  it("throws before the value is resolved", () => {
+  it("throws before the value is resolved", async () => {
+    const { createLazyApiGuard } = await loadWireModule();
     const guard = createLazyApiGuard<{ ping: () => string }>("TestApi");
     expect(() => guard.require()).toThrow(
       "TestApi was accessed before it was resolved.",
     );
   });
 
-  it("returns the value after it is resolved", () => {
+  it("returns the value after it is resolved", async () => {
+    const { createLazyApiGuard } = await loadWireModule();
     const guard = createLazyApiGuard<{ ping: () => string }>("TestApi");
     const value = { ping: () => "pong" };
     guard.resolve(value);
@@ -30,12 +37,14 @@ describe("createLazyApiGuard", () => {
     expect(guard.require().ping()).toBe("pong");
   });
 
-  it("includes the label in the error message", () => {
+  it("includes the label in the error message", async () => {
+    const { createLazyApiGuard } = await loadWireModule();
     const guard = createLazyApiGuard<string>("MyComponent");
     expect(() => guard.require()).toThrow("MyComponent");
   });
 
-  it("callbacks captured before resolve work correctly after resolve", () => {
+  it("callbacks captured before resolve work correctly after resolve", async () => {
+    const { createLazyApiGuard } = await loadWireModule();
     const guard = createLazyApiGuard<{ getValue: () => number }>("Deferred");
     const deferredGet = () => guard.require().getValue();
 
@@ -46,6 +55,16 @@ describe("createLazyApiGuard", () => {
 });
 
 describe("wireGatewayRunnerRuntime", () => {
+  beforeEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
+  afterEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
   it("routes deferred assembly callbacks through the resolved runtime api", async () => {
     let capturedAssemblyOptions: CapturedAssemblyOptions | undefined;
     const heartbeatResult = { source: "heartbeat-api" } as never;
@@ -120,9 +139,7 @@ describe("wireGatewayRunnerRuntime", () => {
     const state = { id: "state" } as never;
 
     try {
-      const { wireGatewayRunnerRuntime } = await import(
-        `./wire?wire-runtime-test=${Date.now()}`
-      );
+      const { wireGatewayRunnerRuntime } = await loadWireModule();
 
       const api = wireGatewayRunnerRuntime(context, state);
       expect(api.control.heartbeat).toBeDefined();

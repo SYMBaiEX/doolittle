@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PlatformHealth } from "@/gateway/platforms/base";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
@@ -16,6 +16,16 @@ import type {
 import type { GatewayRunnerRuntimeApi } from "./service-runtime/api";
 
 describe("GatewayRunner", () => {
+  beforeEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
+  afterEach(() => {
+    mock.restore();
+    mock.clearAllMocks();
+  });
+
   it("delegates control, delivery, and read API methods to the runtime wiring", async () => {
     const runtimeStatus: GatewayRuntimeStatus = {
       pid: 1,

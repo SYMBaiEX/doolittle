@@ -7,18 +7,52 @@ import {
 import type { WizardAnswers } from "../types";
 import type { NativeOnboardingMirrorResult } from "./types";
 
+type NativeOnboardingMachine = {
+  advanceStep: (input: { step: string; data: unknown }) => Promise<unknown>;
+  getContext: () => unknown;
+  getCurrentStep: () => string;
+  toJSON: () => unknown;
+};
+
+type NativeOnboardingHelpers = {
+  createOnboardingStateMachine: (input: {
+    platform: string;
+    mode: string;
+  }) => NativeOnboardingMachine;
+  getOnboardingSummary: (context: unknown) => string;
+  isOnboardingComplete: (context: unknown) => boolean;
+  OnboardingStep: {
+    WELCOME: string;
+    RISK_ACK: string;
+    AUTH: string;
+    CHANNELS: string;
+    SKILLS: string;
+  };
+};
+
+const defaultNativeOnboardingHelpers: NativeOnboardingHelpers = {
+  createOnboardingStateMachine:
+    createOnboardingStateMachine as NativeOnboardingHelpers["createOnboardingStateMachine"],
+  getOnboardingSummary:
+    getOnboardingSummary as NativeOnboardingHelpers["getOnboardingSummary"],
+  isOnboardingComplete:
+    isOnboardingComplete as NativeOnboardingHelpers["isOnboardingComplete"],
+  OnboardingStep,
+};
+
 export async function buildNativeOnboardingMirror(
   answers: WizardAnswers,
   runtimeMode: "cli" | "wizard",
+  helpers: NativeOnboardingHelpers = defaultNativeOnboardingHelpers,
 ): Promise<NativeOnboardingMirrorResult> {
   try {
-    const machine = createOnboardingStateMachine({
+    const machine = helpers.createOnboardingStateMachine({
       platform: "cli",
       mode: runtimeMode,
-    });
+    }) as NativeOnboardingMachine;
 
     await machine.advanceStep({
-      step: OnboardingStep.WELCOME,
+      step: helpers.OnboardingStep.WELCOME,
       data: {
         acknowledged: true,
         userName: answers.agentName,
@@ -26,7 +60,7 @@ export async function buildNativeOnboardingMirror(
     });
 
     await machine.advanceStep({
-      step: OnboardingStep.RISK_ACK,
+      step: helpers.OnboardingStep.RISK_ACK,
       data: {
         accepted: true,
         warningText:
@@ -71,7 +105,7 @@ export async function buildNativeOnboardingMirror(
                   };
 
     await machine.advanceStep({
-      step: OnboardingStep.AUTH,
+      step: helpers.OnboardingStep.AUTH,
       data: authInput,
     });
 
@@ -112,7 +146,7 @@ export async function buildNativeOnboardingMirror(
     });
 
     await machine.advanceStep({
-      step: OnboardingStep.CHANNELS,
+      step: helpers.OnboardingStep.CHANNELS,
       data: {
         channels,
         dmPolicy: {
@@ -133,7 +167,7 @@ export async function buildNativeOnboardingMirror(
     ];
 
     await machine.advanceStep({
-      step: OnboardingStep.SKILLS,
+      step: helpers.OnboardingStep.SKILLS,
       data: {
         skills,
         install: [],
@@ -146,9 +180,9 @@ export async function buildNativeOnboardingMirror(
 
     return {
       serialized: machine.toJSON(),
-      complete: isOnboardingComplete(machine.getContext()),
+      complete: helpers.isOnboardingComplete(machine.getContext()),
       currentStep: machine.getCurrentStep(),
-      summary: getOnboardingSummary(machine.getContext()),
+      summary: helpers.getOnboardingSummary(machine.getContext()),
     };
   } catch (error) {
     return {

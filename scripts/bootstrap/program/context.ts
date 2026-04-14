@@ -1,7 +1,4 @@
-import {
-  createBootstrapAbortHandle,
-  isBootstrapAbortError,
-} from "../abort";
+import { createBootstrapAbortHandle, isBootstrapAbortError } from "../abort";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { createBootstrapOutput } from "../core/output";
 import type { BootstrapOptions } from "../types";
