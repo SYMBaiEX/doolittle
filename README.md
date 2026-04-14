@@ -57,6 +57,36 @@ The onboarding writes directly into:
 
 If a fresh terminal can't find `doolittle`, restart the shell or source the profile that was updated (`~/.zshrc` on macOS, `~/.bashrc` on Linux).
 
+Fast first-run:
+
+1. `bash scripts/install.sh`
+2. Restart your shell if PATH was updated
+3. `doolittle`
+4. Run `doolittle status`, `doolittle tools`, and `doolittle runtime`
+5. If setup looks off, run `doolittle doctor`
+
+If you only remember six commands after install, make them these:
+
+| Need | Command | What it tells you |
+|---|---|---|
+| Enter the shell | `doolittle` | Starts the everyday operator loop |
+| Check readiness first | `doolittle status` | Runtime health, hydration, and operator summary |
+| See what tools exist | `doolittle tools` | Current tool and control-plane surface |
+| See what skills exist | `doolittle skills` | Installed, generated, and hub-backed skills |
+| Inspect native ownership | `doolittle runtime` | Plugin assembly, native/runtime status, and startup state |
+| Work transports | `doolittle gateway` | Messaging and delivery operations |
+
+The product has three operator lanes, but they share one runtime story:
+
+- `doolittle` and `doolittle cockpit` are the daily interactive shell surfaces
+- `doolittle status`, `tools`, `skills`, and `runtime` are the fast one-shot orientation aliases
+- `doolittle gateway` and `doolittle api` are the daemon and integration surfaces over the same assembled runtime
+
+Keep the layers clean:
+
+- [`docs/quickstart.md`](./docs/quickstart.md) for install-to-ready in one pass
+- [`docs/operator-loop.md`](./docs/operator-loop.md) for the daily shell/operator rhythm
+
 ---
 
 ## How it thinks
@@ -149,6 +179,10 @@ The default mode. A conversation-first terminal shell with the same runtime core
 doolittle          # plain interactive CLI (default)
 doolittle help     # top-level command help without booting the runtime
 doolittle plain    # explicit alias for the same plain shell
+doolittle status   # one-shot runtime/operator status
+doolittle tools    # one-shot tools summary
+doolittle skills   # one-shot skills summary
+doolittle runtime  # one-shot runtime status surface
 doolittle exec -p "summarize this repo"   # one-shot execution
 doolittle exec -p "status" --json         # machine-readable one-shot output
 ```
@@ -413,6 +447,20 @@ Multi-platform message routing for Telegram, Discord, Slack, WhatsApp, Signal, M
 doolittle gateway
 ```
 
+### Surface quick reference
+
+| Surface | Command | Use when |
+|---|---|---|
+| Plain CLI (default) | `doolittle` | Everyday operator loop |
+| Operator check-ins | `doolittle status`, `doolittle tools`, `doolittle skills`, `doolittle runtime` | Fast health, capability, and runtime checks without remembering slash syntax |
+| Plain alias | `doolittle plain` | Same behavior, no TUI |
+| Cockpit | `doolittle cockpit` | Full-screen operator UI |
+| One-shot | `doolittle exec -p "<prompt>"` | Repeatable, non-interactive actions |
+| API server | `doolittle api` | Tooling integrations |
+| Gateway runner | `doolittle gateway` | Messaging transports and delivery ops |
+| Installer rerun | `doolittle install` | Re-run local install bootstrap |
+| Setup rerun | `doolittle setup` | Reconfigure provider/backends/transports |
+
 ---
 
 ## Subcommands
@@ -421,6 +469,11 @@ All routing happens in TypeScript — `packages/agent/src/index.ts` dispatches b
 
 ```bash
 doolittle          # Start the plain interactive CLI (default)
+doolittle status   # Show live runtime/operator status
+doolittle tools    # Show the current tool surface summary
+doolittle skills   # Browse installed and generated skills
+doolittle runtime  # Inspect native/runtime ownership surfaces
+doolittle commands # Browse slash commands and bundled workflows
 doolittle plain    # Plain line-based CLI
 doolittle cockpit  # Fullscreen operator cockpit
 doolittle dev      # Development mode
@@ -433,6 +486,27 @@ dl                 # Short alias (installed when no existing `dl` exists)
 ```
 
 Legacy flag-based invocation is still supported for backward compatibility: `--cli` launches the cockpit, `--plain-cli` launches the plain shell, plus `--api-only` and `--gateway`.
+
+### Operator aliases
+
+These top-level aliases are the fastest way to orient yourself before you drop into a longer shell session:
+
+- `doolittle status` → `/status`
+- `doolittle tools` → `/tools summary` by default, or `/tools <args>`
+- `doolittle skills` → `/skills` by default, or `/skills <args>`
+- `doolittle runtime` → `/runtime status` by default, or `/runtime <args>`
+- `doolittle commands` → shell command inventory and bundled workflow discoverability
+
+### Discover commands fast
+
+- `doolittle status` — check readiness, startup hydration, and operator summary first
+- `doolittle tools` / `doolittle skills` / `doolittle runtime` — discover surface area without booting into docs
+- `doolittle commands` — browse the slash-command inventory
+- `doolittle help` — list top-level command inventory
+- `doolittle help <command>` — get targeted usage
+- In-shell first: `/status`, `/doctor`, `/runtime status`, `/tools summary`, `/skills`
+- If you need one-shot discoverability, start with `doolittle exec -p "<prompt>"`
+- For the operator rhythm in one place, use [`docs/operator-loop.md`](./docs/operator-loop.md)
 
 ### One-shot mode
 

@@ -5,6 +5,7 @@ packages/*/dist/
 .doolittle/
 .eliza-agent/
 .eliza/
+fake-home/
 var/
 cache/
 coverage/
@@ -16,4 +17,3 @@ test-results/
 skills/generated/index.json
 tmp/
 e2e/
-docs/
