@@ -1,10 +1,10 @@
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import { getLinkedProviderAccountsSnapshot } from "../../packages/agent/src/runtime/native/account-auth/index";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { createHeadlessAnswers } from "./answers";
 import type { BootstrapWizardContext } from "./bootstrap-context";
-import type { PromptHandle } from "./core/prompts";
-import { runProviderSelectionFlow } from "./provider/selection";
+import type { PromptHandle } from "./prompting/types";
+import { runProviderSelectionFlow } from "./provider/selection/flow";
 import type { WizardAnswers } from "./types";
 import {
   getDependencyProbes,
@@ -14,7 +14,7 @@ import { runWizardIdentitySelection } from "./wizard/identity";
 import { runReviewAndConfirmFlow } from "./wizard/review";
 import { createInteractiveWizardAnswers } from "./wizard/state";
 import { runExecutionSelectionFlow } from "./wizard-execution-flow";
-import { createWizardScreen } from "./wizard-screen/surface";
+import { initializeWizardScreen } from "./wizard-screen/lifecycle";
 
 export async function runWizard(
   existingEnv: Map<string, string>,
@@ -28,12 +28,7 @@ export async function runWizard(
     const cols = typeof output.columns === "number" ? output.columns : 0;
     const rows = typeof output.rows === "number" ? output.rows : 0;
     if (cols >= 96 && rows >= 28) {
-      context.setWizardScreen(
-        createWizardScreen({
-          formatKeyLabel: context.formatKeyLabel,
-          onAbort: () => process.exit(1),
-        }),
-      );
+      initializeWizardScreen(context);
     } else {
       context.banner();
       context.warn(
@@ -55,11 +50,10 @@ export async function runWizard(
 
   try {
     while (true) {
-      const identity = await runWizardIdentitySelection(
-        context,
-        rl,
-        existingEnv,
+      const identity = await context.raceBootstrapAbort(
+        runWizardIdentitySelection(context, rl, existingEnv),
       );
+      context.throwIfBootstrapAborted();
 
       const answers = createInteractiveWizardAnswers(
         existingEnv,
@@ -70,27 +64,31 @@ export async function runWizard(
       answers.timezone = identity.timezone;
       answers.theme = identity.theme;
 
-      linkedAccounts = await runProviderSelectionFlow(
-        context,
-        rl,
-        existingEnv,
-        answers,
-        linkedAccounts,
+      linkedAccounts = await context.raceBootstrapAbort(
+        runProviderSelectionFlow(
+          context,
+          rl,
+          existingEnv,
+          answers,
+          linkedAccounts,
+        ),
       );
-      await runExecutionSelectionFlow(
-        context,
-        rl,
-        existingEnv,
-        dependencyProbes,
-        answers,
+      context.throwIfBootstrapAborted();
+      await context.raceBootstrapAbort(
+        runExecutionSelectionFlow(
+          context,
+          rl,
+          existingEnv,
+          dependencyProbes,
+          answers,
+        ),
       );
+      context.throwIfBootstrapAborted();
 
-      const reviewedAnswers = await runReviewAndConfirmFlow(
-        context,
-        rl,
-        answers,
-        linkedAccounts,
+      const reviewedAnswers = await context.raceBootstrapAbort(
+        runReviewAndConfirmFlow(context, rl, answers, linkedAccounts),
       );
+      context.throwIfBootstrapAborted();
       if (!reviewedAnswers) {
         continue;
       }

@@ -1,16 +1,16 @@
-import { createPromptYesNoHandler } from "./prompt-overlays/confirm";
-import { createSelectManyHandler } from "./prompt-overlays/select-many";
-import { createSelectOneHandler } from "./prompt-overlays/select-one";
+import { createPromptYesNoHandler } from "./confirm";
+import { createSelectManyHandler } from "./select-many";
+import { createSelectOneHandler } from "./select-one";
 import type {
   WizardPromptHandlers,
   WizardPromptOverlayDependencies,
-} from "./prompt-overlays/shared";
-import { createPromptTextHandler } from "./prompt-overlays/text";
+} from "./shared";
+import { createPromptTextHandler } from "./text";
 
 export type {
   WizardPromptHandlers,
   WizardPromptOverlayDependencies,
-} from "./prompt-overlays/shared";
+} from "./shared";
 
 export function createWizardPromptHandlers(
   deps: WizardPromptOverlayDependencies,

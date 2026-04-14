@@ -1,15 +1,13 @@
-import type { LinkedProviderAccountsSnapshot } from "../../../../packages/agent/src/runtime/native/account-auth/index";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { BootstrapWizardContext } from "../../bootstrap-context";
 import { ask, askSecret, chooseOne } from "../../core/prompt-ops";
-import type { PromptHandle } from "../../core/prompts";
+import type { PromptHandle } from "../../prompting/types";
 import type { ProviderMode, WizardAnswers } from "../../types";
 import { resolveInteractiveProviderDefault } from "../../wizard/state";
-import {
-  type ProviderSelectionState,
-  runClaudeCodeProviderBranch,
-  runCodexProviderBranch,
-  runElizaCloudProviderBranch,
-} from "./branches";
+import { runClaudeCodeProviderBranch } from "./branches/claude-code";
+import { runCodexProviderBranch } from "./branches/codex";
+import { runElizaCloudProviderBranch } from "./branches/eliza-cloud";
+import type { ProviderSelectionState } from "./branches/state";
 
 export async function runProviderSelectionFlow(
   context: BootstrapWizardContext,

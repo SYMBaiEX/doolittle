@@ -11,6 +11,10 @@ const FORBIDDEN_TRACKED_PATTERNS: Array<{
     reason: "runtime state should not be tracked",
   },
   {
+    pattern: /^fake-home\//u,
+    reason: "repo-root auth fixtures should not be tracked",
+  },
+  {
     pattern: /(^|\/)node_modules\//u,
     reason: "nested dependency trees should not be tracked",
   },

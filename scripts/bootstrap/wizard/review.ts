@@ -1,8 +1,8 @@
-import type { LinkedProviderAccountsSnapshot } from "../../../packages/agent/src/runtime/native/account-auth/index";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { finalizeWizardAnswers, summarizeAnswers } from "../answers";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { askYesNo } from "../core/prompt-ops";
-import type { PromptHandle } from "../core/prompts";
+import type { PromptHandle } from "../prompting/types";
 import type { WizardAnswers } from "../types";
 
 export interface ReviewFlowDeps {

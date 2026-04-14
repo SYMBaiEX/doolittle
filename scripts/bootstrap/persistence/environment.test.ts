@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { DEFAULT_TUI_THEME } from "../../../packages/agent/src/runtime/theme-catalog";
 import type { WizardAnswers } from "../types";
-import { buildBootstrapEnvUpdates } from "./index";
+import { buildBootstrapEnvUpdates } from "./environment";
 
 const answers: WizardAnswers = {
   mode: "quick",

@@ -1,4 +1,4 @@
-import type { getLinkedProviderAccountsSnapshot } from "../../../packages/agent/src/runtime/native/account-auth/index";
+import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { ReviewResult, TransportName, WizardAnswers } from "../types";
 
 export interface LinkedProviderReadiness {

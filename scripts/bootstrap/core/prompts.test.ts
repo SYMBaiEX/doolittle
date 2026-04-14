@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { createInterface } from "node:readline/promises";
-import { ask, askYesNo, chooseOne, type PromptRuntime } from "./prompts";
+import type { PromptRuntime } from "../prompting/types";
 
 const createRuntime = (
   screen: unknown = null,
@@ -21,7 +21,24 @@ const createQuestionInterface = (
   }) as unknown as ReturnType<typeof createInterface>;
 
 describe("bootstrap prompts", () => {
+  const loadPrompting = async () => {
+    mock.restore();
+    mock.clearAllMocks();
+    return import(
+      `../prompting/text-prompts?bootstrap-core-prompts=${Date.now()}-${Math.random()}`
+    );
+  };
+
+  const loadSelection = async () => {
+    mock.restore();
+    mock.clearAllMocks();
+    return import(
+      `../prompting/selection?bootstrap-core-prompts=${Date.now()}-${Math.random()}`
+    );
+  };
+
   it("prefers wizard prompt text when a wizard screen is active", async () => {
+    const { ask } = await loadPrompting();
     const promptText = mock(async () => "riddle");
     const runtime = createRuntime({
       promptText,
@@ -37,6 +54,8 @@ describe("bootstrap prompts", () => {
   });
 
   it("retries chooseOne on invalid input and returns the first valid numeric choice", async () => {
+    await loadPrompting();
+    const { chooseOne } = await loadSelection();
     const runtime = createRuntime();
     const rl = createQuestionInterface(["maybe", "2"]);
 
@@ -59,6 +78,7 @@ describe("bootstrap prompts", () => {
   });
 
   it("retries yes/no prompts on invalid input and returns the resolved boolean", async () => {
+    const { askYesNo } = await loadPrompting();
     const runtime = createRuntime();
     const rl = createQuestionInterface(["huh", "yes"]);
 

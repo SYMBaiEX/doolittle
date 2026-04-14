@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { DEFAULT_TUI_THEME } from "../../../packages/agent/src/runtime/theme-catalog";
 import type { NativeOnboardingMirrorResult } from "../answers";
 import type { WizardAnswers } from "../types";
-import { buildBootstrapOnboardingSummary, fingerprint } from "./index";
+import { buildBootstrapOnboardingSummary, fingerprint } from "./onboarding";
 
 const answers: WizardAnswers = {
   mode: "quick",

@@ -11,4 +11,7 @@ export interface BootstrapWizardContext {
   formatKeyLabel: (label: string) => string;
   getWizardScreen: () => WizardScreenContext | null;
   setWizardScreen: (screen: WizardScreenContext | null) => void;
+  abortBootstrap: (reason?: string) => void;
+  raceBootstrapAbort: <T>(operation: Promise<T>) => Promise<T>;
+  throwIfBootstrapAborted: () => void;
 }

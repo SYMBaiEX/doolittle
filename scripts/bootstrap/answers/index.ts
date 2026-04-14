@@ -1,6 +1,7 @@
-import type { getLinkedProviderAccountsSnapshot } from "../../packages/agent/src/runtime/native/account-auth/index";
-import { readEnvBase } from "./answers/base-env";
-import { createHeadlessAnswers } from "./answers/headless";
+import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { ReviewResult, WizardAnswers } from "../types";
+import { readEnvBase } from "./base-env";
+import { createHeadlessAnswers } from "./headless";
 import {
   DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL,
   DEFAULT_ELIZA_CLOUD_LARGE_MODEL,
@@ -8,13 +9,12 @@ import {
   normalizeElizaCloudEmbeddingModel,
   normalizeElizaCloudLargeModel,
   normalizeElizaCloudSmallModel,
-} from "./answers/model-normalization";
-import { buildNativeOnboardingMirror } from "./answers/native-onboarding";
-import { reviewWizardAnswers } from "./answers/review";
-import { summarizeAnswers } from "./answers/summary";
-import type { ReviewResult, WizardAnswers } from "./types";
+} from "./model-normalization";
+import { buildNativeOnboardingMirror } from "./native-onboarding";
+import { reviewWizardAnswers } from "./review";
+import { summarizeAnswers } from "./summary";
 
-export type { NativeOnboardingMirrorResult } from "./answers/types";
+export type { NativeOnboardingMirrorResult } from "./types";
 export {
   buildNativeOnboardingMirror,
   createHeadlessAnswers,

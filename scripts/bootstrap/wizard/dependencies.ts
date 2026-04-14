@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { arch, hostname, platform, release } from "node:os";
 import { join } from "node:path";
-import { getLinkedProviderAccountsSnapshot } from "../../../packages/agent/src/runtime/native/account-auth/index";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { bootstrapColor as color, paint } from "../core/output";
 import type { BootstrapDependencyProbe } from "../types";

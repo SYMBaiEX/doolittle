@@ -1,4 +1,4 @@
-import type { LinkedProviderAccountsSnapshot } from "../../../packages/agent/src/runtime/native/account-auth/index";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 
 export type CloudRecoveryChoice =
   | "retry"

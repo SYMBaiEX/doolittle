@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { BootstrapWizardContext } from "../bootstrap-context";
-import type { PromptHandle } from "../core/prompts";
+import type { PromptHandle } from "../prompting/types";
 import type { WizardAnswers } from "../types";
 import { runExecutionHandsSelectionFlow } from "./hands";
 import type { ExecutionHandsPromptDeps } from "./types";
@@ -10,6 +10,9 @@ const createContext = (): BootstrapWizardContext =>
     section: mock(() => {}),
     info: mock(() => {}),
     warn: mock(() => {}),
+    abortBootstrap: () => {},
+    raceBootstrapAbort: async <T>(operation: Promise<T>) => await operation,
+    throwIfBootstrapAborted: () => {},
   }) as unknown as BootstrapWizardContext;
 
 const baseAnswers: WizardAnswers = {

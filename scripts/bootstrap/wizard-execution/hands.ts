@@ -6,7 +6,7 @@ import {
   chooseMany,
   chooseOne,
 } from "../core/prompt-ops";
-import type { PromptHandle } from "../core/prompts";
+import type { PromptHandle } from "../prompting/types";
 import type { WizardAnswers } from "../types";
 import { runExecutionChannelSelectionFlow } from "./channels";
 import { runExecutionToolSelectionFlow } from "./tooling";
