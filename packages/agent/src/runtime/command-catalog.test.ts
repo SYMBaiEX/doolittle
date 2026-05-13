@@ -54,4 +54,33 @@ describe("command catalog", () => {
       true,
     );
   });
+
+  it("keeps high-touch operator commands aligned with executable routes", () => {
+    const commands = new Set(COMMAND_CATALOG.map((entry) => entry.command));
+
+    expect(commands.has("/compress [focus]")).toBe(true);
+    expect(
+      commands.has(
+        "/trajectories-compress [manifest-path|bundle-label|latest]",
+      ),
+    ).toBe(true);
+    expect(commands.has("/model-list")).toBe(true);
+    expect(
+      commands.has(
+        "/model-use <ollama|devin|codex|claude-code|elizacloud> [model]",
+      ),
+    ).toBe(true);
+    expect(commands.has("/skills-synthesize latest")).toBe(true);
+    expect(
+      COMMAND_CATALOG.find((entry) => entry.command.startsWith("/accounts-use"))
+        ?.command,
+    ).toContain("devin");
+    expect(
+      COMMAND_CATALOG.some(
+        (entry) =>
+          entry.category === "research" &&
+          entry.command.startsWith("/compress"),
+      ),
+    ).toBe(false);
+  });
 });

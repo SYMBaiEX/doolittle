@@ -246,15 +246,18 @@ describe("trajectory command router", () => {
     });
   });
 
-  it("supports compress/replay aliases and gateway absence errors", async () => {
+  it("supports trajectory compress/replay commands and gateway absence errors", async () => {
     const { context } = createContext({
       latestCompression: undefined,
       latestReplay: { replay: "latest" },
     });
 
-    const emptyCompress = await handleTrajectoryCommand("/compress", context);
+    const emptyCompress = await handleTrajectoryCommand(
+      "/trajectories compress latest",
+      context,
+    );
     const compress = await handleTrajectoryCommand(
-      "/compress baseline",
+      "/trajectories compress baseline",
       context,
     );
     const replay = await handleTrajectoryCommand(
@@ -270,7 +273,7 @@ describe("trajectory command router", () => {
       context,
     );
 
-    expect(emptyCompress).toBe("No trajectory bundles are available yet.");
+    expect(emptyCompress).toBe("No trajectory bundles recorded.");
     expect(compress).toContain('"/tmp/baseline.json"');
     expect(replay).toContain('"replay": "latest"');
     expect(compare).toContain('"/tmp/baseline.json"');
@@ -309,7 +312,7 @@ describe("trajectory command router", () => {
       context,
     );
     const compressFailure = await handleTrajectoryCommand(
-      "/compress baseline",
+      "/trajectories compress baseline",
       context,
     );
     const missingReplay = await handleTrajectoryCommand(
@@ -317,7 +320,7 @@ describe("trajectory command router", () => {
       context,
     );
     const missingCompress = await handleTrajectoryCommand(
-      "/compress missing",
+      "/trajectories compress missing",
       context,
     );
 

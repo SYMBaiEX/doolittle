@@ -15,6 +15,7 @@ import type {
 
 export interface SessionServiceApi {
   storeMessage(message: StoredMessage): void;
+  replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void;
   deleteLatestExchange(
     sessionId: string,
     options?: { skipSlashCommands?: boolean },
@@ -25,6 +26,7 @@ export interface SessionServiceApi {
   search(query: string, limit: number): SessionSearchResult[];
   recent(limit: number): SessionSearchResult[];
   recentBySession(sessionId: string, limit: number): SessionSearchResult[];
+  messagesBySession(sessionId: string, limit: number): StoredMessage[];
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number;
   latest(limit: number): SessionSearchResult[];
   summary(limit?: number): {

@@ -22,6 +22,12 @@ describe("settings and theme command router", () => {
     const context = {
       config: {
         elizaCloudSmallModel: "small",
+        elizaCloudLargeModel: "large",
+        elizaCloudBaseUrl: "https://cloud.eliza.test",
+        ollamaApiEndpoint: "http://localhost:11434/api",
+        ollamaLargeModel: "granite4.1:3b",
+        ollamaEmbeddingModel: "nomic-embed-text:latest",
+        devinModel: "swe-1-6-fast",
       },
       runtime: {
         setSetting: (key: string, value: string) => {
@@ -58,6 +64,11 @@ describe("settings and theme command router", () => {
       "/model set temperature 0.7",
       context,
     );
+    const modelList = await handleSettingsThemeCommand("/model list", context);
+    const modelUse = await handleSettingsThemeCommand(
+      "/model use ollama granite4.1:3b",
+      context,
+    );
     const preview = await handleSettingsThemeCommand(
       "/execution preview pwd",
       context,
@@ -65,8 +76,10 @@ describe("settings and theme command router", () => {
     const theme = await handleSettingsThemeCommand("/theme set ember", context);
 
     expect(model).toContain('"temperature": 0.7');
+    expect(modelList).toContain("ollama");
+    expect(modelUse).toContain("Activated Ollama");
     expect(preview).toContain('"command": "pwd"');
     expect(theme).toContain('"theme": "ember"');
-    expect(runtimeSettings.OPENAI_LARGE_MODEL).toBe("gpt-5.4");
+    expect(runtimeSettings.OPENAI_LARGE_MODEL).toBe("granite4.1:3b");
   });
 });

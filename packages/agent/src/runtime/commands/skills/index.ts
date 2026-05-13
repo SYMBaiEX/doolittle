@@ -6,13 +6,14 @@ import { handleSkillInventoryCommand } from "./inventory";
 export async function handleSkillCommand(
   trimmed: string,
   context: AgentExecutionContext,
+  options?: { sessionId?: string },
 ): Promise<string | undefined> {
   for (const handler of [
     handleSkillInventoryCommand,
     handleSkillCatalogCommand,
     handleGeneratedSkillCommand,
   ]) {
-    const response = await handler(trimmed, context);
+    const response = await handler(trimmed, context, options);
     if (response !== undefined) {
       return response;
     }

@@ -7,10 +7,10 @@ export const ResearchCommandCatalogEntries: CommandCatalogEntry[] = [
     description: "List workspace-native benchmark packs.",
   },
   {
-    command: "/compress [manifest-path|bundle-label|latest]",
+    command: "/trajectories compress [manifest-path|bundle-label|latest]",
     category: "research",
     description:
-      "Alias for trajectory compression of the latest or named bundle.",
+      "Compress the latest or named trajectory bundle for research/training.",
   },
   {
     command: "/trajectories ingest gateway label:review limit:100",

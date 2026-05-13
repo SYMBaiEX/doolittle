@@ -6,6 +6,22 @@ export const RuntimeCoreCommandCatalogEntries = [
     "Print the active provider, model, and plugin state.",
   ),
   runtimeCommand(
+    "/model",
+    "Show the active provider/model plus local and linked provider options.",
+  ),
+  runtimeCommand(
+    "/model list",
+    "List available Doolittle provider routes and their default models.",
+  ),
+  runtimeCommand(
+    "/model use <ollama|devin|codex|claude-code|elizacloud> [model]",
+    "Switch the active provider route with a safe default model, optionally overriding the model id.",
+  ),
+  runtimeCommand(
+    "/model set <field> <value>",
+    "Set a raw model setting field for advanced provider tuning.",
+  ),
+  runtimeCommand(
     "/mode",
     "Show the active run depth profile and configured max-iteration cap.",
   ),

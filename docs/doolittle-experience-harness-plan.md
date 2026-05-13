@@ -29,12 +29,16 @@ Doolittle should not clone Doolittle as a Python monolith. It should use ElizaOS
 - `/todo list`, `/todo add`, and `/todo show` alias Doolittle's native planning service for Doolittle-native task tracking.
 - Provider-path model input now includes a Doolittle experience contract: warm Eliza-style presence, memory continuity, visible todos for multi-step work, and truthful execution receipts.
 - Command catalog and help examples advertise the recovery and todo loop.
+- `/compress [focus]` now compresses the active conversation session like Doolittle; trajectory dataset compression moved to `/trajectories compress`.
+- `/model list` and `/model use <provider> [model]` provide a coherent operator-facing model route surface across Ollama, Devin, Codex, Claude Code, and Eliza Cloud.
+- `/usage` and `/insights` now summarize context pressure, observed run/tool events, memory, generated skills, and next controls instead of raw JSON.
+- `/skills synthesize latest` creates a generated skill from the active session when a reusable workflow is detected.
+- User profile observations now opportunistically write new names, facts, and preferences into user memory for stronger recall.
+- `doolittle-experience` benchmark pack covers the small-talk, memory, CLI recovery, model switching, coding, gateway, and learning-loop native experience path.
 
 ## Next Todo
 
-1. Promote `/model list`, `/model use`, and `/accounts use devin|ollama|codex|claude-code` into one coherent model picker.
-2. Add a compact live status footer for plain shell mode: provider/model, elapsed turn time, context pressure, active tool, and last trajectory event.
-3. Make `/insights` summarize session cost, tool patterns, slow phases, and trajectory quality.
-4. Add a “skill after complex work” nudge that can synthesize a reusable skill from a successful trajectory.
-5. Add gateway native experience checks for typing/progressive delivery, approvals, home routing, voice memo routing, and session continuity.
-6. Add a Doolittle-vs-Doolittle benchmark pack covering small talk, coding, daily task automation, memory recall, CLI recovery, and multi-tool research.
+1. Add a compact live status footer for plain shell mode: provider/model, elapsed turn time, context pressure, active tool, and last trajectory event.
+2. Add gateway native experience checks for typing/progressive delivery, approvals, home routing, voice memo routing, and session continuity.
+3. Add cost/rate-limit accounting when the active provider exposes token or quota metadata.
+4. Add an interactive model picker UI on top of the `/model list` and `/model use` command contract.

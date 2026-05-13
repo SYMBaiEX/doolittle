@@ -12,20 +12,6 @@ export async function handleTrajectoryCompressionCommands(
       : "No trajectory bundles recorded.";
   }
 
-  if (trimmed === "/compress") {
-    const compressed = context.services.trajectories.compressLatest();
-    return compressed
-      ? JSON.stringify(compressed, null, 2)
-      : "No trajectory bundles are available yet.";
-  }
-
-  if (trimmed.startsWith("/compress ")) {
-    return renderCompressedBundle(
-      context,
-      trimmed.replace("/compress ", "").trim(),
-    );
-  }
-
   if (trimmed.startsWith("/trajectories compress ")) {
     const raw = trimmed.replace("/trajectories compress ", "").trim();
     if (!raw) {

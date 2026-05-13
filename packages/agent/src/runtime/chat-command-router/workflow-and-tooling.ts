@@ -9,7 +9,8 @@ import type { ChatCommandRouteGroup } from "./types";
 
 export const workflowAndToolingRoutes = [
   ({ input, trimmed, context }) => handleCronCommand(input, trimmed, context),
-  ({ trimmed, context }) => handleSkillCommand(trimmed, context),
+  ({ trimmed, sessionKey, context }) =>
+    handleSkillCommand(trimmed, context, { sessionId: sessionKey }),
   ({ trimmed, context }) => handleToolingCommand(trimmed, context),
   ({ trimmed, context, dependencies }) =>
     handleBrowserMediaCommand(trimmed, context, {

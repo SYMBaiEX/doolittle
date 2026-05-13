@@ -15,6 +15,10 @@ export class SessionWriteOperations {
     this.messageStore.storeMessage(message);
   }
 
+  replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void {
+    this.messageStore.replaceSessionMessages(sessionId, messages);
+  }
+
   deleteLatestExchange(
     sessionId: string,
     options?: { skipSlashCommands?: boolean },

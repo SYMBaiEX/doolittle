@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
+import type { ChatCommandRouterDependencies } from "../chat-command-router/types";
 import { handleSessionCommand } from "./session-router";
 
 function createInput(
@@ -14,6 +15,11 @@ function createInput(
     ...overrides,
   };
 }
+
+const dependencies: ChatCommandRouterDependencies = {
+  runAnalysis: async () => "compressed summary",
+  runDelegationTaskInWorker: async () => undefined as never,
+};
 
 describe("session command router", () => {
   it("searches session history and lists sessions", async () => {
@@ -52,12 +58,14 @@ describe("session command router", () => {
       "/search prior",
       "session-1",
       context,
+      dependencies,
     );
     const sessions = await handleSessionCommand(
       createInput({ message: "/sessions" }),
       "/sessions",
       "session-1",
       context,
+      dependencies,
     );
 
     expect(search).toContain("session=session-1");
@@ -101,12 +109,14 @@ describe("session command router", () => {
       "/resume",
       "telegram:room-1:user-1:root",
       context,
+      dependencies,
     );
     const resumed = await handleSessionCommand(
       createInput({ message: "/resume alpha" }),
       "/resume alpha",
       "telegram:room-1:user-1:root",
       context,
+      dependencies,
     );
 
     expect(listed).toContain("alpha");
@@ -134,10 +144,29 @@ describe("session command router", () => {
           }),
           usage: (sessionId: string) => ({
             sessionId,
-            turns: 2,
+            title: sessionId === "session-2" ? "alpha" : undefined,
+            messageCount: 2,
+            userMessages: 1,
+            assistantMessages: 1,
+            systemMessages: 0,
+            characterCount: 16,
+            estimatedTokens: 4,
+            lastPreview: "done",
           }),
+          messagesBySession: () => [],
           resolveByTitle: (query: string) =>
             query === "alpha" ? { sessionId: "session-2" } : undefined,
+        },
+        contextCompression: {
+          measure: () => ({
+            estimatedTokens: 4,
+            contextWindowTokens: 100,
+            usageFraction: 0.04,
+            overThreshold: false,
+          }),
+        },
+        trajectories: {
+          recentEvents: () => [],
         },
         gatewaySessions: {
           get: () => undefined,
@@ -151,6 +180,7 @@ describe("session command router", () => {
         "/title focus",
         "session-1",
         context,
+        dependencies,
       ),
     ).toContain('"title": "focus"');
     expect(
@@ -159,6 +189,7 @@ describe("session command router", () => {
         "/session title session-2 :: archive",
         "session-1",
         context,
+        dependencies,
       ),
     ).toContain('"sessionId": "session-2"');
     expect(
@@ -167,6 +198,7 @@ describe("session command router", () => {
         "/session continuity session-2",
         "session-1",
         context,
+        dependencies,
       ),
     ).toContain('"continuityKey": "ck:session-2"');
     expect(
@@ -175,6 +207,7 @@ describe("session command router", () => {
         "/session summary",
         "session-1",
         context,
+        dependencies,
       ),
     ).toContain('"sessionId": "session-1"');
     expect(
@@ -183,8 +216,9 @@ describe("session command router", () => {
         "/usage alpha",
         "session-1",
         context,
+        dependencies,
       ),
-    ).toContain('"sessionId": "session-2"');
+    ).toContain("session: session-2");
   });
 
   it("undoes the latest conversational exchange through session memory", async () => {
@@ -217,9 +251,107 @@ describe("session command router", () => {
       "/undo",
       "session-1",
       context,
+      dependencies,
     );
 
     expect(undone).toContain("Undid the latest exchange");
     expect(undone).toContain("try the Doolittle-native loop");
+  });
+
+  it("compresses active session context and renders operator insights", async () => {
+    const replaced: unknown[] = [];
+    const trajectoryEvents: unknown[] = [];
+    const messages = [
+      "Set up Devin as default.",
+      "Devin responded slowly.",
+      "Investigated /usage and trajectories.",
+      "Fixed command routing.",
+      "Added model controls.",
+      "Ready for audit.",
+    ].map((text, index) => ({
+      id: `msg-${index}`,
+      sessionId: "session-1",
+      roomId: "room-1",
+      entityId: index % 2 === 0 ? "user-1" : "agent-1",
+      role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      text,
+      createdAt: `2026-03-28T00:00:0${index}.000Z`,
+    }));
+    const context = {
+      services: {
+        sessions: {
+          messagesBySession: () => messages,
+          replaceSessionMessages: (_sessionId: string, next: unknown[]) => {
+            replaced.push(...next);
+          },
+          usage: () => ({
+            sessionId: "session-1",
+            messageCount: messages.length,
+            userMessages: 3,
+            assistantMessages: 3,
+            systemMessages: 0,
+            characterCount: 120,
+            estimatedTokens: 30,
+            lastPreview: "Ready for audit.",
+          }),
+        },
+        contextCompression: {
+          measure: (input: unknown[]) => ({
+            estimatedTokens: input.length * 20,
+            contextWindowTokens: 1000,
+            usageFraction: input.length / 50,
+            overThreshold: false,
+          }),
+        },
+        trajectories: {
+          recordEvent: (event: unknown) => trajectoryEvents.push(event),
+          recentEvents: () => trajectoryEvents,
+        },
+        userProfiles: {
+          get: () => ({
+            displayName: "Alex",
+            status: "engaged",
+            facts: ["uses Bun"],
+            preferences: ["concise"],
+            aliases: ["A"],
+          }),
+        },
+        memory: {
+          summary: (target: string) => ({
+            target,
+            entries: target === "user" ? 2 : 1,
+            characters: 20,
+            preview: [],
+          }),
+        },
+        skillSynthesis: {
+          listGeneratedSkills: () => [{ slug: "operator-loop" }],
+        },
+        gatewaySessions: {
+          get: () => undefined,
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    const compressed = await handleSessionCommand(
+      createInput({ message: "/compress operator state" }),
+      "/compress operator state",
+      "session-1",
+      context,
+      dependencies,
+    );
+    const insights = await handleSessionCommand(
+      createInput({ message: "/insights" }),
+      "/insights",
+      "session-1",
+      context,
+      dependencies,
+    );
+
+    expect(compressed).toContain("Context compressed");
+    expect(replaced).toHaveLength(5);
+    expect(JSON.stringify(replaced)).toContain("compressed summary");
+    expect(insights).toContain("OPERATOR INSIGHTS");
+    expect(insights).toContain("operator-loop");
   });
 });

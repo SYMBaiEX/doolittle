@@ -16,11 +16,13 @@ export type {
 
 export class SessionService {
   declare storeMessage: SessionServiceApi["storeMessage"];
+  declare replaceSessionMessages: SessionServiceApi["replaceSessionMessages"];
   declare deleteLatestExchange: SessionServiceApi["deleteLatestExchange"];
   declare onActivity: SessionServiceApi["onActivity"];
   declare search: SessionServiceApi["search"];
   declare recent: SessionServiceApi["recent"];
   declare recentBySession: SessionServiceApi["recentBySession"];
+  declare messagesBySession: SessionServiceApi["messagesBySession"];
   declare countBySessionRole: SessionServiceApi["countBySessionRole"];
   declare latest: SessionServiceApi["latest"];
   declare summary: SessionServiceApi["summary"];

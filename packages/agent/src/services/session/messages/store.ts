@@ -61,6 +61,36 @@ export class SessionMessageStore {
     } satisfies SessionMessageActivityEvent);
   }
 
+  replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void {
+    const rows = this.db
+      .query(
+        `
+          SELECT rowid
+          FROM messages
+          WHERE session_id = ?1
+        `,
+      )
+      .all(sessionId) as Array<{ rowid: number }>;
+
+    if (rows.length) {
+      const placeholders = rows.map(() => "?").join(", ");
+      const rowIds = rows.map((row) => row.rowid);
+      this.db
+        .query(`DELETE FROM messages_fts WHERE rowid IN (${placeholders})`)
+        .run(...rowIds);
+      this.db
+        .query(`DELETE FROM messages WHERE rowid IN (${placeholders})`)
+        .run(...rowIds);
+    }
+
+    for (const message of messages) {
+      this.storeMessage({
+        ...message,
+        sessionId,
+      });
+    }
+  }
+
   onActivity(
     listener: (event: SessionMessageActivityEvent) => void,
   ): () => void {
@@ -109,6 +139,21 @@ export class SessionMessageStore {
         `,
       )
       .all(sessionId, limit) as SessionSearchResult[];
+  }
+
+  messagesBySession(sessionId: string, limit: number): StoredMessage[] {
+    return this.db
+      .query(
+        `
+          SELECT id, session_id as sessionId, room_id as roomId,
+            entity_id as entityId, role, text, created_at as createdAt
+          FROM messages
+          WHERE session_id = ?1
+          ORDER BY created_at ASC
+          LIMIT ?2
+        `,
+      )
+      .all(sessionId, limit) as StoredMessage[];
   }
 
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number {

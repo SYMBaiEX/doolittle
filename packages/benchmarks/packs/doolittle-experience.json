@@ -1,0 +1,24 @@
+{
+  "id": "doolittle-experience",
+  "title": "Doolittle Native Experience",
+  "focus": "operator-experience",
+  "description": "Exercises the daily operator loop that made Doolittle feel alive: warm small talk, memory recall, CLI recovery, model switching, coding tool use, daily-task automation, gateway continuity, and reusable trajectory-to-skill learning.",
+  "tags": [
+    "doolittle",
+    "operator",
+    "memory",
+    "cli",
+    "coding",
+    "gateway",
+    "learning-loop"
+  ],
+  "recommendedCommands": [
+    "/model list",
+    "/usage",
+    "/insights",
+    "/compress operator-state",
+    "/skills synthesize latest",
+    "/trajectories export label:doolittle-experience",
+    "/trajectories benchmark environment"
+  ]
+}

@@ -76,20 +76,13 @@ function installRouterTestMocks() {
       query ? `catalog:${query}` : "catalog",
   }));
 
-  mock.module("./chat-command-router/lifecycle-and-identity", () => ({
-    lifecycleAndIdentityRoutes,
-  }));
-
-  mock.module("./chat-command-router/workflow-and-tooling", () => ({
-    workflowAndToolingRoutes,
-  }));
-
-  mock.module("./chat-command-router/runtime-operations", () => ({
-    runtimeOperationsRoutes,
-  }));
-
-  mock.module("./chat-command-router/planning-and-settings", () => ({
-    planningAndSettingsRoutes,
+  mock.module("./chat-command-router/registry", () => ({
+    CHAT_COMMAND_ROUTE_GROUPS: [
+      lifecycleAndIdentityRoutes,
+      workflowAndToolingRoutes,
+      runtimeOperationsRoutes,
+      planningAndSettingsRoutes,
+    ],
   }));
 }
 

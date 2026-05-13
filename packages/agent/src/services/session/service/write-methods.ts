@@ -4,11 +4,22 @@ import { getSessionServiceState } from "./state";
 
 export const sessionServiceWriteMethods: Pick<
   SessionServiceApi,
-  "storeMessage" | "deleteLatestExchange" | "onActivity" | "rename"
+  | "storeMessage"
+  | "replaceSessionMessages"
+  | "deleteLatestExchange"
+  | "onActivity"
+  | "rename"
 > &
   ThisType<SessionService> = {
   storeMessage(message) {
     getSessionServiceState(this).writes.storeMessage(message);
+  },
+
+  replaceSessionMessages(sessionId, messages) {
+    getSessionServiceState(this).writes.replaceSessionMessages(
+      sessionId,
+      messages,
+    );
   },
 
   deleteLatestExchange(sessionId, options) {

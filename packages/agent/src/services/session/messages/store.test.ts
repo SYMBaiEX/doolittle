@@ -116,4 +116,45 @@ describe("session/messages/store", () => {
     expect(store.search("Built", 10)).toHaveLength(0);
     expect(store.search("Usage", 10)).toHaveLength(2);
   });
+
+  it("replaces a session transcript and keeps search indexes in sync", () => {
+    const db = createDb();
+    const store = new SessionMessageStore(db, new EventEmitter());
+    const base = {
+      sessionId: "room:1",
+      roomId: "room:1",
+      entityId: "user:1",
+    };
+
+    store.storeMessage({
+      ...base,
+      id: "old-1",
+      role: "user",
+      text: "obsolete turn",
+      createdAt: "2026-03-20T00:00:00.000Z",
+    });
+    store.storeMessage({
+      ...base,
+      id: "old-2",
+      role: "assistant",
+      text: "obsolete reply",
+      createdAt: "2026-03-20T00:00:01.000Z",
+    });
+
+    store.replaceSessionMessages("room:1", [
+      {
+        ...base,
+        id: "new-1",
+        role: "system",
+        text: "compressed summary",
+        createdAt: "2026-03-20T00:00:02.000Z",
+      },
+    ]);
+
+    expect(
+      store.messagesBySession("room:1", 10).map((row) => row.text),
+    ).toEqual(["compressed summary"]);
+    expect(store.search("obsolete", 10)).toHaveLength(0);
+    expect(store.search("compressed", 10)).toHaveLength(1);
+  });
 });

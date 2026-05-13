@@ -315,7 +315,7 @@ describe("chat turn post-provider seam", () => {
       {
         kind: "skills",
         message:
-          '💡 **Skill synthesis available**: This conversation contains a reusable workflow — "Workspace cleanup routine". Run `/skills synthesize` to save it as a skill document, or I can do it automatically.',
+          '💡 **Skill synthesis available**: This conversation contains a reusable workflow — "Workspace cleanup routine". Run `/skills synthesize latest` to save it as a skill document, or I can do it automatically.',
       },
     ]);
   });

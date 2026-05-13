@@ -66,6 +66,17 @@ export const SkillsCommandCatalogEntries: CommandCatalogEntry[] = [
     description: "List synthesized/generated skills.",
   },
   {
+    command: "/skills synthesize latest",
+    category: "skills",
+    description:
+      "Create a reusable skill from the active session when a workflow is detected.",
+  },
+  {
+    command: "/skills synthesize <task-id>",
+    category: "skills",
+    description: "Create a reusable skill from a completed delegation task.",
+  },
+  {
     command: "/skills catalog",
     category: "skills",
     description: "Show the native Eliza skill catalog snapshot.",

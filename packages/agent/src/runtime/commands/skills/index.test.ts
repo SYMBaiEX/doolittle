@@ -92,4 +92,60 @@ describe("skills command router", () => {
     expect(described).toBe("describe:release-checklist");
     expect(missing).toBe("Skill not found: missing");
   });
+
+  it("synthesizes a generated skill from the active session", async () => {
+    const events: unknown[] = [];
+    const context = {
+      runtime: {},
+      services: {
+        skills: {
+          list: () => [],
+          get: () => null,
+        },
+        skillsHub: {
+          catalogEntry: async () => null,
+          exportBundle: async () => ({ bundle: true }),
+          generated: () => [],
+          installedManifests: () => [],
+          manifest: () => null,
+          summary: () => ({ distribution: {} }),
+          workspace: () => [],
+        },
+        sessions: {
+          messagesBySession: () => [
+            {
+              role: "user",
+              text: "Build a repeatable release checklist",
+            },
+            {
+              role: "assistant",
+              text: "Implemented the release checklist workflow.",
+            },
+          ],
+        },
+        skillSynthesis: {
+          maybeAutoSynthesize: () => ({
+            path: "/tmp/release-checklist/SKILL.md",
+            candidate: {
+              title: "Release Checklist",
+              slug: "release-checklist",
+            },
+          }),
+        },
+        trajectories: {
+          recordEvent: (event: unknown) => events.push(event),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    const result = await handleSkillCommand(
+      "/skills synthesize latest",
+      context,
+      { sessionId: "session-1" },
+    );
+
+    expect(result).toContain("Release Checklist");
+    expect(result).toContain("/tmp/release-checklist/SKILL.md");
+    expect(events).toHaveLength(1);
+  });
 });

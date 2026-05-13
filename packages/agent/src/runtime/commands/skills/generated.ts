@@ -5,6 +5,7 @@ import type { SkillCommandHandler } from "./types";
 export const handleGeneratedSkillCommand: SkillCommandHandler = async (
   trimmed,
   context,
+  options,
 ) => {
   if (trimmed === "/skills generated" || trimmed === "/skills generated list") {
     const generated = getEffectiveGeneratedSkills(
@@ -48,6 +49,44 @@ export const handleGeneratedSkillCommand: SkillCommandHandler = async (
       return "Usage: /skills generated describe <slug>";
     }
     return context.services.skillSynthesis.describeGeneratedSkill(slug);
+  }
+
+  if (
+    trimmed === "/skills synthesize" ||
+    trimmed === "/skills synthesize latest"
+  ) {
+    const sessionId = options?.sessionId;
+    if (!sessionId) {
+      return "No active session is available for conversation skill synthesis.";
+    }
+    const messages = context.services.sessions.messagesBySession(
+      sessionId,
+      200,
+    );
+    const result = context.services.skillSynthesis.maybeAutoSynthesize(
+      messages,
+      sessionId,
+    );
+    if (!result) {
+      return "No reusable workflow was detected in the latest session yet.";
+    }
+    context.services.trajectories.recordEvent({
+      category: "skill",
+      event: "skill.synthesized",
+      sessionId,
+      source: "cli",
+      text: `[skill:synthesized] ${result.candidate.title} -> ${result.path}`,
+      metadata: {
+        title: result.candidate.title,
+        slug: result.candidate.slug,
+        path: result.path,
+      },
+    });
+    return [
+      `Generated skill: ${result.candidate.title}`,
+      `slug: ${result.candidate.slug}`,
+      `path: ${result.path}`,
+    ].join("\n");
   }
 
   if (trimmed.startsWith("/skills synthesize ")) {

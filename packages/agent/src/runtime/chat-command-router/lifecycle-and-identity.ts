@@ -13,8 +13,8 @@ export const lifecycleAndIdentityRoutes = [
     handleExecutionApprovalCommand(input, trimmed, context, hooks),
   ({ input, trimmed, context }) =>
     handleControlPlaneCommand(input, trimmed, context),
-  ({ input, trimmed, sessionKey, context }) =>
-    handleSessionCommand(input, trimmed, sessionKey, context),
+  ({ input, trimmed, sessionKey, context, dependencies }) =>
+    handleSessionCommand(input, trimmed, sessionKey, context, dependencies),
   ({ input, trimmed, context }) =>
     handleRuntimeWorkspaceCommand(input, trimmed, context),
   ({ input, trimmed, context }) =>

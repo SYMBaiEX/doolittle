@@ -107,7 +107,7 @@ export function maybeGetSkillSynthesisNudge(
     return (
       `\n\n💡 **Skill synthesis available**: This conversation contains a reusable workflow — ` +
       `"${analysis.candidate.title}". ` +
-      `Run \`/skills synthesize\` to save it as a skill document, or I can do it automatically.`
+      `Run \`/skills synthesize latest\` to save it as a skill document, or I can do it automatically.`
     );
   } catch {
     return undefined;

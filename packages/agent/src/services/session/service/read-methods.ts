@@ -7,6 +7,7 @@ export const sessionServiceReadMethods: Pick<
   | "search"
   | "recent"
   | "recentBySession"
+  | "messagesBySession"
   | "countBySessionRole"
   | "latest"
   | "metadata"
@@ -24,6 +25,13 @@ export const sessionServiceReadMethods: Pick<
 
   recentBySession(sessionId, limit) {
     return getSessionServiceState(this).reads.recentBySession(sessionId, limit);
+  },
+
+  messagesBySession(sessionId, limit) {
+    return getSessionServiceState(this).reads.messagesBySession(
+      sessionId,
+      limit,
+    );
   },
 
   countBySessionRole(sessionId, role) {
