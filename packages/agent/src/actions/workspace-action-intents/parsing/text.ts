@@ -33,8 +33,13 @@ export function resolveWorkspaceIntentFromText(
   const lower = trimmed.toLowerCase();
   const explicitProjectPath = extractExplicitProjectPath(trimmed);
   const namedLocalCodebase = extractNamedLocalCodebase(trimmed);
+  const isCreationOrMutationRequest =
+    /\b(?:make|create|add|write|generate|build|scaffold|set up|setup|mkdir|touch|save|edit|update|modify|change)\b/iu.test(
+      trimmed,
+    );
 
   if (
+    !isCreationOrMutationRequest &&
     namedLocalCodebase &&
     /\b(locally|local|on my mac|on this machine|on my computer)\b/iu.test(
       trimmed,
@@ -76,6 +81,7 @@ export function resolveWorkspaceIntentFromText(
   }
 
   if (
+    !isCreationOrMutationRequest &&
     explicitProjectPath &&
     /\b(repo|repository|project|codebase|directory|folder|overview|inspect|look at|what is)\b/iu.test(
       trimmed,

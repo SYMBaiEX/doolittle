@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
 export function resolveLocalProjectPath(
   inputPath: string,
@@ -13,10 +13,17 @@ export function resolveLocalProjectPath(
   const expanded = trimmed.startsWith("~/")
     ? join(home, trimmed.slice(2))
     : trimmed;
+  const homeName = basename(home);
+  const homeQualified =
+    expanded === homeName || expanded.startsWith(`${homeName}/`)
+      ? resolve(dirname(home), expanded)
+      : undefined;
   const resolved = isAbsolute(expanded)
     ? resolve(expanded)
-    : /^(dev|code|projects)\//u.test(expanded)
-      ? resolve(home, expanded)
-      : resolve(workspaceDir, expanded);
+    : homeQualified
+      ? homeQualified
+      : /^(dev|code|projects)\//u.test(expanded)
+        ? resolve(home, expanded)
+        : resolve(workspaceDir, expanded);
   return existsSync(resolved) ? resolved : undefined;
 }

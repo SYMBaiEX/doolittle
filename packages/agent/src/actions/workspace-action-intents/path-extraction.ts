@@ -1,8 +1,15 @@
 import { normalizeQuotedSegment } from "./shared/string-helpers";
 
+const ROOTED_LOCAL_PATH = /^(~|\/|\.{1,2}\/|(?:dev|code|projects)\/)/u;
+const ACCOUNT_QUALIFIED_DEV_PATH =
+  /^[A-Za-z0-9._-]+\/(?:dev|code|projects)(?:\/|$)/u;
+
 export function extractExplicitProjectPath(text: string): string | undefined {
   const quoted = normalizeQuotedSegment(text);
-  if (quoted && /^(~|\/|\.{1,2}\/|(?:dev|code|projects)\/)/u.test(quoted)) {
+  if (
+    quoted &&
+    (ROOTED_LOCAL_PATH.test(quoted) || ACCOUNT_QUALIFIED_DEV_PATH.test(quoted))
+  ) {
     return quoted;
   }
 
@@ -11,7 +18,10 @@ export function extractExplicitProjectPath(text: string): string | undefined {
       /(?:located|living|sitting)\s+(?:at|in|under)\s+((?:~|\/|\.{1,2}\/|(?:dev|code|projects)\/)[^\s,;:!?]+)/iu,
     )?.[1] ??
     text.match(
-      /\b((?:~|\/|\.{1,2}\/|(?:dev|code|projects)\/)[A-Za-z0-9._/-]+)/u,
+      /(?:^|[\s("'`])((?:~|\/|\.{1,2}\/|(?:dev|code|projects)\/)[A-Za-z0-9._/-]+)/u,
+    )?.[1] ??
+    text.match(
+      /(?:^|[\s("'`])([A-Za-z0-9._-]+\/(?:dev|code|projects)(?:\/[A-Za-z0-9._/-]*)?)/u,
     )?.[1];
   return locatedPath?.trim() || undefined;
 }
