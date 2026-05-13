@@ -34,9 +34,17 @@ export function getEffectiveTurnCapabilityPolicy(
     profile === "minimal"
       ? []
       : profile === "coding"
-        ? availableTools.filter((tool) =>
-            ["codingAgent", "agentOrchestrator", "mcp"].includes(tool),
-          )
+        ? [
+            ...availableTools.filter((tool) =>
+              ["codingAgent", "agentOrchestrator", "mcp"].includes(tool),
+            ),
+            "READ_FILE",
+            "WRITE_FILE",
+            "PATCH_FILE",
+            "SEARCH_FILES",
+            "CREATE_DIRECTORY",
+            "RUN_IN_TERMINAL",
+          ]
         : profile === "messaging"
           ? availableTools.filter((tool) =>
               ["browser", "knowledge", "mcp"].includes(tool),

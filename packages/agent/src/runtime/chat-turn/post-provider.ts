@@ -1,3 +1,7 @@
+import {
+  assessTurnExecutionContract,
+  buildTurnExecutionContract,
+} from "./execution-contract";
 import { resolvePostProviderFallback } from "./post-provider/fallback";
 import {
   buildPostProviderFinalResponse,
@@ -26,10 +30,27 @@ export async function runPostProviderTurn(
     return fallbackResult;
   }
 
+  const executionContract = buildTurnExecutionContract({
+    message: input.effectiveInput.message,
+    localInteractive: input.turn.localInteractive,
+  });
+  const executionAssessment = assessTurnExecutionContract({
+    contract: executionContract,
+    response: fallbackResult.response,
+    observedActionCount: fallbackResult.observedActionCount,
+    runFailureMessage: fallbackResult.runFailureMessage,
+  });
+  const runFailureMessage = executionAssessment.ok
+    ? fallbackResult.runFailureMessage
+    : executionAssessment.failureMessage;
+  const response = executionAssessment.ok
+    ? fallbackResult.response
+    : executionAssessment.failureMessage || fallbackResult.response;
+
   const finalResponse = buildPostProviderFinalResponse({
     effectiveInput: input.effectiveInput,
-    response: fallbackResult.response,
-    runFailureMessage: fallbackResult.runFailureMessage,
+    response,
+    runFailureMessage,
     observedActionCount: fallbackResult.observedActionCount,
     settingsDuring: input.settingsDuring,
   });
@@ -45,7 +66,7 @@ export async function runPostProviderTurn(
     context: input.context,
     turn: input.turn,
     finalResponse,
-    runFailureMessage: fallbackResult.runFailureMessage,
+    runFailureMessage,
     observedActionCount: fallbackResult.observedActionCount,
     usedFallback: fallbackResult.usedFallback,
     settingsDuring: input.settingsDuring,

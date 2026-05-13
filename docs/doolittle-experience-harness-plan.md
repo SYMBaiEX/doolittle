@@ -8,6 +8,7 @@ Make Doolittle feel like the ElizaOS-native version of the Doolittle Agent wow l
 
 - **Live operator loop**: Doolittle makes the terminal feel alive with status bars, spinners, tool previews, approvals, interrupts, `/retry`, `/undo`, `/usage`, `/compress`, and model controls.
 - **Closed learning loop**: Doolittle treats memory, todos, skills, session search, and trajectory export as one workflow rather than separate panels.
+- **Execution contracts**: Doolittle does not trust the model's summary when tools were supposed to act. Its loop tracks tool results, repeated failures, empty responses, and file-mutation proof before presenting a turn as successful.
 - **One command grammar**: CLI, TUI, gateway, and autocomplete derive from the same command registry.
 - **Platform continuity**: Gateway conversations can resume, route home, approve commands, and preserve session context.
 - **Research readiness**: Trajectories are first-class artifacts for compression, replay, batch generation, evaluation, and future small-model training.
@@ -24,6 +25,9 @@ Doolittle should not clone Doolittle as a Python monolith. It should use ElizaOS
 
 ## Implemented In This Slice
 
+- Local execution turns now have a Doolittle-side execution contract: local action requests must produce observable action proof, and file-mutation requests cannot complete with zero local actions.
+- Empty planner wrappers such as `Provider executed: []` are now classified as native execution failures for local tasks instead of being treated as successful answers.
+- Coding profile guidance now names Doolittle's actual Eliza actions (`READ_FILE`, `WRITE_FILE`, `PATCH_FILE`, `SEARCH_FILES`, `CREATE_DIRECTORY`, `RUN_IN_TERMINAL`) instead of only abstract coding-agent capabilities.
 - `/retry` replays the latest real conversational turn after removing its previous answer, without storing `/retry` as the prompt.
 - `/undo` removes the latest conversational exchange from session memory.
 - `/todo list`, `/todo add`, and `/todo show` alias Doolittle's native planning service for Doolittle-native task tracking.
@@ -38,7 +42,9 @@ Doolittle should not clone Doolittle as a Python monolith. It should use ElizaOS
 
 ## Next Todo
 
-1. Add a compact live status footer for plain shell mode: provider/model, elapsed turn time, context pressure, active tool, and last trajectory event.
-2. Add gateway native experience checks for typing/progressive delivery, approvals, home routing, voice memo routing, and session continuity.
-3. Add cost/rate-limit accounting when the active provider exposes token or quota metadata.
-4. Add an interactive model picker UI on top of the `/model list` and `/model use` command contract.
+1. Add Doolittle-native per-turn mutation state: record every `WRITE_FILE`, `PATCH_FILE`, and `CREATE_DIRECTORY` success/failure by path and append truth-footers when a mutation failed.
+2. Add tool-loop guardrails for repeated identical failures, repeated no-progress retrieval, and planner empty-response retries.
+3. Add a compact live status footer for plain shell mode: provider/model, elapsed turn time, context pressure, active tool, and last trajectory event.
+4. Add gateway native experience checks for typing/progressive delivery, approvals, home routing, voice memo routing, and session continuity.
+5. Add cost/rate-limit accounting when the active provider exposes token or quota metadata.
+6. Add an interactive model picker UI on top of the `/model list` and `/model use` command contract.

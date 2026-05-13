@@ -319,4 +319,59 @@ describe("chat turn post-provider seam", () => {
       },
     ]);
   });
+
+  it("fails local execution turns when the provider returns an empty action wrapper", async () => {
+    const harness = createContext({ observedActionCount: 0 });
+
+    const result = await runPostProviderTurn({
+      input: {
+        userId: "alice",
+        message:
+          "create a folder named the-game in symbiex/dev and write html css js files",
+        source: "cli",
+      },
+      effectiveInput: {
+        userId: "alice",
+        message:
+          "create a folder named the-game in symbiex/dev and write html css js files",
+        source: "cli",
+      },
+      context: harness.context,
+      turn: createTurn(),
+      response: "🔎 Provider executed: []",
+      settingsDuring: {
+        model: {
+          provider: "devin",
+          model: "swe-1-6-fast",
+        },
+      } as Parameters<typeof runPostProviderTurn>[0]["settingsDuring"],
+      scheduleProfileObservation: () => undefined,
+      loadDirectLocalIntent: async () => ({
+        directLocalIntent: null,
+        executeDirectLocalIntent: async () => "unused",
+        isHighConfidenceDirectLocalIntent: () => false,
+        requiresModelSynthesisForLocalIntent: () => false,
+        shouldUseDirectLocalFallback: () => false,
+      }),
+      approveDirectLocalIntent: async () => undefined,
+    });
+
+    expect(result).toEqual({
+      kind: "final",
+      response:
+        "Native planning failed: the provider returned no executable actions for a local execution request.",
+      runFailureMessage:
+        "Native planning failed: the provider returned no executable actions for a local execution request.",
+      observedActionCount: 0,
+      usedFallback: false,
+    });
+    expect(harness.finishEvents).toEqual([
+      {
+        sessionId: "session-1",
+        status: "error",
+        message:
+          "Native planning failed: the provider returned no executable actions for a local execution request.",
+      },
+    ]);
+  });
 });

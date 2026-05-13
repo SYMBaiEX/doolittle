@@ -39,6 +39,10 @@ export function looksLikeNativeExecutionFailure(text: string): boolean {
     return false;
   }
 
+  if (/^🔎\s*provider executed:\s*\[\]\s*$/iu.test(text.trim())) {
+    return true;
+  }
+
   return [
     "parse error",
     "didn't complete successfully",
