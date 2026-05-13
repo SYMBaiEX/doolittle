@@ -13,10 +13,6 @@ import {
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { DirectLocalIntentExecution } from "../local-intent-fallback";
-import {
-  executeStaticSiteScaffoldPlan,
-  resolveStaticSiteScaffoldPlan,
-} from "./static-site";
 
 function buildWorkspaceStatusLine(
   intent: ReturnType<typeof resolveWorkspaceIntentFromText>,
@@ -59,20 +55,6 @@ export function resolveDirectLocalIntent(
           context.services,
           repositoryIntent,
         ),
-    };
-  }
-
-  const staticSitePlan = resolveStaticSiteScaffoldPlan(
-    text,
-    context.config?.workspaceDir ?? process.cwd(),
-  );
-  if (staticSitePlan) {
-    return {
-      label: `workspace:scaffold-static-site:${staticSitePlan.targetPath}`,
-      statusLine: `Creating static site at ${staticSitePlan.targetPath}...`,
-      isHighConfidence: true,
-      kind: "mutation",
-      execute: async () => executeStaticSiteScaffoldPlan(staticSitePlan),
     };
   }
 

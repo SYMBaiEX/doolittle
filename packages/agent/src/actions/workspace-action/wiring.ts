@@ -29,7 +29,7 @@ export function createWorkspaceAction(
       "WORKSPACE_WRITE",
     ],
     description:
-      "Explores the local workspace. Use this to list files, read a file, search the repo, or write a file when the user asks directly.",
+      "Legacy workspace overview helper. Prefer READ_FILE, WRITE_FILE, PATCH_FILE, SEARCH_FILES, and CREATE_DIRECTORY for concrete file work; use this for broad workspace tree/overview requests.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text = readWorkspaceActionText(message);
       return Boolean(text && resolveWorkspaceIntentFromText(text));

@@ -1,6 +1,7 @@
 import {
   createAgentContextProvider,
   createCronAction,
+  createFileActions,
   createMemoryAction,
   createMemoryNudgeEvaluator,
   createRepositoryAction,
@@ -23,6 +24,7 @@ export function createDoolittlePluginSurface({
     createSkillsAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
     createCronAction(services),
+    ...createFileActions(config.workspaceDir),
     createWorkspaceAction(services, config.workspaceDir),
     createTerminalAction(services),
     createRepositoryAction(services),

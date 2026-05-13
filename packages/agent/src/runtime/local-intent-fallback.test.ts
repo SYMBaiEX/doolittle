@@ -1,8 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import {
   requiresModelSynthesisForLocalIntent,
   resolveDirectLocalIntent,
@@ -58,44 +54,6 @@ describe("local intent fallback", () => {
 
     expect(terminalIntent?.label.startsWith("shell:")).toBe(true);
     expect(shouldPreferDirectLocalExecution(terminalIntent)).toBe(false);
-  });
-
-  it("scaffolds a requested static site inside an account-relative dev root", async () => {
-    const parent = join(tmpdir(), `doolittle-site-${Date.now()}`);
-    const home = join(parent, "symbiex");
-    const dev = join(home, "dev");
-    mkdirSync(dev, { recursive: true });
-
-    const previousHome = process.env.HOME;
-    process.env.HOME = home;
-    try {
-      const intent = resolveDirectLocalIntent(
-        fakeChatRequest(
-          "Can you make a new directory in the symbiex/dev named the-effect and make a html file with css and js that is a simple website that explains who you are.",
-        ),
-        { config: { workspaceDir: dev } } as never,
-      );
-
-      expect(intent?.label).toStartWith("workspace:scaffold-static-site:");
-      expect(intent?.isHighConfidence).toBe(true);
-
-      const response = await intent?.execute();
-      const target = join(dev, "the-effect");
-      expect(response).toContain(target);
-      expect(existsSync(join(target, "index.html"))).toBe(true);
-      expect(existsSync(join(target, "styles.css"))).toBe(true);
-      expect(existsSync(join(target, "script.js"))).toBe(true);
-      expect(readFileSync(join(target, "index.html"), "utf8")).toContain(
-        "Doolittle",
-      );
-    } finally {
-      if (previousHome === undefined) {
-        delete process.env.HOME;
-      } else {
-        process.env.HOME = previousHome;
-      }
-      rmSync(parent, { recursive: true, force: true });
-    }
   });
 
   it("only triggers fallback for stalled native output", () => {

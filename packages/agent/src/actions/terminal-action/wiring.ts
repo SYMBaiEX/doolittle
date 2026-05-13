@@ -30,7 +30,7 @@ export function createTerminalAction(services: AppServices): Action {
       "CALL_MCP_TOOL",
     ],
     description:
-      "Runs a shell command in the local Doolittle terminal. Use this when the user asks to run, search, inspect, list, or execute something in the terminal.",
+      "Runs a shell command in the local Doolittle terminal. Reserve this for builds, tests, git, package managers, scripts, processes, network checks, and commands that truly need a shell. Use READ_FILE/WRITE_FILE/PATCH_FILE/SEARCH_FILES/CREATE_DIRECTORY for file IO instead of cat, echo heredocs, sed, grep, find, or ls.",
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text =
         typeof message.content === "string"

@@ -41,6 +41,13 @@ export function buildCodingContextPrelude(input: {
       `connector=${codingContext.connector.type}`,
       `mode=${codingContext.interactionMode}`,
       `maxIterations=${codingContext.maxIterations}`,
+      "localFileRoots=workspace plus ~/dev, ~/code, ~/projects when present",
+      "fileTools=READ_FILE, WRITE_FILE, PATCH_FILE, SEARCH_FILES, CREATE_DIRECTORY",
+      "Use WRITE_FILE for new files; it creates parent directories automatically.",
+      "Use PATCH_FILE for targeted edits and READ_FILE/SEARCH_FILES for inspection.",
+      "Reserve RUN_IN_TERMINAL for builds, tests, git, package managers, scripts, processes, and network checks.",
+      "Do not use terminal cat/head/tail to read files, grep/find/ls to inspect files, echo/cat heredocs to create files, or sed/awk to edit files.",
+      "For create-or-change-file requests, do not finish with REPLY/NONE until the requested file writes or patches have actually succeeded.",
     ].join("\n");
   } catch {
     return undefined;
