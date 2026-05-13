@@ -110,6 +110,7 @@ export function shouldRenderRunEvent(
       "thinking",
       "action-started",
       "action-completed",
+      "local-mutation",
       "waiting",
       "completed",
       "error",
@@ -143,6 +144,21 @@ export function formatRunEvent(
       return event.run.lastAction
         ? `tool done${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.lastAction, limit)}`
         : `action completed${elapsed ? ` · ${elapsed}` : ""}`;
+    case "local-mutation": {
+      const mutation = event.run.localMutations.at(-1);
+      if (!mutation) {
+        return `local mutation${elapsed ? ` · ${elapsed}` : ""}`;
+      }
+      const path = mutation.resolvedPath ?? mutation.requestedPath;
+      const detail = [
+        mutation.action,
+        mutation.success ? "saved" : "failed",
+        path,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return `mutation${elapsed ? ` · ${elapsed}` : ""} · ${truncate(detail, limit)}`;
+    }
     case "waiting":
       return event.run.statusDetail
         ? `waiting${elapsed ? ` · ${elapsed}` : ""} · ${truncate(event.run.statusDetail, limit)}`

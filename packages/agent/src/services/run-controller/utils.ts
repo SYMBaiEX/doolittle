@@ -1,3 +1,8 @@
+import type { RunSnapshot } from "./types";
+
 export const nowIso = (): string => new Date().toISOString();
 
-export const cloneRun = <T>(run: T): T => ({ ...run });
+export const cloneRun = (run: RunSnapshot): RunSnapshot => ({
+  ...run,
+  localMutations: run.localMutations.map((mutation) => ({ ...mutation })),
+});

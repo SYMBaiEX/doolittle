@@ -118,7 +118,9 @@ function runUpdateToTrajectoryEvent(
     category:
       event.type === "action-started" || event.type === "action-completed"
         ? "tool"
-        : "run",
+        : event.type === "local-mutation"
+          ? "tool"
+          : "run",
     event: `run.${event.type}`,
     sessionId: event.sessionId,
     runId: run.runId,
@@ -151,6 +153,7 @@ function runUpdateToTrajectoryEvent(
         activeStream: run.activeStream,
         statusDetail: run.statusDetail,
         pendingApprovals: run.pendingApprovals,
+        localMutations: run.localMutations,
         startedAt: run.startedAt,
         updatedAt: run.updatedAt,
         endedAt: run.endedAt,

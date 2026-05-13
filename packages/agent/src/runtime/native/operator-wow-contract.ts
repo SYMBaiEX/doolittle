@@ -21,7 +21,7 @@ export interface OperatorWowContractPillar {
   id: string;
   title: string;
   outcome: string;
-  doolittleOpenClawSignals: string[];
+  referenceSignals: string[];
   elizaosLeverage: string[];
   doolittleSurfaces: string[];
   acceptanceScenarios: OperatorWowAcceptanceScenario[];
@@ -35,9 +35,9 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "First Run To Working Assistant",
     outcome:
       "A new operator can install, configure, inspect readiness, and complete a first useful assistant turn without reading architecture docs.",
-    doolittleOpenClawSignals: [
+    referenceSignals: [
       "OpenClaw makes onboarding a product surface with `openclaw onboard`, daemon install, provider setup, dashboard launch, and a first chat.",
-      "Doolittle keeps setup close to the terminal and exposes provider/model readiness through CLI commands before deeper work starts.",
+      "Doolittle keeps setup close to the terminal and exposes provider/model readiness through native CLI commands before deeper work starts.",
     ],
     elizaosLeverage: [
       "ElizaOS provider plugins own model connectivity instead of Doolittle inventing provider clients.",
@@ -127,7 +127,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Terminal Operator Loop",
     outcome:
       "The everyday shell feels like a live operator console: multiline chat, slash control, shell shortcuts, streaming tool progress, interruption, and recovery.",
-    doolittleOpenClawSignals: [
+    referenceSignals: [
       "Doolittle creates trust with a dense terminal loop: streaming tool output, slash commands, approvals, interrupts, model switching, and resumable sessions.",
       "OpenClaw keeps chat commands such as `/status`, `/compact`, `/usage`, `/trace`, `/verbose`, and `/restart` available from chat surfaces.",
     ],
@@ -176,12 +176,12 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
       },
     ],
     currentGaps: [
-      "Doolittle has useful shell and cockpit surfaces, but Doolittle still leads on live session controls such as retry, undo, compress, usage, and insights.",
+      "Doolittle has useful shell and cockpit surfaces, but live session controls still need first-class retry, undo, compress, usage, and insights behavior.",
       "Interrupt and steering behavior is not yet expressed as a first-class acceptance contract.",
     ],
     nextImplementationTasks: [
       {
-        id: "operator-command-native experience",
+        id: "operator-command-surface",
         title:
           "Promote retry, undo, compress, usage, insights, and model controls into first-class slash commands.",
         ownerSurface: "operator shell",
@@ -220,8 +220,8 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Real Tools And Coding",
     outcome:
       "Doolittle can inspect, edit, test, review, and explain a repository with the same reliability expected from a daily coding agent.",
-    doolittleOpenClawSignals: [
-      "Doolittle earns confidence through many terminal backends, file tools, browser tools, approvals, MCP, and delegation.",
+    referenceSignals: [
+      "Doolittle earns confidence through reliable terminal backends, file tools, browser tools, approvals, MCP, and delegation.",
       "OpenClaw showcases chat-native coding loops where work starts in a mobile channel and lands as tested changes or PR feedback.",
     ],
     elizaosLeverage: [
@@ -312,8 +312,8 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Memory Learning And Skills",
     outcome:
       "Doolittle gets better with use by recalling durable preferences, finding past sessions, and proposing approved skills for repeated workflows.",
-    doolittleOpenClawSignals: [
-      "Doolittle and OpenClaw both make learning visible through memory files, session search, skill creation, and skill improvement loops.",
+    referenceSignals: [
+      "Doolittle makes learning visible through memory files, session search, skill creation, and skill improvement loops.",
       "OpenClaw's Skill Workshop pattern treats new skills as proposals that can be scanned, approved, and refreshed without a restart.",
     ],
     elizaosLeverage: [
@@ -402,8 +402,8 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Gateway Everywhere Presence",
     outcome:
       "Doolittle can be reached from trusted messaging channels and keeps delivery, threads, attachments, and recovery visible.",
-    doolittleOpenClawSignals: [
-      "Doolittle has broad messaging adapters and a mature gateway/session delivery loop.",
+    referenceSignals: [
+      "Doolittle needs broad messaging adapters and a mature gateway/session delivery loop.",
       "OpenClaw pushes this further with local-first gateway, pairing, many channels, nodes, device trust, dashboard, and channel-native behavior.",
     ],
     elizaosLeverage: [
@@ -462,7 +462,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         files: [
           "packages/agent/src/gateway/runner/gateway-runner.ts",
           "packages/agent/src/gateway/gateway-supervision-flow.test.ts",
-          "docs/native experience-ledger.md",
+          "docs/native-experience-ledger.md",
         ],
         definitionOfDone: [
           "Restart scenarios preserve or explicitly fail queued work.",
@@ -477,7 +477,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         files: [
           "packages/agent/src/gateway/platforms",
           "packages/agent/src/gateway/receive/setup.test.ts",
-          "docs/native experience-ledger.md",
+          "docs/native-experience-ledger.md",
         ],
         definitionOfDone: [
           "Each enabled adapter declares typing, edit, reply, thread, attachment, and voice support.",
@@ -492,7 +492,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Automation And Daily Tasks",
     outcome:
       "Doolittle can run scheduled work, short follow-ups, standing orders, and daily briefings with observable delivery.",
-    doolittleOpenClawSignals: [
+    referenceSignals: [
       "Doolittle cron jobs create fresh sessions, inject skills, execute prompts, and deliver results to configured platforms.",
       "OpenClaw separates cron, heartbeat, standing orders, webhooks, polling, and taskflow so daily automation feels intentional.",
     ],
@@ -582,7 +582,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Model Provider Freedom",
     outcome:
       "Operators can connect, inspect, switch, and fail over among model providers without losing runtime clarity.",
-    doolittleOpenClawSignals: [
+    referenceSignals: [
       "Doolittle emphasizes provider breadth, OAuth/setup flows, runtime provider resolution, model switching, and fallback chains.",
       "OpenClaw treats models as a first-class concept with provider docs, failover, auth profiles, and provider-specific media behavior.",
     ],
@@ -631,7 +631,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
       },
     ],
     currentGaps: [
-      "Provider package versions are current and the bootstrap is local-first on Ollama, but the operator model command surface needs to feel as direct as Doolittle.",
+      "Provider package versions are current and the bootstrap is local-first on Ollama, but the operator model command surface needs to feel as direct as the rest of Doolittle.",
       "Fallback behavior exists but should be visible at run level, not only as internal configuration.",
     ],
     nextImplementationTasks: [
@@ -672,7 +672,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     title: "Observability Safety And Proof",
     outcome:
       "Doolittle shows what it did, why it was allowed, what changed, what failed, and what remains risky.",
-    doolittleOpenClawSignals: [
+    referenceSignals: [
       "Doolittle uses callbacks, approvals, session state, and trajectory-style records to make work inspectable.",
       "OpenClaw treats security defaults, pairing, audit checks, tool policies, and gateway auth as product surfaces.",
     ],

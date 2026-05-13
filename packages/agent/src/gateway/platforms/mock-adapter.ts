@@ -53,7 +53,7 @@ export class MockPlatformAdapter implements PlatformAdapter {
       ready: this.status === "running",
       mode: "mock",
       capabilities,
-      detail: `${this.name} mock adapter active for local native experience scaffolding. Inbound=${capabilities.inbound}, replies=${capabilities.replies}, threads=${capabilities.threads}.`,
+      detail: `${this.name} mock adapter active for local native scaffolding. Inbound=${capabilities.inbound}, replies=${capabilities.replies}, threads=${capabilities.threads}.`,
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastSendAt: this.lastSendAt,

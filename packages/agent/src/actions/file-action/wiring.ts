@@ -7,6 +7,10 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import type {
+  LocalMutationInput,
+  RunControllerService,
+} from "@/services/run-controller-service";
 import {
   createLocalDirectory,
   patchLocalTextFile,
@@ -16,6 +20,10 @@ import {
 } from "./operations";
 
 type ParamRecord = Record<string, unknown>;
+type MutationRecorder = Pick<
+  RunControllerService,
+  "recordRuntimeLocalMutation"
+>;
 
 function textFromMessage(message: Memory): string {
   return typeof message.content === "string"
@@ -82,6 +90,35 @@ function handlerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function firstResponseLine(response: string): string {
+  return response.split(/\r?\n/u)[0]?.trim() || response.trim();
+}
+
+function responseNumber(response: string, label: string): number | undefined {
+  const match = new RegExp(`^${label}:\\s*(\\d+)`, "imu").exec(response);
+  return match ? Number.parseInt(match[1] ?? "", 10) : undefined;
+}
+
+function resolvedMutationPath(response: string): string | undefined {
+  const match =
+    /^(?:Wrote|Patched|Created directory|Directory already existed):\s*(.+)$/imu.exec(
+      response,
+    );
+  return match?.[1]?.trim();
+}
+
+function recordFileMutation(
+  recorder: MutationRecorder | undefined,
+  message: Memory,
+  mutation: LocalMutationInput,
+): void {
+  const roomId = String(message.roomId ?? "");
+  if (!recorder || !roomId) {
+    return;
+  }
+  recorder.recordRuntimeLocalMutation(roomId, mutation);
+}
+
 function createReadFileAction(workspaceDir: string): Action {
   return {
     name: "READ_FILE",
@@ -138,7 +175,10 @@ function createReadFileAction(workspaceDir: string): Action {
   };
 }
 
-function createWriteFileAction(workspaceDir: string): Action {
+function createWriteFileAction(
+  workspaceDir: string,
+  recorder?: MutationRecorder,
+): Action {
   return {
     name: "WRITE_FILE",
     similes: ["DOOLITTLE_WRITE_FILE", "CREATE_FILE", "SAVE_FILE"],
@@ -166,23 +206,38 @@ function createWriteFileAction(workspaceDir: string): Action {
       ) && likelyFileWork(textFromMessage(message)),
     handler: async (
       _runtime: IAgentRuntime,
-      _message: Memory,
+      message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
+      let path = "";
       try {
         const params = paramsFromOptions(options);
-        const path = stringParam(params, "path", "file", "target");
+        path = stringParam(params, "path", "file", "target");
         const content = stringParam(params, "content", "text");
         if (!content) {
           throw new Error("content is required.");
         }
         const response = writeLocalTextFile({ workspaceDir }, path, content);
+        recordFileMutation(recorder, message, {
+          action: "WRITE_FILE",
+          requestedPath: path,
+          resolvedPath: resolvedMutationPath(response),
+          success: true,
+          message: firstResponseLine(response),
+          bytes: responseNumber(response, "Bytes"),
+        });
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(true, response, { path });
       } catch (error) {
         const response = `WRITE_FILE failed: ${handlerError(error)}`;
+        recordFileMutation(recorder, message, {
+          action: "WRITE_FILE",
+          requestedPath: path || undefined,
+          success: false,
+          message: response,
+        });
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(false, response);
       }
@@ -190,7 +245,10 @@ function createWriteFileAction(workspaceDir: string): Action {
   };
 }
 
-function createDirectoryAction(workspaceDir: string): Action {
+function createDirectoryAction(
+  workspaceDir: string,
+  recorder?: MutationRecorder,
+): Action {
   return {
     name: "CREATE_DIRECTORY",
     similes: ["MKDIR", "CREATE_FOLDER", "DOOLITTLE_CREATE_DIRECTORY"],
@@ -212,25 +270,33 @@ function createDirectoryAction(workspaceDir: string): Action {
       ) && /\b(?:directory|folder|project)\b/iu.test(textFromMessage(message)),
     handler: async (
       _runtime: IAgentRuntime,
-      _message: Memory,
+      message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
+      let path = "";
       try {
         const params = paramsFromOptions(options);
-        const path = stringParam(
-          params,
-          "path",
-          "directory",
-          "folder",
-          "target",
-        );
+        path = stringParam(params, "path", "directory", "folder", "target");
         const response = createLocalDirectory({ workspaceDir }, path);
+        recordFileMutation(recorder, message, {
+          action: "CREATE_DIRECTORY",
+          requestedPath: path,
+          resolvedPath: resolvedMutationPath(response),
+          success: true,
+          message: firstResponseLine(response),
+        });
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(true, response, { path });
       } catch (error) {
         const response = `CREATE_DIRECTORY failed: ${handlerError(error)}`;
+        recordFileMutation(recorder, message, {
+          action: "CREATE_DIRECTORY",
+          requestedPath: path || undefined,
+          success: false,
+          message: response,
+        });
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(false, response);
       }
@@ -238,7 +304,10 @@ function createDirectoryAction(workspaceDir: string): Action {
   };
 }
 
-function createPatchFileAction(workspaceDir: string): Action {
+function createPatchFileAction(
+  workspaceDir: string,
+  recorder?: MutationRecorder,
+): Action {
   return {
     name: "PATCH_FILE",
     similes: ["DOOLITTLE_PATCH_FILE", "EDIT_FILE", "MODIFY_FILE"],
@@ -279,14 +348,15 @@ function createPatchFileAction(workspaceDir: string): Action {
       ) && likelyFileWork(textFromMessage(message)),
     handler: async (
       _runtime: IAgentRuntime,
-      _message: Memory,
+      message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
+      let path = "";
       try {
         const params = paramsFromOptions(options);
-        const path = stringParam(params, "path", "file", "target");
+        path = stringParam(params, "path", "file", "target");
         const oldText = stringParam(params, "oldText", "old_string", "old");
         const newText = stringParam(params, "newText", "new_string", "new");
         const response = patchLocalTextFile(
@@ -298,10 +368,24 @@ function createPatchFileAction(workspaceDir: string): Action {
             replaceAll: booleanParam(params, "replaceAll"),
           },
         );
+        recordFileMutation(recorder, message, {
+          action: "PATCH_FILE",
+          requestedPath: path,
+          resolvedPath: resolvedMutationPath(response),
+          success: true,
+          message: firstResponseLine(response),
+          replacements: responseNumber(response, "Replacements"),
+        });
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(true, response, { path });
       } catch (error) {
         const response = `PATCH_FILE failed: ${handlerError(error)}`;
+        recordFileMutation(recorder, message, {
+          action: "PATCH_FILE",
+          requestedPath: path || undefined,
+          success: false,
+          message: response,
+        });
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(false, response);
       }
@@ -384,12 +468,15 @@ function createSearchFilesAction(workspaceDir: string): Action {
   };
 }
 
-export function createFileActions(workspaceDir: string): Action[] {
+export function createFileActions(
+  workspaceDir: string,
+  recorder?: MutationRecorder,
+): Action[] {
   return [
     createReadFileAction(workspaceDir),
-    createWriteFileAction(workspaceDir),
-    createDirectoryAction(workspaceDir),
-    createPatchFileAction(workspaceDir),
+    createWriteFileAction(workspaceDir, recorder),
+    createDirectoryAction(workspaceDir, recorder),
+    createPatchFileAction(workspaceDir, recorder),
     createSearchFilesAction(workspaceDir),
   ];
 }

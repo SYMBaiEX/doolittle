@@ -5,6 +5,14 @@ import { runPostProviderTurn } from "./chat-turn/post-provider";
 function createContext(
   input: {
     observedActionCount?: number;
+    localMutations?: Array<{
+      action: string;
+      requestedPath?: string;
+      resolvedPath?: string;
+      success: boolean;
+      message?: string;
+      recordedAt: string;
+    }>;
     assistantTurnCount?: number;
     recentMessages?: Array<{ text: string }>;
     contextCompression?: {
@@ -38,6 +46,7 @@ function createContext(
       runController: {
         getActive: () => ({
           observedActionCount,
+          localMutations: input.localMutations ?? [],
         }),
         finishTurn: (sessionId: string, status: string, message?: string) => {
           finishEvents.push({ sessionId, status, message });
@@ -371,6 +380,118 @@ describe("chat turn post-provider seam", () => {
         status: "error",
         message:
           "Native planning failed: the provider returned no executable actions for a local execution request.",
+      },
+    ]);
+  });
+
+  it("fails file mutation turns when actions ran but no mutation receipt landed", async () => {
+    const harness = createContext({ observedActionCount: 2 });
+
+    const result = await runPostProviderTurn({
+      input: {
+        userId: "alice",
+        message: "create a website file in symbiex/dev/the-game",
+        source: "cli",
+      },
+      effectiveInput: {
+        userId: "alice",
+        message: "create a website file in symbiex/dev/the-game",
+        source: "cli",
+      },
+      context: harness.context,
+      turn: createTurn(),
+      response: "Done.",
+      settingsDuring: {
+        model: {
+          provider: "devin",
+          model: "swe-1-6-fast",
+        },
+      } as Parameters<typeof runPostProviderTurn>[0]["settingsDuring"],
+      scheduleProfileObservation: () => undefined,
+      loadDirectLocalIntent: async () => ({
+        directLocalIntent: null,
+        executeDirectLocalIntent: async () => "unused",
+        isHighConfidenceDirectLocalIntent: () => false,
+        requiresModelSynthesisForLocalIntent: () => false,
+        shouldUseDirectLocalFallback: () => false,
+      }),
+      approveDirectLocalIntent: async () => undefined,
+    });
+
+    expect(result.kind).toBe("final");
+    if (result.kind !== "final") {
+      throw new Error("expected final result");
+    }
+    expect(result.runFailureMessage).toBe(
+      "Native execution failed: the requested file change did not produce a local mutation receipt.",
+    );
+    expect(harness.finishEvents).toEqual([
+      {
+        sessionId: "session-1",
+        status: "error",
+        message:
+          "Native execution failed: the requested file change did not produce a local mutation receipt.",
+      },
+    ]);
+  });
+
+  it("accepts file mutation turns when a local mutation receipt exists", async () => {
+    const harness = createContext({
+      observedActionCount: 2,
+      localMutations: [
+        {
+          action: "WRITE_FILE",
+          requestedPath: "symbiex/dev/the-game/index.html",
+          resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+          success: true,
+          message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+          recordedAt: "2026-05-13T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const result = await runPostProviderTurn({
+      input: {
+        userId: "alice",
+        message: "create a website file in symbiex/dev/the-game",
+        source: "cli",
+      },
+      effectiveInput: {
+        userId: "alice",
+        message: "create a website file in symbiex/dev/the-game",
+        source: "cli",
+      },
+      context: harness.context,
+      turn: createTurn(),
+      response: "Created `/Users/symbiex/dev/the-game/index.html`.",
+      settingsDuring: {
+        model: {
+          provider: "devin",
+          model: "swe-1-6-fast",
+        },
+      } as Parameters<typeof runPostProviderTurn>[0]["settingsDuring"],
+      scheduleProfileObservation: () => undefined,
+      loadDirectLocalIntent: async () => ({
+        directLocalIntent: null,
+        executeDirectLocalIntent: async () => "unused",
+        isHighConfidenceDirectLocalIntent: () => false,
+        requiresModelSynthesisForLocalIntent: () => false,
+        shouldUseDirectLocalFallback: () => false,
+      }),
+      approveDirectLocalIntent: async () => undefined,
+    });
+
+    expect(result).toMatchObject({
+      kind: "final",
+      runFailureMessage: undefined,
+      observedActionCount: 2,
+      usedFallback: false,
+    });
+    expect(harness.finishEvents).toEqual([
+      {
+        sessionId: "session-1",
+        status: "complete",
+        message: undefined,
       },
     ]);
   });

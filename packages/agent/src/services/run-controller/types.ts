@@ -7,6 +7,19 @@ export type RunStatus =
   | "complete"
   | "error";
 
+export interface LocalMutationRecord {
+  action: string;
+  requestedPath?: string;
+  resolvedPath?: string;
+  success: boolean;
+  message?: string;
+  bytes?: number;
+  replacements?: number;
+  recordedAt: string;
+}
+
+export type LocalMutationInput = Omit<LocalMutationRecord, "recordedAt">;
+
 export interface RunSnapshot {
   runId: string;
   sessionId: string;
@@ -22,6 +35,7 @@ export interface RunSnapshot {
   activeStream?: string;
   statusDetail?: string;
   lastAction?: string;
+  localMutations: LocalMutationRecord[];
   pendingApprovals: number;
   startedAt: string;
   updatedAt: string;
@@ -39,6 +53,7 @@ export interface RunUpdateEvent {
     | "message"
     | "action-started"
     | "action-completed"
+    | "local-mutation"
     | "stream"
     | "heartbeat"
     | "completed"

@@ -25,7 +25,7 @@ describe("operator wow contract", () => {
     for (const pillar of listOperatorWowContract()) {
       expect(pillar.title.length).toBeGreaterThan(0);
       expect(pillar.outcome.length).toBeGreaterThan(80);
-      expect(pillar.doolittleOpenClawSignals.length).toBeGreaterThanOrEqual(2);
+      expect(pillar.referenceSignals.length).toBeGreaterThanOrEqual(2);
       expect(pillar.elizaosLeverage.length).toBeGreaterThanOrEqual(2);
       expect(pillar.doolittleSurfaces.length).toBeGreaterThanOrEqual(3);
       expect(pillar.acceptanceScenarios.length).toBeGreaterThanOrEqual(2);

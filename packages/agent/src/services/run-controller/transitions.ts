@@ -1,4 +1,9 @@
-import type { RunSnapshot, RunUpdateType, StartTurnInput } from "./types";
+import type {
+  LocalMutationInput,
+  RunSnapshot,
+  RunUpdateType,
+  StartTurnInput,
+} from "./types";
 import { nowIso } from "./utils";
 
 export interface StartRunTransition {
@@ -23,6 +28,7 @@ export const createRunStartTransition = (
       observedActionCount: 0,
       progressMode: input.progressMode,
       status: "thinking",
+      localMutations: [],
       pendingApprovals: input.pendingApprovals ?? 0,
       startedAt: now,
       updatedAt: now,
@@ -76,6 +82,27 @@ export const actionCompletedTransition = (
       lastAction: action,
     },
     "action-completed",
+  );
+
+export const localMutationTransition = (
+  current: RunSnapshot,
+  mutation: LocalMutationInput,
+): StartRunTransition =>
+  createPatchedTransition(
+    current,
+    {
+      localMutations: [
+        ...current.localMutations,
+        {
+          ...mutation,
+          recordedAt: nowIso(),
+        },
+      ],
+      statusDetail:
+        mutation.message ??
+        `${mutation.action} ${mutation.success ? "succeeded" : "failed"}`,
+    },
+    "local-mutation",
   );
 
 export const messageTransition = (current: RunSnapshot): StartRunTransition =>

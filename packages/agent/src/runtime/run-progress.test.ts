@@ -24,6 +24,7 @@ function createRun(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
     observedActionCount: 2,
     progressMode: "new",
     status: "thinking",
+    localMutations: [],
     pendingApprovals: 0,
     startedAt: "2026-04-13T10:00:00.000Z",
     updatedAt: "2026-04-13T10:00:02.500Z",
@@ -124,6 +125,21 @@ describe("runtime run progress helpers", () => {
         }),
       ),
     ).toContain("tool 4");
+    expect(
+      formatRunEvent(
+        createEvent("local-mutation", {
+          localMutations: [
+            {
+              action: "WRITE_FILE",
+              requestedPath: "symbiex/dev/the-game/index.html",
+              resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+              success: true,
+              recordedAt: "2026-04-13T10:00:02.000Z",
+            },
+          ],
+        }),
+      ),
+    ).toContain("mutation");
     expect(
       formatRunEvent(
         createEvent("approvals", {

@@ -34,10 +34,14 @@ export async function runPostProviderTurn(
     message: input.effectiveInput.message,
     localInteractive: input.turn.localInteractive,
   });
+  const activeRun = input.context.services.runController.getActive(
+    input.turn.sessionId,
+  );
   const executionAssessment = assessTurnExecutionContract({
     contract: executionContract,
     response: fallbackResult.response,
     observedActionCount: fallbackResult.observedActionCount,
+    localMutations: activeRun?.localMutations,
     runFailureMessage: fallbackResult.runFailureMessage,
   });
   const runFailureMessage = executionAssessment.ok

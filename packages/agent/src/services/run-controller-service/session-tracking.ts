@@ -3,13 +3,17 @@ import {
   actionCompletedTransition,
   actionStartedTransition,
   heartbeatTransition,
+  localMutationTransition,
   messageTransition,
   pendingApprovalsTransition,
   streamTransition,
   thinkingTransition,
   waitingTransition,
 } from "@/services/run-controller/transitions";
-import type { RunSnapshot } from "@/services/run-controller/types";
+import type {
+  LocalMutationInput,
+  RunSnapshot,
+} from "@/services/run-controller/types";
 import { applyRunTransition } from "./event-capture";
 import type { RunControllerDependencies } from "./types";
 
@@ -51,6 +55,16 @@ export function noteActionCompleted(
 ): void {
   applyRunTransition(dependencies, sessionId, (current) =>
     actionCompletedTransition(current, action),
+  );
+}
+
+export function recordLocalMutation(
+  dependencies: RunControllerDependencies,
+  sessionId: string,
+  mutation: LocalMutationInput,
+): void {
+  applyRunTransition(dependencies, sessionId, (current) =>
+    localMutationTransition(current, mutation),
   );
 }
 

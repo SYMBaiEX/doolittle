@@ -46,7 +46,7 @@ const sampleWowPillar: OperatorWowContractPillar = {
   title: "Terminal Operator Loop",
   outcome:
     "The everyday shell feels like a live operator console with slash control, streaming tool progress, interruption, and recovery.",
-  doolittleOpenClawSignals: [
+  referenceSignals: [
     "Doolittle has a dense terminal loop with streaming tool output.",
     "OpenClaw exposes chat commands across channels.",
   ],
@@ -81,7 +81,7 @@ const sampleWowPillar: OperatorWowContractPillar = {
   ],
   nextImplementationTasks: [
     {
-      id: "operator-command-native experience",
+      id: "operator-command-surface",
       title: "Promote retry and undo into slash commands.",
       ownerSurface: "operator shell",
       files: ["packages/agent/src/runtime/chat.ts", "docs/operator-loop.md"],
@@ -134,7 +134,7 @@ describe("sync-doc-truth renderers", () => {
     expect(output).toContain("## Terminal Operator Loop");
     expect(output).toContain("#### terminal-operator-loop.command-deck");
     expect(output).toContain("- Current status: `partial`");
-    expect(output).toContain("#### operator-command-native experience");
+    expect(output).toContain("#### operator-command-surface");
     expect(output).toContain(
       "`packages/agent/src/runtime/chat.ts`, `docs/operator-loop.md`",
     );

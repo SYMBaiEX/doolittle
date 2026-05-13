@@ -93,7 +93,7 @@ export function renderOperatorWowContract(
     "",
     "## Product Thesis",
     "",
-    "Doolittle should become an ElizaOS-native harness that feels as capable as Doolittle and as reachable as OpenClaw without copying either project into a bespoke monolith.",
+    "Doolittle should become an ElizaOS-native harness that feels as capable, reachable, and alive as a native ElizaOS operator without turning ElizaOS into a bespoke monolith.",
     "",
     "The contract is intentionally acceptance-led. Every pillar maps research signals to ElizaOS leverage, Doolittle runtime surfaces, concrete scenarios, current gaps, and the next implementation tasks.",
     "",
@@ -116,7 +116,7 @@ export function renderOperatorWowContract(
     lines.push("");
     lines.push("### Reference Signals");
     lines.push("");
-    for (const signal of record.doolittleOpenClawSignals) {
+    for (const signal of record.referenceSignals) {
       lines.push(`- ${signal}`);
     }
     lines.push("");

@@ -80,6 +80,43 @@ describe("RunControllerService", () => {
     expect(active?.endedAt).toBeDefined();
   });
 
+  it("records local mutation receipts by runtime room", () => {
+    const service = new RunControllerService();
+    const observed: string[] = [];
+    service.onUpdate((event) => {
+      observed.push(event.type);
+    });
+    service.startTurn({
+      sessionId: "session-a",
+      roomId: "room-a",
+      runId: "run-a",
+      source: "cli",
+      message: "write a file",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "verbose",
+    });
+
+    service.recordRuntimeLocalMutation("room-a", {
+      action: "WRITE_FILE",
+      requestedPath: "symbiex/dev/the-game/index.html",
+      resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+      success: true,
+      message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+      bytes: 42,
+    });
+
+    const active = service.getActive("session-a");
+    expect(observed).toContain("local-mutation");
+    expect(active?.localMutations).toMatchObject([
+      {
+        action: "WRITE_FILE",
+        success: true,
+        bytes: 42,
+      },
+    ]);
+  });
+
   it("captures native agent-event streams and heartbeats without faking extra steps", () => {
     const service = new RunControllerService();
     service.startTurn({

@@ -62,7 +62,7 @@ describe("resolveEntrypointInvocation", () => {
     expect(result.jobControlDir).toBe("/tmp/jobs");
   });
 
-  it("maps top-level native experience aliases onto existing runtime prompts", async () => {
+  it("maps top-level runtime aliases onto existing runtime prompts", async () => {
     const result = await resolveEntrypointInvocation({
       argv: ["tools", "search", "browser"],
       env: {},

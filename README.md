@@ -868,7 +868,7 @@ Trajectory exports include both conversation messages and the durable event jour
 - `/workspace tree`
 - `/workspace read package.json`
 - `/workspace search elizaos`
-- `/workspace write notes/todo.txt :: follow up on transport native experience`
+- `/workspace write notes/todo.txt :: follow up on transport polish`
 - `/terminal recent`
 - `/terminal run git status --short`
 - `/repo status`
@@ -1221,7 +1221,7 @@ doolittle/
 │   ├── eliza-maximization-matrix.md
 │   ├── elizaos-research.md
 │   ├── monorepo.md
-│   ├── native experience-ledger.md
+│   ├── native-experience-ledger.md
 │   └── skills-hub.md
 ├── biome.json
 ├── tsconfig.json

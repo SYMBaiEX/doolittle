@@ -1,6 +1,7 @@
 import { RunUpdateEventBus } from "@/services/run-controller/event-bus";
 import { RunControllerStore } from "@/services/run-controller/store";
 import type {
+  LocalMutationInput,
   RunSnapshot,
   RunStatus,
   RunUpdateEvent,
@@ -16,6 +17,7 @@ import {
   noteHeartbeat,
   noteMessage,
   noteStream,
+  recordLocalMutation,
   setPendingApprovals,
   updateThinking,
   updateWaiting,
@@ -24,6 +26,8 @@ import { finishTurn, startTurn } from "./state-resets";
 import type { RunControllerDependencies } from "./types";
 
 export type {
+  LocalMutationInput,
+  LocalMutationRecord,
   RunSnapshot,
   RunStatus,
   RunUpdateEvent,
@@ -83,6 +87,10 @@ export class RunControllerService {
     noteActionCompleted(this.dependencies, sessionId, action);
   }
 
+  recordLocalMutation(sessionId: string, mutation: LocalMutationInput): void {
+    recordLocalMutation(this.dependencies, sessionId, mutation);
+  }
+
   noteStream(sessionId: string, stream: string, detail?: string): void {
     noteStream(this.dependencies, sessionId, stream, detail);
   }
@@ -138,6 +146,15 @@ export class RunControllerService {
   noteRuntimeActionCompleted(roomId: string, action?: string): void {
     withSessionForRoom(this.store, roomId, (sessionId) => {
       this.noteActionCompleted(sessionId, action);
+    });
+  }
+
+  recordRuntimeLocalMutation(
+    roomId: string,
+    mutation: LocalMutationInput,
+  ): void {
+    withSessionForRoom(this.store, roomId, (sessionId) => {
+      this.recordLocalMutation(sessionId, mutation);
     });
   }
 

@@ -132,6 +132,43 @@ describe("file actions", () => {
     });
   });
 
+  it("records local mutation receipts for write actions", async () => {
+    await withTempHome(async ({ dev }) => {
+      const mutations: Array<{ roomId: string; mutation: unknown }> = [];
+      const writeAction = createFileActions(dev, {
+        recordRuntimeLocalMutation: (roomId, mutation) => {
+          mutations.push({ roomId, mutation });
+        },
+      }).find((action) => action.name === "WRITE_FILE");
+
+      const result = await writeAction?.handler(
+        {} as never,
+        {
+          roomId: "room-1",
+          content: { text: "write a file" },
+        } as never,
+        undefined,
+        {
+          parameters: {
+            path: "symbiex/dev/the-effect/index.html",
+            content: "<h1>Doolittle</h1>\n",
+          },
+        },
+      );
+
+      expect(result?.success).toBe(true);
+      expect(mutations).toHaveLength(1);
+      expect(mutations[0]).toMatchObject({
+        roomId: "room-1",
+        mutation: {
+          action: "WRITE_FILE",
+          requestedPath: "symbiex/dev/the-effect/index.html",
+          success: true,
+        },
+      });
+    });
+  });
+
   it("rejects paths outside the configured local development roots", () => {
     withTempHome(({ dev }) => {
       expect(() => resolveLocalFilePath("/tmp/not-doolittle.txt", dev)).toThrow(

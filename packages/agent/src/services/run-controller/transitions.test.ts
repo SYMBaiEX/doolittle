@@ -6,6 +6,7 @@ import {
   createRunStartTransition,
   finishTransition,
   heartbeatTransition,
+  localMutationTransition,
   messageTransition,
   streamTransition,
   thinkingTransition,
@@ -24,6 +25,7 @@ const baseCurrent: RunSnapshot = {
   observedActionCount: 0,
   progressMode: "new",
   status: "thinking",
+  localMutations: [],
   pendingApprovals: 0,
   startedAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
@@ -91,6 +93,30 @@ describe("run-controller/transitions", () => {
     expect(completed.run.activeAction).toBeUndefined();
     expect(completed.run.activeStream).toBeUndefined();
     expect(completed.run.lastAction).toBe("workspace:search");
+  });
+
+  it("records local mutation receipts without losing earlier run state", () => {
+    const transition = localMutationTransition(baseCurrent, {
+      action: "WRITE_FILE",
+      requestedPath: "symbiex/dev/the-game/index.html",
+      resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+      success: true,
+      message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+      bytes: 42,
+    });
+
+    expect(transition.type).toBe("local-mutation");
+    expect(transition.run.status).toBe("thinking");
+    expect(transition.run.localMutations).toMatchObject([
+      {
+        action: "WRITE_FILE",
+        success: true,
+        requestedPath: "symbiex/dev/the-game/index.html",
+        resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+        bytes: 42,
+      },
+    ]);
+    expect(transition.run.localMutations[0]?.recordedAt).toBeTruthy();
   });
 
   it("maps stream events by stream type", () => {

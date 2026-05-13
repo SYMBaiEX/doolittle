@@ -13,6 +13,7 @@ const baseRun: RunSnapshot = {
   observedActionCount: 0,
   progressMode: "new",
   status: "thinking",
+  localMutations: [],
   pendingApprovals: 0,
   startedAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",

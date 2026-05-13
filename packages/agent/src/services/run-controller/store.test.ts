@@ -13,6 +13,7 @@ const baseRun: RunSnapshot = {
   observedActionCount: 0,
   progressMode: "new",
   status: "thinking",
+  localMutations: [],
   pendingApprovals: 0,
   startedAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:01.000Z",
@@ -38,8 +39,14 @@ describe("run-controller/store", () => {
 
     runFromGet.runId = "run-mutated";
     runFromGet.roomId = "room-mutated";
+    runFromGet.localMutations.push({
+      action: "WRITE_FILE",
+      success: true,
+      recordedAt: "2026-01-01T00:00:02.000Z",
+    });
     expect(store.get("session-a")?.runId).toBe("run-a");
     expect(store.get("session-a")?.roomId).toBe("room-a");
+    expect(store.get("session-a")?.localMutations).toEqual([]);
 
     const runFromList = store.list();
     expect(runFromList).toHaveLength(1);

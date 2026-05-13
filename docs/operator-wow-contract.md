@@ -5,7 +5,7 @@ Do not edit it by hand; run `bun run scripts/sync-doc-truth.ts --write`.
 
 ## Product Thesis
 
-Doolittle should become an ElizaOS-native harness that feels as capable as Doolittle and as reachable as OpenClaw without copying either project into a bespoke monolith.
+Doolittle should become an ElizaOS-native harness that feels as capable, reachable, and alive as a native ElizaOS operator without turning ElizaOS into a bespoke monolith.
 
 The contract is intentionally acceptance-led. Every pillar maps research signals to ElizaOS leverage, Doolittle runtime surfaces, concrete scenarios, current gaps, and the next implementation tasks.
 
@@ -24,7 +24,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 ### Reference Signals
 
 - OpenClaw makes onboarding a product surface with `openclaw onboard`, daemon install, provider setup, dashboard launch, and a first chat.
-- Doolittle keeps setup close to the terminal and exposes provider/model readiness through CLI commands before deeper work starts.
+- Doolittle keeps setup close to the terminal and exposes provider/model readiness through native CLI commands before deeper work starts.
 
 ### ElizaOS Leverage
 
@@ -132,12 +132,12 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 ### Current Gaps
 
-- Doolittle has useful shell and cockpit surfaces, but Doolittle still leads on live session controls such as retry, undo, compress, usage, and insights.
+- Doolittle has useful shell and cockpit surfaces, but live session controls still need first-class retry, undo, compress, usage, and insights behavior.
 - Interrupt and steering behavior is not yet expressed as a first-class acceptance contract.
 
 ### Next Implementation Tasks
 
-#### operator-command-native experience
+#### operator-command-surface
 
 - Title: Promote retry, undo, compress, usage, insights, and model controls into first-class slash commands.
 - Owner surface: `operator shell`
@@ -165,7 +165,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 ### Reference Signals
 
-- Doolittle earns confidence through many terminal backends, file tools, browser tools, approvals, MCP, and delegation.
+- Doolittle earns confidence through reliable terminal backends, file tools, browser tools, approvals, MCP, and delegation.
 - OpenClaw showcases chat-native coding loops where work starts in a mobile channel and lands as tested changes or PR feedback.
 
 ### ElizaOS Leverage
@@ -237,7 +237,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 ### Reference Signals
 
-- Doolittle and OpenClaw both make learning visible through memory files, session search, skill creation, and skill improvement loops.
+- Doolittle makes learning visible through memory files, session search, skill creation, and skill improvement loops.
 - OpenClaw's Skill Workshop pattern treats new skills as proposals that can be scanned, approved, and refreshed without a restart.
 
 ### ElizaOS Leverage
@@ -308,7 +308,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 ### Reference Signals
 
-- Doolittle has broad messaging adapters and a mature gateway/session delivery loop.
+- Doolittle needs broad messaging adapters and a mature gateway/session delivery loop.
 - OpenClaw pushes this further with local-first gateway, pairing, many channels, nodes, device trust, dashboard, and channel-native behavior.
 
 ### ElizaOS Leverage
@@ -355,7 +355,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Tighten daemon-grade reconnect and replay semantics.
 - Owner surface: `gateway runner`
-- Files: `packages/agent/src/gateway/runner/gateway-runner.ts`, `packages/agent/src/gateway/gateway-supervision-flow.test.ts`, `docs/native experience-ledger.md`
+- Files: `packages/agent/src/gateway/runner/gateway-runner.ts`, `packages/agent/src/gateway/gateway-supervision-flow.test.ts`, `docs/native-experience-ledger.md`
 - Definition of done:
   - Restart scenarios preserve or explicitly fail queued work.
   - Replay entries include platform, target, idempotency key, and delivery state.
@@ -365,7 +365,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Make platform-native message behavior testable per adapter.
 - Owner surface: `gateway adapters`
-- Files: `packages/agent/src/gateway/platforms`, `packages/agent/src/gateway/receive/setup.test.ts`, `docs/native experience-ledger.md`
+- Files: `packages/agent/src/gateway/platforms`, `packages/agent/src/gateway/receive/setup.test.ts`, `docs/native-experience-ledger.md`
 - Definition of done:
   - Each enabled adapter declares typing, edit, reply, thread, attachment, and voice support.
   - Mock tests assert the declared support is reflected in delivery behavior.
@@ -488,7 +488,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 ### Current Gaps
 
-- Provider package versions are current and the bootstrap is local-first on Ollama, but the operator model command surface needs to feel as direct as Doolittle.
+- Provider package versions are current and the bootstrap is local-first on Ollama, but the operator model command surface needs to feel as direct as the rest of Doolittle.
 - Fallback behavior exists but should be visible at run level, not only as internal configuration.
 
 ### Next Implementation Tasks

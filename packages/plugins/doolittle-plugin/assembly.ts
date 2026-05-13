@@ -24,7 +24,7 @@ export function createDoolittlePluginSurface({
     createSkillsAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
     createCronAction(services),
-    ...createFileActions(config.workspaceDir),
+    ...createFileActions(config.workspaceDir, services.runController),
     createWorkspaceAction(services, config.workspaceDir),
     createTerminalAction(services),
     createRepositoryAction(services),

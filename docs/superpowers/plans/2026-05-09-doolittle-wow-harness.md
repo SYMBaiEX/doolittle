@@ -12,7 +12,7 @@
 
 ## File Structure
 
-- Create `packages/agent/src/runtime/native/operator-wow-contract.ts`: canonical code-backed contract records for Doolittle's native operator native experience target.
+- Create `packages/agent/src/runtime/native/operator-wow-contract.ts`: canonical code-backed contract records for Doolittle's native operator target.
 - Create `packages/agent/src/runtime/native/operator-wow-contract.test.ts`: invariant tests that keep the contract complete and internally consistent.
 - Modify `scripts/sync-doc-truth/render.ts`: render the operator-wow contract into Markdown.
 - Modify `scripts/sync-doc-truth/sync.ts`: include `docs/operator-wow-contract.md` in doc-truth check/write mode.
@@ -194,7 +194,7 @@ Start with these tasks from the generated contract:
 ```text
 first-run-decision-receipt
 first-chat-readiness-contract
-operator-command-native experience
+operator-command-surface
 run-interrupt-contract
 ```
 

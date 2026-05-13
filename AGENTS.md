@@ -1,7 +1,7 @@
 <claude-mem-context>
 # Memory Context
 
-# [doolittle] recent context, 2026-05-13 5:26pm CDT
+# [doolittle] recent context, 2026-05-13 6:24pm CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
@@ -10,7 +10,7 @@ Fetch details: get_observations([IDs]) | Search: mem-search skill
 Stats: 50 obs (23,143t read) | 1,503,152t work | 98% savings
 
 ### May 9, 2026
-2952 5:07p 🔵 OpenClaw: Third AI Agent Framework Discovered During Doolittle vs Doolittle Comparison
+2952 5:07p 🔵 OpenClaw: Third AI Agent Framework Reviewed During Native Doolittle Comparison
 2953 " 🔵 OpenClaw Architecture: Single Embedded Agent Runtime Over WebSocket Gateway
 2954 " 🔵 OpenClaw Plugin Architecture: Code Plugins vs Bundle-Style Plugins with ClawHub Registry
 2955 " 🔵 OpenClaw Source Structure: Rich src/ Modules for talk, media, and channels
@@ -18,11 +18,11 @@ Stats: 50 obs (23,143t read) | 1,503,152t work | 98% savings
 2960 " 🔵 OpenClaw Agent Loop: runEmbeddedPiAgent with Per-Session Serialization and 14 Plugin Hook Points
 2961 " 🔵 OpenClaw Memory Architecture: Markdown-First with 4 Backends and Active-Memory Sub-Agent
 2962 " 🔵 Doolittle Active Plugin Consolidation: 20+ Separate Plugin Packages Being Deleted and Merged into doolittle-plugin
-2963 " 🔵 Doolittle Native Experience Ledger: Formal Tracking of Remaining Doolittle Gaps
+2963 " 🔵 Doolittle Native Experience Ledger: Formal Tracking of Remaining Operator Gaps
 2964 " 🔵 Doolittle Self-Description: Terminal-Native ElizaOS Shell with Native-First + Direct Rescue Architecture
 2974 5:10p 🔵 Doolittle Uses ElizaOS Alpha (2.0.0-alpha.537) While Public Latest is 1.7.2
-2975 " 🔵 Doolittle Architecture: 7-Subsystem Monolith with SQLite Session Store and 70+ Tools Across 28 Toolsets
-2976 " 🔵 Doolittle Agent Loop: Strict Turn Lifecycle with Sequential/Concurrent Tool Dispatch and 8 Callback Surfaces
+2975 " 🔵 Reference Agent Architecture: 7-Subsystem Monolith with SQLite Session Store and 70+ Tools Across 28 Toolsets
+2976 " 🔵 Reference Agent Loop: Strict Turn Lifecycle with Sequential/Concurrent Tool Dispatch and 8 Callback Surfaces
 2977 5:59p 🔵 Superpowers Writing-Plans Skill: Structure and Requirements
 2978 " 🔵 Superpowers Executing-Plans Skill: Workflow Integration
 2980 6:00p 🔵 Doolittle Project: Current State and Native Experience Ledger
