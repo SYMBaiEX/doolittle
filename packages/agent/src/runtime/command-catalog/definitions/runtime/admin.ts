@@ -9,6 +9,10 @@ export const RuntimeAdminCommandCatalogEntries = [
     "/commands search <query>",
     "Search the local slash-command catalog without waking the runtime.",
   ),
+  runtimeCommand(
+    "/pulse",
+    "Show a compact operator pulse with provider, run mode, session memory, and next controls.",
+  ),
   runtimeCommand("/status", "Show the top-level agent runtime status summary."),
   runtimeCommand("/doctor", "Run the operator diagnostics checklist."),
   runtimeCommand(

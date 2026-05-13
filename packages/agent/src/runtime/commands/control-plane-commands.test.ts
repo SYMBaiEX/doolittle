@@ -3,6 +3,94 @@ import type { AgentExecutionContext } from "../chat";
 import { handleControlPlaneCommand } from "./control-plane-commands";
 
 describe("control plane commands", () => {
+  it("renders a compact operator pulse without invoking a model turn", async () => {
+    const result = await handleControlPlaneCommand(
+      {
+        message: "/pulse",
+        userId: "user-1",
+        roomId: "cli:user-1",
+        source: "cli",
+      },
+      "/pulse",
+      {
+        config: { agentName: "Doolittle", workspaceDir: "/tmp/workspace" },
+        runtime: {},
+        services: {
+          settings: {
+            get: () => ({
+              model: {
+                provider: "devin",
+                model: "swe-1-6-fast",
+              },
+              agent: {
+                runDepth: "quick",
+                maxIterations: 15,
+                toolProgressMode: "verbose",
+              },
+            }),
+          },
+          personalities: {
+            getActive: () => ({
+              id: "operator",
+              name: "Operator",
+            }),
+          },
+          sessions: {
+            usage: () => ({
+              messageCount: 4,
+              estimatedTokens: 120,
+              lastPreview: "latest useful answer",
+            }),
+            recentBySession: () => [
+              {
+                sessionId: "cli:user-1",
+                createdAt: "2026-05-12T00:00:01.000Z",
+                role: "assistant",
+                text: "latest useful answer",
+              },
+              {
+                sessionId: "cli:user-1",
+                createdAt: "2026-05-12T00:00:00.000Z",
+                role: "user",
+                text: "what are you carrying?",
+              },
+            ],
+          },
+          startupState: {
+            getSnapshot: () => ({
+              hotPathReady: true,
+              deferredReady: true,
+            }),
+          },
+          runController: {
+            getActive: () => undefined,
+          },
+          userProfiles: {
+            list: () => [
+              {
+                userId: "user-1",
+                displayName: "Symbiex",
+                facts: ["Alabama"],
+                preferences: ["terminal-native"],
+                notes: [],
+              },
+            ],
+          },
+          trajectories: {
+            recentEvents: () => [{ id: "event-1" }],
+          },
+        },
+      } as unknown as AgentExecutionContext,
+    );
+
+    expect(result).toContain("Doolittle pulse");
+    expect(result).toContain("Provider: devin / swe-1-6-fast");
+    expect(result).toContain("Run: idle depth=quick cap=15 progress=verbose");
+    expect(result).toContain("Profile: Symbiex facts=1 prefs=1 notes=0");
+    expect(result).toContain("Trajectories: 1 recent events");
+    expect(result).toContain("Next: /retry | /undo");
+  });
+
   it("returns usage for empty command search queries", async () => {
     const result = await handleControlPlaneCommand(
       {

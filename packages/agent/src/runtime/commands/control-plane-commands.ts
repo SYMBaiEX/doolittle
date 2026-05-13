@@ -3,11 +3,115 @@ import { displayCommand } from "@/runtime/commands/command-execution";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 
+function compact(value: string | undefined, maxLength: number): string {
+  const normalized = (value ?? "").replace(/\s+/gu, " ").trim();
+  if (!normalized) {
+    return "none";
+  }
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 3)}...`
+    : normalized;
+}
+
+function safeRead<T>(reader: () => T): T | undefined {
+  try {
+    return reader();
+  } catch {
+    return undefined;
+  }
+}
+
+function renderRecentConversation(
+  context: AgentExecutionContext,
+  sessionKey: string,
+): string[] {
+  const recent =
+    safeRead(() => context.services.sessions.recentBySession(sessionKey, 4)) ??
+    [];
+  const chronological = recent
+    .filter((row) => row.role !== "system")
+    .reverse()
+    .slice(-3);
+
+  if (!chronological.length) {
+    return ["Recent: none yet"];
+  }
+
+  return [
+    "Recent:",
+    ...chronological.map((row) => `  ${row.role}: ${compact(row.text, 96)}`),
+  ];
+}
+
+function renderProfilePulse(
+  context: AgentExecutionContext,
+  userId: string,
+): string {
+  const profiles = safeRead(() => context.services.userProfiles.list()) ?? [];
+  const profile = profiles.find((entry) => entry.userId === userId);
+  if (!profile) {
+    return "Profile: new";
+  }
+  const displayName = profile.displayName ?? profile.userId;
+  return `Profile: ${displayName} facts=${profile.facts.length} prefs=${profile.preferences.length} notes=${profile.notes.length}`;
+}
+
+function renderOperatorPulse(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+): string {
+  const sessionKey = input.roomId ?? `room:${input.userId}`;
+  const settings = safeRead(() => context.services.settings.get());
+  const personality = safeRead(() =>
+    context.services.personalities.getActive(),
+  );
+  const usage = safeRead(() => context.services.sessions.usage(sessionKey));
+  const startup = safeRead(() => context.services.startupState.getSnapshot());
+  const activeRun = safeRead(() =>
+    context.services.runController.getActive(sessionKey),
+  );
+  const recentTrajectoryCount =
+    safeRead(() => context.services.trajectories.recentEvents(5).length) ?? 0;
+
+  const provider = settings?.model.provider ?? "unknown";
+  const model = settings?.model.model ?? "unknown";
+  const runDepth = settings?.agent.runDepth ?? "unknown";
+  const runCap = settings?.agent.maxIterations ?? "unknown";
+  const progress = settings?.agent.toolProgressMode ?? "unknown";
+  const startupLine = startup
+    ? `Startup: hotPath=${startup.hotPathReady ? "ready" : "warming"} deferred=${startup.deferredReady ? "ready" : "warming"}`
+    : "Startup: unknown";
+  const runLine = activeRun
+    ? `Run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`
+    : `Run: idle depth=${runDepth} cap=${runCap} progress=${progress}`;
+  const sessionLine = usage
+    ? `Session: ${usage.messageCount} messages, ${usage.estimatedTokens} est tokens, last=${compact(usage.lastPreview, 96)}`
+    : `Session: ${sessionKey} new`;
+
+  return [
+    "Doolittle pulse",
+    `Agent: ${context.config.agentName}`,
+    `Provider: ${provider} / ${model}`,
+    `Personality: ${personality?.name ?? "unknown"}`,
+    runLine,
+    startupLine,
+    sessionLine,
+    renderProfilePulse(context, input.userId),
+    `Trajectories: ${recentTrajectoryCount} recent events`,
+    ...renderRecentConversation(context, sessionKey),
+    "Next: /retry | /undo | /todo list | /status | /trajectories list",
+  ].join("\n");
+}
+
 export async function handleControlPlaneCommand(
-  _input: ChatTurnRequest,
+  input: ChatTurnRequest,
   trimmed: string,
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
+  if (trimmed === "/pulse" || trimmed === "/now") {
+    return renderOperatorPulse(input, context);
+  }
+
   if (trimmed === "/commands") {
     return renderCommandCatalog(undefined, 80, context.config.workspaceDir);
   }

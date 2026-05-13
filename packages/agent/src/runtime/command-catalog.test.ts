@@ -26,6 +26,11 @@ describe("command catalog", () => {
     ).toBe(true);
     expect(
       COMMAND_CATALOG.some(
+        (entry) => entry.command === "/pulse" && entry.category === "runtime",
+      ),
+    ).toBe(true);
+    expect(
+      COMMAND_CATALOG.some(
         (entry) =>
           entry.command === "/todo-list" && entry.category === "runtime",
       ),

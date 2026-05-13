@@ -29,6 +29,7 @@ const HOTKEY_DEFINITIONS: Array<{
 
 const HELP_EXAMPLES = [
   "/commands",
+  "/pulse",
   "/retry",
   "/undo",
   "/todo list",
