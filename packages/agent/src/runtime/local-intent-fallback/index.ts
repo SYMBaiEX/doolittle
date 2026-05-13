@@ -14,7 +14,7 @@ export interface DirectLocalIntentExecution {
   label: string;
   statusLine: string;
   isHighConfidence?: boolean;
-  kind?: "retrieval" | "synthesis";
+  kind?: "retrieval" | "synthesis" | "mutation";
   execute(): Promise<string>;
 }
 
