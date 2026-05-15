@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { serializeSkillFile } from "@elizaos/skills";
 
 import type { DelegationTaskRecord } from "@/types";
 
@@ -37,8 +38,9 @@ export function synthesizeGeneratedSkillFromTask(
   const createdAt = existing?.createdAt ?? new Date().toISOString();
   const updatedAt = new Date().toISOString();
   const signals = extractGeneratedSkillSignals(task.notes);
+  const description = `Generated skill for repeating ${task.title.toLowerCase()} workflows.`;
 
-  const content = [
+  const body = [
     `# ${task.title}`,
     "",
     `Generated from delegated task ${task.id}.`,
@@ -74,6 +76,18 @@ export function synthesizeGeneratedSkillFromTask(
     "## Usage",
     "Apply this skill when a similar delegated workflow needs to be repeated.",
   ].join("\n");
+  const content = serializeSkillFile(
+    {
+      name: slug,
+      description,
+      provenance: {
+        source: "agent-generated",
+        createdAt,
+        refinedCount: 0,
+      },
+    },
+    body,
+  );
   writeFileSync(path, content, "utf8");
 
   return {

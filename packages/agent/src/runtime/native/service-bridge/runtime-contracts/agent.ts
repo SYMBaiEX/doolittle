@@ -8,6 +8,27 @@ export interface NativeAgentSkillsService {
   synthesize(taskId: string): unknown;
 }
 
+export interface NativeCodingIteration {
+  index: number;
+  startedAt: number;
+  completedAt?: number;
+  generatedCode?: string;
+  fileOperations: unknown[];
+  commandResults: unknown[];
+  errors: unknown[];
+  feedback: unknown[];
+  selfCorrected: boolean;
+  summary?: string;
+}
+
+export interface NativeHumanFeedback {
+  id: string;
+  timestamp: number;
+  text: string;
+  iterationRef?: number;
+  type: "correction" | "guidance" | "approval" | "rejection";
+}
+
 export interface NativeTrajectoryLoggerService {
   exportLatest(): unknown;
   listBundles(): unknown[];
@@ -73,6 +94,8 @@ export interface NativeCodingAgentService {
       interactionMode?: unknown;
       connectorType?: unknown;
       metadata?: Record<string, string>;
+      iterations?: NativeCodingIteration[];
+      allFeedback?: NativeHumanFeedback[];
     },
   ): unknown;
 }

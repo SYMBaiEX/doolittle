@@ -1,3 +1,8 @@
+import type { ActionResult } from "@elizaos/core";
+import {
+  buildCodingIterationFromActionResults,
+  summarizeActionResults,
+} from "@/runtime/action-result-metadata";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import { buildProviderNoResponseMessage } from "@/runtime/linked-provider-accounts";
 import type { ChatTurnRequest } from "@/types/runtime";
@@ -75,6 +80,7 @@ export function finalizePostProviderTurn(input: {
   finalResponse: string;
   runFailureMessage?: string;
   observedActionCount: number;
+  actionResults?: ActionResult[];
   usedFallback: boolean;
   settingsDuring: PostProviderSettingsSnapshot;
   scheduleProfileObservation: () => void;
@@ -87,6 +93,15 @@ export function finalizePostProviderTurn(input: {
     text: input.finalResponse,
   });
   const modelSettings = input.settingsDuring.model ?? {};
+  const actionResultSummary = summarizeActionResults(input.actionResults);
+  const codingIteration = buildCodingIterationFromActionResults(
+    input.actionResults,
+    {
+      summary: input.runFailureMessage
+        ? "Turn failed after SDK action execution."
+        : "Turn completed after SDK action execution.",
+    },
+  );
   recordTrajectoryEvent(input.context, {
     category: "turn",
     event: input.runFailureMessage ? "turn.failed" : "turn.completed",
@@ -103,6 +118,11 @@ export function finalizePostProviderTurn(input: {
       response: input.finalResponse,
       responseChars: input.finalResponse.length,
       observedActionCount: input.observedActionCount,
+      actionResults: actionResultSummary.actionResults,
+      localMutations: actionResultSummary.localMutations,
+      fileOperations: actionResultSummary.fileOperations,
+      commandResults: actionResultSummary.commandResults,
+      codingIteration,
       usedFallback: input.usedFallback,
       runFailureMessage: input.runFailureMessage,
     },

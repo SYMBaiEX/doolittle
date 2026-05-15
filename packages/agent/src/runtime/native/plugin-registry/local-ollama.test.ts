@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { type IAgentRuntime, ModelType } from "@elizaos/core";
+import {
+  type IAgentRuntime,
+  ModelType,
+  type PipelineHookSpec,
+  type Plugin,
+} from "@elizaos/core";
 import type { EnvConfig } from "@/types";
-import { createLocalOllamaModelsPlugin } from "./local-ollama";
+import {
+  createDoolittleOllamaUxPlugin,
+  createOllamaEmbeddingOnlyPlugin,
+} from "./local-ollama";
 
 function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
   return {
@@ -15,95 +23,121 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
   } as EnvConfig;
 }
 
-describe("createLocalOllamaModelsPlugin", () => {
-  it("generates text through the local Ollama REST API", async () => {
-    const calls: Array<{ url: string; body: unknown }> = [];
-    const plugin = createLocalOllamaModelsPlugin(createConfig());
-    const runtime = {
-      getSetting: () => undefined,
-      fetch: async (url: string | URL | Request, init?: RequestInit) => {
-        calls.push({
-          url: String(url),
-          body: JSON.parse(String(init?.body)),
-        });
-        return Response.json({ response: "local response" });
-      },
-    } as unknown as IAgentRuntime;
+describe("createDoolittleOllamaUxPlugin", () => {
+  it("keeps official Ollama model handlers primary", () => {
+    const plugin = createDoolittleOllamaUxPlugin(createConfig());
 
-    const result = await plugin.models?.[ModelType.TEXT_LARGE]?.(runtime, {
-      prompt: "hello",
-      maxTokens: 32,
-    });
-
-    expect(result).toBe("local response");
-    expect(calls[0]?.url).toBe("http://localhost:11434/api/generate");
-    expect(calls[0]?.body).toMatchObject({
-      model: "granite4.1:3b",
-      prompt: "hello",
-      stream: false,
-      keep_alive: "10m",
-      options: {
-        num_predict: 32,
-      },
-    });
+    expect(plugin.models?.[ModelType.TEXT_LARGE]).toBeUndefined();
+    expect(plugin.models?.[ModelType.TEXT_SMALL]).toBeUndefined();
+    expect(plugin.models?.[ModelType.ACTION_PLANNER]).toBeUndefined();
+    expect(plugin.models?.[ModelType.TEXT_EMBEDDING]).toBeUndefined();
   });
 
-  it("caps hidden planning calls so local models do not inherit the broad default budget", async () => {
-    const calls: Array<{ url: string; body: unknown }> = [];
-    const plugin = createLocalOllamaModelsPlugin(createConfig());
+  it("bridges model slots that the installed SDK plugin does not expose", async () => {
+    const calls: Array<{
+      modelType: string;
+      params: unknown;
+      provider?: string;
+    }> = [];
+    const plugin = createDoolittleOllamaUxPlugin(createConfig());
     const runtime = {
-      getSetting: () => undefined,
-      fetch: async (url: string | URL | Request, init?: RequestInit) => {
-        calls.push({
-          url: String(url),
-          body: JSON.parse(String(init?.body)),
-        });
-        return Response.json({ response: "plan" });
+      useModel: async (
+        modelType: string,
+        params: unknown,
+        provider?: string,
+      ) => {
+        calls.push({ modelType, params, provider });
+        return "delegated";
       },
     } as unknown as IAgentRuntime;
 
-    await plugin.models?.[ModelType.ACTION_PLANNER]?.(runtime, {
-      prompt: "choose the next action",
-    });
-
-    expect(calls[0]?.body).toMatchObject({
-      model: "granite4.1:3b",
-      options: {
-        num_predict: 160,
-      },
-    });
-  });
-
-  it("uses Ollama embeddings and falls back deterministically when unavailable", async () => {
-    const plugin = createLocalOllamaModelsPlugin(createConfig());
-    const runtime = {
-      getSetting: () => undefined,
-      fetch: async (url: string | URL | Request) => {
-        if (String(url).endsWith("/api/embed")) {
-          return Response.json({ embeddings: [[0.1, 0.2, 0.3]] });
-        }
-        return new Response("missing", { status: 404 });
-      },
-    } as unknown as IAgentRuntime;
-
+    const params = { prompt: "finish this" };
     await expect(
-      plugin.models?.[ModelType.TEXT_EMBEDDING]?.(runtime, {
-        text: "hello",
-      }),
+      plugin.models?.[ModelType.TEXT_COMPLETION]?.(runtime, params),
+    ).resolves.toBe("delegated");
+
+    expect(calls).toEqual([
+      {
+        modelType: ModelType.TEXT_LARGE,
+        params,
+        provider: "ollama",
+      },
+    ]);
+  });
+
+  it("caps Ollama hidden planning budgets through a pre-model hook", async () => {
+    const hooks: PipelineHookSpec[] = [];
+    const plugin = createDoolittleOllamaUxPlugin(createConfig());
+    const runtime = {
+      getSetting: () => undefined,
+      registerPipelineHook: (hook: PipelineHookSpec) => hooks.push(hook),
+      unregisterPipelineHook: () => undefined,
+    } as unknown as IAgentRuntime;
+
+    await plugin.init?.({}, runtime);
+    const preModelHook = hooks.find((hook) => hook.phase === "pre_model");
+    expect(preModelHook).toBeDefined();
+
+    const params = { prompt: "choose the next action", maxTokens: 1200 };
+    await preModelHook?.handler(runtime, {
+      phase: "pre_model",
+      provider: "ollama",
+      requestedModelType: ModelType.ACTION_PLANNER,
+      resolvedModelKey: ModelType.ACTION_PLANNER,
+      params,
+    });
+
+    expect(params.maxTokens).toBe(160);
+  });
+
+  it("leaves non-Ollama model calls untouched", async () => {
+    const hooks: PipelineHookSpec[] = [];
+    const plugin = createDoolittleOllamaUxPlugin(createConfig());
+    const runtime = {
+      getSetting: () => undefined,
+      registerPipelineHook: (hook: PipelineHookSpec) => hooks.push(hook),
+      unregisterPipelineHook: () => undefined,
+    } as unknown as IAgentRuntime;
+
+    await plugin.init?.({}, runtime);
+    const preModelHook = hooks.find((hook) => hook.phase === "pre_model");
+    const params = { prompt: "hello", maxTokens: 1200 };
+    await preModelHook?.handler(runtime, {
+      phase: "pre_model",
+      provider: "openai",
+      requestedModelType: ModelType.ACTION_PLANNER,
+      resolvedModelKey: ModelType.ACTION_PLANNER,
+      params,
+    });
+
+    expect(params.maxTokens).toBe(1200);
+  });
+});
+
+describe("createOllamaEmbeddingOnlyPlugin", () => {
+  it("filters the official Ollama plugin down to the embedding model", async () => {
+    const embeddingHandler = async () => [0.1, 0.2, 0.3];
+    const officialPlugin = {
+      name: "ollama",
+      description: "Official Ollama plugin",
+      config: {
+        OLLAMA_API_ENDPOINT: "http://localhost:11434/api",
+      },
+      init: () => undefined,
+      models: {
+        [ModelType.TEXT_EMBEDDING]: embeddingHandler,
+        [ModelType.TEXT_LARGE]: async () => "text",
+      },
+    } as unknown as Plugin;
+
+    const plugin = createOllamaEmbeddingOnlyPlugin(officialPlugin);
+
+    expect(plugin.name).toBe("ollama");
+    expect(plugin.config).toEqual(officialPlugin.config);
+    expect(plugin.init).toBe(officialPlugin.init);
+    expect(plugin.models?.[ModelType.TEXT_LARGE]).toBeUndefined();
+    await expect(
+      plugin.models?.[ModelType.TEXT_EMBEDDING]?.({} as IAgentRuntime, "hello"),
     ).resolves.toEqual([0.1, 0.2, 0.3]);
-
-    const fallbackRuntime = {
-      getSetting: () => undefined,
-      fetch: async () => new Response("missing", { status: 404 }),
-    } as unknown as IAgentRuntime;
-    const fallback = await plugin.models?.[ModelType.TEXT_EMBEDDING]?.(
-      fallbackRuntime,
-      "hello",
-    );
-
-    expect(fallback).toHaveLength(1536);
-    await expect(
-      plugin.models?.[ModelType.TEXT_EMBEDDING]?.(fallbackRuntime, "hello"),
-    ).resolves.toEqual(fallback);
   });
 });

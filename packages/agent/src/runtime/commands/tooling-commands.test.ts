@@ -102,9 +102,14 @@ describe("tooling command router", () => {
   it("returns usage for missing query-based tool and acp commands", async () => {
     const context = createContext();
     const search = await handleToolingCommand("/tools search ", context);
+    const mcpMarketplace = await handleToolingCommand(
+      "/mcp marketplace search",
+      context,
+    );
     const describe = await handleToolingCommand("/acp describe ", context);
 
     expect(search).toBe("Usage: /tools search <query>");
+    expect(mcpMarketplace).toBe("Usage: /mcp marketplace search <query>");
     expect(describe).toBe("Usage: /acp describe <tool-name>");
   });
 });

@@ -18,6 +18,9 @@ export interface TrajectoryServiceBundleArtifacts {
   dataPath: string;
   manifestPath: string;
   summaryPath: string;
+  trainingCompatible?: boolean;
+  trainingFormat?: "doolittle-debug";
+  trainingNotes?: string;
 }
 
 export interface TrajectoryServiceCompressBundleOptions {
@@ -51,6 +54,9 @@ export interface TrajectoryServiceRlReadyArtifacts {
   dataPath: string;
   manifestPath: string;
   turnCount: number;
+  trainingCompatible?: boolean;
+  trainingFormat?: "doolittle-rl-v1";
+  trainingNotes?: string;
 }
 
 export interface TrajectoryServiceRlDatasetArtifacts {
@@ -58,6 +64,9 @@ export interface TrajectoryServiceRlDatasetArtifacts {
   manifestPath: string;
   turnCount: number;
   sessionCount: number;
+  trainingCompatible?: boolean;
+  trainingFormat?: "doolittle-rl-v1";
+  trainingNotes?: string;
 }
 
 export interface TrajectoryServiceCatalogBindings {

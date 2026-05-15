@@ -11,6 +11,7 @@ import {
   ResearchCommandCatalogEntries,
   RuntimeCommandCatalogEntries,
   SkillsCommandCatalogEntries,
+  ToolingCommandCatalogEntries,
   WorkspaceCommandCatalogEntries,
 } from "./definitions";
 
@@ -19,6 +20,7 @@ describe("command catalog definitions", () => {
     expect(COMMAND_CATALOG_DEFINITION_SETS).toEqual([
       RuntimeCommandCatalogEntries,
       ExecutionCommandCatalogEntries,
+      ToolingCommandCatalogEntries,
       ResearchCommandCatalogEntries,
       SkillsCommandCatalogEntries,
       MemoryCommandCatalogEntries,
@@ -53,6 +55,12 @@ describe("command catalog definitions", () => {
       expect.objectContaining({
         command: "/browser capture <url>",
         category: "browser",
+      }),
+    );
+    expect(COMMAND_CATALOG_DEFINITIONS).toContainEqual(
+      expect.objectContaining({
+        command: "/mcp marketplace search <query>",
+        category: "tools",
       }),
     );
   });

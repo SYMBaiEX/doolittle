@@ -1,5 +1,7 @@
+import type { ActionResult } from "@elizaos/core";
+import { summarizeActionResults } from "@/runtime/action-result-metadata";
 import { classifyTurnMessage } from "@/runtime/turn-classification/message";
-import type { LocalMutationRecord } from "@/services/run-controller-service";
+import type { LocalMutationInput } from "@/services/run-controller-service";
 
 const FILE_MUTATION_REQUEST_PATTERN =
   /\b(?:create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|mkdir|touch)\b[\s\S]*\b(?:file|files|folder|directory|html|css|js|javascript|typescript|json|md|markdown|website|site|project)\b|\b(?:file|files|folder|directory|html|css|js|javascript|typescript|json|md|markdown|website|site|project)\b[\s\S]*\b(?:create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|mkdir|touch)\b/iu;
@@ -21,7 +23,7 @@ export interface TurnExecutionAssessment {
 }
 
 function summarizeFailedMutation(
-  localMutations: LocalMutationRecord[],
+  localMutations: LocalMutationInput[],
 ): string | undefined {
   const failed = localMutations.find((mutation) => !mutation.success);
   if (!failed) {
@@ -73,15 +75,26 @@ export function assessTurnExecutionContract(input: {
   contract: TurnExecutionContract;
   response: string;
   observedActionCount: number;
-  localMutations?: LocalMutationRecord[];
+  actionResults?: ActionResult[];
+  localMutations?: LocalMutationInput[];
   runFailureMessage?: string;
 }): TurnExecutionAssessment {
   if (!input.contract.requiresLocalExecution || input.runFailureMessage) {
     return { ok: true };
   }
 
+  const actionResultSummary = summarizeActionResults(input.actionResults);
+  const observedActionCount = Math.max(
+    input.observedActionCount,
+    actionResultSummary.observedActionCount,
+  );
+  const localMutations = [
+    ...actionResultSummary.localMutations,
+    ...(input.localMutations ?? []),
+  ];
+
   if (
-    input.observedActionCount === 0 &&
+    observedActionCount === 0 &&
     looksLikeEmptyProviderExecution(input.response)
   ) {
     return {
@@ -91,7 +104,7 @@ export function assessTurnExecutionContract(input: {
     };
   }
 
-  if (input.contract.requiresMutationProof && input.observedActionCount === 0) {
+  if (input.contract.requiresMutationProof && observedActionCount === 0) {
     return {
       ok: false,
       failureMessage:
@@ -100,7 +113,6 @@ export function assessTurnExecutionContract(input: {
   }
 
   if (input.contract.requiresMutationProof) {
-    const localMutations = input.localMutations ?? [];
     const successfulMutation = localMutations.some(
       (mutation) => mutation.success,
     );
@@ -110,7 +122,7 @@ export function assessTurnExecutionContract(input: {
         ok: false,
         failureMessage: failedMutation
           ? `Native execution failed: the requested file change did not land (${failedMutation}).`
-          : "Native execution failed: the requested file change did not produce a local mutation receipt.",
+          : "Native execution failed: the requested file change did not produce an SDK action-result mutation receipt.",
       };
     }
 

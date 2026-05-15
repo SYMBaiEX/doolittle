@@ -38,6 +38,7 @@ export interface SkillsWorkspaceSummary {
 export interface NativeSkillRoots {
   bundledSkillsDir: string;
   managedSkillsDir: string;
+  curatedSkillsDir: string;
   projectSkillsDir: string;
   workspaceSkillsDir: string;
 }

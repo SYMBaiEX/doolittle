@@ -1,5 +1,13 @@
+import { searchSkillsMarketplace } from "@elizaos/autonomous/services/skill-marketplace";
 import type { AppServices } from "@/services";
 import { getNativeServices, type RuntimeLike } from "../runtime";
+
+const SKILLS_MARKETPLACE_SOURCE =
+  "@elizaos/autonomous/services/skill-marketplace";
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export async function getEffectiveSkillCatalog(
   runtime: RuntimeLike,
@@ -26,6 +34,33 @@ export async function searchEffectiveSkillHubCatalog(
   limit = 15,
 ) {
   return services.skillsHub.searchCatalog(query, limit);
+}
+
+export async function searchEffectiveSkillsMarketplace(
+  query: string,
+  limit = 15,
+) {
+  try {
+    return {
+      available: true,
+      source: SKILLS_MARKETPLACE_SOURCE,
+      query,
+      limit,
+      results: await searchSkillsMarketplace(query, {
+        limit,
+        aiSearch: true,
+      }),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      source: SKILLS_MARKETPLACE_SOURCE,
+      query,
+      limit,
+      results: [],
+      error: errorMessage(error),
+    };
+  }
 }
 
 export function getEffectiveSkillHubSummary(services: AppServices) {

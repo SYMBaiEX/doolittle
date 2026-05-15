@@ -53,6 +53,9 @@ function createContext(options?: {
   ];
 
   const context = {
+    config: {
+      dataDir: "/tmp/doolittle-trajectory-command-test",
+    },
     runtime: {
       getService: (service: string) => {
         if (service === "trajectory_logger" && options?.native) {
@@ -74,6 +77,7 @@ function createContext(options?: {
         }
         return undefined;
       },
+      getServicesByType: () => [],
     },
     services: {
       trajectories: {
@@ -170,7 +174,7 @@ function createContext(options?: {
 }
 
 describe("trajectory command router", () => {
-  it("prefers native export, list, and compare latest overrides", async () => {
+  it("uses SDK-only training export while keeping native debug list and compare overrides", async () => {
     const { context } = createContext({
       native: true,
       latestComparison: { source: "product" },
@@ -186,7 +190,7 @@ describe("trajectory command router", () => {
       context,
     );
 
-    expect(exported).toBe("/tmp/native-export.jsonl");
+    expect(exported).toContain("ElizaOS SDK trajectory export unavailable");
     expect(listed).toContain("native-bundle");
     expect(compared).toContain('"source": "native"');
   });
@@ -207,13 +211,8 @@ describe("trajectory command router", () => {
       context,
     );
 
-    expect(exported).toBe("/tmp/export-1.jsonl");
-    expect(events.datasetRequests[0]).toMatchObject({
-      label: "demo",
-      limit: 200,
-      mode: "dataset",
-      purpose: "trajectory export",
-    });
+    expect(exported).toContain("ElizaOS SDK trajectory export unavailable");
+    expect(events.datasetRequests).toEqual([]);
     expect(created).toContain('"manifestPath": "/tmp/created-benchmark.json"');
     expect(run).toContain('"/tmp/benchmark-a.json"');
     expect(events.benchmarkRuns).toEqual(["/tmp/benchmark-a.json"]);

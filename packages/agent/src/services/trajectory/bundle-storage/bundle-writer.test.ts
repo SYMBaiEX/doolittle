@@ -76,12 +76,21 @@ describe("trajectory bundle writer seam", () => {
       });
       expect(bundle.messageCount).toBe(2);
       expect(bundle.sessionCount).toBe(1);
+      expect(bundle.trainingCompatible).toBe(false);
+      expect(bundle.trainingFormat).toBe("doolittle-debug");
 
       const summary = readFileSync(bundle.summaryPath, "utf8");
       expect(summary).toContain("# Trajectory Bundle: session-b-bundle");
       expect(summary).toContain("- Messages: 2");
+      expect(summary).toContain("- Training compatible: false");
       expect(summary).toContain("## Role Counts");
       expect(summary).toContain("- assistant: 2");
+
+      const manifest = JSON.parse(readFileSync(bundle.manifestPath, "utf8"));
+      expect(manifest).toMatchObject({
+        trainingCompatible: false,
+        trainingFormat: "doolittle-debug",
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

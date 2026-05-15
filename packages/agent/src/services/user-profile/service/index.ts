@@ -10,6 +10,7 @@ import type {
   UserProfileWorkspaceSummary,
 } from "@/types";
 import type { ProfileReader } from "../insights";
+import { buildNativeUserPersonalityPreferences } from "../native-personality";
 import type { ProfileRenderReader } from "../render/reader";
 import type { UserProfileSearchReader } from "../search";
 import type {
@@ -104,6 +105,10 @@ export class UserProfileService
 
   engagement(userId: string): UserProfileEngagementSummary {
     return getEngagementSummary(this, userId);
+  }
+
+  nativeInteractionPreferences(userId: string, limit?: number): string[] {
+    return buildNativeUserPersonalityPreferences(this.get(userId), limit);
   }
 
   search(query: string, limit = 10): UserProfileSearchHit[] {

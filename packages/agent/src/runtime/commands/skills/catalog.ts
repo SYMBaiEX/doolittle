@@ -4,6 +4,7 @@ import {
   importEffectiveSkillHubManifest,
   installEffectiveSkillHubManifest,
   searchEffectiveSkillHubCatalog,
+  searchEffectiveSkillsMarketplace,
   syncEffectiveSkillHub,
 } from "@/runtime/native/service-bridge/skill-hub";
 
@@ -36,6 +37,22 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
     }
     return JSON.stringify(
       await searchEffectiveSkillHubCatalog(context.services, query),
+      null,
+      2,
+    );
+  }
+
+  if (trimmed === "/skills marketplace search") {
+    return "Usage: /skills marketplace search <query>";
+  }
+
+  if (trimmed.startsWith("/skills marketplace search ")) {
+    const query = trimmed.replace("/skills marketplace search ", "").trim();
+    if (!query) {
+      return "Usage: /skills marketplace search <query>";
+    }
+    return JSON.stringify(
+      await searchEffectiveSkillsMarketplace(query),
       null,
       2,
     );

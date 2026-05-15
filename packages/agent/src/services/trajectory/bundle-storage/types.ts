@@ -33,6 +33,9 @@ export interface TrajectoryBundleWriteResult {
   manifestPath: string;
   summaryPath: string;
   messageCount: number;
+  trainingCompatible: boolean;
+  trainingFormat: "doolittle-debug";
+  trainingNotes: string;
   sessionCount: number;
 }
 

@@ -47,9 +47,14 @@ describe("skills command router", () => {
     } as unknown as AgentExecutionContext;
 
     const search = await handleSkillCommand("/skills catalog search ", context);
+    const marketplace = await handleSkillCommand(
+      "/skills marketplace search",
+      context,
+    );
     const install = await handleSkillCommand("/skills install ", context);
 
     expect(search).toBe("Usage: /skills catalog search <query>");
+    expect(marketplace).toBe("Usage: /skills marketplace search <query>");
     expect(install).toBe("Usage: /skills install <catalog-slug>");
   });
 

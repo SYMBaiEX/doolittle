@@ -1,3 +1,4 @@
+import { summarizeActionResults } from "@/runtime/action-result-metadata";
 import type {
   PostProviderApprovalResult,
   PostProviderTurnInput,
@@ -34,6 +35,7 @@ export async function resolvePostProviderFallback(
     | "options"
     | "loadDirectLocalIntent"
     | "approveDirectLocalIntent"
+    | "actionResults"
   > & {
     response: string;
     runFailureMessage?: string;
@@ -43,9 +45,11 @@ export async function resolvePostProviderFallback(
   let runFailureMessage = input.runFailureMessage;
   let usedFallback = false;
 
-  const observedActionCount =
+  const observedActionCount = Math.max(
     input.context.services.runController.getActive(input.turn.sessionId)
-      ?.observedActionCount ?? 0;
+      ?.observedActionCount ?? 0,
+    summarizeActionResults(input.actionResults).observedActionCount,
+  );
 
   const fallbackModule = shouldLoadDirectLocalIntentFallback({
     localInteractive: input.turn.localInteractive,
@@ -110,7 +114,11 @@ export async function resolvePostProviderFallback(
 
   return {
     kind: "continue",
-    observedActionCount,
+    observedActionCount: Math.max(
+      observedActionCount,
+      input.context.services.runController.getActive(input.turn.sessionId)
+        ?.observedActionCount ?? 0,
+    ),
     response,
     runFailureMessage,
     usedFallback,

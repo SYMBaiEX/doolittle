@@ -1,6 +1,17 @@
+import {
+  generateMcpConfigFromServerDetails,
+  getMcpServerDetails,
+  searchMcpMarketplace,
+} from "@elizaos/autonomous/services/mcp-marketplace";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
 import { getNativeMcp } from "./native-services";
+
+const MCP_MARKETPLACE_SOURCE = "@elizaos/autonomous/services/mcp-marketplace";
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export function getEffectiveMcpStatus(
   runtime: RuntimeLike,
@@ -87,4 +98,48 @@ export async function invokeEffectiveMcpTool(
     (await getNativeMcp(runtime)?.invokeTool(name, input)) ??
     services.mcp.invokeTool(name, input)
   );
+}
+
+export async function searchEffectiveMcpMarketplace(query: string, limit = 10) {
+  try {
+    const result = await searchMcpMarketplace(query, limit);
+    return {
+      available: true,
+      source: MCP_MARKETPLACE_SOURCE,
+      query,
+      limit,
+      ...result,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      source: MCP_MARKETPLACE_SOURCE,
+      query,
+      limit,
+      results: [],
+      error: errorMessage(error),
+    };
+  }
+}
+
+export async function getEffectiveMcpMarketplaceServer(name: string) {
+  try {
+    const server = await getMcpServerDetails(name);
+    return {
+      available: true,
+      source: MCP_MARKETPLACE_SOURCE,
+      name,
+      server,
+      config: server ? generateMcpConfigFromServerDetails(server) : null,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      source: MCP_MARKETPLACE_SOURCE,
+      name,
+      server: null,
+      config: null,
+      error: errorMessage(error),
+    };
+  }
 }

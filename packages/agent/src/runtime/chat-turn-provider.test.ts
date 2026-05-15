@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { extractSessionContext } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runProviderModelTurn } from "./chat-turn/provider";
 
@@ -9,6 +10,7 @@ function createProviderContext() {
   const runtimeSettings: Array<{ key: string; value: unknown }> = [];
   const emittedEvents: string[] = [];
   const thinkingSessions: string[] = [];
+  let handledMemory: unknown;
   const settingsState = {
     model: {
       provider: "openai",
@@ -55,6 +57,7 @@ function createProviderContext() {
           _memory: unknown,
           onContent: (content: unknown) => Promise<unknown>,
         ) => {
+          handledMemory = _memory;
           await onContent({ text: "hello from provider" });
           return {
             responseMessages: [
@@ -116,6 +119,7 @@ function createProviderContext() {
     thinkingSessions,
     getToolProfile: () => toolProfile,
     getConversationId: () => conversationId,
+    getHandledMemory: () => handledMemory,
     options: {
       personalityId: "reviewer",
       onNotice: async (notice: { message: string }) => {
@@ -184,6 +188,12 @@ describe("chat turn provider seam", () => {
           entry.value === "continuity-1",
       ),
     ).toBe(true);
+    const sessionContext = extractSessionContext(
+      harness.getHandledMemory() as Parameters<typeof extractSessionContext>[0],
+    );
+    expect(sessionContext?.sessionId).toBe("session-1");
+    expect(sessionContext?.sessionKey).toBe("continuity-1");
+    expect(sessionContext?.entry?.model).toBe("gpt-4.1-mini");
   });
 
   it("preserves recoverable planning failures for the direct-local fallback path", async () => {

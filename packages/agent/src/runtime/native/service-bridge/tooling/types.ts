@@ -1,5 +1,7 @@
 import type {
+  CodingIteration,
   ConnectorType,
+  HumanFeedback,
   InteractionMode,
 } from "@elizaos/agent/services/coding-agent-context";
 
@@ -11,4 +13,6 @@ export interface EffectiveCodingAgentContextInput {
   interactionMode?: InteractionMode;
   connectorType?: ConnectorType;
   metadata?: Record<string, string>;
+  iterations?: CodingIteration[];
+  allFeedback?: HumanFeedback[];
 }

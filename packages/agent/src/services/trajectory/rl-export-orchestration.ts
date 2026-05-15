@@ -35,6 +35,9 @@ export function exportTrajectoryServiceRlReady(
   dataPath: string;
   manifestPath: string;
   turnCount: number;
+  trainingCompatible: false;
+  trainingFormat: "doolittle-rl-v1";
+  trainingNotes: string;
 } {
   const messages = collectTrajectoryRecords(host, {
     sessionId,
@@ -61,6 +64,9 @@ export function exportTrajectoryServiceRlDataset(
   manifestPath: string;
   turnCount: number;
   sessionCount: number;
+  trainingCompatible: false;
+  trainingFormat: "doolittle-rl-v1";
+  trainingNotes: string;
 } {
   const messages = collectTrajectoryRecords(host, {
     limit: options.limit ?? 1000,

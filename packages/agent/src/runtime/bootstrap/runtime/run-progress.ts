@@ -1,5 +1,10 @@
 import { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
-import { type AgentRuntime, EventType } from "@elizaos/core";
+import { type ActionResult, type AgentRuntime, EventType } from "@elizaos/core";
+import {
+  extractCommandResultFromActionResult,
+  extractFileOperationFromActionResult,
+  extractLocalMutationFromActionResult,
+} from "@/runtime/action-result-metadata";
 import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import type { AppServices } from "@/services";
 
@@ -59,6 +64,10 @@ export function eventActionLabel(payload: RuntimePayload): string | undefined {
     ) {
       return content.actionStatus.trim();
     }
+    const actionName = contentActionResultName(content);
+    if (actionName) {
+      return actionName;
+    }
   }
   return undefined;
 }
@@ -76,6 +85,102 @@ export function agentEventLabel(
     return data.text.trim();
   }
   return eventActionLabel(data);
+}
+
+export function eventActionResult(
+  payload: RuntimePayload,
+): ActionResult | undefined {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "content" in payload &&
+    payload.content &&
+    typeof payload.content === "object"
+  ) {
+    const content = payload.content as {
+      actionResult?: unknown;
+      result?: unknown;
+    };
+    const actionResult = content.actionResult ?? content.result;
+    if (actionResult && typeof actionResult === "object") {
+      return actionResult as ActionResult;
+    }
+  }
+  return undefined;
+}
+
+function contentActionResultName(content: object): string | undefined {
+  const actionResult =
+    (content as { actionResult?: unknown; result?: unknown }).actionResult ??
+    (content as { result?: unknown }).result;
+  if (!actionResult || typeof actionResult !== "object") {
+    return undefined;
+  }
+  const data = (actionResult as { data?: unknown }).data;
+  if (!data || typeof data !== "object") {
+    return undefined;
+  }
+  const actionName = (data as { actionName?: unknown }).actionName;
+  return typeof actionName === "string" && actionName.trim()
+    ? actionName.trim()
+    : undefined;
+}
+
+function eventActionStatus(payload: RuntimePayload): string | undefined {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "content" in payload &&
+    payload.content &&
+    typeof payload.content === "object"
+  ) {
+    const status = (payload.content as { actionStatus?: unknown }).actionStatus;
+    return typeof status === "string" ? status : undefined;
+  }
+  return undefined;
+}
+
+function recordActionTrajectory(input: {
+  services: AppServices;
+  roomId: string;
+  event: "action.started" | "action.completed";
+  action?: string;
+  actionResult?: ActionResult;
+  status?: string;
+}): void {
+  const run = input.services.runController.getByRoomId(input.roomId);
+  const settings = input.services.settings.get().model;
+  const mutation = extractLocalMutationFromActionResult(input.actionResult);
+  const fileOperation = extractFileOperationFromActionResult(
+    input.actionResult,
+  );
+  const commandResult = extractCommandResultFromActionResult(
+    input.actionResult,
+  );
+  try {
+    input.services.trajectories?.recordEvent({
+      category: "action",
+      event: input.event,
+      sessionId: run?.sessionId,
+      runId: run?.runId,
+      roomId: input.roomId,
+      source: run?.source,
+      provider: settings.provider,
+      model: settings.model,
+      text: `[${input.event}] ${input.action ?? "action"}`,
+      metadata: {
+        action: input.action,
+        status: input.status,
+        success: input.actionResult?.success,
+        actionResult: input.actionResult,
+        mutation,
+        fileOperation,
+        commandResult,
+      },
+    });
+  } catch {
+    // Action progress must not be blocked by optional trajectory recording.
+  }
 }
 
 export function attachRunProgressBridge(
@@ -123,20 +228,35 @@ export function attachRunProgressBridge(
   register(EventType.ACTION_STARTED, async (payload) => {
     const roomId = eventRoomId(payload);
     if (roomId) {
-      services.runController.noteRuntimeActionStarted(
+      const action = eventActionLabel(payload) ?? "action";
+      services.runController.noteRuntimeActionStarted(roomId, action);
+      recordActionTrajectory({
+        services,
         roomId,
-        eventActionLabel(payload) ?? "action",
-      );
+        event: "action.started",
+        action,
+      });
     }
   });
 
   register(EventType.ACTION_COMPLETED, async (payload) => {
     const roomId = eventRoomId(payload);
     if (roomId) {
-      services.runController.noteRuntimeActionCompleted(
+      const actionResult = eventActionResult(payload);
+      const action = eventActionLabel(payload);
+      services.runController.noteRuntimeActionCompleted(roomId, action);
+      const mutation = extractLocalMutationFromActionResult(actionResult);
+      if (mutation) {
+        services.runController.recordRuntimeLocalMutation(roomId, mutation);
+      }
+      recordActionTrajectory({
+        services,
         roomId,
-        eventActionLabel(payload),
-      );
+        event: "action.completed",
+        action,
+        actionResult,
+        status: eventActionStatus(payload),
+      });
     }
   });
 

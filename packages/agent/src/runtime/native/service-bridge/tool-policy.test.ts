@@ -28,6 +28,12 @@ describe("effective turn capability policy", () => {
       "mcp",
       "agentOrchestrator",
       "codingAgent",
+      "READ_FILE",
+      "WRITE_FILE",
+      "PATCH_FILE",
+      "SEARCH_FILES",
+      "CREATE_DIRECTORY",
+      "RUN_IN_TERMINAL",
     ]);
   });
 

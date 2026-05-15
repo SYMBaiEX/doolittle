@@ -11,6 +11,7 @@ import {
   createWorkspaceAction,
 } from "@doolittle/agent/plugin-api";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
+import { getSessionProviders } from "@elizaos/core";
 import { createGatewayRuntimeService } from "./gateway-service";
 import { createSchedulerRuntimeService } from "./scheduler-service";
 import type { DoolittlePluginDependencies } from "./types";
@@ -24,12 +25,15 @@ export function createDoolittlePluginSurface({
     createSkillsAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
     createCronAction(services),
-    ...createFileActions(config.workspaceDir, services.runController),
+    ...createFileActions(config.workspaceDir),
     createWorkspaceAction(services, config.workspaceDir),
     createTerminalAction(services),
     createRepositoryAction(services),
   ];
-  const providers: Provider[] = [createAgentContextProvider(services)];
+  const providers: Provider[] = [
+    ...getSessionProviders(),
+    createAgentContextProvider(services),
+  ];
   const evaluators: Evaluator[] = [createMemoryNudgeEvaluator(services)];
   const GatewayRuntimeService = createGatewayRuntimeService({
     services,

@@ -1,5 +1,7 @@
 import type {
+  CodingIteration,
   ConnectorType,
+  HumanFeedback,
   InteractionMode,
 } from "@elizaos/agent/services/coding-agent-context";
 
@@ -72,6 +74,8 @@ export interface CodingAgentContextOptions {
   interactionMode?: InteractionMode;
   connectorType?: ConnectorType;
   metadata?: Record<string, string>;
+  iterations?: CodingIteration[];
+  allFeedback?: HumanFeedback[];
 }
 
 export interface CodingAgentPluginOptions {

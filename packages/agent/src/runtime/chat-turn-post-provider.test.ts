@@ -423,32 +423,20 @@ describe("chat turn post-provider seam", () => {
       throw new Error("expected final result");
     }
     expect(result.runFailureMessage).toBe(
-      "Native execution failed: the requested file change did not produce a local mutation receipt.",
+      "Native execution failed: the requested file change did not produce an SDK action-result mutation receipt.",
     );
     expect(harness.finishEvents).toEqual([
       {
         sessionId: "session-1",
         status: "error",
         message:
-          "Native execution failed: the requested file change did not produce a local mutation receipt.",
+          "Native execution failed: the requested file change did not produce an SDK action-result mutation receipt.",
       },
     ]);
   });
 
-  it("accepts file mutation turns when a local mutation receipt exists", async () => {
-    const harness = createContext({
-      observedActionCount: 2,
-      localMutations: [
-        {
-          action: "WRITE_FILE",
-          requestedPath: "symbiex/dev/the-game/index.html",
-          resolvedPath: "/Users/symbiex/dev/the-game/index.html",
-          success: true,
-          message: "Wrote: /Users/symbiex/dev/the-game/index.html",
-          recordedAt: "2026-05-13T00:00:00.000Z",
-        },
-      ],
-    });
+  it("accepts file mutation turns when SDK action-result metadata exists", async () => {
+    const harness = createContext({ observedActionCount: 0 });
 
     const result = await runPostProviderTurn({
       input: {
@@ -464,6 +452,27 @@ describe("chat turn post-provider seam", () => {
       context: harness.context,
       turn: createTurn(),
       response: "Created `/Users/symbiex/dev/the-game/index.html`.",
+      actionResults: [
+        {
+          success: true,
+          text: "Wrote: /Users/symbiex/dev/the-game/index.html",
+          data: {
+            actionName: "WRITE_FILE",
+            mutationKind: "local-file",
+            mutation: {
+              action: "WRITE_FILE",
+              requestedPath: "symbiex/dev/the-game/index.html",
+              resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+              success: true,
+              message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+            },
+            fileOperation: {
+              type: "write",
+              target: "symbiex/dev/the-game/index.html",
+            },
+          },
+        },
+      ],
       settingsDuring: {
         model: {
           provider: "devin",
@@ -484,7 +493,7 @@ describe("chat turn post-provider seam", () => {
     expect(result).toMatchObject({
       kind: "final",
       runFailureMessage: undefined,
-      observedActionCount: 2,
+      observedActionCount: 1,
       usedFallback: false,
     });
     expect(harness.finishEvents).toEqual([

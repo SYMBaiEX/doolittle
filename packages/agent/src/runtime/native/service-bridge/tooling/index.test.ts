@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CodingAgentContext } from "@elizaos/agent/services/coding-agent-context";
+import type {
+  CodingAgentContext,
+  CodingIteration,
+  HumanFeedback,
+} from "@elizaos/agent/services/coding-agent-context";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
 import {
@@ -349,17 +353,38 @@ describe("tooling bridge helpers", () => {
       source: "fallback-write",
     });
 
+    const iteration: CodingIteration = {
+      index: 0,
+      startedAt: 1,
+      completedAt: 2,
+      fileOperations: [{ type: "write", target: "index.html", size: 12 }],
+      commandResults: [],
+      errors: [],
+      feedback: [],
+      selfCorrected: false,
+    };
+    const feedback: HumanFeedback = {
+      id: "feedback-1",
+      timestamp: 3,
+      text: "Keep it local",
+      type: "guidance",
+    };
+
     const context = getEffectiveCodingAgentContext(runtime, services, {
       sessionId: "session-2",
       taskDescription: "Plan the work",
       workspaceRoot: "/tmp/fallback-workspace",
       metadata: { owner: "fallback" },
+      iterations: [iteration],
+      allFeedback: [feedback],
     });
 
     expect(context.connector.type).toBe("git-repo");
     expect(context.connector.basePath).toBe("/tmp/fallback-workspace");
     expect(context.connector.metadata).toEqual({ owner: "fallback" });
     expect(context.taskDescription).toBe("Plan the work");
+    expect(context.iterations).toEqual([iteration]);
+    expect(context.allFeedback).toEqual([feedback]);
 
     await expect(
       getEffectiveRepositoryStatus(runtime, services),

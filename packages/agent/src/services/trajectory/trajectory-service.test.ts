@@ -39,7 +39,7 @@ describe("TrajectoryService", () => {
         limit: 10,
         sessionId: "session-a",
         label: "Replay Fixture",
-        purpose: "training data",
+        purpose: "debug research",
         mode: "research",
         tags: ["memory", "skills"],
         notes: "Fixture used to validate trajectory exports.",
@@ -64,7 +64,7 @@ describe("TrajectoryService", () => {
 
       expect(jsonl).toHaveLength(2);
       expect(manifest.label).toBe("replay-fixture");
-      expect(manifest.purpose).toBe("training data");
+      expect(manifest.purpose).toBe("debug research");
       expect(manifest.mode).toBe("research");
       expect(manifest.tags).toEqual(["memory", "skills"]);
       expect(manifest.notes).toContain("validate trajectory exports");
@@ -104,7 +104,7 @@ describe("TrajectoryService", () => {
       const second = service.exportFilteredBundle({
         limit: 10,
         label: "Replay Fixture Candidate",
-        purpose: "training data candidate",
+        purpose: "debug research candidate",
         mode: "research",
       });
       const comparison = service.compareBundles(
@@ -121,7 +121,7 @@ describe("TrajectoryService", () => {
         limit: 10,
         sessionId: "session-a",
         label: "Replay Fixture",
-        purpose: "training data",
+        purpose: "debug research",
         mode: "research",
         tags: ["memory", "skills"],
       });
@@ -150,7 +150,7 @@ describe("TrajectoryService", () => {
         limit: 10,
         sessionId: "session-a",
         label: "Replay Fixture",
-        purpose: "training data",
+        purpose: "debug research",
         mode: "research",
         tags: ["memory", "skills"],
         notes: "Fixture used to validate trajectory exports.",

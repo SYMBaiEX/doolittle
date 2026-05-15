@@ -68,6 +68,8 @@ describe("chat turn native provider stage", () => {
     const runProviderModelTurn = mock(async () => ({
       handledMessage: true,
       response: "fresh model reply",
+      messageId: "message-1",
+      actionResults: [],
     }));
     const runPostProviderTurn = mock(async () => ({
       kind: "final" as const,
@@ -193,6 +195,8 @@ describe("chat turn native provider stage", () => {
         runProviderModelTurn: async () => ({
           handledMessage: true,
           response: "provider result",
+          messageId: "message-1",
+          actionResults: [],
         }),
         runPostProviderTurn: async () => ({
           kind: "final",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { parseFrontmatter } from "@elizaos/skills";
 import type { StoredMessage } from "@/types";
 import {
   analyzeConversationForSkill,
@@ -85,7 +86,14 @@ describe("skill synthesis conversation helpers", () => {
         updatedAt: "2026-03-20T00:00:01.000Z",
       });
       const content = readFileSync(path, "utf8");
+      const { frontmatter } = parseFrontmatter(content);
 
+      expect(frontmatter.name).toBe("deploy-workflow");
+      expect(frontmatter.provenance).toMatchObject({
+        source: "agent-generated",
+        derivedFromTrajectory: "session-1",
+        refinedCount: 0,
+      });
       expect(content).toContain("## Key Steps");
       expect(content).toContain("## Conversation Context (excerpt)");
       expect(record.taskId).toBe("conversation:session-1");

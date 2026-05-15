@@ -1,3 +1,4 @@
+import { summarizeActionResults } from "@/runtime/action-result-metadata";
 import {
   assessTurnExecutionContract,
   buildTurnExecutionContract,
@@ -23,6 +24,7 @@ export async function runPostProviderTurn(
     options: input.options,
     response: input.response,
     runFailureMessage: input.runFailureMessage,
+    actionResults: input.actionResults,
     loadDirectLocalIntent: input.loadDirectLocalIntent,
     approveDirectLocalIntent: input.approveDirectLocalIntent,
   });
@@ -37,10 +39,16 @@ export async function runPostProviderTurn(
   const activeRun = input.context.services.runController.getActive(
     input.turn.sessionId,
   );
+  const actionResultSummary = summarizeActionResults(input.actionResults);
+  const observedActionCount = Math.max(
+    fallbackResult.observedActionCount,
+    actionResultSummary.observedActionCount,
+  );
   const executionAssessment = assessTurnExecutionContract({
     contract: executionContract,
     response: fallbackResult.response,
-    observedActionCount: fallbackResult.observedActionCount,
+    observedActionCount,
+    actionResults: input.actionResults,
     localMutations: activeRun?.localMutations,
     runFailureMessage: fallbackResult.runFailureMessage,
   });
@@ -55,7 +63,7 @@ export async function runPostProviderTurn(
     effectiveInput: input.effectiveInput,
     response,
     runFailureMessage,
-    observedActionCount: fallbackResult.observedActionCount,
+    observedActionCount,
     settingsDuring: input.settingsDuring,
   });
 
@@ -71,7 +79,8 @@ export async function runPostProviderTurn(
     turn: input.turn,
     finalResponse,
     runFailureMessage,
-    observedActionCount: fallbackResult.observedActionCount,
+    observedActionCount,
+    actionResults: input.actionResults,
     usedFallback: fallbackResult.usedFallback,
     settingsDuring: input.settingsDuring,
     scheduleProfileObservation: input.scheduleProfileObservation,

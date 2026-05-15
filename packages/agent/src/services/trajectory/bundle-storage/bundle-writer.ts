@@ -46,6 +46,10 @@ export function writeTrajectoryBundleRecords(
   const eventCount = recordKindCounts.event ?? 0;
   const messageRecordCount = messages.length - eventCount;
   const sessions = unique(messages.map((message) => message.sessionId));
+  const trainingCompatible = false;
+  const trainingFormat = "doolittle-debug" as const;
+  const trainingNotes =
+    "Doolittle trace bundles are debug/evaluation artifacts. Use ElizaOS SDK trajectory export for model training.";
 
   writeFileSync(
     dataPath,
@@ -75,6 +79,9 @@ export function writeTrajectoryBundleRecords(
         messageCount: messages.length,
         messageRecordCount,
         eventCount,
+        trainingCompatible,
+        trainingFormat,
+        trainingNotes,
         sessionCount: sessions.length,
         sessions,
         roleCounts,
@@ -100,6 +107,9 @@ export function writeTrajectoryBundleRecords(
       `- Messages: ${messages.length}`,
       `- Message records: ${messageRecordCount}`,
       `- Event records: ${eventCount}`,
+      `- Training compatible: ${trainingCompatible}`,
+      `- Training format: ${trainingFormat}`,
+      `- Training notes: ${trainingNotes}`,
       `- Sessions: ${sessions.length}`,
       `- Filters: session=${options.sessionId ?? "any"}, role=${options.role ?? "any"}, limit=${options.limit}`,
       "",
@@ -126,6 +136,9 @@ export function writeTrajectoryBundleRecords(
     manifestPath,
     summaryPath,
     messageCount: messages.length,
+    trainingCompatible,
+    trainingFormat,
+    trainingNotes,
     sessionCount: sessions.length,
   };
 }

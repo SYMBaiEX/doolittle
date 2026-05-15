@@ -7,13 +7,21 @@ import { createProviderStreamState } from "./chat-turn/provider-streaming";
 function createContext(overrides?: {
   onHandleMessage?: () => Promise<unknown>;
   captureNotice?: (notice: string) => void;
+  trajectoryLogger?: unknown;
 }) {
   const emittedEvents: string[] = [];
   const notices: string[] = [];
+  const trajectoryLogger = overrides?.trajectoryLogger;
 
   const context = {
     runtime: {
       agentId: "agent-1",
+      getService: (service: string) =>
+        service === "trajectories" ? trajectoryLogger : null,
+      getServicesByType: (service: string) =>
+        service === "trajectories" && trajectoryLogger
+          ? [trajectoryLogger]
+          : [],
       emitEvent: async (eventType: string) => {
         emittedEvents.push(eventType);
       },
@@ -121,6 +129,91 @@ describe("chat turn provider handler", () => {
     expect(result.runFailureMessage).toBeUndefined();
     expect(emittedEvents).toEqual(["MESSAGE_SENT"]);
     expect(streamState.getResponse()).toBe("provider response");
+  });
+
+  it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {
+    const started: unknown[] = [];
+    const ended: unknown[] = [];
+    const llmCalls: Array<Record<string, unknown>> = [];
+    const trajectoryLogger = {
+      isEnabled: () => true,
+      startTrajectory: (agentId: string, options: Record<string, unknown>) => {
+        started.push({ agentId, options });
+        return "trajectory-1";
+      },
+      startStep: (trajectoryId: string) => {
+        expect(trajectoryId).toBe("trajectory-1");
+        return "step-1";
+      },
+      flushWriteQueue: (trajectoryId: string) => {
+        expect(trajectoryId).toBe("trajectory-1");
+      },
+      endTrajectory: (trajectoryId: string, status: string) => {
+        ended.push({ trajectoryId, status });
+      },
+      logLlmCall: (params: Record<string, unknown>) => {
+        llmCalls.push(params);
+      },
+    };
+    const { context } = createContext({ trajectoryLogger });
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: (current: string, incoming: string) => ({
+        kind: "append",
+        emittedText: incoming,
+        nextText: current + incoming,
+      }),
+      extractCompatTextContent: (content) =>
+        typeof content === "object" && content !== null && "text" in content
+          ? ((content as { text?: string }).text ?? "")
+          : "",
+    });
+    const memory = {
+      id: "memory-sdk" as UUID,
+      roomId: "room-sdk" as UUID,
+      entityId: "entity-sdk" as UUID,
+      content: {
+        text: "bridge this turn",
+        source: "cli",
+        channelType: ChannelType.DM,
+      },
+      metadata: {
+        source: "cli",
+        doolittle: {
+          messagePrelude: "system prelude",
+        },
+      },
+    } as Memory;
+
+    const result = await executeProviderMessageTurn({
+      context,
+      memory,
+      sessionId: "session-sdk",
+      runId: "run-sdk",
+      streamState,
+      derivedTurnPolicy: {
+        useMultiStep: true,
+        maxIterations: 3,
+      },
+      abortSignal: undefined,
+      settingsDuring: createTurnSettings(),
+      loadDirectLocalIntent: async () => undefined,
+      onNotice: undefined,
+      connectionSource: "cli",
+      roomId: "room-sdk",
+      buildProviderFailureMessage: () => "fatal",
+      buildNativePlanningFailureMessage: () => "recoverable",
+      isRecoverableNativePlanningError: () => false,
+    });
+
+    expect(result.response).toBe("provider response");
+    expect(started).toHaveLength(1);
+    expect(ended).toEqual([
+      { trajectoryId: "trajectory-1", status: "completed" },
+    ]);
+    expect(
+      (memory.metadata as { trajectoryStepId?: string }).trajectoryStepId,
+    ).toBe("step-1");
+    expect(llmCalls).toEqual([]);
   });
 
   it("preserves direct-local fallback behavior for recoverable provider errors", async () => {

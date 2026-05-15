@@ -48,6 +48,11 @@ describe("SkillsHubService", () => {
     writeFileSync(
       workspaceSkillPath,
       [
+        "---",
+        "name: coordination",
+        "description: Coordinate planning work across multiple projects.",
+        "---",
+        "",
         "# Planning Coordination",
         "",
         "Coordinate planning work across multiple projects.",

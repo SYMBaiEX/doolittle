@@ -1,7 +1,14 @@
-import { ModelType } from "@elizaos/core";
+import { type Memory, MemoryType, ModelType, type UUID } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
+import {
+  buildNativeUserPersonalityPreferences,
+  NATIVE_USER_PERSONALITY_MAX_PREFERENCES,
+  NATIVE_USER_PERSONALITY_PREFERENCES_TABLE,
+} from "@/services/user-profile/native-personality";
+import type { UserProfileRecord } from "@/types";
 import type { TurnState } from "../state";
 import { elapsedMsSince, recordTrajectoryEvent } from "../trajectory";
+import { runShortcutModelWithSdkTrajectory } from "./model-trajectory";
 import {
   buildDirectInformationalPrompt,
   finalizeNativeShortcut,
@@ -38,15 +45,158 @@ function asksForSoulIdentityWork(message: string): boolean {
   );
 }
 
-function rememberDisplayName(input: {
+type NativePreferenceMemory = Pick<Memory, "id" | "content" | "metadata">;
+
+function nativePreferenceText(memory: NativePreferenceMemory): string {
+  return typeof memory.content?.text === "string"
+    ? memory.content.text.trim()
+    : "";
+}
+
+function isGeneratedDisplayNamePreference(memory: NativePreferenceMemory) {
+  const metadata = memory.metadata as
+    | { category?: unknown; source?: unknown }
+    | undefined;
+  return (
+    metadata?.category === "identity/display-name" ||
+    nativePreferenceText(memory).startsWith("Address the user as ")
+  );
+}
+
+export async function rememberNativeUserPersonalityPreferences(input: {
+  context: AgentExecutionContext;
+  entityId: string;
+  profile: UserProfileRecord;
+  sessionId: string;
+  message: string;
+}): Promise<number> {
+  const runtime = input.context.runtime as typeof input.context.runtime & {
+    getMemories?: (params: {
+      entityId: UUID;
+      roomId: UUID;
+      tableName: string;
+      count: number;
+    }) => Promise<NativePreferenceMemory[]>;
+    createMemory?: (
+      memory: Memory,
+      tableName: string,
+      unique?: boolean,
+    ) => Promise<UUID>;
+    deleteMemory?: (memoryId: UUID) => Promise<void>;
+  };
+  if (
+    !runtime.agentId ||
+    typeof runtime.getMemories !== "function" ||
+    typeof runtime.createMemory !== "function"
+  ) {
+    return 0;
+  }
+
+  try {
+    const desiredPreferences = buildNativeUserPersonalityPreferences(
+      input.profile,
+      NATIVE_USER_PERSONALITY_MAX_PREFERENCES,
+    );
+    if (!desiredPreferences.length) {
+      return 0;
+    }
+
+    const desiredDisplayName = input.profile.displayName
+      ? `Address the user as ${input.profile.displayName} when natural.`
+      : undefined;
+    const existing = await runtime.getMemories({
+      entityId: input.entityId as UUID,
+      roomId: runtime.agentId as UUID,
+      tableName: NATIVE_USER_PERSONALITY_PREFERENCES_TABLE,
+      count: NATIVE_USER_PERSONALITY_MAX_PREFERENCES + 8,
+    });
+    const staleDisplayNameMemories = desiredDisplayName
+      ? existing.filter(
+          (memory) =>
+            isGeneratedDisplayNamePreference(memory) &&
+            nativePreferenceText(memory) !== desiredDisplayName,
+        )
+      : [];
+
+    if (typeof runtime.deleteMemory === "function") {
+      for (const memory of staleDisplayNameMemories) {
+        if (memory.id) {
+          await runtime.deleteMemory(memory.id as UUID);
+        }
+      }
+    }
+
+    const staleIds = new Set(
+      staleDisplayNameMemories
+        .map((memory) => memory.id)
+        .filter((id): id is string => typeof id === "string"),
+    );
+    const existingTexts = new Set(
+      existing
+        .filter((memory) => !staleIds.has(String(memory.id ?? "")))
+        .map((memory) => nativePreferenceText(memory).toLowerCase())
+        .filter(Boolean),
+    );
+    const availableSlots = Math.max(
+      0,
+      NATIVE_USER_PERSONALITY_MAX_PREFERENCES - existingTexts.size,
+    );
+    let written = 0;
+
+    for (const preference of desiredPreferences) {
+      if (written >= availableSlots) {
+        break;
+      }
+      if (existingTexts.has(preference.toLowerCase())) {
+        continue;
+      }
+      await runtime.createMemory(
+        {
+          entityId: input.entityId as UUID,
+          roomId: runtime.agentId as UUID,
+          content: {
+            text: preference,
+            source: "doolittle_user_profile",
+          },
+          metadata: {
+            type: MemoryType.CUSTOM,
+            category:
+              preference === desiredDisplayName
+                ? "identity/display-name"
+                : "interaction",
+            timestamp: Date.now(),
+            source: "doolittle-profile-memory",
+            sessionId: input.sessionId,
+            originalRequest: input.message.slice(0, 200),
+          },
+        } as Memory,
+        NATIVE_USER_PERSONALITY_PREFERENCES_TABLE,
+        true,
+      );
+      existingTexts.add(preference.toLowerCase());
+      written++;
+    }
+
+    return written;
+  } catch (error) {
+    input.context.runtime.logger?.warn(
+      { error, sessionId: input.sessionId },
+      "Failed to mirror user profile into native personality preferences",
+    );
+    return 0;
+  }
+}
+
+async function rememberDisplayName(input: {
   context: AgentExecutionContext;
   userId: string;
+  entityId: string;
   displayName: string;
   source: string | undefined;
   sessionId: string;
   message: string;
-}): void {
-  input.context.services.userProfiles.observe(
+}): Promise<void> {
+  const profile = input.context.services.userProfiles.observe(
     input.userId,
     `My name is ${input.displayName}.`,
     input.source,
@@ -57,6 +207,13 @@ function rememberDisplayName(input: {
       signal: input.message.slice(0, 160),
     },
   );
+  await rememberNativeUserPersonalityPreferences({
+    context: input.context,
+    entityId: input.entityId,
+    profile,
+    sessionId: input.sessionId,
+    message: input.message,
+  });
   try {
     input.context.services.memory.add(
       "user",
@@ -82,9 +239,10 @@ export async function handleProfileMemoryModelTurn(input: {
     return undefined;
   }
 
-  rememberDisplayName({
+  await rememberDisplayName({
     context: input.context,
     userId: input.userId,
+    entityId: input.turn.entityId,
     displayName,
     source: input.source,
     sessionId: input.turn.sessionId,
@@ -127,14 +285,27 @@ export async function handleProfileMemoryModelTurn(input: {
   });
 
   try {
-    const response = normalizeDirectInformationalResponse(
-      await input.context.runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt,
-        temperature: 0.45,
-        maxTokens: identityRequest ? 260 : 120,
-        stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
-      }),
-    );
+    const modelRun = await runShortcutModelWithSdkTrajectory({
+      context: input.context,
+      turn: input.turn,
+      source: input.source,
+      path: "profile-memory-model",
+      purpose: "response",
+      metadata: {
+        modelType: ModelType.TEXT_SMALL,
+        promptChars: prompt.length,
+        displayName,
+        identityRequest,
+      },
+      run: () =>
+        input.context.runtime.useModel(ModelType.TEXT_SMALL, {
+          prompt,
+          temperature: 0.45,
+          maxTokens: identityRequest ? 260 : 120,
+          stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
+        }),
+    });
+    const response = normalizeDirectInformationalResponse(modelRun.result);
 
     recordTrajectoryEvent(input.context, {
       category: "model",
@@ -149,6 +320,7 @@ export async function handleProfileMemoryModelTurn(input: {
       text: `[model:response] ${response}`,
       metadata: {
         path: "profile-memory-model",
+        trajectoryStepId: modelRun.trajectoryStepId,
         response,
         responseChars: response.length,
         displayName,
@@ -248,14 +420,25 @@ export async function handleSoulIdentityModelTurn(input: {
   });
 
   try {
-    const response = normalizeDirectInformationalResponse(
-      await input.context.runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt,
-        temperature: 0.55,
-        maxTokens: 280,
-        stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
-      }),
-    );
+    const modelRun = await runShortcutModelWithSdkTrajectory({
+      context: input.context,
+      turn: input.turn,
+      source: input.source,
+      path: "soul-identity-model",
+      purpose: "response",
+      metadata: {
+        modelType: ModelType.TEXT_SMALL,
+        promptChars: prompt.length,
+      },
+      run: () =>
+        input.context.runtime.useModel(ModelType.TEXT_SMALL, {
+          prompt,
+          temperature: 0.55,
+          maxTokens: 280,
+          stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
+        }),
+    });
+    const response = normalizeDirectInformationalResponse(modelRun.result);
 
     recordTrajectoryEvent(input.context, {
       category: "model",
@@ -270,6 +453,7 @@ export async function handleSoulIdentityModelTurn(input: {
       text: `[model:response] ${response}`,
       metadata: {
         path: "soul-identity-model",
+        trajectoryStepId: modelRun.trajectoryStepId,
         response,
         responseChars: response.length,
       },

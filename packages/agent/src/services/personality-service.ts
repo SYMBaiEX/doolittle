@@ -50,18 +50,23 @@ export class PersonalityService {
   }
 
   list(): PersonalityProfile[] {
-    return profiles;
+    return profiles.map((profile) => ({ ...profile }));
   }
 
   get(id: string): PersonalityProfile | undefined {
-    return profiles.find((profile) => profile.id === id);
+    const profile = profiles.find((candidate) => candidate.id === id);
+    return profile ? { ...profile } : undefined;
   }
 
   getActive(): PersonalityProfile {
     const store = this.read();
-    return (
-      profiles.find((profile) => profile.id === store.activeId) ?? profiles[0]
-    );
+    const profile =
+      profiles.find((candidate) => candidate.id === store.activeId) ??
+      profiles[0];
+    if (!profile) {
+      throw new Error("No personality profiles are configured");
+    }
+    return { ...profile };
   }
 
   setActive(id: string): PersonalityProfile {
@@ -70,7 +75,11 @@ export class PersonalityService {
       throw new Error(`Unknown personality: ${id}`);
     }
     this.write({ activeId: profile.id });
-    return profile;
+    return { ...profile };
+  }
+
+  activate(id: string): PersonalityProfile {
+    return this.setActive(id);
   }
 
   activeId(): string {

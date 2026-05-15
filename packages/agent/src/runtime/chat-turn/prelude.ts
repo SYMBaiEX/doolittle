@@ -41,6 +41,10 @@ export function buildCodingContextPrelude(input: {
       `connector=${codingContext.connector.type}`,
       `mode=${codingContext.interactionMode}`,
       `maxIterations=${codingContext.maxIterations}`,
+      `iterations=${codingContext.iterations.length}`,
+      codingContext.iterations.at(-1)
+        ? `lastIteration=fileOps:${codingContext.iterations.at(-1)?.fileOperations.length ?? 0} commandResults:${codingContext.iterations.at(-1)?.commandResults.length ?? 0}`
+        : undefined,
       "localFileRoots=workspace plus ~/dev, ~/code, ~/projects when present",
       "fileTools=READ_FILE, WRITE_FILE, PATCH_FILE, SEARCH_FILES, CREATE_DIRECTORY",
       "Use WRITE_FILE for new files; it creates parent directories automatically.",

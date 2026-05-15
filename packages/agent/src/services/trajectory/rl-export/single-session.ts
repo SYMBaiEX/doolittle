@@ -5,6 +5,7 @@ import type {
 import {
   buildRlPaths,
   emptyRlReadyManifest,
+  RL_EXPORT_TRAINING_METADATA,
   writeRlDatasetFiles,
 } from "./assembly";
 import { buildRlTurns } from "./turn-builder";
@@ -16,7 +17,14 @@ export function exportTrajectoryRlReady(input: {
   messages: TrajectoryRecord[];
   slug(value: string): string;
   options?: TrajectoryRlReadyOptions;
-}): { dataPath: string; manifestPath: string; turnCount: number } {
+}): {
+  dataPath: string;
+  manifestPath: string;
+  turnCount: number;
+  trainingCompatible: false;
+  trainingFormat: "doolittle-rl-v1";
+  trainingNotes: string;
+} {
   const options = input.options ?? {};
   const stamp = Date.now();
   const label = input.slug(options.label ?? input.sessionId);
@@ -33,7 +41,12 @@ export function exportTrajectoryRlReady(input: {
       dataPath,
       manifestPath,
     });
-    return { dataPath, manifestPath, turnCount: 0 };
+    return {
+      dataPath,
+      manifestPath,
+      turnCount: 0,
+      ...RL_EXPORT_TRAINING_METADATA,
+    };
   }
 
   const windowSize = options.windowSize ?? 20;
@@ -66,5 +79,6 @@ export function exportTrajectoryRlReady(input: {
     dataPath,
     manifestPath,
     turnCount: turns.length,
+    ...RL_EXPORT_TRAINING_METADATA,
   };
 }

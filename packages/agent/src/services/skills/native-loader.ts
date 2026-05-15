@@ -11,6 +11,7 @@ import { isUnderPath, stripSkillSuffix, titleFromPath } from "./paths";
 import type { NativeSkillRoots, SkillSource } from "./types";
 
 export interface LoadedNativeSkills {
+  workspace: SkillDocument[];
   native: SkillDocument[];
   commandSpecs: SkillCommandSpec[];
 }
@@ -32,9 +33,16 @@ export function loadNativeSkills(params: {
     .map((entry) => mapNativeEntry(entry, commandSpecBySkillName, params.roots))
     .filter((skill): skill is SkillDocument => Boolean(skill))
     .sort((left, right) => left.slug.localeCompare(right.slug));
+  const workspace = native.filter(
+    (skill) => skill.source === "workspace" || skill.source === "generated",
+  );
+  const externalNative = native.filter(
+    (skill) => skill.source !== "workspace" && skill.source !== "generated",
+  );
 
   return {
-    native,
+    workspace,
+    native: externalNative,
     commandSpecs,
   };
 }
@@ -49,8 +57,8 @@ function mapNativeEntry(
     return undefined;
   }
 
-  const source = resolveNativeSource(entry.skill.source);
-  const slug = resolveNativeSlug(filePath, source, entry.skill.name, roots);
+  const source = resolveNativeSource(filePath, entry.skill.source, roots);
+  const slug = resolveNativeSlug(filePath, entry.skill.name, roots);
   const content = readFileSync(filePath, "utf8");
   const commandSpec = commandSpecBySkillName.get(entry.skill.name);
 
@@ -67,36 +75,49 @@ function mapNativeEntry(
   };
 }
 
-function resolveNativeSource(source?: string): SkillSource {
-  if (
-    source === "bundled" ||
-    source === "managed" ||
-    source === "project" ||
-    source === "workspace" ||
-    source === "generated"
-  ) {
-    return source;
+function resolveNativeSource(
+  filePath: string,
+  source: string | undefined,
+  roots: NativeSkillRoots,
+): SkillSource {
+  if (isUnderPath(filePath, roots.workspaceSkillsDir)) {
+    const slug = stripSkillSuffix(relative(roots.workspaceSkillsDir, filePath));
+    return slug.startsWith("generated/") ? "generated" : "workspace";
   }
-  return "bundled";
+  if (isUnderPath(filePath, roots.bundledSkillsDir)) {
+    return "bundled";
+  }
+  if (isUnderPath(filePath, roots.managedSkillsDir) || source === "user") {
+    return "managed";
+  }
+  if (isUnderPath(filePath, roots.curatedSkillsDir) || source === "curated") {
+    return "curated";
+  }
+  if (isUnderPath(filePath, roots.projectSkillsDir) || source === "project") {
+    return "project";
+  }
+  return "workspace";
 }
 
 function resolveNativeSlug(
   filePath: string,
-  source: SkillSource,
   fallbackName: string,
   roots: NativeSkillRoots,
 ): string {
-  if (source === "bundled" && isUnderPath(filePath, roots.bundledSkillsDir)) {
-    return stripSkillSuffix(relative(roots.bundledSkillsDir, filePath));
-  }
-  if (source === "managed" && isUnderPath(filePath, roots.managedSkillsDir)) {
-    return stripSkillSuffix(relative(roots.managedSkillsDir, filePath));
-  }
-  if (source === "project" && isUnderPath(filePath, roots.projectSkillsDir)) {
-    return stripSkillSuffix(relative(roots.projectSkillsDir, filePath));
-  }
   if (isUnderPath(filePath, roots.workspaceSkillsDir)) {
     return stripSkillSuffix(relative(roots.workspaceSkillsDir, filePath));
+  }
+  if (isUnderPath(filePath, roots.bundledSkillsDir)) {
+    return stripSkillSuffix(relative(roots.bundledSkillsDir, filePath));
+  }
+  if (isUnderPath(filePath, roots.managedSkillsDir)) {
+    return stripSkillSuffix(relative(roots.managedSkillsDir, filePath));
+  }
+  if (isUnderPath(filePath, roots.curatedSkillsDir)) {
+    return stripSkillSuffix(relative(roots.curatedSkillsDir, filePath));
+  }
+  if (isUnderPath(filePath, roots.projectSkillsDir)) {
+    return stripSkillSuffix(relative(roots.projectSkillsDir, filePath));
   }
   return fallbackName.trim().toLowerCase();
 }

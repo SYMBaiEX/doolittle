@@ -142,7 +142,7 @@ describe("loadHotExecutionPlugins", () => {
     expect(pluginNames(plugins)).toEqual([
       "@doolittle/plugin-coding-agent",
       "@doolittle/plugin-agent-orchestrator",
-      "@elizaos/plugin-planning",
+      "@doolittle/plugin-planning",
     ]);
   });
 });
@@ -160,8 +160,8 @@ describe("loadDeferredPluginGroups", () => {
       "@doolittle/plugin-autocoder",
     ]);
     expect(pluginNames(groups.execution)).toEqual([
-      "@elizaos/plugin-e2b",
-      "@elizaos/plugin-forms",
+      "@doolittle/plugin-local-sandbox",
+      "@doolittle/plugin-forms",
     ]);
   });
 });

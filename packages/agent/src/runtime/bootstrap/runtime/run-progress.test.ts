@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { agentEventLabel, eventActionLabel, eventRoomId } from "./run-progress";
+import {
+  agentEventLabel,
+  eventActionLabel,
+  eventActionResult,
+  eventRoomId,
+} from "./run-progress";
 
 describe("run progress helpers", () => {
   it("extracts room ids from payload root or message envelope", () => {
@@ -49,5 +54,24 @@ describe("run progress helpers", () => {
       "action",
     );
     expect(agentEventLabel({})).toBeUndefined();
+  });
+
+  it("extracts SDK action results and action names from runtime event content", () => {
+    const actionResult = {
+      success: true,
+      data: {
+        actionName: "SHELL_COMMAND",
+        command: "bun test",
+        exitCode: 0,
+      },
+    };
+
+    expect(eventActionResult({ content: { actionResult } })).toBe(actionResult);
+    expect(eventActionResult({ content: { result: actionResult } })).toBe(
+      actionResult,
+    );
+    expect(eventActionLabel({ content: { actionResult } })).toBe(
+      "SHELL_COMMAND",
+    );
   });
 });

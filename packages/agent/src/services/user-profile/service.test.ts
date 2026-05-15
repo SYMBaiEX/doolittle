@@ -83,6 +83,17 @@ describe("UserProfileService", () => {
       expect(rendered).toContain("Tools");
       expect(rendered).toContain("Work Style");
       expect(rendered).toContain("Aliases");
+
+      const nativePreferences = service.nativeInteractionPreferences("user-2");
+      expect(nativePreferences).toContain(
+        "Address the user as AJ when natural.",
+      );
+      expect(
+        nativePreferences.some((entry) =>
+          entry.includes("Interaction style: concise step-by-step"),
+        ),
+      ).toBe(true);
+      expect(nativePreferences).toContain("Tool preference: Bun");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

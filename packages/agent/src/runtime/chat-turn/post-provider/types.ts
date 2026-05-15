@@ -1,3 +1,4 @@
+import type { ActionResult } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { DirectLocalIntentLoader } from "../local-intent-orchestration/types";
@@ -15,6 +16,7 @@ export interface PostProviderTurnInput {
   turn: TurnState;
   response: string;
   runFailureMessage?: string;
+  actionResults?: ActionResult[];
   settingsDuring: PostProviderSettingsSnapshot;
   scheduleProfileObservation: () => void;
   loadDirectLocalIntent: () => Promise<DirectLocalIntentLoader>;

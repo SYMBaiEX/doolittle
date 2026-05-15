@@ -1,5 +1,8 @@
 import {
+  addIteration,
   type CodingAgentContext,
+  createCodingAgentContext,
+  injectFeedback,
   validateCodingAgentContext,
 } from "@elizaos/agent/services/coding-agent-context";
 import type { AppServices } from "@/services";
@@ -11,26 +14,33 @@ function createFallbackCodingAgentContext(
   services: AppServices,
   input: EffectiveCodingAgentContextInput,
 ) {
-  return {
+  const baseContext = createCodingAgentContext({
     sessionId: input.sessionId,
     taskDescription: input.taskDescription,
     workingDirectory: input.workspaceRoot,
-    connector: {
-      type:
-        input.connectorType ??
-        (services.repository.isRepository() ? "git-repo" : "local-fs"),
-      basePath: input.workspaceRoot,
-      available: true,
-      metadata: input.metadata,
-    },
+    connectorBasePath: input.workspaceRoot,
+    connectorType:
+      input.connectorType ??
+      (services.repository.isRepository() ? "git-repo" : "local-fs"),
     interactionMode: input.interactionMode ?? "human-in-the-loop",
     maxIterations: input.maxIterations ?? 8,
-    active: true,
-    iterations: [],
-    allFeedback: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  } satisfies Record<string, unknown>;
+  });
+
+  const contextWithMetadata: CodingAgentContext = {
+    ...baseContext,
+    connector: {
+      ...baseContext.connector,
+      ...(input.metadata ? { metadata: input.metadata } : {}),
+    },
+  };
+
+  return (input.allFeedback ?? []).reduce(
+    (context, feedback) => injectFeedback(context, feedback),
+    (input.iterations ?? []).reduce(
+      (context, iteration) => addIteration(context, iteration),
+      contextWithMetadata,
+    ),
+  );
 }
 
 function formatContextValidationErrors(
@@ -53,6 +63,8 @@ export function getEffectiveCodingAgentContext(
       interactionMode: input.interactionMode,
       connectorType: input.connectorType,
       metadata: input.metadata,
+      iterations: input.iterations,
+      allFeedback: input.allFeedback,
     },
   );
 

@@ -34,10 +34,15 @@ export interface TrajectoryServiceApi {
     limit?: number,
     filters?: TrajectoryExportOptions,
   ): TrajectoryEventRecord[];
+  /** Debug/evaluation JSONL only. Use the ElizaOS SDK trajectory service for training exports. */
   exportRecent(limit?: number): string;
+  /** Debug/evaluation JSONL only. Use the ElizaOS SDK trajectory service for training exports. */
   exportDataset(options?: TrajectoryExportOptions): string;
+  /** Debug/evaluation bundle only. Manifests are marked trainingCompatible:false. */
   exportBundle(limit?: number): TrajectoryServiceBundleArtifacts;
+  /** Debug/evaluation bundle only. Manifests are marked trainingCompatible:false. */
   exportLatest(): TrajectoryServiceBundleArtifacts;
+  /** Debug/evaluation bundle only. Manifests are marked trainingCompatible:false. */
   exportFilteredBundle(
     options?: TrajectoryExportOptions,
   ): TrajectoryServiceBundleArtifacts;

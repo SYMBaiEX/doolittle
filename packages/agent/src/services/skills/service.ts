@@ -1,18 +1,22 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { getSkillsDir, type SkillCommandSpec } from "@elizaos/skills";
+import {
+  getCuratedActiveDir,
+  getSkillsDir,
+  type SkillCommandSpec,
+} from "@elizaos/skills";
 import type { SkillDocument } from "@/types";
 import type { AgentSdkService } from "../agent-sdk-service";
 import { loadNativeSkills } from "./native-loader";
 import { buildSkillsSummary } from "./summary";
 import type { SkillsSnapshot, SkillsWorkspaceSummary } from "./types";
-import { loadWorkspaceSkills } from "./workspace-loader";
 
 const CACHE_TTL_MS = 2_000;
 
 export class SkillsService {
   private readonly bundledSkillsDir = getSkillsDir();
   private readonly managedSkillsDir = join(homedir(), ".elizaos", "skills");
+  private readonly curatedSkillsDir = getCuratedActiveDir();
   private readonly projectSkillsDir: string;
   private snapshot?: SkillsSnapshot;
 
@@ -74,8 +78,7 @@ export class SkillsService {
       return this.snapshot;
     }
 
-    const workspace = this.loadWorkspaceSkills();
-    const { native, commandSpecs } = this.loadNativeSkills();
+    const { workspace, native, commandSpecs } = this.loadNativeSkills();
     const allBySlug = new Map<string, SkillDocument>();
 
     for (const skill of native) {
@@ -102,11 +105,8 @@ export class SkillsService {
     return this.snapshot;
   }
 
-  private loadWorkspaceSkills(): SkillDocument[] {
-    return loadWorkspaceSkills(this.skillsDir);
-  }
-
   private loadNativeSkills(): {
+    workspace: SkillDocument[];
     native: SkillDocument[];
     commandSpecs: SkillCommandSpec[];
   } {
@@ -116,6 +116,7 @@ export class SkillsService {
       roots: {
         bundledSkillsDir: this.bundledSkillsDir,
         managedSkillsDir: this.managedSkillsDir,
+        curatedSkillsDir: this.curatedSkillsDir,
         projectSkillsDir: this.projectSkillsDir,
         workspaceSkillsDir: this.skillsDir,
       },

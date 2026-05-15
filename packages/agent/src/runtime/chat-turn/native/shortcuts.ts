@@ -5,6 +5,7 @@ import type { TurnClassification } from "@/runtime/turn-classification/types";
 import { finalizeTurnResponse, isTurnReadinessMessage } from "../finalization";
 import type { TurnState } from "../state";
 import { elapsedMsSince, recordTrajectoryEvent } from "../trajectory";
+import { runShortcutModelWithSdkTrajectory } from "./model-trajectory";
 import type { TurnPerfTrace } from "./types";
 
 export async function finalizeNativeShortcut(input: {
@@ -328,14 +329,25 @@ export async function handleDirectInformationalModelTurn(input: {
     },
   });
   try {
-    const response = normalizeDirectInformationalResponse(
-      await input.context.runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt,
-        temperature: 0.35,
-        maxTokens: input.classification.simpleChat ? 96 : 192,
-        stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
-      }),
-    );
+    const modelRun = await runShortcutModelWithSdkTrajectory({
+      context: input.context,
+      turn: input.turn,
+      source: input.source,
+      path: "direct-informational-model",
+      purpose: "response",
+      metadata: {
+        modelType: ModelType.TEXT_SMALL,
+        promptChars: prompt.length,
+      },
+      run: () =>
+        input.context.runtime.useModel(ModelType.TEXT_SMALL, {
+          prompt,
+          temperature: 0.35,
+          maxTokens: input.classification.simpleChat ? 96 : 192,
+          stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
+        }),
+    });
+    const response = normalizeDirectInformationalResponse(modelRun.result);
     recordTrajectoryEvent(input.context, {
       category: "model",
       event: "model.response",
@@ -349,6 +361,7 @@ export async function handleDirectInformationalModelTurn(input: {
       text: `[model:response] ${response}`,
       metadata: {
         path: "direct-informational-model",
+        trajectoryStepId: modelRun.trajectoryStepId,
         response,
         responseChars: response.length,
       },

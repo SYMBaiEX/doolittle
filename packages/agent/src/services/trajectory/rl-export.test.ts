@@ -60,6 +60,8 @@ describe("trajectory-service RL export helpers", () => {
         label: string;
         turnCount: number;
         messageCount: number;
+        trainingCompatible: boolean;
+        trainingFormat: string;
       };
       const lines = readFileSync(result.dataPath, "utf8").trim().split("\n");
       const firstTurn = JSON.parse(lines[0] ?? "{}") as {
@@ -68,7 +70,10 @@ describe("trajectory-service RL export helpers", () => {
       };
 
       expect(result.turnCount).toBe(2);
+      expect(result.trainingCompatible).toBe(false);
       expect(manifest.schema).toBe("doolittle-rl-v1");
+      expect(manifest.trainingCompatible).toBe(false);
+      expect(manifest.trainingFormat).toBe("doolittle-rl-v1");
       expect(manifest.label).toBe("session-a-rl");
       expect(manifest.turnCount).toBe(2);
       expect(manifest.messageCount).toBe(4);
@@ -114,7 +119,7 @@ describe("trajectory-service RL export helpers", () => {
         ],
         slug: (value) => value.toLowerCase().replaceAll(/\s+/g, "-"),
         options: {
-          label: "Training Set",
+          label: "Debug Set",
           model: "gpt-test",
           provider: "openai",
           agentName: "Dr. Mochibi",
@@ -129,18 +134,22 @@ describe("trajectory-service RL export helpers", () => {
         label: string;
         sessionCount: number;
         turnCount: number;
+        trainingCompatible: boolean;
       };
       const lines = readFileSync(result.dataPath, "utf8").trim().split("\n");
       const description = describeTrajectoryRlExport(7);
 
       expect(result.turnCount).toBe(2);
       expect(result.sessionCount).toBe(2);
+      expect(result.trainingCompatible).toBe(false);
       expect(lines).toHaveLength(2);
       expect(manifest.schema).toBe("doolittle-rl-v1");
-      expect(manifest.label).toBe("training-set");
+      expect(manifest.trainingCompatible).toBe(false);
+      expect(manifest.label).toBe("debug-set");
       expect(manifest.sessionCount).toBe(2);
       expect(manifest.turnCount).toBe(2);
       expect(description).toContain("Sessions available: 7");
+      expect(description).toContain("not ElizaOS SDK trajectory data");
       expect(description).toContain("exportRlDataset()");
     } finally {
       rmSync(root, { recursive: true, force: true });

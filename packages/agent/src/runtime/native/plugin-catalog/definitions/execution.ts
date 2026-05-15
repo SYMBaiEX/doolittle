@@ -2,27 +2,27 @@ import type { NativePluginCatalogSeed } from "./types";
 
 export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   {
-    id: "execution.e2b",
-    packageName: "@elizaos/plugin-e2b",
+    id: "execution.local-sandbox",
+    packageName: "@doolittle/plugin-local-sandbox",
     category: "execution",
-    source: "official",
+    source: "custom",
     kind: "adapter",
     maturity: "alpha",
     enablement: "always",
     notes:
-      "Official E2B sandbox service for secure code execution and autocoder support.",
+      "Doolittle local sandbox service with E2B-compatible methods for autocoder support.",
   },
   {
     id: "execution.forms",
-    packageName: "@elizaos/plugin-forms",
+    packageName: "@doolittle/plugin-forms",
     category: "execution",
-    source: "vendored",
+    source: "custom",
     kind: "adapter",
     maturity: "alpha",
     persistence: "injected",
     enablement: "always",
     notes:
-      "Workspace-native forms plugin used by autocoder and guided workflow flows.",
+      "Doolittle forms adapter used by autocoder and guided workflow flows. Consolidated into doolittle-plugin.",
   },
   {
     id: "execution.coding-agent",
@@ -48,14 +48,14 @@ export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "execution.planning",
-    packageName: "@elizaos/plugin-planning",
+    packageName: "@doolittle/plugin-planning",
     category: "execution",
-    source: "vendored",
+    source: "custom",
     kind: "adapter",
     maturity: "alpha",
     persistence: "injected",
     enablement: "always",
     notes:
-      "Workspace-native planning plugin linking native delegation tasks and workflow graphs.",
+      "Doolittle planning adapter linking native delegation tasks and workflow graphs. Consolidated into doolittle-plugin.",
   },
 ];

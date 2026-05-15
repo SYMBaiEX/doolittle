@@ -8,6 +8,7 @@ export interface CommandCatalogEntry {
     | "browser"
     | "media"
     | "execution"
+    | "tools"
     | "delegation"
     | "research"
     | "workspace"

@@ -3,22 +3,22 @@ import type { NativePackageAuditRecord } from "../types";
 export const NATIVE_EXECUTION_PACKAGE_AUDIT_RECORDS: NativePackageAuditRecord[] =
   [
     {
-      packageName: "@elizaos/plugin-e2b",
-      role: "execution",
-      currentStrategy: "official",
-      currentTag: "workspace",
-      latestTagVersion: "1.2.0",
-      compatibility: "workspace-only",
-      note: "Official E2B plugin is patched through the local workspace so its source can run cleanly on the current 2.x alpha stack.",
-    },
-    {
-      packageName: "@elizaos/plugin-forms",
+      packageName: "@doolittle/plugin-local-sandbox",
       role: "execution",
       currentStrategy: "vendored",
       currentTag: "workspace",
-      latestTagVersion: "1.2.0",
+      latestTagVersion: "consolidated",
       compatibility: "vendored-by-design",
-      note: "Workspace-native forms plugin replaces the older published line so persistence and runtime lifecycle stay aligned with the current 2.x alpha stack.",
+      note: "Doolittle local sandbox provides E2B-compatible methods without carrying a misleading standalone sandbox workspace package.",
+    },
+    {
+      packageName: "@doolittle/plugin-forms",
+      role: "execution",
+      currentStrategy: "vendored",
+      currentTag: "workspace",
+      latestTagVersion: "consolidated",
+      compatibility: "vendored-by-design",
+      note: "Doolittle forms adapter is consolidated into doolittle-plugin and backed by local storage contracts.",
     },
     {
       packageName: "@doolittle/plugin-coding-agent",
@@ -39,13 +39,12 @@ export const NATIVE_EXECUTION_PACKAGE_AUDIT_RECORDS: NativePackageAuditRecord[] 
       note: "Doolittle delegation orchestrator consolidated into doolittle-plugin.",
     },
     {
-      packageName: "@elizaos/plugin-planning",
+      packageName: "@doolittle/plugin-planning",
       role: "execution",
       currentStrategy: "vendored",
       currentTag: "workspace",
-      latestTagVersion: "1.2.0",
-      alphaTagVersion: "2.0.0-alpha.3",
+      latestTagVersion: "consolidated",
       compatibility: "vendored-by-design",
-      note: "Workspace-native planning plugin links native delegation and workflow graphs on the current 2.x alpha stack.",
+      note: "Doolittle planning adapter is consolidated into doolittle-plugin and links local delegation and workflow graphs.",
     },
   ];

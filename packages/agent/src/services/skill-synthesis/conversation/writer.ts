@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { serializeSkillFile } from "@elizaos/skills";
 
 import type { ConversationAnalysisInput } from "./types";
 
@@ -9,12 +10,16 @@ export function writeConversationSkillDocument(
   const dir = join(input.generatedDir, input.candidate.slug);
   mkdirSync(dir, { recursive: true });
   const path = join(dir, "SKILL.md");
+  const skillName =
+    input.candidate.slug.split("/").filter(Boolean).at(-1) ??
+    input.candidate.slug;
+  const description = `Conversation-derived skill for ${input.candidate.title.toLowerCase()}.`;
   const excerpt = input.messages
     .slice(0, 6)
     .map((message) => `**[${message.role}]** ${message.text.slice(0, 200)}`)
     .join("\n\n");
 
-  const content = [
+  const body = [
     `# ${input.candidate.title}`,
     "",
     `> Auto-synthesized from session \`${input.sessionId}\` on ${input.updatedAt.split("T")[0]}.`,
@@ -47,6 +52,19 @@ export function writeConversationSkillDocument(
     "## Usage",
     "Review the key steps above and adapt them to the current task context.",
   ].join("\n");
+  const content = serializeSkillFile(
+    {
+      name: skillName,
+      description,
+      provenance: {
+        source: "agent-generated",
+        derivedFromTrajectory: input.sessionId,
+        createdAt: input.createdAt,
+        refinedCount: 0,
+      },
+    },
+    body,
+  );
 
   writeFileSync(path, content, "utf8");
   return path;

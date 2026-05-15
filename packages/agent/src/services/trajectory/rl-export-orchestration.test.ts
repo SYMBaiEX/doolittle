@@ -133,6 +133,7 @@ describe("trajectory-service RL export orchestration", () => {
       const description = describeTrajectoryServiceRlExport(host);
 
       expect(description).toContain("Sessions available: 7");
+      expect(description).toContain("not ElizaOS SDK trajectory data");
       expect(description).toContain("exportRlDataset()");
       expect(description).toContain("exportRlReady(sessionId)");
     } finally {

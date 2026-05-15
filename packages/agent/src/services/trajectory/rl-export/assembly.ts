@@ -14,6 +14,14 @@ type RlExportManifestBase = {
 };
 
 const RL_SCHEMA = "doolittle-rl-v1";
+const TRAINING_NOTES =
+  "Doolittle RL exports are auxiliary debug/evaluation artifacts, not canonical ElizaOS SDK trajectories.";
+
+export const RL_EXPORT_TRAINING_METADATA = {
+  trainingCompatible: false,
+  trainingFormat: RL_SCHEMA,
+  trainingNotes: TRAINING_NOTES,
+} as const;
 
 export function buildRlPaths(input: {
   baseDir: string;
@@ -54,6 +62,7 @@ export function writeRlDatasetFiles(input: {
       {
         ...input.manifest,
         schema: RL_SCHEMA,
+        ...RL_EXPORT_TRAINING_METADATA,
         createdAt: new Date().toISOString(),
       },
       null,
@@ -77,9 +86,11 @@ export function emptyRlReadyManifest(input: {
     input.manifestPath,
     JSON.stringify(
       {
+        schema: RL_SCHEMA,
         sessionId: input.sessionId,
         turnCount: 0,
         dataPath: input.dataPath,
+        ...RL_EXPORT_TRAINING_METADATA,
       },
       null,
       2,

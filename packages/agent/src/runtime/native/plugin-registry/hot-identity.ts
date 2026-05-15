@@ -1,19 +1,14 @@
 import type { Plugin } from "@elizaos/core";
+import {
+  createExperiencePlugin,
+  createPersonalityPlugin,
+  createRolodexPlugin,
+} from "@plugins/doolittle-plugin";
 import type { AppServices } from "../../../services";
 
 export async function loadHotIdentityPlugins(
   services: AppServices,
 ): Promise<Plugin[]> {
-  const [
-    { createPersonalityPlugin },
-    { createRolodexPlugin },
-    { createExperiencePlugin },
-  ] = await Promise.all([
-    import("@elizaos/plugin-personality"),
-    import("@elizaos/plugin-rolodex"),
-    import("@elizaos/plugin-experience"),
-  ]);
-
   return [
     createPersonalityPlugin({
       personalities: {

@@ -4,11 +4,13 @@ export {
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
   getEffectiveCachedMcpTools,
+  getEffectiveMcpMarketplaceServer,
   getEffectiveMcpStatus,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   probeEffectiveMcp,
   searchEffectiveCachedMcpTools,
+  searchEffectiveMcpMarketplace,
 } from "./mcp";
 export {
   findEffectiveLocalCodebases,

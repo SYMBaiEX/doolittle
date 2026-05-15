@@ -2,7 +2,11 @@ import type {
   TrajectoryRecord,
   TrajectoryRlDatasetOptions,
 } from "../../../types/trajectory";
-import { buildRlPaths, writeRlDatasetFiles } from "./assembly";
+import {
+  buildRlPaths,
+  RL_EXPORT_TRAINING_METADATA,
+  writeRlDatasetFiles,
+} from "./assembly";
 import { buildRlTurns } from "./turn-builder";
 import type { RlTurnRecord } from "./types";
 
@@ -16,6 +20,9 @@ export function exportTrajectoryRlDataset(input: {
   manifestPath: string;
   turnCount: number;
   sessionCount: number;
+  trainingCompatible: false;
+  trainingFormat: "doolittle-rl-v1";
+  trainingNotes: string;
 } {
   const options = input.options ?? {};
   const bySession = new Map<string, TrajectoryRecord[]>();
@@ -74,5 +81,6 @@ export function exportTrajectoryRlDataset(input: {
     manifestPath,
     turnCount: turns.length,
     sessionCount: bySession.size,
+    ...RL_EXPORT_TRAINING_METADATA,
   };
 }

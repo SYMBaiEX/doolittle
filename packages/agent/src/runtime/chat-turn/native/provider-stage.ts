@@ -130,6 +130,7 @@ export async function runNativeProviderStage(
     turn,
     response: providerResult.response,
     runFailureMessage: providerResult.runFailureMessage,
+    actionResults: providerResult.actionResults,
     settingsDuring: input.settingsDuring,
     scheduleProfileObservation,
     loadDirectLocalIntent: input.loadDirectLocalIntent,

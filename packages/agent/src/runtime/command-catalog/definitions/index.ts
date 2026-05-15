@@ -8,6 +8,7 @@ import { MemoryCommandCatalogEntries } from "./memory";
 import { ResearchCommandCatalogEntries } from "./research";
 import { RuntimeCommandCatalogEntries } from "./runtime";
 import { SkillsCommandCatalogEntries } from "./skills";
+import { ToolingCommandCatalogEntries } from "./tooling";
 import { WorkspaceCommandCatalogEntries } from "./workspace";
 
 export {
@@ -20,6 +21,7 @@ export {
   ResearchCommandCatalogEntries,
   RuntimeCommandCatalogEntries,
   SkillsCommandCatalogEntries,
+  ToolingCommandCatalogEntries,
   WorkspaceCommandCatalogEntries,
 };
 
@@ -27,6 +29,7 @@ export const COMMAND_CATALOG_DEFINITION_SETS: readonly CommandCatalogEntry[][] =
   [
     RuntimeCommandCatalogEntries,
     ExecutionCommandCatalogEntries,
+    ToolingCommandCatalogEntries,
     ResearchCommandCatalogEntries,
     SkillsCommandCatalogEntries,
     MemoryCommandCatalogEntries,

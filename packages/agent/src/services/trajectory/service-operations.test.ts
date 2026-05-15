@@ -140,7 +140,7 @@ describe("trajectory service orchestration", () => {
         limit: 10,
         sessionId: "session-a",
         label: "Replay Fixture",
-        purpose: "training data",
+        purpose: "debug research",
         mode: "research",
         tags: ["memory", "skills"],
       });
@@ -162,10 +162,11 @@ describe("trajectory service orchestration", () => {
       );
 
       const dataset = exportTrajectoryServiceRlDataset(hosts, {
-        label: "RL Dataset",
+        label: "RL Debug Dataset",
         windowSize: 2,
       });
       expect(dataset.sessionCount).toBeGreaterThan(0);
+      expect(dataset.trainingCompatible).toBe(false);
 
       const benchmarkEnvironment =
         describeTrajectoryServiceBenchmarkEnvironment(hosts);

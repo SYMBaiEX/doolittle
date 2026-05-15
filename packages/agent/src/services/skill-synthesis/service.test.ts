@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { parseFrontmatter } from "@elizaos/skills";
 import { SkillSynthesisService } from "./service";
 
 describe("SkillSynthesisService", () => {
@@ -30,8 +31,14 @@ describe("SkillSynthesisService", () => {
     try {
       const path = service.synthesizeFromTask(task);
       const skill = readFileSync(path, "utf8");
+      const { frontmatter } = parseFrontmatter(skill);
       const generated = service.listGeneratedSkills();
 
+      expect(frontmatter.name).toBe("browser-capture-workflow");
+      expect(frontmatter.provenance).toMatchObject({
+        source: "agent-generated",
+        refinedCount: 0,
+      });
       expect(skill).toContain("## When to Use");
       expect(skill).toContain("## Procedure");
       expect(skill).toContain("## Signals");

@@ -3,6 +3,7 @@ import type { Plugin } from "@elizaos/core";
 import {
   createAgentOrchestratorPlugin,
   createCodingAgentPlugin,
+  createPlanningPlugin,
 } from "@plugins/doolittle-plugin";
 import type { AppServices } from "../../../services";
 import { inspectLocalProject } from "../../../services/project-inspection";
@@ -13,8 +14,6 @@ export async function loadHotExecutionPlugins(
   services: AppServices,
   config: EnvConfig,
 ): Promise<Plugin[]> {
-  const { createPlanningPlugin } = await import("@elizaos/plugin-planning");
-
   return [
     createCodingAgentPlugin({
       workspaceRoot: services.workspace.root(),

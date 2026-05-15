@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
+  addIteration,
   type CodingAgentContext,
+  createCodingAgentContext,
+  injectFeedback,
   validateCodingAgentContext,
 } from "@elizaos/agent/services/coding-agent-context";
 import type { CodingAgentContextOptions } from "./types";
@@ -20,28 +23,36 @@ export function buildCodingAgentContext(
   const connectorType =
     options.contextOptions?.connectorType ??
     (options.repositoryAvailable ? "git-repo" : "local-fs");
-  const candidate = {
+
+  const baseContext = createCodingAgentContext({
     sessionId: options.contextOptions?.sessionId ?? randomUUID(),
     taskDescription: options.taskDescription,
     workingDirectory,
+    connectorBasePath: workingDirectory,
+    connectorType,
+    interactionMode:
+      options.contextOptions?.interactionMode ?? "human-in-the-loop",
+    maxIterations: options.contextOptions?.maxIterations ?? 8,
+  });
+
+  const contextWithMetadata: CodingAgentContext = {
+    ...baseContext,
     connector: {
-      type: connectorType,
-      basePath: workingDirectory,
-      available: true,
+      ...baseContext.connector,
       metadata: {
         workspaceRoot: options.workspaceRoot,
         ...(options.contextOptions?.metadata ?? {}),
       },
     },
-    interactionMode:
-      options.contextOptions?.interactionMode ?? "human-in-the-loop",
-    maxIterations: options.contextOptions?.maxIterations ?? 8,
-    active: true,
-    iterations: [],
-    allFeedback: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  } satisfies Record<string, unknown>;
+  };
+
+  const candidate = (options.contextOptions?.allFeedback ?? []).reduce(
+    (context, feedback) => injectFeedback(context, feedback),
+    (options.contextOptions?.iterations ?? []).reduce(
+      (context, iteration) => addIteration(context, iteration),
+      contextWithMetadata,
+    ),
+  );
 
   const validated = validateCodingAgentContext(candidate);
   if (!validated.ok) {

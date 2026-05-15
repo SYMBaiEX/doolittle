@@ -24,7 +24,7 @@ export function exportTrajectoryBundleRecords(
   const messages = collectTrajectoryRecords(host, options);
   return writeTrajectoryBundleRecords(host, messages, {
     label: options.label ?? options.sessionId ?? options.role ?? "recent",
-    purpose: options.purpose ?? "trajectory export",
+    purpose: options.purpose ?? "trajectory debug export",
     mode: options.mode ?? "dataset",
     limit: options.limit ?? 100,
     sessionId: options.sessionId ?? null,
@@ -42,7 +42,7 @@ function collectTrajectoryDataset(
 ): TrajectoryBundleWriteResult {
   return writeTrajectoryBundleRecords(host, messages, {
     label,
-    purpose: options.purpose ?? "trajectory export",
+    purpose: options.purpose ?? "trajectory debug export",
     mode: options.mode ?? "dataset",
     limit: options.limit ?? 100,
     sessionId: options.sessionId ?? null,

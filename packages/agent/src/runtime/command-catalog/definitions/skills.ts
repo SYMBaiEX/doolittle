@@ -92,6 +92,11 @@ export const SkillsCommandCatalogEntries: CommandCatalogEntry[] = [
     description: "Search the native Eliza skill catalog cache.",
   },
   {
+    command: "/skills marketplace search <query>",
+    category: "skills",
+    description: "Search the native ElizaOS skills marketplace.",
+  },
+  {
     command: "/skills catalog show <slug>",
     category: "skills",
     description: "Show a specific catalog skill entry.",

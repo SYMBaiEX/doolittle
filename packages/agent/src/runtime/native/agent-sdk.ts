@@ -27,7 +27,7 @@ const FOUNDATION_PACKAGES = [
 const ECOSYSTEM_PACKAGES = [
   "@doolittle/plugin-action-bench",
   "@doolittle/plugin-autocoder",
-  "@elizaos/plugin-planning",
+  "@doolittle/plugin-planning",
 ] as const;
 
 export async function getAgentSdkAudit() {

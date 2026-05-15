@@ -11,8 +11,8 @@ import {
   refreshLinkedCodexCredentials,
 } from "../account-auth";
 import {
-  createLocalOllamaEmbeddingPlugin,
-  createLocalOllamaModelsPlugin,
+  createDoolittleOllamaUxPlugin,
+  createOllamaEmbeddingOnlyPlugin,
 } from "./local-ollama";
 import { normalizePlugin, shouldIncludeDirectProviderPlugin } from "./support";
 
@@ -96,11 +96,8 @@ export async function loadProviderPlugins(
     const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
     const normalizedOllamaPlugin = normalizePlugin(ollamaPlugin);
     providers.push(
-      {
-        ...normalizedOllamaPlugin,
-        models: {},
-      },
-      createLocalOllamaModelsPlugin(config),
+      normalizedOllamaPlugin,
+      createDoolittleOllamaUxPlugin(config),
     );
   }
 
@@ -109,7 +106,10 @@ export async function loadProviderPlugins(
     !enableCloudEmbeddings &&
     config.ollamaApiEndpoint?.trim()
   ) {
-    providers.push(createLocalOllamaEmbeddingPlugin(config));
+    const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
+    providers.push(
+      createOllamaEmbeddingOnlyPlugin(normalizePlugin(ollamaPlugin)),
+    );
   }
 
   const optionalProviderImports: Promise<Plugin | null>[] = [];

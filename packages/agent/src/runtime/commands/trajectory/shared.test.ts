@@ -71,6 +71,19 @@ describe("trajectory shared", () => {
         },
       ]),
     ).toContain("session:session-1");
+    expect(
+      formatTrajectoryBundleList([
+        {
+          manifestPath: "/tmp/sdk.json",
+          label: "sdk",
+          createdAt: "2026-03-30T00:00:00.000Z",
+          messageCount: 1,
+          sessionCount: 1,
+          trainingCompatible: true,
+          trainingFormat: "elizaos-sdk",
+        },
+      ]),
+    ).toContain("training=ready format=elizaos-sdk");
     expect(formatTrajectoryBundleList([])).toBe(
       "No trajectory bundles recorded.",
     );

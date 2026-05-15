@@ -3,10 +3,12 @@ import {
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
   getEffectiveCachedMcpTools,
+  getEffectiveMcpMarketplaceServer,
   getEffectiveMcpStatus,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   searchEffectiveCachedMcpTools,
+  searchEffectiveMcpMarketplace,
 } from "@/runtime/native/service-bridge/tooling";
 import type { AgentExecutionContext } from "../../chat";
 import { parseNamedToolPayload } from "./shared";
@@ -53,6 +55,34 @@ export async function handleMcpCommand(
 
   if (trimmed === "/mcp cached describe") {
     return describeEffectiveCachedMcpTools(context.runtime, context.services);
+  }
+
+  if (trimmed === "/mcp marketplace search") {
+    return "Usage: /mcp marketplace search <query>";
+  }
+
+  if (trimmed.startsWith("/mcp marketplace search ")) {
+    const query = trimmed.replace("/mcp marketplace search ", "").trim();
+    if (!query) {
+      return "Usage: /mcp marketplace search <query>";
+    }
+    return JSON.stringify(await searchEffectiveMcpMarketplace(query), null, 2);
+  }
+
+  if (trimmed === "/mcp marketplace show") {
+    return "Usage: /mcp marketplace show <server-name>";
+  }
+
+  if (trimmed.startsWith("/mcp marketplace show ")) {
+    const name = trimmed.replace("/mcp marketplace show ", "").trim();
+    if (!name) {
+      return "Usage: /mcp marketplace show <server-name>";
+    }
+    return JSON.stringify(
+      await getEffectiveMcpMarketplaceServer(name),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/mcp cached describe ")) {
