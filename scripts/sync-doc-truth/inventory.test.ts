@@ -13,6 +13,18 @@ describe("buildInventoryRows", () => {
         packageName: "@doolittle/plugin-autocoder",
         maturity: "experimental",
         persistence: "injected",
+        owner: "doolittle-runtime",
+        publishIntent: "internal-adapter",
+        workspacePath: "packages/plugins/doolittle-plugin",
+      }),
+    );
+
+    expect(rows.find((row) => row.id === "execution.local-sandbox")).toEqual(
+      expect.objectContaining({
+        packageName: "@doolittle/plugin-local-sandbox",
+        owner: "doolittle-runtime",
+        publishIntent: "internal-adapter",
+        workspacePath: "packages/plugins/doolittle-plugin",
       }),
     );
 

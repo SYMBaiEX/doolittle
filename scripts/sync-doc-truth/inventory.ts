@@ -4,6 +4,16 @@ import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { loadConfig } from "../../packages/agent/src/config/env";
 import type { PluginInventoryRow } from "./types";
 
+const CONSOLIDATED_DOOLITTLE_PLUGIN_PACKAGES = new Set([
+  "@doolittle/plugin-action-bench",
+  "@doolittle/plugin-agent-orchestrator",
+  "@doolittle/plugin-autocoder",
+  "@doolittle/plugin-coding-agent",
+  "@doolittle/plugin-forms",
+  "@doolittle/plugin-local-sandbox",
+  "@doolittle/plugin-planning",
+]);
+
 function walk(dir: string): string[] {
   const entries = readdirSync(dir);
   const files: string[] = [];
@@ -25,7 +35,10 @@ function walk(dir: string): string[] {
 }
 
 function resolveWorkspacePath(root: string, packageName: string): string {
-  if (packageName === "doolittle-runtime") {
+  if (
+    packageName === "doolittle-runtime" ||
+    CONSOLIDATED_DOOLITTLE_PLUGIN_PACKAGES.has(packageName)
+  ) {
     return "packages/plugins/doolittle-plugin";
   }
 
