@@ -529,7 +529,7 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 |---|---|---|---|
 | Terminal execution (local, Docker, Podman, SSH, Singularity, Daytona, Modal) | [`terminal/service.ts`](./packages/agent/src/services/terminal/service.ts) | `/execution status`, `/execution backends`, `/execution set backend`, `/terminal run` | `GET /execution/status`, `POST /terminal/run` |
 | Repository inspection | [`repository-service.ts`](./packages/agent/src/services/repository-service.ts) | `/repo status`, `/repo diff`, `/repo log` | `GET /repo/status`, `GET /repo/diff` |
-| Autocoder | [`plugin-autocoder`](./packages/plugins/plugin-autocoder/) | Native codegen actions | Via runtime actions |
+| Autocoder | [`doolittle-plugin/autocoder`](./packages/plugins/doolittle-plugin/autocoder/) | Native codegen actions | Via runtime actions |
 | Workspace exploration | [`workspace-service.ts`](./packages/agent/src/services/workspace-service.ts) | `/workspace tree`, `/workspace read`, `/workspace search` | `GET /workspace/tree`, `GET /workspace/read` |
 | Workspace context files | [`context-files-service.ts`](./packages/agent/src/services/context-files-service.ts) | `/context files` | `GET /context/files` |
 
@@ -538,8 +538,8 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 | Capability | Implementation | CLI | API |
 |---|---|---|---|
 | MEMORY.md / USER.md persistence | [`memory-service.ts`](./packages/agent/src/services/memory-service.ts) | `/memory list memory`, `/memory add user` | `GET /memory?target=memory` |
-| Cross-session search | [`session/service.ts`](./packages/agent/src/services/session/service.ts) | `/search <query>` | `GET /search` |
-| User profiles | [`user-profile/service.ts`](./packages/agent/src/services/user-profile/service.ts) | `/user profile`, `/user card`, `/user beliefs`, `/user relationship`, `/user engagement` | `GET /profiles/users/card` |
+| Cross-session search | [`session/service/index.ts`](./packages/agent/src/services/session/service/index.ts) | `/search <query>` | `GET /search` |
+| User profiles | [`user-profile/service/index.ts`](./packages/agent/src/services/user-profile/service/index.ts) | `/user profile`, `/user card`, `/user beliefs`, `/user relationship`, `/user engagement` | `GET /profiles/users/card` |
 | Memory nudges | [`memory-nudge-evaluator.ts`](./packages/agent/src/evaluators/memory-nudge-evaluator.ts) | Automatic | Evaluator-driven |
 | Shared task context | [`agent-context-provider.ts`](./packages/agent/src/providers/agent-context-provider.ts) | Automatic | Provider-driven |
 
@@ -557,11 +557,11 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 
 | Capability | Implementation | CLI |
 |---|---|---|
-| Delegation queue | [`delegation/service.ts`](./packages/agent/src/services/delegation/service.ts) | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
+| Delegation queue | [`delegation/service/index.ts`](./packages/agent/src/services/delegation/service/index.ts) | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
 | Run controller and observed progress | [`run-controller-service.ts`](./packages/agent/src/services/run-controller-service.ts) | `/mode`, `/progress`, automatic live run state |
 | Trajectory research | [`trajectory/service/index.ts`](./packages/agent/src/services/trajectory/service/index.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
-| Planning boards | [`plugin-planning`](./packages/plugins/plugin-planning/) | `/planning` flows |
-| Cron scheduling | [`cron/service.ts`](./packages/agent/src/services/cron/service.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
+| Planning boards | [`doolittle-plugin/planning`](./packages/plugins/doolittle-plugin/planning/) | `/planning` flows |
+| Cron scheduling | [`cron/service/index.ts`](./packages/agent/src/services/cron/service/index.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
 
 ### Reaches the outside world
 
@@ -693,12 +693,12 @@ The runtime endpoint remains:
 | `@elizaos/plugin-tts` | Runtime TTS adapter over media generation — reports `ready` / `backend` / `mode` and degrades truthfully when no speech backend is configured |
 | `@elizaos/plugin-action-bench` | Action benchmark plugin for coverage sweeps and evaluation drills |
 | `@elizaos/plugin-autocoder` | Experimental autocoder plugin for planning, research, repository, and secrets workflows — planning-only flows are explicit and non-mutating |
-| `@elizaos/plugin-e2b` | E2B sandbox integration for cloud execution profiles |
-| `@elizaos/plugin-forms` | Forms plugin for operator intake and structured workflow prompts |
-| `@elizaos/plugin-planning` | Planning plugin for plans, milestones, and coordination |
+| `@doolittle/plugin-local-sandbox` | Doolittle local sandbox adapter with E2B-compatible methods for autocoder workflows |
+| `@doolittle/plugin-forms` | Doolittle forms adapter for operator intake and structured workflow prompts |
+| `@doolittle/plugin-planning` | Doolittle planning adapter for plans, milestones, and coordination |
 | `@elizaos/autonomous` | First-party architectural reference for native stack alignment |
 | `@elizaos/skills` | First-party skills package for native ElizaOS alignment |
-| Vendored packages (`packages/plugins/*`) | Browser, MCP, Discord, knowledge, local embedding, personality, rolodex, experience, shell, coding-agent, agent-orchestrator, plugin-manager, cron, agent-skills, trajectory-logger, and more |
+| Doolittle product adapters (`packages/plugins/doolittle-plugin/*`) | Gateway, scheduler, coding-agent, orchestrator, autocoder, action-bench, forms, planning, profile, and local-sandbox adapters |
 | `doolittle-runtime` custom plugin | Product layer: gateway/session orchestration, scheduler lifecycle, session search, skill inventory, offline fallback |
 
 ---
@@ -842,13 +842,12 @@ Everything the cockpit can do. Use these from the TUI input or the plain CLI:
 
 **Trajectories**
 
-Trajectory exports include both conversation messages and the durable event journal for turn classification, run progress, model calls, tool starts/completions, shell output, failures, and timings. RL-ready exports stay message-only so training windows do not get polluted by telemetry records.
+Training trajectories are exported through the ElizaOS SDK trajectory service only. Doolittle still keeps local debug bundles for replay, analysis, and operator troubleshooting, but those bundles are marked `trainingCompatible:false` and should not be used as model-training data. If `/trajectories export` cannot reach the SDK trajectory service, it fails closed instead of falling back to Doolittle's debug bundle format.
 
 - `/trajectories list`
 - `/trajectories export`
-- `/trajectories export session:room-123 role:user limit:50`
-- `/trajectories export kind:event category:model limit:100`
-- `/trajectories export events:false session:room-123`
+- `/trajectories export start:2026-05-01 end:2026-05-14`
+- `/trajectories export scenario:memory-smoke batch:local-eval`
 - `/trajectories bundle`
 - `/trajectories bundle session:room-123`
 - `/trajectories analyze`
@@ -1166,27 +1165,12 @@ doolittle/
 │   │   ├── doolittle-plugin.ts   # Product-layer custom plugin
 │   │   ├── plugin-action-bench/
 │   │   ├── plugin-agent-orchestrator/
-│   │   ├── plugin-agent-skills/
-│   │   ├── plugin-autocoder/
-│   │   ├── plugin-browser/
+│   │   ├── doolittle-plugin/
 │   │   ├── plugin-claude-code/
 │   │   ├── plugin-codex/
-│   │   ├── plugin-coding-agent/
-│   │   ├── plugin-cron/
-│   │   ├── plugin-discord/
-│   │   ├── plugin-e2b/
-│   │   ├── plugin-experience/
-│   │   ├── plugin-forms/
-│   │   ├── plugin-knowledge/
-│   │   ├── plugin-local-embedding/
-│   │   ├── plugin-mcp/
-│   │   ├── plugin-planning/
-│   │   ├── plugin-personality/
-│   │   ├── plugin-plugin-manager/
-│   │   ├── plugin-rolodex/
-│   │   ├── plugin-shell/
-│   │   ├── plugin-trajectory-logger/
-│   │   └── plugin-tts/
+│   │   ├── plugin-devin/
+│   │   ├── plugin-elizacloud/
+│   │   └── plugin-sql/
 │   ├── skills/                     # Curated skill docs (20 categories)
 │   │   ├── automation/
 │   │   ├── browser/

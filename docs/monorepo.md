@@ -10,8 +10,8 @@ Doolittle is organized as a Bun workspace monorepo.
   - the primary Doolittle application source
   - runtime, CLI, API, gateway, and product-specific services
 - `packages/plugins`
-  - local Doolittle product plugins and vendored official-compatible ElizaOS plugin packages
-  - includes the Doolittle plugin plus patched official plugin workspaces such as `plugin-browser` and `plugin-mcp`
+  - local Doolittle product plugins and provider bridge packages
+  - includes the consolidated Doolittle plugin plus first-party provider bridges such as `plugin-codex`, `plugin-claude-code`, `plugin-devin`, `plugin-elizacloud`, and `plugin-sql`
 - `packages/skills`
   - local Doolittle skill content and generated skills
   - organized by category for discoverability (`identity/`, `memory/`, `productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)
@@ -24,9 +24,9 @@ Doolittle is organized as a Bun workspace monorepo.
   - operator flows
   - ACP surfaces
   - Doolittle identity and routing
-- keep upstream-like compatibility work in `packages/plugins/*`
-  - avoid mixing product logic into vendored packages
-  - prefer small shims and adapters over behavior rewrites
+- keep provider bridges and product plugin facets in `packages/plugins/*`
+  - avoid claiming official plugin workspaces unless they are actual workspace packages
+  - prefer direct ElizaOS SDK imports over local compatibility shims
 - keep workspace-level documentation at the repo root and under `docs/`
 
 See [module-structure-guidelines.md](./module-structure-guidelines.md) for the naming and folder rules the repo is converging toward during the stabilization pass.

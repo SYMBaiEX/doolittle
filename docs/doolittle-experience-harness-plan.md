@@ -29,7 +29,7 @@ Doolittle should use ElizaOS as the native substrate and make the harness feel a
 - Empty planner wrappers such as `Provider executed: []` are now classified as native execution failures for local tasks instead of being treated as successful answers.
 - Local file actions now record mutation receipts for `WRITE_FILE`, `PATCH_FILE`, and `CREATE_DIRECTORY` into the active run controller state.
 - File-writing requests now require a successful write or patch receipt before Doolittle can present the turn as complete.
-- Mutation receipts flow into run progress and trajectory events so future training data can distinguish real local changes from summaries.
+- Mutation receipts flow into run progress and ElizaOS SDK trajectory logging so future training data can distinguish real local changes from summaries; Doolittle debug bundles remain non-training replay artifacts.
 - Coding profile guidance now names Doolittle's actual Eliza actions (`READ_FILE`, `WRITE_FILE`, `PATCH_FILE`, `SEARCH_FILES`, `CREATE_DIRECTORY`, `RUN_IN_TERMINAL`) instead of only abstract coding-agent capabilities.
 - `/retry` replays the latest real conversational turn after removing its previous answer, without storing `/retry` as the prompt.
 - `/undo` removes the latest conversational exchange from session memory.

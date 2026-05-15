@@ -190,21 +190,15 @@
 
 ### 6. Trajectory Persistence from @elizaos/core
 
-**What it is:** A trace capture system for benchmarking and training data generation. Captures provider accesses (what data was fetched and why) and LLM calls (full prompt/response pairs with latency) during execution steps. Uses `AsyncLocalStorage` for async-safe propagation.
+**What it is:** The canonical ElizaOS trace capture system for benchmarking and training data generation. Captures provider accesses (what data was fetched and why) and LLM calls (full prompt/response pairs with latency) during execution steps. Uses `AsyncLocalStorage` for async-safe propagation.
 
-**Where it lives:**
-- Service: `@elizaos/core/dist/services/trajectoryLogger.d.ts` -- `TrajectoryLoggerService`
+**Where it lives in the installed SDK:**
+- Service: `@elizaos/core` / `TrajectoriesService` -- SQL-backed service registered as `trajectories`
 - Context: `@elizaos/core/dist/trajectory-context.d.ts` -- `TrajectoryContext`, `runWithTrajectoryContext`
-- Plugin: `@elizaos/plugin-trajectory-logger` (installed but needs custom persistence layer)
+- Export API: `TrajectoriesService.exportTrajectories({ format, includePrompts, trajectoryIds, startDate, endDate, scenarioId, batchId })`
 
 **Code changes needed:**
-1. The default `TrajectoryLoggerService` is in-memory (no-op for production). Subclass it for persistent storage:
-   ```typescript
-   class PersistentTrajectoryLogger extends TrajectoryLoggerService {
-     logProviderAccess(params) { super.logProviderAccess(params); persistToDb(params); }
-     logLlmCall(params) { super.logLlmCall(params); persistToDb(params); }
-   }
-   ```
+1. Resolve the SDK service via `TrajectoriesService.resolveFromRuntime(runtime)` or `resolveTrajectoryLogger(runtime)` rather than writing a parallel training format.
 2. Wrap execution steps with trajectory context:
    ```typescript
    import { runWithTrajectoryContext } from "@elizaos/core";
@@ -214,12 +208,16 @@
      await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
    });
    ```
-3. Access logs for analysis:
+3. Export model-training data through the SDK only:
    ```typescript
-   const logger = runtime.getService("trajectory_logger") as TrajectoryLoggerService;
-   const providerLogs = logger.getProviderAccessLogs();
-   const llmLogs = logger.getLlmCallLogs();
+   const trajectories = TrajectoriesService.resolveFromRuntime(runtime);
+   await trajectories?.exportTrajectories({
+     format: "json",
+     includePrompts: true,
+   });
    ```
+
+Doolittle debug bundles remain useful for replay, analysis, and operator troubleshooting. They are explicitly labeled `trainingCompatible:false` and are not a fallback for `/trajectories export`.
 
 **Expected impact:** Complete execution traces for every agent interaction. Enables: benchmark comparison across model/prompt changes, training data extraction for fine-tuning, cost analysis per interaction, and regression detection.
 
@@ -417,10 +415,10 @@
 
 ### 12. Sandbox Execution (E2B Integration)
 
-**What it is:** Secure code execution in sandboxed containers via E2B (or similar). The `@elizaos/plugin-e2b` package provides sandboxed execution environments for agent-generated code.
+**What it is:** Secure code execution in sandboxed containers via E2B or a compatible local sandbox. Doolittle currently exposes an E2B-compatible local sandbox through `@doolittle/plugin-local-sandbox`, consolidated inside `doolittle-plugin`, while the upstream E2B package remains a future replacement candidate.
 
 **Where it lives:**
-- Plugin: `@elizaos/plugin-e2b` (installed in node_modules)
+- Doolittle adapter: `packages/plugins/doolittle-plugin/local-sandbox`
 - Research integration: `ResearchCodeInterpreterTool` in model types (`{ type: "code_interpreter", container: { type: "auto" } }`)
 
 **Code changes needed:**
@@ -504,22 +502,23 @@
 
 ### 15. Skill / MCP Marketplace Integration
 
-**What it is:** Integration with the MCP (Model Context Protocol) ecosystem and the ElizaOS skills marketplace. The `@elizaos/plugin-mcp` package provides MCP client capabilities, and the `@elizaos/skills` package manages downloadable skill modules.
+**What it is:** Integration with the MCP (Model Context Protocol) ecosystem and the ElizaOS skills marketplace through the installed ElizaOS package surface. Doolittle should prefer exported SDK helpers from `@elizaos/autonomous` and `@elizaos/agent`, plus native skill manifests from `@elizaos/skills`, instead of importing unavailable top-level plugin packages directly.
 
 **Where it lives:**
-- MCP Plugin: `@elizaos/plugin-mcp/dist/` (installed)
-- Skills: `/Users/symbiex/dev/elizaos/doolittle/doolittle/packages/skills/`
-- Agent Skills Plugin: `@elizaos/plugin-agent-skills`
-- Plugin Manager: `@elizaos/plugin-plugin-manager`
-- Plugin Discovery: `@elizaos/core/dist/plugins/discovery.d.ts`, `manifest-registry.d.ts`
+- MCP marketplace helpers: `@elizaos/autonomous/services/mcp-marketplace`
+- Skill marketplace helpers: `@elizaos/autonomous/services/skill-marketplace`
+- Agent registry and skill catalog clients: `@elizaos/agent/services/registry-client`, `@elizaos/agent/services/skill-catalog-client`
+- Native skill file parsing and serialization: `@elizaos/skills`
+- Doolittle MCP execution adapter: `packages/agent/src/services/mcp/`
+- Doolittle skills hub: `packages/agent/src/services/skills-hub/`
 - Research MCP: `ResearchMcpTool` type for deep research integration
 
 **Code changes needed:**
-1. Register `@elizaos/plugin-mcp` for MCP server connectivity.
-2. Configure MCP servers in character settings or environment.
-3. Use `@elizaos/plugin-plugin-manager` for dynamic plugin installation.
-4. Integrate MCP tools with the RESEARCH model type for deep research across internal knowledge bases.
-5. Set up skill discovery and installation workflows.
+1. Keep local and generated skills in canonical `@elizaos/skills` frontmatter so Doolittle skill data stays portable.
+2. Use `@elizaos/autonomous/services/mcp-marketplace` for marketplace search, details, and config generation.
+3. Use `@elizaos/autonomous/services/skill-marketplace` and `@elizaos/agent` catalog clients for marketplace/catalog discovery instead of local scraping.
+4. Keep Doolittle's local MCP execution service as the product adapter until an official MCP execution plugin is promoted to a direct top-level dependency.
+5. Integrate MCP tools with the RESEARCH model type for deep research across internal knowledge bases.
 
 **Expected impact:** Extensible agent capabilities without code deployment. New tools, APIs, and knowledge sources can be connected at runtime via MCP. The skills marketplace enables community-contributed capabilities.
 

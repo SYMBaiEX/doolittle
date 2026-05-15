@@ -1,31 +1,20 @@
 <claude-mem-context>
 # Memory Context
 
-# [doolittle] recent context, 2026-05-13 6:24pm CDT
+# [doolittle] recent context, 2026-05-14 8:15pm CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (23,143t read) | 1,503,152t work | 98% savings
+Stats: 50 obs (22,866t read) | 2,242,750t work | 99% savings
 
 ### May 9, 2026
-2952 5:07p 🔵 OpenClaw: Third AI Agent Framework Reviewed During Native Doolittle Comparison
-2953 " 🔵 OpenClaw Architecture: Single Embedded Agent Runtime Over WebSocket Gateway
-2954 " 🔵 OpenClaw Plugin Architecture: Code Plugins vs Bundle-Style Plugins with ClawHub Registry
-2955 " 🔵 OpenClaw Source Structure: Rich src/ Modules for talk, media, and channels
-2959 5:08p 🔵 OpenClaw Scale: 5,895 Test Files, 121 Extensions, 52 Bundled Skills
-2960 " 🔵 OpenClaw Agent Loop: runEmbeddedPiAgent with Per-Session Serialization and 14 Plugin Hook Points
-2961 " 🔵 OpenClaw Memory Architecture: Markdown-First with 4 Backends and Active-Memory Sub-Agent
-2962 " 🔵 Doolittle Active Plugin Consolidation: 20+ Separate Plugin Packages Being Deleted and Merged into doolittle-plugin
-2963 " 🔵 Doolittle Native Experience Ledger: Formal Tracking of Remaining Operator Gaps
-2964 " 🔵 Doolittle Self-Description: Terminal-Native ElizaOS Shell with Native-First + Direct Rescue Architecture
 2974 5:10p 🔵 Doolittle Uses ElizaOS Alpha (2.0.0-alpha.537) While Public Latest is 1.7.2
-2975 " 🔵 Reference Agent Architecture: 7-Subsystem Monolith with SQLite Session Store and 70+ Tools Across 28 Toolsets
-2976 " 🔵 Reference Agent Loop: Strict Turn Lifecycle with Sequential/Concurrent Tool Dispatch and 8 Callback Surfaces
+2975 " 🔵 Hermes Architecture: 7-Subsystem Monolith with SQLite Session Store and 70+ Tools Across 28 Toolsets
 2977 5:59p 🔵 Superpowers Writing-Plans Skill: Structure and Requirements
 2978 " 🔵 Superpowers Executing-Plans Skill: Workflow Integration
-2980 6:00p 🔵 Doolittle Project: Current State and Native Experience Ledger
+2980 6:00p 🔵 Doolittle Project: Current State and Parity Ledger
 2984 6:01p 🔵 Doolittle Capability-Truth System: Code-Backed Doc Generation Architecture
 2988 6:03p 🟣 Doolittle Operator Wow Contract: Code-Backed Product Acceptance Pillars
 2990 " 🟣 Operator Wow Contract Test Suite with Scenario Count Correction
@@ -60,6 +49,18 @@ Stats: 50 obs (23,143t read) | 1,503,152t work | 98% savings
 3121 " 🟣 Ollama ACTION_PLANNER Token Budget Capped at 160; keep_alive Set to "10m"
 3122 " 🔴 Test Mock Fixed: runController.finishTurn Missing from createContext() Stub
 3123 8:01p 🟣 Direct Informational Fast Path Validated: Architecture Question Answered in 1.2s vs Previous 34s
+### May 13, 2026
+3685 9:57p ⚖️ Doolittle Ollama Glue — SDK-Native Cleanup Scope Defined
+3686 " 🔵 Doolittle Trajectory System — Full File Surface Map
+3687 10:00p 🔵 Doolittle Ollama Provider Architecture — Full Surface Map
+3688 " 🔵 @elizaos/plugin-ollama 2.0.0-alpha.537 — Full Capability Map vs Doolittle Custom Layer
+3689 " 🔵 ElizaOS Model Registration Priority — First-Registered Wins at Equal Priority
+3690 " 🔵 @elizaos/plugin-local-embedding — Workspace Package Still Referenced, Not Used for Inference
+3691 " 🔵 Doolittle OLLAMA_* Env Var Forwarding — Plugin Settings Bridge for SDK Plugin Compatibility
+3692 " 🔵 ElizaOS SDK Trajectory API Surface — Full Confirmed Map from node_modules
+3693 " ⚖️ Trajectory Cleanup Strategy — SDK Bridge vs Local JSONL Are Separate Layers
+3694 10:03p ⚖️ Doolittle Trajectory — SDK Integration Scope and Architecture Defined
+3695 10:09p ⚖️ Doolittle SDK-Native Cleanup — Subagent Scope and File Ownership Defined
 
-Access 1503k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 2243k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

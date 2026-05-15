@@ -24,7 +24,7 @@ This repo is converging on a folder-first layout with thin entrypoints.
   - `server/routes/identity.ts`
   - `server/routes/identity/profiles.ts`
 - service folder with decision-local helpers
-  - `services/trajectory/service.ts`
+  - `services/trajectory/service/index.ts`
   - `services/trajectory/latest-benchmark.ts`
 - subdomain folders when a namespace has multiple seams
   - `gateway/read/*`
