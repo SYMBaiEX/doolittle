@@ -9,30 +9,50 @@ export async function executeTerminalCommand(
   command: string,
 ): Promise<{
   response: string;
-  exitCode: number | undefined;
+  exitCode: number;
   command: string;
+  stdout: string;
+  stderr: string;
+  cwd: string;
+  durationMs?: number;
 }> {
-  const result = (await runEffectiveShellCommand(
-    runtime,
-    services,
-    command,
-  )) as {
-    command: string;
-    exitCode?: number;
-    stdout?: string;
-    stderr?: string;
-  };
+  const rawResult = await runEffectiveShellCommand(runtime, services, command);
+  const result =
+    rawResult && typeof rawResult === "object"
+      ? (rawResult as {
+          command?: string;
+          exitCode?: number;
+          stdout?: string;
+          stderr?: string;
+          cwd?: string;
+          durationMs?: number;
+        })
+      : {
+          command,
+          exitCode: 0,
+          stdout: String(rawResult ?? ""),
+          stderr: "",
+          cwd: services.workspace.root(),
+        };
+  const executedCommand = result.command ?? command;
+  const exitCode =
+    typeof result.exitCode === "number" && Number.isFinite(result.exitCode)
+      ? result.exitCode
+      : 0;
+  const stdout = result.stdout ?? "";
+  const stderr = result.stderr ?? "";
+  const cwd = result.cwd ?? services.workspace.root();
   const response = [
-    `Ran: ${sanitizeTerminalText(result.command, {
+    `Ran: ${sanitizeTerminalText(executedCommand, {
       preserveNewlines: false,
       collapseWhitespace: true,
     })}`,
-    `Exit: ${result.exitCode}`,
-    result.stdout?.trim()
-      ? `STDOUT:\n${sanitizeTerminalText(result.stdout.trim())}`
+    `Exit: ${exitCode}`,
+    stdout.trim()
+      ? `STDOUT:\n${sanitizeTerminalText(stdout.trim())}`
       : undefined,
-    result.stderr?.trim()
-      ? `STDERR:\n${sanitizeTerminalText(result.stderr.trim())}`
+    stderr.trim()
+      ? `STDERR:\n${sanitizeTerminalText(stderr.trim())}`
       : undefined,
   ]
     .filter(Boolean)
@@ -40,7 +60,11 @@ export async function executeTerminalCommand(
 
   return {
     response,
-    exitCode: result.exitCode,
-    command: result.command,
+    exitCode,
+    command: executedCommand,
+    stdout,
+    stderr,
+    cwd,
+    durationMs: result.durationMs,
   };
 }

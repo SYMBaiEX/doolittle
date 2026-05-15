@@ -132,14 +132,11 @@ describe("file actions", () => {
     });
   });
 
-  it("records local mutation receipts for write actions", async () => {
+  it("returns SDK action-result metadata for write actions", async () => {
     await withTempHome(async ({ dev }) => {
-      const mutations: Array<{ roomId: string; mutation: unknown }> = [];
-      const writeAction = createFileActions(dev, {
-        recordRuntimeLocalMutation: (roomId, mutation) => {
-          mutations.push({ roomId, mutation });
-        },
-      }).find((action) => action.name === "WRITE_FILE");
+      const writeAction = createFileActions(dev).find(
+        (action) => action.name === "WRITE_FILE",
+      );
 
       const result = await writeAction?.handler(
         {} as never,
@@ -157,15 +154,45 @@ describe("file actions", () => {
       );
 
       expect(result?.success).toBe(true);
-      expect(mutations).toHaveLength(1);
-      expect(mutations[0]).toMatchObject({
-        roomId: "room-1",
+      expect(result?.data).toMatchObject({
+        mutationKind: "local-file",
         mutation: {
           action: "WRITE_FILE",
           requestedPath: "symbiex/dev/the-effect/index.html",
           success: true,
         },
+        fileOperation: {
+          type: "write",
+          target: "symbiex/dev/the-effect/index.html",
+        },
       });
+    });
+  });
+
+  it("uses the SDK action parameter validator for required file params", async () => {
+    await withTempHome(async ({ dev }) => {
+      const writeAction = createFileActions(dev).find(
+        (action) => action.name === "WRITE_FILE",
+      );
+
+      const result = await writeAction?.handler(
+        {} as never,
+        {
+          roomId: "room-1",
+          content: { text: "write a file" },
+        } as never,
+        undefined,
+        {
+          parameters: {
+            path: "symbiex/dev/the-effect/index.html",
+          },
+        },
+      );
+
+      expect(result?.success).toBe(false);
+      expect(result?.text).toContain(
+        "Required parameter 'content' was not provided for action WRITE_FILE",
+      );
     });
   });
 

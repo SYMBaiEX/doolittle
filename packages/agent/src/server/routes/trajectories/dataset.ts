@@ -1,5 +1,7 @@
+import { join } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
+import { writeSdkTrajectoryExport } from "@/services/trajectory/sdk-native";
 import {
   buildTrajectoryRequest,
   getTrajectoryLogger,
@@ -16,15 +18,34 @@ export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
 
   if (request.method === "POST" && url.pathname === "/trajectories/export") {
     const body = await readJsonBody<TrajectoryDatasetBody>(request);
-    return json({
-      path:
-        (typeof nativeTrajectory?.exportLatest === "function"
-          ? nativeTrajectory.exportLatest()
-          : undefined) ??
-        context.services.trajectories.exportDataset(
-          buildTrajectoryRequest(body ?? {}),
-        ),
+    const sdkExport = await writeSdkTrajectoryExport({
+      runtime: context.runtime,
+      outputDir: join(context.config.dataDir, "trajectories"),
+      options: {
+        format: "json",
+        includePrompts: true,
+        startDate: body?.startDate,
+        endDate: body?.endDate,
+        scenarioId: body?.scenarioId,
+        batchId: body?.batchId,
+      },
     });
+    if (sdkExport) {
+      return json({
+        path: sdkExport.path,
+        export: sdkExport,
+      });
+    }
+    return json(
+      {
+        error: "ElizaOS SDK trajectory export unavailable",
+        detail:
+          "Doolittle debug bundles are not model-training trajectories. Enable the ElizaOS trajectories service before exporting training data.",
+        trainingCompatible: false,
+        expectedTrainingSource: "elizaos-sdk",
+      },
+      503,
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/trajectories/bundle") {

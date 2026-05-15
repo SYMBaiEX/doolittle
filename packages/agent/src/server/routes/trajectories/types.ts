@@ -9,6 +9,10 @@ export type TrajectoryDatasetBody = {
   tags?: string[];
   mode?: "dataset" | "research" | "evaluation" | "rl";
   notes?: string;
+  startDate?: string;
+  endDate?: string;
+  scenarioId?: string;
+  batchId?: string;
 };
 
 export type TrajectoryBundleRecord = {
@@ -19,6 +23,9 @@ export type TrajectoryBundleRecord = {
   mode?: "dataset" | "research" | "evaluation" | "rl";
   tags?: string[];
   notes?: string;
+  trainingCompatible?: boolean;
+  trainingFormat?: "elizaos-sdk" | "doolittle-debug";
+  trainingNotes?: string;
   filters?: {
     sessionId?: string;
     role?: "user" | "assistant" | "system";

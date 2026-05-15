@@ -7,6 +7,7 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import { buildActionResultData } from "@/runtime/action-result-metadata";
 import type { AppServices } from "@/services";
 import { executeTerminalCommand } from "./execution";
 import { resolveCommandFromParams, resolveCommandFromText } from "./parsing";
@@ -74,7 +75,20 @@ export function createTerminalAction(services: AppServices): Action {
       return {
         success: result.exitCode === 0,
         text: response,
-        data: { command: result.command, exitCode: result.exitCode },
+        data: buildActionResultData(
+          {
+            commandResult: {
+              command: result.command,
+              exitCode: result.exitCode,
+              stdout: result.stdout,
+              stderr: result.stderr,
+              executedIn: result.cwd,
+              durationMs: result.durationMs,
+              success: result.exitCode === 0,
+            },
+          },
+          { command: result.command, exitCode: result.exitCode },
+        ),
       };
     },
     examples: [
