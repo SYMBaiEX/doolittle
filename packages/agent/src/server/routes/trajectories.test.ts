@@ -1,9 +1,16 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleTrajectoryRoutes } from "./trajectories";
 
-function createContext(options?: { native?: boolean }): AppContext {
+function createContext(options?: {
+  native?: boolean;
+  sdk?: boolean;
+}): AppContext {
   let taskCount = 0;
+  const dataDir = mkdtempSync(join(tmpdir(), "doolittle-routes-"));
   const nativeTrajectory = options?.native
     ? {
         exportLatest: () => "/native/export.json",
@@ -13,14 +20,43 @@ function createContext(options?: { native?: boolean }): AppContext {
         compareLatest: () => ({ native: true }),
       }
     : null;
+  const sdkTrajectory = options?.sdk
+    ? {
+        startTrajectory: () => "sdk-trajectory",
+        startStep: () => "sdk-step",
+        endTrajectory: () => undefined,
+        logLlmCall: () => undefined,
+        exportTrajectories: () => ({
+          filename: "sdk.json",
+          data: "[]",
+          mimeType: "application/json",
+        }),
+        listTrajectories: () => ({ trajectories: [], total: 0 }),
+      }
+    : null;
 
   return {
-    runtime: options?.native
-      ? {
-          getService: (service: string) =>
-            service === "trajectory_logger" ? nativeTrajectory : null,
-        }
-      : {},
+    config: {
+      dataDir,
+    },
+    runtime:
+      options?.native || options?.sdk
+        ? {
+            getService: (service: string) => {
+              if (service === "trajectory_logger") {
+                return nativeTrajectory;
+              }
+              if (service === "trajectories") {
+                return sdkTrajectory;
+              }
+              return null;
+            },
+            getServicesByType: (service: string) =>
+              service === "trajectories" && sdkTrajectory
+                ? [sdkTrajectory]
+                : [],
+          }
+        : {},
     gateway: {
       history: async (limit: number) => ({
         traces: [{ id: `trace-${limit}` }],
@@ -143,7 +179,7 @@ function createJsonRequest(
 }
 
 describe("handleTrajectoryRoutes", () => {
-  it("prefers native trajectory exports, bundles, and latest comparisons when available", async () => {
+  it("requires SDK trajectory export while preserving native bundles and latest comparisons", async () => {
     const context = createContext({ native: true });
 
     const exported = await handleTrajectoryRoutes(
@@ -162,11 +198,53 @@ describe("handleTrajectoryRoutes", () => {
       new URL("http://localhost/trajectories/compare/latest"),
     );
 
-    expect(await exported?.json()).toEqual({ path: "/native/export.json" });
+    expect(exported?.status).toBe(503);
+    expect(await exported?.json()).toEqual({
+      error: "ElizaOS SDK trajectory export unavailable",
+      detail:
+        "Doolittle debug bundles are not model-training trajectories. Enable the ElizaOS trajectories service before exporting training data.",
+      trainingCompatible: false,
+      expectedTrainingSource: "elizaos-sdk",
+    });
     expect(await bundles?.json()).toEqual({
       bundles: [{ manifestPath: "/native/bundle.json", label: "native" }],
     });
     expect(await comparison?.json()).toEqual({ comparison: { native: true } });
+  });
+
+  it("exports through the ElizaOS SDK trajectory service when available", async () => {
+    const context = createContext({ sdk: true });
+
+    const exported = await handleTrajectoryRoutes(
+      context,
+      createJsonRequest("http://localhost/trajectories/export", "POST", {
+        label: "sdk-bridge",
+      }),
+      new URL("http://localhost/trajectories/export"),
+    );
+    const bundles = await handleTrajectoryRoutes(
+      context,
+      new Request("http://localhost/trajectories/bundles"),
+      new URL("http://localhost/trajectories/bundles"),
+    );
+
+    const exportedJson = await exported?.json();
+    expect(exportedJson).toEqual({
+      path: expect.stringContaining("/trajectories/sdk.json"),
+      export: expect.objectContaining({
+        filename: "sdk.json",
+        mimeType: "application/json",
+        source: "elizaos-sdk",
+      }),
+    });
+    expect(await bundles?.json()).toEqual({
+      bundles: [
+        expect.objectContaining({
+          manifestPath: "/tmp/alpha.manifest.json",
+          label: "alpha",
+        }),
+      ],
+    });
   });
 
   it("handles replay, compare, and compress routes with validation", async () => {
