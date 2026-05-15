@@ -4,7 +4,13 @@ export interface SkillDocument {
   description: string;
   path: string;
   content: string;
-  source?: "workspace" | "generated" | "bundled" | "managed" | "project";
+  source?:
+    | "workspace"
+    | "generated"
+    | "bundled"
+    | "managed"
+    | "project"
+    | "curated";
   commandName?: string;
   userInvocable?: boolean;
   disableModelInvocation?: boolean;

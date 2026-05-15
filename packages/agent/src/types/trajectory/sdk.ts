@@ -1,0 +1,14 @@
+export type {
+  Trajectory as SdkTrajectory,
+  TrajectoryExportOptions as SdkTrajectoryExportOptions,
+  TrajectoryExportResult as SdkTrajectoryExportResult,
+  TrajectoryListItem as SdkTrajectoryListItem,
+  TrajectoryListOptions as SdkTrajectoryListOptions,
+  TrajectoryListResult as SdkTrajectoryListResult,
+  TrajectoryLlmCall as SdkTrajectoryLlmCall,
+  TrajectoryProviderAccess as SdkTrajectoryProviderAccess,
+  TrajectoryStatus as SdkTrajectoryStatus,
+  TrajectoryStep as SdkTrajectoryStep,
+  TrajectoryStepId as SdkTrajectoryStepId,
+  TrajectoryStepKind as SdkTrajectoryStepKind,
+} from "@elizaos/agent/types/trajectory";

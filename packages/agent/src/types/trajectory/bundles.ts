@@ -19,6 +19,9 @@ export interface TrajectoryBundleEntry {
   messageCount: number;
   messageRecordCount?: number;
   eventCount?: number;
+  trainingCompatible?: boolean;
+  trainingFormat?: "elizaos-sdk" | "doolittle-debug";
+  trainingNotes?: string;
   sessionCount: number;
   sessions: string[];
   roleCounts: Record<string, number>;
@@ -115,6 +118,9 @@ export interface TrajectoryGatewayIngestBundle {
   manifestPath: string;
   summaryPath: string;
   messageCount: number;
+  trainingCompatible?: boolean;
+  trainingFormat?: "doolittle-debug";
+  trainingNotes?: string;
   sessionCount: number;
   traceCount: number;
   inboxCount: number;
