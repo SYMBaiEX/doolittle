@@ -5,8 +5,5 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
-  },
-  "dependencies": {
-    "@elizaos/core": "2.0.0-alpha.537"
   }
 }

@@ -1,4 +1,4 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 
 export const DEFAULT_ELIZA_CLOUD_BASE_URL = resolveCloudApiBaseUrl();
 export const DEFAULT_ELIZA_CLOUD_SMALL_MODEL =

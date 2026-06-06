@@ -5,4 +5,4 @@ export {
   resolveCommandFromParams,
   resolveCommandFromText,
 } from "./parsing";
-export { createTerminalAction } from "./wiring";
+export { createTerminalAction, isTerminalIntent } from "./wiring";

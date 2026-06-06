@@ -4,7 +4,7 @@ import {
   createCodingAgentContext,
   injectFeedback,
   validateCodingAgentContext,
-} from "@elizaos/agent/services/coding-agent-context";
+} from "@elizaos/autonomous/services/coding-agent-context";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
 import { getNativeCodingAgent } from "./native-services";

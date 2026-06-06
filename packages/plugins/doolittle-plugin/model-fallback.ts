@@ -1,5 +1,6 @@
 import type { EnvConfig } from "@doolittle/agent/plugin-api";
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
+import { resolveModelPromptText } from "./prompt-text";
 import { readRuntimeModelSettings } from "./runtime-settings";
 
 export function hasConfiguredModelProvider(config: EnvConfig): boolean {
@@ -23,6 +24,7 @@ export function createOpenAiBackedTextModel(config: EnvConfig) {
     const model = modelSettings?.model ?? config.openAiModel;
     const temperature = modelSettings?.temperature ?? config.openAiTemperature;
     const maxTokens = modelSettings?.maxTokens ?? config.openAiMaxTokens;
+    const promptText = resolveModelPromptText(params);
 
     if (!config.openAiApiKey) {
       return [
@@ -30,7 +32,7 @@ export function createOpenAiBackedTextModel(config: EnvConfig) {
         "Set OPENAI_API_KEY to enable real model-backed responses.",
         "",
         "Prompt excerpt:",
-        params.prompt.slice(0, 600),
+        promptText.slice(0, 600),
       ].join("\n");
     }
 
@@ -47,7 +49,7 @@ export function createOpenAiBackedTextModel(config: EnvConfig) {
         messages: [
           {
             role: "user",
-            content: params.prompt,
+            content: promptText,
           },
         ],
       }),

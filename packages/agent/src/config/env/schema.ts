@@ -1,4 +1,4 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import { z } from "zod";
 
 export const envSchema = z.object({

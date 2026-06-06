@@ -2,8 +2,8 @@ import type {
   CodingIteration,
   CommandResult,
   FileOperation,
-} from "@elizaos/agent/services/coding-agent-context";
-import { validateCodingIteration } from "@elizaos/agent/services/coding-agent-context";
+} from "@elizaos/autonomous/services/coding-agent-context";
+import { validateCodingIteration } from "@elizaos/autonomous/services/coding-agent-context";
 import type { ActionResult, ProviderDataRecord } from "@elizaos/core";
 import type { LocalMutationInput } from "@/services/run-controller-service";
 

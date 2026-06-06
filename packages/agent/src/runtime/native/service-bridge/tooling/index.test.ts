@@ -7,7 +7,7 @@ import type {
   CodingAgentContext,
   CodingIteration,
   HumanFeedback,
-} from "@elizaos/agent/services/coding-agent-context";
+} from "@elizaos/autonomous/services/coding-agent-context";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
 import {

@@ -504,4 +504,72 @@ describe("chat turn post-provider seam", () => {
       },
     ]);
   });
+
+  it("accepts shell-scaffolded turns when a successful RUN_IN_TERMINAL command landed", async () => {
+    const harness = createContext({ observedActionCount: 0 });
+    const scaffoldMessage =
+      'Go to ~/symbiex/dev and create a folder named "the-game". In the folder, build a react app (use bunx or npx to scaffold from an official boilerplate).';
+
+    const result = await runPostProviderTurn({
+      input: {
+        userId: "alice",
+        message: scaffoldMessage,
+        source: "cli",
+      },
+      effectiveInput: {
+        userId: "alice",
+        message: scaffoldMessage,
+        source: "cli",
+      },
+      context: harness.context,
+      turn: createTurn(),
+      response: "Scaffolded the-game.",
+      actionResults: [
+        {
+          success: true,
+          text: "bunx create-vite the-game --template react",
+          data: {
+            actionName: "RUN_IN_TERMINAL",
+            commandResult: {
+              command: "bunx create-vite the-game --template react",
+              exitCode: 0,
+              stdout: "Scaffolding project in ~/dev/the-game...",
+              stderr: "",
+              executedIn: "/Users/symbiex/dev",
+              success: true,
+            },
+          },
+        },
+      ],
+      settingsDuring: {
+        model: {
+          provider: "devin",
+          model: "swe-1-6-fast",
+        },
+      } as Parameters<typeof runPostProviderTurn>[0]["settingsDuring"],
+      scheduleProfileObservation: () => undefined,
+      loadDirectLocalIntent: async () => ({
+        directLocalIntent: null,
+        executeDirectLocalIntent: async () => "unused",
+        isHighConfidenceDirectLocalIntent: () => false,
+        requiresModelSynthesisForLocalIntent: () => false,
+        shouldUseDirectLocalFallback: () => false,
+      }),
+      approveDirectLocalIntent: async () => undefined,
+    });
+
+    expect(result).toMatchObject({
+      kind: "final",
+      runFailureMessage: undefined,
+      observedActionCount: 1,
+      usedFallback: false,
+    });
+    expect(harness.finishEvents).toEqual([
+      {
+        sessionId: "session-1",
+        status: "complete",
+        message: undefined,
+      },
+    ]);
+  });
 });

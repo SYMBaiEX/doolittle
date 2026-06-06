@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type {
   CodingIteration,
   HumanFeedback,
-} from "@elizaos/agent/services/coding-agent-context";
+} from "@elizaos/autonomous/services/coding-agent-context";
 import { buildCodingAgentContext } from "./runtime";
 
 describe("coding agent runtime context", () => {

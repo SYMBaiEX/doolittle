@@ -1,4 +1,4 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import type {
   GenerateTextParams,
   IAgentRuntime,
@@ -14,6 +14,7 @@ import {
   DEFAULT_ELIZA_CLOUD_BASE_URL,
   ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL,
 } from "./constants";
+import { resolveModelPromptText } from "./prompt-text";
 import {
   extractEmbeddingInput,
   extractEmbeddingVector,
@@ -61,7 +62,7 @@ export async function runElizaCloudTextGeneration(
   const requestedModel = resolveElizaCloudModelSelection(
     runtime,
     preferredType,
-    params.prompt,
+    resolveModelPromptText(params),
   );
   const conversationId = getRuntimeStringSetting(
     runtime,

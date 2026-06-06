@@ -5,7 +5,7 @@ import {
   createCodingAgentContext,
   injectFeedback,
   validateCodingAgentContext,
-} from "@elizaos/agent/services/coding-agent-context";
+} from "@elizaos/autonomous/services/coding-agent-context";
 import type { CodingAgentContextOptions } from "./types";
 
 export interface BuildCodingAgentContextOptions {

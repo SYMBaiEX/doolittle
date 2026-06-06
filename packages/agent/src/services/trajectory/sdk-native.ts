@@ -5,7 +5,7 @@ import type {
   TrajectoryExportResult as SdkTrajectoryExportResult,
   TrajectoryListOptions as SdkTrajectoryListOptions,
   TrajectoryListResult as SdkTrajectoryListResult,
-} from "@elizaos/agent/types/trajectory";
+} from "@elizaos/core";
 import {
   type IAgentRuntime,
   resolveTrajectoryLogger,
