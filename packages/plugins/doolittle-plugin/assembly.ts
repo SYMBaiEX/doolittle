@@ -5,6 +5,7 @@ import {
   createMemoryAction,
   createMemoryNudgeEvaluator,
   createRepositoryAction,
+  createSelfAwarenessProvider,
   createSessionSearchAction,
   createSkillsAction,
   createTerminalAction,
@@ -33,6 +34,7 @@ export function createDoolittlePluginSurface({
   const providers: Provider[] = [
     ...getSessionProviders(),
     createAgentContextProvider(services),
+    createSelfAwarenessProvider(services),
   ];
   const evaluators: Evaluator[] = [createMemoryNudgeEvaluator(services)];
   const GatewayRuntimeService = createGatewayRuntimeService({
