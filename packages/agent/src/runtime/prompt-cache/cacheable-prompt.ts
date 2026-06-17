@@ -116,16 +116,17 @@ export function buildCacheablePrompt(
   };
 }
 
-/** Merge leading blocks until the count fits the provider's breakpoint budget. */
+/**
+ * Merge leading blocks until the count fits the provider's breakpoint budget.
+ * Only ever called for explicit-mode providers (max >= 1) with a non-empty
+ * block list, so the merge is always well-defined.
+ */
 function capStableBlocks(
   blocks: string[],
   max: number,
   joiner: string,
 ): string[] {
-  if (blocks.length <= max || max <= 0) {
-    if (max <= 0) {
-      return [blocks.join(joiner)];
-    }
+  if (blocks.length <= max) {
     return blocks;
   }
   const mergeCount = blocks.length - max + 1;

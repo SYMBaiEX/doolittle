@@ -3,7 +3,20 @@ import {
   getEffectiveMemorySnapshot,
   getNativeOwnershipControlPlane,
 } from "@/runtime/native/service-bridge/ownership";
+import { promptCacheMetrics } from "@/runtime/prompt-cache";
 import type { ChatTurnRequest } from "@/types/runtime";
+
+function formatPromptCacheSummary(): string {
+  const snapshot = promptCacheMetrics.snapshot();
+  if (snapshot.calls === 0) {
+    return "no Doolittle model calls yet";
+  }
+  const base = `${snapshot.calls} calls, ${snapshot.eligibleCalls} eligible, ${snapshot.segmentsEmitted} segmented`;
+  if (snapshot.usageSamples === 0) {
+    return base;
+  }
+  return `${base}; hit-rate ${Math.round(snapshot.hitRate * 100)}% (${snapshot.cacheReadTokens} tok from cache)`;
+}
 
 import type { AgentExecutionContext } from "../../chat";
 import {
@@ -69,6 +82,7 @@ function buildCommonStatusLines(
       `Transport inventory: ${ownership.transportControl.totals.operationalTransports}/${ownership.transportControl.transportInventory.length} operational`,
       `Gateway bridges: ${ownership.transportControl.totals.liveServices}/${ownership.transportControl.totals.gatewayEnabled} live`,
       `Memory summary: ${formatMemorySummary(memorySummary)}`,
+      `Prompt cache: ${formatPromptCacheSummary()}`,
     ],
   };
 }

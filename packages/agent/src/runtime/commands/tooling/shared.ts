@@ -5,10 +5,16 @@ export function parseNamedToolPayload(
   if (!toolName) {
     return undefined;
   }
-  return {
-    toolName,
-    parsedInput: inputRaw
-      ? (JSON.parse(inputRaw) as Record<string, unknown>)
-      : {},
-  };
+  if (!inputRaw) {
+    return { toolName, parsedInput: {} };
+  }
+  try {
+    return {
+      toolName,
+      parsedInput: JSON.parse(inputRaw) as Record<string, unknown>,
+    };
+  } catch {
+    // Malformed JSON input — surface a usage message rather than crashing the turn.
+    return undefined;
+  }
 }
