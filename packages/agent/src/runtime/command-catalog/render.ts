@@ -8,9 +8,11 @@ export function renderCommandCatalog(
   workspaceDir?: string,
 ): string {
   const catalog = getCommandCatalogEntries(workspaceDir);
+  // Browse (no query) shows the entire catalog — never silently drop commands;
+  // the `limit` only bounds ranked search results.
   const entries = query?.trim()
     ? rankCommandCatalogEntries(catalog, query, limit)
-    : catalog.slice(0, limit);
+    : catalog;
 
   return entries
     .map(
