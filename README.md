@@ -1256,15 +1256,19 @@ bun run publish:providers:alpha                             # publish to alpha t
 
 ## Versioning
 
-Tracks the ElizaOS alpha line:
+Tracks the ElizaOS 2.0 **beta** line (the actively-maintained channel):
 
-- `elizaos: "alpha"` — umbrella package
-- `@elizaos/core: "alpha"` — core runtime
-- `@elizaos/plugin-sql: "alpha"` — database adapter
-- `@elizaos/plugin-ollama`, `@elizaos/plugin-openai`, `@elizaos/plugin-anthropic` — provider plugins
-- `@elizaos/autonomous: "alpha"`, `@elizaos/skills: "alpha"` — alignment packages
+- `elizaos: "2.0.0-beta.5"` — umbrella package
+- `@elizaos/core: "2.0.0-beta.1"` — core runtime
+- `@elizaos/agent: "2.0.0-beta.2"`, `@elizaos/skills: "2.0.0-beta.1"`
+- `@elizaos/plugin-{ollama,openai,anthropic,pdf,telegram,sql}: "2.0.0-beta.1"` — provider/feature plugins
+- `@elizaos/autonomous: "2.0.0-alpha.85"` — no beta published yet; pinned to alpha and forced onto beta `@elizaos/core` via `overrides` so a single core instance is shared
 
-Features not covered by official ElizaOS packages are implemented as custom actions, providers, evaluators, and Bun-native services. Official packages not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` alpha service model.
+The vendored `@elizaos/plugin-sql` carries a local `bun patch`
+(`patches/@elizaos%2Fplugin-sql@2.0.0-beta.1.patch`) that fixes a broken `bun`
+export condition in the published beta.1 package.
+
+Features not covered by official ElizaOS packages are implemented as custom actions, providers, evaluators, and Bun-native services. Official packages not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` beta service model.
 
 ---
 
