@@ -1,7 +1,12 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const MAX_SOUL_CHARS = 5000;
+
+// Memoize the (expensive) read + strip + slice keyed by path, guarded by mtime
+// so SOUL.md edits are picked up. The directory walk stays live so newly
+// created or deleted SOUL.md files are still detected.
+const soulReadCache = new Map<string, { mtimeMs: number; text: string }>();
 
 export type DoolittleSoul = {
   path?: string;
@@ -35,10 +40,16 @@ export function readDoolittleSoul(startDir: string): DoolittleSoul {
   }
 
   try {
+    const mtimeMs = statSync(path).mtimeMs;
+    const cached = soulReadCache.get(path);
+    if (cached && cached.mtimeMs === mtimeMs) {
+      return { path, text: cached.text };
+    }
     const text = stripHtmlComments(readFileSync(path, "utf8")).slice(
       0,
       MAX_SOUL_CHARS,
     );
+    soulReadCache.set(path, { mtimeMs, text });
     return { path, text };
   } catch {
     return { path, text: "" };

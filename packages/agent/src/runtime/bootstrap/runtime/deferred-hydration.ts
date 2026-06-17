@@ -32,11 +32,28 @@ export function createDeferredHydrator(params: {
       "registering deferred runtime plugins",
     );
     const deferredPlugins = await loadDeferredPlugins();
+    const failures: string[] = [];
     for (const plugin of deferredPlugins) {
-      await registerPlugin(plugin);
+      // Isolate each optional plugin: one failure must not abort the whole
+      // batch (and, because the hydration promise is memoized, permanently
+      // disable deferred startup). Skip the failing plugin and continue.
+      try {
+        await registerPlugin(plugin);
+      } catch (error) {
+        const detail = `${plugin.name ?? "unknown"}: ${formatError(error)}`;
+        failures.push(detail);
+        process.stderr.write(
+          `[doolittle] deferred plugin failed, skipping — ${detail}\n`,
+        );
+      }
     }
     deferredPluginsRegistered = true;
-    services.startupState.markReady("runtime", "runtime ready");
+    services.startupState.markReady(
+      "runtime",
+      failures.length > 0
+        ? `runtime ready (${failures.length} deferred plugin(s) skipped)`
+        : "runtime ready",
+    );
   };
 
   return async (reason?: string): Promise<void> => {

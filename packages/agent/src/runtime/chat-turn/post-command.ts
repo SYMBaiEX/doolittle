@@ -39,46 +39,61 @@ export async function runPostCommandTurn(
 ): Promise<string> {
   const prepared = preparedTurn ?? prepareTurnState(input, context);
   const turn = prepared.turn;
-  await ensureTurnConnection(context, {
-    entityId: turn.entityId,
-    roomId: turn.roomId,
-    worldId: turn.worldId,
-    source: turn.connectionSource,
-    channelId: turn.localInteractive ? turn.sessionId : turn.worldId,
-    messageServerId: turn.messageServerId,
-  });
-  await ensureLocalInteractiveSettingsState(context, turn);
+  try {
+    await ensureTurnConnection(context, {
+      entityId: turn.entityId,
+      roomId: turn.roomId,
+      worldId: turn.worldId,
+      source: turn.connectionSource,
+      channelId: turn.localInteractive ? turn.sessionId : turn.worldId,
+      messageServerId: turn.messageServerId,
+    });
+    await ensureLocalInteractiveSettingsState(context, turn);
 
-  const shellResponse = await runner.runShellPostCommandTurn({
-    input,
-    effectiveInput,
-    context,
-    options,
-    perf,
-    preparedTurn: prepared,
-  });
-  if (shellResponse !== undefined) {
-    return shellResponse;
+    const shellResponse = await runner.runShellPostCommandTurn({
+      input,
+      effectiveInput,
+      context,
+      options,
+      perf,
+      preparedTurn: prepared,
+    });
+    if (shellResponse !== undefined) {
+      return shellResponse;
+    }
+
+    const nativeTurnSetup = runner.prepareNativeTurnSetup({
+      input,
+      effectiveInput,
+      context,
+      preparedTurn: prepared,
+    });
+    const settingsDuring = applyRuntimeOverrides(
+      nativeTurnSetup.settingsBefore,
+      options?.runtimeOverrides,
+    );
+
+    return runner.runNativeMessageTurn({
+      input,
+      effectiveInput,
+      context,
+      options,
+      perf,
+      turnSetup: nativeTurnSetup,
+      settingsDuring,
+    });
+  } catch (error) {
+    // Guarantee the run is finished even when execution throws before any
+    // success/error path finalizes it — otherwise the run is stranded in
+    // "thinking". Guard on the active run so an inner path that already
+    // finalized (and rethrew) is never double-finished.
+    if (context.services.runController.getActive(turn.sessionId)) {
+      context.services.runController.finishTurn(
+        turn.sessionId,
+        "error",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    throw error;
   }
-
-  const nativeTurnSetup = runner.prepareNativeTurnSetup({
-    input,
-    effectiveInput,
-    context,
-    preparedTurn: prepared,
-  });
-  const settingsDuring = applyRuntimeOverrides(
-    nativeTurnSetup.settingsBefore,
-    options?.runtimeOverrides,
-  );
-
-  return runner.runNativeMessageTurn({
-    input,
-    effectiveInput,
-    context,
-    options,
-    perf,
-    turnSetup: nativeTurnSetup,
-    settingsDuring,
-  });
 }
