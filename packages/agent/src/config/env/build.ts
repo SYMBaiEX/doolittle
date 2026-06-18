@@ -35,6 +35,7 @@ export function buildEnvConfig(
     mode: values.DOOLITTLE_MODE,
     host: values.DOOLITTLE_HOST,
     port: values.DOOLITTLE_PORT,
+    apiToken: values.DOOLITTLE_API_TOKEN,
     dataDir: directories.dataDir,
     skillsDir: directories.skillsDir,
     timezone: values.DOOLITTLE_TIMEZONE,

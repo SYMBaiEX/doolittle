@@ -1,4 +1,4 @@
-import { validateCloudBaseUrl } from "@elizaos/agent/cloud/validate-url";
+import { validateCloudBaseUrl } from "@elizaos/autonomous/cloud/validate-url";
 import { displayCommand } from "@/runtime/commands/command-execution";
 import {
   getLinkedProviderAccountsSnapshot,

@@ -1,7 +1,7 @@
 import type {
   ConnectorType,
   InteractionMode,
-} from "@elizaos/agent/services/coding-agent-context";
+} from "@elizaos/autonomous/services/coding-agent-context";
 
 export interface MediaInspection {
   path: string;

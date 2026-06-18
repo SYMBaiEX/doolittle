@@ -21,7 +21,17 @@ export async function runDueCronJobs(
       continue;
     }
 
-    const output = await executor(job);
+    // Isolate each job: a throwing executor must not abort the whole tick or
+    // leave the job un-advanced (which would hot-loop it every tick). Record
+    // the failure and let the job back off to its normal cadence below.
+    let output: string;
+    try {
+      output = await executor(job);
+    } catch (error) {
+      output = `Cron job failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+    }
     job.lastRunAt = now.toISOString();
     job.updatedAt = now.toISOString();
     storage.appendRun(job, output);

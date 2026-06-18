@@ -10,7 +10,8 @@ import type { TurnState } from "../state";
 import { elapsedMsSince, recordTrajectoryEvent } from "../trajectory";
 import { runShortcutModelWithSdkTrajectory } from "./model-trajectory";
 import {
-  buildDirectInformationalPrompt,
+  buildDirectInformationalPromptParts,
+  buildShortcutPromptCache,
   finalizeNativeShortcut,
   normalizeDirectInformationalResponse,
 } from "./shortcuts";
@@ -250,8 +251,8 @@ export async function handleProfileMemoryModelTurn(input: {
   });
 
   const identityRequest = asksForDoolittleIdentity(input.message);
-  const prompt = [
-    buildDirectInformationalPrompt(input),
+  const parts = buildDirectInformationalPromptParts(input);
+  const appended = [
     "",
     "This turn has already applied a durable user profile update.",
     `- savedDisplayName=${displayName}`,
@@ -259,6 +260,13 @@ export async function handleProfileMemoryModelTurn(input: {
       ? "- The user also asked about Doolittle's personality or soul. Answer from SOUL.md with warmth and specificity."
       : "- Acknowledge the saved name naturally.",
   ].join("\n");
+  const cache = buildShortcutPromptCache({
+    context: input.context,
+    turn: input.turn,
+    stableBlocks: [parts.stablePrefix],
+    volatile: `${parts.volatileSuffix}\n${appended}`,
+  });
+  const prompt = cache.prompt;
   const settings = input.context.services.settings.get();
   const startedAt = performance.now();
 
@@ -300,6 +308,8 @@ export async function handleProfileMemoryModelTurn(input: {
       run: () =>
         input.context.runtime.useModel(ModelType.TEXT_SMALL, {
           prompt,
+          promptSegments: cache.promptSegments,
+          providerOptions: cache.providerOptions,
           temperature: 0.45,
           maxTokens: identityRequest ? 260 : 120,
           stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
@@ -387,8 +397,8 @@ export async function handleSoulIdentityModelTurn(input: {
     return undefined;
   }
 
-  const prompt = [
-    buildDirectInformationalPrompt(input),
+  const parts = buildDirectInformationalPromptParts(input);
+  const appended = [
     "",
     "Soul identity task:",
     "- Treat this as a Doolittle identity/personality conversation, not a global character mutation.",
@@ -396,6 +406,13 @@ export async function handleSoulIdentityModelTurn(input: {
     "- Be warm, vivid, and specific. Avoid sterile disclaimers.",
     "- If the user asked for a soul file, acknowledge that SOUL.md is the local editable identity file.",
   ].join("\n");
+  const cache = buildShortcutPromptCache({
+    context: input.context,
+    turn: input.turn,
+    stableBlocks: [parts.stablePrefix],
+    volatile: `${parts.volatileSuffix}\n${appended}`,
+  });
+  const prompt = cache.prompt;
   const settings = input.context.services.settings.get();
   const startedAt = performance.now();
 
@@ -433,6 +450,8 @@ export async function handleSoulIdentityModelTurn(input: {
       run: () =>
         input.context.runtime.useModel(ModelType.TEXT_SMALL, {
           prompt,
+          promptSegments: cache.promptSegments,
+          providerOptions: cache.providerOptions,
           temperature: 0.55,
           maxTokens: 280,
           stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],

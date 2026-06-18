@@ -36,52 +36,59 @@ export function createCronAction(services: AppServices): Action {
       const trimmed = text?.trim() ?? "";
       let response = "";
 
-      if (trimmed === "/cron" || trimmed === "/cron list") {
-        const jobs = services.cron.list();
-        response = jobs.length
-          ? jobs
-              .map(
-                (job) =>
-                  `- ${job.id} ${job.name} [${job.status}] schedule="${job.schedule}" next=${job.nextRunAt ?? "n/a"}`,
-              )
-              .join("\n")
-          : "No cron jobs configured.";
-      } else if (trimmed.startsWith("/cron create ")) {
-        const payload = trimmed.replace("/cron create ", "");
-        const [schedule, prompt] = payload
-          .split("::")
-          .map((part) => part.trim());
-        if (!schedule || !prompt) {
-          response = "Usage: /cron create <schedule> :: <prompt>";
+      try {
+        if (trimmed === "/cron" || trimmed === "/cron list") {
+          const jobs = services.cron.list();
+          response = jobs.length
+            ? jobs
+                .map(
+                  (job) =>
+                    `- ${job.id} ${job.name} [${job.status}] schedule="${job.schedule}" next=${job.nextRunAt ?? "n/a"}`,
+                )
+                .join("\n")
+            : "No cron jobs configured.";
+        } else if (trimmed.startsWith("/cron create ")) {
+          const payload = trimmed.replace("/cron create ", "");
+          const [schedule, prompt] = payload
+            .split("::")
+            .map((part) => part.trim());
+          if (!schedule || !prompt) {
+            response = "Usage: /cron create <schedule> :: <prompt>";
+          } else {
+            const created = services.cron.create({
+              name: `job-${Date.now()}`,
+              schedule,
+              prompt,
+            });
+            response = `Created cron job ${created.id} with next run ${created.nextRunAt ?? "n/a"}.`;
+          }
+        } else if (trimmed.startsWith("/cron pause ")) {
+          const job = services.cron.pause(
+            trimmed.replace("/cron pause ", "").trim(),
+          );
+          response = `Paused ${job.id}.`;
+        } else if (trimmed.startsWith("/cron resume ")) {
+          const job = services.cron.resume(
+            trimmed.replace("/cron resume ", "").trim(),
+          );
+          response = `Resumed ${job.id}; next run ${job.nextRunAt ?? "n/a"}.`;
+        } else if (trimmed.startsWith("/cron run ")) {
+          const job = services.cron.runNow(
+            trimmed.replace("/cron run ", "").trim(),
+          );
+          response = `Marked ${job.id} to run immediately.`;
+        } else if (trimmed.startsWith("/cron remove ")) {
+          const id = trimmed.replace("/cron remove ", "").trim();
+          services.cron.remove(id);
+          response = `Removed ${id}.`;
         } else {
-          const created = services.cron.create({
-            name: `job-${Date.now()}`,
-            schedule,
-            prompt,
-          });
-          response = `Created cron job ${created.id} with next run ${created.nextRunAt ?? "n/a"}.`;
+          response =
+            "Usage: /cron list | create | pause | resume | run | remove";
         }
-      } else if (trimmed.startsWith("/cron pause ")) {
-        const job = services.cron.pause(
-          trimmed.replace("/cron pause ", "").trim(),
-        );
-        response = `Paused ${job.id}.`;
-      } else if (trimmed.startsWith("/cron resume ")) {
-        const job = services.cron.resume(
-          trimmed.replace("/cron resume ", "").trim(),
-        );
-        response = `Resumed ${job.id}; next run ${job.nextRunAt ?? "n/a"}.`;
-      } else if (trimmed.startsWith("/cron run ")) {
-        const job = services.cron.runNow(
-          trimmed.replace("/cron run ", "").trim(),
-        );
-        response = `Marked ${job.id} to run immediately.`;
-      } else if (trimmed.startsWith("/cron remove ")) {
-        const id = trimmed.replace("/cron remove ", "").trim();
-        services.cron.remove(id);
-        response = `Removed ${id}.`;
-      } else {
-        response = "Usage: /cron list | create | pause | resume | run | remove";
+      } catch (error) {
+        const failure = error instanceof Error ? error.message : String(error);
+        await callback?.({ text: failure, source: "cron-action" });
+        return { success: false, text: failure };
       }
 
       await callback?.({ text: response, source: "cron-action" });

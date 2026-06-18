@@ -10,6 +10,8 @@ export interface EnvConfig {
   mode: "api" | "cli" | "both";
   host: string;
   port: number;
+  /** Bearer token required for non-loopback API binds (DOOLITTLE_API_TOKEN). */
+  apiToken?: string;
   dataDir: string;
   skillsDir: string;
   timezone: string;

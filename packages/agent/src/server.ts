@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { isApiRequestAuthorized } from "@/server/auth";
 import { json } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
@@ -26,6 +27,15 @@ export function startApiServer(context: AppContext): void {
 
       if (request.method === "OPTIONS") {
         return json({ ok: true });
+      }
+
+      if (
+        !isApiRequestAuthorized(
+          { host: context.config.host, apiToken: context.config.apiToken },
+          request,
+        )
+      ) {
+        return json({ error: "Unauthorized" }, 401);
       }
 
       const response = await dispatchRouteHandlers(

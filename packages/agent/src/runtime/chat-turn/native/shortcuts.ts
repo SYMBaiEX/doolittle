@@ -1,5 +1,9 @@
-import { ModelType } from "@elizaos/core";
+import { ModelType, type PromptSegment } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
+import {
+  buildCacheablePrompt,
+  promptCacheMetrics,
+} from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
 import type { TurnClassification } from "@/runtime/turn-classification/types";
 import { finalizeTurnResponse, isTurnReadinessMessage } from "../finalization";
@@ -227,15 +231,35 @@ function isPresenceOrSmallTalkPrompt(message: string): boolean {
   );
 }
 
-export function buildDirectInformationalPrompt(input: {
+export interface DirectInformationalPromptParts {
+  /**
+   * Cache-stable prefix: identity, character voice, soul, and the conversation
+   * contract. Identical across calls for the same character + social mode, so
+   * it is the cacheable prompt prefix.
+   */
+  stablePrefix: string;
+  /**
+   * Volatile suffix: recent conversation, durable memory, runtime facts, and
+   * the user message. Changes every call — never cached as stable.
+   */
+  volatileSuffix: string;
+}
+
+/**
+ * Build the direct-informational prompt split into a cache-stable prefix and a
+ * volatile suffix. The split preserves the exact wire prompt:
+ * `stablePrefix + "\n" + volatileSuffix` equals the original joined string, so
+ * segmentation never changes what the model is asked.
+ */
+export function buildDirectInformationalPromptParts(input: {
   context: AgentExecutionContext;
   turn: TurnState;
   userId: string;
   message: string;
-}): string {
+}): DirectInformationalPromptParts {
   const settings = input.context.services.settings.get();
   const socialMode = isPresenceOrSmallTalkPrompt(input.message);
-  return [
+  const stableLines = [
     `You are ${input.turn.agentName}.`,
     "",
     ...buildCharacterVoiceContext(input.context),
@@ -252,7 +276,8 @@ export function buildDirectInformationalPrompt(input: {
     socialMode
       ? "- This turn is social/presence-oriented. Do not redirect immediately to work; meet the user first."
       : "- This turn is informational. Be natural first, then useful.",
-    "",
+  ];
+  const volatileLines = [
     ...buildRecentConversationContext({
       context: input.context,
       sessionId: input.turn.sessionId,
@@ -274,7 +299,74 @@ export function buildDirectInformationalPrompt(input: {
     "",
     `User: ${input.message.trim()}`,
     `${input.turn.agentName}:`,
-  ].join("\n");
+  ];
+  return {
+    stablePrefix: stableLines.join("\n"),
+    volatileSuffix: volatileLines.join("\n"),
+  };
+}
+
+export function buildDirectInformationalPrompt(input: {
+  context: AgentExecutionContext;
+  turn: TurnState;
+  userId: string;
+  message: string;
+}): string {
+  const { stablePrefix, volatileSuffix } =
+    buildDirectInformationalPromptParts(input);
+  return `${stablePrefix}\n${volatileSuffix}`;
+}
+
+export interface ShortcutPromptCache {
+  prompt: string;
+  promptSegments?: PromptSegment[];
+  providerOptions?: Record<string, object | undefined>;
+}
+
+/**
+ * Apply Doolittle's shared prompt-cache segmentation to a fast-path prompt and
+ * record the plan for observability. Every shortcut model call routes through
+ * this one helper so provider prompt caching is never hand-rolled per call
+ * site. The returned `prompt` is always the exact text that would have been
+ * sent; `promptSegments`/`providerOptions` are populated only for caching
+ * providers.
+ */
+export function buildShortcutPromptCache(args: {
+  context: AgentExecutionContext;
+  turn: TurnState;
+  stableBlocks: string[];
+  volatile: string;
+}): ShortcutPromptCache {
+  const settings = args.context.services.settings.get();
+  // The active personality id is part of the stable-prefix version fingerprint
+  // (a persona switch rotates the cache key). Accessed defensively so the fast
+  // path never depends on the personality service being present.
+  const personalityId =
+    (
+      args.context.services as {
+        personalities?: { getActive?: () => { id?: string } };
+      }
+    ).personalities?.getActive?.()?.id ?? "default";
+  const cacheable = buildCacheablePrompt({
+    stableBlocks: args.stableBlocks,
+    volatile: args.volatile,
+    joiner: "\n",
+    provider: settings.model.provider,
+    model: settings.model.model,
+    versionDigest: personalityId,
+    conversationId:
+      args.turn.roomId != null ? String(args.turn.roomId) : undefined,
+  });
+  promptCacheMetrics.recordPlan(cacheable.stats);
+  args.context.runtime.logger?.debug?.(
+    { src: "doolittle:prompt-cache", ...cacheable.stats },
+    "[DOOLITTLE] prompt cache plan",
+  );
+  return {
+    prompt: cacheable.prompt,
+    promptSegments: cacheable.promptSegments,
+    providerOptions: cacheable.providerOptions,
+  };
 }
 
 export function normalizeDirectInformationalResponse(
@@ -306,7 +398,14 @@ export async function handleDirectInformationalModelTurn(input: {
     return undefined;
   }
 
-  const prompt = buildDirectInformationalPrompt(input);
+  const parts = buildDirectInformationalPromptParts(input);
+  const cache = buildShortcutPromptCache({
+    context: input.context,
+    turn: input.turn,
+    stableBlocks: [parts.stablePrefix],
+    volatile: parts.volatileSuffix,
+  });
+  const prompt = cache.prompt;
   const startedAt = performance.now();
   const settings = input.context.services.settings.get();
   recordTrajectoryEvent(input.context, {
@@ -342,6 +441,8 @@ export async function handleDirectInformationalModelTurn(input: {
       run: () =>
         input.context.runtime.useModel(ModelType.TEXT_SMALL, {
           prompt,
+          promptSegments: cache.promptSegments,
+          providerOptions: cache.providerOptions,
           temperature: 0.35,
           maxTokens: input.classification.simpleChat ? 96 : 192,
           stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],

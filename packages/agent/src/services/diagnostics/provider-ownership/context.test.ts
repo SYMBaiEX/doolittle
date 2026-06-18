@@ -94,7 +94,7 @@ describe("collectProviderOwnershipContext", () => {
         getNativePackageAudit: () => nativeAudit,
         getNativePluginCatalog: () => nativePluginCatalog,
         getLinkedProviderAccountsSnapshot: () => linkedAccounts,
-        resolveCloudApiBaseUrl: (value) => `resolved:${value}`,
+        resolveCloudApiBaseUrl: (value?: string) => `resolved:${value}`,
         validateCloudBaseUrl: async () => null,
       },
     });
@@ -204,7 +204,7 @@ describe("collectProviderOwnershipContext", () => {
         getNativePackageAudit: () => nativeAudit,
         getNativePluginCatalog: () => nativePluginCatalog,
         getLinkedProviderAccountsSnapshot: () => linkedAccounts,
-        resolveCloudApiBaseUrl: (value) => `resolved:${value}`,
+        resolveCloudApiBaseUrl: (value?: string) => `resolved:${value}`,
         validateCloudBaseUrl: async () => null,
       },
     });

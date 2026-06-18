@@ -51,6 +51,19 @@ export async function resolvePostProviderFallback(
     summarizeActionResults(input.actionResults).observedActionCount,
   );
 
+  // If the user aborted, never run the direct-local fallback — an abort
+  // surfaces as a runFailureMessage, and falling through would re-execute the
+  // exact work the user just cancelled.
+  if (input.options?.abortSignal?.aborted) {
+    return {
+      kind: "continue",
+      observedActionCount,
+      response,
+      runFailureMessage,
+      usedFallback: false,
+    };
+  }
+
   const fallbackModule = shouldLoadDirectLocalIntentFallback({
     localInteractive: input.turn.localInteractive,
     observedActionCount,

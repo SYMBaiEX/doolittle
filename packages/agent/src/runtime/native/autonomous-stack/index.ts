@@ -1,7 +1,3 @@
-import type {} from "@elizaos/agent";
-import type {} from "@elizaos/autonomous";
-import type {} from "@elizaos/skills";
-
 export { describeAutonomousAlignment } from "./alignment";
 export { buildAutonomousCompatConfig } from "./compat-config";
 export { buildAutonomousCompatEnv } from "./compat-env";

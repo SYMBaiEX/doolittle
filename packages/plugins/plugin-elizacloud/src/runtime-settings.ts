@@ -1,4 +1,4 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import { type IAgentRuntime, ModelType } from "@elizaos/core";
 import {
   DEFAULT_ELIZA_CLOUD_BASE_URL,

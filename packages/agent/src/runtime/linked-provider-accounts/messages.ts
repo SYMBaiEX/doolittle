@@ -1,4 +1,4 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
+import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import { displayCommand } from "@/runtime/commands/command-execution";
 
 export const ELIZA_CLOUD_BILLING_URL =

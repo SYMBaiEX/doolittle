@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import { resolveCloudApiBaseUrl } from "@elizaos/agent/cloud/base-url";
-import { validateCloudBaseUrl } from "@elizaos/agent/cloud/validate-url";
+import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
+import { validateCloudBaseUrl } from "@elizaos/autonomous/cloud/validate-url";
 import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";

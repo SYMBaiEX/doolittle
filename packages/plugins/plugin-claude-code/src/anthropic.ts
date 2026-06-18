@@ -10,6 +10,7 @@ import {
   DEFAULT_ANTHROPIC_BASE_URL,
   OAUTH_ONLY_BETAS,
 } from "./constants";
+import { resolveModelPromptText } from "./prompt-text";
 import {
   getRuntimeModelSettings,
   getRuntimeProvider,
@@ -53,6 +54,7 @@ export async function runClaudeCodeTextGeneration(
   const accessToken = credentials?.accessToken?.trim();
   const runtimeModel = getRuntimeModelSettings(runtime);
   const model = runtimeModel.model || "claude-sonnet-4.6";
+  const promptText = resolveModelPromptText(params);
 
   if (!accessToken) {
     if (!options.allowCliFallback) {
@@ -63,7 +65,7 @@ export async function runClaudeCodeTextGeneration(
     const cliOutput = await (
       options.invokeCliPrint ?? invokeClaudeCodeCliPrint
     )({
-      prompt: params.prompt,
+      prompt: promptText,
       model,
       appendSystemPrompt: withClaudeCodeSystemPrefix()[0]?.text,
     });
@@ -79,7 +81,7 @@ export async function runClaudeCodeTextGeneration(
     messages: [
       {
         role: "user",
-        content: params.prompt,
+        content: promptText,
       },
     ],
   };

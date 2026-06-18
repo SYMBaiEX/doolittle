@@ -1,4 +1,5 @@
 import type { GenerateTextParams } from "@elizaos/core";
+import { resolveModelPromptText } from "./prompt-text";
 
 export async function postElizaCloudChatCompletion(
   endpoint: string,
@@ -25,7 +26,7 @@ export async function postElizaCloudChatCompletion(
       messages: [
         {
           role: "user",
-          content: params.prompt,
+          content: resolveModelPromptText(params),
         },
       ],
     }),
@@ -53,7 +54,7 @@ export async function postElizaCloudResponse(
       input: [
         {
           role: "user",
-          content: params.prompt,
+          content: resolveModelPromptText(params),
         },
       ],
       max_output_tokens: maxTokens,

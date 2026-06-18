@@ -49,7 +49,7 @@ function installReadinessMocks() {
     },
   }));
 
-  mock.module("@elizaos/agent/cloud/validate-url", () => ({
+  mock.module("@elizaos/autonomous/cloud/validate-url", () => ({
     validateCloudBaseUrl: async () => null,
   }));
 }

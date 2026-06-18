@@ -5,6 +5,7 @@ import {
   DEFAULT_DEVIN_TIMEOUT_MS,
   invokeDevinCliPrint,
 } from "./cli";
+import { resolveModelPromptText } from "./prompt-text";
 import {
   getRuntimeModelSettings,
   getRuntimeProvider,
@@ -33,10 +34,11 @@ export async function runDevinTextGeneration(
 
   const runtimeModel = getRuntimeModelSettings(runtime);
   const model = runtimeModel.model || options.model || DEFAULT_DEVIN_MODEL;
+  const promptText = resolveModelPromptText(params);
   const startedAt = Date.now();
   try {
     const output = await (options.invokeCliPrint ?? invokeDevinCliPrint)({
-      prompt: params.prompt,
+      prompt: promptText,
       model,
       command: options.command || DEFAULT_DEVIN_COMMAND,
       cwd: options.cwd,
@@ -46,7 +48,7 @@ export async function runDevinTextGeneration(
     runtime.logger?.info(
       {
         model,
-        promptChars: params.prompt.length,
+        promptChars: promptText.length,
         elapsedMs: Date.now() - startedAt,
       },
       "[DOOLITTLE:DEVIN] Devin generate complete",
@@ -57,7 +59,7 @@ export async function runDevinTextGeneration(
       {
         error,
         model,
-        promptChars: params.prompt.length,
+        promptChars: promptText.length,
         elapsedMs: Date.now() - startedAt,
       },
       "[DOOLITTLE:DEVIN] Devin generate failed",

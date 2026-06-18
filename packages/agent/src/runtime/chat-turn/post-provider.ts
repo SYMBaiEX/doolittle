@@ -50,6 +50,7 @@ export async function runPostProviderTurn(
     observedActionCount,
     actionResults: input.actionResults,
     localMutations: activeRun?.localMutations,
+    commandResults: actionResultSummary.commandResults,
     runFailureMessage: fallbackResult.runFailureMessage,
   });
   const runFailureMessage = executionAssessment.ok

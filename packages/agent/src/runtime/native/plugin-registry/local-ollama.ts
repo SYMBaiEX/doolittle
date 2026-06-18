@@ -156,7 +156,6 @@ function modelForType(
     case ModelType.RESPONSE_HANDLER:
       return response;
     case ModelType.TEXT_SMALL:
-    case ModelType.OBJECT_SMALL:
       return small;
     case ModelType.TEXT_MEDIUM:
     case ModelType.TEXT_REASONING_SMALL:
