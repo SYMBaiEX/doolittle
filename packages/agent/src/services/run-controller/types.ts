@@ -5,6 +5,7 @@ export type RunStatus =
   | "acting"
   | "waiting"
   | "complete"
+  | "cancelled"
   | "error";
 
 export interface LocalMutationRecord {
@@ -41,6 +42,8 @@ export interface RunSnapshot {
   updatedAt: string;
   lastHeartbeatAt?: string;
   endedAt?: string;
+  /** The final lifecycle outcome, retained after a run leaves the active session slot. */
+  terminalReason?: "completed" | "cancelled" | "error";
   errorMessage?: string;
 }
 
@@ -57,6 +60,7 @@ export interface RunUpdateEvent {
     | "stream"
     | "heartbeat"
     | "completed"
+    | "cancelled"
     | "error"
     | "approvals";
   sessionId: string;

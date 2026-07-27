@@ -1,6 +1,6 @@
 export const autonomousFoundationPackages = [
   "@elizaos/agent",
-  "@elizaos/autonomous",
+  "elizaos",
   "@elizaos/skills",
 ] as const;
 

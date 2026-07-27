@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { serializeSkillFile } from "@elizaos/skills";
+import { serializeSkillFile } from "@elizaos/skills/index";
 
 import type { ConversationAnalysisInput } from "./types";
 

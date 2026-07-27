@@ -1,5 +1,5 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import type { AgentExecutionContext } from "../chat";
+import { resolveCloudApiBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 import type { LinkedProviderName } from "./types";
 

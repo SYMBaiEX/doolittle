@@ -34,6 +34,17 @@ function createContext(): AppContext {
 }
 
 describe("handleFormsPlanningRoutes", () => {
+  function createPlanActionContext(
+    planning: Record<string, unknown>,
+  ): AppContext {
+    return {
+      runtime: {
+        getService: (name: string) =>
+          name === "planning" ? planning : undefined,
+      },
+    } as unknown as AppContext;
+  }
+
   it("returns forms, templates, and planning summaries", async () => {
     const context = createContext();
     const runtimeForms = await handleFormsPlanningRoutes(
@@ -145,6 +156,134 @@ describe("handleFormsPlanningRoutes", () => {
     expect(await getForm?.json()).toHaveProperty("form");
     expect(await getPlan?.json()).toHaveProperty("plan");
     expect(await cancelForm?.json()).toHaveProperty("cancelled");
+  });
+
+  it("approves drafts without executing a task and rejects reviewed states", async () => {
+    let approvals = 0;
+    const approved = await handleFormsPlanningRoutes(
+      createPlanActionContext({
+        approvePlan: () => {
+          approvals += 1;
+          return {
+            kind: "approved",
+            plan: {
+              id: "plan-1",
+              status: "active",
+              metadata: { operatorReview: {} },
+            },
+          };
+        },
+      }),
+      new Request("http://localhost/plans/plan-1/approve", { method: "POST" }),
+      new URL("http://localhost/plans/plan-1/approve"),
+    );
+    const missing = await handleFormsPlanningRoutes(
+      createPlanActionContext({ approvePlan: () => ({ kind: "not_found" }) }),
+      new Request("http://localhost/plans/missing/approve", { method: "POST" }),
+      new URL("http://localhost/plans/missing/approve"),
+    );
+    const conflict = await handleFormsPlanningRoutes(
+      createPlanActionContext({
+        approvePlan: () => ({
+          kind: "invalid_state",
+          plan: { status: "active" },
+        }),
+      }),
+      new Request("http://localhost/plans/plan-1/approve", { method: "POST" }),
+      new URL("http://localhost/plans/plan-1/approve"),
+    );
+
+    expect(approved?.status).toBe(200);
+    expect(approvals).toBe(1);
+    expect(missing?.status).toBe(404);
+    expect(conflict?.status).toBe(409);
+  });
+
+  it("validates bounded steering and reports task linkage conflicts", async () => {
+    const requests: Array<[string, string]> = [];
+    const context = createPlanActionContext({
+      steerPlan: (planId: string, instruction: string) => {
+        requests.push([planId, instruction]);
+        return { kind: "steered", plan: { id: planId }, taskId: "task-1" };
+      },
+    });
+    const steered = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/plans/plan-1/steer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instruction: "Keep the change small." }),
+      }),
+      new URL("http://localhost/plans/plan-1/steer"),
+    );
+    const invalid = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/plans/plan-1/steer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instruction: " " }),
+      }),
+      new URL("http://localhost/plans/plan-1/steer"),
+    );
+    const unlinked = await handleFormsPlanningRoutes(
+      createPlanActionContext({ steerPlan: () => ({ kind: "unlinked" }) }),
+      new Request("http://localhost/plans/plan-1/steer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instruction: "Do it." }),
+      }),
+      new URL("http://localhost/plans/plan-1/steer"),
+    );
+    const pendingConflict = await handleFormsPlanningRoutes(
+      createPlanActionContext({
+        steerPlan: () => ({
+          kind: "task_not_pending",
+          taskId: "task-1",
+          status: "running",
+        }),
+      }),
+      new Request("http://localhost/plans/plan-1/steer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instruction: "Do it." }),
+      }),
+      new URL("http://localhost/plans/plan-1/steer"),
+    );
+    const nativeOnly = await handleFormsPlanningRoutes(
+      createPlanActionContext({ steerPlan: () => ({ kind: "native_only" }) }),
+      new Request("http://localhost/plans/plan-1/steer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ instruction: "Do it." }),
+      }),
+      new URL("http://localhost/plans/plan-1/steer"),
+    );
+
+    expect(steered?.status).toBe(200);
+    expect(requests).toEqual([["plan-1", "Keep the change small."]]);
+    expect(invalid?.status).toBe(400);
+    expect(unlinked?.status).toBe(409);
+    expect(pendingConflict?.status).toBe(409);
+    expect(nativeOnly?.status).toBe(409);
+  });
+
+  it("rejects unsafe plan action identifiers before service dispatch", async () => {
+    let calls = 0;
+    const response = await handleFormsPlanningRoutes(
+      createPlanActionContext({
+        approvePlan: () => {
+          calls += 1;
+          return { kind: "approved" };
+        },
+      }),
+      new Request("http://localhost/plans/%2Fetc%2Fpasswd/approve", {
+        method: "POST",
+      }),
+      new URL("http://localhost/plans/%2Fetc%2Fpasswd/approve"),
+    );
+
+    expect(response?.status).toBe(400);
+    expect(calls).toBe(0);
   });
 
   it("returns null for unrelated routes", async () => {

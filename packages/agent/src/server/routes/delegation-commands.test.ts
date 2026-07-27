@@ -7,6 +7,7 @@ function createContext() {
   const spawned: Array<{ parentId: string; input: Record<string, unknown> }> =
     [];
   const synthesized: unknown[] = [];
+  const resolvedWorkspaceRoots: unknown[] = [];
 
   const context = {
     runtime: {},
@@ -42,10 +43,19 @@ function createContext() {
           return "skill.md";
         },
       },
+      repository: {
+        resolveWorktreeRoot: async (value: unknown) => {
+          resolvedWorkspaceRoots.push(value);
+          if (value === "/repo/invalid") {
+            throw new Error("Worktree root is not an active Git worktree.");
+          }
+          return value;
+        },
+      },
     },
   } as unknown as AppContext;
 
-  return { context, created, spawned, synthesized };
+  return { context, created, spawned, synthesized, resolvedWorkspaceRoots };
 }
 
 describe("handleDelegationCommandRoutes", () => {
@@ -155,6 +165,64 @@ describe("handleDelegationCommandRoutes", () => {
     expect(invalidSpawn?.status).toBe(400);
     await expect(invalidSpawn?.json()).resolves.toEqual({
       error: "objective is required",
+    });
+  });
+
+  it("validates and persists explicit workspace roots for task creation and child overrides", async () => {
+    const { context, created, spawned, resolvedWorkspaceRoots } =
+      createContext();
+
+    const create = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: "Scoped task",
+          objective: "Run in this worktree",
+          workspaceRoot: "/repo/worktree",
+        }),
+      }),
+      new URL("http://localhost/delegation/tasks"),
+    );
+    const spawn = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks/task-created/spawn", {
+        method: "POST",
+        body: JSON.stringify({
+          title: "Scoped child",
+          objective: "Use another approved root",
+          workspaceRoot: "/repo/child-worktree",
+        }),
+      }),
+      new URL("http://localhost/delegation/tasks/task-created/spawn"),
+    );
+    const invalid = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: "Bad root",
+          objective: "Reject it",
+          workspaceRoot: "/repo/invalid",
+        }),
+      }),
+      new URL("http://localhost/delegation/tasks"),
+    );
+
+    expect(create?.status).toBe(200);
+    expect(spawn?.status).toBe(200);
+    expect(created[0]).toMatchObject({ workspaceRoot: "/repo/worktree" });
+    expect(spawned[0]?.input).toMatchObject({
+      workspaceRoot: "/repo/child-worktree",
+    });
+    expect(resolvedWorkspaceRoots).toEqual([
+      "/repo/worktree",
+      "/repo/child-worktree",
+      "/repo/invalid",
+    ]);
+    expect(invalid?.status).toBe(400);
+    await expect(invalid?.json()).resolves.toEqual({
+      error: "Worktree root is not an active Git worktree.",
     });
   });
 

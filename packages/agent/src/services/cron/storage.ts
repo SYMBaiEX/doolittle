@@ -1,7 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AutomationRunRecord, CronJobRecord } from "@/types";
+import type {
+  AutomationAction,
+  AutomationRunRecord,
+  AutomationRunStatus,
+  AutomationTraceStep,
+  AutomationTrigger,
+  CronJobRecord,
+} from "@/types";
+
+interface AppendAutomationRunInput {
+  output: string;
+  status: AutomationRunStatus;
+  triggerType: AutomationTrigger["type"];
+  actionType: AutomationAction["type"];
+  startedAt: string;
+  completedAt: string;
+  durationMs?: number;
+  trace: AutomationTraceStep[];
+}
 
 function safeCronOutputName(name: string): string {
   return name.replace(/[^a-z0-9-_]+/giu, "-").toLowerCase();
@@ -53,15 +71,25 @@ export class CronStorage {
     writeFileSync(this.runsPath, JSON.stringify(runs, null, 2), "utf8");
   }
 
-  appendRun(job: CronJobRecord, output: string): AutomationRunRecord {
+  appendRun(
+    job: CronJobRecord,
+    input: AppendAutomationRunInput,
+  ): AutomationRunRecord {
     const runs = this.readRuns();
     const createdAt = new Date().toISOString();
     const record: AutomationRunRecord = {
       id: randomUUID(),
       jobId: job.id,
       jobName: job.name,
-      output,
+      output: input.output,
       createdAt,
+      status: input.status,
+      triggerType: input.triggerType,
+      actionType: input.actionType,
+      startedAt: input.startedAt,
+      completedAt: input.completedAt,
+      durationMs: input.durationMs,
+      trace: input.trace,
     };
 
     if (job.delivery === "local") {
@@ -69,7 +97,7 @@ export class CronStorage {
         this.outputDir,
         `${safeCronOutputName(job.name)}-${Date.now()}.md`,
       );
-      writeFileSync(filePath, output, "utf8");
+      writeFileSync(filePath, input.output, "utf8");
       record.outputPath = filePath;
     }
 

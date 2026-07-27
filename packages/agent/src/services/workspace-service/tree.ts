@@ -1,8 +1,8 @@
-import { readdirSync, statSync } from "node:fs";
+import { lstatSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { WorkspaceEntry } from "@/types";
-import { workspaceIgnoredNames } from "./constants";
 import { workspaceRelativePath } from "./path";
+import { isWorkspacePathVisible } from "./policy";
 
 export function listWorkspaceTree(
   workspaceDir: string,
@@ -28,15 +28,18 @@ function walkWorkspaceTree(
     left.localeCompare(right),
   );
   for (const name of dirEntries) {
-    if (workspaceIgnoredNames.has(name)) {
-      continue;
-    }
-
     const absolutePath = join(currentDir, name);
     const relativePath = workspaceRelativePath(
       relative(workspaceDir, absolutePath),
     );
-    const stat = statSync(absolutePath);
+    if (!isWorkspacePathVisible(relativePath)) {
+      continue;
+    }
+
+    const stat = lstatSync(absolutePath);
+    if (stat.isSymbolicLink()) {
+      continue;
+    }
 
     if (stat.isDirectory()) {
       entries.push({

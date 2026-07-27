@@ -16,4 +16,7 @@ export interface RunTransition {
   type: RunUpdateType;
 }
 
-export type FinishRunStatus = Extract<RunStatus, "complete" | "error">;
+export type FinishRunStatus = Extract<
+  RunStatus,
+  "complete" | "cancelled" | "error"
+>;

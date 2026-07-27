@@ -1,9 +1,8 @@
-import { searchSkillsMarketplace } from "@elizaos/autonomous/services/skill-marketplace";
 import type { AppServices } from "@/services";
+import { searchSkillsMarketplace } from "../../skill-catalog-compat";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 
-const SKILLS_MARKETPLACE_SOURCE =
-  "@elizaos/autonomous/services/skill-marketplace";
+const SKILLS_MARKETPLACE_SOURCE = "local-skill-catalog-compat";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -46,10 +45,7 @@ export async function searchEffectiveSkillsMarketplace(
       source: SKILLS_MARKETPLACE_SOURCE,
       query,
       limit,
-      results: await searchSkillsMarketplace(query, {
-        limit,
-        aiSearch: true,
-      }),
+      results: await searchSkillsMarketplace(query, { limit }),
     };
   } catch (error) {
     return {

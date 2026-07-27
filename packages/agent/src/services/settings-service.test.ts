@@ -101,4 +101,24 @@ describe("SettingsService", () => {
     const reloaded = new SettingsService(dir, makeDefaults());
     expect(reloaded.get().ui.theme).toBe("matrix");
   });
+
+  test("persists a group of related settings in one update", () => {
+    const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
+    tempDirs.push(dir);
+    const service = new SettingsService(dir, makeDefaults());
+
+    const updated = service.setMany([
+      { path: "model.provider", value: "ollama" },
+      { path: "model.model", value: "granite4.1:3b" },
+      { path: "model.baseUrl", value: "http://127.0.0.1:11434" },
+    ]);
+
+    expect(updated.model).toMatchObject({
+      provider: "ollama",
+      model: "granite4.1:3b",
+      baseUrl: "http://127.0.0.1:11434",
+    });
+    const reloaded = new SettingsService(dir, makeDefaults());
+    expect(reloaded.get().model).toEqual(updated.model);
+  });
 });

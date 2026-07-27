@@ -26,6 +26,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         resolve: ((...parts: string[]) => parts.join("/")) as never,
         spawnSync: mock(() => ({ status: 0 })) as never,
         renderCommandCatalog: mock(() => "catalog"),
+        runDesktopCommand: mock(() => ({ exitCode: 0 })),
       },
     );
 
@@ -50,6 +51,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         resolve: ((...parts: string[]) => parts.join("/")) as never,
         spawnSync: mock(() => ({ status: 0 })) as never,
         renderCommandCatalog: mock(() => "catalog"),
+        runDesktopCommand: mock(() => ({ exitCode: 0 })),
       },
     );
 
@@ -78,6 +80,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         resolve: ((...parts: string[]) => parts.join("/")) as never,
         spawnSync: mock(() => ({ status: 0 })) as never,
         renderCommandCatalog: mock(() => "catalog"),
+        runDesktopCommand: mock(() => ({ exitCode: 0 })),
       },
     );
 
@@ -89,5 +92,37 @@ describe("handleLocalEntrypointSubcommand", () => {
       "Install script not found at scripts/install.sh.",
     );
     expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("routes desktop launches before runtime startup", async () => {
+    const exit = mock(() => {});
+    const runDesktopCommand = mock(() => ({ exitCode: 0 }));
+    const handled = await handleLocalEntrypointSubcommand(
+      {
+        command: "desktop",
+        rest: ["--skip-build"],
+        repoRoot: "/repo",
+        renderTopLevelHelp: () => "help text",
+        entryLogger: createLogger() as never,
+        runOnboardingWizard: async () => {},
+        exit,
+      },
+      {
+        existsSync: mock(() => true),
+        resolve: ((...parts: string[]) => parts.join("/")) as never,
+        spawnSync: mock(() => ({ status: 0 })) as never,
+        renderCommandCatalog: mock(() => "catalog"),
+        runDesktopCommand,
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(runDesktopCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repoRoot: "/repo",
+        args: ["--skip-build"],
+      }),
+    );
+    expect(exit).toHaveBeenCalledWith(0);
   });
 });

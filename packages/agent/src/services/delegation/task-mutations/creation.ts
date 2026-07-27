@@ -20,6 +20,7 @@ export interface DelegationSpawnInput {
   tags?: string[];
   labels?: string[];
   metadata?: Record<string, string>;
+  workspaceRoot?: string;
   executionMode?: "local" | "delegated";
   orchestrationMode?: DelegationOrchestrationMode;
   maxAttempts?: number;
@@ -34,6 +35,7 @@ export interface CreateDelegationTaskRecordInput {
   tags?: string[];
   labels?: string[];
   metadata?: Record<string, string>;
+  workspaceRoot?: string;
   parentTaskId?: string;
   executionMode?: "local" | "delegated";
   orchestrationMode?: DelegationOrchestrationMode;
@@ -62,6 +64,7 @@ export function createDelegationTaskRecord(
     tags: labels,
     labels,
     metadata,
+    workspaceRoot: input.workspaceRoot,
     parentTaskId: input.parentTaskId,
     childTaskIds: [],
     status: "pending",
@@ -97,6 +100,7 @@ export function createDelegationChildInput(
       ...(input.metadata ?? {}),
       parentTaskId: parent.id,
     },
+    workspaceRoot: input.workspaceRoot ?? parent.workspaceRoot,
     parentTaskId: parent.id,
     executionMode: input.executionMode ?? "delegated",
     orchestrationMode:

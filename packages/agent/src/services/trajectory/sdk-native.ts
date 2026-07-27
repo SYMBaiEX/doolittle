@@ -1,16 +1,51 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type {
-  TrajectoryExportOptions as SdkTrajectoryExportOptions,
-  TrajectoryExportResult as SdkTrajectoryExportResult,
-  TrajectoryListOptions as SdkTrajectoryListOptions,
-  TrajectoryListResult as SdkTrajectoryListResult,
-} from "@elizaos/core";
 import {
   type IAgentRuntime,
   resolveTrajectoryLogger,
   TrajectoriesService,
 } from "@elizaos/core";
+
+type SdkTrajectoryExportResult = {
+  data: string;
+  filename: string;
+  mimeType: string;
+};
+
+type SdkTrajectoryExportOptions = {
+  format: "json" | "art" | "csv";
+  includePrompts?: boolean;
+  trajectoryIds?: string[];
+  startDate?: string;
+  endDate?: string;
+  scenarioId?: string;
+  batchId?: string;
+};
+
+type SdkTrajectoryListOptions = {
+  limit?: number;
+  offset?: number;
+  status?: "active" | "completed" | "error" | "timeout";
+  source?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  scenarioId?: string;
+  batchId?: string;
+  isTrainingData?: boolean;
+};
+
+type SdkTrajectoryListResult = {
+  trajectories: Array<{
+    id: string;
+    createdAt: string;
+    llmCallCount: number;
+    metadata?: Record<string, unknown>;
+  }>;
+  total: number;
+  offset: number;
+  limit: number;
+};
 
 export type SdkTrajectoryLoggerLike = {
   isEnabled?: () => boolean;

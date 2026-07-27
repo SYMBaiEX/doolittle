@@ -19,6 +19,11 @@ import {
 } from "./command/orchestrator";
 import type { ExecutionBackend } from "./contracts/backend";
 import { TerminalCommandHistoryStore } from "./records/history";
+import {
+  type InteractiveTerminalOutput,
+  InteractiveTerminalSessionManager,
+  type InteractiveTerminalSessionSnapshot,
+} from "./session";
 
 export class TerminalService {
   private readonly events = new EventEmitter();
@@ -26,6 +31,7 @@ export class TerminalService {
   private readonly cloudState: CloudStoreManager;
   private readonly backends: Map<ExecutionBackendName, ExecutionBackend>;
   private readonly commandOrchestrator: TerminalServiceCommandOrchestrator;
+  private readonly interactiveSessions: InteractiveTerminalSessionManager;
   private healthCache?: {
     capturedAt: number;
     value: ExecutionBackendHealth[];
@@ -61,6 +67,9 @@ export class TerminalService {
         this.events.emit("update", event);
       },
     });
+    this.interactiveSessions = new InteractiveTerminalSessionManager(
+      this.workspaceDir,
+    );
   }
 
   async run(
@@ -132,6 +141,51 @@ export class TerminalService {
 
   getHistory(limit = 10): TerminalCommandRecord[] {
     return this.recent(limit);
+  }
+
+  startInteractiveSession(options?: {
+    cols?: number;
+    rows?: number;
+  }): InteractiveTerminalSessionSnapshot {
+    return this.interactiveSessions.start(options);
+  }
+
+  writeInteractiveSession(
+    sessionId: string,
+    data: string,
+  ): InteractiveTerminalSessionSnapshot {
+    return this.interactiveSessions.input(sessionId, data);
+  }
+
+  resizeInteractiveSession(
+    sessionId: string,
+    cols: number,
+    rows: number,
+  ): InteractiveTerminalSessionSnapshot {
+    return this.interactiveSessions.resize(sessionId, cols, rows);
+  }
+
+  interruptInteractiveSession(
+    sessionId: string,
+  ): InteractiveTerminalSessionSnapshot {
+    return this.interactiveSessions.interrupt(sessionId);
+  }
+
+  closeInteractiveSession(
+    sessionId: string,
+  ): InteractiveTerminalSessionSnapshot {
+    return this.interactiveSessions.close(sessionId);
+  }
+
+  interactiveSessionOutput(
+    sessionId: string,
+    cursor?: number,
+  ): InteractiveTerminalOutput {
+    return this.interactiveSessions.output(sessionId, cursor);
+  }
+
+  disposeInteractiveSessions(): void {
+    this.interactiveSessions.dispose();
   }
 
   async status(): Promise<{

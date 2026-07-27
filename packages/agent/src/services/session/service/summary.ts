@@ -2,7 +2,11 @@ import {
   type SessionMetadataResolver,
   SessionReadSummaryHelpers,
 } from "@/services/session/read-summary";
-import type { SessionSummary, SessionUsageSummary } from "@/types";
+import type {
+  SessionSummary,
+  SessionUsageOptions,
+  SessionUsageSummary,
+} from "@/types";
 
 export class SessionSummaryOperations {
   private readonly helpers: SessionReadSummaryHelpers;
@@ -37,7 +41,7 @@ export class SessionSummaryOperations {
     return this.helpers.resolveByTitle(query);
   }
 
-  usage(sessionId: string): SessionUsageSummary {
-    return this.helpers.usage(sessionId);
+  usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary {
+    return this.helpers.usage(sessionId, options);
   }
 }

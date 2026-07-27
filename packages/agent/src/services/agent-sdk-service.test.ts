@@ -25,10 +25,10 @@ describe("AgentSdkService", () => {
     };
 
     sdk.audit = async () => ({
-      foundationPackages: ["@elizaos/agent", "@elizaos/autonomous"],
+      foundationPackages: ["@elizaos/agent", "elizaos"],
       installed: {
-        "@elizaos/agent": "2.0.0-alpha.537",
-        "@elizaos/autonomous": "2.0.0-alpha.85",
+        "@elizaos/agent": "2.0.3-beta.7",
+        elizaos: "2.0.3-beta.7",
       },
       ecosystemPackages: [],
       ecosystemInstalled: {},

@@ -44,8 +44,17 @@ Installer modes:
 ```bash
 bash scripts/install.sh --headless      # non-interactive
 bash scripts/install.sh --skip-wizard   # skip onboarding
+bash scripts/install.sh --desktop       # run bootstrap and then open the desktop app
 bash scripts/install.sh --check         # dry run — reports what would happen
 bash scripts/install.sh --yes           # auto-accept prompts
+```
+
+Windows users can use the PowerShell equivalent for bootstrap:
+
+```powershell
+pwsh scripts/install.ps1 -Check             # dry run equivalent to --check
+pwsh scripts/install.ps1 -Desktop           # bootstrap and show desktop command usage
+pwsh scripts/install.ps1 -PackageInstaller  # build the Windows NSIS installer
 ```
 
 The onboarding writes directly into:
@@ -61,7 +70,7 @@ Fast first-run:
 
 1. `bash scripts/install.sh`
 2. Restart your shell if PATH was updated
-3. `doolittle`
+3. `doolittle` for the shell, or `doolittle desktop` for the native app
 4. Run `doolittle status`, `doolittle tools`, and `doolittle runtime`
 5. If setup looks off, run `doolittle doctor`
 
@@ -170,6 +179,28 @@ You can see this live in `/status`, `/doctor`, the TUI runtime rail, and `GET /r
 ## Surfaces
 
 Doolittle meets you where you are.
+
+### Desktop
+
+The Electron desktop is a native operator console over the same Doolittle
+runtime. It starts a private loopback API on an operating-system-assigned port,
+streams chat and tool progress into React, and adds session search, analytics,
+models, connections, tools, skills, plugins, automations, profiles, logs,
+schema-driven settings, diagnostics, and appearance controls. Process and
+network capabilities remain behind a context-isolated preload bridge.
+
+```bash
+bash scripts/install.sh
+doolittle desktop
+```
+
+The desktop does not embed the terminal UI. Electron owns the local runtime
+lifecycle, React owns presentation state, and the Doolittle API remains
+authoritative for agent behavior and sessions. See
+[`docs/desktop.md`](./docs/desktop.md) for the architecture, security boundary,
+standalone Windows installer, and packaging commands. Installed desktop builds
+bundle their own compiled Doolittle/Bun runtime and do not require a source
+checkout.
 
 ### Plain interactive CLI
 
@@ -681,6 +712,7 @@ The runtime endpoint remains:
 | Package | Role |
 |---|---|
 | `@elizaos/core` | Core runtime, message pipeline, character model, action/provider/evaluator contracts |
+| `@elizaos/agent` | Native agent runtime, awareness, scheduling, marketplace, onboarding, and coding-agent SDK contracts |
 | `@elizaos/plugin-ollama` | Official local/self-hosted Ollama provider — default native provider path during onboarding |
 | `@elizaos/plugin-openai` | Official OpenAI provider for API-key-backed GPT-family model routing |
 | `@elizaos/plugin-anthropic` | Official Anthropic provider for API-key-backed Claude-family model routing |
@@ -696,7 +728,6 @@ The runtime endpoint remains:
 | `@doolittle/plugin-local-sandbox` | Doolittle local sandbox adapter with E2B-compatible methods for autocoder workflows |
 | `@doolittle/plugin-forms` | Doolittle forms adapter for operator intake and structured workflow prompts |
 | `@doolittle/plugin-planning` | Doolittle planning adapter for plans, milestones, and coordination |
-| `@elizaos/autonomous` | First-party architectural reference for native stack alignment |
 | `@elizaos/skills` | First-party skills package for native ElizaOS alignment |
 | Doolittle product adapters (`packages/plugins/doolittle-plugin/*`) | Gateway, scheduler, coding-agent, orchestrator, autocoder, action-bench, forms, planning, profile, and local-sandbox adapters |
 | `doolittle-runtime` custom plugin | Product layer: gateway/session orchestration, scheduler lifecycle, session search, skill inventory, offline fallback |
@@ -1227,6 +1258,10 @@ bun run lint:check           # Biome lint
 bun run typecheck            # TypeScript type check
 bun test                     # all tests (bun:test)
 bun run build                # build
+bun run desktop:dev          # launch Electron + React in development
+bun run desktop:typecheck    # check desktop main, preload, and renderer
+bun run desktop:test         # run focused desktop tests
+bun run desktop:build        # build desktop bundles
 bun run bootstrap            # re-run workspace bootstrap
 bun run bootstrap:check      # non-mutating check
 bun run workspace:list       # list workspaces
@@ -1256,19 +1291,19 @@ bun run publish:providers:alpha                             # publish to alpha t
 
 ## Versioning
 
-Tracks the ElizaOS 2.0 **beta** line (the actively-maintained channel):
+Tracks the verified ElizaOS 2.0 **beta** install line used by this repository:
 
-- `elizaos: "2.0.0-beta.5"` — umbrella package
-- `@elizaos/core: "2.0.0-beta.1"` — core runtime
-- `@elizaos/agent: "2.0.0-beta.2"`, `@elizaos/skills: "2.0.0-beta.1"`
-- `@elizaos/plugin-{ollama,openai,anthropic,pdf,telegram,sql}: "2.0.0-beta.1"` — provider/feature plugins
-- `@elizaos/autonomous: "2.0.0-alpha.85"` — no beta published yet; pinned to alpha and forced onto beta `@elizaos/core` via `overrides` so a single core instance is shared
+- `@elizaos/agent`, `@elizaos/core`, and provider plugins: `2.0.3-beta.7`
+- `@elizaos/skills: "2.0.3-beta.7"`
+- `@elizaos/shared: "2.0.3-beta.7"`
+- `elizaos: "2.0.3-beta.7"`
+- `@elizaos/plugin-sql: "2.0.3-beta.7"` with the workspace SQL wrapper handling Doolittle-specific runtime behavior
 
-The vendored `@elizaos/plugin-sql` carries a local `bun patch`
-(`patches/@elizaos%2Fplugin-sql@2.0.0-beta.1.patch`) that fixes a broken `bun`
-export condition in the published beta.1 package.
+`npm` `latest` tags are not the source of truth for this migration path: they may
+still point to older major lines (for example `1.x`/`0.x`), so runtime packages
+are pinned explicitly to the `2.0.3-beta.7` family via dependency overrides.
 
-Features not covered by official ElizaOS packages are implemented as custom actions, providers, evaluators, and Bun-native services. Official packages not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` beta service model.
+Features not covered by official ElizaOS packages are implemented as custom actions, providers, evaluators, and Bun-native services. Official packages not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` runtime contract.
 
 ---
 

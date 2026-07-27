@@ -24,6 +24,36 @@ describe("RunControllerService", () => {
     expect(active?.status).toBe("waiting");
   });
 
+  it("aborts the registered server-side signal and retains a cancelled receipt", () => {
+    const service = new RunControllerService();
+    const controller = new AbortController();
+    service.startTurn({
+      sessionId: "session-cancel",
+      roomId: "room-cancel",
+      runId: "run-cancel",
+      source: "desktop",
+      message: "stop this provider turn",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "new",
+    });
+    service.registerAbortController("run-cancel", controller);
+
+    const result = service.cancelRun("run-cancel");
+
+    expect(result.accepted).toBe(true);
+    expect(controller.signal.aborted).toBe(true);
+    expect(result.run).toMatchObject({
+      runId: "run-cancel",
+      status: "cancelled",
+      terminalReason: "cancelled",
+    });
+    expect(service.getByRunId("run-cancel")).toMatchObject({
+      endedAt: expect.any(String),
+      status: "cancelled",
+    });
+  });
+
   it("resets the tracked run when a new turn starts for the same session", () => {
     const service = new RunControllerService();
     service.startTurn({
@@ -173,5 +203,30 @@ describe("RunControllerService", () => {
     unsubscribe();
 
     expect(observed).toEqual(["started", "completed", "started", "error"]);
+  });
+
+  it("does not report terminal receipts as active runs", () => {
+    const service = new RunControllerService();
+    service.startTurn({
+      sessionId: "session-active",
+      roomId: "room-active",
+      runId: "run-active",
+      source: "desktop",
+      message: "finish this turn",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "new",
+    });
+
+    service.finishTurn("session-active", "complete");
+
+    expect(service.getActive("session-active")).toBeUndefined();
+    expect(service.listActive()).toEqual([]);
+    expect(service.getByRunId("run-active")).toMatchObject({
+      runId: "run-active",
+      status: "complete",
+      terminalReason: "completed",
+      endedAt: expect.any(String),
+    });
   });
 });

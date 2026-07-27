@@ -13,6 +13,8 @@ interface WorkerPayload {
   labels?: string[];
   metadata?: Record<string, string>;
   parentTaskId?: string;
+  workspaceRoot?: string;
+  operatorSteering?: string[];
 }
 
 const [, , inputPath, outputPath] = process.argv;
@@ -37,11 +39,13 @@ async function main(): Promise<void> {
     .withFields({
       taskId: payload.taskId,
       workerPid: process.pid,
+      workspaceRoot: payload.workspaceRoot,
     });
   logger.info("delegate-worker-started", {
     profile: payload.profile,
     priority: payload.priority,
     group: payload.group,
+    workspaceRoot: payload.workspaceRoot,
   });
   const result = await handleAgentTurn(
     {
@@ -52,6 +56,10 @@ async function main(): Promise<void> {
         payload.tags?.length ? `Tags: ${payload.tags.join(", ")}` : "",
         payload.labels?.length ? `Labels: ${payload.labels.join(", ")}` : "",
         payload.parentTaskId ? `Parent task: ${payload.parentTaskId}` : "",
+        payload.workspaceRoot ? `Workspace root: ${payload.workspaceRoot}` : "",
+        payload.operatorSteering?.length
+          ? `Operator steering:\n${payload.operatorSteering.map((note) => `- ${note}`).join("\n")}`
+          : "",
         payload.metadata && Object.keys(payload.metadata).length
           ? `Metadata: ${Object.entries(payload.metadata)
               .map(([key, value]) => `${key}=${value}`)
@@ -79,6 +87,7 @@ async function main(): Promise<void> {
         completedAt: new Date().toISOString(),
         durationMs: Date.now() - Date.parse(startedAt),
         output: result,
+        workspaceRoot: payload.workspaceRoot,
       },
       null,
       2,
@@ -87,6 +96,7 @@ async function main(): Promise<void> {
   );
   logger.info("delegate-worker-completed", {
     durationMs: Date.now() - Date.parse(startedAt),
+    workspaceRoot: process.env.DOOLITTLE_WORKSPACE_DIR,
   });
 }
 
@@ -94,6 +104,7 @@ main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   fallbackLogger.captureError("delegate-worker-failed", error, {
     workerPid: process.pid,
+    workspaceRoot: process.env.DOOLITTLE_WORKSPACE_DIR,
     inputPath,
     outputPath,
   });
@@ -107,6 +118,7 @@ main().catch((error) => {
         completedAt: new Date().toISOString(),
         durationMs: Date.now() - Date.parse(startedAt),
         error: message,
+        workspaceRoot: process.env.DOOLITTLE_WORKSPACE_DIR,
       },
       null,
       2,

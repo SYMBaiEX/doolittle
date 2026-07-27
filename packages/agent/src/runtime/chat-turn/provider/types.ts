@@ -1,5 +1,5 @@
-import { resolveStreamingUpdate } from "@elizaos/autonomous/api/streaming-text";
 import { createMessageMemory } from "@elizaos/core";
+import { resolveStreamingUpdate } from "@elizaos/shared/utils/streaming-text";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import {
   buildProviderFailureMessage,

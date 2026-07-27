@@ -2,12 +2,12 @@ import {
   generateMcpConfigFromServerDetails,
   getMcpServerDetails,
   searchMcpMarketplace,
-} from "@elizaos/autonomous/services/mcp-marketplace";
+} from "@elizaos/agent/services/mcp-marketplace";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
 import { getNativeMcp } from "./native-services";
 
-const MCP_MARKETPLACE_SOURCE = "@elizaos/autonomous/services/mcp-marketplace";
+const MCP_MARKETPLACE_SOURCE = "@elizaos/agent/services/mcp-marketplace";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

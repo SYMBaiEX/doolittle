@@ -1,3 +1,7 @@
+import {
+  type AutocoderArtifactPayload,
+  readAutocoderArtifact,
+} from "./artifacts";
 import { createAutocoderPipelinePersistence } from "./persistence";
 import {
   buildAutocoderPipelineSummary,
@@ -64,9 +68,29 @@ export interface AutocoderPipelineWorkflowRecord {
   latestRunId?: string;
 }
 
+export interface AutocoderPipelineCancellationResult {
+  run: AutocoderPipelineRunRecord;
+  applied: boolean;
+  alreadyCancelled: boolean;
+  locallyActive: boolean;
+  executionTerminationSupported: boolean;
+  executionTerminated: boolean;
+}
+
+export class AutocoderRunCancelledError extends Error {
+  readonly runId: string;
+
+  constructor(runId: string, reason = "cancelled") {
+    super(reason);
+    this.name = "AutocoderRunCancelledError";
+    this.runId = runId;
+  }
+}
+
 export class AutocoderPipelineService {
   private readonly persistence;
   private readonly workflows;
+  private readonly activeExecutions = new Map<string, AbortController>();
 
   constructor(rootDir: string) {
     this.persistence = createAutocoderPipelinePersistence(rootDir);
@@ -119,7 +143,105 @@ export class AutocoderPipelineService {
   }
 
   cancelRun(id: string, reason = "cancelled"): AutocoderPipelineRunRecord {
-    return this.workflows.cancelRun(id, reason);
+    return this.cancelRunExecution(id, reason).run;
+  }
+
+  cancelRunExecution(
+    id: string,
+    reason = "cancelled",
+  ): AutocoderPipelineCancellationResult {
+    const current = this.get(id);
+    if (!current) {
+      throw new Error(`Autocoder pipeline run not found: ${id}`);
+    }
+    if (current.status === "cancelled") {
+      return {
+        run: current,
+        applied: false,
+        alreadyCancelled: true,
+        locallyActive: false,
+        executionTerminationSupported: true,
+        executionTerminated: false,
+      };
+    }
+    if (current.status !== "pending" && current.status !== "running") {
+      throw new Error(
+        `Autocoder pipeline run ${id} is already ${current.status}.`,
+      );
+    }
+
+    const controller = this.activeExecutions.get(id);
+    const locallyActive = Boolean(controller);
+    controller?.abort(new AutocoderRunCancelledError(id, reason));
+    const run = this.workflows.cancelRun(id, reason);
+    return {
+      run,
+      applied: true,
+      alreadyCancelled: false,
+      locallyActive,
+      executionTerminationSupported: true,
+      executionTerminated: locallyActive,
+    };
+  }
+
+  isRunLocallyActive(id: string): boolean {
+    return this.activeExecutions.has(id);
+  }
+
+  async executeRun<T>(
+    id: string,
+    operation: (signal: AbortSignal) => Promise<T> | T,
+  ): Promise<T> {
+    const run = this.get(id);
+    if (!run) {
+      throw new Error(`Autocoder pipeline run not found: ${id}`);
+    }
+    if (run.status === "cancelled") {
+      throw new AutocoderRunCancelledError(
+        id,
+        run.outputPreview || "cancelled",
+      );
+    }
+    if (run.status !== "pending" && run.status !== "running") {
+      throw new Error(`Autocoder pipeline run ${id} is already ${run.status}.`);
+    }
+    if (this.activeExecutions.has(id)) {
+      throw new Error(`Autocoder pipeline run ${id} is already executing.`);
+    }
+
+    const controller = new AbortController();
+    this.activeExecutions.set(id, controller);
+    let rejectOnAbort: ((reason: unknown) => void) | undefined;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectOnAbort = reject;
+    });
+    const onAbort = () => {
+      rejectOnAbort?.(
+        controller.signal.reason instanceof Error
+          ? controller.signal.reason
+          : new AutocoderRunCancelledError(id),
+      );
+    };
+    controller.signal.addEventListener("abort", onAbort, { once: true });
+
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => {
+          if (controller.signal.aborted) {
+            throw controller.signal.reason instanceof Error
+              ? controller.signal.reason
+              : new AutocoderRunCancelledError(id);
+          }
+          return operation(controller.signal);
+        }),
+        aborted,
+      ]);
+    } finally {
+      controller.signal.removeEventListener("abort", onAbort);
+      if (this.activeExecutions.get(id) === controller) {
+        this.activeExecutions.delete(id);
+      }
+    }
   }
 
   record(input: {
@@ -162,6 +284,15 @@ export class AutocoderPipelineService {
 
   get(id: string): AutocoderPipelineRunRecord | undefined {
     return this.load().runs.find((entry) => entry.id === id);
+  }
+
+  readArtifact(runId: string, index: number): AutocoderArtifactPayload {
+    return readAutocoderArtifact({
+      artifactRoot: this.persistence.artifactRoot,
+      run: this.get(runId),
+      runId,
+      index,
+    });
   }
 
   getWorkflow(id: string): AutocoderPipelineWorkflowRecord | undefined {

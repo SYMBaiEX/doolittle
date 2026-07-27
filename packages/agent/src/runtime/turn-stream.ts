@@ -11,6 +11,8 @@ import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type { ChatTurnRequest } from "@/types/runtime";
 
 export interface StreamedTurnHandlers {
+  /** Server-side cancellation signal, shared with the provider/tool turn. */
+  abortSignal?: AbortSignal;
   onProgress?: (event: {
     chunk: string;
     response: string;
@@ -18,6 +20,7 @@ export interface StreamedTurnHandlers {
     phase: "command" | "readiness" | "model";
   }) => void | Promise<void>;
   onNotice?: NonNullable<AgentTurnHooks["onNotice"]>;
+  onRunUpdate?: (event: RunUpdateEvent) => void | Promise<void>;
   onRunEvent?: (event: RunUpdateEvent, detail: string) => void | Promise<void>;
 }
 
@@ -44,6 +47,7 @@ export async function executeAgentTurnWithProgress(
       if (event.sessionId !== sessionId) {
         return;
       }
+      await handlers?.onRunUpdate?.(event);
       if (!shouldRenderRunEvent(event.run.progressMode, event)) {
         return;
       }
@@ -57,6 +61,7 @@ export async function executeAgentTurnWithProgress(
 
   try {
     const response = await handleAgentTurn(input, context, {
+      abortSignal: handlers?.abortSignal,
       onResponseProgress: async ({ chunk, response, phase }) => {
         const frame = nextResponseTextFrame(responseAccumulator, response) ?? {
           delta: resolveDelta(responseAccumulator.text, response, chunk),

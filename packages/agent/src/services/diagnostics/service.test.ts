@@ -312,7 +312,7 @@ describe("DiagnosticsService", () => {
         checks.some(
           (check) =>
             check.id === "provider.elizacloud-base-url" &&
-            check.detail.includes("https://www.elizacloud.ai/api/v1"),
+            check.detail.includes("https://elizacloud.ai/api/v1"),
         ),
       ).toBe(true);
       expect(

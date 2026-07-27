@@ -6,6 +6,10 @@ Doolittle is organized as a Bun workspace monorepo.
 
 - root package
   - workspace manifest, shared scripts, root docs, and top-level toolchain config
+- `apps/desktop`
+  - Electron-owned local runtime lifecycle and native capabilities
+  - context-isolated preload contract and React chat surface
+  - see [desktop.md](./desktop.md) for the process and security boundaries
 - `packages/agent`
   - the primary Doolittle application source
   - runtime, CLI, API, gateway, and product-specific services

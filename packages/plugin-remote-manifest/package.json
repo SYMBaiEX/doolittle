@@ -1,0 +1,12 @@
+{
+  "name": "@elizaos/plugin-remote-manifest",
+  "version": "2.0.3-beta.7",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  }
+}

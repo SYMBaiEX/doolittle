@@ -1,5 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
+  approveEffectivePlan,
   cancelEffectiveForm,
   createEffectiveForm,
   createEffectivePlan,
@@ -8,12 +9,25 @@ import {
   getEffectivePlan,
   listEffectiveForms,
   listEffectivePlans,
+  steerEffectivePlan,
 } from "@/runtime/native/service-bridge/autocoder";
 import {
   getNativeFormsControlPlane,
   getNativePlanningControlPlane,
 } from "@/runtime/native/service-bridge/control-planes";
 import { json } from "@/server/responses";
+
+function parseOpaquePlanId(rawId: string | undefined): string | undefined {
+  if (!rawId) return undefined;
+  try {
+    const decoded = decodeURIComponent(rawId);
+    return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(decoded)
+      ? decoded
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function handleFormsPlanningRoutes(
   context: AppContext,
@@ -87,6 +101,123 @@ export async function handleFormsPlanningRoutes(
     return json({
       plan: await createEffectivePlan(context.runtime, body),
     });
+  }
+
+  const planAction = url.pathname.match(/^\/plans\/([^/]+)\/(approve|steer)$/);
+  if (request.method === "POST" && planAction) {
+    const planId = parseOpaquePlanId(planAction[1]);
+    if (!planId) {
+      return json({ error: "Plan identifier is invalid." }, 400);
+    }
+    const action = planAction[2];
+    if (action === "approve") {
+      try {
+        const result = (await approveEffectivePlan(
+          context.runtime,
+          planId,
+        )) as {
+          kind: string;
+          plan?: unknown;
+        };
+        if (result.kind === "not_found") {
+          return json({ error: "Plan not found." }, 404);
+        }
+        if (result.kind === "invalid_state") {
+          return json(
+            { error: "Only draft plans can be approved.", plan: result.plan },
+            409,
+          );
+        }
+        return json({ plan: result.plan });
+      } catch (error) {
+        return json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Reviewed-plan approval is unavailable.",
+          },
+          409,
+        );
+      }
+    }
+
+    let body: { instruction?: unknown };
+    try {
+      body = (await request.json()) as { instruction?: unknown };
+    } catch {
+      return json({ error: "A JSON instruction is required." }, 400);
+    }
+    const instruction =
+      typeof body.instruction === "string" ? body.instruction.trim() : "";
+    if (instruction.length < 1 || instruction.length > 4000) {
+      return json(
+        { error: "instruction must be between 1 and 4000 characters." },
+        400,
+      );
+    }
+    try {
+      const result = (await steerEffectivePlan(
+        context.runtime,
+        planId,
+        instruction,
+      )) as { kind: string; plan?: unknown; taskId?: string; status?: unknown };
+      if (result.kind === "not_found") {
+        return json({ error: "Plan not found." }, 404);
+      }
+      if (result.kind === "unlinked") {
+        return json(
+          { error: "This active plan is not linked to a product task." },
+          409,
+        );
+      }
+      if (result.kind === "task_not_found") {
+        return json({ error: "The linked product task was not found." }, 409);
+      }
+      if (result.kind === "task_not_pending") {
+        return json(
+          {
+            error:
+              "Operator steering is only accepted before the linked task starts.",
+            taskId: result.taskId,
+            status: result.status,
+          },
+          409,
+        );
+      }
+      if (result.kind === "invalid_instruction") {
+        return json(
+          { error: "instruction must be between 1 and 4000 characters." },
+          400,
+        );
+      }
+      if (result.kind === "native_only") {
+        return json(
+          {
+            error:
+              "Operator steering requires the product planning and delegation services; native-only plans cannot be steered.",
+          },
+          409,
+        );
+      }
+      if (result.kind === "invalid_state") {
+        return json(
+          { error: "Only active plans can be steered.", plan: result.plan },
+          409,
+        );
+      }
+      return json({ plan: result.plan, taskId: result.taskId, steered: true });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Operator steering is unavailable.",
+        },
+        409,
+      );
+    }
   }
 
   if (

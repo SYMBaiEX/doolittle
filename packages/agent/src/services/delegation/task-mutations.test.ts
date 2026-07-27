@@ -39,6 +39,7 @@ describe("delegation task mutation helpers", () => {
       labels: ["parent"],
       metadata: { owner: "bob" },
       executionMode: "delegated",
+      workspaceRoot: "/repo/.worktrees/parent",
     });
 
     const child = createDelegationChildInput(parent, {
@@ -56,6 +57,14 @@ describe("delegation task mutation helpers", () => {
       lane: "capture",
       parentTaskId: parent.id,
     });
+    expect(child.workspaceRoot).toBe("/repo/.worktrees/parent");
+
+    const overridden = createDelegationChildInput(parent, {
+      title: "Isolated child",
+      objective: "Use an approved worktree",
+      workspaceRoot: "/repo/.worktrees/isolated",
+    });
+    expect(overridden.workspaceRoot).toBe("/repo/.worktrees/isolated");
   });
 
   it("requeues a failed task without losing its retry budget", () => {

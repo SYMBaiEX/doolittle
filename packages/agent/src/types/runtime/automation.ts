@@ -1,3 +1,20 @@
+import type {
+  AutomationAction,
+  AutomationCondition,
+  AutomationRunStatus,
+  AutomationTraceStep,
+  AutomationTrigger,
+} from "@doolittle/contracts";
+
+export type {
+  AutomationAction,
+  AutomationCondition,
+  AutomationRunStatus,
+  AutomationTracePhase,
+  AutomationTraceStep,
+  AutomationTrigger,
+} from "@doolittle/contracts";
+
 export interface SkillDocument {
   slug: string;
   title: string;
@@ -39,6 +56,9 @@ export interface CronJobRecord {
   nextRunAt?: string;
   createdAt: string;
   updatedAt: string;
+  trigger?: AutomationTrigger;
+  condition?: AutomationCondition;
+  action?: AutomationAction;
 }
 
 export interface AutomationRunRecord {
@@ -48,6 +68,13 @@ export interface AutomationRunRecord {
   output: string;
   outputPath?: string;
   createdAt: string;
+  status?: AutomationRunStatus;
+  triggerType?: AutomationTrigger["type"];
+  actionType?: AutomationAction["type"];
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  trace?: AutomationTraceStep[];
 }
 
 export interface HookDefinition {

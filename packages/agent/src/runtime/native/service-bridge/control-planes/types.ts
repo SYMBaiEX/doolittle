@@ -25,5 +25,7 @@ export interface NativePlanningControlPlane {
     linkedWorkflows: number;
   };
   supportsCreate: boolean;
+  supportsApprove: boolean;
+  supportsSteer: boolean;
   detail: string;
 }

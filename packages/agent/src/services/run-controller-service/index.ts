@@ -36,9 +36,14 @@ export type {
 
 export class RunControllerService {
   private readonly events = new RunUpdateEventBus();
-  private readonly store = new RunControllerStore();
+  private readonly store: RunControllerStore;
+  private readonly abortControllers = new Map<string, AbortController>();
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
+
+  constructor(dataDir?: string) {
+    this.store = new RunControllerStore(dataDir);
+  }
 
   private get dependencies(): RunControllerDependencies {
     return {
@@ -109,10 +114,47 @@ export class RunControllerService {
 
   finishTurn(
     sessionId: string,
-    status: Extract<RunStatus, "complete" | "error">,
+    status: Extract<RunStatus, "complete" | "cancelled" | "error">,
     errorMessage?: string,
   ): void {
     finishTurn(this.dependencies, sessionId, status, errorMessage);
+  }
+
+  /** Registers the server-side signal that actually drives provider/tool cancellation. */
+  registerAbortController(
+    runId: string,
+    controller: AbortController,
+  ): () => void {
+    this.abortControllers.set(runId, controller);
+    return () => {
+      if (this.abortControllers.get(runId) === controller) {
+        this.abortControllers.delete(runId);
+      }
+    };
+  }
+
+  cancelRun(runId: string): { accepted: boolean; run?: RunSnapshot } {
+    const controller = this.abortControllers.get(runId);
+    const receipt = this.store.getByRunId(runId);
+    if (!controller && !receipt) return { accepted: false };
+    if (!receipt?.endedAt && controller && !controller.signal.aborted) {
+      controller.abort();
+    }
+    if (receipt && !receipt.endedAt) {
+      const current = this.store.getInternal(receipt.sessionId);
+      if (current?.runId === runId) {
+        this.finishTurn(receipt.sessionId, "cancelled");
+      }
+    }
+    return { accepted: true, run: this.store.getByRunId(runId) };
+  }
+
+  getByRunId(runId: string): RunSnapshot | undefined {
+    return this.store.getByRunId(runId);
+  }
+
+  listReceipts(limit?: number): RunSnapshot[] {
+    return this.store.listReceipts(limit);
   }
 
   getByRoomId(roomId: string): RunSnapshot | undefined {
@@ -166,7 +208,7 @@ export class RunControllerService {
 
   finishRuntimeRun(
     roomId: string,
-    status: Extract<RunStatus, "complete" | "error">,
+    status: Extract<RunStatus, "complete" | "cancelled" | "error">,
     errorMessage?: string,
   ): void {
     withSessionForRoom(this.store, roomId, (sessionId) => {

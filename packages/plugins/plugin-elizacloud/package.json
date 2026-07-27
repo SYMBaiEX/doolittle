@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-elizacloud",
-  "version": "2.0.0-alpha.537",
+  "version": "2.0.3-beta.7",
   "description": "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference.",
   "license": "MIT",
   "type": "module",
@@ -28,7 +28,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@elizaos/autonomous": "2.0.0-alpha.85",
-    "@elizaos/core": "2.0.0-beta.1"
+    "@elizaos/core": "2.0.3-beta.7",
+    "@elizaos/shared": "2.0.3-beta.7"
   }
 }

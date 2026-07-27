@@ -5,7 +5,7 @@ import {
   createCodingAgentContext,
   injectFeedback,
   validateCodingAgentContext,
-} from "@elizaos/autonomous/services/coding-agent-context";
+} from "@doolittle/contracts";
 import type { CodingAgentContextOptions } from "./types";
 
 export interface BuildCodingAgentContextOptions {

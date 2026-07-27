@@ -65,6 +65,7 @@ export function createServiceConstructionState(
     mcp: core.mcp,
     acp: core.acp,
     repository: core.repository,
+    reviewRecords: core.reviewRecords,
     runController: core.runController,
     awareness: core.awareness,
     memory: core.memory,

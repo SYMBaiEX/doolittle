@@ -4,6 +4,7 @@ import type {
   SessionExchangeMutationResult,
   SessionSearchResult,
   StoredMessage,
+  StoredMessageAttachment,
 } from "@/types";
 
 export interface SessionMessageActivityEvent {
@@ -23,8 +24,11 @@ export class SessionMessageStore {
     this.db
       .query(
         `
-          INSERT INTO messages (id, session_id, room_id, entity_id, role, text, created_at)
-          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+          INSERT INTO messages (
+            id, session_id, room_id, entity_id, role, text,
+            attachments_json, created_at
+          )
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
         `,
       )
       .run(
@@ -34,6 +38,7 @@ export class SessionMessageStore {
         message.entityId,
         message.role,
         message.text,
+        serializeAttachments(message.attachments),
         message.createdAt,
       );
 
@@ -142,18 +147,20 @@ export class SessionMessageStore {
   }
 
   messagesBySession(sessionId: string, limit: number): StoredMessage[] {
-    return this.db
+    const rows = this.db
       .query(
         `
           SELECT id, session_id as sessionId, room_id as roomId,
-            entity_id as entityId, role, text, created_at as createdAt
+            entity_id as entityId, role, text,
+            attachments_json as attachmentsJson, created_at as createdAt
           FROM messages
           WHERE session_id = ?1
           ORDER BY created_at ASC
           LIMIT ?2
         `,
       )
-      .all(sessionId, limit) as StoredMessage[];
+      .all(sessionId, limit) as StoredMessageRow[];
+    return rows.map(toStoredMessage);
   }
 
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number {
@@ -210,7 +217,8 @@ export class SessionMessageStore {
       .query(
         `
           SELECT rowid, id, session_id as sessionId, room_id as roomId,
-            entity_id as entityId, role, text, created_at as createdAt
+            entity_id as entityId, role, text,
+            attachments_json as attachmentsJson, created_at as createdAt
           FROM messages
           WHERE session_id = ?1
             AND (
@@ -255,7 +263,8 @@ export class SessionMessageStore {
       .query(
         `
           SELECT rowid, id, session_id as sessionId, room_id as roomId,
-            entity_id as entityId, role, text, created_at as createdAt
+            entity_id as entityId, role, text,
+            attachments_json as attachmentsJson, created_at as createdAt
           FROM messages
           WHERE session_id = ?1
             AND role = 'user'
@@ -274,6 +283,62 @@ export class SessionMessageStore {
 
 interface StoredMessageRow extends StoredMessage {
   rowid: number;
+  attachmentsJson?: string | null;
+}
+
+function serializeAttachments(
+  attachments: StoredMessageAttachment[] | undefined,
+): string | null {
+  return attachments?.length
+    ? JSON.stringify(
+        attachments.map((attachment) => ({
+          id: attachment.id,
+          name: attachment.name,
+          kind: attachment.kind,
+          mimeType: attachment.mimeType,
+          sizeBytes: attachment.sizeBytes,
+          sha256: attachment.sha256,
+        })),
+      )
+    : null;
+}
+
+function parseAttachments(
+  value: string | null | undefined,
+): StoredMessageAttachment[] | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return undefined;
+    const attachments = parsed.flatMap((entry): StoredMessageAttachment[] => {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        typeof entry.id !== "string" ||
+        typeof entry.name !== "string" ||
+        typeof entry.kind !== "string" ||
+        !["audio", "document", "image", "video"].includes(entry.kind) ||
+        typeof entry.mimeType !== "string" ||
+        typeof entry.sizeBytes !== "number" ||
+        typeof entry.sha256 !== "string"
+      ) {
+        return [];
+      }
+      return [
+        {
+          id: entry.id,
+          name: entry.name,
+          kind: entry.kind as StoredMessageAttachment["kind"],
+          mimeType: entry.mimeType,
+          sizeBytes: entry.sizeBytes,
+          sha256: entry.sha256,
+        },
+      ];
+    });
+    return attachments.length ? attachments : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function toStoredMessage(row: StoredMessageRow): StoredMessage {
@@ -284,6 +349,7 @@ function toStoredMessage(row: StoredMessageRow): StoredMessage {
     entityId: row.entityId,
     role: row.role,
     text: row.text,
+    attachments: parseAttachments(row.attachmentsJson),
     createdAt: row.createdAt,
   };
 }

@@ -581,7 +581,7 @@ exit 0
         const mod = await loadSnapshotModule();
         const credentials = mod.getLinkedElizaCloudCredentials();
         expect(credentials?.apiKey).toBe("cloud-test-key");
-        expect(credentials?.baseUrl).toBe("https://www.elizacloud.ai/api/v1");
+        expect(credentials?.baseUrl).toBe("https://elizacloud.ai/api/v1");
       });
     } finally {
       if (previousKey === undefined) {

@@ -8,6 +8,7 @@ export type EntrypointSubcommand =
   | "runtime"
   | "start"
   | "cockpit"
+  | "desktop"
   | "setup"
   | "install"
   | "doctor"
@@ -31,6 +32,12 @@ export function resolveSubcommand(userArgs: string[] = Bun.argv.slice(2)): {
   command: EntrypointSubcommand;
   rest: string[];
 } {
+  if (userArgs[0] === "desktop" || userArgs[0] === "gui") {
+    return {
+      command: "desktop",
+      rest: userArgs.slice(1),
+    };
+  }
   if (userArgs.includes("--cli")) {
     return {
       command: "cockpit",
@@ -82,6 +89,8 @@ export function resolveSubcommand(userArgs: string[] = Bun.argv.slice(2)): {
     runtime: "runtime",
     cockpit: "cockpit",
     tui: "cockpit",
+    desktop: "desktop",
+    gui: "desktop",
     setup: "setup",
     onboard: "setup",
     bootstrap: "setup",

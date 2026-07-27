@@ -52,24 +52,32 @@ export class SettingsService {
   }
 
   set(path: string, value: unknown): RuntimeSettings {
+    return this.setMany([{ path, value }]);
+  }
+
+  setMany(
+    changes: ReadonlyArray<{ path: string; value: unknown }>,
+  ): RuntimeSettings {
     const settings = this.get();
-    const segments = path.split(".");
-    let current = settings as unknown as Record<string, unknown>;
+    for (const change of changes) {
+      const segments = change.path.split(".");
+      let current = settings as unknown as Record<string, unknown>;
 
-    while (segments.length > 1) {
-      const segment = segments.shift();
-      if (!segment) {
-        break;
+      while (segments.length > 1) {
+        const segment = segments.shift();
+        if (!segment) {
+          break;
+        }
+        const next = current[segment];
+        if (!next || typeof next !== "object") {
+          current[segment] = {};
+        }
+        current = current[segment] as Record<string, unknown>;
       }
-      const next = current[segment];
-      if (!next || typeof next !== "object") {
-        current[segment] = {};
-      }
-      current = current[segment] as Record<string, unknown>;
+
+      const leaf = segments[0];
+      current[leaf] = change.value;
     }
-
-    const leaf = segments[0];
-    current[leaf] = value;
     this.write(settings);
     return settings;
   }

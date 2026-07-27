@@ -5,6 +5,10 @@ import {
   failAutocoderWorkflowContext,
 } from "@/server/autocoder-workflow-context";
 import { json } from "@/server/responses";
+import {
+  executeTrackedAutocoderRun,
+  isAutocoderCancellation,
+} from "@/server/routes/codegen/run-execution";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
 
 export const handleCodegenQA: CodegenRouteHandler = async (
@@ -31,16 +35,18 @@ export const handleCodegenQA: CodegenRouteHandler = async (
   });
 
   try {
-    const qa = await performEffectiveCodeQa(context.runtime, body.projectPath);
-    const run = context.services.autocoderPipeline.record({
-      workflowId: workflow.workflowId,
-      kind: "qa",
-      projectName,
-      sessionId: workflow.sessionId,
-      taskId: workflow.taskId,
-      request: { projectPath: body.projectPath },
-      result: qa,
-    });
+    const { run, result: qa } = await executeTrackedAutocoderRun(
+      context,
+      {
+        workflowId: workflow.workflowId,
+        kind: "qa",
+        projectName,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request: { projectPath: body.projectPath },
+      },
+      () => performEffectiveCodeQa(context.runtime, body.projectPath as string),
+    );
     completeAutocoderWorkflowContext(
       context,
       workflow.taskId,
@@ -54,6 +60,24 @@ export const handleCodegenQA: CodegenRouteHandler = async (
       qa,
     });
   } catch (error) {
+    if (isAutocoderCancellation(error)) {
+      failAutocoderWorkflowContext(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      return json(
+        {
+          error: error.message,
+          runId: error.runId,
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          cancelled: true,
+        },
+        409,
+      );
+    }
     failAutocoderWorkflowContext(
       context,
       workflow.taskId,

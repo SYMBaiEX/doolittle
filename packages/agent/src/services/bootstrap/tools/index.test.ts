@@ -154,11 +154,11 @@ describe("createToolsDynamicStateResolver", () => {
         return {
           runtime: {
             latest: "1.2.3",
-            alpha: "1.3.0-alpha.1",
+            beta: "2.0.3-beta.7",
           },
           summary: {
             aligned: 9,
-            alphaOnly: 1,
+            betaOnly: 1,
             laggingLatest: 2,
             workspaceOnly: 3,
           },

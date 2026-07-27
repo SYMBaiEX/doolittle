@@ -24,8 +24,8 @@ export function loadProcessEnv(
   env.DOTENV_CONFIG_QUIET ??= "true";
 
   if (pathExists(repoEnvPath)) {
-    return load({ path: repoEnvPath, override: true, quiet: true });
+    return load({ path: repoEnvPath, override: false, quiet: true });
   }
 
-  return load({ override: true, quiet: true });
+  return load({ override: false, quiet: true });
 }

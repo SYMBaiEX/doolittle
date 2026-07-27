@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { AppLogger } from "@/logging/logger";
 import { renderCommandCatalog } from "@/runtime/command-catalog";
+import { runDesktopCommand } from "./desktop-command";
 import type { EntrypointSubcommand } from "./subcommand";
 
 interface LocalSubcommandDeps {
@@ -10,6 +11,7 @@ interface LocalSubcommandDeps {
   resolve: typeof resolve;
   spawnSync: typeof spawnSync;
   renderCommandCatalog: typeof renderCommandCatalog;
+  runDesktopCommand: typeof runDesktopCommand;
 }
 
 const localSubcommandDeps: LocalSubcommandDeps = {
@@ -17,6 +19,7 @@ const localSubcommandDeps: LocalSubcommandDeps = {
   resolve,
   spawnSync,
   renderCommandCatalog,
+  runDesktopCommand,
 };
 
 export async function handleLocalEntrypointSubcommand(
@@ -62,6 +65,20 @@ export async function handleLocalEntrypointSubcommand(
 
   if (input.command === "doctor") {
     await input.runOnboardingWizard(["--check", ...input.rest]);
+    return true;
+  }
+
+  if (input.command === "desktop") {
+    const result = deps.runDesktopCommand({
+      repoRoot: input.repoRoot,
+      args: input.rest,
+      launchCwd: process.cwd(),
+      printLine,
+    });
+    if (result.message) {
+      writeStderrLine(result.message);
+    }
+    exit(result.exitCode);
     return true;
   }
 

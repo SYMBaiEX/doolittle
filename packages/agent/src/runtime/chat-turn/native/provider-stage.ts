@@ -117,6 +117,7 @@ export async function runNativeProviderStage(
     derivedTurnPolicy,
     options: input.options,
     loadDirectLocalIntent: input.loadDirectLocalIntent,
+    attachments: input.effectiveInput.attachments,
   });
   if (providerResult.handledMessage) {
     input.perf.mark("native-handle-message");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractSessionContext } from "@elizaos/core";
+import { extractSessionContext, type Media } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runProviderModelTurn } from "./chat-turn/provider";
 
@@ -169,6 +169,18 @@ describe("chat turn provider seam", () => {
       },
       options: harness.options,
       loadDirectLocalIntent: async () => undefined,
+      attachments: [
+        {
+          id: "attachment-1",
+          url: "attachment://attachment-1",
+          title: "review.md",
+          source: "desktop",
+          contentType: "document",
+          text: "# Review",
+          _data: "IyBSZXZpZXc=",
+          _mimeType: "text/markdown",
+        } as Media & { _data: string; _mimeType: string },
+      ],
     });
 
     expect(result.handledMessage).toBe(true);
@@ -194,6 +206,24 @@ describe("chat turn provider seam", () => {
     expect(sessionContext?.sessionId).toBe("session-1");
     expect(sessionContext?.sessionKey).toBe("continuity-1");
     expect(sessionContext?.entry?.model).toBe("gpt-4.1-mini");
+    expect(
+      (
+        harness.getHandledMemory() as {
+          content?: { attachments?: unknown[] };
+        }
+      )?.content?.attachments,
+    ).toEqual([
+      {
+        id: "attachment-1",
+        url: "attachment://attachment-1",
+        title: "review.md",
+        source: "desktop",
+        contentType: "document",
+        text: "# Review",
+        _data: "IyBSZXZpZXc=",
+        _mimeType: "text/markdown",
+      },
+    ]);
   });
 
   it("preserves recoverable planning failures for the direct-local fallback path", async () => {

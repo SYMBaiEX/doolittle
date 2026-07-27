@@ -3,7 +3,7 @@ import type {
   ConnectorType,
   HumanFeedback,
   InteractionMode,
-} from "@elizaos/autonomous/services/coding-agent-context";
+} from "@doolittle/contracts";
 
 export interface EffectiveCodingAgentContextInput {
   sessionId: string;

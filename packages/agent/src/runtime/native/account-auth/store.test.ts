@@ -62,7 +62,7 @@ describe.serial("account-auth store helpers", () => {
     };
     expect(dirname(path)).toBe(join(dataDir, "auth"));
     expect(raw.providers?.elizacloud?.baseUrl).toBe(
-      "https://www.elizacloud.ai/api/v1",
+      "https://elizacloud.ai/api/v1",
     );
     expect(raw.providers?.elizacloud?.storedAt).toBeTruthy();
     expect(readProviderAuthStore().providers.elizacloud?.apiKey).toBe(
@@ -71,7 +71,7 @@ describe.serial("account-auth store helpers", () => {
     expect(getStoredElizaCloudCredentials()).toEqual({
       apiKey: "cloud-test-key",
       authMode: "api-key",
-      baseUrl: "https://www.elizacloud.ai/api/v1",
+      baseUrl: "https://elizacloud.ai/api/v1",
       source: "eliza-auth-store",
     });
   });

@@ -17,7 +17,7 @@ export function getFoundationPluginCatalogSeeds(
     },
     {
       id: "foundation.autonomous",
-      packageName: foundationPackages[1] ?? "@elizaos/autonomous",
+      packageName: foundationPackages[1] ?? "elizaos",
       category: "foundation",
       source: "official",
       kind: "vendored",

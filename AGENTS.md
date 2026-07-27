@@ -20,8 +20,9 @@ behavioral — never a log or memory dump.
   gateway, CLI/TUI. `packages/plugins/*` — vendored provider plugins +
   `doolittle-plugin`. `packages/{acp,contracts,logger,characters,skills}` —
   supporting workspaces.
-- Runtime: ElizaOS 2.0 **beta** (`@elizaos/core@2.0.0-beta.1`); `@elizaos/autonomous`
-  is on `alpha.85` (no beta yet) and must be imported only via its subpaths.
+- Runtime: the installable ElizaOS 2.0 beta train (`@elizaos/core`,
+  `@elizaos/agent`, and `@elizaos/skills` at `2.0.3-beta.7`). Keep the exact
+  root overrides aligned.
 
 ## Gates (run before considering work done)
 

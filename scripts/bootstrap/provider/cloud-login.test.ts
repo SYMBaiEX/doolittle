@@ -43,6 +43,10 @@ function asFetchMock(
   return fn as unknown as typeof fetch;
 }
 
+function normalizeMockCloudSiteUrl(rawUrl?: string): string {
+  return rawUrl ?? "https://elizacloud.ai";
+}
+
 async function loadFlowModule() {
   return import(
     `./cloud-login?cloud-login-tests=${Date.now()}-${Math.random()}`
@@ -94,8 +98,9 @@ describe("runElizaCloudLoginFlow", () => {
     const { context, sectionCalls, warnCalls } = createContext();
     const openBrowser = mock(async () => true);
 
-    mock.module("@elizaos/autonomous/runtime/cloud-onboarding", () => ({
+    mock.module("./cloud-compat", () => ({
       checkCloudAvailability: async () => "HTTP 401",
+      normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
     const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
     const restoreWizardScreen = mock(() => {});
@@ -143,9 +148,10 @@ describe("runElizaCloudLoginFlow", () => {
     const { context, sectionCalls } = createContext();
     const openBrowser = mock(async () => true);
 
-    mock.module("@elizaos/autonomous/runtime/cloud-onboarding", () => ({
+    mock.module("./cloud-compat", () => ({
       checkCloudAvailability: async () =>
         "Cloud service temporarily unavailable",
+      normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
     const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
     const restoreWizardScreen = mock(() => {});
@@ -184,8 +190,9 @@ describe("runElizaCloudLoginFlow", () => {
     const { context, warnCalls } = createContext();
     const openBrowser = mock(async () => true);
 
-    mock.module("@elizaos/autonomous/runtime/cloud-onboarding", () => ({
+    mock.module("./cloud-compat", () => ({
       checkCloudAvailability: async () => undefined,
+      normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
     const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
     const restoreWizardScreen = mock(() => {});
@@ -229,8 +236,9 @@ describe("runElizaCloudLoginFlow", () => {
     const { context, warnCalls } = createContext();
     const openBrowser = mock(async () => true);
 
-    mock.module("@elizaos/autonomous/runtime/cloud-onboarding", () => ({
+    mock.module("./cloud-compat", () => ({
       checkCloudAvailability: async () => undefined,
+      normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
     const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
     const restoreWizardScreen = mock(() => {});

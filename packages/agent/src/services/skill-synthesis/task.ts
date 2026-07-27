@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { serializeSkillFile } from "@elizaos/skills";
+import { serializeSkillFile } from "@elizaos/skills/index";
 
 import type { DelegationTaskRecord } from "@/types";
 
@@ -32,9 +32,6 @@ export function synthesizeGeneratedSkillFromTask(
   existing: GeneratedSkillRecord | undefined,
 ): GeneratedSkillRecord {
   const slug = buildGeneratedSkillSlug(task.title) || "generated-skill";
-  const dir = join(generatedDir, slug);
-  mkdirSync(dir, { recursive: true });
-  const path = join(dir, "SKILL.md");
   const createdAt = existing?.createdAt ?? new Date().toISOString();
   const updatedAt = new Date().toISOString();
   const signals = extractGeneratedSkillSignals(task.notes);
@@ -88,7 +85,7 @@ export function synthesizeGeneratedSkillFromTask(
     },
     body,
   );
-  writeFileSync(path, content, "utf8");
+  const path = writeGeneratedSkillContent(generatedDir, slug, content);
 
   return {
     slug,
@@ -101,6 +98,18 @@ export function synthesizeGeneratedSkillFromTask(
     signalCount: signals.length,
     objective: task.objective,
   };
+}
+
+export function writeGeneratedSkillContent(
+  generatedDir: string,
+  slug: string,
+  content: string,
+): string {
+  const dir = join(generatedDir, slug);
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, "SKILL.md");
+  writeFileSync(path, content, "utf8");
+  return path;
 }
 
 export function hasGeneratedSkillForTask(

@@ -2,6 +2,7 @@ import type {
   SessionExchangeMutationResult,
   SessionSearchResult,
   SessionSummary,
+  SessionUsageOptions,
   SessionUsageSummary,
   StoredMessage,
 } from "@/types";
@@ -37,7 +38,7 @@ export interface SessionServiceApi {
   listSessions(limit: number): SessionSummary[];
   listTitled(limit: number): SessionSummary[];
   resolveByTitle(query: string): SessionSummary | undefined;
-  usage(sessionId: string): SessionUsageSummary;
+  usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary;
   rename(sessionId: string, title: string): SessionSummary;
   metadata(sessionId: string): SessionMetadataValue | undefined;
   continuity(sessionId: string, limit?: number): SessionSummary[];

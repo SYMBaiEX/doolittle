@@ -109,9 +109,10 @@ export function getActiveRun(
   store: RunControllerStore,
   sessionId: string,
 ): RunSnapshot | undefined {
-  return store.get(sessionId);
+  const run = store.get(sessionId);
+  return run?.endedAt ? undefined : run;
 }
 
 export function listActiveRuns(store: RunControllerStore): RunSnapshot[] {
-  return store.list();
+  return store.list().filter((run) => run.endedAt === undefined);
 }

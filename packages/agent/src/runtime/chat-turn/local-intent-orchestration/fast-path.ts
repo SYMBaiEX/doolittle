@@ -16,6 +16,7 @@ export async function runPreferredLocalIntentFastPath(input: {
   options?: AgentTurnHooks;
   turn: TurnState;
   scheduleProfileObservation: () => void;
+  allowDirectResponse?: boolean;
 }): Promise<PreferredLocalIntentFastPathResult>;
 export async function runPreferredLocalIntentFastPath(
   input: {
@@ -25,6 +26,7 @@ export async function runPreferredLocalIntentFastPath(
     options?: AgentTurnHooks;
     turn: TurnState;
     scheduleProfileObservation: () => void;
+    allowDirectResponse?: boolean;
   },
   dependencies: PreferredLocalIntentFastPathDependencies,
 ): Promise<PreferredLocalIntentFastPathResult>;
@@ -36,6 +38,7 @@ export async function runPreferredLocalIntentFastPath(
     options?: AgentTurnHooks;
     turn: TurnState;
     scheduleProfileObservation: () => void;
+    allowDirectResponse?: boolean;
   },
   dependencies: PreferredLocalIntentFastPathDependencies = {},
 ): Promise<PreferredLocalIntentFastPathResult> {
@@ -56,6 +59,7 @@ export async function runPreferredLocalIntentFastPath(
     : null;
 
   if (
+    input.allowDirectResponse !== false &&
     preferredLocalIntent?.directLocalIntent &&
     preferredLocalIntent.isHighConfidenceDirectLocalIntent(
       preferredLocalIntent.directLocalIntent as never,

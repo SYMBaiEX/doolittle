@@ -32,6 +32,7 @@ describe("plugin-planning", () => {
           createdAt: "2026-03-24T00:00:00.000Z",
           updatedAt: "2026-03-24T00:00:00.000Z",
         }),
+        addNote: (_id, _note) => undefined,
       },
       workflows: {
         list: () => [
@@ -96,6 +97,69 @@ describe("plugin-planning", () => {
       linkedWorkflows: 1,
       delegationTasks: 1,
       workflows: 1,
+    });
+  });
+
+  it("approves drafts with an operator receipt and steers only pending linked tasks", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-planning-reviewed-"));
+    const notes: string[] = [];
+    let taskStatus = "pending";
+    const plugin = createPlanningPlugin({
+      delegation: {
+        list: () => [],
+        get: () => ({ status: taskStatus }),
+        addNote: (_id, note) => notes.push(note),
+      },
+      workflows: { list: () => [] },
+      storage: { dataRoot: root },
+    });
+    const PlanningService = plugin.services?.[0] as ServiceClass;
+    const service = (await PlanningService.start(
+      undefined as unknown as IAgentRuntime,
+    )) as Service & {
+      createPlan(
+        input: unknown,
+      ): Promise<{ id: string; metadata: Record<string, unknown> }>;
+      approvePlan(id: string): Promise<{
+        kind: string;
+        plan?: { status: string; metadata: Record<string, unknown> };
+      }>;
+      steerPlan(
+        id: string,
+        instruction: string,
+      ): Promise<{ kind: string; plan?: { id: string }; taskId?: string }>;
+    };
+    const draft = await service.createPlan({
+      title: "Reviewed plan",
+      objective: "Wait for operator review.",
+      status: "draft",
+      taskId: "task-1",
+      metadata: { preserved: true },
+    });
+
+    const approved = await service.approvePlan(draft.id);
+    expect(approved).toMatchObject({
+      kind: "approved",
+      plan: {
+        status: "active",
+        metadata: {
+          preserved: true,
+          operatorReview: { action: "approved" },
+        },
+      },
+    });
+    expect(await service.steerPlan(draft.id, "Keep the diff focused.")).toEqual(
+      {
+        kind: "steered",
+        plan: expect.objectContaining({ id: draft.id }),
+        taskId: "task-1",
+      },
+    );
+    expect(notes).toEqual(["operator-steer: Keep the diff focused."]);
+
+    taskStatus = "running";
+    expect(await service.steerPlan(draft.id, "Too late.")).toMatchObject({
+      kind: "task_not_pending",
     });
   });
 });

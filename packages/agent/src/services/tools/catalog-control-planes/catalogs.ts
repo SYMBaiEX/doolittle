@@ -72,7 +72,7 @@ export const RUNTIME_CATALOG_CONTROL_PLANES = [
     name: "Native Package Audit",
     category: "runtime",
     description:
-      "Inspect latest-line ElizaOS package compatibility across official, alpha-only, vendored, and workspace-bound packages.",
+      "Inspect latest-line ElizaOS package compatibility across official, beta-only, vendored, and workspace-bound packages.",
     enabled: true,
     transport: "native",
   },

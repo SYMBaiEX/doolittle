@@ -1,11 +1,11 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import { z } from "zod";
+import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud-url";
 
 export const envSchema = z.object({
   DOOLITTLE_NAME: z.string().default("Doolittle"),
   DOOLITTLE_MODE: z.enum(["api", "cli", "both"]).default("both"),
   DOOLITTLE_HOST: z.string().default("127.0.0.1"),
-  DOOLITTLE_PORT: z.coerce.number().int().positive().default(3000),
+  DOOLITTLE_PORT: z.coerce.number().int().nonnegative().default(3000),
   DOOLITTLE_API_TOKEN: z.string().optional(),
   DOOLITTLE_DATA_DIR: z.string().default(".doolittle"),
   DOOLITTLE_SKILLS_DIR: z.string().default("./packages/skills"),

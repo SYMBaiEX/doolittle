@@ -66,7 +66,7 @@ export interface NativeOwnershipSnapshot {
 export interface NativeEcosystemSnapshot {
   runtime: {
     latest: string;
-    alpha: string;
+    beta: string;
   };
   accounts: ReturnType<
     typeof import("@/runtime/native/account-auth").getLinkedProviderAccountsSnapshot

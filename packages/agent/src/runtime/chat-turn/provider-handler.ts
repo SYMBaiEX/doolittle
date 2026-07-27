@@ -83,6 +83,14 @@ function doolittleMessagePrelude(memory: Memory): string {
   return typeof prelude === "string" ? prelude : "";
 }
 
+function throwIfTurnAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  if (signal.reason instanceof Error) throw signal.reason;
+  const error = new Error("Agent run cancelled.");
+  error.name = "AbortError";
+  throw error;
+}
+
 export async function executeProviderMessageTurn(
   input: ProviderMessageExecutionInput,
 ): Promise<ProviderMessageExecutionResult> {
@@ -144,6 +152,7 @@ export async function executeProviderMessageTurn(
       });
 
       try {
+        throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
         const messageResult =
           await input.context.runtime.messageService?.handleMessage(
@@ -161,6 +170,7 @@ export async function executeProviderMessageTurn(
                 : undefined,
             },
           );
+        throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
         if (
           Array.isArray(messageResult?.responseMessages) &&
@@ -189,6 +199,7 @@ export async function executeProviderMessageTurn(
         }
         response = input.streamState.getResponse();
       } catch (error) {
+        if (input.abortSignal?.aborted) throw error;
         const isRecoverable = input.isRecoverableNativePlanningError(error);
         const directFallback = isRecoverable
           ? await input.loadDirectLocalIntent()

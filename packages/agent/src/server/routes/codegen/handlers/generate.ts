@@ -5,6 +5,11 @@ import {
   failAutocoderWorkflowContext,
 } from "@/server/autocoder-workflow-context";
 import { json } from "@/server/responses";
+import {
+  executeTrackedAutocoderRun,
+  isAutocoderCancellation,
+  withAutocoderAbortSignal,
+} from "@/server/routes/codegen/run-execution";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
 
 export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
@@ -37,19 +42,22 @@ export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
   });
 
   try {
-    const generation = await generateEffectiveCode(
-      context.runtime,
-      requestPayload,
+    const { run, result: generation } = await executeTrackedAutocoderRun(
+      context,
+      {
+        workflowId: workflow.workflowId,
+        kind: "generate",
+        projectName: body.projectName,
+        sessionId: workflow.sessionId,
+        taskId: workflow.taskId,
+        request: requestPayload,
+      },
+      (signal) =>
+        generateEffectiveCode(
+          context.runtime,
+          withAutocoderAbortSignal(requestPayload, signal),
+        ),
     );
-    const run = context.services.autocoderPipeline.record({
-      workflowId: workflow.workflowId,
-      kind: "generate",
-      projectName: body.projectName,
-      sessionId: workflow.sessionId,
-      taskId: workflow.taskId,
-      request: requestPayload,
-      result: generation,
-    });
     completeAutocoderWorkflowContext(
       context,
       workflow.taskId,
@@ -64,6 +72,24 @@ export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
       generation,
     });
   } catch (error) {
+    if (isAutocoderCancellation(error)) {
+      failAutocoderWorkflowContext(
+        context,
+        workflow.taskId,
+        workflow.workflowId,
+        error,
+      );
+      return json(
+        {
+          error: error.message,
+          runId: error.runId,
+          workflowId: workflow.workflowId,
+          taskId: workflow.taskId,
+          cancelled: true,
+        },
+        409,
+      );
+    }
     failAutocoderWorkflowContext(
       context,
       workflow.taskId,

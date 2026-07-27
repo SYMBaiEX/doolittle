@@ -31,7 +31,7 @@ export function buildBootstrapSettings(
   if (answers.provider === "elizacloud") {
     nextSettings.model.provider = "elizacloud";
     nextSettings.model.model = answers.elizaCloudModel;
-    nextSettings.model.baseUrl = "https://www.elizacloud.ai/api/v1";
+    nextSettings.model.baseUrl = "https://elizacloud.ai/api/v1";
   } else if (answers.provider === "ollama") {
     nextSettings.model.provider = "ollama";
     nextSettings.model.model = answers.ollamaLargeModel;

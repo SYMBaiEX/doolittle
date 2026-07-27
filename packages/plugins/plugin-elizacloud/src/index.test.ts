@@ -31,7 +31,7 @@ describe("createElizaCloudPlugin", () => {
         provider: "elizacloud",
         upstreamProvider: "elizacloud",
         reusable: true,
-        baseUrl: "https://www.elizacloud.ai/api/v1",
+        baseUrl: "https://elizacloud.ai/api/v1",
       }),
     );
   });

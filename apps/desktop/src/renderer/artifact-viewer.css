@@ -1,0 +1,150 @@
+.artifact-viewer {
+  display: grid;
+  gap: 6px;
+}
+
+.artifact-viewer-item {
+  overflow: hidden;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs, 3px);
+}
+
+.artifact-viewer-item.open {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+.artifact-viewer-trigger {
+  display: grid;
+  width: 100%;
+  min-height: 46px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  color: var(--text-soft);
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+.artifact-viewer-trigger:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.artifact-viewer-trigger > span:first-child {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.artifact-viewer-trigger > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.artifact-viewer-trigger strong,
+.artifact-viewer-trigger small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-viewer-trigger strong {
+  font-size: 11px;
+}
+
+.artifact-viewer-trigger small,
+.artifact-viewer-trigger i {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta, 10px);
+}
+
+.artifact-viewer-trigger i {
+  color: var(--accent);
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.artifact-viewer-content {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.artifact-viewer-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta, 10px);
+}
+
+.artifact-viewer-meta code {
+  overflow: hidden;
+  color: var(--faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-viewer-loading {
+  padding: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.artifact-viewer-text {
+  max-height: 420px;
+  margin: 0;
+  padding: 11px;
+  overflow: auto;
+  color: var(--text-soft);
+  background: #080706;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.artifact-viewer-text.diff {
+  border-left-color: var(--accent);
+}
+
+.artifact-viewer-image {
+  display: block;
+  width: min(100%, 960px);
+  max-height: 560px;
+  margin: 0 auto;
+  object-fit: contain;
+  background: #080706;
+  border: 1px solid var(--border);
+}
+
+.artifact-viewer-audio {
+  width: 100%;
+}
+
+.artifact-viewer-frame {
+  width: 100%;
+  min-height: 420px;
+  background: white;
+  border: 1px solid var(--border);
+}

@@ -8,12 +8,12 @@ describe("native package audit", () => {
     const audit = getNativePackageAudit({} as EnvConfig);
 
     expect(getLatestRuntimeLine()).toMatchObject({
-      alpha: "2.0.0-alpha.537",
+      beta: "2.0.3-beta.7",
       latest: "1.7.2",
     });
     expect(audit.packages.length).toBeGreaterThan(20);
-    expect(audit.summary.alphaOnly).toBe(
-      audit.packages.filter((entry) => entry.compatibility === "alpha-only")
+    expect(audit.summary.betaOnly).toBe(
+      audit.packages.filter((entry) => entry.compatibility === "beta-only")
         .length,
     );
     expect(audit.summary.vendored).toBe(

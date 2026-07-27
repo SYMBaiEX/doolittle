@@ -80,7 +80,7 @@ export function renderStatusContent(
     "",
     "{bold}Native Surface{/}",
     `plugins ${escapeBlessed(snapshot.pluginSummary)}`,
-    `runtime {gray-fg}${escapeBlessed(audit.runtime.alpha)}{/}`,
+    `runtime {gray-fg}${escapeBlessed(audit.runtime.beta)}{/}`,
     "",
     "{bold}Next Step{/}",
     escapeBlessed(snapshot.nextCockpitHint),

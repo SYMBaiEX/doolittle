@@ -241,7 +241,7 @@ describe("runElizaCloudEmbeddingGeneration", () => {
       );
 
       expect(result).toEqual([0.4, 0.5, 0.6]);
-      expect(calls[0]?.url).toBe("https://www.elizacloud.ai/api/v1/embeddings");
+      expect(calls[0]?.url).toBe("https://elizacloud.ai/api/v1/embeddings");
       const body = JSON.parse(String(calls[0]?.init?.body));
       expect(body).toEqual(
         expect.objectContaining({

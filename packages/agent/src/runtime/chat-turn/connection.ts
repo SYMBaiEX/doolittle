@@ -1,8 +1,6 @@
-import { initializeOnboarding, type UUID } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { TurnState } from "./state";
-
-type OnboardingInitializer = typeof initializeOnboarding;
 
 const ensuredConnectionCache = new WeakMap<object, Set<string>>();
 const ensuredParticipantCache = new WeakMap<object, Set<string>>();
@@ -53,7 +51,6 @@ export async function ensureTurnConnection(
 export async function ensureLocalInteractiveSettingsState(
   context: AgentExecutionContext,
   turn: TurnState,
-  opts?: { initializeOnboarding?: OnboardingInitializer },
 ): Promise<void> {
   if (!turn.localInteractive) {
     return;
@@ -80,6 +77,19 @@ export async function ensureLocalInteractiveSettingsState(
     const hasOwner =
       "ownerId" in ownership && ownership.ownerId === turn.entityId;
 
+    if (!hasOwner && !hasSettings) {
+      world.metadata = {
+        ...metadata,
+        ownership: {
+          ...ownership,
+          ownerId: turn.entityId,
+        },
+        settings: {},
+      };
+      await context.runtime.updateWorld(world);
+      return;
+    }
+
     if (!hasOwner) {
       world.metadata = {
         ...metadata,
@@ -89,12 +99,15 @@ export async function ensureLocalInteractiveSettingsState(
         },
       };
       await context.runtime.updateWorld(world);
+      return;
     }
+
     if (!hasSettings) {
-      const initializer = opts?.initializeOnboarding ?? initializeOnboarding;
-      await initializer(context.runtime, world, {
+      world.metadata = {
+        ...metadata,
         settings: {},
-      });
+      };
+      await context.runtime.updateWorld(world);
     }
   } catch {
     // Best effort only; chat should still proceed if local settings bootstrap fails.

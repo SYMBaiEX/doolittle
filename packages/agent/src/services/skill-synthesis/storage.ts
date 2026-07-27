@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { SkillProposalRecord } from "./proposal";
 
 export interface GeneratedSkillRecord {
   slug: string;
@@ -17,9 +18,14 @@ export interface GeneratedSkillIndex {
   skills: GeneratedSkillRecord[];
 }
 
+export interface SkillProposalIndex {
+  proposals: SkillProposalRecord[];
+}
+
 export function createGeneratedSkillStorage(skillsDir: string) {
   const generatedDir = join(skillsDir, "generated");
   const indexPath = join(generatedDir, "index.json");
+  const proposalsPath = join(generatedDir, "proposals.json");
 
   mkdirSync(generatedDir, { recursive: true });
   if (!existsSync(indexPath)) {
@@ -29,6 +35,7 @@ export function createGeneratedSkillStorage(skillsDir: string) {
   return {
     generatedDir,
     indexPath,
+    proposalsPath,
     readIndex(): GeneratedSkillIndex {
       if (!existsSync(indexPath)) {
         return { skills: [] };
@@ -77,6 +84,33 @@ export function createGeneratedSkillStorage(skillsDir: string) {
     },
     writeIndex(index: GeneratedSkillIndex): void {
       writeFileSync(indexPath, JSON.stringify(index, null, 2), "utf8");
+    },
+    readProposals(): SkillProposalIndex {
+      if (!existsSync(proposalsPath)) return { proposals: [] };
+      try {
+        const parsed = JSON.parse(readFileSync(proposalsPath, "utf8")) as {
+          proposals?: SkillProposalRecord[];
+        };
+        return {
+          proposals: Array.isArray(parsed.proposals)
+            ? parsed.proposals.filter(
+                (proposal): proposal is SkillProposalRecord =>
+                  Boolean(
+                    proposal &&
+                      typeof proposal.id === "string" &&
+                      typeof proposal.slug === "string" &&
+                      typeof proposal.content === "string" &&
+                      typeof proposal.disposition === "string",
+                  ),
+              )
+            : [],
+        };
+      } catch {
+        return { proposals: [] };
+      }
+    },
+    writeProposals(index: SkillProposalIndex): void {
+      writeFileSync(proposalsPath, JSON.stringify(index, null, 2), "utf8");
     },
   };
 }

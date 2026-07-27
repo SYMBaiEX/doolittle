@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseFrontmatter } from "@elizaos/skills";
+import { parseFrontmatter } from "@elizaos/skills/index";
 import type { StoredMessage } from "@/types";
 import {
   analyzeConversationForSkill,

@@ -4,6 +4,7 @@ export interface EffectiveDelegationCreateInput {
   title: string;
   objective: string;
   metadata?: Record<string, unknown>;
+  workspaceRoot?: string;
   group?: string;
   profile?: string;
   priority?: "low" | "normal" | "high";

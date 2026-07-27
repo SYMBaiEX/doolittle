@@ -1,0 +1,263 @@
+# Doolittle Desktop
+
+Doolittle Desktop is a native chat surface over the same ElizaOS runtime used
+by the CLI, cockpit, gateway, and API. It follows the boundary that makes the
+Hermes desktop app dependable without copying Hermes-specific product code.
+
+## Architecture
+
+```text
+Electron main process
+  ├─ owns the Doolittle child process
+  ├─ binds it to 127.0.0.1 on an operating-system-assigned port
+  ├─ probes health and owns restart/shutdown
+  └─ proxies typed API and chat-stream requests
+            │
+            │ narrow, context-isolated preload bridge
+            ▼
+React renderer
+  ├─ owns navigation and presentation state
+  ├─ renders chat, code, browser evidence, review, and agent orchestration
+  └─ has no Node.js or filesystem access
+            │
+            ▼
+Doolittle API
+  ├─ remains authoritative for sessions and messages
+  ├─ assembles the ElizaOS runtime and plugins
+  └─ streams model and tool progress as server-sent events
+```
+
+The desktop is not a wrapper around the terminal UI. Electron owns
+machine-level capabilities, React owns the operator experience, and the
+Doolittle API owns agent behavior and durable runtime state.
+
+## Operator surfaces
+
+The desktop follows the same management information architecture that makes
+Hermes useful as an everyday operator console, while keeping Doolittle's native
+runtime and cross-platform Electron boundary:
+
+- **Workspace:** streaming chat, searchable sessions, a conflict-aware code
+  editor, queued follow-up messages, managed chat attachments, inline
+  tool/action/mutation run receipts, confirmed terminal commands with safe
+  test/build/status presets, Git changes and confirmed create-only worktrees, a
+  sandboxed localhost browser preview with history and responsive device
+  widths, structured browser evidence, human-in-the-loop review, secure
+  generated-artifact viewers, and task/agent/run orchestration.
+- **Create and observe:** media generation, scheduled automations, local-only
+  usage analytics, and one searchable activity trail across approvals,
+  workspace changes, delegated tasks, generation runs, terminal commands,
+  deliveries, and logs.
+- **Agent:** model selection, provider connections, tool and skill catalogs,
+  plugin inventory, scheduled automations, and personality profiles.
+- **Manage:** filtered runtime logs, every persisted non-secret setting,
+  appearance profiles, execution-backend status, doctor checks, setup state,
+  architecture details, local recovery commands, runtime/plugin diagnostics,
+  compatibility checks, registry search, and onboarding readiness.
+
+The default Home surface is a live mission-control view over runtime health,
+repository state, setup readiness, recent sessions, pending approvals, and
+delegated work. A persistent status strip and `Cmd/Ctrl+K` palette keep
+workspace, route, tasks, approvals, conversations, files, and logs reachable
+without navigating through settings. Chat includes an in-context route switcher
+for local and linked providers. Native completion notifications are shown only
+while the app is in the background and deliberately omit prompts, responses,
+paths, commands, and other private task content.
+
+Settings are generated from the runtime's persisted settings payload instead
+of a duplicate desktop schema. Secrets and OAuth tokens are intentionally
+absent: connection actions cross a narrow IPC allowlist, but secret values are
+never returned to the renderer.
+
+## Install and launch
+
+From a source checkout, the normal install flow now includes the desktop
+launcher:
+
+```bash
+bash scripts/install.sh
+doolittle desktop --source
+doolittle desktop
+```
+
+To keep this one-command from bootstrap to app, use:
+
+```bash
+bash scripts/install.sh --desktop
+```
+
+The first desktop launch builds an unpacked app for the current operating
+system. Later launches reuse it. Use `doolittle desktop --force-build` after
+changing desktop or runtime source, and `doolittle desktop --source` for the
+Vite development loop.
+
+The packaged app carries a compiled Doolittle/Bun runtime. It does not require
+Bun, Node.js, or a source checkout after installation.
+
+Windows operators can use the PowerShell bootstrap script for parity:
+
+```powershell
+pwsh scripts/install.ps1
+```
+
+## Local development
+
+Install the root workspace once, then start the desktop:
+
+```bash
+bun install
+bun run desktop:dev
+```
+
+The development launcher starts Vite for the renderer, builds the Electron
+main and preload bundles in watch mode, and launches Electron with the local
+Doolittle runtime.
+
+Quality checks:
+
+```bash
+bun run desktop:typecheck
+bun run desktop:test
+bun run desktop:build
+```
+
+Build a runnable unpacked app for the current machine:
+
+```bash
+bun run desktop:package:dir
+```
+
+Build the macOS DMG and zip:
+
+```bash
+bun run --cwd apps/desktop package:mac
+```
+
+The artifacts are written under `apps/desktop/release/`.
+
+## Windows installer
+
+The supported Windows artifact is a per-user x64 NSIS installer with Start
+Menu and desktop shortcuts:
+
+```bash
+bun run desktop:package:win
+```
+
+The installer is written to:
+
+```text
+apps/desktop/release/Doolittle-<version>-win-x64.exe
+```
+
+Copy that `.exe` to the Windows machine, run it, choose the install directory,
+and launch Doolittle from the Start Menu or desktop shortcut. The application
+and agent runtime are self-contained; Bun, Node.js, Git, and the source checkout
+are not required on the Windows machine.
+
+The current development installer is not code-signed, so Windows can show an
+Unknown Publisher/SmartScreen confirmation. Release signing is the remaining
+distribution step before publishing the installer broadly.
+
+For signed GitHub release builds, configure the repository Actions secrets
+`WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`. The Windows workflow passes those
+credentials directly to electron-builder and requires valid Authenticode
+signatures on both `Doolittle.exe` and the NSIS installer before upload.
+
+Use the PowerShell helper when you want the installer artifact directly from a
+Windows checkout:
+
+```powershell
+pwsh scripts/install.ps1 -PackageInstaller
+```
+
+For local-model chat on a fresh Windows machine, install Ollama and pull the
+default models:
+
+```powershell
+ollama pull granite4.1:3b
+ollama pull nomic-embed-text
+```
+
+The desktop itself still opens and exposes runtime status in explicit offline
+bootstrap mode when a model provider is not yet available.
+
+The canonical release build runs on `windows-latest` through
+`.github/workflows/desktop-windows.yml`. Run that workflow manually to download
+the `Doolittle-Windows-x64` artifact, or push a `v*` tag to attach the installer
+to a GitHub release. The workflow boots the compiled runtime and requires a
+healthy native Windows API response before it uploads the installer. Building
+Windows from macOS/Linux is also supported by electron-builder when Wine is
+installed, but the native Windows workflow is the release gate.
+
+## Runtime lifecycle
+
+In development, the main process launches the checked-out agent with:
+
+```text
+bun packages/agent/src/index.ts api
+```
+
+Packaged applications instead launch the bundled
+`runtime/bin/doolittle-runtime[.exe]` executable. Bun cross-compiles that
+runtime for the installer target, so the installed application has no external
+runtime dependency.
+
+It supplies `DOOLITTLE_MODE=api`, `DOOLITTLE_HOST=127.0.0.1`, and
+`DOOLITTLE_PORT=0`. Its PGLite, Doolittle, cron, gateway, and hooks directories
+live under the Electron application data directory, so desktop startup cannot
+migrate or lock mutable CLI data from the checkout. The workspace and skills
+roots point at the checked-out or packaged runtime so agent tools can do useful
+work. A source launch copies existing non-secret onboarding/settings state into
+the desktop profile on first use; a standalone installer seeds a desktop
+first-run receipt and can boot in explicit offline fallback mode before a model
+provider is connected. Doolittle reports the actual bound URL only after
+deferred API hydration completes. The desktop parses that announcement,
+verifies `GET /health`, and exposes a ready or degraded state to the renderer.
+
+Conversation routes disable Bun's per-request idle timeout because a local
+model or tool-running turn can remain quiet for more than ten seconds. Stream
+producer failures become terminal SSE error events, and a disconnected
+renderer cannot crash the runtime by racing a closed stream.
+
+Closing the application aborts active streams and terminates the owned child
+process. A failed boot stays visible and retryable; the renderer never waits on
+an indefinite loading skeleton.
+
+## Security boundary
+
+- Renderer isolation and sandboxing stay enabled.
+- The preload exposes a small typed Doolittle capability, not raw IPC.
+- API paths and methods are allowlisted in the main process.
+- The local backend listens on loopback only.
+- Renderer code cannot spawn processes, read outside the selected workspace,
+  choose an arbitrary backend origin, or invoke generic write/terminal routes.
+- File saves are workspace-relative, size-bounded, conflict-aware, and require
+  a native confirmation. Terminal commands are length- and time-bounded and
+  require a native confirmation before the runtime receives them.
+- Worktree creation validates the branch twice, rejects traversal, existing
+  paths, and symlink escapes, stays inside the selected workspace, and requires
+  a native confirmation. Destructive worktree removal is not exposed.
+- The embedded preview accepts loopback HTTP(S) pages only and runs them in a
+  sandboxed frame. Remote pages stay outside the frame and are inspected
+  through the browser evidence service.
+- Browser evidence requests accept bounded HTTP(S) URLs without embedded
+  credentials or control characters. Workflow bundles are explicit POST
+  actions, so renderer refreshes cannot create artifacts.
+- Generated artifacts are addressed by run ID and opaque index, never by a
+  renderer-supplied path. The runtime enforces canonical artifact-root
+  containment, regular-file and type checks, a 5 MiB limit, private no-store
+  responses without wildcard CORS, and sandboxed HTML rendering. Public run
+  records expose only artifact names and indices.
+- Chat attachments are copied into private application-managed storage and
+  referenced by opaque UUIDs. The main process validates count, name, magic
+  bytes, per-file size, combined size, canonical containment, and file type;
+  neither the renderer nor the model-facing API receives the selected local
+  path.
+- Background notifications contain generic completion or failure text only.
+  Notification delivery failures cannot change the outcome of the completed
+  agent or terminal operation.
+
+New machine-level capabilities must follow the same pattern: one specific
+main-process operation, one typed preload method, explicit validation, and a
+user-visible receipt or confirmation when state can change.

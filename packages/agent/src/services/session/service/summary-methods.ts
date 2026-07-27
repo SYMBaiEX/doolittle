@@ -32,7 +32,7 @@ export const sessionServiceSummaryMethods: Pick<
     return getSessionServiceState(this).summaries.resolveByTitle(query);
   },
 
-  usage(sessionId) {
-    return getSessionServiceState(this).summaries.usage(sessionId);
+  usage(sessionId, options) {
+    return getSessionServiceState(this).summaries.usage(sessionId, options);
   },
 };

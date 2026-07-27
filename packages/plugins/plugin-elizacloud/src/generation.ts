@@ -1,10 +1,10 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import type {
   GenerateTextParams,
   IAgentRuntime,
   ModelType,
   TextEmbeddingParams,
 } from "@elizaos/core";
+import { resolveCloudApiBaseUrl } from "@elizaos/shared/elizacloud/base-url";
 import {
   postElizaCloudChatCompletion,
   postElizaCloudEmbedding,

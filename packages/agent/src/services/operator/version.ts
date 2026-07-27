@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 
+import { getDefaultRepoRoot } from "@/config/env/paths";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig } from "@/types";
@@ -26,19 +27,16 @@ export interface OperatorVersionSummary {
   };
   nativePackages: {
     runtimeLatest: string;
-    runtimeAlpha: string;
+    runtimeBeta: string;
     aligned: number;
     vendored: number;
-    alphaOnly: number;
+    betaOnly: number;
     workspaceOnly: number;
   };
 }
 
 export function loadOperatorPackageMetadata(): PackageMetadata {
-  const packagePath = resolve(
-    dirname(new URL(import.meta.url).pathname),
-    "../../../../../package.json",
-  );
+  const packagePath = resolve(getDefaultRepoRoot(), "package.json");
   return JSON.parse(readFileSync(packagePath, "utf8")) as PackageMetadata;
 }
 
@@ -84,10 +82,10 @@ export function buildOperatorVersionSummary(
     },
     nativePackages: {
       runtimeLatest: nativePackages.runtime.latest,
-      runtimeAlpha: nativePackages.runtime.alpha,
+      runtimeBeta: nativePackages.runtime.beta,
       aligned: nativePackages.summary.aligned,
       vendored: nativePackages.summary.vendored,
-      alphaOnly: nativePackages.summary.alphaOnly,
+      betaOnly: nativePackages.summary.betaOnly,
       workspaceOnly: nativePackages.summary.workspaceOnly,
     },
   };

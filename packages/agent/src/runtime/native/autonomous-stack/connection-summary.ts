@@ -1,4 +1,3 @@
-import { getOnboardingProviderOption } from "@elizaos/autonomous/contracts/onboarding";
 import type { EnvConfig } from "@/types/runtime";
 import { buildAutonomousCompatSnapshot } from "./snapshot";
 import type { AutonomousConnectionSummary } from "./types";
@@ -23,9 +22,7 @@ function summarizeRemoteProviderConnection(
   remoteApiBase: string,
   primaryModel?: string,
 ): AutonomousConnectionSummary {
-  const providerLabel = provider
-    ? (getOnboardingProviderOption(provider)?.name ?? provider)
-    : "none";
+  const providerLabel = provider ? provider : "none";
 
   return {
     source: "provider-switch-config",
@@ -42,7 +39,13 @@ function summarizeLocalProviderConnection(
   provider: string,
   primaryModel?: string,
 ): AutonomousConnectionSummary {
-  const providerLabel = getOnboardingProviderOption(provider)?.name ?? provider;
+  const providerLabel =
+    {
+      ollama: "Ollama",
+      devin: "Devin",
+      openai: "OpenAI",
+      anthropic: "Anthropic",
+    }[provider] ?? provider;
 
   return {
     source: "provider-switch-config",

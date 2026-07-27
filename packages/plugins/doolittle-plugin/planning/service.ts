@@ -11,6 +11,26 @@ import { ensureStoreInitialized, readStore, writeStore } from "./storage";
 import type { PlanningPluginOptions, PlanningStore } from "./types";
 import { nextId, nowIso } from "./utils";
 
+export type PlanApprovalResult =
+  | { kind: "approved"; plan: StoredPlanRecord }
+  | { kind: "not_found" }
+  | { kind: "invalid_state"; plan: StoredPlanRecord };
+
+export type PlanSteeringResult =
+  | { kind: "steered"; plan: StoredPlanRecord; taskId: string }
+  | { kind: "not_found" }
+  | { kind: "invalid_state"; plan: StoredPlanRecord }
+  | { kind: "unlinked"; plan: StoredPlanRecord }
+  | { kind: "task_not_found"; plan: StoredPlanRecord; taskId: string }
+  | { kind: "invalid_instruction"; plan: StoredPlanRecord }
+  | {
+      kind: "task_not_pending";
+      plan: StoredPlanRecord;
+      taskId: string;
+      status: unknown;
+    }
+  | { kind: "native_only"; plan: StoredPlanRecord };
+
 type PlanningDependencyProvider = Pick<
   PlanningPluginOptions,
   "delegation" | "workflows"
@@ -94,6 +114,88 @@ export const createPlanningService = (
       store.plans.unshift(plan);
       this.writeStore(store);
       return plan;
+    }
+
+    async approvePlan(planId: string): Promise<PlanApprovalResult> {
+      const store = this.readStore();
+      const index = store.plans.findIndex((entry) => entry.id === planId);
+      if (index === -1) {
+        return { kind: "not_found" };
+      }
+
+      const plan = store.plans[index];
+      if (plan.status !== "draft") {
+        return { kind: "invalid_state", plan };
+      }
+
+      const approvedAt = nowIso();
+      const approved: StoredPlanRecord = {
+        ...plan,
+        status: "active",
+        updatedAt: approvedAt,
+        metadata: {
+          ...plan.metadata,
+          operatorReview: {
+            action: "approved",
+            approvedAt,
+            approvedBy: "desktop-operator",
+          },
+        },
+      };
+      store.plans[index] = approved;
+      this.writeStore(store);
+      return { kind: "approved", plan: approved };
+    }
+
+    async steerPlan(
+      planId: string,
+      instruction: string,
+    ): Promise<PlanSteeringResult> {
+      const plan = this.getPlan(planId);
+      if (!plan) {
+        return { kind: "not_found" };
+      }
+      if (plan.status !== "active") {
+        return { kind: "invalid_state", plan };
+      }
+      const normalizedInstruction = instruction.trim();
+      if (
+        normalizedInstruction.length < 1 ||
+        normalizedInstruction.length > 4000
+      ) {
+        return { kind: "invalid_instruction", plan };
+      }
+      if (!plan.taskId) {
+        return { kind: "unlinked", plan };
+      }
+      if (!options.delegation.get || !options.delegation.addNote) {
+        return { kind: "native_only", plan };
+      }
+
+      let task: unknown;
+      try {
+        task = options.delegation.get(plan.taskId);
+      } catch {
+        return { kind: "task_not_found", plan, taskId: plan.taskId };
+      }
+      if (!task || typeof task !== "object") {
+        return { kind: "task_not_found", plan, taskId: plan.taskId };
+      }
+      const taskStatus = (task as { status?: unknown }).status;
+      if (taskStatus !== "pending") {
+        return {
+          kind: "task_not_pending",
+          plan,
+          taskId: plan.taskId,
+          status: taskStatus,
+        };
+      }
+
+      options.delegation.addNote(
+        plan.taskId,
+        `operator-steer: ${normalizedInstruction}`,
+      );
+      return { kind: "steered", plan, taskId: plan.taskId };
     }
 
     private readStore(): PlanningStore {

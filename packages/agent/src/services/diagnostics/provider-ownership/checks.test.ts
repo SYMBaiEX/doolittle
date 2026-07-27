@@ -40,7 +40,7 @@ const baseContext = {
   nativeWorkspacePath: "/tmp/workspace/packages/plugins",
   nativeAudit: {
     runtime: {
-      alpha: "2.0.0-alpha.537",
+      beta: "2.0.3-beta.7",
       latest: "1.7.2",
       date: "2026-04-01",
     },
@@ -48,7 +48,7 @@ const baseContext = {
     summary: {
       aligned: 4,
       vendored: 0,
-      alphaOnly: 0,
+      betaOnly: 0,
       laggingLatest: 0,
       workspaceOnly: 0,
     },

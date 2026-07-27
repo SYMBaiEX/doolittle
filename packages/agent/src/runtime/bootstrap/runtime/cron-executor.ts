@@ -1,6 +1,7 @@
 import type { AgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "@/gateway/runner";
 import type { AppServices } from "@/services";
+import type { AutomationExecutionContext } from "@/services/cron/service/types";
 import type { CronJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
 
@@ -8,9 +9,13 @@ function buildCronPrompt(
   services: AppServices,
   prompt: string,
   skillSlugs: string[],
+  context: AutomationExecutionContext,
 ): string {
+  const payloadContext = context.payload
+    ? `\n\nTrigger payload:\n${JSON.stringify(context.payload, null, 2).slice(0, 12_000)}`
+    : "";
   if (!skillSlugs.length) {
-    return prompt;
+    return `${prompt}${payloadContext}`;
   }
 
   const loadedSkills = skillSlugs
@@ -18,7 +23,7 @@ function buildCronPrompt(
     .filter((skill): skill is NonNullable<typeof skill> => Boolean(skill));
 
   if (!loadedSkills.length) {
-    return prompt;
+    return `${prompt}${payloadContext}`;
   }
 
   const skillContext = loadedSkills
@@ -32,7 +37,7 @@ function buildCronPrompt(
     "Use the following installed Doolittle skills as execution guidance when relevant.",
     skillContext,
     "Task:",
-    prompt,
+    `${prompt}${payloadContext}`,
   ].join("\n\n");
 }
 
@@ -56,11 +61,42 @@ export function createCronExecutor(params: {
 }) {
   const { config, services, runtime, ensureGateway } = params;
 
-  return async (job: CronJobRecord): Promise<string> => {
+  return async (
+    job: CronJobRecord,
+    executionContext: AutomationExecutionContext,
+  ): Promise<string> => {
+    if (job.action?.type === "webhook") {
+      const response = await fetch(job.action.url, {
+        method: job.action.method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          automation: { id: job.id, name: job.name },
+          trigger: executionContext.source,
+          payload: executionContext.payload ?? {},
+          sentAt: new Date().toISOString(),
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      const responseBody = (await response.text()).slice(0, 20_000);
+      if (!response.ok) {
+        throw new Error(
+          `Webhook returned ${response.status}${responseBody ? `: ${responseBody}` : ""}`,
+        );
+      }
+      return responseBody || `Webhook accepted with ${response.status}.`;
+    }
+
     const { handleAgentTurn } = await import("@/runtime/chat");
     const output = await handleAgentTurn(
       {
-        message: buildCronPrompt(services, job.prompt, job.skills),
+        message: buildCronPrompt(
+          services,
+          job.action?.type === "run-agent" || job.action?.type === "prompt"
+            ? job.action.prompt
+            : job.prompt,
+          job.skills,
+          executionContext,
+        ),
         userId: "cron",
         roomId: `cron:${job.id}`,
         source: "cron",

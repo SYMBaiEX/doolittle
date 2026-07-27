@@ -23,9 +23,11 @@ export {
 } from "./github";
 
 export {
+  approveEffectivePlan,
   createEffectivePlan,
   getEffectivePlan,
   listEffectivePlans,
+  steerEffectivePlan,
 } from "./planning";
 export {
   getEffectiveSecret,

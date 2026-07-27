@@ -1,5 +1,9 @@
 import type { Database } from "bun:sqlite";
-import type { SessionSummary, SessionUsageSummary } from "@/types";
+import type {
+  SessionSummary,
+  SessionUsageOptions,
+  SessionUsageSummary,
+} from "@/types";
 import { findContinuitySessions } from "./continuity";
 import { listSessionSummaries, listTitledSessions } from "./listing";
 import { buildSessionSummary, loadSummaryStats } from "./query";
@@ -46,8 +50,13 @@ export class SessionReadSummaryHelpers {
     return resolveSessionByTitle(this.db, this.metadataResolver, query);
   }
 
-  usage(sessionId: string): SessionUsageSummary {
-    return resolveSessionUsage(this.db, this.metadataResolver, sessionId);
+  usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary {
+    return resolveSessionUsage(
+      this.db,
+      this.metadataResolver,
+      sessionId,
+      options,
+    );
   }
 
   continuity(sessionId: string, limit = 20): SessionSummary[] {

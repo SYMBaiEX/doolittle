@@ -8,6 +8,7 @@ type DelegationTaskRecord = {
   tags?: string[];
   labels?: string[];
   metadata?: Record<string, string>;
+  workspaceRoot?: string;
   parentTaskId?: string;
   childTaskIds?: string[];
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -120,6 +121,7 @@ export interface AgentOrchestratorPluginOptions {
       title: string;
       objective: string;
       metadata?: Record<string, string>;
+      workspaceRoot?: string;
       group?: string;
       profile?: string;
       priority?: "low" | "normal" | "high";
@@ -143,6 +145,7 @@ export interface AgentOrchestratorPluginOptions {
         title: string;
         objective: string;
         metadata?: Record<string, string>;
+        workspaceRoot?: string;
         profile?: string;
         priority?: "low" | "normal" | "high";
         tags?: string[];

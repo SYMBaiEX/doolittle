@@ -442,7 +442,6 @@ export async function handleDirectInformationalModelTurn(input: {
         input.context.runtime.useModel(ModelType.TEXT_SMALL, {
           prompt,
           promptSegments: cache.promptSegments,
-          providerOptions: cache.providerOptions,
           temperature: 0.35,
           maxTokens: input.classification.simpleChat ? 96 : 192,
           stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],

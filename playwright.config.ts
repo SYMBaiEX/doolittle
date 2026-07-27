@@ -1,7 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
-const runtimePort = process.env.DOOLITTLE_RUNTIME_PORT ?? "49698";
-const e2ePort = process.env.DOOLITTLE_E2E_PORT ?? "49697";
+function fallbackPort(base: number): string {
+  return String(base + Math.floor(Math.random() * 1000));
+}
+
+const runtimePort = process.env.DOOLITTLE_RUNTIME_PORT ?? fallbackPort(49600);
+const e2ePort = process.env.DOOLITTLE_E2E_PORT ?? fallbackPort(50600);
 const baseURL =
   process.env.DOOLITTLE_E2E_BASE_URL ?? `http://127.0.0.1:${e2ePort}`;
 const e2eServerScript = `
@@ -15,6 +19,111 @@ const supportDir = join(repoRoot, "e2e", "support");
 const dataDir = mkdtempSync(join(tmpdir(), "doolittle-e2e-"));
 const runtimePort = Number(${JSON.stringify(runtimePort)});
 const port = Number(${JSON.stringify(e2ePort)});
+const gatewayInbox = [
+  {
+    recordId: "gateway-in-1",
+    at: "2026-07-27T15:04:00.000Z",
+    platform: "telegram",
+    status: "received",
+    sessionId: "sess-gateway-1",
+    roomId: "room-orange",
+    threadId: "thread-alpha",
+    authorName: "Alex",
+    textPreview: "Please confirm the orange operator theme made it through review.",
+    attachmentCount: 1,
+  },
+];
+const gatewayOutbox = [
+  {
+    recordId: "gateway-out-1",
+    at: "2026-07-27T15:05:00.000Z",
+    platform: "telegram",
+    status: "sent",
+    sessionId: "sess-gateway-1",
+    roomId: "room-orange",
+    threadId: "thread-alpha",
+    authorName: "Doolittle",
+    textPreview: "Build accepted on branch sym/orange-ui with the updated desktop shell.",
+    attachmentCount: 0,
+  },
+];
+const gatewaySessions = [
+  {
+    sessionKey: "sess-gateway-1",
+    platform: "telegram",
+    roomId: "room-orange",
+    threadId: "thread-alpha",
+    updatedAt: "2026-07-27T15:05:00.000Z",
+    activeAgentSessionId: "desktop-chat-1",
+  },
+];
+const toolCatalog = [
+  {
+    id: "workspace.search",
+    name: "Workspace search",
+    description: "Search the current repository with ripgrep-backed indexing.",
+    category: "workspace",
+    transport: "native",
+    enabled: true,
+  },
+  {
+    id: "gateway.replay",
+    name: "Gateway replay",
+    description: "Reprocess a recorded inbound preview on the original thread route.",
+    category: "gateway",
+    transport: "native",
+    enabled: true,
+  },
+];
+const acpTools = [
+  {
+    name: "workspace.search",
+    description: "Search the active workspace for a string or file path.",
+    kind: "command",
+    source: "local-registry",
+  },
+  {
+    name: "agent.inspect",
+    description: "Inspect the local agent runtime state.",
+    kind: "diagnostic",
+    source: "local-registry",
+  },
+];
+
+function filterAcpTools(query) {
+  const normalized = String(query ?? "").trim().toLowerCase();
+  if (!normalized) return acpTools;
+  return acpTools.filter((tool) =>
+    [tool.name, tool.description, tool.kind, tool.source]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalized),
+  );
+}
+
+function profileRecallHits(query) {
+  const normalized = String(query ?? "").trim().toLowerCase();
+  if (!normalized) return [];
+  return [
+    {
+      kind: "preference",
+      value: "Orange operator theme",
+      score: 0.98,
+    },
+    {
+      kind: "project",
+      value: "Hermes-style desktop shell",
+      score: 0.91,
+    },
+    {
+      kind: "context",
+      value: "Gateway inbox review lane",
+      score: 0.84,
+    },
+  ].filter((entry) =>
+    [entry.kind, entry.value].join(" ").toLowerCase().includes(normalized),
+  );
+}
 
 const applyE2eEnv = () => {
   process.env.PATH = supportDir + ":" + (process.env.PATH ?? "");
@@ -97,6 +206,173 @@ const server = createServer(async (req, res) => {
     sendJson(res, {
       catalog,
       grouped: groupNativePluginCatalog(catalog),
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/gateway/state") {
+    sendJson(res, {
+      state: {
+        running: true,
+        reason: "Gateway journaling locally with replay enabled for recorded inbound previews.",
+        totals: {
+          configuredPlatforms: 2,
+          operationalTransports: 2,
+          readyAdapters: 2,
+        },
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/gateway/inbox") {
+    sendJson(res, { inbox: gatewayInbox });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/gateway/outbox") {
+    sendJson(res, { outbox: gatewayOutbox });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/sessions/gateway") {
+    sendJson(res, { sessions: gatewaySessions });
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/gateway/replay") {
+    const body = await readJson(req);
+    sendJson(res, { ok: true, replayedRecordId: body.recordId ?? null });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/tools") {
+    sendJson(res, { tools: toolCatalog });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/tools/summary") {
+    sendJson(res, {
+      summary: {
+        total: toolCatalog.length,
+        enabled: toolCatalog.filter((entry) => entry.enabled !== false).length,
+        disabled: toolCatalog.filter((entry) => entry.enabled === false).length,
+        categories: [...new Set(toolCatalog.map((entry) => entry.category))],
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/acp/status") {
+    sendJson(res, {
+      acp: {
+        enabled: true,
+        detail: "Configured ACP command bridge for local discovery.",
+        command: "acp-local --registry ./fixtures/acp.json",
+        timeoutMs: 5000,
+        toolCount: acpTools.length,
+        lastProbeAt: "2026-07-27T15:06:00.000Z",
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/acp/editor") {
+    sendJson(res, {
+      editor: {
+        commandConfigured: true,
+        registryPath: "/tmp/doolittle-e2e/acp-registry.json",
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/acp/sessions") {
+    sendJson(res, {
+      sessions: {
+        totalSessions: 3,
+        recentSessionIds: ["acp-1", "acp-2", "acp-3"],
+        titledSessions: 2,
+        recentTitles: ["Workspace diagnostics", "Gateway follow-up"],
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/acp/tools") {
+    sendJson(res, { tools: filterAcpTools(url.searchParams.get("query")) });
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/acp/probe") {
+    sendJson(res, {
+      probe: {
+        ok: true,
+        detail: "ACP command responded to --help within the local timeout.",
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/memory") {
+    const target = url.searchParams.get("target") === "user" ? "user" : "memory";
+    const preview =
+      target === "memory"
+        ? [
+            "Orange-first desktop shell approved for operator polish.",
+            "Gateway replay kept behind explicit confirmation.",
+          ]
+        : [
+            "User likes minimal, fast desktop workflows.",
+            "Prefer Hermes-style desktop framing with orange accenting.",
+          ];
+    sendJson(res, {
+      summary: {
+        entries: preview.length,
+        characters: preview.join("\\n").length,
+        target,
+        preview,
+      },
+      snapshot: JSON.stringify(
+        {
+          target,
+          preview,
+          updatedAt: "2026-07-27T15:07:00.000Z",
+        },
+        null,
+        2,
+      ),
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/profiles/summary") {
+    sendJson(res, {
+      summary: {
+        agentName: "Doolittle",
+        totalProfiles: 12,
+        totalBeliefs: 34,
+        trustedRelationships: 4,
+        engagedProfiles: 7,
+      },
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/profiles/agent") {
+    sendJson(res, {
+      card: [
+        "Doolittle operator card",
+        "- Theme: orange-first, minimal desktop framing",
+        "- Mode: local-first ElizaOS agent shell",
+      ].join("\\n"),
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/profiles/users/recall") {
+    sendJson(res, {
+      hits: profileRecallHits(url.searchParams.get("query")),
     });
     return;
   }

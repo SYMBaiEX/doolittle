@@ -9,6 +9,7 @@ import {
   syncProviderSettings,
 } from "@/runtime/linked-provider-accounts";
 import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
+import { resolveManagedChatAttachments } from "@/services/chat-attachments";
 import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
 import type { AppContext } from "./bootstrap";
 
@@ -157,9 +158,32 @@ export async function handleAgentTurn(
     if (!replay.userMessage) {
       return "No prior conversational turn is available to retry.";
     }
+    let replayAttachments: Awaited<
+      ReturnType<typeof resolveManagedChatAttachments>
+    > = [];
+    if (replay.userMessage.attachments?.length) {
+      try {
+        replayAttachments = await resolveManagedChatAttachments({
+          dataDir: context.config.dataDir,
+          attachmentIds: replay.userMessage.attachments.map(
+            (attachment) => attachment.id,
+          ),
+        });
+      } catch {
+        context.services.sessions.storeMessage(replay.userMessage);
+        for (const assistantMessage of replay.assistantMessages) {
+          context.services.sessions.storeMessage(assistantMessage);
+        }
+        return "The previous turn used attachments that are no longer available, so it was not retried.";
+      }
+    }
     const retryInput = {
       ...input,
       message: replay.userMessage.text,
+      attachments: replayAttachments.map((attachment) => attachment.media),
+      attachmentDescriptors: replayAttachments.map(
+        (attachment) => attachment.descriptor,
+      ),
     };
     const retryTurn = prepareTurnState(retryInput, context);
     perf.mark("retry-replay");

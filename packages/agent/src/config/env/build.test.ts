@@ -46,4 +46,11 @@ describe("env config builder", () => {
     expect(config.runDepth).toBe("quick");
     expect(config.maxIterations).toBe(12);
   });
+
+  it("allows port zero for an operating-system-assigned API port", () => {
+    const values = parseEnv({ DOOLITTLE_PORT: "0" });
+    const config = buildEnvConfig(values, directories);
+
+    expect(config.port).toBe(0);
+  });
 });

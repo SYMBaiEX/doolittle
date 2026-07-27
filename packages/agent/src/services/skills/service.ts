@@ -4,7 +4,7 @@ import {
   getCuratedActiveDir,
   getSkillsDir,
   type SkillCommandSpec,
-} from "@elizaos/skills";
+} from "@elizaos/skills/index";
 import type { SkillDocument } from "@/types";
 import type { AgentSdkService } from "../agent-sdk-service";
 import { loadNativeSkills } from "./native-loader";

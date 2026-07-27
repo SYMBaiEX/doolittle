@@ -28,7 +28,7 @@ const PATCHERS: Record<string, DescriptionPatcher> = {
 
   "packages.native": (tool, dynamic) => ({
     ...tool,
-    description: `Latest runtime=${dynamic.nativeRuntimeLatest ?? "unknown"} alpha=${dynamic.nativeRuntimeAlpha ?? "unknown"} aligned=${dynamic.nativeAlignedPackages ?? 0} alphaOnly=${dynamic.nativeAlphaOnlyPackages ?? 0} laggingLatest=${dynamic.nativeLaggingLatestPackages ?? 0} workspaceOnly=${dynamic.nativeWorkspaceOnlyPackages ?? 0}.`,
+    description: `Latest runtime=${dynamic.nativeRuntimeLatest ?? "unknown"} beta=${dynamic.nativeRuntimeBeta ?? "unknown"} aligned=${dynamic.nativeAlignedPackages ?? 0} betaOnly=${dynamic.nativeBetaOnlyPackages ?? 0} laggingLatest=${dynamic.nativeLaggingLatestPackages ?? 0} workspaceOnly=${dynamic.nativeWorkspaceOnlyPackages ?? 0}.`,
   }),
 
   "runtime.registry": (tool, dynamic) => ({

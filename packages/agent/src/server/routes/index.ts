@@ -21,6 +21,7 @@ import { handleMemoryRoutes } from "./memory";
 import { handleMigrationRoutes } from "./migrations";
 import { handleOperationsRoutes } from "./operations";
 import { handleRepositoryRoutes } from "./repository";
+import { handleReviewRecordRoutes } from "./review-record";
 import { handleRuntimeRoutes } from "./runtime";
 import { handleSandboxRoutes } from "./sandbox";
 import { handleSecretsRoutes } from "./secrets";
@@ -60,6 +61,7 @@ export const apiRouteHandlers = [
   handleDelegationMutationRoutes,
   handleDelegationTaskFallbackRoutes,
   handleRepositoryRoutes,
+  handleReviewRecordRoutes,
   handleIdentityRoutes,
   handleSettingsExecutionRoutes,
   handleContextDocumentRoutes,

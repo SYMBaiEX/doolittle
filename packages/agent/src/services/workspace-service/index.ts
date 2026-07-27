@@ -1,6 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { relative } from "node:path";
 import type { WorkspaceEntry } from "@/types";
-import { resolveWorkspacePath, workspaceDirname } from "./path";
+import {
+  assertWorkspacePathResolvesInside,
+  resolveWorkspacePath,
+  workspaceDirname,
+  workspaceRelativePath,
+} from "./path";
+import { assertWorkspacePathIsSafe } from "./policy";
 import { searchWorkspace } from "./search";
 import { summarizeWorkspaceTree } from "./summary";
 import { listWorkspaceTree } from "./tree";
@@ -17,7 +24,7 @@ export class WorkspaceService {
   }
 
   read(path: string): string {
-    const resolvedPath = this.resolvePath(path);
+    const resolvedPath = this.resolvePath(path, "read");
     if (!existsSync(resolvedPath)) {
       throw new Error(`Path not found: ${path}`);
     }
@@ -25,7 +32,7 @@ export class WorkspaceService {
   }
 
   write(path: string, content: string): string {
-    const resolvedPath = this.resolvePath(path);
+    const resolvedPath = this.resolvePath(path, "write");
     mkdirSync(workspaceDirname(resolvedPath), { recursive: true });
     writeFileSync(resolvedPath, content, "utf8");
     return resolvedPath;
@@ -43,7 +50,13 @@ export class WorkspaceService {
     return summarizeWorkspaceTree(entries, maxEntries);
   }
 
-  private resolvePath(path: string): string {
-    return resolveWorkspacePath(this.workspaceDir, path);
+  private resolvePath(path: string, operation: "read" | "write"): string {
+    const resolvedPath = resolveWorkspacePath(this.workspaceDir, path);
+    const relativePath = workspaceRelativePath(
+      relative(this.workspaceDir, resolvedPath),
+    );
+    assertWorkspacePathIsSafe(relativePath, operation);
+    assertWorkspacePathResolvesInside(this.workspaceDir, resolvedPath);
+    return resolvedPath;
   }
 }

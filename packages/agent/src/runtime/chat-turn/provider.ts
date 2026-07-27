@@ -5,6 +5,7 @@ import {
   createSessionEntry,
   EventType,
   extractSessionContext,
+  type Media,
   type SessionEntry,
   type UUID,
 } from "@elizaos/core";
@@ -109,6 +110,7 @@ export async function runProviderModelTurn(
     };
     options?: ProviderTurnOptions;
     loadDirectLocalIntent: DirectLocalIntentFallbackLoader;
+    attachments?: Media[];
   },
   executionContext: ProviderModelTurnExecutionContext = providerModelTurnContext,
 ): Promise<{
@@ -126,6 +128,7 @@ export async function runProviderModelTurn(
       text: input.effectiveMessage,
       source: input.turn.connectionSource,
       channelType: ChannelType.DM,
+      attachments: input.attachments,
     },
   });
   const sessionKey = resolveSdkSessionKey(input.context, input.turn.sessionId);

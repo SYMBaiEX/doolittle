@@ -1,11 +1,11 @@
 import {
   AwarenessRegistry,
   setGlobalAwarenessRegistry,
-} from "@elizaos/autonomous/awareness/registry";
+} from "@elizaos/agent/awareness/registry";
 import type {
   AwarenessContributor,
   AwarenessInvalidationEvent,
-} from "@elizaos/autonomous/contracts/awareness";
+} from "@elizaos/agent/contracts/awareness";
 import type { IAgentRuntime } from "@elizaos/core";
 import type { AppServices } from "../types";
 import { createRunContributor } from "./budget";

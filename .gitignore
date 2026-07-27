@@ -11,9 +11,10 @@ cache/
 coverage/
 playwright-report/
 test-results/
+.playwright-cli/
+output/
 *.log
 *.tgz
 *.tsbuildinfo
 skills/generated/index.json
 tmp/
-e2e/

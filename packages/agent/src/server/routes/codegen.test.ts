@@ -9,6 +9,7 @@ function createContext(): AppContext {
   const completions: Array<{ id: string; note?: string }> = [];
   const failures: Array<{ id: string; note?: string }> = [];
   const notes: Array<{ id: string; note: string }> = [];
+  const activeRuns = new Map<string, Record<string, unknown>>();
 
   return {
     runtime: {
@@ -58,16 +59,88 @@ function createContext(): AppContext {
           ...input,
           id: `workflow-${++workflowCounter}`,
         }),
+        startRun: (input: Record<string, unknown>) => {
+          const run = {
+            ...input,
+            id: `run-${++runCounter}`,
+            status: "running",
+            artifactPaths: [],
+          };
+          activeRuns.set(run.id, run);
+          return run;
+        },
+        executeRun: async (
+          _id: string,
+          operation: (signal: AbortSignal) => Promise<unknown>,
+        ) => operation(new AbortController().signal),
+        completeRun: (id: string, result: unknown) => {
+          const run = activeRuns.get(id);
+          if (!run) throw new Error(`missing run ${id}`);
+          Object.assign(run, { status: "completed", result });
+          return run;
+        },
+        failRun: (id: string, error: string) => {
+          const run = activeRuns.get(id);
+          if (!run) throw new Error(`missing run ${id}`);
+          Object.assign(run, { status: "failed", error });
+          return run;
+        },
         record: (input: Record<string, unknown>) => ({
           ...input,
           id: `run-${++runCounter}`,
         }),
-        summary: () => ({ total: runCounter }),
-        list: () => [{ id: "run-listed" }],
-        listWorkflows: () => [{ id: "workflow-listed" }],
-        get: (id: string) => ({ id, kind: "generate" }),
-        workflow: (id: string) => ({ id, state: "active" }),
-        bundleWorkflow: (id: string) => ({ id, bundle: true }),
+        summary: () => ({
+          total: runCounter,
+          workflows: workflowCounter,
+          counts: {},
+          failed: 0,
+          failedWorkflows: 0,
+          running: 0,
+          runningWorkflows: 0,
+          latest: {
+            id: "run-latest",
+            artifactPaths: ["/private/pipeline/run-latest-result.json"],
+          },
+          latestWorkflow: {
+            id: "workflow-latest",
+            artifactPaths: ["/private/pipeline/workflow-latest-result.json"],
+          },
+        }),
+        list: () => [
+          {
+            id: "run-listed",
+            artifactPaths: ["/private/pipeline/run-listed-result.json"],
+          },
+        ],
+        listWorkflows: () => [
+          {
+            id: "workflow-listed",
+            artifactPaths: ["/private/pipeline/workflow-listed-result.json"],
+          },
+        ],
+        get: (id: string) =>
+          activeRuns.get(id) ?? {
+            id,
+            kind: "generate",
+            artifactPaths: [`/private/pipeline/${id}-result.json`],
+          },
+        workflow: (id: string) => ({
+          workflow: {
+            id,
+            state: "active",
+            artifactPaths: [`/private/pipeline/${id}-manifest.json`],
+          },
+          runs: [],
+          tree: [],
+        }),
+        bundleWorkflow: (id: string) => ({
+          workflow: {
+            id,
+            artifactPaths: [`/private/pipeline/${id}-manifest.json`],
+          },
+          runs: [],
+          manifestPath: `/private/pipeline/${id}-manifest.json`,
+        }),
       },
       delegation: {
         create: () => ({ id: `task-${++taskCounter}` }),
@@ -117,6 +190,13 @@ describe("handleCodegenRoutes", () => {
     );
     const workflowBundle = await handleCodegenRoutes(
       context,
+      new Request("http://localhost/codegen/workflows/workflow-1/bundle", {
+        method: "POST",
+      }),
+      new URL("http://localhost/codegen/workflows/workflow-1/bundle"),
+    );
+    const unsafeBundleGet = await handleCodegenRoutes(
+      context,
       new Request("http://localhost/codegen/workflows/workflow-1/bundle"),
       new URL("http://localhost/codegen/workflows/workflow-1/bundle"),
     );
@@ -127,16 +207,47 @@ describe("handleCodegenRoutes", () => {
     const workflowBundleBody = await workflowBundle?.json();
 
     expect(runtimeBody?.execution.codeGeneration.available).toBe(true);
-    expect(runsBody?.runs).toEqual([{ id: "run-listed" }]);
-    expect(workflowsBody?.workflows).toEqual([{ id: "workflow-listed" }]);
+    expect(runsBody?.runs).toEqual([
+      {
+        id: "run-listed",
+        artifacts: [{ index: 0, name: "run-listed-result.json" }],
+        artifactCount: 1,
+      },
+    ]);
+    expect(workflowsBody?.workflows).toEqual([
+      {
+        id: "workflow-listed",
+        artifacts: [{ index: 0, name: "workflow-listed-result.json" }],
+        artifactCount: 1,
+      },
+    ]);
     expect(runDetailBody?.run).toEqual({
       id: "run-1",
       kind: "generate",
+      artifacts: [{ index: 0, name: "run-1-result.json" }],
+      artifactCount: 1,
     });
     expect(workflowBundleBody).toEqual({
-      id: "workflow-1",
-      bundle: true,
+      workflow: {
+        id: "workflow-1",
+        artifacts: [{ index: 0, name: "workflow-1-manifest.json" }],
+        artifactCount: 1,
+      },
+      runs: [],
+      manifest: { index: 0, name: "workflow-1-manifest.json" },
     });
+    for (const body of [
+      runsBody,
+      workflowsBody,
+      runDetailBody,
+      workflowBundleBody,
+    ]) {
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toContain("/private/pipeline");
+      expect(serialized).not.toContain("artifactPaths");
+      expect(serialized).not.toContain("manifestPath");
+    }
+    expect(unsafeBundleGet).toBeNull();
   });
 
   it("validates and executes code generation workflows", async () => {

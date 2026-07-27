@@ -1,6 +1,14 @@
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export function resolveEntrypointRepoRoot(moduleUrl: string): string {
+export function resolveEntrypointRepoRoot(
+  moduleUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const configuredRoot = env.DOOLITTLE_REPO_ROOT?.trim();
+  if (configuredRoot) {
+    return resolve(configuredRoot);
+  }
   // packages/agent/src/index.ts -> ../../../ = repo root
   return fileURLToPath(new URL("../../../", moduleUrl));
 }
@@ -31,6 +39,7 @@ export function renderTopLevelHelp(): string {
     "  doolittle jobs list                   Inspect background jobs",
     "",
     "Setup and recovery:",
+    "  doolittle desktop         Build and open the native desktop app",
     "  doolittle setup           Run onboarding",
     "  doolittle doctor          Check readiness and local setup",
     "",

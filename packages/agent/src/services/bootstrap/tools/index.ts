@@ -13,11 +13,11 @@ type NativeCatalogSnapshot = NonNullable<
 interface NativePackageAuditSnapshot {
   runtime: {
     latest: string;
-    alpha: string;
+    beta: string;
   };
   summary: {
     aligned: number;
-    alphaOnly: number;
+    betaOnly: number;
     laggingLatest: number;
     workspaceOnly: number;
   };
@@ -64,9 +64,9 @@ export function createToolsDynamicStateResolver(
       ).size,
       nativeCatalog,
       nativeRuntimeLatest: nativePackageAudit.runtime.latest,
-      nativeRuntimeAlpha: nativePackageAudit.runtime.alpha,
+      nativeRuntimeBeta: nativePackageAudit.runtime.beta,
       nativeAlignedPackages: nativePackageAudit.summary.aligned,
-      nativeAlphaOnlyPackages: nativePackageAudit.summary.alphaOnly,
+      nativeBetaOnlyPackages: nativePackageAudit.summary.betaOnly,
       nativeLaggingLatestPackages: nativePackageAudit.summary.laggingLatest,
       nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
       agentSdkRegistryAvailable: agentSdkSnapshot.registry?.available ?? false,

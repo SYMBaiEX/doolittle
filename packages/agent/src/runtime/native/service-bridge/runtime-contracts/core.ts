@@ -40,6 +40,10 @@ export interface NativeCronService {
   create(input: unknown): unknown;
   update(id: string, patch: unknown): unknown;
   runs(limit?: number): unknown[];
+  pause?(id: string): unknown;
+  resume?(id: string): unknown;
+  runNow?(id: string): unknown;
+  remove?(id: string): void;
 }
 
 export interface NativeApprovalService {

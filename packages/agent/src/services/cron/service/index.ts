@@ -1,3 +1,5 @@
+import { hydrateAutomationJob } from "../definition";
+import { executeAutomationJob } from "../execution";
 import { computeNextRunAt } from "../job-rules";
 import { CronStorage } from "../storage";
 import { buildCronJobRecord } from "./create";
@@ -50,6 +52,7 @@ export class CronService {
   list(): CronJobRecord[] {
     return this.storage
       .readJobs()
+      .map(hydrateAutomationJob)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
   }
 
@@ -82,11 +85,11 @@ export class CronService {
     return this.mutate(id, (job) => {
       const now = new Date();
       job.status = "active";
-      job.nextRunAt = computeNextRunAt(
-        job.schedule,
-        now,
-        this.timezone,
-      ).toISOString();
+      const trigger = hydrateAutomationJob(job).trigger;
+      job.nextRunAt =
+        trigger?.type === "schedule"
+          ? computeNextRunAt(trigger.schedule, now, this.timezone).toISOString()
+          : undefined;
       job.updatedAt = now.toISOString();
     });
   }
@@ -104,7 +107,53 @@ export class CronService {
   }
 
   get(id: string): CronJobRecord | undefined {
-    return this.storage.readJobs().find((job) => job.id === id);
+    const job = this.storage.readJobs().find((job) => job.id === id);
+    return job ? hydrateAutomationJob(job) : undefined;
+  }
+
+  async triggerNow(
+    id: string,
+    source: "manual" | "webhook" = "manual",
+    payload?: Record<string, unknown>,
+  ): Promise<AutomationRunRecord> {
+    if (!this.executor) {
+      throw new Error("Automation execution is not ready.");
+    }
+    const jobs = this.storage.readJobs().map(hydrateAutomationJob);
+    const job = jobs.find((candidate) => candidate.id === id);
+    if (!job) {
+      throw new Error(`Cron job not found: ${id}`);
+    }
+    if (job.status !== "active") {
+      throw new Error(`Automation "${job.name}" is paused.`);
+    }
+
+    const run = await executeAutomationJob({
+      storage: this.storage,
+      executor: this.executor,
+      job,
+      context: { source, payload },
+    });
+    const now = new Date().toISOString();
+    job.lastRunAt = now;
+    job.updatedAt = now;
+    this.storage.writeJobs(jobs);
+    return run;
+  }
+
+  async triggerWebhook(
+    token: string,
+    payload?: Record<string, unknown>,
+  ): Promise<AutomationRunRecord> {
+    const job = this.list().find(
+      (candidate) =>
+        candidate.trigger?.type === "webhook" &&
+        candidate.trigger.token === token,
+    );
+    if (!job) {
+      throw new Error("Webhook automation not found.");
+    }
+    return this.triggerNow(job.id, "webhook", payload);
   }
 
   updateConfig(id: string, input: UpdateCronJobInput): CronJobRecord {
@@ -137,7 +186,7 @@ export class CronService {
     id: string,
     mutate: (job: CronJobRecord) => void,
   ): CronJobRecord {
-    const jobs = this.storage.readJobs();
+    const jobs = this.storage.readJobs().map(hydrateAutomationJob);
     const job = withMutatedCronJob(jobs, id, mutate);
     this.storage.writeJobs(jobs);
     return job;

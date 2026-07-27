@@ -1,0 +1,155 @@
+.recovery-shell {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  overflow: hidden;
+  padding: 32px;
+  color: var(--text-primary);
+  background:
+    linear-gradient(rgba(255, 111, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 111, 0, 0.025) 1px, transparent 1px),
+    #0b0a09;
+  background-size: 48px 48px;
+}
+
+.recovery-glow {
+  position: absolute;
+  width: min(70vw, 760px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 111, 0, 0.16) 0,
+    rgba(255, 111, 0, 0.04) 38%,
+    transparent 68%
+  );
+  filter: blur(14px);
+  pointer-events: none;
+}
+
+.recovery-card {
+  position: relative;
+  width: min(100%, 560px);
+  padding: clamp(28px, 5vw, 52px);
+  border: 1px solid var(--line-strong);
+  border-radius: 22px;
+  background: rgba(18, 16, 14, 0.92);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.5),
+    inset 0 1px rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(22px);
+}
+
+.recovery-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 32px;
+  place-items: center;
+  border-radius: 14px;
+  color: #130b04;
+  font-size: 23px;
+  font-weight: 950;
+  background: var(--orange);
+  box-shadow: 0 10px 34px rgba(255, 111, 0, 0.24);
+}
+
+.recovery-eyebrow {
+  margin: 0 0 12px;
+  color: var(--orange);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.recovery-card h1 {
+  margin: 0;
+  font-size: clamp(32px, 6vw, 52px);
+  letter-spacing: -0.045em;
+}
+
+.recovery-copy {
+  max-width: 440px;
+  margin: 18px 0 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.recovery-actions button,
+.recovery-details button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  font: inherit;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.recovery-actions .recovery-primary {
+  border-color: var(--orange);
+  color: #130b04;
+  background: var(--orange);
+}
+
+.recovery-actions button:hover,
+.recovery-details button:hover {
+  border-color: var(--orange);
+  transform: translateY(-1px);
+}
+
+.recovery-actions button:focus-visible,
+.recovery-details button:focus-visible,
+.recovery-details summary:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 3px;
+}
+
+.recovery-details {
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  color: var(--text-muted);
+}
+
+.recovery-details summary {
+  width: max-content;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recovery-details pre {
+  max-height: 160px;
+  overflow: auto;
+  margin: 16px 0 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: #090806;
+  font: 12px / 1.55 var(--mono);
+  white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recovery-actions button,
+  .recovery-details button {
+    transform: none;
+  }
+}

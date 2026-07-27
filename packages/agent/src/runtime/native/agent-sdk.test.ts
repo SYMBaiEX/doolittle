@@ -40,11 +40,18 @@ function installAgentSdkMocks({
       },
     ],
   }));
-  mock.module("@elizaos/agent/services/skill-catalog-client", () => ({
+  mock.module("./skill-catalog-compat", () => ({
     getCatalogSkill: (slug: string) => ({
       slug,
       displayName: "Skill",
-      stats: { installsCurrent: 1, stars: 2 },
+      summary: "Skill summary",
+      tags: { source: "bundled" },
+      stats: {
+        installsCurrent: 1,
+        installsAllTime: 1,
+        stars: 2,
+        versions: 1,
+      },
     }),
     getCatalogSkills: () => {
       if (catalogShouldFail) {
@@ -54,12 +61,26 @@ function installAgentSdkMocks({
         {
           slug: "planner",
           displayName: "Planner",
-          stats: { installsCurrent: 101, stars: 999 },
+          summary: "Plan work",
+          tags: { source: "bundled" },
+          stats: {
+            installsCurrent: 101,
+            installsAllTime: 101,
+            stars: 999,
+            versions: 1,
+          },
         },
         {
           slug: "browser",
           displayName: "Browser",
-          stats: { installsCurrent: 15, stars: 77 },
+          summary: "Browse pages",
+          tags: { source: "bundled" },
+          stats: {
+            installsCurrent: 15,
+            installsAllTime: 15,
+            stars: 77,
+            versions: 1,
+          },
         },
       ];
     },
@@ -67,7 +88,14 @@ function installAgentSdkMocks({
       {
         slug: "planner",
         displayName: "Planner",
-        stats: { installsCurrent: 100, stars: 20 },
+        summary: "Plan work",
+        tags: { source: "bundled" },
+        stats: {
+          installsCurrent: 100,
+          installsAllTime: 100,
+          stars: 20,
+          versions: 1,
+        },
       },
     ],
     searchCatalogSkills: () => {
@@ -78,7 +106,14 @@ function installAgentSdkMocks({
         {
           slug: "planner",
           displayName: "Planner",
-          stats: { installsCurrent: 100, stars: 20 },
+          summary: "Plan work",
+          tags: { source: "bundled" },
+          stats: {
+            installsCurrent: 100,
+            installsAllTime: 100,
+            stars: 20,
+            versions: 1,
+          },
         },
       ];
     },

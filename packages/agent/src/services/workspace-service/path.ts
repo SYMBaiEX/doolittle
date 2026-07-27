@@ -1,3 +1,4 @@
+import { existsSync, realpathSync } from "node:fs";
 import { dirname, join, normalize, resolve, sep } from "node:path";
 
 export function resolveWorkspacePath(
@@ -28,4 +29,28 @@ export function workspaceRelativePath(candidate: string): string {
 
 export function workspaceDirname(path: string): string {
   return dirname(path);
+}
+
+export function assertWorkspacePathResolvesInside(
+  workspaceDir: string,
+  candidate: string,
+): void {
+  const realWorkspace = realpathSync(workspaceDir);
+  let existingAncestor = candidate;
+  while (!existsSync(existingAncestor)) {
+    const parent = dirname(existingAncestor);
+    if (parent === existingAncestor) break;
+    existingAncestor = parent;
+  }
+
+  const realCandidate = realpathSync(existingAncestor);
+  const normalizedWorkspace = normalize(
+    realWorkspace.endsWith(sep) ? realWorkspace : `${realWorkspace}${sep}`,
+  );
+  if (
+    realCandidate !== realWorkspace &&
+    !realCandidate.startsWith(normalizedWorkspace)
+  ) {
+    throw new Error("Workspace path cannot resolve outside the workspace.");
+  }
 }

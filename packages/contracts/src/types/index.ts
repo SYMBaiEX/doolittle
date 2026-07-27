@@ -1,3 +1,4 @@
+export * from "./automation";
 export * from "./browser";
 export * from "./plugin-catalog";
 export * from "./records";

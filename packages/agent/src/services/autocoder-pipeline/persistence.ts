@@ -11,6 +11,7 @@ export interface AutocoderPipelineStore {
 }
 
 export interface AutocoderPipelinePersistence {
+  readonly artifactRoot: string;
   loadStore(): AutocoderPipelineStore;
   saveStore(store: AutocoderPipelineStore): void;
   writeArtifact(
@@ -39,6 +40,7 @@ export function createAutocoderPipelinePersistence(
   const storePath = join(rootDir, "pipeline-runs.json");
 
   return {
+    artifactRoot: artifactDir,
     loadStore(): AutocoderPipelineStore {
       if (!existsSync(storePath)) {
         return { runs: [], workflows: [] };

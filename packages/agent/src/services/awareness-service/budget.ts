@@ -1,4 +1,4 @@
-import type { AwarenessContributor } from "@elizaos/autonomous/contracts/awareness";
+import type { AwarenessContributor } from "@elizaos/agent/contracts/awareness";
 import type { AppServices } from "../types";
 import { formatRunDetail } from "./run-detail";
 import { activeRuns } from "./state";

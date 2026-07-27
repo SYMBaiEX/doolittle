@@ -8,6 +8,10 @@ import {
   failAutocoderWorkflowContext,
 } from "@/server/autocoder-workflow-context";
 import { json } from "@/server/responses";
+import {
+  executeTrackedAutocoderRun,
+  isAutocoderCancellation,
+} from "@/server/routes/codegen/run-execution";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
 
 export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
@@ -35,20 +39,23 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
     });
 
     try {
-      const repository = await createEffectiveRepository(
-        context.runtime,
-        body.name,
-        body.private ?? true,
+      const { run, result: repository } = await executeTrackedAutocoderRun(
+        context,
+        {
+          workflowId: workflow.workflowId,
+          kind: "github.create",
+          repositoryName: body.name,
+          sessionId: workflow.sessionId,
+          taskId: workflow.taskId,
+          request: { name: body.name, private: body.private ?? true },
+        },
+        () =>
+          createEffectiveRepository(
+            context.runtime,
+            body.name as string,
+            body.private ?? true,
+          ),
       );
-      const run = context.services.autocoderPipeline.record({
-        workflowId: workflow.workflowId,
-        kind: "github.create",
-        repositoryName: body.name,
-        sessionId: workflow.sessionId,
-        taskId: workflow.taskId,
-        request: { name: body.name, private: body.private ?? true },
-        result: repository,
-      });
       completeAutocoderWorkflowContext(
         context,
         workflow.taskId,
@@ -62,6 +69,24 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
         repository,
       });
     } catch (error) {
+      if (isAutocoderCancellation(error)) {
+        failAutocoderWorkflowContext(
+          context,
+          workflow.taskId,
+          workflow.workflowId,
+          error,
+        );
+        return json(
+          {
+            error: error.message,
+            runId: error.runId,
+            workflowId: workflow.workflowId,
+            taskId: workflow.taskId,
+            cancelled: true,
+          },
+          409,
+        );
+      }
       failAutocoderWorkflowContext(
         context,
         workflow.taskId,
@@ -87,19 +112,18 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
     });
 
     try {
-      const deleted = await deleteEffectiveRepository(
-        context.runtime,
-        body.name,
+      const { run, result: deleted } = await executeTrackedAutocoderRun(
+        context,
+        {
+          workflowId: workflow.workflowId,
+          kind: "github.delete",
+          repositoryName: body.name,
+          sessionId: workflow.sessionId,
+          taskId: workflow.taskId,
+          request: { name: body.name },
+        },
+        () => deleteEffectiveRepository(context.runtime, body.name as string),
       );
-      const run = context.services.autocoderPipeline.record({
-        workflowId: workflow.workflowId,
-        kind: "github.delete",
-        repositoryName: body.name,
-        sessionId: workflow.sessionId,
-        taskId: workflow.taskId,
-        request: { name: body.name },
-        result: deleted,
-      });
       completeAutocoderWorkflowContext(
         context,
         workflow.taskId,
@@ -113,6 +137,24 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
         deleted,
       });
     } catch (error) {
+      if (isAutocoderCancellation(error)) {
+        failAutocoderWorkflowContext(
+          context,
+          workflow.taskId,
+          workflow.workflowId,
+          error,
+        );
+        return json(
+          {
+            error: error.message,
+            runId: error.runId,
+            workflowId: workflow.workflowId,
+            taskId: workflow.taskId,
+            cancelled: true,
+          },
+          409,
+        );
+      }
       failAutocoderWorkflowContext(
         context,
         workflow.taskId,

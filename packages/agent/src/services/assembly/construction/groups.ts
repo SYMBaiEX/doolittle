@@ -27,6 +27,7 @@ export function createServiceAssemblyEagerServices(
     workspace: state.workspace,
     terminal: state.terminal,
     repository: state.repository,
+    reviewRecords: state.reviewRecords,
     tools: state.tools,
     mcp: state.mcp,
     acp: state.acp,

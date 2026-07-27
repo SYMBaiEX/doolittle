@@ -35,48 +35,52 @@ export async function runNativeMessageTurn(input: {
 }): Promise<string> {
   const turn = input.turnSetup.turn;
   const scheduleProfileObservation = input.turnSetup.scheduleProfileObservation;
+  const hasAttachments = Boolean(input.effectiveInput.attachments?.length);
 
-  const profileMemoryResponse = await handleProfileMemoryModelTurn({
-    context: input.context,
-    turn,
-    userId: input.effectiveInput.userId,
-    message: input.effectiveInput.message,
-    scheduleProfileObservation,
-    options: input.options,
-    perf: input.perf,
-    source: input.input.source,
-  });
-  if (profileMemoryResponse) {
-    return profileMemoryResponse;
-  }
+  if (!hasAttachments) {
+    const profileMemoryResponse = await handleProfileMemoryModelTurn({
+      context: input.context,
+      turn,
+      userId: input.effectiveInput.userId,
+      message: input.effectiveInput.message,
+      scheduleProfileObservation,
+      options: input.options,
+      perf: input.perf,
+      source: input.input.source,
+    });
+    if (profileMemoryResponse) {
+      return profileMemoryResponse;
+    }
 
-  const soulIdentityResponse = await handleSoulIdentityModelTurn({
-    context: input.context,
-    turn,
-    userId: input.effectiveInput.userId,
-    message: input.effectiveInput.message,
-    scheduleProfileObservation,
-    options: input.options,
-    perf: input.perf,
-    source: input.input.source,
-  });
-  if (soulIdentityResponse) {
-    return soulIdentityResponse;
-  }
+    const soulIdentityResponse = await handleSoulIdentityModelTurn({
+      context: input.context,
+      turn,
+      userId: input.effectiveInput.userId,
+      message: input.effectiveInput.message,
+      scheduleProfileObservation,
+      options: input.options,
+      perf: input.perf,
+      source: input.input.source,
+    });
+    if (soulIdentityResponse) {
+      return soulIdentityResponse;
+    }
 
-  const directInformationalResponse = await handleDirectInformationalModelTurn({
-    context: input.context,
-    turn,
-    userId: input.effectiveInput.userId,
-    message: input.effectiveInput.message,
-    classification: input.turnSetup.turnClassification,
-    scheduleProfileObservation,
-    options: input.options,
-    perf: input.perf,
-    source: input.input.source,
-  });
-  if (directInformationalResponse) {
-    return directInformationalResponse;
+    const directInformationalResponse =
+      await handleDirectInformationalModelTurn({
+        context: input.context,
+        turn,
+        userId: input.effectiveInput.userId,
+        message: input.effectiveInput.message,
+        classification: input.turnSetup.turnClassification,
+        scheduleProfileObservation,
+        options: input.options,
+        perf: input.perf,
+        source: input.input.source,
+      });
+    if (directInformationalResponse) {
+      return directInformationalResponse;
+    }
   }
 
   const preferredLocalIntentFastPath = await runPreferredLocalIntentFastPath({
@@ -86,6 +90,7 @@ export async function runNativeMessageTurn(input: {
     options: input.options,
     turn,
     scheduleProfileObservation,
+    allowDirectResponse: !hasAttachments,
   });
   const { loadDirectLocalIntent, preferredLocalIntent } =
     preferredLocalIntentFastPath;

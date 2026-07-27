@@ -1,4 +1,4 @@
-import type { AwarenessContributor } from "@elizaos/autonomous/contracts/awareness";
+import type { AwarenessContributor } from "@elizaos/agent/contracts/awareness";
 import type { AppServices } from "../types";
 
 export function createRuntimeContributor(): AwarenessContributor {

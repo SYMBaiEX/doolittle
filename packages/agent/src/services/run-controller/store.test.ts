@@ -1,6 +1,17 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { RunControllerStore } from "./store";
 import type { RunSnapshot } from "./types";
+
+const tempDirectories: string[] = [];
+
+afterEach(() => {
+  for (const directory of tempDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 const baseRun: RunSnapshot = {
   runId: "run-a",
@@ -75,5 +86,46 @@ describe("run-controller/store", () => {
       observedActionCount: 1,
       runId: "run-b",
     });
+  });
+
+  it("restores terminal receipts across service restarts", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-receipts-"));
+    tempDirectories.push(dataDir);
+    const store = new RunControllerStore(dataDir);
+    store.save(baseRun);
+    store.apply("session-a", {
+      ...baseRun,
+      status: "cancelled",
+      terminalReason: "cancelled",
+      endedAt: "2026-01-01T00:00:02.000Z",
+      updatedAt: "2026-01-01T00:00:02.000Z",
+    });
+
+    const restored = new RunControllerStore(dataDir);
+
+    expect(restored.getByRunId("run-a")).toMatchObject({
+      status: "cancelled",
+      terminalReason: "cancelled",
+      endedAt: "2026-01-01T00:00:02.000Z",
+    });
+    expect(restored.list()).toEqual([]);
+  });
+
+  it("turns an interrupted persisted run into an honest terminal receipt", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-receipts-"));
+    tempDirectories.push(dataDir);
+    const store = new RunControllerStore(dataDir);
+    store.save(baseRun);
+
+    const restored = new RunControllerStore(dataDir);
+
+    expect(restored.getByRunId("run-a")).toMatchObject({
+      status: "error",
+      terminalReason: "error",
+      statusDetail: "Interrupted by runtime restart",
+      errorMessage: "Runtime restarted before this run completed.",
+      endedAt: expect.any(String),
+    });
+    expect(restored.get("session-a")).toBeUndefined();
   });
 });

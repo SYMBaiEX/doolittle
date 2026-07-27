@@ -1,8 +1,8 @@
-import { getGlobalAwarenessRegistry } from "@elizaos/autonomous/awareness/registry";
+import { getGlobalAwarenessRegistry } from "@elizaos/agent/awareness/registry";
 import {
   registerTriggerTaskWorker,
   triggersFeatureEnabled,
-} from "@elizaos/autonomous/triggers/runtime";
+} from "@elizaos/agent/triggers/runtime";
 import {
   EventType,
   type HookToolPayload,

@@ -4,23 +4,23 @@ import {
   listNonAppPlugins,
   searchNonAppPlugins,
 } from "@elizaos/agent/services/registry-client";
-import {
-  type CatalogSkill,
-  getCatalogSkill,
-  getCatalogSkills,
-  getTrendingSkills,
-  searchCatalogSkills,
-} from "@elizaos/agent/services/skill-catalog-client";
 import { CHANNEL_DIST_TAGS } from "@elizaos/agent/services/update-checker";
 import {
   AI_PROVIDER_PLUGINS,
   getInstalledVersion,
   validatePluginCompat,
 } from "@elizaos/agent/services/version-compat";
+import {
+  type CatalogSkill,
+  getCatalogSkill,
+  getCatalogSkills,
+  getTrendingSkills,
+  searchCatalogSkills,
+} from "./skill-catalog-compat";
 
 const FOUNDATION_PACKAGES = [
   "@elizaos/agent",
-  "@elizaos/autonomous",
+  "elizaos",
   "@elizaos/skills",
 ] as const;
 

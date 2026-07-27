@@ -21,7 +21,7 @@ describe("env loading", () => {
     expect(calls).toEqual([
       {
         path: "/repo/.env",
-        override: true,
+        override: false,
         quiet: true,
       },
     ]);
@@ -40,7 +40,7 @@ describe("env loading", () => {
 
     expect(calls).toEqual([
       {
-        override: true,
+        override: false,
         quiet: true,
       },
     ]);

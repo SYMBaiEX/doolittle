@@ -5,7 +5,7 @@ import {
   loadSkillEntries,
   type SkillCommandSpec,
   type SkillEntry,
-} from "@elizaos/skills";
+} from "@elizaos/skills/index";
 import type { SkillDocument } from "@/types";
 import { isUnderPath, stripSkillSuffix, titleFromPath } from "./paths";
 import type { NativeSkillRoots, SkillSource } from "./types";

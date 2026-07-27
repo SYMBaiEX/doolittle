@@ -14,7 +14,7 @@ export function buildBootstrapEnvUpdates(
       answers.provider === "elizacloud" && Boolean(answers.elizaCloudApiKey),
     ),
     ELIZAOS_CLOUD_API_KEY: answers.elizaCloudApiKey,
-    ELIZAOS_CLOUD_BASE_URL: "https://www.elizacloud.ai/api/v1",
+    ELIZAOS_CLOUD_BASE_URL: "https://elizacloud.ai/api/v1",
     ELIZAOS_CLOUD_SMALL_MODEL: answers.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: answers.elizaCloudModel,
     ELIZAOS_CLOUD_EMBEDDING_MODEL: answers.elizaCloudEmbeddingModel,

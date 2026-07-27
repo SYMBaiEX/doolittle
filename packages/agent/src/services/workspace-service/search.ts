@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type { WorkspaceEntry } from "@/types";
 import { resolveWorkspacePath } from "./path";
 import { listWorkspaceTree } from "./tree";
 
@@ -12,6 +13,10 @@ export function searchWorkspace(
   query: string,
   maxResults: number = 25,
 ): WorkspaceSearchResult[] {
+  if (maxResults <= 0) {
+    return [];
+  }
+
   const ripgrepResults = searchWorkspaceWithRipgrep(
     workspaceDir,
     query,
@@ -21,14 +26,22 @@ export function searchWorkspace(
     return ripgrepResults;
   }
 
-  const lowerQuery = query.toLowerCase();
+  return searchWorkspaceWithoutRipgrep(workspaceDir, query, maxResults);
+}
+
+export function searchWorkspaceWithoutRipgrep(
+  workspaceDir: string,
+  query: string,
+  maxResults: number = 25,
+): WorkspaceSearchResult[] {
+  const lowerQuery = query.trim().toLowerCase();
+  if (!lowerQuery || maxResults <= 0) {
+    return [];
+  }
+
   const results: WorkspaceSearchResult[] = [];
 
-  for (const entry of listWorkspaceTree(workspaceDir, 8)) {
-    if (entry.type !== "file") {
-      continue;
-    }
-
+  for (const entry of searchableWorkspaceFiles(workspaceDir)) {
     const absolutePath = resolveWorkspacePath(workspaceDir, entry.path);
     let content = "";
     try {
@@ -63,72 +76,106 @@ export function searchWorkspaceWithRipgrep(
   maxResults: number,
 ): WorkspaceSearchResult[] | undefined {
   const trimmed = query.trim();
-  if (!trimmed) {
+  if (!trimmed || maxResults <= 0) {
+    return [];
+  }
+
+  const files = searchableWorkspaceFiles(workspaceDir).map(
+    (entry) => entry.path,
+  );
+  if (!files.length) {
     return [];
   }
 
   try {
-    const proc = Bun.spawnSync({
-      cmd: [
-        "rg",
-        "--no-heading",
-        "--line-number",
-        "--color",
-        "never",
-        "--hidden",
-        "--fixed-strings",
-        "--max-count",
-        "3",
-        "--glob",
-        "!.git",
-        "--glob",
-        "!node_modules",
-        "--glob",
-        "!.doolittle",
-        "--glob",
-        "!dist",
-        trimmed,
-        ".",
-      ],
-      cwd: workspaceDir,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    if (proc.exitCode !== 0 && proc.exitCode !== 1) {
-      return undefined;
-    }
-
-    const stdout = proc.stdout ? Buffer.from(proc.stdout).toString("utf8") : "";
-    if (!stdout.trim()) {
-      return [];
-    }
-
     const grouped = new Map<string, string[]>();
-    for (const line of stdout.split("\n")) {
-      if (!line.trim()) {
-        continue;
+
+    for (const batch of batchSearchPaths(files)) {
+      const proc = Bun.spawnSync({
+        cmd: [
+          "rg",
+          "--no-heading",
+          "--with-filename",
+          "--line-number",
+          "--color",
+          "never",
+          "--no-ignore",
+          "--fixed-strings",
+          "--max-count",
+          "3",
+          trimmed,
+          "--",
+          ...batch,
+        ],
+        cwd: workspaceDir,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+
+      if (proc.exitCode !== 0 && proc.exitCode !== 1) {
+        return undefined;
       }
-      const match = line.match(/^(.+?):\d+:(.*)$/u);
-      if (!match) {
-        continue;
+
+      const stdout = proc.stdout
+        ? Buffer.from(proc.stdout).toString("utf8")
+        : "";
+      for (const line of stdout.split("\n")) {
+        if (!line.trim()) {
+          continue;
+        }
+        const match = line.match(/^(.+?):\d+:(.*)$/u);
+        if (!match) {
+          continue;
+        }
+        const [, path, content] = match;
+        const normalizedPath = path.replaceAll("\\", "/");
+        const existing = grouped.get(normalizedPath) ?? [];
+        if (existing.length < 3) {
+          existing.push(content);
+        }
+        grouped.set(normalizedPath, existing);
+        if (grouped.size >= maxResults) {
+          break;
+        }
       }
-      const [, path, content] = match;
-      const existing = grouped.get(path) ?? [];
-      if (existing.length < 3) {
-        existing.push(content);
-      }
-      grouped.set(path, existing);
+
       if (grouped.size >= maxResults) {
         break;
       }
     }
 
     return Array.from(grouped.entries()).map(([path, matches]) => ({
-      path: path.replaceAll("\\", "/"),
+      path,
       matches,
     }));
   } catch {
     return undefined;
   }
+}
+
+function searchableWorkspaceFiles(workspaceDir: string): WorkspaceEntry[] {
+  return listWorkspaceTree(workspaceDir, 8).filter(
+    (entry) => entry.type === "file",
+  );
+}
+
+function batchSearchPaths(paths: string[]): string[][] {
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  let batchLength = 0;
+
+  for (const path of paths) {
+    if (batch.length >= 256 || batchLength + path.length > 24_000) {
+      batches.push(batch);
+      batch = [];
+      batchLength = 0;
+    }
+    batch.push(path);
+    batchLength += path.length + 1;
+  }
+
+  if (batch.length) {
+    batches.push(batch);
+  }
+  return batches;
 }

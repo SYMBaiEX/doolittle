@@ -14,14 +14,14 @@ export async function renderEcosystemContent(
   const resolution = snapshot.ownership.controlPlane.serviceResolution;
   const ecosystem = snapshot.workspace.summary;
   const latest = snapshot.runtime.latest;
-  const alpha = snapshot.runtime.alpha;
+  const beta = snapshot.runtime.beta;
   const aligned = audit.packages.filter(
     (entry: (typeof audit.packages)[number]) =>
       entry.compatibility === "aligned",
   ).length;
-  const alphaOnly = audit.packages.filter(
+  const betaOnly = audit.packages.filter(
     (entry: (typeof audit.packages)[number]) =>
-      entry.compatibility === "alpha-only",
+      entry.compatibility === "beta-only",
   ).length;
   const laggingLatest = audit.packages.filter(
     (entry: (typeof audit.packages)[number]) =>
@@ -39,11 +39,11 @@ export async function renderEcosystemContent(
   return [
     "{bold}Runtime Line{/}",
     `Latest: {cyan-fg}${latest}{/}`,
-    `Alpha: {green-fg}${alpha}{/}`,
+    `Beta: {green-fg}${beta}{/}`,
     "",
     "{bold}Package Audit{/}",
     `Aligned: ${aligned}`,
-    `Alpha-only: ${alphaOnly}`,
+    `Beta-only: ${betaOnly}`,
     `Lagging latest: ${laggingLatest}`,
     `Vendored: ${vendored}`,
     `Workspace-only: ${workspaceOnly}`,

@@ -33,3 +33,28 @@ export async function getEffectivePlan(runtime: RuntimeLike, planId: string) {
     "planning service",
   )(planId);
 }
+
+export async function approveEffectivePlan(
+  runtime: RuntimeLike,
+  planId: string,
+) {
+  return resolveMethod<Svc, "approvePlan">(
+    runtime,
+    KEY,
+    "approvePlan",
+    "planning service with reviewed-plan approval",
+  )(planId);
+}
+
+export async function steerEffectivePlan(
+  runtime: RuntimeLike,
+  planId: string,
+  instruction: string,
+) {
+  return resolveMethod<Svc, "steerPlan">(
+    runtime,
+    KEY,
+    "steerPlan",
+    "planning service with operator steering",
+  )(planId, instruction);
+}

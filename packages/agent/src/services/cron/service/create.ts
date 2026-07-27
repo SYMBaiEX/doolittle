@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CronJobRecord } from "@/types";
+import { buildAutomationDefinition } from "../definition";
 import {
   computeNextRunAt,
   isEverySchedule,
@@ -12,19 +13,28 @@ export function buildCronJobRecord(
   now: Date,
   timezone: string,
 ): CronJobRecord {
-  const firstRun = computeNextRunAt(input.schedule, now, timezone);
+  const definition = buildAutomationDefinition(input);
+  const firstRun =
+    definition.trigger.type === "schedule"
+      ? computeNextRunAt(definition.trigger.schedule, now, timezone)
+      : undefined;
   return {
     id: randomUUID(),
-    name: input.name,
-    prompt: input.prompt,
-    schedule: input.schedule,
+    name: input.name.trim(),
+    prompt: definition.prompt,
+    schedule: definition.schedule,
     delivery: input.delivery ?? "local",
     skills: input.skills ?? [],
     runtime: normalizeRuntimeOverrides(input.runtime),
     status: "active",
-    oneShot: !isEverySchedule(input.schedule),
-    nextRunAt: firstRun.toISOString(),
+    oneShot:
+      definition.trigger.type === "schedule" &&
+      !isEverySchedule(definition.trigger.schedule),
+    nextRunAt: firstRun?.toISOString(),
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
+    trigger: definition.trigger,
+    condition: definition.condition,
+    action: definition.action,
   };
 }

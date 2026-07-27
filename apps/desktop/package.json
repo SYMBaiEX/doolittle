@@ -1,0 +1,141 @@
+{
+  "name": "@doolittle/desktop",
+  "version": "0.1.0",
+  "description": "Native desktop application for the Doolittle ElizaOS agent runtime",
+  "author": "SYMBaiEX",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/main.cjs",
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "build": "bun run build:main && bun run build:renderer",
+    "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
+    "build:renderer": "vite build --config vite.renderer.config.ts",
+    "runtime:prepare": "bun run scripts/prepare-runtime.ts",
+    "runtime:prepare:win": "bunx --bun bun@1.3.11 scripts/prepare-runtime.ts --target=win-x64",
+    "package": "bun run build && bun run runtime:prepare && electron-builder",
+    "package:dir": "bun run build && bun run runtime:prepare && bun run scripts/package.ts --dir",
+    "package:mac": "bun run build && bun run runtime:prepare && electron-builder --mac dmg zip",
+    "package:win": "bun run build && bun run runtime:prepare:win && electron-builder --win nsis --x64",
+    "package:linux": "bun run build && bun run runtime:prepare && electron-builder --linux AppImage deb",
+    "typecheck": "tsc -b tsconfig.main.json tsconfig.renderer.json",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.5"
+  },
+  "trustedDependencies": [
+    "electron"
+  ],
+  "build": {
+    "appId": "ai.doolittle.desktop",
+    "productName": "Doolittle",
+    "executableName": "Doolittle",
+    "artifactName": "Doolittle-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/runtime",
+        "to": "runtime/bin"
+      },
+      {
+        "from": "../../package.json",
+        "to": "runtime/package.json"
+      },
+      {
+        "from": "../../AGENTS.md",
+        "to": "runtime/AGENTS.md"
+      },
+      {
+        "from": "../../packages/skills",
+        "to": "runtime/packages/skills",
+        "filter": [
+          "**/*",
+          "!**/dist/**",
+          "!**/node_modules/**",
+          "!**/*.test.ts"
+        ]
+      },
+      {
+        "from": "../../packages/skill-packs-optional",
+        "to": "runtime/packages/skill-packs-optional",
+        "filter": [
+          "**/*",
+          "!**/dist/**",
+          "!**/node_modules/**",
+          "!**/*.test.ts"
+        ]
+      },
+      {
+        "from": "../../packages/characters",
+        "to": "runtime/packages/characters",
+        "filter": [
+          "**/*",
+          "!**/dist/**",
+          "!**/node_modules/**",
+          "!**/*.test.ts"
+        ]
+      }
+    ],
+    "mac": {
+      "binaries": [
+        "Contents/Resources/runtime/bin/doolittle-runtime"
+      ],
+      "category": "public.app-category.productivity",
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.inherit.plist",
+      "hardenedRuntime": true,
+      "icon": "assets/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "category": "Utility",
+      "icon": "assets/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Doolittle",
+      "uninstallDisplayName": "Doolittle"
+    }
+  }
+}

@@ -1,10 +1,10 @@
-import { validateCloudBaseUrl } from "@elizaos/autonomous/cloud/validate-url";
 import { displayCommand } from "@/runtime/commands/command-execution";
 import {
   getLinkedProviderAccountsSnapshot,
   resolveLinkedProviderCredentials,
 } from "@/runtime/native/account-auth";
 import type { AgentExecutionContext } from "../chat";
+import { validateCloudBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 
 const providerReadinessCache = new WeakMap<

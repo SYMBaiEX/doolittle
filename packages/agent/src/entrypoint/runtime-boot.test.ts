@@ -80,6 +80,7 @@ describe("prepareEntrypointRuntimeBoot", () => {
         importServer: async () => ({
           startApiServer: () => {
             startApiServerCalls.push("started");
+            return { host: "127.0.0.1", port: 0, url: "http://127.0.0.1:0" };
           },
         }),
       },

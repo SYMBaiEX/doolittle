@@ -23,8 +23,10 @@ export function getNativePlanningControlPlane(
       linkedWorkflows,
     },
     supportsCreate: typeof planning?.createPlan === "function",
+    supportsApprove: typeof planning?.approvePlan === "function",
+    supportsSteer: typeof planning?.steerPlan === "function",
     detail: planning
-      ? `Planning service is live with ${plans.length} plans, ${linkedTasks} linked tasks, and ${linkedWorkflows} linked workflows.`
+      ? `Planning service is live with ${plans.length} plans, ${linkedTasks} linked tasks, ${linkedWorkflows} linked workflows, and reviewed operator controls.`
       : "Planning service is not available in the native runtime.",
   };
 }

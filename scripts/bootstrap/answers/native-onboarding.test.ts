@@ -175,4 +175,15 @@ describe("bootstrap native onboarding mirror", () => {
     );
     expect(mirror.serialized).toBeUndefined();
   });
+
+  it("returns a graceful failure result when core no longer exposes onboarding helpers", async () => {
+    const mirror = await buildNativeOnboardingMirror(baseAnswers, "wizard");
+
+    expect(mirror.complete).toBe(false);
+    expect(mirror.currentStep).toBe("ERROR");
+    expect(mirror.summary).toBe(
+      "Native onboarding mirror unavailable: @elizaos/core no longer exports the onboarding state machine in 2.0.3-beta.7",
+    );
+    expect(mirror.serialized).toBeUndefined();
+  });
 });

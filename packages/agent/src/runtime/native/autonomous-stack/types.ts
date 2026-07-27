@@ -1,4 +1,12 @@
-import type { OnboardingConnection } from "@elizaos/autonomous/contracts/onboarding";
+type OnboardingConnection =
+  | { kind: "cloud-managed"; smallModel?: string; largeModel?: string }
+  | {
+      kind: "remote-provider";
+      provider?: string;
+      remoteApiBase: string;
+      primaryModel?: string;
+    }
+  | { kind: "local-provider"; provider: string; primaryModel?: string };
 
 export interface AutonomousConnectionSummary {
   source: "provider-switch-config";
@@ -18,6 +26,7 @@ export interface AutonomousCompatConfig extends Record<string, unknown> {
   features: Record<string, { enabled: boolean }>;
   agents: {
     defaults: {
+      subscriptionProvider?: string;
       model?: {
         primary: string;
       };

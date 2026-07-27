@@ -10,6 +10,12 @@ bash scripts/install.sh
 
 This performs dependency install, creates missing defaults, and launches the onboarding flow.
 
+If you want the desktop app to launch automatically after bootstrap:
+
+```bash
+bash scripts/install.sh --desktop
+```
+
 The default mind is local Ollama through the official ElizaOS Ollama plugin. For a live first prompt, make sure Ollama is running, then pull the default models:
 
 ```bash
@@ -29,6 +35,15 @@ bash scripts/install.sh --skip-wizard
 bash scripts/install.sh --check
 bash scripts/install.sh --yes
 ```
+
+On Windows, install the standalone desktop build:
+
+```text
+apps/desktop/release/Doolittle-<version>-win-x64.exe
+```
+
+See [Desktop](desktop.md) for Windows packaging, installation, and first-launch
+details. The source bootstrap remains a macOS/Linux/WSL workflow.
 
 `--check` is the dry-run receipt. It reports the directories and files that setup
 would touch, including `.env`, `.doolittle/settings.json`,

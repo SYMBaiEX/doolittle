@@ -2,13 +2,13 @@ export interface NativePackageAuditRecord {
   packageName: string;
   role: string;
   currentStrategy: "official" | "vendored" | "custom";
-  currentTag: "latest" | "alpha" | "workspace";
+  currentTag: "latest" | "beta" | "workspace";
   latestTagVersion: string;
-  alphaTagVersion?: string;
+  betaTagVersion?: string;
   compatibility:
     | "aligned"
     | "lagging-latest"
-    | "alpha-only"
+    | "beta-only"
     | "workspace-only"
     | "vendored-by-design";
   note: string;
@@ -17,7 +17,7 @@ export interface NativePackageAuditRecord {
 export interface NativePackageAuditSummary {
   aligned: number;
   vendored: number;
-  alphaOnly: number;
+  betaOnly: number;
   laggingLatest: number;
   workspaceOnly: number;
 }
@@ -25,5 +25,5 @@ export interface NativePackageAuditSummary {
 export interface NativePackageAuditRuntimeLine {
   date: string;
   latest: string;
-  alpha: string;
+  beta: string;
 }

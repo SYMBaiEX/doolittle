@@ -8,7 +8,7 @@ Canonical runtime source: `@/runtime/native/plugin-catalog.ts`.
 | Runtime ID | Package | Category | Kind | Maturity | Persistence | Source | Workspace Path | Owner | Publish Intent | Tests | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | foundation.agent | @elizaos/agent | foundation | vendored | alpha | none | official | (external) | upstream | upstream-dependency | external | Standalone Eliza agent package used for native runtime and ecosystem alignment. |
-| foundation.autonomous | @elizaos/autonomous | foundation | vendored | alpha | none | official | (external) | upstream | upstream-dependency | external | Selective architectural source for native Eliza alignment. |
+| foundation.autonomous | elizaos | foundation | vendored | alpha | none | official | (external) | upstream | upstream-dependency | external | Selective architectural source for native Eliza alignment. |
 | foundation.skills | @elizaos/skills | foundation | vendored | alpha | none | official | (external) | upstream | upstream-dependency | external | First-party skills package used for native stack alignment. |
 | providers.sql | @elizaos/plugin-sql | providers | provider | production | none | official | packages/plugins/plugin-sql | doolittle-runtime | public-provider-bridge | covered | Primary SQL persistence plugin on the current runtime line. |
 | providers.pdf | @elizaos/plugin-pdf | providers | provider | production | none | official | (external) | upstream | upstream-dependency | external | Official PDF ingestion plugin. |

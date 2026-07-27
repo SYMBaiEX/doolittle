@@ -1,42 +1,18 @@
-import type {
-  Evaluator,
-  EvaluatorProcessorContext,
-  EvaluatorPromptContext,
-  EvaluatorRunContext,
-  JSONSchema,
-  Memory,
-} from "@elizaos/core";
+import type { Evaluator, Memory } from "@elizaos/core";
 import type { AppServices } from "@/services";
 
-type MemoryNudgeOutput = {
-  shouldStore: boolean;
-  target: "user" | "memory";
+type MemoryNudgePrepared = {
   fact: string;
-};
-
-const MEMORY_NUDGE_SCHEMA: JSONSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["shouldStore", "target", "fact"],
-  properties: {
-    shouldStore: {
-      type: "boolean",
-      description: "Whether the message contains a durable fact worth saving.",
-    },
-    target: {
-      type: "string",
-      enum: ["user", "memory"],
-      description:
-        'Use "user" for personal preferences about the user, otherwise "memory".',
-    },
-    fact: {
-      type: "string",
-      description: "The normalized fact to persist, without the leading cue.",
-    },
-  },
+  target: "user" | "memory";
 };
 
 const REMEMBER_CUE = /remember|save that|keep in mind/iu;
+const MEMORY_NUDGE_SCHEMA = {
+  type: "string",
+  enum: ["STORE"],
+  description:
+    'Always return "STORE". Doolittle persists explicit remember/save cues deterministically in a processor.',
+};
 
 function extractText(message: Memory): string {
   const content = message.content;
@@ -46,68 +22,76 @@ function extractText(message: Memory): string {
   return content?.text ?? "";
 }
 
+function extractMemoryNudge(message: Memory): MemoryNudgePrepared | null {
+  const text = extractText(message);
+  if (!text || !REMEMBER_CUE.test(text)) {
+    return null;
+  }
+
+  return {
+    fact: text
+      .replace(
+        /^\s*(?:please\s+)?(?:remember|save that|keep in mind)\s*(?:that\s*)?/iu,
+        "",
+      )
+      .trim(),
+    target: /\b(?:i prefer|my preference|remember that i)\b/iu.test(text)
+      ? "user"
+      : "memory",
+  };
+}
+
 /**
  * Persists explicit "remember this" cues into the Doolittle memory stores.
  *
- * Rewritten for the ElizaOS 2.0 beta evaluator contract: the regex still gates
- * whether the evaluator runs, but fact extraction is delegated to the model
- * (via `schema`/`prompt`/`parse`) and the write happens in a processor.
+ * The beta evaluator contract still requires schema/prompt plumbing, but the
+ * storage behavior stays deterministic in prepare/processors.
  */
 export function createMemoryNudgeEvaluator(
   services: AppServices,
-): Evaluator<MemoryNudgeOutput> {
+): Evaluator<"STORE", MemoryNudgePrepared> {
   return {
     name: "memoryNudge",
     description:
       "Stores explicit remember/save cues in the persistent memory stores.",
     similes: ["remember this", "save preference", "persist fact"],
     schema: MEMORY_NUDGE_SCHEMA,
-    shouldRun: async ({ message }: EvaluatorRunContext) => {
-      const text = extractText(message);
-      return Boolean(text && REMEMBER_CUE.test(text));
+    shouldRun: async ({ message }) => {
+      return extractMemoryNudge(message) !== null;
     },
-    prompt: ({ message }: EvaluatorPromptContext) => {
-      const text = extractText(message);
+    prepare: async ({ message }) => {
+      return extractMemoryNudge(message) ?? { fact: "", target: "memory" };
+    },
+    prompt: ({ prepared }) => {
+      if (!prepared.fact) {
+        return [
+          'Return "STORE".',
+          "An explicit remember/save cue was detected, but it did not include a fact to persist.",
+          "No additional extraction is needed.",
+        ].join("\n");
+      }
+
       return [
-        "The user asked the agent to remember something.",
-        `Message: "${text}"`,
-        "",
-        "Decide whether there is a durable fact worth persisting.",
-        'Set "target" to "user" for personal preferences (for example "I prefer",',
-        '"my preference", "remember that I"), otherwise "memory".',
-        'Strip leading cues such as "please" or "remember that" from the stored fact.',
+        'Return "STORE".',
+        `Doolittle will deterministically persist this explicit memory request to the ${prepared.target} store.`,
+        `Prepared fact: "${prepared.fact}"`,
       ].join("\n");
     },
-    parse: (output: unknown): MemoryNudgeOutput | null => {
-      if (!output || typeof output !== "object") {
-        return null;
-      }
-      const candidate = output as Record<string, unknown>;
-      const fact =
-        typeof candidate.fact === "string" ? candidate.fact.trim() : "";
-      if (!fact) {
-        return null;
-      }
-      return {
-        shouldStore: candidate.shouldStore !== false,
-        target: candidate.target === "user" ? "user" : "memory",
-        fact,
-      };
-    },
+    parse: () => "STORE",
     processors: [
       {
         name: "persist-memory-nudge",
-        process: async ({
-          output,
-        }: EvaluatorProcessorContext<MemoryNudgeOutput>) => {
-          if (!output.shouldStore || !output.fact) {
+        process: async ({ prepared }) => {
+          if (!prepared.fact) {
             return undefined;
           }
+
           try {
-            services.memory.add(output.target, output.fact);
+            services.memory.add(prepared.target, prepared.fact);
           } catch {
             // Ignore duplicate or over-limit writes inside the evaluator path.
           }
+
           return undefined;
         },
       },

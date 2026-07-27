@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
 
@@ -243,6 +247,93 @@ describe("chat turn orchestration", () => {
     expect(runSlashCommandTurn).not.toHaveBeenCalled();
     expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
     expect(retryInput?.message).toBe("ship the operator loop");
+  });
+
+  it("restores managed attachments when retrying a prior turn", async () => {
+    let retryInput: ChatTurnRequest | undefined;
+    const runPostCommandTurn = mock(
+      async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
+        retryInput = nextInput;
+        return "retried-with-attachment";
+      },
+    );
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-retry-attachment-"));
+    const attachmentsDir = join(dataDir, "attachments");
+    mkdirSync(attachmentsDir);
+    const contents = Buffer.from("# Review");
+    const descriptor = {
+      id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      name: "review.md",
+      kind: "document" as const,
+      mimeType: "text/markdown",
+      sizeBytes: contents.byteLength,
+      sha256: createHash("sha256").update(contents).digest("hex"),
+    };
+    writeFileSync(join(attachmentsDir, `${descriptor.id}.md`), contents);
+    writeFileSync(
+      join(attachmentsDir, `${descriptor.id}.meta.json`),
+      JSON.stringify({
+        version: 1,
+        ...descriptor,
+        storedName: `${descriptor.id}.md`,
+      }),
+    );
+    const media = {
+      id: descriptor.id,
+      url: `attachment://${descriptor.id}`,
+      title: descriptor.name,
+      source: "desktop",
+      contentType: "document" as const,
+      text: "# Review",
+      _data: "IyBSZXZpZXc=",
+      _mimeType: "text/markdown",
+    };
+    mock.module("@/runtime/chat-turn/command", () => ({
+      runSlashCommandTurn: async () => undefined,
+    }));
+    mock.module("@/runtime/chat-turn/post-command", () => ({
+      runPostCommandTurn,
+    }));
+    mockWorkflowCommands();
+
+    try {
+      const { handleAgentTurn } = await loadHandleAgentTurn();
+      const response = await handleAgentTurn(
+        createInput("/retry"),
+        createContext({
+          config: {
+            workspaceDir: "/workspace/demo",
+            dataDir,
+          },
+          services: {
+            ...createContext().services,
+            sessions: {
+              deleteLatestExchange: () => ({
+                sessionId: "room:alice",
+                userMessage: {
+                  id: "msg-1",
+                  sessionId: "room:alice",
+                  roomId: "room:alice",
+                  entityId: "alice",
+                  role: "user",
+                  text: "review this",
+                  attachments: [descriptor],
+                  createdAt: "2026-05-13T00:00:00.000Z",
+                },
+                assistantMessages: [],
+                deletedMessages: 2,
+              }),
+            },
+          },
+        } as unknown as Partial<AgentExecutionContext>),
+      );
+
+      expect(response).toBe("retried-with-attachment");
+      expect(retryInput?.attachments).toEqual([media]);
+      expect(retryInput?.attachmentDescriptors).toEqual([descriptor]);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
   });
 
   it("returns a truthful retry message when no prior conversational turn exists", async () => {

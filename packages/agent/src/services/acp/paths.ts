@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { getDefaultRepoRoot } from "@/config/env/paths";
 import type { AcpServicePaths } from "./types";
 
 export function createAcpServicePaths(dataDir: string): AcpServicePaths {
@@ -7,7 +8,7 @@ export function createAcpServicePaths(dataDir: string): AcpServicePaths {
   const registryPath = join(registryDir, "agent.json");
   const exportDir = join(registryDir, "exports");
   const importDir = join(registryDir, "imports");
-  const rootPackagePath = join(import.meta.dir, "../../../../package.json");
+  const rootPackagePath = join(getDefaultRepoRoot(), "package.json");
 
   mkdirSync(registryDir, { recursive: true });
   mkdirSync(exportDir, { recursive: true });

@@ -144,7 +144,7 @@ describe("tui render helpers", () => {
     expect(content).toContain("prod 2");
     expect(content).toContain("alpha 10");
     expect(content).toContain("exp 1");
-    expect(content).toContain("runtime {gray-fg}2.0.0-alpha.537{/}");
+    expect(content).toContain("runtime {gray-fg}2.0.3-beta.7{/}");
     expect(content).toContain("gateway sessions 2 · voice 1");
     expect(content).toContain("Current cockpit session");
     expect(content).toContain("Synthesized a router extraction helper.");

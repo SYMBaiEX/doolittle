@@ -114,7 +114,7 @@ export async function getNativeEcosystemSnapshot(
   return {
     runtime: {
       latest: getNativePackageAudit(config).runtime.latest,
-      alpha: getNativePackageAudit(config).runtime.alpha,
+      beta: getNativePackageAudit(config).runtime.beta,
     },
     accounts: getLinkedProviderAccountsSnapshot(),
     packageAudit: getNativePackageAudit(config),

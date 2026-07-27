@@ -30,9 +30,9 @@ export interface ToolRegistryDynamicState {
   nativeOwnershipControlPlane?: NativeOwnershipControlPlane;
   nativeOwnershipSnapshot?: NativeOwnershipSnapshot;
   nativeRuntimeLatest?: string;
-  nativeRuntimeAlpha?: string;
+  nativeRuntimeBeta?: string;
   nativeAlignedPackages?: number;
-  nativeAlphaOnlyPackages?: number;
+  nativeBetaOnlyPackages?: number;
   nativeLaggingLatestPackages?: number;
   nativeWorkspaceOnlyPackages?: number;
   agentSdkRegistryAvailable?: boolean;

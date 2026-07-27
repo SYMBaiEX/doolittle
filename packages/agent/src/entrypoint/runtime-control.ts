@@ -1,5 +1,6 @@
 import type { AppLogger } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
+import type { ApiServerAddress } from "@/server";
 import type { EntrypointSubcommand } from "./subcommand";
 
 export type ApiStartupContext = AppContext;
@@ -78,7 +79,9 @@ interface ApiStartupControllerOptions {
   command: EntrypointSubcommand;
   shouldStartCli: boolean;
   runtimeLogger: AppLogger;
-  startApiServer?: (context: ApiStartupContext) => void;
+  startApiServer?: (
+    context: ApiStartupContext,
+  ) => ApiServerAddress | undefined | Promise<ApiServerAddress | undefined>;
   writeStderrLine: (message: string) => void;
   formatTopLevelError: (error: unknown) => string;
 }
@@ -103,21 +106,23 @@ export function createApiStartupController(
   const startServer = async () => {
     try {
       await context.ensureDeferredHydration("api");
+      let serverAddress: ApiServerAddress | undefined;
       if (!startApiServer) {
         const server = await import("@/server");
-        server.startApiServer(context);
+        serverAddress = server.startApiServer(context);
       } else {
-        startApiServer(context);
+        serverAddress = await startApiServer(context);
       }
+      const host = serverAddress?.host ?? context.config.host;
+      const port = serverAddress?.port ?? context.config.port;
+      const url = serverAddress?.url ?? `http://${host}:${port}`;
       runtimeLogger.info("api-server-started", {
-        host: context.config.host,
-        port: context.config.port,
+        host,
+        port,
         command,
       });
       if (!shouldStartCli || command === "api" || command === "gateway") {
-        console.log(
-          `${context.config.agentName} API listening on http://${context.config.host}:${context.config.port}`,
-        );
+        console.log(`${context.config.agentName} API listening on ${url}`);
       }
     } catch (error) {
       const code =

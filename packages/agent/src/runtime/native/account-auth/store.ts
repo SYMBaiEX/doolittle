@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
+import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud-url";
 import { hasTokenCredentials } from "./credentials";
 import { readJson, writeJson } from "./shared";
 import type {

@@ -1,11 +1,46 @@
-import {
-  applySubscriptionProviderConfig,
-  resolveExistingOnboardingConnection,
-} from "@elizaos/autonomous/api/provider-switch-config";
-import { applyPluginAutoEnable } from "@elizaos/autonomous/config/plugin-auto-enable";
 import type { EnvConfig } from "@/types/runtime";
 import { buildAutonomousCompatEnv } from "./compat-env";
 import type { AutonomousCompatConfig, AutonomousCompatSnapshot } from "./types";
+
+function resolveExistingOnboardingConnection(config: AutonomousCompatConfig) {
+  if (config.cloud?.enabled) {
+    return {
+      kind: "cloud-managed",
+      smallModel: config.models?.small,
+      largeModel: config.models?.large,
+    } as AutonomousCompatSnapshot["connection"];
+  }
+  const primaryModel = config.agents.defaults.model?.primary;
+  return primaryModel
+    ? ({
+        kind: "local-provider",
+        provider: config.agents.defaults.subscriptionProvider ?? "configured",
+        primaryModel,
+      } as AutonomousCompatSnapshot["connection"])
+    : null;
+}
+
+function applySubscriptionProviderConfig(
+  config: AutonomousCompatConfig,
+  provider: "openai-subscription" | "anthropic-subscription",
+) {
+  config.agents.defaults = {
+    ...config.agents.defaults,
+    subscriptionProvider: provider,
+    ...(provider === "openai-subscription"
+      ? { model: { primary: "openai-codex" } }
+      : {}),
+  };
+}
+
+function resolvePluginAutoEnable(config: AutonomousCompatConfig) {
+  const allow = [
+    config.connectors.telegram ? "@elizaos/plugin-telegram" : undefined,
+    config.connectors.discord ? "@elizaos/plugin-discord" : undefined,
+    config.cloud?.enabled ? "@elizaos/plugin-elizacloud" : undefined,
+  ].filter((plugin): plugin is string => Boolean(plugin));
+  return { allow, changes: [] as unknown[] };
+}
 
 function resolveAutonomousPrimaryModel(config: EnvConfig): string | undefined {
   if (config.useLinkedCodexAuth) {
@@ -122,17 +157,14 @@ export function buildAutonomousCompatSnapshot(
   const compatConfig = createAutonomousCompatConfig(config);
   const env = compatConfig.env;
   const connection = resolveExistingOnboardingConnection(compatConfig);
-  const pluginAutoEnable = applyPluginAutoEnable({
-    config: compatConfig as never,
-    env,
-  });
+  const pluginAutoEnable = resolvePluginAutoEnable(compatConfig);
 
   return {
     env,
     config: compatConfig,
     connection,
     pluginAutoEnable: {
-      allow: pluginAutoEnable.config.plugins?.allow ?? [],
+      allow: pluginAutoEnable.allow,
       changes: pluginAutoEnable.changes,
     },
   };

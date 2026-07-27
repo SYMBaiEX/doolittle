@@ -51,6 +51,7 @@ export function storeSessionMessage(
     entityId: string;
     role: "user" | "assistant" | "system";
     text: string;
+    attachments?: import("@/types").StoredMessageAttachment[];
   },
 ): void {
   context.services.sessions.storeMessage({
@@ -60,6 +61,7 @@ export function storeSessionMessage(
     entityId: input.entityId,
     role: input.role,
     text: input.text,
+    attachments: input.attachments,
     createdAt: nowIso(),
   });
 }
@@ -97,7 +99,7 @@ export function createTurnState(
     entityId: stableRuntimeUuid(input.userId),
     messageServerId,
     settings: context.services.settings.get(),
-    runId: randomUUID(),
+    runId: input.runId ?? randomUUID(),
   };
 }
 
@@ -184,6 +186,7 @@ export function startTrackedTurn(
     entityId: turn.entityId,
     role: "user",
     text: input.message,
+    attachments: input.attachmentDescriptors,
   });
   recordTrajectoryEvent(context, {
     category: "turn",

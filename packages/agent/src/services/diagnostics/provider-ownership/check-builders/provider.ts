@@ -107,23 +107,23 @@ export function buildProviderChecks(
     {
       id: "native.runtime-line",
       status:
-        nativeAudit.runtime.alpha === getLatestRuntimeLine().alpha
+        nativeAudit.runtime.beta === getLatestRuntimeLine().beta
           ? "pass"
           : "warn",
-      summary: "Alpha Eliza runtime line",
-      detail: `alpha=${nativeAudit.runtime.alpha} latest=${nativeAudit.runtime.latest}`,
+      summary: "Beta Eliza runtime line",
+      detail: `beta=${nativeAudit.runtime.beta} latest=${nativeAudit.runtime.latest}`,
     },
     {
       id: "native.package-alignment",
       status:
-        nativeAudit.summary.alphaOnly > 0 ||
+        nativeAudit.summary.betaOnly > 0 ||
         nativeAudit.summary.laggingLatest > 0 ||
         nativeAudit.summary.workspaceOnly > 0 ||
         nativeAudit.summary.vendored > 0
           ? "warn"
           : "pass",
       summary: "Native package compatibility audit",
-      detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} alphaOnly=${nativeAudit.summary.alphaOnly} laggingLatest=${nativeAudit.summary.laggingLatest} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
+      detail: `aligned=${nativeAudit.summary.aligned} vendored=${nativeAudit.summary.vendored} betaOnly=${nativeAudit.summary.betaOnly} laggingLatest=${nativeAudit.summary.laggingLatest} workspaceOnly=${nativeAudit.summary.workspaceOnly}`,
     },
   ];
 }

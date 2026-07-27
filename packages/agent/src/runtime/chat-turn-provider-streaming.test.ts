@@ -8,7 +8,7 @@ function makeStreamingState({ onProgress = true } = {}) {
     resolveStreamingUpdate: (current: string, incoming: string) => {
       if (!incoming) {
         return {
-          kind: "noop",
+          kind: "unchanged",
           emittedText: "",
           nextText: current,
         };

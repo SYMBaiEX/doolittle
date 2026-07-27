@@ -7,8 +7,8 @@
  */
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { isAbsolute, resolve } from "node:path";
+import { getDefaultRepoRoot } from "@/config/env/paths";
 import { getEntrypointLogger } from "@/logging/entrypoint-logger";
 
 export class CliStartupExitError extends Error {
@@ -28,8 +28,17 @@ export function isCliStartupExitError(
 }
 
 function repoRoot(): string {
-  // packages/agent/src/cli/startup.ts → ../../../../ = repo root
-  return fileURLToPath(new URL("../../../../", import.meta.url));
+  return getDefaultRepoRoot();
+}
+
+function runtimeDataDir(root: string): string {
+  const configuredDataDir = process.env.DOOLITTLE_DATA_DIR?.trim();
+  if (!configuredDataDir) {
+    return resolve(root, ".doolittle");
+  }
+  return isAbsolute(configuredDataDir)
+    ? configuredDataDir
+    : resolve(root, configuredDataDir);
 }
 
 /**
@@ -80,7 +89,7 @@ export function loadLocalRuntimeEnv(): void {
  */
 export function isOnboarded(): boolean {
   const root = repoRoot();
-  return existsSync(resolve(root, ".doolittle", "onboarding.json"));
+  return existsSync(resolve(runtimeDataDir(root), "onboarding.json"));
 }
 
 /**
@@ -91,7 +100,7 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
   const root = repoRoot();
   const bootstrapPath = resolve(root, "scripts", "bootstrap.ts");
   const logger = getEntrypointLogger("cli.startup", {
-    dataDir: resolve(root, ".doolittle"),
+    dataDir: runtimeDataDir(root),
   });
 
   if (!existsSync(bootstrapPath)) {
@@ -128,7 +137,7 @@ export async function ensureOnboarded(): Promise<void> {
   }
 
   const logger = getEntrypointLogger("cli.startup", {
-    dataDir: resolve(repoRoot(), ".doolittle"),
+    dataDir: runtimeDataDir(repoRoot()),
   });
   if (process.stdin.isTTY && process.stdout.isTTY) {
     logger.info("onboarding-missing-starting-wizard");

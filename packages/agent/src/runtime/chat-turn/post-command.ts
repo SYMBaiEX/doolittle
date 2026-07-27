@@ -90,8 +90,12 @@ export async function runPostCommandTurn(
     if (context.services.runController.getActive(turn.sessionId)) {
       context.services.runController.finishTurn(
         turn.sessionId,
-        "error",
-        error instanceof Error ? error.message : String(error),
+        options.abortSignal?.aborted ? "cancelled" : "error",
+        options.abortSignal?.aborted
+          ? undefined
+          : error instanceof Error
+            ? error.message
+            : String(error),
       );
     }
     throw error;

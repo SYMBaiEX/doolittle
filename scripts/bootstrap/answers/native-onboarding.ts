@@ -1,44 +1,10 @@
-import {
-  createOnboardingStateMachine,
-  getOnboardingSummary,
-  isOnboardingComplete,
-  OnboardingStep,
-} from "@elizaos/core";
 import type { WizardAnswers } from "../types";
+import {
+  defaultNativeOnboardingHelpers,
+  type NativeOnboardingHelpers,
+  type NativeOnboardingMachine,
+} from "./native-onboarding-compat";
 import type { NativeOnboardingMirrorResult } from "./types";
-
-type NativeOnboardingMachine = {
-  advanceStep: (input: { step: string; data: unknown }) => Promise<unknown>;
-  getContext: () => unknown;
-  getCurrentStep: () => string;
-  toJSON: () => unknown;
-};
-
-type NativeOnboardingHelpers = {
-  createOnboardingStateMachine: (input: {
-    platform: string;
-    mode: string;
-  }) => NativeOnboardingMachine;
-  getOnboardingSummary: (context: unknown) => string;
-  isOnboardingComplete: (context: unknown) => boolean;
-  OnboardingStep: {
-    WELCOME: string;
-    RISK_ACK: string;
-    AUTH: string;
-    CHANNELS: string;
-    SKILLS: string;
-  };
-};
-
-const defaultNativeOnboardingHelpers: NativeOnboardingHelpers = {
-  createOnboardingStateMachine:
-    createOnboardingStateMachine as NativeOnboardingHelpers["createOnboardingStateMachine"],
-  getOnboardingSummary:
-    getOnboardingSummary as NativeOnboardingHelpers["getOnboardingSummary"],
-  isOnboardingComplete:
-    isOnboardingComplete as NativeOnboardingHelpers["isOnboardingComplete"],
-  OnboardingStep,
-};
 
 export async function buildNativeOnboardingMirror(
   answers: WizardAnswers,

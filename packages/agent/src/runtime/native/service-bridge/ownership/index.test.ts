@@ -411,7 +411,7 @@ describe("ownership helpers", () => {
     );
 
     expect(snapshot.runtime.latest).toMatch(/\d+\.\d+\.\d+/);
-    expect(snapshot.runtime.alpha).toMatch(/2\.0\.0-alpha\.\d+/);
+    expect(snapshot.runtime.beta).toBe("2.0.3-beta.7");
     expect(snapshot.packageAudit.runtime.latest).toBe(snapshot.runtime.latest);
     expect(snapshot.pluginCatalog.length).toBeGreaterThan(0);
     expect(snapshot.workspace.summary).toEqual(services.ecosystem.summary());

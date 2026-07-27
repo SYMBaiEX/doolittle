@@ -12,6 +12,8 @@ HEADLESS=0
 SKIP_WIZARD=0
 CHECK_ONLY=0
 ASSUME_YES=0
+LAUNCH_DESKTOP=0
+PACKAGE_INSTALLER=0
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 DOOLITTLE_BIN_LINK="${LOCAL_BIN_DIR}/doolittle"
 DOOLITTLE_BIN_SOURCE="${ROOT}/packages/agent/src/index.ts"
@@ -36,6 +38,18 @@ detect_os() {
   esac
 }
 
+windows_installer_notice() {
+  printf "%s\n" "${amber}Windows detected.${reset}"
+  printf "%s\n" "This installer is a Unix-style bootstrap for source checkouts; use the standalone Windows installer for production installs."
+  printf "%s\n" "On Windows, use scripts/install.ps1 for equivalent bootstrap behavior."
+  printf "%s\n" "To build/download it:"
+  printf "%s\n" "  1) Ensure changes are committed/pushed and tag a release, or run locally:"
+  printf "%s\n" "     bun run desktop:package:win"
+  printf "%s\n" "  2) Copy apps/desktop/release/Doolittle-<version>-win-x64.exe to Windows."
+  printf "%s\n" "  3) Run the .exe, then launch 'Doolittle Desktop' or use 'doolittle.exe' from Start Menu."
+  printf "%s\n" "  4) See docs/desktop.md -> Windows installer section."
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --headless|--non-interactive)
@@ -44,15 +58,24 @@ while [[ $# -gt 0 ]]; do
     --skip-wizard)
       SKIP_WIZARD=1
       ;;
+    --desktop)
+      LAUNCH_DESKTOP=1
+      ;;
+    --no-desktop)
+      LAUNCH_DESKTOP=0
+      ;;
     --check)
       CHECK_ONLY=1
       ;;
     --yes)
       ASSUME_YES=1
       ;;
+    --package-installer)
+      PACKAGE_INSTALLER=1
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: bash scripts/install.sh [--headless] [--skip-wizard] [--check] [--yes]"
+      echo "Usage: bash scripts/install.sh [--headless] [--skip-wizard] [--desktop] [--no-desktop] [--check] [--yes] [--package-installer]"
       exit 1
       ;;
   esac
@@ -78,8 +101,40 @@ printf "%s\n" "${dim}  This ritual installs the stack, seeds the workspace, and 
 
 detect_os
 if [[ "$OS_NAME" == "windows" ]]; then
-  echo "Windows-style shell detected. Use a Unix shell/WSL for this installer flow."
-  exit 1
+  if command -v pwsh >/dev/null 2>&1; then
+    powershell=pwsh
+  elif command -v powershell >/dev/null 2>&1; then
+    powershell=powershell
+  else
+    windows_installer_notice
+    if [[ "$CHECK_ONLY" -eq 1 ]]; then
+      exit 0
+    fi
+    exit 1
+  fi
+
+  windows_args=()
+  if [[ "$HEADLESS" -eq 1 ]]; then
+    windows_args+=("-Headless")
+  fi
+  if [[ "$SKIP_WIZARD" -eq 1 ]]; then
+    windows_args+=("-SkipWizard")
+  fi
+  if [[ "$CHECK_ONLY" -eq 1 ]]; then
+    windows_args+=("-Check")
+  fi
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    windows_args+=("-Yes")
+  fi
+  if [[ "$LAUNCH_DESKTOP" -eq 1 ]]; then
+    windows_args+=("-Desktop")
+  fi
+  if [[ "$PACKAGE_INSTALLER" -eq 1 ]]; then
+    windows_args+=("-PackageInstaller")
+  fi
+
+  "${powershell}" -NoProfile -ExecutionPolicy Bypass -File "scripts/install.ps1" "${windows_args[@]}"
+  exit $?
 fi
 if [[ "$OS_NAME" == "macos" ]]; then
   printf "%s\n" "${dim}  Host: macOS detected. I will use zsh-friendly defaults and local app-style paths.${reset}"
@@ -221,6 +276,14 @@ else
 fi
 bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
 
+if [[ "$CHECK_ONLY" -eq 1 ]]; then
+  printf "\n%s\n" "${orange}${bold}Install check complete.${reset}"
+  printf "%s\n" "${dim}  No install files, symlinks, or shell profiles were changed.${reset}"
+  printf "%s\n" "${dim}  Run without --check when you are ready to install Doolittle.${reset}"
+  printf "%s\n" "${dim}  doolittle desktop${reset}"
+  exit 0
+fi
+
 printf "\n%s\n" "${orange}${bold}Install complete.${reset}"
 printf "%s\n" "${dim}  The shell is warm. The channels are waiting.${reset}"
 printf "%s\n" "${dim}  If a fresh terminal cannot find doolittle, reload your shell or open a new session.${reset}"
@@ -229,6 +292,7 @@ if [[ -L "$DOOLITTLE_SHORT_LINK" ]]; then
   printf "%s\n" "  dl"
 fi
 printf "%s\n" "  doolittle cockpit"
+printf "%s\n" "  doolittle desktop"
 printf "%s\n" "  doolittle plain"
 printf "%s\n" "  doolittle exec -p \"summarize this repo\""
 printf "%s\n" "  doolittle setup"
@@ -240,7 +304,11 @@ if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
   printf "\n%s\n" "${amber}Launching Doolittle now...${reset}"
   printf "%s\n" "${dim}  Press Ctrl-C to return to your shell.${reset}"
   launch_status=0
-  "$DOOLITTLE_BIN_LINK" || launch_status=$?
+  if [[ "$LAUNCH_DESKTOP" -eq 1 ]]; then
+    "$DOOLITTLE_BIN_LINK" desktop || launch_status=$?
+  else
+    "$DOOLITTLE_BIN_LINK" || launch_status=$?
+  fi
   if [[ "$launch_status" -eq 0 || "$launch_status" -eq 130 || "$launch_status" -eq 143 ]]; then
     exit 0
   fi

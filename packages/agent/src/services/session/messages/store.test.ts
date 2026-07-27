@@ -13,6 +13,7 @@ function createDb(): Database {
       entity_id TEXT NOT NULL,
       role TEXT NOT NULL,
       text TEXT NOT NULL,
+      attachments_json TEXT,
       created_at TEXT NOT NULL
     );
     CREATE VIRTUAL TABLE messages_fts USING fts5(
@@ -61,6 +62,45 @@ describe("session/messages/store", () => {
     expect(store.recentBySession("room:1", 1)[0]?.role).toBe("assistant");
     expect(store.countBySessionRole("room:1", "assistant")).toBe(1);
     expect(store.latest(1)[0]?.text).toBe("Replying to the session search");
+  });
+
+  it("round-trips safe attachment descriptors without path or inline data", () => {
+    const db = createDb();
+    const store = new SessionMessageStore(db, new EventEmitter());
+    store.storeMessage({
+      id: "attachment-message",
+      sessionId: "room:attachments",
+      roomId: "room:attachments",
+      entityId: "user:1",
+      role: "user",
+      text: "Review this file",
+      attachments: [
+        {
+          id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+          name: "review.md",
+          kind: "document",
+          mimeType: "text/markdown",
+          sizeBytes: 42,
+          sha256: "a".repeat(64),
+        },
+      ],
+      createdAt: "2026-03-20T00:00:00.000Z",
+    });
+
+    const [message] = store.messagesBySession("room:attachments", 10);
+    expect(message?.attachments).toEqual([
+      {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        name: "review.md",
+        kind: "document",
+        mimeType: "text/markdown",
+        sizeBytes: 42,
+        sha256: "a".repeat(64),
+      },
+    ]);
+    expect(JSON.stringify(message)).not.toContain("/Users/");
+    expect(JSON.stringify(message)).not.toContain("\\Users\\");
+    expect(JSON.stringify(message)).not.toContain("_data");
   });
 
   it("deletes the latest conversational exchange while preserving later slash commands", () => {

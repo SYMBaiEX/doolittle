@@ -9,6 +9,7 @@ export function migrateSessionDatabase(db: Database): void {
       entity_id TEXT NOT NULL,
       role TEXT NOT NULL,
       text TEXT NOT NULL,
+      attachments_json TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -79,4 +80,13 @@ export function migrateSessionDatabase(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_session_summaries_agent_room
       ON session_summaries (agent_id, room_id, end_time DESC, updated_at DESC);
   `);
+
+  const messageColumns = db
+    .query("PRAGMA table_info(messages)")
+    .all() as Array<{
+    name: string;
+  }>;
+  if (!messageColumns.some((column) => column.name === "attachments_json")) {
+    db.exec("ALTER TABLE messages ADD COLUMN attachments_json TEXT");
+  }
 }

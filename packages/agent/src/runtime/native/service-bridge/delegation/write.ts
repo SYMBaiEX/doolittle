@@ -29,6 +29,7 @@ export function createEffectiveDelegationTask(
       input.title,
       input.objective,
       {
+        ...input.metadata,
         group: input.group,
         profile: input.profile,
         priority: input.priority,
@@ -37,13 +38,14 @@ export function createEffectiveDelegationTask(
         executionMode: input.executionMode,
         orchestrationMode: input.orchestrationMode,
         maxAttempts: input.maxAttempts,
-        ...input.metadata,
+        workspaceRoot: input.workspaceRoot,
       },
     ) ??
     getNativeServices(runtime).codingAgent?.delegate?.(
       input.title,
       input.objective,
       {
+        ...input.metadata,
         group: input.group,
         profile: input.profile,
         priority: input.priority,
@@ -52,7 +54,7 @@ export function createEffectiveDelegationTask(
         executionMode: input.executionMode,
         orchestrationMode: input.orchestrationMode,
         maxAttempts: input.maxAttempts,
-        ...input.metadata,
+        workspaceRoot: input.workspaceRoot,
       },
     ) ??
     services.delegation.create({
@@ -74,6 +76,7 @@ export function createEffectiveDelegationTask(
       executionMode: input.executionMode,
       orchestrationMode: input.orchestrationMode,
       maxAttempts: input.maxAttempts,
+      workspaceRoot: input.workspaceRoot,
     })
   );
 }
@@ -91,6 +94,7 @@ export function spawnEffectiveDelegationChild(
     tags?: string[];
     labels?: string[];
     metadata?: Record<string, string>;
+    workspaceRoot?: string;
     executionMode?: "local" | "delegated";
     orchestrationMode?: DelegationOrchestrationMode;
     maxAttempts?: number;
@@ -100,11 +104,14 @@ export function spawnEffectiveDelegationChild(
     getNativeServices(runtime).agentOrchestrator?.spawnChild?.(parentId, {
       title: input.title,
       objective: input.objective,
+      group: input.group,
       metadata: input.metadata,
       profile: input.profile,
       priority: input.priority,
       tags: input.tags ?? input.labels,
+      executionMode: input.executionMode,
       orchestrationMode: input.orchestrationMode,
+      workspaceRoot: input.workspaceRoot,
     }) ?? services.delegation.spawnChild(parentId, input)
   );
 }

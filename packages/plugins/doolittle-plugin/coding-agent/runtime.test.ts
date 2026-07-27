@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type {
-  CodingIteration,
-  HumanFeedback,
-} from "@elizaos/autonomous/services/coding-agent-context";
+import type { CodingIteration, HumanFeedback } from "@doolittle/contracts";
 import { buildCodingAgentContext } from "./runtime";
 
 describe("coding agent runtime context", () => {

@@ -1,4 +1,4 @@
-import type { CommandResult } from "@elizaos/autonomous/services/coding-agent-context";
+import type { CommandResult } from "@doolittle/contracts";
 import type { ActionResult } from "@elizaos/core";
 import { summarizeActionResults } from "@/runtime/action-result-metadata";
 import { classifyTurnMessage } from "@/runtime/turn-classification/message";

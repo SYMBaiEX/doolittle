@@ -1,13 +1,12 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { platform } from "node:os";
-import { normalizeCloudSiteUrl } from "@elizaos/autonomous/cloud/base-url";
-import { checkCloudAvailability } from "@elizaos/autonomous/runtime/cloud-onboarding";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import {
   restoreWizardScreen,
   suspendWizardScreen,
 } from "../wizard-screen/lifecycle";
+import { checkCloudAvailability, normalizeCloudSiteUrl } from "./cloud-compat";
 
 interface ElizaCloudLoginSession {
   sessionId: string;
@@ -98,7 +97,7 @@ async function pollSession(
 export async function runElizaCloudLoginFlow(
   context: BootstrapWizardContext,
   label: string,
-  baseUrl = "https://www.elizacloud.ai",
+  baseUrl = "https://elizacloud.ai",
   dependencies: ElizaCloudLoginFlowDependencies = {},
 ): Promise<string | undefined> {
   const snapshot = suspendWizardScreen(context);

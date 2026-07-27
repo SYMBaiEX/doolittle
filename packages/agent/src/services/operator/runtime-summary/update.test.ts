@@ -15,10 +15,10 @@ function createVersionSummary() {
     },
     nativePackages: {
       runtimeLatest: "2.0.0",
-      runtimeAlpha: "2.0.0-alpha.537",
+      runtimeBeta: "2.0.3-beta.7",
       aligned: 0,
       vendored: 0,
-      alphaOnly: 0,
+      betaOnly: 0,
       workspaceOnly: 0,
     },
   };
@@ -89,7 +89,7 @@ function createDependencies(overrides: Record<string, unknown> = {}) {
       overview: async () =>
         ({
           audit: {
-            coreVersion: "2.0.0-alpha.537",
+            coreVersion: "2.0.3-beta.7",
             foundationPackages: [],
             installed: {},
             ecosystemPackages: [],

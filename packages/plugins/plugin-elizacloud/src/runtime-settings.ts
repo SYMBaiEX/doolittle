@@ -1,5 +1,5 @@
-import { resolveCloudApiBaseUrl } from "@elizaos/autonomous/cloud/base-url";
 import { type IAgentRuntime, ModelType } from "@elizaos/core";
+import { resolveCloudApiBaseUrl } from "@elizaos/shared/elizacloud/base-url";
 import {
   DEFAULT_ELIZA_CLOUD_BASE_URL,
   DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL,

@@ -89,18 +89,14 @@ describe("chat turn connection seam", () => {
   });
 
   it("respects local-interactive settings bootstrap hook", async () => {
-    const worlds: Array<{
-      metadata: Record<string, unknown> | undefined;
-      ownership?: Record<string, unknown>;
-    }> = [];
-    let initializerCalls = 0;
+    const worlds: Array<{ metadata: Record<string, unknown> | undefined }> = [];
     const context = {
       runtime: {
         ensureConnection: async () => undefined,
         ensureParticipantInRoom: async () => undefined,
         agentId: "agent-1",
         getWorld: async () => ({
-          worldId: "world-1",
+          id: "world-1",
           metadata: {},
         }),
         updateWorld: async (world: { metadata: Record<string, unknown> }) => {
@@ -125,21 +121,90 @@ describe("chat turn connection seam", () => {
       localInteractive: true,
     } as unknown as TurnState;
 
-    await ensureLocalInteractiveSettingsState(context, turnState, {
-      initializeOnboarding: async () => {
-        initializerCalls += 1;
-        return null;
-      },
-    });
+    await ensureLocalInteractiveSettingsState(context, turnState);
 
-    expect(initializerCalls).toBe(1);
     expect(worlds).toHaveLength(1);
     expect(worlds[0]).toMatchObject({
       metadata: {
         ownership: {
           ownerId: "entity-1",
         },
+        settings: {},
       },
     });
+  });
+
+  it("does not rewrite worlds that already have matching owner and settings", async () => {
+    const worlds: Array<{ metadata: Record<string, unknown> | undefined }> = [];
+    const context = {
+      runtime: {
+        ensureConnection: async () => undefined,
+        ensureParticipantInRoom: async () => undefined,
+        agentId: "agent-1",
+        getWorld: async () => ({
+          id: "world-1",
+          metadata: {
+            ownership: {
+              ownerId: "entity-1",
+            },
+            settings: {},
+          },
+        }),
+        updateWorld: async (world: { metadata: Record<string, unknown> }) => {
+          worlds.push(world);
+        },
+      },
+      services: {
+        settings: {
+          get: () => ({}),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    await ensureLocalInteractiveSettingsState(context, {
+      ...createTurn(),
+      agentName: "Doolittle",
+      connectionSource: "cli",
+      sessionId: "session-1",
+      messageServerId: "server-1",
+      runId: "run-1",
+      localInteractive: true,
+    } as unknown as TurnState);
+
+    expect(worlds).toHaveLength(0);
+  });
+
+  it("swallows world update failures during local settings bootstrap", async () => {
+    const context = {
+      runtime: {
+        ensureConnection: async () => undefined,
+        ensureParticipantInRoom: async () => undefined,
+        agentId: "agent-1",
+        getWorld: async () => ({
+          id: "world-1",
+          metadata: {},
+        }),
+        updateWorld: async () => {
+          throw new Error("disk full");
+        },
+      },
+      services: {
+        settings: {
+          get: () => ({}),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      ensureLocalInteractiveSettingsState(context, {
+        ...createTurn(),
+        agentName: "Doolittle",
+        connectionSource: "cli",
+        sessionId: "session-1",
+        messageServerId: "server-1",
+        runId: "run-1",
+        localInteractive: true,
+      } as unknown as TurnState),
+    ).resolves.toBeUndefined();
   });
 });

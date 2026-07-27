@@ -8,7 +8,7 @@ import { SkillSynthesisService } from "../skill-synthesis/service";
 import { SkillsService } from "../skills/service";
 import { SkillsHubService } from "./service";
 
-type AgentCatalogSkill = Awaited<ReturnType<AgentSdkService["catalogSkill"]>>;
+type CatalogEntry = Awaited<ReturnType<AgentSdkService["catalog"]>>[number];
 
 describe("SkillsHubService", () => {
   it("syncs, exports, imports, and installs skill manifests", async () => {
@@ -66,7 +66,7 @@ describe("SkillsHubService", () => {
 
     const agentSdk = new AgentSdkService();
     const catalogCreatedAt = Date.now();
-    const workspaceCatalogEntry: AgentCatalogSkill = {
+    const workspaceCatalogEntry: CatalogEntry = {
       slug: "planning/coordination",
       displayName: "Planning Coordination",
       summary: "Coordinate planning work across multiple projects.",
@@ -87,7 +87,7 @@ describe("SkillsHubService", () => {
         versions: 3,
       },
     };
-    const remoteCatalogEntry: AgentCatalogSkill = {
+    const remoteCatalogEntry: CatalogEntry = {
       slug: "distribution/catalog-skill",
       displayName: "Distribution Catalog",
       summary: "Catalog skill used to exercise installs.",
@@ -110,7 +110,7 @@ describe("SkillsHubService", () => {
     };
     agentSdk.catalog = async () => [workspaceCatalogEntry, remoteCatalogEntry];
     agentSdk.catalogSkill = async (slug: string) =>
-      slug === remoteCatalogEntry.slug ? remoteCatalogEntry : null;
+      slug === remoteCatalogEntry.slug ? remoteCatalogEntry : undefined;
     agentSdk.searchSkillCatalog = async () => ({
       available: true,
       query: "planning",

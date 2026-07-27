@@ -75,11 +75,7 @@ describe("autonomous stack", () => {
       largeModel: "anthropic/claude-sonnet-4.6",
     });
     expect(describeAutonomousAlignment(config)).toMatchObject({
-      foundationPackages: [
-        "@elizaos/agent",
-        "@elizaos/autonomous",
-        "@elizaos/skills",
-      ],
+      foundationPackages: ["@elizaos/agent", "elizaos", "@elizaos/skills"],
       connection: {
         kind: "cloud-managed",
         provider: "elizacloud",

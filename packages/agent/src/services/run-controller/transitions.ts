@@ -194,7 +194,7 @@ export const streamTransition = (
 
 export const finishTransition = (
   current: RunSnapshot,
-  status: Extract<RunSnapshot["status"], "complete" | "error">,
+  status: Extract<RunSnapshot["status"], "complete" | "cancelled" | "error">,
   errorMessage?: string,
 ): StartRunTransition =>
   createPatchedTransition(
@@ -206,8 +206,18 @@ export const finishTransition = (
       activeStream: undefined,
       statusDetail: undefined,
       endedAt: nowIso(),
+      terminalReason:
+        status === "complete"
+          ? "completed"
+          : status === "cancelled"
+            ? "cancelled"
+            : "error",
     },
-    status === "error" ? "error" : "completed",
+    status === "error"
+      ? "error"
+      : status === "cancelled"
+        ? "cancelled"
+        : "completed",
   );
 
 export const pendingApprovalsTransition = (

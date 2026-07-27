@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-sql",
-  "version": "2.0.0-beta.1-patched.0",
+  "version": "2.0.3-beta.7-patched.0",
   "description": "Workspace-native SQL plugin aligned with the current ElizaOS 2.x beta runtime.",
   "license": "MIT",
   "type": "module",
@@ -28,7 +28,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@elizaos-official/plugin-sql": "npm:@elizaos/plugin-sql@2.0.0-beta.1",
-    "@elizaos/core": "2.0.0-beta.1"
+    "@elizaos-official/plugin-sql": "npm:@elizaos/plugin-sql@2.0.3-beta.7",
+    "@elizaos/core": "2.0.3-beta.7"
   }
 }

@@ -17,6 +17,7 @@ type DelegationTaskBody = {
   tags?: string[];
   labels?: string[];
   metadata?: Record<string, string>;
+  workspaceRoot?: string;
   executionMode?: "local" | "delegated";
   maxAttempts?: number;
 };
@@ -42,7 +43,10 @@ type DelegationCommandRouteOptions = {
   runAgentTurn?: DelegationAgentTurnRunner;
 };
 
-function toDelegationTaskInput(body: DelegationTaskBody) {
+function toDelegationTaskInput(
+  body: DelegationTaskBody,
+  workspaceRoot?: string,
+) {
   return {
     title: body.title,
     objective: body.objective,
@@ -52,9 +56,18 @@ function toDelegationTaskInput(body: DelegationTaskBody) {
     tags: body.tags ?? body.labels,
     labels: body.labels ?? body.tags,
     metadata: body.metadata,
+    ...(workspaceRoot ? { workspaceRoot } : {}),
     executionMode: body.executionMode,
     maxAttempts: body.maxAttempts,
   };
+}
+
+async function resolveRequestedWorkspaceRoot(
+  context: AppContext,
+  body: DelegationTaskBody,
+): Promise<string | undefined> {
+  if (body.workspaceRoot === undefined) return undefined;
+  return context.services.repository.resolveWorktreeRoot(body.workspaceRoot);
 }
 
 export async function handleDelegationCommandRoutes(
@@ -72,16 +85,30 @@ export async function handleDelegationCommandRoutes(
     if (!body.title || !body.objective) {
       return json({ error: "title and objective are required" }, 400);
     }
-    return json({
-      task: createEffectiveDelegationTask(
-        context.runtime,
-        context.services,
-        toDelegationTaskInput(body) as Required<
-          Pick<DelegationTaskBody, "title" | "objective">
-        > &
-          Omit<ReturnType<typeof toDelegationTaskInput>, "title" | "objective">,
-      ),
-    });
+    try {
+      const workspaceRoot = await resolveRequestedWorkspaceRoot(context, body);
+      return json({
+        task: createEffectiveDelegationTask(
+          context.runtime,
+          context.services,
+          toDelegationTaskInput(body, workspaceRoot) as Required<
+            Pick<DelegationTaskBody, "title" | "objective">
+          > &
+            Omit<
+              ReturnType<typeof toDelegationTaskInput>,
+              "title" | "objective"
+            >,
+        ),
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error ? error.message : "Invalid worktree root",
+        },
+        400,
+      );
+    }
   }
 
   if (
@@ -99,25 +126,37 @@ export async function handleDelegationCommandRoutes(
       return json({ error: "objective is required" }, 400);
     }
 
-    return json({
-      task: spawnEffectiveDelegationChild(
-        context.runtime,
-        context.services,
-        id,
+    try {
+      const workspaceRoot = await resolveRequestedWorkspaceRoot(context, body);
+      return json({
+        task: spawnEffectiveDelegationChild(
+          context.runtime,
+          context.services,
+          id,
+          {
+            title: body.title ?? "Child task",
+            objective: body.objective,
+            group: body.group,
+            profile: body.profile,
+            priority: body.priority,
+            tags: body.tags ?? body.labels,
+            labels: body.labels ?? body.tags,
+            metadata: body.metadata,
+            ...(workspaceRoot ? { workspaceRoot } : {}),
+            executionMode: body.executionMode,
+            maxAttempts: body.maxAttempts,
+          },
+        ),
+      });
+    } catch (error) {
+      return json(
         {
-          title: body.title ?? "Child task",
-          objective: body.objective,
-          group: body.group,
-          profile: body.profile,
-          priority: body.priority,
-          tags: body.tags ?? body.labels,
-          labels: body.labels ?? body.tags,
-          metadata: body.metadata,
-          executionMode: body.executionMode,
-          maxAttempts: body.maxAttempts,
+          error:
+            error instanceof Error ? error.message : "Invalid worktree root",
         },
-      ),
-    });
+        400,
+      );
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/delegation/supervise") {

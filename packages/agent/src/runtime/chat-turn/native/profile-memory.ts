@@ -309,7 +309,6 @@ export async function handleProfileMemoryModelTurn(input: {
         input.context.runtime.useModel(ModelType.TEXT_SMALL, {
           prompt,
           promptSegments: cache.promptSegments,
-          providerOptions: cache.providerOptions,
           temperature: 0.45,
           maxTokens: identityRequest ? 260 : 120,
           stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],
@@ -451,7 +450,6 @@ export async function handleSoulIdentityModelTurn(input: {
         input.context.runtime.useModel(ModelType.TEXT_SMALL, {
           prompt,
           promptSegments: cache.promptSegments,
-          providerOptions: cache.providerOptions,
           temperature: 0.55,
           maxTokens: 280,
           stopSequences: ["\nUser:", "\nAssistant:", "\nDoolittle:"],

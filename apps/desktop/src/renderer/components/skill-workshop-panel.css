@@ -1,0 +1,270 @@
+.skill-workshop {
+  display: grid;
+  gap: 12px;
+}
+
+.skill-workshop-overview {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.skill-workshop-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 78px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.skill-workshop-metric span {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.skill-workshop-metric strong {
+  font-size: 1.7rem;
+}
+
+.skill-workshop-metric small {
+  color: var(--text-soft);
+}
+
+.skill-workshop-form {
+  display: grid;
+  gap: 12px;
+}
+
+.skill-workshop-form__heading h2 {
+  margin: 0 0 3px;
+  font-size: 1.01rem;
+}
+
+.skill-workshop-form__heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.skill-workshop-form__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.skill-workshop-form__actions span {
+  color: var(--muted);
+}
+
+.skill-workshop-filters {
+  display: grid;
+  gap: 10px;
+}
+
+.skill-workshop-filters .filter-bar,
+.skill-workshop-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-workshop-filter-chips {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.skill-workshop-filter-chips .secondary-button,
+.skill-workshop-filter-chips .primary-button {
+  min-width: 94px;
+}
+
+.skill-workshop-filter-chips .secondary-button {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.skill-workshop-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.skills-page-switcher {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.skills-page-switcher button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.skills-page-switcher button:hover,
+.skills-page-switcher button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  color: var(--text);
+  outline: none;
+}
+
+.skills-page-switcher button[aria-selected="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--text);
+}
+
+.skills-page-switcher span {
+  font-weight: 780;
+}
+
+.skills-page-switcher small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.skills-page-workshop {
+  animation: skill-workshop-enter 180ms ease both;
+}
+
+@keyframes skill-workshop-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.skill-workshop-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.skill-workshop-item {
+  display: grid;
+  gap: 10px;
+}
+
+.skill-workshop-item__facts {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  gap: 8px;
+}
+
+.skill-workshop-item__facts span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-workshop-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.skill-workshop-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: color-mix(in srgb, var(--accent) 92%, white);
+  border: 1px solid var(--accent-border);
+  font-size: 0.78rem;
+}
+
+.skill-workshop-findings {
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-soft);
+  font-size: 0.94rem;
+}
+
+.skill-workshop-findings ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.skill-workshop-findings strong {
+  color: var(--text);
+}
+
+.skill-workshop-reason {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.skill-workshop-action-reason label span {
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+.skill-workshop-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-workshop-preview {
+  position: sticky;
+  top: 6px;
+  display: grid;
+  gap: 8px;
+}
+
+.skill-workshop-preview .content-card {
+  margin: 0;
+}
+
+.skill-workshop-preview pre {
+  margin: 0;
+  max-height: 460px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+@media (max-width: 1140px) {
+  .skill-workshop-overview,
+  .skill-workshop-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-workshop-preview {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .skills-page-switcher {
+    grid-template-columns: 1fr;
+  }
+}

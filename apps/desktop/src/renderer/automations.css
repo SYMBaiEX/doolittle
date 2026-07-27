@@ -1,0 +1,565 @@
+.automation-page {
+  --automation-line: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
+.automation-metrics .metric-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.automation-metrics .metric-card::after {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    transparent 68%
+  );
+  content: "";
+  inset: -16px -12px auto auto;
+  pointer-events: none;
+}
+
+.automation-builder {
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 12% -8%,
+      color-mix(in srgb, var(--accent) 11%, transparent),
+      transparent 34%
+    ),
+    var(--surface-raised);
+  border: 1px solid var(--automation-line);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 20px 70px color-mix(in srgb, var(--shadow) 20%, transparent),
+    inset 0 1px color-mix(in srgb, white 3%, transparent);
+}
+
+.automation-builder__header,
+.automation-builder__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+}
+
+.automation-builder__header {
+  border-bottom: 1px solid var(--border);
+}
+
+.automation-builder__header h2 {
+  margin: 5px 0 0;
+  font-size: 17px;
+  letter-spacing: -0.025em;
+}
+
+.automation-name-field {
+  width: min(300px, 42%);
+}
+
+.automation-name-field span,
+.automation-builder-step label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.automation-builder__flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: stretch;
+  padding: 20px;
+}
+
+.automation-flow-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  opacity: 0.74;
+}
+
+.automation-builder-step {
+  min-width: 0;
+  padding: 15px;
+  background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.automation-builder-step > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.automation-builder-step > header > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.automation-builder-step > header div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.automation-builder-step > header strong {
+  font-size: 12px;
+}
+
+.automation-builder-step > header small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.automation-builder-step__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.automation-builder-step__body label small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.automation-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.automation-choice-grid button {
+  min-width: 0;
+  padding: 7px 5px;
+  overflow: hidden;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-choice-grid button:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.automation-choice-grid button.selected {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.automation-builder__truth {
+  min-height: 68px;
+  padding: 12px;
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.automation-builder__footer {
+  border-top: 1px solid var(--border);
+}
+
+.automation-builder__footer > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.automation-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.automation-jobs-panel,
+.automation-runs-panel {
+  min-width: 0;
+}
+
+.automation-job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.automation-job-card {
+  padding: 14px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.automation-job-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.automation-job-card > header,
+.automation-job-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.automation-job-card > header > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.automation-job-card > header strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-job-card > header small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.automation-job-card > p {
+  display: -webkit-box;
+  margin: 11px 0;
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 10px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.automation-job-card > footer {
+  justify-content: flex-start;
+}
+
+.automation-job-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr) 12px minmax(0, 1fr);
+  align-items: center;
+  margin-top: 13px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.automation-job-flow > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-job-flow i {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.automation-job-flow b {
+  color: var(--accent);
+  font-size: 14px;
+  opacity: 0.64;
+  text-align: center;
+}
+
+.automation-webhook-path {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 7px 9px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--accent-soft) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: 8px;
+  text-align: left;
+}
+
+.automation-webhook-path__label,
+.automation-webhook-path__action {
+  color: var(--accent);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.automation-webhook-path code {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 9px;
+  text-overflow: ellipsis;
+}
+
+.automation-run-list {
+  display: flex;
+  max-height: 246px;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.automation-run-list > li > button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.automation-run-list > li > button:hover {
+  background: var(--surface-hover);
+}
+
+.automation-run-list > li > button.selected {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.automation-run-list > li > button > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.automation-run-list__title {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-run-list__meta {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.automation-run-status {
+  width: 7px;
+  height: 7px;
+  background: var(--good);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 12%, transparent);
+}
+
+.automation-run-status.failed {
+  background: var(--bad);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
+.automation-run-status.skipped {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+.automation-trace {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.automation-trace > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.automation-trace > header > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.automation-trace > header strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-trace-steps {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.automation-trace-steps::before {
+  position: absolute;
+  width: 1px;
+  background: var(--border-strong);
+  content: "";
+  inset: 13px auto 13px 3px;
+}
+
+.automation-trace-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.automation-trace-step .automation-run-status {
+  position: relative;
+  z-index: 1;
+  margin-top: 3px;
+}
+
+.automation-trace-step__content {
+  min-width: 0;
+}
+
+.automation-trace-step__title {
+  font-size: 9px;
+}
+
+.automation-trace-step p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.automation-trace-step__index {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.automation-trace-output {
+  margin-top: 10px;
+}
+
+.automation-trace-output > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.automation-trace-output pre {
+  max-height: 170px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  color: var(--text-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1180px) {
+  .automation-builder__flow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .automation-flow-arrow {
+    height: 16px;
+    transform: rotate(90deg);
+  }
+
+  .automation-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .automation-builder__header,
+  .automation-builder__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .automation-name-field {
+    width: 100%;
+  }
+
+  .automation-job-flow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .automation-job-flow b {
+    display: none;
+  }
+}

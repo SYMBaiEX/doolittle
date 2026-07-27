@@ -1,20 +1,20 @@
 # ElizaOS Runtime Maximization Plan
 
-> Generated from analysis of `@elizaos/core` runtime, `@elizaos/autonomous`, and installed plugin ecosystem.
+> Generated from analysis of `@elizaos/core`, `@elizaos/agent`, and the installed plugin ecosystem. The autonomous package surfaces referenced by the original plan now ship from `@elizaos/agent`.
 > Date: 2026-03-23
 
 ---
 
 ## Critical Priority (Enable Immediately)
 
-### 1. AwarenessRegistry from @elizaos/autonomous (Self-Awareness Injection)
+### 1. AwarenessRegistry from @elizaos/agent (Self-Awareness Injection)
 
 **What it is:** A two-layer self-awareness system that composes summaries (Layer 1) and provides on-demand detail retrieval (Layer 2) for the agent. Individual awareness contributors register modules (e.g., system status, memory state, world context) and the registry orchestrates them into a unified self-awareness prompt segment. Fault-tolerant by design -- contributor errors surface as `[{id}: unavailable]` markers, never thrown exceptions.
 
 **Where it lives:**
-- `@elizaos/autonomous/packages/autonomous/src/awareness/registry.ts`
+- `@elizaos/agent/awareness/registry`
 - Exported classes: `AwarenessRegistry`, `setGlobalAwarenessRegistry`, `getGlobalAwarenessRegistry`
-- Contributor contract: `@elizaos/autonomous/packages/autonomous/src/contracts/awareness.ts` (`AwarenessContributor`, `AwarenessInvalidationEvent`)
+- Contributor contract: `@elizaos/agent/contracts/awareness` (`AwarenessContributor`, `AwarenessInvalidationEvent`)
 
 **Code changes needed:**
 1. Import and instantiate `AwarenessRegistry` at agent startup.
@@ -373,14 +373,14 @@ Doolittle debug bundles remain useful for replay, analysis, and operator trouble
 
 ## Medium Priority (Planned)
 
-### 11. Trigger System from @elizaos/autonomous
+### 11. Trigger System from @elizaos/agent
 
 **What it is:** A time-based task execution system supporting `interval`, `once`, and `cron` trigger types. Triggers wrap tasks with scheduling metadata and support two wake modes: `inject_now` (immediate execution) and `next_autonomy_cycle` (batched with next autonomous think).
 
 **Where it lives:**
-- Types: `@elizaos/autonomous/packages/autonomous/src/triggers/types.ts` -- `TriggerConfig`, `TriggerRunRecord`, `TriggerSummary`, `TriggerHealthSnapshot`
-- Runtime: `@elizaos/autonomous/packages/autonomous/src/triggers/runtime.ts` -- `registerTriggerTaskWorker()`, `listTriggerTasks()`, `executeTriggerTask()`, `getTriggerHealthSnapshot()`
-- Action: `@elizaos/autonomous/packages/autonomous/src/triggers/action.ts` -- user-facing trigger CRUD
+- Types: `@elizaos/agent/triggers/types` -- `TriggerConfig`, `TriggerRunRecord`, `TriggerSummary`, `TriggerHealthSnapshot`
+- Runtime: `@elizaos/agent/triggers/runtime` -- `registerTriggerTaskWorker()`, `listTriggerTasks()`, `executeTriggerTask()`, `getTriggerHealthSnapshot()`
+- Action: `@elizaos/agent/triggers/action` -- user-facing trigger CRUD
 
 **Code changes needed:**
 1. Call `registerTriggerTaskWorker(runtime)` at startup.
@@ -502,11 +502,11 @@ Doolittle debug bundles remain useful for replay, analysis, and operator trouble
 
 ### 15. Skill / MCP Marketplace Integration
 
-**What it is:** Integration with the MCP (Model Context Protocol) ecosystem and the ElizaOS skills marketplace through the installed ElizaOS package surface. Doolittle should prefer exported SDK helpers from `@elizaos/autonomous` and `@elizaos/agent`, plus native skill manifests from `@elizaos/skills`, instead of importing unavailable top-level plugin packages directly.
+**What it is:** Integration with the MCP (Model Context Protocol) ecosystem and the ElizaOS skills marketplace through the installed ElizaOS package surface. Doolittle should prefer exported SDK helpers from `@elizaos/agent`, plus native skill manifests from `@elizaos/skills`, instead of importing unavailable top-level plugin packages directly.
 
 **Where it lives:**
-- MCP marketplace helpers: `@elizaos/autonomous/services/mcp-marketplace`
-- Skill marketplace helpers: `@elizaos/autonomous/services/skill-marketplace`
+- MCP marketplace helpers: `@elizaos/agent/services/mcp-marketplace`
+- Skill marketplace helpers: `@elizaos/agent/services/skill-marketplace`
 - Agent registry and skill catalog clients: `@elizaos/agent/services/registry-client`, `@elizaos/agent/services/skill-catalog-client`
 - Native skill file parsing and serialization: `@elizaos/skills`
 - Doolittle MCP execution adapter: `packages/agent/src/services/mcp/`
@@ -515,8 +515,8 @@ Doolittle debug bundles remain useful for replay, analysis, and operator trouble
 
 **Code changes needed:**
 1. Keep local and generated skills in canonical `@elizaos/skills` frontmatter so Doolittle skill data stays portable.
-2. Use `@elizaos/autonomous/services/mcp-marketplace` for marketplace search, details, and config generation.
-3. Use `@elizaos/autonomous/services/skill-marketplace` and `@elizaos/agent` catalog clients for marketplace/catalog discovery instead of local scraping.
+2. Use `@elizaos/agent/services/mcp-marketplace` for marketplace search, details, and config generation.
+3. Use `@elizaos/agent/services/skill-marketplace` and catalog clients for marketplace/catalog discovery instead of local scraping.
 4. Keep Doolittle's local MCP execution service as the product adapter until an official MCP execution plugin is promoted to a direct top-level dependency.
 5. Integrate MCP tools with the RESEARCH model type for deep research across internal knowledge bases.
 

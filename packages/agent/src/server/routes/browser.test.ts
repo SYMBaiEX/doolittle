@@ -42,6 +42,22 @@ function createContext(): AppContext {
 }
 
 describe("handleBrowserRoutes", () => {
+  function postBrowserRoute(
+    pathname: string,
+    body: Record<string, unknown>,
+  ): Promise<Response | null> {
+    return handleBrowserRoutes(
+      createContext(),
+      new Request(`http://localhost${pathname}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL(`http://localhost${pathname}`),
+      async () => "analysis",
+    );
+  }
+
   it("returns browser fetch, status, inspect, and capture payloads", async () => {
     const context = createContext();
     const fetchResponse = await handleBrowserRoutes(
@@ -68,6 +84,15 @@ describe("handleBrowserRoutes", () => {
       }),
       new URL("http://localhost/browser/capture"),
     );
+    const snapshotResponse = await handleBrowserRoutes(
+      context,
+      new Request("http://localhost/browser/snapshot", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://example.com" }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/browser/snapshot"),
+    );
 
     await expect(fetchResponse?.json()).resolves.toEqual({
       page: "page:https://example.com",
@@ -84,6 +109,9 @@ describe("handleBrowserRoutes", () => {
     });
     await expect(captureResponse?.json()).resolves.toEqual({
       capture: { url: "https://example.com", mode: "capture" },
+    });
+    await expect(snapshotResponse?.json()).resolves.toEqual({
+      path: "snapshot:https://example.com",
     });
   });
 
@@ -110,6 +138,110 @@ describe("handleBrowserRoutes", () => {
     expect(missingCompare?.status).toBe(400);
     await expect(missingCompare?.json()).resolves.toEqual({
       error: "leftUrl and rightUrl are required",
+    });
+  });
+
+  it("rejects non-http URLs on every URL-bearing browser route", async () => {
+    const responses = await Promise.all([
+      handleBrowserRoutes(
+        createContext(),
+        new Request("http://localhost/web/fetch?url=file%3A%2F%2F%2Ftmp%2Fx"),
+        new URL("http://localhost/web/fetch?url=file%3A%2F%2F%2Ftmp%2Fx"),
+      ),
+      handleBrowserRoutes(
+        createContext(),
+        new Request(
+          "http://localhost/browser/inspect?url=javascript%3Aalert(1)",
+        ),
+        new URL("http://localhost/browser/inspect?url=javascript%3Aalert(1)"),
+      ),
+      postBrowserRoute("/web/snapshot", { url: "ftp://example.com" }),
+      postBrowserRoute("/browser/snapshot", { url: "file:///tmp/page.html" }),
+      postBrowserRoute("/browser/screenshot", { url: "data:text/plain,page" }),
+      postBrowserRoute("/browser/capture", { url: "ws://example.com" }),
+      postBrowserRoute("/browser/analyze", { url: "javascript:alert(1)" }),
+      postBrowserRoute("/browser/compare", {
+        leftUrl: "ftp://left.example",
+        rightUrl: "https://right.example",
+      }),
+      postBrowserRoute("/browser/compare/analyze", {
+        leftUrl: "https://left.example",
+        rightUrl: "file:///tmp/right.html",
+      }),
+    ]);
+
+    for (const response of responses) {
+      expect(response?.status).toBe(400);
+      expect((await response?.json())?.error).toMatch(/must use http or https/);
+    }
+  });
+
+  it("rejects credentials, control characters, and oversized URLs", async () => {
+    const credentials = await postBrowserRoute("/browser/capture", {
+      url: "https://user:secret@example.com/private",
+    });
+    const controlCharacter = await postBrowserRoute("/browser/screenshot", {
+      url: "https://example.com/%2500private",
+    });
+    const oversized = await postBrowserRoute("/browser/analyze", {
+      url: `https://example.com/${"a".repeat(4_096)}`,
+    });
+
+    expect(credentials?.status).toBe(400);
+    await expect(credentials?.json()).resolves.toEqual({
+      error: "url must not include credentials",
+    });
+    expect(controlCharacter?.status).toBe(400);
+    await expect(controlCharacter?.json()).resolves.toEqual({
+      error: "url must not contain control characters",
+    });
+    expect(oversized?.status).toBe(400);
+    await expect(oversized?.json()).resolves.toEqual({
+      error: "url must be at most 4096 characters",
+    });
+  });
+
+  it("validates both comparison URLs", async () => {
+    const invalidLeft = await postBrowserRoute("/browser/compare", {
+      leftUrl: "https://user:secret@left.example",
+      rightUrl: "https://right.example",
+    });
+    const invalidRight = await postBrowserRoute("/browser/compare/analyze", {
+      leftUrl: "http://localhost:3000",
+      rightUrl: "https://right.example/%00private",
+    });
+
+    expect(invalidLeft?.status).toBe(400);
+    await expect(invalidLeft?.json()).resolves.toEqual({
+      error: "leftUrl must not include credentials",
+    });
+    expect(invalidRight?.status).toBe(400);
+    await expect(invalidRight?.json()).resolves.toEqual({
+      error: "rightUrl must not contain control characters",
+    });
+  });
+
+  it("preserves valid localhost and remote HTTP evidence URLs", async () => {
+    const localhost = await postBrowserRoute("/browser/capture", {
+      url: "http://localhost:4173/evidence?view=desktop",
+    });
+    const remote = await postBrowserRoute("/browser/compare", {
+      leftUrl: "https://left.example/evidence",
+      rightUrl: "http://right.example:8080/evidence?run=2",
+    });
+
+    await expect(localhost?.json()).resolves.toEqual({
+      capture: {
+        url: "http://localhost:4173/evidence?view=desktop",
+        mode: "capture",
+      },
+    });
+    await expect(remote?.json()).resolves.toEqual({
+      comparison: {
+        leftUrl: "https://left.example/evidence",
+        rightUrl: "http://right.example:8080/evidence?run=2",
+        mode: "compare",
+      },
     });
   });
 

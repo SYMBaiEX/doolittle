@@ -1,7 +1,4 @@
-import type {
-  ConnectorType,
-  InteractionMode,
-} from "@elizaos/autonomous/services/coding-agent-context";
+import type { ConnectorType, InteractionMode } from "@doolittle/contracts";
 
 export interface MediaInspection {
   path: string;

@@ -10,6 +10,8 @@ export interface DelegationTaskRecord {
   tags?: string[];
   labels?: string[];
   metadata?: Record<string, string>;
+  /** Canonical Git worktree root that owns this task's execution. */
+  workspaceRoot?: string;
   parentTaskId?: string;
   childTaskIds?: string[];
   status: "pending" | "running" | "completed" | "failed" | "cancelled";

@@ -23,6 +23,7 @@ import type { MemoryService } from "../../memory-service";
 import type { PairingService } from "../../pairing-service";
 import type { PersonalityService } from "../../personality-service";
 import type { RepositoryService } from "../../repository-service";
+import type { ReviewRecordService } from "../../review-record";
 import type { RunControllerService } from "../../run-controller-service";
 import type {
   createDiagnosticsServiceSlot,
@@ -77,6 +78,7 @@ export interface ServiceAssemblyEager {
   workspace: WorkspaceService;
   terminal: TerminalService;
   repository: RepositoryService;
+  reviewRecords: ReviewRecordService;
   tools: ToolsService;
   mcp: McpService;
   acp: AcpService;
@@ -138,6 +140,7 @@ export interface ServiceConstructionState {
   mcp: McpService;
   acp: AcpService;
   repository: RepositoryService;
+  reviewRecords: ReviewRecordService;
   runController: RunControllerService;
   awareness: AwarenessService;
   ecosystem: ReturnType<typeof createEcosystemServiceSlot>;

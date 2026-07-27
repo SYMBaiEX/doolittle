@@ -1,5 +1,10 @@
 import type { CronJobRecord } from "@/types";
 import {
+  normalizeAutomationAction,
+  normalizeAutomationCondition,
+  normalizeAutomationTrigger,
+} from "../definition";
+import {
   computeNextRunAt,
   isEverySchedule,
   normalizeRuntimeOverrides,
@@ -12,22 +17,49 @@ export function applyCronJobUpdate(
   timezone: string,
   now: Date,
 ): void {
+  const previousTrigger = job.trigger;
   if (input.name !== undefined) {
-    job.name = input.name;
+    job.name = input.name.trim();
   }
   if (input.prompt !== undefined) {
-    job.prompt = input.prompt;
+    job.prompt = input.prompt.trim();
+    if (job.action?.type !== "webhook") {
+      job.action = normalizeAutomationAction(
+        job.action ? { ...job.action, prompt: input.prompt } : undefined,
+        input.prompt,
+      );
+    }
   }
-  if (input.schedule !== undefined) {
-    job.schedule = input.schedule;
-    job.oneShot = !isEverySchedule(input.schedule);
-    if (job.status === "active") {
+  if (input.trigger !== undefined || input.schedule !== undefined) {
+    const trigger = normalizeAutomationTrigger(
+      input.trigger,
+      input.schedule,
+      previousTrigger,
+    );
+    job.trigger = trigger;
+    job.schedule =
+      trigger.type === "schedule" ? trigger.schedule : trigger.type;
+    job.oneShot =
+      trigger.type === "schedule" && !isEverySchedule(trigger.schedule);
+    if (job.status === "active" && trigger.type === "schedule") {
       job.nextRunAt = computeNextRunAt(
-        job.schedule,
+        trigger.schedule,
         now,
         timezone,
       ).toISOString();
+    } else {
+      job.nextRunAt = undefined;
     }
+  }
+  if (input.condition !== undefined) {
+    job.condition = normalizeAutomationCondition(input.condition);
+  }
+  if (input.action !== undefined) {
+    job.action = normalizeAutomationAction(input.action);
+    job.prompt =
+      job.action.type === "webhook"
+        ? `POST ${job.action.url}`
+        : job.action.prompt;
   }
   if (input.skills !== undefined) {
     job.skills = input.skills;

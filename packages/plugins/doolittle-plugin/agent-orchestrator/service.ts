@@ -76,6 +76,10 @@ export function createAgentOrchestratorService(
             : undefined,
         ),
         maxAttempts: normalizePositiveInteger(metadata?.maxAttempts),
+        workspaceRoot:
+          typeof metadata?.workspaceRoot === "string"
+            ? metadata.workspaceRoot
+            : undefined,
       });
     }
 
@@ -130,6 +134,7 @@ export function createAgentOrchestratorService(
         priority?: string;
         tags?: string[];
         orchestrationMode?: string;
+        workspaceRoot?: string;
       },
     ) {
       return this.delegation.spawnChild(parentId, {
@@ -137,6 +142,7 @@ export function createAgentOrchestratorService(
         metadata: normalizeMetadata(input.metadata),
         priority: normalizePriority(input.priority),
         orchestrationMode: normalizeOrchestrationMode(input.orchestrationMode),
+        workspaceRoot: input.workspaceRoot,
       });
     }
 

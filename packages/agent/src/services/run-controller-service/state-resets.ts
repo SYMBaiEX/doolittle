@@ -39,11 +39,9 @@ export function finishTurn(
   if (!run) {
     return;
   }
-  if (
-    run.endedAt &&
-    run.status === status &&
-    run.errorMessage === errorMessage
-  ) {
+  // A terminal receipt is immutable: late provider failures must not rewrite a
+  // user-requested cancellation (or any other completed outcome).
+  if (run.endedAt) {
     return;
   }
   const transition = finishTransition(run, status, errorMessage);

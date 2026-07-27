@@ -7,6 +7,7 @@ import { DelegationService } from "../../delegation/service";
 import { McpService } from "../../mcp";
 import { MemoryService } from "../../memory-service";
 import { RepositoryService } from "../../repository-service";
+import { ReviewRecordService } from "../../review-record";
 import { RunControllerService } from "../../run-controller-service";
 import { SessionService } from "../../session/service";
 import type { SettingsService } from "../../settings-service";
@@ -26,6 +27,7 @@ export interface ServiceConstructionCore {
   mcp: McpService;
   acp: AcpService;
   repository: RepositoryService;
+  reviewRecords: ReviewRecordService;
   runController: RunControllerService;
   awareness: AwarenessService;
   memory: MemoryService;
@@ -55,7 +57,8 @@ export function createServiceConstructionCore(params: {
       (limit) => sessions.listSessions(limit),
     ),
     repository: new RepositoryService(config.workspaceDir),
-    runController: new RunControllerService(),
+    reviewRecords: new ReviewRecordService(config.dataDir),
+    runController: new RunControllerService(config.dataDir),
     awareness: new AwarenessService(),
     memory: new MemoryService(config.dataDir, {
       memory: config.memoryCharLimit,

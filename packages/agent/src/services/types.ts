@@ -26,6 +26,7 @@ import type { OperatorService } from "./operator/service";
 import type { PairingService } from "./pairing-service";
 import type { PersonalityService } from "./personality-service";
 import type { RepositoryService } from "./repository-service";
+import type { ReviewRecordService } from "./review-record";
 import type { RunControllerService } from "./run-controller-service";
 import type { SessionService } from "./session/service";
 import type { SettingsService } from "./settings-service";
@@ -65,6 +66,7 @@ export interface AppServices {
   workspace: WorkspaceService;
   terminal: TerminalService;
   repository: RepositoryService;
+  reviewRecords: ReviewRecordService;
   diagnostics: DiagnosticsService;
   operator: OperatorService;
   tools: ToolsService;

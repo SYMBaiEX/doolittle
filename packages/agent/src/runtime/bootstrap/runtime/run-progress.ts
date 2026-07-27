@@ -1,4 +1,4 @@
-import { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
+import { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
 import { type ActionResult, type AgentRuntime, EventType } from "@elizaos/core";
 import {
   extractCommandResultFromActionResult,

@@ -17,6 +17,7 @@ export interface DelegationCreateInput {
   tags?: string[];
   labels?: string[];
   metadata?: Record<string, string>;
+  workspaceRoot?: string;
   parentTaskId?: string;
   executionMode?: "local" | "delegated";
   orchestrationMode?: DelegationOrchestrationMode;

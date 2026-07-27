@@ -1,0 +1,9 @@
+{
+  "name": "@elizaos/app-training",
+  "version": "2.0.3-beta.7",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

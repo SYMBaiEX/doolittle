@@ -324,4 +324,59 @@ describe("chat turn provider handler", () => {
     expect(notices).toEqual(["provider unavailable"]);
     expect(streamState.getResponse()).toBe("provider unavailable");
   });
+
+  it("propagates cancellation instead of rewriting it as a provider failure", async () => {
+    const controller = new AbortController();
+    const { context, notices } = createContext({
+      onHandleMessage: async () => {
+        controller.abort();
+        throw new Error("provider aborted");
+      },
+      captureNotice: (notice) => notices.push(notice),
+    });
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: () => ({
+        kind: "append",
+        emittedText: "",
+        nextText: "",
+      }),
+      extractCompatTextContent: () => "",
+    });
+
+    await expect(
+      executeProviderMessageTurn({
+        context,
+        memory: {
+          id: "memory-cancel" as UUID,
+          roomId: "room-cancel" as UUID,
+          entityId: "entity-cancel" as UUID,
+          content: {
+            text: "stop this turn",
+            source: "desktop",
+            channelType: ChannelType.DM,
+          },
+          metadata: { source: "desktop" },
+        } as Memory,
+        streamState,
+        derivedTurnPolicy: {
+          useMultiStep: true,
+          maxIterations: 4,
+        },
+        abortSignal: controller.signal,
+        settingsDuring: createTurnSettings(),
+        loadDirectLocalIntent: async () => ({
+          directLocalIntent: { kind: "patch" },
+        }),
+        onNotice: async (notice) => {
+          notices.push(notice.message);
+        },
+        connectionSource: "desktop",
+        roomId: "room-cancel",
+        buildProviderFailureMessage: () => "provider unavailable",
+        buildNativePlanningFailureMessage: () => "recoverable",
+        isRecoverableNativePlanningError: () => true,
+      }),
+    ).rejects.toThrow("provider aborted");
+    expect(notices).toEqual([]);
+  });
 });

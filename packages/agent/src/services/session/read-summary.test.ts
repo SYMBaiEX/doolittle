@@ -177,6 +177,124 @@ describe("SessionReadSummaryHelpers", () => {
     expect(usage.userMessages).toBe(1);
     expect(usage.assistantMessages).toBe(1);
     expect(usage.estimatedTokens).toBeGreaterThan(0);
+    expect(usage.context).toMatchObject({
+      sampledMessages: 2,
+      totalMessages: 2,
+      truncated: false,
+      estimated: true,
+    });
+  });
+
+  it("uses the requested model window and safely handles empty sessions", () => {
+    const db = createDb();
+    const helpers = new SessionReadSummaryHelpers(db, buildResolver(db));
+
+    const empty = helpers.usage("missing", {
+      provider: "openai",
+      model: "gpt-5.4",
+    });
+    expect(empty).toMatchObject({
+      messageCount: 0,
+      estimatedTokens: 0,
+      context: {
+        estimatedTokens: 0,
+        contextWindowTokens: 1_050_000,
+        usageFraction: 0,
+        percent: 0,
+        overThreshold: false,
+        sampledMessages: 0,
+        totalMessages: 0,
+        truncated: false,
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    db.query(
+      `
+        INSERT INTO messages (
+          id, session_id, room_id, entity_id, role, text, created_at
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+      `,
+    ).run(
+      "1",
+      "session:model",
+      "session:model",
+      "user:1",
+      "user",
+      "hello",
+      "2026-03-20T00:00:00.000Z",
+    );
+
+    const smallWindow = helpers.usage("session:model", {
+      provider: "openai",
+      model: "gpt-4",
+    });
+    const largeWindow = helpers.usage("session:model", {
+      provider: "openai",
+      model: "gpt-5.4",
+    });
+    expect(smallWindow.context?.contextWindowTokens).toBe(8_192);
+    expect(largeWindow.context?.contextWindowTokens).toBe(1_050_000);
+    expect(smallWindow.context?.usageFraction ?? 0).toBeGreaterThan(
+      largeWindow.context?.usageFraction ?? 0,
+    );
+  });
+
+  it("bounds the sample and display percent while retaining overflow pressure", () => {
+    const db = createDb();
+    const helpers = new SessionReadSummaryHelpers(db, buildResolver(db));
+    const insert = db.query(`
+      INSERT INTO messages (
+        id, session_id, room_id, entity_id, role, text, created_at
+      )
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+    `);
+
+    insert.run(
+      "1",
+      "session:large",
+      "session:large",
+      "user:1",
+      "user",
+      "old",
+      "2026-03-20T00:00:00.000Z",
+    );
+    insert.run(
+      "2",
+      "session:large",
+      "session:large",
+      "assistant:1",
+      "assistant",
+      "x".repeat(20_000),
+      "2026-03-20T00:00:01.000Z",
+    );
+    insert.run(
+      "3",
+      "session:large",
+      "session:large",
+      "user:1",
+      "user",
+      "y".repeat(20_000),
+      "2026-03-20T00:00:02.000Z",
+    );
+
+    const usage = helpers.usage("session:large", {
+      provider: "openai",
+      model: "gpt-4",
+      sampleLimit: 2,
+      threshold: 0.5,
+    });
+
+    expect(usage.context?.totalMessages).toBe(3);
+    expect(usage.context?.sampledMessages).toBe(2);
+    expect(usage.context?.truncated).toBe(true);
+    expect(usage.context?.estimatedTokens).toBeGreaterThan(8_192);
+    expect(usage.context?.usageFraction).toBeGreaterThan(1);
+    expect(usage.context?.percent).toBe(100);
+    expect(usage.context?.overThreshold).toBe(true);
+    expect(usage.lastPreview).toBe("y".repeat(200));
   });
 
   it("returns continuity sessions by continuity key", () => {

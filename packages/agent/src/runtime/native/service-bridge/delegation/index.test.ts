@@ -116,6 +116,7 @@ describe("delegation bridge selectors", () => {
           objective: string;
           labels?: string[];
           tags?: string[];
+          workspaceRoot?: string;
         }
       | undefined;
 
@@ -124,13 +125,18 @@ describe("delegation bridge selectors", () => {
         createTask: (
           _title: string,
           _objective: string,
-          options: { labels?: string[]; tags?: string[] },
+          options: {
+            labels?: string[];
+            tags?: string[];
+            workspaceRoot?: string;
+          },
         ) => {
           createdPayload = {
             title: _title,
             objective: _objective,
             labels: options.labels,
             tags: options.tags,
+            workspaceRoot: options.workspaceRoot,
           };
           return "created";
         },
@@ -144,7 +150,11 @@ describe("delegation bridge selectors", () => {
       title: "title",
       objective: "objective",
       labels: ["label"],
-      metadata: { foo: "bar" },
+      workspaceRoot: "/repo/reviewed-worktree",
+      metadata: {
+        foo: "bar",
+        workspaceRoot: "/repo/unreviewed-metadata-root",
+      },
     });
 
     expect(result).toBe("created");
@@ -153,6 +163,7 @@ describe("delegation bridge selectors", () => {
       objective: "objective",
       labels: ["label"],
       tags: ["label"],
+      workspaceRoot: "/repo/reviewed-worktree",
     });
   });
 
@@ -195,10 +206,14 @@ describe("delegation bridge selectors", () => {
     const services = createServices({
       spawnChild: () => ({ spawned: "service" }),
     });
+    let nativeInput: unknown;
 
     const runtimeWithOrchestrator = createRuntime({
       agent_orchestrator: {
-        spawnChild: () => ({ spawned: "orchestrator" }),
+        spawnChild: (_parentId: string, input: unknown) => {
+          nativeInput = input;
+          return { spawned: "orchestrator" };
+        },
       },
     });
     const runtimeWithoutOrchestrator = createRuntime({});
@@ -211,9 +226,17 @@ describe("delegation bridge selectors", () => {
         {
           title: "child",
           objective: "nested",
+          group: "desktop",
+          executionMode: "delegated",
         },
       ),
     ).toEqual({ spawned: "orchestrator" });
+    expect(nativeInput).toMatchObject({
+      title: "child",
+      objective: "nested",
+      group: "desktop",
+      executionMode: "delegated",
+    });
 
     expect(
       spawnEffectiveDelegationChild(

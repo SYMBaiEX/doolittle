@@ -1,4 +1,4 @@
-import type { getAgentEventService } from "@elizaos/autonomous/runtime/agent-event-service";
+import type { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
 
 import type {
   NativeAgentOrchestratorService,

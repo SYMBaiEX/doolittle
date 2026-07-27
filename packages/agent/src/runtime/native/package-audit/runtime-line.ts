@@ -2,8 +2,8 @@ import type { NativePackageAuditRuntimeLine } from "./types";
 
 export function getLatestRuntimeLine(): NativePackageAuditRuntimeLine {
   return {
-    date: "2026-05-09",
+    date: "2026-07-27",
     latest: "1.7.2",
-    alpha: "2.0.0-alpha.537",
+    beta: "2.0.3-beta.7",
   };
 }

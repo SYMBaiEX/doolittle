@@ -172,6 +172,39 @@ describe("chat turn local intent orchestration", () => {
     expect(harness.runEvents).toEqual(["finish:session-1:complete"]);
   });
 
+  it("keeps attachment turns on the provider path even for a direct local intent", async () => {
+    const harness = createContext();
+    const executeDirectLocalIntent = mock(async () => "should not run");
+
+    const result = await runPreferredLocalIntentFastPath(
+      {
+        input: createInput(),
+        effectiveInput: createInput(),
+        context: harness.context,
+        turn: createTurn(),
+        scheduleProfileObservation: () => undefined,
+        allowDirectResponse: false,
+      },
+      {
+        createDirectLocalIntentLoader: ((
+          ..._args: Parameters<CreateDirectLocalIntentLoader>
+        ) =>
+          async () => ({
+            directLocalIntent: { label: "repo:status" },
+            executeDirectLocalIntent,
+            isHighConfidenceDirectLocalIntent: () => true,
+            requiresModelSynthesisForLocalIntent: () => false,
+            shouldUseDirectLocalFallback: () => false,
+          })) as CreateDirectLocalIntentLoader,
+      },
+    );
+
+    expect(result.kind).toBe("continue");
+    expect(executeDirectLocalIntent).not.toHaveBeenCalled();
+    expect(harness.storedMessages).toEqual([]);
+    expect(harness.runEvents).toEqual([]);
+  });
+
   it("builds the local synthesis prelude from verified inspection output", async () => {
     const executeDirectLocalIntent = mock(async () => "Verified repo facts");
 

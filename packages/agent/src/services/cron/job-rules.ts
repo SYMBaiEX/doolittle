@@ -1,7 +1,7 @@
 import {
   computeNextCronRunAtMs,
   normalizeTriggerIntervalMs,
-} from "@elizaos/autonomous/triggers/scheduling";
+} from "@elizaos/agent/triggers/scheduling";
 import type { CronJobRuntimeOverrides } from "@/types";
 
 function parseDuration(value: string): number | undefined {

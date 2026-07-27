@@ -2,7 +2,20 @@ import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import { json, streamSse } from "@/server/responses";
+import {
+  ManagedAttachmentError,
+  resolveManagedChatAttachments,
+} from "@/services/chat-attachments";
 import type { ChatRequestBody } from "./types";
+
+const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
+
+function resolveRunId(value: unknown): string {
+  if (typeof value !== "string" || !RUN_ID_PATTERN.test(value)) {
+    return randomUUID();
+  }
+  return value;
+}
 
 export async function handleChatRoute(
   context: AppContext,
@@ -13,59 +26,131 @@ export async function handleChatRoute(
   if (!body.message) {
     return json({ error: "message is required" }, 400);
   }
+  const message = body.message.trim();
+  if (!message) {
+    return json({ error: "message is required" }, 400);
+  }
+
+  let resolvedAttachments: Awaited<
+    ReturnType<typeof resolveManagedChatAttachments>
+  >;
+  try {
+    resolvedAttachments = await resolveManagedChatAttachments({
+      dataDir: context.config.dataDir,
+      attachmentIds: body.attachmentIds ?? [],
+    });
+  } catch (error) {
+    if (error instanceof ManagedAttachmentError) {
+      return json({ error: error.message, code: error.code }, 400);
+    }
+    throw error;
+  }
+  if (
+    resolvedAttachments.length > 0 &&
+    (message.startsWith("/") || message.startsWith("!"))
+  ) {
+    return json({ error: "Command messages cannot include attachments." }, 400);
+  }
+  const attachments = resolvedAttachments.map((entry) => entry.media);
+  const attachmentDescriptors = resolvedAttachments.map(
+    (entry) => entry.descriptor,
+  );
 
   if (body.stream) {
     const responseId = randomUUID();
+    const runId = resolveRunId(body.runId);
     const roomId = body.roomId ?? `api:${body.userId ?? "api-user"}`;
-    const requestMessage = body.message;
+    const requestMessage = message;
 
     return streamSse(async (emit) => {
-      await emit("response.created", { id: responseId, room_id: roomId });
-      const { response } = await executeAgentTurnWithProgress(
-        {
-          message: requestMessage,
-          userId: body.userId ?? "api-user",
-          roomId,
-          source: body.source ?? "api",
-        },
-        context,
-        {
-          onProgress: async ({ delta }) => {
-            if (!delta) {
-              return;
-            }
-            await emit("response.output_text.delta", {
-              id: responseId,
-              delta,
-            });
-          },
-          onRunEvent: async (event, detail) => {
-            await emit("agent.progress", {
-              event: event.type,
-              detail: `[run] ${detail}`,
-              sessionId: event.sessionId,
-            });
-          },
-          onNotice: async (notice) => {
-            await emit("response.notice", notice);
-          },
-        },
+      const controller = new AbortController();
+      const unregister = context.services.runController.registerAbortController(
+        runId,
+        controller,
       );
-      await emit("response.completed", {
+      await emit("response.created", {
         id: responseId,
-        response,
-        character: context.config.agentName,
+        run_id: runId,
         room_id: roomId,
       });
+      try {
+        const { response } = await executeAgentTurnWithProgress(
+          {
+            message: requestMessage,
+            userId: body.userId ?? "api-user",
+            roomId,
+            runId,
+            source: body.source ?? "api",
+            attachments,
+            attachmentDescriptors,
+          },
+          context,
+          {
+            abortSignal: controller.signal,
+            onProgress: async ({ delta }) => {
+              if (!delta) {
+                return;
+              }
+              await emit("response.output_text.delta", {
+                id: responseId,
+                delta,
+              });
+            },
+            onRunUpdate: async (event) => {
+              await emit("agent.run", event);
+            },
+            onRunEvent: async (event, detail) => {
+              await emit("agent.progress", {
+                event: event.type,
+                detail: `[run] ${detail}`,
+                sessionId: event.sessionId,
+              });
+            },
+            onNotice: async (notice) => {
+              await emit("response.notice", notice);
+            },
+          },
+        );
+        if (controller.signal.aborted) {
+          await emit("response.cancelled", {
+            id: responseId,
+            run_id: runId,
+            room_id: roomId,
+          });
+          return;
+        }
+        await emit("response.completed", {
+          id: responseId,
+          response,
+          character: context.config.agentName,
+          room_id: roomId,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          await emit("response.cancelled", {
+            id: responseId,
+            run_id: runId,
+            room_id: roomId,
+          });
+          return;
+        }
+        throw error;
+      } finally {
+        unregister();
+      }
     });
   }
 
   const { response } = await executeAgentTurnWithProgress(
     {
-      message: body.message,
+      message,
       userId: body.userId ?? "api-user",
       roomId: body.roomId,
+      runId:
+        typeof body.runId === "string" ? resolveRunId(body.runId) : undefined,
       source: body.source ?? "api",
+      attachments,
+      attachmentDescriptors,
     },
     context,
   );

@@ -1,4 +1,10 @@
 import { json } from "@/server/responses";
+import {
+  toPublicAutocoderBundle,
+  toPublicAutocoderSummary,
+  toPublicAutocoderWorkflow,
+  toPublicAutocoderWorkflowView,
+} from "@/server/routes/codegen/public-dtos";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
 
 export const handleCodegenWorkflowsRoutes: CodegenRouteHandler = async (
@@ -6,14 +12,14 @@ export const handleCodegenWorkflowsRoutes: CodegenRouteHandler = async (
   request,
   url,
 ) => {
-  if (request.method !== "GET") {
-    return null;
-  }
-
-  if (url.pathname === "/codegen/workflows") {
+  if (request.method === "GET" && url.pathname === "/codegen/workflows") {
     return json({
-      summary: context.services.autocoderPipeline.summary(),
-      workflows: context.services.autocoderPipeline.listWorkflows(50),
+      summary: toPublicAutocoderSummary(
+        context.services.autocoderPipeline.summary(),
+      ),
+      workflows: context.services.autocoderPipeline
+        .listWorkflows(50)
+        .map(toPublicAutocoderWorkflow),
     });
   }
 
@@ -21,13 +27,21 @@ export const handleCodegenWorkflowsRoutes: CodegenRouteHandler = async (
     const suffix = decodeURIComponent(
       url.pathname.replace("/codegen/workflows/", ""),
     );
-    if (suffix.endsWith("/bundle")) {
+    if (request.method === "POST" && suffix.endsWith("/bundle")) {
       const workflowId = suffix.replace(/\/bundle$/u, "");
       return json(
-        context.services.autocoderPipeline.bundleWorkflow(workflowId),
+        toPublicAutocoderBundle(
+          context.services.autocoderPipeline.bundleWorkflow(workflowId),
+        ),
       );
     }
-    return json(context.services.autocoderPipeline.workflow(suffix));
+    if (request.method === "GET" && !suffix.endsWith("/bundle")) {
+      return json(
+        toPublicAutocoderWorkflowView(
+          context.services.autocoderPipeline.workflow(suffix),
+        ),
+      );
+    }
   }
 
   return null;

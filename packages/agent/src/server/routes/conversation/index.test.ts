@@ -1,8 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleConversationRoutes } from "@/server/routes/conversation";
+import { RunControllerService } from "@/services/run-controller-service";
 
 function createContext() {
+  const runController = new RunControllerService();
   return {
     config: {
       agentName: "Doolittle Test",
@@ -16,6 +22,7 @@ function createContext() {
       }),
     },
     services: {
+      runController,
       apiTransport: {
         resolveRoomId: (
           _previousResponseId: string | undefined,
@@ -58,6 +65,54 @@ function createContext() {
 }
 
 describe("handleConversationRoutes", () => {
+  it("cancels the registered server turn and exposes its retained receipt", async () => {
+    const context = createContext();
+    const controller = new AbortController();
+    context.services.runController.startTurn({
+      sessionId: "desktop:session",
+      roomId: "desktop:session",
+      runId: "desktop-run-1",
+      source: "desktop",
+      message: "long running provider work",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "new",
+    });
+    context.services.runController.registerAbortController(
+      "desktop-run-1",
+      controller,
+    );
+
+    const cancelled = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/chat/runs/desktop-run-1/cancel", {
+        method: "POST",
+      }),
+      new URL("http://localhost/chat/runs/desktop-run-1/cancel"),
+    );
+
+    expect(controller.signal.aborted).toBe(true);
+    expect(cancelled?.status).toBe(200);
+    await expect(cancelled?.json()).resolves.toMatchObject({
+      accepted: true,
+      run: { status: "cancelled", terminalReason: "cancelled" },
+    });
+
+    const receipt = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/chat/runs/desktop-run-1"),
+      new URL("http://localhost/chat/runs/desktop-run-1"),
+    );
+    expect(receipt?.status).toBe(200);
+    await expect(receipt?.json()).resolves.toMatchObject({
+      run: {
+        runId: "desktop-run-1",
+        status: "cancelled",
+        endedAt: expect.any(String),
+      },
+    });
+  });
+
   it("lists stored responses through the legacy GET alias", async () => {
     const response = await handleConversationRoutes(
       createContext(),
@@ -140,6 +195,75 @@ describe("handleConversationRoutes", () => {
     await expect(response?.json()).resolves.toEqual({
       error: "message is required",
     });
+  });
+
+  it("rejects malformed attachment ids before agent execution", async () => {
+    const response = await handleConversationRoutes(
+      createContext(),
+      new Request("http://localhost/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          message: "Review this",
+          attachmentIds: ["../../private-key"],
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      new URL("http://localhost/chat"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toMatchObject({
+      code: "invalid_request",
+    });
+  });
+
+  it("rejects attachments on command messages", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-chat-route-"));
+    try {
+      const attachmentsDir = join(dataDir, "attachments");
+      mkdirSync(attachmentsDir);
+      const id = randomUUID();
+      const contents = Buffer.from("status context");
+      writeFileSync(join(attachmentsDir, `${id}.txt`), contents);
+      writeFileSync(
+        join(attachmentsDir, `${id}.meta.json`),
+        JSON.stringify({
+          version: 1,
+          id,
+          name: "status.txt",
+          kind: "document",
+          mimeType: "text/plain",
+          sizeBytes: contents.byteLength,
+          sha256: createHash("sha256").update(contents).digest("hex"),
+          storedName: `${id}.txt`,
+        }),
+      );
+      const context = createContext();
+      context.config.dataDir = dataDir;
+      const response = await handleConversationRoutes(
+        context,
+        new Request("http://localhost/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            message: "/status",
+            attachmentIds: [id],
+          }),
+          headers: {
+            "content-type": "application/json",
+          },
+        }),
+        new URL("http://localhost/chat"),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({
+        error: "Command messages cannot include attachments.",
+      });
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
   });
 
   it("rejects responses requests without input", async () => {

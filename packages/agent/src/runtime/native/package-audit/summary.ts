@@ -12,7 +12,7 @@ export function summarizeNativePackageAuditPackages(
     vendored: packages.filter(
       (entry) => entry.compatibility === "vendored-by-design",
     ).length,
-    alphaOnly: packages.filter((entry) => entry.compatibility === "alpha-only")
+    betaOnly: packages.filter((entry) => entry.compatibility === "beta-only")
       .length,
     laggingLatest: packages.filter(
       (entry) => entry.compatibility === "lagging-latest",

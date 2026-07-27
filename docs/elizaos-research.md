@@ -2,24 +2,25 @@
 
 This document captures framework-level findings that matter for keeping Doolittle aligned with the current ElizaOS 2.x architecture.
 
-## Package Status Observed On May 9, 2026
+## Package Status Observed On July 27, 2026
 
-Current npm metadata is not lockstep across the ElizaOS package family, so Doolittle should pin package-by-package instead of assuming one shared version.
+Current npm metadata is not lockstep across the ElizaOS package family, so Doolittle tracks package-by-package with explicit `2.0.3-beta.7` pins.
 
-| Package | npm `latest` | npm `alpha` | Doolittle strategy |
+| Package | npm `latest` | npm `beta` | Doolittle strategy |
 | --- | --- | --- | --- |
-| `elizaos` | `1.7.2` | `2.0.0-alpha.535` | Use explicit alpha |
-| `@elizaos/core` | `1.7.2` | `2.0.0-alpha.537` | Use explicit alpha |
-| `@elizaos/agent` | `0.25.9` | `2.0.0-alpha.537` | Use explicit alpha |
-| `@elizaos/skills` | `2.0.0-alpha.77` | `2.0.0-alpha.539` | Use explicit alpha |
-| `@elizaos/autonomous` | `2.0.0-alpha.77` | `2.0.0-alpha.85` | Keep current alpha, because no newer alpha is published |
-| `@elizaos/plugin-openai` | `1.6.0` | `2.0.0-alpha.537` | Use explicit alpha |
-| `@elizaos/plugin-sql` | `1.7.2` | `2.0.0-alpha.20` | Keep workspace compatibility wrapper around the newest published alpha |
+| `elizaos` | `1.7.2` | `2.0.3-beta.7` | Use explicit beta |
+| `@elizaos/core` | `1.7.2` | `2.0.3-beta.7` | Use explicit beta |
+| `@elizaos/agent` | `0.25.9` | `2.0.3-beta.7` | Use explicit beta |
+| `@elizaos/skills` | `2.0.0-alpha.77` | `2.0.3-beta.7` | Use explicit beta |
+| `@elizaos/autonomous` | `2.0.0-alpha.77` | `2.0.3-beta.7` | Keep aligned with beta runtime train through `@elizaos/agent` where ownership is centralized |
+| `@elizaos/plugin-openai` | `1.6.0` | `2.0.3-beta.7` | Use explicit beta |
+| `@elizaos/plugin-sql` | `1.7.2` | `2.0.3-beta.7` | Keep the workspace wrapper for Doolittle metadata normalization and duplicate recovery |
 
 Implications:
 
-- The 2.x runtime line still lives behind explicit alpha tags for the core runtime packages.
-- Several official plugins have reached `2.0.0-alpha.537`, but some packages, such as SQL and autonomous, have their own latest available alpha.
+- `npm` dist-tags are mixed across packages, and the visible `latest` values may still point to older major lines; do not rely on `latest` for compatibility.
+- The runtime migration target is the verified `2.0.3-beta.7` install line, with explicit pins.
+- Several official plugins remain at different publish streams, so the workspace wrapper remains for SQL compatibility while still consuming the beta stream where supported.
 - Workspace wrappers are still valuable where Doolittle needs compatibility patches or plugins that are not published as official npm packages.
 
 ## Current Architecture Findings

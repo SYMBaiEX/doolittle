@@ -42,6 +42,11 @@ export interface NativePlanningService {
     planId: string,
   ) => Promise<unknown | undefined> | unknown | undefined;
   createPlan?: (input: unknown) => Promise<unknown> | unknown;
+  approvePlan?: (planId: string) => Promise<unknown> | unknown;
+  steerPlan?: (
+    planId: string,
+    instruction: string,
+  ) => Promise<unknown> | unknown;
   summary?: () => {
     total: number;
     active: number;

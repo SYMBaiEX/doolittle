@@ -1,5 +1,5 @@
-import type { resolveStreamingUpdate } from "@elizaos/autonomous/api/streaming-text";
 import type { Content, Memory } from "@elizaos/core";
+import type { resolveStreamingUpdate } from "@elizaos/shared/utils/streaming-text";
 import type { extractCompatTextContent } from "./state";
 
 export type ProviderStreamSource = "unset" | "callback" | "onStreamChunk";
@@ -70,7 +70,7 @@ export function createProviderStreamState(
 
   const appendIncomingText = async (incoming: string): Promise<void> => {
     const update = context.resolveStreamingUpdate(response, incoming);
-    if (update.kind === "noop") {
+    if (update.kind === "unchanged") {
       return;
     }
     if (update.kind === "append") {

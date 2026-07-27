@@ -25,6 +25,18 @@ describe("resolveSubcommand", () => {
       command: "progress",
       rest: [],
     });
+    expect(resolveSubcommand(["desktop", "--skip-build"])).toEqual({
+      command: "desktop",
+      rest: ["--skip-build"],
+    });
+    expect(resolveSubcommand(["gui"])).toEqual({
+      command: "desktop",
+      rest: [],
+    });
+    expect(resolveSubcommand(["desktop", "--help"])).toEqual({
+      command: "desktop",
+      rest: ["--help"],
+    });
     expect(resolveSubcommand(["tools", "search", "browser"])).toEqual({
       command: "tools",
       rest: ["search", "browser"],
