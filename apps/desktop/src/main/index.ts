@@ -20,16 +20,16 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
-import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { handleWindowClose } from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
-import { configuredUpdater, DesktopUpdateController } from "./update-state";
+import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { importRecordedAudio } from "./recorded-audio-import";
 import {
   isTrustedRendererNavigation,
   trustedDevRendererUrl,
 } from "./renderer-url";
 import { ensureDesktopRuntimeState } from "./runtime-state";
+import { configuredUpdater, DesktopUpdateController } from "./update-state";
 import { loadDesktopWindow } from "./window-loading";
 import {
   createWindowStatePersistenceController,

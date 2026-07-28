@@ -59,10 +59,7 @@ describe("WorkspaceService", () => {
         );
       expect(recoveryCheckpoint).toBeDefined();
       expect(
-        git([
-          "show",
-          `${recoveryCheckpoint?.revision ?? ""}:tracked.txt`,
-        ]),
+        git(["show", `${recoveryCheckpoint?.revision ?? ""}:tracked.txt`]),
       ).toBe("after mutation\n");
 
       const checkpointCount = service.listCheckpoints().length;

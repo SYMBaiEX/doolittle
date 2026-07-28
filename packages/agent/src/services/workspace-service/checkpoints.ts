@@ -186,12 +186,7 @@ export class WorkspaceCheckpointService {
       if (paths.length > 0) {
         git(
           root,
-          [
-            "add",
-            "--all",
-            "--pathspec-from-file=-",
-            "--pathspec-file-nul",
-          ],
+          ["add", "--all", "--pathspec-from-file=-", "--pathspec-file-nul"],
           env,
           `${paths.join("\0")}\0`,
         );

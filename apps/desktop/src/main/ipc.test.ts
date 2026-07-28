@@ -397,10 +397,7 @@ describe("parseApiPath", () => {
       "/workspace/checkpoints",
     );
     expect(
-      parseApiPath(
-        "/workspace/checkpoints/checkpoint-123/restore",
-        "POST",
-      ),
+      parseApiPath("/workspace/checkpoints/checkpoint-123/restore", "POST"),
     ).toBe("/workspace/checkpoints/checkpoint-123/restore");
     expect(() =>
       parseApiPath(
