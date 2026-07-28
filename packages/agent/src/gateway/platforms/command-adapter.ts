@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
 import type { DeliveryService } from "@/services/delivery-service";
+import { runTextProcess } from "@/services/process-execution";
 import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
 import {
   buildConfiguredTransportHealth,
@@ -17,33 +17,15 @@ async function runShellCommand(
   command: string,
   env: Record<string, string>,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const child = spawn("/bin/zsh", ["-lc", command], {
-    env: {
-      ...process.env,
-      ...env,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  let stdout = "";
-  let stderr = "";
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk: string) => {
-    stdout += chunk;
-  });
-  child.stderr.on("data", (chunk: string) => {
-    stderr += chunk;
-  });
-  const exitCode = await new Promise<number>((resolveExit, reject) => {
-    child.once("error", reject);
-    child.once("exit", (code) => resolveExit(code ?? 1));
+  const result = await runTextProcess("/bin/zsh", ["-lc", command], {
+    env,
+    toolName: "doolittle.gateway.command-adapter",
   });
 
   return {
-    exitCode,
-    stdout: stdout.trim(),
-    stderr: stderr.trim(),
+    exitCode: result.exitCode,
+    stdout: result.stdout.trim(),
+    stderr: result.stderr.trim(),
   };
 }
 
