@@ -161,6 +161,59 @@ test.describe("Doolittle desktop navigation", () => {
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
       await expect(page.locator(".view-code .coding-grid")).toBeVisible();
+      const workspaceTree = page.getByRole("tree", {
+        name: "Workspace files",
+      });
+      await expect(workspaceTree).toBeVisible();
+      const appsFolder = workspaceTree.getByRole("treeitem", {
+        name: "apps",
+        exact: true,
+      });
+      await expect(appsFolder).toHaveAttribute("aria-expanded", "false");
+      await expect(
+        workspaceTree.getByRole("treeitem", {
+          name: "desktop",
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await appsFolder.click();
+      await expect(appsFolder).toHaveAttribute("aria-expanded", "true");
+      await expect(
+        workspaceTree.getByRole("treeitem", {
+          name: "desktop",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await appsFolder.click();
+      await expect(appsFolder).toHaveAttribute("aria-expanded", "false");
+
+      await workspaceTree.getByRole("treeitem", { name: /AGENTS\.md/ }).click();
+      await expect(
+        page.locator(".doolittle-code-editor .monaco-editor"),
+      ).toBeVisible();
+      await expect(page.locator(".coding-breadcrumb small")).toHaveText(
+        "Markdown",
+      );
+      await expect(
+        page.locator(".interactive-terminal-launchpad"),
+      ).toBeVisible();
+      await expect(page.locator(".interactive-terminal-mode")).toHaveText(
+        /(?:PTY|PIPE) · \d+×\d+/,
+      );
+      await expect(
+        page.locator(".interactive-terminal-mode"),
+      ).not.toContainText("100×30");
+      const codeWorkspaceScreenshot = testInfo.outputPath(
+        "doolittle-code-workspace.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        path: codeWorkspaceScreenshot,
+      });
+      await testInfo.attach("code workspace", {
+        contentType: "image/png",
+        path: codeWorkspaceScreenshot,
+      });
 
       const explorerResizer = page.getByRole("separator", {
         name: "Resize code explorer",
