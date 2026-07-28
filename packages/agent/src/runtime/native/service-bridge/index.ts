@@ -62,8 +62,11 @@ export {
   getNativeTransportControlPlane,
 } from "./control-planes";
 export {
+  addEffectiveDelegationNote,
   cancelEffectiveDelegationTask,
+  completeEffectiveDelegationTask,
   createEffectiveDelegationTask,
+  executeEffectiveDelegationTask,
   getEffectiveDelegationAggregation,
   getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
@@ -95,8 +98,8 @@ export type { RuntimeLike } from "./runtime";
 export { getNativeServices } from "./runtime";
 export {
   exportEffectiveSkillHubManifest,
-  getEffectiveSkillCatalog,
   getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubCatalogEntry,
   getEffectiveSkillHubFamilies,
   getEffectiveSkillHubFamily,
   getEffectiveSkillHubGenerated,
@@ -105,10 +108,10 @@ export {
   getEffectiveSkillHubSummary,
   getEffectiveSkillHubWorkspace,
   importEffectiveSkillHubManifest,
-  installEffectiveSkillHubManifest,
-  searchEffectiveSkillCatalog,
+  installEffectiveSkill,
   searchEffectiveSkillHubCatalog,
-  syncEffectiveSkillHub,
+  searchEffectiveSkillsMarketplace,
+  syncEffectiveSkillCatalog,
 } from "./skill-hub";
 export type { EffectiveTurnCapabilityPolicy } from "./tool-policy";
 export { getEffectiveTurnCapabilityPolicy } from "./tool-policy";

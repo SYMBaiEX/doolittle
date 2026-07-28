@@ -30,23 +30,11 @@ describe("queue count helpers", () => {
 });
 
 describe("autonomous control plane", () => {
-  it("builds queue metrics from delegation queue when summary values are absent", () => {
+  it("builds queue metrics from the official task read projection", () => {
     const runtime = {
       getService(name: string) {
-        if (name === "agent_orchestrator") {
-          return {
-            summary: () => ({}),
-            queue: () => ({
-              items: [
-                { status: "pending" },
-                { status: "queued" },
-                { status: "running" },
-                { status: "active" },
-                { status: "cancelled" },
-              ],
-            }),
-            tasks: () => [{ id: "task-1" }, { id: "task-2" }, { id: "task-3" }],
-          };
+        if (name === "ORCHESTRATOR_TASK_SERVICE") {
+          return {};
         }
         if (name === "plugin_manager") {
           return {
@@ -139,8 +127,14 @@ describe("autonomous control plane", () => {
         listGeneratedSkills: () => [],
       },
       delegation: {
-        list: () => [],
-        queueSummary: () => ({ pending: 0, activeWorkers: 0 }),
+        list: () => [
+          { id: "task-1", status: "pending" },
+          { id: "task-2", status: "pending" },
+          { id: "task-3", status: "running" },
+          { id: "task-4", status: "running" },
+          { id: "task-5", status: "cancelled" },
+        ],
+        queueSummary: () => ({ pending: 2, activeWorkers: 2 }),
       },
       repo: {
         status: () => null,
@@ -151,7 +145,7 @@ describe("autonomous control plane", () => {
       falApiKey: "fal-key",
     } as never);
 
-    expect(controlPlane.orchestrator.tasks).toBe(3);
+    expect(controlPlane.orchestrator.tasks).toBe(5);
     expect(controlPlane.orchestrator.queuePending).toBe(2);
     expect(controlPlane.orchestrator.activeWorkers).toBe(2);
   });

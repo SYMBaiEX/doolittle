@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
-import type { DelegationTaskRecord } from "@/types/delegation";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { RuntimeLike } from "./index";
 import {
   cancelEffectiveForm,
@@ -46,24 +46,6 @@ import {
   retryEffectiveDelegationTask,
   setEffectiveSecret,
 } from "./index";
-
-function makeDelegationTask(
-  id: string,
-  overrides: Partial<DelegationTaskRecord> = {},
-): DelegationTaskRecord {
-  const createdAt = "2026-03-24T00:00:00.000Z";
-  return {
-    id,
-    title: `Task ${id}`,
-    objective: `Objective ${id}`,
-    status: "pending",
-    executionMode: "local",
-    notes: [],
-    createdAt,
-    updatedAt: createdAt,
-    ...overrides,
-  };
-}
 
 describe("getEffectiveMessagingTransportInventory", () => {
   it("builds native forms and execution control planes from installed services", () => {
@@ -184,7 +166,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             getCachedTools: () => [{ name: "tool-1" }],
           };
         }
-        if (name === "agent_orchestrator") {
+        if (name === "ORCHESTRATOR_TASK_SERVICE") {
           return {
             tasks: () => [{ id: "task-1" }],
             queue: () => ({ pending: 0, activeWorkers: 0 }),
@@ -735,16 +717,24 @@ describe("getEffectiveMessagingTransportInventory", () => {
   it("builds an autonomous control-plane summary from native services", () => {
     const runtime = {
       getService(name: string) {
-        if (name === "agent_skills") {
+        if (name === "AGENT_SKILLS_SERVICE") {
           return {
-            list: () => [{ slug: "native-skill" }],
+            getLoadedSkills: () => [
+              {
+                slug: "native-skill",
+                name: "Native Skill",
+                description: "Loaded by the official service.",
+                path: "/skills/native-skill",
+                content: "# Native Skill",
+                source: "managed",
+                sourceDir: "/skills",
+                precedence: 80,
+              },
+            ],
           };
         }
-        if (name === "agent_orchestrator") {
-          return {
-            tasks: () => [{ id: "task-1" }, { id: "task-2" }],
-            queue: () => ({ pending: 1, activeWorkers: 1 }),
-          };
+        if (name === "ORCHESTRATOR_TASK_SERVICE") {
+          return {};
         }
         if (name === "trajectories") {
           return {
@@ -790,8 +780,11 @@ describe("getEffectiveMessagingTransportInventory", () => {
         listGeneratedSkills: () => [{ slug: "generated-skill" }],
       },
       delegation: {
-        list: () => [{ id: "fallback-task" }],
-        queueSummary: () => ({ pending: 2, activeWorkers: 0 }),
+        list: () => [
+          { id: "official-task-1", status: "pending" },
+          { id: "official-task-2", status: "running" },
+        ],
+        queueSummary: () => ({ pending: 1, activeWorkers: 1 }),
       },
       trajectories: {
         listBundles: () => [{ id: "fallback-bundle" }],
@@ -971,115 +964,55 @@ describe("plugin manager bridge helper", () => {
 });
 
 describe("delegation bridge helpers", () => {
-  it("prefers native orchestrator tree, children, status, and retry helpers when available", () => {
-    const runtime = {
-      getService(name: string) {
-        if (name === "agent_orchestrator") {
-          return {
-            getTask: (id: string) =>
-              makeDelegationTask(id, {
-                title: "Native task",
-                objective: "Native orchestrator task",
-              }),
-            getChildren: (id: string) => [
-              makeDelegationTask(`${id}-child`, {
-                title: "Native child",
-                objective: "Native orchestrator child",
-              }),
-            ],
-            tree: (id: string) =>
-              makeDelegationTask(id, {
-                title: "Native tree",
-                objective: "Native orchestrator tree",
-              }),
-            retryTask: (
-              id: string,
-              _note?: string,
-              options?: { cascadeChildren?: boolean },
-            ) =>
-              makeDelegationTask(id, {
-                title: "Native retry",
-                objective: "Native orchestrator retry",
-                status: "pending",
-                metadata: {
-                  cascadeChildren: String(options?.cascadeChildren ?? false),
-                },
-              }),
-          };
-        }
-        return null;
-      },
-    } as unknown as RuntimeLike;
+  it("adapts official task details, lineage, trees, and retries", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const runtime = official.runtime as unknown as RuntimeLike;
+    const parent = await official.service.createTask({
+      title: "Official task",
+      goal: "Official orchestrator task",
+      originalRequest: "Official orchestrator task",
+    });
+    const child = await official.service.createTask({
+      title: "Official child",
+      goal: "Official orchestrator child",
+      originalRequest: "Official orchestrator child",
+      parentTaskId: parent.id,
+    });
+    const services = {} as AppServices;
 
-    const services = {
-      delegation: {
-        get: (id: string) =>
-          makeDelegationTask(id, {
-            title: "Fallback task",
-            objective: "Fallback delegation task",
-          }),
-        listChildren: (id: string) => [
-          makeDelegationTask(`${id}-child`, {
-            title: "Fallback child",
-            objective: "Fallback delegation child",
-          }),
-        ],
-        tree: (id: string) =>
-          makeDelegationTask(id, {
-            title: "Fallback tree",
-            objective: "Fallback delegation tree",
-          }),
-        requeue: (id: string, note?: string) =>
-          makeDelegationTask(id, {
-            title: "Fallback retry",
-            objective: "Fallback delegation retry",
-            metadata: note ? { note } : undefined,
-          }),
-      },
-    } as never as AppServices;
-
-    expect(getEffectiveDelegationTask(runtime, services, "task-1")).toEqual(
-      makeDelegationTask("task-1", {
-        title: "Native task",
-        objective: "Native orchestrator task",
+    await expect(
+      getEffectiveDelegationTask(runtime, services, parent.id),
+    ).resolves.toMatchObject({
+      id: parent.id,
+      title: "Official task",
+      objective: "Official orchestrator task",
+      status: "pending",
+    });
+    await expect(
+      getEffectiveDelegationChildren(runtime, services, parent.id),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: child.id,
+        parentTaskId: parent.id,
       }),
-    );
-    expect(getEffectiveDelegationChildren(runtime, services, "task-1")).toEqual(
-      [
-        makeDelegationTask("task-1-child", {
-          title: "Native child",
-          objective: "Native orchestrator child",
-        }),
-      ],
-    );
-    expect(getEffectiveDelegationTree(runtime, services, "task-1")).toEqual(
-      makeDelegationTask("task-1", {
-        title: "Native tree",
-        objective: "Native orchestrator tree",
-      }),
-    );
-    expect(
-      retryEffectiveDelegationTask(runtime, services, "task-1", "note"),
-    ).toEqual(
-      makeDelegationTask("task-1", {
-        title: "Native retry",
-        objective: "Native orchestrator retry",
-        status: "pending",
-        metadata: { cascadeChildren: "false" },
-      }),
-    );
-    expect(
-      retryEffectiveDelegationTask(runtime, services, "task-1", "note", {
-        cascadeChildren: true,
-      }),
-    ).toEqual(
-      makeDelegationTask("task-1", {
-        title: "Native retry",
-        objective: "Native orchestrator retry",
-        status: "pending",
-        metadata: { cascadeChildren: "true" },
-      }),
-    );
+    ]);
+    await expect(
+      getEffectiveDelegationTree(runtime, services, parent.id),
+    ).resolves.toMatchObject({
+      task: { id: parent.id },
+      children: [{ task: { id: child.id }, children: [] }],
+    });
+    await expect(
+      retryEffectiveDelegationTask(
+        runtime,
+        services,
+        parent.id,
+        "retry with official context",
+      ),
+    ).resolves.toMatchObject({
+      id: parent.id,
+      status: "running",
+    });
   });
 });
 

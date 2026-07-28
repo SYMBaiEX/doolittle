@@ -1,12 +1,27 @@
-export interface NativeAgentSkillsService {
-  list(): unknown[];
-  get(slug: string): unknown;
-  generated?(): unknown[];
-  summary?(): unknown;
-  catalog?(limit?: number): unknown;
-  searchCatalog?(query: string, limit?: number): unknown;
-  synthesize(taskId: string): unknown;
-}
+import type { AgentSkillsService } from "@elizaos/plugin-agent-skills";
+
+export const AGENT_SKILLS_SERVICE = "AGENT_SKILLS_SERVICE";
+
+/**
+ * Public contract exposed by @elizaos/plugin-agent-skills under
+ * `AgentSkillsService.serviceType` (`AGENT_SKILLS_SERVICE`).
+ */
+export type NativeAgentSkillsService = Pick<
+  AgentSkillsService,
+  | "getLoadedSkills"
+  | "getLoadedSkill"
+  | "getManagedSkills"
+  | "getWorkspaceSkills"
+  | "getBundledSkills"
+  | "getCatalog"
+  | "getSkillDetails"
+  | "search"
+  | "install"
+  | "uninstall"
+  | "syncCatalog"
+  | "isInstalled"
+  | "setSkillEnabled"
+>;
 
 export interface NativeCodingIteration {
   index: number;
@@ -36,38 +51,168 @@ export interface NativeTrajectoryLoggerService {
   bundles?(): unknown[];
 }
 
+export const ORCHESTRATOR_TASK_SERVICE = "ORCHESTRATOR_TASK_SERVICE";
+export const ACP_SUBPROCESS_SERVICE = "ACP_SUBPROCESS_SERVICE";
+
+export type NativeOrchestratorTaskStatus =
+  | "open"
+  | "active"
+  | "waiting_on_user"
+  | "blocked"
+  | "validating"
+  | "done"
+  | "failed"
+  | "archived"
+  | "interrupted";
+
+export interface NativeOrchestratorTaskSession {
+  sessionId: string;
+  framework: string;
+  label: string;
+  workdir: string;
+  status: string;
+  completionSummary: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface NativeOrchestratorTaskThread {
+  id: string;
+  title: string;
+  kind: string;
+  status: NativeOrchestratorTaskStatus;
+  priority: "low" | "normal" | "high" | "urgent";
+  paused: boolean;
+  originalRequest: string;
+  summary?: string;
+  sessionCount: number;
+  activeSessionCount: number;
+  latestSessionId: string | null;
+  latestWorkdir: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+}
+
+export interface NativeOrchestratorTaskDetail
+  extends NativeOrchestratorTaskThread {
+  goal: string;
+  parentTaskId: string | null;
+  acceptanceCriteria: string[];
+  providerPolicy: {
+    preferredFramework?: string;
+    providerSource?: string;
+    model?: string;
+  } | null;
+  metadata: Record<string, unknown>;
+  sessions: NativeOrchestratorTaskSession[];
+  messages: Array<{
+    senderKind: string;
+    content: string;
+    createdAt: string;
+  }>;
+  events: Array<{
+    eventType: string;
+    summary: string;
+    createdAt: string;
+  }>;
+}
+
+export interface NativeOrchestratorCreateTaskInput {
+  title: string;
+  goal: string;
+  originalRequest?: string;
+  kind?: string;
+  priority?: "low" | "normal" | "high" | "urgent";
+  acceptanceCriteria?: string[];
+  parentTaskId?: string;
+  providerPolicy?: {
+    preferredFramework?: string;
+    providerSource?: string;
+    model?: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Structural contract exposed by
+ * @elizaos/plugin-agent-orchestrator@2.0.3-beta.7 under
+ * ORCHESTRATOR_TASK_SERVICE. The package does not currently re-export its task
+ * service types from the public entrypoint, so Doolittle keeps this narrow
+ * adapter contract instead of importing package internals.
+ */
 export interface NativeAgentOrchestratorService {
   createTask(
-    title: string,
-    objective: string,
-    metadata?: Record<string, unknown>,
-  ): unknown;
-  getTask?(id: string): unknown;
-  getChildren?(id: string): unknown[];
-  tree?(id: string): unknown;
-  aggregate?(id: string): unknown;
-  queue(): unknown;
-  overview?(): unknown;
-  summary?(): {
-    tasks: number;
-    queuePending: number;
-    activeWorkers: number;
-    childTasksSupported: boolean;
-    treeSupported: boolean;
-    retrySupported: boolean;
-  };
-  tasks(): unknown[];
-  spawnChild?(parentId: string, input: unknown): unknown;
-  retryTask?(
+    input: NativeOrchestratorCreateTaskInput,
+  ): Promise<NativeOrchestratorTaskDetail>;
+  listTasks(filter?: {
+    status?: string;
+    search?: string;
+    includeArchived?: boolean;
+    limit?: number;
+  }): Promise<NativeOrchestratorTaskThread[]>;
+  getTask(id: string): Promise<NativeOrchestratorTaskDetail | null>;
+  updateTask(
     id: string,
-    note?: string,
-    options?: { cascadeChildren?: boolean },
-  ): unknown;
-  cancelTask?(id: string, note?: string): unknown;
-  supervise?(
-    runner: (task: unknown) => Promise<string>,
-    runOptions?: Record<string, unknown>,
-  ): Promise<unknown>;
+    patch: Record<string, unknown>,
+  ): Promise<NativeOrchestratorTaskDetail | null>;
+  pauseTask(id: string): Promise<NativeOrchestratorTaskDetail | null>;
+  resumeTask(id: string): Promise<NativeOrchestratorTaskDetail | null>;
+  archiveTask(id: string): Promise<NativeOrchestratorTaskDetail | null>;
+  reopenTask(id: string): Promise<NativeOrchestratorTaskDetail | null>;
+  validateTask(
+    id: string,
+    result: {
+      passed: boolean;
+      summary?: string;
+      evidence?: string;
+      verifier?: string;
+      humanOverride?: boolean;
+    },
+  ): Promise<NativeOrchestratorTaskDetail | null>;
+  retryTaskTurn(
+    id: string,
+    input?: {
+      instruction?: string;
+      mode?: "same-session" | "new-session";
+      agent?: { workdir?: string; framework?: string };
+    },
+  ): Promise<NativeOrchestratorTaskDetail | null>;
+  restartTask(
+    id: string,
+    input?: {
+      instruction?: string;
+      stopActive?: boolean;
+      agent?: { workdir?: string; framework?: string };
+    },
+  ): Promise<NativeOrchestratorTaskDetail | null>;
+  addMessage(
+    id: string,
+    input: {
+      content: string;
+      senderKind: "user" | "orchestrator" | "sub_agent" | "system";
+      direction?: "stdout" | "stderr" | "stdin" | "keys" | "system";
+    },
+  ): Promise<boolean>;
+  spawnAgentForTask(
+    id: string,
+    options?: {
+      framework?: string;
+      workdir?: string;
+      task?: string;
+    },
+  ): Promise<NativeOrchestratorTaskDetail | null>;
+  stopTaskAgent(id: string, sessionId: string): Promise<boolean>;
+  getStatus(): Promise<{
+    taskCount: number;
+    activeTaskCount: number;
+    pausedTaskCount: number;
+    blockedTaskCount: number;
+    validatingTaskCount: number;
+    sessionCount: number;
+    activeSessionCount: number;
+    byStatus: Record<NativeOrchestratorTaskStatus, number>;
+  }>;
+  subscribeTaskChanges?(id: string, listener: () => void): () => void;
 }
 
 export interface NativeCodingAgentService {
@@ -79,11 +224,6 @@ export interface NativeCodingAgentService {
   repoLog(limit?: number): Promise<unknown>;
   run(command: string): Promise<unknown>;
   inspectProject?(targetPath?: string): Promise<unknown> | unknown;
-  delegate?(
-    title: string,
-    objective: string,
-    metadata?: Record<string, unknown>,
-  ): unknown;
   tasks?(): unknown[];
   context?(
     taskDescription: string,

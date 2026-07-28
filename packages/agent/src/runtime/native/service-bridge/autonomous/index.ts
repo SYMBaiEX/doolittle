@@ -13,10 +13,6 @@ import {
   getNativeMediaControlPlane,
   getNativeResearchControlPlane,
 } from "../control-planes";
-import {
-  getEffectiveDelegationQueue,
-  getEffectiveDelegationTasks,
-} from "../delegation";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 
 export interface AutonomousControlPlaneSummary {
@@ -151,9 +147,18 @@ export function getAutonomousControlPlane(
   const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
   const skillsSummary = getEffectiveSkillsSummary(runtime, services);
   const localSkills = getEffectiveSkills(runtime, services);
-  const orchestratorSummary = native.agentOrchestrator?.summary?.();
-  const orchestratorTasks = getEffectiveDelegationTasks(runtime, services);
-  const orchestratorQueue = getEffectiveDelegationQueue(runtime, services);
+  // This control-plane renderer is synchronous. The product delegation service
+  // is a read projection of the official async task service; it never owns
+  // persistence or worker lifecycle.
+  const orchestratorTasks = services.delegation.list();
+  const orchestratorQueue = services.delegation.queueSummary();
+  const orchestratorSummary = {
+    tasks: orchestratorTasks.length,
+    queuePending: orchestratorTasks.filter((task) => task.status === "pending")
+      .length,
+    activeWorkers: orchestratorTasks.filter((task) => task.status === "running")
+      .length,
+  };
   const pluginInventory = getEffectivePluginManagerInventory(runtime);
   const mediaControl = config
     ? getNativeMediaControlPlane(config)

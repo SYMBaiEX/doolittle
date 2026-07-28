@@ -1,4 +1,7 @@
-import type { NativeServices } from "../runtime-contracts";
+import {
+  AGENT_SKILLS_SERVICE,
+  type NativeServices,
+} from "../runtime-contracts";
 import type { EffectiveServiceResolutionRecord } from "./types";
 
 type ServiceResolutionKey =
@@ -75,8 +78,8 @@ const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] = [
   {
     capability: "agentSkills",
     nativeKey: "agentSkills",
-    nativeService: "agent_skills",
-    fallback: "skills + skillSynthesis",
+    nativeService: AGENT_SKILLS_SERVICE,
+    fallback: "offline skills projection + local skillSynthesis",
   },
   {
     capability: "trajectoryLogger",
@@ -87,8 +90,8 @@ const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] = [
   {
     capability: "agentOrchestrator",
     nativeKey: "agentOrchestrator",
-    nativeService: "agent_orchestrator",
-    fallback: "delegation",
+    nativeService: "ORCHESTRATOR_TASK_SERVICE",
+    fallback: "unavailable without @elizaos/plugin-agent-orchestrator",
   },
   {
     capability: "codingAgent",

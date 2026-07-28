@@ -14,8 +14,8 @@ describe("service-resolution helpers", () => {
             return { summary: () => ({ entries: 1 }) };
           case "shell":
             return { status: () => ({ ready: true }) };
-          case "agent_skills":
-            return { list: () => [] };
+          case "AGENT_SKILLS_SERVICE":
+            return { getLoadedSkills: () => [] };
           case "plugin_manager":
             return { list: () => [], categories: () => ({}) };
           default:
@@ -91,10 +91,10 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "agentSkills",
-        nativeService: "agent_skills",
+        nativeService: "AGENT_SKILLS_SERVICE",
         source: "native",
         ownership: "plugin",
-        fallback: "skills + skillSynthesis",
+        fallback: "offline skills projection + local skillSynthesis",
         available: true,
       },
       {
@@ -107,10 +107,10 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "agentOrchestrator",
-        nativeService: "agent_orchestrator",
+        nativeService: "ORCHESTRATOR_TASK_SERVICE",
         source: "product",
         ownership: "product",
-        fallback: "delegation",
+        fallback: "unavailable without @elizaos/plugin-agent-orchestrator",
         available: false,
       },
       {

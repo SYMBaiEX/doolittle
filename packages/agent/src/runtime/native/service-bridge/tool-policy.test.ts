@@ -13,7 +13,7 @@ describe("effective turn capability policy", () => {
         }
         if (
           name === "coding_agent" ||
-          name === "agent_orchestrator" ||
+          name === "ORCHESTRATOR_TASK_SERVICE" ||
           name === "mcp"
         ) {
           return { name };

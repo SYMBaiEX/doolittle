@@ -26,6 +26,10 @@ import type {
   NativeTrajectoryLoggerService,
   RuntimeLike,
 } from "./runtime-contracts";
+import {
+  AGENT_SKILLS_SERVICE,
+  ORCHESTRATOR_TASK_SERVICE,
+} from "./runtime-contracts";
 
 export type { RuntimeLike } from "./runtime-contracts";
 
@@ -53,14 +57,17 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     browser: service<NativeBrowserService>(runtime, "browser"),
     mcp: service<NativeMcpService>(runtime, "mcp"),
     cron: service<NativeCronService>(runtime, "cron"),
-    agentSkills: service<NativeAgentSkillsService>(runtime, "agent_skills"),
+    agentSkills: service<NativeAgentSkillsService>(
+      runtime,
+      AGENT_SKILLS_SERVICE,
+    ),
     trajectoryLogger: service<NativeTrajectoryLoggerService>(
       runtime,
       "trajectories",
     ),
     agentOrchestrator: service<NativeAgentOrchestratorService>(
       runtime,
-      "agent_orchestrator",
+      ORCHESTRATOR_TASK_SERVICE,
     ),
     codingAgent: service<NativeCodingAgentService>(runtime, "coding_agent"),
     approval: service<NativeApprovalService>(runtime, "approval"),
