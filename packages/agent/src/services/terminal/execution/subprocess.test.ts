@@ -92,7 +92,6 @@ describe("execution subprocess helpers", () => {
     expect(profile.artifactPaths).toEqual([
       ".doolittle/remote-artifacts",
       ".doolittle/trajectories",
-      ".doolittle/cron-output",
     ]);
 
     const argv = buildContainerCommand(

@@ -48,7 +48,6 @@ export function createDefaultSettings(
       remoteArtifactPaths: [
         ".doolittle/remote-artifacts",
         ".doolittle/trajectories",
-        ".doolittle/cron-output",
       ],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",

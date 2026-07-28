@@ -9,7 +9,6 @@ export interface BootstrapPaths extends BootstrapPersistencePaths {
 export function resolveBootstrapDirectories(): string[] {
   return [
     ".doolittle",
-    ".doolittle/cron-output",
     ".doolittle/gateway",
     ".doolittle/hooks",
     ".doolittle/remote-artifacts",

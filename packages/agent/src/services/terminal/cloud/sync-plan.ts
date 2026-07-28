@@ -36,11 +36,7 @@ export function buildRemoteSyncPlan(
   const artifactPaths =
     execution.remoteArtifactPaths.length > 0
       ? execution.remoteArtifactPaths
-      : [
-          ".doolittle/remote-artifacts",
-          ".doolittle/trajectories",
-          ".doolittle/cron-output",
-        ];
+      : [".doolittle/remote-artifacts", ".doolittle/trajectories"];
   const workspaceLabel =
     execution.remoteWorkspaceLabel ||
     `${provider}:${execution.daytonaTarget || execution.modalTarget || "workspace"}`;
