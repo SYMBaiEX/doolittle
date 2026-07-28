@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -19,6 +20,65 @@ import {
 } from "./workspace-service/search";
 
 describe("WorkspaceService", () => {
+  it("creates a Git checkpoint without changing the worktree and restores only after an explicit service call", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-checkpoint-"));
+    const service = new WorkspaceService(root);
+
+    try {
+      const git = (args: string[]) =>
+        execFileSync("git", ["-C", root, ...args], { encoding: "utf8" });
+      git(["init"]);
+      git(["config", "user.name", "Test User"]);
+      git(["config", "user.email", "test@example.invalid"]);
+      writeFileSync(join(root, "tracked.txt"), "base\n", "utf8");
+      git(["add", "tracked.txt"]);
+      git(["commit", "-m", "initial"]);
+
+      writeFileSync(join(root, "tracked.txt"), "checkpoint value\n", "utf8");
+      writeFileSync(join(root, "untracked.txt"), "captured\n", "utf8");
+      const before = git(["status", "--porcelain"]);
+      const checkpoint = service.createCheckpoint("Before mutation");
+
+      expect(service.checkpointSupport()).toEqual({ supported: true });
+      expect(service.listCheckpoints()).toContainEqual(
+        expect.objectContaining({
+          id: checkpoint.id,
+          label: "Before mutation",
+        }),
+      );
+      expect(git(["status", "--porcelain"])).toBe(before);
+
+      writeFileSync(join(root, "tracked.txt"), "after mutation\n", "utf8");
+      service.restoreCheckpoint(checkpoint.id);
+      expect(service.read("tracked.txt")).toBe("checkpoint value\n");
+      expect(service.read("untracked.txt")).toBe("captured\n");
+
+      const checkpointCount = service.listCheckpoints().length;
+      service.write("tracked.txt", "agent write\n");
+      expect(service.listCheckpoints()).toHaveLength(checkpointCount + 1);
+      expect(service.read("tracked.txt")).toBe("agent write\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports non-Git workspace checkpoint support without changing write behavior", () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-workspace-no-checkpoint-"),
+    );
+    const service = new WorkspaceService(root);
+    try {
+      expect(service.checkpointSupport()).toEqual({
+        supported: false,
+        reason: "The workspace is not a Git repository.",
+      });
+      service.write("notes.txt", "still writes\n");
+      expect(service.read("notes.txt")).toBe("still writes\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("follows a live workspace source without rebuilding the service", () => {
     const first = mkdtempSync(join(tmpdir(), "doolittle-workspace-first-"));
     const second = mkdtempSync(join(tmpdir(), "doolittle-workspace-second-"));

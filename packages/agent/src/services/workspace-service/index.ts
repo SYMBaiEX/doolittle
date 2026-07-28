@@ -6,6 +6,11 @@ import {
   type WorkspaceDirectorySource,
 } from "../workspace-directory";
 import {
+  type WorkspaceCheckpoint,
+  WorkspaceCheckpointService,
+  type WorkspaceCheckpointSupport,
+} from "./checkpoints";
+import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,
   workspaceDirname,
@@ -17,7 +22,11 @@ import { summarizeWorkspaceTree } from "./summary";
 import { listWorkspaceTree } from "./tree";
 
 export class WorkspaceService {
-  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
+  private readonly checkpointService: WorkspaceCheckpointService;
+
+  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {
+    this.checkpointService = new WorkspaceCheckpointService(() => this.root());
+  }
 
   root(): string {
     return resolveWorkspaceDirectory(this.workspaceDirectory);
@@ -37,6 +46,12 @@ export class WorkspaceService {
 
   write(path: string, content: string): string {
     const resolvedPath = this.resolvePath(path, "write");
+    // Git workspaces receive a non-destructive snapshot before an agent write.
+    // Unsupported workspaces retain the existing write behavior and expose their
+    // unsupported state through the explicit checkpoint operator routes.
+    if (this.checkpointSupport().supported) {
+      this.createCheckpoint(`Before workspace write: ${path}`);
+    }
     mkdirSync(workspaceDirname(resolvedPath), { recursive: true });
     writeFileSync(resolvedPath, content, "utf8");
     return resolvedPath;
@@ -52,6 +67,22 @@ export class WorkspaceService {
   summary(maxEntries = 20): string {
     const entries = this.tree(2);
     return summarizeWorkspaceTree(entries, maxEntries);
+  }
+
+  checkpointSupport(): WorkspaceCheckpointSupport {
+    return this.checkpointService.support();
+  }
+
+  listCheckpoints(): WorkspaceCheckpoint[] {
+    return this.checkpointService.list();
+  }
+
+  createCheckpoint(label?: string): WorkspaceCheckpoint {
+    return this.checkpointService.create(label);
+  }
+
+  restoreCheckpoint(id: string): WorkspaceCheckpoint {
+    return this.checkpointService.restore(id);
   }
 
   private resolvePath(path: string, operation: "read" | "write"): string {
