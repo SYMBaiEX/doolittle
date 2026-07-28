@@ -27,7 +27,9 @@ export interface SkillDocument {
     | "bundled"
     | "managed"
     | "project"
-    | "curated";
+    | "curated"
+    | "plugin"
+    | "extra";
   commandName?: string;
   userInvocable?: boolean;
   disableModelInvocation?: boolean;
