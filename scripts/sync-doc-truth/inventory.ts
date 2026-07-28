@@ -6,7 +6,6 @@ import type { PluginInventoryRow } from "./types";
 
 const CONSOLIDATED_DOOLITTLE_PLUGIN_PACKAGES = new Set([
   "@doolittle/plugin-action-bench",
-  "@doolittle/plugin-agent-orchestrator",
   "@doolittle/plugin-autocoder",
   "@doolittle/plugin-coding-agent",
   "@doolittle/plugin-forms",

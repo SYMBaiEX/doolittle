@@ -37,6 +37,14 @@ describe("getNativePluginCatalogSeeds", () => {
       persistence: "injected",
     });
     expect(
+      seeds.find((seed) => seed.id === "execution.agent-orchestrator"),
+    ).toMatchObject({
+      packageName: "@elizaos/plugin-agent-orchestrator",
+      category: "execution",
+      source: "official",
+      kind: "adapter",
+    });
+    expect(
       seeds.find((seed) => seed.id === "product.doolittle-runtime"),
     ).toMatchObject({
       category: "product",

@@ -37,14 +37,14 @@ export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "execution.agent-orchestrator",
-    packageName: "@doolittle/plugin-agent-orchestrator",
+    packageName: "@elizaos/plugin-agent-orchestrator",
     category: "execution",
-    source: "custom",
+    source: "official",
     kind: "adapter",
     maturity: "alpha",
     enablement: "always",
     notes:
-      "Doolittle delegation orchestrator with supervision and queue management. Consolidated into doolittle-plugin.",
+      "Official agent orchestrator registered for native delegation and worker supervision.",
   },
   {
     id: "execution.planning",
