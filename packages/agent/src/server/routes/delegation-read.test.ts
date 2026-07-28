@@ -2,152 +2,101 @@ import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleDelegationReadRoutes } from "./delegation-read";
 
-function createContext() {
-  const calls: Array<Record<string, unknown> | undefined> = [];
-  const context = {
-    runtime: {},
-    services: {
-      delegation: {
-        list: (filters?: Record<string, unknown>) => {
-          calls.push(filters);
-          if (filters?.group === "ops") {
-            return [{ id: "task-filtered", group: "ops" }];
-          }
-          return [{ id: "task-1" }, { id: "task-2" }];
-        },
-        get: (id: string) => ({ id, detail: true }),
-        listChildren: (id: string) => [{ id: `${id}:child` }],
-        tree: (id: string) => ({ id, children: [] }),
-        queueSummary: () => ({ pending: 2, activeWorkers: 1 }),
-        overview: () => ({
-          byGroup: { ops: 1 },
-          byLabel: { urgent: 1 },
-        }),
-        workers: (limit: number, filters?: Record<string, unknown>) => [
-          { id: `worker:${limit}`, filters },
-        ],
-      },
-    },
-  } as unknown as AppContext;
+function detail(id: string, metadata: Record<string, unknown> = {}) {
+  return {
+    id,
+    title: `Task ${id}`,
+    kind: "coding",
+    status: "open",
+    priority: "normal",
+    paused: false,
+    originalRequest: `Goal ${id}`,
+    sessionCount: 0,
+    activeSessionCount: 0,
+    latestSessionId: null,
+    latestWorkdir: null,
+    createdAt: "2026-07-28T00:00:00.000Z",
+    updatedAt: "2026-07-28T00:00:00.000Z",
+    closedAt: null,
+    goal: `Goal ${id}`,
+    parentTaskId: null,
+    acceptanceCriteria: [],
+    providerPolicy: null,
+    metadata,
+    sessions: [],
+    messages: [],
+    events: [],
+  };
+}
 
-  return { context, calls };
+function contextWith(tasks = [detail("one"), detail("two", { group: "ops" })]) {
+  const service = {
+    listTasks: async () => tasks,
+    getTask: async (id: string) => tasks.find((task) => task.id === id) ?? null,
+    getStatus: async () => ({
+      taskCount: tasks.length,
+      activeTaskCount: 0,
+      pausedTaskCount: 0,
+      blockedTaskCount: 0,
+      validatingTaskCount: 0,
+      sessionCount: 0,
+      activeSessionCount: 0,
+      byStatus: {},
+    }),
+  };
+  return {
+    runtime: {
+      getService: (name: string) =>
+        name === "ORCHESTRATOR_TASK_SERVICE" ? service : null,
+    },
+    services: {},
+  } as unknown as AppContext;
 }
 
 describe("handleDelegationReadRoutes", () => {
-  it("returns task lists through the native fast path and filtered local path", async () => {
-    const { context, calls } = createContext();
-    const fastPath = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks?limit=1"),
-      new URL("http://localhost/delegation/tasks?limit=1"),
-    );
-    const filtered = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks?group=ops&limit=5"),
-      new URL("http://localhost/delegation/tasks?group=ops&limit=5"),
+  it("serves filtered legacy DTOs from the official task service", async () => {
+    const response = await handleDelegationReadRoutes(
+      contextWith(),
+      new Request("http://localhost/delegation/tasks?group=ops"),
+      new URL("http://localhost/delegation/tasks?group=ops"),
     );
 
-    await expect(fastPath?.json()).resolves.toEqual({
-      tasks: [{ id: "task-1" }],
-    });
-    await expect(filtered?.json()).resolves.toEqual({
-      tasks: [{ id: "task-filtered", group: "ops" }],
-    });
-    expect(calls).toContainEqual({
-      group: "ops",
-      profile: undefined,
-      priority: undefined,
-      label: undefined,
-      parentTaskId: undefined,
-      status: undefined,
-      executionMode: undefined,
-    });
-  });
-
-  it("returns task detail, children, and tree payloads", async () => {
-    const { context } = createContext();
-    const task = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1"),
-      new URL("http://localhost/delegation/tasks/task-1"),
-    );
-    const children = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/children"),
-      new URL("http://localhost/delegation/tasks/task-1/children"),
-    );
-    const tree = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/tree"),
-      new URL("http://localhost/delegation/tasks/task-1/tree"),
-    );
-
-    await expect(task?.json()).resolves.toEqual({
-      task: { id: "task-1", detail: true },
-    });
-    await expect(children?.json()).resolves.toEqual({
-      children: [{ id: "task-1:child" }],
-    });
-    await expect(tree?.json()).resolves.toEqual({
-      tree: { id: "task-1", children: [] },
-    });
-  });
-
-  it("returns overview, groups, and filtered worker payloads", async () => {
-    const { context } = createContext();
-    const overview = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/overview"),
-      new URL("http://localhost/delegation/overview"),
-    );
-    const groups = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/groups"),
-      new URL("http://localhost/delegation/groups"),
-    );
-    const workers = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/delegation/workers?limit=3&group=ops"),
-      new URL("http://localhost/delegation/workers?limit=3&group=ops"),
-    );
-
-    await expect(overview?.json()).resolves.toEqual({
-      overview: {
-        local: { byGroup: { ops: 1 }, byLabel: { urgent: 1 } },
-        native: { pending: 2, activeWorkers: 1 },
-      },
-    });
-    await expect(groups?.json()).resolves.toEqual({
-      groups: { ops: 1 },
-      labels: { urgent: 1 },
-    });
-    await expect(workers?.json()).resolves.toEqual({
-      overview: { byGroup: { ops: 1 }, byLabel: { urgent: 1 } },
-      workers: [
-        {
-          id: "worker:3",
-          filters: {
-            group: "ops",
-            profile: undefined,
-            priority: undefined,
-            label: undefined,
-            parentTaskId: undefined,
-            status: undefined,
-            executionMode: undefined,
-          },
-        },
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({
+      tasks: [
+        expect.objectContaining({
+          id: "two",
+          group: "ops",
+          objective: "Goal two",
+          executionMode: "delegated",
+        }),
       ],
     });
   });
 
-  it("returns null for unrelated routes", async () => {
-    const { context } = createContext();
+  it("returns an explicit 503 when the official service is unavailable", async () => {
     const response = await handleDelegationReadRoutes(
-      context,
-      new Request("http://localhost/not-delegation"),
-      new URL("http://localhost/not-delegation"),
+      { runtime: { getService: () => null }, services: {} } as never,
+      new Request("http://localhost/delegation/tasks"),
+      new URL("http://localhost/delegation/tasks"),
     );
 
-    expect(response).toBeNull();
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toMatchObject({
+      available: false,
+      code: "ORCHESTRATOR_TASK_SERVICE_UNAVAILABLE",
+    });
+  });
+
+  it("serves task detail through the Doolittle read projection", async () => {
+    const response = await handleDelegationReadRoutes(
+      contextWith(),
+      new Request("http://localhost/delegation/tasks/one"),
+      new URL("http://localhost/delegation/tasks/one"),
+    );
+
+    await expect(response?.json()).resolves.toEqual({
+      task: expect.objectContaining({ id: "one", status: "pending" }),
+    });
   });
 });

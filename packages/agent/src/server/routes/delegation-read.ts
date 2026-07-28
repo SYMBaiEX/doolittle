@@ -1,10 +1,12 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   getEffectiveDelegationChildren,
+  getEffectiveDelegationOverview,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
+  getOfficialOrchestrator,
 } from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
 
@@ -64,9 +66,24 @@ export async function handleDelegationReadRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (
+    url.pathname.startsWith("/delegation/") &&
+    !getOfficialOrchestrator(context.runtime)
+  ) {
+    return json(
+      {
+        available: false,
+        code: "ORCHESTRATOR_TASK_SERVICE_UNAVAILABLE",
+        error:
+          "Delegation is unavailable because the official orchestrator task service is not registered.",
+      },
+      503,
+    );
+  }
+
   if (request.method === "GET" && url.pathname === "/delegation/tasks") {
     const filters = parseDelegationFilters(url);
-    const nativeTasks = getEffectiveDelegationTasks(
+    const nativeTasks = await getEffectiveDelegationTasks(
       context.runtime,
       context.services,
     );
@@ -85,16 +102,20 @@ export async function handleDelegationReadRoutes(
       });
     }
     return json({
-      tasks: context.services.delegation
-        .list({
-          group: filters.group,
-          profile: filters.profile,
-          priority: filters.priority,
-          label: filters.label,
-          parentTaskId: filters.parentTaskId,
-          status: filters.status,
-          executionMode: filters.executionMode,
-        })
+      tasks: nativeTasks
+        .filter(
+          (task) =>
+            (!filters.group || task.group === filters.group) &&
+            (!filters.profile || task.profile === filters.profile) &&
+            (!filters.priority || task.priority === filters.priority) &&
+            (!filters.label ||
+              (task.labels ?? task.tags ?? []).includes(filters.label)) &&
+            (!filters.parentTaskId ||
+              task.parentTaskId === filters.parentTaskId) &&
+            (!filters.status || task.status === filters.status) &&
+            (!filters.executionMode ||
+              task.executionMode === filters.executionMode),
+        )
         .slice(0, filters.limit),
     });
   }
@@ -111,12 +132,16 @@ export async function handleDelegationReadRoutes(
     }
     if (!action) {
       return json({
-        task: getEffectiveDelegationTask(context.runtime, context.services, id),
+        task: await getEffectiveDelegationTask(
+          context.runtime,
+          context.services,
+          id,
+        ),
       });
     }
     if (action === "children") {
       return json({
-        children: getEffectiveDelegationChildren(
+        children: await getEffectiveDelegationChildren(
           context.runtime,
           context.services,
           id,
@@ -125,7 +150,11 @@ export async function handleDelegationReadRoutes(
     }
     if (action === "tree") {
       return json({
-        tree: getEffectiveDelegationTree(context.runtime, context.services, id),
+        tree: await getEffectiveDelegationTree(
+          context.runtime,
+          context.services,
+          id,
+        ),
       });
     }
   }
@@ -133,14 +162,23 @@ export async function handleDelegationReadRoutes(
   if (request.method === "GET" && url.pathname === "/delegation/overview") {
     return json({
       overview: {
-        local: context.services.delegation.overview(),
-        native: getEffectiveDelegationQueue(context.runtime, context.services),
+        local: await getEffectiveDelegationOverview(
+          context.runtime,
+          context.services,
+        ),
+        native: await getEffectiveDelegationQueue(
+          context.runtime,
+          context.services,
+        ),
       },
     });
   }
 
   if (request.method === "GET" && url.pathname === "/delegation/groups") {
-    const overview = context.services.delegation.overview();
+    const overview = await getEffectiveDelegationOverview(
+      context.runtime,
+      context.services,
+    );
     return json({
       groups: overview.byGroup,
       labels: overview.byLabel,
@@ -150,16 +188,13 @@ export async function handleDelegationReadRoutes(
   if (request.method === "GET" && url.pathname === "/delegation/workers") {
     const filters = parseDelegationFilters(url);
     return json({
-      overview: context.services.delegation.overview(),
-      workers: context.services.delegation.workers(filters.limit, {
-        group: filters.group,
-        profile: filters.profile,
-        priority: filters.priority,
-        label: filters.label,
-        parentTaskId: filters.parentTaskId,
-        status: filters.status,
-        executionMode: filters.executionMode,
-      }),
+      overview: await getEffectiveDelegationOverview(
+        context.runtime,
+        context.services,
+      ),
+      workers: (
+        await getEffectiveDelegationTasks(context.runtime, context.services)
+      ).slice(0, filters.limit),
     });
   }
 
