@@ -1,5 +1,4 @@
-import { type ChildProcessByStdio, spawn } from "node:child_process";
-import { Readable } from "node:stream";
+import { runTextProcess } from "@/services/process-execution";
 
 const REVIEW_PROCESS_TIMEOUT_MS = 8_000;
 const REVIEW_PROCESS_OUTPUT_BYTES = 512 * 1024;
@@ -411,96 +410,59 @@ function countStatusRecords(output: string): number {
   return count;
 }
 
-async function readBoundedStream(
-  stream: ReadableStream<Uint8Array>,
-  retainChunk: (chunk: Uint8Array) => Uint8Array | null,
-): Promise<string> {
-  const chunks: Uint8Array[] = [];
-  const reader = stream.getReader();
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    const retained = retainChunk(result.value);
-    if (retained?.byteLength) chunks.push(retained);
-  }
-  const size = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-  const combined = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8", { fatal: false }).decode(combined);
-}
-
 export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
   async ({ command, args, cwd, signal }) => {
     if (signal?.aborted) throw new RepositoryReviewProcessError("aborted");
-    let proc: ChildProcessByStdio<null, Readable, Readable>;
-    try {
-      proc = spawn(command, args, {
-        cwd,
-        stdio: ["ignore", "pipe", "pipe"],
-        env: {
-          ...process.env,
-          GH_PROMPT_DISABLED: "1",
-          GH_PAGER: "cat",
-          NO_COLOR: "1",
-        },
-      });
-    } catch {
-      throw new RepositoryReviewProcessError("missing");
-    }
-    const exited = new Promise<number>((resolve, reject) => {
-      proc.once("error", () =>
-        reject(new RepositoryReviewProcessError("missing")),
-      );
-      proc.once("close", (code) => resolve(code ?? 1));
-    });
-
+    const controller = new AbortController();
     let failure: ProcessFailureKind | undefined;
     let outputBytes = 0;
     const stop = (kind: ProcessFailureKind) => {
       if (failure) return;
       failure = kind;
-      try {
-        proc.kill();
-      } catch {
-        // The process may have exited between the signal and this cleanup.
-      }
+      controller.abort();
     };
-    const timeout = setTimeout(
-      () => stop("timeout"),
-      REVIEW_PROCESS_TIMEOUT_MS,
-    );
     const abort = () => stop("aborted");
     signal?.addEventListener("abort", abort, { once: true });
-    const retainChunk = (chunk: Uint8Array): Uint8Array | null => {
-      const remaining = REVIEW_PROCESS_OUTPUT_BYTES - outputBytes;
-      outputBytes += chunk.byteLength;
-      if (chunk.byteLength > remaining) {
+    const countOutput = (chunk: string) => {
+      outputBytes += Buffer.byteLength(chunk);
+      if (outputBytes > REVIEW_PROCESS_OUTPUT_BYTES) {
         stop("output_limit");
-        return remaining > 0 ? chunk.slice(0, remaining) : null;
       }
-      return chunk;
     };
 
     try {
-      const [stdout, stderr, exitCode] = await Promise.all([
-        readBoundedStream(
-          Readable.toWeb(proc.stdout) as ReadableStream<Uint8Array>,
-          retainChunk,
-        ),
-        readBoundedStream(
-          Readable.toWeb(proc.stderr) as ReadableStream<Uint8Array>,
-          retainChunk,
-        ),
-        exited,
-      ]);
+      const result = await runTextProcess(command, args, {
+        cwd,
+        env: {
+          GH_PROMPT_DISABLED: "1",
+          GH_PAGER: "cat",
+          NO_COLOR: "1",
+        },
+        timeoutMs: REVIEW_PROCESS_TIMEOUT_MS,
+        abortSignal: controller.signal,
+        onStdout: countOutput,
+        onStderr: countOutput,
+        toolName: "doolittle.repository-review",
+      });
+      if (
+        result.exitCode === 124 &&
+        result.stderr.includes("[shell-router] command timed out")
+      ) {
+        failure = "timeout";
+      }
+      if (
+        result.exitCode === -1 ||
+        (result.exitCode === 127 && /\bnot found\b/iu.test(result.stderr))
+      ) {
+        failure = "missing";
+      }
       if (failure) throw new RepositoryReviewProcessError(failure);
-      return { stdout, stderr, exitCode };
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+      };
     } finally {
-      clearTimeout(timeout);
       signal?.removeEventListener("abort", abort);
     }
   };

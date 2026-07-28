@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { spawnTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "@/services/process-execution";
 import type { LocalCodebaseMatch } from "./types";
 
 const SEARCH_ROOT_SUFFIXES = ["dev", "code", "projects"] as const;
@@ -17,8 +17,9 @@ function resolveSearchRoots(workspaceDir: string): string[] {
 
 async function commandExists(command: string): Promise<boolean> {
   try {
-    const { exitCode } = await spawnTextProcess(command, ["--version"])
-      .completed;
+    const { exitCode } = await runTextProcess(command, ["--version"], {
+      toolName: "doolittle.project-inspection.command-probe",
+    });
     return exitCode === 0;
   } catch {
     return false;
@@ -53,13 +54,11 @@ async function searchWithFd(
   const results = await Promise.all(
     searchRoots.map(async (root) => {
       try {
-        const { stdout, exitCode } = await spawnTextProcess("fd", [
-          "-HI",
-          "-t",
-          "d",
-          searchTerm,
-          root,
-        ]).completed;
+        const { stdout, exitCode } = await runTextProcess(
+          "fd",
+          ["-HI", "-t", "d", searchTerm, root],
+          { toolName: "doolittle.project-inspection.fd" },
+        );
         if (exitCode !== 0) return [];
         return stdout
           .split(/\r?\n/u)
@@ -81,22 +80,26 @@ async function searchWithFind(
   const results = await Promise.all(
     searchRoots.map(async (root) => {
       try {
-        const { stdout, exitCode } = await spawnTextProcess("find", [
-          root,
-          "-maxdepth",
-          "4",
-          "-type",
-          "d",
-          "(",
-          "-name",
-          ".git",
-          "-prune",
-          "-o",
-          "-iname",
-          `*${searchTerm}*`,
-          "-print",
-          ")",
-        ]).completed;
+        const { stdout, exitCode } = await runTextProcess(
+          "find",
+          [
+            root,
+            "-maxdepth",
+            "4",
+            "-type",
+            "d",
+            "(",
+            "-name",
+            ".git",
+            "-prune",
+            "-o",
+            "-iname",
+            `*${searchTerm}*`,
+            "-print",
+            ")",
+          ],
+          { toolName: "doolittle.project-inspection.find" },
+        );
         if (exitCode !== 0) return [];
         return stdout
           .split(/\r?\n/u)

@@ -1,16 +1,19 @@
 import { accessSync, constants } from "node:fs";
 import { delimiter, join } from "node:path";
-import { spawnTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "@/services/process-execution";
 import type { BrowserConfig } from "./service-types";
 
 async function runCommand(
   cmd: string[],
   timeoutMs: number,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const { child, completed } = spawnTextProcess(cmd[0] ?? "", cmd.slice(1));
-  const timer = setTimeout(() => child.kill(), timeoutMs);
-  const { stdout, stderr, exitCode } = await completed.finally(() =>
-    clearTimeout(timer),
+  const { stdout, stderr, exitCode } = await runTextProcess(
+    cmd[0] ?? "",
+    cmd.slice(1),
+    {
+      timeoutMs,
+      toolName: "doolittle.web.lightpanda",
+    },
   );
 
   return {

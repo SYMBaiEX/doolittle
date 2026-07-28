@@ -1,6 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative, sep } from "node:path";
-import { spawnTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "@/services/process-execution";
 import {
   type RepositoryReviewResult,
   RepositoryReviewService,
@@ -413,14 +413,14 @@ export class RepositoryService {
       throw new Error("Branch name is not a valid Git branch.");
     }
 
-    const { completed } = spawnTextProcess(
+    const { stderr, exitCode } = await runTextProcess(
       "git",
       ["worktree", "add", "-b", branch, target],
       {
         cwd: root,
+        toolName: "doolittle.repository.worktree-add",
       },
     );
-    const { stderr, exitCode } = await completed;
     if (exitCode !== 0) {
       throw new Error(
         stderr.trim() ||
@@ -458,11 +458,10 @@ export class RepositoryService {
     }
 
     const promise = (async () => {
-      const { completed } = spawnTextProcess("git", args, {
+      const { stdout, stderr, exitCode } = await runTextProcess("git", args, {
         cwd,
+        toolName: "doolittle.repository.git",
       });
-
-      const { stdout, stderr, exitCode } = await completed;
 
       if (exitCode !== 0) {
         throw new Error(
