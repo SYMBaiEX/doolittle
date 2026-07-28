@@ -7,7 +7,7 @@ import type {
   CodingIteration,
   HumanFeedback,
 } from "@doolittle/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
 import {
@@ -405,6 +405,7 @@ describe("tooling bridge helpers", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "service-bridge-tooling-"));
     const projectName = `native-bridge-${randomUUID()}`;
     const projectPath = join(tempRoot, projectName);
+    vi.stubEnv("HOME", tempRoot);
 
     mkdirSync(projectPath, { recursive: true });
     mkdirSync(join(projectPath, "src"));
@@ -466,6 +467,7 @@ describe("tooling bridge helpers", () => {
         ),
       ).toBe(true);
     } finally {
+      vi.unstubAllEnvs();
       rmSync(tempRoot, { recursive: true, force: true });
     }
   }, 15_000);
