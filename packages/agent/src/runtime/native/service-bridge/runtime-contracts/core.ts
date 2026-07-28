@@ -1,3 +1,5 @@
+import type { AutomationRunRecord, CronJobRecord } from "@/types/runtime";
+
 export interface NativeShellService {
   run(command: string): Promise<unknown>;
   history(limit?: number): unknown[];
@@ -35,23 +37,25 @@ export interface NativeMcpService {
 }
 
 export interface NativeCronService {
-  list(): unknown[] | Promise<unknown[]>;
-  get(id: string): unknown | Promise<unknown>;
-  create(input: unknown): unknown | Promise<unknown>;
-  update(id: string, patch: unknown): unknown | Promise<unknown>;
-  runs(limit?: number): unknown[] | Promise<unknown[]>;
-  pause?(id: string): unknown | Promise<unknown>;
-  resume?(id: string): unknown | Promise<unknown>;
-  runNow?(id: string): unknown | Promise<unknown>;
+  list(): CronJobRecord[] | Promise<CronJobRecord[]>;
+  get(
+    id: string,
+  ): CronJobRecord | undefined | Promise<CronJobRecord | undefined>;
+  create(input: unknown): CronJobRecord | Promise<CronJobRecord>;
+  update(id: string, patch: unknown): CronJobRecord | Promise<CronJobRecord>;
+  runs(limit?: number): AutomationRunRecord[] | Promise<AutomationRunRecord[]>;
+  pause?(id: string): CronJobRecord | Promise<CronJobRecord>;
+  resume?(id: string): CronJobRecord | Promise<CronJobRecord>;
+  runNow?(id: string): CronJobRecord | Promise<CronJobRecord>;
   triggerNow?(
     id: string,
     source?: "manual" | "webhook",
     payload?: Record<string, unknown>,
-  ): unknown | Promise<unknown>;
+  ): AutomationRunRecord | undefined | Promise<AutomationRunRecord | undefined>;
   triggerWebhook?(
     token: string,
     payload?: Record<string, unknown>,
-  ): unknown | Promise<unknown>;
+  ): AutomationRunRecord | undefined | Promise<AutomationRunRecord | undefined>;
   remove?(id: string): void | Promise<void>;
 }
 

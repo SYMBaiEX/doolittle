@@ -10,7 +10,6 @@ import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
 import type { AppServices } from "@/services";
-import type { CronJobRecord } from "@/types/runtime";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";
 import { renderOperationSections } from "./sections/operations";
@@ -165,7 +164,7 @@ async function operationsContextResult(
     if (!cron) {
       throw new Error("Trigger runtime service is not ready.");
     }
-    const cronJobs = (await cron.list()) as CronJobRecord[];
+    const cronJobs = await cron.list();
     const enabledTools = services.tools.enabled();
     const delegationTasks = services.delegation.list();
     const delegationOverview = services.delegation.overview();

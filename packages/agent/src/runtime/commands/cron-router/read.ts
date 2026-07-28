@@ -1,9 +1,5 @@
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import type {
-  AutomationRunRecord,
-  ChatTurnRequest,
-  CronJobRecord,
-} from "@/types/runtime";
+import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 
 const TRIGGER_RUNTIME_UNAVAILABLE =
@@ -17,7 +13,7 @@ export async function handleCronReadCommand(
   const nativeCron = getNativeServices(context.runtime).cron;
   if (trimmed === "/cron" || trimmed === "/cron list") {
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
-    const jobs = (await nativeCron.list()) as CronJobRecord[];
+    const jobs = await nativeCron.list();
     return jobs.length
       ? jobs
           .map(
@@ -30,7 +26,7 @@ export async function handleCronReadCommand(
 
   if (trimmed === "/cron runs") {
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
-    const runs = (await nativeCron.runs(10)) as AutomationRunRecord[];
+    const runs = await nativeCron.runs(10);
     return runs.length
       ? runs
           .map(
@@ -44,7 +40,7 @@ export async function handleCronReadCommand(
   if (trimmed.startsWith("/cron show ")) {
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     const id = trimmed.replace("/cron show ", "").trim();
-    const job = (await nativeCron.get(id)) as CronJobRecord | undefined;
+    const job = await nativeCron.get(id);
     if (!job) {
       return "Cron job not found.";
     }

@@ -6,7 +6,6 @@ import {
   buildActivityFeed,
   decodeActivityCursor,
 } from "@/services/activity-feed";
-import type { AutomationRunRecord } from "@/types/runtime";
 
 function parseLimit(value: string | null): number | Response {
   if (value === null) return 50;
@@ -42,9 +41,7 @@ export async function handleActivityRoutes(
   if (!cron) {
     return json({ error: "Trigger runtime service is not ready." }, 503);
   }
-  const automationRuns = (await cron.runs(
-    ACTIVITY_FEED_MAX_LIMIT,
-  )) as AutomationRunRecord[];
+  const automationRuns = await cron.runs(ACTIVITY_FEED_MAX_LIMIT);
   return json(
     buildActivityFeed(
       context.services,

@@ -1,5 +1,5 @@
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import type { ChatTurnRequest, CronJobRecord } from "@/types/runtime";
+import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import {
   parseCronDelivery,
@@ -36,7 +36,7 @@ export async function handleCronMutationCommand(
         parseCronDelivery(parsed.options.delivery) ??
         (input.source === "cron" ? "local" : "origin"),
     };
-    const created = (await nativeCron.create(createInput)) as CronJobRecord;
+    const created = await nativeCron.create(createInput);
     return `Created cron job ${created.id} with next run ${created.nextRunAt ?? "n/a"}.`;
   }
 
@@ -62,7 +62,7 @@ export async function handleCronMutationCommand(
       clearRuntime: parsed.options.runtime === "default",
       delivery: parseCronDelivery(parsed.options.delivery),
     };
-    const updated = (await nativeCron.update(id, patch)) as CronJobRecord;
+    const updated = await nativeCron.update(id, patch);
     return `Updated cron job ${updated.id}; next run ${updated.nextRunAt ?? "n/a"}.`;
   }
 
@@ -70,7 +70,7 @@ export async function handleCronMutationCommand(
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     if (!nativeCron.pause) return "Trigger runtime cannot pause jobs.";
     const id = trimmed.replace("/cron pause ", "").trim();
-    const job = (await nativeCron.pause(id)) as CronJobRecord;
+    const job = await nativeCron.pause(id);
     return `Paused ${job.id}.`;
   }
 
@@ -78,7 +78,7 @@ export async function handleCronMutationCommand(
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     if (!nativeCron.resume) return "Trigger runtime cannot resume jobs.";
     const id = trimmed.replace("/cron resume ", "").trim();
-    const job = (await nativeCron.resume(id)) as CronJobRecord;
+    const job = await nativeCron.resume(id);
     return `Resumed ${job.id}; next run ${job.nextRunAt ?? "n/a"}.`;
   }
 
@@ -86,7 +86,7 @@ export async function handleCronMutationCommand(
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     if (!nativeCron.runNow) return "Trigger runtime cannot run jobs manually.";
     const id = trimmed.replace("/cron run ", "").trim();
-    const job = (await nativeCron.runNow(id)) as CronJobRecord;
+    const job = await nativeCron.runNow(id);
     return `Marked ${job.id} to run immediately.`;
   }
 
