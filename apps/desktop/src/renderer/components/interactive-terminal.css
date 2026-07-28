@@ -2,7 +2,7 @@
   display: grid;
   height: 100%;
   min-height: 240px;
-  grid-template-rows: auto minmax(120px, 1fr) auto auto;
+  grid-template-rows: auto minmax(120px, 1fr) auto;
   overflow: hidden;
   color: var(--text-soft);
   background:
@@ -200,20 +200,30 @@
   min-width: 0;
   min-height: 0;
   margin: 0;
-  padding: 13px 14px 18px;
+  padding: 10px;
   overflow: auto;
   color: #e7dfd8;
   background: transparent;
   border: 0;
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.55;
   outline: 0;
-  tab-size: 2;
-  white-space: pre-wrap;
-  word-break: break-word;
   scrollbar-color: var(--accent-border) transparent;
   scrollbar-width: thin;
+}
+
+.interactive-terminal-output .xterm {
+  height: 100%;
+}
+
+.interactive-terminal-output .xterm-viewport {
+  overscroll-behavior: contain;
+  scrollbar-color: var(--accent-border) transparent;
+  scrollbar-width: thin;
+}
+
+.interactive-terminal-output .xterm-helper-textarea {
+  /* xterm owns the editable surface; keep its focus target discoverable. */
+  opacity: 0.01;
 }
 
 .interactive-terminal-output:focus-visible {
