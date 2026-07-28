@@ -43,7 +43,7 @@ export async function handleSecretsRoutes(
     if (!body.key || body.value === undefined) {
       return json({ error: "key and value are required" }, 400);
     }
-    const workflow = createAutocoderWorkflowContext(context, {
+    const workflow = await createAutocoderWorkflowContext(context, {
       title: `Set secret ${body.key}`,
       objective: `Set secret ${body.key}`,
       kind: "secret.set",
@@ -58,7 +58,7 @@ export async function handleSecretsRoutes(
         request: { key: body.key, redacted: true },
         result: { key: body.key, valueSet: true },
       });
-      completeAutocoderWorkflowContext(
+      await completeAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -72,7 +72,7 @@ export async function handleSecretsRoutes(
         valueSet: true,
       });
     } catch (error) {
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,

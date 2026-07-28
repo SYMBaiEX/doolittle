@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import { handleSecretsRoutes } from "./secrets";
 
 function createContext(options?: { failSet?: boolean }): AppContext {
-  let taskCounter = 0;
   let workflowCounter = 0;
   let runCounter = 0;
-  const completions: Array<{ id: string; note?: string }> = [];
-  const failures: Array<{ id: string; note?: string }> = [];
-  const notes: Array<{ id: string; note: string }> = [];
+  const official = createOfficialOrchestratorTestFixture();
 
   return {
     runtime: {
       getService: (service: string) => {
+        if (service === "ORCHESTRATOR_TASK_SERVICE") {
+          return official.service;
+        }
         if (service === "secrets-manager") {
           return {
             listSecretKeys: async () => ["OPENAI_API_KEY"],
@@ -39,23 +40,8 @@ function createContext(options?: { failSet?: boolean }): AppContext {
           id: `run-${++runCounter}`,
         }),
       },
-      delegation: {
-        create: () => ({ id: `task-${++taskCounter}` }),
-        markRunning: () => undefined,
-        addNote: (id: string, note: string) => {
-          notes.push({ id, note });
-        },
-        complete: (id: string, note?: string) => {
-          completions.push({ id, note });
-        },
-        fail: (id: string, note?: string) => {
-          failures.push({ id, note });
-        },
-      },
       __events: {
-        completions,
-        failures,
-        notes,
+        tasks: official.tasks,
       },
     },
   } as unknown as AppContext;
@@ -132,15 +118,16 @@ describe("handleSecretsRoutes", () => {
     const body = await response?.json();
     const events = (context.services as unknown as { __events: unknown })
       .__events as {
-      completions: Array<{ id: string; note?: string }>;
-      notes: Array<{ id: string; note: string }>;
+      tasks: ReturnType<typeof createOfficialOrchestratorTestFixture>["tasks"];
     };
+    const task = events.tasks.get(body?.taskId);
 
     expect(body?.key).toBe("OPENAI_API_KEY");
     expect(body?.valueSet).toBe(true);
     expect(body?.run.kind).toBe("secret.set");
-    expect(events.notes[0]?.note).toContain("attached autocoder workflow");
-    expect(events.completions[0]?.note).toContain("system: secret stored");
+    expect(task?.messages[0]?.content).toContain("attached autocoder workflow");
+    expect(task?.status).toBe("done");
+    expect(task?.summary).toContain("system: secret stored");
   });
 
   it("fails the workflow and rethrows when secret storage fails", async () => {
@@ -160,9 +147,11 @@ describe("handleSecretsRoutes", () => {
 
     const events = (context.services as unknown as { __events: unknown })
       .__events as {
-      failures: Array<{ id: string; note?: string }>;
+      tasks: ReturnType<typeof createOfficialOrchestratorTestFixture>["tasks"];
     };
-    expect(events.failures[0]?.note).toContain("failed:OPENAI_API_KEY");
+    const [task] = events.tasks.values();
+    expect(task?.paused).toBe(true);
+    expect(task?.messages.at(-1)?.content).toContain("failed:OPENAI_API_KEY");
   });
 
   it("returns null for unrelated routes", async () => {
