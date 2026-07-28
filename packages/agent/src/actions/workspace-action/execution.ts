@@ -106,12 +106,12 @@ export async function executeWorkspaceIntent(
   }
 
   if (intent.kind === "search") {
-    const results = searchEffectiveWorkspace(
+    const results = (await searchEffectiveWorkspace(
       runtime,
       services,
       intent.query,
       20,
-    ) as Array<{
+    )) as Array<{
       path: string;
       matches: string[];
     }>;
@@ -119,7 +119,7 @@ export async function executeWorkspaceIntent(
   }
 
   if (intent.kind === "write") {
-    return `Wrote ${String(writeEffectiveWorkspaceFile(runtime, services, intent.path, intent.content))}.`;
+    return `Wrote ${String(await writeEffectiveWorkspaceFile(runtime, services, intent.path, intent.content))}.`;
   }
 
   return executeFindCodebaseIntent(runtime, services, workspaceDir, intent);

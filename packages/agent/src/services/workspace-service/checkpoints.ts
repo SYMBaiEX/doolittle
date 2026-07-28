@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runTextProcess } from "@/services/process-execution";
 import { classifyWorkspacePath } from "./policy";
 
 export interface WorkspaceCheckpoint {
@@ -24,40 +24,44 @@ const GIT_IDENTITY = {
   GIT_COMMITTER_EMAIL: "doolittle@local.invalid",
 };
 
-function gitRaw(
+async function gitRaw(
   root: string,
   args: string[],
   env?: NodeJS.ProcessEnv,
-  input?: string,
-): string {
-  return execFileSync("git", ["-C", root, ...args], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
+): Promise<string> {
+  const result = await runTextProcess("git", ["-C", root, ...args], {
     env,
-    input,
+    timeoutMs: 30_000,
+    toolName: "doolittle.workspace.checkpoint",
   });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      result.stderr.trim() ||
+        `Git checkpoint command failed with exit code ${result.exitCode}.`,
+    );
+  }
+  return result.stdout;
 }
 
-function git(
+async function git(
   root: string,
   args: string[],
   env?: NodeJS.ProcessEnv,
-  input?: string,
-): string {
-  return gitRaw(root, args, env, input).trim();
+): Promise<string> {
+  return (await gitRaw(root, args, env)).trim();
 }
 
-function gitPaths(root: string, args: string[]): string[] {
-  const output = gitRaw(root, [...args, "-z"]);
+async function gitPaths(root: string, args: string[]): Promise<string[]> {
+  const output = await gitRaw(root, [...args, "-z"]);
   return output ? output.split("\0").filter(Boolean) : [];
 }
 
-function checkpointPaths(root: string): string[] {
+async function checkpointPaths(root: string): Promise<string[]> {
   return [
     ...new Set([
-      ...gitPaths(root, ["diff", "--name-only"]),
-      ...gitPaths(root, ["diff", "--cached", "--name-only"]),
-      ...gitPaths(root, ["ls-files", "--others", "--exclude-standard"]),
+      ...(await gitPaths(root, ["diff", "--name-only"])),
+      ...(await gitPaths(root, ["diff", "--cached", "--name-only"])),
+      ...(await gitPaths(root, ["ls-files", "--others", "--exclude-standard"])),
     ]),
   ];
 }
@@ -92,9 +96,9 @@ function cleanLabel(label?: string): string {
   return normalized || "Operator checkpoint";
 }
 
-function repositoryRoot(root: string): string | null {
+async function repositoryRoot(root: string): Promise<string | null> {
   try {
-    return git(root, ["rev-parse", "--show-toplevel"]);
+    return await git(root, ["rev-parse", "--show-toplevel"]);
   } catch {
     return null;
   }
@@ -109,9 +113,9 @@ function repositoryRoot(root: string): string | null {
 export class WorkspaceCheckpointService {
   constructor(private readonly workspaceRoot: () => string) {}
 
-  support(): WorkspaceCheckpointSupport {
+  async support(): Promise<WorkspaceCheckpointSupport> {
     const root = this.workspaceRoot();
-    const repository = repositoryRoot(root);
+    const repository = await repositoryRoot(root);
     if (!repository) {
       return {
         supported: false,
@@ -126,7 +130,7 @@ export class WorkspaceCheckpointService {
       };
     }
     try {
-      git(root, ["rev-parse", "--verify", "HEAD"]);
+      await git(root, ["rev-parse", "--verify", "HEAD"]);
     } catch {
       return {
         supported: false,
@@ -136,13 +140,13 @@ export class WorkspaceCheckpointService {
     return { supported: true };
   }
 
-  list(): WorkspaceCheckpoint[] {
-    const support = this.support();
+  async list(): Promise<WorkspaceCheckpoint[]> {
+    const support = await this.support();
     if (!support.supported) return [];
     const root = this.workspaceRoot();
     const format =
       "%(refname:strip=3)%00%(objectname)%00%(committerdate:iso-strict)%00%(subject)";
-    const output = git(root, [
+    const output = await git(root, [
       "for-each-ref",
       `--format=${format}`,
       CHECKPOINT_REF_PREFIX,
@@ -164,36 +168,42 @@ export class WorkspaceCheckpointService {
     });
   }
 
-  create(label?: string): WorkspaceCheckpoint {
-    const support = this.support();
+  async create(label?: string): Promise<WorkspaceCheckpoint> {
+    const support = await this.support();
     if (!support.supported) throw new Error(support.reason);
     const root = this.workspaceRoot();
     const id = checkpointId();
     const safeLabel = cleanLabel(label);
-    const paths = checkpointPaths(root);
+    const paths = await checkpointPaths(root);
     assertCheckpointPathsAreSafe(paths);
     const temporaryDirectory = mkdtempSync(
       join(tmpdir(), "doolittle-checkpoint-"),
     );
     const temporaryIndex = join(temporaryDirectory, "index");
+    const pathspecFile = join(temporaryDirectory, "paths");
     const env = {
       ...process.env,
       ...GIT_IDENTITY,
       GIT_INDEX_FILE: temporaryIndex,
     };
     try {
-      git(root, ["read-tree", "HEAD"], env);
+      await git(root, ["read-tree", "HEAD"], env);
       if (paths.length > 0) {
-        git(
+        writeFileSync(pathspecFile, `${paths.join("\0")}\0`, "utf8");
+        await git(
           root,
-          ["add", "--all", "--pathspec-from-file=-", "--pathspec-file-nul"],
+          [
+            "add",
+            "--all",
+            `--pathspec-from-file=${pathspecFile}`,
+            "--pathspec-file-nul",
+          ],
           env,
-          `${paths.join("\0")}\0`,
         );
       }
-      const tree = git(root, ["write-tree"], env);
-      const head = git(root, ["rev-parse", "HEAD"], env);
-      const revision = git(
+      const tree = await git(root, ["write-tree"], env);
+      const head = await git(root, ["rev-parse", "HEAD"], env);
+      const revision = await git(
         root,
         [
           "commit-tree",
@@ -205,7 +215,7 @@ export class WorkspaceCheckpointService {
         ],
         env,
       );
-      git(root, ["update-ref", checkpointRef(id), revision]);
+      await git(root, ["update-ref", checkpointRef(id), revision]);
       return {
         id,
         revision,
@@ -217,16 +227,18 @@ export class WorkspaceCheckpointService {
     }
   }
 
-  restore(id: string): WorkspaceCheckpoint {
-    const support = this.support();
+  async restore(id: string): Promise<WorkspaceCheckpoint> {
+    const support = await this.support();
     if (!support.supported) throw new Error(support.reason);
-    const checkpoint = this.list().find((candidate) => candidate.id === id);
+    const checkpoint = (await this.list()).find(
+      (candidate) => candidate.id === id,
+    );
     if (!checkpoint) throw new Error("Checkpoint not found.");
-    this.create(`Before restoring: ${checkpoint.label}`);
+    await this.create(`Before restoring: ${checkpoint.label}`);
     // Deliberately no reset or checkout: this restores the checkpoint tree into
     // the existing worktree and index after the route has required confirmation.
     // The safety checkpoint above keeps the overwritten state recoverable.
-    git(this.workspaceRoot(), [
+    await git(this.workspaceRoot(), [
       "restore",
       "--source",
       checkpointRef(id),

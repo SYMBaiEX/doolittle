@@ -30,14 +30,14 @@ export async function handleWorkspaceRoutes(
       return json({ error: "query is required" }, 400);
     }
     return json({
-      results: context.services.workspace.search(query),
+      results: await context.services.workspace.search(query),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/workspace/checkpoints") {
     return json({
-      support: context.services.workspace.checkpointSupport(),
-      checkpoints: context.services.workspace.listCheckpoints(),
+      support: await context.services.workspace.checkpointSupport(),
+      checkpoints: await context.services.workspace.listCheckpoints(),
     });
   }
 
@@ -50,7 +50,11 @@ export async function handleWorkspaceRoutes(
     }
     try {
       return json(
-        { checkpoint: context.services.workspace.createCheckpoint(body.label) },
+        {
+          checkpoint: await context.services.workspace.createCheckpoint(
+            body.label,
+          ),
+        },
         201,
       );
     } catch (error) {
@@ -90,7 +94,7 @@ export async function handleWorkspaceRoutes(
     }
     try {
       return json({
-        checkpoint: context.services.workspace.restoreCheckpoint(id),
+        checkpoint: await context.services.workspace.restoreCheckpoint(id),
         restored: true,
         runtimeRestarted: false,
       });

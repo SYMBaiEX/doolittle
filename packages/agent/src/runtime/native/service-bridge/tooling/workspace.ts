@@ -12,26 +12,22 @@ export function readEffectiveWorkspaceFile(
   );
 }
 
-export function searchEffectiveWorkspace(
+export async function searchEffectiveWorkspace(
   runtime: RuntimeLike,
   services: AppServices,
   query: string,
   limit = 20,
 ) {
-  return (
-    getNativeCodingAgent(runtime)?.search(query, limit) ??
-    services.workspace.search(query, limit)
-  );
+  return await (getNativeCodingAgent(runtime)?.search(query, limit) ??
+    services.workspace.search(query, limit));
 }
 
-export function writeEffectiveWorkspaceFile(
+export async function writeEffectiveWorkspaceFile(
   runtime: RuntimeLike,
   services: AppServices,
   path: string,
   content: string,
 ) {
-  return (
-    getNativeCodingAgent(runtime)?.write(path, content) ??
-    services.workspace.write(path, content)
-  );
+  return await (getNativeCodingAgent(runtime)?.write(path, content) ??
+    services.workspace.write(path, content));
 }

@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { runTextProcess } from "@/services/process-execution";
 import type { WorkspaceEntry } from "@/types";
 import { resolveWorkspacePath } from "./path";
 import { listWorkspaceTree } from "./tree";
@@ -9,16 +9,16 @@ export interface WorkspaceSearchResult {
   matches: string[];
 }
 
-export function searchWorkspace(
+export async function searchWorkspace(
   workspaceDir: string,
   query: string,
   maxResults: number = 25,
-): WorkspaceSearchResult[] {
+): Promise<WorkspaceSearchResult[]> {
   if (maxResults <= 0) {
     return [];
   }
 
-  const ripgrepResults = searchWorkspaceWithRipgrep(
+  const ripgrepResults = await searchWorkspaceWithRipgrep(
     workspaceDir,
     query,
     maxResults,
@@ -71,11 +71,11 @@ export function searchWorkspaceWithoutRipgrep(
   return results;
 }
 
-export function searchWorkspaceWithRipgrep(
+export async function searchWorkspaceWithRipgrep(
   workspaceDir: string,
   query: string,
   maxResults: number,
-): WorkspaceSearchResult[] | undefined {
+): Promise<WorkspaceSearchResult[] | undefined> {
   const trimmed = query.trim();
   if (!trimmed || maxResults <= 0) {
     return [];
@@ -92,7 +92,7 @@ export function searchWorkspaceWithRipgrep(
     const grouped = new Map<string, string[]>();
 
     for (const batch of batchSearchPaths(files)) {
-      const proc = spawnSync(
+      const result = await runTextProcess(
         "rg",
         [
           "--no-heading",
@@ -110,15 +110,16 @@ export function searchWorkspaceWithRipgrep(
         ],
         {
           cwd: workspaceDir,
-          stdio: ["ignore", "pipe", "pipe"],
+          timeoutMs: 15_000,
+          toolName: "doolittle.workspace.search",
         },
       );
 
-      if (proc.status !== 0 && proc.status !== 1) {
+      if (result.exitCode !== 0 && result.exitCode !== 1) {
         return undefined;
       }
 
-      const stdout = proc.stdout?.toString("utf8") ?? "";
+      const stdout = result.stdout;
       for (const line of stdout.split("\n")) {
         if (!line.trim()) {
           continue;

@@ -44,14 +44,14 @@ export class WorkspaceService {
     return readFileSync(resolvedPath, "utf8");
   }
 
-  write(path: string, content: string): string {
+  async write(path: string, content: string): Promise<string> {
     const resolvedPath = this.resolvePath(path, "write");
     // Git workspaces receive a non-destructive snapshot before an agent write.
     // Unsupported workspaces retain the existing write behavior and expose their
     // unsupported state through the explicit checkpoint operator routes.
-    if (this.checkpointSupport().supported) {
+    if ((await this.checkpointSupport()).supported) {
       try {
-        this.createCheckpoint(`Before workspace write: ${path}`);
+        await this.createCheckpoint(`Before workspace write: ${path}`);
       } catch (error) {
         throw new Error(
           `Workspace write was not performed because its safety checkpoint failed: ${
@@ -66,10 +66,10 @@ export class WorkspaceService {
     return resolvedPath;
   }
 
-  search(
+  async search(
     query: string,
     maxResults = 25,
-  ): Array<{ path: string; matches: string[] }> {
+  ): Promise<Array<{ path: string; matches: string[] }>> {
     return searchWorkspace(this.root(), query, maxResults);
   }
 
@@ -78,19 +78,19 @@ export class WorkspaceService {
     return summarizeWorkspaceTree(entries, maxEntries);
   }
 
-  checkpointSupport(): WorkspaceCheckpointSupport {
+  checkpointSupport(): Promise<WorkspaceCheckpointSupport> {
     return this.checkpointService.support();
   }
 
-  listCheckpoints(): WorkspaceCheckpoint[] {
+  listCheckpoints(): Promise<WorkspaceCheckpoint[]> {
     return this.checkpointService.list();
   }
 
-  createCheckpoint(label?: string): WorkspaceCheckpoint {
+  createCheckpoint(label?: string): Promise<WorkspaceCheckpoint> {
     return this.checkpointService.create(label);
   }
 
-  restoreCheckpoint(id: string): WorkspaceCheckpoint {
+  restoreCheckpoint(id: string): Promise<WorkspaceCheckpoint> {
     return this.checkpointService.restore(id);
   }
 

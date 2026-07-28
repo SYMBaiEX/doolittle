@@ -20,7 +20,7 @@ import {
 } from "./workspace-service/search";
 
 describe("WorkspaceService", () => {
-  it("creates a Git checkpoint without changing the worktree and restores only after an explicit service call", () => {
+  it("creates a Git checkpoint without changing the worktree and restores only after an explicit service call", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-checkpoint-"));
     const service = new WorkspaceService(root);
 
@@ -37,10 +37,12 @@ describe("WorkspaceService", () => {
       writeFileSync(join(root, "tracked.txt"), "checkpoint value\n", "utf8");
       writeFileSync(join(root, "untracked.txt"), "captured\n", "utf8");
       const before = git(["status", "--porcelain"]);
-      const checkpoint = service.createCheckpoint("Before mutation");
+      const checkpoint = await service.createCheckpoint("Before mutation");
 
-      expect(service.checkpointSupport()).toEqual({ supported: true });
-      expect(service.listCheckpoints()).toContainEqual(
+      await expect(service.checkpointSupport()).resolves.toEqual({
+        supported: true,
+      });
+      expect(await service.listCheckpoints()).toContainEqual(
         expect.objectContaining({
           id: checkpoint.id,
           label: "Before mutation",
@@ -49,29 +51,28 @@ describe("WorkspaceService", () => {
       expect(git(["status", "--porcelain"])).toBe(before);
 
       writeFileSync(join(root, "tracked.txt"), "after mutation\n", "utf8");
-      service.restoreCheckpoint(checkpoint.id);
+      await service.restoreCheckpoint(checkpoint.id);
       expect(service.read("tracked.txt")).toBe("checkpoint value\n");
       expect(service.read("untracked.txt")).toBe("captured\n");
-      const recoveryCheckpoint = service
-        .listCheckpoints()
-        .find((candidate) =>
+      const recoveryCheckpoint = (await service.listCheckpoints()).find(
+        (candidate) =>
           candidate.label.startsWith("Before restoring: Before mutation"),
-        );
+      );
       expect(recoveryCheckpoint).toBeDefined();
       expect(
         git(["show", `${recoveryCheckpoint?.revision ?? ""}:tracked.txt`]),
       ).toBe("after mutation\n");
 
-      const checkpointCount = service.listCheckpoints().length;
-      service.write("tracked.txt", "agent write\n");
-      expect(service.listCheckpoints()).toHaveLength(checkpointCount + 1);
+      const checkpointCount = (await service.listCheckpoints()).length;
+      await service.write("tracked.txt", "agent write\n");
+      expect(await service.listCheckpoints()).toHaveLength(checkpointCount + 1);
       expect(service.read("tracked.txt")).toBe("agent write\n");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("refuses to persist protected uncommitted files in checkpoint objects", () => {
+  it("refuses to persist protected uncommitted files in checkpoint objects", async () => {
     const root = mkdtempSync(
       join(tmpdir(), "doolittle-workspace-private-checkpoint-"),
     );
@@ -88,30 +89,32 @@ describe("WorkspaceService", () => {
       git(["commit", "-m", "initial"]);
       writeFileSync(join(root, ".env.local"), "PRIVATE=value\n", "utf8");
 
-      expect(() => service.createCheckpoint("Unsafe snapshot")).toThrow(
+      await expect(service.createCheckpoint("Unsafe snapshot")).rejects.toThrow(
         "Checkpoint blocked because protected workspace data has uncommitted changes: .env.local",
       );
-      expect(() => service.write("tracked.txt", "agent write\n")).toThrow(
+      await expect(
+        service.write("tracked.txt", "agent write\n"),
+      ).rejects.toThrow(
         "Workspace write was not performed because its safety checkpoint failed",
       );
       expect(service.read("tracked.txt")).toBe("base\n");
-      expect(service.listCheckpoints()).toEqual([]);
+      await expect(service.listCheckpoints()).resolves.toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("reports non-Git workspace checkpoint support without changing write behavior", () => {
+  it("reports non-Git workspace checkpoint support without changing write behavior", async () => {
     const root = mkdtempSync(
       join(tmpdir(), "doolittle-workspace-no-checkpoint-"),
     );
     const service = new WorkspaceService(root);
     try {
-      expect(service.checkpointSupport()).toEqual({
+      await expect(service.checkpointSupport()).resolves.toEqual({
         supported: false,
         reason: "The workspace is not a Git repository.",
       });
-      service.write("notes.txt", "still writes\n");
+      await service.write("notes.txt", "still writes\n");
       expect(service.read("notes.txt")).toBe("still writes\n");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -139,7 +142,7 @@ describe("WorkspaceService", () => {
     }
   });
 
-  it("searches the workspace and returns matching lines", () => {
+  it("searches the workspace and returns matching lines", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-"));
     const service = new WorkspaceService(root);
 
@@ -155,7 +158,7 @@ describe("WorkspaceService", () => {
         "utf8",
       );
 
-      const results = service.search("linkedProviderAuth", 10);
+      const results = await service.search("linkedProviderAuth", 10);
       expect(results.length).toBeGreaterThan(0);
       expect(results[0]?.path).toContain("src/auth.ts");
       expect(results[0]?.matches.join("\n")).toContain("linkedProviderAuth");
@@ -164,7 +167,7 @@ describe("WorkspaceService", () => {
     }
   });
 
-  it("keeps source dotfolders and safe templates while omitting workspace noise", () => {
+  it("keeps source dotfolders and safe templates while omitting workspace noise", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-policy-"));
     const service = new WorkspaceService(root);
 
@@ -221,7 +224,7 @@ describe("WorkspaceService", () => {
     }
   });
 
-  it("applies the same exposure policy to ripgrep and fallback search", () => {
+  it("applies the same exposure policy to ripgrep and fallback search", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-search-"));
 
     try {
@@ -251,7 +254,11 @@ describe("WorkspaceService", () => {
       );
 
       const fallback = searchWorkspaceWithoutRipgrep(root, "policy-parity", 20);
-      const ripgrep = searchWorkspaceWithRipgrep(root, "policy-parity", 20);
+      const ripgrep = await searchWorkspaceWithRipgrep(
+        root,
+        "policy-parity",
+        20,
+      );
 
       expect(ripgrep).toBeDefined();
       expect(ripgrep?.map((result) => result.path).sort()).toEqual(
@@ -266,7 +273,7 @@ describe("WorkspaceService", () => {
     }
   });
 
-  it("blocks direct reads and writes of nested sensitive files", () => {
+  it("blocks direct reads and writes of nested sensitive files", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-guard-"));
     const service = new WorkspaceService(root);
 
@@ -274,21 +281,21 @@ describe("WorkspaceService", () => {
       expect(() => service.read(".env")).toThrow(
         "Workspace path is protected and cannot be read",
       );
-      expect(() =>
+      await expect(
         service.write("config/credentials.json", '{"token":"private"}'),
-      ).toThrow("Workspace path is protected and cannot be written");
-      expect(() => service.write("nested\\.env.local", "private")).toThrow(
-        "Workspace path is protected and cannot be written",
-      );
+      ).rejects.toThrow("Workspace path is protected and cannot be written");
+      await expect(
+        service.write("nested\\.env.local", "private"),
+      ).rejects.toThrow("Workspace path is protected and cannot be written");
 
-      service.write(".env.example", "API_KEY=replace-me\n");
+      await service.write(".env.example", "API_KEY=replace-me\n");
       expect(service.read(".env.example")).toBe("API_KEY=replace-me\n");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("does not expose or follow symlinks outside the workspace", () => {
+  it("does not expose or follow symlinks outside the workspace", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-links-"));
     const outside = mkdtempSync(join(tmpdir(), "doolittle-workspace-outside-"));
     const service = new WorkspaceService(root);
@@ -303,9 +310,9 @@ describe("WorkspaceService", () => {
       expect(() => service.read("linked/private.txt")).toThrow(
         "Workspace path cannot resolve outside the workspace",
       );
-      expect(() => service.write("linked/created.txt", "outside")).toThrow(
-        "Workspace path cannot resolve outside the workspace",
-      );
+      await expect(
+        service.write("linked/created.txt", "outside"),
+      ).rejects.toThrow("Workspace path cannot resolve outside the workspace");
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });
