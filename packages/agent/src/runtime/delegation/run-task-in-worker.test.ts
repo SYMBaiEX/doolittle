@@ -1,73 +1,58 @@
-import { describe, expect, it } from "vitest";
-import {
-  buildDelegationWorkerSpawnOptions,
-  getBoundedOperatorSteeringNotes,
-  resolveDelegationWorkspaceRoot,
-} from "./run-task-in-worker";
+import { describe, expect, it, vi } from "vitest";
+import { runDelegationTaskInWorker } from "./run-task-in-worker";
 
-describe("getBoundedOperatorSteeringNotes", () => {
-  it("forwards only bounded operator steering, never arbitrary task notes", () => {
-    const notes = [
-      "system: queued",
-      "operator-steer: Keep the public API stable.",
-      "operator-steer: ",
-      `operator-steer: ${"x".repeat(4001)}`,
-      "user: do not forward this",
-      "operator-steer: Add regression coverage.",
-    ];
-
-    expect(getBoundedOperatorSteeringNotes(notes)).toEqual([
-      "Keep the public API stable.",
-      "Add regression coverage.",
-    ]);
-  });
-
-  it("pins the worker process and runtime configuration to the reviewed worktree", () => {
-    expect(
-      buildDelegationWorkerSpawnOptions({
-        workerEntry: "/app/delegate-worker.ts",
-        inputPath: "/state/task-input.json",
-        outputPath: "/state/task-output.json",
-        workspaceRoot: "/repo/.worktrees/review",
-        env: { PATH: "/bin" },
-      }),
-    ).toEqual({
-      cmd: [
-        "nub",
-        "/app/delegate-worker.ts",
-        "/state/task-input.json",
-        "/state/task-output.json",
-      ],
-      cwd: "/repo/.worktrees/review",
-      env: {
-        PATH: "/bin",
-        DOOLITTLE_WORKSPACE_DIR: "/repo/.worktrees/review",
-      },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-  });
-
-  it("preserves legacy configured workspaces while revalidating explicit affinity", async () => {
-    const resolved: unknown[] = [];
-    const resolveWorktreeRoot = async (value: unknown) => {
-      resolved.push(value);
-      return String(value);
+describe("runDelegationTaskInWorker", () => {
+  it("delegates execution to the official task service without spawning a Doolittle worker", async () => {
+    const spawnAgentForTask = vi.fn(async () => ({
+      id: "task-1",
+      title: "Migrate delegation",
+      kind: "coding",
+      status: "active",
+      priority: "high",
+      paused: false,
+      originalRequest: "Use the official orchestrator",
+      summary: undefined,
+      sessionCount: 1,
+      activeSessionCount: 1,
+      latestSessionId: "session-1",
+      latestWorkdir: "/repo",
+      createdAt: "2026-07-28T00:00:00.000Z",
+      updatedAt: "2026-07-28T00:01:00.000Z",
+      closedAt: null,
+      goal: "Use the official orchestrator",
+      parentTaskId: null,
+      acceptanceCriteria: [],
+      providerPolicy: { preferredFramework: "codex" },
+      metadata: { workspaceRoot: "/repo" },
+      sessions: [],
+      messages: [],
+      events: [],
+    }));
+    const getTask = vi.fn(async () => ({
+      id: "task-1",
+      metadata: { workspaceRoot: "/repo" },
+      providerPolicy: { preferredFramework: "codex" },
+    }));
+    const runtime = {
+      getService: (name: string) =>
+        name === "ORCHESTRATOR_TASK_SERVICE"
+          ? { getTask, spawnAgentForTask }
+          : null,
     };
 
-    await expect(
-      resolveDelegationWorkspaceRoot({
-        configuredWorkspace: "/repo/packages/app",
-        resolveWorktreeRoot,
-      }),
-    ).resolves.toBe("/repo/packages/app");
-    await expect(
-      resolveDelegationWorkspaceRoot({
-        configuredWorkspace: "/repo/packages/app",
-        requestedRoot: "/repo/.worktrees/review",
-        resolveWorktreeRoot,
-      }),
-    ).resolves.toBe("/repo/.worktrees/review");
-    expect(resolved).toEqual(["/repo/.worktrees/review"]);
+    const result = await runDelegationTaskInWorker(
+      { runtime } as never,
+      "task-1",
+    );
+
+    expect(spawnAgentForTask).toHaveBeenCalledWith("task-1", {
+      workdir: "/repo",
+      framework: "codex",
+    });
+    expect(result).toMatchObject({
+      id: "task-1",
+      status: "running",
+      executionMode: "delegated",
+    });
   });
 });

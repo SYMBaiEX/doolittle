@@ -41,11 +41,6 @@ export interface TerminalServiceLike {
 
 export interface DelegationServiceLike {
   list(): unknown[];
-  create(input: {
-    title: string;
-    objective: string;
-    metadata?: Record<string, string>;
-  }): unknown;
 }
 
 export interface CodingProjectInspection {
@@ -93,13 +88,6 @@ export interface CodingAgentPluginOptions {
     "isRepository" | "status" | "diffStat" | "recentCommits"
   >;
   shell: Pick<TerminalServiceLike, "run">;
-  delegation: Pick<DelegationServiceLike, "list"> & {
-    create(
-      input: Pick<
-        Parameters<DelegationServiceLike["create"]>[0],
-        "title" | "objective" | "metadata"
-      >,
-    ): ReturnType<DelegationServiceLike["create"]>;
-  };
+  delegation: Pick<DelegationServiceLike, "list">;
   inspectProject: InspectLocalProject;
 }

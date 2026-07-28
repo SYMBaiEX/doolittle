@@ -62,14 +62,6 @@ export function createCodingAgentServiceClass(
       return options.inspectProject(targetPath ?? options.workspaceRoot);
     }
 
-    delegate(
-      title: string,
-      objective: string,
-      metadata?: Record<string, string>,
-    ) {
-      return this.delegation.create({ title, objective, metadata });
-    }
-
     tasks() {
       return this.delegation.list();
     }

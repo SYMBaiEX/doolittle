@@ -9,7 +9,6 @@ import {
 import type { AppServices } from "../../../services";
 import { inspectLocalProject } from "../../../services/project-inspection";
 import type { EnvConfig } from "../../../types/runtime";
-import { normalizeDelegationInput } from "../plugin-assembly-delegation";
 
 export async function loadHotExecutionPlugins(
   services: AppServices,
@@ -30,8 +29,6 @@ export async function loadHotExecutionPlugins(
       },
       inspectProject: (targetPath) => inspectLocalProject(targetPath),
       delegation: {
-        create: (input) =>
-          services.delegation.create(normalizeDelegationInput(input)),
         list: () => services.delegation.list(),
       },
     }),

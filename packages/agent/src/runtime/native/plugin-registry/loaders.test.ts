@@ -55,18 +55,12 @@ function createServices(): AppServices {
       recentCommits: () => [],
     },
     delegation: {
-      create: () => ({ id: "task-1" }),
       list: () => [],
       get: () => ({ id: "task-1" }),
       queueSummary: () => ({ queued: 0 }),
       overview: () => ({ total: 0 }),
       listChildren: () => [],
       tree: () => ({ id: "task-1", children: [] }),
-      spawnChild: () => ({ id: "child-1" }),
-      requeue: () => ({ ok: true }),
-      cancel: () => ({ ok: true }),
-      supervise: async () => ({ ok: true }),
-      runQueued: async () => ({ ok: true }),
     },
     autocoderPipeline: {
       listWorkflows: () => [],
