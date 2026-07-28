@@ -43,12 +43,6 @@ export async function buildDiagnosticsFilesystemChecks(
       detail: onboardingStatePath,
     },
     {
-      id: "cron.output",
-      status: existsSync(config.cronOutputDir) ? "pass" : "warn",
-      summary: "Automation artifact directory",
-      detail: config.cronOutputDir,
-    },
-    {
       id: "gateway.data",
       status: existsSync(config.gatewayDataDir) ? "pass" : "warn",
       summary: "Gateway state directory",

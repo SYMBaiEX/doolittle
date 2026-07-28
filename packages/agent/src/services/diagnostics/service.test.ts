@@ -9,13 +9,11 @@ import { DiagnosticsService } from "./index";
 function buildConfig(root: string): EnvConfig {
   const dataDir = join(root, ".doolittle");
   const skillsDir = join(root, "skills");
-  const cronOutputDir = join(dataDir, "cron-output");
   const gatewayDataDir = join(dataDir, "gateway");
   const hooksDir = join(dataDir, "hooks");
   const workspaceDir = root;
   mkdirSync(dataDir, { recursive: true });
   mkdirSync(skillsDir, { recursive: true });
-  mkdirSync(cronOutputDir, { recursive: true });
   mkdirSync(gatewayDataDir, { recursive: true });
   mkdirSync(hooksDir, { recursive: true });
 
@@ -85,7 +83,6 @@ function buildConfig(root: string): EnvConfig {
     remoteArtifactPaths: [
       ".doolittle/remote-artifacts",
       ".doolittle/trajectories",
-      ".doolittle/cron-output",
     ],
     remoteArtifactPolicy: "metadata-only",
     remoteWorkspaceLabel: "doolittle-workspace",
@@ -130,8 +127,6 @@ function buildConfig(root: string): EnvConfig {
     memoryCharLimit: 2200,
     userCharLimit: 1375,
     sessionSearchLimit: 6,
-    cronTickSeconds: 30,
-    cronOutputDir,
     gatewayDataDir,
     hooksDir,
     workspaceDir,
@@ -244,7 +239,6 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "onboarding.native")).toBe(
         true,
       );
-      expect(checks.some((check) => check.id === "cron.output")).toBe(true);
       expect(checks.some((check) => check.id === "gateway.data")).toBe(true);
       expect(checks.some((check) => check.id === "execution.remote.sync")).toBe(
         true,
