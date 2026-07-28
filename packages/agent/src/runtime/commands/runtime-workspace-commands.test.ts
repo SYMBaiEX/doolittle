@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 import { handleRuntimeWorkspaceCommand } from "./runtime-workspace-commands";
@@ -15,12 +16,10 @@ function createInput(message: string): ChatTurnRequest {
 describe("runtime workspace command router", () => {
   it("queues prompts and handles workspace IO through product services", async () => {
     const writes: Array<{ path: string; content: string }> = [];
+    const official = createOfficialOrchestratorTestFixture();
     const context = {
-      runtime: {},
+      runtime: official.runtime,
       services: {
-        delegation: {
-          create: (input: Record<string, unknown>) => input,
-        },
         contextFiles: {
           render: () => "context-file-a\ncontext-file-b",
         },

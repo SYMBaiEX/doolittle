@@ -1,3 +1,4 @@
+import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/ownership";
 import {
   readEffectiveWorkspaceFile,
@@ -50,7 +51,7 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
         return "Usage: /queue <prompt>";
       }
       return JSON.stringify(
-        context.services.delegation.create({
+        await createEffectiveDelegationTask(context.runtime, context.services, {
           title: `Queued prompt ${new Date().toISOString()}`,
           objective,
           group: "queued-prompts",
@@ -86,12 +87,12 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
 
     if (trimmed.startsWith("/workspace search ")) {
       const query = trimmed.replace("/workspace search ", "").trim();
-      const results = searchEffectiveWorkspace(
+      const results = (await searchEffectiveWorkspace(
         context.runtime,
         context.services,
         query,
         20,
-      ) as Array<{
+      )) as Array<{
         path: string;
         matches: string[];
       }>;
@@ -113,7 +114,7 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
       if (!relativePath || !content) {
         return "Usage: /workspace write <path> :: <content>";
       }
-      const writtenPath = writeEffectiveWorkspaceFile(
+      const writtenPath = await writeEffectiveWorkspaceFile(
         context.runtime,
         context.services,
         relativePath,
