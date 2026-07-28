@@ -44,7 +44,6 @@ describe("buildBackendEnvironment", () => {
       DOOLITTLE_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
       ELIZAOS_BUNDLED_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
       DOOLITTLE_WORKSPACE_DIR: workspaceDir,
-      DOOLITTLE_CRON_OUTPUT_DIR: resolve(runtimeDataDir, "cron-output"),
       DOOLITTLE_GATEWAY_DATA_DIR: resolve(runtimeDataDir, "gateway"),
       DOOLITTLE_HOOKS_DIR: resolve(runtimeDataDir, "hooks"),
       PGLITE_DATA_DIR: resolve(runtimeDataDir, "pglite"),
