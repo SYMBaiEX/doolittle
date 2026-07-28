@@ -68,6 +68,9 @@ ElizaOS 2.0 beta line.
 
 ### Fixed / Reliability
 
+- Packaged desktop runtimes now include the dynamically loaded SDK workspace
+  helper and its Node stream dependency, with a packaging test that fails when
+  a bundled runtime requirement is missing.
 - `/mcp` · `/acp` no longer crash on malformed JSON; `/cron <bad-id>` no longer
   crashes the turn.
 - Per-item failure isolation for deferred plugin hydration, the cron tick, and
