@@ -1,5 +1,7 @@
 import {
+  addEffectiveDelegationNote,
   cancelEffectiveDelegationTask,
+  completeEffectiveDelegationTask,
   retryEffectiveDelegationTask,
 } from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../../chat";
@@ -18,15 +20,14 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate note <id> :: <note>";
     }
     return JSON.stringify(
-      context.services.delegation.addNote(id, note),
+      await addEffectiveDelegationNote(context.runtime, id, note),
       null,
       2,
     );
   }
 
   if (trimmed.startsWith("/delegate run ")) {
-    const id = trimmed.replace("/delegate run ", "").trim();
-    return JSON.stringify(context.services.delegation.markRunning(id), null, 2);
+    return "Task lifecycle is owned by the official orchestrator. Use /delegate execute <id> to spawn an ACP task agent.";
   }
 
   if (trimmed.startsWith("/delegate execute ")) {
@@ -41,7 +42,7 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate retry <id> [| cascade:children] :: <optional note>";
     }
     return JSON.stringify(
-      retryEffectiveDelegationTask(
+      await retryEffectiveDelegationTask(
         context.runtime,
         context.services,
         parsed.id,
@@ -59,7 +60,7 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate retry <id> [| cascade:children] :: <optional note>";
     }
     return JSON.stringify(
-      retryEffectiveDelegationTask(
+      await retryEffectiveDelegationTask(
         context.runtime,
         context.services,
         parsed.id,
@@ -78,7 +79,7 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate cancel <id> :: <optional note>";
     }
     return JSON.stringify(
-      cancelEffectiveDelegationTask(
+      await cancelEffectiveDelegationTask(
         context.runtime,
         context.services,
         id,
@@ -96,7 +97,7 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate complete <id> :: <optional note>";
     }
     return JSON.stringify(
-      context.services.delegation.complete(id, note),
+      await completeEffectiveDelegationTask(context.runtime, id, note),
       null,
       2,
     );
