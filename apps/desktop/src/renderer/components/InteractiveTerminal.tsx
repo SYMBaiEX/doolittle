@@ -1,3 +1,5 @@
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
 import {
   type KeyboardEvent,
   useCallback,
@@ -6,8 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type {
   InteractiveTerminalOutput,
@@ -154,7 +154,9 @@ export function InteractiveTerminal({
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    const tab = tabs.find((candidate) => candidate.id === activeTabId);
+    const tab = tabsRef.current.find(
+      (candidate) => candidate.id === activeTabId,
+    );
     if (!viewport || !tab) return;
 
     const terminal = new Terminal({
@@ -208,7 +210,7 @@ export function InteractiveTerminal({
       fitAddonRef.current = null;
       xtermTabIdRef.current = null;
     };
-  }, [activeTabId, workspacePath]);
+  }, [activeTabId]);
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const running = activeTab?.state === "running";
@@ -253,7 +255,9 @@ export function InteractiveTerminal({
       if (!chunks && !snapshot.truncatedBeforeCursor) return;
       if (xtermTabIdRef.current === tabId) {
         if (snapshot.truncatedBeforeCursor) {
-          xtermRef.current?.write("\r\n[Doolittle retained the newest terminal output.]\r\n");
+          xtermRef.current?.write(
+            "\r\n[Doolittle retained the newest terminal output.]\r\n",
+          );
         }
         if (chunks) xtermRef.current?.write(chunks);
       }
