@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 
 export async function handleDiagnosticsRoutes(
@@ -7,14 +8,19 @@ export async function handleDiagnosticsRoutes(
   url: URL,
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/doctor") {
+    const cron = getNativeServices(context.runtime).cron;
+    if (!cron) {
+      return json({ error: "Trigger runtime service is not ready." }, 503);
+    }
     const transportOverview = context.gateway
       ? await context.gateway.transportOverview()
       : undefined;
+    const recentCronRuns = await cron.runs(5);
     return json({
       checks: await context.services.diagnostics.run({
         skillsCount: context.services.skills.list().length,
         contextFilesCount: context.services.contextFiles.list().length,
-        recentCronRuns: context.services.cron.recentRuns(5).length,
+        recentCronRuns: recentCronRuns.length,
         recentTerminalCommands: context.services.terminal.recent(5).length,
         repositoryAvailable: context.services.repository.isRepository(),
         gatewayTransportOverview: transportOverview,

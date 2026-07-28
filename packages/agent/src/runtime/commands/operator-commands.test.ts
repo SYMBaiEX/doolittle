@@ -11,7 +11,14 @@ function createContext() {
   };
 
   const context = {
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "cron"
+          ? {
+              runs: () => [{ id: "cron-1" }, { id: "cron-2" }],
+            }
+          : null,
+    },
     services: {
       settings: {
         get: () => ({
@@ -27,7 +34,9 @@ function createContext() {
         list: () => ["a.md", "b.md"],
       },
       cron: {
-        recentRuns: () => [{ id: "cron-1" }, { id: "cron-2" }],
+        recentRuns: () => {
+          throw new Error("legacy cron must not be used");
+        },
       },
       terminal: {
         recent: () => [

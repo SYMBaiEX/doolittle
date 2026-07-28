@@ -1,3 +1,4 @@
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import {
   formatDoctorSummary,
@@ -10,15 +11,20 @@ export async function handleOperatorStatusCommand(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   if (trimmed === "/doctor") {
+    const cron = getNativeServices(context.runtime).cron;
+    if (!cron) {
+      return "Doctor unavailable: Trigger runtime service is not ready.";
+    }
     const transportOverview = context.gateway
       ? await context.gateway.transportOverview()
       : undefined;
     const skillsSummary = context.services.skills.summary();
+    const recentCronRuns = await cron.runs(5);
     const checks = await context.services.diagnostics.run({
       skillsCount: skillsSummary.total,
       skillsSummary,
       contextFilesCount: context.services.contextFiles.list().length,
-      recentCronRuns: context.services.cron.recentRuns(5).length,
+      recentCronRuns: recentCronRuns.length,
       recentTerminalCommands: context.services.terminal.recent(5).length,
       repositoryAvailable: context.services.repository.isRepository(),
       gatewayTransportOverview: transportOverview,

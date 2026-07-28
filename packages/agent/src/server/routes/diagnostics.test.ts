@@ -4,6 +4,14 @@ import { handleDiagnosticsRoutes } from "@/server/routes/diagnostics";
 
 function createContext() {
   return {
+    runtime: {
+      getService: (name: string) =>
+        name === "cron"
+          ? {
+              runs: () => [{ id: "cron-1" }],
+            }
+          : null,
+    },
     services: {
       diagnostics: {
         run: async (input: Record<string, unknown>) => ({
@@ -23,7 +31,9 @@ function createContext() {
         list: () => ["ctx.md"],
       },
       cron: {
-        recentRuns: () => [{ id: "cron-1" }],
+        recentRuns: () => {
+          throw new Error("legacy cron must not be used");
+        },
       },
       terminal: {
         recent: () => [{ id: "cmd-1" }],
@@ -100,5 +110,21 @@ describe("handleDiagnosticsRoutes", () => {
     );
 
     expect(response).toBeNull();
+  });
+
+  it("returns a clear service error while the Trigger runtime is unavailable", async () => {
+    const context = createContext();
+    context.runtime = { getService: () => null } as never;
+
+    const response = await handleDiagnosticsRoutes(
+      context,
+      new Request("http://localhost/doctor"),
+      new URL("http://localhost/doctor"),
+    );
+
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Trigger runtime service is not ready.",
+    });
   });
 });

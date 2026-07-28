@@ -6,9 +6,11 @@ import {
   type ProviderResult,
   type State,
 } from "@elizaos/core";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
 import type { AppServices } from "@/services";
+import type { CronJobRecord } from "@/types/runtime";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";
 import { renderOperationSections } from "./sections/operations";
@@ -156,9 +158,14 @@ async function workspaceContextResult(
 
 async function operationsContextResult(
   services: AppServices,
+  runtime: IAgentRuntime,
 ): Promise<ProviderResult> {
   try {
-    const cronJobs = services.cron.list();
+    const cron = getNativeServices(runtime).cron;
+    if (!cron) {
+      throw new Error("Trigger runtime service is not ready.");
+    }
+    const cronJobs = (await cron.list()) as CronJobRecord[];
     const enabledTools = services.tools.enabled();
     const delegationTasks = services.delegation.list();
     const delegationOverview = services.delegation.overview();
@@ -231,7 +238,8 @@ export function createAgentContextProviders(services: AppServices): Provider[] {
     contextGate: { anyOf: ["automation", "settings", "admin"] },
     cacheStable: false,
     cacheScope: "turn",
-    get: async (): Promise<ProviderResult> => operationsContextResult(services),
+    get: async (runtime: IAgentRuntime): Promise<ProviderResult> =>
+      operationsContextResult(services, runtime),
   };
 
   return [coreProvider, workspaceProvider, operationsProvider];

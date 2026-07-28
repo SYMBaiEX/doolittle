@@ -23,6 +23,17 @@ function provider(providers: Provider[], name: string): Provider {
   return result;
 }
 
+function createRuntime() {
+  return {
+    getService: (name: string) =>
+      name === "cron"
+        ? {
+            list: () => [{ name: "nightly", status: "running" }],
+          }
+        : null,
+  };
+}
+
 function createServices() {
   const services = {
     personalities: {
@@ -82,7 +93,11 @@ function createServices() {
     contextFiles: { render: () => "context file summary" },
     terminal: { recent: () => [{ exitCode: 0, command: "git status" }] },
     repository: { status: async () => "repository status summary" },
-    cron: { list: () => [{ name: "nightly", status: "running" }] },
+    cron: {
+      list: () => {
+        throw new Error("legacy cron must not be used");
+      },
+    },
     tools: { enabled: () => [{ id: "tool-1", description: "Tool one" }] },
     delegation: {
       list: () => [{ title: "Delegate work", status: "running" }],
@@ -175,12 +190,28 @@ describe("agent context providers", () => {
     const operations = await provider(
       providers,
       "DOOLITTLE_OPERATIONS_CONTEXT_PROVIDER",
-    ).get({} as never, message, {} as never);
+    ).get(createRuntime() as never, message, {} as never);
 
     expect(core.text).not.toContain("WORKSPACE CONTEXT");
     expect(core.text).not.toContain("CRON JOBS");
     expect(workspace.text).toContain("WORKSPACE CONTEXT");
     expect(workspace.text).toContain("repository status summary");
     expect(operations.text).toContain("CRON JOBS");
+  });
+
+  it("reports operations context unavailable without the Trigger runtime", async () => {
+    const operations = provider(
+      createAgentContextProviders(createServices()),
+      "DOOLITTLE_OPERATIONS_CONTEXT_PROVIDER",
+    );
+
+    const result = await operations.get(
+      { getService: () => null } as never,
+      createMemory(),
+      {} as never,
+    );
+
+    expect(result.text).toBe("OPERATIONS CONTEXT\n(unavailable)");
+    expect(result.data?.error).toBe("Trigger runtime service is not ready.");
   });
 });

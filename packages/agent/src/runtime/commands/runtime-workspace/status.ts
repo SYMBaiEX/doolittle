@@ -3,6 +3,7 @@ import {
   getEffectiveMemorySnapshot,
   getNativeOwnershipControlPlane,
 } from "@/runtime/native/service-bridge/ownership";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { promptCacheMetrics } from "@/runtime/prompt-cache";
 import type { ChatTurnRequest } from "@/types/runtime";
 
@@ -94,6 +95,8 @@ export const handleRuntimeStatusCommand: RuntimeWorkspaceCommandHandler =
     }
 
     const status = buildCommonStatusLines(input, context);
+    const cron = getNativeServices(context.runtime).cron;
+    const cronJobs = cron ? await cron.list() : undefined;
     if (!status.ownership.identity) {
       return [
         ...status.baseLines.slice(0, 1),
@@ -112,7 +115,7 @@ export const handleRuntimeStatusCommand: RuntimeWorkspaceCommandHandler =
       `Experience summary: ${formatExperienceSummary(status.ownership.identity.experience)}`,
       `Native ownership: services=${status.ownership.serviceResolution.length} plugins=${status.ownership.pluginManager?.summary.enabled ?? 0}`,
       `Skills: ${context.services.skills.list().length}`,
-      `Cron jobs: ${context.services.cron.list().length}`,
+      `Cron jobs: ${cronJobs ? cronJobs.length : "unavailable (Trigger runtime service is not ready.)"}`,
       `Gateway sessions: ${context.services.gatewaySessions.list().length}`,
     ].join("\n");
   };
