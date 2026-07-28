@@ -1,3 +1,6 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { getSkillsDir } from "@elizaos/skills/index";
 import { featureMap } from "@/config/feature-map";
 import { getPgliteDataDir } from "@/runtime/bootstrap/env/pglite";
 import { ensureSecretSalt } from "@/runtime/bootstrap/env/secret-salt";
@@ -24,6 +27,10 @@ export function buildBaseSettings(
     runtimeSettings: JSON.stringify(runtimeSettings),
     nativeServiceRegistry: JSON.stringify(services.nativeRegistry),
     autonomousAlignment: JSON.stringify(describeAutonomousAlignment(config)),
+    SKILLS_DIR: env.SKILLS_DIR?.trim() || join(homedir(), ".elizaos", "skills"),
+    WORKSPACE_SKILLS_DIR: env.WORKSPACE_SKILLS_DIR?.trim() || config.skillsDir,
+    BUNDLED_SKILLS_DIRS: env.BUNDLED_SKILLS_DIRS?.trim() || getSkillsDir(),
+    SKILLS_AUTO_LOAD: "true",
     ELIZAOS_CLOUD_BASE_URL: config.elizaCloudBaseUrl,
     ELIZAOS_CLOUD_SMALL_MODEL: config.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: config.elizaCloudLargeModel,

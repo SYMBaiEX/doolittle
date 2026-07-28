@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { getSkillsDir } from "@elizaos/skills/index";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
@@ -151,6 +152,7 @@ describe("bootstrap environment", () => {
     const settings = buildPluginSettings(
       {
         dataDir: root,
+        skillsDir: "/workspace/packages/skills",
         elizaCloudBaseUrl: "https://cloud.example",
         elizaCloudSmallModel: "small-cloud",
         elizaCloudLargeModel: "large-cloud",
@@ -177,6 +179,10 @@ describe("bootstrap environment", () => {
     );
 
     expect(settings.DOOLITTLE_EMBEDDING_PROVIDER).toBe("elizacloud");
+    expect(settings.WORKSPACE_SKILLS_DIR).toBe("/workspace/packages/skills");
+    expect(settings.SKILLS_DIR).toContain(".elizaos/skills");
+    expect(settings.BUNDLED_SKILLS_DIRS).toBe(getSkillsDir());
+    expect(settings.SKILLS_AUTO_LOAD).toBe("true");
     expect(settings.OLLAMA_API_ENDPOINT).toBe("http://localhost:11434/api");
     expect(settings.OLLAMA_SMALL_MODEL).toBe("granite4.1:3b");
     expect(settings.OLLAMA_MEDIUM_MODEL).toBe("granite4.1:3b");

@@ -13,6 +13,10 @@ export interface PluginSettings {
   runtimeSettings: string;
   nativeServiceRegistry: string;
   autonomousAlignment: string;
+  SKILLS_DIR: string;
+  WORKSPACE_SKILLS_DIR: string;
+  BUNDLED_SKILLS_DIRS: string;
+  SKILLS_AUTO_LOAD: string;
   ELIZAOS_CLOUD_BASE_URL: string;
   ELIZAOS_CLOUD_SMALL_MODEL: string;
   ELIZAOS_CLOUD_LARGE_MODEL: string;
