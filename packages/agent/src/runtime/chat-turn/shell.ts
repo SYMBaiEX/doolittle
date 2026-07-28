@@ -1,9 +1,9 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import {
-  formatShellCommandResponse,
-  maybeRequireRemoteExecutionApproval,
-  runShellCommandForTurn,
-} from "@/runtime/commands/command-execution";
+  executeTerminalCommandForTurn,
+  formatTerminalCommandResponse,
+  requestTerminalCommandApproval,
+} from "@/runtime/commands/shell-command-facade";
 import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
 import { finalizeTurnResponse } from "./finalization";
 import {
@@ -28,15 +28,15 @@ type ShellCommandTurnOptions = AgentTurnHooks & {
 };
 
 type ShellExecutionContext = {
-  maybeRequireRemoteExecutionApproval: typeof maybeRequireRemoteExecutionApproval;
-  runShellCommandForTurn: typeof runShellCommandForTurn;
-  formatShellCommandResponse: typeof formatShellCommandResponse;
+  maybeRequireRemoteExecutionApproval: typeof requestTerminalCommandApproval;
+  runShellCommandForTurn: typeof executeTerminalCommandForTurn;
+  formatShellCommandResponse: typeof formatTerminalCommandResponse;
 };
 
 const shellCommandContext: ShellExecutionContext = {
-  maybeRequireRemoteExecutionApproval,
-  runShellCommandForTurn,
-  formatShellCommandResponse,
+  maybeRequireRemoteExecutionApproval: requestTerminalCommandApproval,
+  runShellCommandForTurn: executeTerminalCommandForTurn,
+  formatShellCommandResponse: formatTerminalCommandResponse,
 };
 
 export async function runShellPostCommandTurn(

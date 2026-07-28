@@ -34,6 +34,12 @@ export function createWorkspaceAction(
     ],
     description:
       "Legacy workspace overview helper. Prefer READ_FILE, WRITE_FILE, PATCH_FILE, SEARCH_FILES, and CREATE_DIRECTORY for concrete file work; use this for broad workspace tree/overview requests.",
+    descriptionCompressed:
+      "Summarize or inspect the selected workspace at a broad level.",
+    routingHint:
+      "project or workspace overview -> DOOLITTLE_WORKSPACE; concrete file work -> file actions",
+    contexts: ["code", "files"],
+    cacheStable: true,
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text = readWorkspaceActionText(message);
       return Boolean(text && resolveWorkspaceIntentFromText(text));
@@ -57,7 +63,12 @@ export function createWorkspaceAction(
         : WORKSPACE_ACTION_FALLBACK_MESSAGE;
 
       await callback?.({ text: response, source: "workspace-action" });
-      return { success: Boolean(intent), text: response };
+      return {
+        success: Boolean(intent),
+        text: response,
+        userFacingText: response,
+        verifiedUserFacing: Boolean(intent),
+      };
     },
     examples: [
       [

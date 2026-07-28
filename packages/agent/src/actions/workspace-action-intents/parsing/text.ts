@@ -61,6 +61,12 @@ export function resolveWorkspaceIntentFromText(
     ) ||
     /(repo|repository|project|codebase|workspace).*(summari[sz]e|overview|breakdown|review|map out|research|where to start)/u.test(
       lower,
+    ) ||
+    /\b(?:review|inspect|analy[sz]e|explain|describe|map out|break down)\b.*\b(?:architecture|source tree|project structure)\b/u.test(
+      lower,
+    ) ||
+    /\b(?:architecture|source tree|project structure)\b.*\b(?:review|inspection|analysis|overview|summary|works?)\b/u.test(
+      lower,
     )
   ) {
     return explicitProjectPath

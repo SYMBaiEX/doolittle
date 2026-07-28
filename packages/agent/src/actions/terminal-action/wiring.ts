@@ -76,6 +76,12 @@ export function createTerminalAction(services: AppServices): Action {
     ],
     description:
       "Runs a shell command in the local Doolittle terminal. Reserve this for builds, tests, git, package managers, scripts, processes, network checks, and commands that truly need a shell. Use READ_FILE/WRITE_FILE/PATCH_FILE/SEARCH_FILES/CREATE_DIRECTORY for file IO instead of cat, echo heredocs, sed, grep, find, or ls.",
+    descriptionCompressed:
+      "Run a local shell command for builds, tests, git, scripts, or processes.",
+    routingHint:
+      "explicit shell, build, test, package-manager, or process request -> RUN_IN_TERMINAL",
+    contexts: ["terminal", "code"],
+    cacheStable: true,
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text =
         typeof message.content === "string"
@@ -103,7 +109,11 @@ export function createTerminalAction(services: AppServices): Action {
           text: MISSING_COMMAND_RESPONSE,
           source: ACTION_SOURCE,
         });
-        return { success: false, text: MISSING_COMMAND_RESPONSE };
+        return {
+          success: false,
+          text: MISSING_COMMAND_RESPONSE,
+          userFacingText: MISSING_COMMAND_RESPONSE,
+        };
       }
 
       const result = await executeTerminalCommand(runtime, services, command);
@@ -113,6 +123,8 @@ export function createTerminalAction(services: AppServices): Action {
       return {
         success: result.exitCode === 0,
         text: response,
+        userFacingText: response,
+        verifiedUserFacing: true,
         data: buildActionResultData(
           {
             commandResult: {

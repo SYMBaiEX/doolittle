@@ -7,7 +7,7 @@ export const WORKSPACE_ACTION_FALLBACK_MESSAGE =
 
 const LIST_PREVIEW_LIMIT = 12;
 const GIT_CHANGE_PREVIEW_LIMIT = 8;
-const README_PREVIEW_CHAR_LIMIT = 1_600;
+const README_PREVIEW_CHAR_LIMIT = 3_000;
 const MERGE_CONFLICT_CODES = new Set([
   "AA",
   "AU",
@@ -124,6 +124,9 @@ export async function summarizeProjectForOutput(
       : undefined,
     inspection.keyFolders.length > 0
       ? `- key folders: ${formatLimitedList(inspection.keyFolders)}`
+      : undefined,
+    inspection.notableFiles?.length
+      ? `- verified entry files: ${formatLimitedList(inspection.notableFiles)}`
       : undefined,
     inspection.topEntries.length > 0
       ? `- top entries: ${formatLimitedList(inspection.topEntries)}`

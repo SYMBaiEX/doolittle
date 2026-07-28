@@ -32,6 +32,14 @@ describe("resolveWorkspaceIntentFromText", () => {
         "What is this repo? What is this project?",
       ),
     ).toEqual({ kind: "overview" });
+    expect(
+      resolveWorkspaceIntentFromText("Give a full review of the architecture"),
+    ).toEqual({ kind: "overview" });
+    expect(
+      resolveWorkspaceIntentFromText(
+        "Explain how the project architecture works",
+      ),
+    ).toEqual({ kind: "overview" });
   });
 
   it("does not misread account-relative development paths as absolute /dev", () => {

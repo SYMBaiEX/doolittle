@@ -1,8 +1,8 @@
 import {
-  formatShellCommandResponse,
-  maybeRequireRemoteExecutionApproval,
-  runShellCommandForTurn,
-} from "@/runtime/commands/command-execution";
+  executeTerminalCommandForTurn,
+  formatTerminalCommandResponse,
+  requestTerminalCommandApproval,
+} from "@/runtime/commands/shell-command-facade";
 import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
@@ -45,7 +45,7 @@ export async function handleOperatorTerminalCommand(
     if (!command) {
       return "Usage: /terminal run <command>";
     }
-    const approvalPrompt = await maybeRequireRemoteExecutionApproval(
+    const approvalPrompt = await requestTerminalCommandApproval(
       input,
       context,
       command,
@@ -54,8 +54,8 @@ export async function handleOperatorTerminalCommand(
     if (approvalPrompt) {
       return approvalPrompt;
     }
-    const result = await runShellCommandForTurn(command, context, hooks);
-    const response = formatShellCommandResponse(result);
+    const result = await executeTerminalCommandForTurn(command, context, hooks);
+    const response = formatTerminalCommandResponse(result);
     await hooks?.onResponseProgress?.({
       chunk: response,
       response,

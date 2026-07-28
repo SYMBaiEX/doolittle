@@ -1,11 +1,40 @@
 import { describe, expect, it } from "vitest";
 import {
+  executeTerminalCommand,
   isTerminalIntent,
   resolveCommandFromArguments,
   resolveCommandFromObject,
   resolveCommandFromParams,
   resolveCommandFromText,
 } from "./terminal-action";
+
+describe("executeTerminalCommand", () => {
+  it("uses the shared command formatter used by slash and bang commands", async () => {
+    const services = {
+      workspace: { root: () => "/workspace" },
+      terminal: {
+        run: async () => ({
+          command: "pwd",
+          exitCode: 0,
+          stdout: "/workspace\n",
+          stderr: "",
+          cwd: "/workspace",
+          durationMs: 3,
+        }),
+      },
+    };
+
+    const result = await executeTerminalCommand(
+      {} as never,
+      services as never,
+      "pwd",
+    );
+
+    expect(result.response).toContain("Command: pwd");
+    expect(result.response).toContain("Exit: 0");
+    expect(result.response).toContain("STDOUT:\n/workspace");
+  });
+});
 
 describe("resolveCommandFromObject", () => {
   it("resolves command fields in priority order", () => {

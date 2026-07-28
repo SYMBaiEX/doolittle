@@ -203,7 +203,13 @@ function createActionResult(
   text: string,
   data?: ProviderDataRecord,
 ): ActionResult {
-  return { success, text, data };
+  return {
+    success,
+    text,
+    userFacingText: text,
+    verifiedUserFacing: success,
+    data,
+  };
 }
 
 function handlerError(error: unknown): string {

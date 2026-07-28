@@ -89,12 +89,29 @@ export async function executeRepositoryIntent(
   return String(await getEffectiveRepositoryLog(runtime, services));
 }
 
+/** Shared repository command facade used by slash commands and the action. */
+export async function executeRepositoryCommand(
+  runtime: IAgentRuntime,
+  services: AppServices,
+  input: string,
+): Promise<string | undefined> {
+  const intent = resolveRepositoryIntentFromText(input);
+  return intent
+    ? executeRepositoryIntent(runtime, services, intent)
+    : undefined;
+}
+
 export function createRepositoryAction(services: AppServices): Action {
   return {
     name: "DOOLITTLE_REPOSITORY",
     similes: ["REPO_STATUS", "REPO_DIFF", "REPO_LOG", "GIT_STATUS"],
     description:
       "Inspects the local git repository. Use this for repository status, diffs, and recent commits.",
+    descriptionCompressed: "Inspect local git status, diff, or commit history.",
+    routingHint:
+      "repository status, changes, or commits -> DOOLITTLE_REPOSITORY; use the selected project repository",
+    contexts: ["code", "files"],
+    cacheStable: true,
     validate: async (_runtime: IAgentRuntime, message: Memory) => {
       const text =
         typeof message.content === "string"
@@ -126,7 +143,12 @@ export function createRepositoryAction(services: AppServices): Action {
       }
 
       await callback?.({ text: response, source: "repository-action" });
-      return { success: Boolean(intent), text: response };
+      return {
+        success: Boolean(intent),
+        text: response,
+        userFacingText: response,
+        verifiedUserFacing: Boolean(intent),
+      };
     },
     examples: [
       [
@@ -142,6 +164,17 @@ export function createRepositoryAction(services: AppServices): Action {
           },
         },
       ],
+    ],
+    parameters: [
+      {
+        name: "intent",
+        description: "Repository inspection to perform.",
+        required: true,
+        schema: {
+          type: "string",
+          enum: ["status", "diff", "log"],
+        },
+      },
     ],
   };
 }
