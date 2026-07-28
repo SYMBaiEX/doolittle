@@ -49,4 +49,24 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     expect(onlinePlugin.models?.[ModelType.TEXT_EMBEDDING]).toBeUndefined();
     expect(onlinePlugin.priority).toBeUndefined();
   });
+
+  it("registers the Eliza SDK web search and fetch actions", () => {
+    const plugin = createDoolittlePlugin({
+      services: {} as never,
+      config: createConfig({ offlineBootstrapMode: false }),
+    });
+
+    expect(plugin.actions?.map((action) => action.name)).toEqual(
+      expect.arrayContaining(["WEB_SEARCH", "WEB_FETCH"]),
+    );
+    expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual(
+      expect.arrayContaining([
+        "doolittle-web-search-command",
+        "doolittle-web-search-natural",
+        "doolittle-repository-natural",
+        "doolittle-workspace-overview-natural",
+        "doolittle-workspace-search-natural",
+      ]),
+    );
+  });
 });

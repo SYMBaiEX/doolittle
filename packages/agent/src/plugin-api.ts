@@ -9,7 +9,7 @@ export { createTerminalAction } from "@/actions/terminal-action";
 export { createWorkspaceAction } from "@/actions/workspace-action";
 export { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
 export { GatewayRunner } from "@/gateway/runner";
-export { createAgentContextProvider } from "@/providers/agent-context";
+export { createAgentContextProviders } from "@/providers/agent-context";
 export { createSelfAwarenessProvider } from "@/providers/self-awareness";
 export type { AppContext } from "@/runtime/bootstrap";
 export type { AgentExecutionContext } from "@/runtime/chat";

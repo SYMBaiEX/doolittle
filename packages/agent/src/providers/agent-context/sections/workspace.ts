@@ -1,5 +1,3 @@
-import type { AgentContextScope } from "../types";
-
 interface SkillEntry {
   slug: string;
   source?: string | null;
@@ -13,7 +11,6 @@ interface TerminalEntry {
 }
 
 interface WorkspaceSectionsInput {
-  scope: AgentContextScope;
   contextFiles: string;
   skillEntries: SkillEntry[];
   workspaceSummary: string;
@@ -32,21 +29,13 @@ function renderRecentCommand(entry: TerminalEntry): string {
 }
 
 export function renderWorkspaceSections({
-  scope,
   contextFiles,
   skillEntries,
   workspaceSummary,
   recentTerminal,
   repoSummary,
 }: WorkspaceSectionsInput): string[] {
-  const skills = skillEntries
-    .slice(0, scope === "full" ? 10 : scope === "local" ? 6 : 3)
-    .map(renderSkillEntry)
-    .join("\n");
-
-  if (scope === "minimal") {
-    return ["AVAILABLE SKILLS", skills || "(none)"];
-  }
+  const skills = skillEntries.slice(0, 10).map(renderSkillEntry).join("\n");
 
   const recentCommands = recentTerminal.map(renderRecentCommand).join("\n");
 

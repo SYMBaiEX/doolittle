@@ -1,24 +1,29 @@
-import type { Memory } from "@elizaos/core";
+import type { Memory, Provider } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
-import { createAgentContextProvider } from "./provider";
+import { createAgentContextProviders } from "./provider";
 
-function createMemory(
-  text: string,
-  id = "memory-1",
-  metadata?: Memory["metadata"],
-): Memory {
+function createMemory(id = "turn-1", roomId = "sdk-room"): Memory {
   return {
     id,
-    roomId: "room-1",
-    content: { text },
-    metadata,
+    roomId,
+    entityId: "entity-1",
+    content: { text: "hello" },
     createdAt: Date.now(),
-  } as Memory;
+    metadata: {
+      sessionId: "session-1",
+      doolittle: { userId: "alice" },
+    },
+  } as unknown as Memory;
+}
+
+function provider(providers: Provider[], name: string): Provider {
+  const result = providers.find((entry) => entry.name === name);
+  if (!result) throw new Error(`Missing provider: ${name}`);
+  return result;
 }
 
 function createServices() {
-  let repoCalls = 0;
   const services = {
     personalities: {
       getActive: () => ({
@@ -37,21 +42,36 @@ function createServices() {
     memory: {
       summary: (target: "memory" | "user") =>
         target === "memory"
-          ? {
-              entries: 2,
-              characters: 10,
-              preview: ["memory one", "memory two"],
-            }
+          ? { entries: 2, characters: 10, preview: ["memory one"] }
           : { entries: 1, characters: 5, preview: ["user note"] },
+    },
+    sessions: {
+      metadata: () => ({ title: "Project discussion", continuityKey: "root" }),
+      projectIdForSession: (sessionId: string) =>
+        sessionId === "session-1" ? "project-1" : undefined,
+      getProject: () => ({
+        id: "project-1",
+        name: "Desktop",
+        description: "Desktop work",
+        instructions: "Keep it focused.",
+        primaryPath: "/workspace/desktop",
+      }),
+      projectResources: () => [
+        {
+          id: "resource-1",
+          projectId: "project-1",
+          kind: "folder",
+          label: "Desktop source",
+          value: "/workspace/desktop/src",
+        },
+      ],
+    },
+    workspace: {
+      root: () => "/workspace/demo",
+      summary: () => "workspace tree summary",
     },
     skills: {
       list: () => [
-        {
-          slug: "git-status",
-          source: "workspace",
-          commandName: "status",
-          description: "Check repository status.",
-        },
         {
           slug: "terminal-run",
           source: "workspace",
@@ -59,49 +79,13 @@ function createServices() {
         },
       ],
     },
-    contextFiles: {
-      render: () => "context file summary",
-    },
-    workspace: {
-      summary: () => "workspace tree summary",
-    },
-    terminal: {
-      recent: (limit: number) =>
-        Array.from({ length: Math.min(limit, 2) }, (_, index) => ({
-          exitCode: index,
-          command: `command-${index + 1}`,
-        })),
-    },
-    repository: {
-      status: async () => {
-        repoCalls += 1;
-        return "repository status summary";
-      },
-    },
-    cron: {
-      list: () => [
-        {
-          name: "nightly",
-          status: "running",
-          nextRunAt: "tomorrow",
-        },
-      ],
-    },
-    tools: {
-      enabled: () => [
-        {
-          id: "tool-1",
-          description: "Tool one",
-        },
-      ],
-    },
+    contextFiles: { render: () => "context file summary" },
+    terminal: { recent: () => [{ exitCode: 0, command: "git status" }] },
+    repository: { status: async () => "repository status summary" },
+    cron: { list: () => [{ name: "nightly", status: "running" }] },
+    tools: { enabled: () => [{ id: "tool-1", description: "Tool one" }] },
     delegation: {
-      list: () => [
-        {
-          title: "Delegate work",
-          status: "running",
-        },
-      ],
+      list: () => [{ title: "Delegate work", status: "running" }],
       overview: () => ({
         total: 1,
         pending: 0,
@@ -113,108 +97,90 @@ function createServices() {
         aliveWorkers: 1,
         stalledWorkers: 0,
         concurrency: 1,
-        byProfile: [{ profile: "default", count: 1 }],
-        byPriority: [{ priority: "normal", count: 1 }],
-        byOrchestration: [{ mode: "single", count: 1 }],
+        byProfile: [],
+        byPriority: [],
+        byOrchestration: [],
       }),
-      workers: () => [
-        {
-          title: "Worker one",
-          status: "active",
-          alive: true,
-          stalled: false,
-          attempts: 1,
-          maxAttempts: 3,
-        },
-      ],
+      workers: () => [],
     },
     userProfiles: {
-      list: () => [
-        {
-          displayName: "User",
-          userId: "user-1",
-          preferences: [],
-          facts: [],
-          notes: [],
-        },
-      ],
+      list: () => [],
+      get: () => ({
+        displayName: "Alex",
+        aliases: [],
+        facts: ["prefers SDK-native agents"],
+        preferences: ["uses Bun"],
+      }),
     },
   } as unknown as AppServices;
 
-  return {
-    services,
-    getRepoCalls: () => repoCalls,
-  };
+  return services;
 }
 
-describe("agent context provider", () => {
-  it("renders scoped context and caches repeated turns", async () => {
-    const { services, getRepoCalls } = createServices();
-    const provider = createAgentContextProvider(services);
-    const message = createMemory("inspect repo files", "turn-1");
-
-    const first = await provider.get({} as never, message, {} as never);
-    const second = await provider.get({} as never, message, {} as never);
-
-    expect(first.text).toContain("WORKSPACE CONTEXT");
-    expect(first.text).toContain("REPOSITORY STATUS");
-    expect(first.text).not.toContain("CRON JOBS");
-    expect(first.data?.scope).toBe("local");
-    expect(second.text).toBe(first.text);
-    expect(getRepoCalls()).toBe(1);
-  });
-
-  it("includes full operational sections for delegation-heavy turns", async () => {
-    const { services } = createServices();
-    const provider = createAgentContextProvider(services);
-    const message = createMemory(
-      "review delegation queue and provider settings",
-      "turn-2",
+describe("agent context providers", () => {
+  it("declares core, workspace, and operations contexts for SDK routing", () => {
+    const providers = createAgentContextProviders(createServices());
+    const core = provider(providers, "DOOLITTLE_CORE_CONTEXT_PROVIDER");
+    const workspace = provider(
+      providers,
+      "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
+    );
+    const operations = provider(
+      providers,
+      "DOOLITTLE_OPERATIONS_CONTEXT_PROVIDER",
     );
 
-    const result = await provider.get({} as never, message, {} as never);
-
-    expect(result.data?.scope).toBe("full");
-    expect(result.text).toContain("CRON JOBS");
-    expect(result.text).toContain("TOOLS");
-    expect(result.text).toContain("DELEGATION OVERVIEW");
-    expect(result.text).toContain("USER PROFILES");
+    expect(core.alwaysInResponseState).toBe(true);
+    expect(core.contexts).toEqual(["general", "memory", "character", "state"]);
+    expect(core.cacheScope).toBe("room");
+    expect(workspace.contextGate).toEqual({
+      anyOf: ["code", "files", "terminal"],
+    });
+    expect(operations.contextGate).toEqual({
+      anyOf: ["automation", "settings", "admin"],
+    });
+    expect(workspace.cacheScope).toBe("turn");
+    expect(operations.cacheScope).toBe("turn");
   });
 
-  it("keeps simple turns lightweight", async () => {
-    const { services } = createServices();
-    const provider = createAgentContextProvider(services);
-    const message = createMemory("hello there", "turn-3");
+  it("renders selected project context from the message session", async () => {
+    const core = provider(
+      createAgentContextProviders(createServices()),
+      "DOOLITTLE_CORE_CONTEXT_PROVIDER",
+    );
 
-    const result = await provider.get({} as never, message, {} as never);
+    const result = await core.get({} as never, createMemory(), {} as never);
 
-    expect(result.data?.scope).toBe("minimal");
-    expect(result.text).toContain("ACTIVE PERSONALITY");
-    expect(result.text).toContain("AVAILABLE SKILLS");
-    expect(result.text).not.toContain("WORKSPACE CONTEXT");
+    expect(result.text).toContain("SESSION CONTEXT");
+    expect(result.text).toContain("sessionId=session-1");
+    expect(result.text).toContain("savedDisplayName=Alex");
+    expect(result.text).toContain("PROJECT CONTEXT");
+    expect(result.text).toContain("projectName=Desktop");
+    expect(result.text).toContain("[folder] Desktop source");
+    expect(result.data?.hasProjectContext).toBe(true);
   });
 
-  it("injects per-turn Doolittle prelude without reusing stale session context", async () => {
-    const { services } = createServices();
-    const provider = createAgentContextProvider(services);
+  it("keeps workspace and operations output out of the always-on core", async () => {
+    const providers = createAgentContextProviders(createServices());
+    const message = createMemory();
 
-    const first = await provider.get(
-      {} as never,
-      createMemory("hello there", "turn-4", {
-        doolittle: { messagePrelude: "first soul context" },
-      } as never),
-      {} as never,
-    );
-    const second = await provider.get(
-      {} as never,
-      createMemory("hello again", "turn-5", {
-        doolittle: { messagePrelude: "second soul context" },
-      } as never),
-      {} as never,
-    );
+    const core = await provider(
+      providers,
+      "DOOLITTLE_CORE_CONTEXT_PROVIDER",
+    ).get({} as never, message, {} as never);
+    const workspace = await provider(
+      providers,
+      "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
+    ).get({} as never, message, {} as never);
+    const operations = await provider(
+      providers,
+      "DOOLITTLE_OPERATIONS_CONTEXT_PROVIDER",
+    ).get({} as never, message, {} as never);
 
-    expect(first.text).toContain("first soul context");
-    expect(second.text).toContain("second soul context");
-    expect(second.text).not.toContain("first soul context");
+    expect(core.text).not.toContain("WORKSPACE CONTEXT");
+    expect(core.text).not.toContain("CRON JOBS");
+    expect(workspace.text).toContain("WORKSPACE CONTEXT");
+    expect(workspace.text).toContain("repository status summary");
+    expect(operations.text).toContain("CRON JOBS");
   });
 });
