@@ -1,7 +1,10 @@
-import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import {
+  type SandboxExecResult,
+  SandboxManager,
+} from "@elizaos/agent/services/sandbox-manager";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
 
 import { collectProcessEnv, resolveExecutionCommand } from "./runtime";
@@ -17,12 +20,20 @@ export class LocalSandboxService extends ElizaService {
   private readonly sandboxStore = new SandboxStore(
     join(tmpdir(), "doolittle-e2b"),
   );
+  private readonly sandboxManager = new SandboxManager({
+    mode: "standard",
+    containerPrefix: "doolittle-e2b",
+    workspaceRoot: this.sandboxStore.rootDir,
+  });
 
   static async start(runtime?: IAgentRuntime): Promise<LocalSandboxService> {
-    return new LocalSandboxService(runtime);
+    const service = new LocalSandboxService(runtime);
+    await service.sandboxManager.start();
+    return service;
   }
 
   async stop(): Promise<void> {
+    await this.sandboxManager.stop();
     this.sandboxStore.clear();
   }
 
@@ -40,28 +51,35 @@ export class LocalSandboxService extends ElizaService {
   ): Promise<E2BExecutionResult> {
     const sandbox = this.sandboxStore.getOrCreateActiveSandbox();
     const [command, args] = resolveExecutionCommand(language, code);
-    const child = spawn(command, args, {
-      cwd: sandbox.path,
-      env: {
-        ...collectProcessEnv(),
-        NODE_ENV: process.env.NODE_ENV ?? "development",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk: string) => {
-      stderr += chunk;
-    });
-    const exitCode = await new Promise<number>((resolveExit, reject) => {
-      child.once("error", reject);
-      child.once("close", (code) => resolveExit(code ?? 1));
-    });
+    const workdir = this.sandboxManager.getContainerWorkspacePath(sandbox.path);
+    if (!workdir) {
+      return this.executionError(
+        language,
+        sandbox.id,
+        `Sandbox workspace is outside the managed workspace: ${sandbox.path}`,
+      );
+    }
+
+    let result: SandboxExecResult;
+    try {
+      result = await this.sandboxManager.run({
+        cmd: command,
+        args,
+        workdir,
+        env: {
+          ...collectProcessEnv(),
+          NODE_ENV: process.env.NODE_ENV ?? "development",
+        },
+      });
+    } catch (error) {
+      return this.executionError(
+        language,
+        sandbox.id,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+
+    const { exitCode, stdout, stderr } = result;
     const text = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
 
     if (exitCode !== 0) {
@@ -91,5 +109,21 @@ export class LocalSandboxService extends ElizaService {
 
   listSandboxes() {
     return this.sandboxStore.listSandboxes();
+  }
+
+  private executionError(
+    language: string,
+    sandboxId: string,
+    value: string,
+  ): E2BExecutionResult {
+    return {
+      success: false,
+      text: value,
+      stdout: "",
+      stderr: value,
+      error: { value, traceback: value },
+      language,
+      sandboxId,
+    };
   }
 }

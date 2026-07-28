@@ -17,7 +17,7 @@ export class SandboxStore {
   private readonly sandboxes = new Map<string, E2BSandboxRecord>();
   private activeSandboxId?: string;
 
-  constructor(private readonly rootDir: string) {
+  constructor(readonly rootDir: string) {
     mkdirSync(this.rootDir, { recursive: true });
   }
 
