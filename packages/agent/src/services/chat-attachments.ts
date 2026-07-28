@@ -49,6 +49,16 @@ export interface ResolveManagedChatAttachmentsInput {
   attachmentIds: readonly string[];
 }
 
+export interface ResolveManagedAttachmentPathInput {
+  dataDir: string;
+  attachmentId: string;
+}
+
+export interface ResolvedManagedAttachmentPath {
+  descriptor: ManagedAttachmentDescriptor;
+  path: string;
+}
+
 interface ManagedAttachmentSidecar extends ManagedAttachmentDescriptor {
   version: 1;
   sha256: string;
@@ -167,7 +177,7 @@ function parseSidecar(
 }
 
 function attachmentText(
-  metadata: ManagedAttachmentSidecar,
+  metadata: ManagedAttachmentDescriptor,
   bytes: Buffer,
 ): string | undefined {
   if (
@@ -221,10 +231,27 @@ function canonicalContainedFile(
   }
 }
 
-async function resolveOne(
+interface ValidatedManagedAttachment {
+  descriptor: ManagedAttachmentDescriptor;
+  bytes: Buffer;
+  path: string;
+}
+
+function validateAttachmentId(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value !== value.toLowerCase() ||
+    !ATTACHMENT_ID_PATTERN.test(value)
+  ) {
+    fail("invalid_request", undefined, "contains an invalid attachment ID");
+  }
+  return value;
+}
+
+function validateOne(
   attachmentsRoot: string,
   id: string,
-): Promise<ResolvedManagedAttachment> {
+): ValidatedManagedAttachment {
   const sidecarPath = join(attachmentsRoot, `${id}.meta.json`);
   const canonicalSidecar = canonicalContainedFile(
     attachmentsRoot,
@@ -277,17 +304,43 @@ async function resolveOne(
 
   return {
     descriptor,
+    bytes,
+    path: canonicalFile,
+  };
+}
+
+async function resolveOne(
+  attachmentsRoot: string,
+  id: string,
+): Promise<ResolvedManagedAttachment> {
+  const { bytes, descriptor } = validateOne(attachmentsRoot, id);
+  return {
+    descriptor,
     media: {
       id,
       url: `attachment://${id}`,
-      title: metadata.name,
+      title: descriptor.name,
       source: "desktop",
-      contentType: metadata.kind,
-      text: attachmentText(metadata, bytes),
+      contentType: descriptor.kind,
+      text: attachmentText(descriptor, bytes),
       _data: bytes.toString("base64"),
-      _mimeType: metadata.mimeType,
+      _mimeType: descriptor.mimeType,
     },
   };
+}
+
+/**
+ * Resolves one managed attachment to its canonical on-disk path for trusted
+ * server-side consumers. The path is returned only after the sidecar,
+ * containment, size, and SHA-256 checks used by chat attachment resolution.
+ */
+export async function resolveManagedAttachmentPath(
+  input: ResolveManagedAttachmentPathInput,
+): Promise<ResolvedManagedAttachmentPath> {
+  const id = validateAttachmentId(input.attachmentId);
+  const attachmentsRoot = canonicalAttachmentsRoot(input.dataDir);
+  const { descriptor, path } = validateOne(attachmentsRoot, id);
+  return { descriptor, path };
 }
 
 export async function resolveManagedChatAttachments(
@@ -305,16 +358,7 @@ export async function resolveManagedChatAttachments(
   }
   if (input.attachmentIds.length === 0) return [];
 
-  const ids = input.attachmentIds.map((value) => {
-    if (
-      typeof value !== "string" ||
-      value !== value.toLowerCase() ||
-      !ATTACHMENT_ID_PATTERN.test(value)
-    ) {
-      fail("invalid_request", undefined, "contains an invalid attachment ID");
-    }
-    return value;
-  });
+  const ids = input.attachmentIds.map(validateAttachmentId);
   if (new Set(ids).size !== ids.length) {
     fail("invalid_request", undefined, "contains duplicate attachment IDs");
   }

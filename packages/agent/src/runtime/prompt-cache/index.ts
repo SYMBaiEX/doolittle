@@ -13,6 +13,7 @@ export {
   type PromptCacheUsageSample,
   promptCacheMetrics,
 } from "./metrics";
+export { buildProjectPromptContext } from "./project-context";
 export { resolveProviderCachePolicy } from "./provider-policy";
 export type {
   CacheablePrompt,

@@ -9,6 +9,7 @@ import {
 import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
+const PROJECT_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 
 function resolveRunId(value: unknown): string {
   if (typeof value !== "string" || !RUN_ID_PATTERN.test(value)) {
@@ -22,6 +23,14 @@ export async function handleChatRoute(
   request: Request,
 ): Promise<Response> {
   const body = (await request.json()) as ChatRequestBody;
+
+  if (
+    body.projectId !== undefined &&
+    (typeof body.projectId !== "string" ||
+      !PROJECT_ID_PATTERN.test(body.projectId))
+  ) {
+    return json({ error: "projectId is invalid" }, 400);
+  }
 
   if (!body.message) {
     return json({ error: "message is required" }, 400);
@@ -61,6 +70,13 @@ export async function handleChatRoute(
     const runId = resolveRunId(body.runId);
     const roomId = body.roomId ?? `api:${body.userId ?? "api-user"}`;
     const requestMessage = message;
+    const sessionId = roomId;
+    if (
+      body.projectId &&
+      !context.services.sessions.assignSessionProject(sessionId, body.projectId)
+    ) {
+      return json({ error: "project not found or archived" }, 404);
+    }
 
     return streamSse(async (emit) => {
       const controller = new AbortController();
@@ -141,6 +157,13 @@ export async function handleChatRoute(
     });
   }
 
+  const sessionId = body.roomId ?? `room:${body.userId ?? "api-user"}`;
+  if (
+    body.projectId &&
+    !context.services.sessions.assignSessionProject(sessionId, body.projectId)
+  ) {
+    return json({ error: "project not found or archived" }, 404);
+  }
   const { response } = await executeAgentTurnWithProgress(
     {
       message,

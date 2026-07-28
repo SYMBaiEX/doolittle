@@ -80,10 +80,11 @@ export function createTurnState(
   context: AgentExecutionContext,
 ): TurnState {
   const agentName = context.runtime.character?.name ?? "Doolittle";
-  const localInteractive = (input.source ?? "cli") === "cli";
-  const connectionSource = localInteractive ? "cli" : (input.source ?? "cli");
+  const connectionSource = input.source ?? "cli";
+  const cliInteractive = connectionSource === "cli";
+  const localInteractive = cliInteractive || connectionSource === "desktop";
   const roomKey = input.roomId ?? `room:${input.userId}`;
-  const messageServerId = localInteractive
+  const messageServerId = cliInteractive
     ? stableRuntimeUuid(`${agentName}-cli-server`)
     : stableRuntimeUuid("doolittle-message-server");
 
@@ -92,7 +93,7 @@ export function createTurnState(
     localInteractive,
     connectionSource,
     sessionId: roomKey,
-    roomId: localInteractive
+    roomId: cliInteractive
       ? stableRuntimeUuid(`${agentName}-chat-room`)
       : stableRuntimeUuid(roomKey),
     worldId: createUniqueUuid(context.runtime, messageServerId),

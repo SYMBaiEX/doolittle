@@ -2,6 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative } from "node:path";
 import type { WorkspaceEntry } from "@/types";
 import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "../workspace-directory";
+import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,
   workspaceDirname,
@@ -13,14 +17,14 @@ import { summarizeWorkspaceTree } from "./summary";
 import { listWorkspaceTree } from "./tree";
 
 export class WorkspaceService {
-  constructor(private readonly workspaceDir: string) {}
+  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
 
   root(): string {
-    return this.workspaceDir;
+    return resolveWorkspaceDirectory(this.workspaceDirectory);
   }
 
   tree(maxDepth = 2): WorkspaceEntry[] {
-    return listWorkspaceTree(this.workspaceDir, maxDepth);
+    return listWorkspaceTree(this.root(), maxDepth);
   }
 
   read(path: string): string {
@@ -42,7 +46,7 @@ export class WorkspaceService {
     query: string,
     maxResults = 25,
   ): Array<{ path: string; matches: string[] }> {
-    return searchWorkspace(this.workspaceDir, query, maxResults);
+    return searchWorkspace(this.root(), query, maxResults);
   }
 
   summary(maxEntries = 20): string {
@@ -51,12 +55,13 @@ export class WorkspaceService {
   }
 
   private resolvePath(path: string, operation: "read" | "write"): string {
-    const resolvedPath = resolveWorkspacePath(this.workspaceDir, path);
+    const workspaceDir = this.root();
+    const resolvedPath = resolveWorkspacePath(workspaceDir, path);
     const relativePath = workspaceRelativePath(
-      relative(this.workspaceDir, resolvedPath),
+      relative(workspaceDir, resolvedPath),
     );
     assertWorkspacePathIsSafe(relativePath, operation);
-    assertWorkspacePathResolvesInside(this.workspaceDir, resolvedPath);
+    assertWorkspacePathResolvesInside(workspaceDir, resolvedPath);
     return resolvedPath;
   }
 }

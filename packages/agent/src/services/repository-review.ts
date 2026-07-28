@@ -1,3 +1,6 @@
+import { type ChildProcessByStdio, spawn } from "node:child_process";
+import { Readable } from "node:stream";
+
 const REVIEW_PROCESS_TIMEOUT_MS = 8_000;
 const REVIEW_PROCESS_OUTPUT_BYTES = 512 * 1024;
 const MAX_TEXT_LENGTH = 500;
@@ -433,13 +436,11 @@ async function readBoundedStream(
 export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
   async ({ command, args, cwd, signal }) => {
     if (signal?.aborted) throw new RepositoryReviewProcessError("aborted");
-    let proc: ReturnType<typeof Bun.spawn>;
+    let proc: ChildProcessByStdio<null, Readable, Readable>;
     try {
-      proc = Bun.spawn({
-        cmd: [command, ...args],
+      proc = spawn(command, args, {
         cwd,
-        stdout: "pipe",
-        stderr: "pipe",
+        stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...process.env,
           GH_PROMPT_DISABLED: "1",
@@ -450,6 +451,12 @@ export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
     } catch {
       throw new RepositoryReviewProcessError("missing");
     }
+    const exited = new Promise<number>((resolve, reject) => {
+      proc.once("error", () =>
+        reject(new RepositoryReviewProcessError("missing")),
+      );
+      proc.once("close", (code) => resolve(code ?? 1));
+    });
 
     let failure: ProcessFailureKind | undefined;
     let outputBytes = 0;
@@ -481,14 +488,14 @@ export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
     try {
       const [stdout, stderr, exitCode] = await Promise.all([
         readBoundedStream(
-          proc.stdout as ReadableStream<Uint8Array<ArrayBufferLike>>,
+          Readable.toWeb(proc.stdout) as ReadableStream<Uint8Array>,
           retainChunk,
         ),
         readBoundedStream(
-          proc.stderr as ReadableStream<Uint8Array<ArrayBufferLike>>,
+          Readable.toWeb(proc.stderr) as ReadableStream<Uint8Array>,
           retainChunk,
         ),
-        proc.exited,
+        exited,
       ]);
       if (failure) throw new RepositoryReviewProcessError(failure);
       return { stdout, stderr, exitCode };

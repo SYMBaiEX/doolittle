@@ -29,8 +29,8 @@ export class SessionSummaryOperations {
     return this.helpers.summarize(sessionId, limit);
   }
 
-  listSessions(limit: number): SessionSummary[] {
-    return this.helpers.listSessions(limit);
+  listSessions(limit: number, projectId?: string): SessionSummary[] {
+    return this.helpers.listSessions(limit, projectId);
   }
 
   listTitled(limit: number): SessionSummary[] {

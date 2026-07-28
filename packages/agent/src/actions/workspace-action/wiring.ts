@@ -8,6 +8,10 @@ import type {
   State,
 } from "@elizaos/core";
 import type { AppServices } from "@/services";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "@/services/workspace-directory";
 import { executeWorkspaceIntent } from "./execution";
 import { WORKSPACE_ACTION_FALLBACK_MESSAGE } from "./output";
 import {
@@ -18,7 +22,7 @@ import {
 
 export function createWorkspaceAction(
   services: AppServices,
-  workspaceDir: string,
+  workspaceDirectory: WorkspaceDirectorySource,
 ): Action {
   return {
     name: "DOOLITTLE_WORKSPACE",
@@ -44,7 +48,12 @@ export function createWorkspaceAction(
       const text = readWorkspaceActionText(message);
       const intent = resolveWorkspaceActionIntent(options, text);
       const response = intent
-        ? await executeWorkspaceIntent(runtime, services, workspaceDir, intent)
+        ? await executeWorkspaceIntent(
+            runtime,
+            services,
+            resolveWorkspaceDirectory(workspaceDirectory),
+            intent,
+          )
         : WORKSPACE_ACTION_FALLBACK_MESSAGE;
 
       await callback?.({ text: response, source: "workspace-action" });

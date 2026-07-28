@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import {
@@ -81,6 +81,53 @@ describe("chat turn state helpers", () => {
     expect(state.connectionSource).toBe("gateway");
     expect(state.sessionId).toBe("room:bob");
     expect(state.messageServerId).toBe(
+      stableRuntimeUuid("doolittle-message-server"),
+    );
+  });
+
+  it("treats desktop chats as local interactive turns without merging rooms", () => {
+    const context = {
+      runtime: { character: { name: "Doolittle" } },
+      services: {
+        settings: {
+          get: () => ({
+            agent: {
+              runDepth: "standard",
+              maxIterations: 4,
+              toolProgressMode: "all",
+            },
+          }),
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    const first = createTurnState(
+      {
+        userId: "desktop-user",
+        message: "What is this repo? What is this project?",
+        source: "desktop",
+        roomId: "desktop:project-one",
+      },
+      context,
+    );
+    const second = createTurnState(
+      {
+        userId: "desktop-user",
+        message: "What is this repo?",
+        source: "desktop",
+        roomId: "desktop:project-two",
+      },
+      context,
+    );
+
+    expect(first.localInteractive).toBe(true);
+    expect(first.connectionSource).toBe("desktop");
+    expect(first.sessionId).toBe("desktop:project-one");
+    expect(first.roomId).toBe(stableRuntimeUuid("desktop:project-one"));
+    expect(second.roomId).toBe(stableRuntimeUuid("desktop:project-two"));
+    expect(first.roomId).not.toBe(second.roomId);
+    expect(first.messageServerId).toBe(
       stableRuntimeUuid("doolittle-message-server"),
     );
   });

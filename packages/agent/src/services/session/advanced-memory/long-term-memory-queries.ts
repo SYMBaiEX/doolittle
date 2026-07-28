@@ -1,4 +1,4 @@
-import type { Database } from "bun:sqlite";
+import type { SessionDatabase } from "@/services/session/database";
 import type {
   AdvancedLongTermMemory,
   AdvancedLongTermMemoryCategory,
@@ -7,7 +7,7 @@ import { makeAssignmentBuilder } from "./sql";
 import type { LongTermMemoryRow } from "./types";
 
 export function insertLongTermMemory(
-  db: Database,
+  db: SessionDatabase,
   m: AdvancedLongTermMemory,
 ): void {
   db.query(
@@ -36,7 +36,7 @@ export function insertLongTermMemory(
 }
 
 export function selectLongTermMemories(
-  db: Database,
+  db: SessionDatabase,
   agentId: string,
   entityId: string,
   category: AdvancedLongTermMemoryCategory | undefined,
@@ -67,7 +67,7 @@ export function selectLongTermMemories(
 }
 
 export function touchLongTermMemories(
-  db: Database,
+  db: SessionDatabase,
   ids: string[],
   now: string,
 ): void {
@@ -85,7 +85,7 @@ export function touchLongTermMemories(
 }
 
 export function patchLongTermMemory(
-  db: Database,
+  db: SessionDatabase,
   id: string,
   agentId: string,
   entityId: string,
@@ -128,7 +128,7 @@ export function patchLongTermMemory(
 }
 
 export function deleteLongTermMemory(
-  db: Database,
+  db: SessionDatabase,
   id: string,
   agentId: string,
   entityId: string,

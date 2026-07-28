@@ -7,6 +7,7 @@ export const sessionServiceWriteMethods: Pick<
   | "storeMessage"
   | "replaceSessionMessages"
   | "deleteLatestExchange"
+  | "forkSession"
   | "onActivity"
   | "rename"
 > &
@@ -27,6 +28,10 @@ export const sessionServiceWriteMethods: Pick<
       sessionId,
       options,
     );
+  },
+
+  forkSession(input) {
+    return getSessionServiceState(this).writes.forkSession(input);
   },
 
   onActivity(listener) {

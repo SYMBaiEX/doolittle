@@ -2,7 +2,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PROJECT_KIND_MARKERS = [
-  ["package.json", "Node/Bun package"],
+  ["package.json", "JavaScript/TypeScript package"],
+  ["nub.lock", "Nub workspace"],
   ["bun.lock", "Bun workspace"],
   ["pnpm-workspace.yaml", "pnpm workspace"],
   ["pyproject.toml", "Python project"],

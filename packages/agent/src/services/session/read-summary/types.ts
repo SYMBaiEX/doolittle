@@ -3,9 +3,13 @@ export interface SessionMetadataResolver {
     | {
         title?: string;
         continuityKey?: string;
+        parentSessionId?: string;
+        forkedFromMessageId?: string;
+        rootSessionId?: string;
       }
     | undefined;
   continuityKeyFor(sessionId: string): string;
+  projectIdForSession?(sessionId: string): string | undefined;
 }
 
 export interface SessionMessageRow {

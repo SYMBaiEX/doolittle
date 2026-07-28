@@ -15,8 +15,8 @@ export const sessionServiceReadMethods: Pick<
   | "continuityKey"
 > &
   ThisType<SessionService> = {
-  search(query, limit) {
-    return getSessionServiceState(this).reads.search(query, limit);
+  search(query, limit, projectId) {
+    return getSessionServiceState(this).reads.search(query, limit, projectId);
   },
 
   recent(limit) {

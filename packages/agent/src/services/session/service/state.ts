@@ -1,3 +1,5 @@
+import type { SessionTransferService } from "../../session-transfer";
+import type { ProjectStore } from "../projects/store";
 import type { SessionAdvancedMemoryOperations } from "./advanced-memory";
 import type { SessionService } from "./index";
 import type { SessionReadOperations } from "./read";
@@ -9,6 +11,8 @@ export interface SessionServiceState {
   reads: SessionReadOperations;
   summaries: SessionSummaryOperations;
   advancedMemory: SessionAdvancedMemoryOperations;
+  projects: ProjectStore;
+  transfers: SessionTransferService;
 }
 
 const sessionServiceState = new WeakMap<SessionService, SessionServiceState>();

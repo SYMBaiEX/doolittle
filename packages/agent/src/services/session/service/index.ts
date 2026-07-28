@@ -1,11 +1,20 @@
 import { sessionServiceAdvancedMemoryMethods } from "./advanced-memory-methods";
 import type { SessionServiceApi } from "./api";
 import { createSessionServiceState } from "./composition";
+import { sessionServiceProjectMethods } from "./project-methods";
 import { sessionServiceReadMethods } from "./read-methods";
 import { setSessionServiceState } from "./state";
 import { sessionServiceSummaryMethods } from "./summary-methods";
+import { sessionServiceTransferMethods } from "./transfer-methods";
 import { sessionServiceWriteMethods } from "./write-methods";
 
+export {
+  type DoolittleSessionArchiveV1,
+  type ImportSessionArchiveInput,
+  type ImportSessionArchiveResult,
+  type SessionArchivePreview,
+  SessionTransferError,
+} from "../../session-transfer";
 export type {
   AdvancedLongTermMemory,
   AdvancedLongTermMemoryCategory,
@@ -13,11 +22,16 @@ export type {
   AdvancedMemoryJsonValue,
   AdvancedSessionSummary,
 } from "./types";
+export { SessionForkError } from "./write";
 
 export class SessionService {
   declare storeMessage: SessionServiceApi["storeMessage"];
   declare replaceSessionMessages: SessionServiceApi["replaceSessionMessages"];
   declare deleteLatestExchange: SessionServiceApi["deleteLatestExchange"];
+  declare forkSession: SessionServiceApi["forkSession"];
+  declare exportSessionArchive: SessionServiceApi["exportSessionArchive"];
+  declare previewSessionArchive: SessionServiceApi["previewSessionArchive"];
+  declare importSessionArchive: SessionServiceApi["importSessionArchive"];
   declare onActivity: SessionServiceApi["onActivity"];
   declare search: SessionServiceApi["search"];
   declare recent: SessionServiceApi["recent"];
@@ -35,6 +49,16 @@ export class SessionService {
   declare metadata: SessionServiceApi["metadata"];
   declare continuity: SessionServiceApi["continuity"];
   declare continuityKey: SessionServiceApi["continuityKey"];
+  declare listProjects: SessionServiceApi["listProjects"];
+  declare getProject: SessionServiceApi["getProject"];
+  declare createProject: SessionServiceApi["createProject"];
+  declare updateProject: SessionServiceApi["updateProject"];
+  declare archiveProject: SessionServiceApi["archiveProject"];
+  declare projectResources: SessionServiceApi["projectResources"];
+  declare addProjectResource: SessionServiceApi["addProjectResource"];
+  declare removeProjectResource: SessionServiceApi["removeProjectResource"];
+  declare assignSessionProject: SessionServiceApi["assignSessionProject"];
+  declare projectIdForSession: SessionServiceApi["projectIdForSession"];
   declare storeLongTermMemory: SessionServiceApi["storeLongTermMemory"];
   declare getLongTermMemories: SessionServiceApi["getLongTermMemories"];
   declare updateLongTermMemory: SessionServiceApi["updateLongTermMemory"];
@@ -55,4 +79,6 @@ Object.assign(
   sessionServiceReadMethods,
   sessionServiceSummaryMethods,
   sessionServiceAdvancedMemoryMethods,
+  sessionServiceProjectMethods,
+  sessionServiceTransferMethods,
 );

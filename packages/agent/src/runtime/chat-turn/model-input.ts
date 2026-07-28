@@ -6,6 +6,7 @@ import type {
   TurnExecutionPolicy,
 } from "@/runtime/turn-classification/types";
 import type { ChatTurnRequest } from "@/types/runtime";
+import { buildProjectPromptContext } from "../prompt-cache";
 import { buildDoolittleExperiencePrelude } from "./experience-prelude";
 import { buildCapabilityPrelude, buildCodingContextPrelude } from "./prelude";
 import {
@@ -72,6 +73,11 @@ export function createModelInputAssembly(input: {
     userId: input.effectiveInput.userId,
     message: input.effectiveInput.message,
   });
+  const projectPrelude = buildProjectPromptContext({
+    sessions: input.context.services.sessions,
+    sessionId: input.turn.sessionId,
+    workspaceDir: input.context.config.workspaceDir,
+  });
   const codingPrelude =
     input.turn.localInteractive &&
     input.turnClassification.likelyLocalTask &&
@@ -94,6 +100,7 @@ export function createModelInputAssembly(input: {
     build(localSynthesisPrelude) {
       const messagePrelude = [
         experiencePrelude,
+        projectPrelude,
         systemFactsPrelude,
         capabilityPrelude,
         codingPrelude,

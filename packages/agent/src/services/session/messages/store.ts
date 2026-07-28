@@ -1,5 +1,5 @@
-import type { Database } from "bun:sqlite";
 import type { EventEmitter } from "node:events";
+import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionExchangeMutationResult,
   SessionSearchResult,
@@ -14,9 +14,16 @@ export interface SessionMessageActivityEvent {
   detail: string;
 }
 
+export interface SessionTranscriptPrefix {
+  messages: StoredMessage[];
+  boundaryMessageId?: string;
+  copiedThroughMessageId?: string;
+  truncated: boolean;
+}
+
 export class SessionMessageStore {
   constructor(
-    private readonly db: Database,
+    private readonly db: SessionDatabase,
     private readonly events: Pick<EventEmitter, "emit" | "on" | "off">,
   ) {}
 
@@ -81,6 +88,13 @@ export class SessionMessageStore {
       const placeholders = rows.map(() => "?").join(", ");
       const rowIds = rows.map((row) => row.rowid);
       this.db
+        .query(
+          `DELETE FROM message_origins WHERE message_id IN (
+            SELECT id FROM messages WHERE rowid IN (${placeholders})
+          )`,
+        )
+        .run(...rowIds);
+      this.db
         .query(`DELETE FROM messages_fts WHERE rowid IN (${placeholders})`)
         .run(...rowIds);
       this.db
@@ -105,18 +119,29 @@ export class SessionMessageStore {
     };
   }
 
-  search(query: string, limit: number): SessionSearchResult[] {
+  search(
+    query: string,
+    limit: number,
+    projectId?: string,
+  ): SessionSearchResult[] {
     return this.db
       .query(
         `
-          SELECT session_id as sessionId, created_at as createdAt, role, text
+          SELECT messages_fts.session_id as sessionId, messages_fts.created_at as createdAt,
+            messages_fts.role, messages_fts.text${projectId ? ", session_projects.project_id as projectId" : ""}
           FROM messages_fts
+          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = messages_fts.session_id" : ""}
           WHERE messages_fts MATCH ?1
+          ${projectId ? "AND session_projects.project_id = ?3" : ""}
           ORDER BY rank
           LIMIT ?2
         `,
       )
-      .all(query.replaceAll('"', " "), limit) as SessionSearchResult[];
+      .all(
+        ...(projectId
+          ? [query.replaceAll('"', " "), limit, projectId]
+          : [query.replaceAll('"', " "), limit]),
+      ) as SessionSearchResult[];
   }
 
   recent(limit: number): SessionSearchResult[] {
@@ -150,17 +175,181 @@ export class SessionMessageStore {
     const rows = this.db
       .query(
         `
-          SELECT id, session_id as sessionId, room_id as roomId,
-            entity_id as entityId, role, text,
-            attachments_json as attachmentsJson, created_at as createdAt
+          SELECT messages.id, messages.session_id as sessionId,
+            messages.room_id as roomId, messages.entity_id as entityId,
+            messages.role, messages.text,
+            messages.attachments_json as attachmentsJson,
+            messages.created_at as createdAt,
+            message_origins.origin_message_id as originMessageId
           FROM messages
-          WHERE session_id = ?1
-          ORDER BY created_at ASC
+          LEFT JOIN message_origins ON message_origins.message_id = messages.id
+          WHERE messages.session_id = ?1
+          ORDER BY messages.created_at ASC, messages.rowid ASC
           LIMIT ?2
         `,
       )
       .all(sessionId, limit) as StoredMessageRow[];
     return rows.map(toStoredMessage);
+  }
+
+  transcriptPrefix(
+    sessionId: string,
+    boundary:
+      | { mode: "before"; messageId: string }
+      | { mode: "full" }
+      | { mode: "through"; messageId: string },
+    limit: number,
+  ): SessionTranscriptPrefix {
+    const boundaryRow =
+      boundary.mode === "full"
+        ? undefined
+        : (this.db
+            .query(
+              `
+                SELECT rowid, created_at as createdAt
+                FROM messages
+                WHERE session_id = ?1 AND id = ?2
+                LIMIT 1
+              `,
+            )
+            .get(sessionId, boundary.messageId) as {
+            rowid: number;
+            createdAt: string;
+          } | null);
+    if (boundary.mode !== "full" && !boundaryRow) {
+      return {
+        messages: [],
+        boundaryMessageId: undefined,
+        copiedThroughMessageId: undefined,
+        truncated: false,
+      };
+    }
+    const boundaryPredicate =
+      boundary.mode === "full"
+        ? ""
+        : boundary.mode === "through"
+          ? `AND (
+              messages.created_at < ?3
+              OR (messages.created_at = ?3 AND messages.rowid <= ?4)
+            )`
+          : `AND (
+              messages.created_at < ?3
+              OR (messages.created_at = ?3 AND messages.rowid < ?4)
+            )`;
+    const params =
+      boundary.mode === "full"
+        ? [sessionId, limit + 1]
+        : [sessionId, limit + 1, boundaryRow?.createdAt, boundaryRow?.rowid];
+    const rows = this.db
+      .query(
+        `
+          SELECT messages.rowid, messages.id,
+            messages.session_id as sessionId, messages.room_id as roomId,
+            messages.entity_id as entityId, messages.role, messages.text,
+            messages.attachments_json as attachmentsJson,
+            messages.created_at as createdAt,
+            message_origins.origin_message_id as originMessageId
+          FROM messages
+          LEFT JOIN message_origins ON message_origins.message_id = messages.id
+          WHERE messages.session_id = ?1
+          ${boundaryPredicate}
+          ORDER BY messages.created_at ASC, messages.rowid ASC
+          LIMIT ?2
+        `,
+      )
+      .all(...params) as StoredMessageRow[];
+    const included = rows.slice(0, limit);
+    return {
+      messages: included.map(toStoredMessage),
+      boundaryMessageId:
+        boundary.mode === "full" ? included.at(-1)?.id : boundary.messageId,
+      copiedThroughMessageId: included.at(-1)?.id,
+      truncated: rows.length > limit,
+    };
+  }
+
+  hasSession(sessionId: string): boolean {
+    const row = this.db
+      .query(
+        `
+          SELECT 1 as found
+          FROM messages
+          WHERE session_id = ?1
+          LIMIT 1
+        `,
+      )
+      .get(sessionId) as { found: number } | null;
+    return Boolean(row);
+  }
+
+  copyMessagesToSession(
+    sourceSessionId: string,
+    sessionId: string,
+    messages: StoredMessage[],
+    createMessageId: () => string,
+  ): StoredMessage[] {
+    const copiedAt = new Date().toISOString();
+    return messages.map((message) => {
+      const copy = {
+        ...message,
+        id: createMessageId(),
+        originMessageId: message.originMessageId ?? message.id,
+        sessionId,
+        roomId: sessionId,
+      };
+      this.db
+        .query(
+          `
+            INSERT INTO messages (
+              id, session_id, room_id, entity_id, role, text,
+              attachments_json, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+          `,
+        )
+        .run(
+          copy.id,
+          copy.sessionId,
+          copy.roomId,
+          copy.entityId,
+          copy.role,
+          copy.text,
+          serializeAttachments(copy.attachments),
+          copy.createdAt,
+        );
+      const row = this.db
+        .query("SELECT rowid FROM messages WHERE id = ?1")
+        .get(copy.id) as { rowid: number };
+      this.db
+        .query(
+          `
+            INSERT INTO messages_fts (
+              rowid, session_id, room_id, entity_id, role, text, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+          `,
+        )
+        .run(
+          row.rowid,
+          copy.sessionId,
+          copy.roomId,
+          copy.entityId,
+          copy.role,
+          copy.text,
+          copy.createdAt,
+        );
+      this.db
+        .query(
+          `
+            INSERT INTO message_origins (
+              message_id, origin_message_id, source_session_id, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4)
+          `,
+        )
+        .run(copy.id, copy.originMessageId, sourceSessionId, copiedAt);
+      return copy;
+    });
   }
 
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number {
@@ -237,6 +426,13 @@ export class SessionMessageStore {
     const rowIds = rows.map((row) => row.rowid);
     if (rowIds.length) {
       const placeholders = rowIds.map(() => "?").join(", ");
+      this.db
+        .query(
+          `DELETE FROM message_origins WHERE message_id IN (
+            SELECT id FROM messages WHERE rowid IN (${placeholders})
+          )`,
+        )
+        .run(...rowIds);
       this.db
         .query(`DELETE FROM messages_fts WHERE rowid IN (${placeholders})`)
         .run(...rowIds);
@@ -344,6 +540,7 @@ function parseAttachments(
 function toStoredMessage(row: StoredMessageRow): StoredMessage {
   return {
     id: row.id,
+    originMessageId: row.originMessageId ?? undefined,
     sessionId: row.sessionId,
     roomId: row.roomId,
     entityId: row.entityId,

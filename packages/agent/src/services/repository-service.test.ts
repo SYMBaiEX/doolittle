@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -10,19 +10,18 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { RepositoryService } from "./repository-service";
 
 const createdDirectories: string[] = [];
 
 function runGit(cwd: string, args: string[]): void {
-  const process = Bun.spawnSync({
-    cmd: ["git", ...args],
+  const process = spawnSync("git", args, {
     cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+    stdio: ["ignore", "pipe", "pipe"],
   });
-  if (process.exitCode !== 0) {
-    throw new Error(Buffer.from(process.stderr).toString("utf8"));
+  if (process.status !== 0) {
+    throw new Error(process.stderr.toString("utf8"));
   }
 }
 
@@ -46,6 +45,18 @@ afterEach(() => {
 });
 
 describe("RepositoryService review model", () => {
+  it("keeps one service instance while the live repository root changes", async () => {
+    const first = createRepository();
+    const second = createRepository();
+    let workspaceDir = first;
+    const repository = new RepositoryService(() => workspaceDir);
+
+    expect((await repository.summary()).root).toBe(first);
+    workspaceDir = second;
+    repository.invalidateWorkspace();
+    expect((await repository.summary()).root).toBe(second);
+  });
+
   it("reports branch state, changed files, patches, and worktrees", async () => {
     const directory = createRepository();
     writeFileSync(join(directory, "tracked.txt"), "after\n", "utf8");

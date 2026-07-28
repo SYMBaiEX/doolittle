@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
   createFileActions,
   createLocalDirectory,
@@ -129,6 +129,39 @@ describe("file actions", () => {
       );
       expect(result?.success).toBe(true);
       expect(result?.text).toContain("script.js");
+    });
+  });
+
+  it("resolves the workspace when an action runs instead of when it boots", async () => {
+    await withTempHome(async ({ dev }) => {
+      const first = join(dev, "first");
+      const second = join(dev, "second");
+      mkdirSync(first);
+      mkdirSync(second);
+      writeLocalTextFile({ workspaceDir: first }, "marker.txt", "first\n");
+      writeLocalTextFile({ workspaceDir: second }, "marker.txt", "second\n");
+      let workspaceDir = first;
+      const readAction = createFileActions(() => workspaceDir).find(
+        (action) => action.name === "READ_FILE",
+      );
+
+      const readMarker = () =>
+        readAction?.handler(
+          {} as never,
+          { content: { text: "read marker.txt" } } as never,
+          undefined,
+          { parameters: { path: "marker.txt" } },
+        );
+
+      await expect(readMarker()).resolves.toMatchObject({
+        success: true,
+        text: expect.stringContaining("first"),
+      });
+      workspaceDir = second;
+      await expect(readMarker()).resolves.toMatchObject({
+        success: true,
+        text: expect.stringContaining("second"),
+      });
     });
   });
 

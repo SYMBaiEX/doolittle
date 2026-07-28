@@ -1,19 +1,21 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { createHash, randomUUID } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   MAX_CHAT_ATTACHMENT_BYTES,
   MAX_CHAT_ATTACHMENTS,
   MAX_CHAT_ATTACHMENTS_TOTAL_BYTES,
   ManagedAttachmentError,
+  resolveManagedAttachmentPath,
   resolveManagedChatAttachments,
 } from "./chat-attachments";
 
@@ -72,6 +74,46 @@ afterEach(() => {
 });
 
 describe("resolveManagedChatAttachments", () => {
+  it("resolves a canonical path only after validating managed metadata and integrity", async () => {
+    const dataDir = createDataDir();
+    const id = writeManagedAttachment(dataDir, {
+      name: "voice.wav",
+      kind: "audio",
+      mimeType: "audio/wav",
+      storedName: undefined,
+    });
+
+    const resolved = await resolveManagedAttachmentPath({
+      dataDir,
+      attachmentId: id,
+    });
+
+    expect(resolved.descriptor).toMatchObject({
+      id,
+      name: "voice.wav",
+      kind: "audio",
+      mimeType: "audio/wav",
+    });
+    expect(resolved.path).toBe(
+      realpathSync(join(dataDir, "attachments", `${id}.txt`)),
+    );
+  });
+
+  it("rejects invalid IDs and integrity failures in server-internal path resolution", async () => {
+    const dataDir = createDataDir();
+    const id = writeManagedAttachment(dataDir, { sha256: "0".repeat(64) });
+
+    await expect(
+      resolveManagedAttachmentPath({
+        dataDir,
+        attachmentId: "../../recording",
+      }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+    await expect(
+      resolveManagedAttachmentPath({ dataDir, attachmentId: id }),
+    ).rejects.toMatchObject({ code: "integrity_failed" });
+  });
+
   it("returns safe descriptors and Eliza-compatible Media values", async () => {
     const dataDir = createDataDir();
     const id = writeManagedAttachment(dataDir, {

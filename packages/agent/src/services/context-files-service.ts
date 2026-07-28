@@ -2,6 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ContextDocument } from "@/types";
 import { injectionScanner, type ScanResult } from "./prompt-injection-scanner";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "./workspace-directory";
 
 const contextFileNames = ["AGENTS.md", "SOUL.md", "MISSION.md", "ROADMAP.md"];
 
@@ -29,7 +33,7 @@ export interface ContextLoadOptions {
 }
 
 export class ContextFilesService {
-  constructor(private readonly workspaceDir: string) {}
+  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
 
   // ---------------------------------------------------------------------------
   // Core list (with injection scanning)
@@ -37,11 +41,12 @@ export class ContextFilesService {
 
   list(options: ContextLoadOptions = {}): SafeContextDocument[] {
     const { scanForInjection = true, logFindings = false } = options;
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
 
     const results: SafeContextDocument[] = [];
 
     for (const name of contextFileNames) {
-      const path = join(this.workspaceDir, name);
+      const path = join(workspaceDir, name);
       if (!existsSync(path)) continue;
 
       const rawContent = readFileSync(path, "utf8");

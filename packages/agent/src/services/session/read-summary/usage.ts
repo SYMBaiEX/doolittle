@@ -1,8 +1,8 @@
-import type { Database } from "bun:sqlite";
 import {
   ContextCompressionService,
   DEFAULT_CONTEXT_WINDOW,
 } from "@/services/context-compression";
+import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionUsageOptions,
   SessionUsageSummary,
@@ -40,7 +40,7 @@ function normalizeThreshold(value: number | undefined): number {
 }
 
 export function resolveSessionUsage(
-  db: Database,
+  db: SessionDatabase,
   metadataResolver: SessionMetadataResolver,
   sessionId: string,
   options: SessionUsageOptions = {},
@@ -91,6 +91,7 @@ export function resolveSessionUsage(
     .all(sessionId, sampleLimit) as StoredMessage[];
 
   const metadata = metadataResolver.metadata(sessionId);
+  const projectId = metadataResolver.projectIdForSession?.(sessionId);
   const provider = options.provider?.trim() || "unknown";
   const model = options.model?.trim() || "unknown";
   const contextWindowTokens =
@@ -108,6 +109,7 @@ export function resolveSessionUsage(
 
   return {
     sessionId,
+    projectId,
     title: metadata?.title,
     continuityKey: metadata?.continuityKey,
     messageCount: aggregate.totalMessages,

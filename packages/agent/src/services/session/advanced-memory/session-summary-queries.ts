@@ -1,10 +1,10 @@
-import type { Database } from "bun:sqlite";
+import type { SessionDatabase } from "@/services/session/database";
 import type { AdvancedSessionSummary } from "../service";
 import { makeAssignmentBuilder } from "./sql";
 import type { SessionSummaryRow } from "./types";
 
 export function insertSessionSummary(
-  db: Database,
+  db: SessionDatabase,
   s: AdvancedSessionSummary,
 ): void {
   db.query(
@@ -35,7 +35,7 @@ export function insertSessionSummary(
 }
 
 export function selectCurrentSessionSummary(
-  db: Database,
+  db: SessionDatabase,
   agentId: string,
   roomId: string,
 ): SessionSummaryRow | null {
@@ -52,7 +52,7 @@ export function selectCurrentSessionSummary(
 }
 
 export function selectSessionSummaries(
-  db: Database,
+  db: SessionDatabase,
   agentId: string,
   roomId: string,
   limit: number,
@@ -70,7 +70,7 @@ export function selectSessionSummaries(
 }
 
 export function patchSessionSummary(
-  db: Database,
+  db: SessionDatabase,
   id: string,
   agentId: string,
   roomId: string,

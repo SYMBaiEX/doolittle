@@ -9,6 +9,7 @@ export interface StoredMessageAttachment {
 
 export interface StoredMessage {
   id: string;
+  originMessageId?: string;
   sessionId: string;
   roomId: string;
   entityId: string;
@@ -20,6 +21,7 @@ export interface StoredMessage {
 
 export interface SessionSearchResult {
   sessionId: string;
+  projectId?: string;
   createdAt: string;
   role: "user" | "assistant" | "system";
   text: string;
@@ -32,8 +34,32 @@ export interface SessionExchangeMutationResult {
   deletedMessages: number;
 }
 
-export interface SessionSummary {
+export interface SessionLineage {
+  parentSessionId?: string;
+  forkedFromMessageId?: string;
+  rootSessionId: string;
+}
+
+export interface SessionForkInput {
+  sourceSessionId: string;
+  throughMessageId?: string;
+  beforeMessageId?: string;
+}
+
+export interface SessionForkResult extends SessionLineage {
   sessionId: string;
+  sourceSessionId: string;
+  boundaryMode: "before" | "full" | "through";
+  copiedThroughMessageId?: string;
+  continuityKey: string;
+  copiedMessageCount: number;
+  projectId?: string;
+  summary: SessionSummary;
+}
+
+export interface SessionSummary extends Partial<SessionLineage> {
+  sessionId: string;
+  projectId?: string;
   title?: string;
   continuityKey?: string;
   messageCount: number;
@@ -45,6 +71,7 @@ export interface SessionSummary {
 
 export interface SessionUsageSummary {
   sessionId: string;
+  projectId?: string;
   title?: string;
   continuityKey?: string;
   messageCount: number;
@@ -69,6 +96,29 @@ export interface SessionUsageSummary {
     model: string;
   };
   lastPreview?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  instructions?: string;
+  color?: string;
+  icon?: string;
+  pinned: boolean;
+  primaryPath?: string;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectResource {
+  id: string;
+  projectId: string;
+  kind: "file" | "folder" | "source" | "note" | "link";
+  label: string;
+  value: string;
+  createdAt: string;
 }
 
 export interface SessionUsageOptions {

@@ -1,8 +1,9 @@
-import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
-const REPO_ROOT = join(import.meta.dir, "..", "..", "..", "..");
+const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
 describe("workspace context files", () => {
   it("AGENTS.md is real guidance, not a claude-mem memory dump", () => {

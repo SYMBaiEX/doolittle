@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { classifyTurnMessage } from "@/runtime/turn-classification/message";
 import { createModelInputAssembly } from "./chat-turn/model-input";
@@ -30,6 +30,9 @@ function createModelInputContext() {
         }),
       },
       sessions: {
+        projectIdForSession: () => undefined,
+        getProject: () => undefined,
+        projectResources: () => [],
         recentBySession: () => [
           {
             sessionId: "session-1",
@@ -145,5 +148,101 @@ describe("chat turn model input seam", () => {
     expect("responseCacheKey" in assembly).toBe(false);
     expect(built.messagePrelude).toContain(localSynthesisPrelude);
     expect(built.effectiveMessage).toBe(message);
+  });
+
+  it("adds project context to the shared prompt prelude for project sessions", () => {
+    const context = createModelInputContext();
+    (
+      context.services.sessions as unknown as {
+        projectIdForSession: () => string;
+        getProject: () => {
+          id: string;
+          name: string;
+          description: string;
+          instructions: string;
+          primaryPath: string;
+          pinned: boolean;
+          createdAt: string;
+          updatedAt: string;
+        };
+        projectResources: () => Array<{
+          id: string;
+          projectId: string;
+          kind: "folder";
+          label: string;
+          value: string;
+          createdAt: string;
+        }>;
+      }
+    ).projectIdForSession = () => "project-1";
+    (
+      context.services.sessions as unknown as {
+        getProject: () => {
+          id: string;
+          name: string;
+          description: string;
+          instructions: string;
+          primaryPath: string;
+          pinned: boolean;
+          createdAt: string;
+          updatedAt: string;
+        };
+      }
+    ).getProject = () => ({
+      id: "project-1",
+      name: "Desktop",
+      description: "Improve the desktop app.",
+      instructions: "Keep it polished.",
+      primaryPath: "/workspace/demo",
+      pinned: false,
+      createdAt: "2026-07-27T00:00:00.000Z",
+      updatedAt: "2026-07-27T00:00:00.000Z",
+    });
+    (
+      context.services.sessions as unknown as {
+        projectResources: () => Array<{
+          id: string;
+          projectId: string;
+          kind: "folder";
+          label: string;
+          value: string;
+          createdAt: string;
+        }>;
+      }
+    ).projectResources = () => [
+      {
+        id: "resource-1",
+        projectId: "project-1",
+        kind: "folder",
+        label: "Desktop source",
+        value: "/workspace/demo/apps/desktop",
+        createdAt: "2026-07-27T00:00:00.000Z",
+      },
+    ];
+
+    const assembly = createModelInputAssembly({
+      context,
+      turn: createTurn(),
+      effectiveInput: { message: "help with the desktop" } as Parameters<
+        typeof createModelInputAssembly
+      >[0]["effectiveInput"],
+      derivedTurnPolicy: {
+        runDepth: "quick",
+        maxIterations: 1,
+        toolProgressMode: "all",
+        useMultiStep: false,
+      },
+      turnClassification: classifyTurnMessage("help with the desktop"),
+      settingsDuring: context.services.settings.get(),
+    });
+
+    const built = assembly.build();
+    expect(built.messagePrelude).toContain("PROJECT CONTEXT");
+    expect(built.messagePrelude).toContain("projectName=Desktop");
+    expect(built.messagePrelude).toContain("declaredResources:");
+    expect(built.messagePrelude).toContain("[folder] Desktop source");
+    expect(built.messagePrelude).toContain(
+      "effectiveWorkingDirectory=/workspace/demo",
+    );
   });
 });

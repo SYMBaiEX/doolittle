@@ -12,6 +12,8 @@ export async function handleRuntimeHealthRoutes(
       status: "ok",
       name: context.config.agentName,
       mode: context.config.mode,
+      processId: process.pid,
+      workspaceDir: context.services.workspace.root(),
     });
   }
 

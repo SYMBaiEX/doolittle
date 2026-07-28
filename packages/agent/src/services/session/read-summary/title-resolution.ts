@@ -1,10 +1,10 @@
-import type { Database } from "bun:sqlite";
+import type { SessionDatabase } from "@/services/session/database";
 import type { SessionSummary } from "@/types";
 import { buildSessionSummary } from "./query";
 import type { SessionMetadataResolver } from "./types";
 
 export function resolveSessionByTitle(
-  db: Database,
+  db: SessionDatabase,
   metadataResolver: SessionMetadataResolver,
   query: string,
 ): SessionSummary | undefined {

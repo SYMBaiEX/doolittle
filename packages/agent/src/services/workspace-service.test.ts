@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import {
   mkdirSync,
   mkdtempSync,
@@ -8,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { WorkspaceService } from "./workspace-service/index";
 import {
   classifyWorkspacePath,
@@ -19,6 +19,27 @@ import {
 } from "./workspace-service/search";
 
 describe("WorkspaceService", () => {
+  it("follows a live workspace source without rebuilding the service", () => {
+    const first = mkdtempSync(join(tmpdir(), "doolittle-workspace-first-"));
+    const second = mkdtempSync(join(tmpdir(), "doolittle-workspace-second-"));
+    let workspaceDir = first;
+    const service = new WorkspaceService(() => workspaceDir);
+
+    try {
+      writeFileSync(join(first, "marker.txt"), "first\n", "utf8");
+      writeFileSync(join(second, "marker.txt"), "second\n", "utf8");
+      expect(service.root()).toBe(first);
+      expect(service.read("marker.txt")).toBe("first\n");
+
+      workspaceDir = second;
+      expect(service.root()).toBe(second);
+      expect(service.read("marker.txt")).toBe("second\n");
+    } finally {
+      rmSync(first, { recursive: true, force: true });
+      rmSync(second, { recursive: true, force: true });
+    }
+  });
+
   it("searches the workspace and returns matching lines", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-"));
     const service = new WorkspaceService(root);

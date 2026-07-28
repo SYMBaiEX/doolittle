@@ -11,6 +11,10 @@ import {
 } from "@elizaos/core";
 import { buildActionResultData } from "@/runtime/action-result-metadata";
 import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "@/services/workspace-directory";
+import {
   createLocalDirectory,
   patchLocalTextFile,
   readLocalTextFile,
@@ -223,7 +227,9 @@ function resolvedMutationPath(response: string): string | undefined {
   return match?.[1]?.trim();
 }
 
-function createReadFileAction(workspaceDir: string): Action {
+function createReadFileAction(
+  workspaceDirectory: WorkspaceDirectorySource,
+): Action {
   return {
     name: "READ_FILE",
     similes: ["DOOLITTLE_READ_FILE", "VIEW_FILE", "OPEN_FILE"],
@@ -242,6 +248,7 @@ function createReadFileAction(workspaceDir: string): Action {
       callback?: HandlerCallback,
     ) => {
       try {
+        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "READ_FILE",
           READ_FILE_PARAMETERS,
@@ -270,7 +277,9 @@ function createReadFileAction(workspaceDir: string): Action {
   };
 }
 
-function createWriteFileAction(workspaceDir: string): Action {
+function createWriteFileAction(
+  workspaceDirectory: WorkspaceDirectorySource,
+): Action {
   return {
     name: "WRITE_FILE",
     similes: ["DOOLITTLE_WRITE_FILE", "CREATE_FILE", "SAVE_FILE"],
@@ -291,6 +300,7 @@ function createWriteFileAction(workspaceDir: string): Action {
     ) => {
       let path = "";
       try {
+        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "WRITE_FILE",
           WRITE_FILE_PARAMETERS,
@@ -348,7 +358,9 @@ function createWriteFileAction(workspaceDir: string): Action {
   };
 }
 
-function createDirectoryAction(workspaceDir: string): Action {
+function createDirectoryAction(
+  workspaceDirectory: WorkspaceDirectorySource,
+): Action {
   return {
     name: "CREATE_DIRECTORY",
     similes: ["MKDIR", "CREATE_FOLDER", "DOOLITTLE_CREATE_DIRECTORY"],
@@ -369,6 +381,7 @@ function createDirectoryAction(workspaceDir: string): Action {
     ) => {
       let path = "";
       try {
+        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "CREATE_DIRECTORY",
           CREATE_DIRECTORY_PARAMETERS,
@@ -417,7 +430,9 @@ function createDirectoryAction(workspaceDir: string): Action {
   };
 }
 
-function createPatchFileAction(workspaceDir: string): Action {
+function createPatchFileAction(
+  workspaceDirectory: WorkspaceDirectorySource,
+): Action {
   return {
     name: "PATCH_FILE",
     similes: ["DOOLITTLE_PATCH_FILE", "EDIT_FILE", "MODIFY_FILE"],
@@ -438,6 +453,7 @@ function createPatchFileAction(workspaceDir: string): Action {
     ) => {
       let path = "";
       try {
+        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "PATCH_FILE",
           PATCH_FILE_PARAMETERS,
@@ -501,7 +517,9 @@ function createPatchFileAction(workspaceDir: string): Action {
   };
 }
 
-function createSearchFilesAction(workspaceDir: string): Action {
+function createSearchFilesAction(
+  workspaceDirectory: WorkspaceDirectorySource,
+): Action {
   return {
     name: "SEARCH_FILES",
     similes: ["DOOLITTLE_SEARCH_FILES", "FIND_FILES", "GREP_FILES"],
@@ -524,6 +542,7 @@ function createSearchFilesAction(workspaceDir: string): Action {
       callback?: HandlerCallback,
     ) => {
       try {
+        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "SEARCH_FILES",
           SEARCH_FILES_PARAMETERS,
@@ -560,12 +579,14 @@ function createSearchFilesAction(workspaceDir: string): Action {
   };
 }
 
-export function createFileActions(workspaceDir: string): Action[] {
+export function createFileActions(
+  workspaceDirectory: WorkspaceDirectorySource,
+): Action[] {
   return [
-    createReadFileAction(workspaceDir),
-    createWriteFileAction(workspaceDir),
-    createDirectoryAction(workspaceDir),
-    createPatchFileAction(workspaceDir),
-    createSearchFilesAction(workspaceDir),
+    createReadFileAction(workspaceDirectory),
+    createWriteFileAction(workspaceDirectory),
+    createDirectoryAction(workspaceDirectory),
+    createPatchFileAction(workspaceDirectory),
+    createSearchFilesAction(workspaceDirectory),
   ];
 }

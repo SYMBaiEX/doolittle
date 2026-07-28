@@ -1,5 +1,5 @@
-import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
+import type { SessionDatabase } from "@/services/session/database";
 import type {
   AdvancedLongTermMemory,
   AdvancedLongTermMemoryCategory,
@@ -21,7 +21,7 @@ import {
 } from "./session-summary-queries";
 
 export class SessionAdvancedMemoryStore {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: SessionDatabase) {}
 
   async storeLongTermMemory(
     memory: Omit<

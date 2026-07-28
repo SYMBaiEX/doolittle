@@ -1,4 +1,4 @@
-import type { Database } from "bun:sqlite";
+import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionSummary,
   SessionUsageOptions,
@@ -14,7 +14,7 @@ import { resolveSessionUsage } from "./usage";
 /** Read-only helpers extracted from SessionService's session summary/usage surface. */
 export class SessionReadSummaryHelpers {
   constructor(
-    private readonly db: Database,
+    private readonly db: SessionDatabase,
     private readonly metadataResolver: SessionMetadataResolver,
   ) {}
 
@@ -38,8 +38,13 @@ export class SessionReadSummaryHelpers {
     );
   }
 
-  listSessions(limit: number): SessionSummary[] {
-    return listSessionSummaries(this.db, this.metadataResolver, limit);
+  listSessions(limit: number, projectId?: string): SessionSummary[] {
+    return listSessionSummaries(
+      this.db,
+      this.metadataResolver,
+      limit,
+      projectId,
+    );
   }
 
   listTitled(limit: number): SessionSummary[] {

@@ -10,6 +10,7 @@ export interface ChatRequestBody {
   message?: string;
   userId?: string;
   roomId?: string;
+  projectId?: string;
   runId?: string;
   source?: string;
   stream?: boolean;

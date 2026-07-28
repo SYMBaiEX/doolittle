@@ -1,5 +1,5 @@
-import { Database } from "bun:sqlite";
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "vitest";
+import { NodeSessionDatabase as Database } from "@/services/session/database";
 import { migrateSessionDatabase } from "../schema";
 import { SessionAdvancedMemoryStore } from "./store";
 

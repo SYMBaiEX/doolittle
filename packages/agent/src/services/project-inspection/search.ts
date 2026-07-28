@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { $ } from "bun";
+import { spawnTextProcess } from "@/services/process-execution";
 import type { LocalCodebaseMatch } from "./types";
 
 const SEARCH_ROOT_SUFFIXES = ["dev", "code", "projects"] as const;
@@ -17,8 +17,9 @@ function resolveSearchRoots(workspaceDir: string): string[] {
 
 async function commandExists(command: string): Promise<boolean> {
   try {
-    await $`command -v ${command}`.quiet();
-    return true;
+    const { exitCode } = await spawnTextProcess(command, ["--version"])
+      .completed;
+    return exitCode === 0;
   } catch {
     return false;
   }
@@ -52,10 +53,15 @@ async function searchWithFd(
   const results = await Promise.all(
     searchRoots.map(async (root) => {
       try {
-        const output = await $`fd -HI -t d ${searchTerm} ${root}`
-          .quiet()
-          .text();
-        return output
+        const { stdout, exitCode } = await spawnTextProcess("fd", [
+          "-HI",
+          "-t",
+          "d",
+          searchTerm,
+          root,
+        ]).completed;
+        if (exitCode !== 0) return [];
+        return stdout
           .split(/\r?\n/u)
           .map((line) => line.trim())
           .filter(Boolean);
@@ -75,11 +81,24 @@ async function searchWithFind(
   const results = await Promise.all(
     searchRoots.map(async (root) => {
       try {
-        const output =
-          await $`find ${root} -maxdepth 4 -type d ( -name .git -prune -o -iname ${`*${searchTerm}*`} -print )`
-            .quiet()
-            .text();
-        return output
+        const { stdout, exitCode } = await spawnTextProcess("find", [
+          root,
+          "-maxdepth",
+          "4",
+          "-type",
+          "d",
+          "(",
+          "-name",
+          ".git",
+          "-prune",
+          "-o",
+          "-iname",
+          `*${searchTerm}*`,
+          "-print",
+          ")",
+        ]).completed;
+        if (exitCode !== 0) return [];
+        return stdout
           .split(/\r?\n/u)
           .map((line) => line.trim())
           .filter(Boolean);

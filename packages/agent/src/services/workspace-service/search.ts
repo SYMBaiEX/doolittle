@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import type { WorkspaceEntry } from "@/types";
 import { resolveWorkspacePath } from "./path";
@@ -91,9 +92,9 @@ export function searchWorkspaceWithRipgrep(
     const grouped = new Map<string, string[]>();
 
     for (const batch of batchSearchPaths(files)) {
-      const proc = Bun.spawnSync({
-        cmd: [
-          "rg",
+      const proc = spawnSync(
+        "rg",
+        [
           "--no-heading",
           "--with-filename",
           "--line-number",
@@ -107,18 +108,17 @@ export function searchWorkspaceWithRipgrep(
           "--",
           ...batch,
         ],
-        cwd: workspaceDir,
-        stdout: "pipe",
-        stderr: "pipe",
-      });
+        {
+          cwd: workspaceDir,
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
 
-      if (proc.exitCode !== 0 && proc.exitCode !== 1) {
+      if (proc.status !== 0 && proc.status !== 1) {
         return undefined;
       }
 
-      const stdout = proc.stdout
-        ? Buffer.from(proc.stdout).toString("utf8")
-        : "";
+      const stdout = proc.stdout?.toString("utf8") ?? "";
       for (const line of stdout.split("\n")) {
         if (!line.trim()) {
           continue;

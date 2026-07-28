@@ -9,9 +9,9 @@ const FILE_MUTATION_REQUEST_PATTERN =
 const FILE_WRITE_REQUEST_PATTERN =
   /\b(?:create|make|write|add|edit|update|change|modify|patch|scaffold|build|generate|save|touch)\b[\s\S]*\b(?:file|files|html|css|js|javascript|typescript|json|md|markdown|website|site|page)\b|\b(?:file|files|html|css|js|javascript|typescript|json|md|markdown|website|site|page)\b[\s\S]*\b(?:create|make|write|add|edit|update|change|modify|patch|scaffold|build|generate|save|touch)\b/iu;
 const SHELL_SCAFFOLD_REQUEST_PATTERN =
-  /\b(?:bunx|npx|pnpm\s+(?:dlx|create)|yarn\s+(?:create|dlx)|npm\s+(?:init|create|exec)|create-(?:react-app|next-app|vite|tauri-app|t3-app|expo-app|nuxt-app|svelte-app|astro)|cargo\s+(?:new|init)|git\s+clone|anchor\s+init|vite|next|nuxt|astro|expo|sveltekit|hardhat|forge|spl-token|metaplex)\b/iu;
+  /\b(?:nubx|nub\s+(?:dlx|create)|bunx|npx|pnpm\s+(?:dlx|create)|yarn\s+(?:create|dlx)|npm\s+(?:init|create|exec)|create-(?:react-app|next-app|vite|tauri-app|t3-app|expo-app|nuxt-app|svelte-app|astro)|cargo\s+(?:new|init)|git\s+clone|anchor\s+init|vite|next|nuxt|astro|expo|sveltekit|hardhat|forge|spl-token|metaplex)\b/iu;
 const SHELL_SCAFFOLD_COMMAND_PATTERN =
-  /\b(?:bunx|npx|pnpm|yarn|npm|create-(?:react-app|next-app|vite|tauri-app|t3-app|expo-app|nuxt-app|svelte-app|astro)|cargo\s+(?:new|init|build|test|run)|git\s+clone|anchor|forge|hardhat|vite|next|expo|sveltekit|spl-token|metaplex|mkdir|cp|mv|rsync)\b/iu;
+  /\b(?:nubx|nub|bunx|npx|pnpm|yarn|npm|create-(?:react-app|next-app|vite|tauri-app|t3-app|expo-app|nuxt-app|svelte-app|astro)|cargo\s+(?:new|init|build|test|run)|git\s+clone|anchor|forge|hardhat|vite|next|expo|sveltekit|spl-token|metaplex|mkdir|cp|mv|rsync)\b/iu;
 
 const EMPTY_PROVIDER_EXECUTION_PATTERN = /^🔎\s*Provider executed:\s*\[\]\s*$/u;
 

@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "./workspace-directory";
 
 export interface PdfExtractOptions {
   startPage?: number;
@@ -11,14 +15,17 @@ export interface PdfExtractOptions {
 export class DocumentsService {
   constructor(
     private readonly runtime: unknown,
-    private readonly workspaceDir: string,
+    private readonly workspaceDirectory: WorkspaceDirectorySource,
   ) {}
 
   async extractPdfFromPath(
     path: string,
     options: PdfExtractOptions = {},
   ): Promise<string> {
-    const resolvedPath = resolve(this.workspaceDir, path);
+    const resolvedPath = resolve(
+      resolveWorkspaceDirectory(this.workspaceDirectory),
+      path,
+    );
     const buffer = readFileSync(resolvedPath);
     return this.extractPdfFromBuffer(buffer, options);
   }

@@ -54,7 +54,7 @@ export function streamSse(
               ),
             );
           } catch {
-            // Bun cancels the stream when a client disconnects. A model or
+            // Node cancels the stream when a client disconnects. A model or
             // tool callback can race that cancellation; do not turn it into
             // an uncaught process-level failure.
             closed = true;

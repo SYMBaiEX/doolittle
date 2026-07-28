@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
   extractExplicitProjectPath,
   resolveLocalProjectPath,
@@ -27,6 +27,11 @@ describe("resolveWorkspaceIntentFromText", () => {
     ).toEqual({
       kind: "overview",
     });
+    expect(
+      resolveWorkspaceIntentFromText(
+        "What is this repo? What is this project?",
+      ),
+    ).toEqual({ kind: "overview" });
   });
 
   it("does not misread account-relative development paths as absolute /dev", () => {

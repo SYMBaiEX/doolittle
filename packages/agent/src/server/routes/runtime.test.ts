@@ -1,23 +1,40 @@
-import { describe, expect, it } from "bun:test";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimeRoutes } from "@/server/routes/runtime/index";
 
 function createContext() {
+  const config = {
+    agentName: "Doolittle Test",
+    mode: "api",
+    offlineBootstrapMode: true,
+    openAiApiKey: "",
+    anthropicApiKey: "",
+    telegramBotToken: "",
+    elizaCloudApiKey: "",
+    elizaCloudEnabled: false,
+    useLinkedCodexAuth: false,
+    useLinkedClaudeCodeAuth: false,
+    workspaceDir: process.cwd(),
+  };
   return {
-    config: {
-      agentName: "Doolittle Test",
-      mode: "api",
-      offlineBootstrapMode: true,
-      openAiApiKey: "",
-      anthropicApiKey: "",
-      telegramBotToken: "",
-      elizaCloudApiKey: "",
-      elizaCloudEnabled: false,
-      useLinkedCodexAuth: false,
-      useLinkedClaudeCodeAuth: false,
-    },
+    config,
     runtime: {},
     services: {
+      workspace: {
+        root: () => config.workspaceDir,
+      },
+      repository: {
+        invalidateWorkspace: () => undefined,
+      },
+      terminal: {
+        invalidateWorkspace: () => undefined,
+      },
+      skills: {
+        invalidateWorkspace: () => undefined,
+      },
       settings: {
         get: () => ({
           model: {
@@ -80,7 +97,37 @@ describe("handleRuntimeRoutes", () => {
       status: "ok",
       name: "Doolittle Test",
       mode: "api",
+      processId: process.pid,
+      workspaceDir: process.cwd(),
     });
+  });
+
+  it("switches the live workspace without rebuilding the runtime context", async () => {
+    const workspaceDir = mkdtempSync(join(tmpdir(), "doolittle-workspace-"));
+    const canonicalWorkspaceDir = realpathSync(workspaceDir);
+    const context = createContext();
+    const runtime = context.runtime;
+    try {
+      const response = await handleRuntimeRoutes(
+        context,
+        new Request("http://localhost/runtime/workspace", {
+          method: "POST",
+          body: JSON.stringify({ workspaceDir }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/runtime/workspace"),
+      );
+
+      expect(response?.status).toBe(200);
+      await expect(response?.json()).resolves.toEqual({
+        workspaceDir: canonicalWorkspaceDir,
+        processId: process.pid,
+      });
+      expect(context.config.workspaceDir).toBe(canonicalWorkspaceDir);
+      expect(context.runtime).toBe(runtime);
+    } finally {
+      rmSync(workspaceDir, { recursive: true, force: true });
+    }
   });
 
   it("returns runtime status with ownership details", async () => {

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleSessionRoutes } from "@/server/routes/sessions";
+import { SessionForkError } from "@/services/session/service";
 
 function createContext() {
   return {
@@ -15,6 +16,24 @@ function createContext() {
         messagesBySession: (sessionId: string, limit: number) => [
           { sessionId, limit, role: "assistant", text: "Ready" },
         ],
+        forkSession: (input: {
+          sourceSessionId: string;
+          throughMessageId?: string;
+          beforeMessageId?: string;
+        }) => ({
+          sessionId: "fork:created",
+          sourceSessionId: input.sourceSessionId,
+          parentSessionId: input.sourceSessionId,
+          forkedFromMessageId:
+            input.throughMessageId ?? input.beforeMessageId ?? "message-last",
+          rootSessionId: input.sourceSessionId,
+          boundaryMode: input.beforeMessageId
+            ? "before"
+            : input.throughMessageId
+              ? "through"
+              : "full",
+          copiedMessageCount: input.beforeMessageId ? 1 : 2,
+        }),
       },
       settings: {
         get: () => ({
@@ -122,6 +141,88 @@ describe("handleSessionRoutes", () => {
     );
 
     expect(response?.status).toBe(400);
+  });
+
+  it("creates inclusive and exclusive forks with strict boundary validation", async () => {
+    const through = await handleSessionRoutes(
+      createContext(),
+      new Request("http://localhost/sessions/fork", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceSessionId: "session-1",
+          throughMessageId: "message-2",
+        }),
+      }),
+      new URL("http://localhost/sessions/fork"),
+    );
+    const before = await handleSessionRoutes(
+      createContext(),
+      new Request("http://localhost/sessions/fork", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceSessionId: "session-1",
+          beforeMessageId: "message-1",
+        }),
+      }),
+      new URL("http://localhost/sessions/fork"),
+    );
+    const both = await handleSessionRoutes(
+      createContext(),
+      new Request("http://localhost/sessions/fork", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceSessionId: "session-1",
+          throughMessageId: "message-2",
+          beforeMessageId: "message-1",
+        }),
+      }),
+      new URL("http://localhost/sessions/fork"),
+    );
+
+    await expect(through?.json()).resolves.toMatchObject({
+      fork: {
+        boundaryMode: "through",
+        forkedFromMessageId: "message-2",
+      },
+    });
+    await expect(before?.json()).resolves.toMatchObject({
+      fork: {
+        boundaryMode: "before",
+        forkedFromMessageId: "message-1",
+      },
+    });
+    expect(both?.status).toBe(400);
+  });
+
+  it("maps missing fork sources and boundaries to typed not-found responses", async () => {
+    const context = createContext();
+    context.services.sessions.forkSession = () => {
+      throw new SessionForkError(
+        "boundary_not_found",
+        'Message "missing" was not found.',
+      );
+    };
+    const response = await handleSessionRoutes(
+      context,
+      new Request("http://localhost/sessions/fork", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceSessionId: "session-1",
+          throughMessageId: "missing",
+        }),
+      }),
+      new URL("http://localhost/sessions/fork"),
+    );
+
+    expect(response?.status).toBe(404);
+    await expect(response?.json()).resolves.toEqual({
+      error: 'Message "missing" was not found.',
+      code: "boundary_not_found",
+    });
   });
 
   it("resolves the active provider and model for every usage request", async () => {

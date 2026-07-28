@@ -1,9 +1,9 @@
-import type { Database } from "bun:sqlite";
+import type { SessionDatabase } from "@/services/session/database";
 import type { SessionSearchResult, SessionSummary } from "@/types";
 import type { SessionMessageRow, SessionMetadataResolver } from "./types";
 
 export function loadSummaryStats(
-  db: Database,
+  db: SessionDatabase,
   limit: number,
 ): {
   totalSessions: number;
@@ -36,7 +36,7 @@ export function loadSummaryStats(
 }
 
 export function loadSessionMessageRows(
-  db: Database,
+  db: SessionDatabase,
   sessionId: string,
   limit: number,
 ): SessionMessageRow[] {
@@ -46,7 +46,7 @@ export function loadSessionMessageRows(
         SELECT session_id as sessionId, created_at as createdAt, role, text
         FROM messages
         WHERE session_id = ?1
-        ORDER BY created_at ASC
+        ORDER BY created_at ASC, rowid ASC
         LIMIT ?2
       `,
     )
@@ -54,7 +54,7 @@ export function loadSessionMessageRows(
 }
 
 export function loadSessionMessageCount(
-  db: Database,
+  db: SessionDatabase,
   sessionId: string,
 ): number {
   return (
@@ -71,19 +71,24 @@ export function loadSessionMessageCount(
 }
 
 export function buildSessionSummary(
-  db: Database,
+  db: SessionDatabase,
   metadataResolver: SessionMetadataResolver,
   sessionId: string,
   rowLimit: number,
 ): SessionSummary {
   const rows = loadSessionMessageRows(db, sessionId, rowLimit);
   const metadata = metadataResolver.metadata(sessionId);
+  const projectId = metadataResolver.projectIdForSession?.(sessionId);
 
   if (!rows.length) {
     return {
       sessionId,
+      projectId,
       title: metadata?.title,
       continuityKey: metadata?.continuityKey,
+      parentSessionId: metadata?.parentSessionId,
+      forkedFromMessageId: metadata?.forkedFromMessageId,
+      rootSessionId: metadata?.rootSessionId,
       messageCount: 0,
       participants: [],
       preview: [],
@@ -94,8 +99,12 @@ export function buildSessionSummary(
 
   return {
     sessionId,
+    projectId,
     title: metadata?.title,
     continuityKey: metadata?.continuityKey,
+    parentSessionId: metadata?.parentSessionId,
+    forkedFromMessageId: metadata?.forkedFromMessageId,
+    rootSessionId: metadata?.rootSessionId,
     messageCount: total,
     startedAt: rows[0]?.createdAt,
     endedAt: rows.at(-1)?.createdAt,

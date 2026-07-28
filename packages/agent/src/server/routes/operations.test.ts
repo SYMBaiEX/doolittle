@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AppLogRecord } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleOperationsRoutes } from "./operations";
@@ -437,7 +437,7 @@ describe("handleOperationsRoutes", () => {
     controller.abort();
     const body = await response?.text();
 
-    expect(receivedSignal).toBe(controller.signal);
+    expect(receivedSignal?.aborted).toBe(true);
     expect(body).toContain("event: terminal.cancelled");
     expect(body).toContain('"id":"command-cancelled"');
     expect(body).not.toContain("event: terminal.completed");

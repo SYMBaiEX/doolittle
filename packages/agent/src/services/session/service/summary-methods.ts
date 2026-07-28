@@ -20,8 +20,11 @@ export const sessionServiceSummaryMethods: Pick<
     return getSessionServiceState(this).summaries.summarize(sessionId, limit);
   },
 
-  listSessions(limit) {
-    return getSessionServiceState(this).summaries.listSessions(limit);
+  listSessions(limit, projectId) {
+    return getSessionServiceState(this).summaries.listSessions(
+      limit,
+      projectId,
+    );
   },
 
   listTitled(limit) {

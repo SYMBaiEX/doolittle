@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { $ } from "bun";
+import { spawnTextProcess } from "@/services/process-execution";
 import type { LocalProjectInspection } from "./types";
 
 export async function inspectGitState(
@@ -25,9 +25,15 @@ export async function inspectGitState(
 
 async function readGitStatus(projectPath: string): Promise<string | undefined> {
   try {
-    const status = (
-      await $`git -C ${projectPath} status --short --branch`.quiet().text()
-    ).trim();
+    const { stdout, exitCode } = await spawnTextProcess("git", [
+      "-C",
+      projectPath,
+      "status",
+      "--short",
+      "--branch",
+    ]).completed;
+    if (exitCode !== 0) return undefined;
+    const status = stdout.trim();
     return status || undefined;
   } catch {
     return undefined;
@@ -38,11 +44,15 @@ async function readRecentCommit(
   projectPath: string,
 ): Promise<string | undefined> {
   try {
-    const recentCommit = (
-      await $`git -C ${projectPath} log -1 --pretty=format:%h%x20%s`
-        .quiet()
-        .text()
-    ).trim();
+    const { stdout, exitCode } = await spawnTextProcess("git", [
+      "-C",
+      projectPath,
+      "log",
+      "-1",
+      "--pretty=format:%h%x20%s",
+    ]).completed;
+    if (exitCode !== 0) return undefined;
+    const recentCommit = stdout.trim();
     return recentCommit || undefined;
   } catch {
     return undefined;

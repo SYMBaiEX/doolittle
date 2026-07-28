@@ -12,8 +12,12 @@ export class SessionReadOperations {
     private readonly metadataStore: SessionMetadataStore,
   ) {}
 
-  search(query: string, limit: number): SessionSearchResult[] {
-    return this.messageStore.search(query, limit);
+  search(
+    query: string,
+    limit: number,
+    projectId?: string,
+  ): SessionSearchResult[] {
+    return this.messageStore.search(query, limit, projectId);
   }
 
   recent(limit: number): SessionSearchResult[] {

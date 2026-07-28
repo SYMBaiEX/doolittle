@@ -1,9 +1,14 @@
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative, sep } from "node:path";
+import { spawnTextProcess } from "@/services/process-execution";
 import {
   type RepositoryReviewResult,
   RepositoryReviewService,
 } from "./repository-review";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "./workspace-directory";
 import {
   resolveWorkspacePath,
   workspaceRelativePath,
@@ -214,7 +219,10 @@ function parseWorktrees(output: string): RepositoryWorktree[] {
 }
 
 export class RepositoryService {
-  private gitRootCache?: string | null;
+  private gitRootCache?: {
+    workspaceDir: string;
+    root: string | null;
+  };
   private readonly commandCache = new Map<
     string,
     {
@@ -224,7 +232,12 @@ export class RepositoryService {
   >();
   private readonly inflight = new Map<string, Promise<string>>();
 
-  constructor(private readonly workspaceDir: string) {}
+  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
+
+  invalidateWorkspace(): void {
+    this.gitRootCache = undefined;
+    this.commandCache.clear();
+  }
 
   isRepository(): boolean {
     return Boolean(this.gitRoot());
@@ -255,7 +268,7 @@ export class RepositoryService {
   }
 
   review(signal?: AbortSignal): Promise<RepositoryReviewResult> {
-    return new RepositoryReviewService(this.workspaceDir).review(signal);
+    return new RepositoryReviewService(this.workspaceRoot()).review(signal);
   }
 
   async changes(): Promise<RepositoryChange[]> {
@@ -315,7 +328,7 @@ export class RepositoryService {
     if (staged) args.push("--cached");
     let scopedPath: string | undefined;
     if (path?.trim()) {
-      const absolutePath = resolveWorkspacePath(this.workspaceDir, path);
+      const absolutePath = resolveWorkspacePath(this.workspaceRoot(), path);
       scopedPath = workspaceRelativePath(relative(root, absolutePath));
       args.push("--", scopedPath);
     }
@@ -338,7 +351,7 @@ export class RepositoryService {
   }): Promise<RepositoryWorktree[]> {
     if (!this.gitRoot()) return [];
     if (options?.fresh) {
-      this.commandCache.delete("git worktrees");
+      this.commandCache.clear();
     }
     const output = await this.runGit(
       ["worktree", "list", "--porcelain"],
@@ -388,7 +401,7 @@ export class RepositoryService {
       throw new Error("Workspace is not inside a Git repository.");
     }
     const branch = validateBranchName(input.branch);
-    const target = validateWorktreePath(this.workspaceDir, input.path);
+    const target = validateWorktreePath(this.workspaceRoot(), input.path);
 
     try {
       await this.runGit(
@@ -400,17 +413,14 @@ export class RepositoryService {
       throw new Error("Branch name is not a valid Git branch.");
     }
 
-    const proc = Bun.spawn({
-      cmd: ["git", "worktree", "add", "-b", branch, target],
-      cwd: root,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const [, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const { completed } = spawnTextProcess(
+      "git",
+      ["worktree", "add", "-b", branch, target],
+      {
+        cwd: root,
+      },
+    );
+    const { stderr, exitCode } = await completed;
     if (exitCode !== 0) {
       throw new Error(
         stderr.trim() ||
@@ -434,31 +444,25 @@ export class RepositoryService {
     cacheKey: string,
     emptyValue = "(no output)",
   ): Promise<string> {
-    const cached = this.commandCache.get(cacheKey);
+    const cwd = this.gitRoot() ?? this.workspaceRoot();
+    const scopedCacheKey = `${cwd}\0${cacheKey}`;
+    const cached = this.commandCache.get(scopedCacheKey);
     const now = Date.now();
     if (cached && now - cached.capturedAt < 3_000) {
       return cached.value;
     }
 
-    const pending = this.inflight.get(cacheKey);
+    const pending = this.inflight.get(scopedCacheKey);
     if (pending) {
       return pending;
     }
 
     const promise = (async () => {
-      const cwd = this.gitRoot() ?? this.workspaceDir;
-      const proc = Bun.spawn({
-        cmd: ["git", ...args],
+      const { completed } = spawnTextProcess("git", args, {
         cwd,
-        stdout: "pipe",
-        stderr: "pipe",
       });
 
-      const [stdout, stderr, exitCode] = await Promise.all([
-        new Response(proc.stdout).text(),
-        new Response(proc.stderr).text(),
-        proc.exited,
-      ]);
+      const { stdout, stderr, exitCode } = await completed;
 
       if (exitCode !== 0) {
         throw new Error(
@@ -467,18 +471,18 @@ export class RepositoryService {
       }
 
       const value = stdout.replace(/\r?\n$/u, "") || emptyValue;
-      this.commandCache.set(cacheKey, {
+      this.commandCache.set(scopedCacheKey, {
         capturedAt: Date.now(),
         value,
       });
       return value;
     })();
 
-    this.inflight.set(cacheKey, promise);
+    this.inflight.set(scopedCacheKey, promise);
     try {
       return await promise;
     } finally {
-      this.inflight.delete(cacheKey);
+      this.inflight.delete(scopedCacheKey);
     }
   }
 
@@ -494,24 +498,30 @@ export class RepositoryService {
   }
 
   private gitRoot(): string | null {
-    if (this.gitRootCache !== undefined) {
-      return this.gitRootCache;
+    const workspaceDir = this.workspaceRoot();
+    const cache = this.gitRootCache;
+    if (cache?.workspaceDir === workspaceDir) {
+      return cache.root;
     }
-    let current = this.workspaceDir;
+    let current = workspaceDir;
 
     while (true) {
       if (existsSync(join(current, ".git"))) {
-        this.gitRootCache = current;
+        this.gitRootCache = { workspaceDir, root: current };
         return current;
       }
 
       const parent = dirname(current);
       if (parent === current) {
-        this.gitRootCache = null;
+        this.gitRootCache = { workspaceDir, root: null };
         return null;
       }
 
       current = parent;
     }
+  }
+
+  private workspaceRoot(): string {
+    return resolveWorkspaceDirectory(this.workspaceDirectory);
   }
 }

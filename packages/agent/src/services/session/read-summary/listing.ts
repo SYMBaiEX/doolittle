@@ -1,28 +1,30 @@
-import type { Database } from "bun:sqlite";
+import type { SessionDatabase } from "@/services/session/database";
 import type { SessionSummary } from "@/types";
 import { buildSessionSummary } from "./query";
 import type { SessionMetadataResolver } from "./types";
 
 export function listSessionSummaries(
-  db: Database,
+  db: SessionDatabase,
   metadataResolver: SessionMetadataResolver,
   limit: number,
+  projectId?: string,
 ): SessionSummary[] {
   const rows = db
     .query(
       `
         SELECT
-          session_id as sessionId,
+          messages.session_id as sessionId,
           COUNT(*) as messageCount,
           MIN(created_at) as startedAt,
           MAX(created_at) as endedAt
         FROM messages
-        GROUP BY session_id
+        ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = messages.session_id WHERE session_projects.project_id = ?2" : ""}
+        GROUP BY messages.session_id
         ORDER BY endedAt DESC
         LIMIT ?1
       `,
     )
-    .all(limit) as Array<{
+    .all(...(projectId ? [limit, projectId] : [limit])) as Array<{
     sessionId: string;
     messageCount: number;
     startedAt?: string;
@@ -41,7 +43,7 @@ export function listSessionSummaries(
 }
 
 export function listTitledSessions(
-  db: Database,
+  db: SessionDatabase,
   metadataResolver: SessionMetadataResolver,
   limit: number,
 ): SessionSummary[] {

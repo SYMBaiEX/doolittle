@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { inspectLocalProject } from "./project-inspection";
 
 describe("project inspection", () => {
@@ -44,7 +44,7 @@ describe("project inspection", () => {
     const inspection = await inspectLocalProject(root);
 
     expect(inspection.name).toBe(root.split("/").at(-1) ?? "");
-    expect(inspection.type).toContain("Node/Bun package");
+    expect(inspection.type).toContain("JavaScript/TypeScript package");
     expect(inspection.packageName).toBe("sample-project");
     expect(inspection.packageManager).toBe("bun@1.3.11");
     expect(inspection.workspacePatterns).toEqual(["packages/*", "apps/*"]);
