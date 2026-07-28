@@ -35,15 +35,24 @@ export interface NativeMcpService {
 }
 
 export interface NativeCronService {
-  list(): unknown[];
-  get(id: string): unknown;
-  create(input: unknown): unknown;
-  update(id: string, patch: unknown): unknown;
-  runs(limit?: number): unknown[];
-  pause?(id: string): unknown;
-  resume?(id: string): unknown;
-  runNow?(id: string): unknown;
-  remove?(id: string): void;
+  list(): unknown[] | Promise<unknown[]>;
+  get(id: string): unknown | Promise<unknown>;
+  create(input: unknown): unknown | Promise<unknown>;
+  update(id: string, patch: unknown): unknown | Promise<unknown>;
+  runs(limit?: number): unknown[] | Promise<unknown[]>;
+  pause?(id: string): unknown | Promise<unknown>;
+  resume?(id: string): unknown | Promise<unknown>;
+  runNow?(id: string): unknown | Promise<unknown>;
+  triggerNow?(
+    id: string,
+    source?: "manual" | "webhook",
+    payload?: Record<string, unknown>,
+  ): unknown | Promise<unknown>;
+  triggerWebhook?(
+    token: string,
+    payload?: Record<string, unknown>,
+  ): unknown | Promise<unknown>;
+  remove?(id: string): void | Promise<void>;
 }
 
 export interface NativeApprovalService {

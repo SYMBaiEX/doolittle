@@ -1,6 +1,5 @@
 import {
   createAgentContextProviders,
-  createCronAction,
   createFileActions,
   createMemoryAction,
   createMemoryNudgeEvaluator,
@@ -12,6 +11,7 @@ import {
   createTerminalAction,
   createWorkspaceAction,
 } from "@doolittle/agent/plugin-api";
+import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
@@ -22,6 +22,7 @@ import {
   createShortcutCompatibleWebSearchAction,
   DOOLITTLE_SDK_SHORTCUTS,
 } from "./sdk-native-surface";
+import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 import type { DoolittlePluginDependencies } from "./types";
 
 export function createDoolittlePluginSurface({
@@ -32,7 +33,7 @@ export function createDoolittlePluginSurface({
     createMemoryAction(services),
     createSkillsAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
-    createCronAction(services),
+    triggerAction,
     ...createFileActions(() => services.workspace.root()),
     createWorkspaceAction(services, () => services.workspace.root()),
     createTerminalAction(services),
@@ -61,7 +62,11 @@ export function createDoolittlePluginSurface({
     providers,
     shortcuts: DOOLITTLE_SDK_SHORTCUTS,
     evaluators,
-    services: [GatewayRuntimeService, SchedulerRuntimeService],
+    services: [
+      GatewayRuntimeService,
+      SchedulerRuntimeService,
+      ...createTriggerRuntimeServices(services),
+    ],
     init: async (_config, runtime) => {
       await wireSdkCapabilities(runtime);
     },

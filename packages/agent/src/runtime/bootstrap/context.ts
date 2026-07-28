@@ -54,9 +54,7 @@ export async function configureBootstrapContext({
     startScheduler: async () => {
       if (schedulerService?.startScheduler) {
         await schedulerService.startScheduler();
-        return;
       }
-      services.cron.start();
     },
     warmSupportServices: () => {
       services.diagnostics;

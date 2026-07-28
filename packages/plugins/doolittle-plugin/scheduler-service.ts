@@ -13,7 +13,7 @@ export function createSchedulerRuntimeService(
     static serviceType = "doolittle_scheduler";
 
     capabilityDescription =
-      "Runs recurring automations and session maintenance for Doolittle.";
+      "Runs Doolittle session maintenance beside Eliza Trigger Tasks.";
 
     #intervalId: ReturnType<typeof setInterval> | null = null;
     #started = false;
@@ -32,7 +32,6 @@ export function createSchedulerRuntimeService(
         return;
       }
       this.#started = true;
-      services.cron.start();
       this.#intervalId = setInterval(async () => {
         const settings = services.settings.get();
         const expired = services.gatewaySessions.expireOlderThan(
@@ -49,7 +48,6 @@ export function createSchedulerRuntimeService(
 
     async stop(): Promise<void> {
       this.#started = false;
-      services.cron.stop();
       if (this.#intervalId) {
         clearInterval(this.#intervalId);
         this.#intervalId = null;

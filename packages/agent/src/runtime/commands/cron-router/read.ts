@@ -7,17 +7,20 @@ export async function handleCronReadCommand(
   trimmed: string,
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
+  const nativeCron = getNativeServices(context.runtime).cron;
   if (trimmed === "/cron" || trimmed === "/cron list") {
     const jobs =
-      (getNativeServices(context.runtime).cron?.list() as Array<{
-        id: string;
-        name: string;
-        status: string;
-        schedule: string;
-        nextRunAt?: string;
-        skills?: string[];
-        runtime?: { model?: string; personalityId?: string };
-      }>) ?? context.services.cron.list();
+      ((await nativeCron?.list()) as
+        | Array<{
+            id: string;
+            name: string;
+            status: string;
+            schedule: string;
+            nextRunAt?: string;
+            skills?: string[];
+            runtime?: { model?: string; personalityId?: string };
+          }>
+        | undefined) ?? context.services.cron.list();
     return jobs.length
       ? jobs
           .map(
@@ -30,12 +33,14 @@ export async function handleCronReadCommand(
 
   if (trimmed === "/cron runs") {
     const runs =
-      (getNativeServices(context.runtime).cron?.runs(10) as Array<{
-        jobName: string;
-        createdAt: string;
-        outputPath?: string;
-        output: string;
-      }>) ?? context.services.cron.recentRuns(10);
+      ((await nativeCron?.runs(10)) as
+        | Array<{
+            jobName: string;
+            createdAt: string;
+            outputPath?: string;
+            output: string;
+          }>
+        | undefined) ?? context.services.cron.recentRuns(10);
     return runs.length
       ? runs
           .map(
@@ -47,9 +52,8 @@ export async function handleCronReadCommand(
   }
 
   if (trimmed.startsWith("/cron show ")) {
-    const job = context.services.cron.get(
-      trimmed.replace("/cron show ", "").trim(),
-    );
+    const id = trimmed.replace("/cron show ", "").trim();
+    const job = (await nativeCron?.get(id)) ?? context.services.cron.get(id);
     if (!job) {
       return "Cron job not found.";
     }

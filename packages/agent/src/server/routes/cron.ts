@@ -25,7 +25,9 @@ export async function handleCronRoutes(
     const payload = await readRecordBody(request);
     try {
       return json({
-        run: await localCron.triggerWebhook(token, payload),
+        run: nativeServices.cron?.triggerWebhook
+          ? await nativeServices.cron.triggerWebhook(token, payload)
+          : await localCron.triggerWebhook(token, payload),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -46,7 +48,9 @@ export async function handleCronRoutes(
     const payload = await readRecordBody(request);
     try {
       return json({
-        run: await localCron.triggerNow(id, "manual", payload),
+        run: nativeServices.cron?.triggerNow
+          ? await nativeServices.cron.triggerNow(id, "manual", payload)
+          : await localCron.triggerNow(id, "manual", payload),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -70,33 +74,33 @@ export async function handleCronRoutes(
     if (lifecycleAction === "pause") {
       return json({
         job: hasLocalJob(id)
-          ? localCron.pause(id)
-          : (nativeServices.cron?.pause?.(id) ?? localCron.pause(id)),
+          ? ((await nativeServices.cron?.pause?.(id)) ?? localCron.pause(id))
+          : ((await nativeServices.cron?.pause?.(id)) ?? localCron.pause(id)),
       });
     }
     if (lifecycleAction === "resume") {
       return json({
         job: hasLocalJob(id)
-          ? localCron.resume(id)
-          : (nativeServices.cron?.resume?.(id) ?? localCron.resume(id)),
+          ? ((await nativeServices.cron?.resume?.(id)) ?? localCron.resume(id))
+          : ((await nativeServices.cron?.resume?.(id)) ?? localCron.resume(id)),
       });
     }
     return json({
       job: hasLocalJob(id)
-        ? localCron.runNow(id)
-        : (nativeServices.cron?.runNow?.(id) ?? localCron.runNow(id)),
+        ? ((await nativeServices.cron?.runNow?.(id)) ?? localCron.runNow(id))
+        : ((await nativeServices.cron?.runNow?.(id)) ?? localCron.runNow(id)),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/cron/jobs") {
-    const nativeJobs = nativeServices.cron?.list() ?? [];
+    const nativeJobs = (await nativeServices.cron?.list()) ?? [];
     return json({
       jobs: mergeRecords(localJobs(), nativeJobs),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/cron/runs") {
-    const nativeRuns = nativeServices.cron?.runs(50) ?? [];
+    const nativeRuns = (await nativeServices.cron?.runs(50)) ?? [];
     return json({
       runs: mergeRecords(localCron.recentRuns(50), nativeRuns),
     });
@@ -136,18 +140,19 @@ export async function handleCronRoutes(
       action: body.action,
     };
     try {
-      const enhanced = Boolean(body.trigger || body.condition || body.action);
       return json({
-        job: enhanced
-          ? localCron.create(input)
-          : (nativeServices.cron?.create({
-              name: input.name,
-              schedule: body.schedule,
-              prompt: body.prompt,
-              skills: input.skills,
-              delivery: input.delivery,
-              runtime: input.runtime,
-            }) ?? localCron.create(input)),
+        job:
+          (await nativeServices.cron?.create({
+            name: input.name,
+            schedule: body.schedule,
+            prompt: body.prompt,
+            skills: input.skills,
+            delivery: input.delivery,
+            runtime: input.runtime,
+            trigger: input.trigger,
+            condition: input.condition,
+            action: input.action,
+          })) ?? localCron.create(input),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -163,9 +168,13 @@ export async function handleCronRoutes(
       return json({ error: "cron job id is required" }, 400);
     }
     if (hasLocalJob(id)) {
-      localCron.remove(id);
+      if (nativeServices.cron?.remove) {
+        await nativeServices.cron.remove(id);
+      } else {
+        localCron.remove(id);
+      }
     } else if (nativeServices.cron?.remove) {
-      nativeServices.cron.remove(id);
+      await nativeServices.cron.remove(id);
     } else {
       localCron.remove(id);
     }
@@ -211,8 +220,9 @@ export async function handleCronRoutes(
     try {
       return json({
         job: hasLocalJob(id)
-          ? localCron.updateConfig(id, patch)
-          : (nativeServices.cron?.update(id, {
+          ? ((await nativeServices.cron?.update(id, patch)) ??
+            localCron.updateConfig(id, patch))
+          : ((await nativeServices.cron?.update(id, {
               name: body.name,
               prompt: body.prompt,
               schedule: body.schedule,
@@ -220,7 +230,10 @@ export async function handleCronRoutes(
               delivery: body.delivery,
               clearRuntime: body.clearRuntime,
               runtime: body.runtime,
-            }) ?? localCron.updateConfig(id, patch)),
+              trigger: body.trigger,
+              condition: body.condition,
+              action: body.action,
+            })) ?? localCron.updateConfig(id, patch)),
       });
     } catch (error) {
       return automationErrorResponse(error);
