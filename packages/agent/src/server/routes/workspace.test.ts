@@ -129,6 +129,14 @@ describe("handleWorkspaceRoutes", () => {
       }),
       new URL("http://localhost/workspace/checkpoints/safe-1/restore"),
     );
+    const malformed = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints/%/restore", {
+        method: "POST",
+        body: JSON.stringify({ confirmCheckpointId: "%" }),
+      }),
+      new URL("http://localhost/workspace/checkpoints/%/restore"),
+    );
 
     await expect(listed?.json()).resolves.toMatchObject({
       support: { supported: true },
@@ -140,6 +148,7 @@ describe("handleWorkspaceRoutes", () => {
     });
     expect(denied?.status).toBe(400);
     expect(restored?.status).toBe(200);
+    expect(malformed?.status).toBe(400);
     await expect(restored?.json()).resolves.toMatchObject({
       restored: true,
       runtimeRestarted: false,

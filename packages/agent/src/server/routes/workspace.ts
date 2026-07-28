@@ -70,7 +70,12 @@ export async function handleWorkspaceRoutes(
     request.method === "POST" &&
     /^\/workspace\/checkpoints\/[^/]+\/restore$/u.test(url.pathname)
   ) {
-    const id = decodeURIComponent(url.pathname.split("/")[3] ?? "");
+    let id = "";
+    try {
+      id = decodeURIComponent(url.pathname.split("/")[3] ?? "");
+    } catch {
+      return json({ error: "Checkpoint id contains invalid encoding." }, 400);
+    }
     const body = ((await request.json().catch(() => ({}))) ?? {}) as {
       confirmCheckpointId?: unknown;
     };
