@@ -1,22 +1,11 @@
-import { spawnSync } from "node:child_process";
+import { runShell } from "@elizaos/agent/services/shell-execution-router";
 import {
   CLAUDE_CODE_SYSTEM_PREFIX,
   CLAUDE_CODE_VERSION_FALLBACK,
 } from "./constants";
 
 export function getClaudeCodeVersion(): string {
-  for (const command of ["claude", "claude-code"]) {
-    try {
-      const result = spawnSync(command, ["--version"], {
-        encoding: "utf8",
-        timeout: 5000,
-      });
-      const version = result.stdout?.trim().split(/\s+/)[0];
-      if (result.status === 0 && version && /^\d/.test(version)) {
-        return version;
-      }
-    } catch {}
-  }
+  // Keep module evaluation side-effect free; runtime commands use runShell.
   return CLAUDE_CODE_VERSION_FALLBACK;
 }
 
@@ -52,22 +41,20 @@ export async function invokeClaudeCodeCliPrint(params: {
     args.push("--append-system-prompt", params.appendSystemPrompt.trim());
   }
 
-  const result = spawnSync("claude", args, {
-    encoding: "utf8",
-    timeout: 120_000,
+  const result = await runShell({
+    command: "claude",
+    args,
+    timeoutMs: 120_000,
+    toolName: "doolittle.provider.claude-code",
   });
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status !== 0) {
+  if (result.exitCode !== 0) {
     const detail = [result.stdout, result.stderr]
       .filter(Boolean)
       .join("\n")
       .trim();
     throw new Error(
-      `Claude Code CLI invocation failed${typeof result.status === "number" ? ` (${result.status})` : ""}: ${detail || "Unknown error"}`,
+      `Claude Code CLI invocation failed (${result.exitCode}): ${detail || "Unknown error"}`,
     );
   }
 
