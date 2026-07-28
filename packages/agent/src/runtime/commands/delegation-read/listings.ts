@@ -22,7 +22,7 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     trimmed.startsWith("/delegate list ")
   ) {
     const filters = parseDelegationReadFilter(trimmed, "/delegate list");
-    const nativeTasks = getEffectiveDelegationTasks(
+    const nativeTasks = await getEffectiveDelegationTasks(
       context.runtime,
       context.services,
     );
@@ -39,16 +39,20 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     ) {
       return JSON.stringify(nativeTasks.slice(0, 20), null, 2);
     }
-    const tasks = context.services.delegation
-      .list({
-        group: filters.group,
-        profile: filters.profile,
-        priority: filters.priority,
-        label: filters.label,
-        parentTaskId: filters.parentTaskId,
-        status: filters.status,
-        executionMode: filters.executionMode,
-      })
+    const tasks = nativeTasks
+      .filter(
+        (task) =>
+          (!filters.group || task.group === filters.group) &&
+          (!filters.profile || task.profile === filters.profile) &&
+          (!filters.priority || task.priority === filters.priority) &&
+          (!filters.label ||
+            (task.labels ?? task.tags ?? []).includes(filters.label)) &&
+          (!filters.parentTaskId ||
+            task.parentTaskId === filters.parentTaskId) &&
+          (!filters.status || task.status === filters.status) &&
+          (!filters.executionMode ||
+            task.executionMode === filters.executionMode),
+      )
       .slice(0, 20);
     return tasks.length
       ? tasks.map((task) => formatDelegationListTask(task)).join("\n")
@@ -58,11 +62,14 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
   if (trimmed === "/delegate overview") {
     return JSON.stringify(
       {
-        local: getEffectiveDelegationOverview(
+        local: await getEffectiveDelegationOverview(
           context.runtime,
           context.services,
         ),
-        native: getEffectiveDelegationQueue(context.runtime, context.services),
+        native: await getEffectiveDelegationQueue(
+          context.runtime,
+          context.services,
+        ),
       },
       null,
       2,
@@ -70,7 +77,7 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
   }
 
   if (trimmed === "/delegate queue" || trimmed.startsWith("/delegate queue ")) {
-    const nativeQueue = getEffectiveDelegationQueue(
+    const nativeQueue = await getEffectiveDelegationQueue(
       context.runtime,
       context.services,
     );
@@ -78,16 +85,22 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
       return JSON.stringify(nativeQueue, null, 2);
     }
     const filters = parseDelegationReadFilter(trimmed, "/delegate queue");
-    const tasks = context.services.delegation
-      .pending({
-        group: filters.group,
-        profile: filters.profile,
-        priority: filters.priority,
-        label: filters.label,
-        parentTaskId: filters.parentTaskId,
-        status: filters.status,
-        executionMode: filters.executionMode,
-      })
+    const tasks = (
+      await getEffectiveDelegationTasks(context.runtime, context.services)
+    )
+      .filter(
+        (task) =>
+          task.status === "pending" &&
+          (!filters.group || task.group === filters.group) &&
+          (!filters.profile || task.profile === filters.profile) &&
+          (!filters.priority || task.priority === filters.priority) &&
+          (!filters.label ||
+            (task.labels ?? task.tags ?? []).includes(filters.label)) &&
+          (!filters.parentTaskId ||
+            task.parentTaskId === filters.parentTaskId) &&
+          (!filters.executionMode ||
+            task.executionMode === filters.executionMode),
+      )
       .slice(0, 20);
     return tasks.length
       ? tasks
@@ -104,7 +117,9 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     if (!group) {
       return "Usage: /delegate group <group-name>";
     }
-    const tasks = context.services.delegation.listByGroup(group);
+    const tasks = (
+      await getEffectiveDelegationTasks(context.runtime, context.services)
+    ).filter((task) => task.group === group);
     return tasks.length
       ? tasks.map((task) => formatDelegationGroupTask(task)).join("\n\n")
       : `No delegation tasks found for group ${group}.`;
@@ -115,7 +130,9 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     if (!label) {
       return "Usage: /delegate label <label>";
     }
-    const tasks = context.services.delegation.listByLabel(label);
+    const tasks = (
+      await getEffectiveDelegationTasks(context.runtime, context.services)
+    ).filter((task) => (task.labels ?? task.tags ?? []).includes(label));
     return tasks.length
       ? tasks
           .map((task: DelegationReadTask) => formatDelegationLabelTask(task))
