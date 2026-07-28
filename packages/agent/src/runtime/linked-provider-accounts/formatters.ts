@@ -1,9 +1,10 @@
 import { displayCommand } from "@/runtime/commands/command-execution";
-import {
-  type getLinkedProviderAccountsSnapshot,
-  getLinkedProviderConnectAdvice,
-} from "@/runtime/native/account-auth";
-import type { LinkedProviderName } from "./types";
+import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import { buildLinkedProviderConnectAdvice } from "@/runtime/native/account-auth/connect-advice";
+import type {
+  LinkedProviderConnectAdvice,
+  LinkedProviderName,
+} from "@/runtime/native/account-auth/types";
 
 export function formatLinkedAccountSummary(
   provider: LinkedProviderName,
@@ -27,7 +28,7 @@ export function formatLinkedAccountSummary(
 }
 
 export function formatLinkedProviderAdviceNextStep(
-  advice: ReturnType<typeof getLinkedProviderConnectAdvice>,
+  advice: LinkedProviderConnectAdvice,
 ): string {
   if (advice.primaryCommand?.startsWith("/")) {
     return `next: ${displayCommand(advice.primaryCommand)}`;
@@ -38,7 +39,7 @@ export function formatLinkedProviderAdviceNextStep(
 }
 
 export function formatLinkedProviderAdviceAlternate(
-  advice: ReturnType<typeof getLinkedProviderConnectAdvice>,
+  advice: LinkedProviderConnectAdvice,
 ): string | undefined {
   if (!advice.secondaryCommand) {
     return undefined;
@@ -59,10 +60,16 @@ export function formatAccountsOverview(
   activeProvider: string,
   accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>,
 ): string {
-  const elizaCloudAdvice = getLinkedProviderConnectAdvice("elizacloud");
-  const codexAdvice = getLinkedProviderConnectAdvice("codex");
-  const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");
-  const devinAdvice = getLinkedProviderConnectAdvice("devin");
+  const elizaCloudAdvice = buildLinkedProviderConnectAdvice(
+    "elizacloud",
+    accounts.elizaCloud,
+  );
+  const codexAdvice = buildLinkedProviderConnectAdvice("codex", accounts.codex);
+  const claudeAdvice = buildLinkedProviderConnectAdvice(
+    "claude-code",
+    accounts.claudeCode,
+  );
+  const devinAdvice = buildLinkedProviderConnectAdvice("devin", accounts.devin);
 
   const blocks: string[] = [
     `active-provider: ${activeProvider}`,
