@@ -108,6 +108,7 @@ export interface ServiceAssemblyLazy {
 
 export interface ServiceRuntimeBindingDependencies {
   executionApprovals: ExecutionApprovalService;
+  delegation: DelegationService;
   documents: LazySlot<DocumentsService>;
   diagnostics: ReturnType<typeof createDiagnosticsServiceSlot>;
   operator: ReturnType<typeof createOperatorServiceSlot>;

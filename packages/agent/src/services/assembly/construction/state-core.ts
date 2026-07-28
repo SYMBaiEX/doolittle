@@ -62,7 +62,7 @@ export function createServiceConstructionCore(params: {
       memory: config.memoryCharLimit,
       user: config.userCharLimit,
     }),
-    delegation: new DelegationService(directories.delegationDir),
+    delegation: new DelegationService(),
     setTools(nextTools: ToolsService) {
       tools.setTools(nextTools);
     },

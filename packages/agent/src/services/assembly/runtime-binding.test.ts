@@ -28,6 +28,11 @@ describe("createRuntimeBinder", () => {
     };
 
     const bindRuntime = createRuntimeBinder({
+      delegation: {
+        bindRuntime(runtime: IAgentRuntime) {
+          calls.push(`delegation:${(runtime as unknown as { id: string }).id}`);
+        },
+      },
       executionApprovals: {
         bindRuntime(runtime: IAgentRuntime) {
           calls.push(`approvals:${(runtime as unknown as { id: string }).id}`);
@@ -59,6 +64,7 @@ describe("createRuntimeBinder", () => {
 
     expect(calls).toEqual([
       "bound:runtime-1",
+      "delegation:runtime-1",
       "approvals:runtime-1",
       "factory:runtime-1",
       "documents:documents:runtime-1",

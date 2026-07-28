@@ -1,4 +1,5 @@
 import type { IAgentRuntime } from "@elizaos/core";
+import type { DelegationService } from "../delegation/service";
 import type { DiagnosticsService } from "../diagnostics/service";
 import type { DocumentsService } from "../documents-service";
 import type { ExecutionApprovalService } from "../execution-approval/service";
@@ -7,6 +8,7 @@ import type { OperatorService } from "../operator/service";
 
 export interface RuntimeBindingDependencies {
   executionApprovals: Pick<ExecutionApprovalService, "bindRuntime">;
+  delegation: Pick<DelegationService, "bindRuntime">;
   documents: LazySlot<DocumentsService>;
   diagnostics: LazySlot<DiagnosticsService>;
   operator: LazySlot<OperatorService>;
@@ -19,6 +21,7 @@ export function createRuntimeBinder(
 ): (nextRuntime: IAgentRuntime) => void {
   return (nextRuntime: IAgentRuntime) => {
     dependencies.setBoundRuntime?.(nextRuntime);
+    dependencies.delegation.bindRuntime(nextRuntime);
     dependencies.executionApprovals.bindRuntime(nextRuntime);
     if (dependencies.documents.peek()) {
       dependencies.documents.set(
