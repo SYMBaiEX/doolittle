@@ -5,6 +5,8 @@ import type {
   ChatEvent,
   ChatRequest,
   DesktopCommand,
+  DesktopLifecycleState,
+  DesktopUpdateState,
   DesktopCommandRequest,
   DoolittleDesktopBridge,
   InteractiveTerminalInputRequest,
@@ -47,6 +49,21 @@ const bridge: DoolittleDesktopBridge = {
     ) => listener(command);
     ipcRenderer.on("app:command", wrapped);
     return () => ipcRenderer.removeListener("app:command", wrapped);
+  },
+  getLifecycleState: () => ipcRenderer.invoke("desktop:lifecycle-state"),
+  setKeepRunningInBackground: (enabled) =>
+    ipcRenderer.invoke("desktop:set-background-mode", enabled),
+  getUpdateState: () => ipcRenderer.invoke("update:get-state"),
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  downloadUpdate: () => ipcRenderer.invoke("update:download"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  onUpdateState: (listener) => {
+    const wrapped = (
+      _event: Electron.IpcRendererEvent,
+      state: DesktopUpdateState,
+    ) => listener(state);
+    ipcRenderer.on("update:state", wrapped);
+    return () => ipcRenderer.removeListener("update:state", wrapped);
   },
   pickFiles: () => ipcRenderer.invoke("dialog:pick-files"),
   pickProjectFiles: () => ipcRenderer.invoke("dialog:pick-project-files"),

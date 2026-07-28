@@ -10,6 +10,7 @@ import {
   Notification,
   screen,
   shell,
+  Tray,
 } from "electron";
 import type { DesktopCommand, WorkspacePickResult } from "../shared/contracts";
 import { importSelectedAttachments } from "./attachment-import";
@@ -20,6 +21,9 @@ import {
   sourceRuntimeTarget,
 } from "./backend";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
+import { handleWindowClose } from "./desktop-lifecycle";
+import { DesktopPreferences } from "./desktop-preferences";
+import { configuredUpdater, DesktopUpdateController } from "./update-state";
 import { importRecordedAudio } from "./recorded-audio-import";
 import {
   isTrustedRendererNavigation,
@@ -44,6 +48,9 @@ let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
 let workspaceSwitchQueue: Promise<void> = Promise.resolve();
 let disposeIpc: (() => void) | null = null;
 let quitting = false;
+let tray: Tray | null = null;
+let desktopPreferences: DesktopPreferences | null = null;
+let updates: DesktopUpdateController | null = null;
 
 function sendAppCommand(command: DesktopCommand): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -336,6 +343,30 @@ function installApplicationMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
+function requestQuit(): void {
+  if (!quitting) app.quit();
+}
+
+function installTray(): void {
+  tray?.destroy();
+  tray = new Tray(resolve(app.getAppPath(), "assets/icon.png"));
+  tray.setToolTip("Doolittle");
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: "Open Doolittle", click: showMainWindow },
+      { type: "separator" },
+      { label: "Quit Doolittle", click: requestQuit },
+    ]),
+  );
+  tray.on("click", showMainWindow);
+}
+
 function desktopDisplayBounds(): WindowBounds {
   const areas = screen.getAllDisplays().map((display) => display.workArea);
   const left = Math.min(...areas.map((area) => area.x));
@@ -427,6 +458,10 @@ function createWindow(): BrowserWindow {
       // Window state is a convenience and must never block shutdown.
     }
   });
+  window.on("close", (event) => {
+    if (desktopPreferences)
+      handleWindowClose(window, event, desktopPreferences.getState(), quitting);
+  });
   window.on("closed", () => windowState.stop());
   return window;
 }
@@ -478,6 +513,15 @@ app.whenReady().then(async () => {
     resolve(app.getPath("userData"), "workspace-state.json"),
     fallbackWorkspace,
   );
+  desktopPreferences = new DesktopPreferences(
+    resolve(app.getPath("userData"), "desktop-preferences.json"),
+  );
+  updates = new DesktopUpdateController(
+    app.isPackaged ? configuredUpdater() : null,
+    app.isPackaged
+      ? "Updates are unavailable because this build has no signed update feed."
+      : "Updates are only available in a packaged, signed Doolittle build.",
+  );
   backend = new BackendManager(
     target,
     runtimeDataDir,
@@ -485,6 +529,7 @@ app.whenReady().then(async () => {
   );
   mainWindow = createWindow();
   installApplicationMenu();
+  installTray();
   disposeIpc = registerIpc(
     ipcMain,
     backend,
@@ -503,6 +548,15 @@ app.whenReady().then(async () => {
     pickProjectFiles,
     pickProjectFolders,
     (request) => importRecordedAudio(request, runtimeDataDir),
+    {
+      getLifecycleState: () =>
+        desktopPreferences?.getState() ?? { keepRunningInBackground: false },
+      setKeepRunningInBackground: (enabled) =>
+        desktopPreferences?.setBackgroundMode(enabled) ?? {
+          keepRunningInBackground: false,
+        },
+      updates,
+    },
   );
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -523,6 +577,8 @@ app.on("before-quit", (event) => {
   if (quitting || !backend) return;
   event.preventDefault();
   quitting = true;
+  tray?.destroy();
+  tray = null;
   void backend.stop().finally(() => {
     disposeIpc?.();
     app.quit();

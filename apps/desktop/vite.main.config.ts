@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         "electron",
+        "electron-updater",
         ...builtinModules,
         ...builtinModules.map((name) => `node:${name}`),
       ],

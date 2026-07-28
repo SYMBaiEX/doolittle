@@ -24,9 +24,12 @@ import type {
   WorkspaceFileSaveResult,
   WorkspacePickResult,
   WorkspaceState,
+  DesktopLifecycleState,
+  DesktopUpdateState,
 } from "../shared/contracts";
 import { SseParser } from "../shared/sse";
 import type { BackendManager } from "./backend";
+import type { DesktopUpdateController } from "./update-state";
 
 const API_ORIGIN = "http://desktop.local";
 const API_TIMEOUT_MS = 15_000;
@@ -63,6 +66,12 @@ export interface SensitiveActionIpcDependencies {
   confirm?: (request: SensitiveActionConfirmationRequest) => Promise<boolean>;
   fetch?: typeof fetch;
   notify?: (notification: DesktopBackgroundNotification) => void;
+}
+
+export interface DesktopControlIpcDependencies {
+  getLifecycleState: () => DesktopLifecycleState;
+  setKeepRunningInBackground: (enabled: boolean) => DesktopLifecycleState;
+  updates: DesktopUpdateController;
 }
 
 export interface DesktopBackgroundNotification {
@@ -1472,9 +1481,11 @@ export function registerIpc(
   importRecordedAudio?: (
     request: RecordedAudioImportRequest,
   ) => AttachmentSelection["attachments"][number],
+  desktopControls?: DesktopControlIpcDependencies,
 ): () => void {
   const activeChats = new Map<string, ActiveChat>();
   const activeTerminalRuns = new Map<string, ActiveTerminalRun>();
+  let disposeDesktopControls: (() => void) | undefined;
   const confirmSensitiveAction =
     sensitiveActionDependencies.confirm ??
     ((request: SensitiveActionConfirmationRequest) =>
@@ -1545,6 +1556,38 @@ export function registerIpc(
     }
     return workspace.switchWorkspace(path);
   });
+  if (desktopControls) {
+    const emitUpdateState = (state: DesktopUpdateState) => {
+      const mainWindow = getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed())
+        mainWindow.webContents.send("update:state", state);
+    };
+    const unsubscribeUpdates =
+      desktopControls.updates.subscribe(emitUpdateState);
+    ipcMain.handle(
+      "desktop:lifecycle-state",
+      desktopControls.getLifecycleState,
+    );
+    ipcMain.handle(
+      "desktop:set-background-mode",
+      (_event, enabled: unknown) => {
+        if (typeof enabled !== "boolean")
+          throw new Error("Background mode must be a boolean.");
+        return desktopControls.setKeepRunningInBackground(enabled);
+      },
+    );
+    ipcMain.handle("update:get-state", desktopControls.updates.getState);
+    ipcMain.handle("update:check", () => desktopControls.updates.check());
+    ipcMain.handle("update:download", () => desktopControls.updates.download());
+    ipcMain.handle("update:install", () => desktopControls.updates.install());
+    const originalDispose = unsubscribeUpdates;
+    // Keep the unsubscribe reachable from the shared disposer below.
+    const existingDispose = disposeDesktopControls;
+    disposeDesktopControls = () => {
+      existingDispose?.();
+      originalDispose();
+    };
+  }
   ipcMain.handle("dialog:pick-files", pickFiles);
   ipcMain.handle("dialog:pick-project-files", pickProjectFiles);
   ipcMain.handle("dialog:pick-project-folders", pickProjectFolders);
@@ -2139,6 +2182,7 @@ export function registerIpc(
   return () => {
     unsubscribeBackend();
     unsubscribeWorkspace();
+    disposeDesktopControls?.();
     for (const active of activeChats.values()) {
       active.controller.abort();
     }
@@ -2152,6 +2196,12 @@ export function registerIpc(
     ipcMain.removeHandler("workspace:get-state");
     ipcMain.removeHandler("workspace:pick");
     ipcMain.removeHandler("workspace:switch-recent");
+    ipcMain.removeHandler("desktop:lifecycle-state");
+    ipcMain.removeHandler("desktop:set-background-mode");
+    ipcMain.removeHandler("update:get-state");
+    ipcMain.removeHandler("update:check");
+    ipcMain.removeHandler("update:download");
+    ipcMain.removeHandler("update:install");
     ipcMain.removeHandler("dialog:pick-files");
     ipcMain.removeHandler("dialog:pick-project-files");
     ipcMain.removeHandler("dialog:pick-project-folders");

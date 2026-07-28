@@ -779,6 +779,26 @@ export interface WorkspaceState {
   recentPaths: string[];
 }
 
+export interface DesktopLifecycleState {
+  keepRunningInBackground: boolean;
+}
+
+export type DesktopUpdatePhase =
+  | "unavailable"
+  | "idle"
+  | "checking"
+  | "available"
+  | "downloading"
+  | "downloaded"
+  | "current"
+  | "error";
+export interface DesktopUpdateState {
+  phase: DesktopUpdatePhase;
+  message: string;
+  version?: string;
+  progress?: number;
+}
+
 export interface WorkspacePickResult {
   canceled: boolean;
   state: WorkspaceState;
@@ -1013,6 +1033,13 @@ export interface DoolittleDesktopBridge {
   switchWorkspace(path: string): Promise<WorkspacePickResult>;
   onWorkspaceState(listener: (state: WorkspaceState) => void): () => void;
   onAppCommand(listener: (command: DesktopCommand) => void): () => void;
+  getLifecycleState(): Promise<DesktopLifecycleState>;
+  setKeepRunningInBackground(enabled: boolean): Promise<DesktopLifecycleState>;
+  getUpdateState(): Promise<DesktopUpdateState>;
+  checkForUpdates(): Promise<DesktopUpdateState>;
+  downloadUpdate(): Promise<DesktopUpdateState>;
+  installUpdate(): Promise<void>;
+  onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
   pickFiles(): Promise<FileSelection>;
   pickProjectFiles(): Promise<ProjectResourceSelection>;
   pickProjectFolders(): Promise<ProjectResourceSelection>;
