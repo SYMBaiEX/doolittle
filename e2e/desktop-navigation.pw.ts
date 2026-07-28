@@ -126,6 +126,55 @@ test.describe("Doolittle desktop navigation", () => {
         /nav-collapsed/,
       );
 
+      const sidebarResizer = page.getByRole("separator", {
+        name: "Resize project navigation",
+      });
+      await sidebarResizer.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            localStorage.getItem("doolittle.desktop.layout.sidebar-width.v1"),
+          ),
+        )
+        .not.toBe("252");
+
+      await page.getByRole("button", { name: "Manage projects" }).click();
+      await page.getByRole("button", { name: "+ New" }).click();
+      await page.getByRole("textbox", { name: "Name" }).fill("E2E repository");
+      await page.getByRole("button", { name: "Create project" }).click();
+      await page.getByRole("button", { name: "Close projects" }).click();
+
+      await page.evaluate(() => {
+        window.location.hash = "#/code";
+      });
+      await expect(page.locator(".window-context strong")).toHaveText("Code");
+      await page.locator(".project-rail-all").click();
+      await expect
+        .poll(() => page.evaluate(() => window.location.hash))
+        .toBe("#/code");
+      await page
+        .locator(".project-rail-main")
+        .filter({ hasText: "E2E repository" })
+        .click();
+      await expect
+        .poll(() => page.evaluate(() => window.location.hash))
+        .toBe("#/code");
+      await expect(page.locator(".view-code .coding-grid")).toBeVisible();
+
+      const explorerResizer = page.getByRole("separator", {
+        name: "Resize code explorer",
+      });
+      await explorerResizer.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            localStorage.getItem("doolittle.desktop.code.explorer-width.v1"),
+          ),
+        )
+        .not.toBe("280");
+
       for (const [route, label] of routes) {
         await page.evaluate((nextRoute) => {
           window.location.hash = `#/${nextRoute}`;
@@ -235,6 +284,38 @@ test.describe("Doolittle desktop navigation", () => {
       });
 
       await page.getByRole("button", { name: "Workbench" }).click();
+      const workbenchEdges = await page.evaluate(() => {
+        const wrapper = document
+          .querySelector("#thread-workbench")
+          ?.getBoundingClientRect();
+        const panel = document
+          .querySelector(".thread-workbench")
+          ?.getBoundingClientRect();
+        return wrapper && panel
+          ? {
+              wrapperRight: wrapper.right,
+              panelRight: panel.right,
+            }
+          : null;
+      });
+      expect(workbenchEdges).not.toBeNull();
+      expect(
+        Math.abs(
+          (workbenchEdges?.wrapperRight ?? 0) -
+            (workbenchEdges?.panelRight ?? 0),
+        ),
+      ).toBeLessThan(2);
+      const workbenchScreenshot = testInfo.outputPath(
+        "doolittle-thread-workbench.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        path: workbenchScreenshot,
+      });
+      await testInfo.attach("thread workbench", {
+        contentType: "image/png",
+        path: workbenchScreenshot,
+      });
       await page.getByRole("tab", { name: /Brief/ }).click();
       await expect(
         page.getByRole("heading", { name: "Workspace pulse" }),
@@ -252,6 +333,20 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("heading", { name: "Tools & settings" }),
       ).toBeVisible();
+      const toolsResizer = page.getByRole("separator", {
+        name: "Resize tools and settings panel",
+      });
+      await toolsResizer.focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            localStorage.getItem(
+              "doolittle.desktop.layout.utility-drawer-width.v1",
+            ),
+          ),
+        )
+        .not.toBe("520");
       const toolsDrawerScreenshot = testInfo.outputPath(
         "doolittle-tools-drawer.png",
       );
