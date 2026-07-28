@@ -40,7 +40,7 @@ function installAgentSdkMocks({
       },
     ],
   }));
-  vi.doMock("./skill-catalog-compat", () => ({
+  vi.doMock("@elizaos/plugin-agent-skills", () => ({
     getCatalogSkill: (slug: string) => ({
       slug,
       displayName: "Skill",

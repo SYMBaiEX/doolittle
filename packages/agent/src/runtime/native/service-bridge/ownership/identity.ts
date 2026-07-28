@@ -86,11 +86,8 @@ export function getEffectivePersonalityList(
 }
 
 export function getEffectiveGeneratedSkills(
-  runtime: RuntimeLike,
+  _runtime: RuntimeLike,
   services: AppServices,
 ): unknown[] {
-  return (
-    getNativeServices(runtime).agentSkills?.generated?.() ??
-    services.skillSynthesis.listGeneratedSkills()
-  );
+  return services.skillSynthesis.listGeneratedSkills();
 }

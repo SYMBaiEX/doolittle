@@ -221,9 +221,6 @@ describe("ownership helpers", () => {
           },
         }),
       },
-      agent_skills: {
-        generated: () => ["generated/native"],
-      },
     });
 
     const services = makeServices();
@@ -280,7 +277,7 @@ describe("ownership helpers", () => {
       getEffectiveRolodexSummary(runtime, services),
     );
     expect(getEffectiveGeneratedSkills(runtime, services)).toEqual([
-      "generated/native",
+      "generated/fallback",
     ]);
     expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
       sessions: { totalSessions: 9, recentSessionIds: ["n1", "n2", "n3"] },

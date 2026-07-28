@@ -16,7 +16,7 @@ import {
   getCatalogSkills,
   getTrendingSkills,
   searchCatalogSkills,
-} from "./skill-catalog-compat";
+} from "@elizaos/plugin-agent-skills";
 
 const FOUNDATION_PACKAGES = [
   "@elizaos/agent",
