@@ -9,6 +9,27 @@ function createContext(): AppContext {
         tree: (depth: number) => [{ id: `tree:${depth}` }],
         read: (path: string) => `contents:${path}`,
         search: (query: string) => [{ query }],
+        checkpointSupport: () => ({ supported: true }),
+        listCheckpoints: () => [
+          {
+            id: "safe-1",
+            label: "Before write",
+            revision: "abc",
+            createdAt: "2026-07-28T00:00:00.000Z",
+          },
+        ],
+        createCheckpoint: (label?: string) => ({
+          id: "new-1",
+          label: label ?? "Operator checkpoint",
+          revision: "def",
+          createdAt: "2026-07-28T00:00:00.000Z",
+        }),
+        restoreCheckpoint: (id: string) => ({
+          id,
+          label: "Before write",
+          revision: "abc",
+          createdAt: "2026-07-28T00:00:00.000Z",
+        }),
       },
     },
   } as unknown as AppContext;
@@ -75,5 +96,53 @@ describe("handleWorkspaceRoutes", () => {
     );
 
     expect(response).toBeNull();
+  });
+
+  it("creates, lists, and only restores checkpoints with exact confirmation", async () => {
+    const context = createContext();
+    const listed = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints"),
+      new URL("http://localhost/workspace/checkpoints"),
+    );
+    const created = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints", {
+        method: "POST",
+        body: JSON.stringify({ label: "Before operator change" }),
+      }),
+      new URL("http://localhost/workspace/checkpoints"),
+    );
+    const denied = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints/safe-1/restore", {
+        method: "POST",
+        body: JSON.stringify({ confirmCheckpointId: "other" }),
+      }),
+      new URL("http://localhost/workspace/checkpoints/safe-1/restore"),
+    );
+    const restored = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints/safe-1/restore", {
+        method: "POST",
+        body: JSON.stringify({ confirmCheckpointId: "safe-1" }),
+      }),
+      new URL("http://localhost/workspace/checkpoints/safe-1/restore"),
+    );
+
+    await expect(listed?.json()).resolves.toMatchObject({
+      support: { supported: true },
+      checkpoints: [{ id: "safe-1" }],
+    });
+    expect(created?.status).toBe(201);
+    await expect(created?.json()).resolves.toMatchObject({
+      checkpoint: { label: "Before operator change" },
+    });
+    expect(denied?.status).toBe(400);
+    expect(restored?.status).toBe(200);
+    await expect(restored?.json()).resolves.toMatchObject({
+      restored: true,
+      runtimeRestarted: false,
+    });
   });
 });

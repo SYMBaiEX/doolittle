@@ -477,6 +477,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       validateQuery: (query) =>
         validateTextQuery(query, "query", { required: true, maxLength: 500 }),
     },
+    { exact: "/workspace/checkpoints" },
     { exact: "/repo/status" },
     { exact: "/repo/diff" },
     { exact: "/repo/log" },
@@ -596,6 +597,13 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/secrets/get" },
     { exact: "/secrets/set" },
     { exact: "/cron/jobs" },
+    { exact: "/workspace/checkpoints" },
+    {
+      predicate: (pathname) =>
+        matchesResourceActionPath(pathname, "/workspace/checkpoints", [
+          "restore",
+        ]),
+    },
     {
       predicate: (pathname) =>
         matchesResourceActionPath(pathname, "/execution/approvals", [

@@ -378,6 +378,9 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/workspace/search?query=registerIpc", "GET")).toBe(
       "/workspace/search?query=registerIpc",
     );
+    expect(parseApiPath("/workspace/checkpoints", "GET")).toBe(
+      "/workspace/checkpoints",
+    );
     expect(parseApiPath("/repo/status", "GET")).toBe("/repo/status");
     expect(parseApiPath("/repo/diff", "GET")).toBe("/repo/diff");
     expect(parseApiPath("/repo/log", "GET")).toBe("/repo/log");
@@ -390,6 +393,21 @@ describe("parseApiPath", () => {
       parseApiPath("/repo/patch?path=src%2Findex.ts&staged=true", "GET"),
     ).toBe("/repo/patch?path=src%2Findex.ts&staged=true");
     expect(parseApiPath("/repo/worktrees", "GET")).toBe("/repo/worktrees");
+    expect(parseApiPath("/workspace/checkpoints", "POST")).toBe(
+      "/workspace/checkpoints",
+    );
+    expect(
+      parseApiPath(
+        "/workspace/checkpoints/checkpoint-123/restore",
+        "POST",
+      ),
+    ).toBe("/workspace/checkpoints/checkpoint-123/restore");
+    expect(() =>
+      parseApiPath(
+        "/workspace/checkpoints/checkpoint%252Fescape/restore",
+        "POST",
+      ),
+    ).toThrow(/not available/);
     expect(parseApiPath("/plans", "GET")).toBe("/plans");
     expect(parseApiPath("/plans/plan-123", "GET")).toBe("/plans/plan-123");
     expect(parseApiPath("/runtime/codegen", "GET")).toBe("/runtime/codegen");
