@@ -1,6 +1,6 @@
 import type { IAgentRuntime, ServiceClass, Task, UUID } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
-import type { AppServices } from "../../agent/src/services";
+import type { AppServices } from "@doolittle/agent/plugin-api";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 
 function createHarness() {
