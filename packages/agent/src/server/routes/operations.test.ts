@@ -251,7 +251,7 @@ describe("handleOperationsRoutes", () => {
   it("rejects a stale workspace save without writing", async () => {
     const context = createContext();
     let writes = 0;
-    context.services.workspace.write = () => {
+    context.services.workspace.write = async () => {
       writes += 1;
       return "unexpected";
     };

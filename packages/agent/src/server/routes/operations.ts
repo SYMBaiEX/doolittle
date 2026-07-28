@@ -170,7 +170,7 @@ export async function handleOperationsRoutes(
       );
     }
     return json({
-      path: context.services.workspace.write(path, body.content),
+      path: await context.services.workspace.write(path, body.content),
     });
   }
 
