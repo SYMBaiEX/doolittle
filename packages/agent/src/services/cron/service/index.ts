@@ -1,10 +1,3 @@
-import { hydrateAutomationJob } from "../definition";
-import { executeAutomationJob } from "../execution";
-import { computeNextRunAt } from "../job-rules";
-import { CronStorage } from "../storage";
-import { buildCronJobRecord } from "./create";
-import { applyCronJobUpdate, withMutatedCronJob } from "./mutations";
-import { runDueCronJobs } from "./tick";
 import type {
   AutomationRunRecord,
   CreateCronJobInput,
@@ -13,182 +6,74 @@ import type {
   UpdateCronJobInput,
 } from "./types";
 
+/**
+ * Compatibility surface for callers that are initialized before the Eliza
+ * runtime. Automation state and scheduling live exclusively in Trigger Tasks.
+ */
 export class CronService {
-  private readonly storage: CronStorage;
-  private intervalHandle?: ReturnType<typeof setInterval>;
-  private executor?: CronExecutor;
-
+  // biome-ignore lint/complexity/noUselessConstructor: Preserve the pre-runtime constructor contract while removing its local state.
   constructor(
-    baseDir: string,
-    outputDir: string,
-    private readonly tickSeconds: number,
-    private readonly timezone = "UTC",
-  ) {
-    this.storage = new CronStorage(baseDir, outputDir);
-  }
+    _baseDir: string,
+    _outputDir: string,
+    _tickSeconds: number,
+    _timezone = "UTC",
+  ) {}
 
-  setExecutor(executor: CronExecutor): void {
-    this.executor = executor;
-  }
-
-  start(): void {
-    if (this.intervalHandle) {
-      return;
-    }
-
-    this.intervalHandle = setInterval(() => {
-      void this.tick();
-    }, this.tickSeconds * 1000);
-    this.intervalHandle.unref?.();
-  }
-
-  stop(): void {
-    if (this.intervalHandle) {
-      clearInterval(this.intervalHandle);
-      this.intervalHandle = undefined;
-    }
-  }
-
+  setExecutor(_executor: CronExecutor): void {}
+  start(): void {}
+  stop(): void {}
   list(): CronJobRecord[] {
-    return this.storage
-      .readJobs()
-      .map(hydrateAutomationJob)
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    return [];
   }
-
-  recentRuns(limit = 25): AutomationRunRecord[] {
-    return this.storage.readRuns().slice(-limit).reverse();
+  recentRuns(_limit = 25): AutomationRunRecord[] {
+    return [];
   }
-
   runs(limit = 25): AutomationRunRecord[] {
     return this.recentRuns(limit);
   }
-
-  create(input: CreateCronJobInput): CronJobRecord {
-    const jobs = this.storage.readJobs();
-    const now = new Date();
-    const record = buildCronJobRecord(input, now, this.timezone);
-
-    jobs.push(record);
-    this.storage.writeJobs(jobs);
-    return record;
+  get(_id: string): CronJobRecord | undefined {
+    return undefined;
   }
 
-  pause(id: string): CronJobRecord {
-    return this.mutate(id, (job) => {
-      job.status = "paused";
-      job.updatedAt = new Date().toISOString();
-    });
+  create(_input: CreateCronJobInput): CronJobRecord {
+    return this.unavailable();
   }
-
-  resume(id: string): CronJobRecord {
-    return this.mutate(id, (job) => {
-      const now = new Date();
-      job.status = "active";
-      const trigger = hydrateAutomationJob(job).trigger;
-      job.nextRunAt =
-        trigger?.type === "schedule"
-          ? computeNextRunAt(trigger.schedule, now, this.timezone).toISOString()
-          : undefined;
-      job.updatedAt = now.toISOString();
-    });
+  pause(_id: string): CronJobRecord {
+    return this.unavailable();
   }
-
-  runNow(id: string): CronJobRecord {
-    return this.mutate(id, (job) => {
-      job.nextRunAt = new Date().toISOString();
-      job.updatedAt = new Date().toISOString();
-    });
+  resume(_id: string): CronJobRecord {
+    return this.unavailable();
   }
-
-  remove(id: string): void {
-    const nextJobs = this.storage.readJobs().filter((job) => job.id !== id);
-    this.storage.writeJobs(nextJobs);
+  runNow(_id: string): CronJobRecord {
+    return this.unavailable();
   }
-
-  get(id: string): CronJobRecord | undefined {
-    const job = this.storage.readJobs().find((job) => job.id === id);
-    return job ? hydrateAutomationJob(job) : undefined;
+  remove(_id: string): void {
+    this.unavailable();
   }
-
-  async triggerNow(
-    id: string,
-    source: "manual" | "webhook" = "manual",
-    payload?: Record<string, unknown>,
-  ): Promise<AutomationRunRecord> {
-    if (!this.executor) {
-      throw new Error("Automation execution is not ready.");
-    }
-    const jobs = this.storage.readJobs().map(hydrateAutomationJob);
-    const job = jobs.find((candidate) => candidate.id === id);
-    if (!job) {
-      throw new Error(`Cron job not found: ${id}`);
-    }
-    if (job.status !== "active") {
-      throw new Error(`Automation "${job.name}" is paused.`);
-    }
-
-    const run = await executeAutomationJob({
-      storage: this.storage,
-      executor: this.executor,
-      job,
-      context: { source, payload },
-    });
-    const now = new Date().toISOString();
-    job.lastRunAt = now;
-    job.updatedAt = now;
-    this.storage.writeJobs(jobs);
-    return run;
+  updateConfig(_id: string, _input: UpdateCronJobInput): CronJobRecord {
+    return this.unavailable();
   }
-
-  async triggerWebhook(
-    token: string,
-    payload?: Record<string, unknown>,
-  ): Promise<AutomationRunRecord> {
-    const job = this.list().find(
-      (candidate) =>
-        candidate.trigger?.type === "webhook" &&
-        candidate.trigger.token === token,
-    );
-    if (!job) {
-      throw new Error("Webhook automation not found.");
-    }
-    return this.triggerNow(job.id, "webhook", payload);
-  }
-
-  updateConfig(id: string, input: UpdateCronJobInput): CronJobRecord {
-    return this.mutate(id, (job) => {
-      applyCronJobUpdate(job, input, this.timezone, new Date());
-    });
-  }
-
   update(id: string, input: UpdateCronJobInput): CronJobRecord {
     return this.updateConfig(id, input);
   }
-
-  async tick(): Promise<void> {
-    if (!this.executor) {
-      return;
-    }
-
-    const { jobs, dirty } = await runDueCronJobs(
-      this.storage,
-      this.executor,
-      this.timezone,
-    );
-
-    if (dirty) {
-      this.storage.writeJobs(jobs);
-    }
+  async triggerNow(
+    _id: string,
+    _source?: "manual" | "webhook",
+    _payload?: Record<string, unknown>,
+  ): Promise<AutomationRunRecord> {
+    return this.unavailable();
   }
+  async triggerWebhook(
+    _token: string,
+    _payload?: Record<string, unknown>,
+  ): Promise<AutomationRunRecord> {
+    return this.unavailable();
+  }
+  async tick(): Promise<void> {}
 
-  private mutate(
-    id: string,
-    mutate: (job: CronJobRecord) => void,
-  ): CronJobRecord {
-    const jobs = this.storage.readJobs().map(hydrateAutomationJob);
-    const job = withMutatedCronJob(jobs, id, mutate);
-    this.storage.writeJobs(jobs);
-    return job;
+  private unavailable(): never {
+    throw new Error(
+      "Cron jobs are managed by the Eliza Trigger runtime service.",
+    );
   }
 }

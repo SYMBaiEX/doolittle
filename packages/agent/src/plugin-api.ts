@@ -14,4 +14,18 @@ export type { AppContext } from "@/runtime/bootstrap";
 export type { AgentExecutionContext } from "@/runtime/chat";
 export { handleAgentTurn } from "@/runtime/chat";
 export type { AppServices } from "@/services";
-export type { CronJobRecord, EnvConfig } from "@/types/runtime";
+export {
+  automationTriggerMatches,
+  buildAutomationDefinition,
+  evaluateAutomationCondition,
+  normalizeAutomationAction,
+  normalizeAutomationCondition,
+  normalizeAutomationTrigger,
+} from "@/services/cron/definition";
+export type { AutomationExecutionContext } from "@/services/cron/service/types";
+export type {
+  AutomationRunRecord,
+  CronJobRecord,
+  CronJobRuntimeOverrides,
+  EnvConfig,
+} from "@/types/runtime";

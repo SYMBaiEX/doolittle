@@ -3,8 +3,51 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleCronRoutes } from "./cron";
 
 function createContext(calls: string[] = []): AppContext {
+  const cron = {
+    list: () => [{ id: "job-1" }],
+    runs: (limit: number) => [{ id: `run:${limit}` }],
+    create: (input: Record<string, unknown>) => ({ id: "job-new", ...input }),
+    update: (id: string, patch: Record<string, unknown>) => ({ id, ...patch }),
+    pause: (id: string) => {
+      calls.push(`pause:${id}`);
+      return { id, status: "paused" };
+    },
+    resume: (id: string) => {
+      calls.push(`resume:${id}`);
+      return { id, status: "active" };
+    },
+    runNow: (id: string) => {
+      calls.push(`run:${id}`);
+      return { id, status: "queued" };
+    },
+    triggerNow: (
+      id: string,
+      source: string,
+      payload: Record<string, unknown>,
+    ) => {
+      calls.push(`trigger:${id}:${source}`);
+      return Promise.resolve({
+        id: "run-manual",
+        jobId: id,
+        payload,
+        status: "completed",
+      });
+    },
+    triggerWebhook: (token: string, payload: Record<string, unknown>) => {
+      calls.push(`webhook:${token}`);
+      return Promise.resolve({
+        id: "run-webhook",
+        token,
+        payload,
+        status: "completed",
+      });
+    },
+    remove: (id: string) => {
+      calls.push(`remove:${id}`);
+    },
+  };
   return {
-    runtime: {},
+    runtime: { getService: (name: string) => (name === "cron" ? cron : null) },
     services: {
       cron: {
         list: () => [{ id: "job-1" }],

@@ -65,7 +65,10 @@ export async function configureBootstrapContext({
   });
 
   services.startupState.markReady("runtime", "runtime ready");
-  services.cron.setExecutor(
+  const workflowDispatch = runtime.getService("WORKFLOW_DISPATCH") as {
+    setExecutor?: (executor: ReturnType<typeof createCronExecutor>) => void;
+  } | null;
+  workflowDispatch?.setExecutor?.(
     createCronExecutor({
       config,
       services,

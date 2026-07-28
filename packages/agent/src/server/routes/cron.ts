@@ -13,9 +13,10 @@ export async function handleCronRoutes(
   url: URL,
 ): Promise<Response | null> {
   const nativeServices = getNativeServices(context.runtime);
-  const localCron = context.services.cron;
-  const localJobs = () => localCron.list();
-  const hasLocalJob = (id: string) => localJobs().some((job) => job.id === id);
+  const cron = nativeServices.cron;
+  if (!cron) {
+    return json({ error: "Trigger runtime service is not ready." }, 503);
+  }
 
   if (request.method === "POST" && url.pathname.startsWith("/cron/webhooks/")) {
     const token = url.pathname.slice("/cron/webhooks/".length).trim();
@@ -25,9 +26,7 @@ export async function handleCronRoutes(
     const payload = await readRecordBody(request);
     try {
       return json({
-        run: nativeServices.cron?.triggerWebhook
-          ? await nativeServices.cron.triggerWebhook(token, payload)
-          : await localCron.triggerWebhook(token, payload),
+        run: await cron.triggerWebhook?.(token, payload),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -48,9 +47,7 @@ export async function handleCronRoutes(
     const payload = await readRecordBody(request);
     try {
       return json({
-        run: nativeServices.cron?.triggerNow
-          ? await nativeServices.cron.triggerNow(id, "manual", payload)
-          : await localCron.triggerNow(id, "manual", payload),
+        run: await cron.triggerNow?.(id, "manual", payload),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -73,37 +70,25 @@ export async function handleCronRoutes(
     }
     if (lifecycleAction === "pause") {
       return json({
-        job: hasLocalJob(id)
-          ? ((await nativeServices.cron?.pause?.(id)) ?? localCron.pause(id))
-          : ((await nativeServices.cron?.pause?.(id)) ?? localCron.pause(id)),
+        job: await cron.pause?.(id),
       });
     }
     if (lifecycleAction === "resume") {
       return json({
-        job: hasLocalJob(id)
-          ? ((await nativeServices.cron?.resume?.(id)) ?? localCron.resume(id))
-          : ((await nativeServices.cron?.resume?.(id)) ?? localCron.resume(id)),
+        job: await cron.resume?.(id),
       });
     }
     return json({
-      job: hasLocalJob(id)
-        ? ((await nativeServices.cron?.runNow?.(id)) ?? localCron.runNow(id))
-        : ((await nativeServices.cron?.runNow?.(id)) ?? localCron.runNow(id)),
+      job: await cron.runNow?.(id),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/cron/jobs") {
-    const nativeJobs = (await nativeServices.cron?.list()) ?? [];
-    return json({
-      jobs: mergeRecords(localJobs(), nativeJobs),
-    });
+    return json({ jobs: await cron.list() });
   }
 
   if (request.method === "GET" && url.pathname === "/cron/runs") {
-    const nativeRuns = (await nativeServices.cron?.runs(50)) ?? [];
-    return json({
-      runs: mergeRecords(localCron.recentRuns(50), nativeRuns),
-    });
+    return json({ runs: await cron.runs(50) });
   }
 
   if (request.method === "POST" && url.pathname === "/cron/jobs") {
@@ -141,18 +126,17 @@ export async function handleCronRoutes(
     };
     try {
       return json({
-        job:
-          (await nativeServices.cron?.create({
-            name: input.name,
-            schedule: body.schedule,
-            prompt: body.prompt,
-            skills: input.skills,
-            delivery: input.delivery,
-            runtime: input.runtime,
-            trigger: input.trigger,
-            condition: input.condition,
-            action: input.action,
-          })) ?? localCron.create(input),
+        job: await cron.create({
+          name: input.name,
+          schedule: body.schedule,
+          prompt: body.prompt,
+          skills: input.skills,
+          delivery: input.delivery,
+          runtime: input.runtime,
+          trigger: input.trigger,
+          condition: input.condition,
+          action: input.action,
+        }),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -167,17 +151,7 @@ export async function handleCronRoutes(
     if (!id || id === "/cron/jobs") {
       return json({ error: "cron job id is required" }, 400);
     }
-    if (hasLocalJob(id)) {
-      if (nativeServices.cron?.remove) {
-        await nativeServices.cron.remove(id);
-      } else {
-        localCron.remove(id);
-      }
-    } else if (nativeServices.cron?.remove) {
-      await nativeServices.cron.remove(id);
-    } else {
-      localCron.remove(id);
-    }
+    await cron.remove?.(id);
     return json({ deleted: true, id });
   }
 
@@ -205,35 +179,20 @@ export async function handleCronRoutes(
         personalityId?: string;
       };
     };
-    const patch = {
-      name: body.name,
-      prompt: body.prompt,
-      schedule: body.schedule,
-      skills: body.skills,
-      delivery: body.delivery,
-      clearRuntime: body.clearRuntime,
-      runtime: body.runtime,
-      trigger: body.trigger,
-      condition: body.condition,
-      action: body.action,
-    };
     try {
       return json({
-        job: hasLocalJob(id)
-          ? ((await nativeServices.cron?.update(id, patch)) ??
-            localCron.updateConfig(id, patch))
-          : ((await nativeServices.cron?.update(id, {
-              name: body.name,
-              prompt: body.prompt,
-              schedule: body.schedule,
-              skills: body.skills,
-              delivery: body.delivery,
-              clearRuntime: body.clearRuntime,
-              runtime: body.runtime,
-              trigger: body.trigger,
-              condition: body.condition,
-              action: body.action,
-            })) ?? localCron.updateConfig(id, patch)),
+        job: await cron.update(id, {
+          name: body.name,
+          prompt: body.prompt,
+          schedule: body.schedule,
+          skills: body.skills,
+          delivery: body.delivery,
+          clearRuntime: body.clearRuntime,
+          runtime: body.runtime,
+          trigger: body.trigger,
+          condition: body.condition,
+          action: body.action,
+        }),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -250,18 +209,6 @@ async function readRecordBody(
   return body && typeof body === "object" && !Array.isArray(body)
     ? (body as Record<string, unknown>)
     : {};
-}
-
-function mergeRecords(primary: unknown[], secondary: unknown[]): unknown[] {
-  const records = new Map<string, unknown>();
-  for (const entry of [...secondary, ...primary]) {
-    if (!entry || typeof entry !== "object") {
-      continue;
-    }
-    const id = (entry as { id?: unknown }).id;
-    records.set(typeof id === "string" ? id : `record:${records.size}`, entry);
-  }
-  return Array.from(records.values());
 }
 
 function automationErrorResponse(error: unknown): Response {

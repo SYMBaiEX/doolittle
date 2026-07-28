@@ -1,41 +1,15 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import type { IAgentRuntime, ServiceClass, Task, UUID } from "@elizaos/core";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "../../agent/src/services";
-import { CronService } from "../../agent/src/services/cron/service";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 
-const temporaryDirectories: string[] = [];
-
-afterEach(() => {
-  for (const directory of temporaryDirectories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 function createHarness() {
-  const directory = mkdtempSync(join(tmpdir(), "doolittle-triggers-"));
-  temporaryDirectories.push(directory);
-  const cron = new CronService(
-    join(directory, "cron"),
-    join(directory, "output"),
-    60,
-  );
-  cron.setExecutor(async (job) => `completed ${job.name}`);
-
   const tasks = new Map<string, Task>();
-  let sequence = 0;
   const runtime = {
     agentId: "00000000-0000-4000-8000-000000000001",
     createTask: async (task: Task) => {
-      sequence += 1;
-      const id =
-        (task.id as string | undefined) ??
-        `00000000-0000-4000-8000-${String(sequence).padStart(12, "0")}`;
-      tasks.set(id, { ...task, id: id as UUID });
-      return id as UUID;
+      tasks.set(String(task.id), task);
+      return task.id;
     },
     getTask: async (id: UUID) => tasks.get(String(id)) ?? null,
     getTasks: async () => Array.from(tasks.values()),
@@ -55,122 +29,167 @@ function createHarness() {
       error: () => undefined,
     },
   } as unknown as IAgentRuntime;
-
-  const services = { cron } as unknown as AppServices;
-  const serviceClasses = createTriggerRuntimeServices(services);
+  const classes = createTriggerRuntimeServices({} as AppServices);
   const serviceClass = (type: string) => {
-    const result = serviceClasses.find(
+    const service = classes.find(
       (entry) =>
         (entry as ServiceClass & { serviceType?: string }).serviceType === type,
     );
-    if (!result) throw new Error(`Missing service class: ${type}`);
-    return result;
+    if (!service) throw new Error(`Missing service class: ${type}`);
+    return service;
   };
-
-  return { cron, runtime, serviceClass, tasks };
+  return { runtime, serviceClass, tasks };
 }
 
 describe("Eliza trigger runtime adapter", () => {
-  it("reconciles stored automations into persisted SDK trigger tasks", async () => {
+  it("persists the complete automation definition in the SDK trigger task", async () => {
     const harness = createHarness();
-    const job = harness.cron.create({
+    const service = (await harness
+      .serviceClass("cron")
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+      list(): Promise<unknown[]>;
+    };
+    const job = await service.create({
       name: "Workspace digest",
       schedule: "every 30m",
       prompt: "Summarize the selected workspace.",
+      skills: ["digest"],
     });
-
-    const service = (await harness
-      .serviceClass("cron")
-      .start(harness.runtime)) as unknown as {
-      list(): ReturnType<CronService["list"]>;
-    };
-
-    expect(service.list()).toHaveLength(1);
-    expect(harness.tasks).toHaveLength(1);
-    const task = Array.from(harness.tasks.values())[0];
-    const trigger = (
-      task?.metadata as {
-        trigger?: {
-          workflowId?: string;
-          triggerType?: string;
-          intervalMs?: number;
-        };
-      }
-    )?.trigger;
-    expect(trigger).toMatchObject({
-      workflowId: job.id,
-      triggerType: "interval",
-      intervalMs: 30 * 60_000,
+    expect(await service.list()).toHaveLength(1);
+    const task = harness.tasks.get(job.id);
+    expect(task).toBeDefined();
+    if (!task) throw new Error(`Missing trigger task: ${job.id}`);
+    expect(task.metadata).toMatchObject({
+      trigger: {
+        workflowId: job.id,
+        triggerType: "interval",
+        intervalMs: 30 * 60_000,
+      },
     });
+    expect(
+      JSON.parse((task.metadata as Record<string, string>).doolittleAutomation),
+    ).toMatchObject({ id: job.id, skills: ["digest"] });
   });
 
-  it("keeps local automation metadata while SDK tasks own lifecycle", async () => {
+  it("updates lifecycle directly on the SDK task without a local job store", async () => {
     const harness = createHarness();
     const service = (await harness
       .serviceClass("cron")
       .start(harness.runtime)) as unknown as {
-      create(input: Parameters<CronService["create"]>[0]): Promise<{
-        id: string;
-      }>;
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
       pause(id: string): Promise<unknown>;
       remove(id: string): Promise<void>;
     };
-
-    const created = await service.create({
+    const job = await service.create({
       name: "One shot",
       schedule: "2h",
-      prompt: "Review the release.",
-      skills: ["release-review"],
+      prompt: "Review release.",
     });
-    expect(harness.cron.get(created.id)?.skills).toEqual(["release-review"]);
-    expect(harness.tasks).toHaveLength(1);
-
-    await service.pause(created.id);
-    const task = Array.from(harness.tasks.values())[0];
+    await service.pause(job.id);
     expect(
       (
-        task?.metadata as {
-          trigger?: {
-            enabled?: boolean;
-            triggerType?: string;
-            maxRuns?: number;
-          };
+        harness.tasks.get(job.id)?.metadata as {
+          trigger?: { enabled?: boolean };
         }
-      ).trigger,
-    ).toMatchObject({
-      enabled: false,
-      triggerType: "once",
-      maxRuns: 1,
-    });
-
-    await service.remove(created.id);
-    expect(harness.cron.get(created.id)).toBeUndefined();
+      ).trigger?.enabled,
+    ).toBe(false);
+    await service.remove(job.id);
     expect(harness.tasks).toHaveLength(0);
   });
 
-  it("dispatches workflow triggers through the existing receipt adapter", async () => {
+  it("reports a clear execution readiness error instead of falling back to local execution", async () => {
     const harness = createHarness();
-    const job = harness.cron.create({
+    const cron = (await harness
+      .serviceClass("cron")
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+    };
+    const job = await cron.create({
       name: "Manual review",
       trigger: { type: "manual" },
-      action: { type: "prompt", prompt: "Review this project." },
+      prompt: "Review this project.",
     });
     const dispatcher = (await harness
       .serviceClass("WORKFLOW_DISPATCH")
       .start(harness.runtime)) as unknown as {
-      execute(id: string): Promise<{
-        ok: boolean;
-        executionId?: string;
-      }>;
+      execute(id: string): Promise<{ ok: boolean; error?: string }>;
     };
-
-    const result = await dispatcher.execute(job.id);
-
-    expect(result.ok).toBe(true);
-    expect(result.executionId).toBeTruthy();
-    expect(harness.cron.recentRuns(1)[0]).toMatchObject({
-      jobId: job.id,
-      status: "completed",
+    await expect(dispatcher.execute(job.id)).resolves.toEqual({
+      ok: false,
+      error: "Automation execution is not ready.",
     });
+  });
+
+  it("persists condition-aware run receipts as SDK tasks with the real source", async () => {
+    const harness = createHarness();
+    const cron = (await harness
+      .serviceClass("cron")
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+      runs(
+        limit: number,
+      ): Promise<
+        Array<{ status?: string; triggerType?: string; output: string }>
+      >;
+    };
+    const job = await cron.create({
+      name: "Release review",
+      trigger: { type: "manual" },
+      prompt: "Review release.",
+      condition: {
+        type: "payload",
+        path: "release.status",
+        operator: "equals",
+        value: "ready",
+      },
+    });
+    const dispatcher = (await harness
+      .serviceClass("WORKFLOW_DISPATCH")
+      .start(harness.runtime)) as unknown as {
+      setExecutor(
+        executor: (
+          _job: unknown,
+          context: { source: string },
+        ) => Promise<string>,
+      ): void;
+      execute(
+        id: string,
+        payload: Record<string, unknown>,
+      ): Promise<{ ok: boolean }>;
+    };
+    const executor = vi.fn(
+      async (_job: unknown, _context: { source: string }) => "release reviewed",
+    );
+    dispatcher.setExecutor(executor);
+
+    await expect(
+      dispatcher.execute(job.id, {
+        eventKind: `doolittle.manual.${job.id}`,
+        eventPayload: { release: { status: "draft" } },
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      dispatcher.execute(job.id, {
+        eventKind: `doolittle.manual.${job.id}`,
+        eventPayload: { release: { status: "ready" } },
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(executor).toHaveBeenCalledOnce();
+    expect(executor.mock.calls[0]?.[1]).toMatchObject({ source: "manual" });
+    await expect(cron.runs(10)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "completed",
+          triggerType: "manual",
+          output: "release reviewed",
+        }),
+        expect.objectContaining({
+          status: "skipped",
+          triggerType: "manual",
+        }),
+      ]),
+    );
   });
 });
