@@ -15,6 +15,23 @@ export interface HealthResponse {
   workspaceDir: string;
 }
 
+export interface WorkspaceCheckpoint {
+  id: string;
+  createdAt: string;
+  label: string;
+  revision: string;
+}
+
+export interface WorkspaceCheckpointSupport {
+  supported: boolean;
+  reason?: string;
+}
+
+export interface WorkspaceCheckpointsResponse {
+  support: WorkspaceCheckpointSupport;
+  checkpoints: WorkspaceCheckpoint[];
+}
+
 export interface CommandCatalogItem {
   command: string;
   category: string;

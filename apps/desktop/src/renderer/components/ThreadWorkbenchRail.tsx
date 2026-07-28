@@ -13,6 +13,7 @@ import {
   asRecord,
   asString,
   Badge,
+  desktopRequest,
   displayTimestamp,
   ErrorBlock,
   LoadingBlock,
@@ -71,6 +72,11 @@ interface WorkspaceReadResponse {
 
 interface RepositoryChangesResponse {
   changes?: unknown[];
+}
+
+interface WorkspaceCheckpointResponse {
+  support?: { supported?: boolean; reason?: string };
+  checkpoints?: unknown[];
 }
 
 interface RepositoryPatchResponse {
@@ -316,6 +322,8 @@ export function ThreadWorkbenchRail({
   const [selectedChange, setSelectedChange] = useState("");
   const [selectedCommand, setSelectedCommand] = useState("");
   const [copiedLabel, setCopiedLabel] = useState("");
+  const [checkpointMessage, setCheckpointMessage] = useState("");
+  const [checkpointBusy, setCheckpointBusy] = useState(false);
   const tabRefs = useRef<Record<ThreadWorkbenchTab, HTMLButtonElement | null>>({
     files: null,
     changes: null,
@@ -339,6 +347,12 @@ export function ThreadWorkbenchRail({
   const changes = useApiResource<RepositoryChangesResponse>(
     active && model.railOpen && model.selectedTab === "changes"
       ? "/repo/changes"
+      : null,
+    [active, model.railOpen, model.selectedTab, workspacePath],
+  );
+  const checkpoints = useApiResource<WorkspaceCheckpointResponse>(
+    active && model.railOpen && model.selectedTab === "changes"
+      ? "/workspace/checkpoints"
       : null,
     [active, model.railOpen, model.selectedTab, workspacePath],
   );
@@ -602,6 +616,54 @@ export function ThreadWorkbenchRail({
   const selectedCommandOutput = currentCommand
     ? commandOutput(currentCommand)
     : "";
+  const createCheckpoint = async () => {
+    setCheckpointBusy(true);
+    setCheckpointMessage("");
+    try {
+      const response = await desktopRequest<{ checkpoint?: { id?: string } }>(
+        "/workspace/checkpoints",
+        "POST",
+        { label: "Operator checkpoint" },
+      );
+      setCheckpointMessage(
+        `Created checkpoint ${asString(response.checkpoint?.id, "")}.`,
+      );
+      checkpoints.reload();
+    } catch (error) {
+      setCheckpointMessage(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setCheckpointBusy(false);
+    }
+  };
+  const restoreCheckpoint = async (id: string) => {
+    if (
+      !window.confirm(
+        `Restore checkpoint ${id}? This overwrites tracked workspace files. The runtime will not restart.`,
+      )
+    ) {
+      return;
+    }
+    setCheckpointBusy(true);
+    setCheckpointMessage("");
+    try {
+      await desktopRequest(
+        `/workspace/checkpoints/${encodeURIComponent(id)}/restore`,
+        "POST",
+        { confirmCheckpointId: id },
+      );
+      setCheckpointMessage(`Restored ${id}. Runtime remains running.`);
+      changes.reload();
+      checkpoints.reload();
+    } catch (error) {
+      setCheckpointMessage(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setCheckpointBusy(false);
+    }
+  };
 
   return (
     <aside
@@ -805,6 +867,69 @@ export function ThreadWorkbenchRail({
 
         {model.selectedTab === "changes" ? (
           <>
+            <section
+              aria-label="Workspace checkpoints"
+              className="thread-workbench-checkpoints"
+            >
+              <div>
+                <strong>Checkpoints</strong>
+                <small>
+                  Local Git snapshots. Restore requires confirmation and never
+                  restarts Doolittle.
+                </small>
+              </div>
+              {checkpoints.data?.support?.supported ? (
+                <button
+                  className="thread-workbench-text-button"
+                  disabled={checkpointBusy}
+                  onClick={() => void createCheckpoint()}
+                  type="button"
+                >
+                  {checkpointBusy ? "Working…" : "Create checkpoint"}
+                </button>
+              ) : (
+                <small>
+                  {asString(
+                    checkpoints.data?.support?.reason,
+                    "Checkpoints unavailable.",
+                  )}
+                </small>
+              )}
+              {checkpointMessage ? (
+                <p role="status">{checkpointMessage}</p>
+              ) : null}
+              {checkpoints.data?.support?.supported ? (
+                <div className="thread-workbench-checkpoint-list">
+                  {asArray(checkpoints.data?.checkpoints)
+                    .slice(0, 8)
+                    .map((value) => {
+                      const checkpoint = asRecord(value);
+                      const id = asString(checkpoint.id);
+                      if (!id) return null;
+                      return (
+                        <div key={id}>
+                          <span className="thread-workbench-checkpoint-details">
+                            <strong>
+                              {asString(checkpoint.label, "Checkpoint")}
+                            </strong>
+                            <small>
+                              {displayTimestamp(asString(checkpoint.createdAt))}{" "}
+                              · {asString(checkpoint.revision).slice(0, 8)}
+                            </small>
+                          </span>
+                          <button
+                            disabled={checkpointBusy}
+                            onClick={() => void restoreCheckpoint(id)}
+                            type="button"
+                          >
+                            Restore
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : null}
+            </section>
             <ResourceState
               error={changes.error}
               loading={changes.loading}

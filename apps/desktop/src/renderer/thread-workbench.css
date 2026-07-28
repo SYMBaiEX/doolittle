@@ -273,6 +273,55 @@
   min-height: 0;
 }
 
+.thread-workbench-checkpoints {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.thread-workbench-checkpoints > div:first-child,
+.thread-workbench-checkpoints .thread-workbench-checkpoint-details,
+.thread-workbench-checkpoint-list > div {
+  display: flex;
+  gap: 7px;
+}
+
+.thread-workbench-checkpoints > div:first-child,
+.thread-workbench-checkpoints .thread-workbench-checkpoint-details {
+  flex-direction: column;
+}
+
+.thread-workbench-checkpoints small,
+.thread-workbench-checkpoints p {
+  margin: 0;
+  color: color-mix(in srgb, currentColor 62%, transparent);
+  font-size: 10px;
+}
+
+.thread-workbench-checkpoint-list {
+  display: grid;
+  gap: 6px;
+}
+
+.thread-workbench-checkpoint-list > div {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.thread-workbench-checkpoint-list button {
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--thread-workbench-accent);
+  cursor: pointer;
+  font: 650 10px / 1 var(--font-sans, system-ui, sans-serif);
+  padding: 5px 7px;
+}
+
 .thread-workbench-list,
 .thread-workbench-command-list,
 .thread-workbench-plan-list {
