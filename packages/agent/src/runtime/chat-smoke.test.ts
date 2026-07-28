@@ -90,11 +90,15 @@ describe("chat turn orchestration", () => {
     vi.clearAllMocks();
   });
 
-  it("returns slash command responses and skips post-command execution", async () => {
-    const runSlashCommandTurn = vi.fn(async () => "slash-result");
-    const runPostCommandTurn = vi.fn(async () => "post-result");
+  it("routes explicit commands through the SDK message lifecycle", async () => {
+    let effectiveInput: ChatTurnRequest | undefined;
+    const runPostCommandTurn = vi.fn(
+      async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
+        effectiveInput = nextInput;
+        return "post-result";
+      },
+    );
 
-    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -107,13 +111,12 @@ describe("chat turn orchestration", () => {
       { personalityId: "analyst" },
     );
 
-    expect(response).toBe("slash-result");
-    expect(runSlashCommandTurn).toHaveBeenCalledTimes(1);
-    expect(runPostCommandTurn).not.toHaveBeenCalled();
+    expect(response).toBe("post-result");
+    expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
+    expect(effectiveInput?.message).toBe("/help");
   });
 
   it("falls back to post-command flow for non-command input", async () => {
-    const runSlashCommandTurn = vi.fn(async () => "should-not-run");
     let effectiveInput: ChatTurnRequest | undefined;
     const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
@@ -122,7 +125,6 @@ describe("chat turn orchestration", () => {
       },
     );
 
-    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -135,7 +137,6 @@ describe("chat turn orchestration", () => {
     );
 
     expect(response).toBe("post-result");
-    expect(runSlashCommandTurn).not.toHaveBeenCalled();
     expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
     expect(effectiveInput).toMatchObject({
       message: "how are you?",
@@ -144,7 +145,6 @@ describe("chat turn orchestration", () => {
   });
 
   it("skips slash command layer when workflow remaps command input", async () => {
-    const runSlashCommandTurn = vi.fn(async () => "slash-result");
     let effectiveInput: ChatTurnRequest | undefined;
     const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
@@ -153,7 +153,6 @@ describe("chat turn orchestration", () => {
       },
     );
 
-    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -171,16 +170,13 @@ describe("chat turn orchestration", () => {
     );
 
     expect(response).toBe("post-result");
-    expect(runSlashCommandTurn).not.toHaveBeenCalled();
     expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
     expect(effectiveInput?.message).toBe("run diagnostics on workspace");
   });
 
-  it("falls back to post-command when slash command does not return output", async () => {
-    const runSlashCommandTurn = vi.fn(async () => undefined);
+  it("lets unknown slash input continue through the SDK lifecycle", async () => {
     const runPostCommandTurn = vi.fn(async () => "post-result");
 
-    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -193,12 +189,10 @@ describe("chat turn orchestration", () => {
     );
 
     expect(response).toBe("post-result");
-    expect(runSlashCommandTurn).toHaveBeenCalledTimes(1);
     expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
   });
 
   it("retries the latest conversational turn without routing through slash command storage", async () => {
-    const runSlashCommandTurn = vi.fn(async () => "slash-result");
     let retryInput: ChatTurnRequest | undefined;
     const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
@@ -221,7 +215,6 @@ describe("chat turn orchestration", () => {
       deletedMessages: 2,
     }));
 
-    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -244,7 +237,6 @@ describe("chat turn orchestration", () => {
     expect(deleteLatestExchange).toHaveBeenCalledWith("room:alice", {
       skipSlashCommands: true,
     });
-    expect(runSlashCommandTurn).not.toHaveBeenCalled();
     expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
     expect(retryInput?.message).toBe("ship the operator loop");
   });
@@ -288,9 +280,6 @@ describe("chat turn orchestration", () => {
       _data: "IyBSZXZpZXc=",
       _mimeType: "text/markdown",
     };
-    vi.doMock("@/runtime/chat-turn/command", () => ({
-      runSlashCommandTurn: async () => undefined,
-    }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -337,10 +326,8 @@ describe("chat turn orchestration", () => {
   });
 
   it("returns a truthful retry message when no prior conversational turn exists", async () => {
-    const runSlashCommandTurn = vi.fn(async () => "slash-result");
     const runPostCommandTurn = vi.fn(async () => "post-result");
 
-    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
     vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
@@ -366,7 +353,6 @@ describe("chat turn orchestration", () => {
     expect(response).toBe(
       "No prior conversational turn is available to retry.",
     );
-    expect(runSlashCommandTurn).not.toHaveBeenCalled();
     expect(runPostCommandTurn).not.toHaveBeenCalled();
   });
 });

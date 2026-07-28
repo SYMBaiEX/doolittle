@@ -1,5 +1,7 @@
 import {
   createAgentContextProviders,
+  createCommandAction,
+  createCommandShortcut,
   createFileActions,
   createMemoryAction,
   createMemoryNudgeEvaluator,
@@ -7,7 +9,6 @@ import {
   createResearchAction,
   createSelfAwarenessProvider,
   createSessionSearchAction,
-  createSkillsAction,
   createTerminalAction,
   createWorkspaceAction,
 } from "@doolittle/agent/plugin-api";
@@ -30,8 +31,8 @@ export function createDoolittlePluginSurface({
   config,
 }: DoolittlePluginDependencies): Plugin {
   const actions: Action[] = [
+    createCommandAction(services, config),
     createMemoryAction(services),
-    createSkillsAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
     triggerAction,
     ...createFileActions(() => services.workspace.root()),
@@ -60,7 +61,10 @@ export function createDoolittlePluginSurface({
       "Persistent memory, skills, search, and scheduling for Doolittle on ElizaOS.",
     actions,
     providers,
-    shortcuts: DOOLITTLE_SDK_SHORTCUTS,
+    shortcuts: [
+      ...DOOLITTLE_SDK_SHORTCUTS,
+      createCommandShortcut(config.workspaceDir),
+    ],
     evaluators,
     services: [
       GatewayRuntimeService,

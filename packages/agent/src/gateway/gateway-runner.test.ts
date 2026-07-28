@@ -109,7 +109,7 @@ describe("GatewayRunner", () => {
         platform: "api",
         userId: "user-1",
         roomId: "room-1",
-        text: "/user list",
+        text: "/retry",
         messageId: "msg-api-1",
         metadata: {
           attachmentCount: "2",

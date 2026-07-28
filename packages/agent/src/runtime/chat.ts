@@ -1,6 +1,5 @@
 import { buildCommandResponse } from "@/runtime/chat-command-router";
 import { runDelegationTaskInWorker as runDelegationTaskInWorkerImpl } from "@/runtime/chat-delegation-worker";
-import { runSlashCommandTurn } from "@/runtime/chat-turn/command";
 import { runPostCommandTurn } from "@/runtime/chat-turn/post-command";
 import { prepareTurnState } from "@/runtime/chat-turn/state";
 import {
@@ -203,31 +202,7 @@ export async function handleAgentTurn(
         message: workflowCommand.prompt,
       }
     : input;
-  const responseFromCommandLayer =
-    !workflowCommand && trimmedMessage.startsWith("/")
-      ? await runSlashCommandTurn(
-          {
-            input,
-            context,
-            options,
-            perf,
-            preparedTurn,
-          },
-          {
-            buildCommandResponse,
-            runAnalysis: (prompt, label) =>
-              runModelAnalysisTurn(context, prompt, label, {
-                personalityId: context.services.personalities.getActive().id,
-              }),
-            runDelegationTaskInWorker: (taskId, turnOptions) =>
-              runDelegationTaskInWorker(context, taskId, turnOptions),
-          },
-        )
-      : undefined;
-  perf.mark("command-layer");
-  if (responseFromCommandLayer) {
-    return responseFromCommandLayer;
-  }
+  perf.mark("sdk-shortcut-layer");
   return runPostCommandTurn(
     input,
     effectiveInput,
