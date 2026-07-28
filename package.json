@@ -2,6 +2,10 @@
   "name": "doolittle",
   "version": "0.1.0",
   "private": true,
+  "elizaSdk": {
+    "channel": "beta",
+    "version": "2.0.3-beta.7"
+  },
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -58,8 +62,9 @@
     "test:e2e": "nub run desktop:build && nubx --node playwright test",
     "check:repo-hygiene": "nub scripts/check-repo-hygiene.ts",
     "check:plugin-boundaries": "nub scripts/check-plugin-boundaries.ts",
+    "check:eliza-sdk": "nub scripts/check-eliza-sdk-release.ts",
     "check:docs-truth": "nub scripts/sync-doc-truth.ts --check",
-    "check:acceptance": "nub run check:repo-hygiene && nub run check:plugin-boundaries && nub run check:docs-truth",
+    "check:acceptance": "nub run check:repo-hygiene && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth",
     "check": "nub run lint:check && nub run typecheck && nub run test && nub run build",
     "publish:codex:dry-run": "nub run publish:providers -- --provider codex",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
