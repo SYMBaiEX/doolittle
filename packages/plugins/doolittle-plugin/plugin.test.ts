@@ -50,7 +50,7 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     expect(onlinePlugin.priority).toBeUndefined();
   });
 
-  it("registers the Eliza SDK web search and fetch actions", () => {
+  it("registers Eliza web actions with only the explicit command shortcut", () => {
     const plugin = createDoolittlePlugin({
       services: {} as never,
       config: createConfig({ offlineBootstrapMode: false }),
@@ -59,14 +59,8 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     expect(plugin.actions?.map((action) => action.name)).toEqual(
       expect.arrayContaining(["WEB_SEARCH", "WEB_FETCH"]),
     );
-    expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual(
-      expect.arrayContaining([
-        "doolittle-web-search-command",
-        "doolittle-web-search-natural",
-        "doolittle-repository-natural",
-        "doolittle-workspace-overview-natural",
-        "doolittle-workspace-search-natural",
-      ]),
-    );
+    expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual([
+      "doolittle-web-search-command",
+    ]);
   });
 });
