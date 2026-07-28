@@ -24,7 +24,7 @@ async function waitForRenderer(url: string): Promise<void> {
   throw new Error(`Renderer did not start at ${url}.`);
 }
 
-const build = run("bun", ["run", "build:main"]);
+const build = run("nub", ["run", "build:main"]);
 const buildExit = await new Promise<number>((resolve) => {
   build.once("exit", (code) => resolve(code ?? 1));
 });
@@ -34,7 +34,7 @@ if (buildExit !== 0) {
 }
 
 const rendererUrl = "http://127.0.0.1:5173";
-const vite = run("bunx", [
+const vite = run("nubx", [
   "vite",
   "--config",
   "vite.renderer.config.ts",
@@ -50,7 +50,7 @@ try {
   vite.kill("SIGTERM");
   throw error;
 }
-const electron = run("bunx", ["electron", "."], {
+const electron = run("nubx", ["electron", "."], {
   ...process.env,
   DOOLITTLE_RENDERER_URL: rendererUrl,
 });

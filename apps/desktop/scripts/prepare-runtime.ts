@@ -1,64 +1,19 @@
 import {
-  chmodSync,
+  copyFileSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build, type Plugin } from "esbuild";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const outputDir = resolve(desktopRoot, "build", "runtime");
-const generatedEntry = resolve(desktopRoot, "build", "runtime-entry.ts");
-
-const TARGETS = {
-  "darwin-arm64": "bun-darwin-arm64",
-  "darwin-x64": "bun-darwin-x64",
-  "linux-arm64": "bun-linux-arm64",
-  "linux-x64": "bun-linux-x64-baseline",
-  "win-arm64": "bun-windows-arm64",
-  "win-x64": "bun-windows-x64-baseline",
-} as const;
-
-type RuntimeTarget = keyof typeof TARGETS;
-
-function hostTarget(): RuntimeTarget {
-  const platform = process.platform === "win32" ? "win" : process.platform;
-  const candidate = `${platform}-${process.arch}` as RuntimeTarget;
-  if (!(candidate in TARGETS)) {
-    throw new Error(
-      `Unsupported desktop runtime host: ${process.platform}-${process.arch}`,
-    );
-  }
-  return candidate;
-}
-
-function requestedTarget(): RuntimeTarget {
-  const argument = process.argv
-    .slice(2)
-    .find((value) => value.startsWith("--target="));
-  const target = (argument?.slice("--target=".length) ||
-    hostTarget()) as RuntimeTarget;
-  if (!(target in TARGETS)) {
-    throw new Error(
-      `Unsupported runtime target "${target}". Expected one of: ${Object.keys(TARGETS).join(", ")}`,
-    );
-  }
-  return target;
-}
-
-const target = requestedTarget();
-const outputName = target.startsWith("win-")
-  ? "doolittle-runtime.exe"
-  : "doolittle-runtime";
-const outputPath = resolve(outputDir, outputName);
-
-rmSync(outputDir, { recursive: true, force: true });
-mkdirSync(outputDir, { recursive: true });
-
+const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const pgliteDist = resolve(
   repoRoot,
   "node_modules",
@@ -66,7 +21,11 @@ const pgliteDist = resolve(
   "pglite",
   "dist",
 );
-const embeddedPgliteAssets = readdirSync(pgliteDist)
+
+rmSync(outputDir, { recursive: true, force: true });
+mkdirSync(outputDir, { recursive: true });
+
+const pgliteAssets = readdirSync(pgliteDist)
   .filter(
     (fileName) =>
       fileName.endsWith(".tar.gz") ||
@@ -74,109 +33,95 @@ const embeddedPgliteAssets = readdirSync(pgliteDist)
       fileName === "pglite.data",
   )
   .sort();
-const assetImports = embeddedPgliteAssets
-  .map(
-    (fileName, index) =>
-      `import embeddedPgliteAsset${index} from "../../../node_modules/@electric-sql/pglite/dist/${fileName}" with { type: "file" };`,
-  )
-  .join("\n");
-const assetReferences = embeddedPgliteAssets
-  .map((_, index) => `embeddedPgliteAsset${index}`)
-  .join(", ");
-writeFileSync(
-  generatedEntry,
-  `${assetImports}
-const embeddedPgliteAssets = [${assetReferences}];
-if (embeddedPgliteAssets.length === 0) {
-  throw new Error("Doolittle Desktop runtime is missing PGlite assets.");
-}
-await import("../../../packages/agent/src/index.ts");
-`,
-  "utf8",
-);
 
-console.log(
-  `Compiling the self-contained Doolittle runtime for ${target} (${TARGETS[target]}, ${embeddedPgliteAssets.length} embedded database assets)…`,
-);
-const pgliteCompiledAssetPlugin: Bun.BunPlugin = {
-  name: "pglite-compiled-asset-paths",
-  setup(build) {
-    build.onLoad(
-      {
-        filter: /@electric-sql[\\/]pglite[\\/]dist[\\/]index\.js$/,
-      },
-      ({ path }) => {
-        const source = readFileSync(path, "utf8");
-        const marker = "if(!t.existsSync(e))throw new Error";
-        if (!source.includes(marker)) {
-          throw new Error(
-            `PGlite compiled-asset loader marker changed in ${path}.`,
-          );
-        }
-        return {
-          contents: source.replace(
-            marker,
-            'if(typeof Bun<"u"){let r=Bun.file(e);if(await r.exists())return new Blob([Bun.gunzipSync(new Uint8Array(await r.arrayBuffer()))])}if(!t.existsSync(e))throw new Error',
-          ),
-          loader: "js",
-        };
-      },
-    );
-    build.onLoad(
-      {
-        filter:
-          /@electric-sql[\\/]pglite[\\/]dist[\\/](?:vector[\\/]index|contrib[\\/]fuzzystrmatch)\.js$/,
-      },
+for (const fileName of pgliteAssets) {
+  copyFileSync(resolve(pgliteDist, fileName), resolve(outputDir, fileName));
+}
+
+const pgliteBundlePaths: Plugin = {
+  name: "pglite-bundle-paths",
+  setup(esbuild) {
+    esbuild.onLoad(
+      { filter: /@electric-sql[\\/]pglite[\\/]dist[\\/].*\.js$/ },
       ({ path }) => ({
-        contents: readFileSync(path, "utf8")
-          .replace("../vector.tar.gz", "./vector.tar.gz")
-          .replace("../fuzzystrmatch.tar.gz", "./fuzzystrmatch.tar.gz"),
+        contents: readFileSync(path, "utf8").replaceAll(
+          /new URL\("\.\.\/([^"]+\.tar\.gz)",import\.meta\.url\)/g,
+          'new URL("./$1",import.meta.url)',
+        ),
         loader: "js",
       }),
     );
   },
 };
-const result = await Bun.build({
-  entrypoints: [generatedEntry],
-  target: "bun",
-  naming: { asset: "[name].[ext]" },
-  plugins: [pgliteCompiledAssetPlugin],
-  compile: {
-    target: TARGETS[target],
-    outfile: outputPath,
-    autoloadDotenv: false,
-    autoloadBunfig: false,
-    autoloadPackageJson: false,
-    autoloadTsconfig: false,
-    ...(target.startsWith("win-")
-      ? {
-          windows: {
-            hideConsole: true,
-            title: "Doolittle Runtime",
-            description: "Private runtime for Doolittle Desktop",
-          },
-        }
-      : {}),
+
+console.log(
+  `Bundling the Doolittle runtime for Electron's embedded Node (${pgliteAssets.length} database assets)…`,
+);
+
+await build({
+  absWorkingDir: repoRoot,
+  entryPoints: [resolve(repoRoot, "packages", "agent", "src", "index.ts")],
+  outfile: outputPath,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  // Electron 43 embeds Node 24. Keep the packaged runtime syntax compatible
+  // with the Node version that actually executes it, not the repository pin.
+  target: "node24",
+  minify: true,
+  sourcemap: false,
+  legalComments: "none",
+  logLevel: "info",
+  plugins: [pgliteBundlePaths],
+  alias: {
+    "@elizaos/registry/first-party/curated-app-definitions.json": resolve(
+      repoRoot,
+      "packages",
+      "registry",
+      "src",
+      "first-party",
+      "curated-app-definitions.json",
+    ),
+    dotenv: resolve(repoRoot, "node_modules", "dotenv", "lib", "main.js"),
   },
+  banner: {
+    js: [
+      'import { createRequire as __doolittleCreateRequire } from "node:module";',
+      "const require = __doolittleCreateRequire(import.meta.url);",
+    ].join("\n"),
+  },
+  external: [
+    "electron",
+    "sharp",
+    "term.js",
+    "pty.js",
+    "onnxruntime-node",
+    "@napi-rs/keyring",
+    "@napi-rs/keyring-*",
+    "@node-llama-cpp/*",
+    "@elizaos/plugin-local-inference",
+    "@elizaos/plugin-aosp-local-inference",
+  ],
 });
 
-if (!result.success) {
-  for (const log of result.logs) {
-    console.error(log);
-  }
-  process.exit(1);
-}
+// The source entrypoint uses `#!/usr/bin/env nub` for source-checkout launches.
+// Packaged apps execute this bundle as an argument to Electron's embedded Node,
+// so retaining that source-only launcher hint is misleading and unnecessary.
+const bundledRuntime = readFileSync(outputPath, "utf8");
+writeFileSync(
+  outputPath,
+  bundledRuntime.replace(/^#![^\r\n]*(?:\r?\n|$)/u, ""),
+  "utf8",
+);
 
-if (!target.startsWith("win-")) {
-  chmodSync(outputPath, 0o755);
-}
 writeFileSync(
   resolve(outputDir, "runtime-manifest.json"),
   `${JSON.stringify(
     {
-      target,
-      bunTarget: TARGETS[target],
-      executable: outputName,
+      runtime: "node",
+      entry: basename(outputPath),
+      node: "electron-embedded",
+      assets: pgliteAssets.length,
     },
     null,
     2,

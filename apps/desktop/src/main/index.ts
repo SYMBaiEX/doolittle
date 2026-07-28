@@ -20,6 +20,7 @@ import {
   sourceRuntimeTarget,
 } from "./backend";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
+import { importRecordedAudio } from "./recorded-audio-import";
 import {
   isTrustedRendererNavigation,
   trustedDevRendererUrl,
@@ -40,6 +41,7 @@ let mainWindow: BrowserWindow | null = null;
 let backend: BackendManager | null = null;
 let workspaceState: WorkspaceStateManager | null = null;
 let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
+let workspaceSwitchQueue: Promise<void> = Promise.resolve();
 let disposeIpc: (() => void) | null = null;
 let quitting = false;
 
@@ -87,6 +89,38 @@ async function pickFiles() {
   };
 }
 
+async function pickProjectFiles() {
+  const options: Electron.OpenDialogOptions = {
+    title: "Add files to this project",
+    buttonLabel: "Add to project",
+    properties: ["openFile", "multiSelections", "dontAddToRecent"],
+  };
+  const result = mainWindow
+    ? await dialog.showOpenDialog(mainWindow, options)
+    : await dialog.showOpenDialog(options);
+  return {
+    canceled: result.canceled,
+    kind: "file" as const,
+    paths: result.canceled ? [] : result.filePaths,
+  };
+}
+
+async function pickProjectFolders() {
+  const options: Electron.OpenDialogOptions = {
+    title: "Add folders to this project",
+    buttonLabel: "Add to project",
+    properties: ["openDirectory", "multiSelections", "dontAddToRecent"],
+  };
+  const result = mainWindow
+    ? await dialog.showOpenDialog(mainWindow, options)
+    : await dialog.showOpenDialog(options);
+  return {
+    canceled: result.canceled,
+    kind: "folder" as const,
+    paths: result.canceled ? [] : result.filePaths,
+  };
+}
+
 async function pickChatAttachments(runtimeDataDir: string) {
   const options = {
     title: "Attach files to this message",
@@ -121,13 +155,51 @@ async function pickWorkspaceImpl(): Promise<WorkspacePickResult> {
   const result = mainWindow
     ? await dialog.showOpenDialog(mainWindow, options)
     : await dialog.showOpenDialog(options);
-  const selection = workspaceState.applyPickerResult({
-    canceled: result.canceled,
-    filePaths: result.filePaths,
+  if (result.canceled) {
+    return workspaceState.applyPickerResult({
+      canceled: true,
+      filePaths: [],
+    });
+  }
+  const selectedPath = result.filePaths[0];
+  if (!selectedPath) {
+    throw new Error("The directory picker did not return a workspace.");
+  }
+  const normalizedPath = normalizeWorkspaceDirectory(selectedPath);
+  await backend.switchWorkspace(normalizedPath);
+  return workspaceState.applyPickerResult({
+    canceled: false,
+    filePaths: [normalizedPath],
   });
-  if (selection.canceled) return selection;
-  await backend.switchWorkspace(selection.state.currentPath);
-  return selection;
+}
+
+async function switchRecentWorkspaceImpl(
+  requestedPath: string,
+): Promise<WorkspacePickResult> {
+  if (!workspaceState || !backend) {
+    throw new Error("The desktop workspace manager is not ready.");
+  }
+  const normalizedPath = normalizeWorkspaceDirectory(requestedPath);
+  const pathKey =
+    process.platform === "win32"
+      ? normalizedPath.toLowerCase()
+      : normalizedPath;
+  const allowed = workspaceState
+    .getState()
+    .recentPaths.some(
+      (path) =>
+        (process.platform === "win32" ? path.toLowerCase() : path) === pathKey,
+    );
+  if (!allowed) {
+    throw new Error(
+      "This folder is not in recent workspaces. Choose it with Open workspace first.",
+    );
+  }
+  await backend.switchWorkspace(normalizedPath);
+  return workspaceState.applyPickerResult({
+    canceled: false,
+    filePaths: [normalizedPath],
+  });
 }
 
 function pickWorkspace(): Promise<WorkspacePickResult> {
@@ -136,6 +208,17 @@ function pickWorkspace(): Promise<WorkspacePickResult> {
     workspacePickInFlight = null;
   });
   return workspacePickInFlight;
+}
+
+function switchRecentWorkspace(path: string): Promise<WorkspacePickResult> {
+  const operation = workspaceSwitchQueue.then(() =>
+    switchRecentWorkspaceImpl(path),
+  );
+  workspaceSwitchQueue = operation.then(
+    () => undefined,
+    () => undefined,
+  );
+  return operation;
 }
 
 function reportWorkspacePickerError(error: unknown): void {
@@ -411,11 +494,15 @@ app.whenReady().then(async () => {
       getState: () =>
         workspaceState?.getState() ?? { currentPath: "", recentPaths: [] },
       pickWorkspace,
+      switchWorkspace: switchRecentWorkspace,
       subscribe: (listener) =>
         workspaceState?.subscribe(listener) ?? (() => undefined),
     },
     { notify: showBackgroundNotification },
     () => pickChatAttachments(runtimeDataDir),
+    pickProjectFiles,
+    pickProjectFolders,
+    (request) => importRecordedAudio(request, runtimeDataDir),
   );
   mainWindow.on("closed", () => {
     mainWindow = null;

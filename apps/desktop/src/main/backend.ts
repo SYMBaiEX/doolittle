@@ -38,12 +38,13 @@ export function buildBackendEnvironment(
   workspaceDir: string,
   baseEnvironment: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  return {
+  const environment: NodeJS.ProcessEnv = {
     ...baseEnvironment,
     DOOLITTLE_REPO_ROOT: repoRoot,
     DOOLITTLE_HOST: "127.0.0.1",
     DOOLITTLE_PORT: "0",
     DOOLITTLE_MODE: "api",
+    DOOLITTLE_DESKTOP_RUNTIME: "1",
     DOOLITTLE_OFFLINE_BOOTSTRAP:
       baseEnvironment.DOOLITTLE_OFFLINE_BOOTSTRAP || "true",
     DOOLITTLE_USE_LINKED_DEVIN_AUTH:
@@ -59,6 +60,11 @@ export function buildBackendEnvironment(
     DATABASE_URL: "",
     POSTGRES_URL: "",
   };
+
+  // The backend runs through Electron's embedded Node binary. Never forward
+  // host loaders or debugger hooks that Electron rejected for its own process.
+  delete environment.NODE_OPTIONS;
+  return environment;
 }
 
 export function findRepoRoot(startPaths: string[]): string {
@@ -77,27 +83,27 @@ export interface BackendLaunchTarget {
   executable: string;
   args: string[];
   repoRoot: string;
+  environment?: NodeJS.ProcessEnv;
 }
 
 export function findPackagedRuntime(
   resourcesPath: string,
 ): BackendLaunchTarget | null {
   const runtimeRoot = resolve(resourcesPath, "runtime");
-  const executable = resolve(
-    runtimeRoot,
-    "bin",
-    process.platform === "win32"
-      ? "doolittle-runtime.exe"
-      : "doolittle-runtime",
-  );
-  return existsSync(executable)
-    ? { executable, args: ["api"], repoRoot: runtimeRoot }
+  const entry = resolve(runtimeRoot, "bin", "doolittle-runtime.mjs");
+  return existsSync(entry)
+    ? {
+        executable: process.execPath,
+        args: [entry, "api"],
+        repoRoot: runtimeRoot,
+        environment: { ELECTRON_RUN_AS_NODE: "1" },
+      }
     : null;
 }
 
 export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
   return {
-    executable: resolveBunExecutable(),
+    executable: resolveNubExecutable(repoRoot),
     args: ["packages/agent/src/index.ts", "api"],
     repoRoot,
   };
@@ -117,6 +123,7 @@ export class BackendManager {
     private readonly target: BackendLaunchTarget,
     private readonly runtimeDataDir: string,
     private workspaceDir: string,
+    private readonly runtimeFetch: typeof fetch = fetch,
   ) {}
 
   getState(): BackendState {
@@ -141,8 +148,17 @@ export class BackendManager {
     return this.startup;
   }
 
-  async restart(): Promise<BackendState> {
-    await this.stop();
+  async restart(
+    message = "Restarting the private Doolittle runtime…",
+  ): Promise<BackendState> {
+    // Publish the transition before terminating the old process. Renderer
+    // requests made during a workspace handoff can then wait for the next
+    // runtime instead of racing the socket that is about to close.
+    this.update({
+      phase: "booting",
+      message,
+    });
+    await this.stop(false);
     const pendingStartup = this.startup;
     if (pendingStartup) await pendingStartup;
     return this.start();
@@ -151,8 +167,56 @@ export class BackendManager {
   async switchWorkspace(workspaceDir: string): Promise<BackendState> {
     const nextWorkspace = resolve(workspaceDir);
     if (nextWorkspace === this.workspaceDir) return this.getState();
-    this.workspaceDir = nextWorkspace;
-    return this.restart();
+
+    let state = this.getState();
+    if (state.phase !== "ready" || !state.url) {
+      if (state.phase === "stopped" || state.phase === "degraded") {
+        this.workspaceDir = nextWorkspace;
+      }
+      state = await this.start();
+    }
+    if (state.phase !== "ready" || !state.url) {
+      throw new Error(
+        state.detail ?? "The local runtime was not ready to change workspaces.",
+      );
+    }
+
+    const response = await this.runtimeFetch(`${state.url}/runtime/workspace`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ workspaceDir: nextWorkspace }),
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        error?: unknown;
+      } | null;
+      throw new Error(
+        typeof payload?.error === "string"
+          ? payload.error
+          : `The runtime rejected the workspace change (${response.status}).`,
+      );
+    }
+    const payload = (await response.json()) as {
+      workspaceDir?: unknown;
+      processId?: unknown;
+    };
+    if (
+      typeof payload.workspaceDir !== "string" ||
+      resolve(payload.workspaceDir) !== nextWorkspace
+    ) {
+      throw new Error("The runtime did not confirm the selected workspace.");
+    }
+    if (
+      typeof payload.processId !== "number" ||
+      !Number.isSafeInteger(payload.processId) ||
+      payload.processId <= 0
+    ) {
+      throw new Error("The runtime returned an invalid process identity.");
+    }
+
+    this.workspaceDir = payload.workspaceDir;
+    return this.getState();
   }
 
   private async startImpl(
@@ -179,6 +243,10 @@ export class BackendManager {
         this.runtimeDataDir,
         this.target.repoRoot,
         this.workspaceDir,
+        {
+          ...process.env,
+          ...this.target.environment,
+        },
       ),
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
@@ -270,7 +338,7 @@ export class BackendManager {
     let lastError = "Health endpoint did not respond.";
     while (Date.now() < deadline) {
       try {
-        const response = await fetch(`${url}/health`, {
+        const response = await this.runtimeFetch(`${url}/health`, {
           signal: AbortSignal.timeout(2_000),
         });
         if (response.ok) return;
@@ -285,9 +353,17 @@ export class BackendManager {
     throw new Error(`Runtime health check timed out: ${lastError}`);
   }
 
-  async stop(): Promise<void> {
+  async stop(updateState = true): Promise<void> {
     const child = this.child;
-    if (!child) return;
+    if (!child) {
+      if (updateState) {
+        this.update({
+          phase: "stopped",
+          message: "The local runtime is stopped.",
+        });
+      }
+      return;
+    }
     this.stopping = true;
     this.child = null;
     child.kill("SIGTERM");
@@ -303,7 +379,12 @@ export class BackendManager {
         }, 3_000),
       ),
     ]);
-    this.update({ phase: "stopped", message: "The local runtime is stopped." });
+    if (updateState) {
+      this.update({
+        phase: "stopped",
+        message: "The local runtime is stopped.",
+      });
+    }
   }
 
   private update(state: BackendState): void {
@@ -312,13 +393,15 @@ export class BackendManager {
   }
 }
 
-function resolveBunExecutable(): string {
-  if (process.env.DOOLITTLE_BUN_PATH) return process.env.DOOLITTLE_BUN_PATH;
-  const executable = process.platform === "win32" ? "bun.exe" : "bun";
+function resolveNubExecutable(repoRoot: string): string {
+  if (process.env.DOOLITTLE_NUB_PATH) return process.env.DOOLITTLE_NUB_PATH;
+  const executable = process.platform === "win32" ? "nub.exe" : "nub";
   const candidates = [
-    resolve(homedir(), ".bun/bin", executable),
+    resolve(repoRoot, "node_modules", ".bin", executable),
+    resolve(homedir(), ".nub", "bin", executable),
+    resolve(homedir(), ".local", "bin", executable),
     ...(process.platform === "darwin"
-      ? ["/opt/homebrew/bin/bun", "/usr/local/bin/bun"]
+      ? ["/opt/homebrew/bin/nub", "/usr/local/bin/nub"]
       : []),
   ];
   return candidates.find(existsSync) ?? executable;

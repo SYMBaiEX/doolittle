@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const args = process.argv.slice(2);
 const env = { ...process.env };
 const unpackedDirectories =
@@ -36,11 +37,21 @@ if (
   env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
 }
 
-const result = spawnSync(process.execPath, ["x", "electron-builder", ...args], {
-  cwd: desktopRoot,
-  env,
-  stdio: "inherit",
-});
+const localNubx = resolve(
+  repoRoot,
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "nubx.cmd" : "nubx",
+);
+const result = spawnSync(
+  existsSync(localNubx) ? localNubx : "nubx",
+  ["--node", "electron-builder", ...args],
+  {
+    cwd: desktopRoot,
+    env,
+    stdio: "inherit",
+  },
+);
 if (result.status !== 0 && args.includes("--dir")) {
   for (const directory of unpackedDirectories) {
     rmSync(directory, { recursive: true, force: true });

@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import {
   existsSync,
   mkdirSync,
@@ -8,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
   BackendManager,
   buildBackendEnvironment,
@@ -28,6 +28,7 @@ describe("buildBackendEnvironment", () => {
         DATABASE_URL: "postgres://checkout",
         POSTGRES_URL: "postgres://checkout",
         DOOLITTLE_GATEWAY_DATA_DIR: ".doolittle/gateway",
+        NODE_OPTIONS: "--require /tmp/host-hook.cjs",
       },
     );
 
@@ -36,6 +37,7 @@ describe("buildBackendEnvironment", () => {
       DOOLITTLE_HOST: "127.0.0.1",
       DOOLITTLE_PORT: "0",
       DOOLITTLE_MODE: "api",
+      DOOLITTLE_DESKTOP_RUNTIME: "1",
       DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
       DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
       DOOLITTLE_DATA_DIR: runtimeDataDir,
@@ -49,11 +51,13 @@ describe("buildBackendEnvironment", () => {
       DATABASE_URL: "",
       POSTGRES_URL: "",
     });
+    expect(environment.NODE_OPTIONS).toBeUndefined();
   });
 
-  it("uses the mutable workspace on the next backend restart", async () => {
+  it("hands a new workspace to the running backend without restarting it", async () => {
     const initialWorkspace = resolve("/Users", "example", "initial");
     const nextWorkspace = resolve("/Users", "example", "next");
+    const requests: string[] = [];
     const backend = new BackendManager(
       {
         executable: "unused",
@@ -62,8 +66,26 @@ describe("buildBackendEnvironment", () => {
       },
       resolve("/tmp", "doolittle-desktop-runtime"),
       initialWorkspace,
+      (async (input) => {
+        requests.push(String(input));
+        return new Response(
+          JSON.stringify({
+            workspaceDir: nextWorkspace,
+            processId: process.pid,
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      }) as typeof fetch,
     );
     let restarts = 0;
+    backend.start = async () => ({
+      phase: "ready",
+      url: "http://127.0.0.1:31337",
+      message: "ready",
+    });
     backend.restart = async () => {
       restarts += 1;
       return backend.getState();
@@ -71,10 +93,12 @@ describe("buildBackendEnvironment", () => {
 
     await backend.switchWorkspace(nextWorkspace);
     expect(backend.getWorkspaceDirectory()).toBe(nextWorkspace);
-    expect(restarts).toBe(1);
+    expect(restarts).toBe(0);
+    expect(requests).toEqual(["http://127.0.0.1:31337/runtime/workspace"]);
 
     await backend.switchWorkspace(nextWorkspace);
-    expect(restarts).toBe(1);
+    expect(restarts).toBe(0);
+    expect(requests).toHaveLength(1);
     expect(
       buildBackendEnvironment(
         resolve("/tmp", "doolittle-desktop-runtime"),
@@ -82,6 +106,29 @@ describe("buildBackendEnvironment", () => {
         backend.getWorkspaceDirectory(),
       ).DOOLITTLE_WORKSPACE_DIR,
     ).toBe(nextWorkspace);
+  });
+
+  it("announces a restart before the old runtime is stopped", async () => {
+    const backend = new BackendManager(
+      {
+        executable: "unused",
+        args: [],
+        repoRoot: resolve("/opt", "doolittle", "runtime"),
+      },
+      resolve("/tmp", "doolittle-desktop-runtime"),
+      resolve("/Users", "example", "workspace"),
+    );
+    const phases: string[] = [];
+    backend.subscribe((state) => phases.push(state.phase));
+    backend.start = async () => backend.getState();
+
+    await backend.restart();
+
+    expect(phases).toEqual(["booting"]);
+    expect(backend.getState()).toMatchObject({
+      phase: "booting",
+      message: "Restarting the private Doolittle runtime…",
+    });
   });
 });
 

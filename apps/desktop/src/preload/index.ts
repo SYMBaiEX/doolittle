@@ -10,6 +10,7 @@ import type {
   InteractiveTerminalInputRequest,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalStartRequest,
+  RecordedAudioImportRequest,
   RepositoryWorktreeCreateRequest,
   TerminalStreamEvent,
   TerminalStreamRequest,
@@ -29,6 +30,8 @@ const bridge: DoolittleDesktopBridge = {
   },
   getWorkspaceState: () => ipcRenderer.invoke("workspace:get-state"),
   pickWorkspace: () => ipcRenderer.invoke("workspace:pick"),
+  switchWorkspace: (path) =>
+    ipcRenderer.invoke("workspace:switch-recent", path),
   onWorkspaceState: (listener) => {
     const wrapped = (
       _event: Electron.IpcRendererEvent,
@@ -46,7 +49,11 @@ const bridge: DoolittleDesktopBridge = {
     return () => ipcRenderer.removeListener("app:command", wrapped);
   },
   pickFiles: () => ipcRenderer.invoke("dialog:pick-files"),
+  pickProjectFiles: () => ipcRenderer.invoke("dialog:pick-project-files"),
+  pickProjectFolders: () => ipcRenderer.invoke("dialog:pick-project-folders"),
   pickChatAttachments: () => ipcRenderer.invoke("dialog:pick-chat-attachments"),
+  importRecordedAudio: (request: RecordedAudioImportRequest) =>
+    ipcRenderer.invoke("chat:import-recorded-audio", request),
   api: <T>(request: ApiRequest): Promise<T> =>
     ipcRenderer.invoke("api:request", request),
   runCommand: (request: DesktopCommandRequest) =>

@@ -11,12 +11,18 @@ export interface HealthResponse {
   status: string;
   name: string;
   mode: string;
+  processId: number;
+  workspaceDir: string;
 }
 
 export interface SessionSummary {
   sessionId: string;
+  projectId?: string;
   title?: string;
   continuityKey?: string;
+  parentSessionId?: string;
+  forkedFromMessageId?: string;
+  rootSessionId?: string;
   messageCount: number;
   startedAt?: string;
   endedAt?: string;
@@ -28,8 +34,48 @@ export interface SessionsResponse {
   sessions: SessionSummary[];
 }
 
+export type ProjectResourceKind =
+  | "file"
+  | "folder"
+  | "link"
+  | "note"
+  | "source";
+
+export interface ProjectResource {
+  id: string;
+  projectId: string;
+  kind: ProjectResourceKind;
+  label: string;
+  value: string;
+  createdAt: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  instructions?: string;
+  color?: string;
+  icon?: string;
+  primaryPath?: string;
+  pinned: boolean;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  resources: ProjectResource[];
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+}
+
+export interface ProjectResponse {
+  project: Project;
+}
+
 export interface StoredMessage {
   id: string;
+  originMessageId?: string;
   sessionId: string;
   roomId: string;
   entityId: string;
@@ -41,6 +87,74 @@ export interface StoredMessage {
 
 export interface SessionMessagesResponse {
   messages: StoredMessage[];
+}
+
+export interface SessionForkRequest {
+  sourceSessionId: string;
+  throughMessageId?: string;
+  beforeMessageId?: string;
+}
+
+export interface SessionForkResult {
+  sessionId: string;
+  sourceSessionId: string;
+  parentSessionId: string;
+  forkedFromMessageId: string;
+  rootSessionId: string;
+  boundaryMode: "before" | "full" | "through";
+  copiedThroughMessageId?: string;
+  continuityKey: string;
+  copiedMessageCount: number;
+  projectId?: string;
+  summary: SessionSummary;
+}
+
+export interface SessionForkResponse {
+  fork: SessionForkResult;
+}
+
+export type ActivityEventKind =
+  | "chat-run"
+  | "automation"
+  | "delegation"
+  | "approval"
+  | "delivery";
+
+export type ActivityEventStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "skipped"
+  | "approved"
+  | "denied"
+  | "expired"
+  | "used"
+  | "delivered";
+
+export type ActivityEventTarget =
+  | "chat"
+  | "review"
+  | "automations"
+  | "orchestration";
+
+export interface ActivityEvent {
+  id: string;
+  kind: ActivityEventKind;
+  sourceId: string;
+  sessionId?: string;
+  status: ActivityEventStatus;
+  occurredAt: string;
+  title: string;
+  safeSummary: string;
+  target: ActivityEventTarget;
+}
+
+export interface ActivityFeedResponse {
+  events: ActivityEvent[];
+  cursor: string | null;
+  updatedAt: string | null;
 }
 
 export interface SessionSearchHit {
@@ -315,6 +429,8 @@ export type ApiMethod = HttpMethod;
 
 export type AllowedGetPath =
   | "/health"
+  | "/activity"
+  | `/activity?${string}`
   | "/runtime/status"
   | "/runtime/compatibility"
   | "/runtime/plugins"
@@ -334,6 +450,12 @@ export type AllowedGetPath =
   | `/sessions/continuity?${string}`
   | "/sessions/usage"
   | `/sessions/usage?${string}`
+  | "/sessions/export"
+  | `/sessions/export?${string}`
+  | "/projects"
+  | `/projects?${string}`
+  | `/projects/${string}`
+  | `/projects/${string}/resources`
   | `/runtime/registry?${string}`
   | "/settings"
   | "/theme"
@@ -351,6 +473,11 @@ export type AllowedGetPath =
   | "/acp/editor"
   | `/acp/sessions?${string}`
   | `/acp/tools?${string}`
+  | "/mcp/status"
+  | "/mcp/cached"
+  | `/mcp/cached/search?${string}`
+  | `/mcp/cached/describe?${string}`
+  | `/mcp/tool?${string}`
   | "/personality"
   | "/profiles/agent"
   | "/profiles/summary"
@@ -424,10 +551,18 @@ export type AllowedGetPath =
 export type AllowedPostPath =
   | "/settings"
   | "/acp/probe"
+  | "/mcp/probe"
   | "/gateway/replay"
   | "/theme"
   | "/personality"
   | "/sessions/title"
+  | "/sessions/fork"
+  | "/sessions/import/preview"
+  | "/sessions/import"
+  | "/sessions/project"
+  | "/projects"
+  | `/projects/${string}/archive`
+  | `/projects/${string}/resources`
   | "/accounts/refresh"
   | "/accounts/use"
   | "/accounts/connect"
@@ -435,6 +570,7 @@ export type AllowedPostPath =
   | "/accounts/setup-token"
   | "/media/analyze"
   | "/media/transcribe"
+  | "/media/transcribe-attachment"
   | "/media/speak"
   | "/media/generate"
   | "/secrets/get"
@@ -473,8 +609,10 @@ export type AllowedPostPath =
   | `/cron/jobs/${string}/run`
   | `/cron/jobs/${string}/trigger`;
 
-export type AllowedPatchPath = `/cron/jobs/${string}`;
-export type AllowedDeletePath = `/cron/jobs/${string}`;
+export type AllowedPatchPath = `/cron/jobs/${string}` | `/projects/${string}`;
+export type AllowedDeletePath =
+  | `/cron/jobs/${string}`
+  | `/projects/${string}/resources/${string}`;
 
 export interface ApiGetRequest {
   path: AllowedGetPath;
@@ -510,6 +648,7 @@ export interface ChatRequest {
   requestId: string;
   message: string;
   roomId: string;
+  projectId?: string;
   attachmentIds?: string[];
 }
 
@@ -602,6 +741,10 @@ export interface FileSelection {
   paths: string[];
 }
 
+export interface ProjectResourceSelection extends FileSelection {
+  kind: "file" | "folder";
+}
+
 export type ManagedAttachmentKind = "audio" | "document" | "image" | "video";
 
 export interface ManagedAttachmentDescriptor {
@@ -616,6 +759,19 @@ export interface ManagedAttachmentDescriptor {
 export interface AttachmentSelection {
   canceled: boolean;
   attachments: ManagedAttachmentDescriptor[];
+}
+
+export type SupportedRecordedAudioMime =
+  | "audio/mp4"
+  | "audio/mpeg"
+  | "audio/ogg"
+  | "audio/wav"
+  | "audio/webm";
+
+export interface RecordedAudioImportRequest {
+  bytes: Uint8Array;
+  mimeType: SupportedRecordedAudioMime;
+  name: string;
 }
 
 export interface WorkspaceState {
@@ -854,10 +1010,16 @@ export interface DoolittleDesktopBridge {
   onBackendState(listener: (state: BackendState) => void): () => void;
   getWorkspaceState(): Promise<WorkspaceState>;
   pickWorkspace(): Promise<WorkspacePickResult>;
+  switchWorkspace(path: string): Promise<WorkspacePickResult>;
   onWorkspaceState(listener: (state: WorkspaceState) => void): () => void;
   onAppCommand(listener: (command: DesktopCommand) => void): () => void;
   pickFiles(): Promise<FileSelection>;
+  pickProjectFiles(): Promise<ProjectResourceSelection>;
+  pickProjectFolders(): Promise<ProjectResourceSelection>;
   pickChatAttachments(): Promise<AttachmentSelection>;
+  importRecordedAudio(
+    request: RecordedAudioImportRequest,
+  ): Promise<ManagedAttachmentDescriptor>;
   api<T>(request: ApiRequest): Promise<T>;
   runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
   startTerminalRun(request: TerminalStreamRequest): Promise<void>;

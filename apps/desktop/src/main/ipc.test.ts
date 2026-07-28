@@ -1,8 +1,11 @@
-import { describe, expect, it } from "bun:test";
 import type { IpcMain } from "electron";
+import { describe, expect, it } from "vitest";
+import type { BackendState } from "../shared/contracts";
 import type { BackendManager } from "./backend";
 import {
   apiResponseLimit,
+  fetchBackendApi,
+  isRecoverableRuntimeFetchError,
   parseApiPath,
   parseRequestError,
   registerIpc,
@@ -14,6 +17,7 @@ import {
   validateTerminalStreamRequest,
   validateWorkspaceFileSaveRequest,
   validateWorktreeCreateRequest,
+  waitForReadyBackend,
 } from "./ipc";
 
 describe("validateChatAttachmentIds", () => {
@@ -44,6 +48,9 @@ describe("validateChatAttachmentIds", () => {
 describe("apiResponseLimit", () => {
   it("keeps ordinary responses tight and allows bounded artifact payloads", () => {
     expect(apiResponseLimit("/health")).toBe(2_000_000);
+    expect(apiResponseLimit("/sessions/export?sessionId=session-1")).toBe(
+      2_100_000,
+    );
     expect(apiResponseLimit("/codegen/runs/run-123/artifacts/0")).toBe(
       8_000_000,
     );
@@ -57,6 +64,9 @@ describe("parseApiPath", () => {
   it("accepts exact safe GET endpoints", () => {
     expect(parseApiPath("/health", "GET")).toBe("/health");
     expect(parseApiPath("/runtime/status", "GET")).toBe("/runtime/status");
+    expect(parseApiPath("/activity?limit=50", "GET")).toBe(
+      "/activity?limit=50",
+    );
     expect(parseApiPath("/chat/runs/chat:run-1", "GET")).toBe(
       "/chat/runs/chat:run-1",
     );
@@ -82,6 +92,67 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/sessions/usage?sessionId=abc", "GET")).toBe(
       "/sessions/usage?sessionId=abc",
     );
+    expect(parseApiPath("/sessions?projectId=project-1&limit=40", "GET")).toBe(
+      "/sessions?projectId=project-1&limit=40",
+    );
+    expect(
+      parseApiPath(
+        "/sessions/search?query=deploy&projectId=project-1&limit=25",
+        "GET",
+      ),
+    ).toBe("/sessions/search?query=deploy&projectId=project-1&limit=25");
+  });
+
+  it("allows only the declared project management surface", () => {
+    expect(parseApiPath("/projects?includeArchived=true", "GET")).toBe(
+      "/projects?includeArchived=true",
+    );
+    expect(parseApiPath("/projects/project-1", "GET")).toBe(
+      "/projects/project-1",
+    );
+    expect(parseApiPath("/projects/project-1/resources", "GET")).toBe(
+      "/projects/project-1/resources",
+    );
+    expect(parseApiPath("/projects", "POST")).toBe("/projects");
+    expect(parseApiPath("/projects/project-1", "PATCH")).toBe(
+      "/projects/project-1",
+    );
+    expect(parseApiPath("/projects/project-1/archive", "POST")).toBe(
+      "/projects/project-1/archive",
+    );
+    expect(parseApiPath("/projects/project-1/resources", "POST")).toBe(
+      "/projects/project-1/resources",
+    );
+    expect(
+      parseApiPath("/projects/project-1/resources/resource-1", "DELETE"),
+    ).toBe("/projects/project-1/resources/resource-1");
+    expect(parseApiPath("/sessions/project", "POST")).toBe("/sessions/project");
+    expect(() =>
+      parseApiPath("/projects?includeArchived=everything", "GET"),
+    ).toThrow(/Unsupported query/);
+    expect(() =>
+      parseApiPath("/projects/project-1/resources/resource-1", "GET"),
+    ).toThrow(/not available/);
+  });
+
+  it("allows bounded session fork and managed transcription mutations", () => {
+    expect(parseApiPath("/sessions/fork", "POST")).toBe("/sessions/fork");
+    expect(parseApiPath("/sessions/export?sessionId=session-1", "GET")).toBe(
+      "/sessions/export?sessionId=session-1",
+    );
+    expect(parseApiPath("/sessions/import/preview", "POST")).toBe(
+      "/sessions/import/preview",
+    );
+    expect(parseApiPath("/sessions/import", "POST")).toBe("/sessions/import");
+    expect(parseApiPath("/media/transcribe-attachment", "POST")).toBe(
+      "/media/transcribe-attachment",
+    );
+    expect(() => parseApiPath("/sessions/export", "GET")).toThrow(
+      /Unsupported query/,
+    );
+    expect(() =>
+      parseApiPath("/sessions/export?sessionId=session-1&path=secret", "GET"),
+    ).toThrow(/Unsupported query/);
   });
 
   it("allows only the declared query parameters", () => {
@@ -275,6 +346,14 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/secrets/set", "POST")).toBe("/secrets/set");
     expect(parseApiPath("/media/analyze", "POST")).toBe("/media/analyze");
     expect(parseApiPath("/media/transcribe", "POST")).toBe("/media/transcribe");
+    expect(parseApiPath("/mcp/status", "GET")).toBe("/mcp/status");
+    expect(parseApiPath("/mcp/cached/search?query=calendar", "GET")).toBe(
+      "/mcp/cached/search?query=calendar",
+    );
+    expect(parseApiPath("/mcp/probe", "POST")).toBe("/mcp/probe");
+    expect(() =>
+      parseApiPath("/mcp/cached/search?query=ok&extra=no", "GET"),
+    ).toThrow(/Unsupported query/);
     expect(parseApiPath("/media/speak", "POST")).toBe("/media/speak");
     expect(parseApiPath("/media/generate", "POST")).toBe("/media/generate");
     expect(parseApiPath("/cron/jobs/job-123", "PATCH")).toBe(
@@ -564,6 +643,89 @@ describe("parseRequestError", () => {
   });
 });
 
+describe("runtime transition API requests", () => {
+  it("recognizes reset sockets hidden under the fetch error cause", () => {
+    const reset = Object.assign(new Error("read ECONNRESET"), {
+      code: "ECONNRESET",
+    });
+    expect(
+      isRecoverableRuntimeFetchError(
+        new TypeError("fetch failed", { cause: reset }),
+      ),
+    ).toBe(true);
+    expect(isRecoverableRuntimeFetchError(new TypeError("invalid URL"))).toBe(
+      false,
+    );
+  });
+
+  it("waits for the replacement runtime and retries a reset GET once", async () => {
+    let state: BackendState = {
+      phase: "ready" as const,
+      url: "http://127.0.0.1:4100",
+      message: "ready",
+    };
+    const listeners = new Set<(next: BackendState) => void>();
+    const backend = {
+      getState: () => ({ ...state }),
+      subscribe: (listener: (next: BackendState) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    } as unknown as BackendManager;
+    const urls: string[] = [];
+    const response = await fetchBackendApi(
+      backend,
+      async (input) => {
+        urls.push(String(input));
+        if (urls.length === 1) {
+          state = {
+            phase: "booting",
+            url: undefined,
+            message: "switching",
+          };
+          for (const listener of listeners) listener({ ...state });
+          setTimeout(() => {
+            state = {
+              phase: "ready",
+              url: "http://127.0.0.1:4200",
+              message: "ready",
+            };
+            for (const listener of listeners) listener({ ...state });
+          }, 0);
+          throw new TypeError("fetch failed", {
+            cause: Object.assign(new Error("read ECONNRESET"), {
+              code: "ECONNRESET",
+            }),
+          });
+        }
+        return Response.json({ ok: true });
+      },
+      "/sessions?limit=200",
+      { method: "GET" },
+      true,
+    );
+
+    expect(await response.json()).toEqual({ ok: true });
+    expect(urls).toEqual([
+      "http://127.0.0.1:4100/sessions?limit=200",
+      "http://127.0.0.1:4200/sessions?limit=200",
+    ]);
+  });
+
+  it("rejects immediately when a stopped runtime cannot become ready", async () => {
+    const backend = {
+      getState: () => ({
+        phase: "stopped" as const,
+        message: "stopped",
+      }),
+      subscribe: () => () => undefined,
+    } as unknown as BackendManager;
+    await expect(waitForReadyBackend(backend, 10)).rejects.toThrow(
+      /not ready/i,
+    );
+  });
+});
+
 describe("sensitive desktop actions", () => {
   function createHarness(options: {
     confirmed: boolean | (() => Promise<boolean>);
@@ -600,6 +762,10 @@ describe("sensitive desktop actions", () => {
         pickWorkspace: async () => ({
           canceled: true,
           state: { currentPath: "/workspace", recentPaths: [] },
+        }),
+        switchWorkspace: async () => ({
+          canceled: false,
+          state: { currentPath: "/workspace", recentPaths: ["/workspace"] },
         }),
         subscribe: () => () => undefined,
       },
@@ -827,6 +993,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:attachment-1",
           message: "Review this file",
           roomId: "desktop:room-1",
+          projectId: "project-1",
           attachmentIds: [attachmentId],
         },
       ),
@@ -842,6 +1009,7 @@ describe("sensitive desktop actions", () => {
       userId: "desktop-user",
       source: "desktop",
       stream: true,
+      projectId: "project-1",
       attachmentIds: [attachmentId],
     });
     await expect(
@@ -855,6 +1023,17 @@ describe("sensitive desktop actions", () => {
         },
       ),
     ).rejects.toThrow(/command messages/i);
+    await expect(
+      handler?.(
+        { sender: { ...sender, id: 74 } },
+        {
+          requestId: "chat:invalid-project",
+          message: "Review this file",
+          roomId: "desktop:room-1",
+          projectId: "../outside",
+        },
+      ),
+    ).rejects.toThrow(/project id/i);
     expect(requests).toHaveLength(1);
     harness.dispose();
   });

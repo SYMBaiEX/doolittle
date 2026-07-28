@@ -3,6 +3,7 @@ import type {
   ApiRequest,
   ApiRequestBody,
   AttachmentSelection,
+  BackendState,
   ChatRequest,
   DesktopCommandRequest,
   DesktopCommandResult,
@@ -13,6 +14,8 @@ import type {
   InteractiveTerminalSession,
   InteractiveTerminalStartRequest,
   InteractiveTerminalStartResult,
+  ProjectResourceSelection,
+  RecordedAudioImportRequest,
   RepositoryWorktree,
   RepositoryWorktreeCreateRequest,
   RepositoryWorktreeCreateResult,
@@ -27,6 +30,7 @@ import type { BackendManager } from "./backend";
 
 const API_ORIGIN = "http://desktop.local";
 const API_TIMEOUT_MS = 15_000;
+const RUNTIME_TRANSITION_TIMEOUT_MS = 45_000;
 const MAX_API_BODY_BYTES = 1_000_000;
 const MAX_COMMAND_LENGTH = 4_096;
 const MIN_COMMAND_TIMEOUT_MS = 1_000;
@@ -36,6 +40,7 @@ const MAX_WORKSPACE_PATH_LENGTH = 4_096;
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_SENSITIVE_RESPONSE_BYTES = 2_000_000;
 const MAX_API_RESPONSE_BYTES = 2_000_000;
+const MAX_SESSION_ARCHIVE_RESPONSE_BYTES = 2_100_000;
 const MAX_ARTIFACT_API_RESPONSE_BYTES = 8_000_000;
 const MAX_CHAT_ATTACHMENTS = 8;
 const MAX_INTERACTIVE_TERMINAL_INPUT_BYTES = 64_000;
@@ -63,6 +68,134 @@ export interface SensitiveActionIpcDependencies {
 export interface DesktopBackgroundNotification {
   title: string;
   body: string;
+}
+
+type ReadyBackendState = BackendState & {
+  phase: "ready";
+  url: string;
+};
+
+function isReadyBackendState(state: BackendState): state is ReadyBackendState {
+  return state.phase === "ready" && Boolean(state.url);
+}
+
+function runtimeFetchErrorCode(error: unknown): string {
+  let current = error;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (!current || typeof current !== "object") return "";
+    const record = current as Record<string, unknown>;
+    if (typeof record.code === "string") return record.code;
+    current = record.cause;
+  }
+  return "";
+}
+
+export function isRecoverableRuntimeFetchError(error: unknown): boolean {
+  return new Set(["ECONNRESET", "ECONNREFUSED", "EPIPE", "UND_ERR_SOCKET"]).has(
+    runtimeFetchErrorCode(error),
+  );
+}
+
+export async function waitForReadyBackend(
+  backend: BackendManager,
+  timeoutMs = RUNTIME_TRANSITION_TIMEOUT_MS,
+): Promise<ReadyBackendState> {
+  const current = backend.getState();
+  if (isReadyBackendState(current)) return current;
+  if (current.phase !== "booting") {
+    throw new Error("The local runtime is not ready.");
+  }
+
+  return new Promise<ReadyBackendState>((resolvePromise, rejectPromise) => {
+    let settled = false;
+    let unsubscribe: () => void = () => undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const finish = (
+      result: { state: ReadyBackendState } | { error: Error },
+    ) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      unsubscribe();
+      if ("state" in result) resolvePromise(result.state);
+      else rejectPromise(result.error);
+    };
+    const inspect = (state: BackendState) => {
+      if (isReadyBackendState(state)) {
+        finish({ state });
+      } else if (state.phase === "degraded" || state.phase === "stopped") {
+        finish({
+          error: new Error(
+            state.detail || state.message || "The local runtime is not ready.",
+          ),
+        });
+      }
+    };
+    timeout = setTimeout(
+      () =>
+        finish({
+          error: new Error(
+            "Timed out waiting for the local runtime to finish switching projects.",
+          ),
+        }),
+      timeoutMs,
+    );
+    unsubscribe = backend.subscribe(inspect);
+    inspect(backend.getState());
+  });
+}
+
+export async function fetchBackendApi(
+  backend: BackendManager,
+  fetchImplementation: typeof fetch,
+  path: string,
+  init: RequestInit,
+  retryDuringRuntimeTransition: boolean,
+): Promise<Response> {
+  const attempts = retryDuringRuntimeTransition ? 2 : 1;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    let state = backend.getState();
+    if (!isReadyBackendState(state)) {
+      if (!retryDuringRuntimeTransition || state.phase !== "booting") {
+        throw new Error("The local runtime is not ready.");
+      }
+      state = await waitForReadyBackend(backend);
+    }
+
+    try {
+      const response = await fetchImplementation(`${state.url}${path}`, {
+        ...init,
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      const latest = backend.getState();
+      if (
+        retryDuringRuntimeTransition &&
+        attempt + 1 < attempts &&
+        (!isReadyBackendState(latest) || latest.url !== state.url)
+      ) {
+        await waitForReadyBackend(backend);
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      const latest = backend.getState();
+      const runtimeChanged =
+        !isReadyBackendState(latest) || latest.url !== state.url;
+      if (
+        !retryDuringRuntimeTransition ||
+        attempt + 1 >= attempts ||
+        (!runtimeChanged && !isRecoverableRuntimeFetchError(error))
+      ) {
+        throw error;
+      }
+      await waitForReadyBackend(backend);
+    }
+  }
+
+  throw lastError;
 }
 
 interface AllowedApiPath {
@@ -123,6 +256,13 @@ const GATEWAY_TRACE_KINDS = [
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
     { exact: "/health" },
+    {
+      exact: "/activity",
+      allowedQueries: ["limit", "after"],
+      validateQuery: (query) =>
+        validateIntegerQuery(query, "limit", { min: 1, max: 200 }) &&
+        validateTextQuery(query, "after", { maxLength: 1_024 }),
+    },
     { exact: "/runtime/status" },
     { exact: "/runtime/plugins" },
     { exact: "/runtime/accounts" },
@@ -133,12 +273,27 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     {
       exact: "/sessions",
       allowAllQueries: false,
-      allowedQueries: ["limit"],
+      allowedQueries: ["limit", "projectId"],
+      validateQuery: (query) =>
+        validateIntegerQuery(query, "limit", { min: 1, max: 500 }) &&
+        validateTextQuery(query, "projectId", { maxLength: 256 }),
+    },
+    {
+      exact: "/sessions/export",
+      allowedQueries: ["sessionId"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "sessionId", {
+          maxLength: 128,
+          required: true,
+        }),
     },
     {
       exact: "/sessions/search",
       allowAllQueries: false,
-      allowedQueries: ["query", "limit"],
+      allowedQueries: ["query", "limit", "projectId"],
+      validateQuery: (query) =>
+        validateIntegerQuery(query, "limit", { min: 1, max: 500 }) &&
+        validateTextQuery(query, "projectId", { maxLength: 256 }),
     },
     {
       exact: "/sessions/messages",
@@ -159,6 +314,16 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       exact: "/sessions/usage",
       allowAllQueries: false,
       allowedQueries: ["sessionId"],
+    },
+    {
+      exact: "/projects",
+      allowedQueries: ["includeArchived"],
+      validateQuery: (query) =>
+        validateEnumQuery(query, "includeArchived", ["true", "false"]),
+    },
+    {
+      predicate: (pathname) =>
+        matchesResourcePath(pathname, "/projects", ["resources"]),
     },
     { exact: "/settings" },
     { exact: "/theme" },
@@ -193,6 +358,26 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/tools/summary" },
     { exact: "/acp/status" },
     { exact: "/acp/editor" },
+    { exact: "/mcp/status" },
+    { exact: "/mcp/cached" },
+    {
+      exact: "/mcp/cached/search",
+      allowedQueries: ["query"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "query", { required: true, maxLength: 256 }),
+    },
+    {
+      exact: "/mcp/tool",
+      allowedQueries: ["name"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "name", { required: true, maxLength: 256 }),
+    },
+    {
+      exact: "/mcp/cached/describe",
+      allowedQueries: ["limit"],
+      validateQuery: (query) =>
+        validateIntegerQuery(query, "limit", { min: 1, max: 100 }),
+    },
     {
       exact: "/acp/sessions",
       allowedQueries: ["limit"],
@@ -353,6 +538,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   POST: [
     { exact: "/settings" },
     { exact: "/acp/probe" },
+    { exact: "/mcp/probe" },
     { exact: "/gateway/replay" },
     { exact: "/theme" },
     { exact: "/personality" },
@@ -375,6 +561,18 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         ]),
     },
     { exact: "/sessions/title" },
+    { exact: "/sessions/fork" },
+    { exact: "/sessions/import/preview" },
+    { exact: "/sessions/import" },
+    { exact: "/sessions/project" },
+    { exact: "/projects" },
+    {
+      predicate: (pathname) =>
+        matchesResourceActionPath(pathname, "/projects", [
+          "archive",
+          "resources",
+        ]),
+    },
     { exact: "/accounts/refresh" },
     { exact: "/accounts/use" },
     { exact: "/accounts/connect" },
@@ -382,6 +580,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/accounts/setup-token" },
     { exact: "/media/analyze" },
     { exact: "/media/transcribe" },
+    { exact: "/media/transcribe-attachment" },
     { exact: "/media/speak" },
     { exact: "/media/generate" },
     { exact: "/secrets/get" },
@@ -451,6 +650,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   PATCH: [
     {
+      predicate: (pathname) => matchesResourcePath(pathname, "/projects"),
+    },
+    {
       predicate: (pathname) =>
         matchesResourcePath(pathname, "/review-record/comments"),
     },
@@ -467,6 +669,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
   ],
   DELETE: [
+    {
+      predicate: (pathname) => matchesProjectResourcePath(pathname),
+    },
     {
       predicate: (pathname) =>
         matchesResourcePath(pathname, "/review-record/comments"),
@@ -592,6 +797,17 @@ function matchesResourceActionPath(
     prefixSegments.every((segment, index) => segments[index] === segment) &&
     isSafeResourceId(segments[prefixSegments.length]) &&
     actions.includes(segments[prefixSegments.length + 1] ?? "")
+  );
+}
+
+function matchesProjectResourcePath(pathname: string): boolean {
+  const segments = pathname.split("/");
+  return (
+    segments.length === 5 &&
+    segments[1] === "projects" &&
+    isSafeResourceId(segments[2]) &&
+    segments[3] === "resources" &&
+    isSafeResourceId(segments[4])
   );
 }
 
@@ -1080,6 +1296,9 @@ export function validateWorktreeCreateRequest(
 }
 
 export function apiResponseLimit(path: string): number {
+  if (path.startsWith("/sessions/export?")) {
+    return MAX_SESSION_ARCHIVE_RESPONSE_BYTES;
+  }
   return /^\/codegen\/runs\/[^/]+\/artifacts\/(?:0|[1-9]\d*)$/u.test(path)
     ? MAX_ARTIFACT_API_RESPONSE_BYTES
     : MAX_API_RESPONSE_BYTES;
@@ -1136,6 +1355,7 @@ interface ActiveTerminalRun {
 export interface WorkspaceIpcController {
   getState(): WorkspaceState;
   pickWorkspace(): Promise<WorkspacePickResult>;
+  switchWorkspace(path: string): Promise<WorkspacePickResult>;
   subscribe(listener: (state: WorkspaceState) => void): () => void;
 }
 
@@ -1182,6 +1402,13 @@ function assertChatRequest(
   }
   if (!request.roomId) {
     throw new Error("A conversation id is required.");
+  }
+  if (
+    request.projectId !== undefined &&
+    (typeof request.projectId !== "string" ||
+      !isSafeResourceId(request.projectId))
+  ) {
+    throw new Error("A project id is invalid.");
   }
   const attachmentIds = validateChatAttachmentIds(request.attachmentIds);
   if (
@@ -1232,6 +1459,19 @@ export function registerIpc(
     canceled: true,
     attachments: [],
   }),
+  pickProjectFiles: () => Promise<ProjectResourceSelection> = async () => ({
+    canceled: true,
+    kind: "file",
+    paths: [],
+  }),
+  pickProjectFolders: () => Promise<ProjectResourceSelection> = async () => ({
+    canceled: true,
+    kind: "folder",
+    paths: [],
+  }),
+  importRecordedAudio?: (
+    request: RecordedAudioImportRequest,
+  ) => AttachmentSelection["attachments"][number],
 ): () => void {
   const activeChats = new Map<string, ActiveChat>();
   const activeTerminalRuns = new Map<string, ActiveTerminalRun>();
@@ -1299,8 +1539,25 @@ export function registerIpc(
   ipcMain.handle("backend:retry", () => backend.restart());
   ipcMain.handle("workspace:get-state", () => workspace.getState());
   ipcMain.handle("workspace:pick", () => workspace.pickWorkspace());
+  ipcMain.handle("workspace:switch-recent", (_event, path: unknown) => {
+    if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
+      throw new Error("A valid recent workspace path is required.");
+    }
+    return workspace.switchWorkspace(path);
+  });
   ipcMain.handle("dialog:pick-files", pickFiles);
+  ipcMain.handle("dialog:pick-project-files", pickProjectFiles);
+  ipcMain.handle("dialog:pick-project-folders", pickProjectFolders);
   ipcMain.handle("dialog:pick-chat-attachments", pickChatAttachments);
+  ipcMain.handle(
+    "chat:import-recorded-audio",
+    (_event, request: RecordedAudioImportRequest) => {
+      if (!importRecordedAudio) {
+        throw new Error("Recorded audio import is unavailable.");
+      }
+      return importRecordedAudio(request);
+    },
+  );
   ipcMain.handle(
     "terminal:run-confirmed",
     async (
@@ -1697,11 +1954,6 @@ export function registerIpc(
   ipcMain.handle(
     "api:request",
     async (_event: IpcMainInvokeEvent, request: ApiRequest) => {
-      const state = backend.getState();
-      if (state.phase !== "ready" || !state.url) {
-        throw new Error("The local runtime is not ready.");
-      }
-
       const method = request.method ?? "GET";
       if (!["GET", "POST", "PATCH", "DELETE"].includes(method)) {
         throw new Error("Unsupported desktop API method.");
@@ -1711,17 +1963,22 @@ export function registerIpc(
       }
       const path = parseApiPath(request.path, method);
       const body = serializeBody(resolveBody(method, request));
-      const response = await fetch(`${state.url}${path}`, {
-        method,
-        headers:
-          body !== undefined
-            ? {
-                "content-type": "application/json",
-              }
-            : undefined,
-        body,
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
-      });
+      const response = await fetchBackendApi(
+        backend,
+        sensitiveFetch,
+        path,
+        {
+          method,
+          headers:
+            body !== undefined
+              ? {
+                  "content-type": "application/json",
+                }
+              : undefined,
+          body,
+        },
+        method === "GET",
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -1786,6 +2043,7 @@ export function registerIpc(
           userId: "desktop-user",
           source: "desktop",
           stream: true,
+          projectId: request.projectId,
           attachmentIds: validateChatAttachmentIds(request.attachmentIds),
         }),
         signal: controller.signal,
@@ -1893,8 +2151,12 @@ export function registerIpc(
     ipcMain.removeHandler("backend:retry");
     ipcMain.removeHandler("workspace:get-state");
     ipcMain.removeHandler("workspace:pick");
+    ipcMain.removeHandler("workspace:switch-recent");
     ipcMain.removeHandler("dialog:pick-files");
+    ipcMain.removeHandler("dialog:pick-project-files");
+    ipcMain.removeHandler("dialog:pick-project-folders");
     ipcMain.removeHandler("dialog:pick-chat-attachments");
+    ipcMain.removeHandler("chat:import-recorded-audio");
     ipcMain.removeHandler("terminal:run-confirmed");
     ipcMain.removeHandler("terminal:stream-start");
     ipcMain.removeHandler("terminal:stream-cancel");
