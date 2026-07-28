@@ -110,8 +110,8 @@ describe("ElizaOS-native post-provider seam", () => {
     ]);
   });
 
-  it("rejects a claimed local file change without an SDK mutation receipt", async () => {
-    const harness = createHarness(2);
+  it("rejects a selected local file mutation without an SDK mutation receipt", async () => {
+    const harness = createHarness();
     const message = "create a website file in this project";
 
     const result = await runPostProviderTurn(
@@ -119,13 +119,39 @@ describe("ElizaOS-native post-provider seam", () => {
         input: { userId: "alice", message, source: "desktop" },
         effectiveInput: { userId: "alice", message, source: "desktop" },
         response: "Done.",
+        actionResults: [
+          {
+            success: true,
+            data: { actionName: "WRITE_FILE" },
+          },
+        ],
       }),
     );
 
     expect(result.runFailureMessage).toContain(
-      "did not produce an SDK action-result mutation receipt",
+      "did not produce a verified SDK action-result mutation receipt",
     );
     expect(harness.finishEvents[0]?.status).toBe("error");
+  });
+
+  it("does not infer execution requirements from user or provider prose", async () => {
+    const harness = createHarness(2);
+    const message = "create a website file in this project";
+
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        input: { userId: "alice", message, source: "desktop" },
+        effectiveInput: { userId: "alice", message, source: "desktop" },
+        response: "🔎 Provider executed: []",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      kind: "final",
+      response: "🔎 Provider executed: []",
+      runFailureMessage: undefined,
+    });
+    expect(harness.finishEvents[0]?.status).toBe("complete");
   });
 
   it("accepts a file change backed by the official ActionResult contract", async () => {

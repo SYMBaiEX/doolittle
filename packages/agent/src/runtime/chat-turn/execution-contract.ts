@@ -1,29 +1,20 @@
-import type { CommandResult } from "@doolittle/contracts";
 import type { ActionResult } from "@elizaos/core";
-import { summarizeActionResults } from "@/runtime/action-result-metadata";
-import type { LocalMutationInput } from "@/services/run-controller-service";
+import {
+  actionResultActionName,
+  extractVerifiedLocalMutationFromActionResult,
+} from "@/runtime/action-result-metadata";
 
-// This is a post-execution safety assertion, not an intent router. ElizaOS
-// selects contexts/actions; Doolittle only refuses to claim that explicitly
-// requested local work landed when no SDK action receipt exists.
-const LOCAL_EXECUTION_REQUEST_PATTERN =
-  /\b(?:run|execute|inspect|review|search|read|open|list|show|check|fix|create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|test|lint|install)\b[\s\S]*\b(?:repo|repository|project|workspace|codebase|file|files|folder|directory|terminal|command|script|test|tests|build|git|package|app|application|website|site)\b|\b(?:repo|repository|project|workspace|codebase|file|files|folder|directory|terminal|command|script|test|tests|build|git|package|app|application|website|site)\b[\s\S]*\b(?:run|execute|inspect|review|search|read|open|list|show|check|fix|create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|test|lint|install)\b/iu;
-const FILE_MUTATION_REQUEST_PATTERN =
-  /\b(?:create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|mkdir|touch)\b[\s\S]*\b(?:file|files|folder|directory|html|css|js|javascript|typescript|json|md|markdown|website|site|project|app|application)\b|\b(?:file|files|folder|directory|html|css|js|javascript|typescript|json|md|markdown|website|site|project|app|application)\b[\s\S]*\b(?:create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|mkdir|touch)\b/iu;
-const FILE_WRITE_REQUEST_PATTERN =
-  /\b(?:create|make|write|add|edit|update|change|modify|patch|scaffold|build|generate|save|touch)\b[\s\S]*\b(?:file|files|html|css|js|javascript|typescript|json|md|markdown|website|site|page)\b|\b(?:file|files|html|css|js|javascript|typescript|json|md|markdown|website|site|page)\b[\s\S]*\b(?:create|make|write|add|edit|update|change|modify|patch|scaffold|build|generate|save|touch)\b/iu;
-const SHELL_SCAFFOLD_REQUEST_PATTERN =
-  /\b(?:nubx|nub\s+(?:dlx|create)|bunx|npx|pnpm\s+(?:dlx|create)|yarn\s+(?:create|dlx)|npm\s+(?:init|create|exec)|create-(?:react-app|next-app|vite|tauri-app|t3-app|expo-app|nuxt-app|svelte-app|astro)|cargo\s+(?:new|init)|git\s+clone|anchor\s+init|vite|next|nuxt|astro|expo|sveltekit|hardhat|forge|spl-token|metaplex)\b/iu;
-const SHELL_SCAFFOLD_COMMAND_PATTERN =
-  /\b(?:nubx|nub|bunx|npx|pnpm|yarn|npm|create-(?:react-app|next-app|vite|tauri-app|t3-app|expo-app|nuxt-app|svelte-app|astro)|cargo\s+(?:new|init|build|test|run)|git\s+clone|anchor|forge|hardhat|vite|next|expo|sveltekit|spl-token|metaplex|mkdir|cp|mv|rsync)\b/iu;
-
-const EMPTY_PROVIDER_EXECUTION_PATTERN = /^🔎\s*Provider executed:\s*\[\]\s*$/u;
+// The ElizaOS executor records the selected action name on every ActionResult.
+// Keep the local-mutation boundary explicit; prompt, command, and response text
+// are not execution evidence.
+const LOCAL_MUTATION_ACTIONS = new Set([
+  "WRITE_FILE",
+  "PATCH_FILE",
+  "CREATE_DIRECTORY",
+]);
 
 export interface TurnExecutionContract {
-  requiresLocalExecution: boolean;
-  requiresMutationProof: boolean;
-  requiredMutationActions: string[];
-  reason?: string;
+  selectedMutationActions: string[];
 }
 
 export interface TurnExecutionAssessment {
@@ -31,150 +22,58 @@ export interface TurnExecutionAssessment {
   failureMessage?: string;
 }
 
-function summarizeFailedMutation(
-  localMutations: LocalMutationInput[],
-): string | undefined {
-  const failed = localMutations.find((mutation) => !mutation.success);
-  if (!failed) {
-    return undefined;
-  }
-  const path = failed.resolvedPath ?? failed.requestedPath;
-  return [failed.action, path, failed.message].filter(Boolean).join(" · ");
-}
-
-export function looksLikeEmptyProviderExecution(response: string): boolean {
-  return EMPTY_PROVIDER_EXECUTION_PATTERN.test(response.trim());
+function selectedLocalMutationActions(
+  actionResults: readonly ActionResult[],
+): string[] {
+  return actionResults.flatMap((result) => {
+    const actionName = actionResultActionName(result);
+    return actionName && LOCAL_MUTATION_ACTIONS.has(actionName)
+      ? [actionName]
+      : [];
+  });
 }
 
 export function buildTurnExecutionContract(input: {
-  message: string;
-  localInteractive: boolean;
+  actionResults?: ActionResult[];
 }): TurnExecutionContract {
-  if (!input.localInteractive) {
-    return {
-      requiresLocalExecution: false,
-      requiresMutationProof: false,
-      requiredMutationActions: [],
-    };
-  }
-
-  const requiresLocalExecution = LOCAL_EXECUTION_REQUEST_PATTERN.test(
-    input.message,
-  );
-  const requiresMutationProof =
-    requiresLocalExecution && FILE_MUTATION_REQUEST_PATTERN.test(input.message);
-  const shellScaffoldRequested = SHELL_SCAFFOLD_REQUEST_PATTERN.test(
-    input.message,
-  );
-
-  const requiredMutationActions: string[] = [];
-  if (requiresMutationProof) {
-    if (FILE_WRITE_REQUEST_PATTERN.test(input.message)) {
-      requiredMutationActions.push("WRITE_FILE", "PATCH_FILE");
-    }
-    if (shellScaffoldRequested) {
-      requiredMutationActions.push("RUN_IN_TERMINAL");
-    }
-  }
-
   return {
-    requiresLocalExecution,
-    requiresMutationProof,
-    requiredMutationActions,
-    reason: requiresMutationProof
-      ? "local file mutation requested"
-      : requiresLocalExecution
-        ? "local execution requested"
-        : undefined,
+    selectedMutationActions: selectedLocalMutationActions(
+      input.actionResults ?? [],
+    ),
   };
-}
-
-function commandResultLooksLikeMutation(result: CommandResult): boolean {
-  if (!result.success || result.exitCode !== 0) {
-    return false;
-  }
-  return SHELL_SCAFFOLD_COMMAND_PATTERN.test(result.command);
 }
 
 export function assessTurnExecutionContract(input: {
   contract: TurnExecutionContract;
-  response: string;
-  observedActionCount: number;
   actionResults?: ActionResult[];
-  localMutations?: LocalMutationInput[];
-  commandResults?: CommandResult[];
   runFailureMessage?: string;
 }): TurnExecutionAssessment {
-  if (!input.contract.requiresLocalExecution || input.runFailureMessage) {
+  if (
+    input.runFailureMessage ||
+    input.contract.selectedMutationActions.length === 0
+  ) {
     return { ok: true };
   }
 
-  const actionResultSummary = summarizeActionResults(input.actionResults);
-  const observedActionCount = Math.max(
-    input.observedActionCount,
-    actionResultSummary.observedActionCount,
+  const successfulReceipts = new Set(
+    (input.actionResults ?? []).flatMap((actionResult) => {
+      const mutation =
+        extractVerifiedLocalMutationFromActionResult(actionResult);
+      return mutation?.success ? [mutation.action] : [];
+    }),
   );
-  const localMutations = [
-    ...actionResultSummary.localMutations,
-    ...(input.localMutations ?? []),
-  ];
-  const commandResults = [
-    ...actionResultSummary.commandResults,
-    ...(input.commandResults ?? []),
-  ];
-  const scaffoldingCommands = commandResults.filter(
-    commandResultLooksLikeMutation,
+  const missingReceipts = input.contract.selectedMutationActions.filter(
+    (actionName) => !successfulReceipts.has(actionName),
   );
 
-  if (
-    observedActionCount === 0 &&
-    looksLikeEmptyProviderExecution(input.response)
-  ) {
-    return {
-      ok: false,
-      failureMessage:
-        "Native planning failed: the provider returned no executable actions for a local execution request.",
-    };
+  if (missingReceipts.length === 0) {
+    return { ok: true };
   }
 
-  if (input.contract.requiresMutationProof && observedActionCount === 0) {
-    return {
-      ok: false,
-      failureMessage:
-        "Native planning failed: the turn required local file changes, but no local actions executed.",
-    };
-  }
-
-  if (input.contract.requiresMutationProof) {
-    const successfulMutation = localMutations.some(
-      (mutation) => mutation.success,
-    );
-    const successfulScaffoldCommand = scaffoldingCommands.length > 0;
-    if (!successfulMutation && !successfulScaffoldCommand) {
-      const failedMutation = summarizeFailedMutation(localMutations);
-      return {
-        ok: false,
-        failureMessage: failedMutation
-          ? `Native execution failed: the requested file change did not land (${failedMutation}).`
-          : "Native execution failed: the requested file change did not produce an SDK action-result mutation receipt.",
-      };
-    }
-
-    if (input.contract.requiredMutationActions.length > 0) {
-      const required = input.contract.requiredMutationActions;
-      const hasRequiredMutation = localMutations.some(
-        (mutation) => mutation.success && required.includes(mutation.action),
-      );
-      const hasRequiredCommand =
-        required.includes("RUN_IN_TERMINAL") && successfulScaffoldCommand;
-      if (!hasRequiredMutation && !hasRequiredCommand) {
-        return {
-          ok: false,
-          failureMessage: `Native execution failed: the requested file write did not land. Expected one of ${required.join(", ")}.`,
-        };
-      }
-    }
-  }
-
-  return { ok: true };
+  return {
+    ok: false,
+    failureMessage:
+      "Native execution failed: a selected local mutation action did not produce a verified SDK action-result mutation receipt " +
+      `(${missingReceipts.join(", ")}).`,
+  };
 }

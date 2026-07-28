@@ -72,6 +72,16 @@ export function buildActionResultData(
   return data;
 }
 
+export function actionResultActionName(
+  actionResult: ActionResult | undefined,
+): string | undefined {
+  const data = actionResult?.data;
+  if (!isRecord(data)) {
+    return undefined;
+  }
+  return stringValue(data.actionName) ?? stringValue(data.mutationAction);
+}
+
 export function extractLocalMutationFromActionResult(
   actionResult: ActionResult | undefined,
 ): LocalMutationInput | undefined {
@@ -85,9 +95,7 @@ export function extractLocalMutationFromActionResult(
   }
 
   const action =
-    stringValue(mutation.action) ??
-    stringValue(data.mutationAction) ??
-    stringValue(data.actionName);
+    stringValue(mutation.action) ?? actionResultActionName(actionResult);
   const success = booleanValue(mutation.success) ?? actionResult?.success;
   if (!action || typeof success !== "boolean") {
     return undefined;
@@ -102,6 +110,15 @@ export function extractLocalMutationFromActionResult(
     bytes: numberValue(mutation.bytes),
     replacements: numberValue(mutation.replacements),
   };
+}
+
+export function extractVerifiedLocalMutationFromActionResult(
+  actionResult: ActionResult | undefined,
+): LocalMutationInput | undefined {
+  const mutation = extractLocalMutationFromActionResult(actionResult);
+  return actionResult?.success === true && mutation?.success === true
+    ? mutation
+    : undefined;
 }
 
 export function extractFileOperationFromActionResult(

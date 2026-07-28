@@ -17,8 +17,7 @@ export async function runPostProviderTurn(
   input: PostProviderTurnInput,
 ): Promise<PostProviderTurnResult> {
   const executionContract = buildTurnExecutionContract({
-    message: input.effectiveInput.message,
-    localInteractive: input.turn.localInteractive,
+    actionResults: input.actionResults,
   });
   const activeRun = input.context.services.runController.getActive(
     input.turn.sessionId,
@@ -30,11 +29,7 @@ export async function runPostProviderTurn(
   );
   const executionAssessment = assessTurnExecutionContract({
     contract: executionContract,
-    response: input.response,
-    observedActionCount,
     actionResults: input.actionResults,
-    localMutations: activeRun?.localMutations,
-    commandResults: actionResultSummary.commandResults,
     runFailureMessage: input.runFailureMessage,
   });
   const runFailureMessage = executionAssessment.ok

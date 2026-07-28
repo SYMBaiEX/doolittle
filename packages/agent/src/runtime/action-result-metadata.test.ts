@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCodingIterationFromActionResults,
   extractLocalMutationFromActionResult,
+  extractVerifiedLocalMutationFromActionResult,
   summarizeActionResults,
 } from "./action-result-metadata";
 
@@ -88,5 +89,23 @@ describe("action result metadata helpers", () => {
       ],
     });
     expect(iteration?.completedAt).toBeGreaterThan(0);
+  });
+
+  it("does not treat contradictory mutation metadata as a successful receipt", () => {
+    const actionResult = {
+      success: false,
+      data: {
+        actionName: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: { action: "WRITE_FILE", success: true },
+      },
+    };
+
+    expect(extractLocalMutationFromActionResult(actionResult)).toMatchObject({
+      success: true,
+    });
+    expect(
+      extractVerifiedLocalMutationFromActionResult(actionResult),
+    ).toBeUndefined();
   });
 });
