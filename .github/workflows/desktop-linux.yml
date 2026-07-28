@@ -1,0 +1,116 @@
+name: desktop-linux
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@v0
+        with:
+          nub-version: 0.6.0
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+
+      - name: Install dependencies
+        run: nub install --frozen-lockfile --ignore-scripts
+
+      - name: Install Electron runtime
+        run: nub run desktop:runtime:install
+
+      - name: Verify desktop
+        run: |
+          nub run desktop:typecheck
+          nub run desktop:test
+
+      - name: Build Linux packages
+        run: nub run --cwd apps/desktop package:linux
+
+      - name: Smoke-test bundled Linux runtime
+        run: |
+          runtime_data="$RUNNER_TEMP/doolittle-runtime-smoke"
+          mkdir -p "$runtime_data"
+          printf '%s\n' '{"mode":"desktop","provider":null,"profile":"linux-ci"}' > "$runtime_data/onboarding.json"
+
+          executable="apps/desktop/release/linux-unpacked/Doolittle"
+          packaged_runtime="apps/desktop/release/linux-unpacked/resources/runtime"
+          runtime_entry="$packaged_runtime/bin/doolittle-runtime.mjs"
+          test -x "$executable"
+          test -f "$runtime_entry"
+
+          export DOOLITTLE_REPO_ROOT="$PWD/$packaged_runtime"
+          export DOOLITTLE_DATA_DIR="$runtime_data"
+          export DOOLITTLE_SKILLS_DIR="$PWD/$packaged_runtime/packages/skills"
+          export ELIZAOS_BUNDLED_SKILLS_DIR="$DOOLITTLE_SKILLS_DIR"
+          export DOOLITTLE_WORKSPACE_DIR="$runtime_data"
+          export DOOLITTLE_CRON_OUTPUT_DIR="$runtime_data/cron-output"
+          export DOOLITTLE_GATEWAY_DATA_DIR="$runtime_data/gateway"
+          export DOOLITTLE_HOOKS_DIR="$runtime_data/hooks"
+          export PGLITE_DATA_DIR="$runtime_data/pglite"
+          export DOOLITTLE_HOST="127.0.0.1"
+          export DOOLITTLE_PORT="43199"
+          export DOOLITTLE_MODE="api"
+          export DOOLITTLE_OFFLINE_BOOTSTRAP="true"
+          export DOOLITTLE_USE_LINKED_DEVIN_AUTH="false"
+          export DATABASE_URL=""
+          export POSTGRES_URL=""
+          export ELECTRON_RUN_AS_NODE="1"
+          export DOOLITTLE_DESKTOP_RUNTIME="1"
+
+          "$executable" "$runtime_entry" api >"$runtime_data/stdout.log" 2>"$runtime_data/stderr.log" &
+          runtime_pid=$!
+          trap 'kill "$runtime_pid" 2>/dev/null || true; cat "$runtime_data/stdout.log"; cat "$runtime_data/stderr.log" >&2' EXIT
+          for _ in {1..120}; do
+            if ! kill -0 "$runtime_pid" 2>/dev/null; then
+              echo "Bundled runtime exited before becoming healthy." >&2
+              exit 1
+            fi
+            if curl --fail --silent "http://127.0.0.1:43199/health" | grep -q '"status":"ok"'; then
+              echo "Packaged Linux runtime is healthy."
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "Bundled runtime did not become healthy within 60 seconds." >&2
+          exit 1
+
+      - name: Verify release artifacts
+        run: |
+          test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-*.AppImage' -print -quit)"
+          test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-*.deb' -print -quit)"
+          test -f apps/desktop/release/latest-linux.yml
+          test -n "$(find apps/desktop/release -maxdepth 1 -name '*.blockmap' -print -quit)"
+
+      - name: Upload Linux release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Doolittle-Linux
+          path: |
+            apps/desktop/release/Doolittle-*-linux-*.AppImage
+            apps/desktop/release/Doolittle-*-linux-*.deb
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-linux.yml
+          if-no-files-found: error
+
+      - name: Attach Linux packages and update metadata to tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop/release/Doolittle-*-linux-*.AppImage
+            apps/desktop/release/Doolittle-*-linux-*.deb
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-linux.yml
