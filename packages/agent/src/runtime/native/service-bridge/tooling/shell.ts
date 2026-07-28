@@ -1,17 +1,15 @@
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
-import { getNativeCodingAgent, getNativeShell } from "./native-services";
+import { getNativeShell } from "./native-services";
 
 export async function runEffectiveShellCommand(
-  runtime: RuntimeLike,
+  _runtime: RuntimeLike,
   services: AppServices,
   command: string,
 ) {
-  return (
-    (await getNativeShell(runtime)?.run(command)) ??
-    (await getNativeCodingAgent(runtime)?.run(command)) ??
-    services.terminal.run(command)
-  );
+  // Native shell/coding-agent services remain available for product metadata,
+  // but one-shot execution must pass through TerminalService and the SDK router.
+  return services.terminal.run(command);
 }
 
 export function getEffectiveShellHistory(

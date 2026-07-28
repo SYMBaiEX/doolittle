@@ -10,6 +10,7 @@ export interface TerminalRunOptions {
   cwd?: string;
   timeoutMs: number;
   abortSignal?: AbortSignal;
+  toolName?: string;
 }
 
 export interface TerminalStreamingRunOptions extends TerminalRunOptions {

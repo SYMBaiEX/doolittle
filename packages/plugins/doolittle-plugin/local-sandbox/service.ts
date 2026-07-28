@@ -1,10 +1,10 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import { SandboxManager } from "@elizaos/agent/services/sandbox-manager";
 import {
-  type SandboxExecResult,
-  SandboxManager,
-} from "@elizaos/agent/services/sandbox-manager";
+  runShell,
+  type ShellResult,
+} from "@elizaos/agent/services/shell-execution-router";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
 
 import { collectProcessEnv, resolveExecutionCommand } from "./runtime";
@@ -60,17 +60,24 @@ export class LocalSandboxService extends ElizaService {
       );
     }
 
-    let result: SandboxExecResult;
+    let result: ShellResult;
     try {
-      result = await this.sandboxManager.run({
-        cmd: command,
-        args,
-        workdir,
-        env: {
-          ...collectProcessEnv(),
-          NODE_ENV: process.env.NODE_ENV ?? "development",
+      result = await runShell(
+        {
+          command,
+          args,
+          cwd: workdir,
+          env: {
+            ...collectProcessEnv(),
+            NODE_ENV: process.env.NODE_ENV ?? "development",
+          },
+          toolName: "doolittle.local-sandbox.execute-code",
         },
-      });
+        {
+          mode: "local-safe",
+          sandboxManager: this.sandboxManager,
+        },
+      );
     } catch (error) {
       return this.executionError(
         language,

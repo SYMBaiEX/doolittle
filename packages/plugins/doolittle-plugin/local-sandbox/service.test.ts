@@ -8,6 +8,7 @@ const sandboxManager = vi.hoisted(() => ({
   start: vi.fn(),
   stop: vi.fn(),
 }));
+const runShell = vi.hoisted(() => vi.fn());
 
 vi.mock("@elizaos/agent/services/sandbox-manager", () => ({
   SandboxManager: class {
@@ -16,6 +17,9 @@ vi.mock("@elizaos/agent/services/sandbox-manager", () => ({
     start = sandboxManager.start;
     stop = sandboxManager.stop;
   },
+}));
+vi.mock("@elizaos/agent/services/shell-execution-router", () => ({
+  runShell,
 }));
 
 import { LocalSandboxService } from "./service";
@@ -26,7 +30,7 @@ describe("local sandbox service", () => {
   });
 
   it("uses SandboxManager lifecycle and argv-safe execution", async () => {
-    sandboxManager.run.mockResolvedValue({
+    runShell.mockResolvedValue({
       exitCode: 0,
       stdout: "ok\n",
       stderr: "",
@@ -38,11 +42,16 @@ describe("local sandbox service", () => {
     const result = await service.executeCode("console.log('ok')", "javascript");
 
     expect(sandboxManager.start).toHaveBeenCalledOnce();
-    expect(sandboxManager.run).toHaveBeenCalledWith(
+    expect(runShell).toHaveBeenCalledWith(
       expect.objectContaining({
-        cmd: process.execPath,
+        command: process.execPath,
         args: ["-e", "console.log('ok')"],
-        workdir: expect.stringMatching(/^\/workspace\//),
+        cwd: expect.stringMatching(/^\/workspace\//),
+        toolName: "doolittle.local-sandbox.execute-code",
+      }),
+      expect.objectContaining({
+        mode: "local-safe",
+        sandboxManager: expect.anything(),
       }),
     );
     expect(result).toMatchObject({
@@ -57,7 +66,7 @@ describe("local sandbox service", () => {
   });
 
   it("returns the E2B-compatible error shape when execution is rejected", async () => {
-    sandboxManager.run.mockRejectedValue(new Error("sandbox unavailable"));
+    runShell.mockRejectedValue(new Error("sandbox unavailable"));
     const service = await LocalSandboxService.start();
 
     await expect(service.executeCode("print('ok')")).resolves.toMatchObject({
@@ -75,7 +84,7 @@ describe("local sandbox service", () => {
   });
 
   it("preserves command failures returned by SandboxManager", async () => {
-    sandboxManager.run.mockResolvedValue({
+    runShell.mockResolvedValue({
       exitCode: 1,
       stdout: "",
       stderr: "command failed\n",

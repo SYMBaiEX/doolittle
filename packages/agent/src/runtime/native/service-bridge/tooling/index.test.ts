@@ -169,7 +169,7 @@ describe("tooling bridge helpers", () => {
     } as unknown as AppServices;
 
     expect(await runEffectiveShellCommand(runtime, services, "pwd")).toBe(
-      "native-shell:pwd",
+      "fallback-shell:pwd",
     );
     expect(getEffectiveMcpStatus(runtime, services)).toEqual({
       source: "native-mcp",
@@ -212,12 +212,12 @@ describe("tooling bridge helpers", () => {
     expect(readEffectiveWorkspaceFile(runtime, services, "README.md")).toBe(
       "native-read:README.md",
     );
-    expect(searchEffectiveWorkspace(runtime, services, "todo", 4)).toEqual([
-      "native-search:todo:4",
-    ]);
-    expect(
+    await expect(
+      searchEffectiveWorkspace(runtime, services, "todo", 4),
+    ).resolves.toEqual(["native-search:todo:4"]);
+    await expect(
       writeEffectiveWorkspaceFile(runtime, services, "notes.md", "hello"),
-    ).toEqual({
+    ).resolves.toEqual({
       path: "notes.md",
       content: "hello",
       source: "native-write",
@@ -342,12 +342,12 @@ describe("tooling bridge helpers", () => {
     expect(readEffectiveWorkspaceFile(runtime, services, "README.md")).toBe(
       "fallback-read:README.md",
     );
-    expect(searchEffectiveWorkspace(runtime, services, "todo", 4)).toEqual([
-      "fallback-search:todo:4",
-    ]);
-    expect(
+    await expect(
+      searchEffectiveWorkspace(runtime, services, "todo", 4),
+    ).resolves.toEqual(["fallback-search:todo:4"]);
+    await expect(
       writeEffectiveWorkspaceFile(runtime, services, "notes.md", "hello"),
-    ).toEqual({
+    ).resolves.toEqual({
       path: "notes.md",
       content: "hello",
       source: "fallback-write",

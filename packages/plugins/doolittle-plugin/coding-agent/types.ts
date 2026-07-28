@@ -11,10 +11,17 @@ export interface WorkspaceServiceLike {
   search(
     query: string,
     limit?: number,
-  ): {
-    path: string;
-    matches: string[];
-  }[];
+  ):
+    | {
+        path: string;
+        matches: string[];
+      }[]
+    | Promise<
+        {
+          path: string;
+          matches: string[];
+        }[]
+      >;
 }
 
 export interface RepositoryServiceLike {
