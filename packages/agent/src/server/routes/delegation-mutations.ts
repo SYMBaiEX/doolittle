@@ -1,6 +1,9 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
+  addEffectiveDelegationNote,
   cancelEffectiveDelegationTask,
+  completeEffectiveDelegationTask,
+  getOfficialOrchestrator,
   retryEffectiveDelegationTask,
 } from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
@@ -16,6 +19,17 @@ export async function handleDelegationMutationRoutes(
   ) {
     return null;
   }
+  if (!getOfficialOrchestrator(context.runtime)) {
+    return json(
+      {
+        available: false,
+        code: "ORCHESTRATOR_TASK_SERVICE_UNAVAILABLE",
+        error:
+          "Delegation is unavailable because the official orchestrator task service is not registered.",
+      },
+      503,
+    );
+  }
 
   const parts = url.pathname.split("/");
   const id = parts[3];
@@ -30,15 +44,26 @@ export async function handleDelegationMutationRoutes(
 
   if (action === "note") {
     return json({
-      task: context.services.delegation.addNote(id, body.note ?? ""),
+      task: await addEffectiveDelegationNote(
+        context.runtime,
+        id,
+        body.note ?? "",
+      ),
     });
   }
   if (action === "run") {
-    return json({ task: context.services.delegation.markRunning(id) });
+    return json(
+      {
+        code: "OFFICIAL_LIFECYCLE_OWNS_STATUS",
+        error:
+          "Task status is derived from official ACP sessions. Execute the task to start a session.",
+      },
+      409,
+    );
   }
   if (action === "retry") {
     return json({
-      task: retryEffectiveDelegationTask(
+      task: await retryEffectiveDelegationTask(
         context.runtime,
         context.services,
         id,
@@ -48,7 +73,7 @@ export async function handleDelegationMutationRoutes(
   }
   if (action === "cancel") {
     return json({
-      task: cancelEffectiveDelegationTask(
+      task: await cancelEffectiveDelegationTask(
         context.runtime,
         context.services,
         id,
@@ -61,15 +86,22 @@ export async function handleDelegationMutationRoutes(
   }
   if (action === "complete") {
     return json({
-      task: context.services.delegation.complete(id, body.note),
+      task: await completeEffectiveDelegationTask(
+        context.runtime,
+        id,
+        body.note,
+      ),
     });
   }
   if (action === "fail") {
-    return json({
-      task: context.services.delegation.fail(id, body.note ?? "Task failed.", {
-        cascadeChildren: body.cascadeChildren,
-      }),
-    });
+    return json(
+      {
+        code: "OFFICIAL_LIFECYCLE_OWNS_STATUS",
+        error:
+          "The official orchestrator derives failure from ACP session events; manual failure is not supported.",
+      },
+      409,
+    );
   }
 
   return json({ error: "unknown delegation action" }, 404);

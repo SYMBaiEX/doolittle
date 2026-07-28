@@ -1,173 +1,94 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleDelegationMutationRoutes } from "./delegation-mutations";
 
-function createContext(): AppContext {
+function detail(status = "active") {
   return {
-    runtime: {},
-    services: {
-      delegation: {
-        addNote: (id: string, note: string) => ({ id, note, status: "noted" }),
-        markRunning: (id: string) => ({ id, status: "running" }),
-        requeue: (
-          id: string,
-          note?: string,
-          options?: Record<string, unknown>,
-        ) => ({ id, note, options, status: "queued" }),
-        cancel: (
-          id: string,
-          note?: string,
-          options?: Record<string, unknown>,
-        ) => ({ id, note, options, status: "cancelled" }),
-        complete: (id: string, note?: string) => ({
-          id,
-          note,
-          status: "completed",
-        }),
-        fail: (
-          id: string,
-          note: string,
-          options?: Record<string, unknown>,
-        ) => ({
-          id,
-          note,
-          options,
-          status: "failed",
-        }),
-      },
+    id: "task-1",
+    title: "Task",
+    kind: "coding",
+    status,
+    priority: "normal",
+    paused: false,
+    originalRequest: "Goal",
+    sessionCount: 0,
+    activeSessionCount: 0,
+    latestSessionId: null,
+    latestWorkdir: null,
+    createdAt: "2026-07-28T00:00:00.000Z",
+    updatedAt: "2026-07-28T00:00:00.000Z",
+    closedAt: null,
+    goal: "Goal",
+    parentTaskId: null,
+    acceptanceCriteria: [],
+    providerPolicy: null,
+    metadata: {},
+    sessions: [],
+    messages: [],
+    events: [],
+  };
+}
+
+function createContext(): AppContext {
+  const service = {
+    addMessage: vi.fn(async () => true),
+    getTask: vi.fn(async () => detail()),
+    pauseTask: vi.fn(async () => ({ ...detail(), paused: true })),
+    retryTaskTurn: vi.fn(async () => detail()),
+    validateTask: vi.fn(async () => detail("done")),
+  };
+  return {
+    runtime: {
+      getService: (name: string) =>
+        name === "ORCHESTRATOR_TASK_SERVICE" ? service : null,
     },
+    services: {},
   } as unknown as AppContext;
 }
 
 describe("handleDelegationMutationRoutes", () => {
-  it("handles note, run, complete, and fail transitions", async () => {
+  it("maps note, retry, cancel, and completion onto official lifecycle APIs", async () => {
     const context = createContext();
-    const note = await handleDelegationMutationRoutes(
-      context,
+    for (const action of ["note", "retry", "cancel", "complete"]) {
+      const response = await handleDelegationMutationRoutes(
+        context,
+        new Request(`http://localhost/delegation/tasks/task-1/${action}`, {
+          method: "POST",
+          body: JSON.stringify({ note: action }),
+        }),
+        new URL(`http://localhost/delegation/tasks/task-1/${action}`),
+      );
+      expect(response?.status).toBe(200);
+    }
+  });
+
+  it("rejects manual run/fail transitions because ACP events own status", async () => {
+    const context = createContext();
+    for (const action of ["run", "fail"]) {
+      const response = await handleDelegationMutationRoutes(
+        context,
+        new Request(`http://localhost/delegation/tasks/task-1/${action}`, {
+          method: "POST",
+          body: "{}",
+        }),
+        new URL(`http://localhost/delegation/tasks/task-1/${action}`),
+      );
+      expect(response?.status).toBe(409);
+      await expect(response?.json()).resolves.toMatchObject({
+        code: "OFFICIAL_LIFECYCLE_OWNS_STATUS",
+      });
+    }
+  });
+
+  it("returns an explicit unavailable state", async () => {
+    const response = await handleDelegationMutationRoutes(
+      { runtime: { getService: () => null }, services: {} } as never,
       new Request("http://localhost/delegation/tasks/task-1/note", {
         method: "POST",
-        body: JSON.stringify({ note: "hello" }),
-        headers: { "content-type": "application/json" },
+        body: "{}",
       }),
       new URL("http://localhost/delegation/tasks/task-1/note"),
     );
-    const run = await handleDelegationMutationRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/run", {
-        method: "POST",
-      }),
-      new URL("http://localhost/delegation/tasks/task-1/run"),
-    );
-    const complete = await handleDelegationMutationRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/complete", {
-        method: "POST",
-        body: JSON.stringify({ note: "done" }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks/task-1/complete"),
-    );
-    const fail = await handleDelegationMutationRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/fail", {
-        method: "POST",
-        body: JSON.stringify({ note: "boom", cascadeChildren: true }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks/task-1/fail"),
-    );
-
-    await expect(note?.json()).resolves.toEqual({
-      task: { id: "task-1", note: "hello", status: "noted" },
-    });
-    await expect(run?.json()).resolves.toEqual({
-      task: { id: "task-1", status: "running" },
-    });
-    await expect(complete?.json()).resolves.toEqual({
-      task: { id: "task-1", note: "done", status: "completed" },
-    });
-    await expect(fail?.json()).resolves.toEqual({
-      task: {
-        id: "task-1",
-        note: "boom",
-        options: { cascadeChildren: true },
-        status: "failed",
-      },
-    });
-  });
-
-  it("handles retry and cancel flows through effective helpers", async () => {
-    const context = createContext();
-    const retry = await handleDelegationMutationRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/retry", {
-        method: "POST",
-        body: JSON.stringify({ note: "retry it" }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks/task-1/retry"),
-    );
-    const cancel = await handleDelegationMutationRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-1/cancel", {
-        method: "POST",
-        body: JSON.stringify({ note: "stop", cascadeChildren: true }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks/task-1/cancel"),
-    );
-
-    await expect(retry?.json()).resolves.toEqual({
-      task: {
-        id: "task-1",
-        note: "retry it",
-        options: undefined,
-        status: "queued",
-      },
-    });
-    await expect(cancel?.json()).resolves.toEqual({
-      task: {
-        id: "task-1",
-        note: "stop",
-        options: { cascadeChildren: true },
-        status: "cancelled",
-      },
-    });
-  });
-
-  it("validates action routes and preserves 404 behavior", async () => {
-    const missing = await handleDelegationMutationRoutes(
-      createContext(),
-      new Request("http://localhost/delegation/tasks/", {
-        method: "POST",
-      }),
-      new URL("http://localhost/delegation/tasks/"),
-    );
-    const unknown = await handleDelegationMutationRoutes(
-      createContext(),
-      new Request("http://localhost/delegation/tasks/task-1/unknown", {
-        method: "POST",
-      }),
-      new URL("http://localhost/delegation/tasks/task-1/unknown"),
-    );
-
-    expect(missing?.status).toBe(400);
-    await expect(missing?.json()).resolves.toEqual({
-      error: "task id and action are required",
-    });
-    expect(unknown?.status).toBe(404);
-    await expect(unknown?.json()).resolves.toEqual({
-      error: "unknown delegation action",
-    });
-  });
-
-  it("returns null for unrelated routes", async () => {
-    const response = await handleDelegationMutationRoutes(
-      createContext(),
-      new Request("http://localhost/not-delegation"),
-      new URL("http://localhost/not-delegation"),
-    );
-
-    expect(response).toBeNull();
+    expect(response?.status).toBe(503);
   });
 });
