@@ -8,13 +8,19 @@ ElizaOS 2.0 beta line.
 
 ### Platform
 
-- **Migrated to ElizaOS 2.0 beta** (`@elizaos/core@2.0.0-beta.1`, agent `beta.2`,
-  skills `beta.1`, plugins `beta.1`, `elizaos@beta.5`). `@elizaos/autonomous`
-  stays on `alpha.85` (no beta published) with `overrides` forcing a single beta
-  `@elizaos/core` instance. Handled all beta breaking changes (moved subpaths,
-  removed `ModelType.OBJECT_*`, redesigned `Evaluator` contract, optional
-  `params.prompt`). Patched a broken `bun` export condition in
-  `@elizaos/plugin-sql@2.0.0-beta.1`.
+- **Aligned the complete ElizaOS runtime train on `2.0.3-beta.7`**:
+  `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `elizaos`, shared, and
+  official provider plugins now resolve to one exact beta through root
+  overrides and an acceptance check.
+- **Completed the native message-lifecycle migration**: normal chat turns now
+  enter `DefaultMessageService` directly. Removed the parallel regex
+  classifier, direct informational/profile/soul model bypasses, local-intent
+  pre-executor, and post-planner rescue executor. Doolittle retains only
+  product shell/session projection, provider readiness, and post-action
+  mutation-receipt safety around the SDK-owned lifecycle.
+- Split Doolittle context into official always-on core and context-routed
+  workspace/operations providers. Selected-project grounding now resolves
+  through the SDK session envelope.
 
 ### Added
 

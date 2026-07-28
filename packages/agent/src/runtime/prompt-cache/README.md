@@ -9,9 +9,10 @@ message pipeline.
 - The **SDK already caches** everything routed through `runtime.messageService.handleMessage`
   (the action / evaluator / planner path). `@elizaos/core` builds `promptSegments`
   and a full provider cache plan there. **Do not reimplement that.**
-- The only prompts with **zero caching** were Doolittle's own direct `useModel`
-  calls (the chat-turn "shortcut" fast paths). This module fixes exactly those.
-- It is a small, shared abstraction — never hand-rolled per call site.
+- Normal chat turns no longer contain a Doolittle-owned `useModel` fast path.
+  They enter the SDK message service, so its cache plan is authoritative.
+- This module remains the shared abstraction for any non-chat prompt Doolittle
+  may own. It currently has no normal-chat integration point.
 
 ## Where it lives
 
@@ -24,18 +25,15 @@ runtime/prompt-cache/
   metrics.ts           # promptCacheMetrics: observability recorder + snapshot
 ```
 
-Integration point: `chat-turn/native/shortcuts.ts#buildShortcutPromptCache`,
-used by all three shortcut handlers (direct-informational + the two
-profile-memory paths). That is the single funnel for Doolittle-owned model
-calls, so caching is applied once and uniformly.
+The former chat-turn shortcut integration was removed with the SDK-native
+message-lifecycle migration. New Doolittle-owned prompt construction must use
+this module; SDK message-service prompts must not.
 
 ## How it works
 
-1. A prompt is described as a **stable prefix** (character voice, soul,
-   conversation contract — identical across calls for the same character) plus a
-   **volatile suffix** (recent conversation, durable memory, the user message).
-   `buildDirectInformationalPromptParts` splits the fast-path prompt losslessly:
-   `stablePrefix + "\n" + volatileSuffix` equals the original wire prompt.
+1. A Doolittle-owned prompt is described as a **stable prefix** (character
+   voice, soul, or another reusable contract) plus a **volatile suffix** (fresh
+   context and user-derived input).
 2. `buildCacheablePrompt` turns that into SDK `promptSegments` (`{content, stable}`)
    plus `providerOptions`, preserving the invariant
    `prompt === promptSegments.map(s => s.content).join("")`.
@@ -82,8 +80,7 @@ hit-rate requires the SDK to forward cache usage — see "Known limitations".
 
 - **A new caching provider:** add a branch to `resolveProviderCachePolicy`.
 - **A new Doolittle-owned `useModel` call:** build a stable/volatile split and
-  route it through `buildShortcutPromptCache` (or `buildCacheablePrompt`
-  directly). Never pass cache hints ad hoc.
+  route it through `buildCacheablePrompt`. Never pass cache hints ad hoc.
 - **Make a custom provider plugin cacheable:** teach it to read
   `params.promptSegments` / `params.providerOptions`, then move it to `explicit`.
 
@@ -101,6 +98,6 @@ hit-rate requires the SDK to forward cache usage — see "Known limitations".
   observable.
 - Custom provider plugins (claude-code, codex, elizacloud) ignore `promptSegments`
   — make them segment-aware to extend explicit caching to those providers.
-- The SDK main-path **prelude** (`chat-turn/model-input.ts`) still rides as
-  volatile; hoisting its stable half into a static provider would let core cache
-  it. Tracked separately.
+- There is intentionally no Doolittle prelude in the SDK message path. Stable
+  product context belongs in registered Providers so core can own its cache
+  policy.

@@ -21,7 +21,7 @@
 
 > The shell is warm. The channels are waiting.
 
-A terminal-native AI agent that thinks in loops, not single shots. Doolittle runs a Cloud-first, ElizaOS-native multi-step shell: native runtime first, direct local rescue when needed, observed run progress, and a transcript-first terminal UI. Built on [ElizaOS](https://github.com/elizaos/eliza) with Nub, Node.js, and TypeScript.
+A terminal-native AI agent that thinks in loops, not single shots. Doolittle runs an ElizaOS-native multi-step shell: one official message lifecycle, SDK actions/providers/shortcuts, observed run progress, and a transcript-first terminal UI. Built on [ElizaOS](https://github.com/elizaos/eliza) with Nub, Node.js, and TypeScript.
 
 ---
 
@@ -121,18 +121,17 @@ You ask for something
       observed action/tool steps
       approvals
       active tool stream
-  → if native planning stalls with no observed action,
-      Doolittle rescues with the direct local executor
+  → SDK action results are checked for truthful local mutation receipts
   → final answer returns through one shared shell/gateway progress contract
 ```
 
 This means the shell stays thin over ElizaOS:
 
-1. **Native first**: natural requests go through the Eliza runtime before product rescue logic.
+1. **One native owner**: natural requests go through `DefaultMessageService`; Doolittle does not classify, rewrite, or execute them in a second intent pipeline.
 2. **Observed truth**: the UI shows configured iteration caps plus observed steps, not fake decremented counters.
 3. **Deferred hydration**: the shell becomes interactive first, then gateway/cron/diagnostics/operator surfaces hydrate behind it.
-4. **Prompt reuse where it matters**: simple conversational turns are cached safely in-session, and Eliza Cloud turns carry a stable conversation id so xAI prompt caching can reduce repeated prompt cost on managed Cloud runs.
-5. **Native coding context**: local coding turns now flow with a real ElizaOS `coding-agent-context` instead of an ad hoc workspace prelude.
+4. **SDK context routing**: identity, memory, session, and selected-project context are official providers; workspace and operations context are gated by Eliza contexts.
+5. **SDK-native tools**: repository, workspace, file, terminal, web, memory, skills, session search, research, and cron capabilities are registered actions, with deterministic shortcuts for high-confidence requests.
 
 ### Run depth
 
