@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { DesktopUpdateController, type UpdateProvider } from "./update-state";
+import {
+  configureUpdateProvider,
+  type ConfigurableUpdateProvider,
+  DesktopUpdateController,
+  type UpdateProvider,
+} from "./update-state";
 
 function provider() {
   const listeners = new Map<string, (...args: any[]) => void>();
@@ -36,6 +41,24 @@ describe("desktop updates", () => {
     expect(updates.getState()).toMatchObject({
       phase: "error",
       message: "network unavailable",
+    });
+  });
+
+  it("uses embedded publisher metadata unless a generic feed override is configured", () => {
+    const value = provider().value as ConfigurableUpdateProvider;
+    value.autoDownload = true;
+    value.autoInstallOnAppQuit = true;
+    value.setFeedURL = vi.fn();
+
+    configureUpdateProvider(value);
+    expect(value.autoDownload).toBe(false);
+    expect(value.autoInstallOnAppQuit).toBe(false);
+    expect(value.setFeedURL).not.toHaveBeenCalled();
+
+    configureUpdateProvider(value, "https://updates.example.test/doolittle");
+    expect(value.setFeedURL).toHaveBeenCalledWith({
+      provider: "generic",
+      url: "https://updates.example.test/doolittle",
     });
   });
 });

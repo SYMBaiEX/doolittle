@@ -49,6 +49,14 @@
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SYMBaiEX",
+        "repo": "doolittle",
+        "releaseType": "release"
+      }
+    ],
     "files": [
       "dist/**/*",
       "assets/icon.png",

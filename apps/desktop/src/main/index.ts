@@ -519,7 +519,7 @@ app.whenReady().then(async () => {
   updates = new DesktopUpdateController(
     app.isPackaged ? configuredUpdater() : null,
     app.isPackaged
-      ? "Updates are unavailable because this build has no signed update feed."
+      ? "Updates are unavailable in this packaged build."
       : "Updates are only available in a packaged, signed Doolittle build.",
   );
   backend = new BackendManager(
