@@ -63,7 +63,7 @@ jobs:
         run: |
           nub run desktop:build
           nub run --cwd apps/desktop runtime:prepare
-          if [[ -n "$CSC_LINK" && -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
+          if [[ -n "$CSC_LINK" && -n "$CSC_KEY_PASSWORD" && -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
             (cd apps/desktop && nubx --node electron-builder --mac dmg zip --config.mac.notarize=true)
           else
             echo "Signing credentials are not configured; producing an unsigned development artifact."
