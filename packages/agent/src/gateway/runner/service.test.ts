@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformHealth } from "@/gateway/platforms/base";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
@@ -17,13 +17,15 @@ import type { GatewayRunnerRuntimeApi } from "./service-runtime/api";
 
 describe("GatewayRunner", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("delegates control, delivery, and read API methods to the runtime wiring", async () => {
@@ -91,68 +93,66 @@ describe("GatewayRunner", () => {
 
     const runtime = {
       control: {
-        start: mock(async () => undefined),
-        stop: mock(async () => undefined),
-        heartbeat: mock(async () => ({}) as never as GatewayStateSnapshot),
-        supervise: mock(async () => [] as GatewaySupervisionRecord[]),
-        watchdog: mock(async () => [] as GatewaySupervisionRecord[]),
-        watch: mock(async () => [] as GatewaySupervisionRecord[]),
-        restart: mock(async () => [] as GatewaySupervisionRecord[]),
+        start: vi.fn(async () => undefined),
+        stop: vi.fn(async () => undefined),
+        heartbeat: vi.fn(async () => ({}) as never as GatewayStateSnapshot),
+        supervise: vi.fn(async () => [] as GatewaySupervisionRecord[]),
+        watchdog: vi.fn(async () => [] as GatewaySupervisionRecord[]),
+        watch: vi.fn(async () => [] as GatewaySupervisionRecord[]),
+        restart: vi.fn(async () => [] as GatewaySupervisionRecord[]),
       },
       delivery: {
-        receive: mock(async () => ({ ok: true }) as GatewayReceiveResult),
-        sendToHomes: mock(async () => [] as DeliveredMessageRecord[]),
-        editDelivery: mock(
+        receive: vi.fn(async () => ({ ok: true }) as GatewayReceiveResult),
+        sendToHomes: vi.fn(async () => [] as DeliveredMessageRecord[]),
+        editDelivery: vi.fn(
           async () => ({ id: "d-1" }) as DeliveredMessageRecord,
         ),
-        sendProgressive: mock(
+        sendProgressive: vi.fn(
           async () => ({ id: "d-2" }) as DeliveredMessageRecord,
         ),
       },
       read: {
-        runtimeStatus: mock(() => runtimeStatus),
-        transport: mock(
+        runtimeStatus: vi.fn(() => runtimeStatus),
+        transport: vi.fn(
           async (_platform) => ({ platform: "api" }) as GatewayTransportDetail,
         ),
-        transportOverview: mock(async () => ({
+        transportOverview: vi.fn(async () => ({
           details: [] as GatewayTransportDetail[],
           mismatchCount: 0,
           operationalCount: 0,
         })),
-        health: mock(async () => [] as PlatformHealth[]),
-        trace: mock((_limit?: number, _filters?: GatewayHistoryFilter) => []),
-        state: mock(async () => ({}) as never as GatewayStateSnapshot),
-        history: mock(async () => ({}) as never as GatewayHistorySnapshot),
-        inbox: mock((_limit?: number, _filters?: GatewayHistoryFilter) => []),
-        outbox: mock((_limit?: number, _filters?: GatewayHistoryFilter) => []),
-        attachments: mock(
+        health: vi.fn(async () => [] as PlatformHealth[]),
+        trace: vi.fn((_limit?: number, _filters?: GatewayHistoryFilter) => []),
+        state: vi.fn(async () => ({}) as never as GatewayStateSnapshot),
+        history: vi.fn(async () => ({}) as never as GatewayHistorySnapshot),
+        inbox: vi.fn((_limit?: number, _filters?: GatewayHistoryFilter) => []),
+        outbox: vi.fn((_limit?: number, _filters?: GatewayHistoryFilter) => []),
+        attachments: vi.fn(
           (_limit?: number, _filters?: GatewayHistoryFilter) => [],
         ),
-        supervision: mock(
+        supervision: vi.fn(
           (_limit?: number) => [] as GatewaySupervisionRecord[],
         ),
-        replayInbox: mock(async () => ({}) as never),
+        replayInbox: vi.fn(async () => ({}) as never),
       },
       recording: {
-        snapshotState: mock(
+        snapshotState: vi.fn(
           async (
             _reason: string,
             _limit?: number,
             _filters?: GatewayHistoryFilter,
           ) => ({}) as GatewayHistorySnapshot,
         ),
-        onUpdate: mock(() => mock(() => undefined)),
+        onUpdate: vi.fn(() => vi.fn(() => undefined)),
       },
     } satisfies GatewayRunnerRuntimeApi;
 
-    mock.module("./service-runtime/wire", () => ({
+    vi.doMock("./service-runtime/wire", () => ({
       wireGatewayRunnerRuntime: () => runtime,
     }));
 
     try {
-      const { GatewayRunner } = await import(
-        `./service?runner-service-delegation=${Date.now()}`
-      );
+      const { GatewayRunner } = await import("./service");
       const runner = new GatewayRunner(context);
       const message = {
         platform: "api",
@@ -178,7 +178,6 @@ describe("GatewayRunner", () => {
           platform: "api",
           roomId: "room-1",
           userId: "user-1",
-          mode: "home",
         },
         ["one", "two"],
       );
@@ -207,8 +206,9 @@ describe("GatewayRunner", () => {
       expect(detach).toBeTypeOf("function");
       expect(typeof detach).toBe("function");
     } finally {
-      mock.restore();
-      mock.clearAllMocks();
+      vi.restoreAllMocks();
+      vi.resetModules();
+      vi.clearAllMocks();
     }
   });
 
@@ -271,74 +271,78 @@ describe("GatewayRunner", () => {
     };
     const runtime = {
       control: {
-        start: mock(async () => undefined),
-        stop: mock(async () => undefined),
-        heartbeat: mock(async () => ({}) as never as GatewayStateSnapshot),
-        supervise: mock(async () => [] as GatewaySupervisionRecord[]),
-        watchdog: mock(async () => [] as GatewaySupervisionRecord[]),
-        watch: mock(async () => [] as GatewaySupervisionRecord[]),
-        restart: mock(async () => [] as GatewaySupervisionRecord[]),
+        start: vi.fn(async () => undefined),
+        stop: vi.fn(async () => undefined),
+        heartbeat: vi.fn(async () => ({}) as never as GatewayStateSnapshot),
+        supervise: vi.fn(async () => [] as GatewaySupervisionRecord[]),
+        watchdog: vi.fn(async () => [] as GatewaySupervisionRecord[]),
+        watch: vi.fn(async () => [] as GatewaySupervisionRecord[]),
+        restart: vi.fn(async () => [] as GatewaySupervisionRecord[]),
       },
       delivery: {
-        receive: mock(async () => {
+        receive: vi.fn(async () => {
           throw new Error("gateway receive failed");
         }),
-        sendToHomes: mock(async () => [] as DeliveredMessageRecord[]),
-        editDelivery: mock(
+        sendToHomes: vi.fn(async () => [] as DeliveredMessageRecord[]),
+        editDelivery: vi.fn(
           async () => ({ id: "d-1" }) as DeliveredMessageRecord,
         ),
-        sendProgressive: mock(
+        sendProgressive: vi.fn(
           async () => ({ id: "d-2" }) as DeliveredMessageRecord,
         ),
       },
       read: {
-        runtimeStatus: mock(() => runtimeStatus),
-        transport: mock(
+        runtimeStatus: vi.fn(() => runtimeStatus),
+        transport: vi.fn(
           async () => ({ platform: "api" }) as GatewayTransportDetail,
         ),
-        transportOverview: mock(async () => ({
+        transportOverview: vi.fn(async () => ({
           details: [] as GatewayTransportDetail[],
           mismatchCount: 0,
           operationalCount: 0,
         })),
-        health: mock(async () => [] as PlatformHealth[]),
-        trace: mock(() => []),
-        state: mock(async () => ({}) as never as GatewayStateSnapshot),
-        history: mock(async () => ({}) as never as GatewayHistorySnapshot),
-        inbox: mock(() => []),
-        outbox: mock(() => []),
-        attachments: mock(() => []),
-        supervision: mock(() => [] as GatewaySupervisionRecord[]),
-        replayInbox: mock(async () => ({}) as never),
+        health: vi.fn(async () => [] as PlatformHealth[]),
+        trace: vi.fn(() => []),
+        state: vi.fn(async () => ({}) as never as GatewayStateSnapshot),
+        history: vi.fn(async () => ({}) as never as GatewayHistorySnapshot),
+        inbox: vi.fn(() => []),
+        outbox: vi.fn(() => []),
+        attachments: vi.fn(() => []),
+        supervision: vi.fn(() => [] as GatewaySupervisionRecord[]),
+        replayInbox: vi.fn(async () => ({}) as never),
       },
       recording: {
-        snapshotState: mock(
+        snapshotState: vi.fn(
           async (
             _reason: string,
             _limit?: number,
             _filters?: GatewayHistoryFilter,
           ) => ({}) as GatewayHistorySnapshot,
         ),
-        onUpdate: mock(() => () => undefined),
+        onUpdate: vi.fn(() => () => undefined),
       },
     } satisfies GatewayRunnerRuntimeApi;
 
-    mock.module("./service-runtime/wire", () => ({
+    vi.doMock("./service-runtime/wire", () => ({
       wireGatewayRunnerRuntime: () => runtime,
     }));
 
     try {
-      const { GatewayRunner } = await import(
-        `./service?runner-service-failure=${Date.now()}`
-      );
+      const { GatewayRunner } = await import("./service");
       const runner = new GatewayRunner({} as never);
 
       await expect(
-        runner.receive({ platform: "api", roomId: "room-1", userId: "user-1" }),
+        runner.receive({
+          platform: "api",
+          roomId: "room-1",
+          userId: "user-1",
+          text: "hello",
+        }),
       ).rejects.toThrow("gateway receive failed");
     } finally {
-      mock.restore();
-      mock.clearAllMocks();
+      vi.restoreAllMocks();
+      vi.resetModules();
+      vi.clearAllMocks();
     }
   });
 });

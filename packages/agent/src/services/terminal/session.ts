@@ -1,5 +1,10 @@
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "../workspace-directory";
 import { LOCAL_SHELL } from "./execution/subprocess/shell";
 
 const MAX_SESSIONS = 4;
@@ -23,8 +28,8 @@ export interface InteractiveTerminalSessionSnapshot {
   startedAt: string;
   completedAt?: string;
   exitCode?: number;
-  pty: true;
-  supportsResize: true;
+  pty: boolean;
+  supportsResize: boolean;
   outputBytes: number;
 }
 
@@ -42,8 +47,7 @@ export interface InteractiveTerminalOutput {
 
 interface InteractiveTerminalSessionRecord {
   snapshot: InteractiveTerminalSessionSnapshot;
-  terminal: Bun.Terminal;
-  process: Bun.Subprocess;
+  process: ChildProcessWithoutNullStreams;
   chunks: InteractiveTerminalOutputChunk[];
   nextCursor: number;
   outputBytes: number;
@@ -102,7 +106,7 @@ export class InteractiveTerminalSessionManager {
     InteractiveTerminalSessionRecord
   >();
 
-  constructor(private readonly workspaceDir: string) {}
+  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
 
   start(options?: {
     cols?: number;
@@ -121,54 +125,45 @@ export class InteractiveTerminalSessionManager {
     const cols = boundedDimension(options?.cols, 100, MIN_COLUMNS, MAX_COLUMNS);
     const rows = boundedDimension(options?.rows, 30, MIN_ROWS, MAX_ROWS);
     const command = terminalCommand();
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
     const pendingOutput: string[] = [];
     let record: InteractiveTerminalSessionRecord | undefined;
-    const terminal = new Bun.Terminal({
-      cols,
-      rows,
-      name: "xterm-256color",
-      data: (_terminal, data) => {
-        const text = new TextDecoder().decode(data);
-        if (!record) {
-          pendingOutput.push(text);
-          return;
-        }
-        this.appendOutput(record, text);
+    const child = spawn(command[0] ?? "", command.slice(1), {
+      cwd: workspaceDir,
+      env: {
+        ...process.env,
+        TERM: "xterm-256color",
+        COLORTERM: "truecolor",
+        DOOLITTLE_DESKTOP_TERMINAL: "1",
       },
+      stdio: ["pipe", "pipe", "pipe"],
     });
-
-    let child: Bun.Subprocess;
-    try {
-      child = Bun.spawn(command, {
-        cwd: this.workspaceDir,
-        env: {
-          ...process.env,
-          TERM: "xterm-256color",
-          COLORTERM: "truecolor",
-          DOOLITTLE_DESKTOP_TERMINAL: "1",
-        },
-        terminal,
-      });
-    } catch (error) {
-      terminal.close();
-      throw error;
-    }
+    const consume = (text: string) => {
+      if (!record) {
+        pendingOutput.push(text);
+        return;
+      }
+      this.appendOutput(record, text);
+    };
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", consume);
+    child.stderr.on("data", consume);
 
     const snapshot: InteractiveTerminalSessionSnapshot = {
       id,
       state: "running",
-      cwd: this.workspaceDir,
+      cwd: workspaceDir,
       shell: basename(command[0] ?? "shell"),
       cols,
       rows,
       startedAt: new Date().toISOString(),
-      pty: true,
-      supportsResize: true,
+      pty: false,
+      supportsResize: false,
       outputBytes: 0,
     };
     record = {
       snapshot,
-      terminal,
       process: child,
       chunks: [],
       nextCursor: 0,
@@ -179,15 +174,19 @@ export class InteractiveTerminalSessionManager {
       this.appendOutput(record, text);
     }
 
-    void child.exited.then((exitCode) => {
-      this.finalize(record as InteractiveTerminalSessionRecord, exitCode);
+    child.once("error", (error) => {
+      consume(`\r\nDoolittle terminal failed: ${error.message}\r\n`);
+      this.finalize(record as InteractiveTerminalSessionRecord, 1);
+    });
+    child.once("close", (exitCode) => {
+      this.finalize(record as InteractiveTerminalSessionRecord, exitCode ?? 1);
     });
     return { ...snapshot };
   }
 
   input(sessionId: string, data: string): InteractiveTerminalSessionSnapshot {
     const record = this.requireRunning(sessionId);
-    record.terminal.write(validateInput(data));
+    record.process.stdin.write(validateInput(data));
     return { ...record.snapshot };
   }
 
@@ -209,7 +208,6 @@ export class InteractiveTerminalSessionManager {
       MIN_ROWS,
       MAX_ROWS,
     );
-    record.terminal.resize(cols, rows);
     record.snapshot.cols = cols;
     record.snapshot.rows = rows;
     return { ...record.snapshot };
@@ -217,7 +215,11 @@ export class InteractiveTerminalSessionManager {
 
   interrupt(sessionId: string): InteractiveTerminalSessionSnapshot {
     const record = this.requireRunning(sessionId);
-    record.terminal.write("\u0003");
+    if (process.platform === "win32") {
+      record.process.stdin.write("\u0003");
+    } else {
+      record.process.kill("SIGINT");
+    }
     return { ...record.snapshot };
   }
 
@@ -229,7 +231,7 @@ export class InteractiveTerminalSessionManager {
     record.snapshot.state = "closed";
     record.snapshot.completedAt = new Date().toISOString();
     try {
-      record.terminal.write(
+      record.process.stdin.write(
         process.platform === "win32" ? "exit\r\n" : "exit\n",
       );
     } catch {
@@ -238,11 +240,6 @@ export class InteractiveTerminalSessionManager {
     const killTimer = setTimeout(() => {
       try {
         record.process.kill("SIGTERM");
-      } catch {
-        // Best effort only.
-      }
-      try {
-        record.terminal.close();
       } catch {
         // Best effort only.
       }
@@ -277,11 +274,6 @@ export class InteractiveTerminalSessionManager {
           // Best effort only.
         }
       }
-      try {
-        record.terminal.close();
-      } catch {
-        // Best effort only.
-      }
     }
     this.sessions.clear();
   }
@@ -297,7 +289,10 @@ export class InteractiveTerminalSessionManager {
 
   private requireRunning(sessionId: string): InteractiveTerminalSessionRecord {
     const record = this.requireSession(sessionId);
-    if (record.snapshot.state !== "running" || record.terminal.closed) {
+    if (
+      record.snapshot.state !== "running" ||
+      record.process.exitCode !== null
+    ) {
       throw new Error("Interactive terminal session is no longer running.");
     }
     return record;
@@ -330,11 +325,6 @@ export class InteractiveTerminalSessionManager {
       record.snapshot.completedAt = new Date().toISOString();
     }
     record.snapshot.exitCode = exitCode;
-    try {
-      record.terminal.close();
-    } catch {
-      // Best effort only.
-    }
     this.scheduleCleanup(record);
   }
 

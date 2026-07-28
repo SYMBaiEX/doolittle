@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import { handleEntrypointRuntimeSurface } from "./runtime-surface";
 
 function createContext() {
@@ -9,14 +9,14 @@ function createContext() {
       dataDir: "/tmp/doolittle-tests",
     },
     gateway: {
-      start: mock(async () => {}),
+      start: vi.fn(async () => {}),
     },
   } as const;
 }
 
 function createLogger() {
   return {
-    info: mock(() => {}),
+    info: vi.fn(() => {}),
   };
 }
 
@@ -24,7 +24,7 @@ describe("handleEntrypointRuntimeSurface", () => {
   it("starts the gateway command before returning", async () => {
     const context = createContext();
     const runtimeLogger = createLogger();
-    const printLine = mock(() => {});
+    const printLine = vi.fn(() => {});
 
     const result = await handleEntrypointRuntimeSurface({
       command: "gateway",
@@ -62,7 +62,7 @@ describe("handleEntrypointRuntimeSurface", () => {
     const context = createContext();
     const runtimeLogger = createLogger();
     const pushedArgs: string[] = [];
-    const startCli = mock(async () => 7);
+    const startCli = vi.fn(async () => 7);
 
     const result = await handleEntrypointRuntimeSurface({
       command: "plain",
@@ -101,7 +101,7 @@ describe("handleEntrypointRuntimeSurface", () => {
   it("prints the no-surface message when runtime is initialized without cli or api", async () => {
     const context = createContext();
     const runtimeLogger = createLogger();
-    const printLine = mock(() => {});
+    const printLine = vi.fn(() => {});
 
     const result = await handleEntrypointRuntimeSurface({
       command: "start",

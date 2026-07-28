@@ -1,22 +1,16 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import { McpService } from "./service";
 
-const fixturePath = join(import.meta.dir, "..", "..", "testing", "mock-mcp.ts");
+const fixturePath = fileURLToPath(
+  new URL("../../testing/mock-mcp.ts", import.meta.url),
+);
 const service = new McpService(() => ({
-  serverCommand: `bun run ${fixturePath}`,
+  serverCommand: `nub ${fixturePath}`,
   timeoutMs: 5_000,
 }));
 
 describe("McpService", () => {
-  beforeAll(() => {
-    process.env.BUN_CONFIG_NO_CLEAR_TERMINAL_ON_RELOAD = "1";
-  });
-
-  afterAll(() => {
-    delete process.env.BUN_CONFIG_NO_CLEAR_TERMINAL_ON_RELOAD;
-  });
-
   it("discovers structured tools", async () => {
     const result = await service.discoverTools();
     expect(result.ok).toBe(true);

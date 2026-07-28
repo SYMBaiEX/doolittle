@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { PreparedTurnState } from "./state";
 
@@ -68,16 +68,15 @@ function createPreparedTurn(
 }
 
 async function loadRunSlashCommandTurn() {
-  const { runSlashCommandTurn } = await import(
-    `./command?slash-command-turn-test=${Date.now()}-${Math.random()}`
-  );
+  const { runSlashCommandTurn } = await import("./command");
   return runSlashCommandTurn;
 }
 
 describe("slash command turn runner", () => {
   it("returns undefined when the command layer does not handle the input", async () => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     const runSlashCommandTurn = await loadRunSlashCommandTurn();
 
     const state = {
@@ -124,8 +123,9 @@ describe("slash command turn runner", () => {
   });
 
   it("tracks lifecycle and stores both user and assistant messages for handled commands", async () => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     const runSlashCommandTurn = await loadRunSlashCommandTurn();
 
     const state = {

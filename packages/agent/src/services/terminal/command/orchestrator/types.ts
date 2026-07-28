@@ -13,7 +13,8 @@ export interface TerminalCommandUpdateEvent {
 }
 
 export interface TerminalServiceCommandOrchestratorOptions {
-  workspaceDir: string;
+  workspaceDir?: string;
+  getWorkspaceDir?: () => string;
   getSettings: () => RuntimeSettings;
   backends: Map<ExecutionBackendName, ExecutionBackend>;
   historyStore: TerminalCommandHistoryStore;

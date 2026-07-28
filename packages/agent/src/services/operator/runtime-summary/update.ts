@@ -47,12 +47,12 @@ export async function buildOperatorUpdatePreview(
     recommendedSteps: repositoryAvailable
       ? [
           "Review git status before updating runtime dependencies.",
-          "Run bun install after dependency changes.",
-          "Re-run bun run typecheck, bun test, and bun run build after updating.",
+          "Run nub install after dependency changes.",
+          "Re-run nub run typecheck, nub run test, and nub run build after updating.",
         ]
       : [
           "Initialize a git repository if you want update previews tied to commit history.",
-          "Keep bun install, bun run typecheck, bun test, and bun run build as the standard update validation flow.",
+          "Keep nub install, nub run typecheck, nub run test, and nub run build as the standard update validation flow.",
         ],
     ecosystem: condensed.ecosystem,
     pluginManager: condensed.pluginManager,

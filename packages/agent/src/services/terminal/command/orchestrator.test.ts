@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import type {
   ExecutionBackendName,
   ExecutionBackendPreview,
@@ -35,7 +35,7 @@ function makeSettings(): RuntimeSettings {
       remoteArtifactPaths: [".doolittle/remote-artifacts"],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],
@@ -162,6 +162,35 @@ function createFakeBackend(input: {
 }
 
 describe("command orchestrator", () => {
+  it("resolves the workspace each time a command is prepared", () => {
+    const first = mkdtempSync(
+      join(tmpdir(), "doolittle-terminal-orchestrator-first-"),
+    );
+    const second = mkdtempSync(
+      join(tmpdir(), "doolittle-terminal-orchestrator-second-"),
+    );
+    let workspaceDir = first;
+    const orchestrator = new TerminalServiceCommandOrchestrator({
+      getWorkspaceDir: () => workspaceDir,
+      getSettings: makeSettings,
+      backends: new Map([
+        ["local", createFakeBackend({ name: "local", mode: "local" })],
+      ]),
+      historyStore: new TerminalCommandHistoryStore(
+        join(first, "terminal-history.json"),
+      ),
+    });
+
+    try {
+      expect(orchestrator.preview("pwd").cwd).toBe(first);
+      workspaceDir = second;
+      expect(orchestrator.preview("pwd").cwd).toBe(second);
+    } finally {
+      rmSync(first, { recursive: true, force: true });
+      rmSync(second, { recursive: true, force: true });
+    }
+  });
+
   it("falls back to the local backend when previewing an unavailable backend", () => {
     const root = mkdtempSync(
       join(tmpdir(), "doolittle-terminal-orchestrator-preview-"),

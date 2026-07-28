@@ -1,11 +1,12 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { buildOperatorUpdatePreview } from "./update";
 
 function createVersionSummary() {
   return {
     name: "doolittle",
     version: "0.1.0",
-    bun: "1.3.12",
+    node: "26.5.0",
+    nub: "0.6.0",
     dependencies: {},
     nativePlugins: {
       total: 0,
@@ -171,8 +172,8 @@ describe("buildOperatorUpdatePreview", () => {
     });
     expect(preview.recommendedSteps).toEqual([
       "Review git status before updating runtime dependencies.",
-      "Run bun install after dependency changes.",
-      "Re-run bun run typecheck, bun test, and bun run build after updating.",
+      "Run nub install after dependency changes.",
+      "Re-run nub run typecheck, nub run test, and nub run build after updating.",
     ]);
   });
 
@@ -195,7 +196,7 @@ describe("buildOperatorUpdatePreview", () => {
     expect(preview.recentCommits).toBe("(no git history available)");
     expect(preview.recommendedSteps).toEqual([
       "Initialize a git repository if you want update previews tied to commit history.",
-      "Keep bun install, bun run typecheck, bun test, and bun run build as the standard update validation flow.",
+      "Keep nub install, nub run typecheck, nub run test, and nub run build as the standard update validation flow.",
     ]);
   });
 });

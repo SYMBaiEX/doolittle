@@ -1,21 +1,21 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import { handleEntrypointInitialCommandFlow } from "./initial-command-flow";
 
 function createLogger() {
   return {
-    warn: mock(() => {}),
-    error: mock(() => {}),
-    info: mock(() => {}),
-    debug: mock(() => {}),
-    captureError: mock(() => {}),
-    child: mock(() => createLogger()),
+    warn: vi.fn(() => {}),
+    error: vi.fn(() => {}),
+    info: vi.fn(() => {}),
+    debug: vi.fn(() => {}),
+    captureError: vi.fn(() => {}),
+    child: vi.fn(() => createLogger()),
   };
 }
 
 describe("handleEntrypointInitialCommandFlow", () => {
   it("loads local runtime env before handing off the jobs surface", async () => {
-    const loadLocalRuntimeEnv = mock(() => {});
-    const handleJobsSubcommand = mock(async () => {});
+    const loadLocalRuntimeEnv = vi.fn(() => {});
+    const handleJobsSubcommand = vi.fn(async () => {});
 
     const handled = await handleEntrypointInitialCommandFlow(
       {
@@ -26,19 +26,19 @@ describe("handleEntrypointInitialCommandFlow", () => {
         entryLogger: createLogger() as never,
       },
       {
-        handleLocalEntrypointSubcommand: mock(async () => false) as never,
-        shouldLoadLocalRuntimeEnvForEntrypoint: mock(() => true) as never,
+        handleLocalEntrypointSubcommand: vi.fn(async () => false) as never,
+        shouldLoadLocalRuntimeEnvForEntrypoint: vi.fn(() => true) as never,
         loadLocalRuntimeEnv,
         handleJobsSubcommand,
-        handleStaticPromptCommand: mock(async () => false) as never,
-        handleBackgroundExec: mock(async () => false) as never,
-        loadConfig: mock(() => ({ dataDir: "/tmp/data" })) as never,
-        cliJobStatusSummary: mock(() => "summary") as never,
-        getCliJob: mock(() => undefined) as never,
-        renderCliJobReplay: mock(() => "") as never,
-        attachCliJob: mock(async () => undefined) as never,
-        cancelCliJob: mock(() => undefined) as never,
-        renderCliTurnEvent: mock(() => "event") as never,
+        handleStaticPromptCommand: vi.fn(async () => false) as never,
+        handleBackgroundExec: vi.fn(async () => false) as never,
+        loadConfig: vi.fn(() => ({ dataDir: "/tmp/data" })) as never,
+        cliJobStatusSummary: vi.fn(() => "summary") as never,
+        getCliJob: vi.fn(() => undefined) as never,
+        renderCliJobReplay: vi.fn(() => "") as never,
+        attachCliJob: vi.fn(async () => undefined) as never,
+        cancelCliJob: vi.fn(() => undefined) as never,
+        renderCliTurnEvent: vi.fn(() => "event") as never,
       },
     );
 
@@ -48,8 +48,8 @@ describe("handleEntrypointInitialCommandFlow", () => {
   });
 
   it("shows exec usage before runtime boot when the prompt is missing", async () => {
-    const writeStderrLine = mock(() => {});
-    const exit = mock(() => {});
+    const writeStderrLine = vi.fn(() => {});
+    const exit = vi.fn(() => {});
     const entryLogger = createLogger();
 
     const handled = await handleEntrypointInitialCommandFlow(
@@ -68,19 +68,19 @@ describe("handleEntrypointInitialCommandFlow", () => {
         exit,
       },
       {
-        handleLocalEntrypointSubcommand: mock(async () => false) as never,
-        shouldLoadLocalRuntimeEnvForEntrypoint: mock(() => false) as never,
-        loadLocalRuntimeEnv: mock(() => {}) as never,
-        handleJobsSubcommand: mock(async () => {}) as never,
-        handleStaticPromptCommand: mock(async () => false) as never,
-        handleBackgroundExec: mock(async () => false) as never,
-        loadConfig: mock(() => ({ dataDir: "/tmp/data" })) as never,
-        cliJobStatusSummary: mock(() => "summary") as never,
-        getCliJob: mock(() => undefined) as never,
-        renderCliJobReplay: mock(() => "") as never,
-        attachCliJob: mock(async () => undefined) as never,
-        cancelCliJob: mock(() => undefined) as never,
-        renderCliTurnEvent: mock(() => "event") as never,
+        handleLocalEntrypointSubcommand: vi.fn(async () => false) as never,
+        shouldLoadLocalRuntimeEnvForEntrypoint: vi.fn(() => false) as never,
+        loadLocalRuntimeEnv: vi.fn(() => {}) as never,
+        handleJobsSubcommand: vi.fn(async () => {}) as never,
+        handleStaticPromptCommand: vi.fn(async () => false) as never,
+        handleBackgroundExec: vi.fn(async () => false) as never,
+        loadConfig: vi.fn(() => ({ dataDir: "/tmp/data" })) as never,
+        cliJobStatusSummary: vi.fn(() => "summary") as never,
+        getCliJob: vi.fn(() => undefined) as never,
+        renderCliJobReplay: vi.fn(() => "") as never,
+        attachCliJob: vi.fn(async () => undefined) as never,
+        cancelCliJob: vi.fn(() => undefined) as never,
+        renderCliTurnEvent: vi.fn(() => "event") as never,
       },
     );
 

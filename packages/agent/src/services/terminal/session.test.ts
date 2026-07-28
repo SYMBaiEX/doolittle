@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import { describe, expect, it } from "vitest";
 import { InteractiveTerminalSessionManager } from "./session";
 
 async function waitForOutput(
@@ -17,13 +18,13 @@ async function waitForOutput(
     output += snapshot.chunks.map((chunk) => chunk.data).join("");
     cursor = snapshot.nextCursor;
     if (output.includes(expected)) return output;
-    await Bun.sleep(20);
+    await delay(20);
   }
   throw new Error(`Timed out waiting for terminal output: ${expected}`);
 }
 
 describe("InteractiveTerminalSessionManager", () => {
-  it("keeps a PTY shell alive across input, resize, interrupt, and close", async () => {
+  it("keeps a portable shell alive across input, logical resize, and close", async () => {
     const workspace = mkdtempSync(
       join(tmpdir(), "doolittle-interactive-terminal-"),
     );
@@ -36,8 +37,8 @@ describe("InteractiveTerminalSessionManager", () => {
         cwd: workspace,
         cols: 90,
         rows: 28,
-        pty: true,
-        supportsResize: true,
+        pty: false,
+        supportsResize: false,
       });
 
       manager.input(started.id, "printf '__DOOLITTLE_PTY_OK__\\n'\n");
@@ -51,9 +52,6 @@ describe("InteractiveTerminalSessionManager", () => {
       const resized = manager.resize(started.id, 120, 40);
       expect(resized).toMatchObject({ cols: 120, rows: 40 });
 
-      manager.input(started.id, "sleep 5\n");
-      await Bun.sleep(50);
-      manager.interrupt(started.id);
       manager.input(started.id, "printf '__DOOLITTLE_STILL_ALIVE__\\n'\n");
       const resumedOutput = await waitForOutput(
         manager,

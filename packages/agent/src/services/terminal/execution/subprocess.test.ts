@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import { buildCloudProfile, buildContainerCommand } from "../planning";
 import { runCommand, runCommandStreaming, sanitizeCommand } from "./subprocess";
@@ -27,7 +27,7 @@ function makeSettings(): RuntimeSettings {
       remoteArtifactPaths: [],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],

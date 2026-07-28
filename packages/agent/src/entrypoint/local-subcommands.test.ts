@@ -1,15 +1,15 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import { handleLocalEntrypointSubcommand } from "./local-subcommands";
 
 function createLogger() {
   return {
-    error: mock(() => {}),
+    error: vi.fn(() => {}),
   };
 }
 
 describe("handleLocalEntrypointSubcommand", () => {
   it("prints top-level help for the help command", async () => {
-    const printLine = mock(() => {});
+    const printLine = vi.fn(() => {});
 
     const handled = await handleLocalEntrypointSubcommand(
       {
@@ -22,11 +22,11 @@ describe("handleLocalEntrypointSubcommand", () => {
         printLine,
       },
       {
-        existsSync: mock(() => true) as never,
+        existsSync: vi.fn(() => true) as never,
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: mock(() => ({ status: 0 })) as never,
-        renderCommandCatalog: mock(() => "catalog"),
-        runDesktopCommand: mock(() => ({ exitCode: 0 })),
+        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
+        runDesktopCommand: vi.fn(() => ({ exitCode: 0 })),
       },
     );
 
@@ -35,7 +35,7 @@ describe("handleLocalEntrypointSubcommand", () => {
   });
 
   it("routes doctor through onboarding with the check flag", async () => {
-    const runOnboardingWizard = mock(async () => {});
+    const runOnboardingWizard = vi.fn(async () => {});
 
     const handled = await handleLocalEntrypointSubcommand(
       {
@@ -47,11 +47,11 @@ describe("handleLocalEntrypointSubcommand", () => {
         runOnboardingWizard,
       },
       {
-        existsSync: mock(() => true) as never,
+        existsSync: vi.fn(() => true) as never,
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: mock(() => ({ status: 0 })) as never,
-        renderCommandCatalog: mock(() => "catalog"),
-        runDesktopCommand: mock(() => ({ exitCode: 0 })),
+        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
+        runDesktopCommand: vi.fn(() => ({ exitCode: 0 })),
       },
     );
 
@@ -61,8 +61,8 @@ describe("handleLocalEntrypointSubcommand", () => {
 
   it("fails install cleanly when the install script is missing", async () => {
     const entryLogger = createLogger();
-    const writeStderrLine = mock(() => {});
-    const exit = mock(() => {});
+    const writeStderrLine = vi.fn(() => {});
+    const exit = vi.fn(() => {});
 
     const handled = await handleLocalEntrypointSubcommand(
       {
@@ -76,11 +76,11 @@ describe("handleLocalEntrypointSubcommand", () => {
         exit,
       },
       {
-        existsSync: mock(() => false),
+        existsSync: vi.fn(() => false),
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: mock(() => ({ status: 0 })) as never,
-        renderCommandCatalog: mock(() => "catalog"),
-        runDesktopCommand: mock(() => ({ exitCode: 0 })),
+        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
+        runDesktopCommand: vi.fn(() => ({ exitCode: 0 })),
       },
     );
 
@@ -95,8 +95,8 @@ describe("handleLocalEntrypointSubcommand", () => {
   });
 
   it("routes desktop launches before runtime startup", async () => {
-    const exit = mock(() => {});
-    const runDesktopCommand = mock(() => ({ exitCode: 0 }));
+    const exit = vi.fn(() => {});
+    const runDesktopCommand = vi.fn(() => ({ exitCode: 0 }));
     const handled = await handleLocalEntrypointSubcommand(
       {
         command: "desktop",
@@ -108,10 +108,10 @@ describe("handleLocalEntrypointSubcommand", () => {
         exit,
       },
       {
-        existsSync: mock(() => true),
+        existsSync: vi.fn(() => true),
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: mock(() => ({ status: 0 })) as never,
-        renderCommandCatalog: mock(() => "catalog"),
+        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand,
       },
     );

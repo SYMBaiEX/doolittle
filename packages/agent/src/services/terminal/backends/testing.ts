@@ -23,7 +23,7 @@ export function makeSettings(
       remoteArtifactPaths: [".doolittle/remote-artifacts"],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],

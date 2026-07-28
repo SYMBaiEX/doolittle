@@ -14,7 +14,7 @@ const LINKED_ACCOUNT_CONTEXT_PATTERN =
   /\b(?:accounts?|auth|login|linked)\b.*\b(?:provider|providers|codex|claude|devin|elizacloud|openai|anthropic|settings|status)\b|\b(?:provider|providers|codex|claude|devin|elizacloud|openai|anthropic|settings|status)\b.*\b(?:accounts?|auth|login|linked)\b/i;
 
 const LOCAL_RUN_COMMAND_PATTERN =
-  /\b(?:run|execute)\s+(?:the\s+)?(?:tests?|test suite|smoke tests?|suite|command|script|build|lint|typecheck|type check|tsc|bun|npm|pnpm|yarn|pytest|cargo|go test|shell|terminal|migration|server)\b/i;
+  /\b(?:run|execute)\s+(?:the\s+)?(?:tests?|test suite|smoke tests?|suite|command|script|build|lint|typecheck|type check|tsc|nub|bun|npm|pnpm|yarn|pytest|cargo|go test|shell|terminal|migration|server)\b/i;
 
 const COMPLEX_KEYWORDS = new Set([
   "debug",

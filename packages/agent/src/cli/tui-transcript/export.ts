@@ -35,11 +35,7 @@ export function exportTranscriptArtifact(input: {
 
   let copied = false;
   try {
-    if (
-      input.canCopyToClipboard &&
-      typeof Bun.which === "function" &&
-      Bun.which("pbcopy")
-    ) {
+    if (input.canCopyToClipboard && process.platform === "darwin") {
       const result = spawnSync("pbcopy", [], {
         input: transcript,
         stdio: ["pipe", "ignore", "ignore"],

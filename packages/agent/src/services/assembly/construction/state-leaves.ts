@@ -35,12 +35,12 @@ export function createServiceConstructionLeaves(params: {
 
   return {
     contextFiles: createLazySlot(
-      () => new ContextFilesService(directories.workspaceDir),
+      () => new ContextFilesService(() => config.workspaceDir),
     ),
     media: createLazySlot(
       () =>
         new MediaService(
-          directories.workspaceDir,
+          () => config.workspaceDir,
           directories.mediaDir,
           resolveModelContext,
         ),
@@ -80,10 +80,10 @@ export function createServiceConstructionLeaves(params: {
     pairing: new PairingService(directories.gatewayPairingDir),
     hooks: new HooksService(directories.hooksDir),
     personalities: new PersonalityService(config.dataDir),
-    workspace: new WorkspaceService(directories.workspaceDir),
+    workspace: new WorkspaceService(() => config.workspaceDir),
     terminal: new TerminalService(
       directories.terminalDir,
-      directories.workspaceDir,
+      () => config.workspaceDir,
       () => settings.get(),
     ),
     web: new WebService(

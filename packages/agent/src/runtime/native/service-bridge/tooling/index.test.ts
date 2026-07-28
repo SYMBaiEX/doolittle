@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,6 +7,7 @@ import type {
   CodingIteration,
   HumanFeedback,
 } from "@doolittle/contracts";
+import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
 import {
@@ -401,76 +401,72 @@ describe("tooling bridge helpers", () => {
     ).resolves.toEqual(["fallback-repo-log:2"]);
   });
 
-  it(
-    "falls back to local project inspection and codebase discovery",
-    async () => {
-      const tempRoot = mkdtempSync(join(tmpdir(), "service-bridge-tooling-"));
-      const projectName = `native-bridge-${randomUUID()}`;
-      const projectPath = join(tempRoot, projectName);
+  it("falls back to local project inspection and codebase discovery", async () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "service-bridge-tooling-"));
+    const projectName = `native-bridge-${randomUUID()}`;
+    const projectPath = join(tempRoot, projectName);
 
-      mkdirSync(projectPath, { recursive: true });
-      mkdirSync(join(projectPath, "src"));
-      writeFileSync(
-        join(projectPath, "package.json"),
-        JSON.stringify(
-          {
-            name: "@doolittle/native-bridge-test",
-            packageManager: "bun@1.3.11",
-            workspaces: ["packages/*"],
-            scripts: { test: "bun test", build: "bun run build" },
-          },
-          null,
-          2,
+    mkdirSync(projectPath, { recursive: true });
+    mkdirSync(join(projectPath, "src"));
+    writeFileSync(
+      join(projectPath, "package.json"),
+      JSON.stringify(
+        {
+          name: "@doolittle/native-bridge-test",
+          packageManager: "bun@1.3.11",
+          workspaces: ["packages/*"],
+          scripts: { test: "bun test", build: "bun run build" },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(projectPath, "README.md"),
+      "# Native bridge test\n\nThis is a fallback inspection test.\n",
+    );
+
+    const runtime = {
+      getService() {
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    const services = {
+      workspace: {
+        root: () => tempRoot,
+      },
+    } as unknown as AppServices;
+
+    try {
+      const inspection = await inspectEffectiveProject(
+        runtime,
+        services,
+        projectPath,
+      );
+      const matches = await findEffectiveLocalCodebases(
+        runtime,
+        services,
+        projectName,
+      );
+      const normalizedMatches = matches.map((entry) => ({
+        ...entry,
+        path: entry.path.replace(/\/$/u, ""),
+      }));
+
+      expect(inspection.path).toBe(projectPath);
+      expect(inspection.packageName).toBe("@doolittle/native-bridge-test");
+      expect(inspection.scripts).toContain("build");
+      expect(
+        normalizedMatches.some((entry) => entry.path === projectPath),
+      ).toBe(true);
+      expect(
+        normalizedMatches.some(
+          (entry) => entry.path === projectPath && entry.exactBasenameMatch,
         ),
-      );
-      writeFileSync(
-        join(projectPath, "README.md"),
-        "# Native bridge test\n\nThis is a fallback inspection test.\n",
-      );
-
-      const runtime = {
-        getService() {
-          return null;
-        },
-      } as unknown as RuntimeLike;
-
-      const services = {
-        workspace: {
-          root: () => tempRoot,
-        },
-      } as unknown as AppServices;
-
-      try {
-        const inspection = await inspectEffectiveProject(
-          runtime,
-          services,
-          projectPath,
-        );
-        const matches = await findEffectiveLocalCodebases(
-          runtime,
-          services,
-          projectName,
-        );
-        const normalizedMatches = matches.map((entry) => ({
-          ...entry,
-          path: entry.path.replace(/\/$/u, ""),
-        }));
-
-        expect(inspection.path).toBe(projectPath);
-        expect(inspection.packageName).toBe("@doolittle/native-bridge-test");
-        expect(inspection.scripts).toContain("build");
-        expect(
-          normalizedMatches.some((entry) => entry.path === projectPath),
-        ).toBe(true);
-        expect(
-          normalizedMatches.some(
-            (entry) => entry.path === projectPath && entry.exactBasenameMatch,
-          ),
-        ).toBe(true);
-      } finally {
-        rmSync(tempRoot, { recursive: true, force: true });
-      }
-    },
-    { timeout: 15_000 },
-  );
+      ).toBe(true);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  }, 15_000);
 });

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TuiStartSetupResult } from "../setup";
 
 const commandQueueCalls: Array<unknown[]> = [];
@@ -29,39 +29,39 @@ const lifecycleController = {
 let lifecycleControllerDisposer = 0;
 
 function installControllerMocks() {
-  mock.module("@/cli/tui-command-queue", () => ({
+  vi.doMock("@/cli/tui-command-queue", () => ({
     installTuiCommandQueue: (...args: unknown[]) => {
       commandQueueCalls.push(args);
       return queueController;
     },
   }));
 
-  mock.module("@/cli/tui-input-bindings", () => ({
+  vi.doMock("@/cli/tui-input-bindings", () => ({
     installTuiInputBindings: (...args: unknown[]) => {
       inputBindingsCalls.push(args);
     },
   }));
 
-  mock.module("@/cli/tui-lifecycle/controller", () => ({
+  vi.doMock("@/cli/tui-lifecycle/controller", () => ({
     createTuiLifecycleController: () => {
       lifecycleCalls.push([]);
       return lifecycleController;
     },
   }));
 
-  mock.module("@/cli/tui-screen-bindings", () => ({
+  vi.doMock("@/cli/tui-screen-bindings", () => ({
     installTuiScreenBindings: (...args: unknown[]) => {
       screenBindingsCalls.push(args);
     },
   }));
 
-  mock.module("@/cli/tui-screen-events", () => ({
+  vi.doMock("@/cli/tui-screen-events", () => ({
     installTuiScreenEvents: (...args: unknown[]) => {
       screenEventsCalls.push(args);
     },
   }));
 
-  mock.module("@/cli/tui-runtime-observers", () => ({
+  vi.doMock("@/cli/tui-runtime-observers", () => ({
     installTuiRuntimeObservers: (...args: unknown[]) => {
       runtimeObserversCalls.push(args);
       return () => {
@@ -72,9 +72,7 @@ function installControllerMocks() {
 }
 
 async function loadInstallTuiStartControllers() {
-  return import(
-    `./controllers?controllers-test=${Date.now()}-${Math.random()}`
-  );
+  return import("./controllers");
 }
 
 const logger = {
@@ -178,8 +176,9 @@ const surfaces = {
 
 describe("installTuiStartControllers", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     commandQueueCalls.length = 0;
     inputBindingsCalls.length = 0;
     lifecycleCalls.length = 0;
@@ -192,8 +191,9 @@ describe("installTuiStartControllers", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("wires command queue, input, lifecycle, and observer controllers", async () => {

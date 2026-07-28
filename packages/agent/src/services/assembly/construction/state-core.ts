@@ -56,7 +56,7 @@ export function createServiceConstructionCore(params: {
       () => sessions.summary(),
       (limit) => sessions.listSessions(limit),
     ),
-    repository: new RepositoryService(config.workspaceDir),
+    repository: new RepositoryService(() => config.workspaceDir),
     reviewRecords: new ReviewRecordService(config.dataDir),
     runController: new RunControllerService(config.dataDir),
     awareness: new AwarenessService(),

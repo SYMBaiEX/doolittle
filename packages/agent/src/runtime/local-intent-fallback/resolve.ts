@@ -65,10 +65,7 @@ export function resolveDirectLocalIntent(
       statusLine: buildWorkspaceStatusLine(workspaceIntent),
       isHighConfidence: workspaceIntent.kind !== "write",
       kind:
-        workspaceIntent.kind === "overview" ||
-        workspaceIntent.kind === "find-codebase"
-          ? "synthesis"
-          : "retrieval",
+        workspaceIntent.kind === "find-codebase" ? "synthesis" : "retrieval",
       execute: () =>
         executeWorkspaceIntent(
           context.runtime,

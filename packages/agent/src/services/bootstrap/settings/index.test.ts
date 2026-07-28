@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
 import type { EnvConfig } from "@/types";
 import { applyServiceSettingsBootstrap } from "./index";
@@ -37,7 +37,7 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     remoteArtifactPaths: [".doolittle/remote-artifacts"],
     remoteArtifactPolicy: "metadata-only",
     remoteWorkspaceLabel: "remote:workspace",
-    dockerImage: "oven/bun:latest",
+    dockerImage: "ghcr.io/nubjs/nub:latest",
     dockerNetwork: "host",
     dockerWorkspacePath: "/workspace",
     dockerEnvPassthrough: ["PATH"],

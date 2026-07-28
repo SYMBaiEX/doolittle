@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Plugin } from "@elizaos/core";
 
 interface BenchmarkPackRecord {
@@ -8,7 +9,7 @@ interface BenchmarkPackRecord {
 }
 
 function repoRoot(): string {
-  return join(import.meta.dir, "..", "..", "..", "..");
+  return fileURLToPath(new URL("../../../..", import.meta.url));
 }
 
 function readPack(fileName: string): BenchmarkPackRecord | undefined {

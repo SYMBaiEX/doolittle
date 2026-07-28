@@ -26,6 +26,7 @@ export class TerminalServiceCommandOrchestrator {
     timeoutMs?: number,
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
+    const workspaceDir = this.workspaceDir();
     this.options.onMutation?.();
     const { settings, safeCommand, effectiveTimeoutMs } =
       resolveExecutionContext({
@@ -39,11 +40,11 @@ export class TerminalServiceCommandOrchestrator {
       command: safeCommand,
       settings,
       timeoutMs: effectiveTimeoutMs,
-      workspaceDir: this.options.workspaceDir,
+      workspaceDir,
     });
     const startedAt = new Date().toISOString();
     const result = await backend.run(safeCommand, {
-      cwd: this.options.workspaceDir,
+      cwd: workspaceDir,
       timeoutMs: effectiveTimeoutMs,
       settings,
       abortSignal,
@@ -56,7 +57,7 @@ export class TerminalServiceCommandOrchestrator {
       result,
       timeoutMs: effectiveTimeoutMs,
       startedAt,
-      workspaceDir: this.options.workspaceDir,
+      workspaceDir,
       historyStore: this.options.historyStore,
       cloudState: this.options.cloudState,
       onCommand: this.options.onCommand,
@@ -72,6 +73,7 @@ export class TerminalServiceCommandOrchestrator {
     timeoutMs?: number,
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
+    const workspaceDir = this.workspaceDir();
     const settings = this.options.getSettings();
     if (settings.execution.backend !== "local") {
       return this.run(command, timeoutMs, abortSignal);
@@ -90,12 +92,12 @@ export class TerminalServiceCommandOrchestrator {
       command: safeCommand,
       settings,
       timeoutMs: effectiveTimeoutMs,
-      workspaceDir: this.options.workspaceDir,
+      workspaceDir,
     });
     const startedAt = new Date().toISOString();
     const result = normalizeBackendError(
       await runCommandStreaming([LOCAL_SHELL, "-lc", safeCommand], {
-        cwd: this.options.workspaceDir,
+        cwd: workspaceDir,
         timeoutMs: effectiveTimeoutMs,
         onStdout: callbacks?.onStdout,
         onStderr: callbacks?.onStderr,
@@ -110,7 +112,7 @@ export class TerminalServiceCommandOrchestrator {
       result,
       timeoutMs: effectiveTimeoutMs,
       startedAt,
-      workspaceDir: this.options.workspaceDir,
+      workspaceDir,
       historyStore: this.options.historyStore,
       cloudState: this.options.cloudState,
       onCommand: this.options.onCommand,
@@ -118,6 +120,7 @@ export class TerminalServiceCommandOrchestrator {
   }
 
   preview(command: string, timeoutMs?: number) {
+    const workspaceDir = this.workspaceDir();
     const { settings, safeCommand, effectiveTimeoutMs } =
       resolveExecutionContext({
         command,
@@ -130,8 +133,16 @@ export class TerminalServiceCommandOrchestrator {
       command: safeCommand,
       settings,
       timeoutMs: effectiveTimeoutMs,
-      workspaceDir: this.options.workspaceDir,
+      workspaceDir,
     });
+  }
+
+  private workspaceDir(): string {
+    return (
+      this.options.getWorkspaceDir?.() ??
+      this.options.workspaceDir ??
+      process.cwd()
+    );
   }
 }
 

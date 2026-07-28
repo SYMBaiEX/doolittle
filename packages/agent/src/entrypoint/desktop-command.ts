@@ -100,6 +100,24 @@ export function findDesktopExecutable(
   return desktopExecutableCandidates(desktopDir).find(pathExists);
 }
 
+export function buildDesktopLaunchEnvironment(
+  baseEnvironment: NodeJS.ProcessEnv,
+  sourceRoot: string,
+  launchCwd: string,
+): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {
+    ...baseEnvironment,
+    DOOLITTLE_DESKTOP_SOURCE_ROOT: sourceRoot,
+    DOOLITTLE_DESKTOP_CWD: launchCwd,
+  };
+
+  // Packaged Electron rejects most NODE_OPTIONS values before the main process
+  // starts. Doolittle owns this process boundary, so do not leak host tooling
+  // hooks (debuggers, loaders, require hooks) into the desktop application.
+  delete environment.NODE_OPTIONS;
+  return environment;
+}
+
 export function runDesktopCommand(
   input: {
     repoRoot: string;
@@ -141,12 +159,19 @@ export function runDesktopCommand(
   }
 
   const run = dependencies.run ?? spawnSync;
-  const executable = dependencies.executable ?? process.execPath;
-  const env = {
-    ...(dependencies.env ?? process.env),
-    DOOLITTLE_DESKTOP_SOURCE_ROOT: input.repoRoot,
-    DOOLITTLE_DESKTOP_CWD: input.launchCwd ?? process.cwd(),
-  };
+  const localNub = resolve(
+    input.repoRoot,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "nub.cmd" : "nub",
+  );
+  const executable =
+    dependencies.executable ?? (pathExists(localNub) ? localNub : "nub");
+  const env = buildDesktopLaunchEnvironment(
+    dependencies.env ?? process.env,
+    input.repoRoot,
+    input.launchCwd ?? process.cwd(),
+  );
 
   if (options.source) {
     const script = options.buildOnly ? "build" : "dev";

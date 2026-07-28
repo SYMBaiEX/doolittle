@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
   getClaudeCodeAccountStatus,
   getLinkedClaudeCodeCredentials,
@@ -10,7 +11,7 @@ import type { ClaudeCodeAuthDependencies } from "./claude-code-support";
 import { getClaudeCodeAuthDependencies } from "./claude-code-support";
 import type { LinkedClaudeCodeCredentials } from "./types";
 
-const bunPath = process.execPath;
+const nubPath = process.env.DOOLITTLE_NUB_PATH ?? "nub";
 const textDecoder = new TextDecoder();
 
 function createClaudeCodeDeps({
@@ -133,8 +134,7 @@ function runClaudeRefreshSubprocess({
     console.log(JSON.stringify({ credentials, stored, requests, filePayload }));
   `;
 
-  const result = Bun.spawnSync({
-    cmd: [bunPath, "-e", script],
+  const result = spawnSync(nubPath, ["-e", script], {
     env: {
       ...process.env,
       DOOLITTLE_DATA_DIR: dataDir,
@@ -146,11 +146,10 @@ function runClaudeRefreshSubprocess({
           }
         : {}),
     },
-    stdout: "pipe",
-    stderr: "pipe",
+    stdio: ["ignore", "pipe", "pipe"],
   });
 
-  expect(result.exitCode).toBe(0);
+  expect(result.status).toBe(0);
   return JSON.parse(textDecoder.decode(result.stdout).trim()) as {
     credentials?: LinkedClaudeCodeCredentials;
     stored?: LinkedClaudeCodeCredentials;
@@ -164,7 +163,7 @@ function runClaudeRefreshSubprocess({
   };
 }
 
-describe.serial("Claude Code account auth", () => {
+describe.sequential("Claude Code account auth", () => {
   it("prefers reusable stored credentials over local Claude auth artifacts", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-auth-"));
     mkdirSync(join(homePath, ".claude"), { recursive: true });
@@ -261,205 +260,188 @@ describe.serial("Claude Code account auth", () => {
     expect(status.source).toContain(".claude.json");
   });
 
-  it.serial(
-    "refreshes stored Claude OAuth credentials before file or env fallbacks and persists the winner",
-    () => {
-      const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-stored-"));
-      const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
-      const credentialsPath = join(homePath, ".claude", ".credentials.json");
+  it.sequential("refreshes stored Claude OAuth credentials before file or env fallbacks and persists the winner", () => {
+    const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-stored-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
+    const credentialsPath = join(homePath, ".claude", ".credentials.json");
 
-      mkdirSync(join(homePath, ".claude"), { recursive: true });
-      writeFileSync(
-        credentialsPath,
-        JSON.stringify({
-          claudeAiOauth: {
-            accessToken: "file-access",
-            refreshToken: "file-refresh",
-            expiresAt: String(Date.now() - 60_000),
-          },
-        }),
-        "utf8",
-      );
-
-      const parsed = runClaudeRefreshSubprocess({
-        homePath,
-        dataDir,
-        setupToken: "sk-ant-oat01-env",
-        storedCredentials: {
-          accessToken: "stored-access",
-          refreshToken: "stored-refresh",
+    mkdirSync(join(homePath, ".claude"), { recursive: true });
+    writeFileSync(
+      credentialsPath,
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: "file-access",
+          refreshToken: "file-refresh",
           expiresAt: String(Date.now() - 60_000),
-          accountLabel: "Stored Claude",
-          authMode: "oauth",
-          source: "eliza-auth-store",
         },
-        fetchPayload: {
-          access_token: "stored-refreshed-access",
-          refresh_token: "stored-refreshed-refresh",
-          expires_in: 7200,
-        },
-      });
+      }),
+      "utf8",
+    );
 
-      expect(parsed.requests).toHaveLength(1);
-      expect(parsed.requests[0]).toContain("refresh_token=stored-refresh");
-      expect(parsed.credentials).toEqual(
-        expect.objectContaining({
-          accessToken: "stored-refreshed-access",
-          refreshToken: "stored-refreshed-refresh",
-          accountLabel: "Stored Claude",
-          authMode: "oauth",
-          source: "eliza-auth-store",
-        }),
-      );
-      expect(parsed.stored).toEqual(parsed.credentials);
-      expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
-        "file-access",
-      );
-      expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
-        "file-refresh",
-      );
-    },
-  );
-
-  it.serial(
-    "uses refreshed expired file-backed Claude OAuth credentials before env fallback and persists the winner",
-    () => {
-      const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-file-"));
-      const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
-
-      mkdirSync(join(homePath, ".claude"), { recursive: true });
-      writeFileSync(
-        join(homePath, ".claude", ".credentials.json"),
-        JSON.stringify({
-          claudeAiOauth: {
-            accessToken: "file-access",
-            refreshToken: "file-refresh",
-            expiresAt: String(Date.now() - 60_000),
-          },
-        }),
-        "utf8",
-      );
-      writeFileSync(
-        join(homePath, ".claude.json"),
-        JSON.stringify({
-          oauthAccount: {
-            displayName: "Operator",
-            emailAddress: "operator@example.com",
-          },
-        }),
-        "utf8",
-      );
-
-      const parsed = runClaudeRefreshSubprocess({
-        homePath,
-        dataDir,
-        setupToken: "sk-ant-oat01-env",
-        fetchPayload: {
-          access_token: "file-refreshed-access",
-          refresh_token: "file-refreshed-refresh",
-          expires_in: 7200,
-        },
-      });
-
-      expect(parsed.requests).toHaveLength(1);
-      expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
-      expect(parsed.credentials).toEqual(
-        expect.objectContaining({
-          accessToken: "file-refreshed-access",
-          refreshToken: "file-refreshed-refresh",
-          accountLabel: "Operator <operator@example.com>",
-          authMode: "oauth",
-          source: join(homePath, ".claude", ".credentials.json"),
-        }),
-      );
-      expect(parsed.stored).toEqual(
-        expect.objectContaining({
-          ...parsed.credentials,
-          source: "eliza-auth-store",
-        }),
-      );
-      expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
-        "file-access",
-      );
-      expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
-        "file-refresh",
-      );
-    },
-  );
-
-  it.serial(
-    "falls back to env Claude credentials when expired file refresh yields no access token and persists the fallback",
-    () => {
-      const homePath = mkdtempSync(
-        join(tmpdir(), "doolittle-claude-file-fallback-"),
-      );
-      const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
-
-      mkdirSync(join(homePath, ".claude"), { recursive: true });
-      writeFileSync(
-        join(homePath, ".claude", ".credentials.json"),
-        JSON.stringify({
-          claudeAiOauth: {
-            accessToken: "file-access",
-            refreshToken: "file-refresh",
-            expiresAt: String(Date.now() - 60_000),
-          },
-        }),
-        "utf8",
-      );
-      writeFileSync(
-        join(homePath, ".claude.json"),
-        JSON.stringify({
-          oauthAccount: {
-            displayName: "Operator",
-            emailAddress: "operator@example.com",
-          },
-        }),
-        "utf8",
-      );
-
-      const parsed = runClaudeRefreshSubprocess({
-        homePath,
-        dataDir,
-        setupToken: "sk-ant-oat01-env",
-        fetchPayload: {
-          refresh_token: "file-refreshed-refresh",
-        },
-      });
-
-      expect(parsed.requests).toHaveLength(1);
-      expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
-      expect(parsed.credentials).toEqual({
-        accessToken: "sk-ant-oat01-env",
-        accountLabel: "Operator <operator@example.com>",
-        authMode: "setup-token",
-        source: "env:CLAUDE_CODE_SETUP_TOKEN",
-      });
-      expect(parsed.stored).toEqual({
-        accessToken: "sk-ant-oat01-env",
-        accountLabel: "Operator <operator@example.com>",
-        authMode: "setup-token",
+    const parsed = runClaudeRefreshSubprocess({
+      homePath,
+      dataDir,
+      setupToken: "sk-ant-oat01-env",
+      storedCredentials: {
+        accessToken: "stored-access",
+        refreshToken: "stored-refresh",
+        expiresAt: String(Date.now() - 60_000),
+        accountLabel: "Stored Claude",
+        authMode: "oauth",
         source: "eliza-auth-store",
-      });
-      expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
-        "file-access",
-      );
-      expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
-        "file-refresh",
-      );
-    },
-  );
+      },
+      fetchPayload: {
+        access_token: "stored-refreshed-access",
+        refresh_token: "stored-refreshed-refresh",
+        expires_in: 7200,
+      },
+    });
 
-  it.serial(
-    "persists setup-token credentials during Claude refresh resolution",
-    async () => {
-      const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-env-"));
-      const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
-      const moduleDir = join(
-        process.cwd(),
-        "packages/agent/src/runtime/native/account-auth",
-      );
-      const script = `
+    expect(parsed.requests).toHaveLength(1);
+    expect(parsed.requests[0]).toContain("refresh_token=stored-refresh");
+    expect(parsed.credentials).toEqual(
+      expect.objectContaining({
+        accessToken: "stored-refreshed-access",
+        refreshToken: "stored-refreshed-refresh",
+        accountLabel: "Stored Claude",
+        authMode: "oauth",
+        source: "eliza-auth-store",
+      }),
+    );
+    expect(parsed.stored).toEqual(parsed.credentials);
+    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe("file-access");
+    expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
+      "file-refresh",
+    );
+  });
+
+  it.sequential("uses refreshed expired file-backed Claude OAuth credentials before env fallback and persists the winner", () => {
+    const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-file-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
+
+    mkdirSync(join(homePath, ".claude"), { recursive: true });
+    writeFileSync(
+      join(homePath, ".claude", ".credentials.json"),
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: "file-access",
+          refreshToken: "file-refresh",
+          expiresAt: String(Date.now() - 60_000),
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(homePath, ".claude.json"),
+      JSON.stringify({
+        oauthAccount: {
+          displayName: "Operator",
+          emailAddress: "operator@example.com",
+        },
+      }),
+      "utf8",
+    );
+
+    const parsed = runClaudeRefreshSubprocess({
+      homePath,
+      dataDir,
+      setupToken: "sk-ant-oat01-env",
+      fetchPayload: {
+        access_token: "file-refreshed-access",
+        refresh_token: "file-refreshed-refresh",
+        expires_in: 7200,
+      },
+    });
+
+    expect(parsed.requests).toHaveLength(1);
+    expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
+    expect(parsed.credentials).toEqual(
+      expect.objectContaining({
+        accessToken: "file-refreshed-access",
+        refreshToken: "file-refreshed-refresh",
+        accountLabel: "Operator <operator@example.com>",
+        authMode: "oauth",
+        source: join(homePath, ".claude", ".credentials.json"),
+      }),
+    );
+    expect(parsed.stored).toEqual(
+      expect.objectContaining({
+        ...parsed.credentials,
+        source: "eliza-auth-store",
+      }),
+    );
+    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe("file-access");
+    expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
+      "file-refresh",
+    );
+  });
+
+  it.sequential("falls back to env Claude credentials when expired file refresh yields no access token and persists the fallback", () => {
+    const homePath = mkdtempSync(
+      join(tmpdir(), "doolittle-claude-file-fallback-"),
+    );
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
+
+    mkdirSync(join(homePath, ".claude"), { recursive: true });
+    writeFileSync(
+      join(homePath, ".claude", ".credentials.json"),
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: "file-access",
+          refreshToken: "file-refresh",
+          expiresAt: String(Date.now() - 60_000),
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(homePath, ".claude.json"),
+      JSON.stringify({
+        oauthAccount: {
+          displayName: "Operator",
+          emailAddress: "operator@example.com",
+        },
+      }),
+      "utf8",
+    );
+
+    const parsed = runClaudeRefreshSubprocess({
+      homePath,
+      dataDir,
+      setupToken: "sk-ant-oat01-env",
+      fetchPayload: {
+        refresh_token: "file-refreshed-refresh",
+      },
+    });
+
+    expect(parsed.requests).toHaveLength(1);
+    expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
+    expect(parsed.credentials).toEqual({
+      accessToken: "sk-ant-oat01-env",
+      accountLabel: "Operator <operator@example.com>",
+      authMode: "setup-token",
+      source: "env:CLAUDE_CODE_SETUP_TOKEN",
+    });
+    expect(parsed.stored).toEqual({
+      accessToken: "sk-ant-oat01-env",
+      accountLabel: "Operator <operator@example.com>",
+      authMode: "setup-token",
+      source: "eliza-auth-store",
+    });
+    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe("file-access");
+    expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
+      "file-refresh",
+    );
+  });
+
+  it.sequential("persists setup-token credentials during Claude refresh resolution", async () => {
+    const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-env-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
+    const moduleDir = join(
+      process.cwd(),
+      "packages/agent/src/runtime/native/account-auth",
+    );
+    const script = `
         import { refreshLinkedClaudeCodeCredentials } from ${JSON.stringify(join(moduleDir, "claude-code/index.ts"))};
         import { getStoredClaudeCodeCredentials } from ${JSON.stringify(join(moduleDir, "store.ts"))};
         const homePath = process.env.TEST_HOME_PATH;
@@ -468,30 +450,27 @@ describe.serial("Claude Code account auth", () => {
         console.log(JSON.stringify({ credentials, stored }));
       `;
 
-      const result = Bun.spawnSync({
-        cmd: [bunPath, "-e", script],
-        env: {
-          ...process.env,
-          CLAUDE_CODE_SETUP_TOKEN: "sk-ant-oat01-test",
-          DOOLITTLE_DATA_DIR: dataDir,
-          TEST_HOME_PATH: homePath,
-        },
-        stdout: "pipe",
-        stderr: "pipe",
-      });
+    const result = spawnSync(nubPath, ["-e", script], {
+      env: {
+        ...process.env,
+        CLAUDE_CODE_SETUP_TOKEN: "sk-ant-oat01-test",
+        DOOLITTLE_DATA_DIR: dataDir,
+        TEST_HOME_PATH: homePath,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
-      expect(result.exitCode).toBe(0);
-      const parsed = JSON.parse(textDecoder.decode(result.stdout).trim()) as {
-        credentials?: LinkedClaudeCodeCredentials;
-        stored?: LinkedClaudeCodeCredentials;
-      };
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(textDecoder.decode(result.stdout).trim()) as {
+      credentials?: LinkedClaudeCodeCredentials;
+      stored?: LinkedClaudeCodeCredentials;
+    };
 
-      expect(parsed.credentials?.accessToken).toBe("sk-ant-oat01-test");
-      expect(parsed.credentials?.authMode).toBe("setup-token");
-      expect(parsed.credentials?.source).toBe("env:CLAUDE_CODE_SETUP_TOKEN");
-      expect(parsed.stored?.accessToken).toBe("sk-ant-oat01-test");
-      expect(parsed.stored?.authMode).toBe("setup-token");
-      expect(parsed.stored?.source).toBe("eliza-auth-store");
-    },
-  );
+    expect(parsed.credentials?.accessToken).toBe("sk-ant-oat01-test");
+    expect(parsed.credentials?.authMode).toBe("setup-token");
+    expect(parsed.credentials?.source).toBe("env:CLAUDE_CODE_SETUP_TOKEN");
+    expect(parsed.stored?.accessToken).toBe("sk-ant-oat01-test");
+    expect(parsed.stored?.authMode).toBe("setup-token");
+    expect(parsed.stored?.source).toBe("eliza-auth-store");
+  });
 });

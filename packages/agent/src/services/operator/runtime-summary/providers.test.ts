@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types";
 import { buildProviderSummaries } from "./providers";
 import type { LinkedAccounts } from "./types";
@@ -72,7 +72,7 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     remoteArtifactPolicy: "metadata-only",
     remoteWorkspaceLabel: "doolittle-workspace",
     executionBackend: "local",
-    dockerImage: "oven/bun:latest",
+    dockerImage: "ghcr.io/nubjs/nub:latest",
     dockerNetwork: "host",
     dockerWorkspacePath: "/workspace",
     dockerEnvPassthrough: [],

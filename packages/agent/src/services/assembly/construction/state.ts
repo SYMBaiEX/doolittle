@@ -45,7 +45,7 @@ export function createServiceConstructionState(
   >(
     runtime as DocumentsRuntime | undefined,
     (nextRuntime: DocumentsRuntime): DocumentsService =>
-      new DocumentsService(nextRuntime, config.workspaceDir),
+      new DocumentsService(nextRuntime, () => config.workspaceDir),
   );
   const leaves = createServiceConstructionLeaves({
     config,

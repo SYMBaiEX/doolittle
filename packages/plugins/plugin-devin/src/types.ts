@@ -25,6 +25,7 @@ export interface DevinPluginOptions {
   command?: string;
   model?: string;
   cwd?: string;
+  getCwd?: () => string;
   timeoutMs?: number;
   getStatus: () => LinkedAccountStatus;
   invokeCliPrint?: (params: DevinCliPrintParams) => Promise<string>;

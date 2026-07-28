@@ -124,7 +124,7 @@ export const envSchema = z.object({
       "modal",
     ])
     .default("local"),
-  DOOLITTLE_DOCKER_IMAGE: z.string().default("oven/bun:latest"),
+  DOOLITTLE_DOCKER_IMAGE: z.string().default("ghcr.io/nubjs/nub:latest"),
   DOOLITTLE_DOCKER_NETWORK: z.string().default("host"),
   DOOLITTLE_DOCKER_WORKSPACE_PATH: z.string().default("/workspace"),
   DOOLITTLE_DOCKER_ENV_PASSTHROUGH: z

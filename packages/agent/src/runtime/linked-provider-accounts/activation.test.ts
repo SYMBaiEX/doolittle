@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 
 let snapshotCallCount = 0;
 
 function installActivationMocks() {
-  mock.module("@/runtime/native/account-auth", () => ({
+  vi.doMock("@/runtime/native/account-auth", () => ({
     getLinkedProviderConnectAdvice: (provider: string) => ({
       provider,
       detail: "advice",
@@ -41,20 +41,22 @@ function installActivationMocks() {
 }
 
 async function loadActivationModule() {
-  return import(`./activation?activation-test=${Date.now()}-${Math.random()}`);
+  return import("./activation");
 }
 
 describe("activateLinkedProvider", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     snapshotCallCount = 0;
     installActivationMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("updates model settings and returns refreshed linked accounts", () => {

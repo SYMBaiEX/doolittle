@@ -65,7 +65,12 @@ export async function prepareEntrypointRuntimeBoot(
   const createStartupController =
     deps.createApiStartupController ?? createApiStartupController;
 
-  await ensureReady();
+  // The desktop shell owns first-run UX and launches the API without an
+  // interactive stdin. Requiring the terminal wizard here deadlocks the
+  // packaged backend before its health endpoint can become available.
+  if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") {
+    await ensureReady();
+  }
   loadRuntimeEnv();
 
   const bootstrapModulePromise = importBootstrap();

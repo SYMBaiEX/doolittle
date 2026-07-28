@@ -110,10 +110,10 @@ export function createCodeGenerationService(options: AutocoderPluginOptions) {
 
     async performQA(projectPath: string) {
       const commands = [
-        "bun run lint:check",
-        "bun run typecheck",
-        "bun test",
-        "bun run build",
+        "nub run lint:check",
+        "nub run typecheck",
+        "nub run test",
+        "nub run build",
       ];
       return planningEnvelope({
         generatedAt: nowIso(),
@@ -164,7 +164,7 @@ export function createCodeGenerationService(options: AutocoderPluginOptions) {
     async installDependencies(projectPath: string) {
       return planningEnvelope({
         projectPath,
-        command: "bun install",
+        command: "nub install",
         summary:
           "Dependency installation is available as a suggested next step, but it was not executed by the autocoder plugin.",
       });

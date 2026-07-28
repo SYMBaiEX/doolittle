@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type {
   ExecutionBackendPreview,
   ExecutionCloudSession,
@@ -41,7 +41,7 @@ function makeSettings(): RuntimeSettings {
       ],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],

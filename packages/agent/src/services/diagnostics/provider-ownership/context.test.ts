@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { getNativePackageAudit } from "@/runtime/native/package-audit";
@@ -43,7 +44,7 @@ function buildConfig() {
 }
 
 const linkedAccounts = getLinkedProviderAccountsSnapshot(
-  join(import.meta.dir, "fixtures", "fake-home"),
+  join(fileURLToPath(new URL(".", import.meta.url)), "fixtures", "fake-home"),
 );
 
 const nativeAudit = {

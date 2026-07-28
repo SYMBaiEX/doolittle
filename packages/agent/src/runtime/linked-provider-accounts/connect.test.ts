@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 
 const refreshCalls: string[] = [];
 const resolveCalls: string[] = [];
 
 function installConnectMocks() {
-  mock.module("@/runtime/native/account-auth", () => ({
+  vi.doMock("@/runtime/native/account-auth", () => ({
     getLinkedProviderAccountsSnapshot: () => ({
       codex: {
         provider: "codex",
@@ -54,21 +54,23 @@ function installConnectMocks() {
 }
 
 async function loadConnectModule() {
-  return import(`./connect?connect-test=${Date.now()}-${Math.random()}`);
+  return import("./connect");
 }
 
 describe("linked provider connection helpers", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     refreshCalls.length = 0;
     resolveCalls.length = 0;
     installConnectMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("connects and activates a ready provider", async () => {

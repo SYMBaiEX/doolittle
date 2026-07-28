@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, test } from "vitest";
 import type { AgentSdkService } from "./agent-sdk-service";
 import { SkillsService } from "./skills/service";
 
@@ -58,7 +59,9 @@ describe("SkillsService", () => {
       },
     } as unknown as AgentSdkService;
 
-    const workspaceDir = resolve(import.meta.dir, "../../../../");
+    const workspaceDir = fileURLToPath(
+      new URL("../../../../", import.meta.url),
+    );
     const skillsDir = resolve(workspaceDir, "packages/skills");
     const service = new SkillsService(skillsDir, agentSdk, workspaceDir);
 

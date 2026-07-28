@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ensureCliRuntimeInitialized,
   resetCliRuntimeInitializationForTests,
@@ -10,16 +10,17 @@ describe("ensureCliRuntimeInitialized", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     resetCliRuntimeInitializationForTests();
   });
 
   it("installs the blessed textbox guard once", async () => {
-    const importBlessed = mock(async () => ({
+    const importBlessed = vi.fn(async () => ({
       default: { screen: true } as never,
     }));
-    const installBlessedTextboxGuard = mock(() => {});
+    const installBlessedTextboxGuard = vi.fn(() => {});
 
     await ensureCliRuntimeInitialized({
       importBlessed,

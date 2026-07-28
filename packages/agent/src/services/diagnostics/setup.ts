@@ -8,7 +8,7 @@ export function buildDiagnosticsSetupChecklist(
   const steps = [
     "Copy .env.example to .env and fill in at least one provider credential or linked account setting.",
     "Choose a primary provider: Codex, Claude Code, OpenAI, or Anthropic.",
-    "Run bun install so the vendored native Eliza workspace packages resolve before booting the runtime.",
+    "Run nub install so the vendored native Eliza workspace packages resolve before booting the runtime.",
     "Add workspace context files like AGENTS.md or MISSION.md if you want persistent operator guidance.",
     "Enable gateway platforms in gateway.json only after their credentials are configured.",
     "Run /doctor after configuration changes.",

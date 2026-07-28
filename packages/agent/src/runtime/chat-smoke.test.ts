@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
 
@@ -56,9 +56,7 @@ function createInput(
 }
 
 async function loadHandleAgentTurn() {
-  const module = await import(
-    `./chat?runtime-chat-test=${Date.now()}-${Math.random()}`
-  );
+  const module = await import("./chat");
   return module;
 }
 
@@ -70,7 +68,7 @@ function mockWorkflowCommands(overrides?: {
       }
     | undefined;
 }) {
-  mock.module("@/runtime/workflow-commands", () => ({
+  vi.doMock("@/runtime/workflow-commands", () => ({
     getWorkflowCommandCatalogEntries: () => [],
     renderWorkflowCommandCatalog: () => "workflow-catalog",
     listWorkflowCommands: () => [],
@@ -81,21 +79,23 @@ function mockWorkflowCommands(overrides?: {
 
 describe("chat turn orchestration", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("returns slash command responses and skips post-command execution", async () => {
-    const runSlashCommandTurn = mock(async () => "slash-result");
-    const runPostCommandTurn = mock(async () => "post-result");
+    const runSlashCommandTurn = vi.fn(async () => "slash-result");
+    const runPostCommandTurn = vi.fn(async () => "post-result");
 
-    mock.module("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands();
@@ -113,17 +113,17 @@ describe("chat turn orchestration", () => {
   });
 
   it("falls back to post-command flow for non-command input", async () => {
-    const runSlashCommandTurn = mock(async () => "should-not-run");
+    const runSlashCommandTurn = vi.fn(async () => "should-not-run");
     let effectiveInput: ChatTurnRequest | undefined;
-    const runPostCommandTurn = mock(
+    const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
         effectiveInput = nextInput;
         return "post-result";
       },
     );
 
-    mock.module("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands();
@@ -144,17 +144,17 @@ describe("chat turn orchestration", () => {
   });
 
   it("skips slash command layer when workflow remaps command input", async () => {
-    const runSlashCommandTurn = mock(async () => "slash-result");
+    const runSlashCommandTurn = vi.fn(async () => "slash-result");
     let effectiveInput: ChatTurnRequest | undefined;
-    const runPostCommandTurn = mock(
+    const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
         effectiveInput = nextInput;
         return "post-result";
       },
     );
 
-    mock.module("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands({
@@ -177,11 +177,11 @@ describe("chat turn orchestration", () => {
   });
 
   it("falls back to post-command when slash command does not return output", async () => {
-    const runSlashCommandTurn = mock(async () => undefined);
-    const runPostCommandTurn = mock(async () => "post-result");
+    const runSlashCommandTurn = vi.fn(async () => undefined);
+    const runPostCommandTurn = vi.fn(async () => "post-result");
 
-    mock.module("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands();
@@ -198,15 +198,15 @@ describe("chat turn orchestration", () => {
   });
 
   it("retries the latest conversational turn without routing through slash command storage", async () => {
-    const runSlashCommandTurn = mock(async () => "slash-result");
+    const runSlashCommandTurn = vi.fn(async () => "slash-result");
     let retryInput: ChatTurnRequest | undefined;
-    const runPostCommandTurn = mock(
+    const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
         retryInput = nextInput;
         return "retried-result";
       },
     );
-    const deleteLatestExchange = mock(() => ({
+    const deleteLatestExchange = vi.fn(() => ({
       sessionId: "room:alice",
       userMessage: {
         id: "msg-1",
@@ -221,8 +221,8 @@ describe("chat turn orchestration", () => {
       deletedMessages: 2,
     }));
 
-    mock.module("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands();
@@ -251,7 +251,7 @@ describe("chat turn orchestration", () => {
 
   it("restores managed attachments when retrying a prior turn", async () => {
     let retryInput: ChatTurnRequest | undefined;
-    const runPostCommandTurn = mock(
+    const runPostCommandTurn = vi.fn(
       async (_input: ChatTurnRequest, nextInput: ChatTurnRequest) => {
         retryInput = nextInput;
         return "retried-with-attachment";
@@ -288,10 +288,10 @@ describe("chat turn orchestration", () => {
       _data: "IyBSZXZpZXc=",
       _mimeType: "text/markdown",
     };
-    mock.module("@/runtime/chat-turn/command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({
       runSlashCommandTurn: async () => undefined,
     }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands();
@@ -337,11 +337,11 @@ describe("chat turn orchestration", () => {
   });
 
   it("returns a truthful retry message when no prior conversational turn exists", async () => {
-    const runSlashCommandTurn = mock(async () => "slash-result");
-    const runPostCommandTurn = mock(async () => "post-result");
+    const runSlashCommandTurn = vi.fn(async () => "slash-result");
+    const runPostCommandTurn = vi.fn(async () => "post-result");
 
-    mock.module("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
-    mock.module("@/runtime/chat-turn/post-command", () => ({
+    vi.doMock("@/runtime/chat-turn/command", () => ({ runSlashCommandTurn }));
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
       runPostCommandTurn,
     }));
     mockWorkflowCommands();

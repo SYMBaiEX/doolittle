@@ -1,3 +1,4 @@
+import { openAsBlob } from "node:fs";
 import type { OutboundPlatformMessage } from "@/types/gateway";
 import { resolveVoiceAttachment } from "../messaging-utils";
 
@@ -71,7 +72,7 @@ async function sendTelegramVoiceMessage(
   const form = new FormData();
   form.set("chat_id", message.roomId);
   form.set("caption", message.text);
-  form.set("voice", Bun.file(voicePath));
+  form.set("voice", await openAsBlob(voicePath));
 
   if (message.replyToId) {
     form.set(

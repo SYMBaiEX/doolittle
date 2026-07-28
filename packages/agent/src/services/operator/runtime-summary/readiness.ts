@@ -63,7 +63,7 @@ export function buildSetupReadinessSummary(input: {
         ? "Inspect failed autocoder workflows before trusting generated mutations."
         : undefined,
       level === "ready"
-        ? "Keep `/doctor` and `bun run check` as the standard validation loop after configuration changes."
+        ? "Keep `/doctor` and `nub run check` as the standard validation loop after configuration changes."
         : undefined,
     ]),
   };
@@ -118,7 +118,7 @@ export function buildUpdateReadinessSummary(input: {
         ? "Review failed autocoder workflows before advertising those paths as healthy."
         : undefined,
       level === "ready"
-        ? "Run `bun install`, `bun run typecheck`, `bun test`, and `bun run build` after dependency changes."
+        ? "Run `nub install`, `nub run typecheck`, `nub run test`, and `nub run build` after dependency changes."
         : undefined,
     ]),
   };

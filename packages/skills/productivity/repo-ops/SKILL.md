@@ -11,7 +11,7 @@ Use this skill when working inside a software repository and the task depends on
 Guidelines:
 
 - Inspect the repository before proposing changes.
-- Prefer Bun for package management and runtime commands when the project supports it.
+- Prefer Nub for package management and runtime commands in Doolittle; respect the detected manager in other projects.
 - Preserve existing conventions and avoid broad destructive actions.
 - Record durable project facts into memory when they will help future sessions.
 

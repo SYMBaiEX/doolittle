@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
 import type {
@@ -157,7 +157,7 @@ function createDependencies(): GatewayRunnerRuntimeApiDependencies {
 }
 
 async function loadCreateGatewayRunnerRuntimeApi() {
-  const mod = await import(`./api?api-test=${Date.now()}`);
+  const mod = await import("./api");
   return mod.createGatewayRunnerRuntimeApi;
 }
 

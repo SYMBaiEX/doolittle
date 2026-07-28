@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
 
@@ -14,9 +14,7 @@ type CapturedAssemblyOptions = {
 };
 
 async function loadWireModule() {
-  return (await import(
-    `./wire?wire-runtime-test=${Date.now()}-${Math.random()}`
-  )) as typeof import("./wire");
+  return (await import("./wire")) as typeof import("./wire");
 }
 
 describe("createLazyApiGuard", () => {
@@ -56,13 +54,15 @@ describe("createLazyApiGuard", () => {
 
 describe("wireGatewayRunnerRuntime", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("routes deferred assembly callbacks through the resolved runtime api", async () => {
@@ -74,16 +74,16 @@ describe("wireGatewayRunnerRuntime", () => {
       status: "healthy",
     } as unknown as GatewayRuntimeStatus;
     const controlPlane = {
-      start: mock(async () => undefined),
-      stop: mock(async () => undefined),
-      heartbeat: mock(async (_reason?: string) => heartbeatResult),
-      supervise: mock(async () => [] as never),
-      watchdog: mock(async (_reason?: string) => watchdogResult),
-      watch: mock(async () => [] as never),
-      restart: mock(async () => [] as never),
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      heartbeat: vi.fn(async (_reason?: string) => heartbeatResult),
+      supervise: vi.fn(async () => [] as never),
+      watchdog: vi.fn(async (_reason?: string) => watchdogResult),
+      watch: vi.fn(async () => [] as never),
+      restart: vi.fn(async () => [] as never),
     };
     const stateBookkeeping = {
-      snapshotState: mock(
+      snapshotState: vi.fn(
         async (
           _reason: string,
           _limit?: number,
@@ -92,39 +92,39 @@ describe("wireGatewayRunnerRuntime", () => {
       ),
     };
     const readModel = {
-      runtimeStatus: mock(() => runtimeStatus),
-      transport: mock(async () => ({ platform: "discord" }) as never),
-      transportOverview: mock(async () => ({
+      runtimeStatus: vi.fn(() => runtimeStatus),
+      transport: vi.fn(async () => ({ platform: "discord" }) as never),
+      transportOverview: vi.fn(async () => ({
         details: [],
         mismatchCount: 0,
         operationalCount: 0,
       })),
-      health: mock(async () => [] as never),
-      trace: mock(() => [] as never),
-      state: mock(async () => ({}) as never),
-      history: mock(async () => ({}) as never),
-      inbox: mock(() => [] as never),
-      outbox: mock(() => [] as never),
-      attachments: mock(() => [] as never),
-      supervision: mock(() => [] as never),
-      replayInbox: mock(async () => ({}) as never),
+      health: vi.fn(async () => [] as never),
+      trace: vi.fn(() => [] as never),
+      state: vi.fn(async () => ({}) as never),
+      history: vi.fn(async () => ({}) as never),
+      inbox: vi.fn(() => [] as never),
+      outbox: vi.fn(() => [] as never),
+      attachments: vi.fn(() => [] as never),
+      supervision: vi.fn(() => [] as never),
+      replayInbox: vi.fn(async () => ({}) as never),
     };
     const assembled = {
       controlPlane,
       readModel,
       recording: {
-        onUpdate: mock(() => () => {}),
+        onUpdate: vi.fn(() => () => {}),
       },
       operations: {
-        receive: mock(async () => ({}) as never),
-        sendToHomes: mock(async () => [] as never),
-        editDelivery: mock(async () => ({}) as never),
-        sendProgressive: mock(async () => ({}) as never),
+        receive: vi.fn(async () => ({}) as never),
+        sendToHomes: vi.fn(async () => [] as never),
+        editDelivery: vi.fn(async () => ({}) as never),
+        sendProgressive: vi.fn(async () => ({}) as never),
       },
       stateBookkeeping,
     };
 
-    mock.module("./assembly", () => ({
+    vi.doMock("./assembly", () => ({
       assembleGatewayRunnerRuntime: (options: unknown) => {
         capturedAssemblyOptions = options as CapturedAssemblyOptions;
         return assembled as never;
@@ -179,8 +179,9 @@ describe("wireGatewayRunnerRuntime", () => {
       expect(capturedAssemblyOptions.getRuntimeStatus()).toBe(runtimeStatus);
       expect(readModel.runtimeStatus).toHaveBeenCalledTimes(1);
     } finally {
-      mock.restore();
-      mock.clearAllMocks();
+      vi.restoreAllMocks();
+      vi.resetModules();
+      vi.clearAllMocks();
     }
   });
 });

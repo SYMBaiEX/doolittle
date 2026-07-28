@@ -2,6 +2,7 @@ import { ModelType, type PromptSegment } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import {
   buildCacheablePrompt,
+  buildProjectPromptContext,
   promptCacheMetrics,
 } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
@@ -348,7 +349,14 @@ export function buildShortcutPromptCache(args: {
       }
     ).personalities?.getActive?.()?.id ?? "default";
   const cacheable = buildCacheablePrompt({
-    stableBlocks: args.stableBlocks,
+    stableBlocks: [
+      ...args.stableBlocks,
+      buildProjectPromptContext({
+        sessions: args.context.services.sessions,
+        sessionId: args.turn.sessionId,
+        workspaceDir: args.context.config?.workspaceDir ?? "",
+      }),
+    ].filter((block): block is string => Boolean(block?.trim())),
     volatile: args.volatile,
     joiner: "\n",
     provider: settings.model.provider,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const coreVersion = "1.2.3";
 const compatibilityRows = [
@@ -19,7 +19,7 @@ function installAgentSdkMocks({
   registryShouldFail?: boolean;
   catalogSearchShouldFail?: boolean;
 }) {
-  mock.module("@elizaos/agent/services/registry-client", () => ({
+  vi.doMock("@elizaos/agent/services/registry-client", () => ({
     getConfiguredEndpoints: () => ["https://agent-registry.test"],
     getRegistryPlugins: () => {
       if (registryShouldFail) {
@@ -40,7 +40,7 @@ function installAgentSdkMocks({
       },
     ],
   }));
-  mock.module("./skill-catalog-compat", () => ({
+  vi.doMock("./skill-catalog-compat", () => ({
     getCatalogSkill: (slug: string) => ({
       slug,
       displayName: "Skill",
@@ -118,10 +118,10 @@ function installAgentSdkMocks({
       ];
     },
   }));
-  mock.module("@elizaos/agent/services/update-checker", () => ({
+  vi.doMock("@elizaos/agent/services/update-checker", () => ({
     CHANNEL_DIST_TAGS: ["dev", "staging", "prod"],
   }));
-  mock.module("@elizaos/agent/services/version-compat", () => ({
+  vi.doMock("@elizaos/agent/services/version-compat", () => ({
     AI_PROVIDER_PLUGINS: ["openai", "anthropic", "vertex-ai"],
     getInstalledVersion: (packageName: string) => {
       if (packageName === "@elizaos/core") {
@@ -139,17 +139,19 @@ function installAgentSdkMocks({
 }
 
 async function loadAgentSdkModule() {
-  return import(`./agent-sdk?test=${Date.now()}-${Math.random()}`);
+  return import("./agent-sdk");
 }
 
 beforeEach(() => {
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
 });
 
 describe("agent-sdk helper facade", () => {

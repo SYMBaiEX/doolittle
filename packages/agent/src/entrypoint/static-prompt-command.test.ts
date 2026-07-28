@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { finalizeCliJob } from "@/cli/jobs";
 import { handleStaticPromptCommand } from "./static-prompt-command";
 
@@ -9,10 +9,10 @@ describe("handleStaticPromptCommand", () => {
         command: "start",
       },
       {
-        emitStaticPromptEvents: mock(async () => {}),
-        finalizeCliJob: mock(() => undefined) as typeof finalizeCliJob,
-        printOneShotResult: mock(() => {}),
-        loadConfig: mock(() => ({ dataDir: "/tmp/data" })) as never,
+        emitStaticPromptEvents: vi.fn(async () => {}),
+        finalizeCliJob: vi.fn(() => undefined) as typeof finalizeCliJob,
+        printOneShotResult: vi.fn(() => {}),
+        loadConfig: vi.fn(() => ({ dataDir: "/tmp/data" })) as never,
       },
     );
 
@@ -20,8 +20,8 @@ describe("handleStaticPromptCommand", () => {
   });
 
   it("streams static exec results and finalizes the active job", async () => {
-    const emitStaticPromptEvents = mock(async () => {});
-    const finalizeCliJob = mock(() => undefined);
+    const emitStaticPromptEvents = vi.fn(async () => {});
+    const finalizeCliJob = vi.fn(() => undefined);
 
     const handled = await handleStaticPromptCommand(
       {
@@ -41,8 +41,8 @@ describe("handleStaticPromptCommand", () => {
       {
         emitStaticPromptEvents,
         finalizeCliJob: finalizeCliJob as typeof finalizeCliJob,
-        printOneShotResult: mock(() => {}),
-        loadConfig: mock(() => ({ dataDir: "/tmp/data" })) as never,
+        printOneShotResult: vi.fn(() => {}),
+        loadConfig: vi.fn(() => ({ dataDir: "/tmp/data" })) as never,
       },
     );
 
@@ -61,7 +61,7 @@ describe("handleStaticPromptCommand", () => {
   });
 
   it("prints one-shot results outside json-stream mode", async () => {
-    const printOneShotResult = mock(() => {});
+    const printOneShotResult = vi.fn(() => {});
 
     const handled = await handleStaticPromptCommand(
       {
@@ -74,10 +74,10 @@ describe("handleStaticPromptCommand", () => {
         } as never,
       },
       {
-        emitStaticPromptEvents: mock(async () => {}),
-        finalizeCliJob: mock(() => undefined) as typeof finalizeCliJob,
+        emitStaticPromptEvents: vi.fn(async () => {}),
+        finalizeCliJob: vi.fn(() => undefined) as typeof finalizeCliJob,
         printOneShotResult,
-        loadConfig: mock(() => ({ dataDir: "/tmp/data" })) as never,
+        loadConfig: vi.fn(() => ({ dataDir: "/tmp/data" })) as never,
       },
     );
 

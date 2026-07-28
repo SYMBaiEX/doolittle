@@ -44,7 +44,7 @@ export async function handleEntrypointRuntimeSurface(input: {
   pushArg?: (arg: string) => void;
 }): Promise<EntrypointRuntimeSurfaceResult> {
   const printLine = input.printLine ?? console.log;
-  const pushArg = input.pushArg ?? ((arg: string) => Bun.argv.push(arg));
+  const pushArg = input.pushArg ?? ((arg: string) => process.argv.push(arg));
 
   if (input.command === "gateway") {
     await input.context.gateway.start();

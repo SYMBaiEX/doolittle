@@ -108,16 +108,26 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
       bootstrapPath,
     });
     console.error(
-      "Onboarding script not found at scripts/bootstrap.ts. Run 'bun install' first.",
+      "Onboarding script not found at scripts/bootstrap.ts. Run 'nub install' first.",
     );
     throw new CliStartupExitError(1);
   }
 
   const { spawnSync } = await import("node:child_process");
-  const result = spawnSync("bun", ["run", bootstrapPath, ...args], {
-    stdio: "inherit",
-    cwd: root,
-  });
+  const localNub = resolve(
+    root,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "nub.cmd" : "nub",
+  );
+  const result = spawnSync(
+    existsSync(localNub) ? localNub : "nub",
+    [bootstrapPath, ...args],
+    {
+      stdio: "inherit",
+      cwd: root,
+    },
+  );
   if (result.status !== 0) {
     logger.warn("bootstrap-wizard-exited-nonzero", {
       status: result.status ?? 1,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
 import type {
@@ -12,24 +12,26 @@ import { GatewayRunnerRuntimeState } from "./state";
 
 describe("assembleGatewayRunnerRuntime", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("passes platform accessors, state bindings, and native wrappers into composition", async () => {
     const platformAccessors = {
-      getConfiguredPlatforms: mock(
+      getConfiguredPlatforms: vi.fn(
         () => ["discord", "telegram"] as PlatformName[],
       ),
-      isPlatformEnabled: mock(
+      isPlatformEnabled: vi.fn(
         (platform: PlatformName) => platform === "discord",
       ),
-      getNativeMessagingState: mock((platform: PlatformName) => {
+      getNativeMessagingState: vi.fn((platform: PlatformName) => {
         const messagingPlatform =
           platform === "telegram" ? "telegram" : "discord";
         return {
@@ -84,7 +86,7 @@ describe("assembleGatewayRunnerRuntime", () => {
     state.setLastHeartbeatAt("2026-04-11T00:03:00.000Z");
     state.setLastSupervisionAt("2026-04-11T00:04:00.000Z");
 
-    const createAdapter = mock((platform: string) => ({ platform }) as never);
+    const createAdapter = vi.fn((platform: string) => ({ platform }) as never);
     const heartbeatSnapshot = { kind: "heartbeat" } as never;
     const watchdogRecords = [{ kind: "watchdog" }] as never;
     const lifecycleEvent = {
@@ -96,19 +98,19 @@ describe("assembleGatewayRunnerRuntime", () => {
     const runtimeStatus = {
       status: "healthy",
     } as unknown as GatewayRuntimeStatus;
-    const runHeartbeat = mock(async (_reason?: string) => heartbeatSnapshot);
-    const runWatchdog = mock(async (_reason?: string) => watchdogRecords);
-    const observeAdapter = mock(
+    const runHeartbeat = vi.fn(async (_reason?: string) => heartbeatSnapshot);
+    const runWatchdog = vi.fn(async (_reason?: string) => watchdogRecords);
+    const observeAdapter = vi.fn(
       async (_platform: string, _event: unknown) => undefined,
     );
-    const snapshotState = mock(
+    const snapshotState = vi.fn(
       async (
         _reason: string,
         _limit?: number,
         _filters?: GatewayHistoryFilter,
       ) => stateSnapshot,
     );
-    const getRuntimeStatus = mock(() => runtimeStatus);
+    const getRuntimeStatus = vi.fn(() => runtimeStatus);
 
     composedRuntimeAssembly = {
       snapshotPath: "/tmp/gateway/state.json",
@@ -144,9 +146,7 @@ describe("assembleGatewayRunnerRuntime", () => {
     } as unknown as GatewayRunnerRuntimeAssembly;
 
     try {
-      const { assembleGatewayRunnerRuntime } = await import(
-        `./assembly?assembly-test=${Date.now()}`
-      );
+      const { assembleGatewayRunnerRuntime } = await import("./assembly");
 
       const assembled = assembleGatewayRunnerRuntime({
         context,
@@ -289,8 +289,9 @@ describe("assembleGatewayRunnerRuntime", () => {
         undefined,
       );
     } finally {
-      mock.restore();
-      mock.clearAllMocks();
+      vi.restoreAllMocks();
+      vi.resetModules();
+      vi.clearAllMocks();
     }
   });
 });

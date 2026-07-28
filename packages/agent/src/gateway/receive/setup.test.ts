@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import type { GatewayInboxRecord } from "../read/history-view";
@@ -39,7 +39,7 @@ function createContext(): GatewayReceiveDependencies {
           }),
         } as never,
         hooks: {
-          emit: mock(async () => undefined),
+          emit: vi.fn(async () => undefined),
         } as never,
       },
       runtime: {} as never,
@@ -54,14 +54,14 @@ function createContext(): GatewayReceiveDependencies {
     adapter: {
       canReceive: () => true,
     } as never,
-    recordInbox: mock(
+    recordInbox: vi.fn(
       () => ({ recordId: "inbox-1" }) as unknown as GatewayInboxRecord,
     ),
-    recordOutbox: mock(() => ({ recordId: "outbox-1" }) as never),
-    pushTrace: mock(() => undefined),
-    observeAdapter: mock(async () => undefined),
-    editDelivery: mock(async () => ({ id: "delivery-1" }) as never),
-    snapshotState: mock(async () => undefined),
+    recordOutbox: vi.fn(() => ({ recordId: "outbox-1" }) as never),
+    pushTrace: vi.fn(() => undefined),
+    observeAdapter: vi.fn(async () => undefined),
+    editDelivery: vi.fn(async () => ({ id: "delivery-1" }) as never),
+    snapshotState: vi.fn(async () => undefined),
   } satisfies GatewayReceiveDependencies;
 }
 

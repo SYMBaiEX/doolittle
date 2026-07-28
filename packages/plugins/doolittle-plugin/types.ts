@@ -6,6 +6,7 @@ export interface DoolittlePluginDependencies {
 }
 
 export interface RuntimeModelSettings {
+  provider?: string;
   baseUrl?: string;
   model?: string;
   temperature?: number;

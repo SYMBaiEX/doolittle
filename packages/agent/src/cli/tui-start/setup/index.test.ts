@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TuiStartSetupResult } from "./types";
 
 const assemblyState = {
@@ -67,40 +67,40 @@ const presentation = {
 };
 
 function installSetupMocks() {
-  mock.module("../assembly-state", () => ({
+  vi.doMock("../assembly-state", () => ({
     createTuiStartAssemblyState: () => assemblyState,
   }));
 
-  mock.module("./input", () => ({
+  vi.doMock("./input", () => ({
     createTuiStartInputSetup: () => inputSetup,
   }));
 
-  mock.module("./runtime-surfaces", () => ({
+  vi.doMock("./runtime-surfaces", () => ({
     createTuiStartRuntimeSurfaces: () => runtimeSurfaces,
   }));
 
-  mock.module("./presentation", () => ({
+  vi.doMock("./presentation", () => ({
     createTuiStartPresentationSetup: () => presentation,
   }));
 }
 
 async function loadCreateTuiStartSetup() {
-  const { createTuiStartSetup } = await import(
-    `./index?setup-test=${Date.now()}-${Math.random()}`
-  );
+  const { createTuiStartSetup } = await import("./index");
   return createTuiStartSetup;
 }
 
 describe("createTuiStartSetup", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     installSetupMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("assembles input, runtime surfaces, and presentation into the public setup contract", async () => {

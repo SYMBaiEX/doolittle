@@ -1,3 +1,5 @@
+import { spawnTextProcess } from "@/services/process-execution";
+
 export interface CommandProcessResult {
   ok: boolean;
   stdout: string;
@@ -20,18 +22,13 @@ export async function runShellCommand(
   args: string[],
   timeoutMs: number,
 ): Promise<CommandProcessResult> {
-  const proc = Bun.spawn({
-    cmd: ["/bin/zsh", "-lc", buildShellCommand(command, args)],
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const timer = setTimeout(() => proc.kill(), timeoutMs);
+  const { child, completed } = spawnTextProcess("/bin/zsh", [
+    "-lc",
+    buildShellCommand(command, args),
+  ]);
+  const timer = setTimeout(() => child.kill(), timeoutMs);
   try {
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const { stdout, stderr, exitCode } = await completed;
     const trimmedStdout = stdout.trim();
     const trimmedStderr = stderr.trim();
     return {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import { collectProcessEnv, resolveExecutionCommand } from "./runtime";
 
@@ -9,11 +9,11 @@ describe("local sandbox runtime helpers", () => {
       ["-c", "print('ok')"],
     ]);
     expect(resolveExecutionCommand("javascript", "console.log('ok')")).toEqual([
-      "node",
+      process.execPath,
       ["-e", "console.log('ok')"],
     ]);
     expect(resolveExecutionCommand("typescript", "console.log('ok')")).toEqual([
-      "bun",
+      process.execPath,
       ["-e", "console.log('ok')"],
     ]);
     expect(resolveExecutionCommand("bash", "echo ok")).toEqual([

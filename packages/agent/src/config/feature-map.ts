@@ -28,7 +28,7 @@ export const featureMap: FeatureMapping[] = [
   {
     platformCapability: "Skills registry and skill browsing",
     elizaImplementation: "Custom skills service + `/skills` command",
-    notes: "Loads `SKILL.md` files from a Bun-managed workspace directory.",
+    notes: "Loads `SKILL.md` files from a Nub-managed workspace directory.",
   },
   {
     platformCapability: "Scheduled automations and cron jobs",
@@ -46,7 +46,7 @@ export const featureMap: FeatureMapping[] = [
     platformCapability: "Local terminal execution",
     elizaImplementation: "Terminal service + `/terminal` command family",
     notes:
-      "Runs Bun-hosted shell commands locally and persists recent command history for operator continuity.",
+      "Runs shell commands locally and persists recent command history for operator continuity.",
   },
   {
     platformCapability: "Repository state inspection",
@@ -109,9 +109,9 @@ export const featureMap: FeatureMapping[] = [
   },
   {
     platformCapability: "Gateway/API access",
-    elizaImplementation: "Bun HTTP API",
+    elizaImplementation: "Node HTTP API",
     notes:
-      "Provides a clean Bun-native API surface for health checks, chat, memory, skills, and feature inventory.",
+      "Provides a clean Node-native API surface for health checks, chat, memory, skills, and feature inventory.",
   },
   {
     platformCapability: "Provider-backed model execution",
@@ -127,7 +127,7 @@ export const featureMap: FeatureMapping[] = [
   },
   {
     platformCapability: "Local terminal entrypoint",
-    elizaImplementation: "Bun CLI loop",
+    elizaImplementation: "Nub + Node CLI loop",
     notes:
       "Exposes an interactive terminal path for local development and direct operator workflows.",
   },

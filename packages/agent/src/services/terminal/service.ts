@@ -10,6 +10,10 @@ import type {
   TerminalCommandRecord,
 } from "@/types";
 import type { RuntimeSettings } from "../settings/runtime-settings";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "../workspace-directory";
 import { createCoreExecutionBackends } from "./backends/core";
 import { createCloudExecutionBackends } from "./cloud/backends";
 import { CloudStoreManager } from "./cloud/store";
@@ -40,7 +44,7 @@ export class TerminalService {
 
   constructor(
     baseDir: string,
-    private readonly workspaceDir: string,
+    private readonly workspaceDirectory: WorkspaceDirectorySource,
     private readonly getSettings: () => RuntimeSettings,
   ) {
     mkdirSync(baseDir, { recursive: true });
@@ -57,7 +61,7 @@ export class TerminalService {
       ...cloudBackends,
     ]);
     this.commandOrchestrator = new TerminalServiceCommandOrchestrator({
-      workspaceDir: this.workspaceDir,
+      getWorkspaceDir: () => resolveWorkspaceDirectory(this.workspaceDirectory),
       getSettings: this.getSettings,
       backends: this.backends,
       historyStore: this.commandHistory,
@@ -68,7 +72,7 @@ export class TerminalService {
       },
     });
     this.interactiveSessions = new InteractiveTerminalSessionManager(
-      this.workspaceDir,
+      this.workspaceDirectory,
     );
   }
 
@@ -78,6 +82,10 @@ export class TerminalService {
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
     return this.commandOrchestrator.run(command, timeoutMs, abortSignal);
+  }
+
+  invalidateWorkspace(): void {
+    this.invalidateHealthCache();
   }
 
   async runStreamingLocal(
@@ -113,9 +121,10 @@ export class TerminalService {
       return this.healthPromise;
     }
     const settings = this.getSettings();
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
     this.healthPromise = Promise.all(
       Array.from(this.backends.values()).map((backend) =>
-        backend.health(settings, this.workspaceDir),
+        backend.health(settings, workspaceDir),
       ),
     )
       .then((value) => {

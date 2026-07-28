@@ -7,6 +7,10 @@ import {
 } from "@elizaos/skills/index";
 import type { SkillDocument } from "@/types";
 import type { AgentSdkService } from "../agent-sdk-service";
+import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "../workspace-directory";
 import { loadNativeSkills } from "./native-loader";
 import { buildSkillsSummary } from "./summary";
 import type { SkillsSnapshot, SkillsWorkspaceSummary } from "./types";
@@ -17,19 +21,20 @@ export class SkillsService {
   private readonly bundledSkillsDir = getSkillsDir();
   private readonly managedSkillsDir = join(homedir(), ".elizaos", "skills");
   private readonly curatedSkillsDir = getCuratedActiveDir();
-  private readonly projectSkillsDir: string;
   private snapshot?: SkillsSnapshot;
 
   constructor(
     private readonly skillsDir: string,
     private readonly agentSdk: AgentSdkService,
-    private readonly workspaceDir: string = process.cwd(),
-  ) {
-    this.projectSkillsDir = join(this.workspaceDir, ".elizaos", "skills");
-  }
+    private readonly workspaceDirectory: WorkspaceDirectorySource = process.cwd(),
+  ) {}
 
   rootDir(): string {
     return this.skillsDir;
+  }
+
+  invalidateWorkspace(): void {
+    this.snapshot = undefined;
   }
 
   workspace(): SkillDocument[] {
@@ -110,14 +115,15 @@ export class SkillsService {
     native: SkillDocument[];
     commandSpecs: SkillCommandSpec[];
   } {
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
     return loadNativeSkills({
       skillsDir: this.skillsDir,
-      workspaceDir: this.workspaceDir,
+      workspaceDir,
       roots: {
         bundledSkillsDir: this.bundledSkillsDir,
         managedSkillsDir: this.managedSkillsDir,
         curatedSkillsDir: this.curatedSkillsDir,
-        projectSkillsDir: this.projectSkillsDir,
+        projectSkillsDir: join(workspaceDir, ".elizaos", "skills"),
         workspaceSkillsDir: this.skillsDir,
       },
     });

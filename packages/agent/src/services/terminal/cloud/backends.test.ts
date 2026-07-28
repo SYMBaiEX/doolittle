@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import { CloudStoreManager } from "../cloud/store";
 import { createCloudExecutionBackends } from "./backends";
@@ -27,7 +27,7 @@ function makeSettings(): RuntimeSettings {
       remoteArtifactPaths: [".doolittle/remote-artifacts"],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "workspace",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],

@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import {
   chmodSync,
   mkdirSync,
@@ -9,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import type { RuntimeSettings } from "./settings/runtime-settings";
 import { TerminalService } from "./terminal/service";
 
@@ -36,7 +36,7 @@ function makeSettings(): RuntimeSettings {
       ],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],

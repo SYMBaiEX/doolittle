@@ -63,7 +63,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add an installer smoke test that asserts dry-run output contains `.env`, `.doolittle/settings.json`, and `.doolittle/gateway/gateway.json`.",
-          "Run `bun test scripts/bootstrap-program.test.ts scripts/bootstrap/program/summary.test.ts`.",
+          "Run `nub run test scripts/bootstrap-program.test.ts scripts/bootstrap/program/summary.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -79,7 +79,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add a one-shot invocation regression test for `status` and `exec --json` readiness shape.",
-          "Run `bun test packages/agent/src/entrypoint/invocation.test.ts`.",
+          "Run `nub run test packages/agent/src/entrypoint/invocation.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -102,7 +102,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         definitionOfDone: [
           "Check, headless, and completed onboarding receipts name provider, execution backend, gateway mode, and workspace root.",
           "The quickstart explains how to read the receipt and which fields prove first-run readiness.",
-          "`bun test scripts/bootstrap-program.test.ts scripts/bootstrap/answers.test.ts` passes.",
+          "`nub run test scripts/bootstrap-program.test.ts scripts/bootstrap/answers.test.ts` passes.",
         ],
       },
       {
@@ -117,7 +117,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         definitionOfDone: [
           "`doolittle status` and `GET /runtime/status` expose the same provider, plugin, gateway, and degraded-mode fields.",
           "The operator loop doc points to the same readiness fields.",
-          "`bun test packages/agent/src/entrypoint/invocation.test.ts packages/agent/src/services/operator/runtime-summary/update.test.ts` passes.",
+          "`nub run test packages/agent/src/entrypoint/invocation.test.ts packages/agent/src/services/operator/runtime-summary/update.test.ts` passes.",
         ],
       },
     ],
@@ -154,7 +154,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add command parser tests for each slash command and expected route.",
-          "Run `bun test packages/agent/src/runtime/chat.test.ts packages/agent/src/cli/tui-renderers.test.ts`.",
+          "Run `nub run test packages/agent/src/runtime/chat.test.ts packages/agent/src/cli/tui-renderers.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -170,7 +170,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add run-controller tests for stop, steering, and resume transitions.",
-          "Run `bun test packages/agent/src/runtime/chat-turn packages/agent/src/cli`.",
+          "Run `nub run test packages/agent/src/runtime/chat-turn packages/agent/src/cli`.",
         ],
         currentStatus: "missing",
       },
@@ -194,7 +194,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         definitionOfDone: [
           "Each command has parser coverage and a compact operator response.",
           "Commands that need unavailable runtime support return a truthful degraded response.",
-          "`bun test packages/agent/src/runtime packages/agent/src/cli` passes.",
+          "`nub run test packages/agent/src/runtime packages/agent/src/cli` passes.",
         ],
       },
       {
@@ -264,7 +264,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add review fixture tests with one known bug and one clean diff.",
-          "Run `bun test packages/plugins/doolittle-plugin/coding-agent`.",
+          "Run `nub run test packages/plugins/doolittle-plugin/coding-agent`.",
         ],
         currentStatus: "missing",
       },
@@ -339,7 +339,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add a memory persistence test that writes, restarts the memory runtime, and retrieves the preference.",
-          "Run `bun test packages/agent/src/runtime/native/memory-storage-runtime.test.ts`.",
+          "Run `nub run test packages/agent/src/runtime/native/memory-storage-runtime.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -355,7 +355,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add a skill synthesis test with a generated skill proposal and approval gate.",
-          "Run `bun test packages/agent/src/runtime/native/service-bridge/autonomous-skills.test.ts`.",
+          "Run `nub run test packages/agent/src/runtime/native/service-bridge/autonomous-skills.test.ts`.",
         ],
         currentStatus: "missing",
       },
@@ -429,7 +429,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add mocked platform adapter tests for authorization, session binding, and final delivery.",
-          "Run `bun test packages/agent/src/gateway`.",
+          "Run `nub run test packages/agent/src/gateway`.",
         ],
         currentStatus: "partial",
       },
@@ -445,7 +445,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add runner tests for restart, replay, and failed delivery state.",
-          "Run `bun test packages/agent/src/gateway/gateway-supervision-flow.test.ts packages/agent/src/gateway/runner`.",
+          "Run `nub run test packages/agent/src/gateway/gateway-supervision-flow.test.ts packages/agent/src/gateway/runner`.",
         ],
         currentStatus: "partial",
       },
@@ -519,7 +519,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add scheduler tests for due job execution and delivery recording.",
-          "Run `bun test packages/plugins/doolittle-plugin/scheduler-service.test.ts packages/agent/src/gateway`.",
+          "Run `nub run test packages/plugins/doolittle-plugin/scheduler-service.test.ts packages/agent/src/gateway`.",
         ],
         currentStatus: "missing",
       },
@@ -609,7 +609,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add parser and runtime summary tests for model list and switch responses.",
-          "Run `bun test packages/agent/src/runtime/native/account-auth packages/plugins/doolittle-plugin/model-fallback.test.ts`.",
+          "Run `nub run test packages/agent/src/runtime/native/account-auth packages/plugins/doolittle-plugin/model-fallback.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -625,7 +625,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add fallback tests for rate limit, auth failure, and provider unavailable cases.",
-          "Run `bun test packages/plugins/doolittle-plugin/model-fallback.test.ts`.",
+          "Run `nub run test packages/plugins/doolittle-plugin/model-fallback.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -699,7 +699,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add a fixture task that produces a run receipt with read, write, command, and verification entries.",
-          "Run `bun test packages/agent/src/services/operator/runtime-summary`.",
+          "Run `nub run test packages/agent/src/services/operator/runtime-summary`.",
         ],
         currentStatus: "partial",
       },
@@ -715,7 +715,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add diagnostics tests for open gateway auth, permissive exec, and unpaired messaging access.",
-          "Run `bun test packages/agent/src/services/diagnostics`.",
+          "Run `nub run test packages/agent/src/services/diagnostics`.",
         ],
         currentStatus: "partial",
       },

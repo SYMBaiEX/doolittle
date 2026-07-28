@@ -164,7 +164,7 @@ export function buildAcpRegistryEntry(input: {
         }
       : {
           type: "command",
-          command: "bun",
+          command: "nub",
           args: ["run", "start"],
         },
     capabilities: {
@@ -197,7 +197,7 @@ export function buildAcpEditorSummary(input: {
     importDir: input.importDir,
     commandConfigured: input.commandConfigured,
     command: input.command,
-    installCommand: input.installCommand ?? "bun install && bun run start",
+    installCommand: input.installCommand ?? "nub install && nub run start",
     exportCommand:
       input.exportCommand ?? "POST /acp/export or /acp export [label]",
     importCommand:

@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import { DiagnosticsService } from "../diagnostics/service";
@@ -114,7 +114,7 @@ function makeConfig(root: string): EnvConfig {
     remoteArtifactPolicy: "metadata-only",
     remoteWorkspaceLabel: "doolittle-workspace",
     executionBackend: "local",
-    dockerImage: "oven/bun:latest",
+    dockerImage: "ghcr.io/nubjs/nub:latest",
     dockerNetwork: "host",
     dockerWorkspacePath: "/workspace",
     dockerEnvPassthrough: [],

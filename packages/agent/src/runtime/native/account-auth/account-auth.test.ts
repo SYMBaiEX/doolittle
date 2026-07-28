@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
@@ -8,9 +8,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 async function loadSnapshotModule() {
-  return import(`./index.ts?test=${Date.now()}-${Math.random()}`);
+  return import("./index");
 }
 
 function createJwtToken(exp: number): string {
@@ -35,7 +36,7 @@ async function withIsolatedAuthStore<T>(
   }
 }
 
-describe.serial("linked provider account auth snapshot", () => {
+describe.sequential("linked provider account auth snapshot", () => {
   it("detects reusable Codex auth from the local CLI store", async () => {
     await withIsolatedAuthStore(async () => {
       const home = mkdtempSync(join(tmpdir(), "doolittle-codex-auth-"));
@@ -66,288 +67,274 @@ describe.serial("linked provider account auth snapshot", () => {
     });
   });
 
-  it.serial(
-    "refreshes expired Codex credentials and rewrites the local and stored auth state",
-    async () => {
-      const originalFetch = globalThis.fetch;
+  it.sequential("refreshes expired Codex credentials and rewrites the local and stored auth state", async () => {
+    const originalFetch = globalThis.fetch;
 
-      try {
-        await withIsolatedAuthStore(async () => {
-          const home = mkdtempSync(join(tmpdir(), "doolittle-codex-refresh-"));
-          const authPath = join(home, ".codex", "auth.json");
-          const expiredAccessToken = createJwtToken(
-            Math.floor(Date.now() / 1000) - 60,
-          );
-          const refreshedAccessToken = createJwtToken(
-            Math.floor(Date.now() / 1000) + 3600,
-          );
-          const requests: string[] = [];
+    try {
+      await withIsolatedAuthStore(async () => {
+        const home = mkdtempSync(join(tmpdir(), "doolittle-codex-refresh-"));
+        const authPath = join(home, ".codex", "auth.json");
+        const expiredAccessToken = createJwtToken(
+          Math.floor(Date.now() / 1000) - 60,
+        );
+        const refreshedAccessToken = createJwtToken(
+          Math.floor(Date.now() / 1000) + 3600,
+        );
+        const requests: string[] = [];
 
-          mkdirSync(join(home, ".codex"), { recursive: true });
-          writeFileSync(
-            authPath,
+        mkdirSync(join(home, ".codex"), { recursive: true });
+        writeFileSync(
+          authPath,
+          JSON.stringify({
+            auth_mode: "chatgpt",
+            last_refresh: "2026-03-21T12:00:00.000Z",
+            tokens: {
+              access_token: expiredAccessToken,
+              refresh_token: "codex-refresh-token",
+            },
+          }),
+          "utf8",
+        );
+
+        globalThis.fetch = (async (
+          _input: RequestInfo | URL,
+          init?: RequestInit,
+        ) => {
+          requests.push(
+            init?.body instanceof URLSearchParams
+              ? init.body.toString()
+              : String(init?.body ?? ""),
+          );
+
+          return new Response(
             JSON.stringify({
-              auth_mode: "chatgpt",
-              last_refresh: "2026-03-21T12:00:00.000Z",
-              tokens: {
-                access_token: expiredAccessToken,
-                refresh_token: "codex-refresh-token",
-              },
+              access_token: refreshedAccessToken,
+              refresh_token: "codex-refreshed-token",
             }),
-            "utf8",
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
           );
+        }) as unknown as typeof fetch;
 
-          globalThis.fetch = (async (
-            _input: RequestInfo | URL,
-            init?: RequestInit,
-          ) => {
-            requests.push(
-              init?.body instanceof URLSearchParams
-                ? init.body.toString()
-                : String(init?.body ?? ""),
-            );
+        const mod = await loadSnapshotModule();
+        const credentials = await mod.refreshLinkedCodexCredentials(home);
 
-            return new Response(
-              JSON.stringify({
-                access_token: refreshedAccessToken,
-                refresh_token: "codex-refreshed-token",
-              }),
-              {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              },
-            );
-          }) as unknown as typeof fetch;
+        expect(requests).toHaveLength(1);
+        expect(requests[0]).toContain("grant_type=refresh_token");
+        expect(requests[0]).toContain("refresh_token=codex-refresh-token");
+        expect(credentials?.accessToken).toBe(refreshedAccessToken);
+        expect(credentials?.refreshToken).toBe("codex-refreshed-token");
+        expect(credentials?.source).toContain(".codex/auth.json");
 
-          const mod = await loadSnapshotModule();
-          const credentials = await mod.refreshLinkedCodexCredentials(home);
-
-          expect(requests).toHaveLength(1);
-          expect(requests[0]).toContain("grant_type=refresh_token");
-          expect(requests[0]).toContain("refresh_token=codex-refresh-token");
-          expect(credentials?.accessToken).toBe(refreshedAccessToken);
-          expect(credentials?.refreshToken).toBe("codex-refreshed-token");
-          expect(credentials?.source).toContain(".codex/auth.json");
-
-          const filePayload = JSON.parse(readFileSync(authPath, "utf8")) as {
-            last_refresh?: string;
-            tokens?: {
-              access_token?: string;
-              refresh_token?: string;
-            };
+        const filePayload = JSON.parse(readFileSync(authPath, "utf8")) as {
+          last_refresh?: string;
+          tokens?: {
+            access_token?: string;
+            refresh_token?: string;
           };
+        };
 
-          expect(filePayload.tokens?.access_token).toBe(refreshedAccessToken);
-          expect(filePayload.tokens?.refresh_token).toBe(
-            "codex-refreshed-token",
-          );
-          expect(filePayload.last_refresh).toBeTruthy();
-          expect(filePayload.last_refresh).not.toBe("2026-03-21T12:00:00.000Z");
+        expect(filePayload.tokens?.access_token).toBe(refreshedAccessToken);
+        expect(filePayload.tokens?.refresh_token).toBe("codex-refreshed-token");
+        expect(filePayload.last_refresh).toBeTruthy();
+        expect(filePayload.last_refresh).not.toBe("2026-03-21T12:00:00.000Z");
 
-          expect(mod.__accountAuthTestOnly.readProviderAuthStore()).toEqual(
-            expect.objectContaining({
-              providers: expect.objectContaining({
-                codex: expect.objectContaining({
-                  accessToken: refreshedAccessToken,
-                  refreshToken: "codex-refreshed-token",
-                  authMode: "chatgpt",
-                  lastRefresh: filePayload.last_refresh,
-                }),
+        expect(mod.__accountAuthTestOnly.readProviderAuthStore()).toEqual(
+          expect.objectContaining({
+            providers: expect.objectContaining({
+              codex: expect.objectContaining({
+                accessToken: refreshedAccessToken,
+                refreshToken: "codex-refreshed-token",
+                authMode: "chatgpt",
+                lastRefresh: filePayload.last_refresh,
               }),
             }),
-          );
+          }),
+        );
 
-          expect(mod.getLinkedCodexCredentials(home)).toEqual({
-            accessToken: refreshedAccessToken,
-            refreshToken: "codex-refreshed-token",
-            authMode: "chatgpt",
-            lastRefresh: filePayload.last_refresh,
-            source: "eliza-auth-store",
-          });
+        expect(mod.getLinkedCodexCredentials(home)).toEqual({
+          accessToken: refreshedAccessToken,
+          refreshToken: "codex-refreshed-token",
+          authMode: "chatgpt",
+          lastRefresh: filePayload.last_refresh,
+          source: "eliza-auth-store",
         });
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    },
-  );
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 
-  it.serial(
-    "surfaces Codex OAuth refresh failures without rewriting auth state",
-    async () => {
-      const originalFetch = globalThis.fetch;
+  it.sequential("surfaces Codex OAuth refresh failures without rewriting auth state", async () => {
+    const originalFetch = globalThis.fetch;
 
-      try {
-        await withIsolatedAuthStore(async () => {
-          const home = mkdtempSync(join(tmpdir(), "doolittle-codex-fail-"));
-          const authPath = join(home, ".codex", "auth.json");
-          const expiredAccessToken = createJwtToken(
-            Math.floor(Date.now() / 1000) - 60,
-          );
+    try {
+      await withIsolatedAuthStore(async () => {
+        const home = mkdtempSync(join(tmpdir(), "doolittle-codex-fail-"));
+        const authPath = join(home, ".codex", "auth.json");
+        const expiredAccessToken = createJwtToken(
+          Math.floor(Date.now() / 1000) - 60,
+        );
 
-          mkdirSync(join(home, ".codex"), { recursive: true });
-          writeFileSync(
-            authPath,
-            JSON.stringify({
-              auth_mode: "chatgpt",
-              last_refresh: "2026-03-21T12:00:00.000Z",
-              tokens: {
-                access_token: expiredAccessToken,
-                refresh_token: "codex-refresh-token",
-              },
-            }),
-            "utf8",
-          );
+        mkdirSync(join(home, ".codex"), { recursive: true });
+        writeFileSync(
+          authPath,
+          JSON.stringify({
+            auth_mode: "chatgpt",
+            last_refresh: "2026-03-21T12:00:00.000Z",
+            tokens: {
+              access_token: expiredAccessToken,
+              refresh_token: "codex-refresh-token",
+            },
+          }),
+          "utf8",
+        );
 
-          globalThis.fetch = (async () =>
-            new Response("expired refresh", {
-              status: 401,
-            })) as unknown as typeof fetch;
+        globalThis.fetch = (async () =>
+          new Response("expired refresh", {
+            status: 401,
+          })) as unknown as typeof fetch;
 
-          const mod = await loadSnapshotModule();
+        const mod = await loadSnapshotModule();
 
-          await expect(mod.refreshLinkedCodexCredentials(home)).rejects.toThrow(
-            "Codex OAuth refresh failed (401): expired refresh",
-          );
+        await expect(mod.refreshLinkedCodexCredentials(home)).rejects.toThrow(
+          "Codex OAuth refresh failed (401): expired refresh",
+        );
 
-          const filePayload = JSON.parse(readFileSync(authPath, "utf8")) as {
-            last_refresh?: string;
-            tokens?: {
-              access_token?: string;
-              refresh_token?: string;
-            };
+        const filePayload = JSON.parse(readFileSync(authPath, "utf8")) as {
+          last_refresh?: string;
+          tokens?: {
+            access_token?: string;
+            refresh_token?: string;
           };
+        };
 
-          expect(filePayload.tokens?.access_token).toBe(expiredAccessToken);
-          expect(filePayload.tokens?.refresh_token).toBe("codex-refresh-token");
-          expect(filePayload.last_refresh).toBe("2026-03-21T12:00:00.000Z");
-          expect(
-            mod.__accountAuthTestOnly.readProviderAuthStore().providers,
-          ).not.toHaveProperty("codex");
-        });
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    },
-  );
+        expect(filePayload.tokens?.access_token).toBe(expiredAccessToken);
+        expect(filePayload.tokens?.refresh_token).toBe("codex-refresh-token");
+        expect(filePayload.last_refresh).toBe("2026-03-21T12:00:00.000Z");
+        expect(
+          mod.__accountAuthTestOnly.readProviderAuthStore().providers,
+        ).not.toHaveProperty("codex");
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 
-  it.serial(
-    "rejects Codex refresh responses that omit access_token",
-    async () => {
-      const originalFetch = globalThis.fetch;
+  it.sequential("rejects Codex refresh responses that omit access_token", async () => {
+    const originalFetch = globalThis.fetch;
 
-      try {
-        await withIsolatedAuthStore(async () => {
-          const home = mkdtempSync(
-            join(tmpdir(), "doolittle-codex-missing-access-"),
-          );
-          const authPath = join(home, ".codex", "auth.json");
-          const expiredAccessToken = createJwtToken(
-            Math.floor(Date.now() / 1000) - 60,
-          );
+    try {
+      await withIsolatedAuthStore(async () => {
+        const home = mkdtempSync(
+          join(tmpdir(), "doolittle-codex-missing-access-"),
+        );
+        const authPath = join(home, ".codex", "auth.json");
+        const expiredAccessToken = createJwtToken(
+          Math.floor(Date.now() / 1000) - 60,
+        );
 
-          mkdirSync(join(home, ".codex"), { recursive: true });
-          writeFileSync(
-            authPath,
-            JSON.stringify({
-              auth_mode: "chatgpt",
-              last_refresh: "2026-03-21T12:00:00.000Z",
-              tokens: {
-                access_token: expiredAccessToken,
-                refresh_token: "codex-refresh-token",
-              },
-            }),
-            "utf8",
-          );
+        mkdirSync(join(home, ".codex"), { recursive: true });
+        writeFileSync(
+          authPath,
+          JSON.stringify({
+            auth_mode: "chatgpt",
+            last_refresh: "2026-03-21T12:00:00.000Z",
+            tokens: {
+              access_token: expiredAccessToken,
+              refresh_token: "codex-refresh-token",
+            },
+          }),
+          "utf8",
+        );
 
-          globalThis.fetch = (async () =>
-            new Response(
-              JSON.stringify({ refresh_token: "codex-refreshed-token" }),
-              {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              },
-            )) as unknown as typeof fetch;
+        globalThis.fetch = (async () =>
+          new Response(
+            JSON.stringify({ refresh_token: "codex-refreshed-token" }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          )) as unknown as typeof fetch;
 
-          const mod = await loadSnapshotModule();
+        const mod = await loadSnapshotModule();
 
-          await expect(mod.refreshLinkedCodexCredentials(home)).rejects.toThrow(
-            "Codex OAuth refresh response did not include access_token",
-          );
+        await expect(mod.refreshLinkedCodexCredentials(home)).rejects.toThrow(
+          "Codex OAuth refresh response did not include access_token",
+        );
 
-          const filePayload = JSON.parse(readFileSync(authPath, "utf8")) as {
-            last_refresh?: string;
-            tokens?: {
-              access_token?: string;
-              refresh_token?: string;
-            };
+        const filePayload = JSON.parse(readFileSync(authPath, "utf8")) as {
+          last_refresh?: string;
+          tokens?: {
+            access_token?: string;
+            refresh_token?: string;
           };
+        };
 
-          expect(filePayload.tokens?.access_token).toBe(expiredAccessToken);
-          expect(filePayload.tokens?.refresh_token).toBe("codex-refresh-token");
-          expect(filePayload.last_refresh).toBe("2026-03-21T12:00:00.000Z");
-          expect(
-            mod.__accountAuthTestOnly.readProviderAuthStore().providers,
-          ).not.toHaveProperty("codex");
+        expect(filePayload.tokens?.access_token).toBe(expiredAccessToken);
+        expect(filePayload.tokens?.refresh_token).toBe("codex-refresh-token");
+        expect(filePayload.last_refresh).toBe("2026-03-21T12:00:00.000Z");
+        expect(
+          mod.__accountAuthTestOnly.readProviderAuthStore().providers,
+        ).not.toHaveProperty("codex");
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it.sequential("skips Codex refresh in resolveLinkedProviderCredentials when the access token is not expiring", async () => {
+    const originalFetch = globalThis.fetch;
+
+    try {
+      await withIsolatedAuthStore(async () => {
+        const home = mkdtempSync(join(tmpdir(), "doolittle-codex-steady-"));
+        const authPath = join(home, ".codex", "auth.json");
+        const validAccessToken = createJwtToken(
+          Math.floor(Date.now() / 1000) + 3600,
+        );
+        let fetchCalls = 0;
+
+        mkdirSync(join(home, ".codex"), { recursive: true });
+        writeFileSync(
+          authPath,
+          JSON.stringify({
+            auth_mode: "chatgpt",
+            last_refresh: "2026-03-21T12:00:00.000Z",
+            tokens: {
+              access_token: validAccessToken,
+              refresh_token: "codex-refresh-token",
+            },
+          }),
+          "utf8",
+        );
+
+        globalThis.fetch = (async () => {
+          fetchCalls += 1;
+          throw new Error("Codex refresh should not run");
+        }) as unknown as typeof fetch;
+
+        const mod = await loadSnapshotModule();
+        const credentials = await mod.resolveLinkedProviderCredentials(
+          "codex",
+          home,
+        );
+
+        expect(fetchCalls).toBe(0);
+        expect(credentials).toEqual({
+          accessToken: validAccessToken,
+          refreshToken: "codex-refresh-token",
+          authMode: "chatgpt",
+          lastRefresh: "2026-03-21T12:00:00.000Z",
+          source: authPath,
         });
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    },
-  );
-
-  it.serial(
-    "skips Codex refresh in resolveLinkedProviderCredentials when the access token is not expiring",
-    async () => {
-      const originalFetch = globalThis.fetch;
-
-      try {
-        await withIsolatedAuthStore(async () => {
-          const home = mkdtempSync(join(tmpdir(), "doolittle-codex-steady-"));
-          const authPath = join(home, ".codex", "auth.json");
-          const validAccessToken = createJwtToken(
-            Math.floor(Date.now() / 1000) + 3600,
-          );
-          let fetchCalls = 0;
-
-          mkdirSync(join(home, ".codex"), { recursive: true });
-          writeFileSync(
-            authPath,
-            JSON.stringify({
-              auth_mode: "chatgpt",
-              last_refresh: "2026-03-21T12:00:00.000Z",
-              tokens: {
-                access_token: validAccessToken,
-                refresh_token: "codex-refresh-token",
-              },
-            }),
-            "utf8",
-          );
-
-          globalThis.fetch = (async () => {
-            fetchCalls += 1;
-            throw new Error("Codex refresh should not run");
-          }) as unknown as typeof fetch;
-
-          const mod = await loadSnapshotModule();
-          const credentials = await mod.resolveLinkedProviderCredentials(
-            "codex",
-            home,
-          );
-
-          expect(fetchCalls).toBe(0);
-          expect(credentials).toEqual({
-            accessToken: validAccessToken,
-            refreshToken: "codex-refresh-token",
-            authMode: "chatgpt",
-            lastRefresh: "2026-03-21T12:00:00.000Z",
-            source: authPath,
-          });
-        });
-      } finally {
-        globalThis.fetch = originalFetch;
-      }
-    },
-  );
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 
   it("detects reusable Claude Code oauth credentials", async () => {
     await withIsolatedAuthStore(async () => {
@@ -386,7 +373,7 @@ describe.serial("linked provider account auth snapshot", () => {
     });
   });
 
-  it.serial("detects reusable Claude Code setup-token from env", async () => {
+  it.sequential("detects reusable Claude Code setup-token from env", async () => {
     const previous = process.env.CLAUDE_CODE_SETUP_TOKEN;
     process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-test";
     try {
@@ -412,72 +399,69 @@ describe.serial("linked provider account auth snapshot", () => {
     }
   });
 
-  it.serial(
-    "skips Claude refresh in resolveLinkedProviderCredentials when file credentials are not expiring",
-    async () => {
-      const previousSetupToken = process.env.CLAUDE_CODE_SETUP_TOKEN;
-      const originalFetch = globalThis.fetch;
-      process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-env";
+  it.sequential("skips Claude refresh in resolveLinkedProviderCredentials when file credentials are not expiring", async () => {
+    const previousSetupToken = process.env.CLAUDE_CODE_SETUP_TOKEN;
+    const originalFetch = globalThis.fetch;
+    process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-env";
 
-      try {
-        await withIsolatedAuthStore(async () => {
-          const home = mkdtempSync(join(tmpdir(), "doolittle-claude-steady-"));
-          let fetchCalls = 0;
+    try {
+      await withIsolatedAuthStore(async () => {
+        const home = mkdtempSync(join(tmpdir(), "doolittle-claude-steady-"));
+        let fetchCalls = 0;
 
-          mkdirSync(join(home, ".claude"), { recursive: true });
-          writeFileSync(
-            join(home, ".claude", ".credentials.json"),
-            JSON.stringify({
-              claudeAiOauth: {
-                accessToken: "file-access",
-                refreshToken: "file-refresh",
-                expiresAt: String(Date.now() + 3_600_000),
-              },
-            }),
-            "utf8",
-          );
-          writeFileSync(
-            join(home, ".claude.json"),
-            JSON.stringify({
-              oauthAccount: {
-                displayName: "Operator",
-                emailAddress: "operator@example.com",
-              },
-            }),
-            "utf8",
-          );
+        mkdirSync(join(home, ".claude"), { recursive: true });
+        writeFileSync(
+          join(home, ".claude", ".credentials.json"),
+          JSON.stringify({
+            claudeAiOauth: {
+              accessToken: "file-access",
+              refreshToken: "file-refresh",
+              expiresAt: String(Date.now() + 3_600_000),
+            },
+          }),
+          "utf8",
+        );
+        writeFileSync(
+          join(home, ".claude.json"),
+          JSON.stringify({
+            oauthAccount: {
+              displayName: "Operator",
+              emailAddress: "operator@example.com",
+            },
+          }),
+          "utf8",
+        );
 
-          globalThis.fetch = (async () => {
-            fetchCalls += 1;
-            throw new Error("Claude refresh should not run");
-          }) as unknown as typeof fetch;
+        globalThis.fetch = (async () => {
+          fetchCalls += 1;
+          throw new Error("Claude refresh should not run");
+        }) as unknown as typeof fetch;
 
-          const mod = await loadSnapshotModule();
-          const credentials = await mod.resolveLinkedProviderCredentials(
-            "claude-code",
-            home,
-          );
+        const mod = await loadSnapshotModule();
+        const credentials = await mod.resolveLinkedProviderCredentials(
+          "claude-code",
+          home,
+        );
 
-          expect(fetchCalls).toBe(0);
-          expect(credentials).toEqual({
-            accessToken: "file-access",
-            refreshToken: "file-refresh",
-            expiresAt: expect.any(String),
-            accountLabel: "Operator <operator@example.com>",
-            authMode: "oauth",
-            source: join(home, ".claude", ".credentials.json"),
-          });
+        expect(fetchCalls).toBe(0);
+        expect(credentials).toEqual({
+          accessToken: "file-access",
+          refreshToken: "file-refresh",
+          expiresAt: expect.any(String),
+          accountLabel: "Operator <operator@example.com>",
+          authMode: "oauth",
+          source: join(home, ".claude", ".credentials.json"),
         });
-      } finally {
-        globalThis.fetch = originalFetch;
-        if (previousSetupToken === undefined) {
-          delete process.env.CLAUDE_CODE_SETUP_TOKEN;
-        } else {
-          process.env.CLAUDE_CODE_SETUP_TOKEN = previousSetupToken;
-        }
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousSetupToken === undefined) {
+        delete process.env.CLAUDE_CODE_SETUP_TOKEN;
+      } else {
+        process.env.CLAUDE_CODE_SETUP_TOKEN = previousSetupToken;
       }
-    },
-  );
+    }
+  });
 
   it("treats local logged-in Claude CLI without native creds as fallback-only", async () => {
     const previousSetupToken = process.env.CLAUDE_CODE_SETUP_TOKEN;
@@ -528,19 +512,17 @@ exit 0
         const advice = getLinkedProviderConnectAdvice("claude-code", homePath);
         console.log(JSON.stringify({ snapshot, advice }));
       `;
-      const result = Bun.spawnSync({
-        cmd: [process.execPath, "-e", script],
+      const result = spawnSync("nub", ["-e", script], {
         env: {
           ...process.env,
           DOOLITTLE_DATA_DIR: dataDir,
           TEST_HOME_PATH: home,
           PATH: `${binDir}:${originalPath ?? ""}`,
         },
-        stdout: "pipe",
-        stderr: "pipe",
+        stdio: ["ignore", "pipe", "pipe"],
       });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.status).toBe(0);
       const parsed = JSON.parse(new TextDecoder().decode(result.stdout)) as {
         snapshot: {
           claudeCode: {

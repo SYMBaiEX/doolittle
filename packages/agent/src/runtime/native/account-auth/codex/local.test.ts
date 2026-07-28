@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import type { CodexAuthDependencies } from "../codex-support";
 import { getCodexAuthDependencies } from "../codex-support";
 import {
@@ -29,7 +29,7 @@ function createCodexDeps({
   };
 }
 
-describe.serial("codex local auth helpers", () => {
+describe.sequential("codex local auth helpers", () => {
   it("reads local Codex auth store credentials and metadata", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-codex-local-"));
     const authPath = join(homePath, ".codex", "auth.json");

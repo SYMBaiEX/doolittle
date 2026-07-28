@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { executeApprovedDirectLocalIntent } from "./chat-turn/local-intent-orchestration/approval";
 import { runPreferredLocalIntentFastPath } from "./chat-turn/local-intent-orchestration/fast-path";
@@ -95,8 +95,8 @@ describe("chat turn local intent orchestration", () => {
 
   it("surfaces approval responses from the preferred local intent fast path", async () => {
     const harness = createContext();
-    const executeDirectLocalIntent = mock(async () => "should not run");
-    const scheduleProfileObservation = mock(() => undefined);
+    const executeDirectLocalIntent = vi.fn(async () => "should not run");
+    const scheduleProfileObservation = vi.fn(() => undefined);
 
     const result = await runPreferredLocalIntentFastPath(
       {
@@ -136,8 +136,8 @@ describe("chat turn local intent orchestration", () => {
 
   it("executes high-confidence direct local intents and completes the turn", async () => {
     const harness = createContext();
-    const executeDirectLocalIntent = mock(async () => "local inspection");
-    const scheduleProfileObservation = mock(() => undefined);
+    const executeDirectLocalIntent = vi.fn(async () => "local inspection");
+    const scheduleProfileObservation = vi.fn(() => undefined);
 
     const result = await runPreferredLocalIntentFastPath(
       {
@@ -174,7 +174,7 @@ describe("chat turn local intent orchestration", () => {
 
   it("keeps attachment turns on the provider path even for a direct local intent", async () => {
     const harness = createContext();
-    const executeDirectLocalIntent = mock(async () => "should not run");
+    const executeDirectLocalIntent = vi.fn(async () => "should not run");
 
     const result = await runPreferredLocalIntentFastPath(
       {
@@ -206,7 +206,7 @@ describe("chat turn local intent orchestration", () => {
   });
 
   it("builds the local synthesis prelude from verified inspection output", async () => {
-    const executeDirectLocalIntent = mock(async () => "Verified repo facts");
+    const executeDirectLocalIntent = vi.fn(async () => "Verified repo facts");
 
     const result = await buildPreferredLocalIntentSynthesisPrelude(
       {

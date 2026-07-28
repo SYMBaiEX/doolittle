@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TuiStartSetupResult } from "../setup";
 
 const setupCalls: Array<unknown[]> = [];
@@ -67,14 +67,14 @@ const lifecycle = {
 };
 
 function installBootstrapMocks() {
-  mock.module("../setup", () => ({
+  vi.doMock("../setup", () => ({
     createTuiStartSetup: (...args: unknown[]) => {
       setupCalls.push(args);
       return setupResult;
     },
   }));
 
-  mock.module("../../tui-foreign-output", () => ({
+  vi.doMock("../../tui-foreign-output", () => ({
     installTuiForeignOutput: (...args: unknown[]) => {
       foreignOutputCalls.push(args);
       return () => {
@@ -83,7 +83,7 @@ function installBootstrapMocks() {
     },
   }));
 
-  mock.module("../../tui-input-lifecycle", () => ({
+  vi.doMock("../../tui-input-lifecycle", () => ({
     installTuiInputLifecycle: (...args: unknown[]) => {
       inputLifecycleCalls.push(args);
       return lifecycle;
@@ -92,7 +92,7 @@ function installBootstrapMocks() {
 }
 
 async function loadBootstrapTuiStartRuntime() {
-  return import(`./bootstrap?bootstrap-test=${Date.now()}-${Math.random()}`);
+  return import("./bootstrap");
 }
 
 const logger = {
@@ -117,8 +117,9 @@ const widgets = {
 
 describe("bootstrapTuiStartRuntime", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     setupCalls.length = 0;
     foreignOutputCalls.length = 0;
     inputLifecycleCalls.length = 0;
@@ -126,8 +127,9 @@ describe("bootstrapTuiStartRuntime", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("assembles setup and lifecycle hooks", async () => {

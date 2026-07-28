@@ -109,7 +109,7 @@ export function createApiStartupController(
       let serverAddress: ApiServerAddress | undefined;
       if (!startApiServer) {
         const server = await import("@/server");
-        serverAddress = server.startApiServer(context);
+        serverAddress = await server.startApiServer(context);
       } else {
         serverAddress = await startApiServer(context);
       }

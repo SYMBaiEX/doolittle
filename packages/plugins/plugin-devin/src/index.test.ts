@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createDevinPlugin } from "./index";
 
 describe("createDevinPlugin", () => {
@@ -79,6 +79,41 @@ describe("createDevinPlugin", () => {
       } as never,
     );
     expect(result).toBe("devin says hello");
+  });
+
+  it("uses the current workspace for every Devin invocation", async () => {
+    let cwd = "/workspace/first";
+    const seenCwds: Array<string | undefined> = [];
+    const plugin = createDevinPlugin({
+      enabled: true,
+      getCwd: () => cwd,
+      getStatus: () => ({
+        provider: "devin",
+        available: true,
+        reusable: true,
+        nativeReady: true,
+        detail: "ready",
+      }),
+      invokeCliPrint: async (params) => {
+        seenCwds.push(params.cwd);
+        return "ok";
+      },
+    });
+    const handler = plugin.models?.TEXT_LARGE;
+    const runtime = {
+      getSetting: () =>
+        JSON.stringify({
+          model: {
+            provider: "devin",
+          },
+        }),
+    } as never;
+
+    await handler?.(runtime, { prompt: "first" } as never);
+    cwd = "/workspace/second";
+    await handler?.(runtime, { prompt: "second" } as never);
+
+    expect(seenCwds).toEqual(["/workspace/first", "/workspace/second"]);
   });
 
   it("rejects non-Devin runtime provider mismatches", async () => {

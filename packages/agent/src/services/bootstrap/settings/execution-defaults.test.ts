@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types";
 import { applyMissingExecutionDefaults } from "./execution-defaults";
 import type { RuntimeSettingsSnapshot } from "./types";
@@ -37,7 +37,7 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     remoteArtifactPaths: [".doolittle/remote-artifacts"],
     remoteArtifactPolicy: "metadata-only",
     remoteWorkspaceLabel: "remote:workspace",
-    dockerImage: "oven/bun:latest",
+    dockerImage: "ghcr.io/nubjs/nub:latest",
     dockerNetwork: "host",
     dockerWorkspacePath: "/workspace",
     dockerEnvPassthrough: ["PATH"],
@@ -105,7 +105,7 @@ function createCurrentSettings(): RuntimeSettingsSnapshot {
       remoteArtifactPaths: [],
       remoteArtifactPolicy: "",
       remoteWorkspaceLabel: "",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "",
       dockerWorkspacePath: "",
       dockerEnvPassthrough: [],

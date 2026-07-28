@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   requiresModelSynthesisForLocalIntent,
   resolveDirectLocalIntent,
@@ -36,14 +36,16 @@ describe("local intent fallback", () => {
     expect(shouldPreferDirectLocalExecution(workspaceIntent)).toBe(true);
   });
 
-  it("routes overview intents through local inspection before model synthesis", () => {
+  it("returns verified project overviews directly without model reinterpretation", () => {
     const overviewIntent = resolveDirectLocalIntent(
-      fakeChatRequest("Give me a breakdown of this repo"),
+      fakeChatRequest("What is this repo? What is this project?"),
       fakeContext,
     );
 
+    expect(overviewIntent?.label).toBe("workspace:overview");
     expect(overviewIntent?.isHighConfidence).toBe(true);
-    expect(requiresModelSynthesisForLocalIntent(overviewIntent)).toBe(true);
+    expect(shouldPreferDirectLocalExecution(overviewIntent)).toBe(true);
+    expect(requiresModelSynthesisForLocalIntent(overviewIntent)).toBe(false);
   });
 
   it("treats shell execution as non-high-confidence fallback", () => {

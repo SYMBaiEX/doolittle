@@ -32,7 +32,7 @@ export async function handleCliJobCommand(
   const cancelCliJobFn = deps.cancelCliJob ?? cancelCliJob;
   const cliJobStatusSummaryFn = deps.cliJobStatusSummary ?? cliJobStatusSummary;
   const getCliJobFn = deps.getCliJob ?? getCliJob;
-  const getLauncherPath = deps.getLauncherPath ?? (() => Bun.argv[1]);
+  const getLauncherPath = deps.getLauncherPath ?? (() => process.argv[1]);
   const launchCliBackgroundJobFn =
     deps.launchCliBackgroundJob ?? launchCliBackgroundJob;
   const renderCliJobReplayFn = deps.renderCliJobReplay ?? renderCliJobReplay;

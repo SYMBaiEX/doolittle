@@ -1,11 +1,12 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { resolveOwnership } from "./ownership";
 
 function createVersionSummary() {
   return {
     name: "doolittle",
     version: "0.1.0",
-    bun: "1.3.12",
+    node: "26.5.0",
+    nub: "0.6.0",
     dependencies: {},
     nativePlugins: {
       total: 0,

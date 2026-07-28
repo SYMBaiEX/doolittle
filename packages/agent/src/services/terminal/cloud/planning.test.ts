@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import {
   buildCloudProfile,
@@ -31,7 +31,7 @@ function makeSettings(): RuntimeSettings {
       remoteArtifactPaths: [],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME", "1INVALID"],

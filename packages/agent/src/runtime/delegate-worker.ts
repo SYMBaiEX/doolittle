@@ -26,7 +26,7 @@ if (!inputPath || !outputPath) {
     argv: process.argv.slice(2),
   });
   process.stderr.write(
-    "Usage: bun run packages/agent/src/runtime/delegate-worker.ts <input-path> <output-path>\n",
+    "Usage: nub packages/agent/src/runtime/delegate-worker.ts <input-path> <output-path>\n",
   );
   process.exit(1);
 }

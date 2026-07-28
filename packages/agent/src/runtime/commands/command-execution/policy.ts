@@ -23,6 +23,11 @@ const SAFE_REMOTE_EXECUTION_PREFIXES = [
   "whereis ",
   "env",
   "printenv",
+  "nub run test",
+  "nub run typecheck",
+  "nub run lint",
+  "nub run lint:check",
+  "nub run build",
   "bun test",
   "bun run test",
   "bun run typecheck",
@@ -68,7 +73,7 @@ const REMOTE_EXECUTION_APPROVAL_RULES: RemoteExecutionApprovalRule[] = [
   },
   {
     pattern:
-      /\b(bun|npm|pnpm|yarn|uv|pip|pip3|poetry|cargo|go|brew)\s+(add|install|remove|uninstall|update|upgrade|publish)\b/u,
+      /\b(nub|bun|npm|pnpm|yarn|uv|pip|pip3|poetry|cargo|go|brew)\s+(add|install|remove|uninstall|update|upgrade|publish)\b/u,
     reason: "can mutate dependencies, environments, or publish artifacts",
   },
   {

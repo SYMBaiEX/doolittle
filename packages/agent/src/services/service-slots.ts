@@ -154,7 +154,7 @@ export function createSkillsServiceSlot(params: {
       const service = new SkillsService(
         config.skillsDir,
         agentSdk,
-        config.workspaceDir,
+        () => config.workspaceDir,
       );
       startupState.markReady("skills", "skills catalog ready");
       return service;

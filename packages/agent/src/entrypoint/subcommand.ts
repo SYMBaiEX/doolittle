@@ -28,7 +28,7 @@ export interface OneShotOptions {
   sessionId?: string;
 }
 
-export function resolveSubcommand(userArgs: string[] = Bun.argv.slice(2)): {
+export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
   command: EntrypointSubcommand;
   rest: string[];
 } {

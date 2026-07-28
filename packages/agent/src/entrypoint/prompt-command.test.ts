@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { CliExecutionResult } from "@/cli/execution";
 import type { CliTurnEvent } from "@/cli/turn-events";
 import type { AppContext } from "@/runtime/bootstrap";
@@ -25,11 +25,11 @@ describe("handleRuntimePromptCommand", () => {
 
   it("runs json-stream prompts and finalizes the active job", async () => {
     const written: string[] = [];
-    const markCliJobStarted = mock(() => undefined);
-    const appendCliJobEvent = mock(() => {});
-    const finalizeCliJob = mock(() => undefined);
-    const printOneShotResult = mock(() => {});
-    const runCliPromptWithEvents = mock(
+    const markCliJobStarted = vi.fn(() => undefined);
+    const appendCliJobEvent = vi.fn(() => {});
+    const finalizeCliJob = vi.fn(() => undefined);
+    const printOneShotResult = vi.fn(() => {});
+    const runCliPromptWithEvents = vi.fn(
       async (
         _context: AppContext,
         _line: string,
@@ -110,8 +110,8 @@ describe("handleRuntimePromptCommand", () => {
   });
 
   it("runs one-shot prompts and prints the returned result", async () => {
-    const printOneShotResult = mock(() => {});
-    const runCliPrompt = mock(async () => {
+    const printOneShotResult = vi.fn(() => {});
+    const runCliPrompt = vi.fn(async () => {
       return { text: "done", tone: "success" } as CliExecutionResult;
     });
 
@@ -131,9 +131,9 @@ describe("handleRuntimePromptCommand", () => {
           runCliPrompt,
         },
         {
-          markCliJobStarted: mock(() => undefined),
-          appendCliJobEvent: mock(() => {}),
-          finalizeCliJob: mock(() => undefined),
+          markCliJobStarted: vi.fn(() => undefined),
+          appendCliJobEvent: vi.fn(() => {}),
+          finalizeCliJob: vi.fn(() => undefined),
           encodeCliTurnEvent: (event) => JSON.stringify(event),
           printOneShotResult,
         },
@@ -152,8 +152,8 @@ describe("handleRuntimePromptCommand", () => {
   });
 
   it("runs top-level alias commands through the same prompt execution path", async () => {
-    const printOneShotResult = mock(() => {});
-    const runCliPrompt = mock(async () => {
+    const printOneShotResult = vi.fn(() => {});
+    const runCliPrompt = vi.fn(async () => {
       return { text: "status ok", tone: "success" } as CliExecutionResult;
     });
 
@@ -167,9 +167,9 @@ describe("handleRuntimePromptCommand", () => {
           runCliPrompt,
         },
         {
-          markCliJobStarted: mock(() => undefined),
-          appendCliJobEvent: mock(() => {}),
-          finalizeCliJob: mock(() => undefined),
+          markCliJobStarted: vi.fn(() => undefined),
+          appendCliJobEvent: vi.fn(() => {}),
+          finalizeCliJob: vi.fn(() => undefined),
           encodeCliTurnEvent: (event) => JSON.stringify(event),
           printOneShotResult,
         },

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 
 let snapshotCalls = 0;
@@ -26,7 +26,7 @@ const snapshot = {
 };
 
 function installReadinessMocks() {
-  mock.module("@/runtime/native/account-auth", () => ({
+  vi.doMock("@/runtime/native/account-auth", () => ({
     getLinkedProviderConnectAdvice: (provider: string) => ({
       provider,
       detail: "advice",
@@ -49,19 +49,20 @@ function installReadinessMocks() {
     },
   }));
 
-  mock.module("@elizaos/agent", () => ({
+  vi.doMock("@elizaos/agent", () => ({
     validateCloudBaseUrl: async () => null,
   }));
 }
 
 async function loadReadinessModule() {
-  return import(`./readiness?readiness-test=${Date.now()}-${Math.random()}`);
+  return import("./readiness");
 }
 
 describe("linked-provider-accounts readiness helpers", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     snapshotCalls = 0;
     providerCredentialsCalls = 0;
     snapshot.codex.nativeReady = true;
@@ -77,8 +78,9 @@ describe("linked-provider-accounts readiness helpers", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("describes cloud doctor state from linked credentials and settings", async () => {
@@ -158,5 +160,86 @@ describe("linked-provider-accounts readiness helpers", () => {
     expect(snapshotCalls).toBe(1);
     expect(first).toContain("Run `/accounts use claude-code`");
     expect(second).toBe(first);
+  });
+
+  it("returns a fast readiness message when local Ollama is unavailable", async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCalls = 0;
+    globalThis.fetch = (() => {
+      fetchCalls += 1;
+      return Promise.reject(new Error("connection refused"));
+    }) as unknown as typeof globalThis.fetch;
+
+    try {
+      const { getProviderReadinessMessage } = await loadReadinessModule();
+      const runtime = {};
+      const context = {
+        runtime,
+        services: {
+          settings: {
+            get: () => ({
+              model: {
+                provider: "ollama",
+                model: "granite4.1:3b",
+                baseUrl: "http://localhost:11434/api",
+              },
+            }),
+          },
+        },
+        config: {
+          ollamaApiEndpoint: "http://localhost:11434/api",
+        },
+      } as unknown as AgentExecutionContext;
+
+      const first = await getProviderReadinessMessage(context, "ollama");
+      const second = await getProviderReadinessMessage(context, "ollama");
+
+      expect(first).toContain("local API is not responding");
+      expect(second).toBe(first);
+      expect(fetchCalls).toBe(1);
+      expect(snapshotCalls).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("reports a selected Ollama model that is not installed", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            models: [{ name: "qwen3:1.7b" }],
+          }),
+          { status: 200 },
+        ),
+      )) as unknown as typeof globalThis.fetch;
+
+    try {
+      const { getProviderReadinessMessage } = await loadReadinessModule();
+      const context = {
+        runtime: {},
+        services: {
+          settings: {
+            get: () => ({
+              model: {
+                provider: "ollama",
+                model: "granite4.1:3b",
+                baseUrl: "http://localhost:11434/api",
+              },
+            }),
+          },
+        },
+        config: {
+          ollamaApiEndpoint: "http://localhost:11434/api",
+        },
+      } as unknown as AgentExecutionContext;
+
+      const message = await getProviderReadinessMessage(context, "ollama");
+
+      expect(message).toContain("granite4.1:3b is not installed");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

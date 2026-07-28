@@ -1,4 +1,4 @@
-import { expect, it } from "bun:test";
+import { expect, it } from "vitest";
 import {
   buildAcpBundlePayload,
   buildAcpEditorSummary,
@@ -12,7 +12,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     name: "doolittle",
     version: "1.2.3",
     description: "Example",
-    packageManager: "bun@1.3.11",
+    packageManager: "nub@0.6.0",
     workspaceCount: 4,
     pluginPackageCount: 2,
     rootPath: "/repo",
@@ -21,7 +21,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     agentName: "Doolittle",
     description: "Doolittle runtime",
     package: pkg,
-    command: "bun run start",
+    command: "nub run start",
     toolCount: 7,
   });
   const editor = buildAcpEditorSummary({
@@ -30,7 +30,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     exportDir: "/tmp/exports",
     importDir: "/tmp/imports",
     commandConfigured: true,
-    command: "bun run start",
+    command: "nub run start",
   });
   const bundle = buildAcpBundlePayload({
     exportedAt: "2026-03-21T00:00:00.000Z",
@@ -52,6 +52,6 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
 
   expect(pkg.workspaceCount).toBe(4);
   expect(registry.capabilities.tools).toBe(7);
-  expect(editor.installCommand).toContain("bun install");
+  expect(editor.installCommand).toContain("nub install");
   expect(bundle.tools.length).toBe(1);
 });

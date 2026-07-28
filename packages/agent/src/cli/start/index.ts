@@ -26,7 +26,7 @@ export async function startCli(
 ): Promise<number> {
   const cliLogger = context.services.logger.child("cli");
   const mode = resolveCliStartMode({
-    argv: deps.argv ?? Bun.argv,
+    argv: deps.argv ?? process.argv,
     stdinIsTTY: deps.stdinIsTTY ?? input.isTTY,
     stdoutIsTTY: deps.stdoutIsTTY ?? output.isTTY,
   });

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let storedCredential: Record<string, unknown> | undefined;
 let fileCredential: Record<string, unknown> | undefined;
@@ -22,7 +22,7 @@ let cliStatus: {
 } = { available: false, loggedIn: false };
 
 function installStatusBuilderMocks() {
-  mock.module("../credentials", () => ({
+  vi.doMock("../credentials", () => ({
     getReusableStoredTokenCredentials: (stored: unknown) =>
       stored && typeof stored === "object" && "accessToken" in stored
         ? stored
@@ -36,10 +36,10 @@ function installStatusBuilderMocks() {
           ("accessToken" in credentials || "refreshToken" in credentials),
       ),
   }));
-  mock.module("./cli", () => ({
+  vi.doMock("./cli", () => ({
     getClaudeCodeCliAuthStatus: () => cliStatus,
   }));
-  mock.module("./files", () => ({
+  vi.doMock("./files", () => ({
     getClaudeCodeCredentialsPath: () => `${homePath}/.claude/.credentials.json`,
     getClaudeCodeProfileLabel: () => undefined,
     readClaudeCodeFileCredentials: () => fileCredential,
@@ -48,7 +48,7 @@ function installStatusBuilderMocks() {
 }
 
 async function loadStatusBuildersModule() {
-  return import(`./status-builders?test=${Date.now()}-${Math.random()}`);
+  return import("./status-builders");
 }
 
 beforeEach(() => {
@@ -57,14 +57,16 @@ beforeEach(() => {
   envCredential = undefined;
   homePath = "/tmp";
   cliStatus = { available: false, loggedIn: false };
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
   installStatusBuilderMocks();
 });
 
 afterEach(() => {
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
 });
 
 describe("claude-code status builders", () => {

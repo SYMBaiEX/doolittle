@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runNativeProviderStage } from "./chat-turn/native/provider-stage";
 
@@ -45,8 +45,8 @@ function createTurnSetup() {
 }
 
 function createPerf() {
-  const mark = mock((_phase: string) => undefined);
-  const flush = mock(
+  const mark = vi.fn((_phase: string) => undefined);
+  const flush = vi.fn(
     (
       _logger: AgentExecutionContext["runtime"]["logger"] | undefined,
       _metadata: Record<string, unknown>,
@@ -65,13 +65,13 @@ function createPerf() {
 
 describe("chat turn native provider stage", () => {
   it("routes informational turns through provider execution instead of cache", async () => {
-    const runProviderModelTurn = mock(async () => ({
+    const runProviderModelTurn = vi.fn(async () => ({
       handledMessage: true,
       response: "fresh model reply",
       messageId: "message-1",
       actionResults: [],
     }));
-    const runPostProviderTurn = mock(async () => ({
+    const runPostProviderTurn = vi.fn(async () => ({
       kind: "final" as const,
       response: "fresh model reply",
       observedActionCount: 0,

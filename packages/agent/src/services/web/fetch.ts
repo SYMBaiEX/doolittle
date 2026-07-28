@@ -1,22 +1,17 @@
 import { accessSync, constants } from "node:fs";
 import { delimiter, join } from "node:path";
+import { spawnTextProcess } from "@/services/process-execution";
 import type { BrowserConfig } from "./service-types";
 
 async function runCommand(
   cmd: string[],
   timeoutMs: number,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const proc = Bun.spawn({
-    cmd,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const timer = setTimeout(() => proc.kill(), timeoutMs);
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]).finally(() => clearTimeout(timer));
+  const { child, completed } = spawnTextProcess(cmd[0] ?? "", cmd.slice(1));
+  const timer = setTimeout(() => child.kill(), timeoutMs);
+  const { stdout, stderr, exitCode } = await completed.finally(() =>
+    clearTimeout(timer),
+  );
 
   return {
     exitCode,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CodexAuthDependencies } from "../codex-support";
 
@@ -16,7 +16,7 @@ let cliStore: {
 let cliCredentials: Record<string, unknown> | undefined;
 
 function installCodexModuleMocks() {
-  mock.module("./local", () => ({
+  vi.doMock("./local", () => ({
     CODEX_LOGIN_COMMAND: "codex login",
     CODEX_OAUTH_CLIENT_ID: "app-TEST",
     CODEX_OAUTH_TOKEN_URL: "https://auth.openai.com/oauth/token",
@@ -33,7 +33,7 @@ function installCodexModuleMocks() {
 }
 
 async function loadCodexModule() {
-  return import(`./index?test=${Date.now()}-${Math.random()}`);
+  return import("./index");
 }
 
 beforeEach(() => {
@@ -43,14 +43,16 @@ beforeEach(() => {
     authPath: "/tmp/.codex/auth.json",
   };
   cliCredentials = undefined;
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
   installCodexModuleMocks();
 });
 
 afterEach(() => {
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
 });
 
 function buildDeps(): CodexAuthDependencies {

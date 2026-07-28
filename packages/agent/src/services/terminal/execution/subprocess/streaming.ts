@@ -1,5 +1,5 @@
 export async function readProcessStream(
-  stream: ReadableStream<Uint8Array> | null,
+  stream: AsyncIterable<Uint8Array | string> | null,
   options: {
     onChunk?: (chunk: string) => void;
     collect?: (chunk: string) => void;
@@ -9,30 +9,23 @@ export async function readProcessStream(
     return;
   }
 
-  const reader = stream.getReader();
   const decoder = new TextDecoder();
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      const chunk = decoder.decode(value, { stream: true });
-      if (!chunk) {
-        continue;
-      }
-
-      options.collect?.(chunk);
-      options.onChunk?.(chunk);
+  for await (const value of stream) {
+    const chunk =
+      typeof value === "string"
+        ? value
+        : decoder.decode(value, { stream: true });
+    if (!chunk) {
+      continue;
     }
 
-    const finalChunk = decoder.decode();
-    if (finalChunk) {
-      options.collect?.(finalChunk);
-      options.onChunk?.(finalChunk);
-    }
-  } finally {
-    reader.releaseLock();
+    options.collect?.(chunk);
+    options.onChunk?.(chunk);
+  }
+
+  const finalChunk = decoder.decode();
+  if (finalChunk) {
+    options.collect?.(finalChunk);
+    options.onChunk?.(finalChunk);
   }
 }

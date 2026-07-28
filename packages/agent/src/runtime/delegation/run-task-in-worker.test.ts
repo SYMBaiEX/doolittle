@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   buildDelegationWorkerSpawnOptions,
   getBoundedOperatorSteeringNotes,
@@ -33,8 +33,7 @@ describe("getBoundedOperatorSteeringNotes", () => {
       }),
     ).toEqual({
       cmd: [
-        "bun",
-        "run",
+        "nub",
         "/app/delegate-worker.ts",
         "/state/task-input.json",
         "/state/task-output.json",

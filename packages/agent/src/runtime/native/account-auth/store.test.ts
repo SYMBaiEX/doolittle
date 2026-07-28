@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   getProviderAuthStorePath,
   getStoredClaudeCodeCredentials,
@@ -30,7 +30,7 @@ function createDataDir(): string {
   return dir;
 }
 
-describe.serial("account-auth store helpers", () => {
+describe.sequential("account-auth store helpers", () => {
   it("uses absolute DOOLITTLE_DATA_DIR values without rebasing them onto cwd", () => {
     const dataDir = createDataDir();
     process.env.DOOLITTLE_DATA_DIR = dataDir;

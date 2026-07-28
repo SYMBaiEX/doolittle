@@ -1,3 +1,4 @@
+import { openAsBlob } from "node:fs";
 import type { OutboundPlatformMessage } from "@/types/gateway";
 
 const DISCORD_API_ROOT = "https://discord.com/api/v10";
@@ -67,7 +68,11 @@ async function sendDiscordVoiceMessage(
 ): Promise<Response> {
   const form = new FormData();
   form.set("payload_json", JSON.stringify(payload));
-  form.set("files[0]", Bun.file(voicePath), voicePath.split("/").at(-1));
+  form.set(
+    "files[0]",
+    await openAsBlob(voicePath),
+    voicePath.split("/").at(-1),
+  );
 
   return fetch(`${DISCORD_API_ROOT}/channels/${roomId}/messages`, {
     method: "POST",

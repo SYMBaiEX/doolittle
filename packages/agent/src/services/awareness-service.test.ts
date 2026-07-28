@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
+import { afterEach, describe, expect, it } from "vitest";
 import { AwarenessService } from "./awareness-service";
 import { RunControllerService } from "./run-controller-service";
 import type { RuntimeSettings } from "./settings/runtime-settings";
@@ -42,7 +42,7 @@ function createDefaults(): RuntimeSettings {
       remoteArtifactPaths: [".doolittle/remote-artifacts"],
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
-      dockerImage: "oven/bun:latest",
+      dockerImage: "ghcr.io/nubjs/nub:latest",
       dockerNetwork: "host",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH"],

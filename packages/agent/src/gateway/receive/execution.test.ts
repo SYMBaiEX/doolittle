@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type {
   GatewayInboxRecord,
   GatewayOutboxRecord,
@@ -8,7 +8,7 @@ import type { GatewayReceiveDependencies } from "./types";
 
 describe("executeGatewayReceiveTurn", () => {
   it("streams progress through the extracted queue and preserves the tracked session id", async () => {
-    const queueProgressFlush = mock(async () => undefined);
+    const queueProgressFlush = vi.fn(async () => undefined);
     const deps = {
       context: {
         config: {} as never,
@@ -28,16 +28,16 @@ describe("executeGatewayReceiveTurn", () => {
         threadId: "thread-1",
       } as never,
       adapter: undefined,
-      recordInbox: mock(
+      recordInbox: vi.fn(
         () => ({ recordId: "inbox-1" }) as unknown as GatewayInboxRecord,
       ),
-      recordOutbox: mock(
+      recordOutbox: vi.fn(
         () => ({ recordId: "outbox-1" }) as unknown as GatewayOutboxRecord,
       ),
-      pushTrace: mock(() => undefined),
-      observeAdapter: mock(async () => undefined),
-      editDelivery: mock(async () => ({ id: "delivery-1" }) as never),
-      snapshotState: mock(async () => undefined),
+      pushTrace: vi.fn(() => undefined),
+      observeAdapter: vi.fn(async () => undefined),
+      editDelivery: vi.fn(async () => ({ id: "delivery-1" }) as never),
+      snapshotState: vi.fn(async () => undefined),
       createProgressiveQueue: () => ({
         queueProgressFlush,
         getProgressiveDelivery: () =>
@@ -53,7 +53,7 @@ describe("executeGatewayReceiveTurn", () => {
             createdAt: "2026-04-01T00:00:00.000Z",
           }) as never,
       }),
-      executeTurn: mock(async (_input, _context, hooks) => {
+      executeTurn: vi.fn(async (_input, _context, hooks) => {
         await hooks.onProgress?.({
           delta: "Hello",
           response: "Hello world",

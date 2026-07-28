@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { invokeDevinCliPrint } from "./cli";
 
 const roots: string[] = [];
@@ -20,11 +20,12 @@ describe("invokeDevinCliPrint", () => {
     writeFileSync(
       command,
       [
-        "#!/usr/bin/env bun",
+        "#!/usr/bin/env node",
+        "const { readFile } = await import('node:fs/promises');",
         "const index = process.argv.indexOf('--prompt-file');",
         "const promptFile = process.argv[index + 1];",
         "await new Promise((resolve) => setTimeout(resolve, 25));",
-        "console.log(await Bun.file(promptFile).text());",
+        "console.log(await readFile(promptFile, 'utf8'));",
       ].join("\n"),
       "utf8",
     );

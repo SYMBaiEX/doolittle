@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
 import type { AgentRuntime } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import type { GatewayRunner } from "@/gateway/runner";
 import type { AppServices } from "@/services";
+import { serveFetchTest } from "@/testing/fetch-server";
 import type { CronJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
 import { createCronExecutor } from "./cron-executor";
@@ -9,12 +10,9 @@ import { createCronExecutor } from "./cron-executor";
 describe("createCronExecutor", () => {
   it("executes webhook actions as bounded JSON POST requests", async () => {
     let received: Record<string, unknown> = {};
-    const server = Bun.serve({
-      port: 0,
-      fetch: async (request) => {
-        received = (await request.json()) as Record<string, unknown>;
-        return Response.json({ accepted: true });
-      },
+    const server = await serveFetchTest(async (request) => {
+      received = (await request.json()) as Record<string, unknown>;
+      return Response.json({ accepted: true });
     });
     const job: CronJobRecord = {
       id: "automation-1",
@@ -62,10 +60,9 @@ describe("createCronExecutor", () => {
   });
 
   it("reports non-success webhook responses as action failures", async () => {
-    const server = Bun.serve({
-      port: 0,
-      fetch: () => new Response("not accepted", { status: 422 }),
-    });
+    const server = await serveFetchTest(
+      () => new Response("not accepted", { status: 422 }),
+    );
     const executor = createCronExecutor({
       config: {} as EnvConfig,
       services: {} as AppServices,

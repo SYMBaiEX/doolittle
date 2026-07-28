@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { resetCliRuntimeInitializationForTests } from "./init";
 
 const warnMessages: string[] = [];
 
 const logger = {
-  warn: mock((..._args: unknown[]) => {}),
-  child: mock(() => logger),
+  warn: vi.fn((..._args: unknown[]) => {}),
+  child: vi.fn(() => logger),
 };
 
 const context = {
@@ -20,27 +20,27 @@ const context = {
 
 describe("startCli", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     warnMessages.length = 0;
     resetCliRuntimeInitializationForTests();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     resetCliRuntimeInitializationForTests();
   });
 
   it("uses plain mode without initializing the TUI runtime", async () => {
-    const ensureCliRuntimeInitialized = mock(async () => {});
-    const startPlainCli = mock(async () => 17);
-    const importTui = mock(async () => ({
+    const ensureCliRuntimeInitialized = vi.fn(async () => {});
+    const startPlainCli = vi.fn(async () => 17);
+    const importTui = vi.fn(async () => ({
       startTui: async () => 0,
     }));
-    const { startCli } = await import(
-      `./index?cli-start-test=${Date.now()}-${Math.random()}`
-    );
+    const { startCli } = await import("./index");
 
     const exitCode = await startCli(context, undefined, {
       argv: ["bun", "index.ts", "--plain-cli"],
@@ -62,14 +62,12 @@ describe("startCli", () => {
   });
 
   it("initializes the TUI runtime and returns the TUI exit code when cockpit mode succeeds", async () => {
-    const ensureCliRuntimeInitialized = mock(async () => {});
-    const startPlainCli = mock(async () => 1);
-    const importTui = mock(async () => ({
+    const ensureCliRuntimeInitialized = vi.fn(async () => {});
+    const startPlainCli = vi.fn(async () => 1);
+    const importTui = vi.fn(async () => ({
       startTui: async () => 23,
     }));
-    const { startCli } = await import(
-      `./index?cli-start-test=${Date.now()}-${Math.random()}`
-    );
+    const { startCli } = await import("./index");
 
     const exitCode = await startCli(context, undefined, {
       argv: ["bun", "index.ts", "--cockpit"],
@@ -91,10 +89,8 @@ describe("startCli", () => {
   });
 
   it("falls back to plain mode when the TUI closes unexpectedly", async () => {
-    const startPlainCli = mock(async () => 29);
-    const { startCli } = await import(
-      `./index?cli-start-test=${Date.now()}-${Math.random()}`
-    );
+    const startPlainCli = vi.fn(async () => 29);
+    const { startCli } = await import("./index");
 
     const exitCode = await startCli(context, undefined, {
       argv: ["bun", "index.ts", "--cockpit"],
@@ -119,10 +115,8 @@ describe("startCli", () => {
   });
 
   it("falls back to plain mode when the TUI throws during startup", async () => {
-    const startPlainCli = mock(async () => 31);
-    const { startCli } = await import(
-      `./index?cli-start-test=${Date.now()}-${Math.random()}`
-    );
+    const startPlainCli = vi.fn(async () => 31);
+    const { startCli } = await import("./index");
 
     const exitCode = await startCli(context, undefined, {
       argv: ["bun", "index.ts", "--cockpit"],

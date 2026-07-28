@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import type { WorkspaceDirectorySource } from "../workspace-directory";
 import {
   inferMediaAnalysisFocus,
   persistMediaAnalysisArtifacts,
@@ -30,13 +31,13 @@ export class MediaService {
   private readonly inspectionSupport: MediaInspectionSupport;
 
   constructor(
-    private readonly workspaceDir: string,
+    workspaceDirectory: WorkspaceDirectorySource,
     private readonly outputDir = ".doolittle/media",
     private readonly getModelContext?: () => MediaModelContext,
   ) {
     mkdirSync(this.outputDir, { recursive: true });
     this.inspectionSupport = new MediaInspectionSupport(
-      this.workspaceDir,
+      workspaceDirectory,
       this.outputDir,
     );
   }

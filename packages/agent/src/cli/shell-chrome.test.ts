@@ -1,11 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type ShellChromeModule = typeof import("./shell-chrome");
 
 async function loadShellChromeModule(): Promise<ShellChromeModule> {
-  return import(
-    `./shell-chrome?shell-chrome-test=${Date.now()}-${Math.random()}`
-  );
+  return import("./shell-chrome");
 }
 
 function createContext() {
@@ -79,11 +77,13 @@ const shellChromeDependencies = {
 
 describe("shell chrome", () => {
   beforeEach(() => {
-    mock.restore();
+    vi.restoreAllMocks();
+    vi.resetModules();
   });
 
   afterEach(() => {
-    mock.restore();
+    vi.restoreAllMocks();
+    vi.resetModules();
   });
 
   it("renders a plain banner with operator snapshot lines", async () => {

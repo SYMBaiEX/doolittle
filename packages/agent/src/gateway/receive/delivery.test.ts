@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import type {
   GatewayInboxRecord,
@@ -36,16 +36,16 @@ describe("deliverGatewayReceiveResponse", () => {
         name: "mock-adapter",
         send: async () => ({ id: "delivery-1", metadata: {} }) as never,
       } as never,
-      recordInbox: mock(
+      recordInbox: vi.fn(
         () => ({ recordId: "inbox-1" }) as unknown as GatewayInboxRecord,
       ),
-      recordOutbox: mock(
+      recordOutbox: vi.fn(
         () => ({ recordId: "outbox-1" }) as unknown as GatewayOutboxRecord,
       ),
-      pushTrace: mock(() => undefined),
-      observeAdapter: mock(async () => undefined),
-      editDelivery: mock(async () => ({ id: "delivery-1" }) as never),
-      snapshotState: mock(async () => undefined),
+      pushTrace: vi.fn(() => undefined),
+      observeAdapter: vi.fn(async () => undefined),
+      editDelivery: vi.fn(async () => ({ id: "delivery-1" }) as never),
+      snapshotState: vi.fn(async () => undefined),
       session: {
         sessionKey: "session-1",
         platform: "api",
@@ -75,7 +75,7 @@ describe("deliverGatewayReceiveResponse", () => {
   });
 
   it("falls back to the product delivery service when no adapter is available", async () => {
-    const deliver = mock(() => ({ id: "fallback-delivery" }));
+    const deliver = vi.fn(() => ({ id: "fallback-delivery" }));
     const deps = {
       context: {
         config: {} as AppContext["config"],
@@ -94,16 +94,16 @@ describe("deliverGatewayReceiveResponse", () => {
         text: "hello",
       } as never,
       adapter: undefined,
-      recordInbox: mock(
+      recordInbox: vi.fn(
         () => ({ recordId: "inbox-2" }) as unknown as GatewayInboxRecord,
       ),
-      recordOutbox: mock(
+      recordOutbox: vi.fn(
         () => ({ recordId: "outbox-2" }) as unknown as GatewayOutboxRecord,
       ),
-      pushTrace: mock(() => undefined),
-      observeAdapter: mock(async () => undefined),
-      editDelivery: mock(async () => ({ id: "delivery-2" }) as never),
-      snapshotState: mock(async () => undefined),
+      pushTrace: vi.fn(() => undefined),
+      observeAdapter: vi.fn(async () => undefined),
+      editDelivery: vi.fn(async () => ({ id: "delivery-2" }) as never),
+      snapshotState: vi.fn(async () => undefined),
       session: {
         sessionKey: "session-2",
         platform: "api",

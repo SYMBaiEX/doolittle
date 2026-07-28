@@ -4,7 +4,7 @@
 
 - Package name: `@doolittle/logger`
 - Internal codename: `Dr. Mochibi`
-- Runtime target: Bun-first, plain TypeScript source exports
+- Runtime target: Nub-powered, plain TypeScript source exports
 
 ## Features
 

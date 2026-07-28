@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env nub
 import { restoreTerminalState } from "@/cli/render-utils";
 import { isCliStartupExitError, runOnboardingWizard } from "@/cli/startup";
 import {
@@ -44,7 +44,7 @@ async function main(): Promise<number> {
       immediatePrompt,
       staticPromptResult,
       jobControlDir,
-      launcherPath: Bun.argv[1],
+      launcherPath: process.argv[1],
       writeStderrLine,
     })
   ) {
@@ -97,9 +97,8 @@ async function main(): Promise<number> {
   return 0;
 }
 
-// Bun can exit early from executable entrypoints while long-lived async
-// startup is still awaiting TUI/server promises. Keep one lightweight
-// handle alive for the lifetime of main().
+// Keep one lightweight handle alive while long-lived TUI/server startup
+// promises are being assembled.
 const entryKeepAlive = setInterval(() => {}, 60_000);
 
 main()

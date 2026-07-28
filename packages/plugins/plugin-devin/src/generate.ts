@@ -41,7 +41,7 @@ export async function runDevinTextGeneration(
       prompt: promptText,
       model,
       command: options.command || DEFAULT_DEVIN_COMMAND,
-      cwd: options.cwd,
+      cwd: options.getCwd?.() ?? options.cwd,
       timeoutMs: options.timeoutMs ?? DEFAULT_DEVIN_TIMEOUT_MS,
       permissionMode: "auto",
     });

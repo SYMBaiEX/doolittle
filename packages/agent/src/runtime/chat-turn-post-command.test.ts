@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { NativeTurnSetup } from "./chat-turn/native";
 
@@ -45,16 +45,15 @@ function createPerf() {
 }
 
 async function loadRunPostCommandTurn() {
-  const { runPostCommandTurn } = await import(
-    `./chat-turn/post-command?chat-turn-post-command-test=${Date.now()}-${Math.random()}`
-  );
+  const { runPostCommandTurn } = await import("./chat-turn/post-command");
   return runPostCommandTurn;
 }
 
 describe("chat turn post-command seam", () => {
   it("returns shell responses without entering native flow", async () => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     const runPostCommandTurn = await loadRunPostCommandTurn();
 
     const context = createContext();
@@ -100,8 +99,9 @@ describe("chat turn post-command seam", () => {
   });
 
   it("builds native overrides and forwards them into native turn", async () => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     const runPostCommandTurn = await loadRunPostCommandTurn();
 
     const context = createContext();
@@ -211,7 +211,7 @@ describe("chat turn post-command seam", () => {
           } as NativeTurnSetup;
         },
         runNativeMessageTurn: async (input: {
-          options:
+          options?:
             | {
                 runtimeOverrides?: {
                   model?: string;

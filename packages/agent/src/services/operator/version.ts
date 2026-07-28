@@ -11,13 +11,15 @@ interface PackageMetadata {
   version: string;
   description?: string;
   dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
 }
 
 export interface OperatorVersionSummary {
   name: string;
   version: string;
   description?: string;
-  bun: string;
+  node: string;
+  nub: string;
   dependencies: Record<string, string>;
   nativePlugins: {
     total: number;
@@ -50,7 +52,8 @@ export function buildOperatorVersionSummary(
     name: packageMetadata.name,
     version: packageMetadata.version,
     description: packageMetadata.description,
-    bun: Bun.version,
+    node: process.versions.node,
+    nub: packageMetadata.devDependencies?.["@nubjs/nub"] ?? "unknown",
     dependencies: {
       "@elizaos/core":
         packageMetadata.dependencies?.["@elizaos/core"] ?? "unknown",

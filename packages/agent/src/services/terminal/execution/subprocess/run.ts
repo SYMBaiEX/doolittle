@@ -1,3 +1,5 @@
+import { type ChildProcessByStdio, spawn } from "node:child_process";
+import type { Readable } from "node:stream";
 import { readProcessStream } from "./streaming";
 import type {
   TerminalRunOptions,
@@ -5,7 +7,7 @@ import type {
   TerminalStreamingRunOptions,
 } from "./types";
 
-type TerminalSubprocess = Bun.Subprocess<"ignore", "pipe", "pipe">;
+type TerminalSubprocess = ChildProcessByStdio<null, Readable, Readable>;
 
 interface ProcessTerminationState {
   timedOut: boolean;
@@ -34,12 +36,17 @@ function terminateSubprocess(
 }
 
 function spawnSubprocess(cmd: string[], cwd?: string): TerminalSubprocess {
-  return Bun.spawn({
-    cmd,
+  return spawn(cmd[0] ?? "", cmd.slice(1), {
     cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+    stdio: ["ignore", "pipe", "pipe"],
     detached: process.platform !== "win32",
+  });
+}
+
+function waitForSubprocess(proc: TerminalSubprocess): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    proc.once("error", reject);
+    proc.once("close", (code) => resolve(code ?? 1));
   });
 }
 
@@ -127,9 +134,9 @@ export async function runCommand(
 
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
+      new Response(ReadableStreamFrom(proc.stdout)).text(),
+      new Response(ReadableStreamFrom(proc.stderr)).text(),
+      waitForSubprocess(proc),
     ]);
 
     return finalizeRunResult(
@@ -157,7 +164,7 @@ export async function runCommandStreaming(
 
   try {
     const [exitCode] = await Promise.all([
-      proc.exited,
+      waitForSubprocess(proc),
       readProcessStream(proc.stdout, {
         onChunk: options.onStdout,
         collect: (chunk) => {
@@ -183,4 +190,21 @@ export async function runCommandStreaming(
   } finally {
     control.cleanup();
   }
+}
+
+function ReadableStreamFrom(stream: Readable): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      stream.on("data", (chunk: Buffer | string) => {
+        controller.enqueue(
+          typeof chunk === "string" ? Buffer.from(chunk) : chunk,
+        );
+      });
+      stream.once("end", () => controller.close());
+      stream.once("error", (error) => controller.error(error));
+    },
+    cancel() {
+      stream.destroy();
+    },
+  });
 }

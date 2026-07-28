@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   buildSetupReadinessSummary,
   buildUpdateReadinessSummary,
@@ -125,7 +125,7 @@ describe("buildSetupReadinessSummary", () => {
     expect(summary.level).toBe("ready");
     expect(summary.headline).toContain("look ready");
     expect(summary.nextSteps).toEqual([
-      "Keep `/doctor` and `bun run check` as the standard validation loop after configuration changes.",
+      "Keep `/doctor` and `nub run check` as the standard validation loop after configuration changes.",
     ]);
   });
 });
@@ -212,7 +212,7 @@ describe("buildUpdateReadinessSummary", () => {
     expect(summary.level).toBe("ready");
     expect(summary.headline).toContain("looks healthy");
     expect(summary.nextSteps).toEqual([
-      "Run `bun install`, `bun run typecheck`, `bun test`, and `bun run build` after dependency changes.",
+      "Run `nub install`, `nub run typecheck`, `nub run test`, and `nub run build` after dependency changes.",
     ]);
   });
 });

@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
 import {
@@ -16,21 +17,28 @@ async function runShellCommand(
   command: string,
   env: Record<string, string>,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const proc = Bun.spawn({
-    cmd: ["/bin/zsh", "-lc", command],
+  const child = spawn("/bin/zsh", ["-lc", command], {
     env: {
       ...process.env,
       ...env,
     },
-    stdout: "pipe",
-    stderr: "pipe",
+    stdio: ["ignore", "pipe", "pipe"],
   });
 
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+  const exitCode = await new Promise<number>((resolveExit, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code) => resolveExit(code ?? 1));
+  });
 
   return {
     exitCode,

@@ -62,7 +62,7 @@ export async function loadProviderPlugins(
       command: config.devinCliCommand,
       model: config.devinModel,
       timeoutMs: config.devinTimeoutMs,
-      cwd: config.workspaceDir,
+      getCwd: () => config.workspaceDir,
       getStatus: () => getLinkedProviderAccountsSnapshot().devin,
     }),
   ];

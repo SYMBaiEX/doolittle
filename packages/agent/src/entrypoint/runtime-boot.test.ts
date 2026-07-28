@@ -1,14 +1,20 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { prepareEntrypointRuntimeBoot } from "./runtime-boot";
 
 const originalMode = process.env.DOOLITTLE_MODE;
+const originalDesktopRuntime = process.env.DOOLITTLE_DESKTOP_RUNTIME;
 
 afterEach(() => {
   if (originalMode === undefined) {
     delete process.env.DOOLITTLE_MODE;
   } else {
     process.env.DOOLITTLE_MODE = originalMode;
+  }
+  if (originalDesktopRuntime === undefined) {
+    delete process.env.DOOLITTLE_DESKTOP_RUNTIME;
+  } else {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = originalDesktopRuntime;
   }
 });
 
@@ -78,7 +84,7 @@ describe("prepareEntrypointRuntimeBoot", () => {
             runCliPromptWithEvents: async () => undefined,
           }) as never,
         importServer: async () => ({
-          startApiServer: () => {
+          startApiServer: async () => {
             startApiServerCalls.push("started");
             return { host: "127.0.0.1", port: 0, url: "http://127.0.0.1:0" };
           },
@@ -99,5 +105,59 @@ describe("prepareEntrypointRuntimeBoot", () => {
 
     expect(ensureDeferredHydrationCalls).toEqual(["api"]);
     expect(startApiServerCalls).toEqual(["started"]);
+  });
+
+  it("lets the desktop-owned API boot before terminal onboarding", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const ensureOnboardedCalls: string[] = [];
+    const context = {
+      config: { mode: "api", host: "127.0.0.1", port: 0 },
+      services: {
+        logger: {
+          child() {
+            return this;
+          },
+        },
+      },
+      ensureDeferredHydration: async () => {},
+      runtime: {} as never,
+      gateway: {} as never,
+    } as unknown as AppContext;
+
+    await prepareEntrypointRuntimeBoot(
+      {
+        command: "api",
+        commandPlan: {
+          startupMode: "api",
+          eagerDeferredHydration: false,
+          shouldUseCliSurface: false,
+          shouldUseApiSurface: true,
+          shouldUseCockpitSplash: false,
+          shouldSetCliMode: false,
+        },
+        shellIsInteractive: false,
+        stdinIsTTY: false,
+        writeStderrLine() {},
+        formatTopLevelError: (error) => String(error),
+      },
+      {
+        ensureOnboarded: async () => {
+          ensureOnboardedCalls.push("called");
+        },
+        loadLocalRuntimeEnv: () => {},
+        importBootstrap: async () => ({
+          getAppContext: async () => context,
+        }),
+        importServer: async () => ({
+          startApiServer: async () => ({
+            host: "127.0.0.1",
+            port: 0,
+            url: "http://127.0.0.1:0",
+          }),
+        }),
+      },
+    );
+
+    expect(ensureOnboardedCalls).toEqual([]);
   });
 });

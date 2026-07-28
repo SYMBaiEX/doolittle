@@ -60,8 +60,8 @@ export const codexPlugin = createCodexPlugin({
 From the repo root:
 
 ```bash
-bun run smoke:linked-providers -- --provider codex
-bun run smoke:linked-providers -- --provider codex --live
+nub run smoke:linked-providers -- --provider codex
+nub run smoke:linked-providers -- --provider codex --live
 ```
 
 The live smoke path was verified in this workspace against a locally signed-in Codex account and returned `LINKED_PROVIDER_OK`.

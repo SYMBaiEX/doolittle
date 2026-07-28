@@ -1,6 +1,10 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import {
+  resolveWorkspaceDirectory,
+  type WorkspaceDirectorySource,
+} from "../../workspace-directory";
+import {
   buildMediaBundleManifest,
   buildMediaBundleReport,
 } from "../formatters/analysis";
@@ -16,14 +20,17 @@ import {
 
 export class MediaInspectionSupport {
   constructor(
-    private readonly workspaceDir: string,
+    private readonly workspaceDirectory: WorkspaceDirectorySource,
     private readonly outputDir: string,
   ) {
     mkdirSync(this.outputDir, { recursive: true });
   }
 
   inspect(path: string): MediaInspection {
-    const resolvedPath = resolve(this.workspaceDir, path);
+    const resolvedPath = resolve(
+      resolveWorkspaceDirectory(this.workspaceDirectory),
+      path,
+    );
     const extension = extname(resolvedPath).toLowerCase();
     const mimeType = getMediaMimeType(extension);
 

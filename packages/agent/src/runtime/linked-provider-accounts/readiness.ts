@@ -11,6 +11,69 @@ const providerReadinessCache = new WeakMap<
   object,
   Map<string, { expiresAt: number; message: string | undefined }>
 >();
+const LOCAL_PROVIDER_READINESS_TIMEOUT_MS = 750;
+
+function ollamaTagsUrl(baseUrl: string): string | undefined {
+  try {
+    const url = new URL(baseUrl);
+    const path = url.pathname.replace(/\/+$/, "");
+    url.pathname = path.endsWith("/api") ? `${path}/tags` : `${path}/api/tags`;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+async function ollamaReadinessMessage(
+  context: AgentExecutionContext,
+): Promise<string | undefined> {
+  const settings = context.services.settings.get();
+  const baseUrl =
+    settings.model.provider === "ollama"
+      ? settings.model.baseUrl
+      : context.config.ollamaApiEndpoint;
+  const tagsUrl = ollamaTagsUrl(baseUrl?.trim() ?? "");
+  if (!tagsUrl) {
+    return "Ollama is selected, but its local API address is invalid. Start Ollama or choose another provider in Settings.";
+  }
+
+  try {
+    const response = await fetch(tagsUrl, {
+      signal: AbortSignal.timeout(LOCAL_PROVIDER_READINESS_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      return "Ollama is selected, but its local API is not responding. Start Ollama or choose another provider in Settings.";
+    }
+
+    const selectedModel = settings.model.model?.trim();
+    if (!selectedModel) {
+      return undefined;
+    }
+    const payload = (await response.json()) as {
+      models?: Array<{ model?: string; name?: string }>;
+    };
+    if (!Array.isArray(payload.models)) {
+      return undefined;
+    }
+    const selectedWithoutLatest = selectedModel.replace(/:latest$/, "");
+    const installed = payload.models.some((entry) => {
+      const candidate = (entry.name ?? entry.model ?? "").trim();
+      return (
+        candidate === selectedModel ||
+        candidate.replace(/:latest$/, "") === selectedWithoutLatest
+      );
+    });
+    if (!installed) {
+      return `Ollama is running, but ${selectedModel} is not installed. Install that model or choose another provider in Settings.`;
+    }
+    return undefined;
+  } catch {
+    // The user-facing message below is intentionally stable and omits raw
+    // network errors so local paths and provider details are not exposed.
+  }
+
+  return "Ollama is selected, but its local API is not responding. Start Ollama or choose another provider in Settings.";
+}
 
 export async function describeElizaCloudDoctorState(
   context: AgentExecutionContext,
@@ -91,8 +154,15 @@ async function computeProviderReadinessMessage(
   provider: string,
   runtimeKey: object,
 ): Promise<string | undefined> {
-  const snapshot = getLinkedProviderAccountsSnapshot();
   let message: string | undefined;
+
+  if (provider === "ollama") {
+    message = await ollamaReadinessMessage(context);
+    cacheProviderReadiness(runtimeKey, provider, message);
+    return message;
+  }
+
+  const snapshot = getLinkedProviderAccountsSnapshot();
 
   if (provider === "offline") {
     message = context.config.offlineBootstrapMode

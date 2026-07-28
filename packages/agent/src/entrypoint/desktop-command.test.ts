@@ -1,5 +1,6 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import {
+  buildDesktopLaunchEnvironment,
   desktopExecutableCandidates,
   parseDesktopCommandOptions,
   runDesktopCommand,
@@ -32,9 +33,26 @@ describe("desktop command", () => {
     ).toContain("/repo/apps/desktop/release/linux-x64-unpacked/Doolittle");
   });
 
+  it("does not leak host NODE_OPTIONS into Electron", () => {
+    expect(
+      buildDesktopLaunchEnvironment(
+        {
+          NODE_OPTIONS: "--require /tmp/host-hook.cjs",
+          SAFE_VALUE: "preserved",
+        },
+        "/repo",
+        "/workspace",
+      ),
+    ).toEqual({
+      SAFE_VALUE: "preserved",
+      DOOLITTLE_DESKTOP_SOURCE_ROOT: "/repo",
+      DOOLITTLE_DESKTOP_CWD: "/workspace",
+    });
+  });
+
   it("builds a missing packaged app and forwards the source root", () => {
-    const run = mock((command: string, args: string[]) => {
-      expect(command).toBe("/mock/bun");
+    const run = vi.fn((command: string, args: string[]) => {
+      expect(command).toBe("/mock/nub");
       expect(args).toEqual([
         "run",
         "--cwd",
@@ -51,7 +69,7 @@ describe("desktop command", () => {
         launchCwd: "/workspace",
       },
       {
-        executable: "/mock/bun",
+        executable: "/mock/nub",
         pathExists: (path) => {
           if (path.endsWith("package.json")) return true;
           executableChecks += 1;

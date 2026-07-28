@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
+import { describe, expect, it } from "vitest";
 import type {
   PlatformAdapter,
   PlatformCapabilitySet,
@@ -315,7 +315,7 @@ describe("createGatewayRunnerOperations", () => {
       messageId: "msg-home",
     });
 
-    expect(result.ok).toBeFalse();
+    expect(result.ok).toBe(false);
     expect(result.response).toContain("not ready for inbound traffic");
     expect(sink.inboxStatuses).toHaveLength(1);
     expect(sink.inboxStatuses[0]?.status).toBe("rejected");

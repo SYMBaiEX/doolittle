@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import {
   existsSync,
   mkdirSync,
@@ -8,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 import {
@@ -29,18 +29,21 @@ const originalEnv = {
   PGLITE_DATA_DIR: process.env.PGLITE_DATA_DIR,
 };
 
+function restoreEnv(
+  name: keyof typeof originalEnv,
+  value: string | undefined,
+): void {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
+
 afterEach(() => {
-  process.env.DOOLITTLE_EMBEDDING_PROVIDER =
-    originalEnv.DOOLITTLE_EMBEDDING_PROVIDER;
-  process.env.E2B_API_KEY = originalEnv.E2B_API_KEY;
-  process.env.E2B_MODE = originalEnv.E2B_MODE;
-  process.env.GITHUB_TOKEN = originalEnv.GITHUB_TOKEN;
-  process.env.LOG_LEVEL = originalEnv.LOG_LEVEL;
-  process.env.DEFAULT_LOG_LEVEL = originalEnv.DEFAULT_LOG_LEVEL;
-  process.env.NODE_ENV = originalEnv.NODE_ENV;
-  process.env.SECRET_SALT = originalEnv.SECRET_SALT;
-  process.env.ELIZA_SECRET_SALT = originalEnv.ELIZA_SECRET_SALT;
-  process.env.PGLITE_DATA_DIR = originalEnv.PGLITE_DATA_DIR;
+  for (const [name, value] of Object.entries(originalEnv)) {
+    restoreEnv(name as keyof typeof originalEnv, value);
+  }
 });
 
 function makeConfig(dataDir: string): EnvConfig {

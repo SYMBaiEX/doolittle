@@ -1,24 +1,21 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig, ToolDefinition } from "@/types";
 import { AcpService } from "./service";
 
 describe("AcpService", () => {
   it("publishes a registry and exposes ACP-style tools", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-acp-"));
-    const fixturePath = join(
-      import.meta.dir,
-      "..",
-      "..",
-      "testing",
-      "mock-mcp.ts",
+    const fixturePath = fileURLToPath(
+      new URL("../../testing/mock-mcp.ts", import.meta.url),
     );
     const config = {
       agentName: "Doolittle",
       dataDir: root,
-      acpServerCommand: `bun run ${fixturePath}`,
+      acpServerCommand: `nub ${fixturePath}`,
       acpTimeoutMs: 5_000,
     } as EnvConfig;
     const tools: ToolDefinition[] = [

@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppLogger } from "@/logging/logger";
 
 type StartupModule = typeof import("./startup");
@@ -17,18 +17,18 @@ const errorLines: string[] = [];
 const logger: AppLogger = {
   name: "test",
   scope: "test.startup",
-  isLevelEnabled: mock(() => true),
-  log: mock(() => {}),
-  trace: mock(() => {}),
-  info: mock(() => {}),
-  warn: mock(() => {}),
-  error: mock(() => {}),
-  debug: mock(() => {}),
-  fatal: mock(() => {}),
-  recordCrash: mock(() => {}),
-  captureError: mock((label: string) => label),
-  flush: mock(async () => {}),
-  close: mock(async () => {}),
+  isLevelEnabled: vi.fn(() => true),
+  log: vi.fn(() => {}),
+  trace: vi.fn(() => {}),
+  info: vi.fn(() => {}),
+  warn: vi.fn(() => {}),
+  error: vi.fn(() => {}),
+  debug: vi.fn(() => {}),
+  fatal: vi.fn(() => {}),
+  recordCrash: vi.fn(() => {}),
+  captureError: vi.fn((label: string) => label),
+  flush: vi.fn(async () => {}),
+  close: vi.fn(async () => {}),
   withFields: () => logger,
   withTags: () => logger,
   child: () => logger,
@@ -59,7 +59,7 @@ function setTty(interactive: boolean) {
 }
 
 function installStartupMocks(options: StartupMockOptions = {}) {
-  const existsSync = mock((path: string) => {
+  const existsSync = vi.fn((path: string) => {
     if (options.existsSync) {
       const overridden = options.existsSync(path);
       if (overridden !== undefined) {
@@ -68,17 +68,17 @@ function installStartupMocks(options: StartupMockOptions = {}) {
     }
     return realExistsSync(path);
   });
-  const mkdirSync = mock((...args: Parameters<typeof fs.mkdirSync>) =>
+  const mkdirSync = vi.fn((...args: Parameters<typeof fs.mkdirSync>) =>
     realMkdirSync(...args),
   );
-  const readFileSync = mock((...args: Parameters<typeof fs.readFileSync>) =>
+  const readFileSync = vi.fn((...args: Parameters<typeof fs.readFileSync>) =>
     String(args[0]).endsWith(".env") && options.envFileContent !== undefined
       ? options.envFileContent
       : realReadFileSync(...args),
   );
-  const spawnSync = mock(
+  const spawnSync = vi.fn(
     (...args: Parameters<typeof childProcess.spawnSync>) =>
-      args[0] === "bun" &&
+      String(args[0]).includes("nub") &&
       Array.isArray(args[1]) &&
       args[1].some((part) => String(part).endsWith("scripts/bootstrap.ts"))
         ? ({ status: options.spawnStatus ?? 0 } as ReturnType<
@@ -87,17 +87,17 @@ function installStartupMocks(options: StartupMockOptions = {}) {
         : realSpawnSync(...args),
   );
 
-  mock.module("node:fs", () => ({
+  vi.doMock("node:fs", () => ({
     ...fs,
     existsSync,
     mkdirSync,
     readFileSync,
   }));
-  mock.module("node:child_process", () => ({
+  vi.doMock("node:child_process", () => ({
     ...childProcess,
     spawnSync,
   }));
-  mock.module("@/logging/entrypoint-logger", () => ({
+  vi.doMock("@/logging/entrypoint-logger", () => ({
     getEntrypointLogger: () => logger,
   }));
 
@@ -120,13 +120,14 @@ function installStartupMocks(options: StartupMockOptions = {}) {
 }
 
 async function loadStartupModule(): Promise<StartupModule> {
-  return import(`./startup?startup-test=${Date.now()}-${Math.random()}`);
+  return import("./startup");
 }
 
 describe("cli startup", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     logLines.length = 0;
     errorLines.length = 0;
     stdinTtyDescriptor = Object.getOwnPropertyDescriptor(
@@ -149,8 +150,9 @@ describe("cli startup", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     if (stdinTtyDescriptor) {
       Object.defineProperty(process.stdin, "isTTY", stdinTtyDescriptor);
     }
@@ -231,7 +233,7 @@ describe("cli startup", () => {
       "CLI startup requested exit 7",
     );
     expect(fs.spawnSync).toHaveBeenCalledWith(
-      "bun",
+      expect.stringContaining("nub"),
       expect.any(Array),
       expect.objectContaining({ stdio: "inherit" }),
     );

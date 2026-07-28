@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -39,20 +40,28 @@ export class LocalSandboxService extends ElizaService {
   ): Promise<E2BExecutionResult> {
     const sandbox = this.sandboxStore.getOrCreateActiveSandbox();
     const [command, args] = resolveExecutionCommand(language, code);
-    const child = Bun.spawn([command, ...args], {
+    const child = spawn(command, args, {
       cwd: sandbox.path,
       env: {
         ...collectProcessEnv(),
         NODE_ENV: process.env.NODE_ENV ?? "development",
       },
-      stdout: "pipe",
-      stderr: "pipe",
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ]);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    const exitCode = await new Promise<number>((resolveExit, reject) => {
+      child.once("error", reject);
+      child.once("close", (code) => resolveExit(code ?? 1));
+    });
     const text = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
 
     if (exitCode !== 0) {

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { RunUpdateEvent } from "@/services/run-controller-service";
 
 let publishRunUpdate:
@@ -6,7 +6,7 @@ let publishRunUpdate:
   | undefined;
 let observedAbortSignal: AbortSignal | undefined;
 
-mock.module("@/runtime/chat", () => ({
+vi.doMock("@/runtime/chat", () => ({
   handleAgentTurn: async (
     _input: unknown,
     _context: unknown,
@@ -50,7 +50,7 @@ mock.module("@/runtime/chat", () => ({
 
 describe("executeAgentTurnWithProgress", () => {
   it("delivers matching raw run updates before prose filtering", async () => {
-    const unsubscribe = mock(() => undefined);
+    const unsubscribe = vi.fn(() => undefined);
     const rawUpdates: RunUpdateEvent[] = [];
     const proseUpdates: RunUpdateEvent[] = [];
     const { executeAgentTurnWithProgress } = await import("./turn-stream");

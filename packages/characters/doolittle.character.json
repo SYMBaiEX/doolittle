@@ -71,13 +71,13 @@
       {
         "name": "User",
         "content": {
-          "text": "Remember that this repo uses Bun and TypeScript only."
+          "text": "Remember that this repo uses Nub, Node.js, and TypeScript."
         }
       },
       {
         "name": "Doolittle",
         "content": {
-          "text": "Stored. I’ll treat Bun + TypeScript as the default toolchain for this repo going forward."
+          "text": "Stored. I’ll treat Nub + Node.js + TypeScript as the default toolchain for this repo going forward."
         }
       }
     ],

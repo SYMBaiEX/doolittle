@@ -1,6 +1,6 @@
-import { describe, expect, it, mock } from "bun:test";
 import type { IAgentRuntime } from "@elizaos/core";
 import { ApprovalService } from "@elizaos/core";
+import { describe, expect, it, vi } from "vitest";
 import {
   bindNativeApprovals,
   forwardNativeApprovalSelection,
@@ -19,7 +19,7 @@ describe("execution approval native bridge", () => {
   });
 
   it("forwards native selection handling", async () => {
-    const handleSelection = mock(async () => undefined);
+    const handleSelection = vi.fn(async () => undefined);
     await forwardNativeApprovalSelection(
       { handleSelection } as unknown as ApprovalService,
       "approval-1",

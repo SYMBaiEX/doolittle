@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TerminalRunResult } from "../execution/subprocess";
 import { sanitizeCommand } from "../execution/subprocess/commands";
 import { runCommandStreaming } from "../execution/subprocess/run";
@@ -11,7 +11,7 @@ let commandExistsResult = true;
 let runCommandResults: TerminalRunResult[] = [];
 
 function installContainerHealthMocks() {
-  mock.module("../execution/subprocess", () => ({
+  vi.doMock("../execution/subprocess", () => ({
     LOCAL_SHELL,
     commandExists: async (binary: string, timeoutMs: number) => {
       commandExistsCalls.push({ binary, timeoutMs });
@@ -37,9 +37,7 @@ function installContainerHealthMocks() {
 }
 
 async function loadCreateContainerExecutionBackends() {
-  return import(
-    `./container?container-health-test=${Date.now()}-${Math.random()}`
-  );
+  return import("./container");
 }
 
 async function getBackend(name: "docker" | "podman") {
@@ -56,8 +54,9 @@ async function getBackend(name: "docker" | "podman") {
 
 describe("container execution backend health", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     commandExistsCalls.length = 0;
     runCommandCalls.length = 0;
     commandExistsResult = true;
@@ -66,8 +65,9 @@ describe("container execution backend health", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("reports a missing runtime before attempting version or image probes", async () => {
@@ -115,7 +115,7 @@ describe("container execution backend health", () => {
     expect(runCommandCalls).toEqual([
       { cmd: ["podman", "--version"], timeoutMs: 5_000 },
       {
-        cmd: ["podman", "image", "inspect", "oven/bun:latest"],
+        cmd: ["podman", "image", "inspect", "ghcr.io/nubjs/nub:latest"],
         timeoutMs: 5_000,
       },
     ]);

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatCommandRouteHandler } from "./chat-command-router/types";
 
 const normalizeCalls: string[] = [];
@@ -53,7 +53,7 @@ function normalizeMockCommand(value: string) {
 }
 
 function installRouterTestMocks() {
-  mock.module("@/runtime/command-catalog", () => ({
+  vi.doMock("@/runtime/command-catalog", () => ({
     normalizeSlashCommandSyntax: (value: string) => {
       normalizeCalls.push(value);
       return normalizeMockCommand(value);
@@ -76,7 +76,7 @@ function installRouterTestMocks() {
       query ? `catalog:${query}` : "catalog",
   }));
 
-  mock.module("./chat-command-router/registry", () => ({
+  vi.doMock("./chat-command-router/registry", () => ({
     CHAT_COMMAND_ROUTE_GROUPS: [
       lifecycleAndIdentityRoutes,
       workflowAndToolingRoutes,
@@ -87,9 +87,7 @@ function installRouterTestMocks() {
 }
 
 async function loadBuildCommandResponse() {
-  const { buildCommandResponse } = await import(
-    `./chat-command-router?router-test=${Date.now()}-${Math.random()}`
-  );
+  const { buildCommandResponse } = await import("./chat-command-router");
   return buildCommandResponse;
 }
 
@@ -101,16 +99,17 @@ function createRoute(
   return async ({ trimmed, sessionKey, hooks, dependencies }) => {
     calls.push(`${name}:${trimmed}:${sessionKey}`);
     expect(hooks).toBeDefined();
-    expect(dependencies.runAnalysis).toBeFunction();
-    expect(dependencies.runDelegationTaskInWorker).toBeFunction();
+    expect(dependencies.runAnalysis).toBeTypeOf("function");
+    expect(dependencies.runDelegationTaskInWorker).toBeTypeOf("function");
     return response;
   };
 }
 
 describe("chat command router", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     normalizeCalls.length = 0;
     lifecycleAndIdentityRoutes.length = 0;
     workflowAndToolingRoutes.length = 0;
@@ -120,8 +119,9 @@ describe("chat command router", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("routes groups in order and stops after the first handled response", async () => {

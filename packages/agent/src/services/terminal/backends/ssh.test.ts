@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiagnosticCheck } from "@/types";
 import type { TerminalRunResult } from "../execution/subprocess";
 import { sanitizeCommand } from "../execution/subprocess/commands";
@@ -21,7 +21,7 @@ function getCheckStatus(
 }
 
 function installSshBackendMocks() {
-  mock.module("../execution/subprocess", () => ({
+  vi.doMock("../execution/subprocess", () => ({
     LOCAL_SHELL,
     commandExists: async (binary: string, timeoutMs: number) => {
       commandExistsCalls.push({ binary, timeoutMs });
@@ -48,13 +48,14 @@ function installSshBackendMocks() {
 }
 
 async function loadBackend() {
-  return import(`./ssh?ssh-test=${Date.now()}-${Math.random()}`);
+  return import("./ssh");
 }
 
 describe("ssh execution backend", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     commandExistsCalls.length = 0;
     runCommandCalls.length = 0;
     commandExistsResult = true;
@@ -63,8 +64,9 @@ describe("ssh execution backend", () => {
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("returns validation errors when required config is missing", async () => {
@@ -72,6 +74,7 @@ describe("ssh execution backend", () => {
     const backend = createSshExecutionBackend();
 
     const result = await backend.run("printf ok", {
+      cwd: "/tmp",
       timeoutMs: 10_000,
       settings: makeSettings({
         backend: "ssh",
@@ -131,7 +134,7 @@ describe("ssh execution backend", () => {
       sshPath: "/workspace",
     });
 
-    const health = await backend.health(settings);
+    const health = await backend.health(settings, "/tmp");
 
     expect(health.ready).toBe(false);
     expect(health.detail).toBe("SSH command not available.");
@@ -155,7 +158,7 @@ describe("ssh execution backend", () => {
       sshStrictHostKeyChecking: false,
     });
 
-    const health = await backend.health(settings);
+    const health = await backend.health(settings, "/tmp");
 
     expect(health.ready).toBe(false);
     expect(health.detail).toContain("key path does not exist");
@@ -187,7 +190,7 @@ describe("ssh execution backend", () => {
       sshKeyPath: keyPath,
       sshStrictHostKeyChecking: false,
     });
-    const health = await backend.health(settings);
+    const health = await backend.health(settings, "/tmp");
 
     try {
       expect(health.ready).toBe(true);
@@ -231,6 +234,7 @@ describe("ssh execution backend", () => {
     const { createSshExecutionBackend } = await loadBackend();
     const backend = createSshExecutionBackend();
     const result = await backend.run("printf fail", {
+      cwd: "/tmp",
       timeoutMs: 9_999,
       settings,
     });

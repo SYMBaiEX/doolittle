@@ -1,11 +1,11 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   getElizaCloudAuthDependencies,
   getElizaCloudEnvKey,
   isElizaCloudInferenceEnabled,
 } from "./elizacloud-support";
 
-describe.serial("Eliza Cloud auth support helpers", () => {
+describe.sequential("Eliza Cloud auth support helpers", () => {
   it("prefers the canonical cloud env key when both aliases are present", () => {
     const previousPrimary = process.env.ELIZAOS_CLOUD_API_KEY;
     const previousAlias = process.env.ELIZA_CLOUD_API_KEY;

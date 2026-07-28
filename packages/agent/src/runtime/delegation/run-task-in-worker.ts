@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnTextProcess } from "@/services/process-execution";
 import type { AgentExecutionContext } from "../chat";
 
 const OPERATOR_STEER_PREFIX = "operator-steer: ";
@@ -44,7 +45,7 @@ export function buildDelegationWorkerSpawnOptions(input: {
   stderr: "pipe";
 } {
   return {
-    cmd: ["bun", "run", input.workerEntry, input.inputPath, input.outputPath],
+    cmd: ["nub", input.workerEntry, input.inputPath, input.outputPath],
     cwd: input.workspaceRoot,
     env: {
       ...(input.env ?? process.env),
@@ -103,29 +104,33 @@ export async function runDelegationTaskInWorker(
     "utf8",
   );
 
-  const workerEntry = join(import.meta.dir, "../delegate-worker.ts");
-  const proc = Bun.spawn(
-    buildDelegationWorkerSpawnOptions({
-      workerEntry,
-      inputPath,
-      outputPath,
-      workspaceRoot,
-    }),
+  const workerEntry = fileURLToPath(
+    new URL("../delegate-worker.ts", import.meta.url),
+  );
+  const spawnOptions = buildDelegationWorkerSpawnOptions({
+    workerEntry,
+    inputPath,
+    outputPath,
+    workspaceRoot,
+  });
+  const { child, completed } = spawnTextProcess(
+    spawnOptions.cmd[0] ?? "nub",
+    spawnOptions.cmd.slice(1),
+    {
+      cwd: spawnOptions.cwd,
+      env: spawnOptions.env,
+    },
   );
   if (!options?.assumeRunning) {
     context.services.delegation.markRunning(task.id);
   }
   context.services.delegation.markWorkerStarted(task.id, {
-    pid: proc.pid,
+    pid: child.pid,
     mode: "process",
     outputPath,
   });
 
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { stdout, stderr, exitCode } = await completed;
 
   const rawOutput = readFileSync(outputPath, "utf8");
   const parsed = JSON.parse(rawOutput) as {
@@ -146,7 +151,7 @@ export async function runDelegationTaskInWorker(
     );
     context.services.delegation.addNote(
       task.id,
-      `system: worker report pid=${parsed.workerPid ?? proc.pid} duration=${parsed.durationMs ?? "n/a"}ms workspace=${workspaceRoot} output=${outputPath}`,
+      `system: worker report pid=${parsed.workerPid ?? child.pid} duration=${parsed.durationMs ?? "n/a"}ms workspace=${workspaceRoot} output=${outputPath}`,
     );
     return completedTask;
   }
