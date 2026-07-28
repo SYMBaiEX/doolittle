@@ -27,6 +27,7 @@ import type {
 import { commandCompletions } from "./command-completion";
 import { InlineApprovalPanel } from "./components/InlineApprovalPanel";
 import { MessageContent } from "./components/MessageContent";
+import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import {
   type ThreadWorkbenchFullView,
@@ -1091,17 +1092,21 @@ export function ChatPage({
 
   const readMessage = useCallback(
     (message: DisplayMessage) => {
+      const readableContent =
+        message.role === "assistant"
+          ? visibleAssistantText(message.content)
+          : message.content;
       if (
         !speechSupported ||
         message.role !== "assistant" ||
         message.pending ||
         message.error ||
-        !message.content.trim()
+        !readableContent.trim()
       ) {
         return;
       }
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(message.content);
+      const utterance = new SpeechSynthesisUtterance(readableContent);
       speechUtteranceRef.current = utterance;
       setSpeakingMessageId(message.id);
       const finish = () => {
@@ -1185,7 +1190,14 @@ export function ChatPage({
         ) : null}
         <button
           aria-label={failed ? "Copy failed" : "Copy message"}
-          onClick={() => void copyMessage(message.id, message.content)}
+          onClick={() =>
+            void copyMessage(
+              message.id,
+              message.role === "assistant"
+                ? visibleAssistantText(message.content)
+                : message.content,
+            )
+          }
           type="button"
         >
           {failed ? "Copy failed" : label}
@@ -1877,7 +1889,11 @@ export function ChatPage({
                       />
                     ) : null}
                     {message.content ? (
-                      <MessageContent content={message.content} />
+                      <MessageContent
+                        content={message.content}
+                        pending={message.pending}
+                        separateAgentEvents={message.role === "assistant"}
+                      />
                     ) : message.pending && !receipt ? (
                       <span className="thinking">Thinking</span>
                     ) : null}

@@ -1,0 +1,48 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { MessageContent, safeMessageUrl } from "./MessageContent";
+
+const node = {
+  type: "element" as const,
+  tagName: "a",
+  properties: {},
+  children: [],
+};
+
+describe("safeMessageUrl", () => {
+  it("allows web links, email links, and anchors", () => {
+    expect(safeMessageUrl("https://example.com", "href", node)).toBe(
+      "https://example.com",
+    );
+    expect(safeMessageUrl("mailto:hello@example.com", "href", node)).toBe(
+      "mailto:hello@example.com",
+    );
+    expect(safeMessageUrl("#section", "href", node)).toBe("#section");
+  });
+
+  it("blocks executable, local file, and embedded data URLs", () => {
+    expect(safeMessageUrl("javascript:alert(1)", "href", node)).toBeNull();
+    expect(safeMessageUrl("file:///etc/passwd", "href", node)).toBeNull();
+    expect(
+      safeMessageUrl("data:image/svg+xml;base64,PHN2Zz4=", "src", node),
+    ).toBeNull();
+  });
+});
+
+describe("MessageContent", () => {
+  it("renders sanitized HTML and rich Markdown without executable markup", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent
+        content={
+          '# Heading\n\n<strong onclick="alert(1)">Safe HTML</strong>\n\n<script>alert(1)</script>\n\n| A | B |\n| - | - |\n| 1 | 2 |'
+        }
+      />,
+    );
+
+    expect(html).toContain("<h1");
+    expect(html).toContain(">Safe HTML</span>");
+    expect(html).toContain("<table");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("onclick");
+  });
+});

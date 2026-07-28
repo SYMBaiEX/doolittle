@@ -1,241 +1,272 @@
-import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
+import { Streamdown, type UrlTransform } from "streamdown";
+import "streamdown/styles.css";
+import {
+  formatToolPayload,
+  parseAgentMessage,
+  type ToolActivity,
+  type ToolActivityStatus,
+  webSearchResults,
+} from "./message-output";
+import "./message-content.css";
 
-type BlockType = "paragraph" | "code" | "list";
-
-interface MessageBlock {
-  type: BlockType;
-  text: string;
-  listType?: "ordered" | "unordered";
-  lines?: string[];
+interface MessageContentProps {
+  content: string;
+  pending?: boolean;
+  separateAgentEvents?: boolean;
 }
 
-function isAllowedLink(
-  value: string,
-): value is `http://${string}` | `https://${string}` {
-  return /^https?:\/\//i.test(value);
+const MAX_TOOL_PAYLOAD_LENGTH = 40_000;
+
+function safeProtocol(value: string, protocols: string[]): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.startsWith("#") ||
+    protocols.some((protocol) => normalized.startsWith(`${protocol}:`))
+  );
 }
 
-function renderTextSegment(value: string, keyPrefix: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const pattern = /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
-  let offset = 0;
-  let match = pattern.exec(value);
-  let index = 0;
+export const safeMessageUrl: UrlTransform = (url, key) => {
+  const protocols =
+    key === "src" ? ["http", "https"] : ["http", "https", "mailto"];
+  return safeProtocol(url, protocols) ? url : null;
+};
 
-  while (match) {
-    if (match.index > offset) {
-      const segment = value.slice(offset, match.index);
-      const lines = segment.split("\n");
-      let lineOffset = 0;
-      nodes.push(
-        ...lines.flatMap((line) => {
-          const fragments: ReactNode[] = [];
-          if (line.length > 0) {
-            fragments.push(line);
-          }
-          const currentOffset = lineOffset;
-          lineOffset += line.length + 1;
-          if (currentOffset < segment.length - line.length) {
-            fragments.push(
-              <br
-                key={`${keyPrefix}-br-${index}-${currentOffset}`}
-                aria-hidden="true"
-              />,
-            );
-          }
-          return fragments;
-        }),
-      );
-    }
-
-    if (match[0].startsWith("`")) {
-      nodes.push(
-        <code key={`${keyPrefix}-code-${index}`}>{match[1] ?? ""}</code>,
-      );
-    } else {
-      const label = match[2] ?? "";
-      const href = match[3] ?? "";
-      if (isAllowedLink(href)) {
-        nodes.push(
-          <a
-            href={href}
-            key={`${keyPrefix}-link-${index}`}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {label || href}
-          </a>,
-        );
-      } else {
-        nodes.push(
-          <span key={`${keyPrefix}-disallowed-${index}`}>
-            [{label}]({href})
-          </span>,
-        );
-      }
-    }
-
-    offset = match.index + match[0].length;
-    match = pattern.exec(value);
-    index += 1;
+function statusLabel(status: ToolActivityStatus): string {
+  switch (status) {
+    case "completed":
+      return "Completed";
+    case "error":
+      return "Failed";
+    case "running":
+      return "Running";
+    default:
+      return "Pending";
   }
-
-  if (offset < value.length) {
-    const segment = value.slice(offset);
-    const lines = segment.split("\n");
-    let lineOffset = 0;
-    nodes.push(
-      ...lines.flatMap((line) => {
-        const fragments: ReactNode[] = [];
-        if (line.length > 0) {
-          fragments.push(line);
-        }
-        const currentOffset = lineOffset;
-        lineOffset += line.length + 1;
-        if (currentOffset < segment.length - line.length) {
-          fragments.push(
-            <br
-              key={`${keyPrefix}-tail-br-${currentOffset}`}
-              aria-hidden="true"
-            />,
-          );
-        }
-        return fragments;
-      }),
-    );
-  }
-
-  return nodes;
 }
 
-function parseMessageBlocks(content: string): MessageBlock[] {
-  const blocks: MessageBlock[] = [];
-  const lines = content.split(/\r?\n/);
-  let cursor = 0;
-
-  while (cursor < lines.length) {
-    const line = lines[cursor];
-    if (line.startsWith("```")) {
-      cursor += 1;
-      const codeLines: string[] = [];
-      while (cursor < lines.length && !lines[cursor].startsWith("```")) {
-        codeLines.push(lines[cursor]);
-        cursor += 1;
-      }
-      if (cursor < lines.length && lines[cursor].startsWith("```")) {
-        cursor += 1;
-      }
-      blocks.push({
-        type: "code",
-        text: codeLines.join("\n"),
-      });
-      continue;
-    }
-
-    const listMatch = line.match(/^(\s*)(?:-|\*|\+|\d+\.)\s+(.*?)(?:\s*)$/);
-    if (listMatch) {
-      const current = line.match(/^\s*(\d+\.|-|\+|\*)\s+(.*?)(?:\s*)$/u);
-      const firstLine = current?.[2] ?? "";
-      const ordered = Boolean(current?.[1]?.match(/^\d+\.$/u));
-      const linesInList: string[] = [firstLine];
-      cursor += 1;
-      while (cursor < lines.length) {
-        const next = lines[cursor].match(
-          /^\s*(\d+\.|-|\+|\*)\s+(.*?)(?:\s*)$/u,
-        );
-        if (!next) break;
-        linesInList.push(next[2] ?? "");
-        cursor += 1;
-      }
-      blocks.push({
-        type: "list",
-        listType: ordered ? "ordered" : "unordered",
-        lines: linesInList,
-        text: "",
-      });
-      continue;
-    }
-
-    const paragraphLines: string[] = [];
-    while (cursor < lines.length && lines[cursor].trim() !== "") {
-      const current = lines[cursor];
-      if (current.startsWith("```")) break;
-      if (current.match(/^\s*(\d+\.|-|\+|\*)\s+/u)) break;
-      paragraphLines.push(current);
-      cursor += 1;
-    }
-    while (cursor < lines.length && lines[cursor].trim() === "") {
-      cursor += 1;
-    }
-    const text = paragraphLines.join("\n").trim();
-    if (text) {
-      blocks.push({ type: "paragraph", text });
-    }
-  }
-
-  return blocks;
+function toolLabel(activity: ToolActivity): string {
+  const normalized = activity.name.replace(/[_-]+/gu, " ").trim();
+  return normalized
+    ? normalized
+        .toLowerCase()
+        .replace(/(^|\s)\p{L}/gu, (letter) => letter.toUpperCase())
+    : "Agent tool";
 }
 
-export function MessageContent({ content }: { content: string }) {
-  const blocks = parseMessageBlocks(content);
-  const blockKeyCounts = new Map<string, number>();
+function toolSummary(activity: ToolActivity): string | undefined {
+  if (!activity.input || typeof activity.input !== "object") return undefined;
+  const query = (activity.input as Record<string, unknown>).query;
+  if (typeof query !== "string" || !query.trim()) return undefined;
+  return query.trim();
+}
+
+function clippedPayload(value: unknown): { text: string; clipped: boolean } {
+  const text = formatToolPayload(value);
+  if (text.length <= MAX_TOOL_PAYLOAD_LENGTH) return { text, clipped: false };
+  return {
+    text: `${text.slice(0, MAX_TOOL_PAYLOAD_LENGTH)}\n\n… output truncated in chat`,
+    clipped: true,
+  };
+}
+
+function ToolPayload({ label, value }: { label: string; value: unknown }) {
+  const payload = clippedPayload(value);
+  if (!payload.text) return null;
+  return (
+    <section className="message-tool-section">
+      <div className="message-tool-section__heading">
+        <span>{label}</span>
+        {payload.clipped ? <small>First 40k characters</small> : null}
+      </div>
+      <pre>
+        <code>{payload.text}</code>
+      </pre>
+    </section>
+  );
+}
+
+function WebSearchSources({ activity }: { activity: ToolActivity }) {
+  const results = webSearchResults(activity.output);
+  if (!results.length) return null;
+  return (
+    <section className="message-tool-section message-tool-sources">
+      <div className="message-tool-section__heading">
+        <span>Sources</span>
+        <small>{results.length} found</small>
+      </div>
+      <ol>
+        {results.slice(0, 10).map((result) => (
+          <li key={result.url}>
+            <a href={result.url} rel="noreferrer" target="_blank">
+              <strong>{result.title}</strong>
+              <span>{new URL(result.url).hostname}</span>
+            </a>
+            {result.excerpt ? <p>{result.excerpt.slice(0, 360)}</p> : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ToolActivityCard({ activity }: { activity: ToolActivity }) {
+  const [copyLabel, setCopyLabel] = useState("Copy");
+  const summary = toolSummary(activity);
+  const copyOutput = async () => {
+    const value = formatToolPayload(activity.output);
+    if (!value || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyLabel("Copied");
+    } catch {
+      setCopyLabel("Copy failed");
+    }
+    window.setTimeout(() => setCopyLabel("Copy"), 1_500);
+  };
+
+  return (
+    <details className={`message-tool-card is-${activity.status}`}>
+      <summary>
+        <span className="message-tool-card__icon" aria-hidden="true">
+          ↗
+        </span>
+        <span className="message-tool-card__summary">
+          <strong>{toolLabel(activity)}</strong>
+          {summary ? <small>{summary}</small> : null}
+        </span>
+        <span className={`message-tool-card__status is-${activity.status}`}>
+          <i aria-hidden="true" />
+          {statusLabel(activity.status)}
+        </span>
+        <span className="message-tool-card__chevron" aria-hidden="true">
+          ›
+        </span>
+      </summary>
+      <div className="message-tool-card__body">
+        {activity.error ? (
+          <p className="message-tool-card__error">{activity.error}</p>
+        ) : null}
+        <ToolPayload label="Input" value={activity.input} />
+        <WebSearchSources activity={activity} />
+        <ToolPayload label="Raw output" value={activity.output} />
+        {activity.output !== undefined ? (
+          <footer>
+            <button onClick={() => void copyOutput()} type="button">
+              {copyLabel}
+            </button>
+          </footer>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+function AgentSteps({
+  continued,
+  failed,
+  finished,
+}: {
+  continued: number;
+  failed: number;
+  finished: number;
+}) {
+  const total = continued + failed + finished;
+  if (!total) return null;
+  return (
+    <details className="message-agent-steps">
+      <summary>
+        <span aria-hidden="true">⌁</span>
+        <strong>
+          {continued > 0
+            ? `Agent replanned ${continued} ${continued === 1 ? "time" : "times"}`
+            : "Agent run evaluation"}
+        </strong>
+        <small>{total} recorded</small>
+        <i aria-hidden="true">›</i>
+      </summary>
+      <div>
+        {continued > 0 ? (
+          <p>
+            The evaluator requested another step before a final response was
+            available.
+          </p>
+        ) : null}
+        {finished > 0 ? <p>{finished} completion signal recorded.</p> : null}
+        {failed > 0 ? <p>{failed} evaluation failure recorded.</p> : null}
+        <small>
+          Internal reasoning is intentionally not displayed. Open Activity for
+          full operator telemetry.
+        </small>
+      </div>
+    </details>
+  );
+}
+
+export function MessageContent({
+  content,
+  pending = false,
+  separateAgentEvents = false,
+}: MessageContentProps) {
+  const parsed = useMemo(
+    () =>
+      separateAgentEvents
+        ? parseAgentMessage(content)
+        : {
+            text: content,
+            tools: [],
+            steps: { continued: 0, failed: 0, finished: 0 },
+          },
+    [content, separateAgentEvents],
+  );
+  const hasActivity =
+    parsed.tools.length > 0 ||
+    parsed.steps.continued + parsed.steps.failed + parsed.steps.finished > 0;
+
   return (
     <div className="message-content">
-      {blocks.length === 0 ? (
-        <p>
+      {parsed.text ? (
+        <Streamdown
+          animated={pending ? { animation: "fadeIn", duration: 120 } : false}
+          caret="block"
+          className="message-content__response"
+          controls={{
+            code: { copy: true, download: false },
+            table: { copy: true, download: false, fullscreen: false },
+          }}
+          dir="auto"
+          isAnimating={pending}
+          lineNumbers={false}
+          linkSafety={{ enabled: true }}
+          mode={pending ? "streaming" : "static"}
+          normalizeHtmlIndentation
+          urlTransform={safeMessageUrl}
+        >
+          {parsed.text}
+        </Streamdown>
+      ) : !hasActivity ? (
+        <p className="message-content__empty">
           <span className="thinking">Empty</span>
         </p>
-      ) : (
-        blocks.map((block) => {
-          const blockBaseKey =
-            block.type === "list"
-              ? `${block.type}:${block.listType}:${block.lines?.join("\n") ?? ""}`
-              : `${block.type}:${block.text}`;
-          const blockOccurrence = blockKeyCounts.get(blockBaseKey) ?? 0;
-          blockKeyCounts.set(blockBaseKey, blockOccurrence + 1);
-          const blockKey = `${blockBaseKey}:${blockOccurrence}`;
-
-          if (block.type === "code") {
-            return (
-              <pre className="message-content__code" key={blockKey}>
-                <code>{block.text}</code>
-              </pre>
-            );
-          }
-          if (block.type === "list") {
-            const entryKeyCounts = new Map<string, number>();
-            const entries =
-              block.lines?.map((entry) => {
-                const occurrence = entryKeyCounts.get(entry) ?? 0;
-                entryKeyCounts.set(entry, occurrence + 1);
-                const entryKey = `${blockKey}:${entry}:${occurrence}`;
-                return (
-                  <li key={entryKey}>{renderTextSegment(entry, entryKey)}</li>
-                );
-              }) ?? [];
-            return block.listType === "ordered" ? (
-              <ol
-                className="message-content__list message-content__list--ordered"
-                key={blockKey}
-              >
-                {entries}
-              </ol>
-            ) : (
-              <ul
-                className="message-content__list message-content__list--unordered"
-                key={blockKey}
-              >
-                {entries}
-              </ul>
-            );
-          }
-          return (
-            <p className="message-content__paragraph" key={blockKey}>
-              {renderTextSegment(block.text, blockKey)}
-            </p>
-          );
-        })
-      )}
+      ) : null}
+      {parsed.tools.length > 0 ? (
+        <section
+          aria-label="Agent tool activity"
+          className="message-tool-activity"
+        >
+          <header>
+            <span>Tool activity</span>
+            <small>
+              {parsed.tools.length}{" "}
+              {parsed.tools.length === 1 ? "tool" : "tools"}
+            </small>
+          </header>
+          {parsed.tools.map((activity) => (
+            <ToolActivityCard activity={activity} key={activity.id} />
+          ))}
+        </section>
+      ) : null}
+      <AgentSteps {...parsed.steps} />
     </div>
   );
 }
