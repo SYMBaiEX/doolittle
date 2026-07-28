@@ -1,0 +1,156 @@
+name: desktop-macos
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@v0
+        with:
+          nub-version: 0.6.0
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+
+      - name: Install dependencies
+        run: nub install --frozen-lockfile --ignore-scripts
+
+      - name: Install Electron runtime
+        run: nub run desktop:runtime:install
+
+      - name: Verify desktop
+        run: |
+          nub run desktop:typecheck
+          nub run desktop:test
+
+      - name: Require signing credentials for tagged releases
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          test -n "$CSC_LINK"
+          test -n "$CSC_KEY_PASSWORD"
+          test -n "$APPLE_ID"
+          test -n "$APPLE_APP_SPECIFIC_PASSWORD"
+          test -n "$APPLE_TEAM_ID"
+
+      - name: Build macOS installer
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          nub run desktop:build
+          nub run --cwd apps/desktop runtime:prepare
+          if [[ -n "$CSC_LINK" && -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
+            (cd apps/desktop && nubx --node electron-builder --mac dmg zip --config.mac.notarize=true)
+          else
+            echo "Signing credentials are not configured; producing an unsigned development artifact."
+            (cd apps/desktop && CSC_IDENTITY_AUTO_DISCOVERY=false nubx --node electron-builder --mac dmg zip)
+          fi
+
+      - name: Smoke-test bundled macOS runtime
+        run: |
+          runtime_data="$RUNNER_TEMP/doolittle-runtime-smoke"
+          mkdir -p "$runtime_data"
+          printf '%s\n' '{"mode":"desktop","provider":null,"profile":"macos-ci"}' > "$runtime_data/onboarding.json"
+
+          app_path="$(find apps/desktop/release -path '*/Doolittle.app' -type d -print -quit)"
+          test -n "$app_path"
+          executable="$app_path/Contents/MacOS/Doolittle"
+          packaged_runtime="$app_path/Contents/Resources/runtime"
+          runtime_entry="$packaged_runtime/bin/doolittle-runtime.mjs"
+          test -x "$executable"
+          test -f "$runtime_entry"
+
+          export DOOLITTLE_REPO_ROOT="$packaged_runtime"
+          export DOOLITTLE_DATA_DIR="$runtime_data"
+          export DOOLITTLE_SKILLS_DIR="$packaged_runtime/packages/skills"
+          export ELIZAOS_BUNDLED_SKILLS_DIR="$DOOLITTLE_SKILLS_DIR"
+          export DOOLITTLE_WORKSPACE_DIR="$runtime_data"
+          export DOOLITTLE_CRON_OUTPUT_DIR="$runtime_data/cron-output"
+          export DOOLITTLE_GATEWAY_DATA_DIR="$runtime_data/gateway"
+          export DOOLITTLE_HOOKS_DIR="$runtime_data/hooks"
+          export PGLITE_DATA_DIR="$runtime_data/pglite"
+          export DOOLITTLE_HOST="127.0.0.1"
+          export DOOLITTLE_PORT="43199"
+          export DOOLITTLE_MODE="api"
+          export DOOLITTLE_OFFLINE_BOOTSTRAP="true"
+          export DOOLITTLE_USE_LINKED_DEVIN_AUTH="false"
+          export DATABASE_URL=""
+          export POSTGRES_URL=""
+          export ELECTRON_RUN_AS_NODE="1"
+          export DOOLITTLE_DESKTOP_RUNTIME="1"
+
+          "$executable" "$runtime_entry" api >"$runtime_data/stdout.log" 2>"$runtime_data/stderr.log" &
+          runtime_pid=$!
+          trap 'kill "$runtime_pid" 2>/dev/null || true; cat "$runtime_data/stdout.log"; cat "$runtime_data/stderr.log" >&2' EXIT
+          for _ in {1..120}; do
+            if ! kill -0 "$runtime_pid" 2>/dev/null; then
+              echo "Bundled runtime exited before becoming healthy." >&2
+              exit 1
+            fi
+            if curl --fail --silent "http://127.0.0.1:43199/health" | grep -q '"status":"ok"'; then
+              echo "Packaged macOS runtime is healthy."
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "Bundled runtime did not become healthy within 60 seconds." >&2
+          exit 1
+
+      - name: Verify signed and notarized application
+        if: env.MAC_CSC_LINK != ''
+        run: |
+          app_path="$(find apps/desktop/release -path '*/Doolittle.app' -type d -print -quit)"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          xcrun stapler validate "$app_path"
+
+      - name: Verify release artifacts
+        run: |
+          test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-*.dmg' -print -quit)"
+          test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-*.zip' -print -quit)"
+          test -f apps/desktop/release/latest-mac.yml
+          test -n "$(find apps/desktop/release -maxdepth 1 -name '*.blockmap' -print -quit)"
+
+      - name: Upload macOS release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Doolittle-macOS
+          path: |
+            apps/desktop/release/Doolittle-*-mac-*.dmg
+            apps/desktop/release/Doolittle-*-mac-*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-mac.yml
+          if-no-files-found: error
+
+      - name: Attach macOS release and update metadata to tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop/release/Doolittle-*-mac-*.dmg
+            apps/desktop/release/Doolittle-*-mac-*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-mac.yml
