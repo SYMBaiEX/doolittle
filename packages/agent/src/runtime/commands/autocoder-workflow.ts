@@ -1,4 +1,9 @@
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
+import {
+  addEffectiveDelegationNote,
+  cancelEffectiveDelegationTask,
+  completeEffectiveDelegationTask,
+  createEffectiveDelegationTask,
+} from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../chat";
 
 function currentCliSessionId(context: AgentExecutionContext): string {
@@ -7,7 +12,7 @@ function currentCliSessionId(context: AgentExecutionContext): string {
   );
 }
 
-export function createAutocoderWorkflow(
+export async function createAutocoderWorkflow(
   context: AgentExecutionContext,
   input: {
     title: string;
@@ -20,7 +25,7 @@ export function createAutocoderWorkflow(
   },
 ) {
   const sessionId = currentCliSessionId(context);
-  const task = createEffectiveDelegationTask(
+  const task = await createEffectiveDelegationTask(
     context.runtime,
     context.services,
     {
@@ -38,8 +43,7 @@ export function createAutocoderWorkflow(
       },
       executionMode: "local",
     },
-  ) as { id: string };
-  context.services.delegation.markRunning(task.id);
+  );
   const workflow = context.services.autocoderPipeline.startWorkflow({
     title: input.title,
     objective: input.objective,
@@ -49,7 +53,8 @@ export function createAutocoderWorkflow(
     sessionId,
     taskId: task.id,
   });
-  context.services.delegation.addNote(
+  await addEffectiveDelegationNote(
+    context.runtime,
     task.id,
     `system: attached autocoder workflow ${workflow.id}`,
   );
@@ -60,24 +65,30 @@ export function createAutocoderWorkflow(
   };
 }
 
-export function completeAutocoderWorkflow(
+export async function completeAutocoderWorkflow(
   context: AgentExecutionContext,
   taskId: string,
   workflowId: string,
   note: string,
-): void {
-  context.services.delegation.complete(
+): Promise<void> {
+  await completeEffectiveDelegationTask(
+    context.runtime,
     taskId,
     `${note} workflow=${workflowId}`,
   );
 }
 
-export function failAutocoderWorkflow(
+export async function failAutocoderWorkflow(
   context: AgentExecutionContext,
   taskId: string,
   workflowId: string,
   error: unknown,
-): void {
+): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
-  context.services.delegation.fail(taskId, `${message} workflow=${workflowId}`);
+  await cancelEffectiveDelegationTask(
+    context.runtime,
+    context.services,
+    taskId,
+    `${message} workflow=${workflowId}`,
+  );
 }

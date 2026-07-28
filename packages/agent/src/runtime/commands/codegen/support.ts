@@ -6,7 +6,7 @@ import {
 } from "../autocoder-workflow";
 
 type WorkflowInput = Parameters<typeof createAutocoderWorkflow>[1];
-type WorkflowRef = ReturnType<typeof createAutocoderWorkflow>;
+type WorkflowRef = Awaited<ReturnType<typeof createAutocoderWorkflow>>;
 
 export function stringifyCodegenResponse(value: unknown): string {
   return JSON.stringify(value, null, 2);
@@ -18,10 +18,10 @@ export async function withAutocoderWorkflow<T>(
   successNote: string,
   execute: (workflow: WorkflowRef) => Promise<T>,
 ): Promise<T> {
-  const workflow = createAutocoderWorkflow(context, workflowInput);
+  const workflow = await createAutocoderWorkflow(context, workflowInput);
   try {
     const result = await execute(workflow);
-    completeAutocoderWorkflow(
+    await completeAutocoderWorkflow(
       context,
       workflow.taskId,
       workflow.workflowId,
@@ -29,7 +29,12 @@ export async function withAutocoderWorkflow<T>(
     );
     return result;
   } catch (error) {
-    failAutocoderWorkflow(context, workflow.taskId, workflow.workflowId, error);
+    await failAutocoderWorkflow(
+      context,
+      workflow.taskId,
+      workflow.workflowId,
+      error,
+    );
     throw error;
   }
 }

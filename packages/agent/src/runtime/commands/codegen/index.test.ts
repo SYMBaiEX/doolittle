@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { AgentExecutionContext } from "../../chat";
 import { handleCodegenCommand } from "./index";
 
 function createContext(): AgentExecutionContext {
-  let taskCounter = 0;
   let workflowCounter = 0;
   let runCounter = 0;
-  const completions: Array<{ id: string; note?: string }> = [];
-  const failures: Array<{ id: string; note?: string }> = [];
+  const official = createOfficialOrchestratorTestFixture();
 
   return {
     runtime: {
       getService: (service: string) => {
+        if (service === "ORCHESTRATOR_TASK_SERVICE") {
+          return official.service;
+        }
         if (service === "e2b") {
           return {
             listSandboxes: () => [{ id: "sandbox-1", path: "/tmp/sandbox-1" }],
@@ -74,17 +76,6 @@ function createContext(): AgentExecutionContext {
       sessions: {
         listSessions: () => [{ sessionId: "cli:test-session" }],
       },
-      delegation: {
-        create: () => ({ id: `task-${++taskCounter}` }),
-        markRunning: () => undefined,
-        addNote: () => undefined,
-        complete: (id: string, note?: string) => {
-          completions.push({ id, note });
-        },
-        fail: (id: string, note?: string) => {
-          failures.push({ id, note });
-        },
-      },
       autocoderPipeline: {
         startWorkflow: (input: Record<string, unknown>) => ({
           ...input,
@@ -102,8 +93,7 @@ function createContext(): AgentExecutionContext {
         bundleWorkflow: (id: string) => ({ id, bundle: true }),
       },
       __events: {
-        completions,
-        failures,
+        tasks: official.tasks,
       },
     },
   } as unknown as AgentExecutionContext;
@@ -172,8 +162,7 @@ describe("codegen command router", () => {
     );
     const events = (context.services as unknown as { __events: unknown })
       .__events as {
-      completions: Array<{ id: string; note?: string }>;
-      failures: Array<{ id: string; note?: string }>;
+      tasks: ReturnType<typeof createOfficialOrchestratorTestFixture>["tasks"];
     };
 
     expect(created).toContain('"private": false');
@@ -181,8 +170,15 @@ describe("codegen command router", () => {
     expect(keys).toContain("OPENAI_API_KEY");
     expect(fetched).toContain("value:OPENAI_API_KEY");
     expect(stored).toContain('"valueSet": true');
-    expect(events.completions.length).toBeGreaterThan(0);
-    expect(events.failures).toHaveLength(0);
+    expect(
+      Array.from(events.tasks.values()).filter((task) => task.status === "done")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      Array.from(events.tasks.values()).filter(
+        (task) => task.status === "failed",
+      ),
+    ).toHaveLength(0);
   });
 
   it("lists stored codegen runs and returns usage guidance", async () => {
