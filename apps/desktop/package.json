@@ -21,6 +21,9 @@
     "test": "nubx --node vitest run"
   },
   "dependencies": {
+    "@xterm/addon-fit": "0.10.0",
+    "@xterm/xterm": "5.5.0",
+    "electron-updater": "^6.7.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -48,6 +51,7 @@
     },
     "files": [
       "dist/**/*",
+      "assets/icon.png",
       "package.json"
     ],
     "extraResources": [

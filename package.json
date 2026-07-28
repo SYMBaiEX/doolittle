@@ -82,6 +82,8 @@
     "@elizaos/app-training": "workspace:*",
     "@elizaos/cloud-shared": "workspace:*",
     "@elizaos/core": "2.0.3-beta.7",
+    "@elizaos/plugin-agent-orchestrator": "2.0.3-beta.7",
+    "@elizaos/plugin-agent-skills": "2.0.3-beta.7",
     "@elizaos/plugin-anthropic": "2.0.3-beta.7",
     "@elizaos/plugin-claude-code": "workspace:*",
     "@elizaos/plugin-codex": "workspace:*",
