@@ -1,21 +1,24 @@
-import type { AppServices } from "@/services";
-import { getNativeServices, type RuntimeLike } from "../runtime";
+import { TASK_SUPERVISOR_SERVICE_TYPE } from "@elizaos/plugin-agent-orchestrator";
+import type { RuntimeLike } from "../runtime";
+import { requireOfficialOrchestrator } from "./official";
 
+/**
+ * Compatibility result for Doolittle's former manual queue drain. The
+ * installed plugin owns supervision through its exported supervisor service
+ * type and TASKS actions; Doolittle must not start a second supervisor.
+ */
 export async function superviseEffectiveDelegationQueue(
   runtime: RuntimeLike,
-  services: AppServices,
-  runner: (task: unknown) => Promise<string>,
-  options?: {
-    concurrency?: number;
-    filter?: Record<string, unknown>;
-    onComplete?: (task: unknown) => Promise<void> | void;
-    onError?: (task: unknown, error: string) => Promise<void> | void;
-  },
+  _services: unknown,
+  _runner?: (task: unknown) => Promise<string>,
+  _options?: Record<string, unknown>,
 ) {
-  return (
-    (await getNativeServices(runtime).agentOrchestrator?.supervise?.(
-      runner,
-      options,
-    )) ?? services.delegation.supervise(runner as never, options as never)
-  );
+  requireOfficialOrchestrator(runtime);
+  return {
+    available: false,
+    delegated: true,
+    owner: TASK_SUPERVISOR_SERVICE_TYPE,
+    reason:
+      "Manual Doolittle queue supervision was removed; the official orchestrator supervises task sessions.",
+  };
 }

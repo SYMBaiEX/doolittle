@@ -1,279 +1,137 @@
-import { describe, expect, it } from "vitest";
-import type { AppServices } from "@/services";
-import type { RuntimeLike } from "../runtime";
+import { describe, expect, it, vi } from "vitest";
 import {
-  cancelEffectiveDelegationTask,
   createEffectiveDelegationTask,
-  getEffectiveDelegationChildren,
-  getEffectiveDelegationOverview,
-  getEffectiveDelegationQueue,
+  DelegationServiceUnavailableError,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
-  getEffectiveDelegationTree,
-  retryEffectiveDelegationTask,
-  spawnEffectiveDelegationChild,
+  projectOfficialTask,
   superviseEffectiveDelegationQueue,
-} from "./index";
+} from ".";
 
-function createRuntime(services: Record<string, unknown>): RuntimeLike {
+function detail(overrides: Record<string, unknown> = {}) {
   return {
-    getService(name: string) {
-      return services[name];
-    },
-  } as unknown as RuntimeLike;
+    id: "task-1",
+    title: "Official task",
+    kind: "coding",
+    status: "active",
+    priority: "normal",
+    paused: false,
+    originalRequest: "Use official orchestration",
+    summary: undefined,
+    sessionCount: 1,
+    activeSessionCount: 1,
+    latestSessionId: "session-1",
+    latestWorkdir: "/repo",
+    createdAt: "2026-07-28T00:00:00.000Z",
+    updatedAt: "2026-07-28T00:01:00.000Z",
+    closedAt: null,
+    goal: "Use official orchestration",
+    parentTaskId: null,
+    acceptanceCriteria: [],
+    providerPolicy: null,
+    metadata: {},
+    sessions: [],
+    messages: [],
+    events: [],
+    ...overrides,
+  };
 }
 
-function createServices(delegation: Record<string, unknown>): AppServices {
+function runtimeWith(service: Record<string, unknown>) {
   return {
-    delegation,
-  } as unknown as AppServices;
+    getService: (name: string) =>
+      name === "ORCHESTRATOR_TASK_SERVICE" ? service : null,
+  };
 }
 
-describe("delegation bridge selectors", () => {
-  it("prefers agent_orchestrator for task list", () => {
-    const runtime = createRuntime({
-      agent_orchestrator: {
-        tasks: () => ["native-task"],
-      },
-    });
+describe("official delegation service bridge", () => {
+  it("reads and projects the official durable task service", async () => {
+    const service = {
+      listTasks: vi.fn(async () => [detail()]),
+      getTask: vi.fn(async () => detail()),
+    };
 
-    const services = createServices({
-      list: () => ["fallback-task"],
-    });
-
-    expect(getEffectiveDelegationTasks(runtime, services)).toEqual([
-      "native-task",
-    ]);
-  });
-
-  it("falls back to coding agent when orchestrator is unavailable", () => {
-    const runtime = createRuntime({
-      coding_agent: {
-        tasks: () => ["coding-task"],
-      },
-    });
-    const services = createServices({
-      list: () => ["fallback-task"],
-    });
-
-    expect(getEffectiveDelegationTasks(runtime, services)).toEqual([
-      "coding-task",
-    ]);
-  });
-
-  it("falls back from coding task methods to services", () => {
-    const runtime = createRuntime({
-      coding_agent: {
-        tasks: () => undefined,
-      },
-    });
-    const services = createServices({
-      list: () => ["service-task"],
-      queueSummary: () => "service-queue",
-      overview: () => ({ operational: true }),
-      get: () => ({ id: "service-task" }),
-      listChildren: () => ["service-child"],
-      tree: () => ({ node: "service-tree" }),
-      requeue: () => ({ requeued: true }),
-      cancel: () => ({ canceled: true }),
-      spawnChild: () => ({ spawned: true }),
-      create: () => ({ created: true }),
-      supervise: async () => "service-supervise",
-    });
-
-    expect(getEffectiveDelegationTasks(runtime, services)).toEqual([
-      "service-task",
-    ]);
-    expect(getEffectiveDelegationQueue(runtime, services)).toBe(
-      "service-queue",
-    );
-    expect(getEffectiveDelegationOverview(runtime, services)).toEqual({
-      operational: true,
-    });
-    expect(getEffectiveDelegationTask(runtime, services, "id")).toEqual({
-      id: "service-task",
-    });
-    expect(getEffectiveDelegationChildren(runtime, services, "id")).toEqual([
-      "service-child",
-    ]);
-    expect(getEffectiveDelegationTree(runtime, services, "id")).toEqual({
-      node: "service-tree",
-    });
-    expect(
-      retryEffectiveDelegationTask(runtime, services, "id", "note"),
-    ).toEqual({ requeued: true });
-    expect(
-      cancelEffectiveDelegationTask(runtime, services, "id", "note", {
-        cascadeChildren: true,
+    await expect(
+      getEffectiveDelegationTasks(runtimeWith(service) as never),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "task-1",
+        objective: "Use official orchestration",
+        status: "running",
+        executionMode: "delegated",
       }),
-    ).toEqual({ canceled: true });
+    ]);
+    await expect(
+      getEffectiveDelegationTask(
+        runtimeWith(service) as never,
+        undefined,
+        "task-1",
+      ),
+    ).resolves.toMatchObject({ id: "task-1", status: "running" });
   });
 
-  it("maps orchestration payload on orchestrator create path", () => {
-    let createdPayload:
-      | {
-          title: string;
-          objective: string;
-          labels?: string[];
-          tags?: string[];
-          workspaceRoot?: string;
-        }
-      | undefined;
+  it("uses the official createTask object contract", async () => {
+    const createTask = vi.fn(async () => detail());
+    const service = { createTask };
 
-    const runtime = createRuntime({
-      agent_orchestrator: {
-        createTask: (
-          _title: string,
-          _objective: string,
-          options: {
-            labels?: string[];
-            tags?: string[];
-            workspaceRoot?: string;
-          },
-        ) => {
-          createdPayload = {
-            title: _title,
-            objective: _objective,
-            labels: options.labels,
-            tags: options.tags,
-            workspaceRoot: options.workspaceRoot,
-          };
-          return "created";
-        },
+    await createEffectiveDelegationTask(
+      runtimeWith(service) as never,
+      undefined,
+      {
+        title: "Migrate",
+        objective: "Remove the local store",
+        profile: "codex",
+        group: "platform",
+        priority: "high",
+        labels: ["orchestrator"],
+        workspaceRoot: "/repo",
       },
-    });
-    const services = createServices({
-      create: () => ({ notExpected: true }),
-    });
+    );
 
-    const result = createEffectiveDelegationTask(runtime, services, {
-      title: "title",
-      objective: "objective",
-      labels: ["label"],
-      workspaceRoot: "/repo/reviewed-worktree",
-      metadata: {
-        foo: "bar",
-        workspaceRoot: "/repo/unreviewed-metadata-root",
-      },
-    });
-
-    expect(result).toBe("created");
-    expect(createdPayload).toEqual({
-      title: "title",
-      objective: "objective",
-      labels: ["label"],
-      tags: ["label"],
-      workspaceRoot: "/repo/reviewed-worktree",
+    expect(createTask).toHaveBeenCalledWith({
+      title: "Migrate",
+      goal: "Remove the local store",
+      originalRequest: "Remove the local store",
+      kind: "coding",
+      priority: "high",
+      providerPolicy: { preferredFramework: "codex" },
+      metadata: expect.objectContaining({
+        group: "platform",
+        profile: "codex",
+        labels: ["orchestrator"],
+        workspaceRoot: "/repo",
+      }),
     });
   });
 
-  it("stringifies metadata payload for service fallback create path", () => {
-    const runtime = createRuntime({});
-    let createPayload: Record<string, unknown> | undefined;
-    const services = createServices({
-      create: (payload: Record<string, unknown>) => {
-        createPayload = payload;
-        return payload;
-      },
-    });
-
-    createEffectiveDelegationTask(runtime, services, {
-      title: "service-title",
-      objective: "service-objective",
-      labels: ["label"],
-      metadata: { attempts: 3, urgent: true },
-    });
-
-    expect(createPayload).toEqual({
-      title: "service-title",
-      objective: "service-objective",
-      group: undefined,
-      profile: undefined,
-      priority: undefined,
-      labels: ["label"],
-      tags: ["label"],
-      metadata: {
-        attempts: "3",
-        urgent: "true",
-      },
-      executionMode: undefined,
-      orchestrationMode: undefined,
-      maxAttempts: undefined,
+  it("returns a compatibility unavailable state for manual supervision", async () => {
+    await expect(
+      superviseEffectiveDelegationQueue(runtimeWith({}) as never, undefined),
+    ).resolves.toEqual({
+      available: false,
+      delegated: true,
+      owner: "ORCHESTRATOR_TASK_SUPERVISOR",
+      reason:
+        "Manual Doolittle queue supervision was removed; the official orchestrator supervises task sessions.",
     });
   });
 
-  it("prefers orchestrator child creation but falls back to services", () => {
-    const services = createServices({
-      spawnChild: () => ({ spawned: "service" }),
-    });
-    let nativeInput: unknown;
-
-    const runtimeWithOrchestrator = createRuntime({
-      agent_orchestrator: {
-        spawnChild: (_parentId: string, input: unknown) => {
-          nativeInput = input;
-          return { spawned: "orchestrator" };
-        },
-      },
-    });
-    const runtimeWithoutOrchestrator = createRuntime({});
-
-    expect(
-      spawnEffectiveDelegationChild(
-        runtimeWithOrchestrator,
-        services,
-        "parent",
-        {
-          title: "child",
-          objective: "nested",
-          group: "desktop",
-          executionMode: "delegated",
-        },
-      ),
-    ).toEqual({ spawned: "orchestrator" });
-    expect(nativeInput).toMatchObject({
-      title: "child",
-      objective: "nested",
-      group: "desktop",
-      executionMode: "delegated",
-    });
-
-    expect(
-      spawnEffectiveDelegationChild(
-        runtimeWithoutOrchestrator,
-        services,
-        "parent",
-        {
-          title: "child",
-          objective: "nested",
-        },
-      ),
-    ).toEqual({ spawned: "service" });
+  it("fails explicitly instead of falling back to a second task store", async () => {
+    await expect(
+      getEffectiveDelegationTasks({ getService: () => null } as never),
+    ).rejects.toBeInstanceOf(DelegationServiceUnavailableError);
   });
 
-  it("routes supervision through orchestrator then services", async () => {
-    const services = createServices({
-      supervise: async () => "service-supervised",
-    });
-
+  it("maps official terminal and paused states into the legacy read model", () => {
     expect(
-      await superviseEffectiveDelegationQueue(
-        createRuntime({
-          agent_orchestrator: {
-            supervise: async () => "native-supervised",
-          },
-        }),
-        services,
-        async () => "ok",
-      ),
-    ).toBe("native-supervised");
-
+      projectOfficialTask(detail({ status: "done" }) as never).status,
+    ).toBe("completed");
     expect(
-      await superviseEffectiveDelegationQueue(
-        createRuntime({}),
-        services,
-        async () => "ok",
-      ),
-    ).toBe("service-supervised");
+      projectOfficialTask(detail({ status: "active", paused: true }) as never)
+        .status,
+    ).toBe("pending");
+    expect(
+      projectOfficialTask(detail({ status: "archived" }) as never).status,
+    ).toBe("cancelled");
   });
 });
