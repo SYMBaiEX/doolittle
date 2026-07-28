@@ -4,6 +4,47 @@ import type { extractCompatTextContent } from "./state";
 
 export type ProviderStreamSource = "unset" | "callback" | "onStreamChunk";
 
+const INTERNAL_CALLBACK_EVENT_TYPES = new Set([
+  "tool_call",
+  "tool_result",
+  "tool_error",
+  "evaluation",
+  "context",
+  "context_event",
+]);
+
+function isInternalCallbackEventType(value: unknown): boolean {
+  return typeof value === "string" && INTERNAL_CALLBACK_EVENT_TYPES.has(value);
+}
+
+function isInternalCallbackContent(
+  content: Content,
+  actionName?: string,
+): boolean {
+  if (actionName?.trim()) {
+    return true;
+  }
+
+  if (isInternalCallbackEventType(content.type)) {
+    return true;
+  }
+
+  if (typeof content.text !== "string") {
+    return false;
+  }
+
+  try {
+    const envelope: unknown = JSON.parse(content.text);
+    return (
+      typeof envelope === "object" &&
+      envelope !== null &&
+      isInternalCallbackEventType((envelope as { type?: unknown }).type)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export type ProviderModelResponseProgress = {
   chunk: string;
   response: string;
@@ -22,7 +63,10 @@ export type ProviderModelStreamingContext = {
 
 export type ProviderStreamState = {
   appendIncomingText: (incoming: string) => Promise<void>;
-  onCallbackContent: (content: Content) => Promise<Memory[]>;
+  onCallbackContent: (
+    content: Content,
+    actionName?: string,
+  ) => Promise<Memory[]>;
   onStreamChunk: (chunk: string) => Promise<void>;
   getResponse: () => string;
   setResponse: (nextResponse: string) => void;
@@ -82,7 +126,10 @@ export function createProviderStreamState(
 
   return {
     appendIncomingText,
-    onCallbackContent: async (content: Content) => {
+    onCallbackContent: async (content: Content, actionName?: string) => {
+      if (isInternalCallbackContent(content, actionName)) {
+        return [];
+      }
       const chunk = context.extractCompatTextContent(content);
       if (!chunk || !claimStreamSource("callback")) {
         return [];

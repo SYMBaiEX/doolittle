@@ -62,6 +62,68 @@ describe("chat turn provider streaming", () => {
     ]);
   });
 
+  it("does not surface structured internal callback envelopes as assistant text", async () => {
+    const { state, progress } = makeStreamingState();
+    const internalCallbacks = [
+      {
+        type: "tool_call",
+        text: '{"type":"tool_call","toolName":"read_file"}',
+      },
+      {
+        type: "tool_result",
+        text: '{"type":"tool_result","toolName":"read_file","output":"secret"}',
+      },
+      {
+        type: "evaluation",
+        text: '{"type":"evaluation","status":"complete"}',
+      },
+      {
+        type: "context_event",
+        text: '{"type":"context_event","event":{"type":"context"}}',
+      },
+      {
+        text: '{"type":"context","name":"workspace"}',
+      },
+    ] as Content[];
+
+    for (const content of internalCallbacks) {
+      await state.onCallbackContent(content);
+    }
+    await state.onCallbackContent({ text: "Visible reply." } as Content);
+
+    expect(state.getResponse()).toBe("Visible reply.");
+    expect(progress).toEqual([
+      { response: "Visible reply.", chunk: "Visible reply." },
+    ]);
+  });
+
+  it("continues to surface normal assistant callback text", async () => {
+    const { state } = makeStreamingState();
+
+    await state.onCallbackContent({
+      text: "I can use a tool_call if needed.",
+    } as Content);
+
+    expect(state.getResponse()).toBe("I can use a tool_call if needed.");
+  });
+
+  it("uses the SDK action attribution argument to hide action output", async () => {
+    const { state, progress } = makeStreamingState();
+
+    await state.onCallbackContent(
+      {
+        text: '{"results":[{"title":"Large raw tool response"}]}',
+      } as Content,
+      "WEB_SEARCH",
+    );
+    await state.onCallbackContent({ text: "Grounded answer." } as Content);
+
+    expect(state.getResponse()).toBe("Grounded answer.");
+    expect(progress).toEqual([
+      { response: "Grounded answer.", chunk: "Grounded answer." },
+    ]);
+  });
+
   it("updates and resets response without progress callback", async () => {
     const { state, progress } = makeStreamingState({ onProgress: false });
 

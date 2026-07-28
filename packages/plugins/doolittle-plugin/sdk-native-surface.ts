@@ -2,6 +2,7 @@ import { webSearch } from "@elizaos/agent/runtime/actions/web-search";
 import type {
   Action,
   ActionParameters,
+  ActionResult,
   HandlerOptions,
   JsonValue,
   Memory,
@@ -61,6 +62,77 @@ function resolveWebSearchQuery(
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+type WebSearchResult = {
+  title?: unknown;
+  url?: unknown;
+  excerpt?: unknown;
+  excerpts?: unknown;
+  snippet?: unknown;
+};
+
+function cleanSearchText(value: string, maxChars: number): string {
+  const clean = value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[`*_>#]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (clean.length <= maxChars) return clean;
+  return `${clean.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
+function safeResultUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function webSearchFallbackText(
+  query: string,
+  result: ActionResult,
+): string | undefined {
+  if (!result.success || typeof result.text !== "string") return undefined;
+  try {
+    const parsed = JSON.parse(result.text) as { results?: unknown };
+    if (!Array.isArray(parsed.results)) return undefined;
+    const rows = parsed.results.slice(0, 5).flatMap((candidate, index) => {
+      if (!candidate || typeof candidate !== "object") return [];
+      const item = candidate as WebSearchResult;
+      const url = safeResultUrl(item.url);
+      const rawTitle =
+        typeof item.title === "string"
+          ? item.title
+          : url
+            ? new URL(url).hostname
+            : `Result ${index + 1}`;
+      const title = cleanSearchText(rawTitle, 120).replaceAll("]", "\\]");
+      const rawExcerpt = Array.isArray(item.excerpts)
+        ? (item.excerpts.find(
+            (excerpt): excerpt is string => typeof excerpt === "string",
+          ) ?? "")
+        : typeof item.excerpt === "string"
+          ? item.excerpt
+          : typeof item.snippet === "string"
+            ? item.snippet
+            : "";
+      const excerpt = cleanSearchText(rawExcerpt, 320);
+      const heading = url
+        ? `${index + 1}. [${title}](${url})`
+        : `${index + 1}. ${title}`;
+      return [`${heading}${excerpt ? `\n   ${excerpt}` : ""}`];
+    });
+    if (rows.length === 0) return undefined;
+    return `### Web results for “${cleanSearchText(query, 160)}”\n\n${rows.join("\n\n")}`;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * The SDK shortcut gate supplies captured slots at the top level of
  * HandlerOptions, while planner-selected actions receive validated parameters
@@ -86,14 +158,24 @@ export function createShortcutCompatibleWebSearchAction(
         ...(options ?? {}),
         parameters,
       };
-      return sourceAction.handler(
+      const result = await sourceAction.handler(
         runtime,
         message,
         state,
         normalizedOptions,
-        callback,
+        callback
+          ? (content) => callback(content, sourceAction.name)
+          : undefined,
         responses,
       );
+      const fallback = result
+        ? webSearchFallbackText(query ?? messageText(message), result)
+        : undefined;
+      if (!result || !fallback || result.userFacingText) return result;
+      return {
+        ...result,
+        userFacingText: fallback,
+      };
     },
   };
 }

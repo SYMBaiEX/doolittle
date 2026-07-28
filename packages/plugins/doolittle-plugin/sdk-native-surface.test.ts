@@ -141,4 +141,41 @@ describe("Eliza-native Doolittle surface", () => {
       "searched:ElizaOS shortcuts",
     );
   });
+
+  it("attributes callbacks and supplies an SDK-native final-answer fallback", async () => {
+    const callback = vi.fn(async () => []);
+    const action = createShortcutCompatibleWebSearchAction({
+      name: "WEB_SEARCH",
+      description: "Search the web",
+      validate: vi.fn(async () => true),
+      handler: vi.fn(async (_runtime, _message, _state, _options, onResult) => {
+        await onResult?.({
+          text: '{"results":[{"title":"ElizaOS overview","url":"https://docs.elizaos.ai/projects/overview","excerpts":["# Overview\\nElizaOS projects are deployable agent applications."]}]}',
+        });
+        return {
+          success: true,
+          text: '{"results":[{"title":"ElizaOS overview","url":"https://docs.elizaos.ai/projects/overview","excerpts":["# Overview\\nElizaOS projects are deployable agent applications."]}]}',
+        };
+      }),
+    } as Action);
+    const message = {
+      content: { text: "What is ElizaOS?" },
+    } as Memory;
+
+    const result = await action.handler(
+      {} as never,
+      message,
+      undefined,
+      { parameters: { query: "ElizaOS" } },
+      callback,
+    );
+
+    expect(callback).toHaveBeenCalledWith(expect.anything(), "WEB_SEARCH");
+    expect(result?.userFacingText).toContain(
+      "[ElizaOS overview](https://docs.elizaos.ai/projects/overview)",
+    );
+    expect(result?.userFacingText).toContain(
+      "ElizaOS projects are deployable agent applications.",
+    );
+  });
 });
