@@ -7,8 +7,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { dirname, join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 
 async function loadSnapshotModule() {
   return import("./index");
@@ -38,33 +38,38 @@ async function withIsolatedAuthStore<T>(
 
 describe.sequential("linked provider account auth snapshot", () => {
   it("detects reusable Codex auth from the local CLI store", async () => {
-    await withIsolatedAuthStore(async () => {
-      const home = mkdtempSync(join(tmpdir(), "doolittle-codex-auth-"));
-      mkdirSync(join(home, ".codex"), { recursive: true });
-      writeFileSync(
-        join(home, ".codex", "auth.json"),
-        JSON.stringify({
-          auth_mode: "chatgpt",
-          last_refresh: "2026-03-21T12:00:00.000Z",
-          tokens: {
-            access_token: "access",
-            refresh_token: "refresh",
-          },
-        }),
-        "utf8",
-      );
+    vi.stubEnv("PATH", dirname(process.execPath));
+    try {
+      await withIsolatedAuthStore(async () => {
+        const home = mkdtempSync(join(tmpdir(), "doolittle-codex-auth-"));
+        mkdirSync(join(home, ".codex"), { recursive: true });
+        writeFileSync(
+          join(home, ".codex", "auth.json"),
+          JSON.stringify({
+            auth_mode: "chatgpt",
+            last_refresh: "2026-03-21T12:00:00.000Z",
+            tokens: {
+              access_token: "access",
+              refresh_token: "refresh",
+            },
+          }),
+          "utf8",
+        );
 
-      const mod = await loadSnapshotModule();
-      const snapshot = mod.getLinkedProviderAccountsSnapshot(home);
-      expect(snapshot.codex.reusable).toBe(true);
-      expect(snapshot.codex.nativeReady).toBe(true);
-      expect(snapshot.codex.fallbackReady).toBe(false);
-      expect(snapshot.codex.authMode).toBe("chatgpt");
-      expect(snapshot.codex.source).toContain(".codex/auth.json");
-      const advice = mod.getLinkedProviderConnectAdvice("codex", home);
-      expect(advice.ready).toBe(true);
-      expect(advice.preferredAction).toBe("use");
-    });
+        const mod = await loadSnapshotModule();
+        const snapshot = mod.getLinkedProviderAccountsSnapshot(home);
+        expect(snapshot.codex.reusable).toBe(true);
+        expect(snapshot.codex.nativeReady).toBe(true);
+        expect(snapshot.codex.fallbackReady).toBe(false);
+        expect(snapshot.codex.authMode).toBe("chatgpt");
+        expect(snapshot.codex.source).toContain(".codex/auth.json");
+        const advice = mod.getLinkedProviderConnectAdvice("codex", home);
+        expect(advice.ready).toBe(true);
+        expect(advice.preferredAction).toBe("use");
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it.sequential("refreshes expired Codex credentials and rewrites the local and stored auth state", async () => {
