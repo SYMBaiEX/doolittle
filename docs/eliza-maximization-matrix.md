@@ -1,6 +1,6 @@
 # Eliza Maximization Matrix
 
-Last updated: May 15, 2026
+Last updated: July 28, 2026
 
 This matrix tracks where Doolittle is already strongly aligned with the
 ElizaOS beta-targeted runtime stack and where native service ownership can still
@@ -10,7 +10,7 @@ increase.
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Runtime core | `elizaos`, `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills` | Foundation packages still drive more audit and control-plane visibility than direct runtime behavior | `@elizaos/agent`, `@elizaos/skills` |
+| Runtime core | `@elizaos/core` `AgentRuntime` + `DefaultMessageService`, `@elizaos/agent`, `@elizaos/skills` | The product still owns the outer CLI/API/desktop harness and runtime boot policy | Evaluate the top-level `ElizaOS` harness only when it preserves Doolittle's provider and local-runtime guarantees |
 | Native plugin assembly | [`packages/agent/src/runtime/native/plugin-registry/index.ts`](../packages/agent/src/runtime/native/plugin-registry/index.ts), `@elizaos/agent/services/registry-client` | Some plugin inventory and service ownership still flow through product summaries | Use exported registry/plugin-manager contracts before adding direct plugin-manager dependencies |
 | Agent SDK usage | [`packages/agent/src/runtime/native/agent-sdk.ts`](../packages/agent/src/runtime/native/agent-sdk.ts), [`packages/agent/src/services/agent-sdk-service.ts`](../packages/agent/src/services/agent-sdk-service.ts) | Registry/catalog/compat data is not yet the dominant source for all runtime/operator decisions | `@elizaos/agent` |
 
@@ -18,7 +18,7 @@ increase.
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Knowledge ingestion | `@elizaos/plugin-pdf`, `@elizaos/agent/api/knowledge-routes`, [`packages/agent/src/services/documents-service.ts`](../packages/agent/src/services/documents-service.ts) | Product memory and documents services still own too much of the ingest/recall flow | Move recall, ingest status, and document lifecycle closer to installed native knowledge APIs |
+| Knowledge ingestion | `@elizaos/plugin-pdf`, installed native knowledge service, [`packages/agent/src/services/documents-service.ts`](../packages/agent/src/services/documents-service.ts) | Product memory and document lifecycle remain harness-owned where the installed SDK has no equivalent | Move recall and ingest status closer to the installed knowledge service without inventing unpublished SDK routes |
 | Embeddings | `@elizaos/plugin-ollama`, ElizaOS local embedding support through installed provider packages | Doolittle should keep embedding ownership in official SDK/provider packages instead of workspace shadow packages | `@elizaos/plugin-ollama` plus exported local embedding support when it becomes a direct dependency |
 | Personality | [`packages/plugins/doolittle-plugin/identity/personality`](../packages/plugins/doolittle-plugin/identity/personality), [`packages/agent/src/services/personality-service.ts`](../packages/agent/src/services/personality-service.ts) | Doolittle keeps product-specific personality behavior while exposing it as an Eliza service | Doolittle identity facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
 | User profiles and memory | [`packages/plugins/doolittle-plugin/identity/rolodex`](../packages/plugins/doolittle-plugin/identity/rolodex), [`packages/agent/src/services/user-profile/service/index.ts`](../packages/agent/src/services/user-profile/service/index.ts) | Profile flows are Doolittle-owned but exposed through a native service boundary | Doolittle profile facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
@@ -28,18 +28,18 @@ increase.
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Shell and execution | `@elizaos/agent/actions/terminal`, `@elizaos/agent/services/sandbox-engine`, [`packages/agent/src/services/terminal/service.ts`](../packages/agent/src/services/terminal/service.ts) | Runtime and operator surfaces still sometimes treat shell as a product capability first | Push command policy, sandbox selection, and execution receipts toward exported native execution contracts |
-| Coding agent | [`packages/plugins/doolittle-plugin/coding-agent`](../packages/plugins/doolittle-plugin/coding-agent), `@elizaos/agent/services/coding-agent-context` | Doolittle coding behavior is product-owned but exposed as an Eliza plugin/service | Keep Doolittle UX and local-development semantics, but reuse exported coding-agent contracts where they match |
-| Orchestrator | [`@elizaos/plugin-agent-orchestrator`](https://www.npmjs.com/package/@elizaos/plugin-agent-orchestrator), [`packages/agent/src/services/delegation/service/index.ts`](../packages/agent/src/services/delegation/service/index.ts), `@elizaos/agent/api/coding-agents-fallback-routes` | Official plugin owns the native service boundary; Doolittle retains product delegation UX | Keep Doolittle supervision UX while integrating through the official orchestrator contracts |
-| Scheduling | `@elizaos/agent/triggers/scheduling`, [`packages/agent/src/services/cron/service/index.ts`](../packages/agent/src/services/cron/service/index.ts) | Better than before, but product cron surfaces still outnumber native ones | Keep cron and heartbeat semantics aligned with `@elizaos/agent` trigger contracts |
+| Shell and execution | Eliza action contracts and `ActionResult`, `@elizaos/agent/services/sandbox-manager`, [`packages/agent/src/services/terminal/service.ts`](../packages/agent/src/services/terminal/service.ts) | Doolittle retains approval, backend selection, and operator receipts around SDK execution primitives | Keep product policy at the boundary and avoid reintroducing a parallel execution lifecycle |
+| Coding agent | [`packages/plugins/doolittle-plugin/coding-agent`](../packages/plugins/doolittle-plugin/coding-agent), native action/provider/service registration | Doolittle coding behavior remains product-owned where the beta SDK has no matching high-level workflow | Keep repository UX local while using published action, service, sandbox, and orchestrator contracts |
+| Orchestrator | [`@elizaos/plugin-agent-orchestrator`](https://www.npmjs.com/package/@elizaos/plugin-agent-orchestrator), [`packages/agent/src/services/delegation/service/index.ts`](../packages/agent/src/services/delegation/service/index.ts) | Official plugin owns the native service boundary; Doolittle retains product delegation and supervision UX | Extend through the official service contract rather than restoring the removed local shadow |
+| Scheduling | `@elizaos/agent/triggers/runtime`, `@elizaos/agent/triggers/scheduling`, [`packages/plugins/doolittle-plugin/trigger-runtime-service.ts`](../packages/plugins/doolittle-plugin/trigger-runtime-service.ts) | Trigger Tasks are canonical; Doolittle still owns operator-friendly automation definitions, conditions, actions, and receipts | Keep product automation UX projected onto SDK tasks and upstream reusable receipt fields when available |
 
 ## Browser, MCP, and Research
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Browser | `@elizaos/agent/services/browser-capture`, [`packages/agent/src/services/web/service.ts`](../packages/agent/src/services/web/service.ts) | Product web workflows still own most advanced behavior | Reuse exported native browser/capture contracts while keeping Doolittle's operator receipts |
+| Browser | Eliza browser service boundary, [`packages/agent/src/services/web/service.ts`](../packages/agent/src/services/web/service.ts), explicit web and research actions | Product web workflows still own capture and evidence behavior because the installed beta exposes no adopted high-level capture service | Keep web access action-native and preserve URL, approval, and evidence policy at the product boundary |
 | MCP | `@elizaos/agent/services/mcp-marketplace`, [`packages/agent/src/services/mcp/service.ts`](../packages/agent/src/services/mcp/service.ts) | Marketplace discovery is native, while local MCP execution remains product-owned | Push server discovery through the native marketplace helpers and keep execution receipts local until an execution plugin is a direct dependency |
-| Skill synthesis and catalog | `@elizaos/skills`, `@elizaos/agent/services/skill-catalog-client`, `@elizaos/agent/services/skill-marketplace`, [`packages/agent/src/services/skills/service.ts`](../packages/agent/src/services/skills/service.ts) | Local/generated/catalog skills are still not unified enough under one native-first shape | Keep broad skill catalog behavior while using native skill manifests as the canonical shape |
+| Skill synthesis and catalog | `@elizaos/skills`, official agent-skills plugin, [`packages/agent/src/services/skills/service.ts`](../packages/agent/src/services/skills/service.ts), local marketplace compatibility adapter | Local/generated/catalog skills are not yet unified under one published beta contract | Keep native skill manifests canonical and retire compatibility adapters as the SDK publishes equivalent exports |
 | Trajectories | `@elizaos/core` trajectory context/logger APIs, `@elizaos/agent/runtime/trajectory-persistence`, [`packages/agent/src/services/trajectory/sdk-native.ts`](../packages/agent/src/services/trajectory/sdk-native.ts), [`packages/agent/src/services/trajectory/service/index.ts`](../packages/agent/src/services/trajectory/service/index.ts) | Research/operator flows still expose product trajectory concepts before native logger ownership in some places | Keep Doolittle-rich receipts while exporting Eliza-native training artifacts |
 
 ## Messaging and Control Plane
@@ -53,7 +53,7 @@ increase.
 ## Current Highest-Value Next Steps
 
 1. Let exported registry and plugin-manager contracts drive more runtime/operator/tool inventory directly.
-2. Let installed knowledge APIs, official embedding providers, rolodex, personality, and experience facets drive more memory and profile behavior directly.
-3. Let exported coding-agent, orchestrator, sandbox, and terminal contracts drive more execution/delegation behavior directly.
-4. Keep pushing Telegram further into native runtime ownership, and keep Discord clearly gateway-owned until a direct native dependency is added.
-5. Keep expanding skills breadth and native skill catalog usage together.
+2. Move installed knowledge and official embedding services closer to the center of recall and document lifecycle without naming unpublished SDK entrypoints.
+3. Keep execution, automation, orchestration, and mutation proof on their new SDK-owned contracts; remove compatibility facades when their final callers disappear.
+4. Keep Telegram moving into native runtime ownership, and keep Discord clearly gateway-owned until a direct native dependency is installed.
+5. Retire skill marketplace compatibility code as `@elizaos/skills` and the official agent-skills plugin publish matching catalog APIs.

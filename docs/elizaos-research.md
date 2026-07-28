@@ -25,9 +25,14 @@ Implications:
 
 ## Current Architecture Findings
 
-### 1. The New `ElizaOS` Orchestrator Is A Better Harness Boundary
+### 1. The New `ElizaOS` Orchestrator Is An Upstream Harness Option
 
 The current runtime docs show `ElizaOS` handling plugin resolution, multi-agent orchestration, `addAgents`, `startAgents`, `handleMessage`, streaming callbacks, events, and health checks.
+
+Doolittle does not currently construct this top-level `ElizaOS` class. Its
+production boot creates `AgentRuntime` directly, installs official plugins and
+services, and hands normal turns to `DefaultMessageService`. This section is an
+upstream option to evaluate, not a description of committed architecture.
 
 What that means for Doolittle:
 
@@ -77,10 +82,13 @@ Implication for Doolittle:
 ### Highest-Value Next Refactors
 
 1. Treat Doolittle as the harness around ElizaOS rather than a replacement agent runtime.
-2. Evaluate replacing remaining bespoke runtime boot logic with the `ElizaOS` orchestrator where the alpha SDK now supports it cleanly.
+2. Evaluate replacing remaining harness boot logic with the top-level `ElizaOS`
+   orchestrator only where the installed beta SDK supports it without losing
+   desktop, provider, or local-first lifecycle guarantees.
 3. Promote gateway lifecycle and account/provider bridges into real ElizaOS `Service` classes where they are still app-bound.
 4. Move runtime-owned HTTP surfaces into plugin routes when the ownership boundary is clear.
-5. Keep package audit/version tooling explicit about `latest` versus `alpha`, because npm dist-tags are mixed across the ecosystem.
+5. Keep package audit/version tooling explicit about `latest` versus `beta`,
+   because npm dist-tags are mixed across the ecosystem.
 
 ## Sources Consulted
 
