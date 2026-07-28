@@ -1,7 +1,12 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
+import {
+  addEffectiveDelegationNote,
+  cancelEffectiveDelegationTask,
+  completeEffectiveDelegationTask,
+  createEffectiveDelegationTask,
+} from "@/runtime/native/service-bridge/delegation";
 
-export function createAutocoderWorkflowContext(
+export async function createAutocoderWorkflowContext(
   context: AppContext,
   input: {
     title: string;
@@ -15,7 +20,7 @@ export function createAutocoderWorkflowContext(
   },
 ) {
   const sessionId = input.sessionId ?? "api:local-user";
-  const task = createEffectiveDelegationTask(
+  const task = await createEffectiveDelegationTask(
     context.runtime,
     context.services,
     {
@@ -33,8 +38,7 @@ export function createAutocoderWorkflowContext(
       },
       executionMode: "local",
     },
-  ) as { id: string };
-  context.services.delegation.markRunning(task.id);
+  );
   const workflow = context.services.autocoderPipeline.startWorkflow({
     title: input.title,
     objective: input.objective,
@@ -44,7 +48,8 @@ export function createAutocoderWorkflowContext(
     sessionId,
     taskId: task.id,
   });
-  context.services.delegation.addNote(
+  await addEffectiveDelegationNote(
+    context.runtime,
     task.id,
     `system: attached autocoder workflow ${workflow.id}`,
   );
@@ -55,24 +60,30 @@ export function createAutocoderWorkflowContext(
   };
 }
 
-export function completeAutocoderWorkflowContext(
+export async function completeAutocoderWorkflowContext(
   context: AppContext,
   taskId: string,
   workflowId: string,
   note: string,
-): void {
-  context.services.delegation.complete(
+): Promise<void> {
+  await completeEffectiveDelegationTask(
+    context.runtime,
     taskId,
     `${note} workflow=${workflowId}`,
   );
 }
 
-export function failAutocoderWorkflowContext(
+export async function failAutocoderWorkflowContext(
   context: AppContext,
   taskId: string,
   workflowId: string,
   error: unknown,
-): void {
+): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
-  context.services.delegation.fail(taskId, `${message} workflow=${workflowId}`);
+  await cancelEffectiveDelegationTask(
+    context.runtime,
+    context.services,
+    taskId,
+    `${message} workflow=${workflowId}`,
+  );
 }
