@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env nub
 
 import { spawnSync } from "node:child_process";
 

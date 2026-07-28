@@ -1,52 +1,44 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-  spyOn,
-} from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BootstrapAbortError } from "./bootstrap/abort";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("bootstrap program", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("returns a non-zero status when the wizard aborts", async () => {
-    mock.module("./bootstrap/core/env-file", () => ({
+    const { BootstrapAbortError } = await import("./bootstrap/abort");
+    vi.doMock("./bootstrap/core/env-file", () => ({
       ensureEnvFile: () => [],
       readEnvEntries: () => new Map<string, string>(),
     }));
-    mock.module("./bootstrap/persistence/apply", () => ({
-      applyBootstrapAnswers: mock(async () => {
+    vi.doMock("./bootstrap/persistence/apply", () => ({
+      applyBootstrapAnswers: vi.fn(async () => {
         throw new Error("apply should not run after an abort");
       }),
     }));
-    mock.module("./bootstrap/wizard/dependencies", () => ({
+    vi.doMock("./bootstrap/wizard/dependencies", () => ({
       getDependencyProbes: () => [],
     }));
-    mock.module("./bootstrap/wizard-flow", () => ({
-      runWizard: mock(async () => {
+    vi.doMock("./bootstrap/wizard-flow", () => ({
+      runWizard: vi.fn(async () => {
         throw new BootstrapAbortError();
       }),
     }));
 
     const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-"));
     try {
-      const { runBootstrapProgram } = await import(
-        `./bootstrap?bootstrap-tests=${Date.now()}-${Math.random()}`
-      );
+      const { runBootstrapProgram } = await import("./bootstrap");
 
       await expect(runBootstrapProgram({ root })).resolves.toBe(1);
     } finally {
@@ -55,31 +47,29 @@ describe("bootstrap program", () => {
   });
 
   it("prints a file-level dry-run receipt in check mode", async () => {
-    mock.module("./bootstrap/core/env-file", () => ({
+    vi.doMock("./bootstrap/core/env-file", () => ({
       ensureEnvFile: () => [".env would be created"],
       readEnvEntries: () => new Map<string, string>(),
     }));
-    mock.module("./bootstrap/wizard/dependencies", () => ({
-      getDependencyProbes: () => [{ label: "Bun runtime", installed: true }],
+    vi.doMock("./bootstrap/wizard/dependencies", () => ({
+      getDependencyProbes: () => [{ label: "Nub toolkit", installed: true }],
     }));
-    mock.module("./bootstrap/wizard-flow", () => ({
-      runWizard: mock(async () => {
+    vi.doMock("./bootstrap/wizard-flow", () => ({
+      runWizard: vi.fn(async () => {
         throw new Error("wizard should not run in check mode");
       }),
     }));
 
     const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-"));
     const lines: string[] = [];
-    const logSpy = spyOn(console, "log").mockImplementation(
-      (value?: unknown) => {
+    const logSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation((value?: unknown) => {
         lines.push(String(value ?? ""));
-      },
-    );
+      });
 
     try {
-      const { runBootstrapProgram } = await import(
-        `./bootstrap?bootstrap-tests=${Date.now()}-${Math.random()}`
-      );
+      const { runBootstrapProgram } = await import("./bootstrap");
 
       await expect(
         runBootstrapProgram({ root, args: ["--check"] }),
@@ -99,7 +89,7 @@ describe("bootstrap program", () => {
     expect(output).toContain("- .doolittle/gateway/gateway.json");
     expect(output).toContain("- .doolittle/onboarding.json");
     expect(output).toContain("- .doolittle/onboarding.state.json");
-    expect(output).toContain("- Bun runtime: online");
+    expect(output).toContain("- Nub toolkit: online");
     expect(output).toContain("- .env would be created");
   });
 });

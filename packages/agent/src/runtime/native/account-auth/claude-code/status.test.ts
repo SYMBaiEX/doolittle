@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import * as statusBuilders from "../claude-code-support/status-builders";
 import * as legacyStatus from "./status";
 

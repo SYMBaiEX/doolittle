@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { GatewayConfig } from "@/types/gateway";
 import type { EnvConfig } from "@/types/runtime";
 import {

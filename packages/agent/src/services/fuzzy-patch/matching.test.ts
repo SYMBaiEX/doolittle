@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { editDistance, fuzzyMatch, normaliseLine } from "./matching";
 
 describe("fuzzy patch matching", () => {

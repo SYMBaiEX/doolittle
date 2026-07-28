@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { formatLoggerError, normalizeLogFields } from "./serialize";
 
 describe("@doolittle/logger serialize", () => {

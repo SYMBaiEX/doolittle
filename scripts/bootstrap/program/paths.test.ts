@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { ensureBootstrapDirectories, resolveBootstrapPaths } from "./paths";
 
 describe("bootstrap program paths", () => {

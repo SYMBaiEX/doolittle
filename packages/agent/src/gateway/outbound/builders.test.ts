@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import type {
   DeliveredMessageRecord,

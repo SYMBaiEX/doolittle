@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import { getEffectiveSkillsSummary } from "./autonomous-skills";
 import type { RuntimeLike } from "./runtime";

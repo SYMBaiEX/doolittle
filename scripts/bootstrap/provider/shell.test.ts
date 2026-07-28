@@ -1,39 +1,39 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 
 describe("bootstrap provider shell helper", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("suspends and restores the wizard screen around interactive commands", async () => {
     const snapshot = { title: "Awakening" };
-    const spawnSync = mock(() => ({ status: 0 }));
-    const suspendWizardScreen = mock(() => snapshot);
-    const restoreWizardScreen = mock(() => {});
+    const spawnSync = vi.fn(() => ({ status: 0 }));
+    const suspendWizardScreen = vi.fn(() => snapshot);
+    const restoreWizardScreen = vi.fn(() => {});
 
-    mock.module("node:child_process", () => ({
+    vi.doMock("node:child_process", () => ({
       spawnSync,
     }));
-    mock.module("../wizard-screen/lifecycle", () => ({
+    vi.doMock("../wizard-screen/lifecycle", () => ({
       suspendWizardScreen,
       restoreWizardScreen,
     }));
 
-    const { runInteractiveCommand } = await import(
-      `./shell?shell-tests=${Date.now()}-${Math.random()}`
-    );
+    const { runInteractiveCommand } = await import("./shell");
 
     const context = {
-      section: mock(() => {}),
-      info: mock(() => {}),
-      warn: mock(() => {}),
+      section: vi.fn(() => {}),
+      info: vi.fn(() => {}),
+      warn: vi.fn(() => {}),
     } as unknown as BootstrapWizardContext;
 
     const result = runInteractiveCommand(

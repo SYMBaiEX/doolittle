@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { applyTuiLayout, type TuiLayoutWidgets } from "@/cli/tui-layout";
 
 function createLayout(): TuiLayoutWidgets {

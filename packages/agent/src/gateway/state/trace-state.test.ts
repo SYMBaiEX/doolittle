@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { PlatformPresenceState } from "../platforms/base";
 import type { GatewayTraceRecord } from "../read/history-view";
 import {

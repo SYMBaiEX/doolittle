@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { SessionService } from "../session/service";
 import { createTrajectoryServiceHosts } from "./service-support";
 

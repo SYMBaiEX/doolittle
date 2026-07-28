@@ -1,8 +1,8 @@
-import { describe, expect, it } from "bun:test";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import { buildInventoryRows } from "./inventory";
 
-const repoRoot = resolve(import.meta.dir, "..", "..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 describe("buildInventoryRows", () => {
   it("classifies the autocoder and product runtime rows truthfully", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { PlatformLifecycleEvent } from "@/gateway/platforms/base";
 import { observeGatewayRunnerAdapter } from "@/gateway/runner/service-runtime/platforms";
 import { GatewayRunnerRuntimeState } from "@/gateway/runner/service-runtime/state";

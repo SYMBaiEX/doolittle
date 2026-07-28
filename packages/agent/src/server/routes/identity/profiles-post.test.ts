@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { handleIdentityProfilePostRoute } from "./profiles-post";
 import { createIdentityTestContext } from "./test-context";
 

@@ -14,7 +14,11 @@ CHECK_ONLY=0
 ASSUME_YES=0
 LAUNCH_DESKTOP=0
 PACKAGE_INSTALLER=0
+NUB_VERSION="0.6.0"
 LOCAL_BIN_DIR="${HOME}/.local/bin"
+NUB_TOOL_ROOT="${HOME}/.local/share/doolittle/tooling"
+NUB_BIN="${NUB_TOOL_ROOT}/bin/nub"
+NUB_COMMAND=""
 DOOLITTLE_BIN_LINK="${LOCAL_BIN_DIR}/doolittle"
 DOOLITTLE_BIN_SOURCE="${ROOT}/packages/agent/src/index.ts"
 DOOLITTLE_SHORT_LINK="${LOCAL_BIN_DIR}/dl"
@@ -44,7 +48,7 @@ windows_installer_notice() {
   printf "%s\n" "On Windows, use scripts/install.ps1 for equivalent bootstrap behavior."
   printf "%s\n" "To build/download it:"
   printf "%s\n" "  1) Ensure changes are committed/pushed and tag a release, or run locally:"
-  printf "%s\n" "     bun run desktop:package:win"
+  printf "%s\n" "     nub run desktop:package:win"
   printf "%s\n" "  2) Copy apps/desktop/release/Doolittle-<version>-win-x64.exe to Windows."
   printf "%s\n" "  3) Run the .exe, then launch 'Doolittle Desktop' or use 'doolittle.exe' from Start Menu."
   printf "%s\n" "  4) See docs/desktop.md -> Windows installer section."
@@ -95,7 +99,7 @@ reset=$'\033[0m'
 printf "%s\n" \
   "${orange}╔══════════════════════════════════════════════════════════════╗${reset}" \
   "${orange}${bold}║                  DOOLITTLE // INSTALLER                     ║${reset}" \
-  "${orange}║      Bun-first install and first-contact onboarding         ║${reset}" \
+  "${orange}║      Nub-powered install and first-contact onboarding       ║${reset}" \
   "${orange}╚══════════════════════════════════════════════════════════════╝${reset}"
 printf "%s\n" "${dim}  This ritual installs the stack, seeds the workspace, and begins first contact.${reset}"
 
@@ -142,14 +146,63 @@ elif [[ "$OS_NAME" == "linux" ]]; then
   printf "%s\n" "${dim}  Host: Linux detected. I will keep the local ~/.local/bin workflow and shell-first defaults.${reset}"
 fi
 
-if ! command -v bun >/dev/null 2>&1; then
-  echo "Doolittle requires Bun. Install Bun first, then rerun scripts/install.sh."
-  exit 1
-fi
+ensure_nub() {
+  mkdir -p "$LOCAL_BIN_DIR"
+  export PATH="${NUB_TOOL_ROOT}/bin:${LOCAL_BIN_DIR}:$PATH"
+
+  if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    echo "The source installer needs Node.js 18.19+ to install Nub."
+    echo "Install Node.js, then rerun scripts/install.sh."
+    echo "The standalone Doolittle Desktop installer does not require Node.js or Nub."
+    exit 1
+  fi
+
+  local installed_version=""
+  if [[ -x "$NUB_BIN" ]]; then
+    installed_version="$("$NUB_BIN" --version 2>/dev/null | head -n 1 | sed 's/^v//')"
+  fi
+  if [[ "$installed_version" == "$NUB_VERSION" ]]; then
+    NUB_COMMAND="$NUB_BIN"
+    return
+  fi
+  if [[ "$CHECK_ONLY" -eq 1 ]]; then
+    if command -v nub >/dev/null 2>&1; then
+      installed_version="$(nub --version 2>/dev/null | head -n 1 | sed 's/^v//')"
+      if [[ "$installed_version" == "$NUB_VERSION" ]]; then
+        NUB_COMMAND="$(command -v nub)"
+        return
+      fi
+    fi
+    local repo_nub="${ROOT}/node_modules/.bin/nub"
+    if [[ -x "$repo_nub" ]]; then
+      installed_version="$("$repo_nub" --version 2>/dev/null | head -n 1 | sed 's/^v//')"
+      if [[ "$installed_version" == "$NUB_VERSION" ]]; then
+        export PATH="${ROOT}/node_modules/.bin:$PATH"
+        NUB_COMMAND="$repo_nub"
+        return
+      fi
+    fi
+    echo "Doolittle requires Nub ${NUB_VERSION}; found ${installed_version:-nothing}."
+    echo "Install it with: npm install --global --prefix \"${NUB_TOOL_ROOT}\" @nubjs/nub@${NUB_VERSION}"
+    exit 1
+  fi
+
+  printf "%s\n" "${amber}Installing Doolittle's Nub ${NUB_VERSION} toolkit…${reset}"
+  npm install --global --prefix "$NUB_TOOL_ROOT" "@nubjs/nub@${NUB_VERSION}"
+  if [[ ! -x "$NUB_BIN" ]]; then
+    echo "Nub installed, but its launcher was not found at ${NUB_BIN}."
+    exit 1
+  fi
+  NUB_COMMAND="$NUB_BIN"
+}
+
+ensure_nub
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
   printf "%s\n" "${amber}Feeding the body with workspace dependencies...${reset}"
-  bun install
+  "$NUB_COMMAND" install --ignore-scripts
+  printf "%s\n" "${amber}Installing Electron's standalone desktop runtime...${reset}"
+  "$NUB_COMMAND" run desktop:runtime:install
 else
   printf "%s\n" "${amber}Skipping dependency install because this is a dry run.${reset}"
 fi
@@ -157,8 +210,13 @@ fi
 setup_path() {
   printf "%s\n" "${amber}Forging the local doolittle command...${reset}"
   mkdir -p "$LOCAL_BIN_DIR"
-  chmod +x "$DOOLITTLE_BIN_SOURCE"
-  ln -sf "$DOOLITTLE_BIN_SOURCE" "$DOOLITTLE_BIN_LINK"
+  rm -f "$DOOLITTLE_BIN_LINK"
+  {
+    printf '%s\n' '#!/usr/bin/env bash'
+    printf '%s\n' 'set -euo pipefail'
+    printf 'exec %q %q "$@"\n' "$NUB_BIN" "$DOOLITTLE_BIN_SOURCE"
+  } > "$DOOLITTLE_BIN_LINK"
+  chmod +x "$DOOLITTLE_BIN_LINK"
 
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN_DIR"; then
     local path_line='export PATH="$HOME/.local/bin:$PATH"'
@@ -208,7 +266,7 @@ setup_path() {
   printf "%s\n" "${dim}  doolittle -> ${DOOLITTLE_BIN_LINK}${reset}"
 
   if should_install_shortcut; then
-    ln -sf "$DOOLITTLE_BIN_SOURCE" "$DOOLITTLE_SHORT_LINK"
+    ln -sf "$DOOLITTLE_BIN_LINK" "$DOOLITTLE_SHORT_LINK"
     printf "%s\n" "${dim}  dl -> ${DOOLITTLE_SHORT_LINK}${reset}"
   fi
 
@@ -274,7 +332,12 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
 else
   setup_path
 fi
-bun run scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
+"$NUB_COMMAND" scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
+
+if [[ "$PACKAGE_INSTALLER" -eq 1 && "$CHECK_ONLY" -eq 0 ]]; then
+  printf "%s\n" "${amber}Building the standalone Windows installer...${reset}"
+  "$NUB_COMMAND" run desktop:package:win
+fi
 
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   printf "\n%s\n" "${orange}${bold}Install check complete.${reset}"

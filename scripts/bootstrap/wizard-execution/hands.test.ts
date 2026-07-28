@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import type { PromptHandle } from "../prompting/types";
 import type { WizardAnswers } from "../types";
@@ -7,9 +7,9 @@ import type { ExecutionHandsPromptDeps } from "./types";
 
 const createContext = (): BootstrapWizardContext =>
   ({
-    section: mock(() => {}),
-    info: mock(() => {}),
-    warn: mock(() => {}),
+    section: vi.fn(() => {}),
+    info: vi.fn(() => {}),
+    warn: vi.fn(() => {}),
     abortBootstrap: () => {},
     raceBootstrapAbort: async <T>(operation: Promise<T>) => await operation,
     throwIfBootstrapAborted: () => {},
@@ -71,11 +71,11 @@ const baseAnswers: WizardAnswers = {
 };
 
 const createPromptDeps = () => {
-  const chooseMany = mock(async <T extends string>() => [] as T[]);
-  const chooseOne = mock(async () => "pair" as const);
-  const ask = mock(async () => "");
-  const askSecret = mock(async () => "");
-  const askYesNo = mock(async () => false);
+  const chooseMany = vi.fn(async <T extends string>() => [] as T[]);
+  const chooseOne = vi.fn(async () => "pair" as const);
+  const ask = vi.fn(async () => "");
+  const askSecret = vi.fn(async () => "");
+  const askYesNo = vi.fn(async () => false);
 
   return {
     chooseMany,
@@ -137,8 +137,8 @@ describe("bootstrap execution hands flow", () => {
   it("prompts ritual hands setup and uses preset bindings when selected", async () => {
     const context = createContext();
     const promptDeps = {
-      chooseMany: mock(async () => ["telegram", "slack"] as const),
-      chooseOne: mock(async (_context, _rl, prompt: string) => {
+      chooseMany: vi.fn(async () => ["telegram", "slack"] as const),
+      chooseOne: vi.fn(async (_context, _rl, prompt: string) => {
         if (prompt === "How should I greet new arrivals:") {
           return "allow" as const;
         }
@@ -150,7 +150,7 @@ describe("bootstrap execution hands flow", () => {
         }
         throw new Error(`Unexpected prompt: ${prompt}`);
       }),
-      ask: mock(async (_context, _rl, prompt: string) => {
+      ask: vi.fn(async (_context, _rl, prompt: string) => {
         if (prompt === "Paste HOMEASSISTANT_URL") {
           return "https://home.example";
         }
@@ -162,7 +162,7 @@ describe("bootstrap execution hands flow", () => {
         }
         throw new Error(`Unexpected prompt: ${prompt}`);
       }),
-      askSecret: mock(async (_context, _rl, prompt: string) => {
+      askSecret: vi.fn(async (_context, _rl, prompt: string) => {
         const values: Record<string, string> = {
           "Paste TELEGRAM_BOT_TOKEN": "telegram-token",
           "Paste SLACK_WEBHOOK_URL": "https://slack.example",
@@ -178,7 +178,7 @@ describe("bootstrap execution hands flow", () => {
         }
         return value;
       }),
-      askYesNo: mock(async (_context, _rl, prompt: string) => {
+      askYesNo: vi.fn(async (_context, _rl, prompt: string) => {
         if (
           prompt === "Should I trust everyone on remote channels by default"
         ) {

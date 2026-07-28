@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import blessed from "blessed";
+import { describe, expect, it } from "vitest";
 import { applyWizardTheme, DEFAULT_TUI_THEME, getThemeByName } from "./theme";
 import { createWizardWidgets } from "./widgets";
 

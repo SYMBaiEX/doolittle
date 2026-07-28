@@ -1,10 +1,10 @@
-import { describe, expect, it } from "bun:test";
 import type {
   EvaluatorProcessorContext,
   EvaluatorRunContext,
   Memory,
   State,
 } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import { createMemoryNudgeEvaluator } from "./memory-nudge-evaluator";
 

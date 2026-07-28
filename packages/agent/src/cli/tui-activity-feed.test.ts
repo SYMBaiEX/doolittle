@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { CliState } from "@/cli/execution";
 import { createTuiActivityFeed } from "@/cli/tui-activity-feed";
 

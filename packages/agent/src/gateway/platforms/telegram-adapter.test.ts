@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import type { NativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
 import { DeliveryService } from "@/services/delivery-service";
 import type { EnvConfig } from "@/types/runtime";

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OnboardingSummary } from "../types";
 import { printBootstrapSummary } from "./summary";
 
@@ -44,17 +44,18 @@ const onboardingSummary: OnboardingSummary = {
 
 describe("printBootstrapSummary", () => {
   afterEach(() => {
-    mock.restore();
+    vi.restoreAllMocks();
+    vi.resetModules();
   });
 
   it("prints the pulse summary with a first section and rendered sections", () => {
     const lines: string[] = [];
     const sections: Array<[string, string | undefined]> = [];
-    const logSpy = spyOn(console, "log").mockImplementation(
-      (value?: unknown) => {
+    const logSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation((value?: unknown) => {
         lines.push(String(value ?? ""));
-      },
-    );
+      });
 
     printBootstrapSummary({
       checkOnly: false,

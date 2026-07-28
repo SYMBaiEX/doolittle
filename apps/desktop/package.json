@@ -7,19 +7,18 @@
   "type": "module",
   "main": "dist/main/main.cjs",
   "scripts": {
-    "dev": "bun run scripts/dev.ts",
-    "build": "bun run build:main && bun run build:renderer",
+    "dev": "nub scripts/dev.ts",
+    "build": "nub run build:main && nub run build:renderer",
     "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts",
-    "runtime:prepare": "bun run scripts/prepare-runtime.ts",
-    "runtime:prepare:win": "bunx --bun bun@1.3.11 scripts/prepare-runtime.ts --target=win-x64",
-    "package": "bun run build && bun run runtime:prepare && electron-builder",
-    "package:dir": "bun run build && bun run runtime:prepare && bun run scripts/package.ts --dir",
-    "package:mac": "bun run build && bun run runtime:prepare && electron-builder --mac dmg zip",
-    "package:win": "bun run build && bun run runtime:prepare:win && electron-builder --win nsis --x64",
-    "package:linux": "bun run build && bun run runtime:prepare && electron-builder --linux AppImage deb",
+    "runtime:prepare": "nub scripts/prepare-runtime.ts",
+    "package": "nub run build && nub run runtime:prepare && nubx --node electron-builder",
+    "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir",
+    "package:mac": "nub run build && nub run runtime:prepare && nubx --node electron-builder --mac dmg zip",
+    "package:win": "nub run build && nub run runtime:prepare && nubx --node electron-builder --win nsis --x64",
+    "package:linux": "nub run build && nub run runtime:prepare && nubx --node electron-builder --linux AppImage deb",
     "typecheck": "tsc -b tsconfig.main.json tsconfig.renderer.json",
-    "test": "bun test"
+    "test": "nubx --node vitest run"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -30,7 +29,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
-    "electron": "^43.2.0",
+    "electron": "43.2.0",
     "electron-builder": "^26.15.3",
     "typescript": "^5.9.3",
     "vite": "^8.1.5"
@@ -96,9 +95,6 @@
       }
     ],
     "mac": {
-      "binaries": [
-        "Contents/Resources/runtime/bin/doolittle-runtime"
-      ],
       "category": "public.app-category.productivity",
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.inherit.plist",

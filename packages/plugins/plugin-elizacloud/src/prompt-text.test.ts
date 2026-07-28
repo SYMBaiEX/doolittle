@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { GenerateTextParams } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { resolveModelPromptText } from "./prompt-text";
 
 describe("resolveModelPromptText", () => {

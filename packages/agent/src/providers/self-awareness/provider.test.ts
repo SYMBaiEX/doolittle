@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { IAgentRuntime, Memory, State } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import { createSelfAwarenessProvider } from "./provider";
 

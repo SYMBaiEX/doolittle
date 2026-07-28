@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   CODEGEN_PRD_USAGE,
   CODEGEN_RESEARCH_USAGE,

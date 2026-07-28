@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   buildBootstrapCheckSummary,
   buildBootstrapPulseSummary,
@@ -9,7 +9,7 @@ describe("bootstrap summary builders", () => {
     const summary = buildBootstrapCheckSummary({
       createdDirs: [".doolittle", "packages/skills/generated (exists)"],
       dependencyProbes: [
-        { label: "Bun runtime", installed: true },
+        { label: "Nub toolkit", installed: true },
         { label: "Docker", installed: false },
       ],
       envMessages: [".env already exists"],
@@ -25,7 +25,7 @@ describe("bootstrap summary builders", () => {
     expect(summary).toContain("- .env");
     expect(summary).toContain("- .doolittle/settings.json");
     expect(summary).toContain("- .doolittle/gateway/gateway.json");
-    expect(summary).toContain("- Bun runtime: online");
+    expect(summary).toContain("- Nub toolkit: online");
     expect(summary).toContain("- Docker: missing");
     expect(summary).toContain("- .env already exists");
   });

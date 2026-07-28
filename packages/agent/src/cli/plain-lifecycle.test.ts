@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { EventEmitter } from "node:events";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   installPlainCliLifecycle,
   type PlainCliLifecycleState,

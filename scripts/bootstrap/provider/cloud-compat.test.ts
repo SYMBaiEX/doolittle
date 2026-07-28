@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { checkCloudAvailability, normalizeCloudSiteUrl } from "./cloud-compat";
 
 function asFetchMock(
@@ -11,14 +11,16 @@ describe("cloud bootstrap compatibility helpers", () => {
   const originalCloudBaseUrl = process.env.ELIZAOS_CLOUD_BASE_URL;
 
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     delete process.env.ELIZAOS_CLOUD_BASE_URL;
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
     if (originalCloudBaseUrl === undefined) {
       delete process.env.ELIZAOS_CLOUD_BASE_URL;
     } else {
@@ -46,7 +48,7 @@ describe("cloud bootstrap compatibility helpers", () => {
 
   it("probes the normalized compat availability endpoint and returns null when available", async () => {
     const originalFetch = globalThis.fetch;
-    const fetchMock = mock(
+    const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         expect(String(input)).toBe(
           "https://elizacloud.ai/api/compat/availability",
@@ -71,7 +73,7 @@ describe("cloud bootstrap compatibility helpers", () => {
   it("returns the reported reason when the compat endpoint reports unavailable", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = asFetchMock(
-      mock(async () => {
+      vi.fn(async () => {
         return new Response(
           JSON.stringify({
             available: false,
@@ -91,7 +93,7 @@ describe("cloud bootstrap compatibility helpers", () => {
   it("returns the HTTP status when the compat endpoint is auth-gated", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = asFetchMock(
-      mock(async () => new Response("forbidden", { status: 403 })),
+      vi.fn(async () => new Response("forbidden", { status: 403 })),
     );
 
     const result = await checkCloudAvailability("https://elizacloud.ai");

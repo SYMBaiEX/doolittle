@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { IAgentRuntime, Memory, ResearchResult } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { createResearchAction } from "./research-action";
 
 function message(text: string): Memory {

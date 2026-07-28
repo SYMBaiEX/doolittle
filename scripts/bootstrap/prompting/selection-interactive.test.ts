@@ -1,19 +1,19 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 function installSelectionInteractiveMocks(keys: string[]) {
   const keypresses = [...keys];
-  const clearRenderedMenu = mock(() => 0);
-  const readMenuKeypress = mock(async () => keypresses.shift() ?? "\r");
-  const withRawMenuInput = mock(
+  const clearRenderedMenu = vi.fn(() => 0);
+  const readMenuKeypress = vi.fn(async () => keypresses.shift() ?? "\r");
+  const withRawMenuInput = vi.fn(
     async <T>(run: () => Promise<T>): Promise<T> => run(),
   );
 
-  mock.module("./terminal-menu", () => ({
+  vi.doMock("./terminal-menu", () => ({
     clearRenderedMenu,
     readMenuKeypress,
     withRawMenuInput,
   }));
-  mock.module("../core/output", () => ({
+  vi.doMock("../core/output", () => ({
     bootstrapColor: {
       cyan: "cyan",
       dim: "dim",
@@ -30,15 +30,14 @@ function installSelectionInteractiveMocks(keys: string[]) {
 }
 
 async function loadSelectionInteractive() {
-  return import(
-    `./selection-interactive?selection-interactive-tests=${Date.now()}-${Math.random()}`
-  );
+  return import("./selection-interactive");
 }
 
 describe("prompting interactive selection", () => {
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("resolves the current selection from direct enter in single-select flow", async () => {

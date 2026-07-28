@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { getTuiTheme } from "../../../packages/agent/src/runtime/theme-catalog";
 import { buildWizardBaseFooter, buildWizardRenderModel } from "./render";
 import { createWizardSnapshot } from "./state";

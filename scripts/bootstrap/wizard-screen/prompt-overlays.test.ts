@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import blessed from "blessed";
+import { describe, expect, it } from "vitest";
 import { createWizardPromptHandlers } from "./prompt-overlays";
 import { createPromptYesNoHandler } from "./prompt-overlays/confirm";
 import { createSelectManyHandler } from "./prompt-overlays/select-many";

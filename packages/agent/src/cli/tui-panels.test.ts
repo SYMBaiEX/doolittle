@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { installTuiPanels } from "@/cli/tui-panels";
 import { createNoopLogger } from "@/logging/logger";
 

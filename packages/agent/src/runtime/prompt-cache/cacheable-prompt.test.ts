@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { buildCacheablePrompt } from "./cacheable-prompt";
 
 const base = { joiner: "\n", versionDigest: "v1", conversationId: "room1" };

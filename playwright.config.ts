@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 function fallbackPort(base: number): string {
@@ -148,7 +150,9 @@ const applyE2eEnv = () => {
   process.env.ACP_SERVER_COMMAND = "";
 };
 
-const { getAppContext } = await import("./packages/agent/src/runtime/bootstrap");
+const { getAppContext } = await import(
+  "../../packages/agent/src/runtime/bootstrap/index.ts"
+);
 applyE2eEnv();
 const context = await getAppContext({ startupMode: "api" });
 
@@ -200,7 +204,7 @@ const server = createServer(async (req, res) => {
 
   if (method === "GET" && url.pathname === "/runtime/plugins") {
     const { getNativePluginCatalog, groupNativePluginCatalog } = await import(
-      "./packages/agent/src/runtime/native/plugin-catalog/index.ts"
+      "../../packages/agent/src/runtime/native/plugin-catalog/index.ts"
     );
     const catalog = getNativePluginCatalog(context.config);
     sendJson(res, {
@@ -379,7 +383,7 @@ const server = createServer(async (req, res) => {
 
   if (method === "GET" && url.pathname === "/browser/status") {
     const { getEffectiveBrowserStatus } = await import(
-      "./packages/agent/src/runtime/native/service-bridge/browser/index.ts"
+      "../../packages/agent/src/runtime/native/service-bridge/browser/index.ts"
     );
     sendJson(res, {
       browser: await getEffectiveBrowserStatus(context.runtime, context.services),
@@ -389,7 +393,7 @@ const server = createServer(async (req, res) => {
 
   if (method === "POST" && url.pathname === "/browser/capture") {
     const { captureEffectiveBrowserPage } = await import(
-      "./packages/agent/src/runtime/native/service-bridge/browser/index.ts"
+      "../../packages/agent/src/runtime/native/service-bridge/browser/index.ts"
     );
     const body = await readJson(req);
     if (!body.url) {
@@ -408,7 +412,7 @@ const server = createServer(async (req, res) => {
 
   if (method === "POST" && url.pathname === "/chat") {
     const { executeAgentTurnWithProgress } = await import(
-      "./packages/agent/src/runtime/turn-stream.ts"
+      "../../packages/agent/src/runtime/turn-stream.ts"
     );
     const body = await readJson(req);
     if (!body.message) {
@@ -473,13 +477,10 @@ process.on("SIGTERM", () => {
 console.log("Doolittle E2E API listening on http://127.0.0.1:" + port);
 await new Promise(() => {});
 `;
-const e2eServerModule = Buffer.from(e2eServerScript, "utf8").toString("base64");
-const e2eServerCommand =
-  `bun -e "(async () => { ` +
-  `const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor; ` +
-  `const source = Buffer.from('${e2eServerModule}', 'base64').toString(); ` +
-  `await new AsyncFunction(source)(); ` +
-  `})()"`;
+const e2eServerPath = resolve("var", "playwright", "e2e-server.ts");
+mkdirSync(dirname(e2eServerPath), { recursive: true });
+writeFileSync(e2eServerPath, e2eServerScript, "utf8");
+const e2eServerCommand = `nub ${JSON.stringify(e2eServerPath)}`;
 
 export default defineConfig({
   testDir: "./e2e",

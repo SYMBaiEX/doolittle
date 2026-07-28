@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import type { PromptHandle } from "../prompting/types";
 import type { ReviewResult, WizardAnswers } from "../types";
@@ -60,22 +60,22 @@ const baseAnswers: WizardAnswers = {
 };
 
 function createContext() {
-  const appendLine = mock(() => {});
+  const appendLine = vi.fn(() => {});
   const screen = { appendLine } as const;
   const context = {
-    section: mock(() => {}),
-    info: mock(() => {}),
-    warn: mock(() => {}),
-    getWizardScreen: mock(() => screen),
+    section: vi.fn(() => {}),
+    info: vi.fn(() => {}),
+    warn: vi.fn(() => {}),
+    getWizardScreen: vi.fn(() => screen),
   } as unknown as BootstrapWizardContext;
   return { context, appendLine };
 }
 
 function createDeps(result: ReviewResult, confirmed: boolean): ReviewFlowDeps {
   return {
-    finalizeWizardAnswers: mock(() => result),
-    summarizeAnswers: mock(() => ["summary-line"]),
-    askYesNo: mock(async () => confirmed),
+    finalizeWizardAnswers: vi.fn(() => result),
+    summarizeAnswers: vi.fn(() => ["summary-line"]),
+    askYesNo: vi.fn(async () => confirmed),
   };
 }
 

@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
 import type { BootstrapWizardContext } from "../../bootstrap-context";
 import type { WizardAnswers } from "../../types";
 
@@ -88,62 +89,91 @@ function createContext() {
   return { context, infoMessages, sections };
 }
 
-function createLinkedAccounts(overrides: Record<string, unknown> = {}) {
-  return {
+function createLinkedAccounts(
+  overrides: {
+    [Key in keyof LinkedProviderAccountsSnapshot]?: Partial<
+      LinkedProviderAccountsSnapshot[Key]
+    >;
+  } = {},
+): LinkedProviderAccountsSnapshot {
+  const defaults: LinkedProviderAccountsSnapshot = {
     codex: {
+      provider: "codex",
+      available: false,
       nativeReady: false,
       reusable: false,
       fallbackReady: false,
+      detail: "Codex not linked",
     },
     claudeCode: {
+      provider: "claude-code",
+      available: false,
       nativeReady: false,
       reusable: false,
       fallbackReady: false,
+      detail: "Claude Code not linked",
+    },
+    devin: {
+      provider: "devin",
+      available: false,
+      nativeReady: false,
+      reusable: false,
+      fallbackReady: false,
+      detail: "Devin not linked",
     },
     elizaCloud: {
+      provider: "elizacloud",
+      available: false,
       nativeReady: false,
       reusable: false,
       fallbackReady: false,
+      detail: "Eliza Cloud not linked",
     },
-    ...overrides,
-  } as const;
+  };
+  return {
+    codex: { ...defaults.codex, ...overrides.codex },
+    claudeCode: { ...defaults.claudeCode, ...overrides.claudeCode },
+    devin: { ...defaults.devin, ...overrides.devin },
+    elizaCloud: { ...defaults.elizaCloud, ...overrides.elizaCloud },
+  };
 }
 
 async function loadFlowModule() {
-  return import(`./flow?flow-test=${Date.now()}-${Math.random()}`);
+  return import("./flow");
 }
 
 describe("provider selection flow", () => {
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("carries forward linked codex auth and only prompts for the model", async () => {
-    const ask = mock(async () => "gpt-5.4-codex");
-    const askSecret = mock(async () => {
+    const ask = vi.fn(async () => "gpt-5.4-codex");
+    const askSecret = vi.fn(async () => {
       throw new Error("askSecret should not run for linked codex selection");
     });
-    const chooseOne = mock(async () => "codex");
+    const chooseOne = vi.fn(async () => "codex");
     const branchCalls: string[] = [];
 
-    mock.module("../../core/prompt-ops", () => ({
+    vi.doMock("../../core/prompt-ops", () => ({
       ask,
-      askYesNo: mock(async () => true),
+      askYesNo: vi.fn(async () => true),
       askSecret,
       chooseOne,
     }));
-    mock.module("../../wizard/state", () => ({
+    vi.doMock("../../wizard/state", () => ({
       resolveInteractiveProviderDefault: () => "codex",
     }));
-    mock.module("./branches/eliza-cloud", () => ({
-      runElizaCloudProviderBranch: mock(async ({ linkedAccounts }: never) => {
+    vi.doMock("./branches/eliza-cloud", () => ({
+      runElizaCloudProviderBranch: vi.fn(async ({ linkedAccounts }: never) => {
         branchCalls.push("elizacloud");
         return linkedAccounts;
       }),
     }));
-    mock.module("./branches/codex", () => ({
-      runCodexProviderBranch: mock(
+    vi.doMock("./branches/codex", () => ({
+      runCodexProviderBranch: vi.fn(
         async ({
           linkedAccounts,
           state,
@@ -156,8 +186,8 @@ describe("provider selection flow", () => {
         },
       ),
     }));
-    mock.module("./branches/claude-code", () => ({
-      runClaudeCodeProviderBranch: mock(async ({ linkedAccounts }: never) => {
+    vi.doMock("./branches/claude-code", () => ({
+      runClaudeCodeProviderBranch: vi.fn(async ({ linkedAccounts }: never) => {
         branchCalls.push("claude-code");
         return linkedAccounts;
       }),
@@ -199,7 +229,7 @@ describe("provider selection flow", () => {
   it("collects both provider credentials for hybrid mode", async () => {
     const askPrompts: string[] = [];
     const secretPrompts: string[] = [];
-    const ask = mock(
+    const ask = vi.fn(
       async (
         _context: unknown,
         _rl: unknown,
@@ -216,35 +246,35 @@ describe("provider selection flow", () => {
         return currentValue;
       },
     );
-    const askSecret = mock(
+    const askSecret = vi.fn(
       async (_context: unknown, _rl: unknown, prompt: string) => {
         secretPrompts.push(prompt);
         return prompt.includes("OPENAI") ? "openai-key" : "anthropic-key";
       },
     );
-    const chooseOne = mock(async () => "hybrid");
+    const chooseOne = vi.fn(async () => "hybrid");
 
-    mock.module("../../core/prompt-ops", () => ({
+    vi.doMock("../../core/prompt-ops", () => ({
       ask,
-      askYesNo: mock(async () => true),
+      askYesNo: vi.fn(async () => true),
       askSecret,
       chooseOne,
     }));
-    mock.module("../../wizard/state", () => ({
+    vi.doMock("../../wizard/state", () => ({
       resolveInteractiveProviderDefault: () => "openai",
     }));
-    mock.module("./branches/eliza-cloud", () => ({
-      runElizaCloudProviderBranch: mock(
+    vi.doMock("./branches/eliza-cloud", () => ({
+      runElizaCloudProviderBranch: vi.fn(
         async ({ linkedAccounts }: never) => linkedAccounts,
       ),
     }));
-    mock.module("./branches/codex", () => ({
-      runCodexProviderBranch: mock(
+    vi.doMock("./branches/codex", () => ({
+      runCodexProviderBranch: vi.fn(
         async ({ linkedAccounts }: never) => linkedAccounts,
       ),
     }));
-    mock.module("./branches/claude-code", () => ({
-      runClaudeCodeProviderBranch: mock(
+    vi.doMock("./branches/claude-code", () => ({
+      runClaudeCodeProviderBranch: vi.fn(
         async ({ linkedAccounts }: never) => linkedAccounts,
       ),
     }));
@@ -278,7 +308,7 @@ describe("provider selection flow", () => {
 
   it("collects local Ollama endpoint and model routing without provider secrets", async () => {
     const askPrompts: string[] = [];
-    const ask = mock(
+    const ask = vi.fn(
       async (
         _context: unknown,
         _rl: unknown,
@@ -301,32 +331,32 @@ describe("provider selection flow", () => {
         return currentValue;
       },
     );
-    const askSecret = mock(async () => {
+    const askSecret = vi.fn(async () => {
       throw new Error("askSecret should not run for local Ollama selection");
     });
-    const chooseOne = mock(async () => "ollama");
+    const chooseOne = vi.fn(async () => "ollama");
 
-    mock.module("../../core/prompt-ops", () => ({
+    vi.doMock("../../core/prompt-ops", () => ({
       ask,
-      askYesNo: mock(async () => true),
+      askYesNo: vi.fn(async () => true),
       askSecret,
       chooseOne,
     }));
-    mock.module("../../wizard/state", () => ({
+    vi.doMock("../../wizard/state", () => ({
       resolveInteractiveProviderDefault: () => "ollama",
     }));
-    mock.module("./branches/eliza-cloud", () => ({
-      runElizaCloudProviderBranch: mock(
+    vi.doMock("./branches/eliza-cloud", () => ({
+      runElizaCloudProviderBranch: vi.fn(
         async ({ linkedAccounts }: never) => linkedAccounts,
       ),
     }));
-    mock.module("./branches/codex", () => ({
-      runCodexProviderBranch: mock(
+    vi.doMock("./branches/codex", () => ({
+      runCodexProviderBranch: vi.fn(
         async ({ linkedAccounts }: never) => linkedAccounts,
       ),
     }));
-    mock.module("./branches/claude-code", () => ({
-      runClaudeCodeProviderBranch: mock(
+    vi.doMock("./branches/claude-code", () => ({
+      runClaudeCodeProviderBranch: vi.fn(
         async ({ linkedAccounts }: never) => linkedAccounts,
       ),
     }));

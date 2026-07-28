@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { NATIVE_USER_PERSONALITY_PREFERENCES_TABLE } from "@/services/user-profile/native-personality";
 import type { UserProfileRecord } from "@/types";

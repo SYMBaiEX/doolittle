@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { buildEnvConfig } from "./build";
 import type { ManagedDirectories } from "./directories";
 import { parseEnv } from "./schema";

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { Content } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 
 function makeStreamingState({ onProgress = true } = {}) {

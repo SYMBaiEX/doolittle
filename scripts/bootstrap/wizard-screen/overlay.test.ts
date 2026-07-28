@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import blessed from "blessed";
+import { describe, expect, it } from "vitest";
 import { createWizardOverlay } from "./overlay";
 
 describe("wizard-screen overlay", () => {

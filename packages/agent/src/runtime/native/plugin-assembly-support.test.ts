@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { NativePluginDescriptor } from "@doolittle/contracts";
+import { describe, expect, it } from "vitest";
 import { normalizeDelegationInput } from "./plugin-assembly-delegation";
 import {
   buildNativePluginManagerSummary,

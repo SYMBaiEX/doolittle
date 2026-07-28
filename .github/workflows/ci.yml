@@ -13,28 +13,33 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@v0
         with:
-          bun-version: 1.3.11
+          nub-version: 0.6.0
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: nub install --frozen-lockfile --ignore-scripts
+
+      - name: Install Electron runtime
+        run: nub run desktop:runtime:install
 
       - name: Lint
-        run: bun run lint:check
+        run: nub run lint:check
 
       - name: Typecheck
-        run: bun run typecheck
+        run: nub run typecheck
 
       - name: Unit tests
-        run: bun test
+        run: nub run test
 
       - name: Build
-        run: bun run build
+        run: nub run build
 
       - name: Playwright smoke tests
-        run: bun run test:e2e
+        run: nub run test:e2e
 
       - name: Acceptance gates
-        run: bun run check:acceptance
+        run: nub run check:acceptance

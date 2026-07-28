@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type blessed from "blessed";
+import { describe, expect, it } from "vitest";
 import {
   createTuiTextEntryController,
   type InteractiveTextEntry,

@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { DeliveryService } from "@/services/delivery-service";
 import { CommandPlatformAdapter } from "./command-adapter";
 

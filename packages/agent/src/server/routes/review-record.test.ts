@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { ReviewRecordService } from "@/services/review-record";
 import { handleReviewRecordRoutes } from "./review-record";

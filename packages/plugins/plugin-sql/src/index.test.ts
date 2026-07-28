@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "bun:test";
 import type { IAgentRuntime, Relationship } from "@elizaos/core";
+import { describe, expect, it, vi } from "vitest";
 import { __testing } from "./index";
 
 describe("@elizaos/plugin-sql compatibility patch", () => {

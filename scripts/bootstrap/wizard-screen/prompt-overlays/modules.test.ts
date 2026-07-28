@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPromptYesNoHandler } from "./confirm";
 import { createSelectManyHandler } from "./select-many";
 import { createSelectOneHandler } from "./select-one";
@@ -7,9 +7,9 @@ import { createPromptTextHandler } from "./text";
 
 function createDeps() {
   const calls: Array<{ title: string; body: string }> = [];
-  const render = mock(() => {});
-  const setFooter = mock(() => {});
-  const showOverlay = mock(async (title: string, body: string) => {
+  const render = vi.fn(() => {});
+  const setFooter = vi.fn(() => {});
+  const showOverlay = vi.fn(async (title: string, body: string) => {
     calls.push({ title, body });
     if (title === "Confirm") {
       return true as never;
@@ -42,13 +42,15 @@ function createDeps() {
 
 describe("wizard-screen prompt overlay modules", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("delegates yes/no prompts to overlay titles and text cues", async () => {

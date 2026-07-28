@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { ControlDeckMode } from "@/cli/tui-control-deck";
 import { installTuiScreenBindings } from "@/cli/tui-screen-bindings";
 

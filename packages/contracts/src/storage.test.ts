@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { bindPluginStorage } from "./types/storage";
 
 const originalDataDir = process.env.DOOLITTLE_DATA_DIR;

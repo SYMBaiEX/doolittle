@@ -138,7 +138,7 @@ export async function buildNativeOnboardingMirror(
         skills,
         install: [],
         preferences: {
-          nodeManager: "bun",
+          nodeManager: "nub",
         },
         skip: skills.length === 0,
       },

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { DotenvConfigOptions } from "dotenv";
+import { describe, expect, it } from "vitest";
 import { loadProcessEnv, resolveRepoEnvPath } from "./load";
 
 describe("env loading", () => {

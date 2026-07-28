@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { NativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control/types";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage } from "@/types/gateway";

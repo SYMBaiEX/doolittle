@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { executeCliInput } from "./index";
 import type { CliState } from "./types";
 

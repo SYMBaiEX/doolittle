@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { MediaInspectionSupport } from "./service";
 
 const ONE_BY_ONE_PNG =

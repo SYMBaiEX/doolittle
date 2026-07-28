@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import type { BootstrapDependencyProbe } from "../types";
@@ -6,24 +6,24 @@ import type { WizardScreenContext } from "../wizard-screen/types";
 import type { DependencyProbeEnvironment } from "./dependencies";
 
 function createContext(hasScreen: boolean): BootstrapWizardContext {
-  const appendLine = mock(() => undefined);
+  const appendLine = vi.fn(() => undefined);
   const screen: WizardScreenContext | null = hasScreen
     ? {
-        setSection: mock(() => undefined),
+        setSection: vi.fn(() => undefined),
         appendLine,
-        promptText: mock(async () => ""),
-        promptYesNo: mock(async () => true),
-        selectOne: mock(async (_prompt, optionsList) => optionsList[0]?.value),
-        selectMany: mock(async () => []),
-        previewTheme: mock(() => undefined),
-        snapshot: mock(() => ({
+        promptText: vi.fn(async () => ""),
+        promptYesNo: vi.fn(async () => true),
+        selectOne: vi.fn(async (_prompt, optionsList) => optionsList[0]?.value),
+        selectMany: vi.fn(async () => []),
+        previewTheme: vi.fn(() => undefined),
+        snapshot: vi.fn(() => ({
           title: "Dependencies",
           subtitle: "",
           currentSection: "",
           currentDetail: "",
           logLines: [],
         })),
-        destroy: mock(() => undefined),
+        destroy: vi.fn(() => undefined),
       }
     : null;
 
@@ -34,9 +34,9 @@ function createContext(hasScreen: boolean): BootstrapWizardContext {
       skipWizard: false,
     },
     banner: () => undefined,
-    section: mock(() => undefined),
-    info: mock(() => undefined),
-    warn: mock(() => undefined),
+    section: vi.fn(() => undefined),
+    info: vi.fn(() => undefined),
+    warn: vi.fn(() => undefined),
     formatKeyLabel: (label: string) => label,
     getWizardScreen: () => screen,
     setWizardScreen: () => undefined,
@@ -87,9 +87,7 @@ function createLinkedAccounts(): LinkedProviderAccountsSnapshot {
 }
 
 async function loadDependenciesModule() {
-  return import(
-    `./dependencies?dependencies-tests=${Date.now()}-${Math.random()}`
-  );
+  return import("./dependencies");
 }
 
 function createProbeEnvironment(): DependencyProbeEnvironment {
@@ -97,7 +95,7 @@ function createProbeEnvironment(): DependencyProbeEnvironment {
     spawnSync: ((_: string, argsOrOptions?: readonly string[] | object) => {
       const args = Array.isArray(argsOrOptions) ? argsOrOptions : [];
       const binary = String(args[1] ?? "").replace("command -v ", "");
-      const installed = ["bun", "git", "daytona", "lightpanda"].includes(
+      const installed = ["nub", "git", "daytona", "lightpanda"].includes(
         binary,
       );
       return { status: installed ? 0 : 1 } as never;
@@ -113,13 +111,15 @@ function createProbeEnvironment(): DependencyProbeEnvironment {
 
 describe("bootstrap dependency probes", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("builds dependency probes with env-driven browser command and auth readiness", async () => {
@@ -159,8 +159,8 @@ describe("bootstrap dependency probes", () => {
 
     const probes: BootstrapDependencyProbe[] = [
       {
-        key: "bun",
-        label: "Bun runtime",
+        key: "nub",
+        label: "Nub toolkit",
         installed: true,
         detail: "Required for build",
       },
@@ -175,7 +175,7 @@ describe("bootstrap dependency probes", () => {
 
     printDependencyProbes(context, probes);
 
-    expect(appendLine).toHaveBeenCalledWith("Bun runtime: online");
+    expect(appendLine).toHaveBeenCalledWith("Nub toolkit: online");
     expect(appendLine).toHaveBeenCalledWith("Git: missing");
     expect(context.info).toHaveBeenCalledWith("Required for build");
     expect(context.info).toHaveBeenCalledWith("Used for workflows");
@@ -184,12 +184,12 @@ describe("bootstrap dependency probes", () => {
 
   it("logs to console when wizard screen is not available", async () => {
     const context = createContext(false);
-    const section = context.section as ReturnType<typeof mock>;
+    const section = context.section as ReturnType<typeof vi.fn>;
 
     const { printDependencyProbes } = await loadDependenciesModule();
 
     const originalLog = console.log;
-    const log = mock(() => undefined);
+    const log = vi.fn(() => undefined);
     console.log = log as never;
 
     const probes: BootstrapDependencyProbe[] = [

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "bun:test";
 import type { IAgentRuntime } from "@elizaos/core";
 import { ModelType } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL } from "./constants";
 import {
   runElizaCloudEmbeddingGeneration,

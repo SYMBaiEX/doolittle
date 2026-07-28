@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { CliState } from "@/cli/execution";
 import { installTuiRuntimeObservers } from "@/cli/tui-runtime-observers";
 import type { AppContext } from "@/runtime/bootstrap";

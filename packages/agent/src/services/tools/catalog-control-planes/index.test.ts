@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { TOOL_CONTROL_PLANE_CATALOG } from "./index";
 
 describe("TOOL_CONTROL_PLANE_CATALOG", () => {

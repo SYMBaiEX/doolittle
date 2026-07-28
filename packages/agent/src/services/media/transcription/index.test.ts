@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import {
   existsSync,
   mkdtempSync,
@@ -8,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import type { MediaBundle, MediaInspection, MediaModelContext } from "../types";
 import { executeMediaTranscription } from "./index";
 

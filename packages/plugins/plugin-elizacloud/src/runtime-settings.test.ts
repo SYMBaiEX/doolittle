@@ -1,6 +1,6 @@
-import { describe, expect, it } from "bun:test";
 import type { IAgentRuntime } from "@elizaos/core";
 import { ModelType } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ELIZA_CLOUD_BASE_URL,
   DEFAULT_ELIZA_CLOUD_MODEL,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { NativeCapabilityTruthRecord } from "../../packages/agent/src/runtime/native/capability-truth";
 import type { OperatorWowContractPillar } from "../../packages/agent/src/runtime/native/operator-wow-contract";
 import {
@@ -70,7 +70,7 @@ const sampleWowPillar: OperatorWowContractPillar = {
       ],
       verification: [
         "Add command parser coverage.",
-        "Run `bun test packages/agent/src/runtime`.",
+        "Run `nub run test packages/agent/src/runtime`.",
       ],
       currentStatus: "partial",
     },

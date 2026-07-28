@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { resolveClaudeCodeBondDefault } from "./claude-code-defaults";
 
 describe("resolveClaudeCodeBondDefault", () => {

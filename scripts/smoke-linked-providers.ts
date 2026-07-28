@@ -219,7 +219,7 @@ function printSmokeResults(results: SmokeResult[], args: SmokeArgs): void {
 }
 
 export async function main(
-  argv: string[] = Bun.argv.slice(2),
+  argv: string[] = process.argv.slice(2),
   deps: SmokeDependencies = buildDependencies(),
 ): Promise<void> {
   const args = parseArgs(argv);

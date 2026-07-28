@@ -1,43 +1,42 @@
-import { describe, expect, it, mock, spyOn } from "bun:test";
 import type { createInterface } from "node:readline/promises";
+import { describe, expect, it, vi } from "vitest";
 import type { PromptRuntime } from "./types";
 
 const createRuntime = (): PromptRuntime & {
-  warn: ReturnType<typeof mock>;
-  info: ReturnType<typeof mock>;
+  warn: ReturnType<typeof vi.fn>;
+  info: ReturnType<typeof vi.fn>;
 } => ({
   getWizardScreen: () => null,
-  warn: mock(() => {}),
-  info: mock(() => {}),
+  warn: vi.fn(() => {}),
+  info: vi.fn(() => {}),
 });
 
 const createQuestionInterface = (
   answers: string[],
 ): ReturnType<typeof createInterface> =>
   ({
-    question: mock(async () => answers.shift() ?? ""),
+    question: vi.fn(async () => answers.shift() ?? ""),
   }) as unknown as ReturnType<typeof createInterface>;
 
 describe("prompt selection", () => {
   const loadSelection = async () => {
-    mock.restore();
-    mock.clearAllMocks();
-    mock.module("./terminal-menu", () => ({
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.doMock("./terminal-menu", () => ({
       supportsInteractiveMenus: () => false,
       clearRenderedMenu: () => {},
       readMenuKeypress: async () => "",
       withRawMenuInput: async <T>(work: () => Promise<T>) => work(),
     }));
-    return import(
-      `./selection?bootstrap-prompting-selection=${Date.now()}-${Math.random()}`
-    );
+    return import("./selection");
   };
 
   it("accepts direct value input for single selection", async () => {
     const { chooseOne } = await loadSelection();
     const runtime = createRuntime();
     const rl = createQuestionInterface(["quick"]);
-    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const value = await chooseOne(
       runtime,
@@ -59,7 +58,7 @@ describe("prompt selection", () => {
     const { chooseMany } = await loadSelection();
     const runtime = createRuntime();
     const rl = createQuestionInterface(["9", "2,2,1"]);
-    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const values = await chooseMany(
       runtime,

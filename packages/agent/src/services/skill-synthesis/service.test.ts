@@ -1,8 +1,8 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseFrontmatter } from "@elizaos/skills/index";
+import { describe, expect, it } from "vitest";
 import { scanSkillProposalContent } from "./proposal";
 import { SkillSynthesisService } from "./service";
 

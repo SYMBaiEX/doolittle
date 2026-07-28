@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createPlatformAdapter } from "@/gateway/adapters/platform-adapter-factory";
 import { MockPlatformAdapter } from "@/gateway/platforms/mock-adapter";
 import { TelegramPlatformAdapter } from "@/gateway/platforms/telegram-adapter";

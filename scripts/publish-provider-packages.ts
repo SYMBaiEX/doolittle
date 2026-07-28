@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env nub
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -162,7 +162,7 @@ function runNpmRelease(
 }
 
 async function main() {
-  const args = parseArgs(Bun.argv.slice(2));
+  const args = parseArgs(process.argv.slice(2));
   const cliSupportsPublish = detectElizaCliPublishSupport();
   const results: PublishResult[] = [];
 

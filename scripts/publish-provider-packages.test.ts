@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
@@ -8,11 +8,18 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const SCRIPT_PATH = join(
   process.cwd(),
   "scripts",
   "publish-provider-packages.ts",
+);
+const NUB_PATH = join(
+  process.cwd(),
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "nub.cmd" : "nub",
 );
 
 function buildPackageRoot(options: {
@@ -93,19 +100,19 @@ function runPublish(
   stdout: string;
   stderr: string;
 } {
-  const result = Bun.spawnSync({
-    cmd: ["bun", SCRIPT_PATH, ...args],
+  const environment = { ...process.env };
+  delete environment.NODE_OPTIONS;
+  const result = spawnSync(NUB_PATH, [SCRIPT_PATH, ...args], {
     cwd,
     env: {
-      ...process.env,
+      ...environment,
       PATH: `${binDir}:${process.env.PATH}`,
     },
-    stdout: "pipe",
-    stderr: "pipe",
+    stdio: ["ignore", "pipe", "pipe"],
   });
 
   return {
-    status: result.exitCode,
+    status: result.status,
     stdout: result.stdout.toString(),
     stderr: result.stderr.toString(),
   };

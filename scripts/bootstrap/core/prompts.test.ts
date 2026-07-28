@@ -1,50 +1,48 @@
-import { describe, expect, it, mock } from "bun:test";
 import type { createInterface } from "node:readline/promises";
+import { describe, expect, it, vi } from "vitest";
 import type { PromptRuntime } from "../prompting/types";
 
 const createRuntime = (
   screen: unknown = null,
 ): PromptRuntime & {
-  warn: ReturnType<typeof mock>;
-  info: ReturnType<typeof mock>;
+  warn: ReturnType<typeof vi.fn>;
+  info: ReturnType<typeof vi.fn>;
 } => ({
   getWizardScreen: () => screen as never,
-  warn: mock(() => {}),
-  info: mock(() => {}),
+  warn: vi.fn(() => {}),
+  info: vi.fn(() => {}),
 });
 
 const createQuestionInterface = (
   answers: string[],
 ): ReturnType<typeof createInterface> =>
   ({
-    question: mock(async () => answers.shift() ?? ""),
+    question: vi.fn(async () => answers.shift() ?? ""),
   }) as unknown as ReturnType<typeof createInterface>;
 
 describe("bootstrap prompts", () => {
   const loadPrompting = async () => {
-    mock.restore();
-    mock.clearAllMocks();
-    return import(
-      `../prompting/text-prompts?bootstrap-core-prompts=${Date.now()}-${Math.random()}`
-    );
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
+    return import("../prompting/text-prompts");
   };
 
   const loadSelection = async () => {
-    mock.restore();
-    mock.clearAllMocks();
-    return import(
-      `../prompting/selection?bootstrap-core-prompts=${Date.now()}-${Math.random()}`
-    );
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
+    return import("../prompting/selection");
   };
 
   it("prefers wizard prompt text when a wizard screen is active", async () => {
     const { ask } = await loadPrompting();
-    const promptText = mock(async () => "riddle");
+    const promptText = vi.fn(async () => "riddle");
     const runtime = createRuntime({
       promptText,
-      promptYesNo: mock(async () => false),
-      selectOne: mock(async () => "offline"),
-      selectMany: mock(async () => []),
+      promptYesNo: vi.fn(async () => false),
+      selectOne: vi.fn(async () => "offline"),
+      selectMany: vi.fn(async () => []),
     });
 
     const value = await ask(runtime, null, "What is your name", "Doolittle");

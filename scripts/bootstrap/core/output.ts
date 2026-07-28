@@ -72,7 +72,7 @@ export function createBootstrapOutput(
           bootstrapColor.orange + bootstrapColor.bold,
         ),
         paint(
-          "║        Bun-first onboarding for the ElizaOS alpha stack    ║",
+          "║        Nub-powered onboarding for the ElizaOS alpha stack  ║",
           bootstrapColor.orange,
         ),
         paint(

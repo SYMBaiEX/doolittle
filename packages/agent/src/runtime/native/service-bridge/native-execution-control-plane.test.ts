@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { getNativeExecutionControlPlaneDetails } from "./native-execution-control-plane";
 import type { RuntimeLike } from "./runtime";
 

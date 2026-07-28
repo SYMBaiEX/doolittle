@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import { extractSessionContext, type Media } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runProviderModelTurn } from "./chat-turn/provider";
 

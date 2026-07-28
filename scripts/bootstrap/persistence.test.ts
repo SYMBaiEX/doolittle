@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { DEFAULT_TUI_THEME } from "../../packages/agent/src/runtime/theme-catalog";
 import { buildBootstrapPersistencePlan } from "./persistence/plan";
 import type { GatewayConfig, RuntimeSettings, WizardAnswers } from "./types";
@@ -78,7 +78,7 @@ const settings: RuntimeSettings = {
     remoteArtifactPaths: [],
     remoteArtifactPolicy: "metadata-only",
     remoteWorkspaceLabel: "workspace",
-    dockerImage: "oven/bun:latest",
+    dockerImage: "ghcr.io/nubjs/nub:latest",
     dockerNetwork: "host",
     dockerWorkspacePath: "/workspace",
     dockerEnvPassthrough: [],

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { RunUpdateEventBus } from "./event-bus";
 import type { RunSnapshot } from "./types";
 

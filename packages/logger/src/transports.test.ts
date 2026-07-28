@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
   createCrashFileTransport,
   createJsonlFileTransport,

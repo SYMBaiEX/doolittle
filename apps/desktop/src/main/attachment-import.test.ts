@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
@@ -13,6 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, test } from "vitest";
 import {
   ATTACHMENT_IMPORT_LIMITS,
   AttachmentImportError,

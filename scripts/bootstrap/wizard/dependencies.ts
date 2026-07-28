@@ -70,10 +70,11 @@ export function getDependencyProbes(
           : undefined,
     },
     {
-      key: "bun",
-      label: "Bun runtime",
-      installed: commandExists("bun", environment),
-      detail: "Required for install, build, and runtime entrypoints.",
+      key: "nub",
+      label: "Nub toolkit",
+      installed: commandExists("nub", environment),
+      detail:
+        "Required for dependency management, TypeScript entrypoints, and repository scripts.",
     },
     {
       key: "git",

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { AppContextManager } from "./app-context-manager";
 import type { AppContext } from "./types";
 

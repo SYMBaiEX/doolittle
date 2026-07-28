@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import { ChannelType, type Memory, type UUID } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";

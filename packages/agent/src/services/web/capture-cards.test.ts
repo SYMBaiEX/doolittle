@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createPixelScreenshotPng, createScreenshotSvg } from "./capture-cards";
 
 const page = {

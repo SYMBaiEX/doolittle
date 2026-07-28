@@ -1,31 +1,31 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 
 describe("bootstrap wizard-screen lifecycle", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("wires wizard-screen aborts back into the bootstrap context", async () => {
-    const createWizardScreen = mock((options: { onAbort?: () => void }) => ({
+    const createWizardScreen = vi.fn((options: { onAbort?: () => void }) => ({
       options,
     }));
-    mock.module("./surface", () => ({
+    vi.doMock("./surface", () => ({
       createWizardScreen,
     }));
 
-    const { initializeWizardScreen } = await import(
-      `./lifecycle?lifecycle-tests=${Date.now()}-${Math.random()}`
-    );
+    const { initializeWizardScreen } = await import("./lifecycle");
 
     let currentScreen: unknown = null;
-    const abortBootstrap = mock(() => {});
+    const abortBootstrap = vi.fn(() => {});
     const context = {
       formatKeyLabel: (label: string) => label,
       abortBootstrap,
@@ -44,9 +44,7 @@ describe("bootstrap wizard-screen lifecycle", () => {
   });
 
   it("suspends the active screen and clears it from context", async () => {
-    const { suspendWizardScreen } = await import(
-      `./lifecycle?lifecycle-suspend-tests=${Date.now()}-${Math.random()}`
-    );
+    const { suspendWizardScreen } = await import("./lifecycle");
 
     const snapshot = {
       title: "Awakening",
@@ -55,7 +53,7 @@ describe("bootstrap wizard-screen lifecycle", () => {
       currentDetail: "",
       logLines: [],
     };
-    const destroy = mock(() => {});
+    const destroy = vi.fn(() => {});
     let currentScreen: unknown = {
       snapshot: () => snapshot,
       destroy,

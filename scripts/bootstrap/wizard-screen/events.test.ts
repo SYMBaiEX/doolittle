@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import blessed from "blessed";
+import { describe, expect, it } from "vitest";
 import { installWizardScreenEvents } from "./events";
 
 describe("wizard-screen events", () => {

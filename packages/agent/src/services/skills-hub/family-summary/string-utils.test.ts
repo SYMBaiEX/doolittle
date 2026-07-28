@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { matchesFamily, rootFromSlug, titleizeSlug } from "./string-utils";
 
 describe("skill hub family slug helpers", () => {

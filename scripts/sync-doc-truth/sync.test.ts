@@ -1,8 +1,8 @@
-import { describe, expect, it } from "bun:test";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import { runSyncDocTruth } from "./sync";
 
-const repoRoot = resolve(import.meta.dir, "..", "..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 describe("runSyncDocTruth", () => {
   it("keeps generated docs and plugin readmes synchronized in check mode", () => {

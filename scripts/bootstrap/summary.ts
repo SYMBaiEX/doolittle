@@ -102,10 +102,10 @@ export function buildBootstrapPulseSummary(args: {
       {
         title: "Next Moves",
         lines: [
-          "- bun run start",
-          "- bun run start cockpit",
-          "- bun run dev",
-          "- bun run bootstrap --check",
+          "- nub run start",
+          "- nub run start cockpit",
+          "- nub run dev",
+          "- nub run bootstrap --check",
           "- /theme list",
           "- /doctor",
           "- /gateway readiness",

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import { bootstrapColor, createBootstrapOutput, paint } from "./output";
 
 describe("bootstrap output helpers", () => {
@@ -31,7 +31,7 @@ describe("bootstrap output helpers", () => {
 
   it("prints the banner in plain console mode", () => {
     let printed = "";
-    const spy = mock((value?: unknown) => {
+    const spy = vi.fn((value?: unknown) => {
       printed = String(value ?? "");
     });
     const original = console.log;

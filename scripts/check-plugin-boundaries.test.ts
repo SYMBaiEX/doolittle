@@ -1,12 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const SCRIPT_PATH = join(
   process.cwd(),
   "scripts",
   "check-plugin-boundaries.ts",
+);
+const NUB_PATH = join(
+  process.cwd(),
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "nub.cmd" : "nub",
 );
 
 function createBoundaryFixture(options: {
@@ -59,14 +66,15 @@ function runScript(cwd: string): {
   stdout: string;
   stderr: string;
 } {
-  const result = Bun.spawnSync({
-    cmd: ["bun", SCRIPT_PATH],
+  const environment = { ...process.env };
+  delete environment.NODE_OPTIONS;
+  const result = spawnSync(NUB_PATH, [SCRIPT_PATH], {
     cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+    env: environment,
+    stdio: ["ignore", "pipe", "pipe"],
   });
   return {
-    status: result.exitCode,
+    status: result.status,
     stdout: result.stdout.toString(),
     stderr: result.stderr.toString(),
   };

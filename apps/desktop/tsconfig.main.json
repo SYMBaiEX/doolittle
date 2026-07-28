@@ -7,7 +7,7 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node", "bun-types"],
+    "types": ["node"],
     "lib": ["ES2022", "DOM"]
   },
   "include": [

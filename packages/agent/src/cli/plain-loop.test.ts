@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { CliExecutionResult, CliState } from "@/cli/execution";
 import { processPlainCliLine } from "@/cli/plain-loop/process-line";
 import type { PlainCliLoopExecutionState } from "@/cli/plain-loop/types";

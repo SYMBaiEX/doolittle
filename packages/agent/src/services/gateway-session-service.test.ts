@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { writeSessionRouteStore } from "@/services/gateway-session-service/storage";
 import type { SessionRoute } from "@/types/gateway";
 import { GatewaySessionService } from "./gateway-session-service";

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { NativePluginDescriptor } from "@doolittle/contracts";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types/runtime";
 import {
   getNativePluginCatalog,

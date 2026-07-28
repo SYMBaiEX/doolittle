@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types/runtime";
 import { MatrixPlatformAdapter } from "./matrix-adapter";
 import { createDeliveryRoot, installFetchMock } from "./test-helpers";

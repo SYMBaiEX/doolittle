@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import { EventType, type IAgentRuntime, type Task } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { wireSdkCapabilities } from "./sdk-capabilities";
 
 function makeRuntime(opts?: {

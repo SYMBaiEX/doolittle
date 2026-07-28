@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { Plugin } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { StartupStateService } from "@/services/startup-state-service";
 import { createDeferredHydrator } from "./deferred-hydration";
 

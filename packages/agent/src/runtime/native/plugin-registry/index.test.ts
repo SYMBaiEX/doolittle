@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
 import type { Action, Plugin } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import {
   deduplicateNativePluginActions,
   normalizePlugin,

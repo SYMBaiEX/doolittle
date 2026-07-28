@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { buildPageMetrics, extractReadableText } from "./content";
 
 describe("web-service content helpers", () => {

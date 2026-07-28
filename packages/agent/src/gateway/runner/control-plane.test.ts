@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createGatewayRunnerControlPlane } from "@/gateway/runner/control-plane";
 import type {
   GatewayRunnerLifecycleHostInputs,

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { applyOperation, applyOperationsToLines } from "./engine";
 
 describe("fuzzy patch engine", () => {

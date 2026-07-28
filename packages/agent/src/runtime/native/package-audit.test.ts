@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types/runtime";
 import { getLatestRuntimeLine, getNativePackageAudit } from "./package-audit";
 import { getNativePackageAuditRecords } from "./package-audit/records";

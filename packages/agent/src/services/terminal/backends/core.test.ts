@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { LOCAL_SHELL } from "../execution/subprocess";
 import { buildSingularityCommand } from "../planning";
 import { createCoreExecutionBackends } from "./core";

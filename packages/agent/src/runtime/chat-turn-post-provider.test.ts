@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runPostProviderTurn } from "./chat-turn/post-provider";
 

@@ -1,61 +1,63 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BootstrapPromptScreen, PromptRuntime } from "./types";
 
 function createRuntime(): PromptRuntime {
   return {
-    getWizardScreen: mock(() => null),
-    warn: mock(() => {}),
-    info: mock(() => {}),
+    getWizardScreen: vi.fn(() => null),
+    warn: vi.fn(() => {}),
+    info: vi.fn(() => {}),
   };
 }
 
 async function loadSecretWithMocks() {
-  const ask = mock(async () => "fallback-answer");
+  const ask = vi.fn(async () => "fallback-answer");
 
-  mock.module("./text-prompts", () => ({
+  vi.doMock("./text-prompts", () => ({
     ask,
   }));
-  mock.module("./readline", () => ({
-    requireReadline: mock(() => ({
-      question: mock(async () => "fallback-answer"),
+  vi.doMock("./readline", () => ({
+    requireReadline: vi.fn(() => ({
+      question: vi.fn(async () => "fallback-answer"),
     })),
   }));
-  mock.module("node:child_process", () => ({
-    spawnSync: mock(() => ({ stdout: Buffer.from("") })),
+  vi.doMock("node:child_process", () => ({
+    spawnSync: vi.fn(() => ({ stdout: Buffer.from("") })),
   }));
 
   return {
     ask,
-    module: import(`./secret?secret-tests=${Date.now()}-${Math.random()}`),
+    module: import("./secret"),
   };
 }
 
 describe("prompting secret helper", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("prefers wizard screen prompts when they exist", async () => {
-    const promptText = mock(async (prompt: string, defaultValue: string) => {
+    const promptText = vi.fn(async (prompt: string, defaultValue: string) => {
       expect(prompt).toBe("Api key");
       expect(defaultValue).toBe("stored");
       return `${prompt}::${defaultValue}`;
     });
 
-    mock.module("./text-prompts", () => ({
-      ask: mock(async () => "should-not-be-used"),
+    vi.doMock("./text-prompts", () => ({
+      ask: vi.fn(async () => "should-not-be-used"),
     }));
 
     const runtime = createRuntime();
     const wizardScreen: BootstrapPromptScreen = {
       promptText,
-      promptYesNo: mock(async () => true),
+      promptYesNo: vi.fn(async () => true),
       selectOne: async <T extends string>(
         _prompt: string,
         _optionsList: Array<{ value: T; label: string; detail?: string }>,
@@ -65,9 +67,7 @@ describe("prompting secret helper", () => {
     };
     runtime.getWizardScreen = () => wizardScreen;
 
-    const { askSecret } = await import(
-      `./secret?secret-tests=${Date.now()}-${Math.random()}`
-    );
+    const { askSecret } = await import("./secret");
     const value = await askSecret(runtime, null as never, "Api key", "stored");
 
     expect(value).toBe("Api key::stored");
@@ -77,7 +77,7 @@ describe("prompting secret helper", () => {
   });
 
   it("falls back to text prompt when no wizard screen is available", async () => {
-    mock.module("node:process", () => ({
+    vi.doMock("node:process", () => ({
       stdin: {
         isTTY: false,
         write: () => {},

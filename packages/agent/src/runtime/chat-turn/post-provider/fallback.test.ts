@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { resolvePostProviderFallback } from "./fallback";
 
 type FallbackInput = Parameters<typeof resolvePostProviderFallback>[0];

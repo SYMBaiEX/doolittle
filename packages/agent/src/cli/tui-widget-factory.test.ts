@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createTuiWidgets } from "@/cli/tui-widget-factory";
 import { getTuiTheme } from "@/runtime/theme-catalog";
 

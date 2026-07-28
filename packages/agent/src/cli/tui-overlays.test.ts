@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { installTuiOverlays, type TuiOverlayState } from "@/cli/tui-overlays";
 
 type Handler = (...args: unknown[]) => void;

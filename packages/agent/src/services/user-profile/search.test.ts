@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { searchProfiles } from "./search";
 import { createEmptyProfile } from "./storage";
 

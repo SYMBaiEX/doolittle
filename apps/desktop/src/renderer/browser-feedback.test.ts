@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { compileBrowserEvidenceContext } from "./browser-feedback";
 
 describe("browser evidence context", () => {

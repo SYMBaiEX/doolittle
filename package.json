@@ -7,8 +7,10 @@
   "bin": {
     "doolittle": "./packages/agent/src/index.ts"
   },
-  "packageManager": "bun@1.3.11",
-  "description": "Monorepo for the Bun-first ElizaOS-native Doolittle platform and vendored official workspace packages.",
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "description": "Monorepo for the Nub-powered ElizaOS-native Doolittle platform and vendored official workspace packages.",
   "workspaces": [
     "apps/desktop",
     "packages/acp",
@@ -30,40 +32,41 @@
     "packages/characters"
   ],
   "scripts": {
-    "bootstrap": "bun run scripts/bootstrap.ts",
-    "bootstrap:check": "bun run scripts/bootstrap.ts --check",
-    "onboard": "bun run scripts/bootstrap.ts",
-    "smoke:linked-providers": "bun run scripts/smoke-linked-providers.ts",
-    "publish:providers": "bun run scripts/publish-provider-packages.ts",
-    "publish:providers:alpha": "bun run publish:providers -- --provider all --publish --tag alpha",
+    "bootstrap": "nub scripts/bootstrap.ts",
+    "bootstrap:check": "nub scripts/bootstrap.ts --check",
+    "onboard": "nub scripts/bootstrap.ts",
+    "smoke:linked-providers": "nub scripts/smoke-linked-providers.ts",
+    "publish:providers": "nub scripts/publish-provider-packages.ts",
+    "publish:providers:alpha": "nub run publish:providers -- --provider all --publish --tag alpha",
     "install:deps": "bash scripts/install.sh",
-    "dev": "bun run --cwd packages/agent dev",
-    "start": "bun run --cwd packages/agent start",
-    "build": "bun run --cwd packages/agent build",
-    "desktop:dev": "bun run --cwd apps/desktop dev",
-    "desktop:build": "bun run --cwd apps/desktop build",
-    "desktop:typecheck": "bun run --cwd apps/desktop typecheck",
-    "desktop:test": "bun run --cwd apps/desktop test",
-    "desktop:package": "bun run --cwd apps/desktop package",
-    "desktop:package:dir": "bun run --cwd apps/desktop package:dir",
-    "desktop:package:win": "bun run --cwd apps/desktop package:win",
-    "lint": "bunx @biomejs/biome check --write .",
-    "lint:check": "bunx @biomejs/biome check .",
-    "typecheck": "bunx tsc --noEmit",
-    "test": "bun test",
-    "test:coding-harness": "bun test scripts/acceptance/coding-loop-harness.test.ts",
-    "test:e2e": "bun run desktop:build && playwright test",
-    "check:repo-hygiene": "bun run scripts/check-repo-hygiene.ts",
-    "check:plugin-boundaries": "bun run scripts/check-plugin-boundaries.ts",
-    "check:docs-truth": "bun run scripts/sync-doc-truth.ts --check",
-    "check:acceptance": "bun run check:repo-hygiene && bun run check:plugin-boundaries && bun run check:docs-truth",
-    "check": "bun run lint:check && bun run typecheck && bun test && bun run build",
-    "publish:codex:dry-run": "bun run publish:providers -- --provider codex",
-    "publish:claude-code:dry-run": "bun run publish:providers -- --provider claude-code",
-    "publish:devin:dry-run": "bun run publish:providers -- --provider devin",
-    "publish:providers:check": "bun run publish:providers -- --provider all",
+    "dev": "nub run --cwd packages/agent dev",
+    "start": "nub run --cwd packages/agent start",
+    "build": "nub run --cwd packages/agent build",
+    "desktop:dev": "nub run --cwd apps/desktop dev",
+    "desktop:build": "nub run --cwd apps/desktop build",
+    "desktop:typecheck": "nub run --cwd apps/desktop typecheck",
+    "desktop:test": "nub run --cwd apps/desktop test",
+    "desktop:runtime:install": "node node_modules/electron/install.js",
+    "desktop:package": "nub run --cwd apps/desktop package",
+    "desktop:package:dir": "nub run --cwd apps/desktop package:dir",
+    "desktop:package:win": "nub run --cwd apps/desktop package:win",
+    "lint": "nubx --node biome check --write .",
+    "lint:check": "nubx --node biome check .",
+    "typecheck": "nubx --node tsc --noEmit",
+    "test": "nubx --node vitest run",
+    "test:coding-harness": "nubx --node vitest run scripts/acceptance/coding-loop-harness.test.ts",
+    "test:e2e": "nub run desktop:build && nubx --node playwright test",
+    "check:repo-hygiene": "nub scripts/check-repo-hygiene.ts",
+    "check:plugin-boundaries": "nub scripts/check-plugin-boundaries.ts",
+    "check:docs-truth": "nub scripts/sync-doc-truth.ts --check",
+    "check:acceptance": "nub run check:repo-hygiene && nub run check:plugin-boundaries && nub run check:docs-truth",
+    "check": "nub run lint:check && nub run typecheck && nub run test && nub run build",
+    "publish:codex:dry-run": "nub run publish:providers -- --provider codex",
+    "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
+    "publish:devin:dry-run": "nub run publish:providers -- --provider devin",
+    "publish:providers:check": "nub run publish:providers -- --provider all",
     "workspace:list": "find packages -maxdepth 2 -mindepth 1 -type f -name package.json | sort",
-    "workspace:plugins": "bun run --cwd packages/agent start --help"
+    "workspace:plugins": "nub run --cwd packages/agent start --help"
   },
   "dependencies": {
     "@doolittle/acp": "workspace:*",
@@ -71,6 +74,8 @@
     "@doolittle/logger": "workspace:*",
     "@electric-sql/pglite": "0.4.5",
     "@elizaos/agent": "2.0.3-beta.7",
+    "@elizaos/app-training": "workspace:*",
+    "@elizaos/cloud-shared": "workspace:*",
     "@elizaos/core": "2.0.3-beta.7",
     "@elizaos/plugin-anthropic": "2.0.3-beta.7",
     "@elizaos/plugin-claude-code": "workspace:*",
@@ -85,8 +90,6 @@
     "@elizaos/plugin-telegram": "2.0.3-beta.7",
     "@elizaos/plugin-worker-runtime": "workspace:*",
     "@elizaos/registry": "workspace:*",
-    "@elizaos/cloud-shared": "workspace:*",
-    "@elizaos/app-training": "workspace:*",
     "@elizaos/shared": "2.0.3-beta.7",
     "@elizaos/skills": "2.0.3-beta.7",
     "@fal-ai/client": "^1.9.4",
@@ -101,9 +104,11 @@
     "@elizaos/plugin-agent-skills": "2.0.3-beta.7",
     "@elizaos/skills": "2.0.3-beta.7",
     "@elizaos/plugin-anthropic": "2.0.3-beta.7",
+    "@elizaos/plugin-elizacloud": "workspace:*",
     "@elizaos/plugin-ollama": "2.0.3-beta.7",
     "@elizaos/plugin-openai": "2.0.3-beta.7",
     "@elizaos/plugin-pdf": "2.0.3-beta.7",
+    "@elizaos/plugin-remote-manifest": "workspace:*",
     "@elizaos/plugin-telegram": "2.0.3-beta.7",
     "@elizaos/plugin-wechat": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.3-beta.7",
@@ -112,16 +117,27 @@
     "ollama-ai-provider": "npm:ollama-ai-provider-v2@^3.5.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
+    "@biomejs/biome": "2.4.8",
+    "@nubjs/nub": "0.6.0",
     "@playwright/test": "^1.58.2",
     "@types/blessed": "^0.1.27",
-    "@types/node": "^24.6.0",
+    "@types/node": "^26.1.1",
     "blessed": "^0.1.81",
-    "bun-types": "latest",
-    "typescript": "^5.9.3"
+    "esbuild": "0.28.1",
+    "typescript": "^5.9.3",
+    "vitest": "4.1.10"
   },
-  "engines": {
-    "bun": ">=1.3.0",
-    "node": ">=24.0.0"
-  }
+  "allowBuilds": {
+    "@nubjs/nub": true,
+    "esbuild": true,
+    "sharp": true
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "nub",
+      "version": "^0.6.0",
+      "onFail": "warn"
+    }
+  },
+  "packageManager": "nub@0.6.0"
 }

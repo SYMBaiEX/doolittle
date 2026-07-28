@@ -1,8 +1,8 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { IAgentRuntime, Service, ServiceClass } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import { createPlanningPlugin } from "./index";
 
 describe("plugin-planning", () => {

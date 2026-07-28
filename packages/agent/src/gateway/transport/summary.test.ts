@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { summarizeTransportInventory } from "./summary";
 
 describe("summarizeTransportInventory", () => {

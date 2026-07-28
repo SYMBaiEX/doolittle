@@ -1,25 +1,25 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import type { PromptHandle } from "../prompting/types";
 
 function installPromptOpMocks() {
-  const promptAsk = mock(async (runtime: never) => {
+  const promptAsk = vi.fn(async (runtime: never) => {
     expect(runtime).toBeDefined();
     return "prompt-answer";
   });
-  const promptAskSecret = mock(async () => "secret-answer");
-  const promptChooseOne = mock(async () => "openai");
-  const promptChooseMany = mock(async () => ["mcp"]);
-  const promptAskYesNo = mock(async () => false);
+  const promptAskSecret = vi.fn(async () => "secret-answer");
+  const promptChooseOne = vi.fn(async () => "openai");
+  const promptChooseMany = vi.fn(async () => ["mcp"]);
+  const promptAskYesNo = vi.fn(async () => false);
 
-  mock.module("../prompting/secret", () => ({
+  vi.doMock("../prompting/secret", () => ({
     askSecret: promptAskSecret,
   }));
-  mock.module("../prompting/selection", () => ({
+  vi.doMock("../prompting/selection", () => ({
     chooseOne: promptChooseOne,
     chooseMany: promptChooseMany,
   }));
-  mock.module("../prompting/text-prompts", () => ({
+  vi.doMock("../prompting/text-prompts", () => ({
     ask: promptAsk,
     askYesNo: promptAskYesNo,
   }));
@@ -34,16 +34,16 @@ function installPromptOpMocks() {
 }
 
 async function loadPromptOps() {
-  return import(`./prompt-ops?prompt-ops-tests=${Date.now()}-${Math.random()}`);
+  return import("./prompt-ops");
 }
 
 const createContext = (): BootstrapWizardContext =>
   ({
-    getWizardScreen: mock(() => null),
-    section: mock(() => {}),
+    getWizardScreen: vi.fn(() => null),
+    section: vi.fn(() => {}),
     banner: () => {},
-    info: mock(() => {}),
-    warn: mock(() => {}),
+    info: vi.fn(() => {}),
+    warn: vi.fn(() => {}),
     formatKeyLabel: (label: string) => `[${label}]`,
     options: { headless: false, skipWizard: false },
     root: "/tmp",
@@ -55,14 +55,15 @@ const createContext = (): BootstrapWizardContext =>
 
 describe("bootstrap core prompt ops", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
-    installPromptOpMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("delegates raw text prompts to the prompting text surface", async () => {

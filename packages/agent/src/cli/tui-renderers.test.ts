@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { CliState } from "@/cli/execution";
 import { renderFooter, renderStatusContent } from "@/cli/tui-renderers";
 import type { AppContext } from "@/runtime/bootstrap";

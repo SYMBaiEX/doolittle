@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { TrajectoryRecord } from "../../../types/trajectory";
 import { collectTrajectoryRecords } from "./record-selection";
 import type { TrajectoryBundleStorageHost } from "./types";

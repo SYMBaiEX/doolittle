@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import { handleGatewaySessionControlCommand } from "./session-controls";

@@ -1,10 +1,10 @@
-import { describe, expect, it } from "bun:test";
 import {
   type IAgentRuntime,
   ModelType,
   type PipelineHookSpec,
   type Plugin,
 } from "@elizaos/core";
+import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types";
 import {
   createDoolittleOllamaUxPlugin,

@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it } from "bun:test";
 import {
   mkdirSync,
   mkdtempSync,
@@ -8,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleCodegenRoutes } from "@/server/routes/codegen";
 import { handleDelegationCommandRoutes } from "@/server/routes/delegation-commands";
@@ -16,6 +16,7 @@ import { handleReviewRecordRoutes } from "@/server/routes/review-record";
 import { AutocoderPipelineService } from "@/services/autocoder-pipeline";
 import { DelegationService } from "@/services/delegation/service";
 import { ReviewRecordService } from "@/services/review-record";
+import { serveFetchTest } from "@/testing/fetch-server";
 
 const temporaryDirectories: string[] = [];
 
@@ -134,10 +135,9 @@ describe("Doolittle coding-loop acceptance fixture", () => {
       workspaceDir,
       dataDir,
     );
-    const server = Bun.serve({
-      port: 0,
-      fetch: (request) => dispatch(context, request),
-    });
+    const server = await serveFetchTest((request) =>
+      dispatch(context, request),
+    );
     const baseUrl = `http://127.0.0.1:${server.port}`;
 
     try {

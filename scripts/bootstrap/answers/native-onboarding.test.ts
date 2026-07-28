@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WizardAnswers } from "../types";
 import { buildNativeOnboardingMirror } from "./native-onboarding";
 
@@ -70,7 +70,7 @@ function createNativeOnboardingHelpers() {
 }
 
 function installSuccessMocks() {
-  const advanceStep = mock(async () => {});
+  const advanceStep = vi.fn(async () => {});
   const machine = {
     advanceStep,
     getContext: () => ({ state: "ready" }),
@@ -91,7 +91,7 @@ function installSuccessMocks() {
 }
 
 function installFailureMocks(error: string) {
-  const advanceStep = mock(async (payload: { step: string }) => {
+  const advanceStep = vi.fn(async (payload: { step: string }) => {
     if (payload.step === "RISK_ACK") {
       throw new Error(error);
     }
@@ -116,13 +116,15 @@ function installFailureMocks(error: string) {
 }
 
 beforeEach(() => {
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
-  mock.restore();
-  mock.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.resetModules();
+  vi.clearAllMocks();
 });
 
 describe("bootstrap native onboarding mirror", () => {

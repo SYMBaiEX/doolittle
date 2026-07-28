@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 
 function createContext(): {
@@ -48,12 +48,10 @@ function normalizeMockCloudSiteUrl(rawUrl?: string): string {
 }
 
 async function loadFlowModule() {
-  return import(
-    `./cloud-login?cloud-login-tests=${Date.now()}-${Math.random()}`
-  );
+  return import("./cloud-login");
 }
 
-function withPatchedSetTimeout(fn: () => Promise<void>) {
+function withPatchedSetTimeout<T>(fn: () => Promise<T>): Promise<T> {
   const originalSetTimeout = globalThis.setTimeout;
   globalThis.setTimeout = ((callback: () => void) => {
     callback();
@@ -65,7 +63,9 @@ function withPatchedSetTimeout(fn: () => Promise<void>) {
   });
 }
 
-function withPatchedSetTimeoutAndVirtualTime(fn: () => Promise<void>) {
+function withPatchedSetTimeoutAndVirtualTime<T>(
+  fn: () => Promise<T>,
+): Promise<T> {
   const originalSetTimeout = globalThis.setTimeout;
   const originalNow = Date.now;
   let now = 0;
@@ -85,33 +85,35 @@ function withPatchedSetTimeoutAndVirtualTime(fn: () => Promise<void>) {
 
 describe("runElizaCloudLoginFlow", () => {
   beforeEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    mock.restore();
-    mock.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("continues on auth-gated availability and reports create-session errors", async () => {
     const { context, sectionCalls, warnCalls } = createContext();
-    const openBrowser = mock(async () => true);
+    const openBrowser = vi.fn(async () => true);
 
-    mock.module("./cloud-compat", () => ({
+    vi.doMock("./cloud-compat", () => ({
       checkCloudAvailability: async () => "HTTP 401",
       normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
-    const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
-    const restoreWizardScreen = mock(() => {});
-    mock.module("../wizard-screen/lifecycle", () => ({
+    const suspendWizardScreen = vi.fn(() => ({ title: "Awakening" }));
+    const restoreWizardScreen = vi.fn(() => {});
+    vi.doMock("../wizard-screen/lifecycle", () => ({
       suspendWizardScreen,
       restoreWizardScreen,
     }));
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = asFetchMock(
-      mock(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.endsWith("/api/auth/cli-session")) {
           return new Response("bad credentials", { status: 500 });
@@ -146,23 +148,23 @@ describe("runElizaCloudLoginFlow", () => {
 
   it("returns undefined when availability reports a hard blocking condition", async () => {
     const { context, sectionCalls } = createContext();
-    const openBrowser = mock(async () => true);
+    const openBrowser = vi.fn(async () => true);
 
-    mock.module("./cloud-compat", () => ({
+    vi.doMock("./cloud-compat", () => ({
       checkCloudAvailability: async () =>
         "Cloud service temporarily unavailable",
       normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
-    const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
-    const restoreWizardScreen = mock(() => {});
-    mock.module("../wizard-screen/lifecycle", () => ({
+    const suspendWizardScreen = vi.fn(() => ({ title: "Awakening" }));
+    const restoreWizardScreen = vi.fn(() => {});
+    vi.doMock("../wizard-screen/lifecycle", () => ({
       suspendWizardScreen,
       restoreWizardScreen,
     }));
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = asFetchMock(
-      mock(async () => {
+      vi.fn(async () => {
         throw new Error("should not call fetch when availability blocked");
       }),
     );
@@ -188,15 +190,15 @@ describe("runElizaCloudLoginFlow", () => {
 
   it("warns and returns undefined when polling reaches missing session", async () => {
     const { context, warnCalls } = createContext();
-    const openBrowser = mock(async () => true);
+    const openBrowser = vi.fn(async () => true);
 
-    mock.module("./cloud-compat", () => ({
+    vi.doMock("./cloud-compat", () => ({
       checkCloudAvailability: async () => undefined,
       normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
-    const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
-    const restoreWizardScreen = mock(() => {});
-    mock.module("../wizard-screen/lifecycle", () => ({
+    const suspendWizardScreen = vi.fn(() => ({ title: "Awakening" }));
+    const restoreWizardScreen = vi.fn(() => {});
+    vi.doMock("../wizard-screen/lifecycle", () => ({
       suspendWizardScreen,
       restoreWizardScreen,
     }));
@@ -204,7 +206,7 @@ describe("runElizaCloudLoginFlow", () => {
     const originalFetch = globalThis.fetch;
     let calledCreateSession = false;
     globalThis.fetch = asFetchMock(
-      mock(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.endsWith("/api/auth/cli-session")) {
           calledCreateSession = true;
@@ -234,22 +236,22 @@ describe("runElizaCloudLoginFlow", () => {
 
   it("warns when polling never reaches authentication before timeout", async () => {
     const { context, warnCalls } = createContext();
-    const openBrowser = mock(async () => true);
+    const openBrowser = vi.fn(async () => true);
 
-    mock.module("./cloud-compat", () => ({
+    vi.doMock("./cloud-compat", () => ({
       checkCloudAvailability: async () => undefined,
       normalizeCloudSiteUrl: normalizeMockCloudSiteUrl,
     }));
-    const suspendWizardScreen = mock(() => ({ title: "Awakening" }));
-    const restoreWizardScreen = mock(() => {});
-    mock.module("../wizard-screen/lifecycle", () => ({
+    const suspendWizardScreen = vi.fn(() => ({ title: "Awakening" }));
+    const restoreWizardScreen = vi.fn(() => {});
+    vi.doMock("../wizard-screen/lifecycle", () => ({
       suspendWizardScreen,
       restoreWizardScreen,
     }));
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = asFetchMock(
-      mock(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.endsWith("/api/auth/cli-session")) {
           return new Response("{}", { status: 200 });

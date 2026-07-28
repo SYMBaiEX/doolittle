@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { ToolDefinition } from "@/types";
 import { buildToolRegistrySummary } from "./summary";
 import type { ToolRegistryDynamicState } from "./types";

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, vi } from "vitest";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import type { PromptHandle } from "../prompting/types";
 import type { WizardAnswers } from "../types";
@@ -8,9 +8,9 @@ import type { ExecutionBodyPromptDeps } from "./body/types";
 
 const createContext = (): BootstrapWizardContext =>
   ({
-    section: mock(() => {}),
-    info: mock(() => {}),
-    warn: mock(() => {}),
+    section: vi.fn(() => {}),
+    info: vi.fn(() => {}),
+    warn: vi.fn(() => {}),
     abortBootstrap: () => {},
     raceBootstrapAbort: async <T>(operation: Promise<T>) => await operation,
     throwIfBootstrapAborted: () => {},
@@ -104,7 +104,7 @@ describe("bootstrap execution body helpers", () => {
   it("falls back to basic browser after warning in ritual mode when Lightpanda is unavailable", async () => {
     const context = createContext();
     const promptDeps = {
-      chooseOne: mock(async (_context, _rl, prompt: string) => {
+      chooseOne: vi.fn(async (_context, _rl, prompt: string) => {
         if (prompt === "Where should I execute:") {
           return "local" as const;
         }
@@ -113,8 +113,8 @@ describe("bootstrap execution body helpers", () => {
         }
         throw new Error(`Unexpected prompt: ${prompt}`);
       }),
-      ask: mock(async () => ""),
-      askYesNo: mock(async () => true),
+      ask: vi.fn(async () => ""),
+      askYesNo: vi.fn(async () => true),
     } as unknown as ExecutionBodyPromptDeps;
 
     const result = await runExecutionBodySelectionFlow(
@@ -154,7 +154,7 @@ describe("bootstrap execution body helpers", () => {
   it("collects SSH target details during ritual mode and assembles the final selection", async () => {
     const context = createContext();
     const promptDeps = {
-      chooseOne: mock(async (_context, _rl, prompt: string) => {
+      chooseOne: vi.fn(async (_context, _rl, prompt: string) => {
         if (prompt === "Where should I execute:") {
           return "ssh" as const;
         }
@@ -163,7 +163,7 @@ describe("bootstrap execution body helpers", () => {
         }
         throw new Error(`Unexpected prompt: ${prompt}`);
       }),
-      ask: mock(async (_context, _rl, prompt: string) => {
+      ask: vi.fn(async (_context, _rl, prompt: string) => {
         const values: Record<string, string> = {
           "What host should I inhabit over SSH": "buildbox.internal",
           "Which SSH user should I become": "deploy",
@@ -175,7 +175,7 @@ describe("bootstrap execution body helpers", () => {
         }
         return value;
       }),
-      askYesNo: mock(async () => true),
+      askYesNo: vi.fn(async () => true),
     } as unknown as ExecutionBodyPromptDeps;
 
     const result = await runExecutionBodySelectionFlow(
