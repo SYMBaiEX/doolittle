@@ -3,7 +3,6 @@ import {
   buildNativePlanningFailureMessage,
   buildSystemFactsContext,
   isRecoverableNativePlanningError,
-  shouldAttachSystemFacts,
 } from "./response-shaping";
 
 describe("chat turn response shaping", () => {
@@ -20,15 +19,6 @@ describe("chat turn response shaping", () => {
     expect(buildNativePlanningFailureMessage()).toContain(
       "native planner hit a local prompt-shaping error",
     );
-  });
-
-  it("attaches live system facts only for machine-oriented questions", () => {
-    expect(shouldAttachSystemFacts("what machine am I on?")).toBe(true);
-    expect(shouldAttachSystemFacts("can you use the terminal here?")).toBe(
-      true,
-    );
-    expect(shouldAttachSystemFacts("/doctor")).toBe(false);
-    expect(shouldAttachSystemFacts("")).toBe(false);
   });
 
   it("builds system facts from runtime settings and workspace context", () => {

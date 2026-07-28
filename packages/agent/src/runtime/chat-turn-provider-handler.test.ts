@@ -8,6 +8,7 @@ function createContext(overrides?: {
   onHandleMessage?: () => Promise<unknown>;
   captureNotice?: (notice: string) => void;
   trajectoryLogger?: unknown;
+  sdkEmitsMessageSent?: boolean;
 }) {
   const emittedEvents: string[] = [];
   const notices: string[] = [];
@@ -35,6 +36,9 @@ function createContext(overrides?: {
           onContent: (content: unknown) => Promise<unknown>,
         ) => {
           await onContent({ text: "provider response" } as never);
+          if (overrides?.sdkEmitsMessageSent) {
+            emittedEvents.push("MESSAGE_SENT");
+          }
           if (overrides?.onHandleMessage) {
             return overrides.onHandleMessage();
           }
@@ -79,8 +83,10 @@ function createTurnSettings() {
 }
 
 describe("chat turn provider handler", () => {
-  it("executes provider message handling, emits response messages, and returns streamed response", async () => {
-    const { context, emittedEvents } = createContext();
+  it("returns the streamed SDK response without re-emitting SDK message events", async () => {
+    const { context, emittedEvents } = createContext({
+      sdkEmitsMessageSent: true,
+    });
     const streamState = createProviderStreamState({
       resolveStreamingUpdate: (current: string, incoming: string) => {
         return {
@@ -109,13 +115,12 @@ describe("chat turn provider handler", () => {
         metadata: { source: "cli" },
       } as Memory,
       streamState,
-      derivedTurnPolicy: {
+      messagePolicy: {
         useMultiStep: true,
         maxIterations: 3,
       },
       abortSignal: undefined,
       settingsDuring: createTurnSettings(),
-      loadDirectLocalIntent: async () => undefined,
       onNotice: undefined,
       connectionSource: "cli",
       roomId: "room-1",
@@ -179,7 +184,7 @@ describe("chat turn provider handler", () => {
       metadata: {
         source: "cli",
         doolittle: {
-          messagePrelude: "system prelude",
+          userId: "alice",
         },
       },
     } as Memory;
@@ -190,13 +195,12 @@ describe("chat turn provider handler", () => {
       sessionId: "session-sdk",
       runId: "run-sdk",
       streamState,
-      derivedTurnPolicy: {
+      messagePolicy: {
         useMultiStep: true,
         maxIterations: 3,
       },
       abortSignal: undefined,
       settingsDuring: createTurnSettings(),
-      loadDirectLocalIntent: async () => undefined,
       onNotice: undefined,
       connectionSource: "cli",
       roomId: "room-sdk",
@@ -216,7 +220,7 @@ describe("chat turn provider handler", () => {
     expect(llmCalls).toEqual([]);
   });
 
-  it("preserves direct-local fallback behavior for recoverable provider errors", async () => {
+  it("surfaces recoverable SDK planning failures without a second executor", async () => {
     const { context, notices } = createContext({
       onHandleMessage: async () => {
         throw new Error("local planning failed");
@@ -245,15 +249,12 @@ describe("chat turn provider handler", () => {
         metadata: { source: "cli" },
       } as Memory,
       streamState,
-      derivedTurnPolicy: {
+      messagePolicy: {
         useMultiStep: false,
         maxIterations: 1,
       },
       abortSignal: undefined,
       settingsDuring: createTurnSettings(),
-      loadDirectLocalIntent: async () => ({
-        directLocalIntent: { kind: "patch" },
-      }),
       onNotice: undefined,
       connectionSource: "cli",
       roomId: "room-2",
@@ -263,10 +264,10 @@ describe("chat turn provider handler", () => {
     });
 
     expect(result.handledMessage).toBe(false);
-    expect(result.response).toBe("");
-    expect(result.runFailureMessage).toBe("local planning failed");
+    expect(result.response).toBe("recoverable");
+    expect(result.runFailureMessage).toBe("recoverable");
     expect(notices).toEqual([]);
-    expect(streamState.getResponse()).toBe("");
+    expect(streamState.getResponse()).toBe("recoverable");
   });
 
   it("emits status notices and returns provider failures for non-recoverable errors", async () => {
@@ -301,13 +302,12 @@ describe("chat turn provider handler", () => {
         metadata: { source: "cli" },
       } as Memory,
       streamState,
-      derivedTurnPolicy: {
+      messagePolicy: {
         useMultiStep: true,
         maxIterations: 4,
       },
       abortSignal: undefined,
       settingsDuring: createTurnSettings(),
-      loadDirectLocalIntent: async () => undefined,
       onNotice: async (notice: { message: string }) => {
         notices.push(notice.message);
       },
@@ -358,15 +358,12 @@ describe("chat turn provider handler", () => {
           metadata: { source: "desktop" },
         } as Memory,
         streamState,
-        derivedTurnPolicy: {
+        messagePolicy: {
           useMultiStep: true,
           maxIterations: 4,
         },
         abortSignal: controller.signal,
         settingsDuring: createTurnSettings(),
-        loadDirectLocalIntent: async () => ({
-          directLocalIntent: { kind: "patch" },
-        }),
         onNotice: async (notice) => {
           notices.push(notice.message);
         },

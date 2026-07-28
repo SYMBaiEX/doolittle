@@ -8,5 +8,4 @@ export {
   buildNativePlanningFailureMessage,
   buildSystemFactsContext,
   isRecoverableNativePlanningError,
-  shouldAttachSystemFacts,
 } from "./response-shaping";

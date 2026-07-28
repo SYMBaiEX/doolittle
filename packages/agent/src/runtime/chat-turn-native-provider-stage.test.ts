@@ -1,228 +1,142 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import { runNativeProviderStage } from "./chat-turn/native/provider-stage";
+import {
+  type NativeProviderStageDependencies,
+  runNativeProviderStage,
+} from "./chat-turn/native/provider-stage";
 
-function createTurnSetup() {
+function createInput() {
   return {
-    turn: {
-      agentName: "Doolittle",
-      localInteractive: true,
-      connectionSource: "cli",
-      sessionId: "session-1",
-      roomId: "room-1",
-      worldId: "world-1",
-      entityId: "user-1",
-      messageServerId: "server-1",
-      settings: {
+    input: {
+      userId: "alice",
+      message: "review this repository",
+      source: "desktop",
+    },
+    effectiveInput: {
+      userId: "alice",
+      message: "review this repository",
+      source: "desktop",
+    },
+    context: {
+      runtime: {
+        logger: {},
+      },
+    } as unknown as AgentExecutionContext,
+    perf: {
+      mark: vi.fn(),
+      flush: vi.fn(),
+    },
+    turnSetup: {
+      turn: {
+        agentName: "Doolittle",
+        localInteractive: true,
+        connectionSource: "desktop",
+        sessionId: "session-1",
+        roomId: "room-1",
+        worldId: "world-1",
+        entityId: "entity-1",
+        messageServerId: "server-1",
+        settings: {
+          agent: {
+            runDepth: "standard",
+            maxIterations: 8,
+            toolProgressMode: "all",
+          },
+          model: {
+            provider: "openai",
+            model: "gpt-4.1",
+          },
+        },
+        runId: "run-1",
+      },
+      scheduleProfileObservation: vi.fn(),
+      messagePolicy: {
+        runDepth: "standard",
+        maxIterations: 8,
+        toolProgressMode: "all",
+        useMultiStep: true,
+      },
+      settingsBefore: {
         agent: {
           runDepth: "standard",
-          maxIterations: 4,
+          maxIterations: 8,
           toolProgressMode: "all",
         },
+        model: {
+          provider: "openai",
+          model: "gpt-4.1",
+        },
       },
-      runId: "run-1",
     },
-    scheduleProfileObservation: () => undefined,
-    derivedTurnPolicy: {
-      useMultiStep: false,
-      maxIterations: 4,
-    },
-    turnClassification: {
-      simpleChat: false,
-      likelyLocalTask: false,
-      requiresFullContext: false,
-      actionOriented: false,
-      informationalOnly: false,
-      shouldUseMultiStep: false,
-    },
-    settingsBefore: {
+    settingsDuring: {
+      agent: {
+        runDepth: "standard",
+        maxIterations: 8,
+        toolProgressMode: "all",
+      },
       model: {
         provider: "openai",
         model: "gpt-4.1",
       },
     },
-  } as Parameters<typeof runNativeProviderStage>[0]["turnSetup"];
+  } as unknown as Parameters<typeof runNativeProviderStage>[0];
 }
 
-function createPerf() {
-  const mark = vi.fn((_phase: string) => undefined);
-  const flush = vi.fn(
-    (
-      _logger: AgentExecutionContext["runtime"]["logger"] | undefined,
-      _metadata: Record<string, unknown>,
-    ) => undefined,
-  );
-
+function createDependencies(
+  readinessMessage?: string,
+): NativeProviderStageDependencies {
   return {
-    perf: {
-      mark,
-      flush,
-    } as Parameters<typeof runNativeProviderStage>[0]["perf"],
-    mark,
-    flush,
+    getProviderReadinessMessage: vi.fn(async () => readinessMessage),
+    handleReadyResponseTurn: vi.fn(
+      async ({ readinessMessage: value }) => value,
+    ),
+    runProviderModelTurn: vi.fn(async () => ({
+      handledMessage: true,
+      response: "SDK response",
+      messageId: "message-1",
+      actionResults: [],
+    })),
+    runPostProviderTurn: vi.fn(
+      async ({
+        response,
+      }: Parameters<
+        NativeProviderStageDependencies["runPostProviderTurn"]
+      >[0]) => ({
+        kind: "final" as const,
+        response,
+        observedActionCount: 0,
+        usedFallback: false,
+      }),
+    ),
   };
 }
 
-describe("chat turn native provider stage", () => {
-  it("routes informational turns through provider execution instead of cache", async () => {
-    const runProviderModelTurn = vi.fn(async () => ({
-      handledMessage: true,
-      response: "fresh model reply",
-      messageId: "message-1",
-      actionResults: [],
-    }));
-    const runPostProviderTurn = vi.fn(async () => ({
-      kind: "final" as const,
-      response: "fresh model reply",
-      observedActionCount: 0,
-      usedFallback: false,
-    }));
-    const context = {
-      runtime: {},
-    } as unknown as AgentExecutionContext;
+describe("ElizaOS-native provider stage", () => {
+  it("passes the unmodified user turn and configured budget to the SDK seam", async () => {
+    const input = createInput();
+    const dependencies = createDependencies();
 
-    const result = await runNativeProviderStage(
-      {
-        input: {
-          userId: "alice",
-          message: "what changed",
-          source: "cli",
-        },
-        effectiveInput: {
-          userId: "alice",
-          message: "what changed",
-          source: "cli",
-        },
-        context,
-        perf: createPerf().perf,
-        turnSetup: createTurnSetup(),
-        settingsDuring: {
-          model: {
-            provider: "openai",
-            model: "gpt-4.1",
-          },
-        } as Parameters<typeof runNativeProviderStage>[0]["settingsDuring"],
-        loadDirectLocalIntent: async () => ({
-          directLocalIntent: null,
-          executeDirectLocalIntent: async () => "unused",
-          isHighConfidenceDirectLocalIntent: () => false,
-          requiresModelSynthesisForLocalIntent: () => false,
-          shouldUseDirectLocalFallback: () => false,
-        }),
-        preferredLocalIntent: null,
-        approveDirectLocalIntent: async () => undefined,
-      },
-      {
-        createModelInputAssembly: () => ({
-          capabilityProfile: "full",
-          requiresPreferredLocalIntentSynthesis: false,
-          build: () => ({
-            messagePrelude: "",
-            effectiveMessage: "expanded request",
-          }),
-        }),
-        buildPreferredLocalIntentSynthesisPrelude: async () => ({
-          kind: "continue",
-          localSynthesisPrelude: "",
-        }),
-        getProviderReadinessMessage: async () => undefined,
-        handleReadyResponseTurn: async () => undefined,
-        runProviderModelTurn,
-        runPostProviderTurn,
-      },
+    const result = await runNativeProviderStage(input, dependencies);
+
+    expect(result).toBe("SDK response");
+    expect(dependencies.runProviderModelTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "alice",
+        effectiveMessage: "review this repository",
+        messagePolicy: input.turnSetup.messagePolicy,
+      }),
     );
-
-    expect(result).toBe("fresh model reply");
-    expect(runProviderModelTurn).toHaveBeenCalledTimes(1);
-    expect(runPostProviderTurn).toHaveBeenCalledTimes(1);
+    expect(dependencies.runPostProviderTurn).toHaveBeenCalledTimes(1);
+    expect(input.perf.mark).toHaveBeenCalledWith("native-handle-message");
   });
 
-  it("marks and flushes perf metadata after a finalized provider response", async () => {
-    const logger = {} as unknown as AgentExecutionContext["runtime"]["logger"];
-    const context = {
-      runtime: {
-        logger,
-      },
-    } as unknown as AgentExecutionContext;
-    const { perf, mark, flush } = createPerf();
+  it("keeps provider configuration readiness outside the model lifecycle", async () => {
+    const dependencies = createDependencies("Provider needs configuration.");
 
-    const result = await runNativeProviderStage(
-      {
-        input: {
-          userId: "alice",
-          message: "fix the repo",
-          source: "cli",
-        },
-        effectiveInput: {
-          userId: "alice",
-          message: "fix the repo",
-          source: "cli",
-        },
-        context,
-        perf,
-        turnSetup: createTurnSetup(),
-        settingsDuring: {
-          model: {
-            provider: "openai",
-            model: "gpt-4.1",
-          },
-        } as Parameters<typeof runNativeProviderStage>[0]["settingsDuring"],
-        loadDirectLocalIntent: async () => ({
-          directLocalIntent: null,
-          executeDirectLocalIntent: async () => "unused",
-          isHighConfidenceDirectLocalIntent: () => false,
-          requiresModelSynthesisForLocalIntent: () => false,
-          shouldUseDirectLocalFallback: () => false,
-        }),
-        preferredLocalIntent: null,
-        approveDirectLocalIntent: async () => undefined,
-      },
-      {
-        createModelInputAssembly: () => ({
-          capabilityProfile: "full",
-          requiresPreferredLocalIntentSynthesis: false,
-          build: () => ({
-            messagePrelude: "",
-            effectiveMessage: "expanded request",
-          }),
-        }),
-        buildPreferredLocalIntentSynthesisPrelude: async () => ({
-          kind: "continue",
-          localSynthesisPrelude: "",
-        }),
-        getProviderReadinessMessage: async () => undefined,
-        handleReadyResponseTurn: async () => undefined,
-        runProviderModelTurn: async () => ({
-          handledMessage: true,
-          response: "provider result",
-          messageId: "message-1",
-          actionResults: [],
-        }),
-        runPostProviderTurn: async () => ({
-          kind: "final",
-          response: "local fallback",
-          observedActionCount: 2,
-          usedFallback: true,
-        }),
-      },
-    );
+    const result = await runNativeProviderStage(createInput(), dependencies);
 
-    expect(result).toBe("local fallback");
-    expect(mark.mock.calls.map(([phase]) => phase)).toEqual([
-      "provider-readiness",
-      "native-handle-message",
-      "fallback-local-intent",
-      "post-response",
-    ]);
-    expect(flush).toHaveBeenCalledTimes(1);
-    expect(flush.mock.calls[0]).toEqual([
-      logger,
-      {
-        path: "native-response",
-        sessionId: "session-1",
-        source: "cli",
-        observedActionCount: 2,
-      },
-    ]);
+    expect(result).toBe("Provider needs configuration.");
+    expect(dependencies.runProviderModelTurn).not.toHaveBeenCalled();
+    expect(dependencies.runPostProviderTurn).not.toHaveBeenCalled();
   });
 });

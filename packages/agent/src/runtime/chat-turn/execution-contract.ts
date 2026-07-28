@@ -1,9 +1,13 @@
 import type { CommandResult } from "@doolittle/contracts";
 import type { ActionResult } from "@elizaos/core";
 import { summarizeActionResults } from "@/runtime/action-result-metadata";
-import { classifyTurnMessage } from "@/runtime/turn-classification/message";
 import type { LocalMutationInput } from "@/services/run-controller-service";
 
+// This is a post-execution safety assertion, not an intent router. ElizaOS
+// selects contexts/actions; Doolittle only refuses to claim that explicitly
+// requested local work landed when no SDK action receipt exists.
+const LOCAL_EXECUTION_REQUEST_PATTERN =
+  /\b(?:run|execute|inspect|review|search|read|open|list|show|check|fix|create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|test|lint|install)\b[\s\S]*\b(?:repo|repository|project|workspace|codebase|file|files|folder|directory|terminal|command|script|test|tests|build|git|package|app|application|website|site)\b|\b(?:repo|repository|project|workspace|codebase|file|files|folder|directory|terminal|command|script|test|tests|build|git|package|app|application|website|site)\b[\s\S]*\b(?:run|execute|inspect|review|search|read|open|list|show|check|fix|create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|test|lint|install)\b/iu;
 const FILE_MUTATION_REQUEST_PATTERN =
   /\b(?:create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|mkdir|touch)\b[\s\S]*\b(?:file|files|folder|directory|html|css|js|javascript|typescript|json|md|markdown|website|site|project|app|application)\b|\b(?:file|files|folder|directory|html|css|js|javascript|typescript|json|md|markdown|website|site|project|app|application)\b[\s\S]*\b(?:create|make|write|add|edit|update|change|modify|patch|delete|remove|scaffold|build|generate|save|mkdir|touch)\b/iu;
 const FILE_WRITE_REQUEST_PATTERN =
@@ -54,10 +58,9 @@ export function buildTurnExecutionContract(input: {
     };
   }
 
-  const classification = classifyTurnMessage(input.message);
-  const requiresLocalExecution =
-    classification.actionOriented &&
-    (classification.likelyLocalTask || classification.shouldUseMultiStep);
+  const requiresLocalExecution = LOCAL_EXECUTION_REQUEST_PATTERN.test(
+    input.message,
+  );
   const requiresMutationProof =
     requiresLocalExecution && FILE_MUTATION_REQUEST_PATTERN.test(input.message);
   const shellScaffoldRequested = SHELL_SCAFFOLD_REQUEST_PATTERN.test(

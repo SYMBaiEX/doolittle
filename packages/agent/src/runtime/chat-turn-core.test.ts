@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   applyRuntimeOverrides,
   isRecoverableNativePlanningError,
-  shouldAttachSystemFacts,
 } from "./chat-turn/core";
 
 describe("chat turn core helpers", () => {
@@ -35,11 +34,9 @@ describe("chat turn core helpers", () => {
     });
   });
 
-  it("recognizes recoverable native planning failures and system fact prompts", () => {
+  it("recognizes recoverable native planning failures", () => {
     expect(
       isRecoverableNativePlanningError(new Error("parse error in prompt")),
     ).toBe(true);
-    expect(shouldAttachSystemFacts("what os am I on?")).toBe(true);
-    expect(shouldAttachSystemFacts("/status")).toBe(false);
   });
 });

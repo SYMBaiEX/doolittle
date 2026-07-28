@@ -1,5 +1,5 @@
 import type { AgentExecutionContext } from "@/runtime/chat";
-import type { TurnExecutionPolicy } from "@/runtime/turn-classification/types";
+import type { RunDepth, ToolProgressMode } from "@/types/runtime";
 import type { TurnState } from "../state";
 
 export type SettingsSnapshot = ReturnType<
@@ -14,17 +14,21 @@ export type TurnPerfTrace = {
   ): void;
 };
 
+/**
+ * Product execution limits mapped directly onto ElizaOS MessageService
+ * options. Intent and context selection belong to the SDK message handler;
+ * Doolittle only supplies the user-configured execution budget.
+ */
+export type NativeMessagePolicy = {
+  runDepth: RunDepth;
+  maxIterations: number;
+  toolProgressMode: ToolProgressMode;
+  useMultiStep: boolean;
+};
+
 export type NativeTurnSetup = {
   turn: TurnState;
   scheduleProfileObservation: () => void;
-  derivedTurnPolicy: TurnExecutionPolicy;
-  turnClassification: {
-    simpleChat: boolean;
-    likelyLocalTask: boolean;
-    requiresFullContext: boolean;
-    actionOriented: boolean;
-    informationalOnly: boolean;
-    shouldUseMultiStep: boolean;
-  };
+  messagePolicy: NativeMessagePolicy;
   settingsBefore: SettingsSnapshot;
 };

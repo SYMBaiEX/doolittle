@@ -186,18 +186,11 @@ describe("chat turn post-command seam", () => {
               runId: "run-id",
             },
             scheduleProfileObservation: () => undefined,
-            derivedTurnPolicy: {
+            messagePolicy: {
+              runDepth: "quick",
               useMultiStep: false,
               maxIterations: 1,
               toolProgressMode: "all",
-            },
-            turnClassification: {
-              simpleChat: false,
-              likelyLocalTask: false,
-              requiresFullContext: false,
-              actionOriented: false,
-              informationalOnly: true,
-              shouldUseMultiStep: false,
             },
             settingsBefore: {
               model: {

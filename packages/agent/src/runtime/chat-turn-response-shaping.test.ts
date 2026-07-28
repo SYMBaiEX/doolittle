@@ -4,14 +4,10 @@ import {
   buildNativePlanningFailureMessage,
   buildSystemFactsContext,
   isRecoverableNativePlanningError,
-  shouldAttachSystemFacts,
 } from "./chat-turn/response-shaping";
 
 describe("chat turn response shaping helpers", () => {
-  it("detects machine questions and produces system facts", () => {
-    expect(shouldAttachSystemFacts("what os am I on?")).toBe(true);
-    expect(shouldAttachSystemFacts("/status")).toBe(false);
-
+  it("produces live system facts", () => {
     const facts = buildSystemFactsContext({
       config: { workspaceDir: "/workspaces/demo" },
       services: {

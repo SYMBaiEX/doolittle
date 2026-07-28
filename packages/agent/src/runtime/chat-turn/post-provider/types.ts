@@ -1,7 +1,6 @@
 import type { ActionResult } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
-import type { DirectLocalIntentLoader } from "../local-intent-orchestration/types";
 import type { TurnState } from "../state";
 
 export type PostProviderSettingsSnapshot = ReturnType<
@@ -19,16 +18,6 @@ export interface PostProviderTurnInput {
   actionResults?: ActionResult[];
   settingsDuring: PostProviderSettingsSnapshot;
   scheduleProfileObservation: () => void;
-  loadDirectLocalIntent: () => Promise<DirectLocalIntentLoader>;
-  approveDirectLocalIntent: (
-    intent: { label?: string },
-    pendingNotice?: string,
-  ) => Promise<string | undefined>;
-}
-
-export interface PostProviderApprovalResult {
-  kind: "approval";
-  response: string;
 }
 
 export interface PostProviderFinalResult {
@@ -39,6 +28,4 @@ export interface PostProviderFinalResult {
   usedFallback: boolean;
 }
 
-export type PostProviderTurnResult =
-  | PostProviderApprovalResult
-  | PostProviderFinalResult;
+export type PostProviderTurnResult = PostProviderFinalResult;

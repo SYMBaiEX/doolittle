@@ -1,11 +1,7 @@
-import { randomUUID } from "node:crypto";
 import {
   type ActionResult,
-  type Content,
-  EventType,
   type Memory,
   setTrajectoryPurpose,
-  type UUID,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { StreamingOutputModel } from "./provider-streaming";
@@ -26,13 +22,6 @@ export type ProviderTurnSettingsSnapshot = {
   };
 };
 
-export type DirectLocalIntentFallbackLoader = () => Promise<
-  | {
-      directLocalIntent?: unknown;
-    }
-  | undefined
->;
-
 export type ProviderMessageExecutionResult = {
   handledMessage: boolean;
   response: string;
@@ -47,13 +36,12 @@ type ProviderMessageExecutionInput = {
   sessionId?: string;
   runId?: string;
   streamState: StreamingOutputModel;
-  derivedTurnPolicy: {
+  messagePolicy: {
     useMultiStep: boolean;
     maxIterations: number;
   };
   abortSignal: AbortSignal | undefined;
   settingsDuring: ProviderTurnSettingsSnapshot;
-  loadDirectLocalIntent: DirectLocalIntentFallbackLoader;
   onNotice?: (notice: {
     kind: "status";
     message: string;
@@ -75,14 +63,6 @@ function memoryText(memory: Memory): string {
   return typeof content?.text === "string" ? content.text : "";
 }
 
-function doolittleMessagePrelude(memory: Memory): string {
-  const metadata = memory.metadata as
-    | { doolittle?: { messagePrelude?: unknown } }
-    | undefined;
-  const prelude = metadata?.doolittle?.messagePrelude;
-  return typeof prelude === "string" ? prelude : "";
-}
-
 function throwIfTurnAborted(signal: AbortSignal | undefined): void {
   if (!signal?.aborted) return;
   if (signal.reason instanceof Error) throw signal.reason;
@@ -99,7 +79,6 @@ export async function executeProviderMessageTurn(
   let runFailureMessage: string | undefined;
   const startedAt = performance.now();
   const prompt = memoryText(input.memory);
-  const messagePrelude = doolittleMessagePrelude(input.memory);
   const sessionId = input.sessionId ?? String(input.memory.roomId);
   const messageId = String(input.memory.id);
   let actionResults: ActionResult[] = [];
@@ -139,11 +118,9 @@ export async function executeProviderMessageTurn(
           trajectoryStepId: readSdkTrajectoryStepId(input.memory.metadata),
           prompt,
           promptChars: prompt.length,
-          messagePrelude,
-          messagePreludeChars: messagePrelude.length,
-          useMultiStep: input.derivedTurnPolicy.useMultiStep,
-          maxIterations: input.derivedTurnPolicy.useMultiStep
-            ? input.derivedTurnPolicy.maxIterations
+          useMultiStep: input.messagePolicy.useMultiStep,
+          maxIterations: input.messagePolicy.useMultiStep
+            ? input.messagePolicy.maxIterations
             : 1,
           baseUrl: input.settingsDuring.model.baseUrl,
           temperature: input.settingsDuring.model.temperature,
@@ -154,89 +131,62 @@ export async function executeProviderMessageTurn(
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
-        const messageResult =
-          await input.context.runtime.messageService?.handleMessage(
-            input.context.runtime,
-            input.memory,
-            input.streamState.onCallbackContent,
-            {
-              useMultiStep: input.derivedTurnPolicy.useMultiStep,
-              maxMultiStepIterations: input.derivedTurnPolicy.useMultiStep
-                ? input.derivedTurnPolicy.maxIterations
-                : 1,
-              abortSignal: input.abortSignal,
-              onStreamChunk: input.onNotice
-                ? input.streamState.onStreamChunk
-                : undefined,
-            },
-          );
+        const messageService = input.context.runtime.messageService;
+        if (!messageService) {
+          throw new Error("ElizaOS message service is not registered.");
+        }
+        const messageResult = await messageService.handleMessage(
+          input.context.runtime,
+          input.memory,
+          input.streamState.onCallbackContent,
+          {
+            useMultiStep: input.messagePolicy.useMultiStep,
+            maxMultiStepIterations: input.messagePolicy.useMultiStep
+              ? input.messagePolicy.maxIterations
+              : 1,
+            abortSignal: input.abortSignal,
+            onStreamChunk: input.onNotice
+              ? input.streamState.onStreamChunk
+              : undefined,
+          },
+        );
         throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
-        if (
-          Array.isArray(messageResult?.responseMessages) &&
-          typeof input.context.runtime.emitEvent === "function"
-        ) {
-          for (const responseMessage of messageResult.responseMessages) {
-            const content = (responseMessage as { content?: Content })
-              .content ?? {
-              text: "",
-            };
-            const emittedMessage = {
-              id:
-                (responseMessage as { id?: string }).id ??
-                (randomUUID() as UUID),
-              roomId: input.memory.roomId,
-              entityId: input.context.runtime.agentId as UUID,
-              content,
-              metadata: input.memory.metadata,
-            } as Memory;
-            await input.context.runtime.emitEvent(EventType.MESSAGE_SENT, {
-              runtime: input.context.runtime,
-              message: emittedMessage,
-              source: input.connectionSource,
-            });
+        response = input.streamState.getResponse();
+        if (!response) {
+          const responseText = messageResult?.responseContent?.text;
+          if (typeof responseText === "string" && responseText.trim()) {
+            response = responseText;
+            input.streamState.setResponse(response);
           }
         }
-        response = input.streamState.getResponse();
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
         const isRecoverable = input.isRecoverableNativePlanningError(error);
-        const directFallback = isRecoverable
-          ? await input.loadDirectLocalIntent()
-          : undefined;
-        if (isRecoverable && directFallback?.directLocalIntent) {
-          runFailureMessage =
-            error instanceof Error
-              ? error.message.trim()
-              : String(error).trim();
-          response = "";
-          input.streamState.setResponse(response);
-        } else {
-          const failureMessage = isRecoverable
-            ? input.buildNativePlanningFailureMessage()
-            : input.buildProviderFailureMessage(
-                input.settingsDuring.model.provider,
-                input.settingsDuring.model.model,
-                error,
-                input.settingsDuring.model.baseUrl,
-              );
-          input.context.runtime.logger?.warn(
-            {
+        const failureMessage = isRecoverable
+          ? input.buildNativePlanningFailureMessage()
+          : input.buildProviderFailureMessage(
+              input.settingsDuring.model.provider,
+              input.settingsDuring.model.model,
               error,
-              provider: input.settingsDuring.model.provider,
-              model: input.settingsDuring.model.model,
-              roomId: input.roomId,
-            },
-            "Local agent turn failed in provider runtime",
-          );
-          await input.onNotice?.({
-            kind: "status",
-            message: failureMessage,
-          });
-          response = failureMessage;
-          runFailureMessage = failureMessage;
-          input.streamState.setResponse(response);
-        }
+              input.settingsDuring.model.baseUrl,
+            );
+        input.context.runtime.logger?.warn(
+          {
+            error,
+            provider: input.settingsDuring.model.provider,
+            model: input.settingsDuring.model.model,
+            roomId: input.roomId,
+          },
+          "ElizaOS message service turn failed",
+        );
+        await input.onNotice?.({
+          kind: "status",
+          message: failureMessage,
+        });
+        response = failureMessage;
+        runFailureMessage = failureMessage;
+        input.streamState.setResponse(response);
       } finally {
         actionResults =
           input.context.runtime.getActionResults?.(messageId) ?? [];

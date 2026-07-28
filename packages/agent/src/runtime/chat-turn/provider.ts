@@ -3,14 +3,13 @@ import {
   type ActionResult,
   ChannelType,
   createSessionEntry,
-  EventType,
   extractSessionContext,
   type Media,
   type SessionEntry,
   type UUID,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import type { TurnCapabilityProfile } from "@/runtime/turn-classification/types";
+import type { NativeMessagePolicy } from "./native/types";
 import { withProviderRuntimeLock } from "./provider/lock";
 import {
   applyModelSettings,
@@ -24,7 +23,6 @@ import {
   providerModelTurnContext,
 } from "./provider/types";
 import {
-  type DirectLocalIntentFallbackLoader,
   executeProviderMessageTurn,
   type ProviderTurnSettingsSnapshot,
 } from "./provider-handler";
@@ -70,7 +68,7 @@ function attachSdkSessionContext(input: {
   turn: TurnState;
   settingsDuring: ModelSettingsSnapshot;
   sessionKey: string;
-  messagePrelude?: string;
+  userId: string;
   effectiveMessage: string;
 }): void {
   const sessionEntry = createSdkSessionEntry(input);
@@ -87,7 +85,7 @@ function attachSdkSessionContext(input: {
     sessionKey: input.sessionKey,
     session: sessionEntry,
     doolittle: {
-      messagePrelude: input.messagePrelude ?? "",
+      userId: input.userId,
       rawMessage: input.effectiveMessage,
     },
   } as unknown as typeof input.memory.metadata;
@@ -99,17 +97,12 @@ export async function runProviderModelTurn(
   input: {
     context: AgentExecutionContext;
     turn: TurnState;
+    userId: string;
     effectiveMessage: string;
-    messagePrelude?: string;
     settingsBefore: ModelSettingsSnapshot;
     settingsDuring: ModelSettingsSnapshot;
-    capabilityProfile: TurnCapabilityProfile;
-    derivedTurnPolicy: {
-      useMultiStep: boolean;
-      maxIterations: number;
-    };
+    messagePolicy: NativeMessagePolicy;
     options?: ProviderTurnOptions;
-    loadDirectLocalIntent: DirectLocalIntentFallbackLoader;
     attachments?: Media[];
   },
   executionContext: ProviderModelTurnExecutionContext = providerModelTurnContext,
@@ -137,7 +130,7 @@ export async function runProviderModelTurn(
     turn: input.turn,
     settingsDuring: input.settingsDuring,
     sessionKey,
-    messagePrelude: input.messagePrelude,
+    userId: input.userId,
     effectiveMessage: input.effectiveMessage,
   });
   return withProviderRuntimeLock(input.context.runtime, async () => {
@@ -146,9 +139,6 @@ export async function runProviderModelTurn(
     let actionResults: ActionResult[] = [];
     let messageId = String(memory.id);
     const personalityBefore = input.context.services.personalities.getActive();
-    const previousToolProfile = input.context.runtime.getSetting(
-      "DOOLITTLE_TOOL_PROFILE",
-    );
     const previousConversationId = input.context.runtime.getSetting(
       "ELIZAOS_CLOUD_CONVERSATION_ID",
     );
@@ -176,32 +166,10 @@ export async function runProviderModelTurn(
       onResponseProgress: input.options?.onResponseProgress,
     });
 
-    try {
-      input.context.runtime.setSetting(
-        "DOOLITTLE_TOOL_PROFILE",
-        input.capabilityProfile,
-      );
-      input.context.runtime.setSetting(
-        "ELIZAOS_CLOUD_CONVERSATION_ID",
-        sessionKey,
-      );
-      if (typeof input.context.runtime.emitEvent === "function") {
-        await input.context.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
-          runtime: input.context.runtime,
-          message: memory,
-          source: input.turn.connectionSource,
-        });
-      }
-    } catch (error) {
-      input.context.runtime.logger?.warn(
-        {
-          error,
-          roomId: input.turn.roomId,
-          source: input.turn.connectionSource,
-        },
-        "Failed to emit MESSAGE_RECEIVED event for local turn",
-      );
-    }
+    input.context.runtime.setSetting(
+      "ELIZAOS_CLOUD_CONVERSATION_ID",
+      sessionKey,
+    );
 
     let runFailureMessage: string | undefined;
 
@@ -213,10 +181,9 @@ export async function runProviderModelTurn(
         sessionId: input.turn.sessionId,
         runId: input.turn.runId,
         streamState,
-        derivedTurnPolicy: input.derivedTurnPolicy,
+        messagePolicy: input.messagePolicy,
         abortSignal: input.options?.abortSignal,
         settingsDuring: input.settingsDuring as ProviderTurnSettingsSnapshot,
-        loadDirectLocalIntent: input.loadDirectLocalIntent,
         onNotice: input.options?.onNotice,
         connectionSource: input.turn.connectionSource,
         roomId: input.turn.roomId,
@@ -248,11 +215,6 @@ export async function runProviderModelTurn(
         input.context.services.personalities.setActive(personalityBefore.id);
       }
 
-      restoreRuntimeSetting(
-        input.context,
-        "DOOLITTLE_TOOL_PROFILE",
-        previousToolProfile,
-      );
       restoreRuntimeSetting(
         input.context,
         "ELIZAOS_CLOUD_CONVERSATION_ID",

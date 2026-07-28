@@ -27,31 +27,6 @@ export function buildNativePlanningFailureMessage(): string {
   return "The native planner hit a local prompt-shaping error on this turn. Try a more explicit command, or rerun with `/doctor` if it keeps happening.";
 }
 
-export function shouldAttachSystemFacts(message: string): boolean {
-  const normalized = message.trim().toLowerCase();
-  if (!normalized || normalized.startsWith("/")) {
-    return false;
-  }
-  return [
-    "what pc",
-    "what computer",
-    "what machine",
-    "what os",
-    "which os",
-    "what system",
-    "macos",
-    "windows",
-    "linux",
-    "darwin",
-    "am i on",
-    "use the terminal",
-    "can you use the terminal",
-    "can you run terminal",
-    "what shell",
-    "what platform",
-  ].some((token) => normalized.includes(token));
-}
-
 export function buildSystemFactsContext(context: ChatRuntimeContext): string {
   const terminalAvailable = "yes";
   const settings = context.services.settings.get();

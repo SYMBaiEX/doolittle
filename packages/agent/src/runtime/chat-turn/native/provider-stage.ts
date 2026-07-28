@@ -1,12 +1,9 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import { getProviderReadinessMessage } from "@/runtime/linked-provider-accounts";
 import type { ChatTurnRequest } from "@/types/runtime";
-import { buildPreferredLocalIntentSynthesisPrelude } from "../local-intent-orchestration/synthesis";
-import type { DirectLocalIntentLoader } from "../local-intent-orchestration/types";
-import { createModelInputAssembly } from "../model-input";
 import { runPostProviderTurn } from "../post-provider";
 import { runProviderModelTurn } from "../provider";
-import { handleReadyResponseTurn } from "./shortcuts";
+import { handleReadyResponseTurn } from "./readiness";
 import type { NativeTurnSetup, SettingsSnapshot, TurnPerfTrace } from "./types";
 
 type NativeTurnOptions = AgentTurnHooks & {
@@ -21,17 +18,9 @@ export interface NativeProviderStageInput {
   perf: TurnPerfTrace;
   turnSetup: NativeTurnSetup;
   settingsDuring: SettingsSnapshot;
-  loadDirectLocalIntent: () => Promise<DirectLocalIntentLoader>;
-  preferredLocalIntent: DirectLocalIntentLoader | null;
-  approveDirectLocalIntent: (
-    intent: { label?: string },
-    pendingNotice?: string,
-  ) => Promise<string | undefined>;
 }
 
 export interface NativeProviderStageDependencies {
-  createModelInputAssembly: typeof createModelInputAssembly;
-  buildPreferredLocalIntentSynthesisPrelude: typeof buildPreferredLocalIntentSynthesisPrelude;
   getProviderReadinessMessage: typeof getProviderReadinessMessage;
   handleReadyResponseTurn: typeof handleReadyResponseTurn;
   runProviderModelTurn: typeof runProviderModelTurn;
@@ -39,8 +28,6 @@ export interface NativeProviderStageDependencies {
 }
 
 const defaultDependencies: NativeProviderStageDependencies = {
-  createModelInputAssembly,
-  buildPreferredLocalIntentSynthesisPrelude,
   getProviderReadinessMessage,
   handleReadyResponseTurn,
   runProviderModelTurn,
@@ -53,41 +40,9 @@ export async function runNativeProviderStage(
 ): Promise<string> {
   const turn = input.turnSetup.turn;
   const scheduleProfileObservation = input.turnSetup.scheduleProfileObservation;
-  const derivedTurnPolicy = input.turnSetup.derivedTurnPolicy;
+  const messagePolicy = input.turnSetup.messagePolicy;
   const settingsBefore = input.turnSetup.settingsBefore;
-  const turnClassification = input.turnSetup.turnClassification;
   const responseSource = input.input.source ?? "cli";
-
-  const modelInputAssembly = dependencies.createModelInputAssembly({
-    context: input.context,
-    turn,
-    effectiveInput: input.effectiveInput,
-    derivedTurnPolicy,
-    turnClassification,
-    settingsDuring: input.settingsDuring,
-    options: input.options,
-    preferredLocalIntent: input.preferredLocalIntent,
-  });
-
-  let localSynthesisPrelude: string | undefined;
-  if (modelInputAssembly.requiresPreferredLocalIntentSynthesis) {
-    const synthesisResult =
-      await dependencies.buildPreferredLocalIntentSynthesisPrelude({
-        input: input.input,
-        context: input.context,
-        options: input.options,
-        turn,
-        preferredLocalIntent: input.preferredLocalIntent,
-      });
-    if (synthesisResult.kind === "approval") {
-      return synthesisResult.response;
-    }
-    localSynthesisPrelude = synthesisResult.localSynthesisPrelude;
-  }
-
-  const { effectiveMessage, messagePrelude } = modelInputAssembly.build(
-    localSynthesisPrelude,
-  );
   const readinessMessage = await dependencies.getProviderReadinessMessage(
     input.context,
     input.settingsDuring.model.provider,
@@ -109,14 +64,12 @@ export async function runNativeProviderStage(
   const providerResult = await dependencies.runProviderModelTurn({
     context: input.context,
     turn,
-    effectiveMessage,
-    messagePrelude,
+    userId: input.effectiveInput.userId,
+    effectiveMessage: input.effectiveInput.message,
     settingsBefore,
     settingsDuring: input.settingsDuring,
-    capabilityProfile: modelInputAssembly.capabilityProfile,
-    derivedTurnPolicy,
+    messagePolicy,
     options: input.options,
-    loadDirectLocalIntent: input.loadDirectLocalIntent,
     attachments: input.effectiveInput.attachments,
   });
   if (providerResult.handledMessage) {
@@ -134,16 +87,8 @@ export async function runNativeProviderStage(
     actionResults: providerResult.actionResults,
     settingsDuring: input.settingsDuring,
     scheduleProfileObservation,
-    loadDirectLocalIntent: input.loadDirectLocalIntent,
-    approveDirectLocalIntent: input.approveDirectLocalIntent,
   });
-  if (postProviderResult.kind === "approval") {
-    return postProviderResult.response;
-  }
 
-  if (postProviderResult.usedFallback) {
-    input.perf.mark("fallback-local-intent");
-  }
   input.perf.mark("post-response");
   input.perf.flush(input.context.runtime.logger, {
     path: postProviderResult.runFailureMessage

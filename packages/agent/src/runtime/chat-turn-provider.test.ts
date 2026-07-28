@@ -21,7 +21,6 @@ function createProviderContext() {
     },
   };
   let activePersonalityId = "default";
-  let toolProfile: unknown = "previous-profile";
   let conversationId: unknown = "previous-conversation";
 
   const context = {
@@ -31,18 +30,12 @@ function createProviderContext() {
         warn: () => undefined,
       },
       getSetting: (key: string) => {
-        if (key === "DOOLITTLE_TOOL_PROFILE") {
-          return toolProfile;
-        }
         if (key === "ELIZAOS_CLOUD_CONVERSATION_ID") {
           return conversationId;
         }
         return undefined;
       },
       setSetting: (key: string, value: unknown) => {
-        if (key === "DOOLITTLE_TOOL_PROFILE") {
-          toolProfile = value;
-        }
         if (key === "ELIZAOS_CLOUD_CONVERSATION_ID") {
           conversationId = value;
         }
@@ -117,7 +110,6 @@ function createProviderContext() {
     runtimeSettings,
     settingsState,
     thinkingSessions,
-    getToolProfile: () => toolProfile,
     getConversationId: () => conversationId,
     getHandledMemory: () => handledMemory,
     options: {
@@ -159,16 +151,17 @@ describe("chat turn provider seam", () => {
     const result = await runProviderModelTurn({
       context: harness.context,
       turn: createTurn(),
+      userId: "alice",
       effectiveMessage: "Tell me what changed.",
       settingsBefore,
       settingsDuring,
-      capabilityProfile: "coding",
-      derivedTurnPolicy: {
+      messagePolicy: {
+        runDepth: "standard",
         useMultiStep: true,
         maxIterations: 3,
+        toolProgressMode: "all",
       },
       options: harness.options,
-      loadDirectLocalIntent: async () => undefined,
       attachments: [
         {
           id: "attachment-1",
@@ -190,9 +183,8 @@ describe("chat turn provider seam", () => {
     expect(harness.thinkingSessions).toEqual(["session-1"]);
     expect(harness.personalityTransitions).toEqual(["reviewer", "default"]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
-    expect(harness.getToolProfile()).toBe("previous-profile");
     expect(harness.getConversationId()).toBe("previous-conversation");
-    expect(harness.emittedEvents).toHaveLength(2);
+    expect(harness.emittedEvents).toHaveLength(0);
     expect(
       harness.runtimeSettings.some(
         (entry) =>
@@ -226,7 +218,7 @@ describe("chat turn provider seam", () => {
     ]);
   });
 
-  it("preserves recoverable planning failures for the direct-local fallback path", async () => {
+  it("surfaces recoverable planning failures without a second executor", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();
     harness.context.runtime.messageService = {
@@ -238,28 +230,24 @@ describe("chat turn provider seam", () => {
     const result = await runProviderModelTurn({
       context: harness.context,
       turn: createTurn(),
+      userId: "alice",
       effectiveMessage: "Inspect the repo and fix it.",
       settingsBefore,
       settingsDuring: settingsBefore,
-      capabilityProfile: "coding",
-      derivedTurnPolicy: {
+      messagePolicy: {
+        runDepth: "standard",
         useMultiStep: true,
         maxIterations: 3,
+        toolProgressMode: "all",
       },
       options: harness.options,
-      loadDirectLocalIntent: async () => ({
-        directLocalIntent: {
-          label: "workspace:inspect",
-        },
-      }),
     });
 
     expect(result.handledMessage).toBe(false);
-    expect(result.response).toBe("");
-    expect(result.runFailureMessage).toBe("parse error in prompt");
-    expect(harness.notices).toEqual([]);
+    expect(result.response).toContain("native planner");
+    expect(result.runFailureMessage).toBe(result.response);
+    expect(harness.notices).toEqual([result.response]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
-    expect(harness.getToolProfile()).toBe("previous-profile");
   });
 
   it("converts non-recoverable provider failures into a user-facing notice", async () => {
@@ -274,16 +262,17 @@ describe("chat turn provider seam", () => {
     const result = await runProviderModelTurn({
       context: harness.context,
       turn: createTurn(),
+      userId: "alice",
       effectiveMessage: "Ask the provider for status.",
       settingsBefore,
       settingsDuring: settingsBefore,
-      capabilityProfile: "messaging",
-      derivedTurnPolicy: {
+      messagePolicy: {
+        runDepth: "quick",
         useMultiStep: false,
         maxIterations: 1,
+        toolProgressMode: "new",
       },
       options: harness.options,
-      loadDirectLocalIntent: async () => undefined,
     });
 
     expect(result.handledMessage).toBe(false);
