@@ -7,7 +7,6 @@ import type { AutocoderPipelineService } from "./autocoder-pipeline/service";
 import type { AwarenessService } from "./awareness-service";
 import type { ContextCompressionService } from "./context-compression";
 import type { ContextFilesService } from "./context-files-service";
-import type { CronService } from "./cron/service";
 import type { DelegationService } from "./delegation/service";
 import type { DeliveryService } from "./delivery-service";
 import type { DiagnosticsService } from "./diagnostics/service";
@@ -50,7 +49,6 @@ export interface AppServices {
   skills: SkillsService;
   skillsHub: SkillsHubService;
   sessions: SessionService;
-  cron: CronService;
   pairing: PairingService;
   hooks: HooksService;
   logger: LoggerService;

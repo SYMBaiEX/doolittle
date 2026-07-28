@@ -7,7 +7,6 @@ import type { AutocoderPipelineService } from "../../autocoder-pipeline/service"
 import type { AwarenessService } from "../../awareness-service";
 import type { ContextCompressionService } from "../../context-compression";
 import type { ContextFilesService } from "../../context-files-service";
-import type { CronService } from "../../cron/service";
 import type { DelegationService } from "../../delegation/service";
 import type { DeliveryService } from "../../delivery-service";
 import type { DocumentsService } from "../../documents-service";
@@ -66,7 +65,6 @@ export interface ServiceAssemblyEager {
   nativeOwnership: NativeOwnershipCache;
   memory: MemoryService;
   sessions: SessionService;
-  cron: CronService;
   pairing: PairingService;
   hooks: HooksService;
   logger: LoggerService;
@@ -169,7 +167,6 @@ export interface ServiceConstructionState {
   settings: SettingsService;
   startupState: StartupStateService;
   memory: MemoryService;
-  cron: CronService;
   delegation: DelegationService;
   delivery: DeliveryService;
   gatewaySessions: GatewaySessionService;

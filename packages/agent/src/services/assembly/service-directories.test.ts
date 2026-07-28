@@ -29,7 +29,6 @@ describe("createServiceDirectoryLayout", () => {
       gatewayApprovalDir: "/tmp/doolittle/gateway/approvals",
       gatewayDeliveryDir: "/tmp/doolittle/gateway/delivery",
       autocoderDir: "/tmp/doolittle/data/autocoder",
-      cronDir: "/tmp/doolittle/data/cron",
       delegationDir: "/tmp/doolittle/data/delegation",
       hooksDir: "/tmp/doolittle/hooks",
       terminalDir: "/tmp/doolittle/data/terminal",

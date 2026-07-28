@@ -15,7 +15,6 @@ export function createServiceAssemblyEagerServices(
     nativeOwnership: state.nativeOwnership,
     memory: state.memory,
     sessions: state.sessions,
-    cron: state.cron,
     pairing: state.pairing,
     hooks: state.hooks,
     logger: state.logger,

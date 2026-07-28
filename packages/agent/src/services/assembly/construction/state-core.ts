@@ -2,7 +2,6 @@ import { AcpService } from "../../acp";
 import { AgentSdkService } from "../../agent-sdk-service";
 import { ApiTransportService } from "../../api-transport-service";
 import { AwarenessService } from "../../awareness-service";
-import { CronService } from "../../cron/service";
 import { DelegationService } from "../../delegation/service";
 import { McpService } from "../../mcp";
 import { MemoryService } from "../../memory-service";
@@ -31,7 +30,6 @@ export interface ServiceConstructionCore {
   runController: RunControllerService;
   awareness: AwarenessService;
   memory: MemoryService;
-  cron: CronService;
   delegation: DelegationService;
   setTools(nextTools: ToolsService): void;
 }
@@ -64,12 +62,6 @@ export function createServiceConstructionCore(params: {
       memory: config.memoryCharLimit,
       user: config.userCharLimit,
     }),
-    cron: new CronService(
-      directories.cronDir,
-      config.cronOutputDir,
-      config.cronTickSeconds,
-      config.timezone,
-    ),
     delegation: new DelegationService(directories.delegationDir),
     setTools(nextTools: ToolsService) {
       tools.setTools(nextTools);
