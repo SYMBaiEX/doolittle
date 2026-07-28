@@ -6,7 +6,6 @@ import { parseEnv } from "./schema";
 const directories: ManagedDirectories = {
   dataDir: "/tmp/data",
   skillsDir: "/tmp/skills",
-  cronOutputDir: "/tmp/cron",
   gatewayDataDir: "/tmp/gateway",
   hooksDir: "/tmp/hooks",
   workspaceDir: "/tmp/workspace",

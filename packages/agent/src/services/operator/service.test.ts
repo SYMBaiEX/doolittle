@@ -154,8 +154,6 @@ function makeConfig(root: string): EnvConfig {
     memoryCharLimit: 100000,
     userCharLimit: 50000,
     sessionSearchLimit: 20,
-    cronTickSeconds: 30,
-    cronOutputDir: join(root, "cron-output"),
     gatewayDataDir,
     hooksDir,
     workspaceDir,

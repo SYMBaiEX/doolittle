@@ -17,7 +17,6 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     workspaceDir: "/tmp/workspace",
     skillsDir: "/tmp/skills",
     hooksDir: "/tmp/hooks",
-    cronOutputDir: "/tmp/cron",
     timezone: "America/Chicago",
     memoryCharLimit: 10_000,
     userCharLimit: 4_000,
@@ -87,7 +86,6 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     browserCdpUrl: "",
     browserObeyRobots: true,
     falApiKey: "",
-    cronTickSeconds: 60,
     ...overrides,
   } as EnvConfig;
 }

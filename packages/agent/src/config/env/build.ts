@@ -142,8 +142,6 @@ export function buildEnvConfig(
     memoryCharLimit: values.DOOLITTLE_MEMORY_CHAR_LIMIT,
     userCharLimit: values.DOOLITTLE_USER_CHAR_LIMIT,
     sessionSearchLimit: values.DOOLITTLE_SESSION_SEARCH_LIMIT,
-    cronTickSeconds: values.DOOLITTLE_CRON_TICK_SECONDS,
-    cronOutputDir: directories.cronOutputDir,
     gatewayDataDir: directories.gatewayDataDir,
     hooksDir: directories.hooksDir,
     workspaceDir: directories.workspaceDir,

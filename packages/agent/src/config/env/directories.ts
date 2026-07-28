@@ -4,7 +4,6 @@ import { resolveFromRepoRoot } from "./paths";
 export interface ManagedDirectoryInputs {
   DOOLITTLE_DATA_DIR: string;
   DOOLITTLE_SKILLS_DIR: string;
-  DOOLITTLE_CRON_OUTPUT_DIR: string;
   DOOLITTLE_GATEWAY_DATA_DIR: string;
   DOOLITTLE_HOOKS_DIR: string;
   DOOLITTLE_WORKSPACE_DIR: string;
@@ -13,7 +12,6 @@ export interface ManagedDirectoryInputs {
 export interface ManagedDirectories {
   dataDir: string;
   skillsDir: string;
-  cronOutputDir: string;
   gatewayDataDir: string;
   hooksDir: string;
   workspaceDir: string;
@@ -22,7 +20,6 @@ export interface ManagedDirectories {
 const PREPARED_DIRECTORY_KEYS = [
   "dataDir",
   "skillsDir",
-  "cronOutputDir",
   "gatewayDataDir",
   "hooksDir",
 ] as const satisfies readonly (keyof ManagedDirectories)[];
@@ -34,10 +31,6 @@ export function resolveManagedDirectories(
   return {
     dataDir: resolveFromRepoRoot(repoRoot, values.DOOLITTLE_DATA_DIR),
     skillsDir: resolveFromRepoRoot(repoRoot, values.DOOLITTLE_SKILLS_DIR),
-    cronOutputDir: resolveFromRepoRoot(
-      repoRoot,
-      values.DOOLITTLE_CRON_OUTPUT_DIR,
-    ),
     gatewayDataDir: resolveFromRepoRoot(
       repoRoot,
       values.DOOLITTLE_GATEWAY_DATA_DIR,

@@ -106,9 +106,7 @@ export const envSchema = z.object({
     ),
   DOOLITTLE_REMOTE_ARTIFACT_PATHS: z
     .string()
-    .default(
-      ".doolittle/remote-artifacts,.doolittle/trajectories,.doolittle/cron-output",
-    ),
+    .default(".doolittle/remote-artifacts,.doolittle/trajectories"),
   DOOLITTLE_REMOTE_ARTIFACT_POLICY: z
     .enum(["metadata-only", "allowlisted"])
     .default("metadata-only"),
@@ -182,8 +180,6 @@ export const envSchema = z.object({
   DOOLITTLE_MEMORY_CHAR_LIMIT: z.coerce.number().int().positive().default(2200),
   DOOLITTLE_USER_CHAR_LIMIT: z.coerce.number().int().positive().default(1375),
   DOOLITTLE_SESSION_SEARCH_LIMIT: z.coerce.number().int().positive().default(6),
-  DOOLITTLE_CRON_TICK_SECONDS: z.coerce.number().int().positive().default(30),
-  DOOLITTLE_CRON_OUTPUT_DIR: z.string().default(".doolittle/cron-output"),
   DOOLITTLE_GATEWAY_DATA_DIR: z.string().default(".doolittle/gateway"),
   DOOLITTLE_HOOKS_DIR: z.string().default(".doolittle/hooks"),
   DOOLITTLE_WORKSPACE_DIR: z.string().default("."),

@@ -112,8 +112,6 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     memoryCharLimit: 100000,
     userCharLimit: 50000,
     sessionSearchLimit: 20,
-    cronTickSeconds: 30,
-    cronOutputDir: "/tmp/cron-output",
     gatewayDataDir: "/tmp/gateway",
     hooksDir: "/tmp/hooks",
     workspaceDir: "/tmp/workspace",

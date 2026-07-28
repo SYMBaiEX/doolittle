@@ -118,8 +118,6 @@ export interface EnvConfig {
   memoryCharLimit: number;
   userCharLimit: number;
   sessionSearchLimit: number;
-  cronTickSeconds: number;
-  cronOutputDir: string;
   gatewayDataDir: string;
   hooksDir: string;
   workspaceDir: string;
