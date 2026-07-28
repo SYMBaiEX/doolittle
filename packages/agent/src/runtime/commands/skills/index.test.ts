@@ -58,6 +58,34 @@ describe("skills command router", () => {
     expect(install).toBe("Usage: /skills install <catalog-slug>");
   });
 
+  it("reports official lifecycle operations unavailable without the service", async () => {
+    const context = {
+      runtime: {},
+      services: {
+        skills: {
+          list: () => [],
+          get: () => null,
+        },
+        skillsHub: {
+          catalogEntry: async () => null,
+          exportBundle: async () => ({ bundle: true }),
+          generated: () => [],
+          installedManifests: () => [],
+          manifest: () => null,
+          summary: () => ({ distribution: {} }),
+          workspace: () => [],
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      handleSkillCommand("/skills sync", context),
+    ).resolves.toContain("Agent Skills service is unavailable");
+    await expect(
+      handleSkillCommand("/skills install release-checklist", context),
+    ).resolves.toContain('"installed": false');
+  });
+
   it("renders generated skill details and missing skills cleanly", async () => {
     const context = {
       runtime: {},

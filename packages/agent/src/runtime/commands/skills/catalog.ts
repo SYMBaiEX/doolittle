@@ -1,11 +1,12 @@
 import {
   exportEffectiveSkillHubManifest,
   getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubCatalogEntry,
   importEffectiveSkillHubManifest,
-  installEffectiveSkillHubManifest,
+  installEffectiveSkill,
   searchEffectiveSkillHubCatalog,
   searchEffectiveSkillsMarketplace,
-  syncEffectiveSkillHub,
+  syncEffectiveSkillCatalog,
 } from "@/runtime/native/service-bridge/skill-hub";
 
 import type { SkillCommandHandler } from "./types";
@@ -16,7 +17,12 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
 ) => {
   if (trimmed === "/skills catalog") {
     return JSON.stringify(
-      await getEffectiveSkillHubCatalog(context.services, false, 50),
+      await getEffectiveSkillHubCatalog(
+        context.runtime,
+        context.services,
+        false,
+        50,
+      ),
       null,
       2,
     );
@@ -24,7 +30,12 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
 
   if (trimmed === "/skills catalog refresh") {
     return JSON.stringify(
-      await getEffectiveSkillHubCatalog(context.services, true, 50),
+      await getEffectiveSkillHubCatalog(
+        context.runtime,
+        context.services,
+        true,
+        50,
+      ),
       null,
       2,
     );
@@ -36,7 +47,11 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
       return "Usage: /skills catalog search <query>";
     }
     return JSON.stringify(
-      await searchEffectiveSkillHubCatalog(context.services, query),
+      await searchEffectiveSkillHubCatalog(
+        context.runtime,
+        context.services,
+        query,
+      ),
       null,
       2,
     );
@@ -64,7 +79,11 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
       return "Usage: /skills catalog show <slug>";
     }
     return JSON.stringify(
-      (await context.services.skillsHub.catalogEntry(slug)) ?? {
+      (await getEffectiveSkillHubCatalogEntry(
+        context.runtime,
+        context.services,
+        slug,
+      )) ?? {
         error: `Catalog skill not found: ${slug}`,
       },
       null,
@@ -74,7 +93,7 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
 
   if (trimmed === "/skills sync" || trimmed === "/skills sync refresh") {
     return JSON.stringify(
-      await syncEffectiveSkillHub(context.services, true),
+      await syncEffectiveSkillCatalog(context.runtime),
       null,
       2,
     );
@@ -131,7 +150,7 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
       return "Usage: /skills install <catalog-slug>";
     }
     return JSON.stringify(
-      await installEffectiveSkillHubManifest(context.services, slug),
+      await installEffectiveSkill(context.runtime, slug),
       null,
       2,
     );

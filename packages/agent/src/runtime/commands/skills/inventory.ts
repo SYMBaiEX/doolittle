@@ -50,7 +50,7 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
     }>;
     const visibleSkills = skills.slice(0, 50);
     return [
-      `available=${summary.total} workspace=${summary.workspace ?? workspace.length} generated=${summary.generated ?? getEffectiveGeneratedSkills(context.runtime, context.services).length} bundled=${summary.bundled ?? 0} managed=${summary.managed ?? 0} project=${summary.project ?? 0} installed=${getEffectiveSkillHubInstalled(context.services).length} invocable=${summary.invocable ?? 0}`,
+      `available=${summary.total} workspace=${summary.workspace ?? workspace.length} generated=${summary.generated ?? getEffectiveGeneratedSkills(context.runtime, context.services).length} bundled=${summary.bundled ?? 0} managed=${summary.managed ?? 0} project=${summary.project ?? 0} installed=${getEffectiveSkillHubInstalled(context.runtime, context.services).length} invocable=${summary.invocable ?? 0}`,
       "",
       visibleSkills.length
         ? visibleSkills
@@ -71,7 +71,10 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
       {
         workspace: getEffectiveSkillsSummary(context.runtime, context.services),
         hub: getEffectiveSkillHubSummary(context.services),
-        installed: getEffectiveSkillHubInstalled(context.services),
+        installed: getEffectiveSkillHubInstalled(
+          context.runtime,
+          context.services,
+        ),
       },
       null,
       2,
@@ -118,7 +121,7 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
 
   if (trimmed === "/skills installed") {
     return JSON.stringify(
-      getEffectiveSkillHubInstalled(context.services),
+      getEffectiveSkillHubInstalled(context.runtime, context.services),
       null,
       2,
     );
@@ -130,7 +133,11 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
       return "Usage: /skills installed show <slug>";
     }
     return JSON.stringify(
-      getEffectiveSkillHubInstalledManifest(context.services, slug) ?? {
+      getEffectiveSkillHubInstalledManifest(
+        context.runtime,
+        context.services,
+        slug,
+      ) ?? {
         error: `Installed skill manifest not found: ${slug}`,
       },
       null,
@@ -141,9 +148,8 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
   if (trimmed.startsWith("/skills show ")) {
     const slug = trimmed.replace("/skills show ", "").trim();
     const skill =
-      (getNativeServices(context.runtime).agentSkills?.get(slug) as
-        | { content?: string }
-        | undefined) ?? context.services.skills.get(slug);
+      getNativeServices(context.runtime).agentSkills?.getLoadedSkill(slug) ??
+      context.services.skills.get(slug);
     return skill ? skill.content : `Skill not found: ${slug}`;
   }
 
