@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import {
   globalSearchGroups,
   normalizeGlobalSearchResults,
@@ -7,6 +7,23 @@ import {
 test("normalizes, deduplicates, and bounds results from local search sources", () => {
   const results = normalizeGlobalSearchResults(
     {
+      projects: {
+        projects: [
+          {
+            id: "project-1",
+            name: "Runtime tools",
+            description: "Desktop runtime work",
+            resources: [
+              {
+                id: "source-1",
+                kind: "file",
+                label: "runtime.ts",
+                value: "/work/runtime.ts",
+              },
+            ],
+          },
+        ],
+      },
       sessions: {
         hits: [
           {
@@ -63,6 +80,10 @@ test("normalizes, deduplicates, and bounds results from local search sources", (
   expect(
     results.filter((result) => result.group === "Workspace code"),
   ).toHaveLength(8);
+  expect(results.map((result) => result.id)).toContain("project:project-1");
+  expect(results.map((result) => result.id)).toContain(
+    "project-source:project-1:source-1",
+  );
   expect(results.map((result) => result.id)).toContain("task:task-1");
   expect(results.map((result) => result.id)).not.toContain("task:task-2");
   expect(
@@ -74,7 +95,7 @@ test("normalizes, deduplicates, and bounds results from local search sources", (
 test("rejects short queries and maps result groups to selectable commands", () => {
   expect(
     normalizeGlobalSearchResults(
-      { sessions: {}, workspace: {}, tasks: {}, logs: {} },
+      { projects: {}, sessions: {}, workspace: {}, tasks: {}, logs: {} },
       "r",
     ),
   ).toEqual([]);

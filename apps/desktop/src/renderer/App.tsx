@@ -9,13 +9,30 @@ import {
   useState,
 } from "react";
 import type {
+  ActivityEvent,
+  ActivityFeedResponse,
   BackendState,
+  Project,
+  ProjectResponse,
+  ProjectsResponse,
   RuntimeStatus,
   SessionSummary,
   SessionsResponse,
   WorkspaceState,
 } from "../shared/contracts";
+import { ActivityCenter } from "./components/ActivityCenter";
 import { type CommandGroup, CommandPalette } from "./components/CommandPalette";
+import {
+  type ProjectDraft,
+  type ProjectLike,
+  ProjectManager,
+  type ProjectResourceLike,
+  type ProjectScope,
+} from "./components/ProjectManager";
+import {
+  NewConversationControl,
+  ProjectHistorySidebar,
+} from "./components/ProjectSidebar";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import {
   type GlobalSearchTarget,
@@ -24,12 +41,13 @@ import {
 } from "./global-search";
 import {
   asArray,
-  compactNumber,
   desktopRequest,
   displayTimestamp,
   Icon,
   useApiResource,
 } from "./lib";
+import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
+import { workspacePathsEqual } from "./workspace-path";
 
 const DashboardPage = lazy(() =>
   import("./DashboardPage").then((module) => ({
@@ -304,22 +322,17 @@ const DEFAULT_OPEN_SECTIONS: NavigationSectionId[] = ["workspace", "create"];
 const NAV_SECTIONS_KEY = "doolittle.desktop.nav-sections.v1";
 const NAV_COLLAPSED_KEY = "doolittle.desktop.nav-collapsed.v1";
 const MOBILE_SIDEBAR_QUERY = "(max-width: 940px)";
-const QUICK_NAV_ITEMS = [
-  { id: "dashboard" as const, label: "Dashboard", description: "Overview" },
+const PROJECT_SCOPE_KEY = "doolittle.desktop.project-scope.v1";
+const PROJECT_SWITCH_DEBOUNCE_MS = 120;
+const PRIMARY_NAV_ITEMS = [
   { id: "chat" as const, label: "Chat", description: "Conversations" },
   { id: "code" as const, label: "Code", description: "Workspace" },
   {
     id: "orchestration" as const,
-    label: "Orchestrate",
+    label: "Tasks",
     description: "Agents and tasks",
   },
-  {
-    id: "browser" as const,
-    label: "Browser",
-    description: "Previews",
-  },
-  { id: "models" as const, label: "Models", description: "Providers" },
-  { id: "settings" as const, label: "Settings", description: "Configuration" },
+  { id: "review" as const, label: "Review", description: "Approvals" },
 ];
 
 function loadOpenSections(): Set<NavigationSectionId> {
@@ -337,9 +350,14 @@ function loadOpenSections(): Set<NavigationSectionId> {
   }
 }
 
+function loadProjectScope(): ProjectScope {
+  const stored = localStorage.getItem(PROJECT_SCOPE_KEY)?.trim();
+  return stored || "all";
+}
+
 function viewFromHash(): View {
   const value = window.location.hash.replace(/^#\/?/u, "") as View;
-  return views.has(value) ? value : "dashboard";
+  return views.has(value) ? value : "chat";
 }
 
 function newConversationId(): string {
@@ -348,6 +366,10 @@ function newConversationId(): string {
 
 function workspaceName(path: string): string {
   return path.split(/[\\/]/u).filter(Boolean).at(-1) ?? "Local workspace";
+}
+
+function pathsEqual(left: string | undefined, right: string): boolean {
+  return workspacePathsEqual(left, right, window.doolittle.platform);
 }
 
 function collectSidebarFocusables(scope: HTMLElement | null): HTMLElement[] {
@@ -394,6 +416,7 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [utilityOpen, setUtilityOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
@@ -405,6 +428,11 @@ export function App() {
   });
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectScope, setProjectScope] =
+    useState<ProjectScope>(loadProjectScope);
+  const [projectManagerOpen, setProjectManagerOpen] = useState(false);
+  const [newConversationMenuOpen, setNewConversationMenuOpen] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceState>({
     currentPath: "",
     recentPaths: [],
@@ -433,9 +461,17 @@ export function App() {
       : null,
     [backend.phase],
   );
+  const activityResource = useApiResource<ActivityFeedResponse>(
+    backend.phase === "ready" ? "/activity?limit=50" : null,
+    [backend.phase],
+  );
   const appMainRef = useRef<HTMLElement | null>(null);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarReturnFocusRef = useRef<HTMLElement | null>(null);
+  const utilityRef = useRef<HTMLElement | null>(null);
+  const utilityReturnFocusRef = useRef<HTMLElement | null>(null);
+  const projectTransitionRef = useRef(0);
+  const pendingProjectScopeRef = useRef<ProjectScope | null>(null);
   const [isMobileSidebarMode, setIsMobileSidebarMode] = useState(
     () => window.matchMedia(MOBILE_SIDEBAR_QUERY).matches,
   );
@@ -455,10 +491,34 @@ export function App() {
     }
   }, []);
 
+  const openProjectManager = useCallback(() => {
+    setMobileSidebarOpen(false);
+    setProjectManagerOpen(true);
+  }, [setMobileSidebarOpen]);
+
+  const closeUtilities = useCallback(() => {
+    setUtilityOpen(false);
+    const restoreTarget = utilityReturnFocusRef.current;
+    utilityReturnFocusRef.current = null;
+    if (restoreTarget?.isConnected) {
+      requestAnimationFrame(() => restoreTarget.focus());
+    }
+  }, []);
+
+  const openUtilities = useCallback(() => {
+    utilityReturnFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setMobileSidebarOpen(false);
+    setUtilityOpen(true);
+  }, [setMobileSidebarOpen]);
+
   const setView = useCallback(
     (next: View) => {
       setViewState(next);
       setMobileSidebarOpen(false);
+      setUtilityOpen(false);
       const section = navigation.find((entry) =>
         entry.items.some((item) => item.id === next),
       );
@@ -508,10 +568,38 @@ export function App() {
     [isMobileSidebarMode, mobileSidebarOpen, setMobileSidebarOpen],
   );
 
+  const handleUtilityKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (!utilityOpen) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeUtilities();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = collectSidebarFocusables(utilityRef.current);
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [closeUtilities, utilityOpen],
+  );
+
   const createConversation = useCallback(() => {
-    setSelectedSession(newConversationId());
-    setView("chat");
-  }, [setView]);
+    if (isMobileSidebarMode) setMobileSidebarOpen(true);
+    setNewConversationMenuOpen(true);
+  }, [isMobileSidebarMode, setMobileSidebarOpen]);
 
   const toggleAppearance = useCallback(() => {
     const nextAppearance = appearance === "dark" ? "light" : "dark";
@@ -544,10 +632,12 @@ export function App() {
     if (backend.phase !== "ready") return false;
     setGlobalError("");
     let succeeded = true;
-    const [runtimeResult, sessionsResult] = await Promise.allSettled([
-      desktopRequest<RuntimeStatus>("/runtime/status"),
-      desktopRequest<SessionsResponse>("/sessions?limit=200"),
-    ]);
+    const [runtimeResult, sessionsResult, projectsResult] =
+      await Promise.allSettled([
+        desktopRequest<RuntimeStatus>("/runtime/status"),
+        desktopRequest<SessionsResponse>("/sessions?limit=200"),
+        desktopRequest<ProjectsResponse>("/projects?includeArchived=true"),
+      ]);
     if (runtimeResult.status === "fulfilled") {
       setRuntime(runtimeResult.value);
     } else {
@@ -566,6 +656,16 @@ export function App() {
         sessionsResult.reason instanceof Error
           ? sessionsResult.reason.message
           : String(sessionsResult.reason),
+      );
+    }
+    if (projectsResult.status === "fulfilled") {
+      setProjects(projectsResult.value.projects);
+    } else {
+      succeeded = false;
+      setGlobalError(
+        projectsResult.reason instanceof Error
+          ? projectsResult.reason.message
+          : String(projectsResult.reason),
       );
     }
     return succeeded;
@@ -603,30 +703,451 @@ export function App() {
     }
   }, [pushToast]);
 
-  const openWorkspace = useCallback(async () => {
+  const switchToRecentWorkspace = useCallback(
+    async (path: string, announce = true) => {
+      try {
+        const result = await window.doolittle.switchWorkspace(path);
+        setWorkspace(result.state);
+        if (announce) {
+          pushToast({
+            tone: "success",
+            title: `Opened ${workspaceName(result.state.currentPath)}`,
+            message:
+              "Chats, Git, files, and tools now use this project. The runtime stayed connected.",
+          });
+        }
+        return true;
+      } catch (error) {
+        pushToast({
+          tone: "error",
+          title: "Workspace could not be switched",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const reloadProjects = useCallback(async () => {
+    const response = await desktopRequest<ProjectsResponse>(
+      "/projects?includeArchived=true",
+    );
+    setProjects(response.projects);
+    return response.projects;
+  }, []);
+
+  const activateProjectWorkspace = useCallback(
+    async (scope: ProjectScope): Promise<boolean> => {
+      const project =
+        scope === "all" || scope === "unscoped"
+          ? undefined
+          : projects.find((entry) => entry.id === scope);
+      if (
+        project?.primaryPath &&
+        !pathsEqual(project.primaryPath, workspace.currentPath)
+      ) {
+        if (
+          workspace.recentPaths.some((path) =>
+            pathsEqual(path, project.primaryPath as string),
+          )
+        ) {
+          return switchToRecentWorkspace(project.primaryPath, false);
+        } else {
+          pushToast({
+            tone: "warning",
+            title: "Project folder needs approval",
+            message:
+              "Open this folder once with the native workspace picker before Doolittle can switch to it automatically.",
+          });
+          return false;
+        }
+      }
+      return true;
+    },
+    [
+      projects,
+      pushToast,
+      switchToRecentWorkspace,
+      workspace.currentPath,
+      workspace.recentPaths,
+    ],
+  );
+
+  const transitionToProjectScope = useCallback(
+    (scope: ProjectScope, sessionId: string) => {
+      const transition = projectTransitionRef.current + 1;
+      projectTransitionRef.current = transition;
+      pendingProjectScopeRef.current = scope;
+      const project =
+        scope === "all" || scope === "unscoped"
+          ? undefined
+          : projects.find((entry) => entry.id === scope);
+      const needsWorkspaceSwitch =
+        Boolean(project?.primaryPath) &&
+        !pathsEqual(project?.primaryPath, workspace.currentPath);
+      const activate = () => {
+        if (projectTransitionRef.current !== transition) return;
+        void activateProjectWorkspace(scope).then((activated) => {
+          if (projectTransitionRef.current !== transition) return;
+          pendingProjectScopeRef.current = null;
+          if (!activated) return;
+          setProjectScope(scope);
+          setSelectedSession(sessionId);
+          setView("chat");
+        });
+      };
+      if (needsWorkspaceSwitch) {
+        window.setTimeout(activate, PROJECT_SWITCH_DEBOUNCE_MS);
+      } else {
+        activate();
+      }
+    },
+    [activateProjectWorkspace, projects, setView, workspace.currentPath],
+  );
+
+  const selectProjectScope = useCallback(
+    (scope: ProjectScope) => {
+      const matches = sessions
+        .filter((session) =>
+          scope === "all"
+            ? true
+            : scope === "unscoped"
+              ? !session.projectId
+              : session.projectId === scope,
+        )
+        .sort((left, right) =>
+          (right.endedAt ?? right.startedAt ?? "").localeCompare(
+            left.endedAt ?? left.startedAt ?? "",
+          ),
+        );
+      transitionToProjectScope(
+        scope,
+        matches.at(0)?.sessionId ?? newConversationId(),
+      );
+    },
+    [sessions, transitionToProjectScope],
+  );
+
+  const startConversation = useCallback(
+    (scope: ProjectScope) => {
+      setNewConversationMenuOpen(false);
+      transitionToProjectScope(scope, newConversationId());
+    },
+    [transitionToProjectScope],
+  );
+
+  const createProject = useCallback(
+    async (draft: ProjectDraft) => {
+      const response = await desktopRequest<ProjectResponse>(
+        "/projects",
+        "POST",
+        {
+          ...draft,
+          primaryPath: workspace.currentPath || undefined,
+        },
+      );
+      await reloadProjects();
+      setProjectScope(response.project.id);
+      setSelectedSession(newConversationId());
+      setView("chat");
+      pushToast({
+        tone: "success",
+        title: `${response.project.name} created`,
+        message: workspace.currentPath
+          ? "New chats now use this project and its current workspace."
+          : "Add a folder when you are ready to give this project local context.",
+      });
+    },
+    [pushToast, reloadProjects, setView, workspace.currentPath],
+  );
+
+  const chooseRepositoryForConversation = useCallback(async () => {
     try {
       const result = await window.doolittle.pickWorkspace();
       setWorkspace(result.state);
-      if (!result.canceled) {
-        pushToast({
-          tone: "success",
-          title: `Opened ${workspaceName(result.state.currentPath)}`,
-          message: "The private runtime restarted in the selected workspace.",
-        });
+      if (result.canceled || !result.state.currentPath) return;
+
+      const repositoryPath = result.state.currentPath;
+      let project = projects.find(
+        (entry) =>
+          pathsEqual(entry.primaryPath, repositoryPath) ||
+          entry.resources.some(
+            (resource) =>
+              resource.kind === "folder" &&
+              pathsEqual(resource.value, repositoryPath),
+          ),
+      );
+
+      if (project?.archivedAt) {
+        const restored = await desktopRequest<ProjectResponse>(
+          `/projects/${encodeURIComponent(project.id)}/archive`,
+          "POST",
+          { archived: false },
+        );
+        project = restored.project;
       }
+
+      if (!project) {
+        const created = await desktopRequest<ProjectResponse>(
+          "/projects",
+          "POST",
+          {
+            name: workspaceName(repositoryPath),
+            description: "Local repository workspace",
+            color: "#ff6a00",
+            primaryPath: repositoryPath,
+          },
+        );
+        project = created.project;
+      }
+
+      const selectedProject = project;
+      setProjects((current) => [
+        ...current.filter((entry) => entry.id !== selectedProject.id),
+        selectedProject,
+      ]);
+      startConversation(selectedProject.id);
+      pushToast({
+        tone: "success",
+        title: `Ready in ${selectedProject.name}`,
+        message: "This conversation is linked to the selected repository.",
+      });
     } catch (error) {
       pushToast({
         tone: "error",
-        title: "Workspace could not be opened",
+        title: "Repository could not be opened",
         message: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [pushToast]);
+  }, [projects, pushToast, startConversation]);
+
+  const updateProject = useCallback(
+    async (project: ProjectLike, draft: ProjectDraft) => {
+      const response = await desktopRequest<ProjectResponse>(
+        `/projects/${encodeURIComponent(project.id)}`,
+        "PATCH",
+        draft,
+      );
+      setProjects((current) =>
+        current.map((entry) =>
+          entry.id === response.project.id ? response.project : entry,
+        ),
+      );
+      pushToast({
+        tone: "success",
+        title: `${response.project.name} updated`,
+        message: "Project context and instructions were saved locally.",
+      });
+    },
+    [pushToast],
+  );
+
+  const archiveProject = useCallback(
+    async (project: ProjectLike, archived: boolean) => {
+      const response = await desktopRequest<ProjectResponse>(
+        `/projects/${encodeURIComponent(project.id)}/archive`,
+        "POST",
+        { archived },
+      );
+      setProjects((current) =>
+        current.map((entry) =>
+          entry.id === response.project.id ? response.project : entry,
+        ),
+      );
+      if (archived && projectScope === project.id) {
+        selectProjectScope("all");
+      }
+      pushToast({
+        tone: "success",
+        title: archived ? "Project archived" : "Project restored",
+        message: `${response.project.name} ${
+          archived ? "is hidden from active projects" : "is active again"
+        }.`,
+      });
+    },
+    [projectScope, pushToast, selectProjectScope],
+  );
+
+  const pinProject = useCallback(
+    async (project: ProjectLike, pinned: boolean) => {
+      const response = await desktopRequest<ProjectResponse>(
+        `/projects/${encodeURIComponent(project.id)}`,
+        "PATCH",
+        { pinned },
+      );
+      setProjects((current) =>
+        current.map((entry) =>
+          entry.id === response.project.id ? response.project : entry,
+        ),
+      );
+    },
+    [],
+  );
+
+  const addProjectResources = useCallback(
+    async (project: ProjectLike, kind: "file" | "folder") => {
+      const selection =
+        kind === "file"
+          ? await window.doolittle.pickProjectFiles()
+          : await window.doolittle.pickProjectFolders();
+      if (selection.canceled || selection.paths.length === 0) return;
+      for (const path of selection.paths) {
+        await desktopRequest(
+          `/projects/${encodeURIComponent(project.id)}/resources`,
+          "POST",
+          {
+            kind,
+            label: workspaceName(path),
+            value: path,
+          },
+        );
+      }
+      const storedProject = projects.find((entry) => entry.id === project.id);
+      if (kind === "folder" && !storedProject?.primaryPath) {
+        await desktopRequest<ProjectResponse>(
+          `/projects/${encodeURIComponent(project.id)}`,
+          "PATCH",
+          { primaryPath: selection.paths[0] },
+        );
+      }
+      await reloadProjects();
+      pushToast({
+        tone: "success",
+        title: `${selection.paths.length} ${
+          kind === "file" ? "file" : "folder"
+        }${selection.paths.length === 1 ? "" : "s"} added`,
+        message: `Doolittle can now use ${
+          selection.paths.length === 1 ? "this source" : "these sources"
+        } as ${project.name} context.`,
+      });
+    },
+    [projects, pushToast, reloadProjects],
+  );
+
+  const removeProjectResource = useCallback(
+    async (project: ProjectLike, resource: ProjectResourceLike) => {
+      await desktopRequest(
+        `/projects/${encodeURIComponent(project.id)}/resources/${encodeURIComponent(
+          resource.id,
+        )}`,
+        "DELETE",
+      );
+      await reloadProjects();
+    },
+    [reloadProjects],
+  );
+
+  const setProjectPrimaryPath = useCallback(
+    async (project: ProjectLike, primaryPath: string) => {
+      const response = await desktopRequest<ProjectResponse>(
+        `/projects/${encodeURIComponent(project.id)}`,
+        "PATCH",
+        { primaryPath },
+      );
+      setProjects((current) =>
+        current.map((entry) =>
+          entry.id === response.project.id ? response.project : entry,
+        ),
+      );
+      const canSwitch = workspace.recentPaths.some((path) =>
+        pathsEqual(path, primaryPath),
+      );
+      if (!pathsEqual(primaryPath, workspace.currentPath) && canSwitch) {
+        await switchToRecentWorkspace(primaryPath);
+      }
+      pushToast({
+        tone: canSwitch ? "success" : "warning",
+        title: `${workspaceName(primaryPath)} is primary`,
+        message: canSwitch
+          ? "New chats, Git operations, and project discovery now start from this folder."
+          : "The project was updated. Open this folder once as a workspace before Doolittle can switch the private runtime automatically.",
+      });
+    },
+    [
+      pushToast,
+      switchToRecentWorkspace,
+      workspace.currentPath,
+      workspace.recentPaths,
+    ],
+  );
+
+  const moveCurrentChat = useCallback(
+    async (projectId: string | null) => {
+      await desktopRequest("/sessions/project", "POST", {
+        sessionId: selectedSession,
+        projectId,
+      });
+      setSessions((current) =>
+        current.map((session) =>
+          session.sessionId === selectedSession
+            ? { ...session, projectId: projectId ?? undefined }
+            : session,
+        ),
+      );
+      transitionToProjectScope(projectId ?? "unscoped", selectedSession);
+      pushToast({
+        tone: "success",
+        title: "Conversation moved",
+        message: projectId
+          ? "This chat now uses the selected project context."
+          : "This chat is now unscoped.",
+      });
+    },
+    [pushToast, selectedSession, transitionToProjectScope],
+  );
 
   useEffect(() => {
     document.documentElement.dataset.appearance = appearance;
     localStorage.setItem("doolittle.desktop.appearance", appearance);
   }, [appearance]);
+
+  useEffect(() => {
+    localStorage.setItem(PROJECT_SCOPE_KEY, projectScope);
+  }, [projectScope]);
+
+  useEffect(() => {
+    if (
+      projectScope !== "all" &&
+      projectScope !== "unscoped" &&
+      projects.length > 0 &&
+      !projects.some(
+        (project) => project.id === projectScope && !project.archivedAt,
+      )
+    ) {
+      setProjectScope("all");
+    }
+  }, [projectScope, projects]);
+
+  useEffect(() => {
+    if (
+      backend.phase !== "ready" ||
+      pendingProjectScopeRef.current !== null ||
+      projectScope === "all" ||
+      projectScope === "unscoped"
+    ) {
+      return;
+    }
+    const project = projects.find(
+      (entry) => entry.id === projectScope && !entry.archivedAt,
+    );
+    const projectPath = project?.primaryPath;
+    if (
+      !projectPath ||
+      pathsEqual(projectPath, workspace.currentPath) ||
+      !workspace.recentPaths.some((path) => pathsEqual(path, projectPath))
+    ) {
+      return;
+    }
+    void switchToRecentWorkspace(projectPath);
+  }, [
+    backend.phase,
+    projectScope,
+    projects,
+    switchToRecentWorkspace,
+    workspace.currentPath,
+    workspace.recentPaths,
+  ]);
 
   useEffect(() => {
     localStorage.setItem(NAV_COLLAPSED_KEY, String(navCollapsed));
@@ -645,6 +1166,14 @@ export function App() {
     mediaQuery.addEventListener("change", updateMobileMode);
     return () => mediaQuery.removeEventListener("change", updateMobileMode);
   }, []);
+
+  useEffect(() => {
+    if (!utilityOpen) return;
+    requestAnimationFrame(() => {
+      const [first] = collectSidebarFocusables(utilityRef.current);
+      (first || utilityRef.current)?.focus();
+    });
+  }, [utilityOpen]);
 
   useEffect(() => {
     const sidebar = sidebarRef.current;
@@ -685,12 +1214,13 @@ export function App() {
   useEffect(() => {
     const onHashChange = () => setViewState(viewFromHash());
     window.addEventListener("hashchange", onHashChange);
-    if (!window.location.hash) window.location.hash = "/dashboard";
+    if (!window.location.hash) window.location.hash = "/chat";
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (shouldIgnoreShellShortcut(event)) return;
       if ((event.metaKey || event.ctrlKey) && event.key === ",") {
         event.preventDefault();
         setView("settings");
@@ -771,25 +1301,46 @@ export function App() {
       void refreshRuntime();
     } else {
       setRuntime(null);
-      setSessions([]);
     }
   }, [backend.phase, refreshRuntime]);
 
   useEffect(() => {
     if (backend.phase !== "ready") return;
     const interval = window.setInterval(() => {
+      activityResource.reload();
       approvalsResource.reload();
       tasksResource.reload();
     }, 15_000);
     return () => window.clearInterval(interval);
-  }, [approvalsResource.reload, backend.phase, tasksResource.reload]);
+  }, [
+    activityResource.reload,
+    approvalsResource.reload,
+    backend.phase,
+    tasksResource.reload,
+  ]);
 
   const openSession = useCallback(
     (sessionId: string) => {
-      setSelectedSession(sessionId);
-      setView("chat");
+      const session = sessions.find((entry) => entry.sessionId === sessionId);
+      transitionToProjectScope(
+        session ? (session.projectId ?? "unscoped") : projectScope,
+        sessionId,
+      );
     },
-    [setView],
+    [projectScope, sessions, transitionToProjectScope],
+  );
+
+  const openActivityTarget = useCallback(
+    (event: ActivityEvent) => {
+      closeUtilities();
+      if (event.target === "chat") {
+        if (event.sessionId) openSession(event.sessionId);
+        else setView("chat");
+        return;
+      }
+      setView(event.target);
+    },
+    [closeUtilities, openSession, setView],
   );
 
   const openChatWithContext = useCallback(
@@ -818,6 +1369,13 @@ export function App() {
         case "conversation":
           openSession(target.sessionId);
           break;
+        case "project":
+          selectProjectScope(target.projectId);
+          break;
+        case "projectSource":
+          selectProjectScope(target.projectId);
+          setProjectManagerOpen(true);
+          break;
         case "workspace":
           setView("code");
           window.setTimeout(() => {
@@ -843,7 +1401,7 @@ export function App() {
           break;
       }
     },
-    [openSession, setView],
+    [openSession, selectProjectScope, setView],
   );
 
   const searchCommandGroups = useMemo<CommandGroup[]>(() => {
@@ -864,7 +1422,7 @@ export function App() {
               : "Some search sources are unavailable",
             description:
               globalSearch.error ||
-              "Searching conversations, code, tasks, and logs.",
+              "Searching projects, sources, conversations, code, tasks, and logs.",
             keywords: [paletteQuery],
             disabled: true,
           },
@@ -886,8 +1444,67 @@ export function App() {
   const activeItem = activeSection?.items.find((item) => item.id === view);
   const pendingApprovals = asArray(approvalsResource.data?.approvals).length;
   const runningTasks = asArray(tasksResource.data?.tasks).length;
+  const activeProject =
+    projectScope === "all" || projectScope === "unscoped"
+      ? null
+      : (projects.find((project) => project.id === projectScope) ?? null);
+  const scopedSessions = useMemo(
+    () =>
+      sessions.filter((session) =>
+        projectScope === "all"
+          ? true
+          : projectScope === "unscoped"
+            ? !session.projectId
+            : session.projectId === projectScope,
+      ),
+    [projectScope, sessions],
+  );
+  const projectCards = useMemo<ProjectLike[]>(
+    () =>
+      projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        instructions: project.instructions,
+        color: project.color,
+        icon: project.icon,
+        primaryPath: project.primaryPath,
+        pinned: project.pinned,
+        archived: Boolean(project.archivedAt),
+        chatCount: sessions.filter(
+          (session) => session.projectId === project.id,
+        ).length,
+        resources: project.resources
+          .filter(
+            (resource) =>
+              resource.kind === "file" || resource.kind === "folder",
+          )
+          .map((resource) => ({
+            id: resource.id,
+            kind: resource.kind as "file" | "folder",
+            path: resource.value,
+            label: resource.label,
+            createdAt: resource.createdAt,
+          })),
+        updatedAt: project.updatedAt,
+      })),
+    [projects, sessions],
+  );
+  const projectLabels = useMemo(
+    () =>
+      Object.fromEntries(projects.map((project) => [project.id, project.name])),
+    [projects],
+  );
+  const unscopedChatCount = sessions.filter(
+    (session) => !session.projectId,
+  ).length;
+  const selectedSessionProjectId =
+    sessions.find((session) => session.sessionId === selectedSession)
+      ?.projectId ??
+    activeProject?.id ??
+    null;
   const sidebarSessions = useMemo(() => {
-    const items = [...sessions]
+    const items = [...scopedSessions]
       .sort((left, right) =>
         (right.endedAt ?? right.startedAt ?? "").localeCompare(
           left.endedAt ?? left.startedAt ?? "",
@@ -907,7 +1524,7 @@ export function App() {
       });
     }
     return items.slice(0, 5);
-  }, [selectedSession, sessions]);
+  }, [scopedSessions, selectedSession]);
 
   const commandGroups = useMemo<CommandGroup[]>(
     () => [
@@ -934,12 +1551,20 @@ export function App() {
                 })),
                 {
                   id: "recent-open-workspace",
-                  label: "Open workspace",
-                  description:
-                    workspace.currentPath || "Choose a project folder",
-                  keywords: ["workspace", "open", "project"],
-                  onSelect: () => void openWorkspace(),
+                  label: "Choose repository for new chat",
+                  description: workspace.currentPath || "Choose a local folder",
+                  keywords: ["workspace", "open", "project", "repository"],
+                  onSelect: () => void chooseRepositoryForConversation(),
                 },
+                ...workspace.recentPaths
+                  .filter((path) => path !== workspace.currentPath)
+                  .map((path) => ({
+                    id: `workspace-${path}`,
+                    label: workspaceName(path),
+                    description: path,
+                    keywords: ["workspace", "recent", "project", path],
+                    onSelect: () => void switchToRecentWorkspace(path),
+                  })),
                 {
                   id: "recent-live-tasks",
                   label: "Open live tasks",
@@ -951,6 +1576,42 @@ export function App() {
                       : "No active tasks right now",
                   keywords: ["tasks", "agents", "running"],
                   onSelect: () => setView("orchestration"),
+                },
+              ],
+            },
+            {
+              id: "projects",
+              label: "Projects",
+              items: [
+                {
+                  id: "project-all",
+                  label: "All chats",
+                  description: `${sessions.length} conversations across every project`,
+                  keywords: ["projects", "global", "all chats"],
+                  onSelect: () => selectProjectScope("all"),
+                },
+                ...projectCards
+                  .filter((project) => !project.archived)
+                  .map((project) => ({
+                    id: `project-${project.id}`,
+                    label: project.name,
+                    description: `${project.chatCount ?? 0} conversations${
+                      project.description ? ` · ${project.description}` : ""
+                    }`,
+                    keywords: [
+                      "project",
+                      project.name,
+                      project.description ?? "",
+                    ],
+                    onSelect: () => selectProjectScope(project.id),
+                  })),
+                {
+                  id: "project-manage",
+                  label: "Manage projects",
+                  description:
+                    "Create, edit, archive, and attach local sources",
+                  keywords: ["project", "files", "folders", "manage"],
+                  onSelect: openProjectManager,
                 },
               ],
             },
@@ -980,14 +1641,14 @@ export function App() {
           },
           {
             id: "open-workspace",
-            label: "Open workspace",
+            label: "Choose repository for new chat",
             description:
-              "Choose a project folder and restart the local runtime",
+              "Open a repo, link it to a project, and start chatting",
             keywords: ["project", "folder", "repository", "switch"],
             shortcuts: [
               window.doolittle.platform === "darwin" ? "⌘ O" : "Ctrl O",
             ],
-            onSelect: () => void openWorkspace(),
+            onSelect: () => void chooseRepositoryForConversation(),
           },
           {
             id: "appearance",
@@ -1023,18 +1684,24 @@ export function App() {
       appearance,
       backend.phase,
       createConversation,
+      chooseRepositoryForConversation,
       navCollapsed,
       openSession,
-      openWorkspace,
+      openProjectManager,
       paletteQuery,
       refreshWithFeedback,
       runningTasks,
       searchCommandGroups,
+      selectProjectScope,
+      sessions.length,
       setView,
       sidebarSessions,
+      projectCards,
       toggleAppearance,
       toggleNavigation,
+      switchToRecentWorkspace,
       workspace.currentPath,
+      workspace.recentPaths,
     ],
   );
 
@@ -1056,12 +1723,18 @@ export function App() {
       case "chat":
         return (
           <ChatPage
+            activeProject={activeProject}
             backend={backend}
+            onOpenProjectManager={openProjectManager}
+            onRequestNewConversation={createConversation}
             onSelect={setSelectedSession}
             onOpenModelsPage={() => setView("models")}
             onOpenWorkspaceView={setView}
+            pendingApprovals={pendingApprovals}
+            projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
-            remoteSessions={sessions}
+            remoteSessions={scopedSessions}
+            runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}
             workspacePath={workspace.currentPath}
@@ -1096,9 +1769,14 @@ export function App() {
       case "sessions":
         return (
           <SessionsPage
+            active={backend.phase === "ready"}
             openChat={openSession}
+            projectId={
+              activeProject?.id ??
+              (projectScope === "unscoped" ? null : undefined)
+            }
             refresh={refreshRuntime}
-            sessions={sessions}
+            sessions={scopedSessions}
           />
         );
       case "activity":
@@ -1167,9 +1845,117 @@ export function App() {
         }}
         onQueryChange={setPaletteQuery}
         resetOnOpen
-        searchPlaceholder="Search conversations, code, tasks, logs, pages…"
+        searchPlaceholder="Search projects, chats, files, tasks, logs, pages…"
         title="Go anywhere"
       />
+      <ProjectManager
+        activeScope={projectScope}
+        allChatCount={sessions.length}
+        currentChatId={selectedSession}
+        currentChatProjectId={selectedSessionProjectId}
+        isOpen={projectManagerOpen}
+        onAddFiles={(project) => addProjectResources(project, "file")}
+        onAddFolders={(project) => addProjectResources(project, "folder")}
+        onArchiveProject={archiveProject}
+        onClose={() => setProjectManagerOpen(false)}
+        onCreateProject={createProject}
+        onMoveCurrentChat={moveCurrentChat}
+        onPinProject={pinProject}
+        onRemoveResource={removeProjectResource}
+        onSetPrimaryPath={setProjectPrimaryPath}
+        onScopeChange={selectProjectScope}
+        onUpdateProject={updateProject}
+        projects={projectCards}
+        unscopedChatCount={unscopedChatCount}
+      />
+      {utilityOpen ? (
+        <div className="utility-layer">
+          <button
+            aria-label="Close tools and settings"
+            className="utility-layer-dismiss"
+            onClick={closeUtilities}
+            type="button"
+          />
+          <aside
+            aria-label="Tools and settings"
+            aria-modal="true"
+            className="utility-drawer"
+            onKeyDown={handleUtilityKeyDown}
+            ref={utilityRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <header className="utility-drawer-header">
+              <div>
+                <span className="eyebrow">Doolittle workspace</span>
+                <h2>Tools & settings</h2>
+                <p>
+                  Open a focused surface without leaving your current
+                  conversation behind.
+                </p>
+              </div>
+              <button
+                aria-label="Close tools and settings"
+                className="icon-button"
+                onClick={closeUtilities}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            <ActivityCenter
+              active={backend.phase === "ready"}
+              error={activityResource.error}
+              events={activityResource.data?.events ?? []}
+              loading={activityResource.loading}
+              onOpenTarget={openActivityTarget}
+              reload={activityResource.reload}
+            />
+            <nav
+              aria-label="All Doolittle tools and settings"
+              className="utility-navigation"
+            >
+              {navigation.map((section) => (
+                <section className="utility-navigation-group" key={section.id}>
+                  <button
+                    aria-expanded={openSections.has(section.id)}
+                    className="utility-navigation-heading"
+                    onClick={() => toggleSection(section.id)}
+                    type="button"
+                  >
+                    <span>{section.label}</span>
+                    <i aria-hidden="true">
+                      {openSections.has(section.id) ? "−" : "+"}
+                    </i>
+                  </button>
+                  {openSections.has(section.id) ? (
+                    <div className="utility-navigation-items">
+                      {section.items.map((item) => (
+                        <button
+                          aria-current={view === item.id ? "page" : undefined}
+                          className={view === item.id ? "selected" : ""}
+                          key={item.id}
+                          onClick={() => setView(item.id)}
+                          type="button"
+                        >
+                          <Icon
+                            name={item.id === "gateway" ? "activity" : item.id}
+                          />
+                          <span>
+                            <strong>{item.label}</strong>
+                            <small>{VIEW_DESCRIPTIONS[item.id]}</small>
+                          </span>
+                          <i aria-hidden="true">↗</i>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+              ))}
+            </nav>
+          </aside>
+        </div>
+      ) : null}
       <ToastRegion
         onDismiss={dismissToast}
         onPause={pauseToast}
@@ -1215,17 +2001,16 @@ export function App() {
           </button>
         </div>
         <div className="sidebar-quick-actions">
-          <button
-            aria-label="New conversation"
-            onClick={createConversation}
-            type="button"
-          >
-            <span aria-hidden="true">＋</span>
-            <strong>New conversation</strong>
-            <kbd>
-              {window.doolittle.platform === "darwin" ? "⌘N" : "Ctrl N"}
-            </kbd>
-          </button>
+          <NewConversationControl
+            activeScope={projectScope}
+            isOpen={newConversationMenuOpen}
+            onChooseRepository={chooseRepositoryForConversation}
+            onManageProjects={openProjectManager}
+            onOpenChange={setNewConversationMenuOpen}
+            onStart={startConversation}
+            projects={projectCards}
+            shortcut={window.doolittle.platform === "darwin" ? "⌘N" : "Ctrl N"}
+          />
           <button
             aria-label="Search pages and commands"
             onClick={() => setPaletteOpen(true)}
@@ -1238,119 +2023,58 @@ export function App() {
             </kbd>
           </button>
           <button
-            aria-label="Open workspace"
-            onClick={() => void openWorkspace()}
+            aria-label="Choose repository for a new conversation"
+            onClick={() => void chooseRepositoryForConversation()}
             title={workspace.currentPath || "Choose a project folder"}
             type="button"
           >
             <span aria-hidden="true">◇</span>
-            <strong>{workspaceName(workspace.currentPath)}</strong>
+            <strong>Choose repository</strong>
             <kbd>
               {window.doolittle.platform === "darwin" ? "⌘O" : "Ctrl O"}
             </kbd>
           </button>
         </div>
-        <section className="sidebar-recents" aria-labelledby="sidebar-recents">
-          <div className="sidebar-recents-heading">
-            <span id="sidebar-recents">Recent conversations</span>
+        <ProjectHistorySidebar
+          activeScope={projectScope}
+          isChatView={view === "chat"}
+          onChooseRepository={chooseRepositoryForConversation}
+          onManageProjects={openProjectManager}
+          onOpenSession={openSession}
+          onSelectScope={selectProjectScope}
+          onStartConversation={startConversation}
+          onViewAll={() => setView("sessions")}
+          projects={projectCards}
+          selectedSessionId={selectedSession}
+          sessions={sessions}
+        />
+        <nav className="sidebar-focus-nav" aria-label="Primary workspace">
+          {PRIMARY_NAV_ITEMS.map((item) => (
             <button
-              className="text-button"
-              onClick={() => setView("sessions")}
+              aria-current={view === item.id ? "page" : undefined}
+              className={view === item.id ? "selected" : ""}
+              key={item.id}
+              onClick={() => setView(item.id)}
+              title={navCollapsed ? item.label : item.description}
               type="button"
             >
-              View all
+              <Icon name={item.id} />
+              <span>{item.label}</span>
             </button>
-          </div>
-          {sidebarSessions.length > 0 ? (
-            <div className="sidebar-recents-list">
-              {sidebarSessions.map((session) => {
-                const isSelected =
-                  view === "chat" && selectedSession === session.sessionId;
-                return (
-                  <button
-                    aria-current={isSelected ? "true" : undefined}
-                    className={`sidebar-recent-card ${
-                      isSelected ? "selected" : ""
-                    }`}
-                    key={session.sessionId}
-                    onClick={() => openSession(session.sessionId)}
-                    type="button"
-                  >
-                    <strong>{sessionLabel(session)}</strong>
-                    <span>
-                      {session.messageCount > 0
-                        ? `${session.messageCount} messages`
-                        : "No messages yet"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="sidebar-recents-empty">
-              New conversations appear here after the first local turn.
-            </p>
-          )}
-        </section>
-        <nav className="app-navigation" aria-label="Application">
-          {navigation.map((section) => (
-            <div
-              className={`nav-section ${
-                openSections.has(section.id) ? "open" : ""
-              }`}
-              key={section.id}
-            >
-              <button
-                aria-expanded={openSections.has(section.id)}
-                className="nav-section-toggle"
-                onClick={() => toggleSection(section.id)}
-                type="button"
-              >
-                <span>{section.label}</span>
-                <i aria-hidden="true">⌄</i>
-              </button>
-              <div
-                className="nav-section-items"
-                hidden={!openSections.has(section.id)}
-              >
-                {section.items.map((item) => (
-                  <button
-                    aria-current={view === item.id ? "page" : undefined}
-                    aria-label={item.label}
-                    className={view === item.id ? "selected" : ""}
-                    key={item.id}
-                    onClick={() => setView(item.id)}
-                    title={navCollapsed ? item.label : undefined}
-                    type="button"
-                  >
-                    <Icon name={item.id === "gateway" ? "activity" : item.id} />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           ))}
+          <button
+            aria-expanded={utilityOpen}
+            className="sidebar-utility-button"
+            onClick={openUtilities}
+            title="Open every Doolittle tool and setting"
+            type="button"
+          >
+            <Icon name="tools" />
+            <span>Tools & settings</span>
+            <i aria-hidden="true">⌘</i>
+          </button>
         </nav>
         <div className="sidebar-footer">
-          <div className={`runtime-indicator ${backend.phase}`}>
-            <i />
-            <div>
-              <strong>
-                {backend.phase === "ready"
-                  ? "Runtime connected"
-                  : backend.phase === "booting"
-                    ? "Starting runtime"
-                    : "Runtime unavailable"}
-              </strong>
-              <span>
-                {backend.phase === "ready"
-                  ? `${runtime?.provider ?? "Local"} · ${
-                      runtime?.model ?? "Loading"
-                    }`
-                  : backend.message}
-              </span>
-            </div>
-          </div>
           <div className="sidebar-footer-actions">
             <button
               aria-label={`Use ${
@@ -1371,7 +2095,7 @@ export function App() {
             >
               <span>DL</span>
               <div>
-                <strong>Operator</strong>
+                <strong>Settings</strong>
                 <small title={workspace.currentPath}>
                   {workspaceName(workspace.currentPath)}
                 </small>
@@ -1397,25 +2121,6 @@ export function App() {
               <path d="M3 5h14M3 10h14M3 15h14" />
             </svg>
           </button>
-          <nav
-            aria-label="Quick workspace navigation"
-            className="window-quick-nav"
-          >
-            {QUICK_NAV_ITEMS.map((item) => (
-              <button
-                aria-current={view === item.id ? "page" : undefined}
-                aria-label={item.label}
-                className={`window-nav-chip ${view === item.id ? "active" : ""}`}
-                key={item.id}
-                onClick={() => setView(item.id)}
-                title={item.description}
-                type="button"
-              >
-                <Icon name={item.id} />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
           <div className="window-context">
             <span>{activeSection?.label ?? "Doolittle"}</span>
             <strong>{activeItem?.label ?? "Desktop"}</strong>
@@ -1432,6 +2137,15 @@ export function App() {
               <kbd>
                 {window.doolittle.platform === "darwin" ? "⌘K" : "Ctrl K"}
               </kbd>
+            </button>
+            <button
+              aria-label="Open tools and settings"
+              aria-expanded={utilityOpen}
+              className="window-utility-button"
+              onClick={openUtilities}
+              type="button"
+            >
+              Tools
             </button>
             <div
               className={`window-runtime-status ${backend.phase}`}
@@ -1463,57 +2177,6 @@ export function App() {
               </svg>
             </button>
           </div>
-        </div>
-        <div
-          className="window-status-strip"
-          role="toolbar"
-          aria-label="Workspace status"
-        >
-          <button
-            className="window-status-chip"
-            onClick={() => void openWorkspace()}
-            title={workspace.currentPath || "Choose a project folder"}
-            type="button"
-          >
-            <span>Workspace</span>
-            <strong>{workspaceName(workspace.currentPath)}</strong>
-          </button>
-          <button
-            className="window-status-chip"
-            onClick={() => setView("chat")}
-            type="button"
-          >
-            <span>Conversations</span>
-            <strong>{compactNumber(sessions.length)}</strong>
-          </button>
-          <button
-            className={`window-status-chip ${runningTasks > 0 ? "active" : ""}`}
-            onClick={() => setView("orchestration")}
-            type="button"
-          >
-            <span>Live tasks</span>
-            <strong>{compactNumber(runningTasks)}</strong>
-          </button>
-          <button
-            className={`window-status-chip ${
-              pendingApprovals > 0 ? "warning" : ""
-            }`}
-            onClick={() => setView("review")}
-            type="button"
-          >
-            <span>Approvals</span>
-            <strong>{compactNumber(pendingApprovals)}</strong>
-          </button>
-          <button
-            className="window-status-chip route"
-            onClick={() => setView("models")}
-            type="button"
-          >
-            <span>Route</span>
-            <strong>
-              {runtime?.provider ?? "runtime"} · {runtime?.model ?? "loading"}
-            </strong>
-          </button>
         </div>
         {backend.phase === "degraded" ? (
           <div className="runtime-banner">

@@ -1,0 +1,232 @@
+.mcp-control-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background:
+    radial-gradient(
+      circle at 12% -10%,
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      transparent 38%
+    ),
+    var(--surface-raised);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: 5px;
+}
+
+.mcp-control-header,
+.mcp-control-actions,
+.mcp-control-probe,
+.mcp-control-summary > div,
+.mcp-control-browser-header {
+  display: flex;
+}
+
+.mcp-control-header,
+.mcp-control-probe,
+.mcp-control-browser-header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mcp-control-header h2,
+.mcp-control-header p,
+.mcp-control-browser h3 {
+  margin: 0;
+}
+
+.mcp-control-header h2 {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+
+.mcp-control-header p {
+  max-width: 620px;
+  margin-top: 7px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.mcp-control-actions {
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-control-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mcp-control-summary > div,
+.mcp-control-browser {
+  min-width: 0;
+  padding: 13px;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-control-summary > div {
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mcp-control-summary span,
+.mcp-control-detail > small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mcp-control-summary strong {
+  font-size: 15px;
+}
+
+.mcp-control-summary small {
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mcp-control-probe {
+  align-items: center;
+  padding: 12px 13px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-control-probe > div {
+  display: grid;
+  gap: 4px;
+}
+
+.mcp-control-probe span {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.mcp-control-browser {
+  display: grid;
+  gap: 11px;
+}
+
+.mcp-control-browser h3 {
+  margin-top: 3px;
+  font-size: 15px;
+}
+
+.mcp-control-search {
+  display: flex;
+  gap: 8px;
+}
+
+.mcp-control-search input {
+  min-width: 0;
+  flex: 1;
+}
+
+.mcp-control-tool-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.9fr) minmax(300px, 1.1fr);
+  gap: 10px;
+}
+
+.mcp-control-tool-list {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mcp-control-tool-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px;
+  color: inherit;
+  text-align: left;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-control-tool-list button:hover,
+.mcp-control-tool-list button.selected {
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+
+.mcp-control-tool-list code,
+.mcp-control-detail > code {
+  overflow: hidden;
+  color: var(--accent);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.mcp-control-tool-list span,
+.mcp-control-tool-list small,
+.mcp-control-detail p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+}
+
+.mcp-control-tool-list span {
+  white-space: nowrap;
+}
+
+.mcp-control-tool-list small {
+  color: var(--muted);
+}
+
+.mcp-control-detail {
+  min-height: 142px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-control-detail > code {
+  display: block;
+  margin: 7px 0;
+  font-size: 12px;
+}
+
+.mcp-control-detail pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 10px;
+  color: var(--text-soft);
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+@media (max-width: 760px) {
+  .mcp-control-header,
+  .mcp-control-probe {
+    flex-direction: column;
+  }
+
+  .mcp-control-summary,
+  .mcp-control-tool-grid {
+    grid-template-columns: 1fr;
+  }
+}

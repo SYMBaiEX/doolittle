@@ -17,7 +17,14 @@ export interface ApiResource<T> {
 }
 
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  const message = error instanceof Error ? error.message : String(error);
+  return message
+    .replace(
+      /^Error invoking remote method ['"]?api:request['"]?:\s*(?:Error:\s*)?/iu,
+      "",
+    )
+    .replace(/^Error:\s*/iu, "")
+    .trim();
 }
 
 export function asRecord(value: unknown): UnknownRecord {
@@ -164,8 +171,12 @@ export function Notice({
 
 export function LoadingBlock({ label = "Loading…" }: { label?: string }) {
   return (
-    <div className="loading-block">
-      <i aria-hidden="true" />
+    <div aria-live="polite" className="loading-block" role="status">
+      <div aria-hidden="true" className="loading-skeleton">
+        <i />
+        <i />
+        <i />
+      </div>
       <span>{label}</span>
     </div>
   );
@@ -178,10 +189,17 @@ export function ErrorBlock({
   error: string;
   retry?: () => void;
 }) {
+  const runtimeOffline = /local runtime is not ready/iu.test(error);
   return (
     <Notice tone="bad">
-      <strong>Could not load this view.</strong>
-      <span>{error}</span>
+      <strong>
+        {runtimeOffline ? "Runtime is offline." : "Could not load this view."}
+      </strong>
+      <span>
+        {runtimeOffline
+          ? "Restart the local runtime, then try this view again."
+          : errorMessage(error)}
+      </span>
       {retry ? (
         <button className="text-button" onClick={retry} type="button">
           Try again
@@ -194,9 +212,11 @@ export function ErrorBlock({
 export function EmptyBlock({
   title,
   children,
+  actions,
 }: {
   title: string;
   children: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
     <div className="empty-block">
@@ -205,6 +225,7 @@ export function EmptyBlock({
       </div>
       <h3>{title}</h3>
       <p>{children}</p>
+      {actions ? <div className="empty-actions">{actions}</div> : null}
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import {
+  type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,
@@ -15,6 +17,7 @@ import type {
   ManagedAttachmentDescriptor,
   RuntimeStatus,
   SavedProfileRecallResponse,
+  SessionForkResponse,
   SessionMessagesResponse,
   SessionSummary,
   SessionUsageSummary,
@@ -27,11 +30,28 @@ import {
   ThreadWorkbenchRail,
 } from "./components/ThreadWorkbenchRail";
 import {
+  VoiceComposerButton,
+  type VoiceRecorderMime,
+} from "./components/VoiceComposerButton";
+import {
   type ContextPressureSnapshot,
   clampContextPercent,
   contextPressureLabel,
   contextPressureTone,
 } from "./context-pressure";
+import {
+  CONVERSATION_PINS_EVENT,
+  loadConversationDrafts,
+  loadConversationPins,
+  loadConversationQueue,
+  loadPromptLibrary,
+  type PersistedQueuedMessage,
+  type PromptLibraryEntry,
+  saveConversationDrafts,
+  saveConversationPins,
+  saveConversationQueue,
+  savePromptLibrary,
+} from "./conversation-persistence";
 import { Badge, displayTimestamp, EmptyBlock, errorMessage } from "./lib";
 import {
   canRecallSavedProfileMatches,
@@ -56,20 +76,9 @@ interface DisplayMessage {
 }
 
 type ConversationStore = Record<string, DisplayMessage[]>;
-interface ConversationPins {
-  [sessionId: string]: boolean;
-}
 
 interface SessionForRender extends SessionSummary {
   pinned: boolean;
-}
-
-interface QueuedMessage {
-  id: string;
-  sessionId: string;
-  content: string;
-  attachments: ManagedAttachmentDescriptor[];
-  memoryMatch?: MemoryMatchSnapshot;
 }
 
 interface MemoryMatchState {
@@ -97,7 +106,6 @@ interface OperatorShortcut {
 }
 
 const STORAGE_KEY = "doolittle.desktop.conversations.v2";
-const PIN_STORAGE_KEY = "doolittle.desktop.conversation.pins.v1";
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const MAX_MESSAGE_ATTACHMENTS = 8;
 const MAX_MESSAGE_ATTACHMENT_BYTES = 50 * 1024 * 1024;
@@ -162,22 +170,6 @@ function loadMessages(): ConversationStore {
   }
 }
 
-function loadConversationPins(): ConversationPins {
-  try {
-    const value = localStorage.getItem(PIN_STORAGE_KEY);
-    if (!value) return {};
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(parsed).filter(([, isPinned]) => Boolean(isPinned)),
-    ) as ConversationPins;
-  } catch {
-    return {};
-  }
-}
-
 function loadInspectorVisibility(): boolean {
   try {
     const value = localStorage.getItem(INSPECTOR_STORAGE_KEY);
@@ -198,7 +190,7 @@ function eventText(data: unknown): string {
 }
 
 function fileName(value: string): string {
-  return value.split(/[/\\]+/u).pop() ?? value;
+  return value.split(/[/\\]+/u).pop() || "local workspace";
 }
 
 function isCommandMessage(message: string): boolean {
@@ -391,7 +383,13 @@ function RunReceiptView({
   );
 }
 
-function Welcome({ onSelect }: { onSelect: (prompt: string) => void }) {
+function Welcome({
+  onSelect,
+  projectName,
+}: {
+  onSelect: (prompt: string) => void;
+  projectName?: string;
+}) {
   const prompts = [
     {
       prompt: "Review a difficult decision",
@@ -415,8 +413,9 @@ function Welcome({ onSelect }: { onSelect: (prompt: string) => void }) {
         <em>something difficult.</em>
       </h1>
       <p>
-        Think through a decision, investigate a system, or turn an unfinished
-        idea into working software.
+        {projectName
+          ? `Start a focused conversation for ${projectName}. Its project context stays attached as you work.`
+          : "Think through a decision, investigate a system, or turn an unfinished idea into working software."}
       </p>
       <div className="starter-grid">
         {prompts.map(({ prompt, detail }, index) => (
@@ -442,6 +441,12 @@ export function ChatPage({
   refreshRuntime,
   onOpenModelsPage,
   onOpenWorkspaceView,
+  activeProject,
+  projectLabels,
+  onOpenProjectManager,
+  onRequestNewConversation,
+  pendingApprovals,
+  runningTasks,
 }: {
   backend: BackendState;
   runtime: RuntimeStatus | null;
@@ -452,6 +457,17 @@ export function ChatPage({
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
   onOpenWorkspaceView: (view: ThreadWorkbenchFullView) => void;
+  activeProject?: {
+    id: string;
+    name: string;
+    color?: string | null;
+    primaryPath?: string | null;
+  } | null;
+  projectLabels?: Readonly<Record<string, string>>;
+  onOpenProjectManager?: () => void;
+  onRequestNewConversation?: () => void;
+  pendingApprovals: number;
+  runningTasks: number;
 }) {
   const initialId = useMemo(
     () => selectedId || newConversationId(),
@@ -463,7 +479,28 @@ export function ChatPage({
       ? stored
       : { ...stored, [initialId]: [] };
   });
-  const [draft, setDraft] = useState("");
+  const draftSessionId = selectedId || initialId;
+  const [conversationDrafts, setConversationDrafts] = useState(() =>
+    loadConversationDrafts(localStorage),
+  );
+  const draft = conversationDrafts[draftSessionId] ?? "";
+  const setDraft = useCallback(
+    (nextValue: SetStateAction<string>) => {
+      setConversationDrafts((current) => {
+        const previous = current[draftSessionId] ?? "";
+        const next =
+          typeof nextValue === "function" ? nextValue(previous) : nextValue;
+        if (!next) {
+          if (!Object.hasOwn(current, draftSessionId)) return current;
+          const updated = { ...current };
+          delete updated[draftSessionId];
+          return updated;
+        }
+        return { ...current, [draftSessionId]: next };
+      });
+    },
+    [draftSessionId],
+  );
   const [memoryMatches, setMemoryMatches] = useState<MemoryMatchState>({
     query: "",
     matches: [],
@@ -476,31 +513,66 @@ export function ChatPage({
   const [inspectorVisible, setInspectorVisible] = useState(
     loadInspectorVisibility,
   );
-  const [pinnedSessions, setPinnedSessions] = useState(loadConversationPins);
+  const [pinnedSessions, setPinnedSessions] = useState(() =>
+    loadConversationPins(localStorage),
+  );
   const [sessionSearch, setSessionSearch] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<
     ManagedAttachmentDescriptor[]
   >([]);
-  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
-  const [queueAnnouncement, setQueueAnnouncement] = useState("");
+  const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
+  const [queuedMessages, setQueuedMessages] =
+    useState<PersistedQueuedMessage[]>(recoveredQueue);
+  const [queuePaused, setQueuePaused] = useState(recoveredQueue.length > 0);
+  const [queueAnnouncement, setQueueAnnouncement] = useState(
+    recoveredQueue.length > 0
+      ? `${recoveredQueue.length} queued ${
+          recoveredQueue.length === 1 ? "message was" : "messages were"
+        } recovered. Review and resume when ready.`
+      : "",
+  );
   const [runReceipts, setRunReceipts] = useState<RunReceiptStore>({});
   const [copyStates, setCopyStates] = useState<Record<string, CopyState>>({});
+  const [forkingMessageId, setForkingMessageId] = useState("");
+  const [promptLibrary, setPromptLibrary] = useState<PromptLibraryEntry[]>(() =>
+    loadPromptLibrary(localStorage),
+  );
+  const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
+  const [promptTitle, setPromptTitle] = useState("");
+  const [promptScope, setPromptScope] = useState<"general" | "project">(
+    activeProject ? "project" : "general",
+  );
+  const [editingPromptId, setEditingPromptId] = useState("");
+  const [editingPromptTitle, setEditingPromptTitle] = useState("");
+  const [speakingMessageId, setSpeakingMessageId] = useState("");
   const [sessionUsage, setSessionUsage] = useState<
     Record<string, ContextPressureSnapshot>
   >({});
   const [usageLoading, setUsageLoading] = useState("");
   const [usageErrors, setUsageErrors] = useState<Record<string, string>>({});
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
+  const [attachmentValidationError, setAttachmentValidationError] =
+    useState("");
+  const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
+  const [commandSelection, setCommandSelection] = useState(0);
+  const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const promptRenameRef = useRef<HTMLInputElement>(null);
+  const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileConversationsDialogRef = useRef<HTMLDivElement>(null);
+  const mobileConversationsWasOpen = useRef(false);
   const queueRef = useRef<HTMLDivElement>(null);
-  const sessionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>(
-    {},
-  );
+  const queueDispatchRef = useRef<string | null>(null);
   const requestSession = useRef<Record<string, string>>({});
   const requestedHistory = useRef(new Set<string>());
   const chatHandler = useRef<(event: ChatEvent) => void>(() => {});
   const memoryRecallSequence = useRef(0);
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const pendingBranchAttachments = useRef<{
+    sessionId: string;
+    attachments: ManagedAttachmentDescriptor[];
+  } | null>(null);
 
   const refreshSessionUsage = useCallback(
     async (sessionId: string) => {
@@ -536,14 +608,17 @@ export function ChatPage({
     [backend.phase],
   );
 
-  const insertChatContext = useCallback((text: string) => {
-    const normalized = text.trim();
-    if (!normalized) return;
-    setDraft((current) =>
-      current.trim() ? `${current}\n\n${normalized}` : normalized,
-    );
-    requestAnimationFrame(() => composerRef.current?.focus());
-  }, []);
+  const insertChatContext = useCallback(
+    (text: string) => {
+      const normalized = text.trim();
+      if (!normalized) return;
+      setDraft((current) =>
+        current.trim() ? `${current}\n\n${normalized}` : normalized,
+      );
+      requestAnimationFrame(() => composerRef.current?.focus());
+    },
+    [setDraft],
+  );
 
   useEffect(() => {
     if (!selectedId) onSelect(initialId);
@@ -559,8 +634,43 @@ export function ChatPage({
   }, [messages]);
 
   useEffect(() => {
-    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinnedSessions));
+    saveConversationPins(localStorage, pinnedSessions);
   }, [pinnedSessions]);
+
+  useEffect(() => {
+    saveConversationDrafts(localStorage, conversationDrafts);
+  }, [conversationDrafts]);
+
+  useEffect(() => {
+    saveConversationQueue(localStorage, queuedMessages);
+  }, [queuedMessages]);
+
+  useEffect(() => {
+    savePromptLibrary(localStorage, promptLibrary);
+  }, [promptLibrary]);
+
+  useEffect(() => {
+    if (!activeProject) setPromptScope("general");
+  }, [activeProject]);
+
+  useEffect(() => {
+    if (editingPromptId) promptRenameRef.current?.focus();
+  }, [editingPromptId]);
+
+  useEffect(
+    () => () => {
+      window.speechSynthesis?.cancel();
+      speechUtteranceRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const syncPins = () =>
+      setPinnedSessions(loadConversationPins(localStorage));
+    window.addEventListener(CONVERSATION_PINS_EVENT, syncPins);
+    return () => window.removeEventListener(CONVERSATION_PINS_EVENT, syncPins);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(
@@ -574,6 +684,51 @@ export function ChatPage({
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
   }, [queueAnnouncement]);
+
+  useEffect(() => {
+    if (!mobileConversationsOpen) return;
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileConversationsOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        mobileConversationsDialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        mobileConversationsDialogRef.current?.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    requestAnimationFrame(() => {
+      mobileConversationsDialogRef.current
+        ?.querySelector<HTMLButtonElement>("[data-mobile-conversation]")
+        ?.focus();
+    });
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [mobileConversationsOpen]);
+
+  useEffect(() => {
+    if (mobileConversationsOpen) {
+      mobileConversationsWasOpen.current = true;
+    } else if (mobileConversationsWasOpen.current) {
+      mobileConversationsWasOpen.current = false;
+      mobileConversationsButtonRef.current?.focus();
+    }
+  }, [mobileConversationsOpen]);
 
   useEffect(() => {
     const query = draft.trim();
@@ -666,9 +821,15 @@ export function ChatPage({
     );
   }, [remoteSessions, selectedId]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: switching conversations should clear attached local context immediately when selectedId changes.
   useEffect(() => {
-    setAttachedFiles([]);
+    const pending = pendingBranchAttachments.current;
+    if (pending?.sessionId === selectedId) {
+      setAttachedFiles(pending.attachments);
+      pendingBranchAttachments.current = null;
+    } else {
+      setAttachedFiles([]);
+    }
+    setAttachmentValidationError("");
   }, [selectedId]);
 
   useEffect(() => {
@@ -742,10 +903,12 @@ export function ChatPage({
         (message) => message.role === "user",
       );
       const last = localMessages.at(-1);
+      const remoteSession = byId.get(sessionId);
       byId.set(sessionId, {
+        ...remoteSession,
         sessionId,
         title:
-          byId.get(sessionId)?.title ??
+          remoteSession?.title ??
           firstUser?.content.slice(0, 52) ??
           "New conversation",
         messageCount: localMessages.length,
@@ -929,19 +1092,117 @@ export function ChatPage({
     }, 1500);
   };
 
-  const renderCopyButton = (message: DisplayMessage): ReactNode => {
+  const speechSupported =
+    "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+
+  const stopSpeaking = useCallback(() => {
+    if (speechSupported) window.speechSynthesis.cancel();
+    speechUtteranceRef.current = null;
+    setSpeakingMessageId("");
+  }, [speechSupported]);
+
+  const readMessage = useCallback(
+    (message: DisplayMessage) => {
+      if (
+        !speechSupported ||
+        message.role !== "assistant" ||
+        message.pending ||
+        message.error ||
+        !message.content.trim()
+      ) {
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(message.content);
+      speechUtteranceRef.current = utterance;
+      setSpeakingMessageId(message.id);
+      const finish = () => {
+        if (speechUtteranceRef.current !== utterance) return;
+        speechUtteranceRef.current = null;
+        setSpeakingMessageId("");
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      window.speechSynthesis.speak(utterance);
+    },
+    [speechSupported],
+  );
+
+  const renderMessageActions = (message: DisplayMessage): ReactNode => {
     const copyState = copyStates[message.id];
     const label = copyState === "copied" ? "Copied" : "Copy";
     const failed = copyState === "failed";
+    const branchDisabled =
+      backend.phase !== "ready" ||
+      Boolean(activeRequest) ||
+      Boolean(message.pending) ||
+      Boolean(message.error) ||
+      Boolean(forkingMessageId);
     return (
-      <button
-        aria-label={failed ? "Copy failed" : "Copy message"}
-        className="chat-message-copy"
-        onClick={() => void copyMessage(message.id, message.content)}
-        type="button"
-      >
-        {failed ? "Copy failed" : label}
-      </button>
+      <div className="chat-message-actions">
+        <button
+          aria-label="Fork conversation from this message"
+          disabled={branchDisabled}
+          onClick={() => void branchMessage(message, "fork")}
+          title="Keep this transcript unchanged and continue in a new branch"
+          type="button"
+        >
+          {forkingMessageId === message.id ? "Branching…" : "Fork"}
+        </button>
+        {message.role === "user" ? (
+          <button
+            aria-label="Edit this message in a new branch"
+            disabled={branchDisabled}
+            onClick={() => void branchMessage(message, "edit")}
+            title="Create a branch before this turn and restore the prompt for editing"
+            type="button"
+          >
+            Edit
+          </button>
+        ) : !message.pending && !message.error ? (
+          <button
+            aria-label="Retry this response in a new branch"
+            disabled={branchDisabled}
+            onClick={() => void branchMessage(message, "retry")}
+            title="Regenerate the preceding prompt without deleting this response"
+            type="button"
+          >
+            Retry
+          </button>
+        ) : null}
+        {message.role === "assistant" && !message.pending && !message.error ? (
+          <button
+            aria-label={
+              speechSupported
+                ? speakingMessageId === message.id
+                  ? "Stop reading response"
+                  : "Read response aloud"
+                : "Read aloud is unavailable on this device"
+            }
+            disabled={!speechSupported || !message.content.trim()}
+            onClick={() =>
+              speakingMessageId === message.id
+                ? stopSpeaking()
+                : readMessage(message)
+            }
+            title={
+              speechSupported
+                ? undefined
+                : "Read aloud is not supported by this system."
+            }
+            type="button"
+          >
+            {speakingMessageId === message.id ? "Stop" : "Read"}
+          </button>
+        ) : null}
+        <button
+          aria-label={failed ? "Copy failed" : "Copy message"}
+          onClick={() => void copyMessage(message.id, message.content)}
+          type="button"
+        >
+          {failed ? "Copy failed" : label}
+        </button>
+      </div>
     );
   };
 
@@ -951,21 +1212,26 @@ export function ChatPage({
     sessionId = selectedId,
     clearComposer = true,
     memoryMatchOverride?: MemoryMatchSnapshot,
+    projectIdOverride?: string | null,
   ) => {
     const content = input.trim();
     if (!content || !sessionId || activeRequest || backend.phase !== "ready") {
-      return;
+      return false;
     }
 
     if (isCommandMessage(content) && attachments.length > 0) {
       setQueueAnnouncement(
         "Remove message attachments before running a command.",
       );
-      return;
+      return false;
     }
     const messageAttachments = attachments;
     const memoryMatch =
       memoryMatchOverride ?? freezeMemoryMatchSnapshot(content, memoryMatches);
+    const requestProjectId =
+      projectIdOverride === undefined
+        ? activeProject?.id
+        : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     requestSession.current[requestId] = sessionId;
@@ -1003,9 +1269,11 @@ export function ChatPage({
         message: content,
         roomId: sessionId,
         attachmentIds: messageAttachments.map((attachment) => attachment.id),
-      });
+        ...(requestProjectId ? { projectId: requestProjectId } : {}),
+      } as Parameters<typeof window.doolittle.startChat>[0]);
+      return true;
     } catch (error) {
-      if (!requestSession.current[requestId]) return;
+      if (!requestSession.current[requestId]) return false;
       updateAssistant(sessionId, requestId, (message) => ({
         ...message,
         content: errorMessage(error),
@@ -1013,35 +1281,152 @@ export function ChatPage({
         error: true,
       }));
       finishRequest(requestId);
+      return false;
     }
   };
+
+  async function branchMessage(
+    message: DisplayMessage,
+    mode: "edit" | "fork" | "retry",
+  ): Promise<void> {
+    if (
+      backend.phase !== "ready" ||
+      activeRequest ||
+      forkingMessageId ||
+      message.pending ||
+      message.error
+    ) {
+      return;
+    }
+
+    const messageIndex = selectedMessages.findIndex(
+      (entry) => entry.id === message.id,
+    );
+    if (messageIndex < 0) return;
+
+    const retryPrompt =
+      mode === "retry"
+        ? [...selectedMessages.slice(0, messageIndex)]
+            .reverse()
+            .find((entry) => entry.role === "user")
+        : undefined;
+    if (mode === "retry" && !retryPrompt) {
+      setQueueAnnouncement("No user prompt is available to retry.");
+      return;
+    }
+
+    setForkingMessageId(message.id);
+    try {
+      const boundaryMessage = mode === "retry" ? retryPrompt : message;
+      const response = await window.doolittle.api<SessionForkResponse>({
+        path: "/sessions/fork",
+        method: "POST",
+        body:
+          mode === "fork"
+            ? {
+                sourceSessionId: selectedId,
+                throughMessageId: boundaryMessage?.id,
+              }
+            : {
+                sourceSessionId: selectedId,
+                beforeMessageId: boundaryMessage?.id,
+              },
+      });
+      const fork = response.fork;
+
+      if (mode === "edit") {
+        setConversationDrafts((current) => ({
+          ...current,
+          [fork.sessionId]: message.content,
+        }));
+        pendingBranchAttachments.current = {
+          sessionId: fork.sessionId,
+          attachments: message.attachments ?? [],
+        };
+      }
+
+      await Promise.resolve(refreshRuntime());
+      onSelect(fork.sessionId);
+
+      if (mode === "retry" && retryPrompt) {
+        const accepted = await sendMessage(
+          retryPrompt.content,
+          retryPrompt.attachments ?? [],
+          fork.sessionId,
+          false,
+          retryPrompt.memoryMatch,
+          fork.projectId ?? null,
+        );
+        setQueueAnnouncement(
+          accepted
+            ? "Retry started in a new branch. The original response is unchanged."
+            : "The branch was created, but the retry could not be started.",
+        );
+      } else {
+        setQueueAnnouncement(
+          mode === "edit"
+            ? "Branch created. Edit the restored prompt and send when ready."
+            : `Forked ${fork.copiedMessageCount} ${
+                fork.copiedMessageCount === 1 ? "message" : "messages"
+              } into a new conversation.`,
+        );
+        if (mode === "edit") {
+          requestAnimationFrame(() => composerRef.current?.focus());
+        }
+      }
+    } catch (error) {
+      setQueueAnnouncement(
+        `Could not create the branch: ${errorMessage(error)}`,
+      );
+    } finally {
+      setForkingMessageId("");
+    }
+  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: sendMessage intentionally consumes the current request state after each queue transition.
   useEffect(() => {
     if (
       activeRequest ||
       backend.phase !== "ready" ||
-      queuedMessages.length === 0
+      queuePaused ||
+      queuedMessages.length === 0 ||
+      queueDispatchRef.current
     ) {
       return;
     }
-    const [next, ...remaining] = queuedMessages;
+    const [next] = queuedMessages;
     if (!next) return;
-    setQueuedMessages(remaining);
+    queueDispatchRef.current = next.id;
     void sendMessage(
       next.content,
       next.attachments,
       next.sessionId,
       false,
       next.memoryMatch,
-    );
-  }, [activeRequest, backend.phase, queuedMessages]);
+      next.projectId ?? null,
+    )
+      .then((accepted) => {
+        if (accepted) {
+          setQueuedMessages((current) =>
+            current.filter((message) => message.id !== next.id),
+          );
+        } else {
+          setQueuePaused(true);
+          setQueueAnnouncement(
+            "Queued delivery failed and was paused for review.",
+          );
+        }
+      })
+      .finally(() => {
+        queueDispatchRef.current = null;
+      });
+  }, [activeRequest, backend.phase, queuePaused, queuedMessages]);
 
   const queueCurrentDraft = () => {
     const content = draft.trim();
     if (!content || !selectedId) return;
     if (isCommandMessage(content) && attachedFiles.length > 0) {
-      setQueueAnnouncement(
+      setAttachmentValidationError(
         "Remove message attachments before queueing a command.",
       );
       return;
@@ -1051,11 +1436,13 @@ export function ChatPage({
       {
         id: crypto.randomUUID(),
         sessionId: selectedId,
+        ...(activeProject?.id ? { projectId: activeProject.id } : {}),
         content,
         attachments: attachedFiles,
         memoryMatch: freezeMemoryMatchSnapshot(content, memoryMatches),
       },
     ]);
+    setQueuePaused(false);
     setQueueAnnouncement("Message added to the queue.");
     setDraft("");
     setAttachedFiles([]);
@@ -1071,20 +1458,10 @@ export function ChatPage({
     await sendMessage(draft);
   };
 
-  const runOperatorShortcut = (shortcut: OperatorShortcut) => {
-    if (shortcut.behavior === "draft") {
-      setDraft(shortcut.command);
-      requestAnimationFrame(() => composerRef.current?.focus());
-      return;
-    }
-    void sendMessage(shortcut.command, []);
-  };
-
   const createConversation = () => {
     const id = newConversationId();
     setMessages((current) => ({ ...current, [id]: [] }));
     onSelect(id);
-    setDraft("");
   };
 
   const togglePin = (sessionId: string) => {
@@ -1095,20 +1472,11 @@ export function ChatPage({
       } else {
         next[sessionId] = true;
       }
+      saveConversationPins(localStorage, next);
+      window.dispatchEvent(new Event(CONVERSATION_PINS_EVENT));
       return next;
     });
   };
-
-  const focusSessionAt = useCallback(
-    (index: number) => {
-      const target = sessions[index];
-      if (!target) return;
-      requestAnimationFrame(() => {
-        sessionButtonRefs.current[target.sessionId]?.focus();
-      });
-    },
-    [sessions],
-  );
 
   const pickContextFiles = async () => {
     try {
@@ -1134,17 +1502,56 @@ export function ChatPage({
       }
       setAttachedFiles(next);
       if (skipped > 0) {
-        setQueueAnnouncement(
+        setAttachmentValidationError(
           `Attachment limit reached. Up to ${MAX_MESSAGE_ATTACHMENTS} files and 50 MB total are allowed.`,
         );
+      } else {
+        setAttachmentValidationError("");
       }
-    } catch {
-      // optional: file picker failed; keep local context unchanged
+    } catch (error) {
+      setAttachmentValidationError(
+        `Could not add file context: ${errorMessage(error)}`,
+      );
     }
   };
 
+  const importAndTranscribeRecording = useCallback(
+    async (bytes: Uint8Array, mimeType: VoiceRecorderMime, name: string) => {
+      const attachment = await window.doolittle.importRecordedAudio({
+        bytes,
+        mimeType,
+        name,
+      });
+      const result = await window.doolittle.api<{
+        transcription: { transcriptText: string };
+      }>({
+        path: "/media/transcribe-attachment",
+        method: "POST",
+        body: {
+          attachmentId: attachment.id,
+          name,
+        },
+      });
+      return { transcriptText: result.transcription.transcriptText };
+    },
+    [],
+  );
+
+  const insertDictationTranscript = useCallback(
+    (transcript: string) => {
+      setDraft((current) => {
+        const trimmed = current.trimEnd();
+        return trimmed ? `${trimmed} ${transcript}` : transcript;
+      });
+      setCommandMenuDismissed(false);
+      requestAnimationFrame(() => composerRef.current?.focus());
+    },
+    [setDraft],
+  );
+
   const removeContextFile = (id: string) => {
     setAttachedFiles((current) => current.filter((entry) => entry.id !== id));
+    setAttachmentValidationError("");
   };
 
   const removeQueuedMessage = (id: string) => {
@@ -1171,6 +1578,7 @@ export function ChatPage({
     const count = queuedMessages.length;
     if (!count) return;
     setQueuedMessages([]);
+    setQueuePaused(false);
     setQueueAnnouncement(
       `${count} queued ${count === 1 ? "message" : "messages"} cleared.`,
     );
@@ -1184,6 +1592,106 @@ export function ChatPage({
   const runtimeProvider = runtime?.provider ?? "Loading provider";
   const runtimeModel = runtime?.model ?? "Loading model";
   const modelRouteLabel = `${runtimeProvider} · ${runtimeModel}`;
+  const normalizedCommandQuery = draft.trimStart().toLowerCase();
+  const commandSuggestions =
+    !commandMenuDismissed &&
+    normalizedCommandQuery.startsWith("/") &&
+    !normalizedCommandQuery.includes(" ")
+      ? OPERATOR_SHORTCUTS.filter((shortcut) =>
+          shortcut.command
+            .trimEnd()
+            .toLowerCase()
+            .startsWith(normalizedCommandQuery),
+        )
+      : [];
+  const selectCommandSuggestion = (shortcut: OperatorShortcut) => {
+    setDraft(shortcut.command);
+    setCommandMenuDismissed(true);
+    requestAnimationFrame(() => composerRef.current?.focus());
+  };
+  const attachmentTotalBytes = attachedFiles.reduce(
+    (sum, attachment) => sum + attachment.sizeBytes,
+    0,
+  );
+  const visiblePromptLibrary = promptLibrary.filter((entry) =>
+    activeProject && promptScope === "project"
+      ? entry.projectId === activeProject.id
+      : !entry.projectId,
+  );
+  const saveCurrentPrompt = () => {
+    const content = draft.trim();
+    if (!content) {
+      setQueueAnnouncement("Write a prompt before saving it.");
+      composerRef.current?.focus();
+      return;
+    }
+    const fallbackTitle =
+      content.split(/\r?\n/u, 1)[0]?.replace(/\s+/gu, " ").slice(0, 80) ||
+      "Saved prompt";
+    const title = (promptTitle.trim() || fallbackTitle).slice(0, 80);
+    const now = new Date().toISOString();
+    setPromptLibrary((current) =>
+      [
+        {
+          id: crypto.randomUUID(),
+          title,
+          content,
+          ...(activeProject && promptScope === "project"
+            ? { projectId: activeProject.id }
+            : {}),
+          createdAt: now,
+          updatedAt: now,
+        },
+        ...current,
+      ].slice(0, 50),
+    );
+    setPromptTitle("");
+    setQueueAnnouncement(`Saved “${title}” to the prompt library.`);
+  };
+  const restorePrompt = (entry: PromptLibraryEntry) => {
+    setDraft(entry.content);
+    setPromptLibraryOpen(false);
+    setQueueAnnouncement(`Restored “${entry.title}”.`);
+    requestAnimationFrame(() => composerRef.current?.focus());
+  };
+  const deletePrompt = (entry: PromptLibraryEntry) => {
+    setPromptLibrary((current) =>
+      current.filter((candidate) => candidate.id !== entry.id),
+    );
+    if (editingPromptId === entry.id) {
+      setEditingPromptId("");
+      setEditingPromptTitle("");
+    }
+    setQueueAnnouncement(`Deleted “${entry.title}” from the prompt library.`);
+  };
+  const beginPromptRename = (entry: PromptLibraryEntry) => {
+    setEditingPromptId(entry.id);
+    setEditingPromptTitle(entry.title);
+  };
+  const finishPromptRename = () => {
+    const title = editingPromptTitle.trim().slice(0, 80);
+    if (!editingPromptId || !title) return;
+    const now = new Date().toISOString();
+    setPromptLibrary((current) =>
+      current.map((entry) =>
+        entry.id === editingPromptId
+          ? { ...entry, title, updatedAt: now }
+          : entry,
+      ),
+    );
+    setEditingPromptId("");
+    setEditingPromptTitle("");
+    setQueueAnnouncement(`Renamed prompt to “${title}”.`);
+  };
+  const composerValidationError =
+    attachmentValidationError ||
+    (isCommandMessage(draft.trim()) && attachedFiles.length > 0
+      ? "Commands cannot be sent with file context. Remove the attachments or send a normal message."
+      : "");
+  const canSubmit =
+    Boolean(draft.trim()) &&
+    backend.phase === "ready" &&
+    !composerValidationError;
 
   return (
     <div
@@ -1191,116 +1699,12 @@ export function ChatPage({
         inspectorVisible ? "inspector-open" : "inspector-closed"
       }`}
     >
-      <aside className="chat-sessions" aria-label="Conversations">
-        <div className="chat-sessions-heading">
-          <div>
-            <span className="eyebrow">Workspace</span>
-            <h2>Conversations</h2>
-          </div>
-          <button
-            aria-label="New conversation"
-            className="icon-button"
-            onClick={createConversation}
-            type="button"
-          >
-            +
-          </button>
-        </div>
-        <input
-          aria-label="Search conversations"
-          className="chat-session-search"
-          onChange={(event) => setSessionSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              focusSessionAt(0);
-            }
-          }}
-          placeholder="Search conversations"
-          type="search"
-          value={sessionSearch}
-        />
-        <div className="chat-session-list">
-          {sessions.map((session) => (
-            <div
-              className={`chat-session-row ${
-                session.sessionId === selectedId ? "selected" : ""
-              } ${session.pinned ? "pinned" : ""}`.trim()}
-              key={session.sessionId}
-            >
-              <button
-                aria-label={`Open conversation ${
-                  session.title || session.preview?.[0] || "New conversation"
-                }`}
-                className={`chat-session-item ${
-                  session.sessionId === selectedId ? "selected" : ""
-                }`.trim()}
-                onKeyDown={(event) => {
-                  const index = sessions.findIndex(
-                    (entry) => entry.sessionId === session.sessionId,
-                  );
-                  if (index === -1) return;
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    focusSessionAt(Math.min(index + 1, sessions.length - 1));
-                  }
-                  if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    focusSessionAt(Math.max(index - 1, 0));
-                  }
-                  if (event.key === "Home") {
-                    event.preventDefault();
-                    focusSessionAt(0);
-                  }
-                  if (event.key === "End") {
-                    event.preventDefault();
-                    focusSessionAt(sessions.length - 1);
-                  }
-                }}
-                onClick={() => onSelect(session.sessionId)}
-                ref={(element) => {
-                  sessionButtonRefs.current[session.sessionId] = element;
-                }}
-                type="button"
-              >
-                <strong>
-                  {session.title ||
-                    session.preview?.[0] ||
-                    "Untitled conversation"}
-                </strong>
-                <span>
-                  {session.messageCount} messages ·{" "}
-                  {displayTimestamp(session.endedAt)}
-                </span>
-              </button>
-              <button
-                aria-pressed={session.pinned}
-                aria-label={
-                  session.pinned
-                    ? `Unpin conversation ${session.title || session.sessionId}`
-                    : `Pin conversation ${session.title || session.sessionId}`
-                }
-                className="chat-session-pin"
-                onClick={() => togglePin(session.sessionId)}
-                type="button"
-              >
-                {session.pinned ? "Unpin" : "Pin"}
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          className="new-chat-button"
-          onClick={createConversation}
-          type="button"
-        >
-          <span>＋</span> New conversation
-        </button>
-      </aside>
       <section className="chat-conversation" aria-label="Conversation detail">
         <header className="chat-header">
           <div>
-            <span className="eyebrow">Conversation</span>
+            <span className="eyebrow">
+              {activeProject ? "Project conversation" : "Conversation"}
+            </span>
             <h2>{selectedSession?.title ?? "New conversation"}</h2>
             <button
               aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
@@ -1312,9 +1716,48 @@ export function ChatPage({
               <strong>{modelRouteLabel}</strong>
             </button>
             <div className="chat-session-meta">
+              {activeProject && onOpenProjectManager ? (
+                <button
+                  className="chat-session-meta-pill chat-project-badge chat-meta-project"
+                  onClick={onOpenProjectManager}
+                  style={
+                    activeProject.color
+                      ? ({
+                          "--project-color": activeProject.color,
+                        } as CSSProperties)
+                      : undefined
+                  }
+                  title={
+                    activeProject.primaryPath
+                      ? `${activeProject.name} · ${activeProject.primaryPath}`
+                      : activeProject.name
+                  }
+                  type="button"
+                >
+                  <i aria-hidden="true" /> {activeProject.name}
+                </button>
+              ) : activeProject ? (
+                <span
+                  className="chat-session-meta-pill chat-project-badge chat-meta-project"
+                  style={
+                    activeProject.color
+                      ? ({
+                          "--project-color": activeProject.color,
+                        } as CSSProperties)
+                      : undefined
+                  }
+                  title={
+                    activeProject.primaryPath
+                      ? `${activeProject.name} · ${activeProject.primaryPath}`
+                      : activeProject.name
+                  }
+                >
+                  <i aria-hidden="true" /> {activeProject.name}
+                </span>
+              ) : null}
               <button
                 aria-pressed={Boolean(selectedSession?.pinned)}
-                className={`chat-session-meta-pill ${
+                className={`chat-session-meta-pill chat-meta-pin ${
                   selectedSession?.pinned ? "selected" : ""
                 }`.trim()}
                 onClick={() => togglePin(selectedId)}
@@ -1322,11 +1765,19 @@ export function ChatPage({
               >
                 {selectedSession?.pinned ? "Pinned" : "Pin"}
               </button>
-              <span className="chat-session-meta-pill">
+              {selectedSession?.parentSessionId ? (
+                <span
+                  className="chat-session-meta-pill chat-meta-branch"
+                  title={`Forked from ${selectedSession.parentSessionId}`}
+                >
+                  Branch
+                </span>
+              ) : null}
+              <span className="chat-session-meta-pill chat-meta-count">
                 {selectedMessageCount.toLocaleString()} messages
               </span>
               <button
-                className="chat-session-meta-pill"
+                className="chat-session-meta-pill chat-meta-workspace"
                 onClick={() => onOpenWorkspaceView("code")}
                 title={workspacePath || "Open the current coding workspace"}
                 type="button"
@@ -1335,13 +1786,13 @@ export function ChatPage({
                   ? `Workspace · ${fileName(workspacePath)}`
                   : "Open workspace"}
               </button>
-              <span className="chat-session-meta-pill">
+              <span className="chat-session-meta-pill chat-meta-updated">
                 {selectedUpdatedAt
                   ? `Updated ${displayTimestamp(selectedUpdatedAt)}`
                   : "Not started"}
               </span>
               <span
-                className={`chat-session-meta-pill context-${selectedContextTone}`}
+                className={`chat-session-meta-pill chat-meta-context context-${selectedContextTone}`}
               >
                 {selectedContext
                   ? `${Math.round(selectedContextPercent)}% context`
@@ -1349,21 +1800,33 @@ export function ChatPage({
                     ? "Context unavailable"
                     : "Fresh context"}
               </span>
+              {selectedContextPercent >= 70 ? (
+                <button
+                  className="chat-session-meta-pill context-action"
+                  onClick={() => {
+                    setDraft((current) =>
+                      current.trim() ? current : "/compress ",
+                    );
+                    requestAnimationFrame(() => composerRef.current?.focus());
+                  }}
+                  title="Prepare a context-compression command"
+                  type="button"
+                >
+                  Compress context
+                </button>
+              ) : null}
             </div>
-            <label className="chat-mobile-session-picker">
-              <span className="sr-only">Switch conversation</span>
-              <select
-                aria-label="Switch conversation"
-                onChange={(event) => onSelect(event.target.value)}
-                value={selectedId}
-              >
-                {sessions.map((session) => (
-                  <option key={session.sessionId} value={session.sessionId}>
-                    {session.title || "Untitled conversation"}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <button
+              aria-controls="mobile-conversations"
+              aria-expanded={mobileConversationsOpen}
+              className="chat-mobile-conversations-button secondary-button"
+              onClick={() => setMobileConversationsOpen(true)}
+              ref={mobileConversationsButtonRef}
+              type="button"
+            >
+              <span>History</span>
+              <small>{sessions.length}</small>
+            </button>
           </div>
           <div className="chat-header-toolbar">
             {activeRequest ? (
@@ -1374,60 +1837,21 @@ export function ChatPage({
               >
                 Stop response
               </button>
-            ) : (
-              <Badge tone={backend.phase === "ready" ? "good" : "warn"}>
-                {backend.phase === "ready" ? "Runtime ready" : backend.phase}
-              </Badge>
-            )}
+            ) : null}
             <button
               aria-controls="thread-workbench"
               aria-expanded={inspectorVisible}
-              className="secondary-button"
+              className={`secondary-button chat-workbench-toggle ${
+                inspectorVisible ? "selected" : ""
+              }`}
               onClick={toggleInspector}
               type="button"
             >
-              {inspectorVisible ? "Hide workbench" : "Show workbench"}
+              <span aria-hidden="true">◧</span>
+              Workbench
             </button>
           </div>
         </header>
-        <div
-          aria-label="Session controls"
-          className="chat-operator-strip"
-          role="toolbar"
-        >
-          <span className="chat-operator-label">
-            <i className="chat-operator-dot" />
-            Session tools
-          </span>
-          <div className="chat-operator-actions">
-            {OPERATOR_SHORTCUTS.map((shortcut) => (
-              <button
-                className={shortcut.command === "/undo" ? "danger" : ""}
-                disabled={
-                  backend.phase !== "ready" ||
-                  Boolean(activeRequest) ||
-                  (shortcut.command === "/retry" &&
-                    selectedMessages.length === 0)
-                }
-                key={shortcut.command}
-                onClick={() => runOperatorShortcut(shortcut)}
-                title={shortcut.detail}
-                type="button"
-              >
-                {shortcut.label}
-              </button>
-            ))}
-          </div>
-          <button
-            className="chat-operator-all"
-            disabled={backend.phase !== "ready" || Boolean(activeRequest)}
-            onClick={() => void sendMessage("/commands", [])}
-            title="Browse every Doolittle command"
-            type="button"
-          >
-            All commands
-          </button>
-        </div>
         <div className="chat-messages">
           {loadingHistory === selectedId ? (
             <div className="chat-loading">
@@ -1453,7 +1877,12 @@ export function ChatPage({
                 >
                   <div className="chat-message-label">
                     <strong>
-                      {message.role === "assistant" ? "Doolittle" : "You"}
+                      <span aria-hidden="true" className="chat-message-avatar">
+                        {message.role === "assistant" ? "D" : "Y"}
+                      </span>
+                      <span>
+                        {message.role === "assistant" ? "Doolittle" : "You"}
+                      </span>
                     </strong>
                     <time>{displayTimestamp(message.createdAt)}</time>
                   </div>
@@ -1504,13 +1933,13 @@ export function ChatPage({
                           : "No saved profile matches for this turn"}
                       </p>
                     ) : null}
-                    {renderCopyButton(message)}
+                    {renderMessageActions(message)}
                   </div>
                 </article>
               );
             })
           ) : (
-            <Welcome onSelect={setDraft} />
+            <Welcome onSelect={setDraft} projectName={activeProject?.name} />
           )}
           {progress ? (
             <div className="chat-progress">
@@ -1532,9 +1961,24 @@ export function ChatPage({
                   {queuedMessages.length} queued{" "}
                   {queuedMessages.length === 1 ? "message" : "messages"}
                 </strong>
-                <button onClick={clearQueuedMessages} type="button">
-                  Clear queue
-                </button>
+                <span>
+                  {queuePaused ? (
+                    <button
+                      onClick={() => {
+                        setQueuePaused(false);
+                        setQueueAnnouncement(
+                          "Recovered queue resumed. The next message will send when Doolittle is ready.",
+                        );
+                      }}
+                      type="button"
+                    >
+                      Resume queue
+                    </button>
+                  ) : null}
+                  <button onClick={clearQueuedMessages} type="button">
+                    Clear queue
+                  </button>
+                </span>
               </div>
               <ol aria-label="Queued messages">
                 {queuedMessages.map((message, index) => (
@@ -1582,6 +2026,21 @@ export function ChatPage({
               ))}
             </ul>
           ) : null}
+          {attachedFiles.length > 0 ? (
+            <div className="chat-attachment-summary">
+              {attachedFiles.length} / {MAX_MESSAGE_ATTACHMENTS} files ·{" "}
+              {attachmentSize(attachmentTotalBytes)} / 50 MB
+            </div>
+          ) : null}
+          {composerValidationError ? (
+            <div
+              aria-live="polite"
+              className="chat-composer-validation"
+              role="alert"
+            >
+              {composerValidationError}
+            </div>
+          ) : null}
           {memoryMatches.status === "loading" ? (
             <div
               aria-live="polite"
@@ -1621,19 +2080,239 @@ export function ChatPage({
               <span>Saved profile matches are unavailable for this draft.</span>
             </div>
           ) : null}
-          <button
-            aria-label="Attach file context"
-            className="secondary-button"
-            onClick={pickContextFiles}
-            type="button"
-          >
-            + Files
-          </button>
+          {commandSuggestions.length > 0 ? (
+            <div
+              aria-label="Chat commands"
+              className="chat-command-completions"
+              role="listbox"
+            >
+              {commandSuggestions.map((shortcut, index) => (
+                <button
+                  aria-selected={index === commandSelection}
+                  className={index === commandSelection ? "selected" : ""}
+                  key={shortcut.command}
+                  onClick={() => selectCommandSuggestion(shortcut)}
+                  role="option"
+                  type="button"
+                >
+                  <code>{shortcut.command.trimEnd()}</code>
+                  <span>
+                    <strong>{shortcut.label}</strong>
+                    <small>{shortcut.detail}</small>
+                  </span>
+                  <kbd>{index === commandSelection ? "Tab" : "↵"}</kbd>
+                </button>
+              ))}
+              <button
+                aria-selected={false}
+                onClick={() =>
+                  selectCommandSuggestion({
+                    command: "/commands",
+                    label: "All commands",
+                    detail: "Browse the complete command catalog",
+                    behavior: "draft",
+                  })
+                }
+                role="option"
+                type="button"
+              >
+                <code>/commands</code>
+                <span>
+                  <strong>All commands</strong>
+                  <small>Browse the complete command catalog</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
+          <div className="chat-composer-tools">
+            <button
+              aria-label="Attach file context"
+              className="secondary-button"
+              onClick={pickContextFiles}
+              type="button"
+            >
+              <span aria-hidden="true">＋</span>
+              Attach
+            </button>
+            <VoiceComposerButton
+              disabled={backend.phase !== "ready"}
+              importAndTranscribe={importAndTranscribeRecording}
+              onTranscript={insertDictationTranscript}
+            />
+            <button
+              aria-controls="chat-prompt-library"
+              aria-expanded={promptLibraryOpen}
+              className="secondary-button"
+              onClick={() => setPromptLibraryOpen((current) => !current)}
+              type="button"
+            >
+              Prompts
+              {visiblePromptLibrary.length > 0
+                ? ` · ${visiblePromptLibrary.length}`
+                : ""}
+            </button>
+            {promptLibraryOpen ? (
+              <section
+                aria-label="Prompt library"
+                className="chat-prompt-library"
+                id="chat-prompt-library"
+              >
+                <header>
+                  <div className="chat-prompt-library__heading">
+                    <strong>Prompt library</strong>
+                    <small>
+                      {activeProject && promptScope === "project"
+                        ? activeProject.name
+                        : "General"}
+                    </small>
+                  </div>
+                  <button
+                    aria-label="Close prompt library"
+                    onClick={() => setPromptLibraryOpen(false)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </header>
+                {activeProject ? (
+                  <fieldset
+                    aria-label="Prompt library scope"
+                    className="chat-prompt-library__scope"
+                  >
+                    <legend className="sr-only">Prompt library scope</legend>
+                    <button
+                      aria-pressed={promptScope === "project"}
+                      onClick={() => setPromptScope("project")}
+                      type="button"
+                    >
+                      {activeProject.name}
+                    </button>
+                    <button
+                      aria-pressed={promptScope === "general"}
+                      onClick={() => setPromptScope("general")}
+                      type="button"
+                    >
+                      General
+                    </button>
+                  </fieldset>
+                ) : null}
+                <div className="chat-prompt-library__save">
+                  <input
+                    aria-label="Saved prompt title"
+                    maxLength={80}
+                    onChange={(event) => setPromptTitle(event.target.value)}
+                    placeholder="Title (optional)"
+                    value={promptTitle}
+                  />
+                  <button
+                    disabled={!draft.trim()}
+                    onClick={saveCurrentPrompt}
+                    type="button"
+                  >
+                    Save draft
+                  </button>
+                </div>
+                {visiblePromptLibrary.length > 0 ? (
+                  <ul>
+                    {visiblePromptLibrary.map((entry) => (
+                      <li key={entry.id}>
+                        {editingPromptId === entry.id ? (
+                          <input
+                            aria-label={`Rename ${entry.title}`}
+                            maxLength={80}
+                            onBlur={finishPromptRename}
+                            onChange={(event) =>
+                              setEditingPromptTitle(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                finishPromptRename();
+                              } else if (event.key === "Escape") {
+                                setEditingPromptId("");
+                                setEditingPromptTitle("");
+                              }
+                            }}
+                            ref={promptRenameRef}
+                            value={editingPromptTitle}
+                          />
+                        ) : (
+                          <button
+                            className="chat-prompt-library__restore"
+                            onClick={() => restorePrompt(entry)}
+                            title={entry.content}
+                            type="button"
+                          >
+                            <strong>{entry.title}</strong>
+                            <small>{entry.content}</small>
+                          </button>
+                        )}
+                        <span>
+                          <button
+                            aria-label={`Rename ${entry.title}`}
+                            onClick={() => beginPromptRename(entry)}
+                            type="button"
+                          >
+                            Rename
+                          </button>
+                          <button
+                            aria-label={`Delete ${entry.title}`}
+                            onClick={() => deletePrompt(entry)}
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>
+                    No saved prompts in this scope. Write a draft and save it
+                    here for reuse.
+                  </p>
+                )}
+              </section>
+            ) : null}
+          </div>
           <textarea
             aria-label="Message Doolittle"
             disabled={backend.phase !== "ready"}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setCommandMenuDismissed(false);
+              setCommandSelection(0);
+            }}
             onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
+              if (event.nativeEvent.isComposing) return;
+              if (commandSuggestions.length > 0) {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setCommandSelection((current) =>
+                    Math.min(current + 1, commandSuggestions.length - 1),
+                  );
+                  return;
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setCommandSelection((current) => Math.max(current - 1, 0));
+                  return;
+                }
+                if (event.key === "Tab") {
+                  event.preventDefault();
+                  const selected =
+                    commandSuggestions[
+                      Math.min(commandSelection, commandSuggestions.length - 1)
+                    ];
+                  if (selected) selectCommandSuggestion(selected);
+                  return;
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setCommandMenuDismissed(true);
+                  return;
+                }
+              }
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 void submit();
@@ -1641,7 +2320,9 @@ export function ChatPage({
             }}
             placeholder={
               backend.phase === "ready"
-                ? "Message Doolittle…"
+                ? activeProject
+                  ? `Message ${activeProject.name}…`
+                  : "Message Doolittle…"
                 : "Waiting for the local runtime…"
             }
             ref={composerRef}
@@ -1650,7 +2331,7 @@ export function ChatPage({
           />
           <button
             aria-label={activeRequest ? "Queue message" : "Send message"}
-            disabled={!draft.trim() || backend.phase !== "ready"}
+            disabled={!canSubmit}
             type="submit"
           >
             <svg
@@ -1662,7 +2343,7 @@ export function ChatPage({
               <path d="m5 10 5-5 5 5M10 5v11" />
             </svg>
           </button>
-          <small>
+          <small className="chat-composer-hint">
             {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter
             for a new line
           </small>
@@ -1689,6 +2370,24 @@ export function ChatPage({
                 : selectedUsageError
             }
           >
+            <span className="chat-status-runtime">
+              <i className={backend.phase} aria-hidden="true" />
+              <strong>
+                {activeRequest
+                  ? "Working"
+                  : backend.phase === "ready"
+                    ? "Ready"
+                    : backend.phase}
+              </strong>
+              <small>{modelRouteLabel}</small>
+              {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
+              {pendingApprovals > 0 ? (
+                <small className="warning">
+                  {pendingApprovals} approval
+                  {pendingApprovals === 1 ? "" : "s"}
+                </small>
+              ) : null}
+            </span>
             <span className="chat-context-track" aria-hidden="true">
               <i
                 className="chat-context-fill"
@@ -1696,20 +2395,104 @@ export function ChatPage({
               />
             </span>
             <span>
-              <strong>Est. context</strong>
+              <strong>Context</strong>
               <small>
                 {selectedContext
-                  ? contextPressureLabel(selectedContext)
+                  ? `${contextPressureLabel(selectedContext)} · ${fileName(
+                      workspacePath,
+                    )}`
                   : usageLoading === selectedId
                     ? "Measuring…"
                     : selectedUsageError
                       ? "Unavailable"
-                      : "0% · new session"}
+                      : `0% · ${fileName(workspacePath)}`}
               </small>
             </span>
           </div>
         </form>
       </section>
+      {mobileConversationsOpen ? (
+        <div className="chat-mobile-conversations-backdrop">
+          <button
+            aria-label="Close conversations"
+            className="chat-mobile-conversations-dismiss"
+            onClick={() => setMobileConversationsOpen(false)}
+            type="button"
+          />
+          <div
+            aria-label="Conversations"
+            aria-modal="true"
+            className="chat-mobile-conversations-dialog"
+            id="mobile-conversations"
+            ref={mobileConversationsDialogRef}
+            role="dialog"
+          >
+            <header>
+              <div>
+                <span className="eyebrow">
+                  {activeProject?.name ?? "Workspace"}
+                </span>
+                <h2>Conversations</h2>
+              </div>
+              <button
+                aria-label="Close conversations"
+                className="icon-button"
+                onClick={() => setMobileConversationsOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            <input
+              aria-label="Search conversations"
+              onChange={(event) => setSessionSearch(event.target.value)}
+              placeholder="Search conversations"
+              type="search"
+              value={sessionSearch}
+            />
+            <div className="chat-mobile-conversations-list">
+              {sessions.map((session) => (
+                <button
+                  aria-current={
+                    session.sessionId === selectedId ? "page" : undefined
+                  }
+                  data-mobile-conversation
+                  key={session.sessionId}
+                  onClick={() => {
+                    onSelect(session.sessionId);
+                    setMobileConversationsOpen(false);
+                  }}
+                  type="button"
+                >
+                  <strong>{session.title || "Untitled conversation"}</strong>
+                  <span>
+                    {session.messageCount} messages ·{" "}
+                    {displayTimestamp(session.endedAt)}
+                    {projectLabels
+                      ? ` · ${
+                          session.projectId
+                            ? (projectLabels[session.projectId] ?? "Project")
+                            : "Unscoped"
+                        }`
+                      : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              className="new-chat-button"
+              onClick={() => {
+                if (onRequestNewConversation) onRequestNewConversation();
+                else createConversation();
+                setMobileConversationsOpen(false);
+              }}
+              type="button"
+            >
+              <span>＋</span> New conversation
+            </button>
+          </div>
+        </div>
+      ) : null}
       {inspectorVisible ? (
         <div id="thread-workbench">
           <ThreadWorkbenchRail

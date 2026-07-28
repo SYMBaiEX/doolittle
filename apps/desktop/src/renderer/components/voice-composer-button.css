@@ -1,0 +1,166 @@
+.voice-composer {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.voice-composer__trigger {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  color: var(--text-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+.voice-composer__trigger:hover:not(:disabled),
+.voice-composer__trigger[aria-expanded="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+}
+
+.voice-composer__trigger svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.voice-composer__panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 9px);
+  z-index: 80;
+  display: grid;
+  width: min(292px, calc(100vw - 32px));
+  min-width: 0;
+  gap: 11px;
+  margin: 0;
+  padding: 13px;
+  background: color-mix(in srgb, var(--surface-raised) 97%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow: 0 18px 46px var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.voice-composer__panel::after {
+  position: absolute;
+  right: 11px;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  content: "";
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  transform: rotate(45deg);
+}
+
+.voice-composer__heading {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-composer__heading > span {
+  width: 7px;
+  height: 7px;
+  background: var(--faint);
+  border-radius: 50%;
+}
+
+.voice-composer__heading > span.is-recording {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent);
+  animation: voice-composer-pulse 1.4s ease-in-out infinite;
+}
+
+.voice-composer__heading strong {
+  min-width: 0;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.voice-composer__heading small {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.voice-composer__status {
+  min-height: 34px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.voice-composer__actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.voice-composer__actions button {
+  min-height: 29px;
+  padding: 0 11px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.voice-composer__primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.voice-composer__primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.voice-composer__primary.is-stop {
+  color: var(--text);
+  background: var(--bad-soft);
+  border-color: color-mix(in srgb, var(--bad) 60%, var(--border));
+}
+
+.voice-composer__cancel {
+  color: var(--text-soft);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.voice-composer__cancel:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+@keyframes voice-composer-pulse {
+  0%,
+  100% {
+    opacity: 0.64;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-composer__heading > span.is-recording {
+    animation: none;
+  }
+}
