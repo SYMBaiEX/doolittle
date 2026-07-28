@@ -1,6 +1,7 @@
 import { type FormEvent, type KeyboardEvent, useState } from "react";
 import type { RuntimeStatus } from "../shared/contracts";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
+import { McpControlPanel } from "./components/McpControlPanel";
 import { SkillWorkshopPanel } from "./components/SkillWorkshopPanel";
 import {
   asArray,
@@ -491,11 +492,14 @@ export function ToolsPage({ active }: { active: boolean }) {
           value={asArray(totals.categories).length}
         />
       </div>
+      <McpControlPanel active={active} />
       <AcpBridgePanel active={active} />
       <div className="filter-bar">
         <label className="search-field">
+          <span className="sr-only">Search tools</span>
           <input
             placeholder="Search tools"
+            type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -676,8 +680,10 @@ export function SkillsPage({ active }: { active: boolean }) {
         <>
           <div className="filter-bar">
             <label className="search-field grow">
+              <span className="sr-only">Search skills</span>
               <input
                 placeholder="Search skills"
+                type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -797,8 +803,10 @@ export function PluginsPage({ active }: { active: boolean }) {
       </Notice>
       <div className="filter-bar">
         <label className="search-field grow">
+          <span className="sr-only">Search plugins</span>
           <input
             placeholder="Search plugins"
+            type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -957,8 +965,22 @@ export function ProfilesPage({ active }: { active: boolean }) {
           })}
         </div>
       ) : (
-        <EmptyBlock title="No profiles found">
-          The runtime did not return any personality profiles.
+        <EmptyBlock
+          title={active ? "No profiles found" : "Profiles are offline"}
+          actions={
+            <button
+              className="secondary-button"
+              disabled={!active}
+              onClick={resource.reload}
+              type="button"
+            >
+              Refresh profiles
+            </button>
+          }
+        >
+          {active
+            ? "The runtime did not return any personality profiles. Refresh after adding one to the local workspace."
+            : "Restart the local runtime to load Doolittle’s available personalities."}
         </EmptyBlock>
       )}
     </div>

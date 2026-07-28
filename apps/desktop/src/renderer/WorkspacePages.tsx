@@ -1,4 +1,10 @@
-import { type FormEvent, useMemo, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   SessionMessagesResponse,
   SessionSearchResponse,
@@ -33,23 +39,58 @@ interface SessionContinuityResponse {
   sessions?: SessionSummary[];
 }
 
+interface SessionArchivePreview {
+  sourceApplication: string;
+  title?: string;
+  projectLabel?: string;
+  messageCount: number;
+  attachmentCount: number;
+  omissionNotices: string[];
+}
+
+interface SessionArchiveExportResponse {
+  archive: unknown;
+}
+
+interface SessionArchivePreviewResponse {
+  preview: SessionArchivePreview;
+}
+
+interface SessionArchiveImportResponse {
+  imported: {
+    sessionId: string;
+    importedMessageCount: number;
+    omissionNotices: string[];
+  };
+}
+
 export function SessionsPage({
+  active,
   sessions,
   refresh,
   openChat,
+  projectId,
 }: {
+  active: boolean;
   sessions: SessionSummary[];
   refresh: () => void;
   openChat: (sessionId: string) => void;
+  projectId?: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(sessions[0]?.sessionId ?? "");
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [mutationError, setMutationError] = useState("");
-  const searchPath = query.trim()
-    ? `/sessions/search?query=${encodeURIComponent(query.trim())}&limit=25`
-    : null;
+  const [transferStatus, setTransferStatus] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const archiveInputRef = useRef<HTMLInputElement>(null);
+  const searchPath =
+    active && query.trim() && projectId !== null
+      ? `/sessions/search?query=${encodeURIComponent(query.trim())}&limit=25${
+          projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""
+        }`
+      : null;
   const search = useApiResource<SessionSearchResponse>(searchPath, [
     searchPath,
   ]);
@@ -100,25 +141,25 @@ export function SessionsPage({
     filtered[0] ??
     sessions[0];
   const transcript = useApiResource<SessionMessagesResponse>(
-    selected?.sessionId
+    active && selected?.sessionId
       ? `/sessions/messages?sessionId=${encodeURIComponent(selected.sessionId)}&limit=500`
       : null,
     [selected?.sessionId],
   );
   const summary = useApiResource<SessionSummaryResponse>(
-    selected?.sessionId
+    active && selected?.sessionId
       ? `/sessions/summary?sessionId=${encodeURIComponent(selected.sessionId)}`
       : null,
     [selected?.sessionId],
   );
   const usage = useApiResource<SessionUsageResponse>(
-    selected?.sessionId
+    active && selected?.sessionId
       ? `/sessions/usage?sessionId=${encodeURIComponent(selected.sessionId)}`
       : null,
     [selected?.sessionId],
   );
   const continuity = useApiResource<SessionContinuityResponse>(
-    selected?.sessionId
+    active && selected?.sessionId
       ? `/sessions/continuity?sessionId=${encodeURIComponent(selected.sessionId)}&limit=8`
       : null,
     [selected?.sessionId],
@@ -142,18 +183,153 @@ export function SessionsPage({
     }
   };
 
+  const exportArchive = async () => {
+    if (!selected || transferring) return;
+    setMutationError("");
+    setTransferStatus("Preparing portable archive…");
+    setTransferring(true);
+    try {
+      const response = await desktopRequest<SessionArchiveExportResponse>(
+        `/sessions/export?sessionId=${encodeURIComponent(selected.sessionId)}`,
+      );
+      const json = `${JSON.stringify(response.archive, null, 2)}\n`;
+      const url = URL.createObjectURL(
+        new Blob([json], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      const basename = (
+        selected.title ||
+        selected.preview?.[0] ||
+        "doolittle-session"
+      )
+        .replace(/[^\p{L}\p{N}._-]+/gu, "-")
+        .replace(/^-+|-+$/gu, "")
+        .slice(0, 80);
+      link.download = `${basename || "doolittle-session"}.doolittle.json`;
+      link.href = url;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      setTransferStatus(
+        `Exported ${selected.messageCount} messages. Attachment descriptors are included; local binary files stay on this device.`,
+      );
+    } catch (error) {
+      setMutationError(
+        `Could not export the session: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      setTransferStatus("");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const importArchive = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || transferring) return;
+    setMutationError("");
+    setTransferStatus("Validating archive before import…");
+    setTransferring(true);
+    try {
+      if (file.size > 2_000_000) {
+        throw new Error("Archive exceeds the 2 MB safety limit.");
+      }
+      const archive = JSON.parse(await file.text()) as unknown;
+      const { preview } = await desktopRequest<SessionArchivePreviewResponse>(
+        "/sessions/import/preview",
+        "POST",
+        { archive },
+      );
+      const destination =
+        projectId && projectId !== "unscoped"
+          ? "the current project"
+          : "Unscoped chats";
+      const confirmed = window.confirm(
+        `Import “${preview.title || "Untitled conversation"}” from ${
+          preview.sourceApplication
+        }?\n\n${preview.messageCount} messages · ${
+          preview.attachmentCount
+        } attachment descriptors\nDestination: ${destination}${
+          preview.omissionNotices.length
+            ? `\n\n${preview.omissionNotices.join("\n")}`
+            : ""
+        }`,
+      );
+      if (!confirmed) {
+        setTransferStatus("Import cancelled. No local data changed.");
+        return;
+      }
+      const { imported } = await desktopRequest<SessionArchiveImportResponse>(
+        "/sessions/import",
+        "POST",
+        {
+          archive,
+          ...(projectId && projectId !== "unscoped" ? { projectId } : {}),
+        },
+      );
+      refresh();
+      setTransferStatus(
+        `Imported ${imported.importedMessageCount} messages into a new local conversation.`,
+      );
+      openChat(imported.sessionId);
+    } catch (error) {
+      setMutationError(
+        `Could not import the archive: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      setTransferStatus("");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   return (
     <div className="page page-sessions">
       <PageHeader
         eyebrow="Workspace"
         title="Sessions"
-        description="Search, inspect, rename, and resume every conversation stored by the local runtime."
+        description={
+          projectId === null
+            ? "Search, inspect, rename, and resume unscoped local conversations."
+            : projectId
+              ? "Search, inspect, rename, and resume conversations in this project."
+              : "Search, inspect, rename, and resume every conversation stored by the local runtime."
+        }
         actions={
-          <button className="secondary-button" onClick={refresh} type="button">
-            Refresh
-          </button>
+          <>
+            <input
+              accept=".json,.doolittle.json,application/json"
+              aria-label="Choose a Doolittle session archive"
+              hidden
+              onChange={importArchive}
+              ref={archiveInputRef}
+              type="file"
+            />
+            <button
+              className="secondary-button"
+              disabled={transferring}
+              onClick={() => archiveInputRef.current?.click()}
+              type="button"
+            >
+              Import archive
+            </button>
+            <button
+              className="secondary-button"
+              onClick={refresh}
+              type="button"
+            >
+              Refresh
+            </button>
+          </>
         }
       />
+      {transferStatus ? (
+        <div aria-live="polite" className="notice neutral" role="status">
+          {transferStatus}
+        </div>
+      ) : null}
       <div className="split-workspace">
         <section className="list-panel">
           <label className="search-field">
@@ -239,6 +415,14 @@ export function SessionsPage({
                     Rename
                   </button>
                   <button
+                    className="secondary-button"
+                    disabled={transferring}
+                    onClick={() => void exportArchive()}
+                    type="button"
+                  >
+                    {transferring ? "Working…" : "Export portable archive"}
+                  </button>
+                  <button
                     className="primary-button"
                     onClick={() => openChat(selected.sessionId)}
                     type="button"
@@ -321,6 +505,34 @@ export function SessionsPage({
                           <small>{selected.sessionId}</small>
                         </div>
                       </div>
+                      {summary.data?.summary?.parentSessionId ? (
+                        <div className="status-row">
+                          <div>
+                            <strong>Parent branch</strong>
+                            <small>
+                              {summary.data.summary.parentSessionId}
+                            </small>
+                          </div>
+                        </div>
+                      ) : null}
+                      {summary.data?.summary?.rootSessionId ? (
+                        <div className="status-row">
+                          <div>
+                            <strong>Branch root</strong>
+                            <small>{summary.data.summary.rootSessionId}</small>
+                          </div>
+                        </div>
+                      ) : null}
+                      {summary.data?.summary?.forkedFromMessageId ? (
+                        <div className="status-row">
+                          <div>
+                            <strong>Fork anchor</strong>
+                            <small>
+                              {summary.data.summary.forkedFromMessageId}
+                            </small>
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="status-row">
                         <div>
                           <strong>Started</strong>
@@ -377,6 +589,7 @@ export function SessionsPage({
                             <small>
                               {displayTimestamp(session.endedAt)} ·{" "}
                               {compactNumber(session.messageCount)} messages
+                              {session.parentSessionId ? " · branch" : ""}
                             </small>
                           </div>
                         </button>

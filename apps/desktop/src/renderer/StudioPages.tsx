@@ -473,7 +473,27 @@ export function MemoryPage({ active }: { active: boolean }) {
             </section>
           </div>
         ) : (
-          <Notice tone="warn">No memory payload returned.</Notice>
+          <EmptyBlock
+            title={
+              active
+                ? "Memory is ready for its first entry"
+                : "Memory is offline"
+            }
+            actions={
+              <button
+                className="secondary-button"
+                disabled={!active}
+                onClick={resource.reload}
+                type="button"
+              >
+                Refresh memory
+              </button>
+            }
+          >
+            {active
+              ? "Start a conversation or save an operator detail, then refresh this workspace."
+              : "Restart the local runtime to load shared and user memory."}
+          </EmptyBlock>
         )}
       </section>
     </div>
@@ -613,6 +633,7 @@ export function ActivityPage({ active }: { active: boolean }) {
           <span className="sr-only">Search operator activity</span>
           <input
             id="activity-query"
+            type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search actions, files, commands, outcomes, or status"

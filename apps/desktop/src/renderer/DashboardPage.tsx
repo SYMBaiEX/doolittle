@@ -160,9 +160,6 @@ export function DashboardPage({
         }
       />
 
-      {!active ? (
-        <Notice tone="warn">The runtime is not ready yet.</Notice>
-      ) : null}
       {topLevelErrors.length > 0 ? (
         <Notice tone="warn">
           Some dashboard panels are degraded. Working data still renders where
@@ -174,22 +171,26 @@ export function DashboardPage({
         <div>
           <span className="eyebrow">Operator state</span>
           <h2>
-            {approvalCards.length > 0
-              ? "Decisions are waiting."
-              : taskCards.length > 0
-                ? "Execution is in motion."
-                : repo.dirty
-                  ? "Workspace changed locally."
-                  : "Runtime is stable."}
+            {!active
+              ? "Runtime needs attention."
+              : approvalCards.length > 0
+                ? "Decisions are waiting."
+                : taskCards.length > 0
+                  ? "Execution is in motion."
+                  : repo.dirty
+                    ? "Workspace changed locally."
+                    : "Runtime is stable."}
           </h2>
           <p>
-            {approvalCards.length > 0
-              ? "Clear approvals first so blocked commands can continue."
-              : taskCards.length > 0
-                ? "Delegated work is active. Keep the queue visible and the repo clean."
-                : repo.dirty
-                  ? "The checkout has local edits. Review them before the next heavy run."
-                  : "No immediate blockers surfaced across runtime, setup, or repository state."}
+            {!active
+              ? "Restart the local runtime to unlock conversations, tasks, and provider status."
+              : approvalCards.length > 0
+                ? "Clear approvals first so blocked commands can continue."
+                : taskCards.length > 0
+                  ? "Delegated work is active. Keep the queue visible and the repo clean."
+                  : repo.dirty
+                    ? "The checkout has local edits. Review them before the next heavy run."
+                    : "No immediate blockers surfaced across runtime, setup, or repository state."}
           </p>
           <div className="dashboard-inline-metrics">
             <div>

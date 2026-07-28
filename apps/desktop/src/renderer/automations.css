@@ -8,33 +8,15 @@
 }
 
 .automation-metrics .metric-card::after {
-  position: absolute;
-  width: 52px;
-  height: 52px;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--accent) 12%, transparent),
-    transparent 68%
-  );
-  content: "";
-  inset: -16px -12px auto auto;
-  pointer-events: none;
+  content: none;
 }
 
 .automation-builder {
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 12% -8%,
-      color-mix(in srgb, var(--accent) 11%, transparent),
-      transparent 34%
-    ),
-    var(--surface-raised);
+  background: var(--surface);
   border: 1px solid var(--automation-line);
-  border-radius: var(--radius-lg);
-  box-shadow:
-    0 20px 70px color-mix(in srgb, var(--shadow) 20%, transparent),
-    inset 0 1px color-mix(in srgb, white 3%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: none;
 }
 
 .automation-builder__header,
@@ -66,7 +48,7 @@
   margin-bottom: 6px;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-meta);
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
@@ -90,9 +72,9 @@
 .automation-builder-step {
   min-width: 0;
   padding: 15px;
-  background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+  background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .automation-builder-step > header {
@@ -112,9 +94,9 @@
   color: var(--accent);
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-meta);
   font-weight: 800;
 }
 
@@ -131,7 +113,7 @@
 
 .automation-builder-step > header small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-meta);
 }
 
 .automation-builder-step__body {
@@ -145,7 +127,7 @@
   display: block;
   margin-top: 6px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-meta);
   line-height: 1.45;
 }
 
@@ -156,7 +138,7 @@
   padding: 3px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
 }
 
 .automation-choice-grid button {
@@ -166,8 +148,8 @@
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-radius: 6px;
-  font-size: 9px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-meta);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -181,7 +163,9 @@
 .automation-choice-grid button.selected {
   color: var(--accent-text);
   background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: none;
+  outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  outline-offset: -1px;
 }
 
 .automation-builder__truth {
@@ -190,8 +174,8 @@
   color: var(--text-soft);
   background: color-mix(in srgb, var(--surface) 62%, transparent);
   border: 1px dashed var(--border-strong);
-  border-radius: 8px;
-  font-size: 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-meta);
   line-height: 1.55;
 }
 
@@ -201,7 +185,7 @@
 
 .automation-builder__footer > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-meta);
 }
 
 .automation-workspace {
@@ -226,10 +210,10 @@
   padding: 14px;
   background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   transition:
-    border-color 140ms ease,
-    transform 140ms ease;
+    border-color 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
 }
 
 .automation-job-card:hover {
@@ -261,7 +245,7 @@
 
 .automation-job-card > header small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-meta);
 }
 
 .automation-job-card > p {
@@ -269,7 +253,7 @@
   margin: 11px 0;
   overflow: hidden;
   color: var(--text-soft);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -287,7 +271,7 @@
   padding: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
 }
 
 .automation-job-flow > span {
@@ -297,7 +281,7 @@
   gap: 3px;
   overflow: hidden;
   color: var(--text-soft);
-  font-size: 9px;
+  font-size: var(--text-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -305,7 +289,7 @@
 .automation-job-flow i {
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-meta);
   font-style: normal;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -329,14 +313,14 @@
   color: var(--muted);
   background: color-mix(in srgb, var(--accent-soft) 35%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   text-align: left;
 }
 
 .automation-webhook-path__label,
 .automation-webhook-path__action {
   color: var(--accent);
-  font-size: 8px;
+  font-size: var(--text-meta);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -345,7 +329,7 @@
 .automation-webhook-path code {
   overflow: hidden;
   color: var(--text-soft);
-  font-size: 9px;
+  font-size: var(--text-meta);
   text-overflow: ellipsis;
 }
 
@@ -370,7 +354,7 @@
   color: var(--text);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   text-align: left;
 }
 
@@ -392,14 +376,14 @@
 
 .automation-run-list__title {
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--text-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .automation-run-list__meta {
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--text-meta);
 }
 
 .automation-run-status {
@@ -482,20 +466,20 @@
 }
 
 .automation-trace-step__title {
-  font-size: 9px;
+  font-size: var(--text-meta);
 }
 
 .automation-trace-step p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-meta);
   line-height: 1.45;
 }
 
 .automation-trace-step__index {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-meta);
 }
 
 .automation-trace-output {
@@ -507,7 +491,7 @@
   margin-bottom: 6px;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-meta);
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
@@ -520,9 +504,9 @@
   color: var(--text-soft);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-meta);
   line-height: 1.5;
   white-space: pre-wrap;
 }

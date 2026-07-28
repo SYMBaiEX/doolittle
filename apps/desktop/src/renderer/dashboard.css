@@ -3,26 +3,12 @@
   overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
-  gap: 18px;
-  padding: 22px;
+  gap: 28px;
+  padding: 24px;
 }
 
 .dashboard-hero::before {
-  position: absolute;
-  inset: 0;
-  content: "";
-  pointer-events: none;
-  background:
-    radial-gradient(
-      circle at top left,
-      color-mix(in srgb, var(--accent) 20%, transparent),
-      transparent 42%
-    ),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--surface-soft) 78%, transparent),
-      transparent 72%
-    );
+  display: none;
 }
 
 .dashboard-hero > * {
@@ -48,15 +34,24 @@
 .dashboard-inline-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
+  gap: 0;
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
 }
 
 .dashboard-inline-metrics > div {
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  padding: 14px 14px 0 0;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--border);
+}
+
+.dashboard-inline-metrics > div + div {
+  padding-left: 14px;
+}
+
+.dashboard-inline-metrics > div:last-child {
+  border-right: 0;
 }
 
 .dashboard-inline-metrics strong,
@@ -78,31 +73,37 @@
 
 .dashboard-side-column {
   display: grid;
-  gap: 10px;
+  gap: 0;
   align-content: start;
+  border-top: 1px solid var(--border);
 }
 
 .dashboard-side-column > div {
-  min-height: 86px;
-  padding: 14px;
-  background: color-mix(in srgb, var(--surface-soft) 90%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  display: flex;
+  min-height: 70px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 18px 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .dashboard-action-list {
   display: grid;
-  gap: 10px;
+  gap: 0;
+  border-top: 1px solid var(--border);
 }
 
 .dashboard-action-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 12px;
-  background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  padding: 14px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
 }
 
 .dashboard-action-card header {

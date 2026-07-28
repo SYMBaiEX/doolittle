@@ -95,54 +95,71 @@
 }
 
 .skills-page-switcher {
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  display: grid;
-  gap: 4px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 4px;
+  display: flex;
+  gap: 22px;
+  overflow-x: auto;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+.skills-page-switcher::-webkit-scrollbar {
+  display: none;
 }
 
 .skills-page-switcher button {
+  position: relative;
   align-items: center;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  border: 0;
+  border-radius: 0;
   color: var(--muted);
   cursor: pointer;
   display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
   justify-content: space-between;
   min-height: 42px;
-  padding: 8px 12px;
+  padding: 8px 0 10px;
   text-align: left;
 }
 
 .skills-page-switcher button:hover,
 .skills-page-switcher button:focus-visible {
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  background: transparent;
   color: var(--text);
-  outline: none;
 }
 
 .skills-page-switcher button[aria-selected="true"] {
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
+  background: transparent;
   color: var(--text);
 }
 
+.skills-page-switcher button[aria-selected="true"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  content: "";
+  background: var(--accent);
+}
+
 .skills-page-switcher span {
-  font-weight: 780;
+  font-weight: 700;
 }
 
 .skills-page-switcher small {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--text-meta);
 }
 
 .skills-page-workshop {
-  animation: skill-workshop-enter 180ms ease both;
+  animation: skill-workshop-enter 180ms var(--ease-out) both;
 }
 
 @keyframes skill-workshop-enter {
@@ -265,6 +282,16 @@
 
 @media (max-width: 760px) {
   .skills-page-switcher {
-    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .skills-page-switcher small {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skills-page-workshop {
+    animation: none;
   }
 }

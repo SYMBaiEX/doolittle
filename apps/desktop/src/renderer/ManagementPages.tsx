@@ -378,7 +378,9 @@ export function LogsPage({ active }: { active: boolean }) {
           }}
         >
           <input
+            aria-label="Search runtime logs"
             placeholder="Search messages, scopes, and details"
+            type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -837,8 +839,10 @@ export function SettingsPage({ active }: { active: boolean }) {
           <section className="settings-content">
             <div className="filter-bar">
               <label className="search-field grow">
+                <span className="sr-only">Search settings</span>
                 <input
                   placeholder="Search settings"
+                  type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
@@ -893,17 +897,36 @@ export function SettingsPage({ active }: { active: boolean }) {
                 <Badge>{visibleFields.length} fields</Badge>
               </div>
               <div className="settings-rows">
-                {visibleFields.map((field) => (
-                  <SettingControl
-                    field={field}
-                    key={`${field.path}:${JSON.stringify(field.value)}`}
-                    saved={() => {
-                      setSavedMessage(`${field.path} saved.`);
-                      settings.reload();
-                      if (field.category === "execution") execution.reload();
-                    }}
-                  />
-                ))}
+                {visibleFields.length ? (
+                  visibleFields.map((field) => (
+                    <SettingControl
+                      field={field}
+                      key={`${field.path}:${JSON.stringify(field.value)}`}
+                      saved={() => {
+                        setSavedMessage(`${field.path} saved.`);
+                        settings.reload();
+                        if (field.category === "execution") execution.reload();
+                      }}
+                    />
+                  ))
+                ) : (
+                  <EmptyBlock
+                    title={query ? "No settings match" : "No settings loaded"}
+                    actions={
+                      <button
+                        className="secondary-button"
+                        onClick={settings.reload}
+                        type="button"
+                      >
+                        Reload settings
+                      </button>
+                    }
+                  >
+                    {query
+                      ? "Clear the search or choose another category."
+                      : "Restart the local runtime if configuration has not loaded, then try again."}
+                  </EmptyBlock>
+                )}
               </div>
             </section>
             {category === "execution" || category === "all" ? (
@@ -1760,7 +1783,11 @@ export function CompatibilityPage({ active }: { active: boolean }) {
           </button>
         }
       />
-      {compatibility.loading ? (
+      {!active ? (
+        <EmptyBlock title="Compatibility checks are offline">
+          Restart the local runtime to inspect provider and runtime readiness.
+        </EmptyBlock>
+      ) : compatibility.loading ? (
         <LoadingBlock />
       ) : compatibility.error ? (
         <ErrorBlock error={compatibility.error} retry={compatibility.reload} />
@@ -1804,19 +1831,32 @@ export function CompatibilityPage({ active }: { active: boolean }) {
           </div>
         </section>
       ) : (
-        <EmptyBlock title="No compatibility checks found">
+        <EmptyBlock
+          title="No compatibility checks found"
+          actions={
+            <button
+              className="secondary-button"
+              onClick={compatibility.reload}
+              type="button"
+            >
+              Run checks again
+            </button>
+          }
+        >
           The runtime did not return a checks payload.
         </EmptyBlock>
       )}
-      <section className="content-card" style={{ marginTop: "16px" }}>
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Raw payload</span>
-            <h2>Compatibility response</h2>
+      {compatibility.data ? (
+        <section className="content-card" style={{ marginTop: "16px" }}>
+          <div className="card-heading">
+            <div>
+              <span className="eyebrow">Raw payload</span>
+              <h2>Compatibility response</h2>
+            </div>
           </div>
-        </div>
-        <pre className="json-preview">{formatJson(compatibility.data)}</pre>
-      </section>
+          <pre className="json-preview">{formatJson(compatibility.data)}</pre>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -1858,23 +1898,31 @@ export function RegistryPage({ active }: { active: boolean }) {
           </button>
         }
       />
-      <div className="filter-bar">
-        <label className="search-field grow">
-          <input
-            placeholder="Search by plugin name"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-        <button
-          className="secondary-button"
-          onClick={() => setRefreshRequested((current) => !current)}
-          type="button"
-        >
-          {refreshRequested ? "Hard refresh" : "Cached lookup"}
-        </button>
-      </div>
-      {registry.loading ? (
+      {active ? (
+        <div className="filter-bar">
+          <label className="search-field grow">
+            <span className="sr-only">Search the plugin registry</span>
+            <input
+              placeholder="Search by plugin name"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <button
+            className="secondary-button"
+            onClick={() => setRefreshRequested((current) => !current)}
+            type="button"
+          >
+            {refreshRequested ? "Hard refresh" : "Cached lookup"}
+          </button>
+        </div>
+      ) : null}
+      {!active ? (
+        <EmptyBlock title="Plugin registry is offline">
+          Restart the local runtime to search installed and available plugins.
+        </EmptyBlock>
+      ) : registry.loading ? (
         <LoadingBlock />
       ) : registry.error ? (
         <ErrorBlock error={registry.error} retry={registry.reload} />
@@ -1906,19 +1954,32 @@ export function RegistryPage({ active }: { active: boolean }) {
           </div>
         </section>
       ) : (
-        <EmptyBlock title="No registry entries">
+        <EmptyBlock
+          title="No registry entries"
+          actions={
+            <button
+              className="secondary-button"
+              onClick={registry.reload}
+              type="button"
+            >
+              Search again
+            </button>
+          }
+        >
           No registry rows returned for this query.
         </EmptyBlock>
       )}
-      <section className="content-card" style={{ marginTop: "16px" }}>
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Raw payload</span>
-            <h2>Registry response</h2>
+      {registry.data ? (
+        <section className="content-card" style={{ marginTop: "16px" }}>
+          <div className="card-heading">
+            <div>
+              <span className="eyebrow">Raw payload</span>
+              <h2>Registry response</h2>
+            </div>
           </div>
-        </div>
-        <pre className="json-preview">{formatJson(registry.data)}</pre>
-      </section>
+          <pre className="json-preview">{formatJson(registry.data)}</pre>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -1945,96 +2006,111 @@ export function SetupPage({ active }: { active: boolean }) {
         title="Setup"
         description="Track local setup health and onboarding checklist status."
       />
-      <div className="two-column-grid">
-        <section className="content-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Checklist</span>
-              <h2>Readiness items</h2>
-            </div>
-            <button
-              className="text-button"
-              onClick={checklist.reload}
-              type="button"
-            >
-              Refresh
-            </button>
-          </div>
-          {checklist.loading ? (
-            <LoadingBlock />
-          ) : checklist.error ? (
-            <ErrorBlock error={checklist.error} retry={checklist.reload} />
-          ) : checklistItems.length ? (
-            <div className="stack-list">
-              {checklistItems.map((entry, index) => {
-                const status = asString(entry.status, "pending");
-                const done = status.toLowerCase() === "done";
-                return (
-                  <div className="status-row" key={String(index)}>
-                    <div>
-                      <strong>
-                        {asString(entry.label, asString(entry.name, "Item"))}
-                      </strong>
-                      <small>{asString(entry.description, "No details")}</small>
-                    </div>
-                    <Badge tone={done ? "good" : "warn"}>
-                      {done ? "Done" : "Pending"}
-                    </Badge>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyBlock title="No checklist items">
-              No setup checklist items were returned.
-            </EmptyBlock>
-          )}
-        </section>
-        <section className="content-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Summary</span>
-              <h2>Setup snapshot</h2>
-            </div>
-            <button
-              className="text-button"
-              onClick={summary.reload}
-              type="button"
-            >
-              Refresh
-            </button>
-          </div>
-          {summary.loading ? (
-            <LoadingBlock />
-          ) : summary.error ? (
-            <ErrorBlock error={summary.error} retry={summary.reload} />
-          ) : summaryEntries.length ? (
-            <div className="stack-list">
-              {summaryEntries.map(([key, value]) => (
-                <div className="status-row" key={key}>
-                  <div>
-                    <strong>{titleCase(key)}</strong>
-                    <small>{String(value)}</small>
-                  </div>
+      {!active ? (
+        <EmptyBlock title="Setup checks are offline">
+          Restart the local runtime to inspect onboarding and readiness.
+        </EmptyBlock>
+      ) : (
+        <>
+          <div className="two-column-grid">
+            <section className="content-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Checklist</span>
+                  <h2>Readiness items</h2>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyBlock title="No summary payload">
-              No setup summary is available.
-            </EmptyBlock>
-          )}
-        </section>
-      </div>
-      <section className="content-card" style={{ marginTop: "16px" }}>
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Raw payload</span>
-            <h2>Setup response</h2>
+                <button
+                  className="text-button"
+                  onClick={checklist.reload}
+                  type="button"
+                >
+                  Refresh
+                </button>
+              </div>
+              {checklist.loading ? (
+                <LoadingBlock />
+              ) : checklist.error ? (
+                <ErrorBlock error={checklist.error} retry={checklist.reload} />
+              ) : checklistItems.length ? (
+                <div className="stack-list">
+                  {checklistItems.map((entry, index) => {
+                    const status = asString(entry.status, "pending");
+                    const done = status.toLowerCase() === "done";
+                    return (
+                      <div className="status-row" key={String(index)}>
+                        <div>
+                          <strong>
+                            {asString(
+                              entry.label,
+                              asString(entry.name, "Item"),
+                            )}
+                          </strong>
+                          <small>
+                            {asString(entry.description, "No details")}
+                          </small>
+                        </div>
+                        <Badge tone={done ? "good" : "warn"}>
+                          {done ? "Done" : "Pending"}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyBlock title="No checklist items">
+                  No setup checklist items were returned.
+                </EmptyBlock>
+              )}
+            </section>
+            <section className="content-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Summary</span>
+                  <h2>Setup snapshot</h2>
+                </div>
+                <button
+                  className="text-button"
+                  onClick={summary.reload}
+                  type="button"
+                >
+                  Refresh
+                </button>
+              </div>
+              {summary.loading ? (
+                <LoadingBlock />
+              ) : summary.error ? (
+                <ErrorBlock error={summary.error} retry={summary.reload} />
+              ) : summaryEntries.length ? (
+                <div className="stack-list">
+                  {summaryEntries.map(([key, value]) => (
+                    <div className="status-row" key={key}>
+                      <div>
+                        <strong>{titleCase(key)}</strong>
+                        <small>{String(value)}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyBlock title="No summary payload">
+                  No setup summary is available.
+                </EmptyBlock>
+              )}
+            </section>
           </div>
-        </div>
-        <pre className="json-preview">{formatJson(summary.data)}</pre>
-      </section>
+          {summary.data ? (
+            <section className="content-card" style={{ marginTop: "16px" }}>
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Raw payload</span>
+                  <h2>Setup response</h2>
+                </div>
+              </div>
+              <pre className="json-preview">{formatJson(summary.data)}</pre>
+            </section>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
