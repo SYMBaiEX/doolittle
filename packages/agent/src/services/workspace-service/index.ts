@@ -50,7 +50,16 @@ export class WorkspaceService {
     // Unsupported workspaces retain the existing write behavior and expose their
     // unsupported state through the explicit checkpoint operator routes.
     if (this.checkpointSupport().supported) {
-      this.createCheckpoint(`Before workspace write: ${path}`);
+      try {
+        this.createCheckpoint(`Before workspace write: ${path}`);
+      } catch (error) {
+        throw new Error(
+          `Workspace write was not performed because its safety checkpoint failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
     }
     mkdirSync(workspaceDirname(resolvedPath), { recursive: true });
     writeFileSync(resolvedPath, content, "utf8");

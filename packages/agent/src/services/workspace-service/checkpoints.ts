@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { classifyWorkspacePath } from "./policy";
 
 export interface WorkspaceCheckpoint {
   id: string;
@@ -23,12 +24,53 @@ const GIT_IDENTITY = {
   GIT_COMMITTER_EMAIL: "doolittle@local.invalid",
 };
 
-function git(root: string, args: string[], env?: NodeJS.ProcessEnv): string {
+function gitRaw(
+  root: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+  input?: string,
+): string {
   return execFileSync("git", ["-C", root, ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     env,
-  }).trim();
+    input,
+  });
+}
+
+function git(
+  root: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+  input?: string,
+): string {
+  return gitRaw(root, args, env, input).trim();
+}
+
+function gitPaths(root: string, args: string[]): string[] {
+  const output = gitRaw(root, [...args, "-z"]);
+  return output ? output.split("\0").filter(Boolean) : [];
+}
+
+function checkpointPaths(root: string): string[] {
+  return [
+    ...new Set([
+      ...gitPaths(root, ["diff", "--name-only"]),
+      ...gitPaths(root, ["diff", "--cached", "--name-only"]),
+      ...gitPaths(root, ["ls-files", "--others", "--exclude-standard"]),
+    ]),
+  ];
+}
+
+function assertCheckpointPathsAreSafe(paths: string[]): void {
+  const protectedPath = paths.find(
+    (path) => classifyWorkspacePath(path).disposition !== "visible",
+  );
+  if (protectedPath) {
+    throw new Error(
+      `Checkpoint blocked because protected workspace data has uncommitted changes: ${protectedPath}`,
+    );
+  }
 }
 
 function checkpointId(): string {
@@ -61,7 +103,8 @@ function repositoryRoot(root: string): string | null {
 /**
  * Git-backed snapshots that never alter the caller's worktree or index while
  * being created. The checkpoint ref points to a commit built from a temporary
- * index, including untracked (but not ignored) project files.
+ * index. It captures changed paths that are visible to the workspace service,
+ * including safe untracked files, while refusing to persist protected data.
  */
 export class WorkspaceCheckpointService {
   constructor(private readonly workspaceRoot: () => string) {}
@@ -127,6 +170,8 @@ export class WorkspaceCheckpointService {
     const root = this.workspaceRoot();
     const id = checkpointId();
     const safeLabel = cleanLabel(label);
+    const paths = checkpointPaths(root);
+    assertCheckpointPathsAreSafe(paths);
     const temporaryDirectory = mkdtempSync(
       join(tmpdir(), "doolittle-checkpoint-"),
     );
@@ -138,7 +183,19 @@ export class WorkspaceCheckpointService {
     };
     try {
       git(root, ["read-tree", "HEAD"], env);
-      git(root, ["add", "--all"], env);
+      if (paths.length > 0) {
+        git(
+          root,
+          [
+            "add",
+            "--all",
+            "--pathspec-from-file=-",
+            "--pathspec-file-nul",
+          ],
+          env,
+          `${paths.join("\0")}\0`,
+        );
+      }
       const tree = git(root, ["write-tree"], env);
       const head = git(root, ["rev-parse", "HEAD"], env);
       const revision = git(
@@ -170,8 +227,10 @@ export class WorkspaceCheckpointService {
     if (!support.supported) throw new Error(support.reason);
     const checkpoint = this.list().find((candidate) => candidate.id === id);
     if (!checkpoint) throw new Error("Checkpoint not found.");
+    this.create(`Before restoring: ${checkpoint.label}`);
     // Deliberately no reset or checkout: this restores the checkpoint tree into
     // the existing worktree and index after the route has required confirmation.
+    // The safety checkpoint above keeps the overwritten state recoverable.
     git(this.workspaceRoot(), [
       "restore",
       "--source",

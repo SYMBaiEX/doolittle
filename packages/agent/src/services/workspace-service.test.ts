@@ -52,11 +52,53 @@ describe("WorkspaceService", () => {
       service.restoreCheckpoint(checkpoint.id);
       expect(service.read("tracked.txt")).toBe("checkpoint value\n");
       expect(service.read("untracked.txt")).toBe("captured\n");
+      const recoveryCheckpoint = service
+        .listCheckpoints()
+        .find((candidate) =>
+          candidate.label.startsWith("Before restoring: Before mutation"),
+        );
+      expect(recoveryCheckpoint).toBeDefined();
+      expect(
+        git([
+          "show",
+          `${recoveryCheckpoint?.revision ?? ""}:tracked.txt`,
+        ]),
+      ).toBe("after mutation\n");
 
       const checkpointCount = service.listCheckpoints().length;
       service.write("tracked.txt", "agent write\n");
       expect(service.listCheckpoints()).toHaveLength(checkpointCount + 1);
       expect(service.read("tracked.txt")).toBe("agent write\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses to persist protected uncommitted files in checkpoint objects", () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-workspace-private-checkpoint-"),
+    );
+    const service = new WorkspaceService(root);
+
+    try {
+      const git = (args: string[]) =>
+        execFileSync("git", ["-C", root, ...args], { encoding: "utf8" });
+      git(["init"]);
+      git(["config", "user.name", "Test User"]);
+      git(["config", "user.email", "test@example.invalid"]);
+      writeFileSync(join(root, "tracked.txt"), "base\n", "utf8");
+      git(["add", "tracked.txt"]);
+      git(["commit", "-m", "initial"]);
+      writeFileSync(join(root, ".env.local"), "PRIVATE=value\n", "utf8");
+
+      expect(() => service.createCheckpoint("Unsafe snapshot")).toThrow(
+        "Checkpoint blocked because protected workspace data has uncommitted changes: .env.local",
+      );
+      expect(() => service.write("tracked.txt", "agent write\n")).toThrow(
+        "Workspace write was not performed because its safety checkpoint failed",
+      );
+      expect(service.read("tracked.txt")).toBe("base\n");
+      expect(service.listCheckpoints()).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
