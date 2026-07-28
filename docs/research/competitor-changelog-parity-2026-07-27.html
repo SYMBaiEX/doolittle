@@ -313,7 +313,7 @@
   <body>
     <main>
       <header>
-        <span class="eyebrow">Competitive release audit · 2026-07-27</span>
+        <span class="eyebrow">Competitive release audit · updated 2026-07-28</span>
         <h1>The best updates converge on continuity.</h1>
         <p>
           Codex, Claude Code, ChatGPT Desktop, Claude Desktop, Hermes Agent,
@@ -485,6 +485,24 @@
                 <td>Codex, Claude Code, T3, Hermes</td>
                 <td><span class="status present">Present</span></td>
                 <td>Dedicated code, review, orchestration, approval, and worktree surfaces already cover the local workflow.</td>
+              </tr>
+              <tr>
+                <td>Recovery checkpoints</td>
+                <td>Codex rollback; Claude Code checkpoints</td>
+                <td><span class="status now">Integrated now</span></td>
+                <td>Git-backed local checkpoints preserve dirty work without touching the real index, exclude protected data, snapshot before agent writes and restores, and require explicit restore confirmation.</td>
+              </tr>
+              <tr>
+                <td>Interactive terminal sessions</td>
+                <td>Hermes terminal; Claude Code and Codex execution</td>
+                <td><span class="status now">Integrated now</span></td>
+                <td>An xterm-based PTY renders real terminal control sequences while process creation, input, resize, and command policy remain behind narrow IPC contracts.</td>
+              </tr>
+              <tr>
+                <td>Background lifecycle and signed updates</td>
+                <td>Hermes delivery; T3 updates; desktop competitors</td>
+                <td><span class="status now">Integrated now</span></td>
+                <td>Background mode is opt-in and privacy-safe; packaged builds expose explicit update state and tagged release workflows require platform signing before publication.</td>
               </tr>
               <tr>
                 <td>Models, providers, skills, automations</td>
