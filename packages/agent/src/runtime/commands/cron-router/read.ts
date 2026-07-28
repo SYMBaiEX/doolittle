@@ -1,6 +1,13 @@
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type {
+  AutomationRunRecord,
+  ChatTurnRequest,
+  CronJobRecord,
+} from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
+
+const TRIGGER_RUNTIME_UNAVAILABLE =
+  "Trigger runtime service is not ready. Start the Eliza runtime and try again.";
 
 export async function handleCronReadCommand(
   _input: ChatTurnRequest,
@@ -9,18 +16,8 @@ export async function handleCronReadCommand(
 ): Promise<string | undefined> {
   const nativeCron = getNativeServices(context.runtime).cron;
   if (trimmed === "/cron" || trimmed === "/cron list") {
-    const jobs =
-      ((await nativeCron?.list()) as
-        | Array<{
-            id: string;
-            name: string;
-            status: string;
-            schedule: string;
-            nextRunAt?: string;
-            skills?: string[];
-            runtime?: { model?: string; personalityId?: string };
-          }>
-        | undefined) ?? context.services.cron.list();
+    if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
+    const jobs = (await nativeCron.list()) as CronJobRecord[];
     return jobs.length
       ? jobs
           .map(
@@ -32,15 +29,8 @@ export async function handleCronReadCommand(
   }
 
   if (trimmed === "/cron runs") {
-    const runs =
-      ((await nativeCron?.runs(10)) as
-        | Array<{
-            jobName: string;
-            createdAt: string;
-            outputPath?: string;
-            output: string;
-          }>
-        | undefined) ?? context.services.cron.recentRuns(10);
+    if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
+    const runs = (await nativeCron.runs(10)) as AutomationRunRecord[];
     return runs.length
       ? runs
           .map(
@@ -52,8 +42,9 @@ export async function handleCronReadCommand(
   }
 
   if (trimmed.startsWith("/cron show ")) {
+    if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     const id = trimmed.replace("/cron show ", "").trim();
-    const job = (await nativeCron?.get(id)) ?? context.services.cron.get(id);
+    const job = (await nativeCron.get(id)) as CronJobRecord | undefined;
     if (!job) {
       return "Cron job not found.";
     }

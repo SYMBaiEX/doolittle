@@ -3,46 +3,53 @@ import type { AgentExecutionContext } from "../chat";
 import { handleCronCommand } from "./cron-router";
 
 function createContext(): AgentExecutionContext {
+  const cron = {
+    list: () => [
+      {
+        id: "job-1",
+        name: "Nightly",
+        status: "active",
+        schedule: "0 1 * * *",
+        nextRunAt: "2026-03-29T01:00:00.000Z",
+        skills: ["voice/tts"],
+        runtime: { model: "gpt-5.4", personalityId: "focus" },
+      },
+    ],
+    runs: () => [
+      {
+        jobName: "Nightly",
+        createdAt: "2026-03-28T01:00:00.000Z",
+        output: "completed successfully",
+      },
+    ],
+    create: (input: Record<string, unknown>) => ({
+      id: "job-created",
+      nextRunAt: "2026-03-29T02:00:00.000Z",
+      ...input,
+    }),
+    get: (id: string) => (id === "job-1" ? { id, status: "active" } : null),
+    update: (id: string, input: Record<string, unknown>) => ({
+      id,
+      nextRunAt: "2026-03-29T03:00:00.000Z",
+      ...input,
+    }),
+    pause: (id: string) => ({ id }),
+    resume: (id: string) => ({
+      id,
+      nextRunAt: "2026-03-29T04:00:00.000Z",
+    }),
+    runNow: (id: string) => ({ id }),
+    remove: (_id: string) => undefined,
+  };
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) => (name === "cron" ? cron : null),
+    },
     services: {
       cron: {
-        list: () => [
-          {
-            id: "job-1",
-            name: "Nightly",
-            status: "active",
-            schedule: "0 1 * * *",
-            nextRunAt: "2026-03-29T01:00:00.000Z",
-            skills: ["voice/tts"],
-            runtime: { model: "gpt-5.4", personalityId: "focus" },
-          },
-        ],
-        recentRuns: () => [
-          {
-            jobName: "Nightly",
-            createdAt: "2026-03-28T01:00:00.000Z",
-            output: "completed successfully",
-          },
-        ],
-        create: (input: Record<string, unknown>) => ({
-          id: "job-created",
-          nextRunAt: "2026-03-29T02:00:00.000Z",
-          ...input,
-        }),
-        get: (id: string) => (id === "job-1" ? { id, status: "active" } : null),
-        updateConfig: (id: string, input: Record<string, unknown>) => ({
-          id,
-          nextRunAt: "2026-03-29T03:00:00.000Z",
-          ...input,
-        }),
-        pause: (id: string) => ({ id }),
-        resume: (id: string) => ({
-          id,
-          nextRunAt: "2026-03-29T04:00:00.000Z",
-        }),
-        runNow: (id: string) => ({ id }),
-        remove: (_id: string) => undefined,
+        list: () => {
+          throw new Error("legacy cron must not be used");
+        },
       },
     },
   } as unknown as AgentExecutionContext;
@@ -190,5 +197,23 @@ describe("cron command router", () => {
 
     expect(createUsage).toContain("Usage: /cron create");
     expect(updateUsage).toContain("Usage: /cron update");
+  });
+
+  it("reports an unavailable Trigger runtime without using legacy cron", async () => {
+    const context = createContext();
+    context.runtime = {} as never;
+
+    const response = await handleCronCommand(
+      {
+        message: "/cron",
+        userId: "user-1",
+        roomId: "cli:local-user",
+        source: "cli",
+      },
+      "/cron",
+      context,
+    );
+
+    expect(response).toContain("Trigger runtime service is not ready");
   });
 });
