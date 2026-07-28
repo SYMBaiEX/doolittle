@@ -1,19 +1,51 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  accessSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
-import { dirname } from "node:path";
+import { delimiter, dirname, isAbsolute, join } from "node:path";
+import { runTextProcessSync } from "@/services/process-execution";
 
 export const DEFAULT_REFRESH_SKEW_SECONDS = 120;
+const COMMAND_CACHE_TTL_MS = 1_000;
+const commandCache = new Map<
+  string,
+  {
+    capturedAt: number;
+    result: ReturnType<typeof runTextProcessSync>;
+  }
+>();
 
 export function resolveHome(homePath?: string): string {
   return homePath?.trim() || process.env.HOME?.trim() || homedir();
 }
 
 export function commandExists(command: string): boolean {
-  const result = spawnSync("sh", ["-lc", `command -v ${command}`], {
-    stdio: "ignore",
+  const candidates =
+    isAbsolute(command) || command.includes("/")
+      ? [command]
+      : (process.env.PATH ?? "")
+          .split(delimiter)
+          .filter(Boolean)
+          .flatMap((entry) =>
+            process.platform === "win32"
+              ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT")
+                  .split(";")
+                  .map((extension) => join(entry, `${command}${extension}`))
+              : [join(entry, command)],
+          );
+  return candidates.some((candidate) => {
+    try {
+      accessSync(candidate, constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
   });
-  return result.status === 0;
 }
 
 export function readCommandText(
@@ -21,14 +53,38 @@ export function readCommandText(
   args: string[],
   homePath?: string,
 ): string {
-  const result = spawnSync(command, args, {
-    encoding: "utf8",
+  try {
+    const result = runCachedCommand(command, args, homePath, "command-text");
+    return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+  } catch {
+    return "";
+  }
+}
+
+function runCachedCommand(
+  command: string,
+  args: string[],
+  homePath: string | undefined,
+  purpose: string,
+) {
+  const home = resolveHome(homePath);
+  const key = JSON.stringify([command, args, home]);
+  const cached = commandCache.get(key);
+  if (cached && Date.now() - cached.capturedAt < COMMAND_CACHE_TTL_MS) {
+    return cached.result;
+  }
+  const result = runTextProcessSync(command, args, {
     env: {
-      ...process.env,
-      HOME: resolveHome(homePath),
+      HOME: home,
     },
+    timeoutMs: 10_000,
+    toolName: `doolittle.account-auth.${purpose}`,
   });
-  return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+  commandCache.set(key, {
+    capturedAt: Date.now(),
+    result,
+  });
+  return result;
 }
 
 export function readCommandJson(
@@ -36,14 +92,13 @@ export function readCommandJson(
   args: string[],
   homePath?: string,
 ): unknown {
-  const result = spawnSync(command, args, {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      HOME: resolveHome(homePath),
-    },
-  });
-  if (result.status !== 0 || !result.stdout?.trim()) {
+  let result: ReturnType<typeof runTextProcessSync>;
+  try {
+    result = runCachedCommand(command, args, homePath, "command-json");
+  } catch {
+    return undefined;
+  }
+  if (result.exitCode !== 0 || !result.stdout.trim()) {
     return undefined;
   }
   try {

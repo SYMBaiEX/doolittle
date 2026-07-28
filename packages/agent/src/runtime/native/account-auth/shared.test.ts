@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  commandExists,
   decodeJwtPayload,
   isUnixMillisecondsExpiring,
   isUnixSecondsExpiring,
+  readCommandJson,
+  readCommandText,
   resolveHome,
 } from "./shared";
 
@@ -44,5 +47,18 @@ describe.sequential("account-auth shared helpers", () => {
     const now = Date.now();
     expect(isUnixMillisecondsExpiring(now + 30_000, 120)).toBe(true);
     expect(isUnixMillisecondsExpiring(now + 3_600_000, 120)).toBe(false);
+  });
+
+  it("routes synchronous CLI reads through the SDK-backed process bridge", () => {
+    expect(commandExists(process.execPath)).toBe(true);
+    expect(
+      readCommandText(process.execPath, ["-e", "process.stdout.write('ok')"]),
+    ).toBe("ok");
+    expect(
+      readCommandJson(process.execPath, [
+        "-e",
+        "process.stdout.write(JSON.stringify({ready:true}))",
+      ]),
+    ).toEqual({ ready: true });
   });
 });
