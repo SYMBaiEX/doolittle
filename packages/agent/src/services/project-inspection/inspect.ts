@@ -2,6 +2,7 @@ import { basename } from "node:path";
 import { inspectGitState } from "./git";
 import {
   collectKeyFolders,
+  collectNotableFiles,
   detectProjectKind,
   listTopEntries,
   readProjectReadme,
@@ -21,7 +22,7 @@ export async function inspectLocalProject(
   const topEntriesLimit = options?.topEntriesLimit ?? 12;
   const readmePreview = readProjectReadme(projectPath)
     ?.split("\n")
-    .slice(0, options?.readmeLines ?? 8)
+    .slice(0, options?.readmeLines ?? 40)
     .join("\n");
 
   return {
@@ -33,6 +34,7 @@ export async function inspectLocalProject(
     workspacePatterns: packageJson.workspacePatterns,
     scripts: packageJson.scripts,
     keyFolders: collectKeyFolders(projectPath),
+    notableFiles: collectNotableFiles(projectPath),
     git,
     topEntries: listTopEntries(projectPath, topEntriesLimit),
     readmePreview,

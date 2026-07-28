@@ -12,6 +12,7 @@ export interface LocalProjectInspection {
   workspacePatterns: string[];
   scripts: string[];
   keyFolders: string[];
+  notableFiles?: string[];
   git: {
     available: boolean;
     status?: string;
