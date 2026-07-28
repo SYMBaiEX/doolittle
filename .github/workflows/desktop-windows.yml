@@ -132,6 +132,10 @@ jobs:
             throw "Doolittle Windows installer was not produced."
           }
           Write-Host "Installer ready: $($installer.FullName) ($($installer.Length) bytes)"
+          $updateManifest = Get-Item apps/desktop/release/latest.yml
+          $blockmap = Get-Item "$($installer.FullName).blockmap"
+          Write-Host "Update manifest ready: $($updateManifest.FullName)"
+          Write-Host "Installer blockmap ready: $($blockmap.FullName)"
 
           $app = Get-Item apps/desktop/release/win-unpacked/Doolittle.exe
           $installerSignature = Get-AuthenticodeSignature $installer.FullName
@@ -152,11 +156,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Doolittle-Windows-x64
-          path: apps/desktop/release/Doolittle-*-win-x64.exe
+          path: |
+            apps/desktop/release/Doolittle-*-win-x64.exe
+            apps/desktop/release/Doolittle-*-win-x64.exe.blockmap
+            apps/desktop/release/latest.yml
           if-no-files-found: error
 
-      - name: Attach installer to tagged release
+      - name: Attach installer and update metadata to tagged release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/desktop/release/Doolittle-*-win-x64.exe
+          files: |
+            apps/desktop/release/Doolittle-*-win-x64.exe
+            apps/desktop/release/Doolittle-*-win-x64.exe.blockmap
+            apps/desktop/release/latest.yml
