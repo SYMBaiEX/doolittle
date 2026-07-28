@@ -56,7 +56,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     agentSkills: service<NativeAgentSkillsService>(runtime, "agent_skills"),
     trajectoryLogger: service<NativeTrajectoryLoggerService>(
       runtime,
-      "trajectory_logger",
+      "trajectories",
     ),
     agentOrchestrator: service<NativeAgentOrchestratorService>(
       runtime,

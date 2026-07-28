@@ -99,7 +99,7 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "trajectoryLogger",
-        nativeService: "trajectory_logger",
+        nativeService: "trajectories",
         source: "product",
         ownership: "product",
         fallback: "trajectories",

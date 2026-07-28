@@ -81,7 +81,7 @@ const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] = [
   {
     capability: "trajectoryLogger",
     nativeKey: "trajectoryLogger",
-    nativeService: "trajectory_logger",
+    nativeService: "trajectories",
     fallback: "trajectories",
   },
   {

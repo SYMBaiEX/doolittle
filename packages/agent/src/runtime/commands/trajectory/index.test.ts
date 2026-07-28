@@ -58,7 +58,7 @@ function createContext(options?: {
     },
     runtime: {
       getService: (service: string) => {
-        if (service === "trajectory_logger" && options?.native) {
+        if (service === "trajectories" && options?.native) {
           return {
             exportLatest: () => "/tmp/native-export.jsonl",
             bundles: () => [

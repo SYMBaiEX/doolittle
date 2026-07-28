@@ -746,7 +746,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             queue: () => ({ pending: 1, activeWorkers: 1 }),
           };
         }
-        if (name === "trajectory_logger") {
+        if (name === "trajectories") {
           return {
             bundles: () => [{ id: "bundle-1" }],
             exportLatest: () => ({ id: "latest" }),

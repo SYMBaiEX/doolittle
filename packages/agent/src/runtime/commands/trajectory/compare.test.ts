@@ -6,7 +6,7 @@ function createContext(options?: { native?: boolean }) {
   const context = {
     runtime: {
       getService: (service: string) =>
-        service === "trajectory_logger" && options?.native
+        service === "trajectories" && options?.native
           ? {
               compareLatest: () => ({
                 source: "native",

@@ -43,7 +43,7 @@ function createContext(options?: {
       options?.native || options?.sdk
         ? {
             getService: (service: string) => {
-              if (service === "trajectory_logger") {
+              if (service === "trajectories") {
                 return nativeTrajectory;
               }
               if (service === "trajectories") {
