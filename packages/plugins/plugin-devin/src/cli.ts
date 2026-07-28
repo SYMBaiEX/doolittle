@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runShell } from "@elizaos/agent/services/shell-execution-router";
 import type { DevinCliPrintParams } from "./types";
 
 export const DEFAULT_DEVIN_COMMAND = "devin";
@@ -21,72 +21,40 @@ async function runDevinProcess(
   args: string[],
   params: DevinCliPrintParams,
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let stdout = "";
-    let stderr = "";
-    let timedOut = false;
-    const timeoutMs = params.timeoutMs ?? DEFAULT_DEVIN_TIMEOUT_MS;
-    const child = spawn(command, args, {
-      cwd: params.cwd,
-      env: {
-        ...process.env,
-        DEVIN_MODEL: params.model,
-        DEVIN_PERMISSION_MODE: params.permissionMode ?? "auto",
-        NO_COLOR: "1",
-      },
-      windowsHide: true,
-    });
-
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-    }, timeoutMs);
-
-    child.stdout?.setEncoding("utf8");
-    child.stderr?.setEncoding("utf8");
-    child.stdout?.on("data", (chunk) => {
-      stdout += String(chunk);
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += String(chunk);
-    });
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.on("close", (code, signal) => {
-      clearTimeout(timer);
-      const cleanStdout = stripAnsi(stdout).trim();
-      const cleanStderr = stripAnsi(stderr).trim();
-      if (timedOut) {
-        reject(
-          new Error(
-            `Devin CLI invocation timed out after ${timeoutMs}ms. Partial output: ${
-              cleanStdout || cleanStderr || "none"
-            }`,
-          ),
-        );
-        return;
-      }
-      if (code !== 0) {
-        const detail = [cleanStdout, cleanStderr]
-          .filter(Boolean)
-          .join("\n")
-          .trim();
-        reject(
-          new Error(
-            `Devin CLI invocation failed${
-              typeof code === "number" ? ` (${code})` : ""
-            }${signal ? ` signal=${signal}` : ""}: ${
-              detail || "Unknown error"
-            }`,
-          ),
-        );
-        return;
-      }
-      resolve(cleanStdout || cleanStderr);
-    });
+  const timeoutMs = params.timeoutMs ?? DEFAULT_DEVIN_TIMEOUT_MS;
+  const result = await runShell({
+    command,
+    args,
+    cwd: params.cwd,
+    env: {
+      DEVIN_MODEL: params.model,
+      DEVIN_PERMISSION_MODE: params.permissionMode ?? "auto",
+      NO_COLOR: "1",
+    },
+    timeoutMs,
+    toolName: "doolittle.provider.devin",
   });
+  const cleanStdout = stripAnsi(result.stdout).trim();
+  const cleanStderr = stripAnsi(result.stderr).trim();
+  if (
+    result.exitCode === 124 &&
+    result.stderr.includes("[shell-router] command timed out")
+  ) {
+    throw new Error(
+      `Devin CLI invocation timed out after ${timeoutMs}ms. Partial output: ${
+        cleanStdout || cleanStderr || "none"
+      }`,
+    );
+  }
+  if (result.exitCode !== 0) {
+    const detail = [cleanStdout, cleanStderr].filter(Boolean).join("\n").trim();
+    throw new Error(
+      `Devin CLI invocation failed (${result.exitCode}): ${
+        detail || "Unknown error"
+      }`,
+    );
+  }
+  return cleanStdout || cleanStderr;
 }
 
 export async function invokeDevinCliPrint(
