@@ -67,7 +67,18 @@
     "extraResources": [
       {
         "from": "build/runtime",
-        "to": "runtime/bin"
+        "to": "runtime/bin",
+        "filter": [
+          "**/*",
+          "!node_modules/**"
+        ]
+      },
+      {
+        "from": "build/runtime/node_modules",
+        "to": "runtime/bin/node_modules",
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../../package.json",

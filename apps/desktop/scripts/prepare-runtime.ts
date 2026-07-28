@@ -1,5 +1,6 @@
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -9,11 +10,13 @@ import {
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, type Plugin } from "esbuild";
+import { discoverDynamicCommonJsPackages } from "./runtime-requirements";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
+const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
 const pgliteDist = resolve(
   repoRoot,
   "node_modules",
@@ -104,6 +107,73 @@ await build({
   ],
 });
 
+async function bundleCommonJsRuntimePackage(
+  name: string,
+  entry: string,
+): Promise<void> {
+  const packageDir = resolve(runtimeNodeModulesDir, name);
+  mkdirSync(packageDir, { recursive: true });
+  await build({
+    absWorkingDir: repoRoot,
+    entryPoints: [entry],
+    outfile: resolve(packageDir, "index.cjs"),
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    target: "node24",
+    minify: true,
+    sourcemap: false,
+    legalComments: "none",
+    logLevel: "info",
+  });
+  writeFileSync(
+    resolve(packageDir, "package.json"),
+    `${JSON.stringify({ name, private: true, main: "index.cjs" }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+await bundleCommonJsRuntimePackage(
+  "git-workspace-service",
+  resolve(
+    repoRoot,
+    "node_modules",
+    "git-workspace-service",
+    "dist",
+    "index.cjs",
+  ),
+);
+
+const readableStreamShimDir = resolve(
+  runtimeNodeModulesDir,
+  "node-readable-to-web-readable-stream",
+);
+mkdirSync(readableStreamShimDir, { recursive: true });
+writeFileSync(
+  resolve(readableStreamShimDir, "index.cjs"),
+  [
+    '"use strict";',
+    'const { Readable } = require("node:stream");',
+    "exports.makeDefaultReadableStreamFromNodeReadable = (stream) =>",
+    "  Readable.toWeb(stream);",
+    "",
+  ].join("\n"),
+  "utf8",
+);
+writeFileSync(
+  resolve(readableStreamShimDir, "package.json"),
+  `${JSON.stringify(
+    {
+      name: "node-readable-to-web-readable-stream",
+      private: true,
+      main: "index.cjs",
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
+
 // The source entrypoint uses `#!/usr/bin/env nub` for source-checkout launches.
 // Packaged apps execute this bundle as an argument to Electron's embedded Node,
 // so retaining that source-only launcher hint is misleading and unnecessary.
@@ -113,6 +183,19 @@ writeFileSync(
   bundledRuntime.replace(/^#![^\r\n]*(?:\r?\n|$)/u, ""),
   "utf8",
 );
+
+for (const packageName of discoverDynamicCommonJsPackages(bundledRuntime)) {
+  const manifestPath = resolve(
+    runtimeNodeModulesDir,
+    packageName,
+    "package.json",
+  );
+  if (!existsSync(manifestPath)) {
+    throw new Error(
+      `Packaged runtime is missing dynamic CommonJS dependency: ${packageName}`,
+    );
+  }
+}
 
 writeFileSync(
   resolve(outputDir, "runtime-manifest.json"),
