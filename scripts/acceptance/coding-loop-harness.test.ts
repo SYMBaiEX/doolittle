@@ -17,6 +17,7 @@ import { AutocoderPipelineService } from "@/services/autocoder-pipeline";
 import { DelegationService } from "@/services/delegation/service";
 import { ReviewRecordService } from "@/services/review-record";
 import { serveFetchTest } from "@/testing/fetch-server";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 
 const temporaryDirectories: string[] = [];
 
@@ -28,11 +29,15 @@ afterEach(() => {
 
 function createFixtureContext(workspaceDir: string, dataDir: string) {
   const plans: Array<Record<string, unknown>> = [];
-  const delegation = new DelegationService(join(dataDir, "delegation"));
+  const official = createOfficialOrchestratorTestFixture();
+  const delegation = new DelegationService();
   const pipeline = new AutocoderPipelineService(join(dataDir, "pipeline"));
   const reviewRecords = new ReviewRecordService(join(dataDir, "review"));
   const runtime = {
     getService(name: string) {
+      if (name === "ORCHESTRATOR_TASK_SERVICE") {
+        return official.service;
+      }
       if (name === "planning") {
         return {
           listPlans: () => plans,
