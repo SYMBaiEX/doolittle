@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import type { Plugin } from "@elizaos/core";
+import { agentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
+import { agentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import {
-  createAgentOrchestratorPlugin,
   createCodingAgentPlugin,
   createPlanningPlugin,
 } from "@plugins/doolittle-plugin";
@@ -34,30 +35,8 @@ export async function loadHotExecutionPlugins(
         list: () => services.delegation.list(),
       },
     }),
-    createAgentOrchestratorPlugin({
-      delegation: {
-        create: (input) =>
-          services.delegation.create(normalizeDelegationInput(input)),
-        list: () => services.delegation.list(),
-        get: (id) => services.delegation.get(id),
-        queueSummary: () => services.delegation.queueSummary(),
-        overview: () => services.delegation.overview(),
-        getChildren: (id) => services.delegation.listChildren(id),
-        tree: (id) => services.delegation.tree(id),
-        spawnChild: (parentId, input) =>
-          services.delegation.spawnChild(
-            parentId,
-            normalizeDelegationInput(input),
-          ),
-        retryTask: (id, note, options) =>
-          services.delegation.requeue(id, note, options),
-        cancel: (id, note) => services.delegation.cancel(id, note),
-        supervise: (runner, options) =>
-          services.delegation.supervise(runner as never, options as never),
-        runQueued: (runner, options) =>
-          services.delegation.runQueued(runner as never, options as never),
-      },
-    }),
+    agentOrchestratorPlugin,
+    agentSkillsPlugin,
     createPlanningPlugin({
       delegation: {
         list: () => services.delegation.list(),

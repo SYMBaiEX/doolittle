@@ -1,5 +1,5 @@
 import type { Plugin } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "../../../services";
 import type { EnvConfig } from "../../../types/runtime";
 import {
@@ -7,6 +7,20 @@ import {
   loadDeferredPluginGroups,
 } from "./deferred-groups";
 import { loadHotExecutionPlugins } from "./hot-execution";
+
+vi.mock("@elizaos/plugin-agent-orchestrator", () => ({
+  agentOrchestratorPlugin: {
+    name: "@elizaos/plugin-agent-orchestrator",
+    actions: [],
+  },
+}));
+
+vi.mock("@elizaos/plugin-agent-skills", () => ({
+  agentSkillsPlugin: {
+    name: "@elizaos/plugin-agent-skills",
+    actions: [],
+  },
+}));
 
 function pluginNames(plugins: Plugin[]): string[] {
   return plugins.map((plugin) => plugin.name);
@@ -141,7 +155,8 @@ describe("loadHotExecutionPlugins", () => {
 
     expect(pluginNames(plugins)).toEqual([
       "@doolittle/plugin-coding-agent",
-      "@doolittle/plugin-agent-orchestrator",
+      "@elizaos/plugin-agent-orchestrator",
+      "@elizaos/plugin-agent-skills",
       "@doolittle/plugin-planning",
     ]);
   });
