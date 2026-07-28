@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { AgentExecutionContext } from "../../chat";
 import { handleTrajectoryCommand } from ".";
 
@@ -12,13 +13,13 @@ function createContext(options?: {
   compressBundleResult?: Record<string, unknown> | null | undefined;
   replayBundleResult?: Record<string, unknown> | null | undefined;
 }) {
-  let taskCounter = 0;
+  const official = createOfficialOrchestratorTestFixture();
   const events = {
     datasetRequests: [] as Array<Record<string, unknown>>,
     filteredBundleRequests: [] as Array<Record<string, unknown>>,
     benchmarkRuns: [] as string[],
     ingests: [] as Array<Record<string, unknown>>,
-    tasks: [] as Array<Record<string, unknown>>,
+    tasks: official.tasks,
     gatewayLimits: [] as number[],
   };
 
@@ -58,6 +59,9 @@ function createContext(options?: {
     },
     runtime: {
       getService: (service: string) => {
+        if (service === "ORCHESTRATOR_TASK_SERVICE") {
+          return official.service;
+        }
         if (service === "trajectories" && options?.native) {
           return {
             exportLatest: () => "/tmp/native-export.jsonl",
@@ -148,13 +152,6 @@ function createContext(options?: {
             ? undefined
             : (options?.replayBundleResult ?? { replay: manifestPath }),
       },
-      delegation: {
-        create: (input: Record<string, unknown>) => {
-          const task = { id: `task-${++taskCounter}`, ...input };
-          events.tasks.push(task);
-          return task;
-        },
-      },
     },
     gateway: options?.gateway
       ? {
@@ -238,10 +235,11 @@ describe("trajectory command router", () => {
       notes: "daily",
     });
     expect(batch).toContain('"manifestPath": "/tmp/batch.json"');
-    expect(events.tasks).toHaveLength(2);
-    expect(events.tasks[0]).toMatchObject({
+    const tasks = Array.from(events.tasks.values());
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]).toMatchObject({
       title: "Batch prompt 1",
-      group: "trajectory-batch:sweep",
+      metadata: { group: "trajectory-batch:sweep" },
     });
   });
 
