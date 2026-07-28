@@ -1,9 +1,9 @@
-import { spawnSync } from "node:child_process";
 import { formatRecoverableProviderError } from "@/cli/runtime-errors";
 import type { ResponseTranscriptEntry } from "@/cli/transcript-renderer";
+import { runTextProcess } from "@/services/process-execution";
 import { writeTranscriptExport } from "./rendering";
 
-export function exportTranscriptArtifact(input: {
+export async function exportTranscriptArtifact(input: {
   transcriptExportPath: string;
   responseHistory: ResponseTranscriptEntry[];
   liveResponse: ResponseTranscriptEntry | undefined;
@@ -15,10 +15,9 @@ export function exportTranscriptArtifact(input: {
   pushNotice: (kind: "context" | "skills" | "status", message: string) => void;
   scheduleRefreshPanels: (delayMs?: number) => void;
   canCopyToClipboard: boolean;
-}): void {
-  let transcript: string;
+}): Promise<void> {
   try {
-    transcript = writeTranscriptExport(
+    writeTranscriptExport(
       input.transcriptExportPath,
       input.responseHistory,
       input.liveResponse,
@@ -36,11 +35,20 @@ export function exportTranscriptArtifact(input: {
   let copied = false;
   try {
     if (input.canCopyToClipboard && process.platform === "darwin") {
-      const result = spawnSync("pbcopy", [], {
-        input: transcript,
-        stdio: ["pipe", "ignore", "ignore"],
-      });
-      copied = result.status === 0;
+      const result = await runTextProcess(
+        "/bin/sh",
+        [
+          "-c",
+          'exec pbcopy < "$1"',
+          "doolittle-transcript-copy",
+          input.transcriptExportPath,
+        ],
+        {
+          timeoutMs: 5_000,
+          toolName: "doolittle.tui.pbcopy",
+        },
+      );
+      copied = result.exitCode === 0;
     }
   } catch {
     copied = false;

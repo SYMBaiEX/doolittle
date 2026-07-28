@@ -54,7 +54,7 @@ export function createTuiTranscriptController(
 
   return {
     exportTranscript() {
-      exportTranscriptArtifact({
+      void exportTranscriptArtifact({
         transcriptExportPath: options.transcriptExportPath,
         responseHistory,
         liveResponse,
