@@ -8,12 +8,28 @@ import type {
   ShortcutDefinition,
 } from "@elizaos/core";
 
-const EXPLICIT_WEB_SEARCH_PREFIX = /^[/!]web(?:\s+|:\s*)?/iu;
-
 function messageText(message: Memory): string {
   return typeof message.content === "string"
     ? message.content
     : (message.content?.text ?? "");
+}
+
+function explicitWebSearchQuery(text: string): string {
+  const trimmed = text.trim();
+  const normalized = trimmed.toLowerCase();
+  for (const alias of ["/web", "!web"]) {
+    if (normalized === alias) return "";
+    if (
+      normalized.startsWith(`${alias} `) ||
+      normalized.startsWith(`${alias}:`)
+    ) {
+      const remainder = trimmed.slice(alias.length);
+      return (
+        remainder.startsWith(":") ? remainder.slice(1) : remainder
+      ).trim();
+    }
+  }
+  return trimmed;
 }
 
 function recordValue(
@@ -40,7 +56,7 @@ function resolveWebSearchQuery(
       ? nestedQuery
       : typeof shortcutQuery === "string"
         ? shortcutQuery
-        : messageText(message).replace(EXPLICIT_WEB_SEARCH_PREFIX, "");
+        : explicitWebSearchQuery(messageText(message));
   const trimmed = candidate.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
@@ -90,113 +106,5 @@ export const DOOLITTLE_SDK_SHORTCUTS: ShortcutDefinition[] = [
     target: { kind: "action", name: "WEB_SEARCH" },
     requiresAction: "WEB_SEARCH",
     priority: 100,
-  },
-  {
-    id: "doolittle-web-search-natural",
-    kind: "natural",
-    patterns: [
-      {
-        regex:
-          /^(?<query>(?:do a )?(?:web|internet|online) search (?:for )?.+)$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex:
-          /^(?<query>search (?:the )?(?:web|internet|online) (?:for )?.+)$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex: /^(?<query>look up .+ online)$/iu,
-        confidence: 0.98,
-      },
-      {
-        regex: /^(?<query>google .+)$/iu,
-        confidence: 0.98,
-      },
-      {
-        regex: /^(?<query>(?:current )?weather (?:in|for) .+)$/iu,
-        confidence: 0.97,
-      },
-      {
-        regex: /^(?<query>latest (?:news (?:about|on) |on ).+)$/iu,
-        confidence: 0.97,
-      },
-    ],
-    target: { kind: "action", name: "WEB_SEARCH" },
-    requiresAction: "WEB_SEARCH",
-    priority: 90,
-  },
-  {
-    id: "doolittle-repository-natural",
-    kind: "natural",
-    patterns: [
-      {
-        regex:
-          /^(?:(?:show|check) (?:the )?)?(?:git|repo|repository) status$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex: /^(?:(?:show|check) (?:the )?)?(?:git|repo|repository) diff$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex: /^(?:(?:show|check) (?:the )?)?(?:git|repo|repository) log$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex: /^what changed in (?:this|the) (?:repo|repository|project)$/iu,
-        confidence: 0.98,
-      },
-      {
-        regex: /^(?:show )?(?:the )?recent commits$/iu,
-        confidence: 0.98,
-      },
-    ],
-    target: { kind: "action", name: "DOOLITTLE_REPOSITORY" },
-    requiresAction: "DOOLITTLE_REPOSITORY",
-    priority: 80,
-  },
-  {
-    id: "doolittle-workspace-overview-natural",
-    kind: "natural",
-    patterns: [
-      {
-        regex:
-          /^(?:what is|tell me about|give me an? overview of) (?:this|the) (?:repo|repository|project|codebase|workspace)$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex:
-          /^(?:review|inspect|analy[sz]e|explain|map out) (?:this|the) (?:repo|repository|project|codebase|workspace)(?: architecture)?$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex:
-          /^(?:review|inspect|analy[sz]e|explain) (?:this|the) (?:project|codebase|repository) architecture$/iu,
-        confidence: 0.99,
-      },
-    ],
-    target: { kind: "action", name: "DOOLITTLE_WORKSPACE" },
-    requiresAction: "DOOLITTLE_WORKSPACE",
-    priority: 95,
-  },
-  {
-    id: "doolittle-workspace-search-natural",
-    kind: "natural",
-    patterns: [
-      {
-        regex:
-          /^(?<query>search (?:this|the) (?:repo|repository|project|codebase|workspace) for .+)$/iu,
-        confidence: 0.99,
-      },
-      {
-        regex:
-          /^(?<query>find .+ in (?:this|the) (?:repo|repository|project|codebase|workspace))$/iu,
-        confidence: 0.99,
-      },
-    ],
-    target: { kind: "action", name: "DOOLITTLE_WORKSPACE" },
-    requiresAction: "DOOLITTLE_WORKSPACE",
-    priority: 90,
   },
 ];

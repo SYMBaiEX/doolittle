@@ -11,7 +11,7 @@ import {
 } from "./sdk-native-surface";
 
 describe("Eliza-native Doolittle surface", () => {
-  it("routes explicit web requests through the SDK shortcut registry", () => {
+  it("keeps natural-language action selection inside the Eliza planner", () => {
     const match = matchShortcut(
       DOOLITTLE_SDK_SHORTCUTS,
       "Search the web for the latest Nub.js release",
@@ -21,48 +21,7 @@ describe("Eliza-native Doolittle surface", () => {
       },
     );
 
-    expect(match?.shortcut.id).toBe("doolittle-web-search-natural");
-    expect(match?.shortcut.target).toEqual({
-      kind: "action",
-      name: "WEB_SEARCH",
-    });
-    expect(match?.parameters.query).toBe(
-      "search the web for the latest nub js release",
-    );
-  });
-
-  it("routes repository status through the SDK shortcut registry", () => {
-    const match = matchShortcut(
-      DOOLITTLE_SDK_SHORTCUTS,
-      "What changed in this repo?",
-      {
-        actions: ["WEB_SEARCH", "DOOLITTLE_REPOSITORY"],
-        allowNatural: true,
-      },
-    );
-
-    expect(match?.shortcut.id).toBe("doolittle-repository-natural");
-    expect(match?.shortcut.target).toEqual({
-      kind: "action",
-      name: "DOOLITTLE_REPOSITORY",
-    });
-  });
-
-  it("routes project understanding through the official workspace action", () => {
-    const match = matchShortcut(
-      DOOLITTLE_SDK_SHORTCUTS,
-      "What is this project?",
-      {
-        actions: ["DOOLITTLE_REPOSITORY", "DOOLITTLE_WORKSPACE"],
-        allowNatural: true,
-      },
-    );
-
-    expect(match?.shortcut.id).toBe("doolittle-workspace-overview-natural");
-    expect(match?.shortcut.target).toEqual({
-      kind: "action",
-      name: "DOOLITTLE_WORKSPACE",
-    });
+    expect(match).toBeNull();
   });
 
   it("normalizes shortcut slots into standard action parameters", async () => {
@@ -154,7 +113,7 @@ describe("Eliza-native Doolittle surface", () => {
       id,
       entityId: id,
       roomId: id,
-      content: { text: "Search the web for ElizaOS shortcuts" },
+      content: { text: "/web ElizaOS shortcuts" },
     } as Memory;
 
     const result = await runShortcutGate({
@@ -179,7 +138,7 @@ describe("Eliza-native Doolittle surface", () => {
       );
     }
     expect(result.result.responseContent?.text).toBe(
-      "searched:search the web for elizaos shortcuts",
+      "searched:ElizaOS shortcuts",
     );
   });
 });
