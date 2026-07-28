@@ -96,9 +96,30 @@ export function InteractiveTerminal({
     (tabId: string, snapshot: InteractiveTerminalSession) => void
   >(() => {});
   const dimensionsRef = useRef({ cols: 100, rows: 30 });
+  const [terminalSize, setTerminalSize] = useState(dimensionsRef.current);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [isClosingTab, setIsClosingTab] = useState<Record<string, boolean>>({});
   const loadedWorkspaceRef = useRef(workspacePath);
+
+  const fitTerminalToViewport = useCallback(() => {
+    const terminal = xtermRef.current;
+    const fitAddon = fitAddonRef.current;
+    if (!terminal || !fitAddon) return dimensionsRef.current;
+    try {
+      fitAddon.fit();
+    } catch {
+      return dimensionsRef.current;
+    }
+    const next = {
+      cols: Math.max(20, Math.min(400, terminal.cols)),
+      rows: Math.max(5, Math.min(200, terminal.rows)),
+    };
+    dimensionsRef.current = next;
+    setTerminalSize((current) =>
+      current.cols === next.cols && current.rows === next.rows ? current : next,
+    );
+    return next;
+  }, []);
 
   useEffect(() => {
     if (loadedWorkspaceRef.current === workspacePath) return;
@@ -171,8 +192,26 @@ export function InteractiveTerminal({
       theme: {
         background: "#0d0b0a",
         cursor: "#f5a623",
+        cursorAccent: "#120b06",
         foreground: "#e7dfd8",
         selectionBackground: "#6c4c2a",
+        selectionInactiveBackground: "#49311f",
+        black: "#171310",
+        brightBlack: "#756b63",
+        red: "#e86b58",
+        brightRed: "#ff826d",
+        green: "#95b67a",
+        brightGreen: "#aed08e",
+        yellow: "#d6a759",
+        brightYellow: "#efc06d",
+        blue: "#7b9fbd",
+        brightBlue: "#91b8d5",
+        magenta: "#b58aa9",
+        brightMagenta: "#cca0bf",
+        cyan: "#79aaa5",
+        brightCyan: "#8ec4bd",
+        white: "#ded6cf",
+        brightWhite: "#fff8f1",
       },
     });
     const fitAddon = new FitAddon();
@@ -183,7 +222,7 @@ export function InteractiveTerminal({
     xtermTabIdRef.current = tab.id;
     terminal.write(tab.output);
     requestAnimationFrame(() => {
-      fitAddon.fit();
+      fitTerminalToViewport();
       terminal.focus();
     });
 
@@ -210,7 +249,7 @@ export function InteractiveTerminal({
       fitAddonRef.current = null;
       xtermTabIdRef.current = null;
     };
-  }, [activeTabId]);
+  }, [activeTabId, fitTerminalToViewport]);
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const running = activeTab?.state === "running";
@@ -347,9 +386,9 @@ export function InteractiveTerminal({
     setStarting(true);
     setNotice("Review the interactive shell in the native confirmation.");
     try {
-      const result = await window.doolittle.startInteractiveTerminal(
-        dimensionsRef.current,
-      );
+      const dimensions = fitTerminalToViewport();
+      const result =
+        await window.doolittle.startInteractiveTerminal(dimensions);
       if (result.status === "cancelled") {
         setNotice("Terminal start cancelled.");
         return;
@@ -583,34 +622,29 @@ export function InteractiveTerminal({
   const activeSessionSupportsResize = activeTab?.supportsResize;
 
   useEffect(() => {
-    if (!viewportRef.current || !running || !activeSessionId) return;
+    if (!viewportRef.current) return;
     const viewport = viewportRef.current;
     const resizeSessionId = activeSessionId;
     const resizeTabId = activeTab?.id;
     const resizeSupports = activeSessionSupportsResize;
     const observer = new ResizeObserver(([entry]) => {
-      if (!entry || !resizeSessionId || !resizeTabId) return;
-      const cols = Math.max(
-        20,
-        Math.min(400, Math.floor(entry.contentRect.width / 7.2)),
-      );
-      const rows = Math.max(
-        5,
-        Math.min(200, Math.floor(entry.contentRect.height / 17)),
-      );
+      if (!entry) return;
+      const dimensions = fitTerminalToViewport();
       if (
-        dimensionsRef.current.cols === cols &&
-        dimensionsRef.current.rows === rows
-      )
+        !running ||
+        !resizeSessionId ||
+        !resizeTabId ||
+        !resizeSupports ||
+        (activeTab?.cols === dimensions.cols &&
+          activeTab?.rows === dimensions.rows)
+      ) {
         return;
-
-      dimensionsRef.current = { cols, rows };
-      if (!resizeSessionId || !resizeSupports) return;
+      }
       void window.doolittle
         .resizeInteractiveTerminal({
           sessionId: resizeSessionId,
-          cols,
-          rows,
+          cols: dimensions.cols,
+          rows: dimensions.rows,
         })
         .then((session) =>
           syncSession(resizeTabId, {
@@ -634,19 +668,53 @@ export function InteractiveTerminal({
     return () => observer.disconnect();
   }, [
     activeTab?.id,
+    activeTab?.cols,
+    activeTab?.rows,
     activeSessionId,
     activeSessionSupportsResize,
+    fitTerminalToViewport,
     running,
     syncSession,
   ]);
 
   const currentStatus = activeTab
-    ? `${activeTab.pty ? "PTY" : "PIPE"} · ${activeTab.cols}×${activeTab.rows}`
+    ? `${activeTab.pty ? "PTY" : "PIPE"} · ${terminalSize.cols}×${terminalSize.rows}`
     : "No terminal";
 
   return (
     <section className="interactive-terminal" aria-label="Interactive terminal">
       <header className="interactive-terminal-header">
+        <div className="interactive-terminal-session-bar">
+          <div className="interactive-terminal-identity">
+            <i className={running ? "running" : ""} />
+            <span>{activeTab?.shell || "shell"}</span>
+            <strong title={activeTab?.cwd}>
+              {activeTab ? compactPath(activeTab.cwd) : "Local workspace"}
+            </strong>
+          </div>
+          <div className="interactive-terminal-controls">
+            <span className="interactive-terminal-mode">{currentStatus}</span>
+            {running ? (
+              <>
+                <button onClick={onInterrupt} type="button">
+                  Ctrl+C
+                </button>
+                <button onClick={onCloseActiveSession} type="button">
+                  Close
+                </button>
+              </>
+            ) : (
+              <button
+                className="interactive-terminal-open"
+                disabled={!active || starting}
+                onClick={onStart}
+                type="button"
+              >
+                {starting ? "Opening…" : "Open shell"}
+              </button>
+            )}
+          </div>
+        </div>
         <div className="interactive-terminal-tab-row">
           <div
             aria-label="Interactive terminal tabs"
@@ -737,44 +805,36 @@ export function InteractiveTerminal({
             +
           </button>
         </div>
-        <div className="interactive-terminal-header-metrics">
-          <strong>
-            {activeTab
-              ? `${activeTab.shell} · ${compactPath(activeTab.cwd)}`
-              : ""}
-          </strong>
-          <span className="interactive-terminal-mode">{currentStatus}</span>
-          {running ? (
-            <>
-              <button onClick={onInterrupt} type="button">
-                Ctrl+C
-              </button>
-              <button onClick={onCloseActiveSession} type="button">
-                Close
-              </button>
-            </>
-          ) : (
+      </header>
+      <div className="interactive-terminal-stage">
+        <div
+          aria-label="Terminal output"
+          aria-live="off"
+          className="interactive-terminal-output"
+          id={
+            activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
+          }
+          ref={viewportRef}
+          role="tabpanel"
+        />
+        {!running && !activeTab?.output ? (
+          <div className="interactive-terminal-launchpad">
+            <span aria-hidden="true">&gt;_</span>
+            <strong>Shell ready</strong>
+            <p>
+              Start a native {activeTab?.shell || "shell"} session in this
+              repository.
+            </p>
             <button
-              className="primary-button"
               disabled={!active || starting}
               onClick={onStart}
               type="button"
             >
-              {starting ? "Opening…" : "Open terminal"}
+              {starting ? "Opening…" : "Open shell"}
             </button>
-          )}
-        </div>
-      </header>
-      <div
-        aria-label="Terminal output"
-        aria-live="off"
-        className="interactive-terminal-output"
-        id={
-          activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
-        }
-        ref={viewportRef}
-        role="tabpanel"
-      />
+          </div>
+        ) : null}
+      </div>
       <footer className="interactive-terminal-footer">
         <span>
           {notice ||
