@@ -9,7 +9,7 @@ import type {
   AutomationExecutionContext,
   AutomationTriggerInput,
   CreateCronJobInput,
-} from "./service/types";
+} from "./types";
 
 const conditionPathPattern = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/iu;
 

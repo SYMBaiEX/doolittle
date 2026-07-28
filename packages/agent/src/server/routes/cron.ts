@@ -5,7 +5,7 @@ import type {
 import type { AppContext } from "@/runtime/bootstrap";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
-import type { AutomationTriggerInput } from "@/services/cron/service/types";
+import type { AutomationTriggerInput } from "@/services/cron/types";
 
 export async function handleCronRoutes(
   context: AppContext,

@@ -22,7 +22,7 @@ export {
   normalizeAutomationCondition,
   normalizeAutomationTrigger,
 } from "@/services/cron/definition";
-export type { AutomationExecutionContext } from "@/services/cron/service/types";
+export type { AutomationExecutionContext } from "@/services/cron/types";
 export type {
   AutomationRunRecord,
   CronJobRecord,

@@ -1,7 +1,7 @@
 import type { AgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "@/gateway/runner";
 import type { AppServices } from "@/services";
-import type { AutomationExecutionContext } from "@/services/cron/service/types";
+import type { AutomationExecutionContext } from "@/services/cron/types";
 import type { CronJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
 
