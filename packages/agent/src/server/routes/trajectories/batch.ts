@@ -1,3 +1,4 @@
+import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
 import { readJsonBody } from "./helpers";
 import type { TrajectoryBatchBody, TrajectoryRouteHandler } from "./types";
@@ -20,20 +21,22 @@ export const handleTrajectoryBatchRoutes: TrajectoryRouteHandler = async (
   }
   const label = body?.label ?? `trajectory-batch-${Date.now()}`;
   const group = `trajectory-batch:${label}`;
-  const tasks = prompts.map((prompt, index) =>
-    context.services.delegation.create({
-      title: `Batch prompt ${index + 1}`,
-      objective: prompt,
-      group,
-      profile: "research",
-      priority: "normal",
-      labels: ["trajectory", "batch"],
-      metadata: {
-        source: "trajectory-batch",
-        label,
-      },
-      executionMode: "local",
-    }),
+  const tasks = await Promise.all(
+    prompts.map((prompt, index) =>
+      createEffectiveDelegationTask(context.runtime, context.services, {
+        title: `Batch prompt ${index + 1}`,
+        objective: prompt,
+        group,
+        profile: "research",
+        priority: "normal",
+        labels: ["trajectory", "batch"],
+        metadata: {
+          source: "trajectory-batch",
+          label,
+        },
+        executionMode: "local",
+      }),
+    ),
   );
   return json({
     batch: context.services.trajectories.createBatchManifest({

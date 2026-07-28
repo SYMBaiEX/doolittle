@@ -3,13 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import { handleTrajectoryRoutes } from "./trajectories";
 
 function createContext(options?: {
   native?: boolean;
   sdk?: boolean;
 }): AppContext {
-  let taskCount = 0;
+  const official = createOfficialOrchestratorTestFixture();
   const dataDir = mkdtempSync(join(tmpdir(), "doolittle-routes-"));
   const nativeTrajectory = options?.native
     ? {
@@ -39,24 +40,19 @@ function createContext(options?: {
     config: {
       dataDir,
     },
-    runtime:
-      options?.native || options?.sdk
-        ? {
-            getService: (service: string) => {
-              if (service === "trajectories") {
-                return nativeTrajectory;
-              }
-              if (service === "trajectories") {
-                return sdkTrajectory;
-              }
-              return null;
-            },
-            getServicesByType: (service: string) =>
-              service === "trajectories" && sdkTrajectory
-                ? [sdkTrajectory]
-                : [],
-          }
-        : {},
+    runtime: {
+      getService: (service: string) => {
+        if (service === "ORCHESTRATOR_TASK_SERVICE") {
+          return official.service;
+        }
+        if (service === "trajectories") {
+          return nativeTrajectory;
+        }
+        return null;
+      },
+      getServicesByType: (service: string) =>
+        service === "trajectories" && sdkTrajectory ? [sdkTrajectory] : [],
+    },
     gateway: {
       history: async (limit: number) => ({
         traces: [{ id: `trace-${limit}` }],
@@ -65,12 +61,6 @@ function createContext(options?: {
       }),
     },
     services: {
-      delegation: {
-        create: (input: Record<string, unknown>) => ({
-          id: `task-${++taskCount}`,
-          ...input,
-        }),
-      },
       trajectories: {
         exportDataset: (input: { label?: string }) =>
           `/tmp/${input.label ?? "latest"}.json`,
@@ -321,12 +311,18 @@ describe("handleTrajectoryRoutes", () => {
         prompts: ["first prompt", "second prompt"],
         rubric: undefined,
         tags: undefined,
-        taskIds: ["task-1", "task-2"],
+        taskIds: ["official-task-1", "official-task-2"],
         group: "trajectory-batch:nightly",
       },
       tasks: [
-        expect.objectContaining({ id: "task-1", title: "Batch prompt 1" }),
-        expect.objectContaining({ id: "task-2", title: "Batch prompt 2" }),
+        expect.objectContaining({
+          id: "official-task-1",
+          title: "Batch prompt 1",
+        }),
+        expect.objectContaining({
+          id: "official-task-2",
+          title: "Batch prompt 2",
+        }),
       ],
     });
   });
