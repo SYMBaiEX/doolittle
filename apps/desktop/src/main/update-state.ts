@@ -5,7 +5,16 @@ export interface UpdateProvider {
   checkForUpdates(): Promise<unknown>;
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(): void;
-  on(event: string, listener: (...args: any[]) => void): unknown;
+  on(event: "checking-for-update", listener: () => void): unknown;
+  on(
+    event: "update-available" | "update-not-available" | "update-downloaded",
+    listener: (info: { version?: string }) => void,
+  ): unknown;
+  on(
+    event: "download-progress",
+    listener: (progress: { percent?: number }) => void,
+  ): unknown;
+  on(event: "error", listener: (error: Error) => void): unknown;
 }
 
 export interface ConfigurableUpdateProvider extends UpdateProvider {

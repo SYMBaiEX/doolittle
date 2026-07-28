@@ -1,21 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  configureUpdateProvider,
   type ConfigurableUpdateProvider,
+  configureUpdateProvider,
   DesktopUpdateController,
   type UpdateProvider,
 } from "./update-state";
 
 function provider() {
-  const listeners = new Map<string, (...args: any[]) => void>();
-  const value: UpdateProvider = {
+  const listeners = new Map<string, (...args: unknown[]) => void>();
+  const value = {
     checkForUpdates: vi.fn(async () => undefined),
     downloadUpdate: vi.fn(async () => undefined),
     quitAndInstall: vi.fn(),
-    on: (event, listener) => {
-      listeners.set(event, listener);
+    on: (event: string, listener: (...args: never[]) => void) => {
+      listeners.set(event, listener as (...args: unknown[]) => void);
     },
-  };
+  } as UpdateProvider;
   return {
     value,
     emit: (event: string, payload?: unknown) => listeners.get(event)?.(payload),
