@@ -1,8 +1,8 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
-import { runDelegationTaskInWorker } from "@/runtime/delegation/run-task-in-worker";
 import {
   createEffectiveDelegationTask,
+  getOfficialOrchestrator,
   spawnEffectiveDelegationChild,
   superviseEffectiveDelegationQueue,
 } from "@/runtime/native/service-bridge/delegation";
@@ -76,9 +76,22 @@ export async function handleDelegationCommandRoutes(
   url: URL,
   options?: DelegationCommandRouteOptions,
 ): Promise<Response | null> {
-  const runWorker = (options?.runDelegationTaskInWorker ??
-    runDelegationTaskInWorker) as DelegationWorkerRunner;
   const runAgentTurn = options?.runAgentTurn ?? handleAgentTurn;
+
+  if (
+    url.pathname.startsWith("/delegation/") &&
+    !getOfficialOrchestrator(context.runtime)
+  ) {
+    return json(
+      {
+        available: false,
+        code: "ORCHESTRATOR_TASK_SERVICE_UNAVAILABLE",
+        error:
+          "Delegation is unavailable because the official orchestrator task service is not registered.",
+      },
+      503,
+    );
+  }
 
   if (request.method === "POST" && url.pathname === "/delegation/tasks") {
     const body = (await request.json()) as DelegationTaskBody;
@@ -88,7 +101,7 @@ export async function handleDelegationCommandRoutes(
     try {
       const workspaceRoot = await resolveRequestedWorkspaceRoot(context, body);
       return json({
-        task: createEffectiveDelegationTask(
+        task: await createEffectiveDelegationTask(
           context.runtime,
           context.services,
           toDelegationTaskInput(body, workspaceRoot) as Required<
@@ -129,7 +142,7 @@ export async function handleDelegationCommandRoutes(
     try {
       const workspaceRoot = await resolveRequestedWorkspaceRoot(context, body);
       return json({
-        task: spawnEffectiveDelegationChild(
+        task: await spawnEffectiveDelegationChild(
           context.runtime,
           context.services,
           id,
@@ -160,35 +173,10 @@ export async function handleDelegationCommandRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/delegation/supervise") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      concurrency?: number;
-    };
+    await request.json().catch(() => ({}));
     const report = await superviseEffectiveDelegationQueue(
       context.runtime,
       context.services,
-      async (task) => {
-        const completedTask = await runWorker(
-          context,
-          (task as { id: string }).id,
-          {
-            assumeRunning: true,
-          },
-        );
-        return completedTask.notes?.at(-1) ?? "Delegated worker completed.";
-      },
-      {
-        concurrency:
-          typeof body.concurrency === "number" && body.concurrency > 0
-            ? body.concurrency
-            : 2,
-        onComplete: async (task: unknown) => {
-          context.services.skillSynthesis.synthesizeFromTask(
-            task as Parameters<
-              typeof context.services.skillSynthesis.synthesizeFromTask
-            >[0],
-          );
-        },
-      },
     );
     return json({ report });
   }

@@ -1,298 +1,119 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleDelegationCommandRoutes } from "./delegation-commands";
 
+function officialDetail(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "created",
+    title: "Created",
+    kind: "coding",
+    status: "open",
+    priority: "normal",
+    paused: false,
+    originalRequest: "Goal",
+    sessionCount: 0,
+    activeSessionCount: 0,
+    latestSessionId: null,
+    latestWorkdir: null,
+    createdAt: "2026-07-28T00:00:00.000Z",
+    updatedAt: "2026-07-28T00:00:00.000Z",
+    closedAt: null,
+    goal: "Goal",
+    parentTaskId: null,
+    acceptanceCriteria: [],
+    providerPolicy: null,
+    metadata: {},
+    sessions: [],
+    messages: [],
+    events: [],
+    ...overrides,
+  };
+}
+
 function createContext() {
-  const created: Array<Record<string, unknown>> = [];
-  const spawned: Array<{ parentId: string; input: Record<string, unknown> }> =
-    [];
-  const synthesized: unknown[] = [];
-  const resolvedWorkspaceRoots: unknown[] = [];
-
-  const context = {
-    runtime: {},
-    services: {
-      delegation: {
-        create: (input: Record<string, unknown>) => {
-          created.push(input);
-          return { id: "task-created", ...input };
-        },
-        spawnChild: (parentId: string, input: Record<string, unknown>) => {
-          spawned.push({ parentId, input });
-          return { id: `${parentId}:child`, parentId, ...input };
-        },
-        supervise: async (
-          runner: (task: unknown) => Promise<string>,
-          options?: {
-            concurrency?: number;
-            onComplete?: (task: unknown) => Promise<void> | void;
-          },
-        ) => {
-          const task = { id: "task-queued", notes: ["queued"] };
-          const note = await runner(task);
-          await options?.onComplete?.(task);
-          return {
-            concurrency: options?.concurrency,
-            note,
-          };
-        },
+  const createTask = vi.fn(async (input: Record<string, unknown>) =>
+    officialDetail({
+      id: input.parentTaskId ? "child" : "created",
+      title: input.title,
+      goal: input.goal,
+      originalRequest: input.originalRequest,
+      parentTaskId: input.parentTaskId ?? null,
+      metadata: input.metadata,
+    }),
+  );
+  const service = { createTask };
+  return {
+    context: {
+      runtime: {
+        getService: (name: string) =>
+          name === "ORCHESTRATOR_TASK_SERVICE" ? service : null,
       },
-      skillSynthesis: {
-        synthesizeFromTask: (task: unknown) => {
-          synthesized.push(task);
-          return "skill.md";
-        },
+      services: {
+        repository: { resolveWorktreeRoot: async (value: unknown) => value },
       },
-      repository: {
-        resolveWorktreeRoot: async (value: unknown) => {
-          resolvedWorkspaceRoots.push(value);
-          if (value === "/repo/invalid") {
-            throw new Error("Worktree root is not an active Git worktree.");
-          }
-          return value;
-        },
-      },
-    },
-  } as unknown as AppContext;
-
-  return { context, created, spawned, synthesized, resolvedWorkspaceRoots };
+    } as unknown as AppContext,
+    createTask,
+  };
 }
 
 describe("handleDelegationCommandRoutes", () => {
-  it("creates and spawns delegation tasks", async () => {
-    const { context, created, spawned } = createContext();
-
-    const createResponse = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: "Investigate",
-          objective: "Check browser flow",
-          labels: ["browser"],
-        }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks"),
-    );
-    const spawnResponse = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-created/spawn", {
-        method: "POST",
-        body: JSON.stringify({
-          objective: "Check child flow",
-          title: "Child",
-        }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks/task-created/spawn"),
-    );
-
-    await expect(createResponse?.json()).resolves.toEqual({
-      task: {
-        id: "task-created",
-        title: "Investigate",
-        objective: "Check browser flow",
-        labels: ["browser"],
-        tags: ["browser"],
-      },
-    });
-    await expect(spawnResponse?.json()).resolves.toEqual({
-      task: {
-        id: "task-created:child",
-        parentId: "task-created",
-        title: "Child",
-        objective: "Check child flow",
-        labels: undefined,
-        tags: undefined,
-        metadata: undefined,
-        group: undefined,
-        profile: undefined,
-        priority: undefined,
-        executionMode: undefined,
-        maxAttempts: undefined,
-      },
-    });
-    expect(created[0]).toMatchObject({
-      title: "Investigate",
-      objective: "Check browser flow",
-      labels: ["browser"],
-      tags: ["browser"],
-    });
-    expect(spawned[0]).toEqual({
-      parentId: "task-created",
-      input: {
-        title: "Child",
-        objective: "Check child flow",
-        group: undefined,
-        profile: undefined,
-        priority: undefined,
-        tags: undefined,
-        labels: undefined,
-        metadata: undefined,
-        executionMode: undefined,
-        maxAttempts: undefined,
-      },
-    });
-  });
-
-  it("validates create and spawn payloads", async () => {
-    const { context } = createContext();
-
-    const invalidCreate = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks", {
-        method: "POST",
-        body: JSON.stringify({ title: "Missing objective" }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks"),
-    );
-    const invalidSpawn = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-created/spawn", {
-        method: "POST",
-        body: JSON.stringify({ title: "Missing objective" }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/delegation/tasks/task-created/spawn"),
-    );
-
-    expect(invalidCreate?.status).toBe(400);
-    await expect(invalidCreate?.json()).resolves.toEqual({
-      error: "title and objective are required",
-    });
-    expect(invalidSpawn?.status).toBe(400);
-    await expect(invalidSpawn?.json()).resolves.toEqual({
-      error: "objective is required",
-    });
-  });
-
-  it("validates and persists explicit workspace roots for task creation and child overrides", async () => {
-    const { context, created, spawned, resolvedWorkspaceRoots } =
-      createContext();
-
+  it("creates parent and child tasks in the official store", async () => {
+    const { context, createTask } = createContext();
     const create = await handleDelegationCommandRoutes(
       context,
       new Request("http://localhost/delegation/tasks", {
         method: "POST",
-        body: JSON.stringify({
-          title: "Scoped task",
-          objective: "Run in this worktree",
-          workspaceRoot: "/repo/worktree",
-        }),
+        body: JSON.stringify({ title: "Parent", objective: "Goal" }),
       }),
       new URL("http://localhost/delegation/tasks"),
     );
-    const spawn = await handleDelegationCommandRoutes(
+    const child = await handleDelegationCommandRoutes(
       context,
-      new Request("http://localhost/delegation/tasks/task-created/spawn", {
+      new Request("http://localhost/delegation/tasks/created/spawn", {
         method: "POST",
-        body: JSON.stringify({
-          title: "Scoped child",
-          objective: "Use another approved root",
-          workspaceRoot: "/repo/child-worktree",
-        }),
+        body: JSON.stringify({ title: "Child", objective: "Child goal" }),
       }),
-      new URL("http://localhost/delegation/tasks/task-created/spawn"),
-    );
-    const invalid = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: "Bad root",
-          objective: "Reject it",
-          workspaceRoot: "/repo/invalid",
-        }),
-      }),
-      new URL("http://localhost/delegation/tasks"),
+      new URL("http://localhost/delegation/tasks/created/spawn"),
     );
 
     expect(create?.status).toBe(200);
-    expect(spawn?.status).toBe(200);
-    expect(created[0]).toMatchObject({ workspaceRoot: "/repo/worktree" });
-    expect(spawned[0]?.input).toMatchObject({
-      workspaceRoot: "/repo/child-worktree",
-    });
-    expect(resolvedWorkspaceRoots).toEqual([
-      "/repo/worktree",
-      "/repo/child-worktree",
-      "/repo/invalid",
-    ]);
-    expect(invalid?.status).toBe(400);
-    await expect(invalid?.json()).resolves.toEqual({
-      error: "Worktree root is not an active Git worktree.",
-    });
+    expect(child?.status).toBe(200);
+    expect(createTask).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ parentTaskId: "created", goal: "Child goal" }),
+    );
   });
 
-  it("supervises queued work and executes a single task through injected runners", async () => {
-    const { context, synthesized } = createContext();
-
-    const supervise = await handleDelegationCommandRoutes(
+  it("reports the removed manual supervisor as delegated", async () => {
+    const { context } = createContext();
+    const response = await handleDelegationCommandRoutes(
       context,
       new Request("http://localhost/delegation/supervise", {
         method: "POST",
-        body: JSON.stringify({ concurrency: 3 }),
-        headers: { "content-type": "application/json" },
+        body: "{}",
       }),
       new URL("http://localhost/delegation/supervise"),
-      {
-        runDelegationTaskInWorker: async (_context, taskId) => ({
-          id: taskId,
-          notes: ["worker finished"],
-        }),
-      },
-    );
-    const execute = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/delegation/tasks/task-created/execute", {
-        method: "POST",
-      }),
-      new URL("http://localhost/delegation/tasks/task-created/execute"),
-      {
-        runAgentTurn: async (input) => ({
-          message: input.message,
-          roomId: input.roomId,
-        }),
-      },
     );
 
-    await expect(supervise?.json()).resolves.toEqual({
-      report: {
-        concurrency: 3,
-        note: "worker finished",
-      },
+    await expect(response?.json()).resolves.toEqual({
+      report: expect.objectContaining({
+        available: false,
+        owner: "ORCHESTRATOR_TASK_SUPERVISOR",
+      }),
     });
-    await expect(execute?.json()).resolves.toEqual({
-      result: {
-        message: "/delegate execute task-created",
-        roomId: "api-delegation",
-      },
-    });
-    expect(synthesized).toEqual([{ id: "task-queued", notes: ["queued"] }]);
   });
 
-  it("returns unknown delegation action and null for unrelated routes", async () => {
-    const { context } = createContext();
-
-    const unknown = await handleDelegationCommandRoutes(
+  it("validates input before calling the official service", async () => {
+    const { context, createTask } = createContext();
+    const response = await handleDelegationCommandRoutes(
       context,
-      new Request("http://localhost/delegation/tasks/task-created/unknown", {
+      new Request("http://localhost/delegation/tasks", {
         method: "POST",
+        body: "{}",
       }),
-      new URL("http://localhost/delegation/tasks/task-created/unknown"),
+      new URL("http://localhost/delegation/tasks"),
     );
-    const unrelated = await handleDelegationCommandRoutes(
-      context,
-      new Request("http://localhost/not-delegation"),
-      new URL("http://localhost/not-delegation"),
-    );
-
-    expect(unknown?.status).toBe(404);
-    await expect(unknown?.json()).resolves.toEqual({
-      error: "unknown delegation action",
-    });
-    expect(unrelated).toBeNull();
+    expect(response?.status).toBe(400);
+    expect(createTask).not.toHaveBeenCalled();
   });
 });
