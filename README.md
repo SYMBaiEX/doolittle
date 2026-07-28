@@ -719,11 +719,11 @@ The runtime endpoint remains:
 | `@elizaos/plugin-codex` | Linked-account provider reusing local Codex CLI login state |
 | `@elizaos/plugin-claude-code` | Linked-account provider reusing local Claude Code OAuth state |
 | `@elizaos/plugin-pdf` | Official PDF service plugin for document extraction |
-| `@elizaos/plugin-sql` | Required database adapter for runtime initialization (PGLite) |
+| `@elizaos/plugin-sql` | Required database adapter for runtime initialization (PGLite), consumed through Doolittle's `2.0.3-beta.7-patched.0` compatibility wrapper |
 | `@elizaos/plugin-telegram` | Official Telegram transport — enabled when `TELEGRAM_BOT_TOKEN` is set |
-| `@elizaos/plugin-tts` | Runtime TTS adapter over media generation — reports `ready` / `backend` / `mode` and degrades truthfully when no speech backend is configured |
-| `@elizaos/plugin-action-bench` | Action benchmark plugin for coverage sweeps and evaluation drills |
-| `@elizaos/plugin-autocoder` | Experimental autocoder plugin for planning, research, repository, and secrets workflows — planning-only flows are explicit and non-mutating |
+| Doolittle media/TTS service | Product TTS adapter over media generation — reports `ready` / `backend` / `mode` and degrades truthfully when no speech backend is configured |
+| `@doolittle/plugin-action-bench` | Action benchmark plugin for coverage sweeps and evaluation drills |
+| `@doolittle/plugin-autocoder` | Experimental autocoder plugin for planning, research, repository, and secrets workflows — planning-only flows are explicit and non-mutating |
 | `@doolittle/plugin-local-sandbox` | Doolittle local sandbox adapter with E2B-compatible methods for autocoder workflows |
 | `@doolittle/plugin-forms` | Doolittle forms adapter for operator intake and structured workflow prompts |
 | `@doolittle/plugin-planning` | Doolittle planning adapter for plans, milestones, and coordination |
