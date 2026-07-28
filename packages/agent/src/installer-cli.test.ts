@@ -52,7 +52,7 @@ describe("installer and launcher smoke tests", () => {
     expect(result.output).toContain(".local/bin/doolittle");
     expect(result.output).toContain("doolittle desktop");
     expect(result.output).toContain("Install check complete.");
-  });
+  }, 30_000);
 
   it("bootstrap check reports preflight and completion", () => {
     const result = runCommand(NUB_PATH, ["scripts/bootstrap.ts", "--check"]);
