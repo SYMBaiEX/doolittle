@@ -91,8 +91,9 @@ system. Later launches reuse it. Use `doolittle desktop --force-build` after
 changing desktop or runtime source, and `doolittle desktop --source` for the
 Vite development loop.
 
-The packaged app carries a compiled Doolittle/Bun runtime. It does not require
-Bun, Node.js, or a source checkout after installation.
+The packaged app carries a bundled Doolittle runtime executed by Electron's
+embedded Node. It does not require Nub, Node.js, or a source checkout after
+installation.
 
 Windows operators can use the PowerShell bootstrap script for parity:
 
@@ -105,8 +106,8 @@ pwsh scripts/install.ps1
 Install the root workspace once, then start the desktop:
 
 ```bash
-bun install
-bun run desktop:dev
+nub install
+nub run desktop:dev
 ```
 
 The development launcher starts Vite for the renderer, builds the Electron
@@ -116,21 +117,21 @@ Doolittle runtime.
 Quality checks:
 
 ```bash
-bun run desktop:typecheck
-bun run desktop:test
-bun run desktop:build
+nub run desktop:typecheck
+nub run desktop:test
+nub run desktop:build
 ```
 
 Build a runnable unpacked app for the current machine:
 
 ```bash
-bun run desktop:package:dir
+nub run desktop:package:dir
 ```
 
 Build the macOS DMG and zip:
 
 ```bash
-bun run --cwd apps/desktop package:mac
+nub run --cwd apps/desktop package:mac
 ```
 
 The artifacts are written under `apps/desktop/release/`.
@@ -141,7 +142,7 @@ The supported Windows artifact is a per-user x64 NSIS installer with Start
 Menu and desktop shortcuts:
 
 ```bash
-bun run desktop:package:win
+nub run desktop:package:win
 ```
 
 The installer is written to:
@@ -152,7 +153,7 @@ apps/desktop/release/Doolittle-<version>-win-x64.exe
 
 Copy that `.exe` to the Windows machine, run it, choose the install directory,
 and launch Doolittle from the Start Menu or desktop shortcut. The application
-and agent runtime are self-contained; Bun, Node.js, Git, and the source checkout
+and agent runtime are self-contained; Nub, Node.js, Git, and the source checkout
 are not required on the Windows machine.
 
 The current development installer is not code-signed, so Windows can show an
@@ -195,13 +196,13 @@ installed, but the native Windows workflow is the release gate.
 In development, the main process launches the checked-out agent with:
 
 ```text
-bun packages/agent/src/index.ts api
+nub packages/agent/src/index.ts api
 ```
 
 Packaged applications instead launch the bundled
-`runtime/bin/doolittle-runtime[.exe]` executable. Bun cross-compiles that
-runtime for the installer target, so the installed application has no external
-runtime dependency.
+`runtime/bin/doolittle-runtime.mjs` bundle. Electron starts that file with
+`ELECTRON_RUN_AS_NODE=1`, so the installed application uses Electron's embedded
+Node and has no external runtime dependency.
 
 It supplies `DOOLITTLE_MODE=api`, `DOOLITTLE_HOST=127.0.0.1`, and
 `DOOLITTLE_PORT=0`. Its PGLite, Doolittle, cron, gateway, and hooks directories
@@ -215,8 +216,8 @@ provider is connected. Doolittle reports the actual bound URL only after
 deferred API hydration completes. The desktop parses that announcement,
 verifies `GET /health`, and exposes a ready or degraded state to the renderer.
 
-Conversation routes disable Bun's per-request idle timeout because a local
-model or tool-running turn can remain quiet for more than ten seconds. Stream
+Conversation routes use the Node HTTP streaming path because a local model or
+tool-running turn can remain quiet for more than ten seconds. Stream
 producer failures become terminal SSE error events, and a disconnected
 renderer cannot crash the runtime by racing a closed stream.
 

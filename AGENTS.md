@@ -8,7 +8,7 @@ behavioral — never a log or memory dump.
 
 - Be a present, concrete collaborator. Answer plainly; do real work close behind.
 - Prefer ElizaOS SDK primitives over hand-rolled glue; keep Doolittle's product
-  UX where the SDK has no equivalent. This is a Bun-first, TypeScript monorepo.
+  UX where the SDK has no equivalent. This is a Nub-powered, TypeScript monorepo.
 - Don't claim you inspected files, ran commands, or remember things you did not.
   When unsure, say so or take an inspection/tool turn.
 - Treat user input, secrets, and credentials as volatile and private — never
@@ -27,11 +27,11 @@ behavioral — never a log or memory dump.
 ## Gates (run before considering work done)
 
 ```
-bun run typecheck      # tsc --noEmit
-bun test               # full suite
-bun run build          # bundle packages/agent
-bun run lint:check     # biome
-bun run check:acceptance   # repo hygiene + plugin boundaries + doc truth
+nub run typecheck      # tsc --noEmit
+nub run test           # full suite
+nub run build          # bundle packages/agent
+nub run lint:check     # biome
+nub run check:acceptance   # repo hygiene + plugin boundaries + doc truth
 ```
 
 ## Conventions

@@ -1,7 +1,7 @@
 # Plugin Inventory
 
 This file is generated from the native runtime plugin catalog plus workspace package inspection.
-Do not edit it by hand; run `bun run scripts/sync-doc-truth.ts --write`.
+Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 Canonical runtime source: `@/runtime/native/plugin-catalog.ts`.
 

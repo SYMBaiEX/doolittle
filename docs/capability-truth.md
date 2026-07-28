@@ -1,7 +1,7 @@
 # Capability Truth
 
 This file is generated from the code-backed capability truth records used during the stabilization pass.
-Do not edit it by hand; run `bun run scripts/sync-doc-truth.ts --write`.
+Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 ## doolittle:services.web
 

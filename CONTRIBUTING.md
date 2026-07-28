@@ -4,13 +4,14 @@ Thanks for helping build Doolittle — an ElizaOS-native, terminal-first agent.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) `>= 1.3` (the repo is Bun-first; do not use npm/yarn/pnpm).
-- Node `>= 24` headers are used by some native deps.
+- [Nub](https://nubjs.com/docs) `0.6.0` with Node.js `26.5.0`.
+- Node `26.5.0` is pinned in `.node-version`; the packaged desktop uses
+  Electron's embedded Node.
 
 ```bash
-bun install
+nub install
 cp .env.example .env   # then fill in provider keys you want
-bun run dev            # start the paired shell
+nub run dev            # start the paired shell
 ```
 
 ## Quality gates
@@ -18,14 +19,14 @@ bun run dev            # start the paired shell
 Every change must keep these green (CI runs them):
 
 ```bash
-bun run typecheck      # tsc --noEmit, strict
-bun test               # full suite (bun:test)
-bun run build          # bundle packages/agent
-bun run lint:check     # biome
-bun run check:acceptance   # repo hygiene + plugin boundaries + doc truth
+nub run typecheck      # tsc --noEmit, strict
+nub run test           # full Vitest suite
+nub run build          # bundle packages/agent
+nub run lint:check     # biome
+nub run check:acceptance   # repo hygiene + plugin boundaries + doc truth
 ```
 
-Run `bun run lint` to auto-fix formatting before committing.
+Run `nub run lint` to auto-fix formatting before committing.
 
 ## Repository shape
 

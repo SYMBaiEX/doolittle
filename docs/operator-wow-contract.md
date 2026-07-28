@@ -1,7 +1,7 @@
 # Operator Wow Contract
 
 This file is generated from the code-backed Doolittle operator wow contract.
-Do not edit it by hand; run `bun run scripts/sync-doc-truth.ts --write`.
+Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 ## Product Thesis
 
@@ -44,7 +44,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Returns a nonzero exit only for a real setup blocker.
 - Verification:
   - Add an installer smoke test that asserts dry-run output contains `.env`, `.doolittle/settings.json`, and `.doolittle/gateway/gateway.json`.
-  - Run `bun test scripts/bootstrap-program.test.ts scripts/bootstrap/program/summary.test.ts`.
+  - Run `nub run test scripts/bootstrap-program.test.ts scripts/bootstrap/program/summary.test.ts`.
 
 #### first-run-to-working-assistant.first-chat
 
@@ -57,7 +57,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Does not claim a capability is ready when it is only installed.
 - Verification:
   - Add a one-shot invocation regression test for `status` and `exec --json` readiness shape.
-  - Run `bun test packages/agent/src/entrypoint/invocation.test.ts`.
+  - Run `nub run test packages/agent/src/entrypoint/invocation.test.ts`.
 
 ### Current Gaps
 
@@ -74,7 +74,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 - Definition of done:
   - Check, headless, and completed onboarding receipts name provider, execution backend, gateway mode, and workspace root.
   - The quickstart explains how to read the receipt and which fields prove first-run readiness.
-  - `bun test scripts/bootstrap-program.test.ts scripts/bootstrap/answers.test.ts` passes.
+  - `nub run test scripts/bootstrap-program.test.ts scripts/bootstrap/answers.test.ts` passes.
 
 #### first-chat-readiness-contract
 
@@ -84,7 +84,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 - Definition of done:
   - `doolittle status` and `GET /runtime/status` expose the same provider, plugin, gateway, and degraded-mode fields.
   - The operator loop doc points to the same readiness fields.
-  - `bun test packages/agent/src/entrypoint/invocation.test.ts packages/agent/src/services/operator/runtime-summary/update.test.ts` passes.
+  - `nub run test packages/agent/src/entrypoint/invocation.test.ts packages/agent/src/services/operator/runtime-summary/update.test.ts` passes.
 
 ## Terminal Operator Loop
 
@@ -115,7 +115,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The command deck includes retry, undo, compress, usage, insights, and model controls once implemented.
 - Verification:
   - Add command parser tests for each slash command and expected route.
-  - Run `bun test packages/agent/src/runtime/chat.test.ts packages/agent/src/cli/tui-renderers.test.ts`.
+  - Run `nub run test packages/agent/src/runtime/chat.test.ts packages/agent/src/cli/tui-renderers.test.ts`.
 
 #### terminal-operator-loop.interrupt-and-resume
 
@@ -128,7 +128,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The final transcript records whether the run completed, stopped, or was superseded.
 - Verification:
   - Add run-controller tests for stop, steering, and resume transitions.
-  - Run `bun test packages/agent/src/runtime/chat-turn packages/agent/src/cli`.
+  - Run `nub run test packages/agent/src/runtime/chat-turn packages/agent/src/cli`.
 
 ### Current Gaps
 
@@ -145,7 +145,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 - Definition of done:
   - Each command has parser coverage and a compact operator response.
   - Commands that need unavailable runtime support return a truthful degraded response.
-  - `bun test packages/agent/src/runtime packages/agent/src/cli` passes.
+  - `nub run test packages/agent/src/runtime packages/agent/src/cli` passes.
 
 #### run-interrupt-contract
 
@@ -200,7 +200,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - No issue is reported when the diff is clean and verified.
 - Verification:
   - Add review fixture tests with one known bug and one clean diff.
-  - Run `bun test packages/plugins/doolittle-plugin/coding-agent`.
+  - Run `nub run test packages/plugins/doolittle-plugin/coding-agent`.
 
 ### Current Gaps
 
@@ -258,7 +258,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The response distinguishes memory from live facts.
 - Verification:
   - Add a memory persistence test that writes, restarts the memory runtime, and retrieves the preference.
-  - Run `bun test packages/agent/src/runtime/native/memory-storage-runtime.test.ts`.
+  - Run `nub run test packages/agent/src/runtime/native/memory-storage-runtime.test.ts`.
 
 #### memory-learning-skills.skill-proposal
 
@@ -271,7 +271,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Refreshes the skill inventory after approval.
 - Verification:
   - Add a skill synthesis test with a generated skill proposal and approval gate.
-  - Run `bun test packages/agent/src/runtime/native/service-bridge/autonomous-skills.test.ts`.
+  - Run `nub run test packages/agent/src/runtime/native/service-bridge/autonomous-skills.test.ts`.
 
 ### Current Gaps
 
@@ -329,7 +329,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Typing/progress/final delivery behavior is platform-aware.
 - Verification:
   - Add mocked platform adapter tests for authorization, session binding, and final delivery.
-  - Run `bun test packages/agent/src/gateway`.
+  - Run `nub run test packages/agent/src/gateway`.
 
 #### gateway-everywhere-presence.reconnect-replay
 
@@ -342,7 +342,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Attachment retention and transcript rewrite policy are explicit.
 - Verification:
   - Add runner tests for restart, replay, and failed delivery state.
-  - Run `bun test packages/agent/src/gateway/gateway-supervision-flow.test.ts packages/agent/src/gateway/runner`.
+  - Run `nub run test packages/agent/src/gateway/gateway-supervision-flow.test.ts packages/agent/src/gateway/runner`.
 
 ### Current Gaps
 
@@ -400,7 +400,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Delivery result is recorded in gateway history.
 - Verification:
   - Add scheduler tests for due job execution and delivery recording.
-  - Run `bun test packages/plugins/doolittle-plugin/scheduler-service.test.ts packages/agent/src/gateway`.
+  - Run `nub run test packages/plugins/doolittle-plugin/scheduler-service.test.ts packages/agent/src/gateway`.
 
 #### automation-and-daily-tasks.short-followup
 
@@ -471,7 +471,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The next run records which provider/model was used.
 - Verification:
   - Add parser and runtime summary tests for model list and switch responses.
-  - Run `bun test packages/agent/src/runtime/native/account-auth packages/plugins/doolittle-plugin/model-fallback.test.ts`.
+  - Run `nub run test packages/agent/src/runtime/native/account-auth packages/plugins/doolittle-plugin/model-fallback.test.ts`.
 
 #### model-provider-freedom.failover
 
@@ -484,7 +484,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The final response names the provider actually used when verbose diagnostics are enabled.
 - Verification:
   - Add fallback tests for rate limit, auth failure, and provider unavailable cases.
-  - Run `bun test packages/plugins/doolittle-plugin/model-fallback.test.ts`.
+  - Run `nub run test packages/plugins/doolittle-plugin/model-fallback.test.ts`.
 
 ### Current Gaps
 
@@ -542,7 +542,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The transcript can be inspected by run id.
 - Verification:
   - Add a fixture task that produces a run receipt with read, write, command, and verification entries.
-  - Run `bun test packages/agent/src/services/operator/runtime-summary`.
+  - Run `nub run test packages/agent/src/services/operator/runtime-summary`.
 
 #### observability-safety-proof.security-audit
 
@@ -555,7 +555,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The suggested fix names the config path to change.
 - Verification:
   - Add diagnostics tests for open gateway auth, permissive exec, and unpaired messaging access.
-  - Run `bun test packages/agent/src/services/diagnostics`.
+  - Run `nub run test packages/agent/src/services/diagnostics`.
 
 ### Current Gaps
 

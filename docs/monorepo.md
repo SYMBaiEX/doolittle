@@ -1,6 +1,6 @@
 # Monorepo Layout
 
-Doolittle is organized as a Bun workspace monorepo.
+Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 
 ## Workspace roles
 
@@ -40,12 +40,12 @@ See [module-structure-guidelines.md](./module-structure-guidelines.md) for the n
 Run the workspace quality pass from the repo root:
 
 ```bash
-bun run check
+nub run check
 ```
 
 ## Bootstrap flow
 
-For a fresh clone, use the Bun-first installer wrapper:
+For a fresh clone, use the Nub-powered installer wrapper:
 
 ```bash
 bash scripts/install.sh
@@ -56,15 +56,15 @@ That script installs workspace dependencies, creates `.env` from `.env.example` 
 If you only need the bootstrap step again:
 
 ```bash
-bun run bootstrap
+nub run bootstrap
 ```
 
 Useful workspace commands:
 
 ```bash
-bun run workspace:list
-bun run lint:check
-bun run typecheck
-bun test
-bun run build
+nub run workspace:list
+nub run lint:check
+nub run typecheck
+nub run test
+nub run build
 ```

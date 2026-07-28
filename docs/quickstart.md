@@ -151,7 +151,7 @@ For the full command catalog, continue with the `CLI command reference` in [`REA
 
 - PATH not updated: restart shell or run `~/.local/bin/doolittle`.
 - Provider setup appears wrong: run `doolittle setup`, then `/doctor` and `/setup summary`.
-- Missing commands in runtime: confirm installer completion and `bun` on PATH.
+- Missing commands in runtime: confirm installer completion and `nub` on PATH.
 - Gateway state is stale: `doolittle gateway stop` then `doolittle gateway start`.
 
 ## 6) Truth-first references

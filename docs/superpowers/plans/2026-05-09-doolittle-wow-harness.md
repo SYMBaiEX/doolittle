@@ -62,7 +62,7 @@ Also assert all ids are unique and every scenario id starts with its pillar id.
 Run:
 
 ```bash
-bun test packages/agent/src/runtime/native/operator-wow-contract.test.ts
+nub run test packages/agent/src/runtime/native/operator-wow-contract.test.ts
 ```
 
 Expected: PASS with all contract invariant tests green.
@@ -110,7 +110,7 @@ Add a sample `OperatorWowContractPillar` in `scripts/sync-doc-truth/render.test.
 Run:
 
 ```bash
-bun test scripts/sync-doc-truth/render.test.ts scripts/sync-doc-truth/sync.test.ts
+nub run test scripts/sync-doc-truth/render.test.ts scripts/sync-doc-truth/sync.test.ts
 ```
 
 Expected: PASS.
@@ -127,7 +127,7 @@ Expected: PASS.
 Run:
 
 ```bash
-bun run scripts/sync-doc-truth.ts --write
+nub run scripts/sync-doc-truth.ts --write
 ```
 
 Expected: `docs/operator-wow-contract.md` is created and `Doc truth files updated.` is printed.
@@ -141,7 +141,7 @@ Add `docs/operator-wow-contract.md` to the canonical runtime docs list in `READM
 Run:
 
 ```bash
-bun run scripts/sync-doc-truth.ts --check
+nub run scripts/sync-doc-truth.ts --check
 ```
 
 Expected: no output differences and exit code 0.
@@ -156,7 +156,7 @@ Expected: no output differences and exit code 0.
 Run:
 
 ```bash
-bun test packages/agent/src/runtime/native/operator-wow-contract.test.ts scripts/sync-doc-truth/render.test.ts scripts/sync-doc-truth/sync.test.ts
+nub run test packages/agent/src/runtime/native/operator-wow-contract.test.ts scripts/sync-doc-truth/render.test.ts scripts/sync-doc-truth/sync.test.ts
 ```
 
 Expected: PASS.
@@ -166,7 +166,7 @@ Expected: PASS.
 Run:
 
 ```bash
-bun run scripts/sync-doc-truth.ts --check
+nub run scripts/sync-doc-truth.ts --check
 ```
 
 Expected: PASS.

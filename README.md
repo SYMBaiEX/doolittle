@@ -21,7 +21,7 @@
 
 > The shell is warm. The channels are waiting.
 
-A terminal-native AI agent that thinks in loops, not single shots. Doolittle runs a Cloud-first, ElizaOS-native multi-step shell: native runtime first, direct local rescue when needed, observed run progress, and a transcript-first terminal UI. Built on [ElizaOS](https://github.com/elizaos/eliza) with Bun and TypeScript.
+A terminal-native AI agent that thinks in loops, not single shots. Doolittle runs a Cloud-first, ElizaOS-native multi-step shell: native runtime first, direct local rescue when needed, observed run progress, and a transcript-first terminal UI. Built on [ElizaOS](https://github.com/elizaos/eliza) with Nub, Node.js, and TypeScript.
 
 ---
 
@@ -31,7 +31,7 @@ A terminal-native AI agent that thinks in loops, not single shots. Doolittle run
 bash scripts/install.sh
 ```
 
-The installer runs `bun install`, forges `~/.local/bin/doolittle`, wires your shell PATH, and begins the awakening sequence — an interactive onboarding ritual that configures your provider, execution backend, browser mode, transports, and workspace. When it finishes, you have a real shell command.
+The installer runs `nub install`, forges `~/.local/bin/doolittle`, wires your shell PATH, and begins the awakening sequence — an interactive onboarding ritual that configures your provider, execution backend, browser mode, transports, and workspace. When it finishes, you have a real shell command.
 
 ```bash
 doolittle
@@ -199,7 +199,7 @@ lifecycle, React owns presentation state, and the Doolittle API remains
 authoritative for agent behavior and sessions. See
 [`docs/desktop.md`](./docs/desktop.md) for the architecture, security boundary,
 standalone Windows installer, and packaging commands. Installed desktop builds
-bundle their own compiled Doolittle/Bun runtime and do not require a source
+bundle their own compiled Doolittle/Nub toolkit and do not require a source
 checkout.
 
 ### Plain interactive CLI
@@ -245,7 +245,7 @@ Quick shortcuts:
 
 ### HTTP API
 
-When `DOOLITTLE_MODE=api` or `both`, a Bun-native HTTP server exposes every capability as REST endpoints:
+When `DOOLITTLE_MODE=api` or `both`, a Node-native HTTP server exposes every capability as REST endpoints:
 
 ```bash
 curl -X POST http://localhost:3000/chat \
@@ -686,11 +686,11 @@ Switch live from the plain shell or the cockpit:
 Provider smoke and packaging:
 
 ```bash
-bun run smoke:linked-providers
-bun run smoke:linked-providers -- --provider elizacloud
-bun run smoke:linked-providers -- --provider codex --live
-bun run smoke:linked-providers -- --provider claude-code --live
-bun run publish:providers:check
+nub run smoke:linked-providers
+nub run smoke:linked-providers -- --provider elizacloud
+nub run smoke:linked-providers -- --provider codex --live
+nub run smoke:linked-providers -- --provider claude-code --live
+nub run publish:providers:check
 ```
 
 ---
@@ -978,8 +978,8 @@ Copy `.env.example` to `.env` and fill in what you need.
 |---|---|---|
 | `DOOLITTLE_NAME` | Runtime agent display name | `Doolittle` |
 | `DOOLITTLE_MODE` | `api`, `cli`, or `both` | `both` |
-| `DOOLITTLE_HOST` | Host for the Bun API server | `0.0.0.0` |
-| `DOOLITTLE_PORT` | Port for the Bun API server | `3000` |
+| `DOOLITTLE_HOST` | Host for the Node API server | `0.0.0.0` |
+| `DOOLITTLE_PORT` | Port for the Node API server | `3000` |
 | `DOOLITTLE_DATA_DIR` | Root directory for state, memories, and cron persistence | `.doolittle` |
 | `DOOLITTLE_SKILLS_DIR` | Directory scanned recursively for `SKILL.md` files | `./packages/skills` |
 | `DOOLITTLE_TIMEZONE` | Default timezone for scheduling context | `America/Chicago` |
@@ -1174,11 +1174,11 @@ doolittle/
 │   └── bootstrap.ts                # Onboarding wizard
 ├── packages/
 │   ├── agent/src/
-│   │   ├── index.ts                # #!/usr/bin/env bun — the only entry point
+│   │   ├── index.ts                # #!/usr/bin/env nub — the only entry point
 │   │   ├── cli.ts                  # Blessed TUI + plain CLI
 │   │   ├── cli/splash.ts           # ANSI truecolor boot splash
 │   │   ├── cli/startup.ts          # Pre-boot env, onboarding checks
-│   │   ├── server.ts               # Bun HTTP API
+│   │   ├── server.ts               # Node HTTP API
 │   │   ├── config/env.ts           # Zod-validated env schema
 │   │   ├── character.ts            # Character model integration
 │   │   ├── runtime/
@@ -1242,7 +1242,7 @@ doolittle/
 ├── tsconfig.json
 ```
 
-No `bin/` directory. No bash wrapper. The `package.json` points `"bin"` directly at the TypeScript entry point — Bun runs it natively.
+No `bin/` directory. No bash wrapper. The `package.json` points `"bin"` directly at the TypeScript entry point, and Nub executes it on the project-pinned stock Node runtime.
 
 Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md). Native-adoption priorities live in [`docs/eliza-maximization-matrix.md`](./docs/eliza-maximization-matrix.md).
 
@@ -1253,38 +1253,38 @@ Detailed workspace notes live in [`docs/monorepo.md`](./docs/monorepo.md). Nativ
 ### Workspace commands
 
 ```bash
-bun run check                # full workspace quality pass
-bun run lint:check           # Biome lint
-bun run typecheck            # TypeScript type check
-bun test                     # all tests (bun:test)
-bun run build                # build
-bun run desktop:dev          # launch Electron + React in development
-bun run desktop:typecheck    # check desktop main, preload, and renderer
-bun run desktop:test         # run focused desktop tests
-bun run desktop:build        # build desktop bundles
-bun run bootstrap            # re-run workspace bootstrap
-bun run bootstrap:check      # non-mutating check
-bun run workspace:list       # list workspaces
+nub run check                # full workspace quality pass
+nub run lint:check           # Biome lint
+nub run typecheck            # TypeScript type check
+nub run test                     # all tests (Vitest)
+nub run build                # build
+nub run desktop:dev          # launch Electron + React in development
+nub run desktop:typecheck    # check desktop main, preload, and renderer
+nub run desktop:test         # run focused desktop tests
+nub run desktop:build        # build desktop bundles
+nub run bootstrap            # re-run workspace bootstrap
+nub run bootstrap:check      # non-mutating check
+nub run workspace:list       # list workspaces
 ```
 
 ### Testing
 
-Tests use `bun:test` throughout — unit tests, service tests, and installer smoke tests all in one runner:
+Tests use Vitest throughout—unit tests, service tests, and installer smoke tests all in one runner:
 
 ```bash
-bun test                                           # everything
-bun test packages/agent/src/installer-cli.test.ts  # installer smoke tests
-bun test packages/agent/src/services/              # service unit tests
+nub run test                                           # everything
+nub run test packages/agent/src/installer-cli.test.ts  # installer smoke tests
+nub run test packages/agent/src/services/              # service unit tests
 ```
 
 ### Provider packaging
 
 ```bash
-bun run smoke:linked-providers                              # validate all providers
-bun run smoke:linked-providers -- --provider codex --live   # live request test
-bun run publish:providers:check                             # verify publish readiness
-bun run publish:providers -- --provider all                 # publish all
-bun run publish:providers:alpha                             # publish to alpha tag
+nub run smoke:linked-providers                              # validate all providers
+nub run smoke:linked-providers -- --provider codex --live   # live request test
+nub run publish:providers:check                             # verify publish readiness
+nub run publish:providers -- --provider all                 # publish all
+nub run publish:providers:alpha                             # publish to alpha tag
 ```
 
 ---
@@ -1303,7 +1303,7 @@ Tracks the verified ElizaOS 2.0 **beta** install line used by this repository:
 still point to older major lines (for example `1.x`/`0.x`), so runtime packages
 are pinned explicitly to the `2.0.3-beta.7` family via dependency overrides.
 
-Features not covered by official ElizaOS packages are implemented as custom actions, providers, evaluators, and Bun-native services. Official packages not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` runtime contract.
+Features not covered by official ElizaOS packages are implemented as custom actions, providers, evaluators, and Node-native services. Official packages not yet compatible on the current runtime line are vendored under `packages/plugins/*` and implemented directly against the current `@elizaos/core` runtime contract.
 
 ---
 
