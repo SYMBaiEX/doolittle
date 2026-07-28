@@ -1,6 +1,6 @@
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { runInheritedTextProcess } from "@/services/process-execution";
 
 export interface DesktopCommandOptions {
   source: boolean;
@@ -14,6 +14,16 @@ export interface DesktopCommandResult {
   exitCode: number;
   message?: string;
 }
+
+type DesktopCommandRunner = (
+  command: string,
+  args: string[],
+  options: {
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    toolName: string;
+  },
+) => Promise<{ exitCode: number }> | { exitCode: number };
 
 export function renderDesktopCommandHelp(): string {
   return [
@@ -118,7 +128,7 @@ export function buildDesktopLaunchEnvironment(
   return environment;
 }
 
-export function runDesktopCommand(
+export async function runDesktopCommand(
   input: {
     repoRoot: string;
     args: string[];
@@ -127,11 +137,11 @@ export function runDesktopCommand(
   },
   dependencies: {
     pathExists?: (path: string) => boolean;
-    run?: typeof spawnSync;
+    run?: DesktopCommandRunner;
     executable?: string;
     env?: NodeJS.ProcessEnv;
   } = {},
-): DesktopCommandResult {
+): Promise<DesktopCommandResult> {
   const printLine = input.printLine ?? console.log;
   let options: DesktopCommandOptions;
   try {
@@ -158,7 +168,7 @@ export function runDesktopCommand(
     };
   }
 
-  const run = dependencies.run ?? spawnSync;
+  const run = dependencies.run ?? runInheritedTextProcess;
   const localNub = resolve(
     input.repoRoot,
     "node_modules",
@@ -180,25 +190,29 @@ export function runDesktopCommand(
         ? "→ Building Doolittle Desktop from source…"
         : "→ Launching Doolittle Desktop from source…",
     );
-    const result = run(executable, ["run", "--cwd", desktopDir, script], {
+    const result = await run(executable, ["run", "--cwd", desktopDir, script], {
       cwd: input.repoRoot,
       env,
-      stdio: "inherit",
+      toolName: "doolittle.desktop.source",
     });
-    return { exitCode: result.status ?? 1 };
+    return { exitCode: result.exitCode };
   }
 
   let desktopExecutable = findDesktopExecutable(desktopDir, pathExists);
   if (options.forceBuild || (!options.skipBuild && !desktopExecutable)) {
     printLine("→ Building the self-contained Doolittle Desktop app…");
-    const build = run(executable, ["run", "--cwd", desktopDir, "package:dir"], {
-      cwd: input.repoRoot,
-      env,
-      stdio: "inherit",
-    });
-    if (build.status !== 0) {
+    const build = await run(
+      executable,
+      ["run", "--cwd", desktopDir, "package:dir"],
+      {
+        cwd: input.repoRoot,
+        env,
+        toolName: "doolittle.desktop.package",
+      },
+    );
+    if (build.exitCode !== 0) {
       return {
-        exitCode: build.status ?? 1,
+        exitCode: build.exitCode,
         message: "Doolittle Desktop build failed.",
       };
     }
@@ -218,10 +232,10 @@ export function runDesktopCommand(
   }
 
   printLine(`→ Opening Doolittle Desktop: ${desktopExecutable}`);
-  const launch = run(desktopExecutable, [], {
+  const launch = await run(desktopExecutable, [], {
     cwd: input.launchCwd ?? process.cwd(),
     env,
-    stdio: "inherit",
+    toolName: "doolittle.desktop.launch",
   });
-  return { exitCode: launch.status ?? 0 };
+  return { exitCode: launch.exitCode };
 }

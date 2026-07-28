@@ -50,7 +50,7 @@ describe("desktop command", () => {
     });
   });
 
-  it("builds a missing packaged app and forwards the source root", () => {
+  it("builds a missing packaged app and forwards the source root", async () => {
     const run = vi.fn((command: string, args: string[]) => {
       expect(command).toBe("/mock/nub");
       expect(args).toEqual([
@@ -59,10 +59,10 @@ describe("desktop command", () => {
         "/repo/apps/desktop",
         "package:dir",
       ]);
-      return { status: 0 };
+      return { exitCode: 0 };
     });
     let executableChecks = 0;
-    const result = runDesktopCommand(
+    const result = await runDesktopCommand(
       {
         repoRoot: "/repo",
         args: ["--build-only"],

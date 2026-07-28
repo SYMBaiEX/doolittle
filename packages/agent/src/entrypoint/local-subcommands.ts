@@ -1,15 +1,15 @@
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { AppLogger } from "@/logging/logger";
 import { renderCommandCatalog } from "@/runtime/command-catalog";
+import { runInheritedTextProcess } from "@/services/process-execution";
 import { runDesktopCommand } from "./desktop-command";
 import type { EntrypointSubcommand } from "./subcommand";
 
 interface LocalSubcommandDeps {
   existsSync: typeof existsSync;
   resolve: typeof resolve;
-  spawnSync: typeof spawnSync;
+  runProcess: typeof runInheritedTextProcess;
   renderCommandCatalog: typeof renderCommandCatalog;
   runDesktopCommand: typeof runDesktopCommand;
 }
@@ -17,7 +17,7 @@ interface LocalSubcommandDeps {
 const localSubcommandDeps: LocalSubcommandDeps = {
   existsSync,
   resolve,
-  spawnSync,
+  runProcess: runInheritedTextProcess,
   renderCommandCatalog,
   runDesktopCommand,
 };
@@ -69,7 +69,7 @@ export async function handleLocalEntrypointSubcommand(
   }
 
   if (input.command === "desktop") {
-    const result = deps.runDesktopCommand({
+    const result = await deps.runDesktopCommand({
       repoRoot: input.repoRoot,
       args: input.rest,
       launchCwd: process.cwd(),
@@ -93,11 +93,15 @@ export async function handleLocalEntrypointSubcommand(
       return true;
     }
 
-    const result = deps.spawnSync("bash", [installScript, ...input.rest], {
-      stdio: "inherit",
-      cwd: input.repoRoot,
-    });
-    exit(result.status ?? 0);
+    const result = await deps.runProcess(
+      "bash",
+      [installScript, ...input.rest],
+      {
+        cwd: input.repoRoot,
+        toolName: "doolittle.cli.install",
+      },
+    );
+    exit(result.exitCode);
     return true;
   }
 

@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { getDefaultRepoRoot } from "@/config/env/paths";
 import { getEntrypointLogger } from "@/logging/entrypoint-logger";
+import { runInheritedTextProcess } from "@/services/process-execution";
 
 export class CliStartupExitError extends Error {
   readonly exitCode: number;
@@ -113,27 +114,26 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
     throw new CliStartupExitError(1);
   }
 
-  const { spawnSync } = await import("node:child_process");
   const localNub = resolve(
     root,
     "node_modules",
     ".bin",
     process.platform === "win32" ? "nub.cmd" : "nub",
   );
-  const result = spawnSync(
+  const result = await runInheritedTextProcess(
     existsSync(localNub) ? localNub : "nub",
     [bootstrapPath, ...args],
     {
-      stdio: "inherit",
       cwd: root,
+      toolName: "doolittle.cli.onboarding",
     },
   );
-  if (result.status !== 0) {
+  if (result.exitCode !== 0) {
     logger.warn("bootstrap-wizard-exited-nonzero", {
-      status: result.status ?? 1,
+      status: result.exitCode,
       args,
     });
-    throw new CliStartupExitError(result.status ?? 1);
+    throw new CliStartupExitError(result.exitCode);
   }
 }
 

@@ -1,4 +1,3 @@
-import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppLogger } from "@/logging/logger";
@@ -39,7 +38,6 @@ const logger: AppLogger = {
 const realExistsSync = fs.existsSync;
 const realMkdirSync = fs.mkdirSync;
 const realReadFileSync = fs.readFileSync;
-const realSpawnSync = childProcess.spawnSync;
 
 let stdinTtyDescriptor: PropertyDescriptor | undefined;
 let stdoutTtyDescriptor: PropertyDescriptor | undefined;
@@ -76,16 +74,13 @@ function installStartupMocks(options: StartupMockOptions = {}) {
       ? options.envFileContent
       : realReadFileSync(...args),
   );
-  const spawnSync = vi.fn(
-    (...args: Parameters<typeof childProcess.spawnSync>) =>
-      String(args[0]).includes("nub") &&
-      Array.isArray(args[1]) &&
-      args[1].some((part) => String(part).endsWith("scripts/bootstrap.ts"))
-        ? ({ status: options.spawnStatus ?? 0 } as ReturnType<
-            typeof childProcess.spawnSync
-          >)
-        : realSpawnSync(...args),
-  );
+  const runInheritedTextProcess = vi.fn(async () => ({
+    exitCode: options.spawnStatus ?? 0,
+    stdout: "",
+    stderr: "",
+    durationMs: 1,
+    sandbox: "host" as const,
+  }));
 
   vi.doMock("node:fs", () => ({
     ...fs,
@@ -93,9 +88,8 @@ function installStartupMocks(options: StartupMockOptions = {}) {
     mkdirSync,
     readFileSync,
   }));
-  vi.doMock("node:child_process", () => ({
-    ...childProcess,
-    spawnSync,
+  vi.doMock("@/services/process-execution", () => ({
+    runInheritedTextProcess,
   }));
   vi.doMock("@/logging/entrypoint-logger", () => ({
     getEntrypointLogger: () => logger,
@@ -115,7 +109,7 @@ function installStartupMocks(options: StartupMockOptions = {}) {
     existsSync,
     mkdirSync,
     readFileSync,
-    spawnSync,
+    runInheritedTextProcess,
   };
 }
 
@@ -232,10 +226,10 @@ describe("cli startup", () => {
     await expect(runOnboardingWizard(["--check"])).rejects.toThrow(
       "CLI startup requested exit 7",
     );
-    expect(fs.spawnSync).toHaveBeenCalledWith(
+    expect(fs.runInheritedTextProcess).toHaveBeenCalledWith(
       expect.stringContaining("nub"),
       expect.any(Array),
-      expect.objectContaining({ stdio: "inherit" }),
+      expect.objectContaining({ toolName: "doolittle.cli.onboarding" }),
     );
     expect(logger.warn).toHaveBeenCalledTimes(1);
   });
@@ -258,7 +252,7 @@ describe("cli startup", () => {
     expect(
       logLines.some((line) => line.includes("Beginning first contact")),
     ).toBe(true);
-    expect(fs.spawnSync).toHaveBeenCalledTimes(1);
+    expect(fs.runInheritedTextProcess).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledTimes(1);
   });
 

@@ -24,9 +24,9 @@ describe("handleLocalEntrypointSubcommand", () => {
       {
         existsSync: vi.fn(() => true) as never,
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
-        runDesktopCommand: vi.fn(() => ({ exitCode: 0 })),
+        runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
       },
     );
 
@@ -49,9 +49,9 @@ describe("handleLocalEntrypointSubcommand", () => {
       {
         existsSync: vi.fn(() => true) as never,
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
-        runDesktopCommand: vi.fn(() => ({ exitCode: 0 })),
+        runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
       },
     );
 
@@ -78,9 +78,9 @@ describe("handleLocalEntrypointSubcommand", () => {
       {
         existsSync: vi.fn(() => false),
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
-        runDesktopCommand: vi.fn(() => ({ exitCode: 0 })),
+        runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
       },
     );
 
@@ -96,7 +96,7 @@ describe("handleLocalEntrypointSubcommand", () => {
 
   it("routes desktop launches before runtime startup", async () => {
     const exit = vi.fn(() => {});
-    const runDesktopCommand = vi.fn(() => ({ exitCode: 0 }));
+    const runDesktopCommand = vi.fn(async () => ({ exitCode: 0 }));
     const handled = await handleLocalEntrypointSubcommand(
       {
         command: "desktop",
@@ -110,7 +110,7 @@ describe("handleLocalEntrypointSubcommand", () => {
       {
         existsSync: vi.fn(() => true),
         resolve: ((...parts: string[]) => parts.join("/")) as never,
-        spawnSync: vi.fn(() => ({ status: 0 })) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand,
       },
