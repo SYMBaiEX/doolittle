@@ -772,16 +772,20 @@ export function SettingsPage({ active }: { active: boolean }) {
   const [updateBusy, setUpdateBusy] = useState(false);
   useEffect(() => {
     if (!active) return;
-    let mounted = true;
+    let disposed = false;
     void window.doolittle
       .getLifecycleState()
-      .then((state) => mounted && setLifecycle(state));
+      .then((state) => !disposed && setLifecycle(state));
     void window.doolittle
       .getUpdateState()
-      .then((state) => mounted && setUpdate(state));
-    return window.doolittle.onUpdateState((state) => {
-      if (mounted) setUpdate(state);
+      .then((state) => !disposed && setUpdate(state));
+    const unsubscribe = window.doolittle.onUpdateState((state) => {
+      if (!disposed) setUpdate(state);
     });
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
   }, [active]);
   const fields = useMemo(
     () => flattenSettings(settings.data?.settings ?? {}),
