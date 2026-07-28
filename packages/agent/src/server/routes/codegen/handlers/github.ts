@@ -31,7 +31,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
       return json({ error: "name is required" }, 400);
     }
 
-    const workflow = createAutocoderWorkflowContext(context, {
+    const workflow = await createAutocoderWorkflowContext(context, {
       title: `Create repo ${body.name}`,
       objective: `Create GitHub repository ${body.name}`,
       kind: "github.create",
@@ -56,7 +56,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
             body.private ?? true,
           ),
       );
-      completeAutocoderWorkflowContext(
+      await completeAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -70,7 +70,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
       });
     } catch (error) {
       if (isAutocoderCancellation(error)) {
-        failAutocoderWorkflowContext(
+        await failAutocoderWorkflowContext(
           context,
           workflow.taskId,
           workflow.workflowId,
@@ -87,7 +87,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
           409,
         );
       }
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -104,7 +104,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
     if (!body.name) {
       return json({ error: "name is required" }, 400);
     }
-    const workflow = createAutocoderWorkflowContext(context, {
+    const workflow = await createAutocoderWorkflowContext(context, {
       title: `Delete repo ${body.name}`,
       objective: `Delete GitHub repository ${body.name}`,
       kind: "github.delete",
@@ -124,7 +124,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
         },
         () => deleteEffectiveRepository(context.runtime, body.name as string),
       );
-      completeAutocoderWorkflowContext(
+      await completeAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -138,7 +138,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
       });
     } catch (error) {
       if (isAutocoderCancellation(error)) {
-        failAutocoderWorkflowContext(
+        await failAutocoderWorkflowContext(
           context,
           workflow.taskId,
           workflow.workflowId,
@@ -155,7 +155,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
           409,
         );
       }
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,

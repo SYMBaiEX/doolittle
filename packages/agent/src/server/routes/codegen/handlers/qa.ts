@@ -27,7 +27,7 @@ export const handleCodegenQA: CodegenRouteHandler = async (
     return json({ error: "projectPath is required" }, 400);
   }
   const projectName = body.projectPath.split("/").filter(Boolean).at(-1);
-  const workflow = createAutocoderWorkflowContext(context, {
+  const workflow = await createAutocoderWorkflowContext(context, {
     title: `QA ${projectName ?? "project"}`,
     objective: `QA ${body.projectPath}`,
     kind: "qa",
@@ -47,7 +47,7 @@ export const handleCodegenQA: CodegenRouteHandler = async (
       },
       () => performEffectiveCodeQa(context.runtime, body.projectPath as string),
     );
-    completeAutocoderWorkflowContext(
+    await completeAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,
@@ -61,7 +61,7 @@ export const handleCodegenQA: CodegenRouteHandler = async (
     });
   } catch (error) {
     if (isAutocoderCancellation(error)) {
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -78,7 +78,7 @@ export const handleCodegenQA: CodegenRouteHandler = async (
         409,
       );
     }
-    failAutocoderWorkflowContext(
+    await failAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,

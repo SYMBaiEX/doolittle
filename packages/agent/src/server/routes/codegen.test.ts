@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import { handleCodegenRoutes } from "./codegen";
 
 function createContext(): AppContext {
-  let taskCounter = 0;
   let workflowCounter = 0;
   let runCounter = 0;
-  const completions: Array<{ id: string; note?: string }> = [];
-  const failures: Array<{ id: string; note?: string }> = [];
-  const notes: Array<{ id: string; note: string }> = [];
+  const official = createOfficialOrchestratorTestFixture();
   const activeRuns = new Map<string, Record<string, unknown>>();
 
   return {
     runtime: {
       getService: (service: string) => {
+        if (service === "ORCHESTRATOR_TASK_SERVICE") {
+          return official.service;
+        }
         if (service === "code-generation") {
           return {
             generateCode: async (request: Record<string, unknown>) => ({
@@ -142,23 +143,8 @@ function createContext(): AppContext {
           manifestPath: `/private/pipeline/${id}-manifest.json`,
         }),
       },
-      delegation: {
-        create: () => ({ id: `task-${++taskCounter}` }),
-        markRunning: () => undefined,
-        addNote: (id: string, note: string) => {
-          notes.push({ id, note });
-        },
-        complete: (id: string, note?: string) => {
-          completions.push({ id, note });
-        },
-        fail: (id: string, note?: string) => {
-          failures.push({ id, note });
-        },
-      },
       __events: {
-        completions,
-        failures,
-        notes,
+        tasks: official.tasks,
       },
     },
   } as unknown as AppContext;
@@ -272,9 +258,9 @@ describe("handleCodegenRoutes", () => {
     const body = await valid?.json();
     const events = (context.services as unknown as { __events: unknown })
       .__events as {
-      completions: Array<{ id: string; note?: string }>;
-      notes: Array<{ id: string; note: string }>;
+      tasks: ReturnType<typeof createOfficialOrchestratorTestFixture>["tasks"];
     };
+    const task = events.tasks.get(body.taskId);
 
     expect(invalid?.status).toBe(400);
     expect(await invalid?.json()).toEqual({
@@ -282,10 +268,9 @@ describe("handleCodegenRoutes", () => {
     });
     expect(body.generation.generated).toBe(true);
     expect(body.run.kind).toBe("generate");
-    expect(events.notes[0]?.note).toContain("attached autocoder workflow");
-    expect(events.completions[0]?.note).toContain(
-      "system: code generation completed",
-    );
+    expect(task?.messages[0]?.content).toContain("attached autocoder workflow");
+    expect(task?.status).toBe("done");
+    expect(task?.summary).toContain("system: code generation completed");
   });
 
   it("runs PRD workflows and repository mutations", async () => {

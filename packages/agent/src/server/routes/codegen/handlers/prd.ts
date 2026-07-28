@@ -42,7 +42,7 @@ export const handleCodegenPRDRoutes: CodegenRouteHandler = async (
     apis: body.apis ?? [],
     requirements: body.requirements ?? [],
   };
-  const workflow = createAutocoderWorkflowContext(context, {
+  const workflow = await createAutocoderWorkflowContext(context, {
     title: `PRD ${body.projectName}`,
     objective: body.description,
     kind: "prd",
@@ -86,7 +86,7 @@ export const handleCodegenPRDRoutes: CodegenRouteHandler = async (
         ),
       { linkedRunIds: [researchRun.id] },
     );
-    completeAutocoderWorkflowContext(
+    await completeAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,
@@ -102,7 +102,7 @@ export const handleCodegenPRDRoutes: CodegenRouteHandler = async (
     });
   } catch (error) {
     if (isAutocoderCancellation(error)) {
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -119,7 +119,7 @@ export const handleCodegenPRDRoutes: CodegenRouteHandler = async (
         409,
       );
     }
-    failAutocoderWorkflowContext(
+    await failAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,

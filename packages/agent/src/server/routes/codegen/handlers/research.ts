@@ -39,7 +39,7 @@ export const handleCodegenResearchRoutes: CodegenRouteHandler = async (
     apis: body.apis ?? [],
     requirements: body.requirements ?? [],
   };
-  const workflow = createAutocoderWorkflowContext(context, {
+  const workflow = await createAutocoderWorkflowContext(context, {
     title: `Research ${body.projectName}`,
     objective: body.description,
     kind: "research",
@@ -63,7 +63,7 @@ export const handleCodegenResearchRoutes: CodegenRouteHandler = async (
           withAutocoderAbortSignal(requestPayload, signal),
         ),
     );
-    completeAutocoderWorkflowContext(
+    await completeAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,
@@ -77,7 +77,7 @@ export const handleCodegenResearchRoutes: CodegenRouteHandler = async (
     });
   } catch (error) {
     if (isAutocoderCancellation(error)) {
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -94,7 +94,7 @@ export const handleCodegenResearchRoutes: CodegenRouteHandler = async (
         409,
       );
     }
-    failAutocoderWorkflowContext(
+    await failAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,

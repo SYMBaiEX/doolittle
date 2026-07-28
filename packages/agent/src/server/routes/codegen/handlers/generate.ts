@@ -34,7 +34,7 @@ export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
     ...body,
     objective: body.prompt,
   };
-  const workflow = createAutocoderWorkflowContext(context, {
+  const workflow = await createAutocoderWorkflowContext(context, {
     title: `Generate ${body.projectName}`,
     objective: body.prompt,
     kind: "generate",
@@ -58,7 +58,7 @@ export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
           withAutocoderAbortSignal(requestPayload, signal),
         ),
     );
-    completeAutocoderWorkflowContext(
+    await completeAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,
@@ -73,7 +73,7 @@ export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
     });
   } catch (error) {
     if (isAutocoderCancellation(error)) {
-      failAutocoderWorkflowContext(
+      await failAutocoderWorkflowContext(
         context,
         workflow.taskId,
         workflow.workflowId,
@@ -90,7 +90,7 @@ export const handleCodegenGenerateRoutes: CodegenRouteHandler = async (
         409,
       );
     }
-    failAutocoderWorkflowContext(
+    await failAutocoderWorkflowContext(
       context,
       workflow.taskId,
       workflow.workflowId,
