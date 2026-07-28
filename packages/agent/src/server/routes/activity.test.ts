@@ -4,6 +4,14 @@ import { handleActivityRoutes } from "./activity";
 
 function context(): AppContext {
   return {
+    runtime: {
+      getService: (name: string) =>
+        name === "cron"
+          ? {
+              runs: () => [],
+            }
+          : null,
+    },
     services: {
       runController: {
         listReceipts: () => [
@@ -25,7 +33,11 @@ function context(): AppContext {
           },
         ],
       },
-      cron: { recentRuns: () => [] },
+      cron: {
+        recentRuns: () => {
+          throw new Error("legacy cron must not be used");
+        },
+      },
       delegation: { list: () => [] },
       executionApprovals: { list: () => [] },
       delivery: { recent: () => [] },
@@ -92,5 +104,21 @@ describe("handleActivityRoutes", () => {
       new URL("http://localhost/activity"),
     );
     expect(response?.status).toBe(405);
+  });
+
+  it("returns a clear service error while the Trigger runtime is unavailable", async () => {
+    const appContext = context();
+    appContext.runtime = { getService: () => null } as never;
+
+    const response = await handleActivityRoutes(
+      appContext,
+      new Request("http://localhost/activity"),
+      new URL("http://localhost/activity"),
+    );
+
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Trigger runtime service is not ready.",
+    });
   });
 });

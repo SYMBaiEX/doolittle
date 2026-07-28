@@ -45,9 +45,6 @@ export interface ActivityFeedServices {
   runController: {
     listReceipts(limit?: number): RunSnapshot[];
   };
-  cron: {
-    recentRuns(limit?: number): AutomationRunRecord[];
-  };
   delegation: {
     list(): DelegationTaskRecord[];
   };
@@ -62,6 +59,10 @@ export interface ActivityFeedServices {
 export interface ActivityFeedOptions {
   limit?: number;
   after?: string;
+}
+
+export interface ActivityFeedSourceData {
+  automationRuns?: AutomationRunRecord[];
 }
 
 export interface ActivityFeedResult {
@@ -300,12 +301,15 @@ function isAfterCursor(event: ActivityEvent, cursor: ActivityCursor): boolean {
 export function buildActivityFeed(
   services: ActivityFeedServices,
   options: ActivityFeedOptions = {},
+  sourceData: ActivityFeedSourceData = {},
 ): ActivityFeedResult {
   const normalized = [
     ...services.runController
       .listReceipts(MAX_ACTIVITY_EVENTS)
       .map(normalizeRun),
-    ...services.cron.recentRuns(MAX_ACTIVITY_EVENTS).map(normalizeAutomation),
+    ...(sourceData.automationRuns ?? [])
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map(normalizeAutomation),
     ...services.delegation.list().map(normalizeDelegation),
     ...services.executionApprovals.list().map(normalizeApproval),
     ...services.delivery.recent(MAX_ACTIVITY_EVENTS).map(normalizeDelivery),

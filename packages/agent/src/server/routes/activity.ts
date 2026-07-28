@@ -1,10 +1,12 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 import {
   ACTIVITY_FEED_MAX_LIMIT,
   buildActivityFeed,
   decodeActivityCursor,
 } from "@/services/activity-feed";
+import type { AutomationRunRecord } from "@/types/runtime";
 
 function parseLimit(value: string | null): number | Response {
   if (value === null) return 50;
@@ -36,10 +38,21 @@ export async function handleActivityRoutes(
   if (after && !decodeActivityCursor(after)) {
     return json({ error: "after cursor is invalid" }, 400);
   }
+  const cron = getNativeServices(context.runtime).cron;
+  if (!cron) {
+    return json({ error: "Trigger runtime service is not ready." }, 503);
+  }
+  const automationRuns = (await cron.runs(
+    ACTIVITY_FEED_MAX_LIMIT,
+  )) as AutomationRunRecord[];
   return json(
-    buildActivityFeed(context.services, {
-      limit,
-      after,
-    }),
+    buildActivityFeed(
+      context.services,
+      {
+        limit,
+        after,
+      },
+      { automationRuns },
+    ),
   );
 }
