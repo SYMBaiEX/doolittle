@@ -208,6 +208,12 @@ importers:
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
+      '@elizaos/plugin-agent-orchestrator':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(d8475f7963bdace304d47f1548c9199b)
+      '@elizaos/plugin-agent-skills':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(pg@8.22.0)
       '@elizaos/skills':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
@@ -236,6 +242,9 @@ importers:
 
   packages/plugins/plugin-claude-code:
     dependencies:
+      '@elizaos/agent':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
@@ -248,6 +257,9 @@ importers:
 
   packages/plugins/plugin-devin:
     dependencies:
+      '@elizaos/agent':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
