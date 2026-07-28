@@ -8,9 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
+import { detectCodeLanguage } from "./code-language";
+import { CodeEditor } from "./components/CodeEditor";
 import { ExecutionEnvironmentPanel } from "./components/ExecutionEnvironmentPanel";
 import { InteractiveTerminal } from "./components/InteractiveTerminal";
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
+import { WorkspaceFileTree } from "./components/WorkspaceFileTree";
 import {
   asArray,
   asNumber,
@@ -31,6 +34,7 @@ import {
   loadPanelWidth,
   savePanelWidth,
 } from "./panel-layout";
+import type { WorkspaceTreeEntry } from "./workspace-file-tree";
 import "./coding-workspace.css";
 
 interface RepositorySummary {
@@ -73,11 +77,7 @@ interface RepositoryPatchResponse {
 }
 
 interface WorkspaceTreeResponse {
-  entries?: Array<{
-    path: string;
-    type: "file" | "directory";
-    depth: number;
-  }>;
+  entries?: WorkspaceTreeEntry[];
 }
 
 interface WorkspaceReadResponse {
@@ -186,11 +186,6 @@ function PaneTabs<T extends string>({
 
 function fileName(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
-}
-
-function extension(path: string): string {
-  const suffix = fileName(path).split(".").at(-1);
-  return suffix && suffix !== fileName(path) ? suffix : "txt";
 }
 
 function compactPath(path: string): string {
@@ -352,7 +347,7 @@ export function CodingWorkspacePage({
     [active],
   );
   const treeResource = useApiResource<WorkspaceTreeResponse>(
-    active ? "/workspace/tree?depth=5" : null,
+    active ? "/workspace/tree?depth=12" : null,
     [active],
   );
   const changesResource = useApiResource<RepositoryChangesResponse>(
@@ -404,6 +399,10 @@ export function CodingWorkspacePage({
     [treeResource.data],
   );
   const selectedChange = changes.find((change) => change.path === selectedPath);
+  const selectedLanguage = useMemo(
+    () => detectCodeLanguage(selectedPath),
+    [selectedPath],
+  );
   const fileResource = useApiResource<WorkspaceReadResponse>(
     active && selectedPath
       ? `/workspace/read?path=${encodeURIComponent(selectedPath)}`
@@ -802,35 +801,11 @@ export function CodingWorkspacePage({
                     retry={treeResource.reload}
                   />
                 ) : treeEntries.length ? (
-                  <div className="coding-file-list">
-                    {treeEntries.map((entry) => (
-                      <button
-                        className={`${entry.type} ${
-                          selectedPath === entry.path ? "selected" : ""
-                        }`}
-                        disabled={entry.type === "directory"}
-                        key={`${entry.type}:${entry.path}`}
-                        onClick={() => openPath(entry.path)}
-                        style={
-                          {
-                            "--tree-depth": entry.depth,
-                          } as CSSProperties
-                        }
-                        title={entry.path}
-                        type="button"
-                      >
-                        <span aria-hidden="true">
-                          {entry.type === "directory" ? "⌄" : "·"}
-                        </span>
-                        <span>{fileName(entry.path)}</span>
-                        {entry.type === "file" ? (
-                          <small className="coding-file-extension">
-                            {extension(entry.path)}
-                          </small>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
+                  <WorkspaceFileTree
+                    entries={treeEntries}
+                    onOpenFile={openPath}
+                    selectedPath={selectedPath}
+                  />
                 ) : (
                   <EmptyBlock title="Workspace is empty">
                     Files appear here when the runtime exposes a workspace tree.
@@ -957,7 +932,8 @@ export function CodingWorkspacePage({
               onChange={setEditorPane}
             />
             <div className="coding-breadcrumb" title={selectedPath}>
-              {selectedPath || "Select a file"}
+              <span>{selectedPath || "Select a file"}</span>
+              {selectedPath ? <small>{selectedLanguage.label}</small> : null}
             </div>
             {editorPane === "file" && selectedPath ? (
               <div className="coding-editor-actions">
@@ -1040,24 +1016,15 @@ export function CodingWorkspacePage({
                       {fileNotice.message}
                     </div>
                   ) : null}
-                  <textarea
-                    aria-label={`Edit ${selectedPath}`}
-                    className="coding-source coding-source-editor"
+                  <CodeEditor
                     disabled={savingFile}
-                    onChange={(event) => {
-                      setDraftContent(event.target.value);
+                    language={selectedLanguage}
+                    onChange={(value) => {
+                      setDraftContent(value);
                       if (fileNotice?.tone !== "bad") setFileNotice(null);
                     }}
-                    onKeyDown={(event) => {
-                      if (
-                        (event.metaKey || event.ctrlKey) &&
-                        event.key.toLowerCase() === "s"
-                      ) {
-                        event.preventDefault();
-                        void saveFile();
-                      }
-                    }}
-                    spellCheck={false}
+                    onSave={() => void saveFile()}
+                    path={selectedPath}
                     value={draftContent}
                   />
                 </>
@@ -1115,7 +1082,7 @@ export function CodingWorkspacePage({
                   ? "MODIFIED"
                   : "EDITABLE"}
             </span>
-            <span>{extension(selectedPath).toUpperCase()}</span>
+            <span>{selectedLanguage.label}</span>
             <span>UTF-8</span>
             {editorPane === "file" ? <span>⌘/Ctrl S to save</span> : null}
             <span className="coding-spacer" />
