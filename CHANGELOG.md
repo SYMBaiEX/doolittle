@@ -10,8 +10,9 @@ ElizaOS 2.0 beta line.
 
 - **Aligned the complete ElizaOS runtime train on `2.0.3-beta.7`**:
   `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `elizaos`, shared, and
-  official provider plugins now resolve to one exact beta through root
-  overrides and an acceptance check.
+  published official plugins now resolve to one exact beta through root
+  overrides and an acceptance check. Doolittle's SQL compatibility wrapper is
+  `2.0.3-beta.7-patched.0` and wraps the same official beta.
 - **Completed the native message-lifecycle migration**: normal chat turns now
   enter `DefaultMessageService` directly. Removed the parallel regex
   classifier, direct informational/profile/soul model bypasses, local-intent
@@ -21,6 +22,14 @@ ElizaOS 2.0 beta line.
 - Split Doolittle context into official always-on core and context-routed
   workspace/operations providers. Selected-project grounding now resolves
   through the SDK session envelope.
+- **Made Eliza Trigger Tasks the only automation authority**. Job definitions,
+  lifecycle, manual/webhook dispatch, conditions, action execution, and durable
+  run receipts now flow through SDK tasks; command, diagnostics, activity, and
+  provider consumers no longer fall back to the retired local scheduler.
+- Adopted the official agent orchestrator, skills plugin, database trajectory
+  logger, `SandboxManager`, SDK action-result mutation receipts, and runtime
+  command catalog. Removed the dormant custom orchestrator and natural-language
+  regex routing shadows.
 
 ### Added
 
@@ -31,6 +40,24 @@ ElizaOS 2.0 beta line.
 - Full SDK adoption: self-awareness provider, `/research` deep-research action,
   tool-audit hook, autonomous triggers, a recurring maintenance task, and
   per-ModelType sampling settings.
+- Git-backed workspace checkpoints with protected-data filtering, automatic
+  pre-write safety snapshots, recovery snapshots before restore, explicit
+  confirmation, and a desktop Changes panel.
+
+### Desktop
+
+- Added opt-in background lifecycle, privacy-safe completion notifications, and
+  an explicit signed-update flow using generated `app-update.yml` metadata.
+- Replaced plain terminal transcript rendering with an xterm-based interactive
+  PTY surface, while retaining bounded command and IPC policy.
+- Added runtime-backed slash-command completion, the unified activity center,
+  durable per-thread drafts and queues, conversation branching and portable
+  archives, managed dictation, read-aloud, multi-folder project resources, and
+  project-aware global search.
+- Added native Windows, macOS, and Linux release workflows. Tagged Windows
+  releases require Authenticode signatures; tagged macOS releases require
+  signing and notarization credentials; every workflow smoke-tests the bundled
+  runtime before publishing artifacts.
 
 ### Security
 
