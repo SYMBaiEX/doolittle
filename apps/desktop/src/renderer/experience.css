@@ -3879,6 +3879,11 @@ button.chat-session-meta-pill:hover {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-hover));
 }
 
+.chat-command-completions > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .chat-command-completions code {
   color: var(--accent);
   font-family: var(--font-mono);
@@ -3907,6 +3912,17 @@ button.chat-session-meta-pill:hover {
 .chat-command-completions kbd {
   color: var(--muted);
   font-size: 9px;
+}
+
+.chat-command-completions small.chat-command-completions__aliases {
+  color: var(--faint);
+}
+
+.chat-command-catalog-error {
+  order: 21;
+  padding: 6px 2px 0;
+  color: var(--danger);
+  font-size: 11px;
 }
 
 .chat-context-meter {

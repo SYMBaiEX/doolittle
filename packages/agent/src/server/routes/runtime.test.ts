@@ -154,6 +154,37 @@ describe("handleRuntimeRoutes", () => {
     });
   });
 
+  it("returns the shared slash-command catalog for desktop completion", async () => {
+    const response = await handleRuntimeRoutes(
+      createContext(),
+      new Request("http://localhost/commands/catalog"),
+      new URL("http://localhost/commands/catalog"),
+    );
+
+    expect(response?.status).toBe(200);
+    const body = (await response?.json()) as {
+      commands: Array<{
+        command: string;
+        description: string;
+        aliases?: string[];
+      }>;
+    };
+    expect(body.commands).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          command: "/status",
+          description: expect.any(String),
+        }),
+      ]),
+    );
+    expect(body.commands).toContainEqual(
+      expect.objectContaining({
+        command: "/gateway-readiness",
+        aliases: expect.arrayContaining(["/gateway readiness"]),
+      }),
+    );
+  });
+
   it("rejects invalid account providers", async () => {
     const response = await handleRuntimeRoutes(
       createContext(),

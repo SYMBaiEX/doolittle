@@ -63,6 +63,7 @@ describe("apiResponseLimit", () => {
 describe("parseApiPath", () => {
   it("accepts exact safe GET endpoints", () => {
     expect(parseApiPath("/health", "GET")).toBe("/health");
+    expect(parseApiPath("/commands/catalog", "GET")).toBe("/commands/catalog");
     expect(parseApiPath("/runtime/status", "GET")).toBe("/runtime/status");
     expect(parseApiPath("/activity?limit=50", "GET")).toBe(
       "/activity?limit=50",

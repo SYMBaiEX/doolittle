@@ -1,5 +1,9 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
+  getCommandCatalogEntries,
+  normalizeSlashCommandSyntax,
+} from "@/runtime/command-catalog";
+import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
@@ -11,6 +15,23 @@ export async function handleRuntimeStatusRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (request.method === "GET" && url.pathname === "/commands/catalog") {
+    return json({
+      commands: getCommandCatalogEntries(context.config.workspaceDir).map(
+        (entry) => {
+          const normalized = normalizeSlashCommandSyntax(entry.command);
+          return {
+            ...entry,
+            aliases:
+              normalized === entry.command
+                ? entry.aliases
+                : [...(entry.aliases ?? []), normalized],
+          };
+        },
+      ),
+    });
+  }
+
   if (request.method === "GET" && url.pathname === "/runtime/status") {
     const settings = context.services.settings.get();
     const catalog = getNativePluginCatalog(context.config);

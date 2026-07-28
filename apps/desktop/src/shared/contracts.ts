@@ -15,6 +15,18 @@ export interface HealthResponse {
   workspaceDir: string;
 }
 
+export interface CommandCatalogItem {
+  command: string;
+  category: string;
+  description: string;
+  aliases?: string[];
+  disabledReason?: string;
+}
+
+export interface CommandCatalogResponse {
+  commands: CommandCatalogItem[];
+}
+
 export interface SessionSummary {
   sessionId: string;
   projectId?: string;
@@ -429,6 +441,7 @@ export type ApiMethod = HttpMethod;
 
 export type AllowedGetPath =
   | "/health"
+  | "/commands/catalog"
   | "/activity"
   | `/activity?${string}`
   | "/runtime/status"

@@ -13,6 +13,8 @@ import {
 import type {
   BackendState,
   ChatEvent,
+  CommandCatalogItem,
+  CommandCatalogResponse,
   DesktopRunUpdate,
   ManagedAttachmentDescriptor,
   RuntimeStatus,
@@ -22,6 +24,7 @@ import type {
   SessionSummary,
   SessionUsageSummary,
 } from "../shared/contracts";
+import { commandCompletions } from "./command-completion";
 import { InlineApprovalPanel } from "./components/InlineApprovalPanel";
 import { MessageContent } from "./components/MessageContent";
 import { RouteControlDialog } from "./components/RouteControlDialog";
@@ -98,58 +101,11 @@ interface SessionUsageResponse {
   usage?: SessionUsageSummary;
 }
 
-interface OperatorShortcut {
-  command: string;
-  label: string;
-  detail: string;
-  behavior?: "draft";
-}
-
 const STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const MAX_MESSAGE_ATTACHMENTS = 8;
 const MAX_MESSAGE_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 const MEMORY_MATCH_DEBOUNCE_MS = 380;
-const OPERATOR_SHORTCUTS: OperatorShortcut[] = [
-  {
-    command: "/status",
-    label: "Status",
-    detail: "Runtime readiness",
-  },
-  {
-    command: "/usage",
-    label: "Usage",
-    detail: "Context pressure",
-  },
-  {
-    command: "/insights",
-    label: "Insights",
-    detail: "Session signals",
-  },
-  {
-    command: "/model",
-    label: "Model",
-    detail: "Provider routes",
-  },
-  {
-    command: "/retry",
-    label: "Retry",
-    detail: "Regenerate last turn",
-  },
-  {
-    command: "/compress ",
-    label: "Compress",
-    detail: "Summarize context",
-    behavior: "draft",
-  },
-  {
-    command: "/undo",
-    label: "Undo",
-    detail: "Remove last exchange",
-    behavior: "draft",
-  },
-];
-
 function newConversationId(): string {
   return `desktop:${crypto.randomUUID()}`;
 }
@@ -556,6 +512,10 @@ export function ChatPage({
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [commandSelection, setCommandSelection] = useState(0);
   const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
+  const [commandCatalog, setCommandCatalog] = useState<{
+    commands: CommandCatalogItem[];
+    error: string;
+  }>({ commands: [], error: "" });
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const promptRenameRef = useRef<HTMLInputElement>(null);
@@ -627,6 +587,34 @@ export function ChatPage({
   useEffect(() => {
     void refreshSessionUsage(selectedId);
   }, [refreshSessionUsage, selectedId]);
+
+  useEffect(() => {
+    if (backend.phase !== "ready") {
+      setCommandCatalog({ commands: [], error: "" });
+      return;
+    }
+
+    let cancelled = false;
+    void window.doolittle
+      .api<CommandCatalogResponse>({ path: "/commands/catalog" })
+      .then((response) => {
+        if (!cancelled) {
+          setCommandCatalog({ commands: response.commands, error: "" });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCommandCatalog({
+            commands: [],
+            error: `Command catalog unavailable: ${errorMessage(error)}`,
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backend.phase]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
@@ -1592,20 +1580,15 @@ export function ChatPage({
   const runtimeProvider = runtime?.provider ?? "Loading provider";
   const runtimeModel = runtime?.model ?? "Loading model";
   const modelRouteLabel = `${runtimeProvider} · ${runtimeModel}`;
-  const normalizedCommandQuery = draft.trimStart().toLowerCase();
-  const commandSuggestions =
-    !commandMenuDismissed &&
-    normalizedCommandQuery.startsWith("/") &&
-    !normalizedCommandQuery.includes(" ")
-      ? OPERATOR_SHORTCUTS.filter((shortcut) =>
-          shortcut.command
-            .trimEnd()
-            .toLowerCase()
-            .startsWith(normalizedCommandQuery),
-        )
-      : [];
-  const selectCommandSuggestion = (shortcut: OperatorShortcut) => {
-    setDraft(shortcut.command);
+  const commandSuggestions = !commandMenuDismissed
+    ? commandCompletions(commandCatalog.commands, draft)
+    : [];
+  const selectCommandSuggestion = (command: CommandCatalogItem) => {
+    if (command.disabledReason) {
+      setQueueAnnouncement(command.disabledReason);
+      return;
+    }
+    setDraft(command.command);
     setCommandMenuDismissed(true);
     requestAnimationFrame(() => composerRef.current?.focus());
   };
@@ -2086,42 +2069,36 @@ export function ChatPage({
               className="chat-command-completions"
               role="listbox"
             >
-              {commandSuggestions.map((shortcut, index) => (
+              {commandSuggestions.map((command, index) => (
                 <button
                   aria-selected={index === commandSelection}
                   className={index === commandSelection ? "selected" : ""}
-                  key={shortcut.command}
-                  onClick={() => selectCommandSuggestion(shortcut)}
+                  disabled={Boolean(command.disabledReason)}
+                  key={command.command}
+                  onClick={() => selectCommandSuggestion(command)}
                   role="option"
                   type="button"
                 >
-                  <code>{shortcut.command.trimEnd()}</code>
+                  <code>{command.command}</code>
                   <span>
-                    <strong>{shortcut.label}</strong>
-                    <small>{shortcut.detail}</small>
+                    <strong>{command.category}</strong>
+                    <small>
+                      {command.disabledReason ?? command.description}
+                    </small>
+                    {command.aliases?.length ? (
+                      <small className="chat-command-completions__aliases">
+                        Aliases: {command.aliases.join(", ")}
+                      </small>
+                    ) : null}
                   </span>
-                  <kbd>{index === commandSelection ? "Tab" : "↵"}</kbd>
+                  <kbd>{index === commandSelection ? "Tab" : "↑↓"}</kbd>
                 </button>
               ))}
-              <button
-                aria-selected={false}
-                onClick={() =>
-                  selectCommandSuggestion({
-                    command: "/commands",
-                    label: "All commands",
-                    detail: "Browse the complete command catalog",
-                    behavior: "draft",
-                  })
-                }
-                role="option"
-                type="button"
-              >
-                <code>/commands</code>
-                <span>
-                  <strong>All commands</strong>
-                  <small>Browse the complete command catalog</small>
-                </span>
-              </button>
+            </div>
+          ) : null}
+          {draft.trimStart().startsWith("/") && commandCatalog.error ? (
+            <div className="chat-command-catalog-error" role="alert">
+              {commandCatalog.error}
             </div>
           ) : null}
           <div className="chat-composer-tools">

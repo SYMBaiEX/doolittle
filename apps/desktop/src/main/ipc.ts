@@ -7,6 +7,8 @@ import type {
   ChatRequest,
   DesktopCommandRequest,
   DesktopCommandResult,
+  DesktopLifecycleState,
+  DesktopUpdateState,
   FileSelection,
   HttpMethod,
   InteractiveTerminalInputRequest,
@@ -24,8 +26,6 @@ import type {
   WorkspaceFileSaveResult,
   WorkspacePickResult,
   WorkspaceState,
-  DesktopLifecycleState,
-  DesktopUpdateState,
 } from "../shared/contracts";
 import { SseParser } from "../shared/sse";
 import type { BackendManager } from "./backend";
@@ -265,6 +265,7 @@ const GATEWAY_TRACE_KINDS = [
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
     { exact: "/health" },
+    { exact: "/commands/catalog" },
     {
       exact: "/activity",
       allowedQueries: ["limit", "after"],
