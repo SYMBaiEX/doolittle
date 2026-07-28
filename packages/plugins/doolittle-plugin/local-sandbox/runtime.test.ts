@@ -29,13 +29,16 @@ describe("local sandbox runtime helpers", () => {
     ]);
   });
 
-  it("collects only string environment values", () => {
-    process.env.PLUGIN_E2B_TEST_VALUE = "ok";
+  it("passes presentation settings without exposing the host environment", () => {
+    process.env.DOOLITTLE_SANDBOX_SECRET_TEST = "private";
+    process.env.NO_COLOR = "1";
     const env = collectProcessEnv();
-    expect(env.PLUGIN_E2B_TEST_VALUE).toBe("ok");
+    expect(env.NO_COLOR).toBe("1");
+    expect(env.DOOLITTLE_SANDBOX_SECRET_TEST).toBeUndefined();
     expect(Object.values(env).every((value) => typeof value === "string")).toBe(
       true,
     );
-    delete process.env.PLUGIN_E2B_TEST_VALUE;
+    delete process.env.DOOLITTLE_SANDBOX_SECRET_TEST;
+    delete process.env.NO_COLOR;
   });
 });
