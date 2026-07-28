@@ -15,6 +15,11 @@ export interface DesktopCommandResult {
   message?: string;
 }
 
+export interface DesktopLaunchTarget {
+  command: string;
+  args: string[];
+}
+
 type DesktopCommandRunner = (
   command: string,
   args: string[],
@@ -128,6 +133,28 @@ export function buildDesktopLaunchEnvironment(
   return environment;
 }
 
+/**
+ * The SDK shell router starts from the parent process environment before
+ * applying caller overrides. Use an OS-level environment wrapper so Nub's own
+ * NODE_OPTIONS cannot reach packaged Electron even when the parent injected it.
+ */
+export function desktopLaunchTarget(
+  executable: string,
+  platform: NodeJS.Platform = process.platform,
+): DesktopLaunchTarget {
+  if (platform === "win32") {
+    const quotedExecutable = executable.replaceAll('"', '""');
+    return {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", `set "NODE_OPTIONS=" && "${quotedExecutable}"`],
+    };
+  }
+  return {
+    command: "/usr/bin/env",
+    args: ["-u", "NODE_OPTIONS", executable],
+  };
+}
+
 export async function runDesktopCommand(
   input: {
     repoRoot: string;
@@ -232,7 +259,8 @@ export async function runDesktopCommand(
   }
 
   printLine(`→ Opening Doolittle Desktop: ${desktopExecutable}`);
-  const launch = await run(desktopExecutable, [], {
+  const target = desktopLaunchTarget(desktopExecutable);
+  const launch = await run(target.command, target.args, {
     cwd: input.launchCwd ?? process.cwd(),
     env,
     toolName: "doolittle.desktop.launch",

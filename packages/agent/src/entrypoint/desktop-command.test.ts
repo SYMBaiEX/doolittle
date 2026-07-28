@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildDesktopLaunchEnvironment,
   desktopExecutableCandidates,
+  desktopLaunchTarget,
   parseDesktopCommandOptions,
   runDesktopCommand,
 } from "./desktop-command";
@@ -47,6 +48,26 @@ describe("desktop command", () => {
       SAFE_VALUE: "preserved",
       DOOLITTLE_DESKTOP_SOURCE_ROOT: "/repo",
       DOOLITTLE_DESKTOP_CWD: "/workspace",
+    });
+  });
+
+  it("clears NODE_OPTIONS at the packaged executable boundary", () => {
+    expect(
+      desktopLaunchTarget("/Applications/Doolittle.app", "darwin"),
+    ).toEqual({
+      command: "/usr/bin/env",
+      args: ["-u", "NODE_OPTIONS", "/Applications/Doolittle.app"],
+    });
+    expect(
+      desktopLaunchTarget("C:\\Program Files\\Doolittle.exe", "win32"),
+    ).toEqual({
+      command: "cmd.exe",
+      args: [
+        "/d",
+        "/s",
+        "/c",
+        'set "NODE_OPTIONS=" && "C:\\Program Files\\Doolittle.exe"',
+      ],
     });
   });
 
