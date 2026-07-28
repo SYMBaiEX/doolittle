@@ -6,7 +6,6 @@ import {
   normalizeSkillHubSlug,
   nowIso,
   rootFromSkillHubSlug,
-  tagsFromSkillHubCatalog,
   tagsFromSkillHubText,
 } from "../records";
 import type { SkillHubServicePaths } from "./paths";
@@ -25,6 +24,5 @@ export function createSkillHubManifestHost(
     countLines: countSkillHubLines,
     hashContent: hashSkillHubContent,
     tagsFromText: tagsFromSkillHubText,
-    tagsFromCatalog: tagsFromSkillHubCatalog,
   };
 }

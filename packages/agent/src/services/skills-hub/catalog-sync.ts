@@ -2,11 +2,6 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentSdkService } from "../agent-sdk-service";
 import {
-  buildSkillHubCatalogManifest,
-  type SkillsHubManifestHost,
-  writeSkillHubManifest,
-} from "./manifests";
-import {
   buildSkillHubCatalogRecord,
   buildSkillHubCatalogRecords,
   nowIso,
@@ -14,7 +9,6 @@ import {
 } from "./records";
 import type {
   SkillHubCatalogRecord,
-  SkillHubImportResult,
   SkillHubInstalledRecord,
   SkillHubManifest,
   SkillHubSyncReport,
@@ -176,25 +170,4 @@ export function writeSkillHubBundle(input: {
     installedCount: installed.length,
     sync,
   };
-}
-
-export async function installSkillHubCatalogManifest(input: {
-  agentSdk: AgentSdkService;
-  manifestHost: SkillsHubManifestHost;
-  manifestsDir: string;
-  slug: string;
-  importManifest: (sourcePath: string) => SkillHubImportResult;
-}): Promise<SkillHubImportResult> {
-  const entry = await input.agentSdk.catalogSkill(input.slug);
-  if (!entry) {
-    throw new Error(`Skill catalog entry not found: ${input.slug}`);
-  }
-  const manifest = buildSkillHubCatalogManifest(
-    input.manifestHost,
-    input.slug,
-    entry,
-  );
-  const sourcePath = join(input.manifestsDir, `${manifest.slug}.json`);
-  writeSkillHubManifest(sourcePath, manifest);
-  return input.importManifest(sourcePath);
 }

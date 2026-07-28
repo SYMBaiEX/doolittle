@@ -8,7 +8,6 @@ import type {
 import { resetFamilyCache } from "./cache";
 import type { SkillHubServiceContext } from "./context";
 import { importManifest as importManifestFile } from "./import";
-import { installFromCatalog } from "./install";
 import {
   exportManifest as buildManifestFile,
   resolveManifestInput,
@@ -70,16 +69,4 @@ export function importServiceManifest(input: {
   const imported = importManifestFile(input.context, input.sourcePath);
   resetFamilyCache(input.cache);
   return imported;
-}
-
-export function installServiceCatalogEntry(input: {
-  context: Pick<SkillHubServiceContext, "agentSdk" | "manifestHost" | "paths">;
-  slug: string;
-  importManifest: (sourcePath: string) => SkillHubImportResult;
-}): Promise<SkillHubImportResult> {
-  return installFromCatalog({
-    context: input.context,
-    slug: input.slug,
-    importManifest: input.importManifest,
-  });
 }

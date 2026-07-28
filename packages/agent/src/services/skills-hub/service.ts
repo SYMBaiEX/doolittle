@@ -25,7 +25,6 @@ export class SkillsHubService {
   readonly exportManifest!: SkillsHubServiceApi["exportManifest"];
   readonly exportBundle!: SkillsHubServiceApi["exportBundle"];
   readonly importManifest!: SkillsHubServiceApi["importManifest"];
-  readonly installFromCatalog!: SkillsHubServiceApi["installFromCatalog"];
   readonly installedManifests!: SkillsHubServiceApi["installedManifests"];
   readonly installedManifest!: SkillsHubServiceApi["installedManifest"];
   readonly summary!: SkillsHubServiceApi["summary"];

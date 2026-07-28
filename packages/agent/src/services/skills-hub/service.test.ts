@@ -110,7 +110,7 @@ describe("SkillsHubService", () => {
     };
     agentSdk.catalog = async () => [workspaceCatalogEntry, remoteCatalogEntry];
     agentSdk.catalogSkill = async (slug: string) =>
-      slug === remoteCatalogEntry.slug ? remoteCatalogEntry : undefined;
+      slug === remoteCatalogEntry.slug ? remoteCatalogEntry : null;
     agentSdk.searchSkillCatalog = async () => ({
       available: true,
       query: "planning",
@@ -215,18 +215,9 @@ describe("SkillsHubService", () => {
         hub.installedManifests().some((entry) => entry.slug === imported.slug),
       ).toBe(true);
 
-      const installedFromCatalog = await hub.installFromCatalog(
-        remoteCatalogEntry.slug,
+      expect(() => hub.exportManifest(remoteCatalogEntry.slug)).toThrow(
+        "Catalog skills must be installed through the official Agent Skills service",
       );
-      expect(installedFromCatalog.source).toBe("installed");
-      expect(hub.installedManifest(remoteCatalogEntry.slug)?.source).toBe(
-        "installed",
-      );
-      expect(
-        hub
-          .installedManifests()
-          .some((entry) => entry.slug === remoteCatalogEntry.slug),
-      ).toBe(true);
 
       const bundle = await hub.exportBundle("skills-hub");
       expect(bundle.manifestCount).toBeGreaterThan(0);

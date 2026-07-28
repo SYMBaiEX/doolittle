@@ -9,7 +9,6 @@ import {
   exportServiceBundle,
   exportServiceManifest,
   importServiceManifest,
-  installServiceCatalogEntry,
   resolveServiceManifest,
 } from "./distribution";
 import { listInstalledRecords, resolveInstalledManifest } from "./installed";
@@ -150,19 +149,6 @@ export function createSkillsHubServiceApi(
           manifestHost: state.context.manifestHost,
         },
         sourcePath,
-      }),
-    installFromCatalog: (slug) =>
-      installServiceCatalogEntry({
-        context: state.context,
-        slug,
-        importManifest: (sourcePath) =>
-          importServiceManifest({
-            cache: state.cache,
-            context: {
-              manifestHost: state.context.manifestHost,
-            },
-            sourcePath,
-          }),
       }),
     installedManifests,
     installedManifest,

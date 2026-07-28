@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  buildSkillHubCatalogManifest,
   importSkillHubManifest,
   listInstalledSkillHubManifests,
   readSkillHubInstalledIndex,
@@ -14,7 +13,6 @@ import {
   hashSkillHubContent,
   normalizeSkillHubSlug,
   rootFromSkillHubSlug,
-  tagsFromSkillHubCatalog,
   tagsFromSkillHubText,
 } from "./records";
 
@@ -30,50 +28,10 @@ function createManifestHost(root: string) {
     countLines: countSkillHubLines,
     hashContent: hashSkillHubContent,
     tagsFromText: tagsFromSkillHubText,
-    tagsFromCatalog: tagsFromSkillHubCatalog,
   };
 }
 
 describe("skills-hub manifests", () => {
-  it("builds a catalog manifest with normalized paths and catalog metadata", () => {
-    const host = createManifestHost("/tmp/skills-hub-manifests");
-    const manifest = buildSkillHubCatalogManifest(
-      host,
-      "Planning/Coordination",
-      {
-        slug: "planning/coordination",
-        displayName: "Planning Coordination",
-        summary: "Coordinate planning work across projects.",
-        tags: { domain: "planning", scope: "coordination" },
-        createdAt: 1,
-        updatedAt: 2,
-        latestVersion: {
-          version: "1.0.0",
-          createdAt: 1,
-          changelog: "Initial release",
-        },
-        stats: {
-          comments: 0,
-          downloads: 0,
-          installsAllTime: 22,
-          installsCurrent: 7,
-          stars: 4,
-          versions: 1,
-        },
-      },
-    );
-
-    expect(manifest.slug).toBe("planning/coordination");
-    expect(manifest.path).toBe(
-      "/tmp/skills-hub-manifests/manifests/planning/coordination.json",
-    );
-    expect(manifest.root).toBe("planning");
-    expect(manifest.category).toBe("planning/coordination");
-    expect(manifest.tagList).toContain("domain");
-    expect(manifest.tagList).toContain("scope:coordination");
-    expect(manifest.catalog?.installsCurrent).toBe(7);
-  });
-
   it("imports a manifest, writes fallback content, and updates installed index", () => {
     const root = join(tmpdir(), `skills-hub-manifests-${Date.now()}`);
     const host = createManifestHost(root);

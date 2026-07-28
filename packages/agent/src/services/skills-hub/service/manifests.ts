@@ -1,7 +1,6 @@
 import { writeSkillHubBundle } from "../catalog-sync";
 import type { SkillsHubManifestHost } from "../manifests";
 import {
-  buildSkillHubCatalogManifest,
   buildSkillHubManifestFromWorkspace,
   writeSkillHubManifest,
 } from "../manifests";
@@ -47,10 +46,8 @@ export function exportManifest(input: {
     );
   }
 
-  const manifest = buildSkillHubCatalogManifest(input.manifestHost, input.slug);
-  return writeSkillHubManifest(
-    input.destinationPath ?? manifest.path,
-    manifest,
+  throw new Error(
+    `Local skill manifest unavailable: ${input.slug}. Catalog skills must be installed through the official Agent Skills service before export.`,
   );
 }
 

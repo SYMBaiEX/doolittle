@@ -29,7 +29,7 @@ export interface SkillHubCatalogRecord {
   versions: number;
   installed: boolean;
   workspacePath?: string;
-  manifestPath: string;
+  manifestPath?: string;
   source: "catalog" | "workspace";
 }
 

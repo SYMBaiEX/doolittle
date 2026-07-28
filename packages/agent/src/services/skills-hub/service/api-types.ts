@@ -33,7 +33,6 @@ export interface SkillsHubServiceApi {
     sync: SkillHubSyncReport;
   }>;
   importManifest(sourcePath: string): SkillHubImportResult;
-  installFromCatalog(slug: string): Promise<SkillHubImportResult>;
   installedManifests(): SkillHubInstalledRecord[];
   installedManifest(slug: string): SkillHubManifest | undefined;
   summary(force?: boolean): SkillHubSummary;
