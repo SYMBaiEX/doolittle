@@ -1,5 +1,4 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 import {
   type CreateSkillProposalInput,
@@ -72,17 +71,12 @@ export async function handleSkillSynthesisRoutes(
     const taskId = body && stringValue(body.taskId);
     if (!taskId) return json({ error: "taskId is required" }, 400);
 
-    const path =
-      (await getNativeServices(context.runtime).agentSkills?.synthesize(
-        taskId,
-      )) ??
-      (() => {
-        const task = context.services.delegation
-          .list()
-          .find((entry) => entry.id === taskId);
-        if (!task) return null;
-        return context.services.skillSynthesis.synthesizeFromTask(task);
-      })();
+    const task = context.services.delegation
+      .list()
+      .find((entry) => entry.id === taskId);
+    const path = task
+      ? context.services.skillSynthesis.synthesizeFromTask(task)
+      : null;
 
     return path
       ? json({ path })

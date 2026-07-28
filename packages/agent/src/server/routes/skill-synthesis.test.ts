@@ -2,17 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleSkillSynthesisRoutes } from "./skill-synthesis";
 
-function createContext(options?: { nativePath?: string }): AppContext {
+function createContext(): AppContext {
   return {
-    runtime: {
-      getService: (name: string) =>
-        name === "agent_skills" && options?.nativePath
-          ? {
-              synthesize: async (taskId: string) =>
-                `${options.nativePath}:${taskId}`,
-            }
-          : undefined,
-    },
+    runtime: {},
     services: {
       delegation: {
         list: () => [
@@ -41,16 +33,7 @@ description: Capture a browser page safely.
 }
 
 describe("handleSkillSynthesisRoutes", () => {
-  it("prefers native synthesis and falls back to local task synthesis", async () => {
-    const nativeResponse = await handleSkillSynthesisRoutes(
-      createContext({ nativePath: "native" }),
-      new Request("http://localhost/skills/synthesize", {
-        method: "POST",
-        body: JSON.stringify({ taskId: "task-1" }),
-        headers: { "content-type": "application/json" },
-      }),
-      new URL("http://localhost/skills/synthesize"),
-    );
+  it("keeps generated skill synthesis product-owned", async () => {
     const localResponse = await handleSkillSynthesisRoutes(
       createContext(),
       new Request("http://localhost/skills/synthesize", {
@@ -61,9 +44,6 @@ describe("handleSkillSynthesisRoutes", () => {
       new URL("http://localhost/skills/synthesize"),
     );
 
-    await expect(nativeResponse?.json()).resolves.toEqual({
-      path: "native:task-1",
-    });
     await expect(localResponse?.json()).resolves.toEqual({
       path: "generated:task-2",
     });
