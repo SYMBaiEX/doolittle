@@ -27,8 +27,10 @@ export const featureMap: FeatureMapping[] = [
   },
   {
     platformCapability: "Skills registry and skill browsing",
-    elizaImplementation: "Custom skills service + `/skills` command",
-    notes: "Loads `SKILL.md` files from a Nub-managed workspace directory.",
+    elizaImplementation:
+      "Official Agent Skills service/actions + product `/skills` projections",
+    notes:
+      "Uses the first-party Agent Skills lifecycle and catalog contracts while preserving project, workspace, generated, and offline skill displays as product adapters.",
   },
   {
     platformCapability: "Scheduled automations and cron jobs",
