@@ -16,7 +16,10 @@ export async function handleSkillsInstalledRoutes(
 
   if (url.pathname === "/skills/installed") {
     return json({
-      installed: getEffectiveSkillHubInstalled(context.services),
+      installed: getEffectiveSkillHubInstalled(
+        context.runtime,
+        context.services,
+      ),
     });
   }
 
@@ -27,6 +30,7 @@ export async function handleSkillsInstalledRoutes(
     }
     return json({
       manifest: getEffectiveSkillHubInstalledManifest(
+        context.runtime,
         context.services,
         slug,
       ) ?? {

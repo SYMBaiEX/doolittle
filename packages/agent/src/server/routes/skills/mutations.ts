@@ -2,8 +2,8 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   exportEffectiveSkillHubManifest,
   importEffectiveSkillHubManifest,
-  installEffectiveSkillHubManifest,
-  syncEffectiveSkillHub,
+  installEffectiveSkill,
+  syncEffectiveSkillCatalog,
 } from "@/runtime/native/service-bridge/skill-hub";
 import { json } from "@/server/responses";
 
@@ -17,14 +17,8 @@ export async function handleSkillsMutationRoutes(
   }
 
   if (url.pathname === "/skills/sync") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      refresh?: boolean;
-    };
     return json({
-      sync: await syncEffectiveSkillHub(
-        context.services,
-        Boolean(body.refresh),
-      ),
+      sync: await syncEffectiveSkillCatalog(context.runtime),
     });
   }
 
@@ -76,10 +70,7 @@ export async function handleSkillsMutationRoutes(
       return json({ error: "slug is required" }, 400);
     }
     return json({
-      install: await installEffectiveSkillHubManifest(
-        context.services,
-        body.slug,
-      ),
+      install: await installEffectiveSkill(context.runtime, body.slug),
     });
   }
 

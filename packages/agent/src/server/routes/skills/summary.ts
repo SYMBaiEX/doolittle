@@ -31,7 +31,10 @@ export async function handleSkillsSummaryRoutes(
     return json({
       summary: getEffectiveSkillsSummary(context.runtime, context.services),
       hub: getEffectiveSkillHubSummary(context.services),
-      installed: getEffectiveSkillHubInstalled(context.services),
+      installed: getEffectiveSkillHubInstalled(
+        context.runtime,
+        context.services,
+      ),
     });
   }
 

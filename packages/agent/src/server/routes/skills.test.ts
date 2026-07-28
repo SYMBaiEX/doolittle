@@ -94,6 +94,28 @@ describe("handleSkillRoutes", () => {
     expect(await installError?.json()).toEqual({ error: "slug is required" });
   });
 
+  it("returns explicit unavailable install state without the official service", async () => {
+    const response = await handleSkillRoutes(
+      createContext(),
+      new Request("http://localhost/skills/install", {
+        method: "POST",
+        body: JSON.stringify({ slug: "release-checklist" }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/skills/install"),
+    );
+
+    expect(await response?.json()).toEqual({
+      install: {
+        available: false,
+        source: "@elizaos/plugin-agent-skills",
+        slug: "release-checklist",
+        installed: false,
+        error: "Agent Skills service is unavailable.",
+      },
+    });
+  });
+
   it("returns null for unrelated routes", async () => {
     const response = await handleSkillRoutes(
       createContext(),

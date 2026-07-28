@@ -23,9 +23,17 @@ export async function handleSkillsHubRoutes(
       summary: getEffectiveSkillHubSummary(context.services),
       workspace: getEffectiveSkillHubWorkspace(context.services),
       generated: getEffectiveSkillHubGenerated(context.services),
-      installed: getEffectiveSkillHubInstalled(context.services),
+      installed: getEffectiveSkillHubInstalled(
+        context.runtime,
+        context.services,
+      ),
       families: getEffectiveSkillHubFamilies(context.services, 50),
-      catalog: await getEffectiveSkillHubCatalog(context.services, false, 50),
+      catalog: await getEffectiveSkillHubCatalog(
+        context.runtime,
+        context.services,
+        false,
+        50,
+      ),
     });
   }
 

@@ -1,6 +1,7 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   getEffectiveSkillHubCatalog,
+  getEffectiveSkillHubCatalogEntry,
   getEffectiveSkillHubFamilies,
   getEffectiveSkillHubFamily,
   searchEffectiveSkillHubCatalog,
@@ -23,10 +24,24 @@ export async function handleSkillsCatalogRoutes(
       url.searchParams.get("refresh") === "1";
     return json(
       query
-        ? await searchEffectiveSkillHubCatalog(context.services, query)
+        ? await searchEffectiveSkillHubCatalog(
+            context.runtime,
+            context.services,
+            query,
+          )
         : refresh
-          ? await getEffectiveSkillHubCatalog(context.services, true, 50)
-          : await getEffectiveSkillHubCatalog(context.services, false, 50),
+          ? await getEffectiveSkillHubCatalog(
+              context.runtime,
+              context.services,
+              true,
+              50,
+            )
+          : await getEffectiveSkillHubCatalog(
+              context.runtime,
+              context.services,
+              false,
+              50,
+            ),
     );
   }
 
@@ -36,7 +51,11 @@ export async function handleSkillsCatalogRoutes(
       return json({ error: "Skill slug is required." }, 400);
     }
     return json(
-      (await context.services.skillsHub.catalogEntry(slug)) ?? {
+      (await getEffectiveSkillHubCatalogEntry(
+        context.runtime,
+        context.services,
+        slug,
+      )) ?? {
         error: `Skill not found: ${slug}`,
       },
     );
