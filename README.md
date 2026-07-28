@@ -1057,8 +1057,6 @@ Doolittle uses a stable per-session conversation id with Eliza Cloud so managed 
 
 | Variable | Purpose |
 |---|---|
-| `DOOLITTLE_CRON_TICK_SECONDS` | Scheduler polling interval |
-| `DOOLITTLE_CRON_OUTPUT_DIR` | Output directory for scheduled report exports |
 
 ### Gateway and transports
 
