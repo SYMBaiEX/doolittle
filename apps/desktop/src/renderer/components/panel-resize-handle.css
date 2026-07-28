@@ -1,0 +1,42 @@
+.panel-resize-handle {
+  position: absolute;
+  z-index: 45;
+  width: 10px;
+  min-width: 10px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: col-resize;
+  outline: none;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.panel-resize-handle::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  content: "";
+  background: transparent;
+  box-shadow: 0 0 0 transparent;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.panel-resize-handle:hover::before,
+.panel-resize-handle:focus-visible::before {
+  background: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+:root[data-panel-resizing="true"],
+:root[data-panel-resizing="true"] * {
+  cursor: col-resize;
+  user-select: none;
+  transition: none;
+}

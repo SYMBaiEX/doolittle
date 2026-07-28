@@ -172,10 +172,9 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  grid-template-columns: minmax(230px, 0.3fr) minmax(390px, 1fr) minmax(
-      275px,
-      0.36fr
-    );
+  grid-template-columns:
+    var(--coding-explorer-width) minmax(390px, 1fr)
+    var(--coding-utility-width);
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -184,11 +183,11 @@
 }
 
 .coding-grid.explorer-hidden {
-  grid-template-columns: minmax(390px, 1fr) minmax(275px, 0.36fr);
+  grid-template-columns: minmax(390px, 1fr) var(--coding-utility-width);
 }
 
 .coding-grid.utility-hidden {
-  grid-template-columns: minmax(230px, 0.3fr) minmax(390px, 1fr);
+  grid-template-columns: var(--coding-explorer-width) minmax(390px, 1fr);
 }
 
 .coding-grid.explorer-hidden.utility-hidden {
@@ -210,11 +209,24 @@
 }
 
 .coding-pane {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
   background: color-mix(in srgb, var(--surface) 97%, transparent);
+}
+
+.coding-explorer-resizer {
+  top: 0;
+  right: -5px;
+  bottom: 0;
+}
+
+.coding-utility-resizer {
+  top: 0;
+  bottom: 0;
+  left: -5px;
 }
 
 .coding-explorer,
@@ -1372,8 +1384,20 @@
 @media (max-width: 1180px) {
   .coding-grid {
     grid-template-columns:
-      minmax(210px, 0.28fr) minmax(340px, 1fr)
-      minmax(250px, 0.34fr);
+      min(var(--coding-explorer-width), 28vw) minmax(340px, 1fr)
+      min(var(--coding-utility-width), 31vw);
+  }
+
+  .coding-grid.explorer-hidden {
+    grid-template-columns:
+      minmax(340px, 1fr)
+      min(var(--coding-utility-width), 31vw);
+  }
+
+  .coding-grid.utility-hidden {
+    grid-template-columns:
+      min(var(--coding-explorer-width), 28vw)
+      minmax(340px, 1fr);
   }
 }
 
@@ -1384,8 +1408,20 @@
 
   .coding-grid {
     grid-template-columns:
-      minmax(190px, 0.27fr) minmax(330px, 1fr)
-      minmax(235px, 0.33fr);
+      min(var(--coding-explorer-width), 27vw) minmax(330px, 1fr)
+      min(var(--coding-utility-width), 30vw);
+  }
+
+  .coding-grid.explorer-hidden {
+    grid-template-columns:
+      minmax(330px, 1fr)
+      min(var(--coding-utility-width), 30vw);
+  }
+
+  .coding-grid.utility-hidden {
+    grid-template-columns:
+      min(var(--coding-explorer-width), 27vw)
+      minmax(330px, 1fr);
   }
 
   .coding-terminal-overview {
@@ -1417,6 +1453,11 @@
     flex: 0 0 auto;
     min-height: 1080px;
     grid-template-columns: 1fr;
+  }
+
+  .coding-explorer-resizer,
+  .coding-utility-resizer {
+    display: none;
   }
 
   .coding-explorer,

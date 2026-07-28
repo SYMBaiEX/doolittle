@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type KeyboardEvent,
   lazy,
   Suspense,
@@ -22,6 +23,7 @@ import type {
 } from "../shared/contracts";
 import { ActivityCenter } from "./components/ActivityCenter";
 import { type CommandGroup, CommandPalette } from "./components/CommandPalette";
+import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import {
   type ProjectDraft,
   type ProjectLike,
@@ -46,6 +48,15 @@ import {
   Icon,
   useApiResource,
 } from "./lib";
+import {
+  APP_SIDEBAR_WIDTH,
+  APP_SIDEBAR_WIDTH_KEY,
+  loadPanelWidth,
+  savePanelWidth,
+  UTILITY_DRAWER_WIDTH,
+  UTILITY_DRAWER_WIDTH_KEY,
+} from "./panel-layout";
+import { projectNavigationTarget } from "./project-navigation";
 import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
 import { workspacePathsEqual } from "./workspace-path";
 
@@ -420,6 +431,16 @@ export function App() {
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    loadPanelWidth(localStorage, APP_SIDEBAR_WIDTH_KEY, APP_SIDEBAR_WIDTH),
+  );
+  const [utilityDrawerWidth, setUtilityDrawerWidth] = useState(() =>
+    loadPanelWidth(
+      localStorage,
+      UTILITY_DRAWER_WIDTH_KEY,
+      UTILITY_DRAWER_WIDTH,
+    ),
+  );
   const [openSections, setOpenSections] =
     useState<Set<NavigationSectionId>>(loadOpenSections);
   const [backend, setBackend] = useState<BackendState>({
@@ -775,7 +796,7 @@ export function App() {
   );
 
   const transitionToProjectScope = useCallback(
-    (scope: ProjectScope, sessionId: string) => {
+    (scope: ProjectScope, sessionId: string, nextView?: View) => {
       const transition = projectTransitionRef.current + 1;
       projectTransitionRef.current = transition;
       pendingProjectScopeRef.current = scope;
@@ -794,7 +815,7 @@ export function App() {
           if (!activated) return;
           setProjectScope(scope);
           setSelectedSession(sessionId);
-          setView("chat");
+          if (nextView) setView(nextView);
         });
       };
       if (needsWorkspaceSwitch) {
@@ -824,6 +845,7 @@ export function App() {
       transitionToProjectScope(
         scope,
         matches.at(0)?.sessionId ?? newConversationId(),
+        projectNavigationTarget("select-scope"),
       );
     },
     [sessions, transitionToProjectScope],
@@ -832,7 +854,11 @@ export function App() {
   const startConversation = useCallback(
     (scope: ProjectScope) => {
       setNewConversationMenuOpen(false);
-      transitionToProjectScope(scope, newConversationId());
+      transitionToProjectScope(
+        scope,
+        newConversationId(),
+        projectNavigationTarget("new-conversation"),
+      );
     },
     [transitionToProjectScope],
   );
@@ -1154,6 +1180,24 @@ export function App() {
   }, [navCollapsed]);
 
   useEffect(() => {
+    savePanelWidth(
+      localStorage,
+      APP_SIDEBAR_WIDTH_KEY,
+      sidebarWidth,
+      APP_SIDEBAR_WIDTH,
+    );
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    savePanelWidth(
+      localStorage,
+      UTILITY_DRAWER_WIDTH_KEY,
+      utilityDrawerWidth,
+      UTILITY_DRAWER_WIDTH,
+    );
+  }, [utilityDrawerWidth]);
+
+  useEffect(() => {
     localStorage.setItem(NAV_SECTIONS_KEY, JSON.stringify([...openSections]));
   }, [openSections]);
 
@@ -1325,6 +1369,7 @@ export function App() {
       transitionToProjectScope(
         session ? (session.projectId ?? "unscoped") : projectScope,
         sessionId,
+        projectNavigationTarget("open-conversation"),
       );
     },
     [projectScope, sessions, transitionToProjectScope],
@@ -1744,6 +1789,7 @@ export function App() {
         return (
           <CodingWorkspacePage
             active={backend.phase === "ready"}
+            key={workspace.currentPath || "local-workspace"}
             onSendToChat={openChatWithContext}
             workspacePath={workspace.currentPath}
           />
@@ -1835,7 +1881,15 @@ export function App() {
   })();
 
   return (
-    <main className={`desktop-shell ${navCollapsed ? "nav-collapsed" : ""}`}>
+    <main
+      className={`desktop-shell ${navCollapsed ? "nav-collapsed" : ""}`}
+      style={
+        {
+          "--sidebar-width": `${sidebarWidth}px`,
+          "--utility-drawer-width": `${utilityDrawerWidth}px`,
+        } as CSSProperties
+      }
+    >
       <CommandPalette
         groups={commandGroups}
         isOpen={paletteOpen}
@@ -1903,6 +1957,14 @@ export function App() {
                 ×
               </button>
             </header>
+            <PanelResizeHandle
+              bounds={UTILITY_DRAWER_WIDTH}
+              className="utility-drawer-resizer"
+              direction="grow-left"
+              label="Resize tools and settings panel"
+              onResize={setUtilityDrawerWidth}
+              value={utilityDrawerWidth}
+            />
             <ActivityCenter
               active={backend.phase === "ready"}
               error={activityResource.error}
@@ -1979,6 +2041,16 @@ export function App() {
         onKeyDown={handleSidebarKeyDown}
         ref={sidebarRef}
       >
+        {!navCollapsed && !isMobileSidebarMode ? (
+          <PanelResizeHandle
+            bounds={APP_SIDEBAR_WIDTH}
+            className="app-sidebar-resizer"
+            direction="grow-right"
+            label="Resize project navigation"
+            onResize={setSidebarWidth}
+            value={sidebarWidth}
+          />
+        ) : null}
         <div className="app-brand">
           <div className="app-brand-mark" aria-hidden="true">
             <span>D</span>

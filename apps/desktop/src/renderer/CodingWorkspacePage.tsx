@@ -10,6 +10,7 @@ import {
 } from "react";
 import { ExecutionEnvironmentPanel } from "./components/ExecutionEnvironmentPanel";
 import { InteractiveTerminal } from "./components/InteractiveTerminal";
+import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import {
   asArray,
   asNumber,
@@ -22,6 +23,14 @@ import {
   LoadingBlock,
   useApiResource,
 } from "./lib";
+import {
+  CODE_EXPLORER_WIDTH,
+  CODE_EXPLORER_WIDTH_KEY,
+  CODE_UTILITY_WIDTH,
+  CODE_UTILITY_WIDTH_KEY,
+  loadPanelWidth,
+  savePanelWidth,
+} from "./panel-layout";
 import "./coding-workspace.css";
 
 interface RepositorySummary {
@@ -319,6 +328,12 @@ export function CodingWorkspacePage({
   const [zenMode, setZenMode] = useState(() =>
     loadBooleanPreference(ZEN_MODE_KEY, false),
   );
+  const [explorerWidth, setExplorerWidth] = useState(() =>
+    loadPanelWidth(localStorage, CODE_EXPLORER_WIDTH_KEY, CODE_EXPLORER_WIDTH),
+  );
+  const [utilityWidth, setUtilityWidth] = useState(() =>
+    loadPanelWidth(localStorage, CODE_UTILITY_WIDTH_KEY, CODE_UTILITY_WIDTH),
+  );
   const [leftPane, setLeftPane] = useState<LeftPane>("files");
   const [editorPane, setEditorPane] = useState<EditorPane>("file");
   const [utilityPane, setUtilityPane] = useState<UtilityPane>("terminal");
@@ -493,6 +508,24 @@ export function CodingWorkspacePage({
     localStorage.setItem(UTILITY_VISIBLE_KEY, String(utilityVisible));
     localStorage.setItem(ZEN_MODE_KEY, String(zenMode));
   }, [explorerVisible, utilityVisible, zenMode]);
+
+  useEffect(() => {
+    savePanelWidth(
+      localStorage,
+      CODE_EXPLORER_WIDTH_KEY,
+      explorerWidth,
+      CODE_EXPLORER_WIDTH,
+    );
+  }, [explorerWidth]);
+
+  useEffect(() => {
+    savePanelWidth(
+      localStorage,
+      CODE_UTILITY_WIDTH_KEY,
+      utilityWidth,
+      CODE_UTILITY_WIDTH,
+    );
+  }, [utilityWidth]);
 
   useEffect(() => {
     if (!active) return;
@@ -731,9 +764,23 @@ export function CodingWorkspacePage({
         className={`coding-grid ${
           explorerVisible ? "" : "explorer-hidden"
         } ${utilityVisible ? "" : "utility-hidden"}`.trim()}
+        style={
+          {
+            "--coding-explorer-width": `${explorerWidth}px`,
+            "--coding-utility-width": `${utilityWidth}px`,
+          } as CSSProperties
+        }
       >
         {explorerVisible ? (
           <aside className="coding-pane coding-explorer">
+            <PanelResizeHandle
+              bounds={CODE_EXPLORER_WIDTH}
+              className="coding-explorer-resizer"
+              direction="grow-right"
+              label="Resize code explorer"
+              onResize={setExplorerWidth}
+              value={explorerWidth}
+            />
             <PaneTabs<LeftPane>
               label="Explorer views"
               options={[
@@ -1089,6 +1136,14 @@ export function CodingWorkspacePage({
 
         {utilityVisible ? (
           <aside className="coding-pane coding-utility">
+            <PanelResizeHandle
+              bounds={CODE_UTILITY_WIDTH}
+              className="coding-utility-resizer"
+              direction="grow-left"
+              label="Resize code utility panel"
+              onResize={setUtilityWidth}
+              value={utilityWidth}
+            />
             <PaneTabs<UtilityPane>
               label="Workspace utilities"
               options={[

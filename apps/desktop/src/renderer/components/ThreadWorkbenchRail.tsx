@@ -1,7 +1,6 @@
 import {
   type CSSProperties,
   type KeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
   useRef,
@@ -25,10 +24,14 @@ import {
   clampThreadWorkbenchWidth,
   loadThreadWorkbenchState,
   saveThreadWorkbenchState,
+  THREAD_WORKBENCH_DEFAULT_WIDTH,
+  THREAD_WORKBENCH_MAX_WIDTH,
+  THREAD_WORKBENCH_MIN_WIDTH,
   THREAD_WORKBENCH_TABS,
   type ThreadWorkbenchState,
   type ThreadWorkbenchTab,
 } from "../thread-workbench";
+import { PanelResizeHandle } from "./PanelResizeHandle";
 import "../thread-workbench.css";
 
 export type ThreadWorkbenchFullView =
@@ -551,35 +554,6 @@ export function ThreadWorkbenchRail({
     onInsertContext(value);
     setCopiedLabel(label);
   };
-  const resizeStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = model.railWidth;
-    const onMove = (moveEvent: PointerEvent) => {
-      setModel((current) => ({
-        ...current,
-        railWidth: clampThreadWorkbenchWidth(
-          startWidth + startX - moveEvent.clientX,
-        ),
-      }));
-    };
-    const onEnd = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onEnd);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onEnd);
-  };
-  const resizeWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const delta =
-      event.key === "ArrowLeft" ? 16 : event.key === "ArrowRight" ? -16 : 0;
-    if (!delta) return;
-    event.preventDefault();
-    setModel((current) => ({
-      ...current,
-      railWidth: clampThreadWorkbenchWidth(current.railWidth + delta),
-    }));
-  };
   const navigateTabs = (
     event: KeyboardEvent<HTMLButtonElement>,
     index: number,
@@ -673,13 +647,22 @@ export function ThreadWorkbenchRail({
         { "--thread-workbench-width": `${model.railWidth}px` } as CSSProperties
       }
     >
-      <button
-        aria-label="Resize thread workbench"
+      <PanelResizeHandle
+        bounds={{
+          default: THREAD_WORKBENCH_DEFAULT_WIDTH,
+          min: THREAD_WORKBENCH_MIN_WIDTH,
+          max: THREAD_WORKBENCH_MAX_WIDTH,
+        }}
         className="thread-workbench-resizer"
-        onKeyDown={resizeWithKeyboard}
-        onPointerDown={resizeStart}
-        title={`Resize workbench. Current width ${model.railWidth} pixels.`}
-        type="button"
+        direction="grow-left"
+        label="Resize thread workbench"
+        onResize={(railWidth) =>
+          setModel((current) => ({
+            ...current,
+            railWidth: clampThreadWorkbenchWidth(railWidth),
+          }))
+        }
+        value={model.railWidth}
       />
 
       <header className="thread-workbench-header">
