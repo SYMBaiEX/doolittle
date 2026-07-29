@@ -24,7 +24,7 @@ import type {
   RepositoryMutationResult,
   RepositoryRemote,
   RepositoryStash,
-} from "@doolittle/contracts";
+} from "@doolittle/contracts/repository";
 import { runTextProcess } from "@/services/process-execution";
 import {
   type RepositoryReviewResult,

@@ -1,4 +1,4 @@
-import type { RepositoryMutationRequest } from "@doolittle/contracts";
+import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
 
