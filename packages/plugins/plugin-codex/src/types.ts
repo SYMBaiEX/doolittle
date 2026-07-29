@@ -44,4 +44,5 @@ export interface RuntimeModelSettings {
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
+  reasoningEffort?: string;
 }

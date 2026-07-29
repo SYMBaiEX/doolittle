@@ -22,6 +22,7 @@ export function getRuntimeModelSettings(runtime: IAgentRuntime | undefined): {
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
+  reasoningEffort?: string;
 } {
   try {
     const raw = runtime?.getSetting("runtimeSettings");
@@ -34,6 +35,7 @@ export function getRuntimeModelSettings(runtime: IAgentRuntime | undefined): {
         baseUrl?: string;
         temperature?: number;
         maxTokens?: number;
+        reasoningEffort?: string;
       };
     };
     return parsed.model ?? {};

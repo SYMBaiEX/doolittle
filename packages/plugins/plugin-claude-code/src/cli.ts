@@ -27,6 +27,7 @@ export async function invokeClaudeCodeCliPrint(params: {
   prompt: string;
   model: string;
   appendSystemPrompt?: string;
+  effort?: string;
 }): Promise<string> {
   const args = [
     "-p",
@@ -36,6 +37,10 @@ export async function invokeClaudeCodeCliPrint(params: {
     "--model",
     params.model,
   ];
+
+  if (params.effort?.trim()) {
+    args.push("--effort", params.effort.trim());
+  }
 
   if (params.appendSystemPrompt?.trim()) {
     args.push("--append-system-prompt", params.appendSystemPrompt.trim());

@@ -228,6 +228,7 @@ export interface SessionUsageSummary {
 export interface RuntimeStatus {
   provider: string;
   model: string;
+  reasoningEffort?: RuntimeReasoningEffort;
   startup?: unknown;
   plugins: Record<string, boolean>;
   native?: {
@@ -241,10 +242,32 @@ export interface RuntimeStatus {
   ownership?: Record<string, unknown>;
 }
 
+export type RuntimeReasoningEffort =
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max"
+  | "ultra";
+
+export interface RuntimeModelReasoningOption {
+  id: RuntimeReasoningEffort;
+  label: string;
+  description?: string;
+}
+
+export interface RuntimeModelReasoningCapability {
+  default?: RuntimeReasoningEffort;
+  options: RuntimeModelReasoningOption[];
+}
+
 export interface RuntimeModelOption {
   id: string;
   label: string;
   source: "configured" | "discovered";
+  reasoning?: RuntimeModelReasoningCapability;
 }
 
 export interface RuntimeModelProvider {
@@ -261,6 +284,7 @@ export interface RuntimeModelProvider {
 export interface RuntimeModelsResponse {
   activeProvider: string;
   activeModel: string;
+  activeReasoningEffort?: RuntimeReasoningEffort;
   refreshedAt: string;
   providers: RuntimeModelProvider[];
 }

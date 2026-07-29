@@ -22,6 +22,15 @@ export function buildBaseSettings(
   dependencies: BuildPluginSettingsDependencies,
 ): PluginSettings {
   const useCloudEmbeddings = shouldUseCloudEmbeddings(config, env);
+  const reasoningEffort = runtimeSettings.model.reasoningEffort;
+  const openAiReasoningEffort =
+    runtimeSettings.model.provider === "openai" &&
+    (reasoningEffort === "minimal" ||
+      reasoningEffort === "low" ||
+      reasoningEffort === "medium" ||
+      reasoningEffort === "high")
+      ? reasoningEffort
+      : undefined;
   return {
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),
@@ -55,6 +64,9 @@ export function buildBaseSettings(
     OPENAI_BASE_URL: config.openAiBaseUrl,
     OPENAI_SMALL_MODEL: runtimeSettings.model.model,
     OPENAI_LARGE_MODEL: runtimeSettings.model.model,
+    ...(openAiReasoningEffort
+      ? { OPENAI_REASONING_EFFORT: openAiReasoningEffort }
+      : {}),
     ANTHROPIC_SMALL_MODEL: config.anthropicSmallModel,
     ANTHROPIC_LARGE_MODEL: config.anthropicLargeModel,
     SECRET_SALT:

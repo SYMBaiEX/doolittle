@@ -17,6 +17,21 @@ import {
 } from "./runtime-settings";
 import type { ClaudeCodePluginOptions } from "./types";
 
+const CLAUDE_REASONING_EFFORTS = new Set([
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
+function resolveClaudeReasoningEffort(
+  value: string | undefined,
+): string | undefined {
+  const effort = value?.trim();
+  return effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : undefined;
+}
+
 function anthropicHeaders(accessToken: string): {
   Authorization: string;
   "Content-Type": string;
@@ -54,6 +69,7 @@ export async function runClaudeCodeTextGeneration(
   const accessToken = credentials?.accessToken?.trim();
   const runtimeModel = getRuntimeModelSettings(runtime);
   const model = runtimeModel.model || "claude-sonnet-4.6";
+  const effort = resolveClaudeReasoningEffort(runtimeModel.reasoningEffort);
   const promptText = resolveModelPromptText(params);
 
   if (!accessToken) {
@@ -68,6 +84,7 @@ export async function runClaudeCodeTextGeneration(
       prompt: promptText,
       model,
       appendSystemPrompt: withClaudeCodeSystemPrefix()[0]?.text,
+      ...(effort ? { effort } : {}),
     });
     return cliOutput || "No response returned.";
   }
@@ -77,6 +94,7 @@ export async function runClaudeCodeTextGeneration(
     model,
     max_tokens: params.maxTokens ?? runtimeModel.maxTokens ?? 1200,
     temperature: runtimeModel.temperature ?? 0.4,
+    ...(effort ? { output_config: { effort } } : {}),
     system: withClaudeCodeSystemPrefix(),
     messages: [
       {

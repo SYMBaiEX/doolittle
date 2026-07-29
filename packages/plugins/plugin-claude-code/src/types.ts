@@ -17,6 +17,7 @@ export interface ClaudeCodePluginOptions {
     prompt: string;
     model: string;
     appendSystemPrompt?: string;
+    effort?: string;
   }) => Promise<string>;
   getCredentials?: () =>
     | {

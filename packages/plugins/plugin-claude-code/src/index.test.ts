@@ -93,6 +93,72 @@ describe("createClaudeCodePlugin", () => {
       expect(
         JSON.parse(String(calls[0]?.init?.body)).system?.[0]?.text,
       ).toContain("You are Claude Code");
+      expect(JSON.parse(String(calls[0]?.init?.body))).not.toHaveProperty(
+        "output_config",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("sends Claude-native effort to direct API and CLI fallback paths", async () => {
+    const originalFetch = globalThis.fetch;
+    const bodies: unknown[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        JSON.stringify({ content: [{ type: "text", text: "ok" }] }),
+        {
+          status: 200,
+        },
+      );
+    }) as typeof fetch;
+
+    try {
+      const direct = createClaudeCodePlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "claude-code",
+          available: true,
+          reusable: true,
+          detail: "ready",
+        }),
+        getCredentials: () => ({ accessToken: "oauth-token" }),
+      });
+      await direct.models?.TEXT_LARGE?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: { provider: "claude-code", reasoningEffort: "high" },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      );
+      expect(bodies[0]).toMatchObject({ output_config: { effort: "high" } });
+
+      const cli = createClaudeCodePlugin({
+        enabled: true,
+        allowCliFallback: true,
+        getStatus: () => ({
+          provider: "claude-code",
+          available: true,
+          reusable: true,
+          detail: "ready",
+        }),
+        invokeCliPrint: async ({ effort }) => {
+          expect(effort).toBe("max");
+          return "ok";
+        },
+      });
+      await cli.models?.TEXT_LARGE?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: { provider: "claude-code", reasoningEffort: "max" },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -7,8 +7,10 @@ import {
   useState,
 } from "react";
 import type {
+  RuntimeModelOption,
   RuntimeModelProvider,
   RuntimeModelsResponse,
+  RuntimeReasoningEffort,
   RuntimeStatus,
 } from "../../shared/contracts";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
@@ -251,6 +253,32 @@ function filteredProviders(
     );
 }
 
+function resolvedReasoningEffort(
+  model: RuntimeModelOption,
+  activeEffort: string | undefined,
+): string | undefined {
+  if (!model.reasoning) return undefined;
+  return model.reasoning.options.some((option) => option.id === activeEffort)
+    ? activeEffort
+    : model.reasoning.default;
+}
+
+function formatReasoningEffort(value: string | undefined): string {
+  if (!value) return "Default";
+  return value === "none" ? "No reasoning" : value;
+}
+
+function compactReasoningEffort(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value === "medium"
+    ? "Med"
+    : value === "minimal"
+      ? "Min"
+      : value === "none"
+        ? "None"
+        : value;
+}
+
 export function ComposerModelSelector({
   active,
   onOpenModelsPage,
@@ -289,9 +317,21 @@ export function ComposerModelSelector({
     () => filteredProviders(models.data?.providers ?? [], query),
     [models.data?.providers, query],
   );
+  const activeEffort =
+    runtime?.provider === "codex" ||
+    runtime?.provider === "openai" ||
+    (runtime?.provider === "claude-code" &&
+      runtime.model !== "claude-haiku-4-5")
+      ? compactReasoningEffort(runtime.reasoningEffort)
+      : undefined;
 
-  const applyModel = async (provider: RuntimeModelProvider, model: string) => {
-    const key = `${provider.id}:${model}`;
+  const applyModel = async (
+    provider: RuntimeModelProvider,
+    model: RuntimeModelOption,
+    effort = model.reasoning?.default,
+  ) => {
+    const modelId = model.id;
+    const key = `${provider.id}:${modelId}`;
     setSaving(key);
     setFeedback("");
     try {
@@ -306,8 +346,9 @@ export function ComposerModelSelector({
       await desktopRequest("/settings", "POST", {
         changes: [
           { path: "model.provider", value: provider.id },
-          { path: "model.model", value: model },
+          { path: "model.model", value: modelId },
           { path: "model.baseUrl", value: baseUrl },
+          { path: "model.reasoningEffort", value: effort },
         ],
       });
       await Promise.resolve(refreshRuntime());
@@ -322,7 +363,7 @@ export function ComposerModelSelector({
   return (
     <div className="composer-model-selector" ref={rootRef}>
       <button
-        aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}.`}
+        aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}${activeEffort ? `, ${activeEffort} reasoning effort` : ""}.`}
         aria-expanded={open}
         aria-haspopup="dialog"
         className="composer-model-trigger"
@@ -332,7 +373,10 @@ export function ComposerModelSelector({
         title="Choose provider and model"
         type="button"
       >
-        <span>{runtime?.model ?? "Choose model"}</span>
+        <span>
+          {runtime?.model ?? "Choose model"}
+          {activeEffort ? ` · ${activeEffort}` : ""}
+        </span>
         <small>{runtime?.provider ?? "provider"}</small>
         <i aria-hidden="true">⌃</i>
       </button>
@@ -394,33 +438,65 @@ export function ComposerModelSelector({
                             runtime?.provider === provider.id &&
                             runtime.model === model.id;
                           const key = `${provider.id}:${model.id}`;
+                          const effort = resolvedReasoningEffort(
+                            model,
+                            selected
+                              ? models.data?.activeReasoningEffort
+                              : undefined,
+                          );
                           return (
-                            <button
+                            <div
                               aria-current={selected ? "true" : undefined}
-                              disabled={Boolean(saving)}
+                              className="composer-model-option"
                               key={model.id}
-                              onClick={() =>
-                                void applyModel(provider, model.id)
-                              }
-                              title={model.id}
-                              type="button"
                             >
-                              <span>
-                                <strong>{model.label}</strong>
-                                {model.label !== model.id ? (
-                                  <small>{model.id}</small>
-                                ) : null}
-                              </span>
-                              <i aria-hidden="true">
-                                {saving === key
-                                  ? "…"
-                                  : selected
-                                    ? "✓"
-                                    : model.source === "discovered"
-                                      ? "Live"
-                                      : ""}
-                              </i>
-                            </button>
+                              <button
+                                disabled={Boolean(saving)}
+                                onClick={() => void applyModel(provider, model)}
+                                title={model.id}
+                                type="button"
+                              >
+                                <span>
+                                  <strong>{model.label}</strong>
+                                  {model.label !== model.id ? (
+                                    <small>{model.id}</small>
+                                  ) : null}
+                                </span>
+                                <i aria-hidden="true">
+                                  {saving === key
+                                    ? "…"
+                                    : selected
+                                      ? "✓"
+                                      : model.source === "discovered"
+                                        ? "Live"
+                                        : ""}
+                                </i>
+                              </button>
+                              {model.reasoning ? (
+                                <label className="composer-model-effort">
+                                  <span>Effort</span>
+                                  <select
+                                    aria-label={`${model.label} reasoning effort`}
+                                    disabled={Boolean(saving)}
+                                    onChange={(event) =>
+                                      void applyModel(
+                                        provider,
+                                        model,
+                                        event.target
+                                          .value as RuntimeReasoningEffort,
+                                      )
+                                    }
+                                    value={effort ?? ""}
+                                  >
+                                    {model.reasoning.options.map((option) => (
+                                      <option key={option.id} value={option.id}>
+                                        {formatReasoningEffort(option.label)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null}
+                            </div>
                           );
                         })}
                         {!provider.models.length ? (

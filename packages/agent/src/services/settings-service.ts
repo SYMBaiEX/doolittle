@@ -78,8 +78,12 @@ export class SettingsService {
       const leaf = segments[0];
       current[leaf] = change.value;
     }
-    this.write(settings);
-    return settings;
+    const normalized = normalizeRuntimeSettings(
+      settings,
+      this.defaults,
+    ).settings;
+    this.write(normalized);
+    return normalized;
   }
 
   private write(settings: RuntimeSettings): void {

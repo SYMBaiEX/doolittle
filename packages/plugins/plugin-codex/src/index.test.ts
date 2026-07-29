@@ -112,6 +112,46 @@ describe("createCodexPlugin", () => {
     }
   });
 
+  it("sends the selected Codex reasoning effort including none", async () => {
+    const originalFetch = globalThis.fetch;
+    const bodies: unknown[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify({ output_text: "done" }), {
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    try {
+      const plugin = createCodexPlugin({
+        enabled: true,
+        getStatus: () => ({
+          provider: "codex",
+          available: true,
+          reusable: true,
+          detail: "ready",
+        }),
+        getCredentials: () => ({ accessToken: "codex-token" }),
+      });
+      const handler = plugin.models?.TEXT_LARGE;
+      const runtime = (reasoningEffort: string) =>
+        ({
+          getSetting: () =>
+            JSON.stringify({
+              model: { provider: "codex", reasoningEffort },
+            }),
+        }) as never;
+
+      await handler?.(runtime("high"), { prompt: "hello" } as never);
+      await handler?.(runtime("none"), { prompt: "hello" } as never);
+
+      expect(bodies[0]).toMatchObject({ reasoning: { effort: "high" } });
+      expect(bodies[1]).toMatchObject({ reasoning: { effort: "none" } });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("refreshes Codex credentials after an auth failure", async () => {
     const originalFetch = globalThis.fetch;
     let requestCount = 0;

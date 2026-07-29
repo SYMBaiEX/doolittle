@@ -122,4 +122,18 @@ describe("normalizeRuntimeSettings", () => {
     ]);
     expect(result.settings.execution.dockerEnvPassthrough).toEqual(["PATH"]);
   });
+
+  it("removes stale or malformed reasoning effort while preserving supported values", () => {
+    const parsed = createParsed();
+    parsed.model.reasoningEffort = "medium";
+    expect(
+      normalizeRuntimeSettings(parsed, createDefaults()).settings.model,
+    ).toMatchObject({ reasoningEffort: "medium" });
+
+    const malformed = createParsed();
+    malformed.model.reasoningEffort = "unbounded" as never;
+    const result = normalizeRuntimeSettings(malformed, createDefaults());
+    expect(result.dirty).toBe(true);
+    expect(result.settings.model.reasoningEffort).toBeUndefined();
+  });
 });

@@ -111,14 +111,26 @@ describe("SettingsService", () => {
       { path: "model.provider", value: "ollama" },
       { path: "model.model", value: "granite4.1:3b" },
       { path: "model.baseUrl", value: "http://127.0.0.1:11434" },
+      { path: "model.reasoningEffort", value: "medium" },
     ]);
 
     expect(updated.model).toMatchObject({
       provider: "ollama",
       model: "granite4.1:3b",
       baseUrl: "http://127.0.0.1:11434",
+      reasoningEffort: "medium",
     });
     const reloaded = new SettingsService(dir, makeDefaults());
     expect(reloaded.get().model).toEqual(updated.model);
+  });
+
+  test("does not persist unsupported reasoning effort values", () => {
+    const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
+    tempDirs.push(dir);
+    const service = new SettingsService(dir, makeDefaults());
+
+    const updated = service.set("model.reasoningEffort", "unbounded");
+
+    expect(updated.model.reasoningEffort).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import type {
   ParsedRuntimeSettings,
   RuntimeSettings,
 } from "@/services/settings/runtime-settings";
+import { RUNTIME_REASONING_EFFORTS } from "@/services/settings/runtime-settings";
 
 export interface RuntimeSettingsNormalizationResult {
   dirty: boolean;
@@ -182,6 +183,18 @@ export function normalizeRuntimeSettings(
 
   if (parsed.model.provider === "openai-compatible") {
     parsed.model.provider = "openai";
+    dirty = true;
+  }
+
+  const effort = parsed.model.reasoningEffort;
+  if (
+    effort !== undefined &&
+    (typeof effort !== "string" ||
+      !RUNTIME_REASONING_EFFORTS.includes(
+        effort as (typeof RUNTIME_REASONING_EFFORTS)[number],
+      ))
+  ) {
+    delete parsed.model.reasoningEffort;
     dirty = true;
   }
 

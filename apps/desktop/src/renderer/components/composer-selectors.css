@@ -353,10 +353,26 @@
   margin-left: 16px;
 }
 
-.composer-model-list > button {
+.composer-model-option {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px 3px 8px;
+  border-radius: 7px;
+}
+
+.composer-model-option:hover,
+.composer-model-option[aria-current="true"] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-hover));
+}
+
+.composer-model-option > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 30px;
   align-items: center;
   gap: 10px;
   padding: 5px 8px;
@@ -367,13 +383,7 @@
   text-align: left;
 }
 
-.composer-model-list > button:hover,
-.composer-model-list > button[aria-current="true"] {
-  color: var(--text);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface-hover));
-}
-
-.composer-model-list > button > span {
+.composer-model-option > button > span {
   display: grid;
   min-width: 0;
   gap: 1px;
@@ -397,13 +407,42 @@
   font-size: 8px;
 }
 
-.composer-model-list > button > i {
+.composer-model-option > button > i {
   min-width: 24px;
   color: var(--accent);
   font-size: 8px;
   font-style: normal;
   text-align: right;
   text-transform: uppercase;
+}
+
+.composer-model-effort {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.composer-model-effort select {
+  min-width: 68px;
+  height: 24px;
+  padding: 0 18px 0 6px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-transform: lowercase;
+}
+
+.composer-model-effort select:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 .composer-popover-state {

@@ -39,6 +39,9 @@ export async function handleRuntimeStatusRoutes(
     return json({
       provider: settings.model.provider,
       model: settings.model.model,
+      ...(settings.model.reasoningEffort
+        ? { reasoningEffort: settings.model.reasoningEffort }
+        : {}),
       startup: context.services.startupState.getSnapshot(),
       fallback: {
         offlineBootstrapMode: context.config.offlineBootstrapMode,

@@ -21,12 +21,16 @@ interface CodexRequestPayload {
   }>;
   stream: boolean;
   store: boolean;
+  reasoning?: {
+    effort: string;
+  };
 }
 
 function createCodexRequestPayload(
   params: GenerateTextParams,
-  runtimeModel: { model?: string },
+  runtimeModel: { model?: string; reasoningEffort?: string },
 ): CodexRequestPayload {
+  const effort = runtimeModel.reasoningEffort?.trim();
   return {
     model: runtimeModel.model || DEFAULT_CODEX_MODEL,
     instructions: DEFAULT_CODEX_INSTRUCTIONS,
@@ -43,6 +47,7 @@ function createCodexRequestPayload(
     ],
     stream: true,
     store: false,
+    ...(effort ? { reasoning: { effort } } : {}),
   };
 }
 

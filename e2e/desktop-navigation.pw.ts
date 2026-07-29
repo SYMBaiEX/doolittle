@@ -447,6 +447,14 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("button", { name: /Refresh models/ }),
       ).toBeVisible();
+      await page
+        .getByRole("textbox", { name: "Search models" })
+        .fill("GPT-5.6 Sol");
+      await expect(
+        page.getByRole("combobox", {
+          name: "GPT-5.6 Sol reasoning effort",
+        }),
+      ).toHaveValue("medium");
       const modelSelectorScreenshot = testInfo.outputPath(
         "doolittle-composer-model-selector.png",
       );

@@ -7,6 +7,19 @@ import type {
   ToolProgressMode,
 } from "@/types";
 
+export const RUNTIME_REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra",
+] as const;
+
+export type RuntimeReasoningEffort = (typeof RUNTIME_REASONING_EFFORTS)[number];
+
 export interface RuntimeSettings {
   model: {
     provider: string;
@@ -14,6 +27,7 @@ export interface RuntimeSettings {
     baseUrl: string;
     temperature: number;
     maxTokens: number;
+    reasoningEffort?: RuntimeReasoningEffort;
   };
   gateway: {
     sessionTimeoutMinutes: number;

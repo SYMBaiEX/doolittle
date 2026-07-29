@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/types";
-import { discoverModelProviders } from "./models";
+import { discoverModelProviders, parseCodexModelCache } from "./models";
 
 function config(overrides: Partial<EnvConfig> = {}): EnvConfig {
   return {
@@ -35,7 +35,7 @@ describe("runtime model discovery", () => {
       }
       if (url.includes("openai.com")) {
         return Response.json({
-          data: [{ id: "gpt-5.4" }, { id: "gpt-5.4-mini" }],
+          data: [{ id: "gpt-5.4" }, { id: "gpt-5.4-mini" }, { id: "gpt-4o" }],
         });
       }
       return new Response("not found", { status: 404 });
@@ -61,6 +61,15 @@ describe("runtime model discovery", () => {
     expect(
       providers.find((provider) => provider.id === "openai")?.discovery,
     ).toBe("live");
+    const openAiModels = providers.find(
+      (provider) => provider.id === "openai",
+    )?.models;
+    expect(
+      openAiModels?.find((model) => model.id === "gpt-5.4")?.reasoning,
+    ).toMatchObject({ default: "medium" });
+    expect(
+      openAiModels?.find((model) => model.id === "gpt-4o")?.reasoning,
+    ).toBeUndefined();
     expect(fetchImplementation).toHaveBeenCalledWith(
       "https://api.openai.com/v1/models",
       expect.objectContaining({
@@ -130,6 +139,53 @@ describe("runtime model discovery", () => {
         }),
       ]),
     );
+    const codexReasoning = codex?.models.find(
+      (model) => model.id === "gpt-5.6-sol",
+    )?.reasoning;
+    expect(codexReasoning?.options).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "low" }),
+        expect.objectContaining({ id: "max" }),
+      ]),
+    );
+    expect(codexReasoning?.default).toBeTruthy();
+    expect(
+      claude?.models.find((model) => model.id === "claude-sonnet-5")?.reasoning,
+    ).toMatchObject({ default: "high" });
+    expect(
+      claude?.models.find((model) => model.id === "claude-haiku-4-5")
+        ?.reasoning,
+    ).toBeUndefined();
+  });
+
+  it("preserves capability metadata from the linked Codex model cache", () => {
+    expect(
+      parseCodexModelCache({
+        models: [
+          {
+            slug: "gpt-5.6-sol",
+            display_name: "GPT-5.6 Sol",
+            default_reasoning_level: "high",
+            supported_reasoning_levels: [
+              { effort: "low", description: "Fast" },
+              { effort: "high", description: "Deep" },
+            ],
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: "gpt-5.6-sol",
+        label: "GPT-5.6 Sol",
+        reasoning: {
+          default: "high",
+          options: [
+            { id: "low", label: "low", description: "Fast" },
+            { id: "high", label: "high", description: "Deep" },
+          ],
+        },
+      },
+    ]);
   });
 
   it("uses Anthropic model-list headers without exposing credentials", async () => {

@@ -40,6 +40,7 @@ function createContext() {
           model: {
             provider: "local",
             model: "gpt-test",
+            reasoningEffort: "medium",
           },
         }),
       },
@@ -140,6 +141,7 @@ describe("handleRuntimeRoutes", () => {
     const body = (await response?.json()) as {
       provider: string;
       model: string;
+      reasoningEffort?: string;
       native: {
         ownership: {
           serviceResolution: Record<string, string>;
@@ -149,6 +151,7 @@ describe("handleRuntimeRoutes", () => {
 
     expect(body.provider).toBe("local");
     expect(body.model).toBe("gpt-test");
+    expect(body.reasoningEffort).toBe("medium");
     expect(body.native.ownership.serviceResolution).toEqual({
       browser: "plugin",
     });

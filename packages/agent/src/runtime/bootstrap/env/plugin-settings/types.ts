@@ -53,6 +53,7 @@ export interface PluginSettings {
   ELIZAOS_CLOUD_EMBEDDING_API_KEY?: string;
   ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS?: string;
   OPENAI_API_KEY?: string;
+  OPENAI_REASONING_EFFORT?: "minimal" | "low" | "medium" | "high";
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_BASE_URL?: string;
   FAL_API_KEY?: string;

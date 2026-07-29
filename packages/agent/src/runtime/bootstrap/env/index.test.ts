@@ -61,6 +61,7 @@ function makeRuntimeSettings() {
     model: {
       model: "gpt-5",
       provider: "openai",
+      reasoningEffort: "medium",
     },
   } as ReturnType<AppServices["settings"]["get"]>;
 }
@@ -192,6 +193,7 @@ describe("bootstrap environment", () => {
     expect(settings.OLLAMA_EMBEDDING_MODEL).toBe("nomic-embed-text:latest");
     expect(settings.ELIZAOS_CLOUD_EMBEDDING_MODEL).toBe("embed-cloud");
     expect(settings.OPENAI_API_KEY).toBe("openai-key");
+    expect(settings.OPENAI_REASONING_EFFORT).toBe("medium");
     expect(settings.ANTHROPIC_API_KEY).toBe("anthropic-key");
     expect(settings.ANTHROPIC_BASE_URL).toBe("https://anthropic.example");
     expect(settings.FAL_API_KEY).toBe("fal-key");
@@ -210,6 +212,23 @@ describe("bootstrap environment", () => {
     expect(settings.TELEGRAM_ALLOWED_CHATS).toBe("123,456");
 
     rmSync(root, { force: true, recursive: true });
+  });
+
+  it("does not pass non-OpenAI reasoning values to the official OpenAI plugin", () => {
+    const settings = buildPluginSettings(
+      { dataDir: tmpdir() } as EnvConfig,
+      { nativeRegistry: {} } as unknown as AppServices,
+      {
+        ...makeRuntimeSettings(),
+        model: {
+          model: "claude-sonnet-5",
+          provider: "claude-code",
+          reasoningEffort: "xhigh",
+        },
+      } as ReturnType<AppServices["settings"]["get"]>,
+    );
+
+    expect(settings.OPENAI_REASONING_EFFORT).toBeUndefined();
   });
 
   it("supports explicit dependency injection for linked credentials and ambient env", () => {

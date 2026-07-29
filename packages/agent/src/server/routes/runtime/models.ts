@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
+import type { RuntimeReasoningEffort } from "@/services/settings/runtime-settings";
 import type { EnvConfig } from "@/types";
 
 const MODEL_DISCOVERY_TIMEOUT_MS = 2_500;
@@ -12,12 +13,25 @@ type ModelSource = "configured" | "discovered";
 interface ModelCatalogEntry {
   id: string;
   label: string;
+  reasoning?: ModelReasoningCapability;
+}
+
+interface ModelReasoningOption {
+  id: RuntimeReasoningEffort;
+  label: string;
+  description?: string;
+}
+
+interface ModelReasoningCapability {
+  default?: RuntimeReasoningEffort;
+  options: ModelReasoningOption[];
 }
 
 interface DiscoveredModel {
   id: string;
   label: string;
   source: ModelSource;
+  reasoning?: ModelReasoningCapability;
 }
 
 interface ModelProvider {
@@ -32,14 +46,56 @@ interface ModelProvider {
 }
 
 interface ModelDiscoveryResult {
-  models: Array<{ id: string; label?: string }>;
+  models: Array<{
+    id: string;
+    label?: string;
+    reasoning?: ModelReasoningCapability;
+  }>;
   live: boolean;
 }
 
+const codexReasoning: ModelReasoningCapability = {
+  default: "medium",
+  options: (["none", "low", "medium", "high", "xhigh", "max"] as const).map(
+    (id) => ({ id, label: id === "none" ? "None" : id }),
+  ),
+};
+
+const claudeReasoning: ModelReasoningCapability = {
+  default: "high",
+  options: (["low", "medium", "high", "xhigh", "max"] as const).map((id) => ({
+    id,
+    label: id,
+  })),
+};
+
+const openAiReasoning: ModelReasoningCapability = {
+  default: "medium",
+  options: (["minimal", "low", "medium", "high"] as const).map((id) => ({
+    id,
+    label: id,
+  })),
+};
+
+function openAiReasoningForModel(
+  modelId: string,
+): ModelReasoningCapability | undefined {
+  const normalized = modelId.trim().toLowerCase();
+  return /^(?:gpt-5(?:[.-]|$)|o(?:1|3|4)(?:[.-]|$)|codex(?:[.-]|$))/.test(
+    normalized,
+  )
+    ? openAiReasoning
+    : undefined;
+}
+
 const CODEX_LINKED_MODELS: ModelCatalogEntry[] = [
-  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
-  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
-  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", reasoning: codexReasoning },
+  {
+    id: "gpt-5.6-terra",
+    label: "GPT-5.6 Terra",
+    reasoning: codexReasoning,
+  },
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna", reasoning: codexReasoning },
   { id: "gpt-5.5", label: "GPT-5.5" },
   { id: "gpt-5.4", label: "GPT-5.4" },
   { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
@@ -47,9 +103,21 @@ const CODEX_LINKED_MODELS: ModelCatalogEntry[] = [
 ];
 
 const CLAUDE_CODE_LINKED_MODELS: ModelCatalogEntry[] = [
-  { id: "claude-fable-5", label: "Claude Fable 5" },
-  { id: "claude-opus-5", label: "Claude Opus 5" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+  {
+    id: "claude-fable-5",
+    label: "Claude Fable 5",
+    reasoning: claudeReasoning,
+  },
+  {
+    id: "claude-opus-5",
+    label: "Claude Opus 5",
+    reasoning: claudeReasoning,
+  },
+  {
+    id: "claude-sonnet-5",
+    label: "Claude Sonnet 5",
+    reasoning: claudeReasoning,
+  },
   { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
 ];
 
@@ -71,6 +139,9 @@ export async function handleRuntimeModelRoutes(
   return json({
     activeProvider: settings.provider,
     activeModel: settings.model,
+    ...(settings.reasoningEffort
+      ? { activeReasoningEffort: settings.reasoningEffort }
+      : {}),
     refreshedAt: new Date().toISOString(),
     providers,
   });
@@ -99,7 +170,11 @@ export async function discoverModelProviders(
         ...linkedResult.models,
         ...providerResult.models,
       ];
-      const models = mergeModels(definition.models, newlyDiscovered);
+      const models = mergeModels(
+        definition.models,
+        newlyDiscovered,
+        definition.id === "openai" ? openAiReasoningForModel : undefined,
+      );
       return {
         ...definition,
         ready:
@@ -206,7 +281,15 @@ function providerDefinitions(
       detail: config.openAiApiKey?.trim()
         ? "The provider did not return a live model catalog."
         : "Add an OpenAI API key to discover available models.",
-      models: configuredModels(withActive("openai", [config.openAiModel])),
+      models: configuredModels(
+        withActive("openai", [
+          {
+            id: config.openAiModel,
+            label: config.openAiModel,
+            reasoning: openAiReasoningForModel(config.openAiModel),
+          },
+        ]),
+      ),
     },
     {
       id: "anthropic",
@@ -288,24 +371,89 @@ async function discoverLinkedProviderModels(
   }
 }
 
-function parseCodexModelCache(
-  value: unknown,
-): Array<{ id: string; label?: string }> {
+export function parseCodexModelCache(value: unknown): Array<{
+  id: string;
+  label?: string;
+  reasoning?: ModelReasoningCapability;
+}> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return [];
   const entries = (value as Record<string, unknown>).models;
   if (!Array.isArray(entries)) return [];
-  return entries.flatMap((entry): Array<{ id: string; label?: string }> => {
+  return entries.flatMap(
+    (
+      entry,
+    ): Array<{
+      id: string;
+      label?: string;
+      reasoning?: ModelReasoningCapability;
+    }> => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry))
+        return [];
+      const model = entry as Record<string, unknown>;
+      if (model.visibility === "hide") return [];
+      const id = typeof model.slug === "string" ? model.slug.trim() : "";
+      if (!id) return [];
+      const label =
+        typeof model.display_name === "string" && model.display_name.trim()
+          ? model.display_name.trim()
+          : undefined;
+      const reasoning = parseCodexReasoningCapability(model);
+      return [
+        {
+          id,
+          ...(label ? { label } : {}),
+          ...(reasoning ? { reasoning } : {}),
+        },
+      ];
+    },
+  );
+}
+
+function parseCodexReasoningCapability(
+  model: Record<string, unknown>,
+): ModelReasoningCapability | undefined {
+  const supported = model.supported_reasoning_levels;
+  if (!Array.isArray(supported)) return undefined;
+  const options = supported.flatMap((entry): ModelReasoningOption[] => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
-    const model = entry as Record<string, unknown>;
-    if (model.visibility === "hide") return [];
-    const id = typeof model.slug === "string" ? model.slug.trim() : "";
-    if (!id) return [];
-    const label =
-      typeof model.display_name === "string" && model.display_name.trim()
-        ? model.display_name.trim()
+    const record = entry as Record<string, unknown>;
+    const id = record.effort;
+    if (
+      typeof id !== "string" ||
+      ![
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra",
+      ].includes(id)
+    ) {
+      return [];
+    }
+    const description =
+      typeof record.description === "string" && record.description.trim()
+        ? record.description.trim()
         : undefined;
-    return [{ id, ...(label ? { label } : {}) }];
+    return [
+      {
+        id: id as RuntimeReasoningEffort,
+        label: id,
+        ...(description ? { description } : {}),
+      },
+    ];
   });
+  if (!options.length) return undefined;
+  const defaultEffort = model.default_reasoning_level;
+  return {
+    options,
+    ...(typeof defaultEffort === "string" &&
+    options.some((option) => option.id === defaultEffort)
+      ? { default: defaultEffort as RuntimeReasoningEffort }
+      : {}),
+  };
 }
 
 function modelListUrl(baseUrl: string): string | undefined {
@@ -361,10 +509,13 @@ function configuredModels(
     if (!id) continue;
     const existing = byId.get(id);
     if (existing) {
-      if (typeof value !== "string" && existing.label === existing.id) {
+      if (typeof value !== "string") {
         byId.set(id, {
           ...existing,
-          label: value.label.trim() || id,
+          ...(existing.label === existing.id
+            ? { label: value.label.trim() || id }
+            : {}),
+          ...(value.reasoning ? { reasoning: value.reasoning } : {}),
         });
       }
       continue;
@@ -374,6 +525,9 @@ function configuredModels(
       label:
         typeof value === "string" ? id : value.label.trim() || value.id.trim(),
       source: "configured",
+      ...(typeof value !== "string" && value.reasoning
+        ? { reasoning: value.reasoning }
+        : {}),
     });
   }
   return [...byId.values()];
@@ -381,15 +535,22 @@ function configuredModels(
 
 function mergeModels(
   configured: DiscoveredModel[],
-  discovered: Array<{ id: string; label?: string }>,
+  discovered: Array<{
+    id: string;
+    label?: string;
+    reasoning?: ModelReasoningCapability;
+  }>,
+  fallbackReasoning?: (modelId: string) => ModelReasoningCapability | undefined,
 ): DiscoveredModel[] {
   const byId = new Map<string, DiscoveredModel>();
   for (const model of configured) byId.set(model.id, model);
   for (const model of discovered) {
+    const reasoning = model.reasoning ?? fallbackReasoning?.(model.id);
     byId.set(model.id, {
       id: model.id,
       label: model.label || model.id,
       source: "discovered",
+      ...(reasoning ? { reasoning } : {}),
     });
   }
   return [...byId.values()].sort((left, right) =>
