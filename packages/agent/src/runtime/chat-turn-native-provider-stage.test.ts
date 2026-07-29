@@ -1,6 +1,8 @@
+import { ShortcutRegistry } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import {
+  hasProviderIndependentShortcut,
   type NativeProviderStageDependencies,
   runNativeProviderStage,
 } from "./chat-turn/native/provider-stage";
@@ -86,6 +88,7 @@ function createDependencies(
   readinessMessage?: string,
 ): NativeProviderStageDependencies {
   return {
+    hasProviderIndependentShortcut: vi.fn(() => false),
     getProviderReadinessMessage: vi.fn(async () => readinessMessage),
     handleReadyResponseTurn: vi.fn(
       async ({ readinessMessage: value }) => value,
@@ -112,6 +115,28 @@ function createDependencies(
 }
 
 describe("ElizaOS-native provider stage", () => {
+  it("detects registered explicit SDK shortcuts without custom command parsing", () => {
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register({
+      id: "status",
+      kind: "explicit",
+      aliases: ["/status"],
+      target: { kind: "action", name: "DOOLITTLE_COMMAND" },
+      requiresAction: "DOOLITTLE_COMMAND",
+    });
+    const runtime = {
+      actions: [{ name: "DOOLITTLE_COMMAND" }],
+      shortcutRegistry,
+    };
+
+    expect(hasProviderIndependentShortcut(runtime as never, "/status")).toBe(
+      true,
+    );
+    expect(
+      hasProviderIndependentShortcut(runtime as never, "show status"),
+    ).toBe(false);
+  });
+
   it("passes the unmodified user turn and configured budget to the SDK seam", async () => {
     const input = createInput();
     const dependencies = createDependencies();
@@ -138,5 +163,21 @@ describe("ElizaOS-native provider stage", () => {
     expect(result).toBe("Provider needs configuration.");
     expect(dependencies.runProviderModelTurn).not.toHaveBeenCalled();
     expect(dependencies.runPostProviderTurn).not.toHaveBeenCalled();
+  });
+
+  it("lets the SDK execute explicit shortcuts before provider readiness", async () => {
+    const dependencies = createDependencies("Provider needs configuration.");
+    vi.mocked(dependencies.hasProviderIndependentShortcut).mockReturnValue(
+      true,
+    );
+
+    const result = await runNativeProviderStage(createInput(), dependencies);
+
+    expect(result).toBe("SDK response");
+    expect(dependencies.getProviderReadinessMessage).not.toHaveBeenCalled();
+    expect(dependencies.handleReadyResponseTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ readinessMessage: undefined }),
+    );
+    expect(dependencies.runProviderModelTurn).toHaveBeenCalledTimes(1);
   });
 });
