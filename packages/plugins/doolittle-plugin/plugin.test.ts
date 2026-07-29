@@ -61,6 +61,7 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     );
     expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual([
       "doolittle-web-search-command",
+      "doolittle-research-command",
       "doolittle-command-catalog",
     ]);
   });
