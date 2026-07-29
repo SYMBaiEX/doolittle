@@ -1,5 +1,19 @@
+import type { RepositoryMutationRequest } from "@doolittle/contracts";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
+
+async function readMutationRequest(
+  request: Request,
+): Promise<RepositoryMutationRequest> {
+  const body: unknown = await request.json().catch(() => undefined);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("A repository mutation request object is required.");
+  }
+  if (!("type" in body) || typeof body.type !== "string") {
+    throw new Error("Repository mutation type is required.");
+  }
+  return body as RepositoryMutationRequest;
+}
 
 export async function handleRepositoryRoutes(
   context: AppContext,
@@ -54,6 +68,40 @@ export async function handleRepositoryRoutes(
     return json({
       worktrees: await context.services.repository.worktrees(),
     });
+  }
+
+  if (request.method === "GET" && url.pathname === "/repo/branches") {
+    return json({ branches: await context.services.repository.branches() });
+  }
+
+  if (request.method === "GET" && url.pathname === "/repo/remotes") {
+    return json({ remotes: await context.services.repository.remotes() });
+  }
+
+  if (request.method === "GET" && url.pathname === "/repo/stashes") {
+    return json({ stashes: await context.services.repository.stashes() });
+  }
+
+  if (request.method === "GET" && url.pathname === "/repo/conflicts") {
+    return json({ conflicts: await context.services.repository.conflicts() });
+  }
+
+  if (request.method === "POST" && url.pathname === "/repo/mutate") {
+    try {
+      const mutation = await readMutationRequest(request);
+      const result = await context.services.repository.mutate(mutation);
+      return json({ result }, result.ok ? 200 : 409);
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid repository mutation.",
+        },
+        400,
+      );
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/repo/worktrees/create") {

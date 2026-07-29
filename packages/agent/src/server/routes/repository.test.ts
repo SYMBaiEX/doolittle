@@ -49,6 +49,24 @@ function createContext(): AppContext {
         worktrees: async () => [
           { path: "/tmp/repo", branch: "main", detached: false },
         ],
+        branches: async () => [{ name: "main", current: true }],
+        remotes: async () => [
+          { name: "origin", fetchUrl: "https://example.com/repo.git" },
+        ],
+        stashes: async () => [
+          { reference: "stash@{0}", message: "WIP on main" },
+        ],
+        conflicts: async () => [
+          { path: "src/index.ts", stages: ["1", "2", "3"] },
+        ],
+        mutate: async (input: { type: string }) => ({
+          type: input.type,
+          ok: true,
+          summary: "Mutation complete",
+          stdout: "",
+          stderr: "",
+          exitCode: 0,
+        }),
         createWorktree: async (input: { branch: string; path: string }) => ({
           ...input,
           head: "abc123",
@@ -150,6 +168,60 @@ describe("handleRepositoryRoutes", () => {
     );
 
     expect(response).toBeNull();
+  });
+
+  it("returns repository control models and mutation receipts", async () => {
+    const context = createContext();
+    const [branches, remotes, stashes, conflicts] = await Promise.all(
+      ["branches", "remotes", "stashes", "conflicts"].map((resource) =>
+        handleRepositoryRoutes(
+          context,
+          new Request(`http://localhost/repo/${resource}`),
+          new URL(`http://localhost/repo/${resource}`),
+        ),
+      ),
+    );
+    const mutation = await handleRepositoryRoutes(
+      context,
+      new Request("http://localhost/repo/mutate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "stage", paths: ["src/index.ts"] }),
+      }),
+      new URL("http://localhost/repo/mutate"),
+    );
+
+    await expect(branches?.json()).resolves.toEqual({
+      branches: [{ name: "main", current: true }],
+    });
+    await expect(remotes?.json()).resolves.toMatchObject({
+      remotes: [{ name: "origin" }],
+    });
+    await expect(stashes?.json()).resolves.toMatchObject({
+      stashes: [{ reference: "stash@{0}" }],
+    });
+    await expect(conflicts?.json()).resolves.toMatchObject({
+      conflicts: [{ path: "src/index.ts" }],
+    });
+    await expect(mutation?.json()).resolves.toMatchObject({
+      result: { type: "stage", ok: true, exitCode: 0 },
+    });
+  });
+
+  it("returns a structured validation error for malformed repository mutations", async () => {
+    const response = await handleRepositoryRoutes(
+      createContext(),
+      new Request("http://localhost/repo/mutate", {
+        method: "POST",
+        body: JSON.stringify({ paths: ["src/index.ts"] }),
+      }),
+      new URL("http://localhost/repo/mutate"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Repository mutation type is required.",
+    });
   });
 
   it("creates a worktree only through the explicit create route", async () => {
