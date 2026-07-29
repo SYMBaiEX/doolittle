@@ -27,6 +27,28 @@ function parseResearchQuestion(text: string): string | undefined {
   return question.length > 0 ? question : undefined;
 }
 
+function resolveResearchQuestion(
+  message: Memory,
+  options: HandlerOptions | undefined,
+): string | undefined {
+  const parameters =
+    options?.parameters && typeof options.parameters === "object"
+      ? (options.parameters as Record<string, unknown>)
+      : undefined;
+  const parameterQuestion = parameters?.question;
+  if (typeof parameterQuestion === "string" && parameterQuestion.trim()) {
+    return parameterQuestion.trim();
+  }
+  const shortcutQuestion =
+    options && typeof options === "object"
+      ? (options as Record<string, unknown>).question
+      : undefined;
+  if (typeof shortcutQuestion === "string" && shortcutQuestion.trim()) {
+    return shortcutQuestion.trim();
+  }
+  return parseResearchQuestion(messageText(message));
+}
+
 function renderSources(annotations: ResearchAnnotation[]): string {
   const seen = new Set<string>();
   const lines: string[] = [];
@@ -56,18 +78,20 @@ export function createResearchAction(): Action {
     name: "DOOLITTLE_RESEARCH",
     similes: ["DEEP_RESEARCH", "RESEARCH_REPORT", "WEB_RESEARCH"],
     description:
-      "Runs the ElizaOS deep-research model (ModelType.RESEARCH, e.g. o3-deep-research) over a question with web search and returns a cited report. Triggered by `/research <question>`. Requires a registered RESEARCH model (OPENAI_API_KEY); deep research can take several minutes.",
-    validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      return parseResearchQuestion(messageText(message)) !== undefined;
-    },
+      "Runs the ElizaOS deep-research model (ModelType.RESEARCH, e.g. o3-deep-research) over a question with web search and returns a cited report. Use for detailed research requests that need sourced, current evidence. Requires a registered RESEARCH model; deep research can take several minutes.",
+    descriptionCompressed: "Run sourced deep research over a question.",
+    routingHint:
+      "detailed sourced research request -> DOOLITTLE_RESEARCH; quick current lookup -> WEB_SEARCH",
+    contexts: ["research", "browser"],
+    validate: async () => true,
     handler: async (
       runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
-      _options: HandlerOptions | undefined,
+      options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const question = parseResearchQuestion(messageText(message));
+      const question = resolveResearchQuestion(message, options);
       if (!question) {
         const usage = "Usage: /research <a detailed question>";
         await callback?.({ text: usage, source: "research-action" });
@@ -113,6 +137,14 @@ export function createResearchAction(): Action {
           },
         },
       ],
+    ],
+    parameters: [
+      {
+        name: "question",
+        description: "Detailed research question to investigate.",
+        required: true,
+        schema: { type: "string", minLength: 1 },
+      },
     ],
   };
 }

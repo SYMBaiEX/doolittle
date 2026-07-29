@@ -11,6 +11,21 @@ import {
 } from "./sdk-native-surface";
 
 describe("Eliza-native Doolittle surface", () => {
+  it("registers explicit web and deep-research shortcuts", () => {
+    expect(DOOLITTLE_SDK_SHORTCUTS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          aliases: ["/web", "!web"],
+          target: { kind: "action", name: "WEB_SEARCH" },
+        }),
+        expect.objectContaining({
+          aliases: ["/research"],
+          target: { kind: "action", name: "DOOLITTLE_RESEARCH" },
+        }),
+      ]),
+    );
+  });
+
   it("keeps natural-language action selection inside the Eliza planner", () => {
     const match = matchShortcut(
       DOOLITTLE_SDK_SHORTCUTS,

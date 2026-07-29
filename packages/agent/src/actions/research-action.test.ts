@@ -8,34 +8,34 @@ function message(text: string): Memory {
 
 function makeRuntime(opts: {
   hasModel: boolean;
-  research?: () => Promise<ResearchResult>;
+  research?: (params: unknown) => Promise<ResearchResult>;
 }): IAgentRuntime {
   return {
     getModel: () => (opts.hasModel ? () => Promise.resolve({}) : undefined),
-    useModel: (_modelType: unknown, _params: unknown) =>
+    useModel: (_modelType: unknown, params: unknown) =>
       (
         opts.research ??
         (async () => {
           throw new Error("no research model");
         })
-      )(),
+      )(params),
   } as unknown as IAgentRuntime;
 }
 
 const noModelRuntime = makeRuntime({ hasModel: false });
 
 describe("research action (ModelType.RESEARCH adoption)", () => {
-  it("validates only a /research command with a question", async () => {
+  it("lets the Eliza planner select research for natural-language turns", async () => {
     const action = createResearchAction();
     expect(
       await action.validate(noModelRuntime, message("/research RAG in 2026")),
     ).toBe(true);
     expect(await action.validate(noModelRuntime, message("/research"))).toBe(
-      false,
+      true,
     );
     expect(
       await action.validate(noModelRuntime, message("tell me about RAG")),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("responds gracefully when no RESEARCH model is registered", async () => {
@@ -103,6 +103,28 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
     expect(delivered).toContain("https://b.example/y");
     // de-duped by url -> exactly two source lines
     expect(delivered.match(/^- /gmu)?.length).toBe(2);
+  });
+
+  it("prefers planner-supplied structured parameters", async () => {
+    let observedInput = "";
+    const action = createResearchAction();
+    const runtime = makeRuntime({
+      hasModel: true,
+      research: async (params) => {
+        observedInput = (params as { input?: string }).input ?? "";
+        return { id: "resp_2", text: "Planner report." } as ResearchResult;
+      },
+    });
+
+    const result = await action.handler(
+      runtime,
+      message("Please investigate this topic."),
+      undefined,
+      { parameters: { question: "planner question" } },
+    );
+
+    expect(observedInput).toBe("planner question");
+    expect(result?.text).toBe("Planner report.");
   });
 
   it("reports a clear failure when the model throws", async () => {

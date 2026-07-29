@@ -189,4 +189,12 @@ export const DOOLITTLE_SDK_SHORTCUTS: ShortcutDefinition[] = [
     requiresAction: "WEB_SEARCH",
     priority: 100,
   },
+  {
+    id: "doolittle-research-command",
+    kind: "explicit",
+    aliases: ["/research"],
+    target: { kind: "action", name: "DOOLITTLE_RESEARCH" },
+    requiresAction: "DOOLITTLE_RESEARCH",
+    priority: 100,
+  },
 ];

@@ -9,6 +9,43 @@ import type {
 } from "@elizaos/core";
 import type { AppServices } from "@/services";
 
+function messageText(message: Memory): string {
+  return typeof message.content === "string"
+    ? message.content
+    : (message.content?.text ?? "");
+}
+
+function optionQuery(options: HandlerOptions | undefined): string | undefined {
+  const parameters =
+    options?.parameters && typeof options.parameters === "object"
+      ? (options.parameters as Record<string, unknown>)
+      : undefined;
+  const query = parameters?.query;
+  return typeof query === "string" && query.trim() ? query.trim() : undefined;
+}
+
+function explicitSearchQuery(message: Memory): string | undefined {
+  const text = messageText(message).trim();
+  if (!text.startsWith("/search ")) {
+    return undefined;
+  }
+  const query = text.slice("/search ".length).trim();
+  return query || undefined;
+}
+
+export function formatSessionSearchResults(
+  matches: ReturnType<AppServices["sessions"]["search"]>,
+): string {
+  return matches.length
+    ? matches
+        .map(
+          (match) =>
+            `- [${match.createdAt}] (${match.role}) session=${match.sessionId}: ${match.text}`,
+        )
+        .join("\n")
+    : "No prior session matches found.";
+}
+
 export function createSessionSearchAction(
   services: AppServices,
   limit: number,
@@ -17,14 +54,13 @@ export function createSessionSearchAction(
     name: "DOOLITTLE_SESSION_SEARCH",
     similes: ["SEARCH_SESSIONS", "LOOK_UP_HISTORY"],
     description:
-      "Searches persisted conversation history with `/search <query>`.",
-    validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text =
-        typeof message.content === "string"
-          ? message.content
-          : message.content?.text;
-      return Boolean(text?.trim().startsWith("/search "));
-    },
+      "Searches persisted conversation history for a user-supplied query. Use this when the user asks to find or recall information from prior sessions.",
+    descriptionCompressed: "Search persisted conversation history.",
+    routingHint:
+      "find or recall prior conversation content -> DOOLITTLE_SESSION_SEARCH",
+    contexts: ["memory"],
+    cacheStable: true,
+    validate: async () => true,
     handler: async (
       _runtime: IAgentRuntime,
       message: Memory,
@@ -32,23 +68,24 @@ export function createSessionSearchAction(
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text =
-        typeof message.content === "string"
-          ? message.content
-          : message.content?.text;
-      const query = text?.replace("/search", "").trim() ?? "";
+      const query = optionQuery(_options) ?? explicitSearchQuery(message);
+      if (!query) {
+        const usage =
+          "Tell me what to search for in prior conversations, or use `/search <query>`.";
+        await callback?.({ text: usage, source: "session-search-action" });
+        return { success: false, text: usage, userFacingText: usage };
+      }
       const matches = services.sessions.search(query, limit);
-      const response = matches.length
-        ? matches
-            .map(
-              (match) =>
-                `- [${match.createdAt}] (${match.role}) session=${match.sessionId}: ${match.text}`,
-            )
-            .join("\n")
-        : "No prior session matches found.";
+      const response = formatSessionSearchResults(matches);
 
       await callback?.({ text: response, source: "session-search-action" });
-      return { success: true, text: response };
+      return {
+        success: true,
+        text: response,
+        userFacingText: response,
+        verifiedUserFacing: true,
+        data: { query, matchCount: matches.length },
+      };
     },
     examples: [
       [
@@ -64,6 +101,14 @@ export function createSessionSearchAction(
           },
         },
       ],
+    ],
+    parameters: [
+      {
+        name: "query",
+        description: "Natural-language query to search in prior conversations.",
+        required: true,
+        schema: { type: "string", minLength: 1 },
+      },
     ],
   };
 }
