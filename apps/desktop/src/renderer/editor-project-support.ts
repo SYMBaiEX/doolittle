@@ -12,16 +12,12 @@ interface MonacoLanguageServiceDefaults {
   setEagerModelSync(value: boolean): void;
 }
 
-interface MonacoTypeScriptApi {
-  javascriptDefaults: MonacoLanguageServiceDefaults;
-  typescriptDefaults: MonacoLanguageServiceDefaults;
-}
-
-const monacoTypeScript = (
-  monaco.languages as unknown as {
-    typescript: MonacoTypeScriptApi;
-  }
-).typescript;
+const monacoTypeScript = {
+  javascriptDefaults: monaco.typescript
+    .javascriptDefaults as MonacoLanguageServiceDefaults,
+  typescriptDefaults: monaco.typescript
+    .typescriptDefaults as MonacoLanguageServiceDefaults,
+};
 
 type SupportFileRegistryEntry = {
   count: number;
@@ -79,7 +75,6 @@ function removeSupportFile(path: string): void {
 export function acquireMonacoProjectSupport(
   context: EditorProjectContextResult,
 ): () => void {
-  configureMonaco(context.compilerOptions);
   const files = context.supportFiles.map((file) => ({
     path: monaco.Uri.file(file.path).toString(),
     content: file.content,
@@ -87,6 +82,10 @@ export function acquireMonacoProjectSupport(
   for (const file of files) {
     addSupportFile(file.path, file.content);
   }
+  // Register declarations before changing compiler options. Monaco otherwise
+  // recomputes diagnostics while its worker is still receiving extra libs,
+  // which can leave stale "Cannot find module" markers until the next edit.
+  configureMonaco(context.compilerOptions);
   return () => {
     for (const file of files) {
       removeSupportFile(file.path);
