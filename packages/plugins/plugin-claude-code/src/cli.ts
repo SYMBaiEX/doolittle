@@ -37,6 +37,11 @@ export async function invokeClaudeCodeCliPrint(params: {
     "text",
     "--model",
     params.model,
+    // Eliza owns planning, tools, approvals, and lifecycle. The linked Claude
+    // CLI is an inference transport here, so prevent a second nested agent loop
+    // from interpreting Eliza's response-handler prompt as a tool task.
+    "--tools",
+    "",
   ];
 
   if (params.effort?.trim()) {

@@ -21,6 +21,11 @@ describe("invokeClaudeCodeCliPrint", () => {
         args: expect.arrayContaining(["--effort", "high"]),
       }),
     );
+    expect(runShell).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining(["--tools", ""]),
+      }),
+    );
   });
 
   it("does not mix successful CLI diagnostics into the model response", async () => {
