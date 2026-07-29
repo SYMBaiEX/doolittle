@@ -4,10 +4,12 @@ export const RuntimeToolingCommandCatalogEntries = [
   runtimeCommand(
     "/runtime plugins",
     "List native ElizaOS plugin inventory and source.",
+    ["/plugins"],
   ),
   runtimeCommand(
     "/runtime services",
     "Show native-vs-product service resolution across the stack.",
+    ["/services"],
   ),
   runtimeCommand(
     "/runtime ownership",

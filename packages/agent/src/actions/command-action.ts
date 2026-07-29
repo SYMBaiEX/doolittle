@@ -13,81 +13,6 @@ import type { EnvConfig } from "@/types/runtime";
 
 export const DOOLITTLE_COMMAND_ACTION = "DOOLITTLE_COMMAND";
 
-const RUNTIME_COMMAND_ROOTS = [
-  "/accounts",
-  "/acp",
-  "/agent",
-  "/approvals",
-  "/approve",
-  "/benchmarks",
-  "/browser",
-  "/codegen",
-  "/commands",
-  "/compress",
-  "/config",
-  "/context",
-  "/cron",
-  "/delegate",
-  "/deny",
-  "/doctor",
-  "/e2b",
-  "/ecosystem",
-  "/execution",
-  "/experience",
-  "/forms",
-  "/gateway",
-  "/github",
-  "/hooks",
-  "/insights",
-  "/mcp",
-  "/media",
-  "/memory",
-  "/migrate",
-  "/migration",
-  "/mode",
-  "/model",
-  "/modeling",
-  "/models",
-  "/now",
-  "/pairing",
-  "/pdf",
-  "/personality",
-  "/plans",
-  "/platforms",
-  "/plugins",
-  "/profiles",
-  "/progress",
-  "/pulse",
-  "/queue",
-  "/responses",
-  "/resume",
-  "/retry",
-  "/runtime",
-  "/search",
-  "/secrets",
-  "/services",
-  "/session",
-  "/sessions",
-  "/sethome",
-  "/setup",
-  "/skills",
-  "/status",
-  "/system",
-  "/terminal",
-  "/theme",
-  "/title",
-  "/todo",
-  "/tools",
-  "/trajectories",
-  "/transport",
-  "/undo",
-  "/update",
-  "/usage",
-  "/user",
-  "/voice",
-  "/workspace",
-] as const;
-
 function messageText(message: Memory): string {
   return typeof message.content === "string"
     ? message.content
@@ -102,7 +27,7 @@ function explicitAlias(command: string): string | undefined {
 }
 
 export function commandShortcutAliases(workspaceDir?: string): string[] {
-  const aliases = new Set<string>(RUNTIME_COMMAND_ROOTS);
+  const aliases = new Set<string>();
   for (const entry of getCommandCatalogEntries(workspaceDir)) {
     const candidates = [entry.command, ...(entry.aliases ?? [])];
     for (const candidate of candidates) {

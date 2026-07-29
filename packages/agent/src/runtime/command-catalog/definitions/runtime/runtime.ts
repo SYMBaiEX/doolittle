@@ -12,6 +12,7 @@ export const RuntimeCoreCommandCatalogEntries = [
   runtimeCommand(
     "/model list",
     "List available Doolittle provider routes and their default models.",
+    ["/models"],
   ),
   runtimeCommand(
     "/model use <ollama|devin|codex|claude-code|elizacloud> [model]",

@@ -41,6 +41,10 @@ describe("SDK command action", () => {
     const aliases = commandShortcutAliases(config.workspaceDir);
     expect(aliases).toContain("/commands");
     expect(aliases).toContain("/cron");
+    expect(aliases).toContain("/codegen");
+    expect(aliases).toContain("/session");
+    expect(aliases).toContain("/voice");
+    expect(aliases).toContain("/migration");
     expect(aliases).not.toContain("/web");
     expect(aliases.every((alias) => !alias.includes("<"))).toBe(true);
     expect(createCommandShortcut(config.workspaceDir)).toMatchObject({

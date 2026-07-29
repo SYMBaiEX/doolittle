@@ -3,10 +3,27 @@ import { getWorkflowCommandCatalogEntries } from "@/runtime/workflow-commands";
 import { COMMAND_CATALOG_DEFINITIONS } from "./definitions";
 import type { CommandCatalogEntry } from "./types";
 
+function commandRoot(command: string): string | undefined {
+  const trimmed = command.trim();
+  if (!trimmed.startsWith("/")) {
+    return undefined;
+  }
+  return trimmed.split(/\s+/u, 1)[0];
+}
+
 function canonicalizeEntry(entry: CommandCatalogEntry): CommandCatalogEntry {
+  const command = canonicalizeSlashCommandSyntax(entry.command);
+  const aliases = new Set(entry.aliases ?? []);
+  const rawRoot = commandRoot(entry.command);
+  const canonicalRoot = commandRoot(command);
+  if (rawRoot && rawRoot !== canonicalRoot) {
+    aliases.add(rawRoot);
+  }
+
   return {
     ...entry,
-    command: canonicalizeSlashCommandSyntax(entry.command),
+    command,
+    aliases: aliases.size ? [...aliases].sort() : undefined,
   };
 }
 
@@ -25,11 +42,8 @@ export function getCommandCatalogEntries(
   );
 
   for (const entry of getWorkflowCommandCatalogEntries(workspaceDir)) {
-    const canonical = canonicalizeSlashCommandSyntax(entry.command);
-    merged.set(canonical, {
-      ...entry,
-      command: canonical,
-    });
+    const canonicalEntry = canonicalizeEntry(entry);
+    merged.set(canonicalEntry.command, canonicalEntry);
   }
 
   return [...merged.values()];

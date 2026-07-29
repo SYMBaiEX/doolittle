@@ -16,4 +16,9 @@ export const MediaCommandCatalogEntries: CommandCatalogEntry[] = [
     category: "media",
     description: "Create an image concept artifact from a prompt.",
   },
+  {
+    command: "/pdf extract <path>",
+    category: "media",
+    description: "Extract readable text from a local PDF document.",
+  },
 ];

@@ -12,6 +12,7 @@ export const RuntimeAdminCommandCatalogEntries = [
   runtimeCommand(
     "/pulse",
     "Show a compact operator pulse with provider, run mode, session memory, and next controls.",
+    ["/now"],
   ),
   runtimeCommand("/status", "Show the top-level agent runtime status summary."),
   runtimeCommand("/doctor", "Run the operator diagnostics checklist."),
@@ -30,6 +31,14 @@ export const RuntimeAdminCommandCatalogEntries = [
   runtimeCommand(
     "/setup summary",
     "Show setup, provider, and native service readiness.",
+  ),
+  runtimeCommand(
+    "/config show",
+    "Show the effective runtime configuration with secrets redacted.",
+  ),
+  runtimeCommand(
+    "/system facts",
+    "Show the active system identity and runtime facts.",
   ),
   runtimeCommand(
     "/accounts",
