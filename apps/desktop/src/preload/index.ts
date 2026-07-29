@@ -12,6 +12,7 @@ import type {
   InteractiveTerminalInputRequest,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalStartRequest,
+  ProviderAuthProvider,
   RecordedAudioImportRequest,
   RepositoryWorktreeCreateRequest,
   TerminalStreamEvent,
@@ -71,6 +72,12 @@ const bridge: DoolittleDesktopBridge = {
   pickChatAttachments: () => ipcRenderer.invoke("dialog:pick-chat-attachments"),
   importRecordedAudio: (request: RecordedAudioImportRequest) =>
     ipcRenderer.invoke("chat:import-recorded-audio", request),
+  startProviderAuth: (provider: ProviderAuthProvider) =>
+    ipcRenderer.invoke("provider-auth:start", provider),
+  getProviderAuthState: (provider: ProviderAuthProvider) =>
+    ipcRenderer.invoke("provider-auth:state", provider),
+  cancelProviderAuth: (provider: ProviderAuthProvider) =>
+    ipcRenderer.invoke("provider-auth:cancel", provider),
   api: <T>(request: ApiRequest): Promise<T> =>
     ipcRenderer.invoke("api:request", request),
   runCommand: (request: DesktopCommandRequest) =>

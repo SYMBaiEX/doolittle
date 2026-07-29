@@ -313,6 +313,25 @@ export interface AccountsResponse {
   connect?: Record<string, unknown>;
 }
 
+export type ProviderAuthProvider = "codex" | "claude-code";
+
+export type ProviderAuthPhase =
+  | "idle"
+  | "launching"
+  | "waiting"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface ProviderAuthState {
+  provider: ProviderAuthProvider;
+  phase: ProviderAuthPhase;
+  message: string;
+  browserOpened: boolean;
+  startedAt?: string;
+  updatedAt: string;
+}
+
 export interface PersonalityResponse {
   profile?: Record<string, unknown>;
   summary?: Record<string, unknown>;
@@ -1194,6 +1213,13 @@ export interface DoolittleDesktopBridge {
   importRecordedAudio(
     request: RecordedAudioImportRequest,
   ): Promise<ManagedAttachmentDescriptor>;
+  startProviderAuth(provider: ProviderAuthProvider): Promise<ProviderAuthState>;
+  getProviderAuthState(
+    provider: ProviderAuthProvider,
+  ): Promise<ProviderAuthState>;
+  cancelProviderAuth(
+    provider: ProviderAuthProvider,
+  ): Promise<ProviderAuthState>;
   api<T>(request: ApiRequest): Promise<T>;
   runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
   startTerminalRun(request: TerminalStreamRequest): Promise<void>;

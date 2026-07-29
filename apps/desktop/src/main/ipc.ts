@@ -19,6 +19,7 @@ import type {
   InteractiveTerminalStartRequest,
   InteractiveTerminalStartResult,
   ProjectResourceSelection,
+  ProviderAuthProvider,
   RecordedAudioImportRequest,
   RepositoryWorktree,
   RepositoryWorktreeCreateRequest,
@@ -33,6 +34,7 @@ import { SseParser } from "../shared/sse";
 import type { BackendManager } from "./backend";
 import { resolveEditorProjectContext } from "./editor-project-context";
 import type { DesktopUpdateController } from "./update-state";
+import type { ProviderAuthController } from "./provider-auth";
 
 const API_ORIGIN = "http://desktop.local";
 const API_TIMEOUT_MS = 15_000;
@@ -75,6 +77,7 @@ export interface DesktopControlIpcDependencies {
   getLifecycleState: () => DesktopLifecycleState;
   setKeepRunningInBackground: (enabled: boolean) => DesktopLifecycleState;
   updates: DesktopUpdateController;
+  providerAuth?: ProviderAuthController;
 }
 
 export interface DesktopBackgroundNotification {
@@ -1541,6 +1544,12 @@ export function registerIpc(
       // successful agent or terminal result into a failed desktop request.
     }
   };
+  const validateProviderAuthProvider = (
+    provider: unknown,
+  ): ProviderAuthProvider => {
+    if (provider === "codex" || provider === "claude-code") return provider;
+    throw new Error("Provider sign in is only available for Codex and Claude.");
+  };
   const requestInteractiveTerminal = async (
     path:
       | "/terminal/session/start"
@@ -1925,6 +1934,39 @@ export function registerIpc(
     },
   );
   ipcMain.handle(
+    "provider-auth:start",
+    (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
+      if (!desktopControls?.providerAuth) {
+        throw new Error("Provider sign in is unavailable in this build.");
+      }
+      return desktopControls.providerAuth.start(
+        validateProviderAuthProvider(unsafeProvider),
+      );
+    },
+  );
+  ipcMain.handle(
+    "provider-auth:state",
+    (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
+      if (!desktopControls?.providerAuth) {
+        throw new Error("Provider sign in is unavailable in this build.");
+      }
+      return desktopControls.providerAuth.getState(
+        validateProviderAuthProvider(unsafeProvider),
+      );
+    },
+  );
+  ipcMain.handle(
+    "provider-auth:cancel",
+    (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
+      if (!desktopControls?.providerAuth) {
+        throw new Error("Provider sign in is unavailable in this build.");
+      }
+      return desktopControls.providerAuth.cancel(
+        validateProviderAuthProvider(unsafeProvider),
+      );
+    },
+  );
+  ipcMain.handle(
     "editor:project-context",
     (
       _event: IpcMainInvokeEvent,
@@ -2231,6 +2273,7 @@ export function registerIpc(
     unsubscribeBackend();
     unsubscribeWorkspace();
     disposeDesktopControls?.();
+    desktopControls?.providerAuth?.dispose();
     for (const active of activeChats.values()) {
       active.controller.abort();
     }
@@ -2255,6 +2298,9 @@ export function registerIpc(
     ipcMain.removeHandler("dialog:pick-project-folders");
     ipcMain.removeHandler("dialog:pick-chat-attachments");
     ipcMain.removeHandler("chat:import-recorded-audio");
+    ipcMain.removeHandler("provider-auth:start");
+    ipcMain.removeHandler("provider-auth:state");
+    ipcMain.removeHandler("provider-auth:cancel");
     ipcMain.removeHandler("terminal:run-confirmed");
     ipcMain.removeHandler("terminal:stream-start");
     ipcMain.removeHandler("terminal:stream-cancel");

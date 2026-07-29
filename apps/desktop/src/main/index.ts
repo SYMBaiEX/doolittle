@@ -23,6 +23,7 @@ import {
 import { handleWindowClose } from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
+import { ProviderAuthController } from "./provider-auth";
 import { importRecordedAudio } from "./recorded-audio-import";
 import {
   isTrustedRendererNavigation,
@@ -528,6 +529,9 @@ app.whenReady().then(async () => {
     workspaceState.getState().currentPath,
   );
   mainWindow = createWindow();
+  const providerAuth = new ProviderAuthController({
+    openExternal: (url) => shell.openExternal(url),
+  });
   installApplicationMenu();
   installTray();
   disposeIpc = registerIpc(
@@ -556,6 +560,7 @@ app.whenReady().then(async () => {
           keepRunningInBackground: false,
         },
       updates,
+      providerAuth,
     },
   );
   mainWindow.on("closed", () => {
