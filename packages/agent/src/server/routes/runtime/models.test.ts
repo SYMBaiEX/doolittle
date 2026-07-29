@@ -30,7 +30,10 @@ describe("runtime model discovery", () => {
       const url = String(input);
       if (url.includes("11434")) {
         return Response.json({
-          data: [{ id: "granite4.1:3b" }, { id: "qwen3:8b" }],
+          models: [
+            { name: "granite4.1:3b", model: "granite4.1:3b" },
+            { name: "qwen3:8b", model: "qwen3:8b" },
+          ],
         });
       }
       if (url.includes("openai.com")) {
@@ -54,6 +57,12 @@ describe("runtime model discovery", () => {
         ?.models.map((model) => model.id),
     ).toContain("qwen3:8b");
     expect(
+      providers.find((provider) => provider.id === "ollama"),
+    ).toMatchObject({
+      discovery: "live",
+      detail: "2 models discovered from the provider.",
+    });
+    expect(
       providers
         .find((provider) => provider.id === "openai")
         ?.models.map((model) => model.id),
@@ -70,6 +79,13 @@ describe("runtime model discovery", () => {
     expect(
       openAiModels?.find((model) => model.id === "gpt-4o")?.reasoning,
     ).toBeUndefined();
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      "http://127.0.0.1:11434/api/tags",
+      expect.objectContaining({
+        headers: expect.any(Headers),
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(fetchImplementation).toHaveBeenCalledWith(
       "https://api.openai.com/v1/models",
       expect.objectContaining({

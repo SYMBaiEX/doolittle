@@ -330,7 +330,7 @@ async function discoverProviderModels(
     return { models: [], live: false };
   }
 
-  const url = modelListUrl(baseUrl);
+  const url = modelListUrl(provider, baseUrl);
   if (!url) return { models: [], live: false };
   const headers = new Headers({ Accept: "application/json" });
   if (provider === "anthropic") {
@@ -456,13 +456,19 @@ function parseCodexReasoningCapability(
   };
 }
 
-function modelListUrl(baseUrl: string): string | undefined {
+function modelListUrl(provider: string, baseUrl: string): string | undefined {
   try {
     const url = new URL(baseUrl);
     const path = url.pathname.replace(/\/+$/u, "");
-    url.pathname = path.endsWith("/v1")
-      ? `${path}/models`
-      : `${path}/v1/models`;
+    if (provider === "ollama") {
+      const apiBoundary = path.match(/^(.*?)(?:\/api|\/v1)(?:\/.*)?$/u);
+      const prefix = apiBoundary?.[1] ?? path;
+      url.pathname = `${prefix}/api/tags`.replace(/\/{2,}/gu, "/");
+    } else {
+      url.pathname = path.endsWith("/v1")
+        ? `${path}/models`
+        : `${path}/v1/models`;
+    }
     url.search = "";
     url.hash = "";
     return url.toString();
