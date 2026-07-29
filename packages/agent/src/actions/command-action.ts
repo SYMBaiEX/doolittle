@@ -154,7 +154,13 @@ export function createCommandAction(
     similes: [],
     validate: async (runtime, message) =>
       matchesRegisteredCommandShortcut(runtime, messageText(message)),
-    handler: async (runtime, message): Promise<ActionResult> => {
+    handler: async (
+      runtime,
+      message,
+      _state,
+      _options,
+      callback,
+    ): Promise<ActionResult> => {
       const response = await executeSlashCommand(
         {
           message: messageText(message),
@@ -165,12 +171,15 @@ export function createCommandAction(
         { config, services, runtime },
       );
       if (!response) {
+        const text = "The explicit command was not recognized.";
+        await callback?.({ text, source: "doolittle-command" });
         return {
           success: false,
-          text: "The explicit command was not recognized.",
+          text,
           error: "COMMAND_NOT_FOUND",
         };
       }
+      await callback?.({ text: response, source: "doolittle-command" });
       return {
         success: true,
         text: response,

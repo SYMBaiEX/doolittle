@@ -1,7 +1,9 @@
 import {
   type IAgentRuntime,
   type Memory,
+  runShortcutGate,
   ShortcutRegistry,
+  type UUID,
 } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
@@ -63,11 +65,18 @@ describe("SDK command action", () => {
     await expect(
       action.validate(runtime, message("tell me the status")),
     ).resolves.toBe(false);
-    await expect(action.handler(runtime, input)).resolves.toMatchObject({
+    const callback = vi.fn(async () => []);
+    await expect(
+      action.handler(runtime, input, undefined, undefined, callback),
+    ).resolves.toMatchObject({
       success: true,
       text: "Runtime is ready.",
       userFacingText: "Runtime is ready.",
       verifiedUserFacing: true,
+    });
+    expect(callback).toHaveBeenCalledWith({
+      text: "Runtime is ready.",
+      source: "doolittle-command",
     });
     expect(executeSlashCommand).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -76,5 +85,36 @@ describe("SDK command action", () => {
       }),
       expect.objectContaining({ config, runtime }),
     );
+  });
+
+  it("resolves explicit commands through Eliza's pre-LLM shortcut gate", async () => {
+    const action = createCommandAction({} as AppServices, config);
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createCommandShortcut(config.workspaceDir));
+    const id = "00000000-0000-4000-8000-000000000001" as UUID;
+    const input = message("/status");
+    const runtime = {
+      actions: [action],
+      agentId: id,
+      shortcutRegistry,
+      logger: { warn: vi.fn(), debug: vi.fn() },
+      emitEvent: vi.fn(async () => undefined),
+    };
+
+    const result = await runShortcutGate({
+      runtime: runtime as never,
+      message: input,
+      state: {} as never,
+      responseId: id,
+      senderRole: "OWNER",
+    });
+
+    expect(result?.kind).toBe("direct_reply");
+    if (result?.kind !== "direct_reply") {
+      throw new Error(
+        "Expected the SDK shortcut gate to return a direct command reply.",
+      );
+    }
+    expect(result.result.responseContent?.text).toBe("Runtime is ready.");
   });
 });
