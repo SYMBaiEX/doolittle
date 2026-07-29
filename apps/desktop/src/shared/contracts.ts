@@ -1,3 +1,17 @@
+import type {
+  RepositoryMutationRequest,
+  RepositoryMutationResult,
+} from "@doolittle/contracts/repository";
+
+export type {
+  RepositoryBranch,
+  RepositoryConflict,
+  RepositoryMutationRequest,
+  RepositoryMutationResult,
+  RepositoryRemote,
+  RepositoryStash,
+} from "@doolittle/contracts/repository";
+
 export type BackendPhase = "booting" | "ready" | "degraded" | "stopped";
 
 export interface BackendState {
@@ -1198,6 +1212,15 @@ export type RepositoryWorktreeCreateResult =
       worktree: RepositoryWorktree;
     };
 
+export type RepositoryMutationDesktopResult =
+  | {
+      status: "cancelled";
+    }
+  | {
+      status: "completed";
+      result: RepositoryMutationResult;
+    };
+
 export interface DoolittleDesktopBridge {
   platform: "darwin" | "win32" | "linux";
   getBackendState(): Promise<BackendState>;
@@ -1265,6 +1288,9 @@ export interface DoolittleDesktopBridge {
   createWorktree(
     request: RepositoryWorktreeCreateRequest,
   ): Promise<RepositoryWorktreeCreateResult>;
+  mutateRepository(
+    request: RepositoryMutationRequest,
+  ): Promise<RepositoryMutationDesktopResult>;
   startChat(request: ChatRequest): Promise<void>;
   cancelChat(requestId: string): Promise<void>;
   onChatEvent(listener: (event: ChatEvent) => void): () => void;

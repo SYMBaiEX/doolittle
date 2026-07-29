@@ -14,6 +14,7 @@ import {
   validateInteractiveTerminalInputRequest,
   validateInteractiveTerminalResizeRequest,
   validateInteractiveTerminalStartRequest,
+  validateRepositoryMutationRequest,
   validateTerminalStreamRequest,
   validateWorkspaceFileSaveRequest,
   validateWorktreeCreateRequest,
@@ -941,6 +942,33 @@ describe("sensitive desktop actions", () => {
     ]) {
       expect(() => validateWorktreeCreateRequest(request)).toThrow();
     }
+
+    expect(
+      validateRepositoryMutationRequest({
+        type: "commit",
+        message: "  feat: native Git  ",
+        amend: true,
+      }),
+    ).toEqual({
+      type: "commit",
+      message: "feat: native Git",
+      amend: true,
+    });
+    expect(
+      validateRepositoryMutationRequest({
+        type: "stage",
+        paths: ["src/index.ts"],
+      }),
+    ).toEqual({ type: "stage", paths: ["src/index.ts"] });
+    for (const request of [
+      { type: "commit", message: " " },
+      { type: "stage", paths: ["../secret"] },
+      { type: "branch-switch", branch: "--detach" },
+      { type: "remote-add", name: "origin", url: "\0bad" },
+      { type: "not-a-git-operation" },
+    ]) {
+      expect(() => validateRepositoryMutationRequest(request)).toThrow();
+    }
   });
 
   it("does not fetch when native confirmation is cancelled", async () => {
@@ -981,6 +1009,10 @@ describe("sensitive desktop actions", () => {
           path: ".worktrees/cancelled",
         },
       ),
+    ).toEqual({ status: "cancelled" });
+    const mutationHandler = harness.handlers.get("repository:mutate-confirmed");
+    expect(
+      await mutationHandler?.({}, { type: "stage", paths: ["notes.txt"] }),
     ).toEqual({ status: "cancelled" });
     expect(fetches).toBe(0);
     harness.dispose();
@@ -1596,9 +1628,57 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
+  it("runs typed repository mutations through a dedicated confirmed channel", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async (input, init) => {
+        requests.push({ url: String(input), init });
+        return Response.json({
+          result: {
+            type: "stage",
+            ok: true,
+            summary: "Staged 1 path.",
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+          },
+        });
+      },
+    });
+
+    const handler = harness.handlers.get("repository:mutate-confirmed");
+    await expect(
+      handler?.({}, { type: "stage", paths: ["src/index.ts"] }),
+    ).resolves.toEqual({
+      status: "completed",
+      result: {
+        type: "stage",
+        ok: true,
+        summary: "Staged 1 path.",
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+      },
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe("http://127.0.0.1:4555/repo/mutate");
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      type: "stage",
+      paths: ["src/index.ts"],
+    });
+    expect(harness.confirmations[0]).toMatchObject({
+      kind: "repository-mutation",
+      title: "Confirm Git operation",
+      message: "stage: src/index.ts",
+    });
+    harness.dispose();
+  });
+
   it("keeps generic repository mutations denied", () => {
     expect(() => parseApiPath("/repo/worktrees/create", "POST")).toThrow(
       /not available/,
     );
+    expect(() => parseApiPath("/repo/mutate", "POST")).toThrow(/not available/);
   });
 });

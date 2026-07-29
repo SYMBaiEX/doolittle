@@ -14,6 +14,7 @@ import type {
   InteractiveTerminalStartRequest,
   ProviderAuthProvider,
   RecordedAudioImportRequest,
+  RepositoryMutationRequest,
   RepositoryWorktreeCreateRequest,
   TerminalStreamEvent,
   TerminalStreamRequest,
@@ -114,6 +115,8 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke("workspace:save-confirmed", request),
   createWorktree: (request: RepositoryWorktreeCreateRequest) =>
     ipcRenderer.invoke("repository:create-worktree-confirmed", request),
+  mutateRepository: (request: RepositoryMutationRequest) =>
+    ipcRenderer.invoke("repository:mutate-confirmed", request),
   startChat: (request: ChatRequest) =>
     ipcRenderer.invoke("chat:start", request),
   cancelChat: (requestId: string) =>

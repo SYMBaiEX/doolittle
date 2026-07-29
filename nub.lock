@@ -145,6 +145,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@doolittle/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@xterm/addon-fit':
         specifier: 0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)

@@ -21,6 +21,9 @@ import type {
   ProjectResourceSelection,
   ProviderAuthProvider,
   RecordedAudioImportRequest,
+  RepositoryMutationDesktopResult,
+  RepositoryMutationRequest,
+  RepositoryMutationResult,
   RepositoryWorktree,
   RepositoryWorktreeCreateRequest,
   RepositoryWorktreeCreateResult,
@@ -60,7 +63,12 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export interface SensitiveActionConfirmationRequest {
-  kind: "command" | "terminal-session" | "workspace-write" | "worktree-create";
+  kind:
+    | "command"
+    | "terminal-session"
+    | "workspace-write"
+    | "worktree-create"
+    | "repository-mutation";
   title: string;
   message: string;
   detail: string;
@@ -1348,6 +1356,270 @@ export function validateWorktreeCreateRequest(
   return { branch: value.branch, path };
 }
 
+const REPOSITORY_MUTATION_TYPES = new Set<RepositoryMutationRequest["type"]>([
+  "stage",
+  "unstage",
+  "stage-all",
+  "unstage-all",
+  "discard",
+  "discard-untracked",
+  "stage-hunk",
+  "unstage-hunk",
+  "discard-hunk",
+  "commit",
+  "fetch",
+  "pull",
+  "push",
+  "branch-create",
+  "branch-switch",
+  "branch-delete",
+  "stash-create",
+  "stash-apply",
+  "stash-pop",
+  "stash-drop",
+  "worktree-remove",
+  "worktree-prune",
+  "remote-add",
+  "remote-remove",
+  "remote-set-url",
+  "merge-abort",
+  "rebase-abort",
+  "conflict-mark-resolved",
+]);
+
+function validateGitToken(
+  value: unknown,
+  label: string,
+  maximumLength = 255,
+): string {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value !== value.trim() ||
+    value.length > maximumLength ||
+    value.startsWith("-") ||
+    hasControlCharacters(value)
+  ) {
+    throw new Error(`${label} is not valid.`);
+  }
+  return value;
+}
+
+function validateGitPaths(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 500) {
+    throw new Error("Repository operations require between 1 and 500 paths.");
+  }
+  const paths = value.map(validateSensitiveWorkspacePath);
+  if (new Set(paths).size !== paths.length) {
+    throw new Error("Repository operation paths must be unique.");
+  }
+  return paths;
+}
+
+function validateGitPatch(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    !value.trim() ||
+    value.length > 240_000 ||
+    value.includes("\0")
+  ) {
+    throw new Error("A bounded unified Git patch is required.");
+  }
+  return value;
+}
+
+export function validateRepositoryMutationRequest(
+  value: unknown,
+): RepositoryMutationRequest {
+  if (!isRecord(value) || !REPOSITORY_MUTATION_TYPES.has(value.type as never)) {
+    throw new Error("A supported repository operation is required.");
+  }
+  const type = value.type as RepositoryMutationRequest["type"];
+  switch (type) {
+    case "stage":
+    case "unstage":
+    case "discard":
+    case "discard-untracked":
+    case "conflict-mark-resolved":
+      return { type, paths: validateGitPaths(value.paths) };
+    case "stage-hunk":
+    case "unstage-hunk":
+    case "discard-hunk":
+      return { type, patch: validateGitPatch(value.patch) };
+    case "commit": {
+      if (
+        typeof value.message !== "string" ||
+        !value.message.trim() ||
+        value.message.length > 20_000 ||
+        value.message.includes("\0")
+      ) {
+        throw new Error("A commit message is required.");
+      }
+      return {
+        type,
+        message: value.message.trim(),
+        amend: value.amend === true,
+      };
+    }
+    case "fetch": {
+      const remote =
+        value.remote === undefined
+          ? undefined
+          : validateGitToken(value.remote, "Remote");
+      return remote ? { type, remote } : { type };
+    }
+    case "pull": {
+      const remote =
+        value.remote === undefined
+          ? undefined
+          : validateGitToken(value.remote, "Remote");
+      const branch =
+        value.branch === undefined
+          ? undefined
+          : validateGitToken(value.branch, "Branch");
+      return {
+        type,
+        ...(remote ? { remote } : {}),
+        ...(branch ? { branch } : {}),
+      };
+    }
+    case "push": {
+      const remote =
+        value.remote === undefined
+          ? undefined
+          : validateGitToken(value.remote, "Remote");
+      const branch =
+        value.branch === undefined
+          ? undefined
+          : validateGitToken(value.branch, "Branch");
+      return {
+        type,
+        ...(remote ? { remote } : {}),
+        ...(branch ? { branch } : {}),
+        setUpstream: value.setUpstream === true,
+      };
+    }
+    case "branch-create": {
+      const branch = validateGitToken(value.branch, "Branch");
+      const startPoint =
+        value.startPoint === undefined
+          ? undefined
+          : validateGitToken(value.startPoint, "Start point");
+      return {
+        type,
+        branch,
+        ...(startPoint ? { startPoint } : {}),
+        checkout: value.checkout === true,
+      };
+    }
+    case "branch-switch":
+      return { type, branch: validateGitToken(value.branch, "Branch") };
+    case "branch-delete":
+      return {
+        type,
+        branch: validateGitToken(value.branch, "Branch"),
+        force: value.force === true,
+      };
+    case "stash-create": {
+      const message =
+        value.message === undefined
+          ? undefined
+          : validateGitToken(value.message, "Stash message", 2_000);
+      return {
+        type,
+        ...(message ? { message } : {}),
+        includeUntracked: value.includeUntracked === true,
+      };
+    }
+    case "stash-apply":
+      return {
+        type,
+        reference: validateGitToken(value.reference, "Stash reference"),
+      };
+    case "stash-pop": {
+      const reference =
+        value.reference === undefined
+          ? undefined
+          : validateGitToken(value.reference, "Stash reference");
+      return reference ? { type, reference } : { type };
+    }
+    case "stash-drop":
+      return {
+        type,
+        reference: validateGitToken(value.reference, "Stash reference"),
+      };
+    case "worktree-remove":
+      return {
+        type,
+        path: validateGitToken(
+          value.path,
+          "Canonical worktree path",
+          MAX_WORKSPACE_PATH_LENGTH,
+        ),
+        force: value.force === true,
+      };
+    case "remote-add":
+    case "remote-set-url":
+      return {
+        type,
+        name: validateGitToken(value.name, "Remote"),
+        url: validateGitToken(value.url, "Remote URL", 2_048),
+      };
+    case "remote-remove":
+      return { type, name: validateGitToken(value.name, "Remote") };
+    case "stage-all":
+    case "unstage-all":
+    case "worktree-prune":
+    case "merge-abort":
+    case "rebase-abort":
+      return { type };
+  }
+}
+
+export function repositoryMutationConfirmation(
+  request: RepositoryMutationRequest,
+): Omit<SensitiveActionConfirmationRequest, "kind"> {
+  const target =
+    "paths" in request
+      ? request.paths.slice(0, 3).join(", ") +
+        (request.paths.length > 3
+          ? ` and ${request.paths.length - 3} more`
+          : "")
+      : "branch" in request
+        ? request.branch
+        : "reference" in request && request.reference
+          ? request.reference
+          : "name" in request
+            ? request.name
+            : request.type;
+  const destructive = new Set([
+    "discard",
+    "discard-untracked",
+    "discard-hunk",
+    "branch-delete",
+    "stash-drop",
+    "worktree-remove",
+    "merge-abort",
+    "rebase-abort",
+    "remote-remove",
+  ]).has(request.type);
+  const remote = ["fetch", "pull", "push"].includes(request.type);
+  return {
+    title: destructive
+      ? "Confirm destructive Git operation"
+      : remote
+        ? "Confirm remote Git operation"
+        : "Confirm Git operation",
+    message: `${request.type.replaceAll("-", " ")}: ${target}`,
+    detail: destructive
+      ? "This operation can remove or overwrite local repository state. Review the exact target before continuing."
+      : remote
+        ? "This operation contacts the configured Git remote and may change local or remote branch state."
+        : "Doolittle will run this typed Git operation in the selected repository.",
+    confirmLabel: destructive ? "Continue" : "Run operation",
+  };
+}
+
 export function apiResponseLimit(path: string): number {
   if (path.startsWith("/sessions/export?")) {
     return MAX_SESSION_ARCHIVE_RESPONSE_BYTES;
@@ -2096,6 +2368,61 @@ export function registerIpc(
     },
   );
   ipcMain.handle(
+    "repository:mutate-confirmed",
+    async (
+      _event: IpcMainInvokeEvent,
+      unsafeRequest: RepositoryMutationRequest,
+    ): Promise<RepositoryMutationDesktopResult> => {
+      const request = validateRepositoryMutationRequest(unsafeRequest);
+      const confirmed = await confirmSensitiveAction({
+        kind: "repository-mutation",
+        ...repositoryMutationConfirmation(request),
+      });
+      if (!confirmed) return { status: "cancelled" };
+
+      const state = backend.getState();
+      if (state.phase !== "ready" || !state.url) {
+        throw new Error("The local runtime is not ready.");
+      }
+      const response = await sensitiveFetch(`${state.url}/repo/mutate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(MAX_COMMAND_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Git operation failed: ${(await parseRequestError(response)).trim()}`,
+        );
+      }
+      const payload = await parseSuccessfulJson(response);
+      const result = isRecord(payload) ? payload.result : undefined;
+      if (
+        !isRecord(result) ||
+        result.type !== request.type ||
+        typeof result.ok !== "boolean" ||
+        typeof result.summary !== "string" ||
+        typeof result.stdout !== "string" ||
+        typeof result.stderr !== "string" ||
+        typeof result.exitCode !== "number"
+      ) {
+        throw new Error("The local runtime returned an invalid Git result.");
+      }
+      const validatedResult: RepositoryMutationResult = {
+        type: request.type,
+        ok: result.ok,
+        summary: result.summary,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+      };
+      if (typeof result.error === "string") {
+        validatedResult.error = result.error;
+      }
+      return { status: "completed", result: validatedResult };
+    },
+  );
+  ipcMain.handle(
     "api:request",
     async (_event: IpcMainInvokeEvent, request: ApiRequest) => {
       const method = request.method ?? "GET";
@@ -2325,6 +2652,7 @@ export function registerIpc(
     ipcMain.removeHandler("editor:project-context");
     ipcMain.removeHandler("workspace:save-confirmed");
     ipcMain.removeHandler("repository:create-worktree-confirmed");
+    ipcMain.removeHandler("repository:mutate-confirmed");
     ipcMain.removeHandler("api:request");
     ipcMain.removeHandler("chat:start");
     ipcMain.removeHandler("chat:cancel");
