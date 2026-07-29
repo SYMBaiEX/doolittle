@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createClaudeCodePlugin } from "./index";
 
 describe("createClaudeCodePlugin", () => {
@@ -346,6 +346,52 @@ describe("createClaudeCodePlugin", () => {
       { prompt: "hello" } as never,
     );
     expect(result).toBe("LINKED_PROVIDER_OK");
+  });
+
+  it("prefers Claude native structured output for Eliza response handling", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const plugin = createClaudeCodePlugin({
+      enabled: true,
+      allowCliFallback: true,
+      getStatus: () => ({
+        provider: "claude-code",
+        available: true,
+        reusable: true,
+        fallbackReady: true,
+        detail: "ready",
+      }),
+      getCredentials: () => ({ accessToken: "oauth-token" }),
+      invokeCliPrint: async ({ jsonSchema }) => {
+        expect(jsonSchema).toEqual(expect.objectContaining({ type: "object" }));
+        return '{"shouldRespond":"RESPOND","replyText":"CLAUDE_OK"}';
+      },
+    });
+
+    const result = await plugin.models?.RESPONSE_HANDLER?.(
+      {
+        getSetting: () =>
+          JSON.stringify({
+            model: {
+              provider: "claude-code",
+              model: "claude-sonnet-5",
+            },
+          }),
+      } as never,
+      {
+        messages: [{ role: "user", content: "Reply with CLAUDE_OK" }],
+        tools: [
+          {
+            name: "HANDLE_RESPONSE",
+            parameters: { type: "object", properties: {} },
+          },
+        ],
+        toolChoice: "required",
+      } as never,
+    );
+
+    expect(result).toBe('{"shouldRespond":"RESPOND","replyText":"CLAUDE_OK"}');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
   it("falls back to Claude CLI when expired OAuth cannot refresh", async () => {

@@ -130,6 +130,19 @@ export async function runClaudeCodeTextGeneration(
     }
   };
 
+  // Claude Code's CLI owns a native JSON-schema path that maps Eliza's
+  // single required response-handler tool into validated structured output.
+  // Prefer it over the raw OAuth endpoint for these lifecycle calls: the API
+  // response parser below intentionally handles text responses only.
+  if (options.allowCliFallback && requiredSingleTool?.parameters) {
+    try {
+      return await invokeCliFallback();
+    } catch {
+      // A linked token may still be usable when the CLI executable itself is
+      // unavailable, so continue into the direct OAuth transport.
+    }
+  }
+
   let credentials = options.getCredentials?.();
   if (
     (!credentials?.accessToken?.trim() || credentialsAreExpired(credentials)) &&
