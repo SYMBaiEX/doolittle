@@ -6,6 +6,7 @@ import {
 } from "./cli";
 import {
   CLAUDE_CODE_ANTHROPIC_VERSION,
+  CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT,
   COMMON_BETAS,
   DEFAULT_ANTHROPIC_BASE_URL,
   OAUTH_ONLY_BETAS,
@@ -92,6 +93,10 @@ export async function runClaudeCodeTextGeneration(
   const model = runtimeModel.model || "claude-sonnet-4.6";
   const effort = resolveClaudeReasoningEffort(runtimeModel.reasoningEffort);
   const promptText = resolveModelPromptText(params);
+  const requiredSingleTool =
+    params.toolChoice !== "none" && params.tools?.length === 1
+      ? params.tools[0]
+      : undefined;
   const invokeCliFallback = async (): Promise<string> => {
     const cliOutput = await (
       options.invokeCliPrint ?? invokeClaudeCodeCliPrint
@@ -101,8 +106,16 @@ export async function runClaudeCodeTextGeneration(
       // account. They also avoid coupling fallback execution to retired API
       // snapshot IDs retained in existing conversations.
       model: resolveClaudeCliModel(model),
-      appendSystemPrompt: withClaudeCodeSystemPrefix()[0]?.text,
+      systemPrompt: CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT,
       ...(effort ? { effort } : {}),
+      ...(requiredSingleTool?.parameters
+        ? {
+            jsonSchema: requiredSingleTool.parameters as Record<
+              string,
+              unknown
+            >,
+          }
+        : {}),
     });
     return cliOutput || "No response returned.";
   };

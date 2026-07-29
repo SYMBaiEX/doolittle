@@ -325,10 +325,10 @@ describe("createClaudeCodePlugin", () => {
         authMode: "claude.ai",
         detail: "ready",
       }),
-      invokeCliPrint: async ({ prompt, model, appendSystemPrompt }) => {
+      invokeCliPrint: async ({ prompt, model, systemPrompt }) => {
         expect(prompt).toBe("hello");
         expect(model).toBe("sonnet");
-        expect(appendSystemPrompt).toContain("You are Claude Code");
+        expect(systemPrompt).toContain("inference transport inside Doolittle");
         return "LINKED_PROVIDER_OK";
       },
     });

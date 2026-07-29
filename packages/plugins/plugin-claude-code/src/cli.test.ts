@@ -44,4 +44,46 @@ describe("invokeClaudeCodeCliPrint", () => {
       }),
     ).resolves.toBe("CLAUDE_OK");
   });
+
+  it("uses Claude native structured output and returns only the schema value", async () => {
+    vi.mocked(runShell).mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: JSON.stringify({
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        result: '{"replyText":"CLAUDE_OK"}',
+        structured_output: { replyText: "CLAUDE_OK" },
+      }),
+      stderr: "",
+      durationMs: 10,
+      sandbox: "host",
+    });
+
+    await expect(
+      invokeClaudeCodeCliPrint({
+        prompt: "hello",
+        model: "sonnet",
+        systemPrompt: "Act only as an inference transport.",
+        jsonSchema: {
+          type: "object",
+          properties: { replyText: { type: "string" } },
+          required: ["replyText"],
+        },
+      }),
+    ).resolves.toBe('{"replyText":"CLAUDE_OK"}');
+
+    expect(runShell).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining([
+          "--output-format",
+          "json",
+          "--json-schema",
+          expect.stringContaining('"replyText"'),
+          "--system-prompt",
+          "Act only as an inference transport.",
+        ]),
+      }),
+    );
+  });
 });

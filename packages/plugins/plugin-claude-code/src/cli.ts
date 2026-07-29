@@ -27,14 +27,16 @@ export function withClaudeCodeSystemPrefix(): Array<{
 export async function invokeClaudeCodeCliPrint(params: {
   prompt: string;
   model: string;
-  appendSystemPrompt?: string;
+  systemPrompt?: string;
   effort?: string;
+  jsonSchema?: Record<string, unknown>;
 }): Promise<string> {
+  const usesStructuredOutput = params.jsonSchema !== undefined;
   const args = [
     "-p",
     params.prompt,
     "--output-format",
-    "text",
+    usesStructuredOutput ? "json" : "text",
     "--model",
     params.model,
     // Eliza owns planning, tools, approvals, and lifecycle. The linked Claude
@@ -44,12 +46,16 @@ export async function invokeClaudeCodeCliPrint(params: {
     "",
   ];
 
+  if (params.jsonSchema) {
+    args.push("--json-schema", JSON.stringify(params.jsonSchema));
+  }
+
   if (params.effort?.trim()) {
     args.push("--effort", params.effort.trim());
   }
 
-  if (params.appendSystemPrompt?.trim()) {
-    args.push("--append-system-prompt", params.appendSystemPrompt.trim());
+  if (params.systemPrompt?.trim()) {
+    args.push("--system-prompt", params.systemPrompt.trim());
   }
 
   const result = await runShell({
@@ -82,5 +88,32 @@ export async function invokeClaudeCodeCliPrint(params: {
       "Claude Code CLI completed with diagnostics",
     );
   }
-  return result.stdout.trim();
+
+  const stdout = result.stdout.trim();
+  if (!usesStructuredOutput) {
+    return stdout;
+  }
+
+  try {
+    const payload = JSON.parse(stdout) as {
+      is_error?: boolean;
+      result?: string;
+      structured_output?: unknown;
+    };
+    if (payload.is_error) {
+      throw new Error(payload.result || "Claude Code returned an error.");
+    }
+    if (payload.structured_output !== undefined) {
+      return JSON.stringify(payload.structured_output);
+    }
+    return payload.result?.trim() || "";
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      logger.error(
+        { detail: stdout.slice(0, 2_000) },
+        "Claude Code CLI returned invalid structured output",
+      );
+    }
+    throw error;
+  }
 }

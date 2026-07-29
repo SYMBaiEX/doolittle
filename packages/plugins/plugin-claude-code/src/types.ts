@@ -16,8 +16,9 @@ export interface ClaudeCodePluginOptions {
   invokeCliPrint?: (params: {
     prompt: string;
     model: string;
-    appendSystemPrompt?: string;
+    systemPrompt?: string;
     effort?: string;
+    jsonSchema?: Record<string, unknown>;
   }) => Promise<string>;
   getCredentials?: () =>
     | {
