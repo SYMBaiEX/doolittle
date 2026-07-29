@@ -1,4 +1,5 @@
 import { runShell } from "@elizaos/agent/services/shell-execution-router";
+import { logger } from "@elizaos/core";
 import {
   CLAUDE_CODE_SYSTEM_PREFIX,
   CLAUDE_CODE_VERSION_FALLBACK,
@@ -58,10 +59,23 @@ export async function invokeClaudeCodeCliPrint(params: {
       .filter(Boolean)
       .join("\n")
       .trim();
+    logger.error(
+      {
+        exitCode: result.exitCode,
+        detail: detail || "Unknown error",
+      },
+      "Claude Code CLI invocation failed",
+    );
     throw new Error(
       `Claude Code CLI invocation failed (${result.exitCode}): ${detail || "Unknown error"}`,
     );
   }
 
-  return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+  if (result.stderr.trim()) {
+    logger.warn(
+      { detail: result.stderr.trim() },
+      "Claude Code CLI completed with diagnostics",
+    );
+  }
+  return result.stdout.trim();
 }

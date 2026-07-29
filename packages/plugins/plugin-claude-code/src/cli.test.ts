@@ -22,4 +22,21 @@ describe("invokeClaudeCodeCliPrint", () => {
       }),
     );
   });
+
+  it("does not mix successful CLI diagnostics into the model response", async () => {
+    vi.mocked(runShell).mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: "CLAUDE_OK\n",
+      stderr: "SessionEnd hook emitted a diagnostic\n",
+      durationMs: 10,
+      sandbox: "host",
+    });
+
+    await expect(
+      invokeClaudeCodeCliPrint({
+        prompt: "hello",
+        model: "sonnet",
+      }),
+    ).resolves.toBe("CLAUDE_OK");
+  });
 });
