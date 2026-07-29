@@ -129,7 +129,8 @@
 }
 
 .composer-popover-search:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
+  border-color: color-mix(in srgb, var(--text) 20%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .composer-popover-search input {
