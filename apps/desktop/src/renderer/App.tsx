@@ -274,7 +274,7 @@ const navigation: Array<{
     label: "Agent",
     items: [
       { id: "models", label: "Models" },
-      { id: "connections", label: "Connections" },
+      { id: "connections", label: "Providers" },
       { id: "tools", label: "Tools" },
       { id: "skills", label: "Skills" },
       { id: "plugins", label: "Plugins" },
@@ -313,7 +313,7 @@ const VIEW_DESCRIPTIONS: Record<View, string> = {
   analytics: "Understand local usage and activity",
   media: "Analyze, transcribe, speak, and generate",
   models: "Choose models and inference providers",
-  connections: "Connect provider accounts",
+  connections: "Sign in and connect provider accounts",
   tools: "Inspect callable tools",
   skills: "Browse installed agent skills",
   plugins: "Inspect the ElizaOS plugin runtime",

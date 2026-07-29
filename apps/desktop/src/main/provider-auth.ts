@@ -1,7 +1,7 @@
 import {
   type ChildProcess,
-  type SpawnOptions,
   spawn as nodeSpawn,
+  type SpawnOptions,
 } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -94,9 +94,9 @@ export function providerAuthExecutableCandidates(
     resolve(homeDirectory, ".local", "bin", command),
     resolve(homeDirectory, ".npm-global", "bin", command),
     resolve(homeDirectory, ".bun", "bin", command),
-    "/opt/homebrew/bin/" + command,
-    "/usr/local/bin/" + command,
-    "/usr/bin/" + command,
+    `/opt/homebrew/bin/${command}`,
+    `/usr/local/bin/${command}`,
+    `/usr/bin/${command}`,
   ];
 }
 

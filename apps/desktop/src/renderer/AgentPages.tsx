@@ -1,5 +1,16 @@
-import { type FormEvent, type KeyboardEvent, useState } from "react";
-import type { RuntimeStatus } from "../shared/contracts";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type {
+  ProviderAuthProvider,
+  ProviderAuthState,
+  RuntimeStatus,
+} from "../shared/contracts";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { McpControlPanel } from "./components/McpControlPanel";
 import { SkillWorkshopPanel } from "./components/SkillWorkshopPanel";
@@ -40,10 +51,30 @@ interface AccountsResponse {
 }
 
 const accountProviders = [
-  { key: "elizacloud", snapshot: "elizaCloud", label: "Eliza Cloud" },
-  { key: "codex", snapshot: "codex", label: "Codex" },
-  { key: "claude-code", snapshot: "claudeCode", label: "Claude Code" },
-  { key: "devin", snapshot: "devin", label: "Devin" },
+  {
+    key: "elizacloud",
+    snapshot: "elizaCloud",
+    label: "Eliza Cloud",
+    accountSignIn: false,
+  },
+  {
+    key: "codex",
+    snapshot: "codex",
+    label: "Codex",
+    accountSignIn: true,
+  },
+  {
+    key: "claude-code",
+    snapshot: "claudeCode",
+    label: "Claude Code",
+    accountSignIn: true,
+  },
+  {
+    key: "devin",
+    snapshot: "devin",
+    label: "Devin",
+    accountSignIn: false,
+  },
 ] as const;
 
 export function ModelsPage({
@@ -287,6 +318,111 @@ export function ConnectionsPage({ active }: { active: boolean }) {
   );
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [authStates, setAuthStates] = useState<
+    Partial<Record<ProviderAuthProvider, ProviderAuthState>>
+  >({});
+  const completedAuth = useRef(new Set<ProviderAuthProvider>());
+
+  const setAuthState = useCallback((state: ProviderAuthState) => {
+    setAuthStates((current) => ({ ...current, [state.provider]: state }));
+  }, []);
+
+  const finishAccountSignIn = useCallback(
+    async (provider: ProviderAuthProvider) => {
+      if (completedAuth.current.has(provider)) return;
+      completedAuth.current.add(provider);
+      setBusy(`${provider}:finish-sign-in`);
+      try {
+        await desktopRequest("/accounts/refresh", "POST", { provider });
+        const result = await desktopRequest<Record<string, unknown>>(
+          "/accounts/connect",
+          "POST",
+          { provider },
+        );
+        setFeedback(
+          asString(result.detail) ||
+            `${titleCase(provider)} is signed in and ready to use.`,
+        );
+        resource.reload();
+      } catch (error) {
+        completedAuth.current.delete(provider);
+        setFeedback(errorMessage(error));
+      } finally {
+        setBusy("");
+      }
+    },
+    [resource.reload],
+  );
+
+  useEffect(() => {
+    if (!active) return;
+    let mounted = true;
+    void Promise.all(
+      (["codex", "claude-code"] as const).map((provider) =>
+        window.doolittle.getProviderAuthState(provider),
+      ),
+    )
+      .then((states) => {
+        if (!mounted) return;
+        setAuthStates(
+          Object.fromEntries(states.map((state) => [state.provider, state])),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    const pending = (["codex", "claude-code"] as const).filter((provider) => {
+      const phase = authStates[provider]?.phase;
+      return phase === "launching" || phase === "waiting";
+    });
+    if (pending.length === 0) return;
+
+    const interval = window.setInterval(() => {
+      for (const provider of pending) {
+        void window.doolittle
+          .getProviderAuthState(provider)
+          .then((state) => {
+            setAuthState(state);
+            if (state.phase === "succeeded") {
+              void finishAccountSignIn(provider);
+            }
+          })
+          .catch((error) => setFeedback(errorMessage(error)));
+      }
+    }, 1_000);
+    return () => window.clearInterval(interval);
+  }, [active, authStates, finishAccountSignIn, setAuthState]);
+
+  const startAccountSignIn = async (provider: ProviderAuthProvider) => {
+    completedAuth.current.delete(provider);
+    setBusy(`${provider}:sign-in`);
+    setFeedback("");
+    try {
+      const state = await window.doolittle.startProviderAuth(provider);
+      setAuthState(state);
+      if (state.phase === "failed") setFeedback(state.message);
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const cancelAccountSignIn = async (provider: ProviderAuthProvider) => {
+    setBusy(`${provider}:cancel-sign-in`);
+    try {
+      setAuthState(await window.doolittle.cancelProviderAuth(provider));
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
 
   const mutate = async (
     provider: string,
@@ -317,8 +453,8 @@ export function ConnectionsPage({ active }: { active: boolean }) {
     <div className="page">
       <PageHeader
         eyebrow="Agent"
-        title="Connections"
-        description="Reuse provider accounts already authenticated on this computer without exposing their credentials to the renderer."
+        title="Providers"
+        description="Sign in with your Codex or Claude subscription, then choose the provider for new work. API credentials remain an optional fallback."
         actions={
           <button
             className="secondary-button"
@@ -351,6 +487,15 @@ export function ConnectionsPage({ active }: { active: boolean }) {
               Boolean(status.reusable);
             const activeProvider =
               resource.data?.activeProvider === provider.key;
+            const authProvider = provider.accountSignIn
+              ? (provider.key as ProviderAuthProvider)
+              : null;
+            const authState = authProvider
+              ? authStates[authProvider]
+              : undefined;
+            const signingIn =
+              authState?.phase === "launching" ||
+              authState?.phase === "waiting";
             return (
               <article
                 className="content-card provider-card"
@@ -372,6 +517,32 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                 <p>
                   {asString(status.detail, "No account details available.")}
                 </p>
+                {authProvider ? (
+                  <div
+                    className={`provider-auth-state ${
+                      signingIn ? "is-pending" : ""
+                    }`}
+                    aria-live="polite"
+                  >
+                    <span className="provider-auth-mark" aria-hidden="true" />
+                    <div className="provider-auth-copy">
+                      <strong>
+                        {signingIn
+                          ? "Browser sign in"
+                          : ready
+                            ? "Account connected"
+                            : "Account sign in"}
+                      </strong>
+                      <small>
+                        {signingIn
+                          ? authState?.message
+                          : ready
+                            ? `Authenticated through the official ${provider.label} client.`
+                            : `Use your ${provider.label} subscription. API keys are optional.`}
+                      </small>
+                    </div>
+                  </div>
+                ) : null}
                 <dl className="fact-list">
                   <div>
                     <dt>Source</dt>
@@ -387,7 +558,16 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                   </div>
                 </dl>
                 <div className="button-row">
-                  {ready ? (
+                  {signingIn && authProvider ? (
+                    <button
+                      className="secondary-button"
+                      onClick={() => void cancelAccountSignIn(authProvider)}
+                      disabled={Boolean(busy)}
+                      type="button"
+                    >
+                      Cancel sign in
+                    </button>
+                  ) : ready ? (
                     <button
                       className="primary-button"
                       onClick={() => void mutate(provider.key, "use")}
@@ -395,6 +575,15 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                       type="button"
                     >
                       {activeProvider ? "In use" : "Use provider"}
+                    </button>
+                  ) : authProvider ? (
+                    <button
+                      className="primary-button"
+                      onClick={() => void startAccountSignIn(authProvider)}
+                      disabled={Boolean(busy)}
+                      type="button"
+                    >
+                      Sign in
                     </button>
                   ) : (
                     <button
@@ -414,6 +603,16 @@ export function ConnectionsPage({ active }: { active: boolean }) {
                   >
                     Refresh
                   </button>
+                  {authProvider && ready && !signingIn ? (
+                    <button
+                      className="text-button"
+                      onClick={() => void startAccountSignIn(authProvider)}
+                      disabled={Boolean(busy)}
+                      type="button"
+                    >
+                      Sign in again
+                    </button>
+                  ) : null}
                 </div>
               </article>
             );

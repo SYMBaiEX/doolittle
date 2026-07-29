@@ -33,8 +33,8 @@ import type {
 import { SseParser } from "../shared/sse";
 import type { BackendManager } from "./backend";
 import { resolveEditorProjectContext } from "./editor-project-context";
-import type { DesktopUpdateController } from "./update-state";
 import type { ProviderAuthController } from "./provider-auth";
+import type { DesktopUpdateController } from "./update-state";
 
 const API_ORIGIN = "http://desktop.local";
 const API_TIMEOUT_MS = 15_000;

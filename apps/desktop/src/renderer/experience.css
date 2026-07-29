@@ -2520,6 +2520,58 @@ button.chat-session-meta-pill:hover {
   margin-top: auto;
 }
 
+.provider-auth-state {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin: 2px 0 14px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-raised) 60%, transparent);
+}
+
+.provider-auth-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.provider-auth-state strong {
+  color: var(--text);
+  font-size: var(--text-control);
+  letter-spacing: 0.01em;
+}
+
+.provider-auth-state small {
+  color: var(--text-soft);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
+.provider-auth-mark {
+  width: 7px;
+  height: 7px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 12%, transparent);
+}
+
+.provider-auth-state.is-pending .provider-auth-mark {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  animation: provider-auth-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes provider-auth-pulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
 .media-result .json-preview {
   min-height: 180px;
 }
