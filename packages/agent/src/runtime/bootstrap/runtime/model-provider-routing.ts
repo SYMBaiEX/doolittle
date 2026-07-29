@@ -1,13 +1,13 @@
 import { type AgentRuntime, ModelType } from "@elizaos/core";
 
 const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
-  anthropic: "@elizaos/plugin-anthropic",
+  anthropic: "anthropic",
   "claude-code": "@elizaos/plugin-claude-code",
   codex: "@elizaos/plugin-codex",
   devin: "@elizaos/plugin-devin",
   elizacloud: "@elizaos/plugin-elizacloud",
-  ollama: "@elizaos/plugin-ollama",
-  openai: "@elizaos/plugin-openai",
+  ollama: "ollama",
+  openai: "openai",
 };
 
 const ROUTED_MODEL_TYPES = new Set<string>([

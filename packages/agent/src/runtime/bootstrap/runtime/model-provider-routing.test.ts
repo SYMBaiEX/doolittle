@@ -18,7 +18,7 @@ describe("resolveModelProviderPlugin", () => {
         modelType: ModelType.RESPONSE_HANDLER,
         activeProvider: "ollama",
       }),
-    ).toBe("@elizaos/plugin-ollama");
+    ).toBe("ollama");
   });
 
   it("preserves explicit SDK routing and leaves embeddings unpinned", () => {
@@ -64,7 +64,7 @@ describe("installDynamicModelProviderRouting", () => {
     await runtime.useModel(ModelType.RESPONSE_HANDLER, { prompt: "third" });
 
     expect(routedProviders).toEqual([
-      "@elizaos/plugin-ollama",
+      "ollama",
       "@elizaos/plugin-claude-code",
       "@elizaos/plugin-codex",
     ]);
