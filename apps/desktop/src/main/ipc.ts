@@ -1383,8 +1383,21 @@ const REPOSITORY_MUTATION_TYPES = new Set<RepositoryMutationRequest["type"]>([
   "remote-remove",
   "remote-set-url",
   "merge-abort",
+  "merge",
+  "rebase",
   "rebase-abort",
+  "rebase-continue",
+  "cherry-pick",
+  "cherry-pick-continue",
+  "cherry-pick-abort",
   "conflict-mark-resolved",
+  "pr-create",
+  "pr-update",
+  "pr-ready",
+  "pr-review",
+  "pr-merge",
+  "pr-close",
+  "pr-reopen",
 ]);
 
 function validateGitToken(
@@ -1426,6 +1439,23 @@ function validateGitPatch(value: unknown): string {
     throw new Error("A bounded unified Git patch is required.");
   }
   return value;
+}
+
+function validateRepositoryText(
+  value: unknown,
+  label: string,
+  maximumLength: number,
+  options?: { allowEmpty?: boolean },
+): string {
+  if (
+    typeof value !== "string" ||
+    (!options?.allowEmpty && !value.trim()) ||
+    value.length > maximumLength ||
+    value.includes("\0")
+  ) {
+    throw new Error(`${label} is not valid.`);
+  }
+  return options?.allowEmpty ? value : value.trim();
 }
 
 export function validateRepositoryMutationRequest(
@@ -1514,6 +1544,19 @@ export function validateRepositoryMutationRequest(
     }
     case "branch-switch":
       return { type, branch: validateGitToken(value.branch, "Branch") };
+    case "merge":
+      return {
+        type,
+        branch: validateGitToken(value.branch, "Branch"),
+        noFf: value.noFf === true,
+      };
+    case "rebase":
+      return { type, branch: validateGitToken(value.branch, "Branch") };
+    case "cherry-pick":
+      return {
+        type,
+        commit: validateGitToken(value.commit, "Commit reference"),
+      };
     case "branch-delete":
       return {
         type,
@@ -1567,11 +1610,92 @@ export function validateRepositoryMutationRequest(
       };
     case "remote-remove":
       return { type, name: validateGitToken(value.name, "Remote") };
+    case "pr-create": {
+      const title = validateRepositoryText(
+        value.title,
+        "Pull request title",
+        500,
+      );
+      const body =
+        value.body === undefined
+          ? undefined
+          : validateRepositoryText(value.body, "Pull request body", 50_000, {
+              allowEmpty: true,
+            });
+      const base =
+        value.base === undefined
+          ? undefined
+          : validateGitToken(value.base, "Base branch");
+      return {
+        type,
+        title,
+        ...(body !== undefined ? { body } : {}),
+        ...(base ? { base } : {}),
+        draft: value.draft === true,
+      };
+    }
+    case "pr-update": {
+      const title =
+        value.title === undefined
+          ? undefined
+          : validateRepositoryText(value.title, "Pull request title", 500);
+      const body =
+        value.body === undefined
+          ? undefined
+          : validateRepositoryText(value.body, "Pull request body", 50_000, {
+              allowEmpty: true,
+            });
+      const base =
+        value.base === undefined
+          ? undefined
+          : validateGitToken(value.base, "Base branch");
+      if (title === undefined && body === undefined && base === undefined) {
+        throw new Error("At least one pull request field must be updated.");
+      }
+      return {
+        type,
+        ...(title ? { title } : {}),
+        ...(body !== undefined ? { body } : {}),
+        ...(base ? { base } : {}),
+      };
+    }
+    case "pr-review": {
+      const event = value.event;
+      if (
+        event !== "approve" &&
+        event !== "request-changes" &&
+        event !== "comment"
+      ) {
+        throw new Error("Pull request review event is not valid.");
+      }
+      const body =
+        value.body === undefined
+          ? undefined
+          : validateRepositoryText(value.body, "Review body", 20_000);
+      if (event !== "approve" && !body) {
+        throw new Error("A review body is required for this review event.");
+      }
+      return { type, event, ...(body ? { body } : {}) };
+    }
+    case "pr-merge": {
+      const method = value.method;
+      if (method !== "merge" && method !== "squash" && method !== "rebase") {
+        throw new Error("Pull request merge method is not valid.");
+      }
+      return { type, method, deleteBranch: value.deleteBranch === true };
+    }
+    case "pr-close":
+      return { type, deleteBranch: value.deleteBranch === true };
     case "stage-all":
     case "unstage-all":
     case "worktree-prune":
     case "merge-abort":
     case "rebase-abort":
+    case "rebase-continue":
+    case "cherry-pick-continue":
+    case "cherry-pick-abort":
+    case "pr-ready":
+    case "pr-reopen":
       return { type };
   }
 }
@@ -1602,8 +1726,15 @@ export function repositoryMutationConfirmation(
     "merge-abort",
     "rebase-abort",
     "remote-remove",
+    "merge",
+    "rebase",
+    "cherry-pick",
+    "pr-merge",
+    "pr-close",
   ]).has(request.type);
-  const remote = ["fetch", "pull", "push"].includes(request.type);
+  const remote =
+    ["fetch", "pull", "push"].includes(request.type) ||
+    request.type.startsWith("pr-");
   return {
     title: destructive
       ? "Confirm destructive Git operation"

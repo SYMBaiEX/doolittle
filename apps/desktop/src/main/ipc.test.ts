@@ -960,11 +960,51 @@ describe("sensitive desktop actions", () => {
         paths: ["src/index.ts"],
       }),
     ).toEqual({ type: "stage", paths: ["src/index.ts"] });
+    expect(
+      validateRepositoryMutationRequest({
+        type: "merge",
+        branch: "feature/native-git",
+        noFf: true,
+      }),
+    ).toEqual({
+      type: "merge",
+      branch: "feature/native-git",
+      noFf: true,
+    });
+    expect(
+      validateRepositoryMutationRequest({
+        type: "pr-create",
+        title: "Native Git controls",
+        body: "Ready for review.",
+        base: "main",
+        draft: true,
+      }),
+    ).toEqual({
+      type: "pr-create",
+      title: "Native Git controls",
+      body: "Ready for review.",
+      base: "main",
+      draft: true,
+    });
+    expect(
+      validateRepositoryMutationRequest({
+        type: "pr-review",
+        event: "request-changes",
+        body: "Please add the missing regression.",
+      }),
+    ).toEqual({
+      type: "pr-review",
+      event: "request-changes",
+      body: "Please add the missing regression.",
+    });
     for (const request of [
       { type: "commit", message: " " },
       { type: "stage", paths: ["../secret"] },
       { type: "branch-switch", branch: "--detach" },
       { type: "remote-add", name: "origin", url: "\0bad" },
+      { type: "pr-review", event: "request-changes" },
+      { type: "pr-merge", method: "force" },
+      { type: "pr-update" },
       { type: "not-a-git-operation" },
     ]) {
       expect(() => validateRepositoryMutationRequest(request)).toThrow();
