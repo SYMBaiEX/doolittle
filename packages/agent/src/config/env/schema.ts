@@ -62,7 +62,7 @@ export const envSchema = z.object({
     .transform((value) => value === "true"),
   DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: z
     .enum(["true", "false"])
-    .default("false")
+    .default("true")
     .transform((value) => value === "true"),
   ANTHROPIC_BASE_URL: z.string().optional(),
   ANTHROPIC_SMALL_MODEL: z.string().default("claude-haiku-4-5-20251001"),

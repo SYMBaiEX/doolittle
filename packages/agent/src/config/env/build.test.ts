@@ -52,4 +52,16 @@ describe("env config builder", () => {
 
     expect(config.port).toBe(0);
   });
+
+  it("uses a signed-in Claude CLI by default while preserving an explicit opt-out", () => {
+    expect(
+      buildEnvConfig(parseEnv({}), directories).claudeCodeCliFallback,
+    ).toBe(true);
+    expect(
+      buildEnvConfig(
+        parseEnv({ DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "false" }),
+        directories,
+      ).claudeCodeCliFallback,
+    ).toBe(false);
+  });
 });
