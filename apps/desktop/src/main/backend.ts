@@ -49,6 +49,10 @@ export function buildBackendEnvironment(
       baseEnvironment.DOOLITTLE_OFFLINE_BOOTSTRAP || "true",
     DOOLITTLE_USE_LINKED_DEVIN_AUTH:
       baseEnvironment.DOOLITTLE_USE_LINKED_DEVIN_AUTH || "false",
+    // Desktop provider sign-in explicitly supports the official Claude CLI
+    // session. Do not let a project-local .env disable that app capability
+    // merely because Doolittle was launched from the project directory.
+    DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "true",
     DOOLITTLE_DATA_DIR: runtimeDataDir,
     DOOLITTLE_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
     ELIZAOS_BUNDLED_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),

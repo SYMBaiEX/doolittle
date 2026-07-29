@@ -28,6 +28,7 @@ describe("buildBackendEnvironment", () => {
         DATABASE_URL: "postgres://checkout",
         POSTGRES_URL: "postgres://checkout",
         DOOLITTLE_GATEWAY_DATA_DIR: ".doolittle/gateway",
+        DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "false",
         NODE_OPTIONS: "--require /tmp/host-hook.cjs",
       },
     );
@@ -40,6 +41,7 @@ describe("buildBackendEnvironment", () => {
       DOOLITTLE_DESKTOP_RUNTIME: "1",
       DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
       DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
+      DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "true",
       DOOLITTLE_DATA_DIR: runtimeDataDir,
       DOOLITTLE_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
       ELIZAOS_BUNDLED_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
