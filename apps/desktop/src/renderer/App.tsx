@@ -42,8 +42,12 @@ import {
   APPEARANCE_CHANGE_EVENT,
   APPEARANCE_STORAGE_KEY,
   applyDesktopTheme,
+  DENSITY_CHANGE_EVENT,
+  DENSITY_STORAGE_KEY,
   type DesktopAppearance,
+  type DesktopDensity,
   loadAppearancePreference,
+  loadDensityPreference,
   loadStoredDesktopTheme,
   parseDesktopThemeProfile,
   resolveAppearance,
@@ -476,6 +480,7 @@ export function App() {
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
   );
+  const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
@@ -1152,6 +1157,11 @@ export function App() {
   }, [appearance, resolvedAppearance]);
 
   useEffect(() => {
+    document.documentElement.dataset.density = density;
+    localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  }, [density]);
+
+  useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const update = (event: MediaQueryListEvent) =>
       setSystemPrefersDark(event.matches);
@@ -1195,10 +1205,16 @@ export function App() {
       );
       if (profile) applyDesktopTheme(profile);
     };
+    const handleDensity = (event: Event) => {
+      const next = (event as CustomEvent<DesktopDensity>).detail;
+      if (next === "compact" || next === "comfortable") setDensity(next);
+    };
     window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
+    window.addEventListener(DENSITY_CHANGE_EVENT, handleDensity);
     window.addEventListener(THEME_CHANGE_EVENT, handleTheme);
     return () => {
       window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
+      window.removeEventListener(DENSITY_CHANGE_EVENT, handleDensity);
       window.removeEventListener(THEME_CHANGE_EVENT, handleTheme);
     };
   }, []);
@@ -2320,7 +2336,7 @@ export function App() {
             </button>
           </div>
         ) : null}
-        <div className={`view-container view-${view}`}>
+        <div className={`view-container view-${view}`} data-view={view}>
           <Suspense fallback={<RouteLoadingFallback />}>{content}</Suspense>
         </div>
       </section>

@@ -5,6 +5,7 @@ import { DesktopErrorBoundary } from "./components/DesktopErrorBoundary";
 import "./styles.css";
 import "./experience.css";
 import "./recovery.css";
+import "./app-polish.css";
 
 document.documentElement.dataset.platform = window.doolittle.platform;
 

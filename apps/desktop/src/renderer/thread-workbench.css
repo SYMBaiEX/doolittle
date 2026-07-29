@@ -1,5 +1,5 @@
 .thread-workbench {
-  --thread-workbench-accent: var(--accent, #ff7a18);
+  --thread-workbench-accent: var(--accent);
   --thread-workbench-accent-soft: color-mix(
     in srgb,
     var(--thread-workbench-accent) 14%,

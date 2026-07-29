@@ -1,13 +1,13 @@
 .page.orchestration-page {
-  --orchestration-accent: #ff7a1a;
+  --orchestration-accent: var(--accent);
   --orchestration-accent-soft: color-mix(
     in srgb,
     var(--orchestration-accent) 16%,
     transparent
   );
-  --orchestration-running: #ff9f43;
+  --orchestration-running: color-mix(in srgb, var(--accent) 68%, var(--warn));
   --orchestration-queued: color-mix(in srgb, var(--text) 72%, var(--accent));
-  --orchestration-approval: #ffbf4d;
+  --orchestration-approval: var(--warn);
   --orchestration-completed: var(--good);
   --orchestration-failed: var(--bad);
   --orchestration-line: color-mix(in srgb, var(--text) 9%, transparent);

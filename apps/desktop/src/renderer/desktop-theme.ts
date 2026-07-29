@@ -1,4 +1,5 @@
 export type DesktopAppearance = "dark" | "light" | "system";
+export type DesktopDensity = "compact" | "comfortable";
 
 export interface DesktopThemeProfile {
   name: string;
@@ -11,8 +12,10 @@ export interface DesktopThemeProfile {
 }
 
 export const APPEARANCE_STORAGE_KEY = "doolittle.desktop.appearance";
+export const DENSITY_STORAGE_KEY = "doolittle.desktop.density";
 export const THEME_STORAGE_KEY = "doolittle.desktop.theme";
 export const APPEARANCE_CHANGE_EVENT = "doolittle:appearance-change";
+export const DENSITY_CHANGE_EVENT = "doolittle:density-change";
 export const THEME_CHANGE_EVENT = "doolittle:theme-change";
 
 const CSS_COLOR =
@@ -84,6 +87,12 @@ export function loadAppearancePreference(): DesktopAppearance {
   return stored === "light" || stored === "system" ? stored : "dark";
 }
 
+export function loadDensityPreference(): DesktopDensity {
+  return localStorage.getItem(DENSITY_STORAGE_KEY) === "compact"
+    ? "compact"
+    : "comfortable";
+}
+
 export function resolveAppearance(
   preference: DesktopAppearance,
   systemPrefersDark: boolean,
@@ -99,6 +108,14 @@ export function announceAppearance(preference: DesktopAppearance): void {
   window.dispatchEvent(
     new CustomEvent<DesktopAppearance>(APPEARANCE_CHANGE_EVENT, {
       detail: preference,
+    }),
+  );
+}
+
+export function announceDensity(density: DesktopDensity): void {
+  window.dispatchEvent(
+    new CustomEvent<DesktopDensity>(DENSITY_CHANGE_EVENT, {
+      detail: density,
     }),
   );
 }

@@ -258,6 +258,42 @@ export function MetricCard({
   );
 }
 
+export function formatDataPreview(
+  value: unknown,
+  maxCharacters = 30_000,
+): string {
+  let formatted: string;
+  try {
+    formatted = JSON.stringify(value, null, 2) ?? String(value);
+  } catch {
+    formatted = String(value);
+  }
+  return formatted.length <= maxCharacters
+    ? formatted
+    : `${formatted.slice(0, maxCharacters)}\n… (${formatted.length - maxCharacters} more characters)`;
+}
+
+export function RawDataDisclosure({
+  label,
+  value,
+  defaultOpen = false,
+}: {
+  label: string;
+  value: unknown;
+  defaultOpen?: boolean;
+}) {
+  const formatted = formatDataPreview(value);
+  return (
+    <details className="raw-data-disclosure" open={defaultOpen}>
+      <summary>
+        <span>{label}</span>
+        <small>{formatted.length.toLocaleString()} characters</small>
+      </summary>
+      <pre className="json-preview">{formatted}</pre>
+    </details>
+  );
+}
+
 export function Icon({
   name,
 }: {

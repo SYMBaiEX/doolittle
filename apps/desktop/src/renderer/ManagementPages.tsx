@@ -15,9 +15,13 @@ import { ConnectionsPage, ModelsPage } from "./AgentPages";
 import {
   APPEARANCE_STORAGE_KEY,
   announceAppearance,
+  announceDensity,
   announceTheme,
+  DENSITY_STORAGE_KEY,
   type DesktopAppearance,
+  type DesktopDensity,
   loadAppearancePreference,
+  loadDensityPreference,
   parseDesktopThemeProfile,
 } from "./desktop-theme";
 import {
@@ -35,6 +39,7 @@ import {
   MetricCard,
   Notice,
   PageHeader,
+  RawDataDisclosure,
   titleCase,
   type UnknownRecord,
   useApiResource,
@@ -623,18 +628,6 @@ function flattenSettings(
   return output;
 }
 
-function formatJson(value: unknown, maxCharacters = 30_000): string {
-  let formatted: string;
-  try {
-    formatted = JSON.stringify(value, null, 2) ?? String(value);
-  } catch {
-    formatted = String(value);
-  }
-  return formatted.length <= maxCharacters
-    ? formatted
-    : `${formatted.slice(0, maxCharacters)}\n… (${formatted.length - maxCharacters} more characters)`;
-}
-
 const selectOptions: Record<string, string[]> = {
   "model.provider": [
     "ollama",
@@ -830,6 +823,7 @@ export function SettingsPage({ active }: { active: boolean }) {
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
   );
+  const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
   const [lifecycle, setLifecycle] = useState<DesktopLifecycleState | null>(
     null,
   );
@@ -941,6 +935,13 @@ export function SettingsPage({ active }: { active: boolean }) {
         ? "Appearance now follows your system."
         : `${titleCase(next)} appearance is now active.`,
     );
+  };
+
+  const changeDensity = (next: DesktopDensity) => {
+    setDensity(next);
+    localStorage.setItem(DENSITY_STORAGE_KEY, next);
+    announceDensity(next);
+    setSavedMessage(`${titleCase(next)} interface density is now active.`);
   };
 
   return (
@@ -1056,6 +1057,29 @@ export function SettingsPage({ active }: { active: boolean }) {
                     </button>
                   ))}
                 </fieldset>
+                <div className="settings-inline-choice">
+                  <div>
+                    <strong>Interface density</strong>
+                    <small>
+                      Adjust the shared spacing used by pages, cards, lists,
+                      tables, and management panels.
+                    </small>
+                  </div>
+                  <fieldset aria-label="Interface density">
+                    <legend className="sr-only">Interface density</legend>
+                    {(["comfortable", "compact"] as const).map((option) => (
+                      <button
+                        aria-pressed={density === option}
+                        className={density === option ? "selected" : ""}
+                        key={option}
+                        onClick={() => changeDensity(option)}
+                        type="button"
+                      >
+                        {titleCase(option)}
+                      </button>
+                    ))}
+                  </fieldset>
+                </div>
                 <div className="settings-group-heading theme-heading">
                   <div>
                     <span className="eyebrow">Color system</span>
@@ -1888,9 +1912,10 @@ export function RuntimePage({ active }: { active: boolean }) {
                 </div>
                 <Badge tone="good">Running</Badge>
               </div>
-              <pre className="json-preview">
-                {formatJson(runtime.data?.startup)}
-              </pre>
+              <RawDataDisclosure
+                label="Startup receipt"
+                value={runtime.data?.startup}
+              />
             </section>
             <section className="content-card">
               <div className="card-heading">
@@ -1978,9 +2003,10 @@ export function RuntimePage({ active }: { active: boolean }) {
                       </div>
                     </div>
                   </div>
-                  <pre className="json-preview">
-                    {formatJson(gatewayHealth.data)}
-                  </pre>
+                  <RawDataDisclosure
+                    label="Gateway health payload"
+                    value={gatewayHealth.data}
+                  />
                 </>
               )}
             </section>
@@ -2037,9 +2063,10 @@ export function RuntimePage({ active }: { active: boolean }) {
                       </div>
                     </div>
                   </div>
-                  <pre className="json-preview">
-                    {formatJson(gatewayRuntime.data)}
-                  </pre>
+                  <RawDataDisclosure
+                    label="Gateway runtime payload"
+                    value={gatewayRuntime.data}
+                  />
                 </>
               )}
             </section>
@@ -2077,9 +2104,10 @@ export function RuntimePage({ active }: { active: boolean }) {
                         </div>
                       ))}
                   </div>
-                  <pre className="json-preview">
-                    {formatJson(ecosystem.data)}
-                  </pre>
+                  <RawDataDisclosure
+                    label="ElizaOS ecosystem payload"
+                    value={ecosystem.data}
+                  />
                 </>
               )}
             </section>
@@ -2113,9 +2141,10 @@ export function RuntimePage({ active }: { active: boolean }) {
                         </div>
                       ))}
                   </div>
-                  <pre className="json-preview">
-                    {formatJson(insights.data)}
-                  </pre>
+                  <RawDataDisclosure
+                    label="Runtime insights payload"
+                    value={insights.data}
+                  />
                 </>
               )}
             </section>
@@ -2220,7 +2249,10 @@ export function CompatibilityPage({ active }: { active: boolean }) {
               <h2>Compatibility response</h2>
             </div>
           </div>
-          <pre className="json-preview">{formatJson(compatibility.data)}</pre>
+          <RawDataDisclosure
+            label="Compatibility report"
+            value={compatibility.data}
+          />
         </section>
       ) : null}
     </div>
@@ -2343,7 +2375,7 @@ export function RegistryPage({ active }: { active: boolean }) {
               <h2>Registry response</h2>
             </div>
           </div>
-          <pre className="json-preview">{formatJson(registry.data)}</pre>
+          <RawDataDisclosure label="Registry payload" value={registry.data} />
         </section>
       ) : null}
     </div>
@@ -2472,7 +2504,10 @@ export function SetupPage({ active }: { active: boolean }) {
                   <h2>Setup response</h2>
                 </div>
               </div>
-              <pre className="json-preview">{formatJson(summary.data)}</pre>
+              <RawDataDisclosure
+                label="Setup summary payload"
+                value={summary.data}
+              />
             </section>
           ) : null}
         </>
