@@ -6,6 +6,10 @@ export {
   initializeRuntimeWithRecovery,
 } from "./recovery";
 export {
+  installDynamicModelProviderRouting,
+  resolveModelProviderPlugin,
+} from "./model-provider-routing";
+export {
   coerceRelationshipEntityId,
   patchRuntimeRelationshipCompatibility,
 } from "./relationship-compat";

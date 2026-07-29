@@ -12,15 +12,13 @@ import {
 } from "../account-auth";
 import {
   createDoolittleOllamaUxPlugin,
-  createOllamaEmbeddingOnlyPlugin,
 } from "./local-ollama";
-import { normalizePlugin, shouldIncludeDirectProviderPlugin } from "./support";
+import { normalizePlugin } from "./support";
 
 export async function loadProviderPlugins(
   services: AppServices,
   config: EnvConfig,
 ): Promise<Plugin[]> {
-  const selectedProvider = services.settings.get().model.provider;
   const enableCloudEmbeddings =
     Boolean(config.elizaCloudEmbeddingUrl?.trim()) ||
     Boolean(config.elizaCloudEmbeddingApiKey?.trim()) ||
@@ -33,66 +31,60 @@ export async function loadProviderPlugins(
     { createCodexPlugin },
     { createClaudeCodePlugin },
     { createDevinPlugin },
+    { createElizaCloudPlugin },
   ] = await Promise.all([
     import("@elizaos/plugin-sql"),
     import("@elizaos/plugin-pdf"),
     import("@elizaos/plugin-codex"),
     import("@elizaos/plugin-claude-code"),
     import("@elizaos/plugin-devin"),
+    import("@elizaos/plugin-elizacloud"),
   ]);
 
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
     createCodexPlugin({
-      enabled: selectedProvider === "codex",
+      enabled: true,
       getStatus: () => getLinkedProviderAccountsSnapshot().codex,
       getCredentials: () => getLinkedCodexCredentials(),
       refreshCredentials: () => refreshLinkedCodexCredentials(),
     }),
     createClaudeCodePlugin({
-      enabled: selectedProvider === "claude-code",
+      enabled: true,
       allowCliFallback: config.claudeCodeCliFallback,
       getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
       getCredentials: () => getLinkedClaudeCodeCredentials(),
       refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),
     }),
     createDevinPlugin({
-      enabled: selectedProvider === "devin",
+      enabled: true,
       command: config.devinCliCommand,
       model: config.devinModel,
       timeoutMs: config.devinTimeoutMs,
       getCwd: () => config.workspaceDir,
       getStatus: () => getLinkedProviderAccountsSnapshot().devin,
     }),
+    createElizaCloudPlugin({
+      enabled: true,
+      enableEmbeddings: enableCloudEmbeddings,
+      getStatus: (): ElizaCloudStatus => {
+        const status = getLinkedProviderAccountsSnapshot().elizaCloud;
+        return {
+          provider: "elizacloud" as const,
+          available: status.available,
+          reusable: status.reusable,
+          nativeReady: status.nativeReady,
+          source: status.source,
+          authMode: status.authMode,
+          detail: status.detail,
+        };
+      },
+      getCredentials: () => getLinkedElizaCloudCredentials(),
+    }),
   ];
 
-  if (selectedProvider === "elizacloud") {
-    const { createElizaCloudPlugin } = await import(
-      "@elizaos/plugin-elizacloud"
-    );
-    providers.push(
-      createElizaCloudPlugin({
-        enabled: true,
-        enableEmbeddings: enableCloudEmbeddings,
-        getStatus: (): ElizaCloudStatus => {
-          const status = getLinkedProviderAccountsSnapshot().elizaCloud;
-          return {
-            provider: "elizacloud" as const,
-            available: status.available,
-            reusable: status.reusable,
-            nativeReady: status.nativeReady,
-            source: status.source,
-            authMode: status.authMode,
-            detail: status.detail,
-          };
-        },
-        getCredentials: () => getLinkedElizaCloudCredentials(),
-      }),
-    );
-  }
-
-  if (selectedProvider === "ollama") {
+  if (config.ollamaApiEndpoint?.trim()) {
     const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
     const normalizedOllamaPlugin = normalizePlugin(ollamaPlugin);
     providers.push(
@@ -101,32 +93,15 @@ export async function loadProviderPlugins(
     );
   }
 
-  if (
-    selectedProvider !== "ollama" &&
-    !enableCloudEmbeddings &&
-    config.ollamaApiEndpoint?.trim()
-  ) {
-    const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
-    providers.push(
-      createOllamaEmbeddingOnlyPlugin(normalizePlugin(ollamaPlugin)),
-    );
-  }
-
   const optionalProviderImports: Promise<Plugin | null>[] = [];
-  if (
-    config.openAiApiKey &&
-    shouldIncludeDirectProviderPlugin(selectedProvider, "openai")
-  ) {
+  if (config.openAiApiKey) {
     optionalProviderImports.push(
       import("@elizaos/plugin-openai").then(({ openaiPlugin }) =>
         normalizePlugin(openaiPlugin),
       ),
     );
   }
-  if (
-    config.anthropicApiKey &&
-    shouldIncludeDirectProviderPlugin(selectedProvider, "anthropic")
-  ) {
+  if (config.anthropicApiKey) {
     optionalProviderImports.push(
       import("@elizaos/plugin-anthropic").then(({ default: anthropicPlugin }) =>
         normalizePlugin(anthropicPlugin),

@@ -34,15 +34,15 @@ function resolveNativePluginEnablement(
     case "always":
       return true;
     case "elizaCloud":
-      return enabled(config.elizaCloudApiKey) || config.elizaCloudEnabled;
+      return true;
     case "ollama":
       return enabled(config.ollamaApiEndpoint);
     case "codex":
-      return config.useLinkedCodexAuth;
+      return true;
     case "claudeCode":
-      return config.useLinkedClaudeCodeAuth;
+      return true;
     case "devin":
-      return config.useLinkedDevinAuth;
+      return true;
     case "openai":
       return enabled(config.openAiApiKey);
     case "anthropic":

@@ -106,7 +106,7 @@ describe("getNativePluginCatalog", () => {
     ).toBe(true);
     expect(
       catalog.find((entry) => entry.id === "providers.claude-code")?.enabled,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       catalog.find((entry) => entry.id === "providers.openai")?.enabled,
     ).toBe(true);

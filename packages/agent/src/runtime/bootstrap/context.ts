@@ -2,6 +2,7 @@ import type { AgentRuntime } from "@elizaos/core";
 import {
   attachRunProgressBridge,
   ensureCoreRuntimeServices,
+  installDynamicModelProviderRouting,
   patchRuntimeRelationshipCompatibility,
 } from "@/runtime/bootstrap/runtime";
 import { createCronExecutor } from "@/runtime/bootstrap/runtime/cron-executor";
@@ -34,6 +35,10 @@ export async function configureBootstrapContext({
   appendBootstrapTrace("phase:ensureCoreRuntimeServices:done");
   services.nativeOwnership.attachRuntime(runtime, services);
   (services as RuntimeBindableServices).__bindRuntime?.(runtime);
+  installDynamicModelProviderRouting(
+    runtime,
+    () => services.settings.get().model.provider,
+  );
   attachRunProgressBridge(runtime, services);
   appendBootstrapTrace("phase:attachRunProgressBridge:done");
 
