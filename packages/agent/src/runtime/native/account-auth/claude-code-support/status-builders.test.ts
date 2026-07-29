@@ -40,6 +40,8 @@ function installStatusBuilderMocks() {
     getClaudeCodeCliAuthStatus: () => cliStatus,
   }));
   vi.doMock("./files", () => ({
+    claudeCodeAccessTokenIsExpiring: (expiresAt?: string) =>
+      Number(expiresAt) <= Date.now(),
     getClaudeCodeCredentialsPath: () => `${homePath}/.claude/.credentials.json`,
     getClaudeCodeProfileLabel: () => undefined,
     readClaudeCodeFileCredentials: () => fileCredential,
@@ -74,7 +76,7 @@ describe("claude-code status builders", () => {
     storedCredential = {
       accessToken: "stored-access",
       refreshToken: "stored-refresh",
-      expiresAt: "1763579600000",
+      expiresAt: String(Date.now() + 3_600_000),
       authMode: "oauth",
       accountLabel: "Stored User",
       source: "eliza-auth-store",
@@ -90,10 +92,10 @@ describe("claude-code status builders", () => {
       available: true,
       reusable: true,
       nativeReady: true,
-      fallbackReady: true,
+      fallbackReady: false,
       source: "eliza-auth-store",
       authMode: "oauth",
-      lastRefresh: "1763579600000",
+      lastRefresh: storedCredential.expiresAt,
       accountLabel: "Stored User",
       loginCommand: "claude auth login",
       setupCommand: "claude setup-token",
@@ -106,7 +108,7 @@ describe("claude-code status builders", () => {
     fileCredential = {
       accessToken: "file-access",
       refreshToken: "file-refresh",
-      expiresAt: "1763579600000",
+      expiresAt: String(Date.now() + 3_600_000),
       source: "/tmp/home/.claude/.credentials.json",
     };
     const { getClaudeCodeAccountStatus } = await loadStatusBuildersModule();
@@ -120,6 +122,29 @@ describe("claude-code status builders", () => {
     expect(status.fallbackReady).toBe(false);
     expect(status.source).toBe("/tmp/home/.claude/.credentials.json");
     expect(status.authMode).toBe("oauth");
+  });
+
+  it("does not report an expired stored OAuth session as ready", async () => {
+    storedCredential = {
+      accessToken: "expired-access",
+      refreshToken: "expired-refresh",
+      expiresAt: String(Date.now() - 60_000),
+      authMode: "oauth",
+      source: "eliza-auth-store",
+    };
+    const { getClaudeCodeAccountStatus } = await loadStatusBuildersModule();
+    const status = getClaudeCodeAccountStatus("/tmp/home", {
+      getStoredCredentials: () => storedCredential,
+      resolveHome: () => homePath,
+    } as never);
+
+    expect(status).toMatchObject({
+      available: true,
+      reusable: false,
+      nativeReady: false,
+      fallbackReady: false,
+    });
+    expect(status.detail).toContain("expired");
   });
 
   it("falls back to env credentials when file credentials are unavailable", async () => {

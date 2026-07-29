@@ -16,6 +16,7 @@ import {
 } from "./commands";
 import type { ClaudeCodeAuthDependencies } from "./dependencies";
 import {
+  claudeCodeAccessTokenIsExpiring,
   getClaudeCodeCredentialsPath,
   getClaudeCodeProfileLabel,
   readClaudeCodeFileCredentials,
@@ -26,7 +27,23 @@ function buildStoredClaudeCodeStatus(
   stored: NonNullable<
     ReturnType<ClaudeCodeAuthDependencies["getStoredCredentials"]>
   >,
+  fallbackReady: boolean,
 ): LinkedProviderAccountStatus {
+  if (stored.expiresAt && claudeCodeAccessTokenIsExpiring(stored.expiresAt)) {
+    return buildUnavailableProviderStatus({
+      provider: "claude-code",
+      available: true,
+      source: stored.source,
+      authMode: stored.authMode || "oauth",
+      lastRefresh: stored.expiresAt,
+      accountLabel: stored.accountLabel,
+      loginCommand: CLAUDE_CODE_LOGIN_COMMAND,
+      setupCommand: CLAUDE_CODE_SETUP_COMMAND,
+      fallbackReady,
+      detail:
+        "The stored Claude Code OAuth session has expired. Sign in to Claude Code again before using this provider.",
+    });
+  }
   return buildReusableProviderStatus({
     provider: "claude-code",
     source: stored.source,
@@ -35,7 +52,7 @@ function buildStoredClaudeCodeStatus(
     accountLabel: stored.accountLabel,
     loginCommand: CLAUDE_CODE_LOGIN_COMMAND,
     setupCommand: CLAUDE_CODE_SETUP_COMMAND,
-    fallbackReady: true,
+    fallbackReady,
     detail:
       "Eliza-managed Claude Code credentials are available in the local provider auth store.",
   });
@@ -50,6 +67,24 @@ function buildFileClaudeCodeStatus({
   accountLabel?: string;
   fallbackReady: boolean;
 }): LinkedProviderAccountStatus {
+  if (
+    fileCreds?.expiresAt &&
+    claudeCodeAccessTokenIsExpiring(fileCreds.expiresAt)
+  ) {
+    return buildUnavailableProviderStatus({
+      provider: "claude-code",
+      available: true,
+      source: fileCreds.source,
+      authMode: "oauth",
+      lastRefresh: fileCreds.expiresAt,
+      accountLabel,
+      loginCommand: CLAUDE_CODE_LOGIN_COMMAND,
+      setupCommand: CLAUDE_CODE_SETUP_COMMAND,
+      fallbackReady,
+      detail:
+        "The local Claude Code OAuth session has expired. Sign in to Claude Code again before using this provider.",
+    });
+  }
   return buildReusableProviderStatus({
     provider: "claude-code",
     source: fileCreds?.source,
@@ -135,12 +170,12 @@ export function getClaudeCodeAccountStatus(
   deps: ClaudeCodeAuthDependencies,
 ): LinkedProviderAccountStatus {
   const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
+  const cliStatus = getClaudeCodeCliAuthStatus(homePath, deps);
   if (stored) {
-    return buildStoredClaudeCodeStatus(stored);
+    return buildStoredClaudeCodeStatus(stored, cliStatus.loggedIn);
   }
 
   const home = deps.resolveHome(homePath);
-  const cliStatus = getClaudeCodeCliAuthStatus(homePath, deps);
   const credentialsPath = getClaudeCodeCredentialsPath(homePath, deps);
   const profilePath = join(home, ".claude.json");
   const fileCreds = readClaudeCodeFileCredentials(homePath, deps);

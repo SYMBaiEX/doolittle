@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { json } from "@/server/responses";
 import type { RuntimeReasoningEffort } from "@/services/settings/runtime-settings";
 import type { EnvConfig } from "@/types";
@@ -53,6 +54,10 @@ interface ModelDiscoveryResult {
   }>;
   live: boolean;
 }
+
+type LinkedProviderReadiness = Partial<
+  Record<"claude-code" | "codex" | "devin" | "elizacloud", boolean>
+>;
 
 const codexReasoning: ModelReasoningCapability = {
   default: "medium",
@@ -131,10 +136,22 @@ export async function handleRuntimeModelRoutes(
   }
 
   const settings = context.services.settings.get().model;
+  const accounts = getLinkedProviderAccountsSnapshot();
   const providers = await discoverModelProviders(
     context.config,
     settings.provider,
     settings.model,
+    fetch,
+    {
+      codex: Boolean(accounts.codex.nativeReady || accounts.codex.reusable),
+      "claude-code": Boolean(
+        accounts.claudeCode.nativeReady || accounts.claudeCode.fallbackReady,
+      ),
+      devin: Boolean(accounts.devin.nativeReady || accounts.devin.reusable),
+      elizacloud: Boolean(
+        accounts.elizaCloud.nativeReady || accounts.elizaCloud.reusable,
+      ),
+    },
   );
   return json({
     activeProvider: settings.provider,
@@ -152,8 +169,14 @@ export async function discoverModelProviders(
   activeProvider: string,
   activeModel: string,
   fetchImplementation: typeof fetch = fetch,
+  linkedReadiness: LinkedProviderReadiness = {},
 ): Promise<ModelProvider[]> {
-  const definitions = providerDefinitions(config, activeProvider, activeModel);
+  const definitions = providerDefinitions(
+    config,
+    activeProvider,
+    activeModel,
+    linkedReadiness,
+  );
   const discovered = await Promise.all(
     definitions.map(async (definition) => {
       const [providerResult, linkedResult] = await Promise.all([
@@ -177,10 +200,7 @@ export async function discoverModelProviders(
       );
       return {
         ...definition,
-        ready:
-          definition.ready ||
-          live ||
-          (definition.id === activeProvider && Boolean(activeModel.trim())),
+        ready: definition.ready || live,
         discovery: live
           ? ("live" as const)
           : definition.ready
@@ -200,6 +220,7 @@ function providerDefinitions(
   config: EnvConfig,
   activeProvider: string,
   activeModel: string,
+  linkedReadiness: LinkedProviderReadiness,
 ): ModelProvider[] {
   const withActive = (
     provider: string,
@@ -229,7 +250,9 @@ function providerDefinitions(
       label: "Eliza Cloud",
       mode: "cloud",
       ready: Boolean(
-        config.elizaCloudEnabled || config.elizaCloudApiKey?.trim(),
+        config.elizaCloudEnabled ||
+          config.elizaCloudApiKey?.trim() ||
+          linkedReadiness.elizacloud,
       ),
       baseUrl: config.elizaCloudBaseUrl,
       discovery: "configured",
@@ -245,7 +268,7 @@ function providerDefinitions(
       id: "codex",
       label: "ChatGPT / Codex",
       mode: "linked",
-      ready: config.useLinkedCodexAuth || activeProvider === "codex",
+      ready: Boolean(config.useLinkedCodexAuth || linkedReadiness.codex),
       discovery: "configured",
       detail:
         "Current models supported by the linked ChatGPT and Codex account.",
@@ -255,7 +278,9 @@ function providerDefinitions(
       id: "claude-code",
       label: "Claude Code",
       mode: "linked",
-      ready: config.useLinkedClaudeCodeAuth || activeProvider === "claude-code",
+      ready: Boolean(
+        config.useLinkedClaudeCodeAuth || linkedReadiness["claude-code"],
+      ),
       discovery: "configured",
       detail: "Current models supported by the linked Claude Code account.",
       models: configuredModels(
@@ -266,7 +291,7 @@ function providerDefinitions(
       id: "devin",
       label: "Devin",
       mode: "linked",
-      ready: config.useLinkedDevinAuth || activeProvider === "devin",
+      ready: Boolean(config.useLinkedDevinAuth || linkedReadiness.devin),
       discovery: "configured",
       detail: "The model configured for the linked Devin CLI.",
       models: configuredModels(withActive("devin", [config.devinModel])),

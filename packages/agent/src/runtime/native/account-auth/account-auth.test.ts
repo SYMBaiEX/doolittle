@@ -351,7 +351,7 @@ describe.sequential("linked provider account auth snapshot", () => {
           claudeAiOauth: {
             accessToken: "access",
             refreshToken: "refresh",
-            expiresAt: "1763579600000",
+            expiresAt: String(Date.now() + 3_600_000),
           },
         }),
         "utf8",

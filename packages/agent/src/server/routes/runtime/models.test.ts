@@ -115,6 +115,25 @@ describe("runtime model discovery", () => {
     );
   });
 
+  it("does not label a selected linked provider ready without usable auth", async () => {
+    const providers = await discoverModelProviders(
+      config(),
+      "claude-code",
+      "claude-sonnet-5",
+      vi.fn<typeof fetch>(async () => {
+        throw new Error("offline");
+      }),
+      { "claude-code": false },
+    );
+
+    expect(
+      providers.find((provider) => provider.id === "claude-code"),
+    ).toMatchObject({
+      ready: false,
+      discovery: "unavailable",
+    });
+  });
+
   it("offers the current ChatGPT, Codex, and Claude Code model catalogs", async () => {
     const providers = await discoverModelProviders(
       config({
