@@ -147,6 +147,27 @@ describe("claude-code status builders", () => {
     expect(status.detail).toContain("expired");
   });
 
+  it("does not trust stored OAuth credentials without an expiry", async () => {
+    storedCredential = {
+      accessToken: "unverifiable-access",
+      refreshToken: "unverifiable-refresh",
+      authMode: "oauth",
+      source: "eliza-auth-store",
+    };
+    const { getClaudeCodeAccountStatus } = await loadStatusBuildersModule();
+    const status = getClaudeCodeAccountStatus("/tmp/home", {
+      getStoredCredentials: () => storedCredential,
+      resolveHome: () => homePath,
+    } as never);
+
+    expect(status).toMatchObject({
+      reusable: false,
+      nativeReady: false,
+      fallbackReady: false,
+    });
+    expect(status.detail).toContain("cannot be verified");
+  });
+
   it("falls back to env credentials when file credentials are unavailable", async () => {
     envCredential = {
       accessToken: "setup-token-access",

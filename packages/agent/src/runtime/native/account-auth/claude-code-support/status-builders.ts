@@ -29,7 +29,10 @@ function buildStoredClaudeCodeStatus(
   >,
   fallbackReady: boolean,
 ): LinkedProviderAccountStatus {
-  if (stored.expiresAt && claudeCodeAccessTokenIsExpiring(stored.expiresAt)) {
+  if (
+    (stored.authMode || "oauth") === "oauth" &&
+    (!stored.expiresAt || claudeCodeAccessTokenIsExpiring(stored.expiresAt))
+  ) {
     return buildUnavailableProviderStatus({
       provider: "claude-code",
       available: true,
@@ -41,7 +44,7 @@ function buildStoredClaudeCodeStatus(
       setupCommand: CLAUDE_CODE_SETUP_COMMAND,
       fallbackReady,
       detail:
-        "The stored Claude Code OAuth session has expired. Sign in to Claude Code again before using this provider.",
+        "The stored Claude Code OAuth session is expired or cannot be verified. Sign in to Claude Code again before using this provider.",
     });
   }
   return buildReusableProviderStatus({
@@ -68,8 +71,9 @@ function buildFileClaudeCodeStatus({
   fallbackReady: boolean;
 }): LinkedProviderAccountStatus {
   if (
-    fileCreds?.expiresAt &&
-    claudeCodeAccessTokenIsExpiring(fileCreds.expiresAt)
+    fileCreds &&
+    (!fileCreds.expiresAt ||
+      claudeCodeAccessTokenIsExpiring(fileCreds.expiresAt))
   ) {
     return buildUnavailableProviderStatus({
       provider: "claude-code",
@@ -82,7 +86,7 @@ function buildFileClaudeCodeStatus({
       setupCommand: CLAUDE_CODE_SETUP_COMMAND,
       fallbackReady,
       detail:
-        "The local Claude Code OAuth session has expired. Sign in to Claude Code again before using this provider.",
+        "The local Claude Code OAuth session is expired or cannot be verified. Sign in to Claude Code again before using this provider.",
     });
   }
   return buildReusableProviderStatus({
