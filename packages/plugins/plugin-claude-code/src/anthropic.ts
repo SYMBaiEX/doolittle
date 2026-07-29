@@ -42,6 +42,16 @@ function resolveClaudeReasoningEffort(
   return effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : undefined;
 }
 
+function credentialsAreExpired(credentials: {
+  expiresAt?: string;
+}): boolean {
+  if (!credentials.expiresAt) {
+    return false;
+  }
+  const expiresAt = Number(credentials.expiresAt);
+  return Number.isFinite(expiresAt) && Date.now() >= expiresAt;
+}
+
 function anthropicHeaders(accessToken: string): {
   Authorization: string;
   "Content-Type": string;
@@ -73,7 +83,11 @@ export async function runClaudeCodeTextGeneration(
   }
 
   let credentials = options.getCredentials?.();
-  if (!credentials?.accessToken?.trim() && options.refreshCredentials) {
+  if (
+    (!credentials?.accessToken?.trim() ||
+      credentialsAreExpired(credentials)) &&
+    options.refreshCredentials
+  ) {
     credentials = await options.refreshCredentials();
   }
   const accessToken = credentials?.accessToken?.trim();

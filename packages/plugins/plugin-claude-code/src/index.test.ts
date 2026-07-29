@@ -254,6 +254,47 @@ describe("createClaudeCodePlugin", () => {
     expect(result).toBe("LINKED_PROVIDER_OK");
   });
 
+  it("falls back to Claude CLI when expired OAuth cannot refresh", async () => {
+    let cliCalls = 0;
+    const plugin = createClaudeCodePlugin({
+      enabled: true,
+      allowCliFallback: true,
+      getStatus: () => ({
+        provider: "claude-code",
+        available: true,
+        reusable: true,
+        fallbackReady: true,
+        detail: "ready",
+      }),
+      getCredentials: () => ({
+        accessToken: "expired-token",
+        refreshToken: "refresh-token",
+        expiresAt: "1",
+      }),
+      refreshCredentials: async () => undefined,
+      invokeCliPrint: async () => {
+        cliCalls += 1;
+        return "CLI_FALLBACK_OK";
+      },
+    });
+
+    const result = await plugin.models?.TEXT_LARGE?.(
+      {
+        getSetting: () =>
+          JSON.stringify({
+            model: {
+              provider: "claude-code",
+              model: "claude-sonnet-4.6",
+            },
+          }),
+      } as never,
+      { prompt: "hello" } as never,
+    );
+
+    expect(result).toBe("CLI_FALLBACK_OK");
+    expect(cliCalls).toBe(1);
+  });
+
   it("requires native auth material when CLI fallback is disabled", async () => {
     const plugin = createClaudeCodePlugin({
       enabled: true,

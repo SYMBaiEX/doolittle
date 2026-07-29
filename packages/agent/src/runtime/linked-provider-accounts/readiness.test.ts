@@ -162,6 +162,31 @@ describe("linked-provider-accounts readiness helpers", () => {
     expect(second).toBe(first);
   });
 
+  it("allows Claude CLI fallback without blocking on OAuth refresh", async () => {
+    const { getProviderReadinessMessage } = await loadReadinessModule();
+    const context = {
+      runtime: {},
+      services: {
+        settings: {
+          get: () => ({
+            model: { provider: "claude-code", model: "", baseUrl: "" },
+          }),
+        },
+      },
+      config: {
+        claudeCodeCliFallback: true,
+      },
+    } as unknown as AgentExecutionContext;
+
+    const message = await getProviderReadinessMessage(
+      context,
+      "claude-code",
+    );
+
+    expect(message).toBeUndefined();
+    expect(providerCredentialsCalls).toBe(0);
+  });
+
   it("returns a fast readiness message when local Ollama is unavailable", async () => {
     const originalFetch = globalThis.fetch;
     let fetchCalls = 0;
