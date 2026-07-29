@@ -2540,6 +2540,24 @@ button.chat-session-meta-pill:hover {
   margin-top: auto;
 }
 
+.page-settings {
+  width: min(100%, 1480px);
+  gap: 20px;
+  padding-top: 26px;
+}
+
+.page-settings > .page-header {
+  padding-bottom: 16px;
+}
+
+.page-settings > .page-header h1 {
+  font-size: clamp(26px, 2.4vw, 34px);
+}
+
+.page-settings > .page-header p {
+  max-width: 760px;
+}
+
 .provider-auth-state {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr);

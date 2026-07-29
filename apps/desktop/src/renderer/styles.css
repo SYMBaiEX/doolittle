@@ -1653,35 +1653,61 @@ td {
 
 .settings-layout {
   display: grid;
-  grid-template-columns: 205px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 238px minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
 .settings-nav {
   position: sticky;
-  top: 0;
+  top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 9px;
-  background: var(--surface);
+  gap: 3px;
+  max-height: calc(100vh - 120px);
+  padding: 8px;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+.settings-nav-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 3px 7px;
+  padding: 7px 8px 11px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-nav-title span {
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 700;
+}
+
+.settings-nav-title small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .settings-nav > button {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 9px;
+  gap: 10px;
+  min-height: 47px;
+  padding: 7px 9px 7px 11px;
   color: var(--text-soft);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 4px;
   text-align: left;
-  font-size: var(--text-meta);
 }
 
 .settings-nav > button:hover {
@@ -1690,18 +1716,30 @@ td {
 
 .settings-nav > button.selected {
   color: var(--text);
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface-hover));
-  border-color: var(--border);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-hover));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
 }
 
 .settings-nav > button.selected::before {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: -10px;
+  top: 9px;
+  bottom: 9px;
+  left: -1px;
   width: 2px;
   content: "";
   background: var(--accent);
+}
+
+.settings-nav > button > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-nav > button strong {
+  color: inherit;
+  font-size: var(--text-control);
+  font-weight: 650;
 }
 
 .settings-nav button small {
@@ -1709,9 +1747,22 @@ td {
   font-size: var(--text-meta);
 }
 
+.settings-nav > button > i {
+  min-width: 22px;
+  padding: 3px 5px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-style: normal;
+  text-align: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
 .settings-nav-note {
-  margin-top: 9px;
-  padding: 11px 8px 3px;
+  margin-top: 10px;
+  padding: 13px 10px 6px;
   border-top: 1px solid var(--border);
 }
 
@@ -1731,7 +1782,61 @@ td {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+.settings-content-header,
+.settings-section-header {
+  display: flex;
+  min-height: 66px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 3px 1px 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-content-header h2,
+.settings-section-header h2 {
+  margin: 5px 0 2px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.settings-content-header p,
+.settings-section-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+
+.settings-search {
+  width: min(280px, 38%);
+}
+
+.settings-provider-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.provider-settings-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider-settings-grid .provider-card:nth-child(-n + 2) {
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--accent) 5%, transparent),
+      transparent 46%
+    ),
+    color-mix(in srgb, var(--surface-raised) 94%, transparent);
 }
 
 .settings-group {
@@ -2974,8 +3079,21 @@ td {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .settings-nav-title {
+    grid-column: 1 / -1;
+  }
+
   .settings-nav-note {
     display: none;
+  }
+
+  .provider-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-content-header,
+  .settings-section-header {
+    min-height: auto;
   }
 
   .setting-row {
