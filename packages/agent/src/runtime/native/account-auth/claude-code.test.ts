@@ -164,7 +164,7 @@ function runClaudeRefreshSubprocess({
 }
 
 describe.sequential("Claude Code account auth", () => {
-  it("prefers reusable stored credentials over local Claude auth artifacts", () => {
+  it("prefers current local Claude auth artifacts over cached credentials", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-auth-"));
     mkdirSync(join(homePath, ".claude"), { recursive: true });
     writeFileSync(
@@ -193,10 +193,9 @@ describe.sequential("Claude Code account auth", () => {
     const status = getClaudeCodeAccountStatus(homePath, deps);
     const credentials = getLinkedClaudeCodeCredentials(homePath, deps);
 
-    expect(status.source).toBe("eliza-auth-store");
-    expect(status.accountLabel).toBe("Stored Claude");
-    expect(credentials?.accessToken).toBe("stored-access");
-    expect(persisted).toHaveLength(0);
+    expect(status.source).toContain(".claude/.credentials.json");
+    expect(credentials?.accessToken).toBe("file-access");
+    expect(persisted).toEqual([credentials]);
   });
 
   it("loads file-backed Claude OAuth credentials and persists them", () => {
@@ -282,7 +281,7 @@ describe.sequential("Claude Code account auth", () => {
     expect(status.source).toContain(".claude.json");
   });
 
-  it.sequential("refreshes stored Claude OAuth credentials before file or env fallbacks and persists the winner", () => {
+  it.sequential("refreshes the authoritative Claude CLI credentials before cached credentials", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-stored-"));
     const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
     const credentialsPath = join(homePath, ".claude", ".credentials.json");
@@ -320,20 +319,26 @@ describe.sequential("Claude Code account auth", () => {
     });
 
     expect(parsed.requests).toHaveLength(1);
-    expect(parsed.requests[0]).toContain("refresh_token=stored-refresh");
+    expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
     expect(parsed.credentials).toEqual(
       expect.objectContaining({
         accessToken: "stored-refreshed-access",
         refreshToken: "stored-refreshed-refresh",
-        accountLabel: "Stored Claude",
         authMode: "oauth",
+        source: credentialsPath,
+      }),
+    );
+    expect(parsed.stored).toEqual(
+      expect.objectContaining({
+        ...parsed.credentials,
         source: "eliza-auth-store",
       }),
     );
-    expect(parsed.stored).toEqual(parsed.credentials);
-    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe("file-access");
+    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
+      "stored-refreshed-access",
+    );
     expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
-      "file-refresh",
+      "stored-refreshed-refresh",
     );
   });
 
@@ -392,9 +397,11 @@ describe.sequential("Claude Code account auth", () => {
         source: "eliza-auth-store",
       }),
     );
-    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe("file-access");
+    expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
+      "file-refreshed-access",
+    );
     expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
-      "file-refresh",
+      "file-refreshed-refresh",
     );
   });
 

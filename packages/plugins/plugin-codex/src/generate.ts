@@ -28,6 +28,20 @@ interface CodexRequestPayload {
   };
 }
 
+function codexRequestHeaders(credentials: {
+  accessToken: string;
+  accountId?: string;
+}): Record<string, string> {
+  return {
+    Authorization: `Bearer ${credentials.accessToken}`,
+    "Content-Type": "application/json",
+    Accept: "text/event-stream",
+    ...(credentials.accountId?.trim()
+      ? { "ChatGPT-Account-Id": credentials.accountId.trim() }
+      : {}),
+  };
+}
+
 function codexRequestSignal(params: GenerateTextParams): AbortSignal {
   const callerSignal = (params as GenerateTextParams & { signal?: AbortSignal })
     .signal;
@@ -90,10 +104,10 @@ export async function runCodexTextGeneration(
   const signal = codexRequestSignal(params);
   let response = await fetch(endpoint, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: codexRequestHeaders({
+      accessToken,
+      accountId: credentials?.accountId,
+    }),
     body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
     signal,
   });
@@ -107,10 +121,10 @@ export async function runCodexTextGeneration(
     if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
       response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${refreshedAccessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: codexRequestHeaders({
+          accessToken: refreshedAccessToken,
+          accountId: refreshed?.accountId,
+        }),
         body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
         signal,
       });

@@ -16,6 +16,7 @@ export interface CodexPluginOptions {
     | {
         accessToken?: string;
         refreshToken?: string;
+        accountId?: string;
         authMode?: string;
         lastRefresh?: string;
         source?: string;
@@ -25,6 +26,7 @@ export interface CodexPluginOptions {
     | {
         accessToken?: string;
         refreshToken?: string;
+        accountId?: string;
         authMode?: string;
         lastRefresh?: string;
         source?: string;

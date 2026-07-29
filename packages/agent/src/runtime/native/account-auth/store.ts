@@ -116,6 +116,7 @@ export function getStoredCodexCredentials():
   return {
     accessToken: record.accessToken,
     refreshToken: record.refreshToken,
+    accountId: record.accountId,
     authMode: record.authMode,
     lastRefresh: record.lastRefresh,
     source: "eliza-auth-store",

@@ -162,9 +162,10 @@ describe.sequential("linked provider account auth snapshot", () => {
         expect(mod.getLinkedCodexCredentials(home)).toEqual({
           accessToken: refreshedAccessToken,
           refreshToken: "codex-refreshed-token",
+          accountId: undefined,
           authMode: "chatgpt",
           lastRefresh: filePayload.last_refresh,
-          source: "eliza-auth-store",
+          source: authPath,
         });
       });
     } finally {

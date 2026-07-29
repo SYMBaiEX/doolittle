@@ -42,12 +42,8 @@ export function resolveStoredOrLoadedTokenCredentials<
   loaded: TCredentials | undefined;
   persistCredentials: (credentials: TCredentials | undefined) => void;
 }): TCredentials | undefined {
-  const reusableStored = getReusableStoredTokenCredentials(stored);
-  if (reusableStored) {
-    return reusableStored;
+  if (hasTokenCredentials(loaded)) {
+    return persistResolvedTokenCredentials(loaded, persistCredentials);
   }
-  if (!hasTokenCredentials(loaded)) {
-    return undefined;
-  }
-  return persistResolvedTokenCredentials(loaded, persistCredentials);
+  return getReusableStoredTokenCredentials(stored);
 }

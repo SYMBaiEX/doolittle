@@ -43,6 +43,7 @@ describe.sequential("codex local auth helpers", () => {
         tokens: {
           access_token: " access-token ",
           refresh_token: " refresh-token ",
+          account_id: " account-123 ",
           extra_token_field: "keep-me",
         },
       }),
@@ -57,6 +58,7 @@ describe.sequential("codex local auth helpers", () => {
         authFilePresent: true,
         accessToken: "access-token",
         refreshToken: "refresh-token",
+        accountId: "account-123",
         authMode: "chatgpt",
         lastRefresh: "2026-03-21T12:00:00.000Z",
       }),
@@ -64,6 +66,7 @@ describe.sequential("codex local auth helpers", () => {
     expect(getCodexCliCredentials(store)).toEqual({
       accessToken: "access-token",
       refreshToken: "refresh-token",
+      accountId: "account-123",
       authMode: "chatgpt",
       lastRefresh: "2026-03-21T12:00:00.000Z",
       source: authPath,
@@ -105,6 +108,7 @@ describe.sequential("codex local auth helpers", () => {
         tokens: {
           access_token: "stale-access",
           refresh_token: "stale-refresh",
+          account_id: "account-123",
           extra_token_field: "keep-me",
         },
       }),
@@ -126,6 +130,7 @@ describe.sequential("codex local auth helpers", () => {
       tokens?: {
         access_token?: string;
         refresh_token?: string;
+        account_id?: string;
         extra_token_field?: string;
       };
     };
@@ -136,6 +141,7 @@ describe.sequential("codex local auth helpers", () => {
       expect.objectContaining({
         access_token: "fresh-access",
         refresh_token: "fresh-refresh",
+        account_id: "account-123",
         extra_token_field: "keep-me",
       }),
     );

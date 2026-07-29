@@ -173,12 +173,7 @@ export function getClaudeCodeAccountStatus(
   homePath: string | undefined,
   deps: ClaudeCodeAuthDependencies,
 ): LinkedProviderAccountStatus {
-  const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
   const cliStatus = getClaudeCodeCliAuthStatus(homePath, deps);
-  if (stored) {
-    return buildStoredClaudeCodeStatus(stored, cliStatus.loggedIn);
-  }
-
   const home = deps.resolveHome(homePath);
   const credentialsPath = getClaudeCodeCredentialsPath(homePath, deps);
   const profilePath = join(home, ".claude.json");
@@ -200,6 +195,11 @@ export function getClaudeCodeAccountStatus(
       accountLabel,
       fallbackReady: cliStatus.loggedIn,
     });
+  }
+
+  const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
+  if (stored) {
+    return buildStoredClaudeCodeStatus(stored, cliStatus.loggedIn);
   }
 
   if (accountLabel || existsSync(credentialsPath) || cliStatus.available) {

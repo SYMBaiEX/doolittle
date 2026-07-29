@@ -98,20 +98,33 @@ export async function refreshLinkedClaudeCodeCredentials(
   homePath: string | undefined,
   deps: ClaudeCodeAuthDependencies,
 ): Promise<LinkedClaudeCodeCredentials | undefined> {
-  const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
-  if (stored) {
-    return refreshStoredClaudeCodeCredentials(deps);
-  }
-
   const envCredentials = resolveClaudeCodeEnvCredentials(homePath, deps);
   const fileCreds = readClaudeCodeFileCredentials(homePath, deps);
+  if (fileCreds) {
+    try {
+      return await refreshFileBackedClaudeCodeCredentials(
+        homePath,
+        fileCreds,
+        deps,
+      );
+    } catch (error) {
+      if (!envCredentials) {
+        throw error;
+      }
+      return persistResolvedTokenCredentials(
+        envCredentials,
+        deps.persistCredentials,
+      );
+    }
+  }
+
   if (envCredentials) {
     return refreshEnvBackedClaudeCodeCredentials(
       envCredentials,
-      fileCreds,
+      undefined,
       deps,
     );
   }
 
-  return refreshFileBackedClaudeCodeCredentials(homePath, fileCreds, deps);
+  return refreshStoredClaudeCodeCredentials(deps);
 }

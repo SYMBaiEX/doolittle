@@ -57,15 +57,15 @@ export function getCodexAccountStatus(
   homePath: string | undefined,
   deps: CodexAuthDependencies,
 ): LinkedProviderAccountStatus {
-  const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
-  if (stored) {
-    return buildStoredCodexStatus(stored);
-  }
-
   const cliStore = readCodexCliStore(homePath, deps);
   const cliCredentials = getCodexCliCredentials(cliStore);
   if (cliCredentials) {
     return buildCliStoreCodexStatus(cliCredentials);
+  }
+
+  const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
+  if (stored) {
+    return buildStoredCodexStatus(stored);
   }
 
   const cliStatus = getCodexCliAuthStatus(homePath, deps);
@@ -136,8 +136,9 @@ export async function refreshLinkedCodexCredentials(
   }
 
   writeRefreshedCodexCliStore(cliStore, refreshed, deps);
+  const refreshedCliStore = readCodexCliStore(homePath, deps);
   return persistResolvedTokenCredentials(
-    getLinkedCodexCredentials(homePath, deps),
+    getCodexCliCredentials(refreshedCliStore),
     deps.persistCredentials,
   );
 }

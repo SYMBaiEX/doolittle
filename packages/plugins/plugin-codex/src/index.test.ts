@@ -62,6 +62,7 @@ describe("createCodexPlugin", () => {
         }),
         getCredentials: () => ({
           accessToken: "codex-token",
+          accountId: "account-123",
         }),
       });
       const handler = plugin.models?.TEXT_LARGE;
@@ -88,6 +89,14 @@ describe("createCodexPlugin", () => {
       expect(
         (calls[0]?.init?.headers as Record<string, string>)?.Authorization,
       ).toBe("Bearer codex-token");
+      expect(
+        (calls[0]?.init?.headers as Record<string, string>)[
+          "ChatGPT-Account-Id"
+        ],
+      ).toBe("account-123");
+      expect((calls[0]?.init?.headers as Record<string, string>)?.Accept).toBe(
+        "text/event-stream",
+      );
       expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
       expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(
         expect.objectContaining({
