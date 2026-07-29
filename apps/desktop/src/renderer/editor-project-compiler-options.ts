@@ -16,11 +16,16 @@ export const MONACO_TS_CONSTANTS = {
     system: 4,
     es2015: 5,
     esnext: 99,
+    node16: 100,
+    nodenext: 199,
+    preserve: 200,
   },
   moduleResolution: {
     classic: 1,
     node: 2,
-    bundler: 2,
+    node16: 3,
+    nodenext: 99,
+    bundler: 100,
   },
   target: {
     es3: 0,
@@ -46,6 +51,7 @@ export function compilerOptionsForMonaco(
     baseUrl: options.baseUrl,
     esModuleInterop: options.esModuleInterop ?? true,
     jsx: options.jsx ? MONACO_TS_CONSTANTS.jsx[options.jsx] : undefined,
+    lib: options.lib,
     module: options.module
       ? MONACO_TS_CONSTANTS.module[options.module]
       : MONACO_TS_CONSTANTS.module.esnext,

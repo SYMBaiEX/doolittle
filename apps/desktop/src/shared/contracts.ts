@@ -1026,8 +1026,17 @@ export interface EditorProjectCompilerOptions {
     | "react-jsx"
     | "react-jsxdev";
   lib?: string[];
-  module?: "commonjs" | "amd" | "umd" | "system" | "es2015" | "esnext";
-  moduleResolution?: "classic" | "node" | "bundler";
+  module?:
+    | "commonjs"
+    | "amd"
+    | "umd"
+    | "system"
+    | "es2015"
+    | "esnext"
+    | "node16"
+    | "nodenext"
+    | "preserve";
+  moduleResolution?: "classic" | "node" | "node16" | "nodenext" | "bundler";
   paths?: Record<string, string[]>;
   resolveJsonModule?: boolean;
   skipLibCheck?: boolean;

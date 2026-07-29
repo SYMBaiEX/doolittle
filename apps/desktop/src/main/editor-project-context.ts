@@ -25,6 +25,21 @@ interface ProjectConfigCandidate {
   options: ts.CompilerOptions;
 }
 
+interface PendingSupportFile {
+  diskPath: string;
+  virtualPath: string;
+  virtualPackageRoot?: string;
+}
+
+interface ResolvedDependency {
+  resolvedFileName?: string;
+  originalPath?: string;
+  packageId?: {
+    name: string;
+    subModuleName: string;
+  };
+}
+
 function validateWorkspaceRelativePath(path: string): string {
   if (!path || path !== path.trim()) {
     throw new Error("A workspace-relative editor path is required.");
@@ -101,6 +116,12 @@ function moduleKindName(
       return "es2015";
     case ts.ModuleKind.ESNext:
       return "esnext";
+    case ts.ModuleKind.Node16:
+      return "node16";
+    case ts.ModuleKind.NodeNext:
+      return "nodenext";
+    case ts.ModuleKind.Preserve:
+      return "preserve";
     default:
       return undefined;
   }
@@ -115,9 +136,11 @@ function moduleResolutionName(
     case ts.ModuleResolutionKind.Bundler:
       return "bundler";
     case ts.ModuleResolutionKind.Node10:
-    case ts.ModuleResolutionKind.Node16:
-    case ts.ModuleResolutionKind.NodeNext:
       return "node";
+    case ts.ModuleResolutionKind.Node16:
+      return "node16";
+    case ts.ModuleResolutionKind.NodeNext:
+      return "nodenext";
     default:
       return undefined;
   }
@@ -175,11 +198,14 @@ function targetName(
 
 function normalizeCompilerOptions(
   compilerOptions: ts.CompilerOptions,
+  projectRoot: string,
 ): EditorProjectCompilerOptions {
   return {
     allowJs: compilerOptions.allowJs,
     allowSyntheticDefaultImports: compilerOptions.allowSyntheticDefaultImports,
-    baseUrl: compilerOptions.baseUrl,
+    baseUrl:
+      compilerOptions.baseUrl ??
+      (compilerOptions.paths ? projectRoot : undefined),
     esModuleInterop: compilerOptions.esModuleInterop,
     jsx: jsxName(compilerOptions.jsx),
     lib: compilerOptions.lib,
@@ -238,12 +264,18 @@ function collectSupportFiles(
   entryAbsolutePath: string,
   entryContent: string,
   compilerOptions: ts.CompilerOptions,
+  workspacePath: string,
 ): {
   supportFiles: EditorProjectContextResult["supportFiles"];
   truncated: boolean;
 } {
-  const seen = new Set<string>();
-  const pending = [entryAbsolutePath];
+  const seenVirtualPaths = new Set<string>();
+  const pending: PendingSupportFile[] = [
+    {
+      diskPath: entryAbsolutePath,
+      virtualPath: entryAbsolutePath,
+    },
+  ];
   const supportFiles: EditorProjectContextResult["supportFiles"] = [];
   const inMemoryContent = new Map<string, string>([
     [entryAbsolutePath, entryContent],
@@ -251,87 +283,79 @@ function collectSupportFiles(
   let totalBytes = 0;
   let truncated = false;
 
-  const enqueue = (candidate: string | undefined) => {
-    if (!candidate) return;
-    const normalized = normalizePath(candidate);
-    if (seen.has(normalized) || !existsSync(normalized)) return;
-    if (statSync(normalized).isDirectory()) return;
-    if (!isSourceLikeFile(normalized)) return;
-    pending.push(normalized);
+  const enqueue = (
+    diskCandidate: string | undefined,
+    virtualCandidate?: string,
+    virtualPackageRoot?: string,
+  ) => {
+    if (!diskCandidate) return;
+    const diskPath = normalizePath(diskCandidate);
+    const virtualPath = normalizePath(virtualCandidate ?? diskCandidate);
+    if (seenVirtualPaths.has(virtualPath) || !existsSync(diskPath)) return;
+    if (statSync(diskPath).isDirectory()) return;
+    if (!isSourceLikeFile(diskPath)) return;
+    pending.push({ diskPath, virtualPath, virtualPackageRoot });
   };
 
-  while (pending.length > 0) {
-    const current = pending.pop();
-    if (!current) continue;
-    const normalized = normalizePath(current);
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
+  const findVisiblePackageRoot = (packageName: string): string | undefined => {
+    let directory = dirname(entryAbsolutePath);
+    while (isInsideWorkspace(workspacePath, directory)) {
+      const candidate = resolve(directory, "node_modules", packageName);
+      if (existsSync(candidate)) return candidate;
+      if (directory === workspacePath) return undefined;
+      const parent = dirname(directory);
+      if (parent === directory) return undefined;
+      directory = parent;
+    }
+  };
 
-    const content =
-      inMemoryContent.get(normalized) ?? readFileSync(normalized, "utf8");
-    if (normalized !== entryAbsolutePath) {
-      const bytes = new TextEncoder().encode(content).byteLength;
-      if (
-        supportFiles.length >= MAX_SUPPORT_FILES ||
-        totalBytes + bytes > MAX_SUPPORT_BYTES
-      ) {
-        truncated = true;
-        continue;
-      }
-      supportFiles.push({
-        path: normalized,
-        content,
-      });
-      totalBytes += bytes;
+  const enqueueResolved = (
+    resolved: ResolvedDependency | undefined,
+    importer?: PendingSupportFile,
+  ) => {
+    if (!resolved?.resolvedFileName) return;
+    const diskPath = normalizePath(resolved.resolvedFileName);
+    const packageId = resolved.packageId;
+    if (!packageId) {
+      enqueue(diskPath, resolved.originalPath ?? diskPath);
+      return;
     }
 
-    const preprocessed = ts.preProcessFile(content, true, true);
+    const virtualPackageRoot =
+      findVisiblePackageRoot(packageId.name) ??
+      (importer?.virtualPackageRoot
+        ? resolve(importer.virtualPackageRoot, "node_modules", packageId.name)
+        : undefined) ??
+      (resolved.originalPath
+        ? resolve(
+            resolved.originalPath,
+            ...Array(
+              packageId.subModuleName.split("/").filter(Boolean).length,
+            ).fill(".."),
+          )
+        : undefined);
+    enqueue(
+      diskPath,
+      virtualPackageRoot
+        ? resolve(virtualPackageRoot, packageId.subModuleName)
+        : (resolved.originalPath ?? diskPath),
+      virtualPackageRoot,
+    );
+  };
 
-    for (const reference of preprocessed.referencedFiles) {
-      enqueue(resolve(dirname(normalized), reference.fileName));
-    }
+  const drainPending = () => {
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (!current) continue;
+      const diskPath = normalizePath(current.diskPath);
+      const virtualPath = normalizePath(current.virtualPath);
+      if (seenVirtualPaths.has(virtualPath)) continue;
+      seenVirtualPaths.add(virtualPath);
 
-    for (const directive of preprocessed.typeReferenceDirectives) {
-      const resolved = ts.resolveTypeReferenceDirective(
-        directive.fileName,
-        normalized,
-        compilerOptions,
-        TYPE_REFERENCE_HOST,
-      ).resolvedTypeReferenceDirective;
-      enqueue(resolved?.resolvedFileName);
-    }
-
-    for (const imported of preprocessed.importedFiles) {
-      const resolved = ts.resolveModuleName(
-        imported.fileName,
-        normalized,
-        compilerOptions,
-        TYPE_REFERENCE_HOST,
-      ).resolvedModule;
-      enqueue(resolved?.resolvedFileName);
-    }
-  }
-
-  if (Array.isArray(compilerOptions.types)) {
-    for (const typeName of compilerOptions.types) {
-      const resolved = ts.resolveTypeReferenceDirective(
-        typeName,
-        entryAbsolutePath,
-        compilerOptions,
-        TYPE_REFERENCE_HOST,
-      ).resolvedTypeReferenceDirective;
-      if (!resolved?.resolvedFileName) continue;
-      const normalized = normalizePath(resolved.resolvedFileName);
-      if (seen.has(normalized)) continue;
-      pending.push(normalized);
-      while (pending.length > 0) {
-        const next = pending.pop();
-        if (!next) continue;
-        const normalizedNext = normalizePath(next);
-        if (seen.has(normalizedNext)) continue;
-        seen.add(normalizedNext);
-        const nextContent = readFileSync(normalizedNext, "utf8");
-        const bytes = new TextEncoder().encode(nextContent).byteLength;
+      const content =
+        inMemoryContent.get(diskPath) ?? readFileSync(diskPath, "utf8");
+      if (diskPath !== entryAbsolutePath) {
+        const bytes = new TextEncoder().encode(content).byteLength;
         if (
           supportFiles.length >= MAX_SUPPORT_FILES ||
           totalBytes + bytes > MAX_SUPPORT_BYTES
@@ -339,33 +363,94 @@ function collectSupportFiles(
           truncated = true;
           continue;
         }
-        supportFiles.push({ path: normalizedNext, content: nextContent });
+        supportFiles.push({
+          path: virtualPath,
+          content,
+        });
         totalBytes += bytes;
-        const preprocessed = ts.preProcessFile(nextContent, true, true);
-        for (const reference of preprocessed.referencedFiles) {
-          enqueue(resolve(dirname(normalizedNext), reference.fileName));
-        }
-        for (const directive of preprocessed.typeReferenceDirectives) {
-          const nested = ts.resolveTypeReferenceDirective(
-            directive.fileName,
-            normalizedNext,
-            compilerOptions,
-            TYPE_REFERENCE_HOST,
-          ).resolvedTypeReferenceDirective;
-          enqueue(nested?.resolvedFileName);
-        }
-        for (const imported of preprocessed.importedFiles) {
-          const nested = ts.resolveModuleName(
-            imported.fileName,
-            normalizedNext,
-            compilerOptions,
-            TYPE_REFERENCE_HOST,
-          ).resolvedModule;
-          enqueue(nested?.resolvedFileName);
+      }
+
+      const preprocessed = ts.preProcessFile(content, true, true);
+
+      for (const reference of preprocessed.referencedFiles) {
+        enqueue(
+          resolve(dirname(diskPath), reference.fileName),
+          resolve(dirname(virtualPath), reference.fileName),
+          current.virtualPackageRoot,
+        );
+      }
+
+      for (const directive of preprocessed.typeReferenceDirectives) {
+        const resolved = ts.resolveTypeReferenceDirective(
+          directive.fileName,
+          diskPath,
+          compilerOptions,
+          TYPE_REFERENCE_HOST,
+        ).resolvedTypeReferenceDirective;
+        enqueueResolved(resolved, current);
+      }
+
+      for (const imported of preprocessed.importedFiles) {
+        const resolved = ts.resolveModuleName(
+          imported.fileName,
+          diskPath,
+          compilerOptions,
+          TYPE_REFERENCE_HOST,
+        ).resolvedModule;
+        if (
+          resolved?.resolvedFileName &&
+          (imported.fileName.startsWith(".") ||
+            imported.fileName.startsWith("/"))
+        ) {
+          enqueue(
+            resolved.resolvedFileName,
+            resolve(
+              dirname(virtualPath),
+              relative(dirname(diskPath), resolved.resolvedFileName),
+            ),
+            current.virtualPackageRoot,
+          );
+        } else {
+          enqueueResolved(resolved, current);
         }
       }
     }
+  };
+
+  drainPending();
+
+  const typeNames = Array.isArray(compilerOptions.types)
+    ? compilerOptions.types
+    : ts.getAutomaticTypeDirectiveNames(compilerOptions, TYPE_REFERENCE_HOST);
+  for (const typeName of typeNames) {
+    const resolved = ts.resolveTypeReferenceDirective(
+      typeName,
+      entryAbsolutePath,
+      compilerOptions,
+      TYPE_REFERENCE_HOST,
+    ).resolvedTypeReferenceDirective;
+    enqueueResolved(resolved);
   }
+
+  if (
+    compilerOptions.jsx === ts.JsxEmit.ReactJSX ||
+    compilerOptions.jsx === ts.JsxEmit.ReactJSXDev
+  ) {
+    const runtime =
+      compilerOptions.jsx === ts.JsxEmit.ReactJSXDev
+        ? "react/jsx-dev-runtime"
+        : "react/jsx-runtime";
+    enqueueResolved(
+      ts.resolveModuleName(
+        runtime,
+        entryAbsolutePath,
+        compilerOptions,
+        TYPE_REFERENCE_HOST,
+      ).resolvedModule,
+    );
+  }
+
+  drainPending();
 
   return { supportFiles, truncated };
 }
@@ -410,6 +495,7 @@ export function resolveEditorProjectContext(
     entryAbsolutePath,
     entryContent,
     compilerOptions,
+    workspacePath,
   );
 
   return {
@@ -417,7 +503,10 @@ export function resolveEditorProjectContext(
     projectRoot: projectConfig ? dirname(projectConfig.path) : workspacePath,
     entryPath: entryAbsolutePath,
     tsconfigPath: projectConfig?.path,
-    compilerOptions: normalizeCompilerOptions(compilerOptions),
+    compilerOptions: normalizeCompilerOptions(
+      compilerOptions,
+      projectConfig ? dirname(projectConfig.path) : workspacePath,
+    ),
     supportFiles,
     truncated,
   };
