@@ -31,18 +31,14 @@ export function resolveRepositoryIntentFromParams(
     return undefined;
   }
   const record = params as Record<string, unknown>;
-  const raw =
-    nonEmptyString(record.intent) ??
-    nonEmptyString(record.action) ??
-    nonEmptyString(record.mode) ??
-    nonEmptyString(record.command);
+  const raw = nonEmptyString(record.intent);
   if (raw === "status" || raw === "diff" || raw === "log") {
     return raw;
   }
   return undefined;
 }
 
-export function resolveRepositoryIntentFromText(
+export function resolveRepositoryCommandIntent(
   text: string,
 ): RepositoryIntent | undefined {
   const trimmed = text.trim();
@@ -56,22 +52,6 @@ export function resolveRepositoryIntentFromText(
     return "log";
   }
 
-  const lower = trimmed.toLowerCase();
-  if (
-    /(git status|repo status|repository status|working tree|uncommitted changes)/u.test(
-      lower,
-    )
-  ) {
-    return "status";
-  }
-  if (
-    /(git diff|repo diff|repository diff|show diff|what changed)/u.test(lower)
-  ) {
-    return "diff";
-  }
-  if (/(git log|repo log|recent commits|commit history)/u.test(lower)) {
-    return "log";
-  }
   return undefined;
 }
 
@@ -95,7 +75,7 @@ export async function executeRepositoryCommand(
   services: AppServices,
   input: string,
 ): Promise<string | undefined> {
-  const intent = resolveRepositoryIntentFromText(input);
+  const intent = resolveRepositoryCommandIntent(input);
   return intent
     ? executeRepositoryIntent(runtime, services, intent)
     : undefined;
@@ -115,18 +95,12 @@ export function createRepositoryAction(services: AppServices): Action {
     validate: async () => true,
     handler: async (
       runtime: IAgentRuntime,
-      message: Memory,
+      _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text =
-        typeof message.content === "string"
-          ? message.content
-          : message.content?.text;
-      const intent =
-        resolveRepositoryIntentFromParams(options?.parameters) ??
-        (text ? resolveRepositoryIntentFromText(text) : undefined);
+      const intent = resolveRepositoryIntentFromParams(options?.parameters);
       let response = "";
 
       if (intent) {

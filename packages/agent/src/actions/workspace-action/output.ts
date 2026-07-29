@@ -3,7 +3,7 @@ import { inspectEffectiveProject } from "@/runtime/native/service-bridge/tooling
 import type { AppServices } from "@/services";
 
 export const WORKSPACE_ACTION_FALLBACK_MESSAGE =
-  "I can list files, read a file, search the workspace, or write a file. Try `/workspace tree` or ask `search the repo for auth middleware`.";
+  "I can show the project tree, summarize the selected workspace, or locate a local codebase. Use the dedicated file actions for concrete reads, searches, and edits.";
 
 const LIST_PREVIEW_LIMIT = 12;
 const GIT_CHANGE_PREVIEW_LIMIT = 8;
@@ -147,22 +147,6 @@ export async function summarizeProjectForOutput(
   ]
     .filter(Boolean)
     .join("\n");
-}
-
-export function formatWorkspaceSearchResults(
-  results: Array<{
-    path: string;
-    matches: string[];
-  }>,
-): string {
-  return results.length > 0
-    ? results
-        .map(
-          (result) =>
-            `${result.path}\n${result.matches.map((line) => `  ${line}`).join("\n")}`,
-        )
-        .join("\n\n")
-    : "No workspace matches found.";
 }
 
 export function formatFoundCodebases(

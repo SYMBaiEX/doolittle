@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createRepositoryAction,
   executeRepositoryCommand,
-  resolveRepositoryIntentFromText,
+  resolveRepositoryCommandIntent,
 } from "./repository-action";
 
 describe("repository action command facade", () => {
@@ -30,10 +30,13 @@ describe("repository action command facade", () => {
     });
   });
 
-  it("maps slash command syntax through the shared action intent parser", () => {
-    expect(resolveRepositoryIntentFromText("/repo")).toBe("status");
-    expect(resolveRepositoryIntentFromText("/repo diff")).toBe("diff");
-    expect(resolveRepositoryIntentFromText("/repo log")).toBe("log");
+  it("maps only explicit slash syntax through the command facade", () => {
+    expect(resolveRepositoryCommandIntent("/repo")).toBe("status");
+    expect(resolveRepositoryCommandIntent("/repo diff")).toBe("diff");
+    expect(resolveRepositoryCommandIntent("/repo log")).toBe("log");
+    expect(resolveRepositoryCommandIntent("what changed in this repo?")).toBe(
+      undefined,
+    );
   });
 
   it("executes slash commands through the action's repository facade", async () => {

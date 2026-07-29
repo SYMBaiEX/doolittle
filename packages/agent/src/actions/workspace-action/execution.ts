@@ -1,17 +1,8 @@
 import { existsSync, statSync } from "node:fs";
 import type { IAgentRuntime } from "@elizaos/core";
-import {
-  findEffectiveLocalCodebases,
-  readEffectiveWorkspaceFile,
-  searchEffectiveWorkspace,
-  writeEffectiveWorkspaceFile,
-} from "@/runtime/native/service-bridge/tooling";
+import { findEffectiveLocalCodebases } from "@/runtime/native/service-bridge/tooling";
 import type { AppServices } from "@/services";
-import {
-  formatFoundCodebases,
-  formatWorkspaceSearchResults,
-  summarizeProjectForOutput,
-} from "./output";
+import { formatFoundCodebases, summarizeProjectForOutput } from "./output";
 import {
   resolveLocalProjectPath,
   sanitizeFindQuery,
@@ -99,27 +90,6 @@ export async function executeWorkspaceIntent(
       services,
       resolveOverviewPath(intent, workspaceDir),
     );
-  }
-
-  if (intent.kind === "read") {
-    return String(readEffectiveWorkspaceFile(runtime, services, intent.path));
-  }
-
-  if (intent.kind === "search") {
-    const results = (await searchEffectiveWorkspace(
-      runtime,
-      services,
-      intent.query,
-      20,
-    )) as Array<{
-      path: string;
-      matches: string[];
-    }>;
-    return formatWorkspaceSearchResults(results);
-  }
-
-  if (intent.kind === "write") {
-    return `Wrote ${String(await writeEffectiveWorkspaceFile(runtime, services, intent.path, intent.content))}.`;
   }
 
   return executeFindCodebaseIntent(runtime, services, workspaceDir, intent);

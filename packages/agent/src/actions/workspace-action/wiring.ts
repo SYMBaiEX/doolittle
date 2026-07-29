@@ -14,10 +14,7 @@ import {
 } from "@/services/workspace-directory";
 import { executeWorkspaceIntent } from "./execution";
 import { WORKSPACE_ACTION_FALLBACK_MESSAGE } from "./output";
-import {
-  readWorkspaceActionText,
-  resolveWorkspaceActionIntent,
-} from "./parsing";
+import { resolveWorkspaceActionIntent } from "./parsing";
 
 const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
   {
@@ -26,7 +23,7 @@ const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
     required: true,
     schema: {
       type: "string",
-      enum: ["tree", "overview", "read", "search", "write", "find-codebase"],
+      enum: ["tree", "overview", "find-codebase"],
     },
   },
   {
@@ -41,12 +38,6 @@ const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
     required: false,
     schema: { type: "string" },
   },
-  {
-    name: "content",
-    description: "Complete text for the legacy workspace write operation.",
-    required: false,
-    schema: { type: "string" },
-  },
 ];
 
 export function createWorkspaceAction(
@@ -55,14 +46,9 @@ export function createWorkspaceAction(
 ): Action {
   return {
     name: "DOOLITTLE_WORKSPACE",
-    similes: [
-      "WORKSPACE_TREE",
-      "WORKSPACE_READ",
-      "WORKSPACE_SEARCH",
-      "WORKSPACE_WRITE",
-    ],
+    similes: ["WORKSPACE_TREE", "WORKSPACE_OVERVIEW", "FIND_CODEBASE"],
     description:
-      "Legacy workspace overview helper. Prefer READ_FILE, WRITE_FILE, PATCH_FILE, SEARCH_FILES, and CREATE_DIRECTORY for concrete file work; use this for broad workspace tree/overview requests.",
+      "Inspect the selected project at a broad level. Use this for workspace trees, project overviews, and locating a local codebase. Use the dedicated file actions for concrete reads, searches, and edits.",
     descriptionCompressed:
       "Summarize or inspect the selected workspace at a broad level.",
     routingHint:
@@ -73,13 +59,12 @@ export function createWorkspaceAction(
     validate: async () => true,
     handler: async (
       runtime: IAgentRuntime,
-      message: Memory,
+      _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
-      const text = readWorkspaceActionText(message);
-      const intent = resolveWorkspaceActionIntent(options, text);
+      const intent = resolveWorkspaceActionIntent(options);
       const response = intent
         ? await executeWorkspaceIntent(
             runtime,
