@@ -25,7 +25,11 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
-import { runTextProcess } from "@/services/process-execution";
+import {
+  runTextProcess,
+  type TextProcessOptions,
+  type TextProcessResult,
+} from "@/services/process-execution";
 import {
   type RepositoryReviewResult,
   RepositoryReviewService,
@@ -88,6 +92,29 @@ const MAX_BRANCH_LENGTH = 255;
 const MAX_WORKTREE_PATH_LENGTH = 4_096;
 const MAX_MESSAGE_LENGTH = 10_000;
 const MAX_REMOTE_URL_LENGTH = 4_096;
+const MAX_PULL_REQUEST_TITLE_LENGTH = 256;
+const MAX_PULL_REQUEST_BODY_LENGTH = 20_000;
+
+type RepositoryProcessRunner = (
+  command: string,
+  args: readonly string[],
+  options: TextProcessOptions,
+) => Promise<TextProcessResult>;
+
+interface RepositoryMutationCommand {
+  executable: "git" | "gh";
+  args: string[];
+  summary: string;
+}
+
+type PullRequestMutation = Extract<
+  RepositoryMutationRequest,
+  { type: `pr-${string}` }
+>;
+type GitRepositoryMutation = Exclude<
+  RepositoryMutationRequest,
+  PullRequestMutation
+>;
 
 function cleanOutput(value: string): string {
   return value.replace(/\r?\n$/u, "");
@@ -191,6 +218,57 @@ function validateCommitMessage(value: unknown): string {
   return value;
 }
 
+function validatePullRequestTitle(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("A pull request title is required.");
+  }
+  if (
+    value.length > MAX_PULL_REQUEST_TITLE_LENGTH ||
+    value.includes("\0") ||
+    hasControlCharacters(value.replaceAll("\n", ""))
+  ) {
+    throw new Error(
+      "Pull request title is too long or contains invalid characters.",
+    );
+  }
+  return value;
+}
+
+function validatePullRequestBody(
+  value: unknown,
+  required = false,
+): string | undefined {
+  if (value === undefined && !required) return undefined;
+  if (typeof value !== "string" || (required && !value.trim())) {
+    throw new Error("A pull request review body is required.");
+  }
+  if (value.length > MAX_PULL_REQUEST_BODY_LENGTH || value.includes("\0")) {
+    throw new Error(
+      "Pull request body is too long or contains invalid characters.",
+    );
+  }
+  return value;
+}
+
+function validateReviewEvent(
+  value: unknown,
+): "approve" | "request-changes" | "comment" {
+  if (
+    value === "approve" ||
+    value === "request-changes" ||
+    value === "comment"
+  ) {
+    return value;
+  }
+  throw new Error("Pull request review event is not valid.");
+}
+
+function validateMergeMethod(value: unknown): "merge" | "squash" | "rebase" {
+  if (value === "merge" || value === "squash" || value === "rebase")
+    return value;
+  throw new Error("Pull request merge method is not valid.");
+}
+
 function validateOptionalBoolean(
   value: unknown,
   label: string,
@@ -216,6 +294,12 @@ function isPatchMutation(
     input.type === "unstage-hunk" ||
     input.type === "discard-hunk"
   );
+}
+
+function isPullRequestMutation(
+  input: RepositoryMutationRequest,
+): input is PullRequestMutation {
+  return input.type.startsWith("pr-");
 }
 
 function validateWorktreePath(workspaceDir: string, value: unknown): string {
@@ -360,12 +444,16 @@ export class RepositoryService {
     }
   >();
   private readonly inflight = new Map<string, Promise<string>>();
+  private commandCacheGeneration = 0;
 
-  constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
+  constructor(
+    private readonly workspaceDirectory: WorkspaceDirectorySource,
+    private readonly mutationRunner: RepositoryProcessRunner = runTextProcess,
+  ) {}
 
   invalidateWorkspace(): void {
     this.gitRootCache = undefined;
-    this.commandCache.clear();
+    this.invalidateCommandCache();
   }
 
   isRepository(): boolean {
@@ -457,7 +545,8 @@ export class RepositoryService {
     if (staged) args.push("--cached");
     let scopedPath: string | undefined;
     if (path?.trim()) {
-      const absolutePath = resolveWorkspacePath(this.workspaceRoot(), path);
+      const absolutePath = resolveWorkspacePath(root, path);
+      assertWorkspacePathResolvesInside(root, absolutePath);
       scopedPath = workspaceRelativePath(relative(root, absolutePath));
       args.push("--", scopedPath);
     }
@@ -480,7 +569,7 @@ export class RepositoryService {
   }): Promise<RepositoryWorktree[]> {
     if (!this.gitRoot()) return [];
     if (options?.fresh) {
-      this.commandCache.clear();
+      this.invalidateCommandCache();
     }
     const output = await this.runGit(
       ["worktree", "list", "--porcelain"],
@@ -542,7 +631,7 @@ export class RepositoryService {
       throw new Error("Branch name is not a valid Git branch.");
     }
 
-    const { stderr, exitCode } = await runTextProcess(
+    const { stderr, exitCode } = await this.mutationRunner(
       "git",
       ["worktree", "add", "-b", branch, target],
       {
@@ -557,7 +646,7 @@ export class RepositoryService {
       );
     }
 
-    this.commandCache.clear();
+    this.invalidateCommandCache();
     const createdPath = realpathSync(target);
     const worktree = (await this.worktrees()).find(
       (candidate) => candidate.path === createdPath,
@@ -665,8 +754,8 @@ export class RepositoryService {
       return this.runPatchMutation(input, root);
     }
     const command = await this.mutationCommand(input, root);
-    const { stdout, stderr, exitCode } = await runTextProcess(
-      "git",
+    const { stdout, stderr, exitCode } = await this.mutationRunner(
+      command.executable,
       command.args,
       {
         cwd: root,
@@ -689,7 +778,7 @@ export class RepositoryService {
               cleanStderr || cleanStdout || `Git exited with code ${exitCode}.`,
           }),
     };
-    if (result.ok) this.commandCache.clear();
+    if (result.ok) this.invalidateCommandCache();
     return result;
   }
 
@@ -720,10 +809,14 @@ export class RepositoryService {
           : []),
         patchFile,
       ];
-      const { stdout, stderr, exitCode } = await runTextProcess("git", args, {
-        cwd: root,
-        toolName: `doolittle.repository.${input.type}`,
-      });
+      const { stdout, stderr, exitCode } = await this.mutationRunner(
+        "git",
+        args,
+        {
+          cwd: root,
+          toolName: `doolittle.repository.${input.type}`,
+        },
+      );
       const cleanStdout = cleanOutput(stdout);
       const cleanStderr = cleanOutput(stderr);
       const summary =
@@ -748,7 +841,7 @@ export class RepositoryService {
                 `Git exited with code ${exitCode}.`,
             }),
       };
-      if (result.ok) this.commandCache.clear();
+      if (result.ok) this.invalidateCommandCache();
       return result;
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -758,7 +851,20 @@ export class RepositoryService {
   private async mutationCommand(
     input: RepositoryMutationRequest,
     root: string,
-  ): Promise<{ args: string[]; summary: string }> {
+  ): Promise<RepositoryMutationCommand> {
+    if (isPullRequestMutation(input)) {
+      return this.pullRequestMutationCommand(input);
+    }
+    return {
+      executable: "git",
+      ...(await this.gitMutationCommand(input, root)),
+    };
+  }
+
+  private async gitMutationCommand(
+    input: GitRepositoryMutation,
+    root: string,
+  ): Promise<Omit<RepositoryMutationCommand, "executable">> {
     switch (input.type) {
       case "stage":
         return {
@@ -978,13 +1084,165 @@ export class RepositoryService {
       case "merge-abort":
         this.assertOperationState(root, "MERGE_HEAD", "merge");
         return { args: ["merge", "--abort"], summary: "Aborted merge" };
+      case "merge": {
+        const noFf = validateOptionalBoolean(input.noFf, "noFf") ?? false;
+        return {
+          args: [
+            "merge",
+            ...(noFf ? ["--no-ff"] : []),
+            validateRef(input.branch, "branch"),
+          ],
+          summary: `Merged ${input.branch}`,
+        };
+      }
+      case "rebase":
+        return {
+          args: ["rebase", validateRef(input.branch, "branch")],
+          summary: `Rebased onto ${input.branch}`,
+        };
       case "rebase-abort":
         this.assertRebaseState(root);
         return { args: ["rebase", "--abort"], summary: "Aborted rebase" };
+      case "rebase-continue":
+        this.assertRebaseState(root);
+        return { args: ["rebase", "--continue"], summary: "Continued rebase" };
+      case "cherry-pick":
+        return {
+          args: ["cherry-pick", validateRef(input.commit, "commit")],
+          summary: `Cherry-picked ${input.commit}`,
+        };
+      case "cherry-pick-continue":
+        this.assertOperationState(root, "CHERRY_PICK_HEAD", "cherry-pick");
+        return {
+          args: ["cherry-pick", "--continue"],
+          summary: "Continued cherry-pick",
+        };
+      case "cherry-pick-abort":
+        this.assertOperationState(root, "CHERRY_PICK_HEAD", "cherry-pick");
+        return {
+          args: ["cherry-pick", "--abort"],
+          summary: "Aborted cherry-pick",
+        };
       case "conflict-mark-resolved":
         return {
           args: ["add", "--", ...(await this.conflictPaths(input.paths, root))],
           summary: "Marked conflicts resolved",
+        };
+      default:
+        return assertNever(input);
+    }
+  }
+
+  private pullRequestMutationCommand(
+    input: PullRequestMutation,
+  ): RepositoryMutationCommand {
+    switch (input.type) {
+      case "pr-create": {
+        const title = validatePullRequestTitle(input.title);
+        const body = validatePullRequestBody(input.body) ?? "";
+        const base = input.base
+          ? validateRef(input.base, "base branch")
+          : undefined;
+        const draft = validateOptionalBoolean(input.draft, "draft") ?? false;
+        return {
+          executable: "gh",
+          args: [
+            "pr",
+            "create",
+            "--title",
+            title,
+            "--body",
+            body,
+            ...(base ? ["--base", base] : []),
+            ...(draft ? ["--draft"] : []),
+          ],
+          summary: "Created pull request",
+        };
+      }
+      case "pr-update": {
+        const title =
+          input.title === undefined
+            ? undefined
+            : validatePullRequestTitle(input.title);
+        const body = validatePullRequestBody(input.body);
+        const base = input.base
+          ? validateRef(input.base, "base branch")
+          : undefined;
+        if (title === undefined && body === undefined && base === undefined) {
+          throw new Error("At least one pull request field must be updated.");
+        }
+        return {
+          executable: "gh",
+          args: [
+            "pr",
+            "edit",
+            ...(title === undefined ? [] : ["--title", title]),
+            ...(body === undefined ? [] : ["--body", body]),
+            ...(base ? ["--base", base] : []),
+          ],
+          summary: "Updated pull request",
+        };
+      }
+      case "pr-ready":
+        return {
+          executable: "gh",
+          args: ["pr", "ready"],
+          summary: "Marked pull request ready for review",
+        };
+      case "pr-review": {
+        const event = validateReviewEvent(input.event);
+        const body = validatePullRequestBody(input.body);
+        const flag =
+          event === "approve"
+            ? "--approve"
+            : event === "request-changes"
+              ? "--request-changes"
+              : "--comment";
+        return {
+          executable: "gh",
+          args: [
+            "pr",
+            "review",
+            flag,
+            ...(body === undefined ? [] : ["--body", body]),
+          ],
+          summary:
+            event === "approve"
+              ? "Approved pull request"
+              : event === "request-changes"
+                ? "Requested pull request changes"
+                : "Commented on pull request",
+        };
+      }
+      case "pr-merge": {
+        const method = validateMergeMethod(input.method);
+        const deleteBranch =
+          validateOptionalBoolean(input.deleteBranch, "deleteBranch") ?? false;
+        return {
+          executable: "gh",
+          args: [
+            "pr",
+            "merge",
+            `--${method}`,
+            ...(deleteBranch ? ["--delete-branch"] : []),
+          ],
+          summary: `Merged pull request with ${method}`,
+        };
+      }
+      case "pr-close": {
+        const deleteBranch =
+          validateOptionalBoolean(input.deleteBranch, "deleteBranch") ?? false;
+        return {
+          executable: "gh",
+          args: ["pr", "close", ...(deleteBranch ? ["--delete-branch"] : [])],
+          summary: "Closed pull request",
+        };
+      }
+      case "pr-reopen":
+        return {
+          executable: "gh",
+          args: ["pr", "reopen"],
+          summary: "Reopened pull request",
         };
       default:
         return assertNever(input);
@@ -1014,9 +1272,8 @@ export class RepositoryService {
     ) {
       throw new Error("Path must be repository-relative.");
     }
-    const workspace = this.workspaceRoot();
-    const absolute = resolveWorkspacePath(workspace, value);
-    assertWorkspacePathResolvesInside(workspace, absolute);
+    const absolute = resolveWorkspacePath(root, value);
+    assertWorkspacePathResolvesInside(root, absolute);
     const scoped = workspaceRelativePath(relative(root, absolute));
     if (
       !scoped ||
@@ -1176,22 +1433,28 @@ export class RepositoryService {
   ): Promise<string> {
     const cwd = this.gitRoot() ?? this.workspaceRoot();
     const scopedCacheKey = `${cwd}\0${cacheKey}`;
+    const cacheGeneration = this.commandCacheGeneration;
     const cached = this.commandCache.get(scopedCacheKey);
     const now = Date.now();
     if (cached && now - cached.capturedAt < 3_000) {
       return cached.value;
     }
 
-    const pending = this.inflight.get(scopedCacheKey);
+    const inflightKey = `${scopedCacheKey}\0${cacheGeneration}`;
+    const pending = this.inflight.get(inflightKey);
     if (pending) {
       return pending;
     }
 
     const promise = (async () => {
-      const { stdout, stderr, exitCode } = await runTextProcess("git", args, {
-        cwd,
-        toolName: "doolittle.repository.git",
-      });
+      const { stdout, stderr, exitCode } = await this.mutationRunner(
+        "git",
+        args,
+        {
+          cwd,
+          toolName: "doolittle.repository.git",
+        },
+      );
 
       if (exitCode !== 0) {
         throw new Error(
@@ -1200,19 +1463,26 @@ export class RepositoryService {
       }
 
       const value = stdout.replace(/\r?\n$/u, "") || emptyValue;
-      this.commandCache.set(scopedCacheKey, {
-        capturedAt: Date.now(),
-        value,
-      });
+      if (this.commandCacheGeneration === cacheGeneration) {
+        this.commandCache.set(scopedCacheKey, {
+          capturedAt: Date.now(),
+          value,
+        });
+      }
       return value;
     })();
 
-    this.inflight.set(scopedCacheKey, promise);
+    this.inflight.set(inflightKey, promise);
     try {
       return await promise;
     } finally {
-      this.inflight.delete(scopedCacheKey);
+      this.inflight.delete(inflightKey);
     }
+  }
+
+  private invalidateCommandCache(): void {
+    this.commandCacheGeneration += 1;
+    this.commandCache.clear();
   }
 
   private async runGitOptional(

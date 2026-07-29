@@ -90,7 +90,7 @@ export async function handleRepositoryRoutes(
     try {
       const mutation = await readMutationRequest(request);
       const result = await context.services.repository.mutate(mutation);
-      return json({ result }, result.ok ? 200 : 409);
+      return json({ result });
     } catch (error) {
       return json(
         {

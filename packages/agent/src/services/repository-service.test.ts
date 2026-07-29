@@ -90,6 +90,20 @@ describe("RepositoryService review model", () => {
     );
   });
 
+  it("resolves Code UI paths from the Git root when the selected workspace is a repository subdirectory", async () => {
+    const directory = createRepository();
+    const nestedWorkspace = join(directory, "packages", "desktop");
+    mkdirSync(nestedWorkspace, { recursive: true });
+    writeFileSync(join(directory, "tracked.txt"), "after\n", "utf8");
+    const repository = new RepositoryService(nestedWorkspace);
+
+    expect((await repository.patch("tracked.txt")).patch).toContain("+after");
+    expect(
+      (await repository.mutate({ type: "stage", paths: ["tracked.txt"] })).ok,
+    ).toBe(true);
+    expect((await repository.changes())[0]?.path).toBe("tracked.txt");
+  });
+
   it("creates a new branch in a contained, non-existent worktree path", async () => {
     const directory = createRepository();
     const repository = new RepositoryService(directory);
@@ -379,5 +393,210 @@ describe("RepositoryService review model", () => {
         })
       ).ok,
     ).toBe(true);
+  });
+
+  it("uses fixed gh argv for authenticated pull request operations and preserves CLI errors", async () => {
+    const directory = createRepository();
+    const invocations: Array<{ command: string; args: readonly string[] }> = [];
+    const repository = new RepositoryService(
+      directory,
+      async (command, args) => {
+        invocations.push({ command, args });
+        return {
+          exitCode: 0,
+          stdout: "https://github.com/elizaOS/doolittle/pull/1\n",
+          stderr: "",
+          durationMs: 1,
+          sandbox: "none",
+        };
+      },
+    );
+
+    expect(
+      (
+        await repository.mutate({
+          type: "pr-create",
+          title: "Add Git controls",
+          body: "Ready for review.",
+          base: "main",
+          draft: true,
+        })
+      ).ok,
+    ).toBe(true);
+    expect(invocations[0]).toEqual({
+      command: "gh",
+      args: [
+        "pr",
+        "create",
+        "--title",
+        "Add Git controls",
+        "--body",
+        "Ready for review.",
+        "--base",
+        "main",
+        "--draft",
+      ],
+    });
+
+    expect(
+      (
+        await repository.mutate({
+          type: "pr-review",
+          event: "request-changes",
+          body: "Please address the conflict.",
+        })
+      ).ok,
+    ).toBe(true);
+    expect(invocations[1]).toEqual({
+      command: "gh",
+      args: [
+        "pr",
+        "review",
+        "--request-changes",
+        "--body",
+        "Please address the conflict.",
+      ],
+    });
+    expect(
+      (await repository.mutate({ type: "pr-review", event: "comment" })).ok,
+    ).toBe(true);
+    expect(invocations[2]).toEqual({
+      command: "gh",
+      args: ["pr", "review", "--comment"],
+    });
+
+    const unauthenticated = new RepositoryService(directory, async () => ({
+      exitCode: 1,
+      stdout: "",
+      stderr: "To get started with GitHub CLI, please run: gh auth login\n",
+      durationMs: 1,
+      sandbox: "none",
+    }));
+    await expect(
+      unauthenticated.mutate({ type: "pr-ready" }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "To get started with GitHub CLI, please run: gh auth login",
+    });
+  });
+
+  it("dispatches the remaining pull request lifecycle through fixed gh argv", async () => {
+    const directory = createRepository();
+    const invocations: Array<{ command: string; args: readonly string[] }> = [];
+    const repository = new RepositoryService(
+      directory,
+      async (command, args) => {
+        invocations.push({ command, args });
+        return {
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          durationMs: 1,
+          sandbox: "none",
+        };
+      },
+    );
+
+    await repository.mutate({ type: "pr-update", body: "Updated context." });
+    await repository.mutate({ type: "pr-ready" });
+    await repository.mutate({
+      type: "pr-merge",
+      method: "squash",
+      deleteBranch: true,
+    });
+    await repository.mutate({ type: "pr-close", deleteBranch: true });
+    await repository.mutate({ type: "pr-reopen" });
+    expect(invocations).toEqual([
+      { command: "gh", args: ["pr", "edit", "--body", "Updated context."] },
+      { command: "gh", args: ["pr", "ready"] },
+      {
+        command: "gh",
+        args: ["pr", "merge", "--squash", "--delete-branch"],
+      },
+      { command: "gh", args: ["pr", "close", "--delete-branch"] },
+      { command: "gh", args: ["pr", "reopen"] },
+    ]);
+    await expect(repository.mutate({ type: "pr-update" })).rejects.toThrow(
+      "At least one pull request field",
+    );
+  });
+
+  it("dispatches merge, rebase, and cherry-pick commands through fixed Git argv", async () => {
+    const directory = createRepository();
+    const invocations: Array<{ command: string; args: readonly string[] }> = [];
+    const repository = new RepositoryService(
+      directory,
+      async (command, args) => {
+        invocations.push({ command, args });
+        return {
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          durationMs: 1,
+          sandbox: "none",
+        };
+      },
+    );
+
+    await repository.mutate({
+      type: "merge",
+      branch: "feature/demo",
+      noFf: true,
+    });
+    await repository.mutate({ type: "rebase", branch: "main" });
+    await repository.mutate({ type: "cherry-pick", commit: "abc1234" });
+    expect(invocations).toEqual([
+      { command: "git", args: ["merge", "--no-ff", "feature/demo"] },
+      { command: "git", args: ["rebase", "main"] },
+      { command: "git", args: ["cherry-pick", "abc1234"] },
+    ]);
+  });
+
+  it("does not repopulate cached reads from a pre-mutation in-flight command", async () => {
+    const directory = createRepository();
+    let statusCalls = 0;
+    let releaseFirstStatus: (() => void) | undefined;
+    const repository = new RepositoryService(
+      directory,
+      async (_command, args) => {
+        if (args[0] === "status") {
+          statusCalls += 1;
+          if (statusCalls === 1) {
+            await new Promise<void>((resolve) => {
+              releaseFirstStatus = resolve;
+            });
+            return {
+              exitCode: 0,
+              stdout: "old status\n",
+              stderr: "",
+              durationMs: 1,
+              sandbox: "none",
+            };
+          }
+          return {
+            exitCode: 0,
+            stdout: "new status\n",
+            stderr: "",
+            durationMs: 1,
+            sandbox: "none",
+          };
+        }
+        return {
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          durationMs: 1,
+          sandbox: "none",
+        };
+      },
+    );
+
+    const firstStatus = repository.status();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await repository.mutate({ type: "stage", paths: ["tracked.txt"] });
+    releaseFirstStatus?.();
+    await expect(firstStatus).resolves.toBe("old status");
+    await expect(repository.status()).resolves.toBe("new status");
+    expect(statusCalls).toBe(2);
   });
 });

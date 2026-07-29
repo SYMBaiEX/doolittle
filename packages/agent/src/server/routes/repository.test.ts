@@ -61,11 +61,14 @@ function createContext(): AppContext {
         ],
         mutate: async (input: { type: string }) => ({
           type: input.type,
-          ok: true,
+          ok: input.type !== "pr-ready",
           summary: "Mutation complete",
           stdout: "",
-          stderr: "",
-          exitCode: 0,
+          stderr: input.type === "pr-ready" ? "gh auth login required" : "",
+          exitCode: input.type === "pr-ready" ? 1 : 0,
+          ...(input.type === "pr-ready"
+            ? { error: "gh auth login required" }
+            : {}),
         }),
         createWorktree: async (input: { branch: string; path: string }) => ({
           ...input,
@@ -190,6 +193,19 @@ describe("handleRepositoryRoutes", () => {
       }),
       new URL("http://localhost/repo/mutate"),
     );
+    const pullRequestMutation = await handleRepositoryRoutes(
+      context,
+      new Request("http://localhost/repo/mutate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "pr-create",
+          title: "Ship Git controls",
+          draft: true,
+        }),
+      }),
+      new URL("http://localhost/repo/mutate"),
+    );
 
     await expect(branches?.json()).resolves.toEqual({
       branches: [{ name: "main", current: true }],
@@ -206,6 +222,9 @@ describe("handleRepositoryRoutes", () => {
     await expect(mutation?.json()).resolves.toMatchObject({
       result: { type: "stage", ok: true, exitCode: 0 },
     });
+    await expect(pullRequestMutation?.json()).resolves.toMatchObject({
+      result: { type: "pr-create", ok: true, exitCode: 0 },
+    });
   });
 
   it("returns a structured validation error for malformed repository mutations", async () => {
@@ -221,6 +240,27 @@ describe("handleRepositoryRoutes", () => {
     expect(response?.status).toBe(400);
     await expect(response?.json()).resolves.toEqual({
       error: "Repository mutation type is required.",
+    });
+  });
+
+  it("keeps GitHub CLI failures in the structured mutation response", async () => {
+    const response = await handleRepositoryRoutes(
+      createContext(),
+      new Request("http://localhost/repo/mutate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "pr-ready" }),
+      }),
+      new URL("http://localhost/repo/mutate"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toMatchObject({
+      result: {
+        type: "pr-ready",
+        ok: false,
+        error: "gh auth login required",
+      },
     });
   });
 
