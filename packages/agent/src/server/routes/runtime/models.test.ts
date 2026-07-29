@@ -70,11 +70,11 @@ describe("runtime model discovery", () => {
     );
   });
 
-  it("keeps configured linked models when live discovery is unavailable", async () => {
+  it("keeps the current linked catalog when live discovery is unavailable", async () => {
     const providers = await discoverModelProviders(
       config({ useLinkedClaudeCodeAuth: true }),
       "claude-code",
-      "claude-sonnet-4.6",
+      "claude-sonnet-5",
       vi.fn<typeof fetch>(async () => {
         throw new Error("offline");
       }),
@@ -86,7 +86,7 @@ describe("runtime model discovery", () => {
       discovery: "configured",
     });
     expect(claude?.models.map((model) => model.id)).toContain(
-      "claude-sonnet-4.6",
+      "claude-sonnet-5",
     );
   });
 

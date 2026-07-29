@@ -174,9 +174,7 @@ function providerDefinitions(
       discovery: "configured",
       detail:
         "Current models supported by the linked ChatGPT and Codex account.",
-      models: configuredModels(
-        withActive("codex", [...CODEX_LINKED_MODELS, config.openAiModel]),
-      ),
+      models: configuredModels(withActive("codex", [...CODEX_LINKED_MODELS])),
     },
     {
       id: "claude-code",
@@ -186,11 +184,7 @@ function providerDefinitions(
       discovery: "configured",
       detail: "Current models supported by the linked Claude Code account.",
       models: configuredModels(
-        withActive("claude-code", [
-          ...CLAUDE_CODE_LINKED_MODELS,
-          config.anthropicLargeModel,
-          config.anthropicSmallModel,
-        ]),
+        withActive("claude-code", [...CLAUDE_CODE_LINKED_MODELS]),
       ),
     },
     {
