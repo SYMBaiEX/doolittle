@@ -93,6 +93,7 @@ describe("createClaudeCodePlugin", () => {
       expect(
         JSON.parse(String(calls[0]?.init?.body)).system?.[0]?.text,
       ).toContain("You are Claude Code");
+      expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
       expect(JSON.parse(String(calls[0]?.init?.body))).not.toHaveProperty(
         "output_config",
       );

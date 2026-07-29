@@ -1,6 +1,20 @@
 import type { GenerateTextParams } from "@elizaos/core";
 import { resolveModelPromptText } from "./prompt-text";
 
+const ELIZA_CLOUD_REQUEST_TIMEOUT_MS = 120_000;
+
+export function elizaCloudRequestSignal(
+  params?: GenerateTextParams,
+): AbortSignal {
+  const callerSignal = (
+    params as (GenerateTextParams & { signal?: AbortSignal }) | undefined
+  )?.signal;
+  const timeoutSignal = AbortSignal.timeout(ELIZA_CLOUD_REQUEST_TIMEOUT_MS);
+  return callerSignal
+    ? AbortSignal.any([callerSignal, timeoutSignal])
+    : timeoutSignal;
+}
+
 export async function postElizaCloudChatCompletion(
   endpoint: string,
   apiKey: string,
@@ -9,6 +23,7 @@ export async function postElizaCloudChatCompletion(
   temperature: number,
   maxTokens: number,
   conversationId?: string,
+  signal = elizaCloudRequestSignal(params),
 ): Promise<Response> {
   return fetch(endpoint, {
     method: "POST",
@@ -30,6 +45,7 @@ export async function postElizaCloudChatCompletion(
         },
       ],
     }),
+    signal,
   });
 }
 
@@ -40,6 +56,7 @@ export async function postElizaCloudResponse(
   params: GenerateTextParams,
   maxTokens: number,
   conversationId?: string,
+  signal = elizaCloudRequestSignal(params),
 ): Promise<Response> {
   return fetch(endpoint, {
     method: "POST",
@@ -60,6 +77,7 @@ export async function postElizaCloudResponse(
       max_output_tokens: maxTokens,
       store: false,
     }),
+    signal,
   });
 }
 
@@ -69,6 +87,7 @@ export async function postElizaCloudEmbedding(
   model: string,
   input: string,
   dimensions?: number,
+  signal = elizaCloudRequestSignal(),
 ): Promise<Response> {
   return fetch(endpoint, {
     method: "POST",
@@ -83,5 +102,6 @@ export async function postElizaCloudEmbedding(
       encoding_format: "float",
       ...(dimensions ? { dimensions } : {}),
     }),
+    signal,
   });
 }

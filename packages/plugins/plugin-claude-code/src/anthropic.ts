@@ -24,6 +24,16 @@ const CLAUDE_REASONING_EFFORTS = new Set([
   "xhigh",
   "max",
 ]);
+const CLAUDE_REQUEST_TIMEOUT_MS = 120_000;
+
+function claudeRequestSignal(params: GenerateTextParams): AbortSignal {
+  const callerSignal = (params as GenerateTextParams & { signal?: AbortSignal })
+    .signal;
+  const timeoutSignal = AbortSignal.timeout(CLAUDE_REQUEST_TIMEOUT_MS);
+  return callerSignal
+    ? AbortSignal.any([callerSignal, timeoutSignal])
+    : timeoutSignal;
+}
 
 function resolveClaudeReasoningEffort(
   value: string | undefined,
@@ -103,10 +113,12 @@ export async function runClaudeCodeTextGeneration(
       },
     ],
   };
+  const signal = claudeRequestSignal(params);
   let response = await fetch(endpoint, {
     method: "POST",
     headers: anthropicHeaders(accessToken),
     body: JSON.stringify(requestBody),
+    signal,
   });
 
   if (
@@ -120,6 +132,7 @@ export async function runClaudeCodeTextGeneration(
         method: "POST",
         headers: anthropicHeaders(refreshedAccessToken),
         body: JSON.stringify(requestBody),
+        signal,
       });
     }
   }

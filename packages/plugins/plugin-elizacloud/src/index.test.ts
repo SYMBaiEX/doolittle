@@ -93,6 +93,7 @@ describe("createElizaCloudPlugin", () => {
       expect(
         (calls[0]?.init?.headers as Record<string, string>)?.Authorization,
       ).toBe("Bearer eliza-token");
+      expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
       expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(
         expect.objectContaining({
           model: "openai/gpt-5",

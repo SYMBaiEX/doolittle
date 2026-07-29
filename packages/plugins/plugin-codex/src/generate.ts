@@ -9,6 +9,8 @@ import { getRuntimeModelSettings, getRuntimeProvider } from "./runtime";
 import { readCodexResponseText } from "./sse";
 import type { CodexPluginOptions } from "./types";
 
+const CODEX_REQUEST_TIMEOUT_MS = 120_000;
+
 interface CodexRequestPayload {
   model: string;
   instructions: string;
@@ -24,6 +26,15 @@ interface CodexRequestPayload {
   reasoning?: {
     effort: string;
   };
+}
+
+function codexRequestSignal(params: GenerateTextParams): AbortSignal {
+  const callerSignal = (params as GenerateTextParams & { signal?: AbortSignal })
+    .signal;
+  const timeoutSignal = AbortSignal.timeout(CODEX_REQUEST_TIMEOUT_MS);
+  return callerSignal
+    ? AbortSignal.any([callerSignal, timeoutSignal])
+    : timeoutSignal;
 }
 
 function createCodexRequestPayload(
@@ -76,6 +87,7 @@ export async function runCodexTextGeneration(
 
   const runtimeModel = getRuntimeModelSettings(runtime);
   const endpoint = `${runtimeModel.baseUrl || DEFAULT_CODEX_BASE_URL}/responses`;
+  const signal = codexRequestSignal(params);
   let response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -83,6 +95,7 @@ export async function runCodexTextGeneration(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
+    signal,
   });
 
   if (
@@ -99,6 +112,7 @@ export async function runCodexTextGeneration(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
+        signal,
       });
     }
   }
