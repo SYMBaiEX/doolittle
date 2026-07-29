@@ -321,6 +321,39 @@ test.describe("Doolittle desktop navigation", () => {
       ).toBeVisible();
 
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const restingComposerStyle = await composer.evaluate((element) => {
+        element.blur();
+        const container = element.closest(".chat-composer");
+        if (!(container instanceof HTMLElement)) {
+          throw new Error("Chat composer container is missing.");
+        }
+        const textareaStyle = window.getComputedStyle(element);
+        const containerStyle = window.getComputedStyle(container);
+        return {
+          borderColor: containerStyle.borderColor,
+          boxShadow: containerStyle.boxShadow,
+          textareaBoxShadow: textareaStyle.boxShadow,
+          textareaOutline: textareaStyle.outlineStyle,
+        };
+      });
+      await composer.focus();
+      const focusedComposerStyle = await composer.evaluate((element) => {
+        const container = element.closest(".chat-composer");
+        if (!(container instanceof HTMLElement)) {
+          throw new Error("Chat composer container is missing.");
+        }
+        const textareaStyle = window.getComputedStyle(element);
+        const containerStyle = window.getComputedStyle(container);
+        return {
+          borderColor: containerStyle.borderColor,
+          boxShadow: containerStyle.boxShadow,
+          textareaBoxShadow: textareaStyle.boxShadow,
+          textareaOutline: textareaStyle.outlineStyle,
+        };
+      });
+      expect(focusedComposerStyle).toEqual(restingComposerStyle);
+      expect(focusedComposerStyle.textareaBoxShadow).toBe("none");
+      expect(focusedComposerStyle.textareaOutline).toBe("none");
       await composer.fill("Draft survives project switching");
       await page
         .getByRole("button", {

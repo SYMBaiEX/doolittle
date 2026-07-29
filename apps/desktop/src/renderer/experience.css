@@ -1191,13 +1191,6 @@ button.chat-session-meta-pill:hover {
   box-shadow: 0 12px 32px color-mix(in srgb, var(--shadow) 34%, transparent);
 }
 
-.chat-composer:focus-within {
-  border-color: color-mix(in srgb, var(--text) 28%, var(--border-strong));
-  box-shadow:
-    0 12px 32px color-mix(in srgb, var(--shadow) 34%, transparent),
-    0 0 0 2px color-mix(in srgb, var(--text) 10%, transparent);
-}
-
 .chat-file-context-list {
   display: flex;
   grid-column: 1 / -1;
@@ -3786,14 +3779,6 @@ button.chat-session-meta-pill:hover {
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) inset,
     0 18px 46px color-mix(in srgb, var(--shadow) 24%, transparent);
-}
-
-.chat-composer:focus-within {
-  border-color: color-mix(in srgb, var(--text) 28%, var(--border-strong));
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) inset,
-    0 18px 46px color-mix(in srgb, var(--shadow) 24%, transparent),
-    0 0 0 2px color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .chat-composer textarea {
