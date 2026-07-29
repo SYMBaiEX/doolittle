@@ -311,7 +311,13 @@ export function ModelsPage({
   );
 }
 
-export function ConnectionsPage({ active }: { active: boolean }) {
+export function ConnectionsPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const resource = useApiResource<AccountsResponse>(
     active ? "/runtime/accounts" : null,
     [active],
@@ -322,6 +328,12 @@ export function ConnectionsPage({ active }: { active: boolean }) {
     Partial<Record<ProviderAuthProvider, ProviderAuthState>>
   >({});
   const completedAuth = useRef(new Set<ProviderAuthProvider>());
+  const displayedProviders = embedded
+    ? [...accountProviders].sort(
+        (left, right) =>
+          Number(right.accountSignIn) - Number(left.accountSignIn),
+      )
+    : accountProviders;
 
   const setAuthState = useCallback((state: ProviderAuthState) => {
     setAuthStates((current) => ({ ...current, [state.provider]: state }));
@@ -460,12 +472,17 @@ export function ConnectionsPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page">
-      <PageHeader
-        eyebrow="Agent"
-        title="Providers"
-        description="Sign in with your Codex or Claude subscription, then choose the provider for new work. API credentials remain an optional fallback."
-        actions={
+    <div className={embedded ? "settings-provider-section" : "page"}>
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Accounts</span>
+            <h2>Provider sign in</h2>
+            <p>
+              Use your Codex or Claude subscription. Doolittle opens the
+              official account flow and keeps credentials outside the UI.
+            </p>
+          </div>
           <button
             className="secondary-button"
             onClick={() => void mutate("all", "refresh")}
@@ -474,20 +491,40 @@ export function ConnectionsPage({ active }: { active: boolean }) {
           >
             Refresh all
           </button>
-        }
-      />
-      <Notice>
-        Doolittle reports readiness and starts provider-native login flows, but
-        secret material never appears in this desktop page.
-      </Notice>
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Agent"
+          title="Providers"
+          description="Sign in with your Codex or Claude subscription, then choose the provider for new work. API credentials remain an optional fallback."
+          actions={
+            <button
+              className="secondary-button"
+              onClick={() => void mutate("all", "refresh")}
+              disabled={Boolean(busy)}
+              type="button"
+            >
+              Refresh all
+            </button>
+          }
+        />
+      )}
+      {!embedded ? (
+        <Notice>
+          Doolittle reports readiness and starts provider-native login flows,
+          but secret material never appears in this desktop page.
+        </Notice>
+      ) : null}
       {feedback ? <Notice>{feedback}</Notice> : null}
       {resource.loading ? (
         <LoadingBlock label="Checking linked accounts…" />
       ) : resource.error ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : (
-        <div className="card-grid">
-          {accountProviders.map((provider) => {
+        <div
+          className={`card-grid ${embedded ? "provider-settings-grid" : ""}`}
+        >
+          {displayedProviders.map((provider) => {
             const status = asRecord(
               resource.data?.accounts?.[provider.snapshot],
             );

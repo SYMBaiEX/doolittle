@@ -11,6 +11,7 @@ import type {
   PluginsResponse,
   RuntimeStatus,
 } from "../shared/contracts";
+import { ConnectionsPage } from "./AgentPages";
 import {
   asArray,
   asNumber,
@@ -762,7 +763,7 @@ export function SettingsPage({ active }: { active: boolean }) {
     active ? "/execution/status" : null,
     [active],
   );
-  const [category, setCategory] = useState("model");
+  const [category, setCategory] = useState("providers");
   const [query, setQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const [lifecycle, setLifecycle] = useState<DesktopLifecycleState | null>(
@@ -791,14 +792,63 @@ export function SettingsPage({ active }: { active: boolean }) {
     () => flattenSettings(settings.data?.settings ?? {}),
     [settings.data],
   );
-  const categories = [...new Set(fields.map((field) => field.category))];
+  const rawCategories = [...new Set(fields.map((field) => field.category))];
+  const categories = [
+    {
+      id: "providers",
+      label: "Providers",
+      description: "Account sign in",
+      count: 2,
+    },
+    {
+      id: "appearance",
+      label: "Appearance",
+      description: "Theme and display",
+      count: fields.filter((field) => field.category === "ui").length,
+    },
+    {
+      id: "desktop",
+      label: "Desktop",
+      description: "Updates and lifecycle",
+      count: 2,
+    },
+    ...rawCategories
+      .filter(
+        (value) => !["ui", "providers", "desktop", "advanced"].includes(value),
+      )
+      .map((value) => ({
+        id: value,
+        label: titleCase(value),
+        description:
+          value === "model"
+            ? "Models and inference"
+            : value === "execution"
+              ? "Permissions and tools"
+              : "Runtime preferences",
+        count: fields.filter((field) => field.category === value).length,
+      })),
+    {
+      id: "advanced",
+      label: "Advanced",
+      description: "Every runtime field",
+      count: fields.length,
+    },
+  ];
+  const fieldCategory =
+    category === "appearance"
+      ? "ui"
+      : category === "advanced"
+        ? "all"
+        : category;
   const visibleFields = fields.filter((field) => {
     const normalized = query.trim().toLowerCase();
     return (
-      (category === "all" || field.category === category) &&
+      (fieldCategory === "all" || field.category === fieldCategory) &&
       (!normalized || field.path.toLowerCase().includes(normalized))
     );
   });
+  const activeCategory =
+    categories.find((entry) => entry.id === category) ?? categories[0];
 
   const changeTheme = async (theme: string) => {
     try {
@@ -814,9 +864,9 @@ export function SettingsPage({ active }: { active: boolean }) {
   return (
     <div className="page page-settings">
       <PageHeader
-        eyebrow="Configuration"
+        eyebrow="Doolittle"
         title="Settings"
-        description="Every persisted non-secret runtime setting, grouped by subsystem and saved directly to Doolittle’s local settings service."
+        description="Accounts, appearance, models, execution, and local desktop behavior—organized around what you want to change."
         actions={
           <button
             className="secondary-button"
@@ -834,48 +884,58 @@ export function SettingsPage({ active }: { active: boolean }) {
         <ErrorBlock error={settings.error} retry={settings.reload} />
       ) : (
         <div className="settings-layout">
-          <aside className="settings-nav">
-            <button
-              className={category === "all" ? "selected" : ""}
-              onClick={() => setCategory("all")}
-              type="button"
-            >
-              <span>All settings</span>
-              <small>{fields.length}</small>
-            </button>
-            {categories.map((value) => (
+          <aside className="settings-nav" aria-label="Settings categories">
+            <div className="settings-nav-title">
+              <span>Settings</span>
+              <small>Local</small>
+            </div>
+            {categories.map((entry) => (
               <button
-                className={category === value ? "selected" : ""}
-                key={value}
-                onClick={() => setCategory(value)}
+                className={category === entry.id ? "selected" : ""}
+                key={entry.id}
+                onClick={() => {
+                  setCategory(entry.id);
+                  setQuery("");
+                }}
                 type="button"
               >
-                <span>{titleCase(value)}</span>
-                <small>
-                  {fields.filter((field) => field.category === value).length}
-                </small>
+                <span>
+                  <strong>{entry.label}</strong>
+                  <small>{entry.description}</small>
+                </span>
+                <i>{entry.count}</i>
               </button>
             ))}
             <div className="settings-nav-note">
-              <strong>Secrets stay protected</strong>
-              <p>
-                API keys and OAuth tokens are never returned to the renderer.
-              </p>
+              <strong>Private by default</strong>
+              <p>Account tokens and API keys never appear in this page.</p>
             </div>
           </aside>
           <section className="settings-content">
-            <div className="filter-bar">
-              <label className="search-field grow">
-                <span className="sr-only">Search settings</span>
-                <input
-                  placeholder="Search settings"
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </label>
-            </div>
-            {category === "ui" || category === "all" ? (
+            {category !== "providers" ? (
+              <header className="settings-content-header">
+                <div>
+                  <span className="eyebrow">Configuration</span>
+                  <h2>{activeCategory?.label ?? "Settings"}</h2>
+                  <p>{activeCategory?.description}</p>
+                </div>
+                {category !== "desktop" ? (
+                  <label className="search-field settings-search">
+                    <span className="sr-only">Search settings</span>
+                    <input
+                      placeholder={`Search ${activeCategory?.label.toLowerCase()}`}
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                    />
+                  </label>
+                ) : null}
+              </header>
+            ) : null}
+            {category === "providers" ? (
+              <ConnectionsPage active={active} embedded />
+            ) : null}
+            {category === "appearance" || category === "advanced" ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>
@@ -911,7 +971,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                 </div>
               </section>
             ) : null}
-            {category === "ui" || category === "all" ? (
+            {category === "desktop" || category === "advanced" ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>
@@ -1030,52 +1090,55 @@ export function SettingsPage({ active }: { active: boolean }) {
                 </div>
               </section>
             ) : null}
-            <section className="settings-group">
-              <div className="settings-group-heading">
-                <div>
-                  <span className="eyebrow">{category}</span>
-                  <h2>
-                    {category === "all"
-                      ? "Complete configuration"
-                      : `${titleCase(category)} settings`}
-                  </h2>
+            {!["providers", "desktop"].includes(category) ? (
+              <section className="settings-group">
+                <div className="settings-group-heading">
+                  <div>
+                    <span className="eyebrow">{activeCategory?.label}</span>
+                    <h2>
+                      {category === "advanced"
+                        ? "Complete configuration"
+                        : `${activeCategory?.label} settings`}
+                    </h2>
+                  </div>
+                  <Badge>{visibleFields.length} fields</Badge>
                 </div>
-                <Badge>{visibleFields.length} fields</Badge>
-              </div>
-              <div className="settings-rows">
-                {visibleFields.length ? (
-                  visibleFields.map((field) => (
-                    <SettingControl
-                      field={field}
-                      key={`${field.path}:${JSON.stringify(field.value)}`}
-                      saved={() => {
-                        setSavedMessage(`${field.path} saved.`);
-                        settings.reload();
-                        if (field.category === "execution") execution.reload();
-                      }}
-                    />
-                  ))
-                ) : (
-                  <EmptyBlock
-                    title={query ? "No settings match" : "No settings loaded"}
-                    actions={
-                      <button
-                        className="secondary-button"
-                        onClick={settings.reload}
-                        type="button"
-                      >
-                        Reload settings
-                      </button>
-                    }
-                  >
-                    {query
-                      ? "Clear the search or choose another category."
-                      : "Restart the local runtime if configuration has not loaded, then try again."}
-                  </EmptyBlock>
-                )}
-              </div>
-            </section>
-            {category === "execution" || category === "all" ? (
+                <div className="settings-rows">
+                  {visibleFields.length ? (
+                    visibleFields.map((field) => (
+                      <SettingControl
+                        field={field}
+                        key={`${field.path}:${JSON.stringify(field.value)}`}
+                        saved={() => {
+                          setSavedMessage(`${field.path} saved.`);
+                          settings.reload();
+                          if (field.category === "execution")
+                            execution.reload();
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <EmptyBlock
+                      title={query ? "No settings match" : "No settings loaded"}
+                      actions={
+                        <button
+                          className="secondary-button"
+                          onClick={settings.reload}
+                          type="button"
+                        >
+                          Reload settings
+                        </button>
+                      }
+                    >
+                      {query
+                        ? "Clear the search or choose another category."
+                        : "Restart the local runtime if configuration has not loaded, then try again."}
+                    </EmptyBlock>
+                  )}
+                </div>
+              </section>
+            ) : null}
+            {category === "execution" || category === "advanced" ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>
