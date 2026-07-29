@@ -1,3 +1,7 @@
+import {
+  executeMemoryOperation,
+  parseMemoryCommand,
+} from "@/actions/memory-action";
 import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/ownership";
 import {
@@ -42,6 +46,10 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
             ),
           )}`,
         ].join("\n");
+      }
+      const operation = parseMemoryCommand(trimmed);
+      if (operation && operation.action !== "list") {
+        return executeMemoryOperation(context.services, operation);
       }
     }
 

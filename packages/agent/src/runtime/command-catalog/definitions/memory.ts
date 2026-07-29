@@ -17,6 +17,21 @@ export const MemoryCommandCatalogEntries: CommandCatalogEntry[] = [
     description: "Show native memory summary data.",
   },
   {
+    command: "/memory add <memory|user> <text>",
+    category: "memory",
+    description: "Add a durable assistant or user memory entry.",
+  },
+  {
+    command: "/memory replace <memory|user> <old-text> => <new-text>",
+    category: "memory",
+    description: "Replace a durable assistant or user memory entry.",
+  },
+  {
+    command: "/memory remove <memory|user> <text>",
+    category: "memory",
+    description: "Remove a durable assistant or user memory entry.",
+  },
+  {
     command: "/user card",
     category: "memory",
     description: "Show the current user memory card.",
