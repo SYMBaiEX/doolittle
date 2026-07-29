@@ -177,6 +177,9 @@ export async function runClaudeCodeTextGeneration(
 
   if (!response.ok) {
     const body = await response.text();
+    if (options.allowCliFallback) {
+      return invokeCliFallback();
+    }
     throw new Error(`Claude Code request failed (${response.status}): ${body}`);
   }
 

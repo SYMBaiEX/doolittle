@@ -206,6 +206,59 @@ describe("createClaudeCodePlugin", () => {
     ).resolves.toBe("claude cli response");
   });
 
+  it("falls back to the signed-in Claude CLI when direct OAuth rejects the selected model", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          type: "error",
+          error: {
+            type: "not_found_error",
+            message: "model is not available on the direct API",
+          },
+        }),
+        { status: 404 },
+      )) as typeof fetch;
+
+    try {
+      const plugin = createClaudeCodePlugin({
+        enabled: true,
+        allowCliFallback: true,
+        getStatus: () => ({
+          provider: "claude-code",
+          available: true,
+          reusable: true,
+          fallbackReady: true,
+          detail: "Claude CLI is signed in",
+        }),
+        getCredentials: () => ({
+          accessToken: "oauth-token",
+        }),
+        invokeCliPrint: async ({ model }) => {
+          expect(model).toBe("sonnet");
+          return "claude cli response";
+        },
+      });
+
+      await expect(
+        plugin.models?.TEXT_LARGE?.(
+          {
+            getSetting: () =>
+              JSON.stringify({
+                model: {
+                  provider: "claude-code",
+                  model: "claude-sonnet-5",
+                },
+              }),
+          } as never,
+          { prompt: "hello" } as never,
+        ),
+      ).resolves.toBe("claude cli response");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("refreshes Claude Code credentials after an auth failure", async () => {
     const originalFetch = globalThis.fetch;
     let requestCount = 0;
