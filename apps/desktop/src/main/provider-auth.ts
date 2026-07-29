@@ -227,9 +227,11 @@ export class ProviderAuthController {
     this.active.set(provider, { child, timeout });
 
     let browserOpened = false;
+    let outputTail = "";
     const consume = (chunk: Buffer | string) => {
       if (browserOpened) return;
-      const url = providerAuthUrls(provider, chunk.toString())[0];
+      outputTail = `${outputTail}${chunk.toString()}`.slice(-8_192);
+      const url = providerAuthUrls(provider, outputTail)[0];
       if (!url) return;
       browserOpened = true;
       void this.openExternal(url).catch(() => undefined);
@@ -282,6 +284,19 @@ export class ProviderAuthController {
     return this.update(provider, {
       phase: "cancelled",
       message: `${PROVIDERS[provider].label} sign in was cancelled.`,
+    });
+  }
+
+  acknowledge(provider: ProviderAuthProvider): ProviderAuthState {
+    const current = this.getState(provider);
+    if (current.phase === "launching" || current.phase === "waiting") {
+      return current;
+    }
+    return this.update(provider, {
+      phase: "idle",
+      message: `${PROVIDERS[provider].label} is ready to sign in.`,
+      browserOpened: false,
+      startedAt: undefined,
     });
   }
 

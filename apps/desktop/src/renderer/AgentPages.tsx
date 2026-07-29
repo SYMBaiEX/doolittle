@@ -343,6 +343,7 @@ export function ConnectionsPage({ active }: { active: boolean }) {
           asString(result.detail) ||
             `${titleCase(provider)} is signed in and ready to use.`,
         );
+        setAuthState(await window.doolittle.acknowledgeProviderAuth(provider));
         resource.reload();
       } catch (error) {
         completedAuth.current.delete(provider);
@@ -351,7 +352,7 @@ export function ConnectionsPage({ active }: { active: boolean }) {
         setBusy("");
       }
     },
-    [resource.reload],
+    [resource.reload, setAuthState],
   );
 
   useEffect(() => {
@@ -367,12 +368,17 @@ export function ConnectionsPage({ active }: { active: boolean }) {
         setAuthStates(
           Object.fromEntries(states.map((state) => [state.provider, state])),
         );
+        for (const state of states) {
+          if (state.phase === "succeeded") {
+            void finishAccountSignIn(state.provider);
+          }
+        }
       })
       .catch(() => undefined);
     return () => {
       mounted = false;
     };
-  }, [active]);
+  }, [active, finishAccountSignIn]);
 
   useEffect(() => {
     if (!active) return;
@@ -405,7 +411,11 @@ export function ConnectionsPage({ active }: { active: boolean }) {
     try {
       const state = await window.doolittle.startProviderAuth(provider);
       setAuthState(state);
-      if (state.phase === "failed") setFeedback(state.message);
+      if (state.phase === "succeeded") {
+        await finishAccountSignIn(provider);
+      } else if (state.phase === "failed") {
+        setFeedback(state.message);
+      }
     } catch (error) {
       setFeedback(errorMessage(error));
     } finally {

@@ -1220,6 +1220,9 @@ export interface DoolittleDesktopBridge {
   cancelProviderAuth(
     provider: ProviderAuthProvider,
   ): Promise<ProviderAuthState>;
+  acknowledgeProviderAuth(
+    provider: ProviderAuthProvider,
+  ): Promise<ProviderAuthState>;
   api<T>(request: ApiRequest): Promise<T>;
   runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
   startTerminalRun(request: TerminalStreamRequest): Promise<void>;

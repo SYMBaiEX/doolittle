@@ -1967,6 +1967,17 @@ export function registerIpc(
     },
   );
   ipcMain.handle(
+    "provider-auth:acknowledge",
+    (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
+      if (!desktopControls?.providerAuth) {
+        throw new Error("Provider sign in is unavailable in this build.");
+      }
+      return desktopControls.providerAuth.acknowledge(
+        validateProviderAuthProvider(unsafeProvider),
+      );
+    },
+  );
+  ipcMain.handle(
     "editor:project-context",
     (
       _event: IpcMainInvokeEvent,
@@ -2301,6 +2312,7 @@ export function registerIpc(
     ipcMain.removeHandler("provider-auth:start");
     ipcMain.removeHandler("provider-auth:state");
     ipcMain.removeHandler("provider-auth:cancel");
+    ipcMain.removeHandler("provider-auth:acknowledge");
     ipcMain.removeHandler("terminal:run-confirmed");
     ipcMain.removeHandler("terminal:stream-start");
     ipcMain.removeHandler("terminal:stream-cancel");

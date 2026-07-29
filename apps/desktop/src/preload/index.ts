@@ -78,6 +78,8 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke("provider-auth:state", provider),
   cancelProviderAuth: (provider: ProviderAuthProvider) =>
     ipcRenderer.invoke("provider-auth:cancel", provider),
+  acknowledgeProviderAuth: (provider: ProviderAuthProvider) =>
+    ipcRenderer.invoke("provider-auth:acknowledge", provider),
   api: <T>(request: ApiRequest): Promise<T> =>
     ipcRenderer.invoke("api:request", request),
   runCommand: (request: DesktopCommandRequest) =>

@@ -112,5 +112,6 @@ describe("provider auth", () => {
 
     child.emit("exit", 0, null);
     expect(controller.getState("codex").phase).toBe("succeeded");
+    expect(controller.acknowledge("codex").phase).toBe("idle");
   });
 });
