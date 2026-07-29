@@ -9,6 +9,8 @@ import type {
   DesktopCommandResult,
   DesktopLifecycleState,
   DesktopUpdateState,
+  EditorProjectContextRequest,
+  EditorProjectContextResult,
   FileSelection,
   HttpMethod,
   InteractiveTerminalInputRequest,
@@ -29,6 +31,7 @@ import type {
 } from "../shared/contracts";
 import { SseParser } from "../shared/sse";
 import type { BackendManager } from "./backend";
+import { resolveEditorProjectContext } from "./editor-project-context";
 import type { DesktopUpdateController } from "./update-state";
 
 const API_ORIGIN = "http://desktop.local";
@@ -1922,6 +1925,13 @@ export function registerIpc(
     },
   );
   ipcMain.handle(
+    "editor:project-context",
+    (
+      _event: IpcMainInvokeEvent,
+      request: EditorProjectContextRequest,
+    ): EditorProjectContextResult => resolveEditorProjectContext(request),
+  );
+  ipcMain.handle(
     "workspace:save-confirmed",
     async (
       _event: IpcMainInvokeEvent,
@@ -2254,6 +2264,7 @@ export function registerIpc(
     ipcMain.removeHandler("terminal:session-interrupt");
     ipcMain.removeHandler("terminal:session-close");
     ipcMain.removeHandler("terminal:session-output");
+    ipcMain.removeHandler("editor:project-context");
     ipcMain.removeHandler("workspace:save-confirmed");
     ipcMain.removeHandler("repository:create-worktree-confirmed");
     ipcMain.removeHandler("api:request");

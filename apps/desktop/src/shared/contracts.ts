@@ -988,6 +988,59 @@ export interface WorkspaceFileSaveRequest {
   expectedContent: string;
 }
 
+export interface EditorProjectContextRequest {
+  workspacePath: string;
+  entryPath: string;
+  content?: string;
+}
+
+export interface EditorProjectCompilerOptions {
+  allowJs?: boolean;
+  allowSyntheticDefaultImports?: boolean;
+  baseUrl?: string;
+  esModuleInterop?: boolean;
+  jsx?:
+    | "none"
+    | "preserve"
+    | "react"
+    | "react-native"
+    | "react-jsx"
+    | "react-jsxdev";
+  lib?: string[];
+  module?: "commonjs" | "amd" | "umd" | "system" | "es2015" | "esnext";
+  moduleResolution?: "classic" | "node" | "bundler";
+  paths?: Record<string, string[]>;
+  resolveJsonModule?: boolean;
+  skipLibCheck?: boolean;
+  target?:
+    | "es3"
+    | "es5"
+    | "es2015"
+    | "es2016"
+    | "es2017"
+    | "es2018"
+    | "es2019"
+    | "es2020"
+    | "es2022"
+    | "esnext";
+  types?: string[];
+}
+
+export interface EditorProjectSupportFile {
+  path: string;
+  content: string;
+}
+
+export interface EditorProjectContextResult {
+  workspacePath: string;
+  projectRoot: string;
+  entryPath: string;
+  tsconfigPath?: string;
+  compilerOptions: EditorProjectCompilerOptions;
+  supportFiles: EditorProjectSupportFile[];
+  truncated: boolean;
+}
+
 export type WorkspaceFileSaveResult =
   | {
       status: "cancelled";
@@ -1165,6 +1218,9 @@ export interface DoolittleDesktopBridge {
     sessionId: string,
     cursor: number,
   ): Promise<InteractiveTerminalOutput>;
+  getEditorProjectContext(
+    request: EditorProjectContextRequest,
+  ): Promise<EditorProjectContextResult>;
   saveWorkspaceFile(
     request: WorkspaceFileSaveRequest,
   ): Promise<WorkspaceFileSaveResult>;

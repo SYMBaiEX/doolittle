@@ -6,6 +6,7 @@ import jsonWorker from "monaco-editor/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
 import { useEffect, useRef } from "react";
 import type { CodeLanguage } from "../code-language";
+import { acquireMonacoProjectSupport } from "../editor-project-support";
 import "./code-editor.css";
 
 const DOOLITTLE_EDITOR_THEME = "doolittle-ember";
@@ -102,6 +103,17 @@ function modelUri(path: string, workspacePath?: string): monaco.Uri {
   return monaco.Uri.file(absolutePath);
 }
 
+function projectSupportSignature(content: string): string {
+  return content
+    .split("\n")
+    .filter((line) =>
+      /^\s*(?:import|export)\b|\bfrom\s*["']|\brequire\s*\(|\bimport\s*\(|<reference\s/u.test(
+        line,
+      ),
+    )
+    .join("\n");
+}
+
 export interface CodeEditorPosition {
   line: number;
   column: number;
@@ -165,12 +177,15 @@ export function CodeEditor({
   const onChangeRef = useRef(onChange);
   const onEditorStateChangeRef = useRef(onEditorStateChange);
   const onSaveRef = useRef(onSave);
+  const projectSupportReleaseRef = useRef<(() => void) | null>(null);
+  const projectSupportRequestRef = useRef(0);
 
   valueRef.current = value;
   disabledRef.current = disabled;
   onChangeRef.current = onChange;
   onEditorStateChangeRef.current = onEditorStateChange;
   onSaveRef.current = onSave;
+  const supportSignature = projectSupportSignature(value);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -299,6 +314,66 @@ export function CodeEditor({
     if (!model || model.getValue() === value) return;
     model.setValue(value);
   }, [value]);
+
+  useEffect(() => {
+    if (
+      !workspacePath ||
+      !path ||
+      (language.id !== "typescript" && language.id !== "javascript")
+    ) {
+      projectSupportReleaseRef.current?.();
+      projectSupportReleaseRef.current = null;
+      return;
+    }
+
+    const requestId = projectSupportRequestRef.current + 1;
+    projectSupportRequestRef.current = requestId;
+    const timer = window.setTimeout(() => {
+      const content = valueRef.current;
+      if (projectSupportSignature(content) !== supportSignature) return;
+      void window.doolittle
+        .getEditorProjectContext({
+          workspacePath,
+          entryPath: path,
+          content,
+        })
+        .then((context) => {
+          if (projectSupportRequestRef.current !== requestId) return;
+          projectSupportReleaseRef.current?.();
+          projectSupportReleaseRef.current =
+            acquireMonacoProjectSupport(context);
+          if (context.truncated) {
+            console.warn(
+              `[CodeEditor] Project support for ${path} was truncated to keep Monaco memory bounded.`,
+            );
+          }
+        })
+        .catch((error) => {
+          if (projectSupportRequestRef.current !== requestId) return;
+          projectSupportReleaseRef.current?.();
+          projectSupportReleaseRef.current = null;
+          console.warn(
+            `[CodeEditor] Unable to hydrate Monaco project support for ${path}.`,
+            error,
+          );
+        });
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timer);
+      if (projectSupportRequestRef.current === requestId) {
+        projectSupportRequestRef.current += 1;
+      }
+    };
+  }, [language.id, path, supportSignature, workspacePath]);
+
+  useEffect(
+    () => () => {
+      projectSupportReleaseRef.current?.();
+      projectSupportReleaseRef.current = null;
+    },
+    [],
+  );
 
   return <div className="doolittle-code-editor" ref={hostRef} />;
 }

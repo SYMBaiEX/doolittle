@@ -8,6 +8,7 @@ import type {
   DesktopCommandRequest,
   DesktopUpdateState,
   DoolittleDesktopBridge,
+  EditorProjectContextRequest,
   InteractiveTerminalInputRequest,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalStartRequest,
@@ -98,6 +99,8 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke("terminal:session-close", sessionId),
   getInteractiveTerminalOutput: (sessionId: string, cursor: number) =>
     ipcRenderer.invoke("terminal:session-output", sessionId, cursor),
+  getEditorProjectContext: (request: EditorProjectContextRequest) =>
+    ipcRenderer.invoke("editor:project-context", request),
   saveWorkspaceFile: (request: WorkspaceFileSaveRequest) =>
     ipcRenderer.invoke("workspace:save-confirmed", request),
   createWorktree: (request: RepositoryWorktreeCreateRequest) =>
