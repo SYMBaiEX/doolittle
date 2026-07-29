@@ -91,28 +91,71 @@ function defineDoolittleTheme() {
   themeDefined = true;
 }
 
-function modelUri(path: string): monaco.Uri {
-  const normalized = path.replace(/\\/gu, "/").replace(/^\/+/u, "");
-  return monaco.Uri.from({
-    scheme: "file",
-    path: `/${normalized || "untitled.txt"}`,
-  });
+function modelUri(path: string, workspacePath?: string): monaco.Uri {
+  const normalizedPath = path.replace(/\\/gu, "/").replace(/^\/+/u, "");
+  const normalizedWorkspace = workspacePath
+    ?.replace(/\\/gu, "/")
+    .replace(/\/+$/u, "");
+  const absolutePath = normalizedWorkspace
+    ? `${normalizedWorkspace}/${normalizedPath || "untitled.txt"}`
+    : `/${normalizedPath || "untitled.txt"}`;
+  return monaco.Uri.file(absolutePath);
+}
+
+export interface CodeEditorPosition {
+  line: number;
+  column: number;
+}
+
+export interface CodeEditorSelection {
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+  text: string;
+}
+
+export interface CodeEditorVisibleRange {
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}
+
+export interface CodeEditorStateSnapshot {
+  path: string;
+  uri: string;
+  language: string;
+  content: string;
+  version: number;
+  focused: boolean;
+  cursor?: CodeEditorPosition;
+  selection?: CodeEditorSelection;
+  visibleRanges: CodeEditorVisibleRange[];
 }
 
 export function CodeEditor({
+  ariaLabel,
+  compact = false,
   disabled,
   language,
   onChange,
+  onEditorStateChange,
   onSave,
   path,
   value,
+  workspacePath,
 }: {
+  ariaLabel?: string;
+  compact?: boolean;
   disabled: boolean;
   language: CodeLanguage;
   onChange: (value: string) => void;
+  onEditorStateChange?: (snapshot: CodeEditorStateSnapshot) => void;
   onSave: () => void;
   path: string;
   value: string;
+  workspacePath?: string;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -120,11 +163,13 @@ export function CodeEditor({
   const valueRef = useRef(value);
   const disabledRef = useRef(disabled);
   const onChangeRef = useRef(onChange);
+  const onEditorStateChangeRef = useRef(onEditorStateChange);
   const onSaveRef = useRef(onSave);
 
   valueRef.current = value;
   disabledRef.current = disabled;
   onChangeRef.current = onChange;
+  onEditorStateChangeRef.current = onEditorStateChange;
   onSaveRef.current = onSave;
 
   useEffect(() => {
@@ -132,20 +177,20 @@ export function CodeEditor({
     if (!host || !path) return;
     defineDoolittleTheme();
 
-    const uri = modelUri(path);
+    const uri = modelUri(path, workspacePath);
     monaco.editor.getModel(uri)?.dispose();
     const model = monaco.editor.createModel(valueRef.current, language.id, uri);
     const editor = monaco.editor.create(host, {
       model,
       theme: DOOLITTLE_EDITOR_THEME,
-      ariaLabel: `Edit ${path}`,
+      ariaLabel: ariaLabel ?? `Edit ${path}`,
       automaticLayout: true,
       bracketPairColorization: { enabled: true },
       cursorBlinking: "smooth",
       cursorSmoothCaretAnimation: "on",
       fontFamily: "var(--font-mono)",
       fontLigatures: true,
-      fontSize: 12,
+      fontSize: compact ? 11 : 12,
       folding: true,
       foldingHighlight: true,
       glyphMargin: false,
@@ -153,45 +198,95 @@ export function CodeEditor({
         bracketPairs: true,
         indentation: true,
       },
-      lineDecorationsWidth: 10,
-      lineHeight: 20,
-      lineNumbersMinChars: 3,
+      lineDecorationsWidth: compact ? 6 : 10,
+      lineHeight: compact ? 18 : 20,
+      lineNumbersMinChars: compact ? 2 : 3,
       minimap: {
-        enabled: true,
+        enabled: !compact,
         maxColumn: 90,
         renderCharacters: false,
         scale: 1,
         showSlider: "mouseover",
       },
-      padding: { top: 12, bottom: 32 },
+      padding: compact ? { top: 8, bottom: 16 } : { top: 12, bottom: 32 },
       readOnly: disabledRef.current,
       domReadOnly: disabledRef.current,
       renderLineHighlight: "line",
       renderWhitespace: "selection",
       scrollBeyondLastLine: false,
       smoothScrolling: true,
-      stickyScroll: { enabled: true, maxLineCount: 4 },
+      stickyScroll: { enabled: true, maxLineCount: compact ? 2 : 4 },
       tabSize: 2,
       wordWrap: "off",
     });
 
+    let stateFrame = 0;
+    const emitState = () => {
+      stateFrame = 0;
+      const callback = onEditorStateChangeRef.current;
+      if (!callback) return;
+      const cursor = editor.getPosition();
+      const selection = editor.getSelection();
+      callback({
+        path,
+        uri: uri.toString(),
+        language: language.id,
+        content: model.getValue(),
+        version: model.getVersionId(),
+        focused: editor.hasTextFocus(),
+        cursor: cursor
+          ? { line: cursor.lineNumber, column: cursor.column }
+          : undefined,
+        selection:
+          selection && !selection.isEmpty()
+            ? {
+                startLine: selection.startLineNumber,
+                startColumn: selection.startColumn,
+                endLine: selection.endLineNumber,
+                endColumn: selection.endColumn,
+                text: model.getValueInRange(selection),
+              }
+            : undefined,
+        visibleRanges: editor.getVisibleRanges().map((range) => ({
+          startLine: range.startLineNumber,
+          startColumn: range.startColumn,
+          endLine: range.endLineNumber,
+          endColumn: range.endColumn,
+        })),
+      });
+    };
+    const scheduleState = () => {
+      if (!onEditorStateChangeRef.current || stateFrame) return;
+      stateFrame = requestAnimationFrame(emitState);
+    };
     const changeDisposable = model.onDidChangeContent(() => {
       onChangeRef.current(model.getValue());
+      scheduleState();
     });
+    const stateDisposables = [
+      editor.onDidChangeCursorPosition(scheduleState),
+      editor.onDidChangeCursorSelection(scheduleState),
+      editor.onDidFocusEditorText(scheduleState),
+      editor.onDidBlurEditorText(scheduleState),
+      editor.onDidScrollChange(scheduleState),
+    ];
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       onSaveRef.current();
     });
     editorRef.current = editor;
     modelRef.current = model;
+    scheduleState();
 
     return () => {
+      if (stateFrame) cancelAnimationFrame(stateFrame);
       changeDisposable.dispose();
+      for (const disposable of stateDisposables) disposable.dispose();
       editor.dispose();
       model.dispose();
       editorRef.current = null;
       modelRef.current = null;
     };
-  }, [language.id, path]);
+  }, [ariaLabel, compact, language.id, path, workspacePath]);
 
   useEffect(() => {
     const editor = editorRef.current;

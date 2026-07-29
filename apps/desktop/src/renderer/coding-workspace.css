@@ -681,7 +681,7 @@
   flex: 0 0 auto;
   min-height: 28px;
   align-items: center;
-  gap: 13px;
+  gap: 9px;
   padding: 0 9px;
   color: var(--muted);
   background: var(--surface-raised);
@@ -691,6 +691,10 @@
   letter-spacing: 0.06em;
 }
 
+.coding-editor-status > span {
+  white-space: nowrap;
+}
+
 .coding-editable-status,
 .coding-readonly-status {
   color: var(--accent);
@@ -698,6 +702,32 @@
 
 .coding-modified-status {
   color: var(--warn);
+}
+
+.coding-acp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.coding-acp-status > i {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.coding-acp-status.connected {
+  color: var(--good);
+}
+
+.coding-acp-status.connecting {
+  color: var(--accent);
+}
+
+.coding-acp-status.degraded {
+  color: var(--bad);
 }
 
 .coding-spacer {

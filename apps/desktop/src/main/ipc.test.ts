@@ -65,6 +65,9 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/health", "GET")).toBe("/health");
     expect(parseApiPath("/commands/catalog", "GET")).toBe("/commands/catalog");
     expect(parseApiPath("/runtime/status", "GET")).toBe("/runtime/status");
+    expect(parseApiPath("/runtime/models?refresh=true", "GET")).toBe(
+      "/runtime/models?refresh=true",
+    );
     expect(parseApiPath("/activity?limit=50", "GET")).toBe(
       "/activity?limit=50",
     );
@@ -165,6 +168,12 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/acp/tools?query=browser", "GET")).toBe(
       "/acp/tools?query=browser",
     );
+    expect(
+      parseApiPath(
+        "/acp/session/updates?sessionId=acp%3Asession-1&cursor=12",
+        "GET",
+      ),
+    ).toBe("/acp/session/updates?sessionId=acp%3Asession-1&cursor=12");
     expect(parseApiPath("/logs?limit=50&level=warn&query=boot", "GET")).toBe(
       "/logs?limit=50&level=warn&query=boot",
     );
@@ -237,6 +246,15 @@ describe("parseApiPath", () => {
     expect(() =>
       parseApiPath("/acp/tools?query=browser&invoke=true", "GET"),
     ).toThrow(/Unsupported query/);
+    expect(() => parseApiPath("/acp/session/updates?cursor=12", "GET")).toThrow(
+      /Unsupported query/,
+    );
+    expect(() =>
+      parseApiPath(
+        "/acp/session/updates?sessionId=acp%3Asession-1&cursor=-1",
+        "GET",
+      ),
+    ).toThrow(/Unsupported query/);
     expect(() => parseApiPath("/acp/invoke", "GET")).toThrow(/not available/);
   });
 
@@ -286,6 +304,23 @@ describe("parseApiPath", () => {
 
   it("allows only the declared chat receipt surface", () => {
     expect(parseApiPath("/acp/probe", "POST")).toBe("/acp/probe");
+    for (const path of [
+      "/acp/initialize",
+      "/acp/session/new",
+      "/acp/session/load",
+      "/acp/session/prompt",
+      "/acp/session/cancel",
+      "/acp/editor/context",
+      "/acp/fs/read",
+      "/acp/fs/write",
+      "/acp/terminal/create",
+      "/acp/terminal/output",
+      "/acp/terminal/wait",
+      "/acp/terminal/kill",
+      "/acp/terminal/release",
+    ] as const) {
+      expect(parseApiPath(path, "POST")).toBe(path);
+    }
     expect(() => parseApiPath("/acp/invoke", "POST")).toThrow(/not available/);
     expect(() => parseApiPath("/acp/call", "POST")).toThrow(/not available/);
     expect(parseApiPath("/chat/runs?limit=20", "GET")).toBe(

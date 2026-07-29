@@ -273,6 +273,51 @@
   min-height: 0;
 }
 
+.thread-workbench-file-workspace {
+  grid-template-rows: minmax(132px, 0.82fr) minmax(190px, 1.35fr);
+}
+
+.thread-workbench-tree {
+  min-height: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, black 16%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+  border-radius: 8px;
+}
+
+.thread-workbench-tree .workspace-file-tree-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.thread-workbench-tree .workspace-file-tree-header {
+  min-height: 34px;
+  padding-block: 4px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.thread-workbench-tree .workspace-file-tree-header strong {
+  font-size: 9px;
+}
+
+.thread-workbench-tree .workspace-file-tree-header span,
+.thread-workbench-tree .workspace-tree-extension {
+  font-size: 8px;
+}
+
+.thread-workbench-tree .workspace-file-tree {
+  padding: 4px;
+}
+
+.thread-workbench-tree .workspace-file-tree [role="treeitem"] {
+  min-height: 25px;
+  padding-block: 2px;
+}
+
+.thread-workbench-tree .workspace-tree-name {
+  font-size: 10px;
+}
+
 .thread-workbench-checkpoints {
   display: grid;
   gap: 7px;
@@ -531,11 +576,84 @@
   overflow: hidden;
 }
 
+.thread-workbench-code-preview {
+  position: relative;
+}
+
 .thread-workbench-preview > div {
   border-bottom: 1px solid color-mix(in srgb, currentColor 8%, transparent);
   gap: 8px;
   min-height: 32px;
   padding: 4px 7px 4px 10px;
+}
+
+.thread-workbench-code-preview > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.thread-workbench-code-preview > div:first-child > span {
+  color: var(--thread-workbench-accent);
+  font: 700 8px / 1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.thread-workbench-code-preview > div:first-child > div {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.thread-workbench-preview > .thread-workbench-monaco {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+}
+
+.thread-workbench-monaco .doolittle-code-editor {
+  border-radius: 0;
+}
+
+.thread-workbench-file-empty {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  color: color-mix(in srgb, currentColor 48%, transparent);
+  text-align: center;
+}
+
+.thread-workbench-file-empty-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--thread-workbench-accent);
+  background: var(--thread-workbench-accent-soft);
+  border: 1px solid
+    color-mix(in srgb, var(--thread-workbench-accent) 28%, transparent);
+  border-radius: 8px;
+  font: 700 11px / 1 var(--font-mono, ui-monospace, monospace);
+}
+
+.thread-workbench-file-empty strong {
+  color: var(--text, #f7efe5);
+  font-size: 11px;
+}
+
+.thread-workbench-file-empty p {
+  max-width: 230px;
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 .thread-workbench-preview code {

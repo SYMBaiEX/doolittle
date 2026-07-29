@@ -274,6 +274,12 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         validateTextQuery(query, "after", { maxLength: 1_024 }),
     },
     { exact: "/runtime/status" },
+    {
+      exact: "/runtime/models",
+      allowedQueries: ["refresh"],
+      validateQuery: (query) =>
+        validateEnumQuery(query, "refresh", ["true", "false", "1", "0"]),
+    },
     { exact: "/runtime/plugins" },
     { exact: "/runtime/accounts" },
     { exact: "/runtime/registry", allowedQueries: ["query", "refresh"] },
@@ -397,6 +403,16 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
           max: 25,
           required: true,
         }),
+    },
+    {
+      exact: "/acp/session/updates",
+      allowedQueries: ["sessionId", "cursor"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "sessionId", {
+          required: true,
+          maxLength: 256,
+        }) &&
+        validateIntegerQuery(query, "cursor", { min: 0, max: 1_000_000_000 }),
     },
     {
       exact: "/acp/tools",
@@ -548,6 +564,19 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   POST: [
     { exact: "/settings" },
+    { exact: "/acp/initialize" },
+    { exact: "/acp/session/new" },
+    { exact: "/acp/session/load" },
+    { exact: "/acp/session/prompt" },
+    { exact: "/acp/session/cancel" },
+    { exact: "/acp/editor/context" },
+    { exact: "/acp/fs/read" },
+    { exact: "/acp/fs/write" },
+    { exact: "/acp/terminal/create" },
+    { exact: "/acp/terminal/output" },
+    { exact: "/acp/terminal/wait" },
+    { exact: "/acp/terminal/kill" },
+    { exact: "/acp/terminal/release" },
     { exact: "/acp/probe" },
     { exact: "/mcp/probe" },
     { exact: "/gateway/replay" },

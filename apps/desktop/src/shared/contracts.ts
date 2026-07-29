@@ -241,6 +241,30 @@ export interface RuntimeStatus {
   ownership?: Record<string, unknown>;
 }
 
+export interface RuntimeModelOption {
+  id: string;
+  label: string;
+  source: "configured" | "discovered";
+}
+
+export interface RuntimeModelProvider {
+  id: string;
+  label: string;
+  mode: "cloud" | "linked" | "local";
+  ready: boolean;
+  baseUrl?: string;
+  discovery: "configured" | "live" | "unavailable";
+  detail: string;
+  models: RuntimeModelOption[];
+}
+
+export interface RuntimeModelsResponse {
+  activeProvider: string;
+  activeModel: string;
+  refreshedAt: string;
+  providers: RuntimeModelProvider[];
+}
+
 export interface PluginsResponse {
   catalog?: unknown[];
   grouped?: Record<string, unknown[]>;
@@ -462,6 +486,8 @@ export type AllowedGetPath =
   | "/activity"
   | `/activity?${string}`
   | "/runtime/status"
+  | "/runtime/models"
+  | `/runtime/models?${string}`
   | "/runtime/compatibility"
   | "/runtime/plugins"
   | "/runtime/registry"
@@ -502,6 +528,7 @@ export type AllowedGetPath =
   | "/acp/status"
   | "/acp/editor"
   | `/acp/sessions?${string}`
+  | `/acp/session/updates?${string}`
   | `/acp/tools?${string}`
   | "/mcp/status"
   | "/mcp/cached"
@@ -580,6 +607,19 @@ export type AllowedGetPath =
 
 export type AllowedPostPath =
   | "/settings"
+  | "/acp/initialize"
+  | "/acp/session/new"
+  | "/acp/session/load"
+  | "/acp/session/prompt"
+  | "/acp/session/cancel"
+  | "/acp/editor/context"
+  | "/acp/fs/read"
+  | "/acp/fs/write"
+  | "/acp/terminal/create"
+  | "/acp/terminal/output"
+  | "/acp/terminal/wait"
+  | "/acp/terminal/kill"
+  | "/acp/terminal/release"
   | "/acp/probe"
   | "/mcp/probe"
   | "/gateway/replay"

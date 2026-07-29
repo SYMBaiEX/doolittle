@@ -14,6 +14,7 @@ import { ExecutionEnvironmentPanel } from "./components/ExecutionEnvironmentPane
 import { InteractiveTerminal } from "./components/InteractiveTerminal";
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import { WorkspaceFileTree } from "./components/WorkspaceFileTree";
+import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import {
   asArray,
   asNumber,
@@ -341,6 +342,10 @@ export function CodingWorkspacePage({
   const [fileNotice, setFileNotice] = useState<ActionNotice | null>(null);
   const [savingFile, setSavingFile] = useState(false);
   const fileDirtyRef = useRef(false);
+  const acpEditor = useDesktopAcpEditorBridge({
+    active,
+    workspacePath,
+  });
 
   const summaryResource = useApiResource<RepositorySummaryResponse>(
     active ? "/repo/summary" : null,
@@ -622,6 +627,7 @@ export function CodingWorkspacePage({
 
   const sendSelectedContext = () => {
     if (!selectedPath) return;
+    void acpEditor.flushEditorState();
     if (editorPane === "diff") {
       const patch = patchResource.data?.patch?.patch ?? "";
       onSendToChat(
@@ -1023,9 +1029,16 @@ export function CodingWorkspacePage({
                       setDraftContent(value);
                       if (fileNotice?.tone !== "bad") setFileNotice(null);
                     }}
+                    onEditorStateChange={(snapshot) =>
+                      acpEditor.publishEditorState(
+                        snapshot,
+                        fileDirtyRef.current,
+                      )
+                    }
                     onSave={() => void saveFile()}
                     path={selectedPath}
                     value={draftContent}
+                    workspacePath={workspacePath}
                   />
                 </>
               )
@@ -1085,6 +1098,25 @@ export function CodingWorkspacePage({
             <span>{selectedLanguage.label}</span>
             <span>UTF-8</span>
             {editorPane === "file" ? <span>⌘/Ctrl S to save</span> : null}
+            <span
+              className={`coding-acp-status ${acpEditor.phase}`}
+              title={
+                acpEditor.error ||
+                (acpEditor.sessionId
+                  ? `ACP session ${acpEditor.sessionId}`
+                  : "ACP editor context")
+              }
+            >
+              <i aria-hidden="true" />
+              ACP{" "}
+              {acpEditor.phase === "connected"
+                ? "live"
+                : acpEditor.phase === "degraded"
+                  ? "offline"
+                  : acpEditor.phase === "connecting"
+                    ? "linking"
+                    : "idle"}
+            </span>
             <span className="coding-spacer" />
             {selectedPath ? (
               <button

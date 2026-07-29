@@ -6,6 +6,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { detectCodeLanguage } from "../code-language";
+import { useDesktopAcpEditorBridge } from "../desktop-acp-client";
 import {
   asArray,
   asNumber,
@@ -31,7 +33,10 @@ import {
   type ThreadWorkbenchState,
   type ThreadWorkbenchTab,
 } from "../thread-workbench";
+import type { WorkspaceTreeEntry } from "../workspace-file-tree";
+import { CodeEditor } from "./CodeEditor";
 import { PanelResizeHandle } from "./PanelResizeHandle";
+import { WorkspaceFileTree } from "./WorkspaceFileTree";
 import "../thread-workbench.css";
 
 export type ThreadWorkbenchFullView =
@@ -129,12 +134,6 @@ interface NavigationCard {
   label: string;
   view: ThreadWorkbenchFullView;
   blurb: string;
-}
-
-interface WorkbenchFile {
-  path: string;
-  type: "file" | "directory";
-  depth: number;
 }
 
 interface WorkbenchChange {
@@ -327,6 +326,14 @@ export function ThreadWorkbenchRail({
   const [copiedLabel, setCopiedLabel] = useState("");
   const [checkpointMessage, setCheckpointMessage] = useState("");
   const [checkpointBusy, setCheckpointBusy] = useState(false);
+  const acpEditor = useDesktopAcpEditorBridge({
+    active:
+      active &&
+      model.railOpen &&
+      model.selectedTab === "files" &&
+      !!workspacePath,
+    workspacePath,
+  });
   const tabRefs = useRef<Record<ThreadWorkbenchTab, HTMLButtonElement | null>>({
     files: null,
     changes: null,
@@ -343,7 +350,7 @@ export function ThreadWorkbenchRail({
   );
   const tree = useApiResource<WorkspaceTreeResponse>(
     active && model.railOpen && model.selectedTab === "files"
-      ? "/workspace/tree?depth=4"
+      ? "/workspace/tree?depth=12"
       : null,
     [active, model.railOpen, model.selectedTab, workspacePath],
   );
@@ -409,7 +416,7 @@ export function ThreadWorkbenchRail({
   const fileEntries = useMemo(
     () =>
       asArray(tree.data?.entries)
-        .map((value): WorkbenchFile | null => {
+        .map((value): WorkspaceTreeEntry | null => {
           const entry = asRecord(value);
           const path = asString(entry.path);
           const type = asString(entry.type);
@@ -417,10 +424,10 @@ export function ThreadWorkbenchRail({
           return {
             path,
             type,
-            depth: Math.max(0, Math.min(8, asNumber(entry.depth))),
+            depth: Math.max(0, Math.min(12, asNumber(entry.depth))),
           };
         })
-        .filter((entry): entry is WorkbenchFile => entry !== null),
+        .filter((entry): entry is WorkspaceTreeEntry => entry !== null),
     [tree.data],
   );
   const changeEntries = useMemo(
@@ -469,8 +476,11 @@ export function ThreadWorkbenchRail({
   );
   const activeRunCount = asNumber(codegen.data?.summary?.running) || 0;
   const failedRunCount = asNumber(codegen.data?.summary?.failed) || 0;
-  const currentFile =
-    selectedFile || fileEntries.find((entry) => entry.type === "file")?.path;
+  const currentFile = selectedFile;
+  const currentFileLanguage = useMemo(
+    () => detectCodeLanguage(currentFile),
+    [currentFile],
+  );
   const currentChange = selectedChange || changeEntries[0]?.path;
   const currentCommand =
     commandEntries.find(
@@ -784,65 +794,87 @@ export function ThreadWorkbenchRail({
               retry={tree.reload}
             />
             {!tree.loading && !tree.error ? (
-              <div className="thread-workbench-split">
-                <div className="thread-workbench-list">
-                  {fileEntries.slice(0, 160).map((entry) => (
-                    <button
-                      aria-current={currentFile === entry.path}
-                      className={
-                        currentFile === entry.path ? "selected" : undefined
-                      }
-                      disabled={entry.type === "directory"}
-                      key={entry.path}
-                      onClick={() => setSelectedFile(entry.path)}
-                      style={{ "--tree-depth": entry.depth } as CSSProperties}
-                      title={entry.path}
-                      type="button"
-                    >
-                      <span aria-hidden="true">
-                        {entry.type === "directory" ? "▸" : "·"}
-                      </span>
-                      <span>{entry.path.split("/").at(-1)}</span>
-                    </button>
-                  ))}
-                  {!fileEntries.length ? (
+              <div className="thread-workbench-split thread-workbench-file-workspace">
+                <div className="thread-workbench-tree">
+                  {fileEntries.length ? (
+                    <WorkspaceFileTree
+                      entries={fileEntries}
+                      key={workspacePath}
+                      onOpenFile={setSelectedFile}
+                      selectedPath={currentFile}
+                    />
+                  ) : (
                     <p className="thread-workbench-empty">
                       No files returned for this workspace.
                     </p>
-                  ) : null}
+                  )}
                 </div>
-                {currentFile ? (
-                  <div className="thread-workbench-preview">
-                    <div>
-                      <code title={currentFile}>
-                        {compactPath(currentFile)}
-                      </code>
-                      <button
-                        disabled={!file.data?.content}
-                        onClick={() =>
-                          insert(
-                            "File context added",
-                            contextBlock(
-                              "file",
-                              currentFile,
-                              asString(file.data?.content),
-                            ),
-                          )
-                        }
-                        type="button"
+                <div className="thread-workbench-preview thread-workbench-code-preview">
+                  {currentFile ? (
+                    <>
+                      <div>
+                        <code title={currentFile}>
+                          {compactPath(currentFile)}
+                        </code>
+                        <span>{currentFileLanguage.label}</span>
+                        <div>
+                          <button
+                            disabled={!file.data?.content}
+                            onClick={() =>
+                              insert(
+                                "File context added",
+                                contextBlock(
+                                  "file",
+                                  currentFile,
+                                  asString(file.data?.content),
+                                ),
+                              )
+                            }
+                            type="button"
+                          >
+                            Add to chat
+                          </button>
+                        </div>
+                      </div>
+                      {file.loading ? (
+                        <LoadingBlock label="Reading file…" />
+                      ) : file.error ? (
+                        <ErrorBlock error={file.error} retry={file.reload} />
+                      ) : (
+                        <div className="thread-workbench-monaco">
+                          <CodeEditor
+                            ariaLabel={`Preview ${currentFile}`}
+                            compact
+                            disabled
+                            language={currentFileLanguage}
+                            onChange={() => undefined}
+                            onEditorStateChange={(snapshot) =>
+                              acpEditor.publishEditorState(snapshot, false)
+                            }
+                            onSave={() => undefined}
+                            path={currentFile}
+                            value={asString(file.data?.content)}
+                            workspacePath={workspacePath}
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="thread-workbench-file-empty">
+                      <span
+                        aria-hidden="true"
+                        className="thread-workbench-file-empty-icon"
                       >
-                        Add to chat
-                      </button>
+                        &lt;/&gt;
+                      </span>
+                      <strong>Select a file</strong>
+                      <p>
+                        Expand the repository tree to inspect a syntax-aware
+                        preview.
+                      </p>
                     </div>
-                    {file.loading ? (
-                      <LoadingBlock label="Reading file…" />
-                    ) : file.error ? (
-                      <ErrorBlock error={file.error} retry={file.reload} />
-                    ) : (
-                      <pre>{bounded(asString(file.data?.content), 4_000)}</pre>
-                    )}
-                  </div>
-                ) : null}
+                  )}
+                </div>
               </div>
             ) : null}
           </>
