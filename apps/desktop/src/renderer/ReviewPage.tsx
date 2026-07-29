@@ -19,6 +19,7 @@ import type {
 } from "../shared/contracts";
 import { ArtifactViewer } from "./components/ArtifactViewer";
 import { GitControlPanel } from "./components/GitControlPanel";
+import { GitHubPullRequestPanel } from "./components/GitHubPullRequestPanel";
 import {
   asArray,
   asNumber,
@@ -894,6 +895,12 @@ export function ReviewPage({
           GitHub review is unavailable. Local changes remain reviewable.
         </Notice>
       ) : null}
+
+      <GitHubPullRequestPanel
+        active={active}
+        onRefresh={reload}
+        review={review}
+      />
 
       <details className="review-git-controls">
         <summary>
