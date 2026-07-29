@@ -1,10 +1,13 @@
 import { trimTextOrUndefined } from "./token-loaders";
 
+export const DEFAULT_OAUTH_REFRESH_TIMEOUT_MS = 10_000;
+
 export interface OAuthRefreshRequest {
   tokenUrl: string;
   clientId: string;
   refreshToken: string;
   headers?: Record<string, string>;
+  timeoutMs?: number;
   throwOnFailure?: boolean;
   failureMessage?: (status: number, detail: string) => string;
 }
@@ -18,18 +21,34 @@ export interface OAuthRefreshResult {
 export async function refreshOAuthCredentials(
   request: OAuthRefreshRequest,
 ): Promise<OAuthRefreshResult | undefined> {
-  const response = await fetch(request.tokenUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      ...(request.headers ?? {}),
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: request.refreshToken,
-      client_id: request.clientId,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(request.tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...(request.headers ?? {}),
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: request.refreshToken,
+        client_id: request.clientId,
+      }),
+      signal: AbortSignal.timeout(
+        request.timeoutMs ?? DEFAULT_OAUTH_REFRESH_TIMEOUT_MS,
+      ),
+    });
+  } catch (error) {
+    if (request.throwOnFailure) {
+      throw new Error(
+        `OAuth refresh request failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
+    return undefined;
+  }
 
   if (!response.ok) {
     const detail = await response.text();

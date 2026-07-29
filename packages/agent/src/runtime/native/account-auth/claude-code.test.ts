@@ -232,6 +232,28 @@ describe.sequential("Claude Code account auth", () => {
     expect(persisted).toEqual([credentials]);
   });
 
+  it("preserves numeric Claude OAuth expiry timestamps", () => {
+    const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-expiry-"));
+    mkdirSync(join(homePath, ".claude"), { recursive: true });
+    writeFileSync(
+      join(homePath, ".claude", ".credentials.json"),
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: "file-access",
+          refreshToken: "file-refresh",
+          expiresAt: 1_900_000_000_000,
+        },
+      }),
+      "utf8",
+    );
+
+    const { deps, persisted } = createClaudeCodeDeps({ homePath });
+    const credentials = getLinkedClaudeCodeCredentials(homePath, deps);
+
+    expect(credentials?.expiresAt).toBe("1900000000000");
+    expect(persisted).toEqual([credentials]);
+  });
+
   it("reports logged-in local Claude CLI sessions as fallback-only without native creds", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-fallback-"));
     writeFileSync(

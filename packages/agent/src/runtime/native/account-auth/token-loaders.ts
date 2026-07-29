@@ -8,6 +8,13 @@ export function trimTextOrUndefined(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+export function timestampTextOrUndefined(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(value);
+  }
+  return trimTextOrUndefined(value);
+}
+
 export function readNestedField(
   payload: unknown,
   path: string[],

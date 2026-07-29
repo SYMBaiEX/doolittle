@@ -98,9 +98,9 @@ export async function refreshLinkedClaudeCodeCredentials(
   homePath: string | undefined,
   deps: ClaudeCodeAuthDependencies,
 ): Promise<LinkedClaudeCodeCredentials | undefined> {
-  const refreshedStored = await refreshStoredClaudeCodeCredentials(deps);
-  if (refreshedStored) {
-    return refreshedStored;
+  const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
+  if (stored) {
+    return refreshStoredClaudeCodeCredentials(deps);
   }
 
   const envCredentials = resolveClaudeCodeEnvCredentials(homePath, deps);

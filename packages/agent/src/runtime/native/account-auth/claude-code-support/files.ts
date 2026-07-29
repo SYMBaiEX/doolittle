@@ -9,6 +9,7 @@ import {
   hasTokens,
   readNestedField,
   readTokenPair,
+  timestampTextOrUndefined,
   trimTextOrUndefined,
 } from "../token-loaders";
 import type { LinkedClaudeCodeCredentials } from "../types";
@@ -72,7 +73,7 @@ export function readClaudeCodeFileCredentials(
   const credentialsPayload = readJsonIfExists(credentialsPath, deps.readJson);
   const oauth = readNestedField(credentialsPayload, ["claudeAiOauth"]);
   const tokenPair = readTokenPair(oauth, "accessToken", "refreshToken");
-  const expiresAt = trimTextOrUndefined(
+  const expiresAt = timestampTextOrUndefined(
     (oauth as Record<string, unknown> | undefined)?.expiresAt,
   );
 
