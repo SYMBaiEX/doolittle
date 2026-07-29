@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION } from "@doolittle/acp";
 import type {
   AcpEditorSummary,
   AcpPackageMetadata,
@@ -10,6 +11,9 @@ import {
 } from "../bridge-status";
 
 export interface AcpServiceStatus extends CommandBridgeStatusBase {
+  protocolVersion: number;
+  sdkVersion: "1.3.0";
+  externalCommandConfigured: boolean;
   registryPath: string;
   exportDir: string;
   importDir: string;
@@ -17,6 +21,13 @@ export interface AcpServiceStatus extends CommandBridgeStatusBase {
   lastPublishAt?: string;
   lastExportAt?: string;
   lastImportAt?: string;
+  protocolEvents: number;
+  protocolEventCounts: Record<string, number>;
+  lastProtocolEvent?: {
+    event: string;
+    at: string;
+    detail?: Record<string, unknown>;
+  };
 }
 
 export interface AcpServiceStatusInput {
@@ -32,6 +43,13 @@ export interface AcpServiceStatusInput {
   lastExportAt?: string;
   lastImportAt?: string;
   lastError?: string;
+  protocolEvents?: number;
+  protocolEventCounts?: Record<string, number>;
+  lastProtocolEvent?: {
+    event: string;
+    at: string;
+    detail?: Record<string, unknown>;
+  };
 }
 
 export function createAcpServiceStatus(
@@ -42,12 +60,16 @@ export function createAcpServiceStatus(
       command: input.command,
       timeoutMs: input.timeoutMs,
       detail: input.command
-        ? `ACP bridge command is configured for Doolittle editor and protocol integrations. Tools: ${input.toolCount}.`
-        : "ACP bridge surface is available locally, but ACP_SERVER_COMMAND is not configured yet.",
+        ? `Official ACP v${PROTOCOL_VERSION} runtime is ready; an external ACP command is also configured. Tools: ${input.toolCount}.`
+        : `Official ACP v${PROTOCOL_VERSION} runtime is ready in-process and through packages/agent/src/acp-server.ts. Tools: ${input.toolCount}.`,
       lastProbeAt: input.lastProbeAt,
       lastInvocationAt: input.lastInvocationAt,
       lastError: input.lastError,
     }),
+    enabled: true,
+    protocolVersion: PROTOCOL_VERSION,
+    sdkVersion: "1.3.0",
+    externalCommandConfigured: Boolean(input.command),
     registryPath: input.registryPath,
     exportDir: input.exportDir,
     importDir: input.importDir,
@@ -55,6 +77,9 @@ export function createAcpServiceStatus(
     lastPublishAt: input.lastPublishAt,
     lastExportAt: input.lastExportAt,
     lastImportAt: input.lastImportAt,
+    protocolEvents: input.protocolEvents ?? 0,
+    protocolEventCounts: input.protocolEventCounts ?? {},
+    lastProtocolEvent: input.lastProtocolEvent,
   };
 }
 

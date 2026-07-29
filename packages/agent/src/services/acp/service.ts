@@ -1,4 +1,17 @@
 import type {
+  CreateTerminalRequest,
+  InitializeRequest,
+  KillTerminalRequest,
+  LoadSessionRequest,
+  NewSessionRequest,
+  PromptRequest,
+  ReadTextFileRequest,
+  ReleaseTerminalRequest,
+  TerminalOutputRequest,
+  WaitForTerminalExitRequest,
+  WriteTextFileRequest,
+} from "@doolittle/acp";
+import type {
   AcpEditorSummary,
   AcpPackageMetadata,
   AcpRegistryEntry,
@@ -6,21 +19,26 @@ import type {
   AcpToolDefinition,
   EnvConfig,
   SessionSummary,
+  StoredMessage,
   ToolDefinition,
 } from "@/types";
 import { AcpCatalog } from "./catalog";
-import { AcpCommandRunner } from "./command-runner";
 import { createAcpServicePaths } from "./paths";
 import { AcpPersistence } from "./persistence";
+import { AcpProtocolRuntime } from "./protocol-runtime";
 import { createAcpServiceStatus } from "./status";
 import { AcpTelemetry } from "./telemetry";
-import type { AcpSessionSummarySource } from "./types";
+import type {
+  AcpEditorContext,
+  AcpProtocolHost,
+  AcpSessionSummarySource,
+} from "./types";
 
 export class AcpService {
   private readonly paths: ReturnType<typeof createAcpServicePaths>;
   private readonly catalog: AcpCatalog;
   private readonly persistence: AcpPersistence;
-  private readonly runner: AcpCommandRunner;
+  private readonly protocol: AcpProtocolRuntime;
   private readonly telemetry = new AcpTelemetry();
 
   constructor(
@@ -28,6 +46,10 @@ export class AcpService {
     private readonly getTools: () => ToolDefinition[],
     private readonly getSessionSummary: () => AcpSessionSummarySource,
     private readonly listSessions: (limit: number) => SessionSummary[],
+    getSessionMessages: (
+      sessionId: string,
+      limit: number,
+    ) => StoredMessage[] = () => [],
   ) {
     this.paths = createAcpServicePaths(this.config.dataDir);
     this.catalog = new AcpCatalog(
@@ -38,7 +60,83 @@ export class AcpService {
       this.listSessions,
     );
     this.persistence = new AcpPersistence(this.paths);
-    this.runner = new AcpCommandRunner(this.config);
+    this.protocol = new AcpProtocolRuntime(
+      () => this.config.workspaceDir,
+      (sessionId) =>
+        this.listSessions(1_000).some(
+          (session) => session.sessionId === sessionId,
+        ),
+      getSessionMessages,
+      (event, detail) => this.telemetry.recordProtocolEvent(event, detail),
+    );
+  }
+
+  bindProtocolHost(host: AcpProtocolHost): void {
+    this.protocol.bindHost(host);
+  }
+
+  agentApp() {
+    return this.protocol.agentApp();
+  }
+
+  initializeProtocol(params?: InitializeRequest) {
+    return this.protocol.initialize(params);
+  }
+
+  newProtocolSession(params?: Partial<NewSessionRequest>) {
+    return this.protocol.newSession(params);
+  }
+
+  loadProtocolSession(params: LoadSessionRequest) {
+    return this.protocol.loadSession(params);
+  }
+
+  promptProtocolSession(params: PromptRequest) {
+    return this.protocol.prompt(params);
+  }
+
+  cancelProtocolSession(sessionId: string) {
+    return this.protocol.notifyCancel(sessionId);
+  }
+
+  updateEditorContext(sessionId: string, context: AcpEditorContext) {
+    return this.protocol.updateEditorContext(sessionId, context);
+  }
+
+  latestEditorContext(workspaceRoot = this.config.workspaceDir) {
+    return this.protocol.latestEditorContext(workspaceRoot);
+  }
+
+  protocolUpdates(sessionId: string, cursor?: number) {
+    return this.protocol.sessionUpdates(sessionId, cursor);
+  }
+
+  readTextFile(params: ReadTextFileRequest) {
+    return this.protocol.readTextFile(params);
+  }
+
+  writeTextFile(params: WriteTextFileRequest) {
+    return this.protocol.writeTextFile(params);
+  }
+
+  createTerminal(params: CreateTerminalRequest) {
+    return this.protocol.createTerminal(params);
+  }
+
+  terminalOutput(params: TerminalOutputRequest) {
+    return this.protocol.terminalOutput(params);
+  }
+
+  waitForTerminalExit(params: WaitForTerminalExitRequest) {
+    return this.protocol.waitForTerminalExit(params);
+  }
+
+  killTerminal(params: KillTerminalRequest) {
+    return this.protocol.killTerminal(params);
+  }
+
+  releaseTerminal(params: ReleaseTerminalRequest) {
+    return this.protocol.releaseTerminal(params);
   }
 
   status() {
@@ -56,6 +154,9 @@ export class AcpService {
       lastExportAt: telemetry.lastExportAt,
       lastImportAt: telemetry.lastImportAt,
       lastError: telemetry.lastError,
+      protocolEvents: telemetry.protocolEvents,
+      protocolEventCounts: telemetry.protocolEventCounts,
+      lastProtocolEvent: telemetry.lastProtocolEvent,
     });
   }
 
@@ -141,33 +242,54 @@ export class AcpService {
   }
 
   async probe(): Promise<{ ok: boolean; detail: string }> {
-    const result = await this.runner.probe();
-    this.telemetry.recordProbe(result.ok, result.rawOutput);
-    return {
-      ok: result.ok,
-      detail: result.detail,
-    };
+    try {
+      const initialized = await this.initializeProtocol();
+      this.telemetry.recordProbe(true);
+      return {
+        ok: true,
+        detail: `ACP v${initialized.protocolVersion} initialized with the official SDK.`,
+      };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.telemetry.recordProbe(false, detail);
+      return { ok: false, detail };
+    }
   }
 
   async invoke(input: string): Promise<{ ok: boolean; output: string }> {
-    const result = await this.runner.invoke(input);
-    this.telemetry.recordInvocation(result.ok, result.rawOutput);
-    return {
-      ok: result.ok,
-      output: result.output,
-    };
+    try {
+      const session = await this.newProtocolSession();
+      const result = await this.promptProtocolSession({
+        sessionId: session.sessionId,
+        prompt: [{ type: "text", text: input }],
+      });
+      const output = result.updates
+        .filter((entry) => entry.update.sessionUpdate === "agent_message_chunk")
+        .map((entry) =>
+          entry.update.sessionUpdate === "agent_message_chunk" &&
+          entry.update.content.type === "text"
+            ? entry.update.content.text
+            : "",
+        )
+        .join("");
+      this.telemetry.recordInvocation(true);
+      return { ok: true, output };
+    } catch (error) {
+      const output = error instanceof Error ? error.message : String(error);
+      this.telemetry.recordInvocation(false, output);
+      return { ok: false, output };
+    }
   }
 
   async invokeTool(
     name: string,
-    input: Record<string, unknown>,
+    _input: Record<string, unknown>,
   ): Promise<{ ok: boolean; tool: string; output: string }> {
-    const result = await this.runner.invokeTool(name, input);
-    this.telemetry.recordInvocation(result.ok, result.rawOutput);
     return {
-      ok: result.ok,
+      ok: false,
       tool: name,
-      output: result.output,
+      output:
+        "Stable ACP v1 does not define direct tool invocation. Start a session and prompt the Eliza runtime instead.",
     };
   }
 }

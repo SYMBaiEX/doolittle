@@ -96,8 +96,8 @@ describe("AcpService", () => {
       expect(imported.toolCount).toBe(1);
 
       const result = await service.invokeTool("sum", { a: 2, b: 3 });
-      expect(result.ok).toBe(true);
-      expect(result.output).toContain("5");
+      expect(result.ok).toBe(false);
+      expect(result.output).toContain("does not define direct tool invocation");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
