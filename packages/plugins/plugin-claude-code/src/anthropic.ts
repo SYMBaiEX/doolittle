@@ -42,6 +42,14 @@ function resolveClaudeReasoningEffort(
   return effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : undefined;
 }
 
+function resolveClaudeCliModel(model: string): string {
+  const normalized = model.trim().toLowerCase();
+  if (normalized.includes("sonnet")) return "sonnet";
+  if (normalized.includes("opus")) return "opus";
+  if (normalized.includes("haiku")) return "haiku";
+  return model;
+}
+
 function credentialsAreExpired(credentials: { expiresAt?: string }): boolean {
   if (!credentials.expiresAt) {
     return false;
@@ -89,7 +97,10 @@ export async function runClaudeCodeTextGeneration(
       options.invokeCliPrint ?? invokeClaudeCodeCliPrint
     )({
       prompt: promptText,
-      model,
+      // Claude CLI aliases follow the newest model available to the signed-in
+      // account. They also avoid coupling fallback execution to retired API
+      // snapshot IDs retained in existing conversations.
+      model: resolveClaudeCliModel(model),
       appendSystemPrompt: withClaudeCodeSystemPrefix()[0]?.text,
       ...(effort ? { effort } : {}),
     });

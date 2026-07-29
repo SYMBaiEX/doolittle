@@ -185,7 +185,7 @@ describe("createClaudeCodePlugin", () => {
       },
       invokeCliPrint: async ({ prompt, model }) => {
         expect(prompt).toBe("hello");
-        expect(model).toBe("claude-sonnet-4.6");
+        expect(model).toBe("sonnet");
         return "claude cli response";
       },
     });
@@ -274,7 +274,7 @@ describe("createClaudeCodePlugin", () => {
       }),
       invokeCliPrint: async ({ prompt, model, appendSystemPrompt }) => {
         expect(prompt).toBe("hello");
-        expect(model).toBe("claude-sonnet-4.6");
+        expect(model).toBe("sonnet");
         expect(appendSystemPrompt).toContain("You are Claude Code");
         return "LINKED_PROVIDER_OK";
       },
