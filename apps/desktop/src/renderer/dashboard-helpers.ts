@@ -149,8 +149,18 @@ export function summarizeRepoStatus(
 
 function setupEntryTone(value: string): DashboardSetupEntry["tone"] {
   const normalized = value.trim().toLowerCase();
+  const readinessFractions = Array.from(
+    normalized.matchAll(/\b(?<ready>\d+)\/(?<total>\d+)\s+ready\b/gu),
+  );
+  const hasIncompleteReadiness = readinessFractions.some((match) => {
+    const ready = Number.parseInt(match.groups?.ready ?? "0", 10);
+    const total = Number.parseInt(match.groups?.total ?? "0", 10);
+    return total > 0 && ready < total;
+  });
   if (
+    hasIncompleteReadiness ||
     normalized === "false" ||
+    normalized.includes("attention") ||
     normalized.includes("pending") ||
     normalized.includes("missing") ||
     normalized.includes("required") ||
@@ -162,7 +172,7 @@ function setupEntryTone(value: string): DashboardSetupEntry["tone"] {
   }
   if (
     normalized === "true" ||
-    normalized.includes("ready") ||
+    (normalized.includes("ready") && !hasIncompleteReadiness) ||
     normalized.includes("enabled") ||
     normalized.includes("configured") ||
     normalized.includes("connected") ||

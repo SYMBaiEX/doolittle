@@ -33,6 +33,11 @@ describe("dashboard helpers", () => {
       localModels: "ready",
       providerKey: "missing",
       automation: true,
+      providers: [{ ready: true }, { ready: false }],
+      readiness: {
+        headline: "The shell needs attention.",
+        detail: "providers 2/6 ready · transports 0/11 ready",
+      },
     });
 
     expect(entries.find((entry) => entry.key === "localModels")?.tone).toBe(
@@ -43,6 +48,12 @@ describe("dashboard helpers", () => {
     );
     expect(entries.find((entry) => entry.key === "automation")?.tone).toBe(
       "good",
+    );
+    expect(entries.find((entry) => entry.key === "providers")?.tone).toBe(
+      "warn",
+    );
+    expect(entries.find((entry) => entry.key === "readiness")?.tone).toBe(
+      "warn",
     );
   });
 
