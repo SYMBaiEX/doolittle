@@ -194,6 +194,9 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".coding-breadcrumb small")).toHaveText(
         "Markdown",
       );
+      await expect(page.locator(".coding-acp-status")).toContainText(
+        "ACP live",
+      );
       await expect(
         page.locator(".interactive-terminal-launchpad"),
       ).toBeVisible();
@@ -318,6 +321,78 @@ test.describe("Doolittle desktop navigation", () => {
       ).toBeVisible();
 
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await composer.fill("Draft survives project switching");
+      await page
+        .getByRole("button", {
+          name: /Choose project\. Current project E2E repository\./,
+        })
+        .click();
+      await expect(
+        page.getByRole("dialog", {
+          name: "Choose a project for this new conversation",
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Add repository/ }),
+      ).toBeVisible();
+      const projectSelectorScreenshot = testInfo.outputPath(
+        "doolittle-composer-project-selector.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        path: projectSelectorScreenshot,
+      });
+      await testInfo.attach("composer project selector", {
+        contentType: "image/png",
+        path: projectSelectorScreenshot,
+      });
+      await page
+        .getByRole("dialog", {
+          name: "Choose a project for this new conversation",
+        })
+        .getByRole("button", { name: /General/ })
+        .click();
+      await expect(composer).toHaveValue("Draft survives project switching");
+      await page
+        .getByRole("button", {
+          name: /Choose project\. Current project General\./,
+        })
+        .click();
+      await page
+        .getByRole("dialog", {
+          name: "Choose a project for this new conversation",
+        })
+        .getByRole("button", { name: /E2E repository/ })
+        .click();
+      await expect(composer).toHaveValue("Draft survives project switching");
+      await composer.fill("");
+
+      await page
+        .getByRole("button", { name: /Choose model\. Current route/ })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Choose provider and model" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("textbox", { name: "Search models" }),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: /Ollama/ })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Refresh models/ }),
+      ).toBeVisible();
+      const modelSelectorScreenshot = testInfo.outputPath(
+        "doolittle-composer-model-selector.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        path: modelSelectorScreenshot,
+      });
+      await testInfo.attach("composer model selector", {
+        contentType: "image/png",
+        path: modelSelectorScreenshot,
+      });
+      await page.keyboard.press("Escape");
+
       await composer.fill("/");
       await expect(
         page.getByRole("listbox", { name: "Chat commands" }),
@@ -337,6 +412,27 @@ test.describe("Doolittle desktop navigation", () => {
       });
 
       await page.getByRole("button", { name: "Workbench" }).click();
+      const workbenchTree = page
+        .locator("#thread-workbench")
+        .getByRole("tree", { name: "Workspace files" });
+      await expect(workbenchTree).toBeVisible();
+      const workbenchAppsFolder = workbenchTree.getByRole("treeitem", {
+        name: "apps",
+        exact: true,
+      });
+      await expect(workbenchAppsFolder).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      await workbenchTree.getByRole("treeitem", { name: /AGENTS\.md/ }).click();
+      await expect(
+        page.locator(
+          "#thread-workbench .thread-workbench-monaco .monaco-editor",
+        ),
+      ).toBeVisible();
+      await expect(
+        page.locator("#thread-workbench .thread-workbench-code-preview"),
+      ).toContainText("Markdown");
       const workbenchEdges = await page.evaluate(() => {
         const wrapper = document
           .querySelector("#thread-workbench")
