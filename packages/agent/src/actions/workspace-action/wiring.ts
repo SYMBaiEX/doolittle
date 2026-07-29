@@ -17,8 +17,37 @@ import { WORKSPACE_ACTION_FALLBACK_MESSAGE } from "./output";
 import {
   readWorkspaceActionText,
   resolveWorkspaceActionIntent,
-  resolveWorkspaceIntentFromText,
 } from "./parsing";
+
+const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
+  {
+    name: "intent",
+    description: "Broad workspace operation to perform.",
+    required: true,
+    schema: {
+      type: "string",
+      enum: ["tree", "overview", "read", "search", "write", "find-codebase"],
+    },
+  },
+  {
+    name: "path",
+    description: "Optional project, directory, or file path.",
+    required: false,
+    schema: { type: "string" },
+  },
+  {
+    name: "query",
+    description: "Search query or local codebase name.",
+    required: false,
+    schema: { type: "string" },
+  },
+  {
+    name: "content",
+    description: "Complete text for the legacy workspace write operation.",
+    required: false,
+    schema: { type: "string" },
+  },
+];
 
 export function createWorkspaceAction(
   services: AppServices,
@@ -38,12 +67,10 @@ export function createWorkspaceAction(
       "Summarize or inspect the selected workspace at a broad level.",
     routingHint:
       "project or workspace overview -> DOOLITTLE_WORKSPACE; concrete file work -> file actions",
+    parameters: WORKSPACE_PARAMETERS,
     contexts: ["code", "files"],
     cacheStable: true,
-    validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text = readWorkspaceActionText(message);
-      return Boolean(text && resolveWorkspaceIntentFromText(text));
-    },
+    validate: async () => true,
     handler: async (
       runtime: IAgentRuntime,
       message: Memory,

@@ -112,13 +112,7 @@ export function createRepositoryAction(services: AppServices): Action {
       "repository status, changes, or commits -> DOOLITTLE_REPOSITORY; use the selected project repository",
     contexts: ["code", "files"],
     cacheStable: true,
-    validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text =
-        typeof message.content === "string"
-          ? message.content
-          : message.content?.text;
-      return Boolean(text && resolveRepositoryIntentFromText(text));
-    },
+    validate: async () => true,
     handler: async (
       runtime: IAgentRuntime,
       message: Memory,

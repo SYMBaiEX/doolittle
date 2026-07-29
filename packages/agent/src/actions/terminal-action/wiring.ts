@@ -82,13 +82,7 @@ export function createTerminalAction(services: AppServices): Action {
       "explicit shell, build, test, package-manager, or process request -> RUN_IN_TERMINAL",
     contexts: ["terminal", "code"],
     cacheStable: true,
-    validate: async (_runtime: IAgentRuntime, message: Memory) => {
-      const text =
-        typeof message.content === "string"
-          ? message.content
-          : message.content?.text;
-      return Boolean(text && isTerminalIntent(text));
-    },
+    validate: async () => true,
     handler: async (
       runtime: IAgentRuntime,
       message: Memory,

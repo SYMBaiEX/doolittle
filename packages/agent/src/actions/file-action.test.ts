@@ -44,6 +44,28 @@ function withTempHome<T>(
 }
 
 describe("file actions", () => {
+  it("lets the Eliza planner select every structured file action", async () => {
+    const actions = createFileActions("/workspace");
+    const message = {
+      content: { text: "Please handle the selected project." },
+    } as never;
+
+    await expect(
+      Promise.all(
+        actions.map((action) => action.validate({} as never, message)),
+      ),
+    ).resolves.toEqual(actions.map(() => true));
+    expect(
+      actions.every(
+        (action) =>
+          action.cacheStable === true &&
+          Boolean(action.descriptionCompressed) &&
+          Boolean(action.routingHint) &&
+          (action.parameters?.length ?? 0) > 0,
+      ),
+    ).toBe(true);
+  });
+
   it("resolves account-qualified dev paths into the local home dev root", () => {
     withTempHome(({ dev }) => {
       expect(

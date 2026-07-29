@@ -1,10 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
+  createRepositoryAction,
   executeRepositoryCommand,
   resolveRepositoryIntentFromText,
 } from "./repository-action";
 
 describe("repository action command facade", () => {
+  it("lets the Eliza planner select and parameterize repository inspection", async () => {
+    const action = createRepositoryAction({
+      repository: {
+        status: () => "working tree clean",
+        diffStat: () => "1 file changed",
+        recentCommits: () => "abc123 converge command handling",
+      },
+    } as never);
+    const message = {
+      content: { text: "Tell me about the project architecture." },
+    } as never;
+
+    await expect(action.validate({} as never, message)).resolves.toBe(true);
+    await expect(
+      action.handler({} as never, message, undefined, {
+        parameters: { intent: "diff" },
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      text: "1 file changed",
+      verifiedUserFacing: true,
+    });
+  });
+
   it("maps slash command syntax through the shared action intent parser", () => {
     expect(resolveRepositoryIntentFromText("/repo")).toBe("status");
     expect(resolveRepositoryIntentFromText("/repo diff")).toBe("diff");

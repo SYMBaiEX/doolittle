@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  createWorkspaceAction,
   extractExplicitProjectPath,
   resolveLocalProjectPath,
   resolveWorkspaceIntentFromParams,
@@ -94,5 +95,45 @@ describe("resolveWorkspaceIntentFromParams", () => {
       path: "packages/agent/src/foo.ts",
       content: "export const ok = true;",
     });
+  });
+});
+
+describe("workspace action contract", () => {
+  it("is planner-selectable and executes structured parameters first", async () => {
+    const action = createWorkspaceAction(
+      {
+        workspace: {
+          summary: () => "workspace tree",
+        },
+      } as never,
+      "/workspace",
+    );
+
+    await expect(
+      action.validate(
+        {} as never,
+        { content: { text: "Please inspect the project." } } as never,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      action.handler(
+        {} as never,
+        {
+          content: { text: "This text has no legacy workspace intent." },
+        } as never,
+        undefined,
+        { parameters: { intent: "tree" } },
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      text: "workspace tree",
+      verifiedUserFacing: true,
+    });
+    expect(action.parameters?.map((parameter) => parameter.name)).toEqual([
+      "intent",
+      "path",
+      "query",
+      "content",
+    ]);
   });
 });

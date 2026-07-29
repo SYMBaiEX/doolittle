@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createTerminalAction,
   executeTerminalCommand,
   isTerminalIntent,
   resolveCommandFromArguments,
@@ -7,6 +8,43 @@ import {
   resolveCommandFromParams,
   resolveCommandFromText,
 } from "./terminal-action";
+
+describe("terminal action contract", () => {
+  it("lets the Eliza planner select the action and uses structured parameters", async () => {
+    const run = async (command: string) => ({
+      command,
+      exitCode: 0,
+      stdout: "/workspace\n",
+      stderr: "",
+      cwd: "/workspace",
+      durationMs: 3,
+    });
+    const action = createTerminalAction({
+      workspace: { root: () => "/workspace" },
+      terminal: { run },
+    } as never);
+    const message = {
+      content: { text: "Please inspect the selected project." },
+    } as never;
+
+    await expect(action.validate({} as never, message)).resolves.toBe(true);
+    await expect(
+      action.handler({} as never, message, undefined, {
+        parameters: { command: "pwd" },
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      verifiedUserFacing: true,
+      data: {
+        commandResult: {
+          command: "pwd",
+          exitCode: 0,
+          executedIn: "/workspace",
+        },
+      },
+    });
+  });
+});
 
 describe("executeTerminalCommand", () => {
   it("uses the shared command formatter used by slash and bang commands", async () => {

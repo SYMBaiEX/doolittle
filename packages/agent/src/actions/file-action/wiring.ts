@@ -132,14 +132,6 @@ const SEARCH_FILES_PARAMETERS: ActionParameters = [
   },
 ];
 
-function textFromMessage(message: Memory): string {
-  return typeof message.content === "string"
-    ? message.content
-    : typeof message.content?.text === "string"
-      ? message.content.text
-      : "";
-}
-
 function validateParams(
   actionName: string,
   parameters: ActionParameters,
@@ -192,12 +184,6 @@ function booleanParam(params: ParamRecord, key: string): boolean {
   return value === true || value === "true";
 }
 
-function likelyFileWork(text: string): boolean {
-  return /\b(?:file|folder|directory|project|html|css|js|javascript|typescript|json|md|markdown|source)\b/iu.test(
-    text,
-  );
-}
-
 function createActionResult(
   success: boolean,
   text: string,
@@ -241,11 +227,12 @@ function createReadFileAction(
     similes: ["DOOLITTLE_READ_FILE", "VIEW_FILE", "OPEN_FILE"],
     description:
       "Read a local text file with line numbers. Use this instead of terminal cat/head/tail.",
+    descriptionCompressed: "Read a local text file with line numbers.",
+    routingHint: "inspect one known file -> READ_FILE",
     parameters: READ_FILE_PARAMETERS,
     contexts: ["code", "system"],
-    validate: async (_runtime: IAgentRuntime, message: Memory) =>
-      /\b(?:read|open|show|view|cat)\b/iu.test(textFromMessage(message)) &&
-      likelyFileWork(textFromMessage(message)),
+    cacheStable: true,
+    validate: async () => true,
     handler: async (
       _runtime: IAgentRuntime,
       _message: Memory,
@@ -291,12 +278,12 @@ function createWriteFileAction(
     similes: ["DOOLITTLE_WRITE_FILE", "CREATE_FILE", "SAVE_FILE"],
     description:
       "Write complete content to a local file, creating parent directories automatically. Use this instead of terminal echo/cat heredoc for file creation.",
+    descriptionCompressed: "Create or replace a local text file.",
+    routingHint: "create or fully replace one file -> WRITE_FILE",
     parameters: WRITE_FILE_PARAMETERS,
     contexts: ["code", "system"],
-    validate: async (_runtime: IAgentRuntime, message: Memory) =>
-      /\b(?:write|create|make|generate|build|scaffold|save|add)\b/iu.test(
-        textFromMessage(message),
-      ) && likelyFileWork(textFromMessage(message)),
+    cacheStable: true,
+    validate: async () => true,
     handler: async (
       _runtime: IAgentRuntime,
       _message: Memory,
@@ -372,12 +359,13 @@ function createDirectoryAction(
     similes: ["MKDIR", "CREATE_FOLDER", "DOOLITTLE_CREATE_DIRECTORY"],
     description:
       "Create a local directory under the workspace or a local development root. WRITE_FILE creates parent directories automatically, so use this only when the directory itself is the requested artifact.",
+    descriptionCompressed: "Create a local directory.",
+    routingHint:
+      "create an empty directory as the requested artifact -> CREATE_DIRECTORY",
     parameters: CREATE_DIRECTORY_PARAMETERS,
     contexts: ["code", "system"],
-    validate: async (_runtime: IAgentRuntime, message: Memory) =>
-      /\b(?:mkdir|make|create|set\s+up|setup|scaffold)\b/iu.test(
-        textFromMessage(message),
-      ) && /\b(?:directory|folder|project)\b/iu.test(textFromMessage(message)),
+    cacheStable: true,
+    validate: async () => true,
     handler: async (
       _runtime: IAgentRuntime,
       _message: Memory,
@@ -444,12 +432,12 @@ function createPatchFileAction(
     similes: ["DOOLITTLE_PATCH_FILE", "EDIT_FILE", "MODIFY_FILE"],
     description:
       "Patch a local text file by replacing oldText with newText. Use this instead of terminal sed/awk for file edits.",
+    descriptionCompressed: "Replace exact text in a local file.",
+    routingHint: "make a targeted edit to an existing file -> PATCH_FILE",
     parameters: PATCH_FILE_PARAMETERS,
     contexts: ["code", "system"],
-    validate: async (_runtime: IAgentRuntime, message: Memory) =>
-      /\b(?:patch|edit|update|modify|change|replace)\b/iu.test(
-        textFromMessage(message),
-      ) && likelyFileWork(textFromMessage(message)),
+    cacheStable: true,
+    validate: async () => true,
     handler: async (
       _runtime: IAgentRuntime,
       _message: Memory,
@@ -531,15 +519,13 @@ function createSearchFilesAction(
     similes: ["DOOLITTLE_SEARCH_FILES", "FIND_FILES", "GREP_FILES"],
     description:
       "Search local file contents or find files by name. Use this instead of terminal grep/rg/find/ls.",
+    descriptionCompressed: "Search local file contents or names.",
+    routingHint:
+      "find text, symbols, or paths in the selected workspace -> SEARCH_FILES",
     parameters: SEARCH_FILES_PARAMETERS,
     contexts: ["code", "system"],
-    validate: async (_runtime: IAgentRuntime, message: Memory) =>
-      /\b(?:search|find|look for|grep|list|show)\b/iu.test(
-        textFromMessage(message),
-      ) &&
-      /\b(?:file|files|repo|repository|workspace|codebase|project)\b/iu.test(
-        textFromMessage(message),
-      ),
+    cacheStable: true,
+    validate: async () => true,
     handler: async (
       _runtime: IAgentRuntime,
       _message: Memory,
