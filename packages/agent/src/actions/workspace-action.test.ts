@@ -4,61 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createWorkspaceAction,
-  extractExplicitProjectPath,
   resolveLocalProjectPath,
   resolveWorkspaceIntentFromParams,
-  resolveWorkspaceIntentFromText,
 } from "./workspace-action";
-
-describe("resolveWorkspaceIntentFromText", () => {
-  it("routes repo breakdown prompts to the deterministic overview path", () => {
-    expect(
-      resolveWorkspaceIntentFromText("Give me a breakdown of this repo"),
-    ).toEqual({ kind: "overview" });
-    expect(resolveWorkspaceIntentFromText("Review this codebase")).toEqual({
-      kind: "overview",
-    });
-    expect(resolveWorkspaceIntentFromText("Map out this repository")).toEqual({
-      kind: "overview",
-    });
-    expect(
-      resolveWorkspaceIntentFromText(
-        "Research that repo now and give me a breakdown",
-      ),
-    ).toEqual({
-      kind: "overview",
-    });
-    expect(
-      resolveWorkspaceIntentFromText(
-        "What is this repo? What is this project?",
-      ),
-    ).toEqual({ kind: "overview" });
-    expect(
-      resolveWorkspaceIntentFromText("Give a full review of the architecture"),
-    ).toEqual({ kind: "overview" });
-    expect(
-      resolveWorkspaceIntentFromText(
-        "Explain how the project architecture works",
-      ),
-    ).toEqual({ kind: "overview" });
-  });
-
-  it("does not misread account-relative development paths as absolute /dev", () => {
-    const message =
-      "Can you make a new directory in the symbiex/dev named the-effect and make a html file with css and js";
-
-    expect(extractExplicitProjectPath(message)).toBe("symbiex/dev");
-    expect(resolveWorkspaceIntentFromText(message)).toBeUndefined();
-  });
-
-  it("still routes explicit inspection requests for account-relative development paths", () => {
-    expect(
-      resolveWorkspaceIntentFromText(
-        "inspect the symbiex/dev directory locally",
-      ),
-    ).toEqual({ kind: "find-codebase", query: "symbiex/dev" });
-  });
-});
 
 describe("resolveLocalProjectPath", () => {
   it("resolves account-relative home paths like symbiex/dev", () => {
@@ -83,17 +31,15 @@ describe("resolveLocalProjectPath", () => {
 });
 
 describe("resolveWorkspaceIntentFromParams", () => {
-  it("parses write intents from action parameters", () => {
+  it("parses broad inspection intents from action parameters", () => {
     expect(
       resolveWorkspaceIntentFromParams({
-        action: "write",
-        file: "packages/agent/src/foo.ts",
-        text: "export const ok = true;",
+        intent: "overview",
+        path: "packages/agent",
       }),
     ).toEqual({
-      kind: "write",
-      path: "packages/agent/src/foo.ts",
-      content: "export const ok = true;",
+      kind: "overview",
+      path: "packages/agent",
     });
   });
 });
@@ -133,7 +79,6 @@ describe("workspace action contract", () => {
       "intent",
       "path",
       "query",
-      "content",
     ]);
   });
 });
