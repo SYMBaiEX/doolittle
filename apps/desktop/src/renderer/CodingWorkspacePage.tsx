@@ -1,3 +1,10 @@
+import type {
+  RepositoryBranch,
+  RepositoryConflict,
+  RepositoryMutationRequest,
+  RepositoryRemote,
+  RepositoryStash,
+} from "@doolittle/contracts/repository";
 import {
   type CSSProperties,
   type FormEvent,
@@ -11,6 +18,7 @@ import {
 import { detectCodeLanguage } from "./code-language";
 import { CodeEditor } from "./components/CodeEditor";
 import { ExecutionEnvironmentPanel } from "./components/ExecutionEnvironmentPanel";
+import { GitControlPanel } from "./components/GitControlPanel";
 import { InteractiveTerminal } from "./components/InteractiveTerminal";
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import { WorkspaceFileTree } from "./components/WorkspaceFileTree";
@@ -35,6 +43,7 @@ import {
   loadPanelWidth,
   savePanelWidth,
 } from "./panel-layout";
+import type { RepositoryControlChange } from "./repository-control";
 import type { WorkspaceTreeEntry } from "./workspace-file-tree";
 import "./coding-workspace.css";
 
@@ -97,10 +106,22 @@ interface RepositoryLogResponse {
 interface RepositoryWorktreesResponse {
   worktrees?: unknown[];
 }
+interface RepositoryBranchesResponse {
+  branches?: unknown[];
+}
+interface RepositoryRemotesResponse {
+  remotes?: unknown[];
+}
+interface RepositoryStashesResponse {
+  stashes?: unknown[];
+}
+interface RepositoryConflictsResponse {
+  conflicts?: unknown[];
+}
 
 type LeftPane = "files" | "changes" | "search";
 type EditorPane = "file" | "diff";
-type UtilityPane = "terminal" | "commits" | "worktrees";
+type UtilityPane = "terminal" | "commits" | "source-control" | "worktrees";
 type ActionNotice = {
   tone: "neutral" | "good" | "warn" | "bad";
   message: string;
@@ -218,6 +239,22 @@ function toChanges(
       };
     })
     .filter((item): item is RepositoryChange => item !== null);
+}
+
+function controlChanges(
+  changes: readonly RepositoryChange[],
+): RepositoryControlChange[] {
+  return changes.map((change) => ({
+    path: change.path,
+    status: `${change.indexStatus}${change.worktreeStatus}`.trim(),
+    staged: change.staged,
+    unstaged: change.unstaged,
+    untracked: change.untracked,
+  }));
+}
+
+function records<T>(value: unknown[] | undefined): T[] {
+  return asArray(value) as T[];
 }
 
 function toSearchResult(value: unknown): {
@@ -367,6 +404,22 @@ export function CodingWorkspacePage({
     active ? "/repo/worktrees" : null,
     [active],
   );
+  const branchesResource = useApiResource<RepositoryBranchesResponse>(
+    active ? "/repo/branches" : null,
+    [active],
+  );
+  const remotesResource = useApiResource<RepositoryRemotesResponse>(
+    active ? "/repo/remotes" : null,
+    [active],
+  );
+  const stashesResource = useApiResource<RepositoryStashesResponse>(
+    active ? "/repo/stashes" : null,
+    [active],
+  );
+  const conflictsResource = useApiResource<RepositoryConflictsResponse>(
+    active ? "/repo/conflicts" : null,
+    [active],
+  );
   const searchResource = useApiResource<WorkspaceSearchResponse>(
     active && searchQuery
       ? `/workspace/search?query=${encodeURIComponent(searchQuery)}`
@@ -378,6 +431,7 @@ export function CodingWorkspacePage({
     () => toChanges(changesResource.data),
     [changesResource.data],
   );
+  const gitChanges = useMemo(() => controlChanges(changes), [changes]);
   const treeEntries = useMemo(
     () =>
       asArray(treeResource.data?.entries)
@@ -564,6 +618,10 @@ export function CodingWorkspacePage({
     changesResource.reload();
     logResource.reload();
     worktreeResource.reload();
+    branchesResource.reload();
+    remotesResource.reload();
+    stashesResource.reload();
+    conflictsResource.reload();
     if (searchQuery) searchResource.reload();
     if (selectedPath) fileResource.reload();
     if (selectedChange) patchResource.reload();
@@ -622,6 +680,38 @@ export function CodingWorkspacePage({
       setFileNotice({ tone: "bad", message: errorMessage(error) });
     } finally {
       setSavingFile(false);
+    }
+  };
+
+  const mutateVisiblePatch = async (
+    type: Extract<
+      RepositoryMutationRequest["type"],
+      "stage-hunk" | "unstage-hunk" | "discard-hunk"
+    >,
+  ) => {
+    const patch = patchResource.data?.patch;
+    if (!patch?.patch || patch.truncated) return;
+    setFileNotice({
+      tone: "neutral",
+      message: "Review the selected patch operation in the native dialog.",
+    });
+    try {
+      const result = await window.doolittle.mutateRepository({
+        type,
+        patch: patch.patch,
+      });
+      if (result.status === "cancelled") {
+        setFileNotice({ tone: "neutral", message: "Git operation cancelled." });
+        return;
+      }
+      setFileNotice({
+        tone: result.result.ok ? "good" : "bad",
+        message:
+          result.result.error || result.result.stderr || result.result.summary,
+      });
+      refreshAll();
+    } catch (cause) {
+      setFileNotice({ tone: "bad", message: errorMessage(cause) });
     }
   };
 
@@ -965,28 +1055,68 @@ export function CodingWorkspacePage({
                   {savingFile ? "Saving…" : "Save"}
                 </button>
               </div>
-            ) : editorPane === "diff" && selectedChange?.staged ? (
-              <fieldset aria-label="Diff source" className="coding-diff-source">
-                <legend className="sr-only">Diff source</legend>
-                {selectedChange.unstaged ? (
-                  <button
-                    aria-pressed={!stagedPatch}
-                    className={!stagedPatch ? "selected" : ""}
-                    onClick={() => setStagedPatch(false)}
-                    type="button"
+            ) : editorPane === "diff" && selectedChange ? (
+              <div className="coding-editor-actions">
+                {selectedChange.staged ? (
+                  <fieldset
+                    aria-label="Diff source"
+                    className="coding-diff-source"
                   >
-                    Working
-                  </button>
+                    <legend className="sr-only">Diff source</legend>
+                    {selectedChange.unstaged ? (
+                      <button
+                        aria-pressed={!stagedPatch}
+                        className={!stagedPatch ? "selected" : ""}
+                        onClick={() => setStagedPatch(false)}
+                        type="button"
+                      >
+                        Working
+                      </button>
+                    ) : null}
+                    <button
+                      aria-pressed={stagedPatch}
+                      className={stagedPatch ? "selected" : ""}
+                      onClick={() => setStagedPatch(true)}
+                      type="button"
+                    >
+                      Staged
+                    </button>
+                  </fieldset>
                 ) : null}
-                <button
-                  aria-pressed={stagedPatch}
-                  className={stagedPatch ? "selected" : ""}
-                  onClick={() => setStagedPatch(true)}
-                  type="button"
-                >
-                  Staged
-                </button>
-              </fieldset>
+                {patchResource.data?.patch?.patch &&
+                !patchResource.data.patch.truncated ? (
+                  stagedPatch ? (
+                    <button
+                      className="secondary-button"
+                      onClick={() => void mutateVisiblePatch("unstage-hunk")}
+                      type="button"
+                    >
+                      Unstage patch
+                    </button>
+                  ) : (
+                    <>
+                      {!selectedChange.untracked ? (
+                        <button
+                          className="danger-button"
+                          onClick={() =>
+                            void mutateVisiblePatch("discard-hunk")
+                          }
+                          type="button"
+                        >
+                          Discard patch
+                        </button>
+                      ) : null}
+                      <button
+                        className="primary-button"
+                        onClick={() => void mutateVisiblePatch("stage-hunk")}
+                        type="button"
+                      >
+                        Stage patch
+                      </button>
+                    </>
+                  )
+                ) : null}
+              </div>
             ) : null}
           </div>
 
@@ -1058,6 +1188,15 @@ export function CodingWorkspacePage({
               />
             ) : patchResource.data?.patch?.patch ? (
               <>
+                {fileNotice ? (
+                  <div
+                    aria-live="polite"
+                    className={`coding-action-notice ${fileNotice.tone}`}
+                    role="status"
+                  >
+                    {fileNotice.message}
+                  </div>
+                ) : null}
                 {patchResource.data.patch.truncated ? (
                   <div className="coding-inline-state warn">
                     This large patch was truncated by the runtime.
@@ -1148,6 +1287,7 @@ export function CodingWorkspacePage({
               options={[
                 { id: "terminal", label: "Terminal" },
                 { id: "commits", label: "Commits", count: commits.length },
+                { id: "source-control", label: "Git", count: changes.length },
                 {
                   id: "worktrees",
                   label: "Trees",
@@ -1198,6 +1338,32 @@ export function CodingWorkspacePage({
                     history.
                   </EmptyBlock>
                 )
+              ) : null}
+
+              {utilityPane === "source-control" ? (
+                <GitControlPanel
+                  active={active && summary.isRepository}
+                  branches={records<RepositoryBranch>(
+                    branchesResource.data?.branches,
+                  )}
+                  changes={gitChanges}
+                  conflicts={records<RepositoryConflict>(
+                    conflictsResource.data?.conflicts,
+                  )}
+                  onRefresh={refreshAll}
+                  remotes={records<RepositoryRemote>(
+                    remotesResource.data?.remotes,
+                  )}
+                  stashes={records<RepositoryStash>(
+                    stashesResource.data?.stashes,
+                  )}
+                  worktrees={records<{
+                    path: string;
+                    branch?: string;
+                    current?: boolean;
+                    prunable?: boolean;
+                  }>(worktreeResource.data?.worktrees)}
+                />
               ) : null}
 
               {utilityPane === "worktrees" ? (

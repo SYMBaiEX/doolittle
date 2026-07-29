@@ -1,3 +1,9 @@
+import type {
+  RepositoryBranch,
+  RepositoryConflict,
+  RepositoryRemote,
+  RepositoryStash,
+} from "@doolittle/contracts/repository";
 import {
   type KeyboardEvent,
   useEffect,
@@ -12,6 +18,7 @@ import type {
   RepositoryWorkflowRun,
 } from "../shared/contracts";
 import { ArtifactViewer } from "./components/ArtifactViewer";
+import { GitControlPanel } from "./components/GitControlPanel";
 import {
   asArray,
   asNumber,
@@ -27,6 +34,7 @@ import {
   Notice,
   useApiResource,
 } from "./lib";
+import type { RepositoryControlChange } from "./repository-control";
 import {
   compileReviewFeedback,
   createReviewComment,
@@ -73,6 +81,21 @@ interface ApprovalResponse {
 interface ChangesResponse {
   changes?: unknown[];
 }
+interface RepositoryBranchesResponse {
+  branches?: unknown[];
+}
+interface RepositoryRemotesResponse {
+  remotes?: unknown[];
+}
+interface RepositoryStashesResponse {
+  stashes?: unknown[];
+}
+interface RepositoryConflictsResponse {
+  conflicts?: unknown[];
+}
+interface RepositoryWorktreesResponse {
+  worktrees?: unknown[];
+}
 
 interface RunsResponse {
   runs?: unknown[];
@@ -87,6 +110,28 @@ interface PatchResponse {
 
 function recordEventLabel(type: string): string {
   return type.replaceAll("_", " ");
+}
+
+function gitChanges(value: ChangesResponse | null): RepositoryControlChange[] {
+  return asArray(value?.changes).flatMap((entry) => {
+    const record = asRecord(entry);
+    const path = asString(record.path);
+    if (!path) return [];
+    return [
+      {
+        path,
+        status:
+          `${asString(record.indexStatus)}${asString(record.worktreeStatus)}`.trim(),
+        staged: Boolean(record.staged),
+        unstaged: Boolean(record.unstaged),
+        untracked: Boolean(record.untracked),
+      },
+    ];
+  });
+}
+
+function gitRecords<T>(value: unknown[] | undefined): T[] {
+  return asArray(value) as T[];
 }
 
 function statusTone(status: string): "neutral" | "good" | "warn" | "bad" {
@@ -340,6 +385,26 @@ export function ReviewPage({
     active ? "/repo/changes" : null,
     [active, scopeKey],
   );
+  const branches = useApiResource<RepositoryBranchesResponse>(
+    active ? "/repo/branches" : null,
+    [active, scopeKey],
+  );
+  const remotes = useApiResource<RepositoryRemotesResponse>(
+    active ? "/repo/remotes" : null,
+    [active, scopeKey],
+  );
+  const stashes = useApiResource<RepositoryStashesResponse>(
+    active ? "/repo/stashes" : null,
+    [active, scopeKey],
+  );
+  const conflicts = useApiResource<RepositoryConflictsResponse>(
+    active ? "/repo/conflicts" : null,
+    [active, scopeKey],
+  );
+  const worktrees = useApiResource<RepositoryWorktreesResponse>(
+    active ? "/repo/worktrees" : null,
+    [active, scopeKey],
+  );
   const runs = useApiResource<RunsResponse>(active ? "/codegen/runs" : null, [
     active,
     scopeKey,
@@ -499,6 +564,11 @@ export function ReviewPage({
     runs.reload();
     repositoryReview.reload();
     branchRecord.reload();
+    branches.reload();
+    remotes.reload();
+    stashes.reload();
+    conflicts.reload();
+    worktrees.reload();
     if (selected?.kind === "changes") patch.reload();
   };
 
@@ -824,6 +894,31 @@ export function ReviewPage({
           GitHub review is unavailable. Local changes remain reviewable.
         </Notice>
       ) : null}
+
+      <details className="review-git-controls">
+        <summary>
+          Source control · {gitChanges(changes.data).length} changes
+          {conflicts.data?.conflicts?.length
+            ? ` · ${conflicts.data.conflicts.length} conflicts`
+            : ""}
+        </summary>
+        <GitControlPanel
+          active={active && review?.local.isRepository !== false}
+          branches={gitRecords<RepositoryBranch>(branches.data?.branches)}
+          changes={gitChanges(changes.data)}
+          conflicts={gitRecords<RepositoryConflict>(conflicts.data?.conflicts)}
+          onRefresh={reload}
+          remotes={gitRecords<RepositoryRemote>(remotes.data?.remotes)}
+          stashes={gitRecords<RepositoryStash>(stashes.data?.stashes)}
+          variant="full"
+          worktrees={gitRecords<{
+            path: string;
+            branch?: string;
+            current?: boolean;
+            prunable?: boolean;
+          }>(worktrees.data?.worktrees)}
+        />
+      </details>
 
       {feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>

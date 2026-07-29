@@ -35,9 +35,17 @@ import {
 } from "../thread-workbench";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
 import { CodeEditor } from "./CodeEditor";
+import { GitControlPanel } from "./GitControlPanel";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 import { WorkspaceFileTree } from "./WorkspaceFileTree";
 import "../thread-workbench.css";
+import type {
+  RepositoryBranch,
+  RepositoryConflict,
+  RepositoryRemote,
+  RepositoryStash,
+} from "@doolittle/contracts/repository";
+import type { RepositoryControlChange } from "../repository-control";
 
 export type ThreadWorkbenchFullView =
   | "code"
@@ -80,6 +88,21 @@ interface WorkspaceReadResponse {
 
 interface RepositoryChangesResponse {
   changes?: unknown[];
+}
+interface RepositoryBranchesResponse {
+  branches?: unknown[];
+}
+interface RepositoryRemotesResponse {
+  remotes?: unknown[];
+}
+interface RepositoryStashesResponse {
+  stashes?: unknown[];
+}
+interface RepositoryConflictsResponse {
+  conflicts?: unknown[];
+}
+interface RepositoryWorktreesResponse {
+  worktrees?: unknown[];
 }
 
 interface WorkspaceCheckpointResponse {
@@ -140,6 +163,7 @@ interface WorkbenchChange {
   path: string;
   status: string;
   staged: boolean;
+  unstaged: boolean;
   untracked: boolean;
 }
 
@@ -360,6 +384,36 @@ export function ThreadWorkbenchRail({
       : null,
     [active, model.railOpen, model.selectedTab, workspacePath],
   );
+  const branches = useApiResource<RepositoryBranchesResponse>(
+    active && model.railOpen && model.selectedTab === "changes"
+      ? "/repo/branches"
+      : null,
+    [active, model.railOpen, model.selectedTab, workspacePath],
+  );
+  const remotes = useApiResource<RepositoryRemotesResponse>(
+    active && model.railOpen && model.selectedTab === "changes"
+      ? "/repo/remotes"
+      : null,
+    [active, model.railOpen, model.selectedTab, workspacePath],
+  );
+  const stashes = useApiResource<RepositoryStashesResponse>(
+    active && model.railOpen && model.selectedTab === "changes"
+      ? "/repo/stashes"
+      : null,
+    [active, model.railOpen, model.selectedTab, workspacePath],
+  );
+  const conflicts = useApiResource<RepositoryConflictsResponse>(
+    active && model.railOpen && model.selectedTab === "changes"
+      ? "/repo/conflicts"
+      : null,
+    [active, model.railOpen, model.selectedTab, workspacePath],
+  );
+  const worktrees = useApiResource<RepositoryWorktreesResponse>(
+    active && model.railOpen && model.selectedTab === "changes"
+      ? "/repo/worktrees"
+      : null,
+    [active, model.railOpen, model.selectedTab, workspacePath],
+  );
   const checkpoints = useApiResource<WorkspaceCheckpointResponse>(
     active && model.railOpen && model.selectedTab === "changes"
       ? "/workspace/checkpoints"
@@ -443,6 +497,7 @@ export function ThreadWorkbenchRail({
             path,
             status: `${indexStatus}${worktreeStatus}`.trim() || "modified",
             staged: Boolean(entry.staged),
+            unstaged: Boolean(entry.unstaged),
             untracked: Boolean(entry.untracked),
           };
         })
@@ -556,6 +611,17 @@ export function ThreadWorkbenchRail({
   }, [copiedLabel]);
 
   if (!active) return null;
+
+  const refreshGit = () => {
+    summary.reload();
+    changes.reload();
+    branches.reload();
+    remotes.reload();
+    stashes.reload();
+    conflicts.reload();
+    worktrees.reload();
+    if (currentChange) patch.reload();
+  };
 
   const selectTab = (tab: ThreadWorkbenchTab) => {
     setModel((current) => ({ ...current, selectedTab: tab, railOpen: true }));
@@ -882,6 +948,26 @@ export function ThreadWorkbenchRail({
 
         {model.selectedTab === "changes" ? (
           <>
+            <GitControlPanel
+              active={Boolean(repositorySummary?.isRepository)}
+              branches={asArray(branches.data?.branches) as RepositoryBranch[]}
+              changes={changeEntries as RepositoryControlChange[]}
+              conflicts={
+                asArray(conflicts.data?.conflicts) as RepositoryConflict[]
+              }
+              onRefresh={refreshGit}
+              remotes={asArray(remotes.data?.remotes) as RepositoryRemote[]}
+              stashes={asArray(stashes.data?.stashes) as RepositoryStash[]}
+              variant="compact"
+              worktrees={
+                asArray(worktrees.data?.worktrees) as Array<{
+                  path: string;
+                  branch?: string;
+                  current?: boolean;
+                  prunable?: boolean;
+                }>
+              }
+            />
             <section
               aria-label="Workspace checkpoints"
               className="thread-workbench-checkpoints"
