@@ -1,6 +1,8 @@
 import type {
   Action,
   ActionResult,
+  AgentRuntime,
+  IAgentRuntime,
   Memory,
   ShortcutDefinition,
 } from "@elizaos/core";
@@ -111,19 +113,21 @@ export function commandShortcutAliases(workspaceDir?: string): string[] {
   return [...aliases].sort();
 }
 
-function matchesExplicitAlias(
+function matchesRegisteredCommandShortcut(
+  runtime: IAgentRuntime,
   text: string,
-  aliases: readonly string[],
 ): boolean {
-  const normalized = text.trim().toLowerCase();
-  return aliases.some((alias) => {
-    const candidate = alias.toLowerCase();
-    return (
-      normalized === candidate ||
-      normalized.startsWith(`${candidate} `) ||
-      normalized.startsWith(`${candidate}:`)
-    );
+  const shortcutRegistry = (
+    runtime as IAgentRuntime & Pick<AgentRuntime, "shortcutRegistry">
+  ).shortcutRegistry;
+  const match = shortcutRegistry.match(text, {
+    actions: runtime.actions.map((action) => action.name),
+    allowNatural: false,
   });
+  return (
+    match?.shortcut.target.kind === "action" &&
+    match.shortcut.target.name === DOOLITTLE_COMMAND_ACTION
+  );
 }
 
 export function createCommandShortcut(
@@ -143,14 +147,13 @@ export function createCommandAction(
   services: AppServices,
   config: EnvConfig,
 ): Action {
-  const aliases = commandShortcutAliases(config.workspaceDir);
   return {
     name: DOOLITTLE_COMMAND_ACTION,
     description:
       "Executes an explicit Doolittle slash command through the Eliza shortcut and action lifecycle.",
     similes: [],
-    validate: async (_runtime, message) =>
-      matchesExplicitAlias(messageText(message), aliases),
+    validate: async (runtime, message) =>
+      matchesRegisteredCommandShortcut(runtime, messageText(message)),
     handler: async (runtime, message): Promise<ActionResult> => {
       const response = await executeSlashCommand(
         {

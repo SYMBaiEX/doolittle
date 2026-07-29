@@ -1,4 +1,8 @@
-import type { IAgentRuntime, Memory } from "@elizaos/core";
+import {
+  type IAgentRuntime,
+  type Memory,
+  ShortcutRegistry,
+} from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
@@ -47,10 +51,18 @@ describe("SDK command action", () => {
 
   it("returns command output as the verified SDK action reply", async () => {
     const action = createCommandAction({} as AppServices, config);
-    const runtime = {} as IAgentRuntime;
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createCommandShortcut(config.workspaceDir));
+    const runtime = {
+      actions: [action],
+      shortcutRegistry,
+    } as unknown as IAgentRuntime;
     const input = message("/status");
 
     await expect(action.validate(runtime, input)).resolves.toBe(true);
+    await expect(
+      action.validate(runtime, message("tell me the status")),
+    ).resolves.toBe(false);
     await expect(action.handler(runtime, input)).resolves.toMatchObject({
       success: true,
       text: "Runtime is ready.",
