@@ -127,10 +127,56 @@ export function runTextProcessSync(
     const { workerData } = require("node:worker_threads");
     const state = new Int32Array(workerData.shared, 0, 2);
     const bytes = new Uint8Array(workerData.shared, 8);
+    const runPackagedArgvFallback = () => {
+      const { spawnSync } = require("node:child_process");
+      const startedAt = Date.now();
+      const request = workerData.request;
+      const child = spawnSync(request.command, request.args, {
+        cwd: request.cwd,
+        env: { ...process.env, ...(request.env || {}) },
+        encoding: "utf8",
+        timeout: request.timeoutMs,
+        windowsHide: true,
+        shell: false,
+      });
+      if (child.error && child.error.code !== "ETIMEDOUT") {
+        throw child.error;
+      }
+      return {
+        exitCode:
+          child.error?.code === "ETIMEDOUT"
+            ? 124
+            : typeof child.status === "number"
+              ? child.status
+              : 1,
+        stdout: child.stdout || "",
+        stderr:
+          child.error?.code === "ETIMEDOUT"
+            ? [child.stderr, "Command timed out."].filter(Boolean).join("\\n")
+            : child.stderr || "",
+        durationMs: Date.now() - startedAt,
+        sandbox: "none",
+      };
+    };
     (async () => {
       try {
-        const { runShell } = await import("@elizaos/agent/services/shell-execution-router");
-        const result = await runShell(workerData.request);
+        let result;
+        try {
+          const { runShell } = await import("@elizaos/agent/services/shell-execution-router");
+          result = await runShell(workerData.request);
+        } catch (error) {
+          const missingBundledRouter =
+            error &&
+            typeof error === "object" &&
+            (error.code === "ERR_MODULE_NOT_FOUND" ||
+              String(error.message || "").includes("Cannot find package '@elizaos/agent'"));
+          if (!missingBundledRouter) throw error;
+          // Electron bundles the router into the runtime entrypoint, so an
+          // eval worker cannot import its package path. This argv-only fallback
+          // is limited to synchronous bootstrap/status probes; interactive and
+          // user-authored commands continue through the SDK shell router.
+          result = runPackagedArgvFallback();
+        }
         const encoded = new TextEncoder().encode(JSON.stringify({ ok: true, result }));
         if (encoded.byteLength > bytes.byteLength) throw new Error("Synchronous shell result exceeded 2 MB.");
         bytes.set(encoded);
