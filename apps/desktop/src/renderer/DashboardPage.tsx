@@ -180,7 +180,9 @@ export function DashboardPage({
                   ? "Execution is in motion."
                   : repo.dirty
                     ? "Workspace changed locally."
-                    : "Runtime is stable."}
+                    : setupHealth.warnings > 0
+                      ? "Setup needs attention."
+                      : "Runtime is stable."}
           </h2>
           <p>
             {!active
@@ -191,7 +193,11 @@ export function DashboardPage({
                   ? "Delegated work is active. Keep the queue visible and the repo clean."
                   : repo.dirty
                     ? "The checkout has local edits. Review them before the next heavy run."
-                    : "No immediate blockers surfaced across runtime, setup, or repository state."}
+                    : setupHealth.warnings > 0
+                      ? `${setupHealth.warnings} setup signal${
+                          setupHealth.warnings === 1 ? "" : "s"
+                        } still need attention before every runtime surface is ready.`
+                      : "No immediate blockers surfaced across runtime, setup, or repository state."}
           </p>
           <div className="dashboard-inline-metrics">
             <div>
