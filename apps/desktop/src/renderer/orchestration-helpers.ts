@@ -1,3 +1,5 @@
+import { type DesktopPlatform, workspacePathsEqual } from "./workspace-path";
+
 export type OrchestrationStatusTier =
   | "running"
   | "queued"
@@ -5,6 +7,30 @@ export type OrchestrationStatusTier =
   | "completed"
   | "failed"
   | "idle";
+
+export function scopeTasksByWorkspace<T extends { workspaceRoot?: string }>(
+  tasks: T[],
+  options: {
+    scope: string;
+    workspacePath?: string;
+    platform: DesktopPlatform;
+  },
+): T[] {
+  if (options.scope === "all") return tasks;
+  if (options.scope === "unscoped") {
+    return tasks.filter((task) => !task.workspaceRoot?.trim());
+  }
+  if (!options.workspacePath?.trim()) return [];
+  return tasks.filter(
+    (task) =>
+      Boolean(task.workspaceRoot?.trim()) &&
+      workspacePathsEqual(
+        task.workspaceRoot,
+        options.workspacePath ?? "",
+        options.platform,
+      ),
+  );
+}
 
 type OrchestrationTimingOptions = {
   status?: string;

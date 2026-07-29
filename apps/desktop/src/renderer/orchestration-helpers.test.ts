@@ -3,6 +3,7 @@ import {
   compactDuration,
   orchestrationStatusTier,
   orchestrationTimingLabel,
+  scopeTasksByWorkspace,
 } from "./orchestration-helpers";
 
 describe("orchestration helpers", () => {
@@ -49,5 +50,33 @@ describe("orchestration helpers", () => {
         now,
       }),
     ).toBe("Done in 1h 30m");
+  });
+
+  it("keeps task queues aligned with the selected project", () => {
+    const tasks = [
+      { id: "one", workspaceRoot: "/repo/one" },
+      { id: "two", workspaceRoot: "/repo/two" },
+      { id: "general" },
+    ];
+
+    expect(
+      scopeTasksByWorkspace(tasks, {
+        scope: "project-one",
+        workspacePath: "/repo/one",
+        platform: "linux",
+      }).map((task) => task.id),
+    ).toEqual(["one"]);
+    expect(
+      scopeTasksByWorkspace(tasks, {
+        scope: "unscoped",
+        platform: "linux",
+      }).map((task) => task.id),
+    ).toEqual(["general"]);
+    expect(
+      scopeTasksByWorkspace(tasks, {
+        scope: "all",
+        platform: "linux",
+      }),
+    ).toEqual(tasks);
   });
 });

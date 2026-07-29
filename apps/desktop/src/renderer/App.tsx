@@ -1584,6 +1584,13 @@ export function App() {
     projectScope === "all" || projectScope === "unscoped"
       ? null
       : (projects.find((project) => project.id === projectScope) ?? null);
+  const projectScopeLabel =
+    activeProject?.name ??
+    (projectScope === "unscoped" ? "General" : "All projects");
+
+  useEffect(() => {
+    document.title = `${activeItem?.label ?? "Desktop"} — Doolittle`;
+  }, [activeItem?.label]);
   const scopedSessions = useMemo(
     () =>
       sessions.filter((session) =>
@@ -1912,7 +1919,18 @@ export function App() {
           />
         );
       case "orchestration":
-        return <OrchestrationPage active={backend.phase === "ready"} />;
+        return (
+          <OrchestrationPage
+            active={backend.phase === "ready"}
+            key={`${workspace.currentPath}\u0000${projectScope}`}
+            projectScope={projectScope}
+            workspaceLabel={
+              activeProject?.name ??
+              (projectScope === "unscoped" ? "General" : "All projects")
+            }
+            workspacePath={workspace.currentPath}
+          />
+        );
       case "sessions":
         return (
           <SessionsPage
@@ -2259,7 +2277,13 @@ export function App() {
           <div className="window-context">
             <span>{activeSection?.label ?? "Doolittle"}</span>
             <strong>{activeItem?.label ?? "Desktop"}</strong>
+            <em title={`Current project scope: ${projectScopeLabel}`}>
+              {projectScopeLabel}
+            </em>
           </div>
+          <span aria-live="polite" className="sr-only">
+            {activeItem?.label ?? "Desktop"} opened for {projectScopeLabel}
+          </span>
           <div className="window-tools">
             <button
               aria-label="Open command palette"

@@ -27,6 +27,7 @@ import {
 import {
   orchestrationStatusTier,
   orchestrationTimingLabel,
+  scopeTasksByWorkspace,
 } from "./orchestration-helpers";
 import "./orchestration.css";
 
@@ -377,7 +378,17 @@ function DetailTag({
   return <span className={`orchestration-detail-tag ${tone}`}>{children}</span>;
 }
 
-export function OrchestrationPage({ active }: { active: boolean }) {
+export function OrchestrationPage({
+  active,
+  projectScope = "all",
+  workspaceLabel,
+  workspacePath,
+}: {
+  active: boolean;
+  projectScope?: string;
+  workspaceLabel?: string;
+  workspacePath?: string;
+}) {
   const [activeTab, setActiveTab] = useState<TabId>("tasks");
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
@@ -444,9 +455,14 @@ export function OrchestrationPage({ active }: { active: boolean }) {
     [active, selectedRunId],
   );
 
-  const tasks = asArray(tasksResource.data?.tasks).map((entry) =>
+  const allTasks = asArray(tasksResource.data?.tasks).map((entry) =>
     asRecord(entry),
   ) as DelegationTaskRecord[];
+  const tasks = scopeTasksByWorkspace(allTasks, {
+    scope: projectScope,
+    workspacePath,
+    platform: window.doolittle.platform,
+  });
   const workers = asArray(workersResource.data?.workers).map((entry) =>
     asRecord(entry),
   ) as WorkerRecord[];
@@ -616,8 +632,24 @@ export function OrchestrationPage({ active }: { active: boolean }) {
   const overview = asRecord(overviewResource.data?.overview);
   const nativeOverview = asRecord(overview.native);
   const localOverview = asRecord(overview.local);
-  const effectiveOverview =
+  const globalOverview =
     Object.keys(nativeOverview).length > 0 ? nativeOverview : localOverview;
+  const scopedOverview =
+    projectScope === "all"
+      ? globalOverview
+      : tasks.reduce(
+          (summary, task) => {
+            const tier = orchestrationStatusTier(task.status);
+            summary.total += 1;
+            if (tier === "running") summary.running += 1;
+            if (tier === "queued" || tier === "approval") summary.pending += 1;
+            if (tier === "completed") summary.completed += 1;
+            if (tier === "failed") summary.failed += 1;
+            return summary;
+          },
+          { total: 0, running: 0, pending: 0, completed: 0, failed: 0 },
+        );
+  const effectiveOverview = scopedOverview;
   const workerOverview = asRecord(workersResource.data?.overview);
   const codegenExecution = asRecord(
     codegenRuntimeResource.data?.execution?.codeGeneration,
@@ -1119,8 +1151,24 @@ export function OrchestrationPage({ active }: { active: boolean }) {
     if (tasksResource.loading) return <LoadingBlock />;
     if (tasks.length === 0) {
       return (
-        <EmptyBlock title="No tasks yet">
-          Create the first task to start an operator workflow.
+        <EmptyBlock
+          actions={
+            <button
+              className="primary-button"
+              disabled={!active}
+              onClick={() => setShowTaskCreate(true)}
+              type="button"
+            >
+              New task
+            </button>
+          }
+          title={
+            projectScope === "all"
+              ? "No tasks yet"
+              : `No tasks for ${workspaceLabel || "this project"}`
+          }
+        >
+          Create a focused task to start an operator workflow in this workspace.
         </EmptyBlock>
       );
     }
@@ -1186,7 +1234,12 @@ export function OrchestrationPage({ active }: { active: boolean }) {
         <div>
           <span className="eyebrow">Operator workspace</span>
           <h1>Tasks & agents</h1>
-          <p>Delegate, supervise, inspect, and ship from one live surface.</p>
+          <p>
+            Delegate, supervise, inspect, and ship
+            {projectScope === "all"
+              ? " from one live surface."
+              : ` in ${workspaceLabel || "the selected project"}.`}
+          </p>
         </div>
         <div className="orchestration-header-metrics">
           <SummaryChip
@@ -1198,7 +1251,7 @@ export function OrchestrationPage({ active }: { active: boolean }) {
             label="Running"
             value={Math.max(
               asNumber(effectiveOverview.running),
-              workerActiveCount,
+              projectScope === "all" ? workerActiveCount : 0,
             )}
             tone="warn"
           />
@@ -1548,7 +1601,12 @@ export function OrchestrationPage({ active }: { active: boolean }) {
             <aside className="orchestration-master">
               <div className="orchestration-pane-heading">
                 <span>Queue</span>
-                <small>{asNumber(effectiveOverview.total)} total</small>
+                <small>
+                  {asNumber(effectiveOverview.total)} total
+                  {projectScope === "all"
+                    ? ""
+                    : ` · ${workspaceLabel || "selected project"}`}
+                </small>
               </div>
               <div className="orchestration-scroll">{renderTaskRail()}</div>
             </aside>
