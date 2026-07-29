@@ -53,8 +53,20 @@ export function parseDesktopThemeProfile(
 export function themeCssTokens(
   profile: DesktopThemeProfile,
 ): Record<string, string> {
+  const hex = profile.primary.match(/^#([\da-f]{6})$/iu)?.[1];
+  const accentInk = hex
+    ? (() => {
+        const channels = [0, 2, 4].map((offset) =>
+          Number.parseInt(hex.slice(offset, offset + 2), 16),
+        );
+        const luminance =
+          (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000;
+        return luminance >= 150 ? "#160b03" : "#fffaf5";
+      })()
+    : "#160b03";
   return {
     "--accent": profile.primary,
+    "--accent-ink": accentInk,
     "--accent-hover": profile.secondary,
     "--accent-soft": `color-mix(in srgb, ${profile.primary} 14%, var(--surface))`,
     "--accent-border": `color-mix(in srgb, ${profile.primary} 42%, var(--border))`,

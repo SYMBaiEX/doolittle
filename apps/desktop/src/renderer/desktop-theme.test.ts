@@ -53,10 +53,25 @@ describe("desktop theme", () => {
     if (!profile) throw new Error("Expected a valid theme profile");
     expect(themeCssTokens(profile)).toMatchObject({
       "--accent": "#D7263D",
+      "--accent-ink": "#fffaf5",
       "--accent-hover": "#FF6B6B",
       "--good": "#93FFB0",
       "--warn": "#FFC857",
     });
+  });
+
+  it("keeps high-luminance accents readable with dark ink", () => {
+    const profile = parseDesktopThemeProfile({
+      name: "toxic",
+      label: "Acid Burn",
+      primary: "#B8FF00",
+      secondary: "#F0FF66",
+      amberGlow: "#FFD24D",
+      greenGlow: "#B8FF00",
+    });
+    expect(profile).not.toBeNull();
+    if (!profile) throw new Error("Expected a valid theme profile");
+    expect(themeCssTokens(profile)["--accent-ink"]).toBe("#160b03");
   });
 
   it("resolves system appearance without changing the saved preference", () => {
