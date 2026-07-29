@@ -2534,11 +2534,11 @@ td {
 }
 
 .chat-run-receipt {
-  margin: 0 0 16px;
+  margin: 0 0 8px;
   overflow: hidden;
   color: var(--text-soft);
-  background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-radius: var(--radius-sm, 4px);
   white-space: normal;
 }
@@ -2549,14 +2549,14 @@ td {
 
 .chat-run-receipt summary {
   display: grid;
-  min-height: 50px;
+  min-height: 34px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
+  gap: 8px;
+  padding: 5px 8px;
   cursor: pointer;
   list-style: none;
-  background: color-mix(in srgb, var(--accent) 3%, var(--surface-raised));
+  background: transparent;
 }
 
 .chat-run-receipt summary::-webkit-details-marker {
@@ -2566,22 +2566,21 @@ td {
 .chat-run-receipt summary > span:nth-child(2) {
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 7px;
 }
 
 .chat-run-receipt summary strong {
   color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--text-control, 11px);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--text-meta, 10px);
+  font-weight: 620;
 }
 
 .chat-run-receipt summary small {
   overflow: hidden;
   color: var(--muted);
-  font-size: var(--text-meta, 10px);
+  font-family: var(--font-mono);
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2595,9 +2594,9 @@ td {
 }
 
 .chat-run-state {
-  width: 8px;
-  height: 8px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--muted) 10%, transparent);
+  width: 6px;
+  height: 6px;
+  box-shadow: none;
 }
 
 .chat-run-state.good,
@@ -2618,7 +2617,7 @@ td {
 .chat-run-metrics {
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: var(--text-meta, 10px);
+  font-size: 9px;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }

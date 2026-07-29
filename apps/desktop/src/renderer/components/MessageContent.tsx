@@ -254,13 +254,6 @@ export function MessageContent({
           aria-label="Agent tool activity"
           className="message-tool-activity"
         >
-          <header>
-            <span>Tool activity</span>
-            <small>
-              {parsed.tools.length}{" "}
-              {parsed.tools.length === 1 ? "tool" : "tools"}
-            </small>
-          </header>
           {parsed.tools.map((activity) => (
             <ToolActivityCard activity={activity} key={activity.id} />
           ))}

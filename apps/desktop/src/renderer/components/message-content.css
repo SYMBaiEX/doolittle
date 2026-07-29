@@ -161,27 +161,15 @@
 
 .message-tool-activity {
   display: grid;
-  gap: 7px;
-  margin-top: 14px;
-}
-
-.message-tool-activity > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 2px;
-  color: var(--faint);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .message-tool-card {
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface-soft) 64%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border-strong) 70%, var(--border));
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-soft) 52%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 6px;
   transition:
     border-color 120ms ease,
     background 120ms ease;
@@ -195,11 +183,11 @@
 .message-tool-card > summary,
 .message-agent-steps > summary {
   display: grid;
-  min-height: 46px;
+  min-height: 34px;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: 7px;
+  padding: 4px 8px;
   cursor: pointer;
   list-style: none;
   user-select: none;
@@ -222,15 +210,15 @@
 
 .message-tool-card__icon {
   display: grid;
-  width: 27px;
-  height: 27px;
+  width: 20px;
+  height: 20px;
   place-items: center;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--border));
-  border-radius: 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .message-tool-card__summary {
@@ -242,7 +230,7 @@
 .message-tool-card__summary strong {
   overflow: hidden;
   color: var(--text-soft);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 620;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -252,7 +240,7 @@
   overflow: hidden;
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -263,7 +251,7 @@
   gap: 5px;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .message-tool-card__status i {
@@ -307,7 +295,7 @@
 
 .message-tool-card__body {
   max-height: 390px;
-  padding: 2px 10px 10px 47px;
+  padding: 2px 9px 9px 35px;
   overflow: auto;
   border-top: 1px solid var(--border);
   scrollbar-gutter: stable;

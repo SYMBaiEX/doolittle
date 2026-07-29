@@ -310,11 +310,11 @@ function RunReceiptView({
             : "neutral";
 
   return (
-    <details className="chat-run-receipt" open={pending}>
+    <details className="chat-run-receipt">
       <summary>
         <span className={`chat-run-state ${tone}`} aria-hidden="true" />
         <span>
-          <strong>Agent run</strong>
+          <strong>{pending ? "Working" : "Run complete"}</strong>
           <small>{summary}</small>
         </span>
         <span className="chat-run-metrics">

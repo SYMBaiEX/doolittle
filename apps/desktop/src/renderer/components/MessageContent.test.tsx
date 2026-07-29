@@ -45,4 +45,32 @@ describe("MessageContent", () => {
     expect(html).not.toContain("<script");
     expect(html).not.toContain("onclick");
   });
+
+  it("renders tool calls as compact, collapsed disclosure rows", () => {
+    const content = [
+      JSON.stringify({
+        type: "tool_call",
+        toolCall: {
+          id: "call-1",
+          name: "DOOLITTLE_WORKSPACE",
+          arguments: { path: "." },
+          status: "completed",
+        },
+        messageId: "message-1",
+      }),
+      JSON.stringify({
+        type: "tool_result",
+        toolCallId: "call-1",
+        result: { success: true, files: 12 },
+      }),
+    ].join("");
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} separateAgentEvents />,
+    );
+
+    expect(html).toContain('class="message-tool-card is-completed"');
+    expect(html).toContain("<summary>");
+    expect(html).not.toContain("Tool activity");
+    expect(html).not.toContain("<details open");
+  });
 });
