@@ -165,6 +165,47 @@ describe("createClaudeCodePlugin", () => {
     }
   });
 
+  it("falls back to the signed-in Claude CLI when OAuth refresh fails", async () => {
+    const plugin = createClaudeCodePlugin({
+      enabled: true,
+      allowCliFallback: true,
+      getStatus: () => ({
+        provider: "claude-code",
+        available: true,
+        reusable: false,
+        fallbackReady: true,
+        detail: "Claude CLI is signed in",
+      }),
+      getCredentials: () => ({
+        accessToken: "expired-oauth",
+        expiresAt: String(Date.now() - 1_000),
+      }),
+      refreshCredentials: async () => {
+        throw new Error("OAuth refresh failed");
+      },
+      invokeCliPrint: async ({ prompt, model }) => {
+        expect(prompt).toBe("hello");
+        expect(model).toBe("claude-sonnet-4.6");
+        return "claude cli response";
+      },
+    });
+
+    await expect(
+      plugin.models?.TEXT_LARGE?.(
+        {
+          getSetting: () =>
+            JSON.stringify({
+              model: {
+                provider: "claude-code",
+                model: "claude-sonnet-4.6",
+              },
+            }),
+        } as never,
+        { prompt: "hello" } as never,
+      ),
+    ).resolves.toBe("claude cli response");
+  });
+
   it("refreshes Claude Code credentials after an auth failure", async () => {
     const originalFetch = globalThis.fetch;
     let requestCount = 0;

@@ -80,25 +80,11 @@ export async function runClaudeCodeTextGeneration(
     );
   }
 
-  let credentials = options.getCredentials?.();
-  if (
-    (!credentials?.accessToken?.trim() || credentialsAreExpired(credentials)) &&
-    options.refreshCredentials
-  ) {
-    credentials = await options.refreshCredentials();
-  }
-  const accessToken = credentials?.accessToken?.trim();
   const runtimeModel = getRuntimeModelSettings(runtime);
   const model = runtimeModel.model || "claude-sonnet-4.6";
   const effort = resolveClaudeReasoningEffort(runtimeModel.reasoningEffort);
   const promptText = resolveModelPromptText(params);
-
-  if (!accessToken) {
-    if (!options.allowCliFallback) {
-      throw new Error(
-        "No reusable Claude Code auth material is available for native execution. Complete `claude auth login` plus `claude setup-token`, or enable the local Claude CLI fallback explicitly.",
-      );
-    }
+  const invokeCliFallback = async (): Promise<string> => {
     const cliOutput = await (
       options.invokeCliPrint ?? invokeClaudeCodeCliPrint
     )({
@@ -108,6 +94,34 @@ export async function runClaudeCodeTextGeneration(
       ...(effort ? { effort } : {}),
     });
     return cliOutput || "No response returned.";
+  };
+  const refreshCredentials = async () => {
+    try {
+      return await options.refreshCredentials?.();
+    } catch (error) {
+      if (!options.allowCliFallback) {
+        throw error;
+      }
+      return undefined;
+    }
+  };
+
+  let credentials = options.getCredentials?.();
+  if (
+    (!credentials?.accessToken?.trim() || credentialsAreExpired(credentials)) &&
+    options.refreshCredentials
+  ) {
+    credentials = await refreshCredentials();
+  }
+  const accessToken = credentials?.accessToken?.trim();
+
+  if (!accessToken) {
+    if (!options.allowCliFallback) {
+      throw new Error(
+        "No reusable Claude Code auth material is available for native execution. Complete `claude auth login` plus `claude setup-token`, or enable the local Claude CLI fallback explicitly.",
+      );
+    }
+    return invokeCliFallback();
   }
 
   const endpoint = `${runtimeModel.baseUrl || DEFAULT_ANTHROPIC_BASE_URL}/v1/messages`;
@@ -136,7 +150,7 @@ export async function runClaudeCodeTextGeneration(
     (response.status === 401 || response.status === 403) &&
     options.refreshCredentials
   ) {
-    const refreshed = await options.refreshCredentials();
+    const refreshed = await refreshCredentials();
     const refreshedAccessToken = refreshed?.accessToken?.trim();
     if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
       response = await fetch(endpoint, {
@@ -145,6 +159,8 @@ export async function runClaudeCodeTextGeneration(
         body: JSON.stringify(requestBody),
         signal,
       });
+    } else if (options.allowCliFallback) {
+      return invokeCliFallback();
     }
   }
 
