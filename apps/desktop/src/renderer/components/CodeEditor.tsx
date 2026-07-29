@@ -6,6 +6,11 @@ import jsonWorker from "monaco-editor/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
 import { useEffect, useRef } from "react";
 import type { CodeLanguage } from "../code-language";
+import {
+  loadStoredDesktopTheme,
+  parseDesktopThemeProfile,
+  THEME_CHANGE_EVENT,
+} from "../desktop-theme";
 import { acquireMonacoProjectSupport } from "../editor-project-support";
 import "./code-editor.css";
 
@@ -33,17 +38,20 @@ monacoHost.MonacoEnvironment = {
   },
 };
 
-let themeDefined = false;
+function editorAccent(value?: string): string {
+  const candidate = value?.replace(/^#/u, "").toUpperCase();
+  return candidate && /^[\dA-F]{6}$/u.test(candidate) ? candidate : "FF711A";
+}
 
-function defineDoolittleTheme() {
-  if (themeDefined) return;
+function defineDoolittleTheme(accentValue?: string) {
+  const accent = editorAccent(accentValue);
   monaco.editor.defineTheme(DOOLITTLE_EDITOR_THEME, {
     base: "vs-dark",
     inherit: true,
     rules: [
       { token: "comment", foreground: "736B64", fontStyle: "italic" },
-      { token: "keyword", foreground: "FF711A" },
-      { token: "keyword.control", foreground: "FF711A" },
+      { token: "keyword", foreground: accent },
+      { token: "keyword.control", foreground: accent },
       { token: "type", foreground: "F0A15F" },
       { token: "type.identifier", foreground: "EAAA72" },
       { token: "identifier", foreground: "E9E1DA" },
@@ -51,7 +59,7 @@ function defineDoolittleTheme() {
       { token: "number", foreground: "E78B55" },
       { token: "regexp", foreground: "C99162" },
       { token: "delimiter", foreground: "968D85" },
-      { token: "tag", foreground: "FF8537" },
+      { token: "tag", foreground: accent },
       { token: "attribute.name", foreground: "DDA66E" },
       { token: "attribute.value", foreground: "D9AF72" },
     ],
@@ -60,18 +68,18 @@ function defineDoolittleTheme() {
       "editor.foreground": "#DCD5CE",
       "editor.lineHighlightBackground": "#171412",
       "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": "#71351380",
-      "editor.inactiveSelectionBackground": "#4D2A1880",
-      "editor.selectionHighlightBackground": "#FF711A18",
-      "editor.findMatchBackground": "#FF711A55",
-      "editor.findMatchHighlightBackground": "#FF711A26",
-      "editorCursor.foreground": "#FF711A",
+      "editor.selectionBackground": `#${accent}40`,
+      "editor.inactiveSelectionBackground": `#${accent}22`,
+      "editor.selectionHighlightBackground": `#${accent}18`,
+      "editor.findMatchBackground": `#${accent}55`,
+      "editor.findMatchHighlightBackground": `#${accent}26`,
+      "editorCursor.foreground": `#${accent}`,
       "editorLineNumber.foreground": "#554E48",
       "editorLineNumber.activeForeground": "#BDB3AA",
       "editorIndentGuide.background1": "#26221F",
       "editorIndentGuide.activeBackground1": "#5B4638",
-      "editorBracketMatch.background": "#FF711A18",
-      "editorBracketMatch.border": "#FF711A70",
+      "editorBracketMatch.background": `#${accent}18`,
+      "editorBracketMatch.border": `#${accent}70`,
       "editorWhitespace.foreground": "#332E2A",
       "editorGutter.background": "#0C0B0A",
       "editorWidget.background": "#171411",
@@ -82,14 +90,13 @@ function defineDoolittleTheme() {
       "editorHoverWidget.background": "#171411",
       "editorHoverWidget.border": "#342D28",
       "minimap.background": "#0C0B0A",
-      "minimap.selectionHighlight": "#FF711A45",
+      "minimap.selectionHighlight": `#${accent}45`,
       "scrollbar.shadow": "#00000000",
       "scrollbarSlider.background": "#6B5D5345",
       "scrollbarSlider.hoverBackground": "#8C796B65",
-      "scrollbarSlider.activeBackground": "#FF711A65",
+      "scrollbarSlider.activeBackground": `#${accent}65`,
     },
   });
-  themeDefined = true;
 }
 
 function modelUri(path: string, workspacePath?: string): monaco.Uri {
@@ -190,7 +197,7 @@ export function CodeEditor({
   useEffect(() => {
     const host = hostRef.current;
     if (!host || !path) return;
-    defineDoolittleTheme();
+    defineDoolittleTheme(loadStoredDesktopTheme()?.primary);
 
     const uri = modelUri(path, workspacePath);
     monaco.editor.getModel(uri)?.dispose();
@@ -302,6 +309,20 @@ export function CodeEditor({
       modelRef.current = null;
     };
   }, [ariaLabel, compact, language.id, path, workspacePath]);
+
+  useEffect(() => {
+    const updateTheme = (event: Event) => {
+      const profile = parseDesktopThemeProfile(
+        (event as CustomEvent<unknown>).detail,
+      );
+      defineDoolittleTheme(
+        profile?.primary ?? loadStoredDesktopTheme()?.primary,
+      );
+      monaco.editor.setTheme(DOOLITTLE_EDITOR_THEME);
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, updateTheme);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, updateTheme);
+  }, []);
 
   useEffect(() => {
     const editor = editorRef.current;

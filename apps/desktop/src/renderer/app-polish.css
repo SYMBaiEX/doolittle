@@ -25,6 +25,80 @@
   --control-height: 30px;
 }
 
+:root[data-density="compact"] .chat-workspace {
+  grid-template-columns: 220px minmax(440px, 1fr);
+}
+
+:root[data-density="compact"] .chat-workspace.inspector-open {
+  grid-template-columns: 220px minmax(440px, 1fr) auto;
+}
+
+:root[data-density="compact"] .chat-sessions {
+  padding: 9px 7px 7px;
+}
+
+:root[data-density="compact"] .chat-header {
+  min-height: 58px;
+}
+
+:root[data-density="compact"] .chat-session-row > .chat-session-item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+:root[data-density="compact"] .page.coding-workspace-page {
+  gap: 5px;
+  padding: 7px 8px 8px;
+}
+
+:root[data-density="compact"] .coding-repo-header {
+  min-height: 42px;
+  padding-bottom: 4px;
+}
+
+:root[data-density="compact"] .coding-tabs {
+  min-height: 32px;
+  padding-top: 2px;
+}
+
+:root[data-density="compact"] .review-page {
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+
+:root[data-density="compact"] .review-header {
+  min-height: 56px;
+}
+
+:root[data-density="compact"] .review-repository-ribbon {
+  min-height: 48px;
+}
+
+:root[data-density="compact"] .browser-page {
+  gap: 7px;
+  padding: 9px 11px 11px;
+}
+
+:root[data-density="compact"] .browser-header {
+  min-height: 52px;
+}
+
+:root[data-density="compact"] .browser-address {
+  min-height: 38px;
+}
+
+:root[data-density="compact"] .orchestration-header {
+  min-height: 60px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+:root[data-density="compact"] .orchestration-summary-chip {
+  min-height: 34px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
 .view-container {
   background:
     linear-gradient(90deg, var(--operator-glow), transparent 18%) no-repeat,
