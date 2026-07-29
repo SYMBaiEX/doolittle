@@ -1,10 +1,10 @@
-import type { AgentRuntime, IAgentRuntime } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import { getProviderReadinessMessage } from "@/runtime/linked-provider-accounts";
 import type { ChatTurnRequest } from "@/types/runtime";
 import { runPostProviderTurn } from "../post-provider";
 import { runProviderModelTurn } from "../provider";
 import { handleReadyResponseTurn } from "./readiness";
+import { runProviderShortcutTurn } from "./shortcut";
 import type { NativeTurnSetup, SettingsSnapshot, TurnPerfTrace } from "./types";
 
 type NativeTurnOptions = AgentTurnHooks & {
@@ -22,29 +22,15 @@ export interface NativeProviderStageInput {
 }
 
 export interface NativeProviderStageDependencies {
-  hasProviderIndependentShortcut: typeof hasProviderIndependentShortcut;
+  runProviderShortcutTurn: typeof runProviderShortcutTurn;
   getProviderReadinessMessage: typeof getProviderReadinessMessage;
   handleReadyResponseTurn: typeof handleReadyResponseTurn;
   runProviderModelTurn: typeof runProviderModelTurn;
   runPostProviderTurn: typeof runPostProviderTurn;
 }
 
-export function hasProviderIndependentShortcut(
-  runtime: IAgentRuntime,
-  message: string,
-): boolean {
-  const shortcutRegistry = (
-    runtime as IAgentRuntime & Pick<AgentRuntime, "shortcutRegistry">
-  ).shortcutRegistry;
-  const match = shortcutRegistry?.match(message, {
-    actions: runtime.actions.map((action) => action.name),
-    allowNatural: false,
-  });
-  return match?.shortcut.kind === "explicit";
-}
-
 const defaultDependencies: NativeProviderStageDependencies = {
-  hasProviderIndependentShortcut,
+  runProviderShortcutTurn,
   getProviderReadinessMessage,
   handleReadyResponseTurn,
   runProviderModelTurn,
@@ -60,17 +46,34 @@ export async function runNativeProviderStage(
   const messagePolicy = input.turnSetup.messagePolicy;
   const settingsBefore = input.turnSetup.settingsBefore;
   const responseSource = input.input.source ?? "cli";
-  const providerIndependentShortcut =
-    dependencies.hasProviderIndependentShortcut(
-      input.context.runtime,
-      input.effectiveInput.message,
-    );
-  const readinessMessage = providerIndependentShortcut
-    ? undefined
-    : await dependencies.getProviderReadinessMessage(
-        input.context,
-        input.settingsDuring.model.provider,
-      );
+  const shortcutResult = await dependencies.runProviderShortcutTurn({
+    context: input.context,
+    turn,
+    userId: input.effectiveInput.userId,
+    effectiveMessage: input.effectiveInput.message,
+    settingsDuring: input.settingsDuring,
+    attachments: input.effectiveInput.attachments,
+  });
+  if (shortcutResult) {
+    input.perf.mark("native-shortcut");
+    const postShortcutResult = await dependencies.runPostProviderTurn({
+      input: input.input,
+      effectiveInput: input.effectiveInput,
+      context: input.context,
+      options: input.options,
+      turn,
+      response: shortcutResult.response,
+      actionResults: shortcutResult.actionResults,
+      settingsDuring: input.settingsDuring,
+      scheduleProfileObservation,
+    });
+    return postShortcutResult.response;
+  }
+
+  const readinessMessage = await dependencies.getProviderReadinessMessage(
+    input.context,
+    input.settingsDuring.model.provider,
+  );
   input.perf.mark("provider-readiness");
   const readyResponse = await dependencies.handleReadyResponseTurn({
     context: input.context,

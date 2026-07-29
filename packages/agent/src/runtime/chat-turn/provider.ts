@@ -94,26 +94,17 @@ function attachSdkSessionContext(input: {
   extractSessionContext(input.memory);
 }
 
-export async function runProviderModelTurn(
+export function createProviderMessageMemory(
   input: {
     context: AgentExecutionContext;
     turn: TurnState;
     userId: string;
     effectiveMessage: string;
-    settingsBefore: ModelSettingsSnapshot;
     settingsDuring: ModelSettingsSnapshot;
-    messagePolicy: NativeMessagePolicy;
-    options?: ProviderTurnOptions;
     attachments?: Media[];
   },
   executionContext: ProviderModelTurnExecutionContext = providerModelTurnContext,
-): Promise<{
-  handledMessage: boolean;
-  response: string;
-  runFailureMessage?: string;
-  messageId: string;
-  actionResults: ActionResult[];
-}> {
+): ReturnType<ProviderModelTurnExecutionContext["createMessageMemory"]> {
   const memory = executionContext.createMessageMemory({
     id: randomUUID() as UUID,
     entityId: input.turn.entityId as UUID,
@@ -134,6 +125,33 @@ export async function runProviderModelTurn(
     userId: input.userId,
     effectiveMessage: input.effectiveMessage,
   });
+  return memory;
+}
+
+export async function runProviderModelTurn(
+  input: {
+    context: AgentExecutionContext;
+    turn: TurnState;
+    userId: string;
+    effectiveMessage: string;
+    settingsBefore: ModelSettingsSnapshot;
+    settingsDuring: ModelSettingsSnapshot;
+    messagePolicy: NativeMessagePolicy;
+    options?: ProviderTurnOptions;
+    attachments?: Media[];
+  },
+  executionContext: ProviderModelTurnExecutionContext = providerModelTurnContext,
+): Promise<{
+  handledMessage: boolean;
+  response: string;
+  runFailureMessage?: string;
+  messageId: string;
+  actionResults: ActionResult[];
+}> {
+  const memory = createProviderMessageMemory(input, executionContext);
+  const sessionKey =
+    (memory as typeof memory & { sessionKey?: string }).sessionKey ??
+    resolveSdkSessionKey(input.context, input.turn.sessionId);
   return withProviderRuntimeLock(input.context.runtime, async () => {
     let response = "";
     let handledMessage = false;
