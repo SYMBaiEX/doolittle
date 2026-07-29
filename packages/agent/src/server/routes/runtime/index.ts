@@ -2,6 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimeAccountRoutes } from "./accounts";
 import { handleRuntimeEcosystemRoutes } from "./ecosystem";
 import { handleRuntimeHealthRoutes } from "./health";
+import { handleRuntimeModelRoutes } from "./models";
 import { handleRuntimeStatusRoutes } from "./status";
 import { handleRuntimeWorkspaceRoutes } from "./workspace";
 
@@ -14,6 +15,7 @@ export async function handleRuntimeRoutes(
     handleRuntimeHealthRoutes,
     handleRuntimeWorkspaceRoutes,
     handleRuntimeAccountRoutes,
+    handleRuntimeModelRoutes,
     handleRuntimeStatusRoutes,
     handleRuntimeEcosystemRoutes,
   ];

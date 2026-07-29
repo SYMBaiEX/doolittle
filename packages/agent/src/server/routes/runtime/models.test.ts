@@ -1,0 +1,124 @@
+import { describe, expect, it, vi } from "vitest";
+import type { EnvConfig } from "@/types";
+import { discoverModelProviders } from "./models";
+
+function config(overrides: Partial<EnvConfig> = {}): EnvConfig {
+  return {
+    ollamaApiEndpoint: "http://127.0.0.1:11434/v1",
+    ollamaLargeModel: "granite4.1:3b",
+    ollamaSmallModel: "qwen3:1.7b",
+    elizaCloudEnabled: false,
+    elizaCloudBaseUrl: "https://api.elizaos.ai/v1",
+    elizaCloudLargeModel: "anthropic/claude-sonnet-4.6",
+    elizaCloudSmallModel: "anthropic/claude-haiku-4-5",
+    openAiBaseUrl: "https://api.openai.com/v1",
+    openAiModel: "gpt-5.4",
+    anthropicBaseUrl: "https://api.anthropic.com/v1",
+    anthropicLargeModel: "claude-sonnet-4.6",
+    anthropicSmallModel: "claude-haiku-4.5",
+    devinModel: "swe-1-6-fast",
+    useLinkedCodexAuth: false,
+    useLinkedClaudeCodeAuth: false,
+    useLinkedDevinAuth: false,
+    ...overrides,
+  } as EnvConfig;
+}
+
+describe("runtime model discovery", () => {
+  it("merges live provider models with configured fallbacks", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      if (url.includes("11434")) {
+        return Response.json({
+          data: [{ id: "granite4.1:3b" }, { id: "qwen3:8b" }],
+        });
+      }
+      if (url.includes("openai.com")) {
+        return Response.json({
+          data: [{ id: "gpt-5.4" }, { id: "gpt-5.4-mini" }],
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const providers = await discoverModelProviders(
+      config({ openAiApiKey: "test-key" }),
+      "openai",
+      "gpt-5.4",
+      fetchImplementation,
+    );
+
+    expect(
+      providers
+        .find((provider) => provider.id === "ollama")
+        ?.models.map((model) => model.id),
+    ).toContain("qwen3:8b");
+    expect(
+      providers
+        .find((provider) => provider.id === "openai")
+        ?.models.map((model) => model.id),
+    ).toContain("gpt-5.4-mini");
+    expect(
+      providers.find((provider) => provider.id === "openai")?.discovery,
+    ).toBe("live");
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/models",
+      expect.objectContaining({
+        headers: expect.any(Headers),
+        signal: expect.any(AbortSignal),
+      }),
+    );
+  });
+
+  it("keeps configured linked models when live discovery is unavailable", async () => {
+    const providers = await discoverModelProviders(
+      config({ useLinkedClaudeCodeAuth: true }),
+      "claude-code",
+      "claude-sonnet-4.6",
+      vi.fn<typeof fetch>(async () => {
+        throw new Error("offline");
+      }),
+    );
+    const claude = providers.find((provider) => provider.id === "claude-code");
+
+    expect(claude).toMatchObject({
+      ready: true,
+      discovery: "configured",
+    });
+    expect(claude?.models.map((model) => model.id)).toContain(
+      "claude-sonnet-4.6",
+    );
+  });
+
+  it("uses Anthropic model-list headers without exposing credentials", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("x-api-key")).toBe("anthropic-test");
+      expect(headers.get("anthropic-version")).toBe("2023-06-01");
+      return Response.json({
+        data: [
+          {
+            id: "claude-sonnet-4.6",
+            display_name: "Claude Sonnet 4.6",
+          },
+        ],
+      });
+    });
+
+    const providers = await discoverModelProviders(
+      config({ anthropicApiKey: "anthropic-test" }),
+      "anthropic",
+      "claude-sonnet-4.6",
+      fetchImplementation,
+    );
+
+    expect(
+      providers
+        .find((provider) => provider.id === "anthropic")
+        ?.models.find((model) => model.id === "claude-sonnet-4.6"),
+    ).toMatchObject({
+      label: "Claude Sonnet 4.6",
+      source: "discovered",
+    });
+  });
+});
