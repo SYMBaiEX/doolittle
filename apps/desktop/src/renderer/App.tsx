@@ -1981,9 +1981,7 @@ export function App() {
                   ...item,
                   description: VIEW_DESCRIPTIONS[item.id],
                   icon: (
-                    <Icon
-                      name={item.id === "gateway" ? "activity" : item.id}
-                    />
+                    <Icon name={item.id === "gateway" ? "activity" : item.id} />
                   ),
                 })),
               }))}
