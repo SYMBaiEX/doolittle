@@ -3614,8 +3614,8 @@ button.chat-session-meta-pill:hover {
 }
 
 .chat-messages {
-  padding: 34px clamp(28px, 7vw, 104px) 38px;
-  scroll-padding-bottom: 176px;
+  padding: 24px clamp(24px, 5vw, 76px) 28px;
+  scroll-padding-bottom: 150px;
 }
 
 .chat-welcome {
@@ -3685,13 +3685,13 @@ button.chat-session-meta-pill:hover {
 
 .chat-message {
   width: min(100%, 880px);
-  margin-bottom: 30px;
+  margin-bottom: 22px;
 }
 
 .chat-message-label {
   justify-content: flex-start;
-  gap: 9px;
-  margin-bottom: 7px;
+  gap: 7px;
+  margin-bottom: 5px;
 }
 
 .chat-message-label strong {
@@ -3771,7 +3771,7 @@ button.chat-session-meta-pill:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   width: min(900px, calc(100% - 44px));
   gap: 7px 10px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   padding: 11px 12px 8px;
   background: color-mix(in srgb, var(--surface-raised) 98%, var(--bg));
   border-color: color-mix(in srgb, var(--border-strong) 78%, var(--border));

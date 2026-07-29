@@ -315,10 +315,13 @@
 .sidebar-projects__list {
   display: grid;
   min-height: 0;
+  flex: 1 1 auto;
   align-content: start;
   gap: 3px;
   padding-right: 2px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .project-rail-group {

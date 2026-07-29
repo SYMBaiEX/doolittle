@@ -294,13 +294,25 @@ function runArtifacts(record: Record<string, unknown>): unknown[] {
   return opaque.length > 0 ? opaque : asArray(record.artifactPaths);
 }
 
+export function reviewWorkspaceScopeKey(
+  workspacePath: string,
+  projectScope: string,
+): string {
+  return `${workspacePath}\u0000${projectScope}`;
+}
+
 export function ReviewPage({
   active,
   onSendToChat,
+  projectScope,
+  workspacePath,
 }: {
   active: boolean;
   onSendToChat: (text: string) => void;
+  projectScope: string;
+  workspacePath: string;
 }) {
+  const scopeKey = reviewWorkspaceScopeKey(workspacePath, projectScope);
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -322,22 +334,23 @@ export function ReviewPage({
 
   const approvals = useApiResource<ApprovalResponse>(
     active ? "/execution/approvals" : null,
-    [active],
+    [active, scopeKey],
   );
   const changes = useApiResource<ChangesResponse>(
     active ? "/repo/changes" : null,
-    [active],
+    [active, scopeKey],
   );
   const runs = useApiResource<RunsResponse>(active ? "/codegen/runs" : null, [
     active,
+    scopeKey,
   ]);
   const repositoryReview = useApiResource<RepositoryReviewResponse>(
     active ? "/repo/review" : null,
-    [active],
+    [active, scopeKey],
   );
   const branchRecord = useApiResource<ReviewRecordResponse>(
     active ? "/review-record?limit=80" : null,
-    [active],
+    [active, scopeKey],
   );
   const review = repositoryReview.data?.review;
   const commentIdentity = useMemo(
@@ -698,7 +711,11 @@ export function ReviewPage({
   };
 
   return (
-    <div className="page review-page">
+    <div
+      className="page review-page"
+      data-project-scope={projectScope}
+      data-workspace-path={workspacePath}
+    >
       <header className="review-header">
         <div>
           <span className="eyebrow">Human in the loop</span>

@@ -36,6 +36,7 @@ import {
   ProjectHistorySidebar,
 } from "./components/ProjectSidebar";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
+import { UtilityDrawer } from "./components/UtilityDrawer";
 import {
   type GlobalSearchTarget,
   globalSearchGroups,
@@ -1821,7 +1822,10 @@ export function App() {
         return (
           <ReviewPage
             active={backend.phase === "ready"}
+            key={`${workspace.currentPath}\u0000${projectScope}`}
             onSendToChat={openChatWithContext}
+            projectScope={projectScope}
+            workspacePath={workspace.currentPath}
           />
         );
       case "orchestration":
@@ -1953,82 +1957,46 @@ export function App() {
             role="dialog"
             tabIndex={-1}
           >
-            <header className="utility-drawer-header">
-              <div>
-                <span className="eyebrow">Doolittle workspace</span>
-                <h2>Tools & settings</h2>
-                <p>
-                  Open a focused surface without leaving your current
-                  conversation behind.
-                </p>
-              </div>
-              <button
-                aria-label="Close tools and settings"
-                className="icon-button"
-                onClick={closeUtilities}
-                type="button"
-              >
-                ×
-              </button>
-            </header>
-            <PanelResizeHandle
-              bounds={UTILITY_DRAWER_WIDTH}
-              className="utility-drawer-resizer"
-              direction="grow-left"
-              label="Resize tools and settings panel"
-              onResize={setUtilityDrawerWidth}
-              value={utilityDrawerWidth}
-            />
-            <ActivityCenter
-              active={backend.phase === "ready"}
-              error={activityResource.error}
-              events={activityResource.data?.events ?? []}
-              loading={activityResource.loading}
-              onOpenTarget={openActivityTarget}
-              reload={activityResource.reload}
-            />
-            <nav
-              aria-label="All Doolittle tools and settings"
-              className="utility-navigation"
+            <UtilityDrawer
+              activeView={view}
+              activity={
+                <ActivityCenter
+                  active={backend.phase === "ready"}
+                  error={activityResource.error}
+                  events={activityResource.data?.events ?? []}
+                  loading={activityResource.loading}
+                  onOpenTarget={openActivityTarget}
+                  reload={activityResource.reload}
+                />
+              }
+              onClose={closeUtilities}
+              onSelect={setView}
+              onToggleSection={(sectionId) =>
+                toggleSection(sectionId as NavigationSectionId)
+              }
+              openSections={openSections}
+              sections={navigation.map((section) => ({
+                ...section,
+                items: section.items.map((item) => ({
+                  ...item,
+                  description: VIEW_DESCRIPTIONS[item.id],
+                  icon: (
+                    <Icon
+                      name={item.id === "gateway" ? "activity" : item.id}
+                    />
+                  ),
+                })),
+              }))}
             >
-              {navigation.map((section) => (
-                <section className="utility-navigation-group" key={section.id}>
-                  <button
-                    aria-expanded={openSections.has(section.id)}
-                    className="utility-navigation-heading"
-                    onClick={() => toggleSection(section.id)}
-                    type="button"
-                  >
-                    <span>{section.label}</span>
-                    <i aria-hidden="true">
-                      {openSections.has(section.id) ? "−" : "+"}
-                    </i>
-                  </button>
-                  {openSections.has(section.id) ? (
-                    <div className="utility-navigation-items">
-                      {section.items.map((item) => (
-                        <button
-                          aria-current={view === item.id ? "page" : undefined}
-                          className={view === item.id ? "selected" : ""}
-                          key={item.id}
-                          onClick={() => setView(item.id)}
-                          type="button"
-                        >
-                          <Icon
-                            name={item.id === "gateway" ? "activity" : item.id}
-                          />
-                          <span>
-                            <strong>{item.label}</strong>
-                            <small>{VIEW_DESCRIPTIONS[item.id]}</small>
-                          </span>
-                          <i aria-hidden="true">↗</i>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </section>
-              ))}
-            </nav>
+              <PanelResizeHandle
+                bounds={UTILITY_DRAWER_WIDTH}
+                className="utility-drawer-resizer"
+                direction="grow-left"
+                label="Resize tools and settings panel"
+                onResize={setUtilityDrawerWidth}
+                value={utilityDrawerWidth}
+              />
+            </UtilityDrawer>
           </aside>
         </div>
       ) : null}

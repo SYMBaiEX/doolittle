@@ -269,6 +269,25 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.locator('section[aria-label="Branch record"]'),
       ).toBeVisible();
+      await page.locator(".project-rail-all").click();
+      await expect
+        .poll(() => page.evaluate(() => window.location.hash))
+        .toBe("#/review");
+      await expect(page.locator(".review-page")).toHaveAttribute(
+        "data-project-scope",
+        "all",
+      );
+      await page
+        .locator(".project-rail-main")
+        .filter({ hasText: "E2E repository" })
+        .click();
+      await expect
+        .poll(() => page.evaluate(() => window.location.hash))
+        .toBe("#/review");
+      await expect(page.locator(".review-page")).toHaveAttribute(
+        "data-project-scope",
+        /project:/,
+      );
 
       await page.evaluate(() => {
         window.location.hash = "#/gateway";
@@ -316,6 +335,21 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".chat-sessions")).toHaveCount(0);
       await expect(page.locator(".window-status-strip")).toHaveCount(0);
       await expect(page.locator(".chat-status-runtime")).toContainText("Ready");
+      const historyScrollport = await page
+        .locator(".sidebar-projects__list")
+        .evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            flexGrow: style.flexGrow,
+            overflowY: style.overflowY,
+            overscrollBehaviorY: style.overscrollBehaviorY,
+          };
+        });
+      expect(historyScrollport).toMatchObject({
+        flexGrow: "1",
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
+      });
       await expect(
         page.getByRole("button", { name: /^History \d+$/ }),
       ).toBeVisible();
@@ -515,6 +549,18 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("heading", { name: "Tools & settings" }),
       ).toBeVisible();
+      const toolSearch = page.getByRole("searchbox", {
+        name: "Find a tool",
+      });
+      await expect(toolSearch).toBeVisible();
+      await toolSearch.fill("compatibility");
+      await expect(
+        page.getByRole("button", { name: /Compatibility/ }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Media studio/ }),
+      ).toHaveCount(0);
+      await toolSearch.fill("");
       const toolsResizer = page.getByRole("separator", {
         name: "Resize tools and settings panel",
       });
