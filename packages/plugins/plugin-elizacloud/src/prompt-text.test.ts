@@ -9,7 +9,7 @@ describe("resolveModelPromptText", () => {
     ).toBe("hello");
   });
 
-  it("preserves whitespace in a valid alpha prompt", () => {
+  it("preserves whitespace in a valid legacy prompt", () => {
     expect(
       resolveModelPromptText({ prompt: "  keep this  " } as GenerateTextParams),
     ).toBe("  keep this  ");
