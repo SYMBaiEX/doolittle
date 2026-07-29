@@ -7,6 +7,8 @@ export interface McpToolDefinition {
 export type AcpToolKind =
   | "read"
   | "edit"
+  | "delete"
+  | "move"
   | "search"
   | "execute"
   | "fetch"

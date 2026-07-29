@@ -13,6 +13,7 @@ import type {
   BootstrapContextParams,
 } from "@/runtime/bootstrap/types";
 import type { AppServices } from "@/services";
+import { createAcpProtocolHost } from "@/services/acp/host";
 
 type RuntimeBindableServices = AppServices & {
   __bindRuntime?: (nextRuntime: AgentRuntime) => void;
@@ -86,6 +87,7 @@ export async function configureBootstrapContext({
     },
     ensureDeferredHydration,
   } as BootstrapContext;
+  services.acp.bindProtocolHost(createAcpProtocolHost(context));
 
   if (eagerDeferredHydration) {
     appendBootstrapTrace("phase:deferredHydration:start");

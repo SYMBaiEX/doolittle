@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import { createAgentContextProviders } from "./provider";
 
-function createMemory(id = "turn-1", roomId = "sdk-room"): Memory {
+function createMemory(
+  id = "turn-1",
+  roomId = "sdk-room",
+  source = "api",
+): Memory {
   return {
     id,
     roomId,
     entityId: "entity-1",
-    content: { text: "hello" },
+    content: { text: "hello", source },
     createdAt: Date.now(),
     metadata: {
       sessionId: "session-1",
@@ -80,6 +84,34 @@ function createServices() {
     workspace: {
       root: () => "/workspace/demo",
       summary: () => "workspace tree summary",
+    },
+    acp: {
+      latestEditorContext: (workspaceRoot: string) =>
+        workspaceRoot === "/workspace/demo"
+          ? {
+              sessionId: "acp:desktop",
+              workspaceRoot,
+              updatedAt: "2026-07-28T12:00:00.000Z",
+              context: {
+                path: "src/App.tsx",
+                uri: "file:///workspace/demo/src/App.tsx",
+                language: "typescript",
+                content: "export function App() {}",
+                version: 3,
+                dirty: true,
+                focused: true,
+                cursor: { lineNumber: 1, column: 8 },
+                visibleRanges: [
+                  {
+                    startLineNumber: 1,
+                    startColumn: 1,
+                    endLineNumber: 20,
+                    endColumn: 1,
+                  },
+                ],
+              },
+            }
+          : undefined,
     },
     skills: {
       list: () => [
@@ -197,6 +229,31 @@ describe("agent context providers", () => {
     expect(workspace.text).toContain("WORKSPACE CONTEXT");
     expect(workspace.text).toContain("repository status summary");
     expect(operations.text).toContain("CRON JOBS");
+  });
+
+  it("adds bounded latest ACP editor state only to desktop turns", async () => {
+    const core = provider(
+      createAgentContextProviders(createServices()),
+      "DOOLITTLE_CORE_CONTEXT_PROVIDER",
+    );
+
+    const desktop = await core.get(
+      {} as never,
+      createMemory("desktop-turn", "desktop-room", "desktop"),
+      {} as never,
+    );
+    const api = await core.get(
+      {} as never,
+      createMemory("api-turn", "api-room", "api"),
+      {} as never,
+    );
+
+    expect(desktop.text).toContain("ACP EDITOR CONTEXT");
+    expect(desktop.text).toContain("path=src/App.tsx");
+    expect(desktop.text).toContain("export function App() {}");
+    expect(desktop.data?.hasEditorContext).toBe(true);
+    expect(api.text).not.toContain("ACP EDITOR CONTEXT");
+    expect(api.data?.hasEditorContext).toBe(false);
   });
 
   it("reports operations context unavailable without the Trigger runtime", async () => {

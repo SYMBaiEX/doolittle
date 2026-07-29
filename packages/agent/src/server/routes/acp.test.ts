@@ -6,6 +6,27 @@ function createContext(): AppContext {
   return {
     services: {
       acp: {
+        initializeProtocol: async () => ({ protocolVersion: 1 }),
+        newProtocolSession: async () => ({ sessionId: "acp:1" }),
+        loadProtocolSession: async () => undefined,
+        promptProtocolSession: async () => ({ stopReason: "end_turn" }),
+        cancelProtocolSession: async () => undefined,
+        protocolUpdates: (sessionId: string, cursor = 0) => ({
+          sessionId,
+          cursor,
+          updates: [],
+        }),
+        updateEditorContext: (
+          sessionId: string,
+          context: Record<string, unknown>,
+        ) => ({ sessionId, ...context }),
+        readTextFile: async () => "content",
+        writeTextFile: async () => ({ written: true }),
+        createTerminal: async () => ({ terminalId: "terminal-1" }),
+        terminalOutput: async () => ({ output: "hello", truncated: false }),
+        waitForTerminalExit: async () => ({ exitCode: 0 }),
+        killTerminal: async () => undefined,
+        releaseTerminal: async () => undefined,
         status: () => ({ ready: true }),
         registry: () => ({ packages: 2 }),
         packageMetadata: () => ({ name: "doolittle-acp" }),
@@ -56,6 +77,56 @@ describe("handleAcpRoutes", () => {
     });
     await expect(tools?.json()).resolves.toEqual({
       tools: [{ name: "search:browser" }],
+    });
+  });
+
+  it("serves the official ACP lifecycle and editor context bridge", async () => {
+    const context = createContext();
+    const initialize = await handleAcpRoutes(
+      context,
+      jsonRequest("/acp/initialize", {}),
+      new URL("http://localhost/acp/initialize"),
+    );
+    const created = await handleAcpRoutes(
+      context,
+      jsonRequest("/acp/session/new", {}),
+      new URL("http://localhost/acp/session/new"),
+    );
+    const editor = await handleAcpRoutes(
+      context,
+      jsonRequest("/acp/editor/context", {
+        sessionId: "acp:1",
+        path: "src/index.ts",
+        focused: true,
+        cursor: { lineNumber: 2, column: 4 },
+      }),
+      new URL("http://localhost/acp/editor/context"),
+    );
+    const updates = await handleAcpRoutes(
+      context,
+      new Request(
+        "http://localhost/acp/session/updates?sessionId=acp%3A1&cursor=2",
+      ),
+      new URL(
+        "http://localhost/acp/session/updates?sessionId=acp%3A1&cursor=2",
+      ),
+    );
+
+    await expect(initialize?.json()).resolves.toEqual({
+      initialized: { protocolVersion: 1 },
+    });
+    await expect(created?.json()).resolves.toEqual({
+      session: { sessionId: "acp:1" },
+    });
+    await expect(editor?.json()).resolves.toMatchObject({
+      context: {
+        sessionId: "acp:1",
+        path: "src/index.ts",
+        focused: true,
+      },
+    });
+    await expect(updates?.json()).resolves.toEqual({
+      snapshot: { sessionId: "acp:1", cursor: 2, updates: [] },
     });
   });
 
@@ -132,3 +203,11 @@ describe("handleAcpRoutes", () => {
     expect(response).toBeNull();
   });
 });
+
+function jsonRequest(path: string, body: unknown): Request {
+  return new Request(`http://localhost${path}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+  });
+}

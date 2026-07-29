@@ -87,6 +87,7 @@ function attachSdkSessionContext(input: {
     doolittle: {
       userId: input.userId,
       rawMessage: input.effectiveMessage,
+      source: input.turn.connectionSource,
     },
   } as unknown as typeof input.memory.metadata;
 

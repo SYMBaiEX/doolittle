@@ -85,6 +85,50 @@ function renderSessionContext(
   }
 }
 
+function isDesktopTurn(message: Memory): boolean {
+  const content = message.content as { source?: unknown };
+  const metadata = message.metadata as
+    | { doolittle?: { source?: unknown } }
+    | undefined;
+  return (
+    content.source === "desktop" || metadata?.doolittle?.source === "desktop"
+  );
+}
+
+function renderAcpEditorContext(
+  services: AppServices,
+  message: Memory,
+): string[] {
+  if (!isDesktopTurn(message)) return [];
+  const latest = services.acp.latestEditorContext(services.workspace.root());
+  if (!latest) return [];
+  const context = latest.context;
+  return [
+    "ACP EDITOR CONTEXT",
+    `workspace=${latest.workspaceRoot}`,
+    `updatedAt=${latest.updatedAt}`,
+    ...(context.path ? [`path=${context.path}`] : []),
+    ...(context.uri ? [`uri=${context.uri}`] : []),
+    ...(context.language ? [`language=${context.language}`] : []),
+    ...(context.version !== undefined ? [`version=${context.version}`] : []),
+    ...(context.dirty !== undefined ? [`dirty=${context.dirty}`] : []),
+    ...(context.focused !== undefined ? [`focused=${context.focused}`] : []),
+    ...(context.cursor ? [`cursor=${JSON.stringify(context.cursor)}`] : []),
+    ...(context.selection
+      ? [`selection=${JSON.stringify(context.selection)}`]
+      : []),
+    ...(context.visibleRanges?.length
+      ? [`visibleRanges=${JSON.stringify(context.visibleRanges)}`]
+      : []),
+    ...(context.content
+      ? [`content:\n${context.content.slice(0, 16_000)}`]
+      : []),
+    ...(context.resources?.length
+      ? [`resources=${JSON.stringify(context.resources).slice(0, 16_000)}`]
+      : []),
+  ];
+}
+
 function coreContextResult(
   services: AppServices,
   message: Memory,
@@ -104,6 +148,7 @@ function coreContextResult(
     userIdFor(message),
   );
   const soulContext = renderDoolittleSoulContext(services.workspace.root());
+  const editorContext = renderAcpEditorContext(services, message);
 
   return {
     text: [
@@ -115,12 +160,14 @@ function coreContextResult(
       "",
       ...renderSessionContext(services, sessionId),
       ...(projectContext ? ["", projectContext] : []),
+      ...(editorContext.length ? ["", ...editorContext] : []),
     ].join("\n"),
     values: {},
     data: {
       sessionId,
       personality: personality.id,
       hasProjectContext: Boolean(projectContext),
+      hasEditorContext: editorContext.length > 0,
     },
   };
 }
