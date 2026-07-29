@@ -3,6 +3,7 @@ import {
   attachRunProgressBridge,
   ensureCoreRuntimeServices,
   installDynamicModelProviderRouting,
+  installProviderFailureTemplates,
   patchRuntimeRelationshipCompatibility,
 } from "@/runtime/bootstrap/runtime";
 import { createCronExecutor } from "@/runtime/bootstrap/runtime/cron-executor";
@@ -39,6 +40,7 @@ export async function configureBootstrapContext({
     runtime,
     () => services.settings.get().model.provider,
   );
+  installProviderFailureTemplates(runtime, () => services.settings.get().model);
   attachRunProgressBridge(runtime, services);
   appendBootstrapTrace("phase:attachRunProgressBridge:done");
 
