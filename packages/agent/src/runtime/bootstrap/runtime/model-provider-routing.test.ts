@@ -21,6 +21,23 @@ describe("resolveModelProviderPlugin", () => {
     ).toBe("ollama");
   });
 
+  it.each([
+    ["ollama", "ollama"],
+    ["elizacloud", "@elizaos/plugin-elizacloud"],
+    ["codex", "@elizaos/plugin-codex"],
+    ["claude-code", "@elizaos/plugin-claude-code"],
+    ["devin", "@elizaos/plugin-devin"],
+    ["openai", "openai"],
+    ["anthropic", "anthropic"],
+  ])("keeps %s isolated from every other provider", (provider, plugin) => {
+    expect(
+      resolveModelProviderPlugin({
+        modelType: ModelType.RESPONSE_HANDLER,
+        activeProvider: provider,
+      }),
+    ).toBe(plugin);
+  });
+
   it("preserves explicit SDK routing and leaves embeddings unpinned", () => {
     expect(
       resolveModelProviderPlugin({

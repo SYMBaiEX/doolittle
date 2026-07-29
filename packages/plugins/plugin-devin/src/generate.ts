@@ -1,11 +1,11 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
+import { resolveModelPromptText } from "@elizaos/provider-transport";
 import {
   DEFAULT_DEVIN_COMMAND,
   DEFAULT_DEVIN_MODEL,
   DEFAULT_DEVIN_TIMEOUT_MS,
   invokeDevinCliPrint,
 } from "./cli";
-import { resolveModelPromptText } from "./prompt-text";
 import {
   getRuntimeModelSettings,
   getRuntimeProvider,

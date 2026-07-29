@@ -1,4 +1,5 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
+import { resolveModelPromptText } from "@elizaos/provider-transport";
 import {
   CLAUDE_CODE_VERSION,
   invokeClaudeCodeCliPrint,
@@ -11,7 +12,6 @@ import {
   DEFAULT_ANTHROPIC_BASE_URL,
   OAUTH_ONLY_BETAS,
 } from "./constants";
-import { resolveModelPromptText } from "./prompt-text";
 import {
   getRuntimeModelSettings,
   getRuntimeProvider,

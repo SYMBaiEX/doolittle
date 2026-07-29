@@ -6,7 +6,7 @@ import {
   type TextEmbeddingParams,
   type TextGenerationModelType,
 } from "@elizaos/core";
-import { resolveModelPromptText } from "./prompt-text";
+import { resolveModelPromptText } from "@elizaos/provider-transport";
 import { readRuntimeModelSettings } from "./runtime-settings";
 
 export const OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY = 1_000;

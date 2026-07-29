@@ -1,0 +1,33 @@
+{
+  "name": "@elizaos/provider-transport",
+  "version": "2.0.3-beta.7",
+  "description": "Shared ElizaOS model-input adapter for prompt-only provider transports.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "README.md"
+  ],
+  "keywords": [
+    "elizaos",
+    "provider",
+    "transport",
+    "prompt"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SYMBaiEX/doolittle.git",
+    "directory": "packages/plugins/provider-transport"
+  },
+  "homepage": "https://github.com/SYMBaiEX/doolittle/tree/main/packages/plugins/provider-transport",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.3-beta.7"
+  }
+}

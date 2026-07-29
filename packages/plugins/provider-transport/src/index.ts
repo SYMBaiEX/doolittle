@@ -1,13 +1,17 @@
-import type {
-  ChatMessage,
-  ChatMessageContentPart,
-  GenerateTextParams,
-  ToolDefinition,
+import {
+  type ChatMessage,
+  type ChatMessageContentPart,
+  type GenerateTextParams,
+  renderChatMessagesForPrompt,
+  type ToolDefinition,
 } from "@elizaos/core";
 
 /**
- * Convert the current Eliza chat-native model contract into the text transport
- * used by linked-account CLIs and prompt-only provider APIs.
+ * Resolve the current Eliza model-input contract for a prompt-only transport.
+ *
+ * Native providers should consume `messages`, `attachments`, and `tools`
+ * directly. This adapter is intentionally the one compatibility boundary for
+ * linked-account CLIs and APIs that can only receive text.
  */
 export function resolveModelPromptText(params: GenerateTextParams): string {
   if (params.prompt !== undefined && params.prompt.length > 0) {
@@ -15,7 +19,9 @@ export function resolveModelPromptText(params: GenerateTextParams): string {
   }
 
   const input =
-    promptSegmentsText(params) || messagesText(params.messages ?? []);
+    promptSegmentsText(params) ||
+    renderChatMessagesForPrompt(transportMessages(params.messages)) ||
+    "";
   return appendToolContract(input, params.tools ?? [], params.toolChoice);
 }
 
@@ -25,21 +31,19 @@ function promptSegmentsText(params: GenerateTextParams): string {
     .join("");
 }
 
-function messagesText(messages: ChatMessage[]): string {
-  return messages
-    .map((message) => {
-      const content = messageContentText(message.content);
-      if (!content && !message.toolCalls?.length) {
-        return "";
-      }
-
-      const toolCalls = message.toolCalls?.length
-        ? `\nTool calls: ${JSON.stringify(message.toolCalls)}`
-        : "";
-      return `${message.role.toUpperCase()}:\n${content}${toolCalls}`;
-    })
-    .filter(Boolean)
-    .join("\n\n");
+function transportMessages(
+  messages: ChatMessage[] | undefined,
+): ChatMessage[] | undefined {
+  return messages?.map((message) => {
+    const content = messageContentText(message.content);
+    const toolCalls = message.toolCalls?.length
+      ? `Tool calls: ${JSON.stringify(message.toolCalls)}`
+      : "";
+    return {
+      ...message,
+      content: [content, toolCalls].filter(Boolean).join("\n"),
+    };
+  });
 }
 
 function messageContentText(content: ChatMessage["content"]): string {

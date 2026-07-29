@@ -93,6 +93,9 @@ importers:
       '@elizaos/plugin-worker-runtime':
         specifier: workspace:*
         version: link:packages/plugin-worker-runtime
+      '@elizaos/provider-transport':
+        specifier: workspace:*
+        version: link:packages/plugins/provider-transport
       '@elizaos/registry':
         specifier: workspace:*
         version: link:packages/registry
@@ -227,6 +230,9 @@ importers:
       '@elizaos/plugin-agent-skills':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(pg@8.22.0)
+      '@elizaos/provider-transport':
+        specifier: workspace:*
+        version: link:../plugins/provider-transport
       '@elizaos/skills':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
@@ -261,12 +267,18 @@ importers:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
+      '@elizaos/provider-transport':
+        specifier: 2.0.3-beta.7
+        version: link:../provider-transport
 
   packages/plugins/plugin-codex:
     dependencies:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
+      '@elizaos/provider-transport':
+        specifier: 2.0.3-beta.7
+        version: link:../provider-transport
 
   packages/plugins/plugin-devin:
     dependencies:
@@ -276,12 +288,18 @@ importers:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
+      '@elizaos/provider-transport':
+        specifier: 2.0.3-beta.7
+        version: link:../provider-transport
 
   packages/plugins/plugin-elizacloud:
     dependencies:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
+      '@elizaos/provider-transport':
+        specifier: 2.0.3-beta.7
+        version: link:../provider-transport
       '@elizaos/shared':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(pg@8.22.0)
@@ -291,6 +309,12 @@ importers:
       '@elizaos-official/plugin-sql':
         specifier: npm:@elizaos/plugin-sql@2.0.3-beta.7
         version: 2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)
+      '@elizaos/core':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
+
+  packages/plugins/provider-transport:
+    dependencies:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)

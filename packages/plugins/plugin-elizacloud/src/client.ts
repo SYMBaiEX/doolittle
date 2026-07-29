@@ -1,5 +1,5 @@
 import type { GenerateTextParams } from "@elizaos/core";
-import { resolveModelPromptText } from "./prompt-text";
+import { resolveModelPromptText } from "@elizaos/provider-transport";
 
 const ELIZA_CLOUD_REQUEST_TIMEOUT_MS = 120_000;
 

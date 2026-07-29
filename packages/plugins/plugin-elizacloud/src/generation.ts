@@ -4,6 +4,7 @@ import type {
   ModelType,
   TextEmbeddingParams,
 } from "@elizaos/core";
+import { resolveModelPromptText } from "@elizaos/provider-transport";
 import { resolveCloudApiBaseUrl } from "@elizaos/shared/elizacloud/base-url";
 import {
   postElizaCloudChatCompletion,
@@ -14,7 +15,6 @@ import {
   DEFAULT_ELIZA_CLOUD_BASE_URL,
   ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL,
 } from "./constants";
-import { resolveModelPromptText } from "./prompt-text";
 import {
   extractEmbeddingInput,
   extractEmbeddingVector,

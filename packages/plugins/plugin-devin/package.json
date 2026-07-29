@@ -9,6 +9,7 @@
   },
   "files": [
     "src/**/*.ts",
+    "!src/**/*.test.ts",
     "README.md"
   ],
   "keywords": [
@@ -29,6 +30,7 @@
   },
   "dependencies": {
     "@elizaos/agent": "2.0.3-beta.7",
-    "@elizaos/core": "2.0.3-beta.7"
+    "@elizaos/core": "2.0.3-beta.7",
+    "@elizaos/provider-transport": "2.0.3-beta.7"
   }
 }

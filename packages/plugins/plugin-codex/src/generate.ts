@@ -1,10 +1,10 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
+import { resolveModelPromptText } from "@elizaos/provider-transport";
 import {
   DEFAULT_CODEX_BASE_URL,
   DEFAULT_CODEX_INSTRUCTIONS,
   DEFAULT_CODEX_MODEL,
 } from "./constants";
-import { resolveModelPromptText } from "./prompt-text";
 import { getRuntimeModelSettings, getRuntimeProvider } from "./runtime";
 import { readCodexResponseText } from "./sse";
 import type { CodexPluginOptions } from "./types";

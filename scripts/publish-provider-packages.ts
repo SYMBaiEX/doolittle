@@ -5,7 +5,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 interface PublishArgs {
-  provider: "codex" | "claude-code" | "devin" | "all";
+  provider:
+    | "provider-transport"
+    | "codex"
+    | "claude-code"
+    | "devin"
+    | "elizacloud"
+    | "all";
   dryRun: boolean;
   json: boolean;
   tag: string;
@@ -13,7 +19,12 @@ interface PublishArgs {
 }
 
 interface PublishResult {
-  provider: "codex" | "claude-code" | "devin";
+  provider:
+    | "provider-transport"
+    | "codex"
+    | "claude-code"
+    | "devin"
+    | "elizacloud";
   packageName: string;
   version: string;
   packagePath: string;
@@ -39,9 +50,11 @@ function parseArgs(argv: string[]): PublishArgs {
     if (arg === "--provider") {
       const value = argv[index + 1]?.trim().toLowerCase();
       if (
+        value === "provider-transport" ||
         value === "codex" ||
         value === "claude-code" ||
         value === "devin" ||
+        value === "elizacloud" ||
         value === "all"
       ) {
         provider = value;
@@ -83,12 +96,28 @@ function repoRoot() {
 
 function getProviders(
   provider: PublishArgs["provider"],
-): Array<"codex" | "claude-code" | "devin"> {
-  return provider === "all" ? ["codex", "claude-code", "devin"] : [provider];
+): Array<
+  "provider-transport" | "codex" | "claude-code" | "devin" | "elizacloud"
+> {
+  return provider === "all"
+    ? ["provider-transport", "codex", "claude-code", "devin", "elizacloud"]
+    : [provider];
 }
 
-function providerPath(provider: "codex" | "claude-code" | "devin"): string {
-  return join(repoRoot(), "packages", "plugins", `plugin-${provider}`);
+function providerPath(
+  provider:
+    | "provider-transport"
+    | "codex"
+    | "claude-code"
+    | "devin"
+    | "elizacloud",
+): string {
+  return join(
+    repoRoot(),
+    "packages",
+    "plugins",
+    provider === "provider-transport" ? provider : `plugin-${provider}`,
+  );
 }
 
 function readPackageManifest(path: string): { name: string; version: string } {

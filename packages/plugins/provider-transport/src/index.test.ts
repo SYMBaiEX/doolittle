@@ -1,29 +1,19 @@
 import type { GenerateTextParams } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
-import { resolveModelPromptText as resolveDoolittlePrompt } from "./doolittle-plugin/prompt-text";
-import { resolveModelPromptText as resolveClaudePrompt } from "./plugin-claude-code/src/prompt-text";
-import { resolveModelPromptText as resolveCodexPrompt } from "./plugin-codex/src/prompt-text";
-import { resolveModelPromptText as resolveDevinPrompt } from "./plugin-devin/src/prompt-text";
-import { resolveModelPromptText as resolveElizaCloudPrompt } from "./plugin-elizacloud/src/prompt-text";
+import { resolveModelPromptText } from "./index";
 
-const resolvers = [
-  ["Doolittle fallback", resolveDoolittlePrompt],
-  ["Claude", resolveClaudePrompt],
-  ["Codex", resolveCodexPrompt],
-  ["Devin", resolveDevinPrompt],
-  ["Eliza Cloud", resolveElizaCloudPrompt],
-] as const;
-
-describe.each(resolvers)("%s prompt contract", (_provider, resolvePrompt) => {
+describe("resolveModelPromptText", () => {
   it("preserves a supplied legacy prompt exactly", () => {
     expect(
-      resolvePrompt({ prompt: "  legacy prompt  " } as GenerateTextParams),
+      resolveModelPromptText({
+        prompt: "  legacy prompt  ",
+      } as GenerateTextParams),
     ).toBe("  legacy prompt  ");
   });
 
   it("joins current SDK prompt segments in order", () => {
     expect(
-      resolvePrompt({
+      resolveModelPromptText({
         promptSegments: [
           { content: "stable ", stable: true },
           { content: "dynamic", stable: false },
@@ -32,18 +22,10 @@ describe.each(resolvers)("%s prompt contract", (_provider, resolvePrompt) => {
     ).toBe("stable dynamic");
   });
 
-  it("does not let an empty legacy field erase current SDK messages", () => {
+  it("uses the canonical Eliza renderer for chat-native messages", () => {
     expect(
-      resolvePrompt({
+      resolveModelPromptText({
         prompt: "",
-        messages: [{ role: "user", content: "Keep this request." }],
-      } as GenerateTextParams),
-    ).toBe("USER:\nKeep this request.");
-  });
-
-  it("serializes chat-native messages when segments are unavailable", () => {
-    expect(
-      resolvePrompt({
         messages: [
           { role: "system", content: "Be concrete." },
           {
@@ -61,12 +43,32 @@ describe.each(resolvers)("%s prompt contract", (_provider, resolvePrompt) => {
         ],
       } as GenerateTextParams),
     ).toBe(
-      "SYSTEM:\nBe concrete.\n\nUSER:\nReview this repository.\n[file attachment: README.md]",
+      "system:\nBe concrete.\n\nuser:\nReview this repository.\n[file attachment: README.md]",
     );
   });
 
+  it("preserves native tool calls when a chat must be down-converted", () => {
+    expect(
+      resolveModelPromptText({
+        messages: [
+          {
+            role: "assistant",
+            content: "",
+            toolCalls: [
+              {
+                id: "call-1",
+                name: "READ_FILE",
+                arguments: { path: "README.md" },
+              },
+            ],
+          },
+        ],
+      } as GenerateTextParams),
+    ).toContain('Tool calls: [{"id":"call-1","name":"READ_FILE"');
+  });
+
   it("makes a required single tool parseable over a text-only transport", () => {
-    const prompt = resolvePrompt({
+    const prompt = resolveModelPromptText({
       messages: [{ role: "user", content: "Say hello." }],
       tools: [
         {
@@ -82,7 +84,7 @@ describe.each(resolvers)("%s prompt contract", (_provider, resolvePrompt) => {
       toolChoice: "required",
     } as GenerateTextParams);
 
-    expect(prompt).toContain("USER:\nSay hello.");
+    expect(prompt).toContain("user:\nSay hello.");
     expect(prompt).toContain("A tool response is required.");
     expect(prompt).toContain(
       "Return only the JSON arguments for HANDLE_RESPONSE",
