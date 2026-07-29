@@ -59,15 +59,25 @@ export function createDevinPlugin(options: DevinPluginOptions): Plugin {
     services: [DevinService],
     models: options.enabled
       ? {
+          [ModelType.TEXT_NANO]: (runtime, params) =>
+            runDevinTextGeneration(runtime, params, options),
           [ModelType.TEXT_SMALL]: (runtime, params) =>
             runDevinTextGeneration(runtime, params, options),
+          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
+            runDevinTextGeneration(runtime, params, options),
           [ModelType.TEXT_LARGE]: (runtime, params) =>
+            runDevinTextGeneration(runtime, params, options),
+          [ModelType.TEXT_MEGA]: (runtime, params) =>
             runDevinTextGeneration(runtime, params, options),
           [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
             runDevinTextGeneration(runtime, params, options),
           [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
             runDevinTextGeneration(runtime, params, options),
           [ModelType.TEXT_COMPLETION]: (runtime, params) =>
+            runDevinTextGeneration(runtime, params, options),
+          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
+            runDevinTextGeneration(runtime, params, options),
+          [ModelType.ACTION_PLANNER]: (runtime, params) =>
             runDevinTextGeneration(runtime, params, options),
         }
       : undefined,

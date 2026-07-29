@@ -64,6 +64,13 @@ export function createElizaCloudPlugin(
     services: [ElizaCloudService],
     models: options.enabled
       ? {
+          [ModelType.TEXT_NANO]: (runtime, params) =>
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_NANO,
+            ),
           [ModelType.TEXT_SMALL]: (runtime, params) =>
             runElizaCloudTextGeneration(
               runtime,
@@ -71,12 +78,26 @@ export function createElizaCloudPlugin(
               options,
               ModelType.TEXT_SMALL,
             ),
+          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_MEDIUM,
+            ),
           [ModelType.TEXT_LARGE]: (runtime, params) =>
             runElizaCloudTextGeneration(
               runtime,
               params,
               options,
               ModelType.TEXT_LARGE,
+            ),
+          [ModelType.TEXT_MEGA]: (runtime, params) =>
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.TEXT_MEGA,
             ),
           [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
             runElizaCloudTextGeneration(
@@ -98,6 +119,20 @@ export function createElizaCloudPlugin(
               params,
               options,
               ModelType.TEXT_COMPLETION,
+            ),
+          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.RESPONSE_HANDLER,
+            ),
+          [ModelType.ACTION_PLANNER]: (runtime, params) =>
+            runElizaCloudTextGeneration(
+              runtime,
+              params,
+              options,
+              ModelType.ACTION_PLANNER,
             ),
           ...(enableEmbeddings
             ? {

@@ -60,15 +60,25 @@ export function createCodexPlugin(options: CodexPluginOptions): Plugin {
     services: [CodexService],
     models: options.enabled
       ? {
+          [ModelType.TEXT_NANO]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
           [ModelType.TEXT_SMALL]: (runtime, params) =>
             runCodexTextGeneration(runtime, params, options),
+          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
           [ModelType.TEXT_LARGE]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.TEXT_MEGA]: (runtime, params) =>
             runCodexTextGeneration(runtime, params, options),
           [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
             runCodexTextGeneration(runtime, params, options),
           [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
             runCodexTextGeneration(runtime, params, options),
           [ModelType.TEXT_COMPLETION]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
+            runCodexTextGeneration(runtime, params, options),
+          [ModelType.ACTION_PLANNER]: (runtime, params) =>
             runCodexTextGeneration(runtime, params, options),
         }
       : undefined,
