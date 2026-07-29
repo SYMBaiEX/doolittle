@@ -1,9 +1,10 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
+import { providerAuthExecutableCandidates } from "./provider-auth";
 
 const STARTUP_TIMEOUT_MS = 45_000;
 const HEALTH_POLL_MS = 250;
@@ -38,8 +39,22 @@ export function buildBackendEnvironment(
   workspaceDir: string,
   baseEnvironment: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
+  const providerPath = Array.from(
+    new Set(
+      (["codex", "claude-code"] as const)
+        .flatMap((provider) =>
+          providerAuthExecutableCandidates(provider, {
+            environment: baseEnvironment,
+          }),
+        )
+        .map((candidate) => dirname(candidate))
+        .concat((baseEnvironment.PATH ?? "").split(delimiter))
+        .filter(Boolean),
+    ),
+  ).join(delimiter);
   const environment: NodeJS.ProcessEnv = {
     ...baseEnvironment,
+    PATH: providerPath,
     DOOLITTLE_REPO_ROOT: repoRoot,
     DOOLITTLE_HOST: "127.0.0.1",
     DOOLITTLE_PORT: "0",

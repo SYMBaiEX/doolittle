@@ -5,8 +5,8 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { delimiter, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   BackendManager,
@@ -29,6 +29,7 @@ describe("buildBackendEnvironment", () => {
         POSTGRES_URL: "postgres://checkout",
         DOOLITTLE_GATEWAY_DATA_DIR: ".doolittle/gateway",
         DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "false",
+        PATH: "/usr/bin",
         NODE_OPTIONS: "--require /tmp/host-hook.cjs",
       },
     );
@@ -52,6 +53,9 @@ describe("buildBackendEnvironment", () => {
       DATABASE_URL: "",
       POSTGRES_URL: "",
     });
+    expect(environment.PATH?.split(delimiter)).toContain(
+      resolve(homedir(), ".local", "bin"),
+    );
     expect(environment.NODE_OPTIONS).toBeUndefined();
   });
 
