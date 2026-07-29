@@ -1,4 +1,5 @@
-import { type AgentRuntime, ModelType } from "@elizaos/core";
+import type { AgentRuntime } from "@elizaos/core";
+import { isElizaTextGenerationModelType } from "@elizaos/provider-transport";
 
 const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
   anthropic: "anthropic",
@@ -10,19 +11,6 @@ const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
   openai: "openai",
 };
 
-const ROUTED_MODEL_TYPES = new Set<string>([
-  ModelType.ACTION_PLANNER,
-  ModelType.RESPONSE_HANDLER,
-  ModelType.TEXT_COMPLETION,
-  ModelType.TEXT_LARGE,
-  ModelType.TEXT_MEDIUM,
-  ModelType.TEXT_MEGA,
-  ModelType.TEXT_NANO,
-  ModelType.TEXT_REASONING_LARGE,
-  ModelType.TEXT_REASONING_SMALL,
-  ModelType.TEXT_SMALL,
-]);
-
 export function resolveModelProviderPlugin(input: {
   modelType: string;
   activeProvider: string;
@@ -31,7 +19,7 @@ export function resolveModelProviderPlugin(input: {
   if (input.requestedProvider) {
     return input.requestedProvider;
   }
-  if (!ROUTED_MODEL_TYPES.has(String(input.modelType))) {
+  if (!isElizaTextGenerationModelType(input.modelType)) {
     return undefined;
   }
   return PROVIDER_PLUGIN_NAMES[input.activeProvider];

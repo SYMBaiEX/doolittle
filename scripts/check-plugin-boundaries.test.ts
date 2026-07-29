@@ -18,6 +18,7 @@ const NUB_PATH = join(
 
 function createBoundaryFixture(options: {
   includeInternalFacadeViolation?: boolean;
+  includeDuplicatedModelRegistrations?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -39,7 +40,9 @@ function createBoundaryFixture(options: {
 
   writeFileSync(
     join(packagesDir, "plugins", "plugin-dummy", "index.ts"),
-    'export const plugin = "ok";\n',
+    options.includeDuplicatedModelRegistrations
+      ? "export const plugin = { models: { [ModelType.TEXT_LARGE]: handler } };\n"
+      : 'export const plugin = "ok";\n',
     "utf8",
   );
 
@@ -112,5 +115,18 @@ describe("check-plugin-boundaries", () => {
       "imports through a service compatibility facade instead of a folder-owned module",
     );
     expect(result.stderr).toContain("bad.ts");
+  });
+
+  it("rejects duplicated provider model registration surfaces", () => {
+    fixture = createBoundaryFixture({
+      includeDuplicatedModelRegistrations: true,
+    });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "redeclares the shared Eliza text model surface",
+    );
+    expect(result.stderr).toContain("plugin-dummy/index.ts");
   });
 });

@@ -1,9 +1,9 @@
 import {
   Service as ElizaService,
   type IAgentRuntime,
-  ModelType,
   type Plugin,
 } from "@elizaos/core";
+import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import { runClaudeCodeTextGeneration } from "./anthropic";
 import type {
   ClaudeCodeLiveGenerateParams,
@@ -59,28 +59,9 @@ export function createClaudeCodePlugin(
       "Workspace-native Claude Code plugin for linked-account discovery and Claude-native workflow routing.",
     services: [ClaudeCodeService],
     models: options.enabled
-      ? {
-          [ModelType.TEXT_NANO]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_SMALL]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_LARGE]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_MEGA]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.TEXT_COMPLETION]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-          [ModelType.ACTION_PLANNER]: (runtime, params) =>
-            runClaudeCodeTextGeneration(runtime, params, options),
-        }
+      ? createElizaTextGenerationModelHandlers((runtime, params) =>
+          runClaudeCodeTextGeneration(runtime, params, options),
+        )
       : undefined,
     providers: [],
     actions: [],

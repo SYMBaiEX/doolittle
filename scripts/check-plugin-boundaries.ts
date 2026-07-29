@@ -34,6 +34,9 @@ const FORBIDDEN_IMPORT_PATTERNS: Array<{
   },
 ];
 
+const DUPLICATE_TEXT_MODEL_REGISTRATION_PATTERN =
+  /\[\s*ModelType\.(?:TEXT_NANO|TEXT_SMALL|TEXT_MEDIUM|TEXT_LARGE|TEXT_MEGA|RESPONSE_HANDLER|ACTION_PLANNER|TEXT_REASONING_SMALL|TEXT_REASONING_LARGE|TEXT_COMPLETION)\s*\]\s*:/u;
+
 const SERVICE_BRIDGE_ROOT_IMPORT_PATTERN =
   /^\s*import(?:\s+type)?[\s\S]*?from\s+["'](?:@\/runtime\/native\/service-bridge|(?:\.\.\/|\.\/)+(?:[^"']+\/)*service-bridge)["']/mu;
 
@@ -229,6 +232,11 @@ function main(): void {
         if (pattern.test(source)) {
           failures.push(`${relative(ROOT, filePath)} (${reason})`);
         }
+      }
+      if (DUPLICATE_TEXT_MODEL_REGISTRATION_PATTERN.test(source)) {
+        failures.push(
+          `${relative(ROOT, filePath)} (redeclares the shared Eliza text model surface instead of using createElizaTextGenerationModelHandlers)`,
+        );
       }
     }
   }

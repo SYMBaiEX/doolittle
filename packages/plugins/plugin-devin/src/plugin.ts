@@ -1,9 +1,9 @@
 import {
   Service as ElizaService,
   type IAgentRuntime,
-  ModelType,
   type Plugin,
 } from "@elizaos/core";
+import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import {
   DEFAULT_DEVIN_COMMAND,
   DEFAULT_DEVIN_MODEL,
@@ -58,28 +58,9 @@ export function createDevinPlugin(options: DevinPluginOptions): Plugin {
       "Workspace-native Devin plugin for linked-account discovery and SWE model routing.",
     services: [DevinService],
     models: options.enabled
-      ? {
-          [ModelType.TEXT_NANO]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_SMALL]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_LARGE]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_MEGA]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.TEXT_COMPLETION]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-          [ModelType.ACTION_PLANNER]: (runtime, params) =>
-            runDevinTextGeneration(runtime, params, options),
-        }
+      ? createElizaTextGenerationModelHandlers((runtime, params) =>
+          runDevinTextGeneration(runtime, params, options),
+        )
       : undefined,
     providers: [],
     actions: [],

@@ -1,6 +1,38 @@
-import type { GenerateTextParams } from "@elizaos/core";
+import { type GenerateTextParams, ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
-import { resolveModelPromptText } from "./index";
+import {
+  createElizaTextGenerationModelHandlers,
+  ELIZA_TEXT_GENERATION_MODEL_TYPES,
+  isElizaTextGenerationModelType,
+  resolveModelPromptText,
+} from "./index";
+
+describe("Eliza text model registrations", () => {
+  it("keeps routing and provider registrations on one SDK model surface", async () => {
+    const calls: string[] = [];
+    const handlers = createElizaTextGenerationModelHandlers(
+      async (_runtime, _params, modelType) => {
+        calls.push(modelType);
+        return modelType;
+      },
+    );
+
+    expect(Object.keys(handlers)).toEqual([
+      ...ELIZA_TEXT_GENERATION_MODEL_TYPES,
+    ]);
+    expect(isElizaTextGenerationModelType(ModelType.RESPONSE_HANDLER)).toBe(
+      true,
+    );
+    expect(isElizaTextGenerationModelType(ModelType.TEXT_EMBEDDING)).toBe(
+      false,
+    );
+    expect(isElizaTextGenerationModelType(ModelType.RESEARCH)).toBe(false);
+    await handlers[ModelType.TEXT_REASONING_LARGE]({} as never, {
+      prompt: "reason",
+    });
+    expect(calls).toEqual([ModelType.TEXT_REASONING_LARGE]);
+  });
+});
 
 describe("resolveModelPromptText", () => {
   it("preserves a supplied legacy prompt exactly", () => {

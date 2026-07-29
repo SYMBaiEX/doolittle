@@ -5,6 +5,7 @@ import {
   type Plugin,
   type TextEmbeddingParams,
 } from "@elizaos/core";
+import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import { DEFAULT_ELIZA_CLOUD_BASE_URL } from "./constants";
 import {
   runElizaCloudEmbeddingGeneration,
@@ -64,76 +65,10 @@ export function createElizaCloudPlugin(
     services: [ElizaCloudService],
     models: options.enabled
       ? {
-          [ModelType.TEXT_NANO]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_NANO,
-            ),
-          [ModelType.TEXT_SMALL]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_SMALL,
-            ),
-          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_MEDIUM,
-            ),
-          [ModelType.TEXT_LARGE]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_LARGE,
-            ),
-          [ModelType.TEXT_MEGA]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_MEGA,
-            ),
-          [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_REASONING_SMALL,
-            ),
-          [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_REASONING_LARGE,
-            ),
-          [ModelType.TEXT_COMPLETION]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.TEXT_COMPLETION,
-            ),
-          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.RESPONSE_HANDLER,
-            ),
-          [ModelType.ACTION_PLANNER]: (runtime, params) =>
-            runElizaCloudTextGeneration(
-              runtime,
-              params,
-              options,
-              ModelType.ACTION_PLANNER,
-            ),
+          ...createElizaTextGenerationModelHandlers(
+            (runtime, params, modelType) =>
+              runElizaCloudTextGeneration(runtime, params, options, modelType),
+          ),
           ...(enableEmbeddings
             ? {
                 [ModelType.TEXT_EMBEDDING]: (

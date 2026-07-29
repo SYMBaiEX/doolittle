@@ -1,9 +1,9 @@
 import {
   Service as ElizaService,
   type IAgentRuntime,
-  ModelType,
   type Plugin,
 } from "@elizaos/core";
+import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import { DEFAULT_CODEX_BASE_URL } from "./constants";
 import { runCodexTextGeneration } from "./generate";
 import type {
@@ -59,28 +59,9 @@ export function createCodexPlugin(options: CodexPluginOptions): Plugin {
       "Workspace-native Codex plugin for linked-account discovery and Codex-native workflow routing.",
     services: [CodexService],
     models: options.enabled
-      ? {
-          [ModelType.TEXT_NANO]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_SMALL]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_MEDIUM]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_LARGE]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_MEGA]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_REASONING_SMALL]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_REASONING_LARGE]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.TEXT_COMPLETION]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.RESPONSE_HANDLER]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-          [ModelType.ACTION_PLANNER]: (runtime, params) =>
-            runCodexTextGeneration(runtime, params, options),
-        }
+      ? createElizaTextGenerationModelHandlers((runtime, params) =>
+          runCodexTextGeneration(runtime, params, options),
+        )
       : undefined,
     providers: [],
     actions: [],
