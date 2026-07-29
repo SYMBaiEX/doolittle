@@ -1,6 +1,5 @@
 import type { Plugin } from "@elizaos/core";
 import type { ElizaCloudStatus } from "@elizaos/plugin-elizacloud";
-import type { AppServices } from "../../../services";
 import type { EnvConfig } from "../../../types/runtime";
 import {
   getLinkedClaudeCodeCredentials,
@@ -10,13 +9,10 @@ import {
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
 } from "../account-auth";
-import {
-  createDoolittleOllamaUxPlugin,
-} from "./local-ollama";
+import { createDoolittleOllamaUxPlugin } from "./local-ollama";
 import { normalizePlugin } from "./support";
 
 export async function loadProviderPlugins(
-  services: AppServices,
   config: EnvConfig,
 ): Promise<Plugin[]> {
   const enableCloudEmbeddings =

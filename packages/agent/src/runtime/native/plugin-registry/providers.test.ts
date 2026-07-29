@@ -1,17 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 import { loadProviderPlugins } from "./providers";
-
-function servicesWithProvider(provider: string): AppServices {
-  return {
-    settings: {
-      get: () => ({
-        model: { provider },
-      }),
-    },
-  } as unknown as AppServices;
-}
 
 function config(): EnvConfig {
   return {
@@ -28,14 +17,8 @@ function config(): EnvConfig {
 
 describe("loadProviderPlugins", () => {
   it("keeps switchable model providers registered across initial selections", async () => {
-    const fromOllama = await loadProviderPlugins(
-      servicesWithProvider("ollama"),
-      config(),
-    );
-    const fromClaude = await loadProviderPlugins(
-      servicesWithProvider("claude-code"),
-      config(),
-    );
+    const firstAssembly = await loadProviderPlugins(config());
+    const secondAssembly = await loadProviderPlugins(config());
     const switchableNames = [
       "@elizaos/plugin-codex",
       "@elizaos/plugin-claude-code",
@@ -44,15 +27,19 @@ describe("loadProviderPlugins", () => {
       "ollama",
     ];
 
-    expect(fromOllama.map((plugin) => plugin.name)).toEqual(
+    expect(firstAssembly.map((plugin) => plugin.name)).toEqual(
       expect.arrayContaining(switchableNames),
     );
-    expect(fromClaude.map((plugin) => plugin.name)).toEqual(
+    expect(secondAssembly.map((plugin) => plugin.name)).toEqual(
       expect.arrayContaining(switchableNames),
     );
     for (const name of switchableNames) {
-      expect(fromOllama.find((plugin) => plugin.name === name)?.models).toBeDefined();
-      expect(fromClaude.find((plugin) => plugin.name === name)?.models).toBeDefined();
+      expect(
+        firstAssembly.find((plugin) => plugin.name === name)?.models,
+      ).toBeDefined();
+      expect(
+        secondAssembly.find((plugin) => plugin.name === name)?.models,
+      ).toBeDefined();
     }
   });
 });

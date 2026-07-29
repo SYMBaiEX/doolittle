@@ -2,13 +2,13 @@ export { ensureCoreRuntimeServices } from "./core-services";
 export { validateCriticalRuntimeServices } from "./critical";
 export { registerMemoryStorage } from "./memory-service-registration";
 export {
-  disposeRuntime,
-  initializeRuntimeWithRecovery,
-} from "./recovery";
-export {
   installDynamicModelProviderRouting,
   resolveModelProviderPlugin,
 } from "./model-provider-routing";
+export {
+  disposeRuntime,
+  initializeRuntimeWithRecovery,
+} from "./recovery";
 export {
   coerceRelationshipEntityId,
   patchRuntimeRelationshipCompatibility,

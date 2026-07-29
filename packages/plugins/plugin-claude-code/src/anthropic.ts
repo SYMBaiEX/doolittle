@@ -42,9 +42,7 @@ function resolveClaudeReasoningEffort(
   return effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : undefined;
 }
 
-function credentialsAreExpired(credentials: {
-  expiresAt?: string;
-}): boolean {
+function credentialsAreExpired(credentials: { expiresAt?: string }): boolean {
   if (!credentials.expiresAt) {
     return false;
   }
@@ -84,8 +82,7 @@ export async function runClaudeCodeTextGeneration(
 
   let credentials = options.getCredentials?.();
   if (
-    (!credentials?.accessToken?.trim() ||
-      credentialsAreExpired(credentials)) &&
+    (!credentials?.accessToken?.trim() || credentialsAreExpired(credentials)) &&
     options.refreshCredentials
   ) {
     credentials = await options.refreshCredentials();

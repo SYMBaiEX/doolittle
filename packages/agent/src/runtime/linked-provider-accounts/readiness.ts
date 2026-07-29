@@ -236,10 +236,7 @@ async function computeProviderReadinessMessage(
 
   if (provider === "claude-code") {
     const claudeStatus = snapshot.claudeCode;
-    if (
-      context.config.claudeCodeCliFallback &&
-      claudeStatus.fallbackReady
-    ) {
+    if (context.config.claudeCodeCliFallback && claudeStatus.fallbackReady) {
       cacheProviderReadiness(runtimeKey, provider, undefined);
       return undefined;
     }

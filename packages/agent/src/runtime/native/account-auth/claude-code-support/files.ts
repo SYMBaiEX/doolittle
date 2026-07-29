@@ -10,7 +10,6 @@ import {
   readNestedField,
   readTokenPair,
   timestampTextOrUndefined,
-  trimTextOrUndefined,
 } from "../token-loaders";
 import type { LinkedClaudeCodeCredentials } from "../types";
 import {

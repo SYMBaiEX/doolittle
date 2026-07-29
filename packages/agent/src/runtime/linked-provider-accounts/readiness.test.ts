@@ -178,10 +178,7 @@ describe("linked-provider-accounts readiness helpers", () => {
       },
     } as unknown as AgentExecutionContext;
 
-    const message = await getProviderReadinessMessage(
-      context,
-      "claude-code",
-    );
+    const message = await getProviderReadinessMessage(context, "claude-code");
 
     expect(message).toBeUndefined();
     expect(providerCredentialsCalls).toBe(0);

@@ -46,7 +46,7 @@ export async function buildNativePluginAssembly(
   const catalog = getNativePluginCatalog(config);
   const groupedCatalog = groupNativePluginCatalog(catalog);
   const foundation: Plugin[] = [];
-  const providers = await loadProviderPlugins(services, config);
+  const providers = await loadProviderPlugins(config);
   const identity = await loadHotIdentityPlugins(services);
   const execution = await loadHotExecutionPlugins(services, config);
   const product: Plugin[] = [createDoolittlePlugin({ services, config })];

@@ -52,10 +52,7 @@ describe("installDynamicModelProviderRouting", () => {
     };
     const runtime = { useModel };
 
-    installDynamicModelProviderRouting(
-      runtime as never,
-      () => activeProvider,
-    );
+    installDynamicModelProviderRouting(runtime as never, () => activeProvider);
 
     await runtime.useModel(ModelType.TEXT_LARGE, { prompt: "first" });
     activeProvider = "claude-code";
