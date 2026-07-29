@@ -888,65 +888,72 @@ export function App() {
     [pushToast, reloadProjects, setView, workspace.currentPath],
   );
 
-  const chooseRepositoryForConversation = useCallback(async () => {
-    try {
-      const result = await window.doolittle.pickWorkspace();
-      setWorkspace(result.state);
-      if (result.canceled || !result.state.currentPath) return;
+  const chooseRepositoryForConversation = useCallback(
+    async (targetSessionId?: string) => {
+      try {
+        const result = await window.doolittle.pickWorkspace();
+        setWorkspace(result.state);
+        if (result.canceled || !result.state.currentPath) return;
 
-      const repositoryPath = result.state.currentPath;
-      let project = projects.find(
-        (entry) =>
-          pathsEqual(entry.primaryPath, repositoryPath) ||
-          entry.resources.some(
-            (resource) =>
-              resource.kind === "folder" &&
-              pathsEqual(resource.value, repositoryPath),
-          ),
-      );
-
-      if (project?.archivedAt) {
-        const restored = await desktopRequest<ProjectResponse>(
-          `/projects/${encodeURIComponent(project.id)}/archive`,
-          "POST",
-          { archived: false },
+        const repositoryPath = result.state.currentPath;
+        let project = projects.find(
+          (entry) =>
+            pathsEqual(entry.primaryPath, repositoryPath) ||
+            entry.resources.some(
+              (resource) =>
+                resource.kind === "folder" &&
+                pathsEqual(resource.value, repositoryPath),
+            ),
         );
-        project = restored.project;
-      }
 
-      if (!project) {
-        const created = await desktopRequest<ProjectResponse>(
-          "/projects",
-          "POST",
-          {
-            name: workspaceName(repositoryPath),
-            description: "Local repository workspace",
-            color: "#ff6a00",
-            primaryPath: repositoryPath,
-          },
+        if (project?.archivedAt) {
+          const restored = await desktopRequest<ProjectResponse>(
+            `/projects/${encodeURIComponent(project.id)}/archive`,
+            "POST",
+            { archived: false },
+          );
+          project = restored.project;
+        }
+
+        if (!project) {
+          const created = await desktopRequest<ProjectResponse>(
+            "/projects",
+            "POST",
+            {
+              name: workspaceName(repositoryPath),
+              description: "Local repository workspace",
+              color: "#ff6a00",
+              primaryPath: repositoryPath,
+            },
+          );
+          project = created.project;
+        }
+
+        const selectedProject = project;
+        setProjects((current) => [
+          ...current.filter((entry) => entry.id !== selectedProject.id),
+          selectedProject,
+        ]);
+        transitionToProjectScope(
+          selectedProject.id,
+          targetSessionId ?? newConversationId(),
+          projectNavigationTarget("new-conversation"),
         );
-        project = created.project;
+        pushToast({
+          tone: "success",
+          title: `Ready in ${selectedProject.name}`,
+          message: "This conversation is linked to the selected repository.",
+        });
+      } catch (error) {
+        pushToast({
+          tone: "error",
+          title: "Repository could not be opened",
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
-
-      const selectedProject = project;
-      setProjects((current) => [
-        ...current.filter((entry) => entry.id !== selectedProject.id),
-        selectedProject,
-      ]);
-      startConversation(selectedProject.id);
-      pushToast({
-        tone: "success",
-        title: `Ready in ${selectedProject.name}`,
-        message: "This conversation is linked to the selected repository.",
-      });
-    } catch (error) {
-      pushToast({
-        tone: "error",
-        title: "Repository could not be opened",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [projects, pushToast, startConversation]);
+    },
+    [projects, pushToast, transitionToProjectScope],
+  );
 
   const updateProject = useCallback(
     async (project: ProjectLike, draft: ProjectDraft) => {
@@ -1770,12 +1777,19 @@ export function App() {
           <ChatPage
             activeProject={activeProject}
             backend={backend}
+            onChooseRepository={() =>
+              chooseRepositoryForConversation(selectedSession)
+            }
             onOpenProjectManager={openProjectManager}
             onRequestNewConversation={createConversation}
+            onSelectProjectForNewChat={(scope) =>
+              transitionToProjectScope(scope, selectedSession, "chat")
+            }
             onSelect={setSelectedSession}
             onOpenModelsPage={() => setView("models")}
             onOpenWorkspaceView={setView}
             pendingApprovals={pendingApprovals}
+            projects={projectCards}
             projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
             remoteSessions={scopedSessions}

@@ -25,9 +25,14 @@ import type {
   SessionUsageSummary,
 } from "../shared/contracts";
 import { commandCompletions } from "./command-completion";
+import {
+  ComposerModelSelector,
+  ComposerProjectSelector,
+} from "./components/ComposerSelectors";
 import { InlineApprovalPanel } from "./components/InlineApprovalPanel";
 import { MessageContent } from "./components/MessageContent";
 import { visibleAssistantText } from "./components/message-output";
+import type { ProjectLike, ProjectScope } from "./components/ProjectManager";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import {
   type ThreadWorkbenchFullView,
@@ -399,8 +404,11 @@ export function ChatPage({
   onOpenModelsPage,
   onOpenWorkspaceView,
   activeProject,
+  projects,
   projectLabels,
+  onChooseRepository,
   onOpenProjectManager,
+  onSelectProjectForNewChat,
   onRequestNewConversation,
   pendingApprovals,
   runningTasks,
@@ -420,8 +428,11 @@ export function ChatPage({
     color?: string | null;
     primaryPath?: string | null;
   } | null;
+  projects?: readonly ProjectLike[];
   projectLabels?: Readonly<Record<string, string>>;
+  onChooseRepository?: () => void | Promise<void>;
   onOpenProjectManager?: () => void;
+  onSelectProjectForNewChat?: (scope: ProjectScope) => void;
   onRequestNewConversation?: () => void;
   pendingApprovals: number;
   runningTasks: number;
@@ -1687,6 +1698,10 @@ export function ChatPage({
     Boolean(draft.trim()) &&
     backend.phase === "ready" &&
     !composerValidationError;
+  const isNewConversation =
+    selectedMessages.length === 0 &&
+    (selectedSession?.messageCount ?? 0) === 0 &&
+    !activeRequest;
 
   return (
     <div
@@ -1952,6 +1967,21 @@ export function ChatPage({
           {accessibilityStatus}
         </div>
         <form className="chat-composer" onSubmit={submit}>
+          {isNewConversation &&
+          projects &&
+          onChooseRepository &&
+          onOpenProjectManager &&
+          onSelectProjectForNewChat ? (
+            <div className="chat-composer-context-tab">
+              <ComposerProjectSelector
+                activeProjectId={activeProject?.id}
+                onChooseRepository={onChooseRepository}
+                onManageProjects={onOpenProjectManager}
+                onSelectProject={onSelectProjectForNewChat}
+                projects={projects}
+              />
+            </div>
+          ) : null}
           <InlineApprovalPanel active={backend.phase === "ready"} />
           {queuedMessages.length > 0 ? (
             <div className="chat-message-queue" ref={queueRef}>
@@ -2267,6 +2297,12 @@ export function ChatPage({
                 )}
               </section>
             ) : null}
+            <ComposerModelSelector
+              active={backend.phase === "ready"}
+              onOpenModelsPage={onOpenModelsPage}
+              refreshRuntime={refreshRuntime}
+              runtime={runtime}
+            />
           </div>
           <textarea
             aria-label="Message Doolittle"
