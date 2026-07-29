@@ -3,12 +3,15 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import type {
   ProviderAuthProvider,
   ProviderAuthState,
+  RuntimeModelsResponse,
+  RuntimeReasoningEffort,
   RuntimeStatus,
 } from "../shared/contracts";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
@@ -40,6 +43,7 @@ interface SettingsResponse {
       baseUrl?: string;
       temperature?: number;
       maxTokens?: number;
+      reasoningEffort?: RuntimeReasoningEffort;
     };
   };
 }
@@ -81,10 +85,12 @@ export function ModelsPage({
   active,
   runtime,
   refreshRuntime,
+  embedded = false,
 }: {
   active: boolean;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
+  embedded?: boolean;
 }) {
   const settings = useApiResource<SettingsResponse>(
     active ? "/settings" : null,
@@ -94,6 +100,10 @@ export function ModelsPage({
     active ? "/runtime/accounts" : null,
     [active],
   );
+  const models = useApiResource<RuntimeModelsResponse>(
+    active ? "/runtime/models?refresh=true" : null,
+    [active],
+  );
   const model = settings.data?.settings?.model;
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -101,25 +111,56 @@ export function ModelsPage({
 
   const fieldValue = (key: string, fallback: unknown) =>
     Object.hasOwn(draft, key) ? draft[key] : String(fallback ?? "");
+  const selectedProviderId = fieldValue("provider", model?.provider);
+  const selectedModelId = fieldValue("model", model?.model);
+  const selectedProvider = useMemo(
+    () =>
+      models.data?.providers.find(
+        (provider) => provider.id === selectedProviderId,
+      ),
+    [models.data?.providers, selectedProviderId],
+  );
+  const selectedModel = useMemo(
+    () =>
+      selectedProvider?.models.find((entry) => entry.id === selectedModelId),
+    [selectedModelId, selectedProvider?.models],
+  );
+  const reasoningOptions = selectedModel?.reasoning?.options ?? [];
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setFeedback("");
     try {
-      const changes: Array<[string, string | number]> = [
-        ["model.provider", fieldValue("provider", model?.provider)],
-        ["model.model", fieldValue("model", model?.model)],
-        ["model.baseUrl", fieldValue("baseUrl", model?.baseUrl)],
-        [
-          "model.temperature",
-          Number(fieldValue("temperature", model?.temperature)),
+      const effort = fieldValue(
+        "reasoningEffort",
+        model?.reasoningEffort ?? selectedModel?.reasoning?.default,
+      );
+      await desktopRequest("/settings", "POST", {
+        changes: [
+          { path: "model.provider", value: selectedProviderId },
+          { path: "model.model", value: selectedModelId },
+          {
+            path: "model.baseUrl",
+            value: fieldValue(
+              "baseUrl",
+              selectedProvider?.baseUrl ?? model?.baseUrl,
+            ),
+          },
+          {
+            path: "model.temperature",
+            value: Number(fieldValue("temperature", model?.temperature)),
+          },
+          {
+            path: "model.maxTokens",
+            value: Number(fieldValue("maxTokens", model?.maxTokens)),
+          },
+          {
+            path: "model.reasoningEffort",
+            value: effort || undefined,
+          },
         ],
-        ["model.maxTokens", Number(fieldValue("maxTokens", model?.maxTokens))],
-      ];
-      for (const [path, value] of changes) {
-        await desktopRequest("/settings", "POST", { path, value });
-      }
+      });
       setDraft({});
       setFeedback("Model settings saved. New turns will use this selection.");
       settings.reload();
@@ -132,19 +173,37 @@ export function ModelsPage({
   };
 
   return (
-    <div className="page">
-      <PageHeader
-        eyebrow="Agent"
-        title="Models"
-        description="Choose the provider and model Doolittle uses for new work, with local-first defaults."
-        actions={
-          runtime ? (
+    <div className={embedded ? "settings-model-section" : "page"}>
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Inference</span>
+            <h2>Provider & model</h2>
+            <p>
+              Choose from live provider catalogs. Changes apply to the next
+              turn, including inside an existing conversation.
+            </p>
+          </div>
+          {runtime ? (
             <Badge tone="good">
               {runtime.provider} · {runtime.model}
             </Badge>
-          ) : null
-        }
-      />
+          ) : null}
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Agent"
+          title="Models"
+          description="Choose the provider and model Doolittle uses for new work, with local-first defaults."
+          actions={
+            runtime ? (
+              <Badge tone="good">
+                {runtime.provider} · {runtime.model}
+              </Badge>
+            ) : null
+          }
+        />
+      )}
       {settings.loading ? (
         <LoadingBlock label="Loading model settings…" />
       ) : settings.error ? (
@@ -162,43 +221,112 @@ export function ModelsPage({
               <label>
                 <span>Provider</span>
                 <select
-                  value={fieldValue("provider", model?.provider)}
+                  value={selectedProviderId}
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
                       provider: event.target.value,
+                      model:
+                        models.data?.providers.find(
+                          (provider) => provider.id === event.target.value,
+                        )?.models[0]?.id ?? "",
+                      reasoningEffort: "",
                     }))
                   }
                 >
-                  <option value="ollama">Ollama</option>
-                  <option value="elizacloud">Eliza Cloud</option>
-                  <option value="codex">Codex</option>
-                  <option value="claude-code">Claude Code</option>
-                  <option value="devin">Devin</option>
-                  <option value="openai">OpenAI-compatible</option>
-                  <option value="anthropic">Anthropic</option>
+                  {!models.data?.providers.some(
+                    (provider) => provider.id === selectedProviderId,
+                  ) && selectedProviderId ? (
+                    <option value={selectedProviderId}>
+                      {titleCase(selectedProviderId)}
+                    </option>
+                  ) : null}
+                  {(models.data?.providers ?? []).map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.label}
+                      {provider.discovery === "live" ? " · Live" : ""}
+                    </option>
+                  ))}
                 </select>
                 <small>
-                  Ollama keeps inference on this machine when available.
+                  {selectedProvider?.detail ??
+                    "Provider availability is detected from this machine."}
                 </small>
               </label>
               <label>
                 <span>Model</span>
-                <input
-                  value={fieldValue("model", model?.model)}
+                <select
+                  value={selectedModelId}
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
                       model: event.target.value,
+                      reasoningEffort: "",
                     }))
                   }
-                  placeholder="granite4.1:3b"
-                />
+                >
+                  {selectedProvider?.models.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.label}
+                      {entry.source === "discovered" ? " · Discovered" : ""}
+                    </option>
+                  ))}
+                  {!selectedProvider?.models.some(
+                    (entry) => entry.id === selectedModelId,
+                  ) && selectedModelId ? (
+                    <option value={selectedModelId}>{selectedModelId}</option>
+                  ) : null}
+                </select>
+                {models.loading ? (
+                  <small>Refreshing model catalog…</small>
+                ) : null}
+                {models.error ? <small>{models.error}</small> : null}
               </label>
+              {reasoningOptions.length ? (
+                <label>
+                  <span>Reasoning effort</span>
+                  <select
+                    value={fieldValue(
+                      "reasoningEffort",
+                      model?.reasoningEffort ??
+                        selectedModel?.reasoning?.default ??
+                        "",
+                    )}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        reasoningEffort: event.target.value,
+                      }))
+                    }
+                  >
+                    {reasoningOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    {
+                      reasoningOptions.find(
+                        (option) =>
+                          option.id ===
+                          fieldValue(
+                            "reasoningEffort",
+                            model?.reasoningEffort ??
+                              selectedModel?.reasoning?.default,
+                          ),
+                      )?.description
+                    }
+                  </small>
+                </label>
+              ) : null}
               <label className="field-span">
                 <span>Base URL</span>
                 <input
-                  value={fieldValue("baseUrl", model?.baseUrl)}
+                  value={fieldValue(
+                    "baseUrl",
+                    selectedProvider?.baseUrl ?? model?.baseUrl,
+                  )}
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,

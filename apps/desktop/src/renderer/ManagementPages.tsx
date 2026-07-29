@@ -11,7 +11,15 @@ import type {
   PluginsResponse,
   RuntimeStatus,
 } from "../shared/contracts";
-import { ConnectionsPage } from "./AgentPages";
+import { ConnectionsPage, ModelsPage } from "./AgentPages";
+import {
+  APPEARANCE_STORAGE_KEY,
+  announceAppearance,
+  announceTheme,
+  type DesktopAppearance,
+  loadAppearancePreference,
+  parseDesktopThemeProfile,
+} from "./desktop-theme";
 import {
   asArray,
   asNumber,
@@ -651,6 +659,54 @@ const selectOptions: Record<string, string[]> = {
   "agent.toolProgressMode": ["off", "new", "all"],
 };
 
+const settingDescriptions: Record<string, string> = {
+  "gateway.sessionTimeoutMinutes":
+    "How long an inactive gateway session remains available.",
+  "gateway.mirrorResponsesToHistory":
+    "Keep gateway responses in the same durable conversation history.",
+  "agent.runDepth":
+    "Controls how much planning and verification the agent performs.",
+  "agent.maxIterations":
+    "Safety ceiling for model and tool cycles in one agent run.",
+  "agent.toolProgressMode":
+    "Choose how much live tool progress appears in the conversation.",
+  "mcp.serverCommand":
+    "Command used to launch the local Model Context Protocol server.",
+  "mcp.timeoutMs": "Maximum time to wait for an MCP operation.",
+  "execution.backend":
+    "Default environment used for shell commands and workspace tools.",
+  "execution.remoteSyncMode":
+    "How the active project is transferred to remote execution backends.",
+  "execution.remoteArtifactPolicy":
+    "What Doolittle retrieves after remote work completes.",
+  "execution.commandTimeoutMs":
+    "Maximum runtime for a single execution command.",
+  "execution.healthTimeoutMs":
+    "Maximum wait while checking an execution backend.",
+  "execution.containerReadOnlyRoot":
+    "Mount the container root filesystem read-only when supported.",
+  "execution.sshStrictHostKeyChecking":
+    "Reject SSH hosts whose key is missing or has changed.",
+};
+
+function settingDescription(field: FlatSetting): string {
+  const exact = settingDescriptions[field.path];
+  if (exact) return exact;
+  if (field.path.endsWith("WorkspacePath"))
+    return "Working directory used inside this execution environment.";
+  if (field.path.endsWith("BootstrapCommand"))
+    return "Command run when preparing this remote environment.";
+  if (field.path.endsWith("StatusCommand"))
+    return "Command used to verify that this environment is ready.";
+  if (field.path.endsWith("InspectCommand"))
+    return "Command used to collect diagnostic details.";
+  if (field.path.endsWith("EnvPassthrough"))
+    return "Environment variable names allowed into this backend.";
+  if (Array.isArray(field.value))
+    return "One entry per line. Empty lines are ignored.";
+  return "Saved locally and applied by the Doolittle runtime.";
+}
+
 function SettingControl({
   field,
   saved,
@@ -697,6 +753,7 @@ function SettingControl({
     <div className="setting-row">
       <div className="setting-copy">
         <strong>{titleCase(field.path.split(".").at(-1) ?? field.path)}</strong>
+        <small>{settingDescription(field)}</small>
         <code>{field.path}</code>
       </div>
       <div className="setting-control">
@@ -763,9 +820,16 @@ export function SettingsPage({ active }: { active: boolean }) {
     active ? "/execution/status" : null,
     [active],
   );
+  const runtime = useApiResource<RuntimeStatus>(
+    active ? "/runtime/status" : null,
+    [active],
+  );
   const [category, setCategory] = useState("providers");
   const [query, setQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [appearance, setAppearance] = useState<DesktopAppearance>(
+    loadAppearancePreference,
+  );
   const [lifecycle, setLifecycle] = useState<DesktopLifecycleState | null>(
     null,
   );
@@ -818,7 +882,7 @@ export function SettingsPage({ active }: { active: boolean }) {
       )
       .map((value) => ({
         id: value,
-        label: titleCase(value),
+        label: value === "mcp" ? "MCP" : titleCase(value),
         description:
           value === "model"
             ? "Models and inference"
@@ -844,6 +908,7 @@ export function SettingsPage({ active }: { active: boolean }) {
     const normalized = query.trim().toLowerCase();
     return (
       (fieldCategory === "all" || field.category === fieldCategory) &&
+      (fieldCategory === "all" || field.path !== "ui.theme") &&
       (!normalized || field.path.toLowerCase().includes(normalized))
     );
   });
@@ -852,13 +917,30 @@ export function SettingsPage({ active }: { active: boolean }) {
 
   const changeTheme = async (theme: string) => {
     try {
-      await desktopRequest("/theme", "POST", { theme });
-      setSavedMessage("Theme saved.");
+      const response = await desktopRequest<ThemeResponse>("/theme", "POST", {
+        theme,
+      });
+      const profile = parseDesktopThemeProfile(response.profile);
+      if (profile) announceTheme(profile);
+      setSavedMessage(
+        `${profile?.label ?? titleCase(theme)} is now active everywhere.`,
+      );
       themes.reload();
       settings.reload();
     } catch (error) {
       setSavedMessage(errorMessage(error));
     }
+  };
+
+  const changeAppearance = (next: DesktopAppearance) => {
+    setAppearance(next);
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, next);
+    announceAppearance(next);
+    setSavedMessage(
+      next === "system"
+        ? "Appearance now follows your system."
+        : `${titleCase(next)} appearance is now active.`,
+    );
   };
 
   return (
@@ -940,7 +1022,48 @@ export function SettingsPage({ active }: { active: boolean }) {
                 <div className="settings-group-heading">
                   <div>
                     <span className="eyebrow">Appearance</span>
-                    <h2>Runtime theme</h2>
+                    <h2>Light, dark & system</h2>
+                  </div>
+                </div>
+                <fieldset
+                  aria-label="Application appearance"
+                  className="appearance-segmented"
+                >
+                  <legend className="sr-only">Application appearance</legend>
+                  {(["dark", "light", "system"] as const).map((option) => (
+                    <button
+                      aria-pressed={appearance === option}
+                      className={appearance === option ? "selected" : ""}
+                      key={option}
+                      onClick={() => changeAppearance(option)}
+                      type="button"
+                    >
+                      <i aria-hidden="true">
+                        {option === "dark"
+                          ? "◐"
+                          : option === "light"
+                            ? "☼"
+                            : "◑"}
+                      </i>
+                      <span>
+                        <strong>{titleCase(option)}</strong>
+                        <small>
+                          {option === "system"
+                            ? "Match this device"
+                            : `${titleCase(option)} surfaces`}
+                        </small>
+                      </span>
+                    </button>
+                  ))}
+                </fieldset>
+                <div className="settings-group-heading theme-heading">
+                  <div>
+                    <span className="eyebrow">Color system</span>
+                    <h2>Operator signal</h2>
+                    <p>
+                      The selected palette follows you through chat, code,
+                      review, workbench, and the terminal.
+                    </p>
                   </div>
                   <Badge>
                     {titleCase(asString(themes.data?.active, "orange"))}
@@ -950,6 +1073,8 @@ export function SettingsPage({ active }: { active: boolean }) {
                   {asArray(themes.data?.themes).map((value, index) => {
                     const entry = asRecord(value);
                     const name = asString(entry.name, String(index));
+                    const primary = asString(entry.primary, "#ff6a00");
+                    const secondary = asString(entry.secondary, primary);
                     return (
                       <button
                         className={
@@ -959,17 +1084,47 @@ export function SettingsPage({ active }: { active: boolean }) {
                         onClick={() => void changeTheme(name)}
                         type="button"
                       >
-                        <i
+                        <span
+                          className="theme-card-signal"
                           style={{
-                            background: asString(entry.primary, "#ff6a00"),
+                            background: `linear-gradient(135deg, ${primary}, ${secondary})`,
                           }}
-                        />
-                        <span>{asString(entry.label, titleCase(name))}</span>
+                        >
+                          <i style={{ background: primary }} />
+                          <i style={{ background: secondary }} />
+                          <i
+                            style={{
+                              background: asString(entry.greenGlow, "#86b875"),
+                            }}
+                          />
+                        </span>
+                        <span>
+                          <strong>
+                            {asString(entry.label, titleCase(name))}
+                          </strong>
+                          <small>
+                            {asString(entry.tagline, "Desktop color system")}
+                          </small>
+                        </span>
+                        <b aria-hidden="true">
+                          {themes.data?.active === name ? "✓" : ""}
+                        </b>
                       </button>
                     );
                   })}
                 </div>
               </section>
+            ) : null}
+            {category === "model" ? (
+              <ModelsPage
+                active={active}
+                embedded
+                refreshRuntime={() => {
+                  runtime.reload();
+                  settings.reload();
+                }}
+                runtime={runtime.data ?? null}
+              />
             ) : null}
             {category === "desktop" || category === "advanced" ? (
               <section className="settings-group">
@@ -1090,7 +1245,9 @@ export function SettingsPage({ active }: { active: boolean }) {
                 </div>
               </section>
             ) : null}
-            {!["providers", "desktop"].includes(category) ? (
+            {!["providers", "desktop", "appearance", "model"].includes(
+              category,
+            ) ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>

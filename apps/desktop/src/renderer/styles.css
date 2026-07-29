@@ -1853,6 +1853,78 @@ td {
   border-bottom: 1px solid var(--border);
 }
 
+.settings-group-heading p {
+  max-width: 620px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+
+.appearance-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.appearance-segmented button {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  color: var(--text-soft);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  text-align: left;
+}
+
+.appearance-segmented button:hover {
+  background: var(--surface-hover);
+}
+
+.appearance-segmented button.selected {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-soft));
+  border-color: var(--accent-border);
+}
+
+.appearance-segmented button > i {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 15px;
+  font-style: normal;
+}
+
+.appearance-segmented button > span {
+  display: grid;
+  gap: 3px;
+}
+
+.appearance-segmented strong {
+  font-size: var(--text-control);
+}
+
+.appearance-segmented small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.theme-heading {
+  margin-top: 22px;
+}
+
 .settings-rows {
   display: flex;
   flex-direction: column;
@@ -1879,6 +1951,12 @@ td {
 
 .setting-copy strong {
   font-size: var(--text-meta);
+}
+
+.setting-copy small {
+  color: var(--text-soft);
+  font-size: var(--text-meta);
+  line-height: 1.45;
 }
 
 .setting-copy code {
@@ -1952,32 +2030,98 @@ td {
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
 }
 
 .theme-grid button {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
   align-items: center;
-  gap: 8px;
-  padding: 9px;
+  gap: 10px;
+  min-height: 73px;
+  padding: 10px;
   color: var(--text-soft);
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
   text-align: left;
   font-size: var(--text-meta);
 }
 
-.theme-grid button.selected {
-  color: var(--text);
-  border-color: var(--accent);
+.theme-grid button:hover {
+  background: var(--surface-hover);
 }
 
-.theme-grid button i {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
+.theme-grid button.selected {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-soft));
+  border-color: var(--accent-border);
+}
+
+.theme-grid button > span:not(.theme-card-signal) {
+  display: grid;
+  gap: 4px;
+}
+
+.theme-grid button strong {
+  color: var(--text);
+  font-size: var(--text-control);
+}
+
+.theme-grid button small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.35;
+}
+
+.theme-grid button > b {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.theme-card-signal {
+  position: relative;
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, white 12%, transparent);
+  border-radius: 3px;
+}
+
+.theme-card-signal::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(145deg, transparent 42%, rgba(0, 0, 0, 0.42));
+}
+
+.theme-card-signal i {
+  z-index: 1;
+  width: 6px;
+  height: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1px;
+}
+
+.theme-card-signal i:nth-child(2) {
+  height: 21px;
+}
+
+.theme-card-signal i:nth-child(3) {
+  height: 10px;
+}
+
+.settings-model-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .about-hero {
@@ -3097,6 +3241,10 @@ td {
   }
 
   .setting-row {
+    grid-template-columns: 1fr;
+  }
+
+  .appearance-segmented {
     grid-template-columns: 1fr;
   }
 
