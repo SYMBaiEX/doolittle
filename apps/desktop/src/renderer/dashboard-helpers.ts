@@ -52,6 +52,52 @@ export interface DashboardNextAction {
   target: "review" | "tasks" | "setup" | "chat";
 }
 
+function compactListSummary(values: unknown[]): string {
+  const ready = values.filter((value) => asRecord(value).ready === true).length;
+  if (values.length === 0) return "None reported";
+  if (ready > 0 || values.some((value) => "ready" in asRecord(value))) {
+    return `${ready}/${values.length} ready`;
+  }
+  return `${values.length} ${values.length === 1 ? "item" : "items"}`;
+}
+
+export function summarizeDashboardValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) return compactListSummary(value);
+
+  const record = asRecord(value);
+  if (Object.keys(record).length === 0) return "No details reported";
+
+  const headline = asString(record.headline);
+  const detail = asString(record.detail);
+  if (headline || detail) return [headline, detail].filter(Boolean).join(" — ");
+
+  const name = asString(record.name);
+  const version = asString(record.version);
+  if (name || version) {
+    const runtime = [
+      asString(record.node) ? `Node ${asString(record.node)}` : "",
+      asString(record.nub) ? `Nub ${asString(record.nub)}` : "",
+    ].filter(Boolean);
+    return [`${name} ${version}`.trim(), ...runtime].join(" · ");
+  }
+
+  const numericEntries = Object.entries(record).filter(
+    ([, entry]) => typeof entry === "number",
+  );
+  if (numericEntries.length > 0) {
+    return numericEntries
+      .slice(0, 4)
+      .map(([key, entry]) => `${titleCase(key)} ${entry}`)
+      .join(" · ");
+  }
+
+  return `${Object.keys(record).length} signals`;
+}
+
 function countChangedFiles(lines: string[]): number {
   return lines.filter((line) => line.trim().length > 0).length;
 }
@@ -129,12 +175,7 @@ function setupEntryTone(value: string): DashboardSetupEntry["tone"] {
 
 export function summarizeSetupEntries(summary: unknown): DashboardSetupEntry[] {
   return Object.entries(asRecord(summary)).map(([key, value]) => {
-    const rendered =
-      typeof value === "string"
-        ? value
-        : typeof value === "number" || typeof value === "boolean"
-          ? String(value)
-          : JSON.stringify(value);
+    const rendered = summarizeDashboardValue(value);
     return {
       key,
       label: titleCase(key),

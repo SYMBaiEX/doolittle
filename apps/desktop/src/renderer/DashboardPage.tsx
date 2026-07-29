@@ -8,6 +8,7 @@ import {
   normalizeSessions,
   normalizeTasks,
   sessionCountSummary,
+  summarizeDashboardValue,
   summarizeRepoStatus,
   summarizeSetupEntries,
   summarizeSetupHealth,
@@ -489,7 +490,7 @@ export function DashboardPage({
                 <div className="status-row" key={key}>
                   <div>
                     <strong>{key}</strong>
-                    <small>{JSON.stringify(value)}</small>
+                    <small>{summarizeDashboardValue(value)}</small>
                   </div>
                 </div>
               ))}

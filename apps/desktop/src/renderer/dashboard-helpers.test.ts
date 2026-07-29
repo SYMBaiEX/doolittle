@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildNextActions,
+  summarizeDashboardValue,
   summarizeRepoStatus,
   summarizeSetupEntries,
 } from "./dashboard-helpers";
@@ -43,6 +44,32 @@ describe("dashboard helpers", () => {
     expect(entries.find((entry) => entry.key === "automation")?.tone).toBe(
       "good",
     );
+  });
+
+  it("turns nested setup data into concise operator summaries", () => {
+    expect(
+      summarizeDashboardValue({
+        headline: "The shell needs attention.",
+        detail: "2/6 providers ready",
+      }),
+    ).toBe("The shell needs attention. — 2/6 providers ready");
+    expect(
+      summarizeDashboardValue({
+        name: "doolittle",
+        version: "0.1.0",
+        node: "24.18.0",
+        nub: "0.6.0",
+      }),
+    ).toBe("doolittle 0.1.0 · Node 24.18.0 · Nub 0.6.0");
+    expect(
+      summarizeDashboardValue([
+        { id: "ollama", ready: true },
+        { id: "claude", ready: false },
+      ]),
+    ).toBe("1/2 ready");
+    expect(
+      summarizeDashboardValue({ total: 21, enabled: 18, official: 10 }),
+    ).toBe("Total 21 · Enabled 18 · Official 10");
   });
 
   it("builds next actions from operational pressure", () => {
