@@ -19,6 +19,7 @@ import type {
   RuntimeStatus,
   SessionSummary,
   SessionsResponse,
+  ThemeResponse,
   WorkspaceState,
 } from "../shared/contracts";
 import { ActivityCenter } from "./components/ActivityCenter";
@@ -37,6 +38,17 @@ import {
 } from "./components/ProjectSidebar";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { UtilityDrawer } from "./components/UtilityDrawer";
+import {
+  APPEARANCE_CHANGE_EVENT,
+  APPEARANCE_STORAGE_KEY,
+  applyDesktopTheme,
+  type DesktopAppearance,
+  loadAppearancePreference,
+  loadStoredDesktopTheme,
+  parseDesktopThemeProfile,
+  resolveAppearance,
+  THEME_CHANGE_EVENT,
+} from "./desktop-theme";
 import {
   type GlobalSearchTarget,
   globalSearchGroups,
@@ -461,11 +473,13 @@ export function App() {
   });
   const [selectedSession, setSelectedSession] = useState(initialConversation);
   const [globalError, setGlobalError] = useState("");
-  const [appearance, setAppearance] = useState<"dark" | "light">(() =>
-    localStorage.getItem("doolittle.desktop.appearance") === "light"
-      ? "light"
-      : "dark",
+  const [appearance, setAppearance] = useState<DesktopAppearance>(
+    loadAppearancePreference,
   );
+  const [systemPrefersDark, setSystemPrefersDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  const resolvedAppearance = resolveAppearance(appearance, systemPrefersDark);
   const {
     toasts,
     push: pushToast,
@@ -624,14 +638,14 @@ export function App() {
   }, [isMobileSidebarMode, setMobileSidebarOpen]);
 
   const toggleAppearance = useCallback(() => {
-    const nextAppearance = appearance === "dark" ? "light" : "dark";
+    const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
     setAppearance(nextAppearance);
     pushToast({
       tone: "success",
       title: `${nextAppearance === "dark" ? "Dark" : "Light"} appearance`,
       message: "Your desktop preference was saved.",
     });
-  }, [appearance, pushToast]);
+  }, [pushToast, resolvedAppearance]);
 
   const toggleNavigation = useCallback(() => {
     setNavCollapsed((value) => !value);
@@ -1132,9 +1146,62 @@ export function App() {
   );
 
   useEffect(() => {
-    document.documentElement.dataset.appearance = appearance;
-    localStorage.setItem("doolittle.desktop.appearance", appearance);
-  }, [appearance]);
+    document.documentElement.dataset.appearance = resolvedAppearance;
+    document.documentElement.dataset.appearancePreference = appearance;
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, appearance);
+  }, [appearance, resolvedAppearance]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = (event: MediaQueryListEvent) =>
+      setSystemPrefersDark(event.matches);
+    setSystemPrefersDark(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const stored = loadStoredDesktopTheme();
+    if (stored) applyDesktopTheme(stored);
+  }, []);
+
+  useEffect(() => {
+    if (backend.phase !== "ready") return;
+    let disposed = false;
+    void desktopRequest<ThemeResponse>("/theme")
+      .then((response) => {
+        if (disposed) return;
+        const profile = parseDesktopThemeProfile(response.profile);
+        if (profile) applyDesktopTheme(profile);
+      })
+      .catch(() => {
+        // The cached profile preserves the visual theme while the runtime recovers.
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [backend.phase]);
+
+  useEffect(() => {
+    const handleAppearance = (event: Event) => {
+      const next = (event as CustomEvent<DesktopAppearance>).detail;
+      if (next === "dark" || next === "light" || next === "system") {
+        setAppearance(next);
+      }
+    };
+    const handleTheme = (event: Event) => {
+      const profile = parseDesktopThemeProfile(
+        (event as CustomEvent<unknown>).detail,
+      );
+      if (profile) applyDesktopTheme(profile);
+    };
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
+    window.addEventListener(THEME_CHANGE_EVENT, handleTheme);
+    return () => {
+      window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
+      window.removeEventListener(THEME_CHANGE_EVENT, handleTheme);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(PROJECT_SCOPE_KEY, projectScope);
@@ -1705,7 +1772,7 @@ export function App() {
           },
           {
             id: "appearance",
-            label: `Use ${appearance === "dark" ? "light" : "dark"} appearance`,
+            label: `Use ${resolvedAppearance === "dark" ? "light" : "dark"} appearance`,
             description: "Switch the desktop color mode",
             keywords: ["theme", "dark", "light"],
             onSelect: toggleAppearance,
@@ -1734,7 +1801,7 @@ export function App() {
       })),
     ],
     [
-      appearance,
+      resolvedAppearance,
       backend.phase,
       createConversation,
       chooseRepositoryForConversation,
@@ -2130,14 +2197,14 @@ export function App() {
           <div className="sidebar-footer-actions">
             <button
               aria-label={`Use ${
-                appearance === "dark" ? "light" : "dark"
+                resolvedAppearance === "dark" ? "light" : "dark"
               } appearance`}
               className="icon-button"
               onClick={toggleAppearance}
               title="Toggle appearance"
               type="button"
             >
-              {appearance === "dark" ? "☼" : "◐"}
+              {resolvedAppearance === "dark" ? "☼" : "◐"}
             </button>
             <button
               aria-label="Open settings"
