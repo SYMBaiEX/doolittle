@@ -185,9 +185,11 @@ export function GitControlPanel({
   const [commitMessage, setCommitMessage] = useState("");
   const [amend, setAmend] = useState(false);
   const [branchName, setBranchName] = useState("");
+  const [cherryPickCommit, setCherryPickCommit] = useState("");
   const [stashMessage, setStashMessage] = useState("");
   const [remoteName, setRemoteName] = useState("origin");
   const [remoteUrl, setRemoteUrl] = useState("");
+  const [editingRemote, setEditingRemote] = useState("");
   const grouped = useMemo(() => groupRepositoryChanges(changes), [changes]);
   const selected = selectedPaths(selection);
   const currentBranch = branches.find((branch) => branch.current);
@@ -241,16 +243,33 @@ export function GitControlPanel({
       setStashMessage("");
     }
   };
+  const submitCherryPick = async (event: FormEvent) => {
+    event.preventDefault();
+    const commit = cherryPickCommit.trim();
+    if (!commit) return;
+    if (await run({ type: "cherry-pick", commit })) {
+      setCherryPickCommit("");
+    }
+  };
   const submitRemote = async (event: FormEvent) => {
     event.preventDefault();
     if (!remoteNameIsValid(remoteName) || !remoteUrlIsValid(remoteUrl)) return;
-    if (
-      await run({
-        type: "remote-add",
-        name: remoteName.trim(),
-        url: remoteUrl.trim(),
-      })
-    ) {
+    const completed = await run(
+      editingRemote
+        ? {
+            type: "remote-set-url",
+            name: editingRemote,
+            url: remoteUrl.trim(),
+          }
+        : {
+            type: "remote-add",
+            name: remoteName.trim(),
+            url: remoteUrl.trim(),
+          },
+    );
+    if (completed) {
+      setEditingRemote("");
+      setRemoteName("origin");
       setRemoteUrl("");
     }
   };
@@ -403,20 +422,40 @@ export function GitControlPanel({
                       {branch.current ? " · current" : ""}
                     </button>
                     {!branch.current ? (
-                      <button
-                        aria-label={`Delete branch ${branch.name}`}
-                        className="danger icon-button"
-                        disabled={busy}
-                        onClick={() =>
-                          void run({
-                            type: "branch-delete",
-                            branch: branch.name,
-                          })
-                        }
-                        type="button"
-                      >
-                        ×
-                      </button>
+                      <>
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            void run({ type: "merge", branch: branch.name })
+                          }
+                          type="button"
+                        >
+                          Merge
+                        </button>
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            void run({ type: "rebase", branch: branch.name })
+                          }
+                          type="button"
+                        >
+                          Rebase
+                        </button>
+                        <button
+                          aria-label={`Delete branch ${branch.name}`}
+                          className="danger icon-button"
+                          disabled={busy}
+                          onClick={() =>
+                            void run({
+                              type: "branch-delete",
+                              branch: branch.name,
+                            })
+                          }
+                          type="button"
+                        >
+                          ×
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 ))}
@@ -538,9 +577,46 @@ export function GitControlPanel({
                   >
                     Abort rebase
                   </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => void run({ type: "rebase-continue" })}
+                    type="button"
+                  >
+                    Continue rebase
+                  </button>
+                  <button
+                    className="danger"
+                    disabled={busy}
+                    onClick={() => void run({ type: "cherry-pick-abort" })}
+                    type="button"
+                  >
+                    Abort cherry-pick
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => void run({ type: "cherry-pick-continue" })}
+                    type="button"
+                  >
+                    Continue cherry-pick
+                  </button>
                 </div>
               </section>
             ) : null}
+
+            <form className="git-control-section" onSubmit={submitCherryPick}>
+              <header>
+                <strong>Cherry-pick</strong>
+              </header>
+              <input
+                disabled={busy}
+                onChange={(event) => setCherryPickCommit(event.target.value)}
+                placeholder="Commit SHA or ref"
+                value={cherryPickCommit}
+              />
+              <button disabled={busy || !cherryPickCommit.trim()} type="submit">
+                Apply commit
+              </button>
+            </form>
 
             <form className="git-control-section" onSubmit={submitRemote}>
               <header>
@@ -557,16 +633,9 @@ export function GitControlPanel({
                     <button
                       disabled={busy}
                       onClick={() => {
-                        const url = window.prompt(
-                          `New URL for ${remote.name}`,
-                          remote.fetchUrl || remote.pushUrl || "",
-                        );
-                        if (url && remoteUrlIsValid(url))
-                          void run({
-                            type: "remote-set-url",
-                            name: remote.name,
-                            url,
-                          });
+                        setEditingRemote(remote.name);
+                        setRemoteName(remote.name);
+                        setRemoteUrl(remote.fetchUrl || remote.pushUrl || "");
                       }}
                       type="button"
                     >
@@ -586,7 +655,7 @@ export function GitControlPanel({
                 ))}
               </div>
               <input
-                disabled={busy}
+                disabled={busy || Boolean(editingRemote)}
                 onChange={(event) => setRemoteName(event.target.value)}
                 placeholder="Remote name"
                 value={remoteName}
@@ -605,8 +674,21 @@ export function GitControlPanel({
                 }
                 type="submit"
               >
-                Add remote
+                {editingRemote ? "Update remote" : "Add remote"}
               </button>
+              {editingRemote ? (
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    setEditingRemote("");
+                    setRemoteName("origin");
+                    setRemoteUrl("");
+                  }}
+                  type="button"
+                >
+                  Cancel edit
+                </button>
+              ) : null}
             </form>
 
             <section className="git-control-section">

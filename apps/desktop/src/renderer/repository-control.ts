@@ -83,6 +83,18 @@ export function requestLabel(request: RepositoryMutationRequest): string {
       return "Switching branch…";
     case "branch-delete":
       return "Deleting branch…";
+    case "merge":
+      return "Merging branch…";
+    case "rebase":
+      return "Rebasing branch…";
+    case "rebase-continue":
+      return "Continuing rebase…";
+    case "cherry-pick":
+      return "Cherry-picking commit…";
+    case "cherry-pick-continue":
+      return "Continuing cherry-pick…";
+    case "cherry-pick-abort":
+      return "Aborting cherry-pick…";
     case "stash-create":
       return "Stashing changes…";
     case "stash-apply":
@@ -102,6 +114,20 @@ export function requestLabel(request: RepositoryMutationRequest): string {
     case "worktree-remove":
     case "worktree-prune":
       return "Updating worktrees…";
+    case "pr-create":
+      return "Creating pull request…";
+    case "pr-update":
+      return "Updating pull request…";
+    case "pr-ready":
+      return "Marking pull request ready…";
+    case "pr-review":
+      return "Submitting pull request review…";
+    case "pr-merge":
+      return "Merging pull request…";
+    case "pr-close":
+      return "Closing pull request…";
+    case "pr-reopen":
+      return "Reopening pull request…";
   }
 }
 
