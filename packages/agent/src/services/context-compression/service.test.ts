@@ -30,6 +30,9 @@ describe("context-compression", () => {
       estimateMessagesTokens([makeMessage("1", "hello world")]),
     ).toBeGreaterThan(0);
     expect(resolveContextWindow("gpt-5.4")).toBe(1_050_000);
+    expect(resolveContextWindow("gpt-5.6-sol")).toBe(1_050_000);
+    expect(resolveContextWindow("claude-fable-5")).toBe(1_000_000);
+    expect(resolveContextWindow("claude-haiku-4-5")).toBe(200_000);
     expect(resolveContextWindow("unknown-model")).toBe(128_000);
   });
 

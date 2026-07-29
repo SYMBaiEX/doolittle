@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
 import type { EnvConfig } from "@/types";
@@ -5,6 +8,11 @@ import type { EnvConfig } from "@/types";
 const MODEL_DISCOVERY_TIMEOUT_MS = 2_500;
 
 type ModelSource = "configured" | "discovered";
+
+interface ModelCatalogEntry {
+  id: string;
+  label: string;
+}
 
 interface DiscoveredModel {
   id: string;
@@ -27,6 +35,23 @@ interface ModelDiscoveryResult {
   models: Array<{ id: string; label?: string }>;
   live: boolean;
 }
+
+const CODEX_LINKED_MODELS: ModelCatalogEntry[] = [
+  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+  { id: "gpt-5.5", label: "GPT-5.5" },
+  { id: "gpt-5.4", label: "GPT-5.4" },
+  { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+  { id: "gpt-5.3-codex-spark", label: "GPT-5.3 Codex Spark" },
+];
+
+const CLAUDE_CODE_LINKED_MODELS: ModelCatalogEntry[] = [
+  { id: "claude-fable-5", label: "Claude Fable 5" },
+  { id: "claude-opus-5", label: "Claude Opus 5" },
+  { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+];
 
 export async function handleRuntimeModelRoutes(
   context: AppContext,
@@ -60,26 +85,34 @@ export async function discoverModelProviders(
   const definitions = providerDefinitions(config, activeProvider, activeModel);
   const discovered = await Promise.all(
     definitions.map(async (definition) => {
-      const result = await discoverProviderModels(
-        definition.id,
-        definition.baseUrl,
-        providerApiKey(config, definition.id),
-        fetchImplementation,
-      );
-      const models = mergeModels(definition.models, result.models);
+      const [providerResult, linkedResult] = await Promise.all([
+        discoverProviderModels(
+          definition.id,
+          definition.baseUrl,
+          providerApiKey(config, definition.id),
+          fetchImplementation,
+        ),
+        discoverLinkedProviderModels(definition.id),
+      ]);
+      const live = providerResult.live || linkedResult.live;
+      const newlyDiscovered = [
+        ...linkedResult.models,
+        ...providerResult.models,
+      ];
+      const models = mergeModels(definition.models, newlyDiscovered);
       return {
         ...definition,
         ready:
           definition.ready ||
-          result.live ||
+          live ||
           (definition.id === activeProvider && Boolean(activeModel.trim())),
-        discovery: result.live
+        discovery: live
           ? ("live" as const)
           : definition.ready
             ? ("configured" as const)
             : ("unavailable" as const),
-        detail: result.live
-          ? `${result.models.length} models discovered from the provider.`
+        detail: live
+          ? `${newlyDiscovered.length} models discovered from the provider.`
           : definition.detail,
         models,
       };
@@ -93,7 +126,10 @@ function providerDefinitions(
   activeProvider: string,
   activeModel: string,
 ): ModelProvider[] {
-  const withActive = (provider: string, models: string[]) =>
+  const withActive = (
+    provider: string,
+    models: Array<ModelCatalogEntry | string>,
+  ) =>
     provider === activeProvider && activeModel.trim()
       ? [activeModel, ...models]
       : models;
@@ -132,12 +168,15 @@ function providerDefinitions(
     },
     {
       id: "codex",
-      label: "OpenAI Codex",
+      label: "ChatGPT / Codex",
       mode: "linked",
       ready: config.useLinkedCodexAuth || activeProvider === "codex",
       discovery: "configured",
-      detail: "Models exposed by the linked Codex route.",
-      models: configuredModels(withActive("codex", [config.openAiModel])),
+      detail:
+        "Current models supported by the linked ChatGPT and Codex account.",
+      models: configuredModels(
+        withActive("codex", [...CODEX_LINKED_MODELS, config.openAiModel]),
+      ),
     },
     {
       id: "claude-code",
@@ -145,9 +184,10 @@ function providerDefinitions(
       mode: "linked",
       ready: config.useLinkedClaudeCodeAuth || activeProvider === "claude-code",
       discovery: "configured",
-      detail: "Models exposed by the linked Claude Code route.",
+      detail: "Current models supported by the linked Claude Code account.",
       models: configuredModels(
         withActive("claude-code", [
+          ...CLAUDE_CODE_LINKED_MODELS,
           config.anthropicLargeModel,
           config.anthropicSmallModel,
         ]),
@@ -237,6 +277,43 @@ async function discoverProviderModels(
   }
 }
 
+async function discoverLinkedProviderModels(
+  provider: string,
+): Promise<ModelDiscoveryResult> {
+  if (provider !== "codex") return { models: [], live: false };
+  const codexHome =
+    process.env.CODEX_HOME?.trim() || resolve(homedir(), ".codex");
+  try {
+    const body = JSON.parse(
+      await readFile(resolve(codexHome, "models_cache.json"), "utf8"),
+    ) as unknown;
+    const models = parseCodexModelCache(body);
+    return { models, live: models.length > 0 };
+  } catch {
+    return { models: [], live: false };
+  }
+}
+
+function parseCodexModelCache(
+  value: unknown,
+): Array<{ id: string; label?: string }> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const entries = (value as Record<string, unknown>).models;
+  if (!Array.isArray(entries)) return [];
+  return entries.flatMap((entry): Array<{ id: string; label?: string }> => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const model = entry as Record<string, unknown>;
+    if (model.visibility === "hide") return [];
+    const id = typeof model.slug === "string" ? model.slug.trim() : "";
+    if (!id) return [];
+    const label =
+      typeof model.display_name === "string" && model.display_name.trim()
+        ? model.display_name.trim()
+        : undefined;
+    return [{ id, ...(label ? { label } : {}) }];
+  });
+}
+
 function modelListUrl(baseUrl: string): string | undefined {
   try {
     const url = new URL(baseUrl);
@@ -281,13 +358,31 @@ function parseModelList(value: unknown): Array<{ id: string; label?: string }> {
 }
 
 function configuredModels(
-  values: Array<string | undefined>,
+  values: Array<ModelCatalogEntry | string | undefined>,
 ): DiscoveredModel[] {
-  return uniqueStrings(values).map((id) => ({
-    id,
-    label: id,
-    source: "configured",
-  }));
+  const byId = new Map<string, DiscoveredModel>();
+  for (const value of values) {
+    if (!value) continue;
+    const id = typeof value === "string" ? value.trim() : value.id.trim();
+    if (!id) continue;
+    const existing = byId.get(id);
+    if (existing) {
+      if (typeof value !== "string" && existing.label === existing.id) {
+        byId.set(id, {
+          ...existing,
+          label: value.label.trim() || id,
+        });
+      }
+      continue;
+    }
+    byId.set(id, {
+      id,
+      label:
+        typeof value === "string" ? id : value.label.trim() || value.id.trim(),
+      source: "configured",
+    });
+  }
+  return [...byId.values()];
 }
 
 function mergeModels(
@@ -306,12 +401,6 @@ function mergeModels(
   return [...byId.values()].sort((left, right) =>
     left.label.localeCompare(right.label),
   );
-}
-
-function uniqueStrings(values: Array<string | undefined>): string[] {
-  return [
-    ...new Set(values.map((value) => value?.trim()).filter(Boolean)),
-  ] as string[];
 }
 
 function providerApiKey(

@@ -90,6 +90,48 @@ describe("runtime model discovery", () => {
     );
   });
 
+  it("offers the current ChatGPT, Codex, and Claude Code model catalogs", async () => {
+    const providers = await discoverModelProviders(
+      config({
+        useLinkedCodexAuth: true,
+        useLinkedClaudeCodeAuth: true,
+      }),
+      "codex",
+      "gpt-5.6-sol",
+      vi.fn<typeof fetch>(async () => {
+        throw new Error("offline");
+      }),
+    );
+
+    const codex = providers.find((provider) => provider.id === "codex");
+    const claude = providers.find((provider) => provider.id === "claude-code");
+
+    expect(codex?.label).toBe("ChatGPT / Codex");
+    expect(codex?.models.map((model) => model.id)).toEqual(
+      expect.arrayContaining(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]),
+    );
+    expect(claude?.models).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "claude-fable-5",
+          label: "Claude Fable 5",
+        }),
+        expect.objectContaining({
+          id: "claude-opus-5",
+          label: "Claude Opus 5",
+        }),
+        expect.objectContaining({
+          id: "claude-sonnet-5",
+          label: "Claude Sonnet 5",
+        }),
+        expect.objectContaining({
+          id: "claude-haiku-4-5",
+          label: "Claude Haiku 4.5",
+        }),
+      ]),
+    );
+  });
+
   it("uses Anthropic model-list headers without exposing credentials", async () => {
     const fetchImplementation = vi.fn<typeof fetch>(async (_input, init) => {
       const headers = new Headers(init?.headers);
