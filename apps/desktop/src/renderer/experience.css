@@ -890,9 +890,11 @@ textarea {
   display: grid;
   flex: 1;
   min-width: 0;
-  grid-template-columns: minmax(0, auto) minmax(180px, 1fr);
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
   column-gap: 14px;
+  row-gap: 4px;
 }
 
 .chat-header :where(.eyebrow) {
@@ -901,11 +903,14 @@ textarea {
 
 .chat-header :where(h2) {
   grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
 }
 
 .chat-model-route {
   display: inline-flex;
   grid-column: 2;
+  grid-row: 1;
   align-items: baseline;
   gap: 7px;
   min-width: 0;
@@ -941,12 +946,25 @@ textarea {
   white-space: nowrap;
 }
 
+.chat-mobile-conversations-button {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
+}
+
 .chat-session-meta {
   display: flex;
   grid-column: 1 / -1;
-  flex-wrap: wrap;
+  grid-row: 2;
+  flex-wrap: nowrap;
   gap: 0;
-  margin-top: 7px;
+  margin-top: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chat-session-meta::-webkit-scrollbar {
+  display: none;
 }
 
 .chat-session-meta-pill {
@@ -997,6 +1015,8 @@ button.chat-session-meta-pill:hover {
   display: flex;
   align-items: center;
   gap: 7px;
+  margin-top: 2px;
+  align-self: flex-start;
 }
 
 .chat-mobile-session-picker {
@@ -2816,10 +2836,12 @@ button.chat-session-meta-pill:hover {
   }
 
   .chat-model-route {
+    grid-row: 2;
     margin-top: 5px;
   }
 
   .chat-session-meta {
+    grid-row: 3;
     max-width: calc(100vw - 32px);
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -3504,10 +3526,11 @@ button.chat-session-meta-pill:hover {
 }
 
 .chat-header > div:first-child {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto;
   align-items: start;
   column-gap: 18px;
+  row-gap: 4px;
 }
 
 .chat-header .eyebrow {
@@ -3526,8 +3549,8 @@ button.chat-session-meta-pill:hover {
 }
 
 .chat-header .chat-model-route {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 2;
+  grid-row: 1;
   width: fit-content;
   margin-top: 3px;
   padding: 0;
@@ -3545,13 +3568,13 @@ button.chat-session-meta-pill:hover {
 
 .chat-header .chat-mobile-conversations-button {
   display: inline-flex;
-  grid-column: 2;
-  grid-row: 1 / 3;
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
   width: fit-content;
   min-height: 30px;
   align-items: center;
   gap: 7px;
-  margin: 0;
   padding: 5px 9px;
   color: var(--muted);
   background: transparent;
@@ -3580,7 +3603,7 @@ button.chat-session-meta-pill:hover {
 
 .chat-session-meta {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 2;
   flex-wrap: nowrap;
   align-items: center;
   gap: 5px;
@@ -3633,6 +3656,7 @@ button.chat-session-meta-pill:hover {
   flex: 0 0 auto;
   gap: 4px;
   padding-top: 0;
+  align-self: flex-start;
 }
 
 .chat-header-toolbar .secondary-button {
@@ -4225,10 +4249,12 @@ button.chat-session-meta-pill:hover {
 
   .chat-model-route {
     grid-column: 1 / 3;
+    grid-row: 2;
   }
 
   .chat-session-meta {
     grid-column: 1 / 3;
+    grid-row: 3;
   }
 
   .chat-header .chat-mobile-conversations-button {
