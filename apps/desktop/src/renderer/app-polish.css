@@ -238,6 +238,20 @@ td {
   font-size: var(--text-control);
 }
 
+.status-row > div {
+  max-width: 100%;
+}
+
+.status-row strong,
+.status-row small {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.status-row > .badge {
+  flex: 0 0 auto;
+}
+
 .row-card {
   min-height: 52px;
   padding: var(--row-pad);
