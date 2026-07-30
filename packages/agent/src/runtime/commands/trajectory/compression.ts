@@ -6,7 +6,7 @@ export async function handleTrajectoryCompressionCommands(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   if (trimmed === "/trajectories compress latest") {
-    const compressed = context.services.trajectories.compressLatest();
+    const compressed = context.services.trajectoryEvaluation.compressLatest();
     return compressed
       ? JSON.stringify(compressed, null, 2)
       : "No trajectory bundles recorded.";

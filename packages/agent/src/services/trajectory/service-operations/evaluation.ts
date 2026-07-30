@@ -10,39 +10,39 @@ import {
   packageLatest,
 } from "../evaluation";
 import { evaluateLatestTrajectoryBundle } from "../latest-ops";
-import type { TrajectoryServiceHosts } from "../service-support";
-import type { TrajectoryServiceEvaluateBundleOptions } from "../service-types";
+import type { TrajectoryEvaluationServiceHosts } from "../service-support";
+import type { TrajectoryEvaluationServiceEvaluateBundleOptions } from "../service-types";
 
-export async function evaluateTrajectoryService(
-  hosts: TrajectoryServiceHosts,
+export async function evaluateTrajectoryEvaluationService(
+  hosts: TrajectoryEvaluationServiceHosts,
   options: TrajectoryExportOptions = {},
 ): Promise<TrajectoryEvaluationBundle> {
   return evaluate(hosts.evaluation, options);
 }
 
-export async function evaluateTrajectoryServiceBundle(
-  hosts: TrajectoryServiceHosts,
+export async function evaluateTrajectoryEvaluationServiceBundle(
+  hosts: TrajectoryEvaluationServiceHosts,
   manifestPath: string,
-  options: TrajectoryServiceEvaluateBundleOptions = {},
+  options: TrajectoryEvaluationServiceEvaluateBundleOptions = {},
 ): Promise<TrajectoryEvaluationBundle> {
   return evaluateBundle(hosts.evaluation, manifestPath, options);
 }
 
-export async function packageTrajectoryService(
-  hosts: TrajectoryServiceHosts,
+export async function packageTrajectoryEvaluationService(
+  hosts: TrajectoryEvaluationServiceHosts,
   options: TrajectoryExportOptions = {},
 ): Promise<TrajectoryResearchPackageBundle> {
   return packageBundle(hosts.evaluation, options);
 }
 
-export function packageLatestTrajectoryService(
-  hosts: TrajectoryServiceHosts,
+export function packageLatestTrajectoryEvaluationService(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): Promise<TrajectoryResearchPackageBundle | undefined> {
   return packageLatest(hosts.evaluation);
 }
 
-export async function evaluateLatestTrajectoryServiceBundle(
-  hosts: TrajectoryServiceHosts,
+export async function evaluateLatestTrajectoryEvaluationServiceBundle(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): Promise<TrajectoryEvaluationBundle | undefined> {
   return evaluateLatestTrajectoryBundle(hosts);
 }

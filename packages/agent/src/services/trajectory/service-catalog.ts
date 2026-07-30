@@ -5,22 +5,27 @@ import {
   listTrajectoryBundles,
 } from "./bundle-storage";
 
-export function listTrajectoryServiceBundles(baseDir: string, limit = 20) {
+export function listTrajectoryEvaluationServiceBundles(
+  baseDir: string,
+  limit = 20,
+) {
   return listTrajectoryBundles(baseDir, limit);
 }
 
-export function describeTrajectoryServiceBundle(manifestPath: string) {
+export function describeTrajectoryEvaluationServiceBundle(
+  manifestPath: string,
+) {
   return describeTrajectoryBundle(manifestPath);
 }
 
-export function listTrajectoryServiceBenchmarkManifests(
+export function listTrajectoryEvaluationServiceBenchmarkManifests(
   baseDir: string,
   limit = 20,
 ) {
   return listTrajectoryBenchmarkManifests(baseDir, limit);
 }
 
-export function describeTrajectoryServiceBenchmarkManifest(
+export function describeTrajectoryEvaluationServiceBenchmarkManifest(
   manifestPath: string,
 ) {
   return describeTrajectoryBenchmarkManifest(manifestPath);

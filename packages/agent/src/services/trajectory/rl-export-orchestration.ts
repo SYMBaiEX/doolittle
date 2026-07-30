@@ -25,10 +25,11 @@ interface TrajectoryRlExportHost {
   };
 }
 
-export interface TrajectoryServiceRlExportHost extends TrajectoryRlExportHost {}
+export interface TrajectoryEvaluationServiceRlExportHost
+  extends TrajectoryRlExportHost {}
 
-export function exportTrajectoryServiceRlReady(
-  host: TrajectoryServiceRlExportHost,
+export function exportTrajectoryEvaluationServiceRlReady(
+  host: TrajectoryEvaluationServiceRlExportHost,
   sessionId: string,
   options: TrajectoryRlExportInputOptions & TrajectoryRlReadyOptions = {},
 ): {
@@ -53,8 +54,8 @@ export function exportTrajectoryServiceRlReady(
   });
 }
 
-export function exportTrajectoryServiceRlDataset(
-  host: TrajectoryServiceRlExportHost,
+export function exportTrajectoryEvaluationServiceRlDataset(
+  host: TrajectoryEvaluationServiceRlExportHost,
   options: TrajectoryRlExportInputOptions &
     TrajectoryRlDatasetOptions & {
       sessionId?: string;
@@ -80,8 +81,8 @@ export function exportTrajectoryServiceRlDataset(
   });
 }
 
-export function describeTrajectoryServiceRlExport(
-  host: TrajectoryServiceRlExportHost,
+export function describeTrajectoryEvaluationServiceRlExport(
+  host: TrajectoryEvaluationServiceRlExportHost,
 ): string {
   const { totalSessions } = host.sessions.summary(50);
   return describeTrajectoryRlExport(totalSessions);

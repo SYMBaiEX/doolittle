@@ -15,7 +15,7 @@ import {
   prepareTurnState,
   startTrackedTurn,
 } from "./state";
-import { recordTrajectoryEvent } from "./trajectory";
+import { recordEvaluationTraceEvent } from "./trajectory";
 
 type TurnPerfTrace = {
   mark(phase: string): void;
@@ -106,7 +106,7 @@ export async function runShellPostCommandTurn(
   }
 
   const shellAction = `shell:${command}`;
-  recordTrajectoryEvent(input.context, {
+  recordEvaluationTraceEvent(input.context, {
     category: "tool",
     event: "tool.request",
     sessionId: turn.sessionId,
@@ -134,7 +134,7 @@ export async function runShellPostCommandTurn(
       input.options,
     );
   } catch (error) {
-    recordTrajectoryEvent(input.context, {
+    recordEvaluationTraceEvent(input.context, {
       category: "tool",
       event: "tool.error",
       sessionId: turn.sessionId,
@@ -166,7 +166,7 @@ export async function runShellPostCommandTurn(
   );
 
   const shellResponse = executionContext.formatShellCommandResponse(result);
-  recordTrajectoryEvent(input.context, {
+  recordEvaluationTraceEvent(input.context, {
     category: "tool",
     event: "tool.response",
     sessionId: turn.sessionId,

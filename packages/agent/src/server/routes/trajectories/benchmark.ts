@@ -15,13 +15,14 @@ export const handleTrajectoryBenchmarkRoutes: TrajectoryRouteHandler = async (
     url.pathname === "/trajectories/benchmark/environment"
   ) {
     return json({
-      environment: context.services.trajectories.describeBenchmarkEnvironment(),
+      environment:
+        context.services.trajectoryEvaluation.describeBenchmarkEnvironment(),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/trajectories/benchmarks") {
     return json({
-      benchmarks: context.services.trajectories.listBenchmarkManifests(
+      benchmarks: context.services.trajectoryEvaluation.listBenchmarkManifests(
         Number(url.searchParams.get("limit") ?? "20"),
       ),
     });
@@ -36,7 +37,7 @@ export const handleTrajectoryBenchmarkRoutes: TrajectoryRouteHandler = async (
       return json({ error: "At least one benchmark case is required" }, 400);
     }
     return json({
-      benchmark: context.services.trajectories.createBenchmarkManifest({
+      benchmark: context.services.trajectoryEvaluation.createBenchmarkManifest({
         label: body.label,
         purpose: body.purpose,
         tags: body.tags,
@@ -56,7 +57,8 @@ export const handleTrajectoryBenchmarkRoutes: TrajectoryRouteHandler = async (
       latest?: boolean;
     }>(request);
     if (body?.latest) {
-      const run = await context.services.trajectories.runLatestBenchmark();
+      const run =
+        await context.services.trajectoryEvaluation.runLatestBenchmark();
       return run
         ? json({ benchmark: run })
         : json({ error: "No trajectory benchmark manifests recorded." }, 404);
@@ -65,7 +67,7 @@ export const handleTrajectoryBenchmarkRoutes: TrajectoryRouteHandler = async (
       return json({ error: "manifestPath is required" }, 400);
     }
     return json({
-      benchmark: await context.services.trajectories.runBenchmark(
+      benchmark: await context.services.trajectoryEvaluation.runBenchmark(
         body.manifestPath,
       ),
     });

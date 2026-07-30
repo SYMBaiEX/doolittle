@@ -17,7 +17,7 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
       TrajectoryDatasetBody & { rubric?: string[] }
     >(request);
     return json({
-      evaluation: await context.services.trajectories.evaluate({
+      evaluation: await context.services.trajectoryEvaluation.evaluate({
         ...buildTrajectoryRequest(body ?? {}),
         rubric: body?.rubric,
       }),
@@ -29,7 +29,8 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
     const label = url.searchParams.get("label");
     const latest = url.searchParams.get("latest") === "true";
     if (latest) {
-      const evaluation = await context.services.trajectories.evaluateLatest();
+      const evaluation =
+        await context.services.trajectoryEvaluation.evaluateLatest();
       return evaluation
         ? json({ evaluation })
         : json({ error: "No trajectory bundles recorded." }, 404);
@@ -37,7 +38,9 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
     if (manifestPath) {
       return json({
         evaluation:
-          await context.services.trajectories.evaluateBundle(manifestPath),
+          await context.services.trajectoryEvaluation.evaluateBundle(
+            manifestPath,
+          ),
       });
     }
     if (label) {
@@ -46,7 +49,7 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
         return json({ error: "Trajectory bundle not found." }, 404);
       }
       return json({
-        evaluation: await context.services.trajectories.evaluateBundle(
+        evaluation: await context.services.trajectoryEvaluation.evaluateBundle(
           bundle.manifestPath,
         ),
       });
@@ -62,7 +65,7 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
       TrajectoryDatasetBody & { rubric?: string[] }
     >(request);
     return json({
-      package: await context.services.trajectories.package({
+      package: await context.services.trajectoryEvaluation.package({
         ...buildTrajectoryRequest(body ?? {}),
         rubric: body?.rubric,
       }),
@@ -74,17 +77,18 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
     const label = url.searchParams.get("label");
     const latest = url.searchParams.get("latest") === "true";
     if (latest) {
-      const packaged = await context.services.trajectories.packageLatest();
+      const packaged =
+        await context.services.trajectoryEvaluation.packageLatest();
       return packaged
         ? json({ package: packaged })
         : json({ error: "No trajectory bundles recorded." }, 404);
     }
     if (manifestPath) {
-      const bundle = context.services.trajectories.describeBundle(
+      const bundle = context.services.trajectoryEvaluation.describeBundle(
         manifestPath,
       ) as Parameters<typeof buildPackageRequest>[0];
       return json({
-        package: await context.services.trajectories.package(
+        package: await context.services.trajectoryEvaluation.package(
           buildPackageRequest(bundle),
         ),
       });
@@ -95,7 +99,7 @@ export const handleTrajectoryEvaluationRoutes: TrajectoryRouteHandler = async (
         return json({ error: "Trajectory bundle not found." }, 404);
       }
       return json({
-        package: await context.services.trajectories.package(
+        package: await context.services.trajectoryEvaluation.package(
           buildPackageRequest(bundle),
         ),
       });

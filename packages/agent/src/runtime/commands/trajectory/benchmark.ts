@@ -10,7 +10,7 @@ export async function handleTrajectoryBenchmarkCommands(
     trimmed === "/trajectories benchmarks environment"
   ) {
     return JSON.stringify(
-      context.services.trajectories.describeBenchmarkEnvironment(),
+      context.services.trajectoryEvaluation.describeBenchmarkEnvironment(),
       null,
       2,
     );
@@ -20,7 +20,8 @@ export async function handleTrajectoryBenchmarkCommands(
     trimmed === "/trajectories benchmark list" ||
     trimmed === "/trajectories benchmarks"
   ) {
-    const manifests = context.services.trajectories.listBenchmarkManifests(10);
+    const manifests =
+      context.services.trajectoryEvaluation.listBenchmarkManifests(10);
     return manifests.length
       ? manifests
           .map(
@@ -42,7 +43,7 @@ export async function handleTrajectoryBenchmarkCommands(
       return "Usage: /trajectories benchmark create label:<name> rubric:a,b :: label:baseline => label:target";
     }
     return JSON.stringify(
-      context.services.trajectories.createBenchmarkManifest({
+      context.services.trajectoryEvaluation.createBenchmarkManifest({
         label: options.label,
         purpose: options.purpose,
         tags: options.tags,
@@ -56,7 +57,8 @@ export async function handleTrajectoryBenchmarkCommands(
   }
 
   if (trimmed === "/trajectories benchmark run latest") {
-    const run = await context.services.trajectories.runLatestBenchmark();
+    const run =
+      await context.services.trajectoryEvaluation.runLatestBenchmark();
     return run
       ? JSON.stringify(run, null, 2)
       : "No trajectory benchmark manifests recorded.";
@@ -68,12 +70,14 @@ export async function handleTrajectoryBenchmarkCommands(
       return "Usage: /trajectories benchmark run <manifest-path|label|latest>";
     }
     if (raw === "latest") {
-      const run = await context.services.trajectories.runLatestBenchmark();
+      const run =
+        await context.services.trajectoryEvaluation.runLatestBenchmark();
       return run
         ? JSON.stringify(run, null, 2)
         : "No trajectory benchmark manifests recorded.";
     }
-    const manifests = context.services.trajectories.listBenchmarkManifests(50);
+    const manifests =
+      context.services.trajectoryEvaluation.listBenchmarkManifests(50);
     const resolved = raw.endsWith(".json")
       ? raw
       : manifests.find(
@@ -83,7 +87,7 @@ export async function handleTrajectoryBenchmarkCommands(
       return `Trajectory benchmark manifest not found: ${raw}`;
     }
     return JSON.stringify(
-      await context.services.trajectories.runBenchmark(resolved),
+      await context.services.trajectoryEvaluation.runBenchmark(resolved),
       null,
       2,
     );

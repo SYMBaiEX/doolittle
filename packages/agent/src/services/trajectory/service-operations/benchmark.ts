@@ -9,31 +9,31 @@ import {
   runTrajectoryBenchmark,
 } from "../benchmark";
 import { runLatestTrajectoryBenchmark } from "../latest-ops";
-import type { TrajectoryServiceHosts } from "../service-support";
-import type { TrajectoryServiceBenchmarkManifestInput } from "../service-types";
+import type { TrajectoryEvaluationServiceHosts } from "../service-support";
+import type { TrajectoryEvaluationServiceBenchmarkManifestInput } from "../service-types";
 
-export function describeTrajectoryServiceBenchmarkEnvironment(
-  hosts: TrajectoryServiceHosts,
+export function describeTrajectoryEvaluationServiceBenchmarkEnvironment(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryBenchmarkEnvironmentSummary {
   return describeTrajectoryBenchmarkEnvironment(hosts.benchmark);
 }
 
-export function createTrajectoryServiceBenchmarkManifest(
-  hosts: TrajectoryServiceHosts,
-  input: TrajectoryServiceBenchmarkManifestInput,
+export function createTrajectoryEvaluationServiceBenchmarkManifest(
+  hosts: TrajectoryEvaluationServiceHosts,
+  input: TrajectoryEvaluationServiceBenchmarkManifestInput,
 ): TrajectoryBenchmarkManifest {
   return createTrajectoryBenchmarkManifest(hosts.benchmark, input);
 }
 
-export async function runTrajectoryServiceBenchmark(
-  hosts: TrajectoryServiceHosts,
+export async function runTrajectoryEvaluationServiceBenchmark(
+  hosts: TrajectoryEvaluationServiceHosts,
   manifestPath: string,
 ): Promise<TrajectoryBenchmarkRun> {
   return runTrajectoryBenchmark(hosts.benchmark, manifestPath);
 }
 
-export async function runLatestTrajectoryServiceBenchmark(
-  hosts: TrajectoryServiceHosts,
+export async function runLatestTrajectoryEvaluationServiceBenchmark(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): Promise<TrajectoryBenchmarkRun | undefined> {
   return runLatestTrajectoryBenchmark(hosts);
 }

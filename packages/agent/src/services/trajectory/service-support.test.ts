@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionService } from "../session/service";
-import { createTrajectoryServiceHosts } from "./service-support";
+import { createTrajectoryEvaluationServiceHosts } from "./service-support";
 
 describe("trajectory service support", () => {
   it("builds stable host facades from the service source", async () => {
@@ -59,7 +59,7 @@ describe("trajectory service support", () => {
       },
     };
 
-    const hosts = createTrajectoryServiceHosts(source);
+    const hosts = createTrajectoryEvaluationServiceHosts(source);
 
     expect(hosts.bundleStorage.baseDir).toBe("/tmp/trajectory-support");
     expect(hosts.bundleStorage.sessions).toBe(source.sessions);

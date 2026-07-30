@@ -1,16 +1,19 @@
-import type { TrajectoryService } from "../service";
-import { getTrajectoryServiceState } from "./state";
-import type { TrajectoryServiceApi } from "./types";
+import type { TrajectoryEvaluationService } from "../service";
+import { getTrajectoryEvaluationServiceState } from "./state";
+import type { TrajectoryEvaluationServiceApi } from "./types";
 
 export const trajectoryServiceRecordingMethods: Pick<
-  TrajectoryServiceApi,
+  TrajectoryEvaluationServiceApi,
   "recordEvent" | "recentEvents"
 > = {
-  recordEvent(this: TrajectoryService, input) {
-    return getTrajectoryServiceState(this).eventJournal.append(input);
+  recordEvent(this: TrajectoryEvaluationService, input) {
+    return getTrajectoryEvaluationServiceState(this).eventJournal.append(input);
   },
 
-  recentEvents(this: TrajectoryService, limit = 100, filters = {}) {
-    return getTrajectoryServiceState(this).eventJournal.recent(limit, filters);
+  recentEvents(this: TrajectoryEvaluationService, limit = 100, filters = {}) {
+    return getTrajectoryEvaluationServiceState(this).eventJournal.recent(
+      limit,
+      filters,
+    );
   },
 };

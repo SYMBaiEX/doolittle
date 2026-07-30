@@ -15,7 +15,10 @@ describe("native service registry", () => {
     expect(registry.officialBacked).toContain("delegationProjection");
     expect(registry.officialBacked).toContain("cron");
     expect(registry.customEliza).toContain("skillSynthesis");
+    expect(registry.customEliza).toContain("trajectoryEvaluation");
     expect(registry.officialBacked).not.toContain("skillSynthesis");
+    expect(registry.officialBacked).not.toContain("trajectoryEvaluation");
+    expect(registry.officialBacked).not.toContain("trajectories");
     expect(registry.productOrchestration).not.toContain("delegation");
     expect(registry.officialBacked).not.toContain("delegation");
     expect(registry.customEliza).not.toContain("cron");

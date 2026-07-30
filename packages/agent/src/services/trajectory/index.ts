@@ -20,4 +20,4 @@ export type {
   TrajectoryReplayResult,
   TrajectoryResearchPackageBundle,
 } from "../../types/trajectory";
-export { TrajectoryService } from "./service";
+export { TrajectoryEvaluationService } from "./service";

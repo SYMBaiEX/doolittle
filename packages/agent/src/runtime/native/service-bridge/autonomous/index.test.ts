@@ -106,7 +106,7 @@ describe("autonomous control plane", () => {
           ],
         }),
       },
-      trajectories: {
+      trajectoryEvaluation: {
         listBundles: () => [{ id: "bundle-1" }],
         exportLatest: () => ({ id: "latest" }),
       },

@@ -8,9 +8,9 @@ import {
   compressLatestTrajectoryBundle,
   replayLatestTrajectoryBundle,
 } from "./latest-ops";
-import type { TrajectoryServiceHosts } from "./service-support";
+import type { TrajectoryEvaluationServiceHosts } from "./service-support";
 
-function createHosts(baseDir: string): TrajectoryServiceHosts {
+function createHosts(baseDir: string): TrajectoryEvaluationServiceHosts {
   const bundles = new Map<string, TrajectoryBundleEntry>([
     [
       "bundle-2.json",
@@ -266,7 +266,7 @@ function createHosts(baseDir: string): TrajectoryServiceHosts {
         });
       },
     },
-  } as TrajectoryServiceHosts;
+  } as TrajectoryEvaluationServiceHosts;
 }
 
 describe("trajectory latest ops", () => {

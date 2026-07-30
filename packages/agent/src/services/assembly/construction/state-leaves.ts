@@ -11,7 +11,7 @@ import { createLazySlot } from "../../lazy-slot";
 import { MediaService } from "../../media";
 import { PersonalityService } from "../../personality-service";
 import { TerminalService } from "../../terminal/service";
-import { TrajectoryService } from "../../trajectory/service";
+import { TrajectoryEvaluationService } from "../../trajectory/service";
 import { WebService } from "../../web/service";
 import { WorkspaceService } from "../../workspace-service/index";
 import type {
@@ -46,9 +46,9 @@ export function createServiceConstructionLeaves(params: {
           resolveModelContext,
         ),
     ),
-    trajectories: createLazySlot(
+    trajectoryEvaluation: createLazySlot(
       () =>
-        new TrajectoryService(
+        new TrajectoryEvaluationService(
           directories.trajectoriesDir,
           core.sessions,
           resolveModelContext,

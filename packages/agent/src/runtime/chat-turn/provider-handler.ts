@@ -8,7 +8,7 @@ import type { StreamingOutputModel } from "./provider-streaming";
 import {
   elapsedMsSince,
   readSdkTrajectoryStepId,
-  recordTrajectoryEvent,
+  recordEvaluationTraceEvent,
   runWithSdkTrajectoryContext,
 } from "./trajectory";
 
@@ -152,7 +152,7 @@ export async function executeProviderMessageTurn(
       metadataTarget: input.memory,
     },
     async () => {
-      recordTrajectoryEvent(input.context, {
+      recordEvaluationTraceEvent(input.context, {
         category: "model",
         event: "model.request",
         sessionId,
@@ -249,7 +249,7 @@ export async function executeProviderMessageTurn(
             ? actionResults
             : (input.context.runtime.getActionResults?.(messageId) ?? []);
         const elapsedMs = elapsedMsSince(startedAt);
-        recordTrajectoryEvent(input.context, {
+        recordEvaluationTraceEvent(input.context, {
           category: "model",
           event: runFailureMessage ? "model.error" : "model.response",
           sessionId,

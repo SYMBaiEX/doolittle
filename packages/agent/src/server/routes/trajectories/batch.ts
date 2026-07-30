@@ -43,7 +43,7 @@ export const handleTrajectoryBatchRoutes: TrajectoryRouteHandler = async (
     ),
   );
   return json({
-    batch: context.services.trajectories.createBatchManifest({
+    batch: context.services.trajectoryEvaluation.createBatchManifest({
       label,
       purpose: body?.purpose ?? "trajectory batch",
       prompts,

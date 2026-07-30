@@ -5,7 +5,7 @@ import { renderCompressedBundle, renderReplayBundle } from "./bundles";
 function createContext() {
   return {
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         compressLatest: () => ({ latest: true }),
         replayLatest: () => ({ replay: "latest" }),
         listBundles: () => [

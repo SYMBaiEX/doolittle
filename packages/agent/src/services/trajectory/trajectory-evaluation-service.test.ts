@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { RunControllerService } from "../run-controller-service";
-import { TrajectoryService } from "./index";
+import { TrajectoryEvaluationService } from "./index";
 
-describe("TrajectoryService", () => {
+describe("TrajectoryEvaluationService", () => {
   it("exports filtered bundles with manifest, analysis, and evaluation metadata", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-trajectory-"));
     const sessions = {
@@ -32,7 +32,7 @@ describe("TrajectoryService", () => {
         ].slice(0, limit);
       },
     };
-    const service = new TrajectoryService(root, sessions as never);
+    const service = new TrajectoryEvaluationService(root, sessions as never);
 
     try {
       const bundle = service.exportFilteredBundle({
@@ -262,7 +262,7 @@ describe("TrajectoryService", () => {
       },
     };
     const runController = new RunControllerService();
-    const service = new TrajectoryService(
+    const service = new TrajectoryEvaluationService(
       root,
       sessions as never,
       undefined,

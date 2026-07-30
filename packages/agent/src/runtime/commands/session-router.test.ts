@@ -165,7 +165,7 @@ describe("session command router", () => {
             overThreshold: false,
           }),
         },
-        trajectories: {
+        trajectoryEvaluation: {
           recentEvents: () => [],
         },
         gatewaySessions: {
@@ -317,7 +317,7 @@ describe("session command router", () => {
             overThreshold: false,
           }),
         },
-        trajectories: {
+        trajectoryEvaluation: {
           recordEvent: (event: unknown) => trajectoryEvents.push(event),
           recentEvents: () => trajectoryEvents,
         },

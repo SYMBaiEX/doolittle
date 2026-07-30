@@ -6,7 +6,7 @@ import type {
   TrajectoryReplayResult,
 } from "../../../types/trajectory";
 
-/** Subset of TrajectoryService the evaluation helpers need. */
+/** Subset of TrajectoryEvaluationService the evaluation helpers need. */
 export interface TrajectoryEvaluationHost {
   baseDir: string;
   slug(value: string): string;

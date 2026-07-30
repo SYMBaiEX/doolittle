@@ -59,7 +59,7 @@ export async function handleTrajectoryExportCommands(
 
   if (trimmed === "/trajectories bundle") {
     return JSON.stringify(
-      context.services.trajectories.exportBundle(200),
+      context.services.trajectoryEvaluation.exportBundle(200),
       null,
       2,
     );
@@ -70,7 +70,7 @@ export async function handleTrajectoryExportCommands(
       trimmed.replace("/trajectories bundle ", ""),
     );
     return JSON.stringify(
-      context.services.trajectories.exportFilteredBundle({
+      context.services.trajectoryEvaluation.exportFilteredBundle({
         ...options,
         limit: options.limit ?? 200,
         mode: options.mode ?? "research",
@@ -128,7 +128,7 @@ export async function handleTrajectoryExportCommands(
         })),
       );
     }
-    const fallbackBundles = context.services.trajectories.listBundles(
+    const fallbackBundles = context.services.trajectoryEvaluation.listBundles(
       options.limit ?? 10,
     ) as TrajectoryBundleLike[];
     return formatTrajectoryBundleList(fallbackBundles);

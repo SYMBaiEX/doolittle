@@ -21,7 +21,7 @@ export function findBundle(
   if (!labelOrPath) {
     return undefined;
   }
-  return context.services.trajectories
+  return context.services.trajectoryEvaluation
     .listBundles(50)
     .find(
       (entry) =>

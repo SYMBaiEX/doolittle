@@ -54,7 +54,7 @@ function createContext(options?: { sdk?: boolean; listFromService?: boolean }) {
         service === "trajectories" && sdkTrajectory ? [sdkTrajectory] : [],
     },
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         exportRecent: (limit: number) => `recent:${limit}`,
         exportDataset: (input: Record<string, unknown>) => {
           calls.push(input);

@@ -1,7 +1,7 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import { persistAssistantTurnMemory } from "./conversation-persistence";
 import type { TurnState } from "./state";
-import { recordTrajectoryEvent } from "./trajectory";
+import { recordEvaluationTraceEvent } from "./trajectory";
 
 const SKILL_SYNTHESIS_NUDGE_INTERVAL = 12;
 
@@ -24,7 +24,7 @@ export async function finalizeTurnResponse(
     text,
   });
   const modelSettings = turn.settings?.model ?? {};
-  recordTrajectoryEvent(context, {
+  recordEvaluationTraceEvent(context, {
     category: "turn",
     event: "turn.completed",
     sessionId: turn.sessionId,

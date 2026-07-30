@@ -9,20 +9,21 @@ export function renderCompressedBundle(
   raw: string,
 ): string {
   if (raw === "latest") {
-    const compressed = context.services.trajectories.compressLatest();
+    const compressed = context.services.trajectoryEvaluation.compressLatest();
     return compressed
       ? JSON.stringify(compressed, null, 2)
       : "No trajectory bundles recorded.";
   }
 
-  const bundles = context.services.trajectories.listBundles(
+  const bundles = context.services.trajectoryEvaluation.listBundles(
     50,
   ) as TrajectoryBundleLike[];
   const manifestPath = resolveTrajectoryManifestPath(raw, bundles);
   if (!manifestPath) {
     return `Trajectory bundle not found: ${raw}`;
   }
-  const compressed = context.services.trajectories.compressBundle(manifestPath);
+  const compressed =
+    context.services.trajectoryEvaluation.compressBundle(manifestPath);
   if (!compressed) {
     return `Trajectory bundle could not be compressed: ${raw}`;
   }
@@ -34,20 +35,21 @@ export function renderReplayBundle(
   raw: string,
 ): string {
   if (raw === "latest") {
-    const replay = context.services.trajectories.replayLatest();
+    const replay = context.services.trajectoryEvaluation.replayLatest();
     return replay
       ? JSON.stringify(replay, null, 2)
       : "No trajectory bundles recorded.";
   }
 
-  const bundles = context.services.trajectories.listBundles(
+  const bundles = context.services.trajectoryEvaluation.listBundles(
     50,
   ) as TrajectoryBundleLike[];
   const manifestPath = resolveTrajectoryManifestPath(raw, bundles);
   if (!manifestPath) {
     return `Trajectory bundle not found: ${raw}`;
   }
-  const replay = context.services.trajectories.replayBundle(manifestPath);
+  const replay =
+    context.services.trajectoryEvaluation.replayBundle(manifestPath);
   if (!replay) {
     return `Trajectory bundle could not be replayed: ${raw}`;
   }

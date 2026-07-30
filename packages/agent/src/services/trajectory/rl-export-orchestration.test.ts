@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  describeTrajectoryServiceRlExport,
-  exportTrajectoryServiceRlDataset,
-  exportTrajectoryServiceRlReady,
-  type TrajectoryServiceRlExportHost,
+  describeTrajectoryEvaluationServiceRlExport,
+  exportTrajectoryEvaluationServiceRlDataset,
+  exportTrajectoryEvaluationServiceRlReady,
+  type TrajectoryEvaluationServiceRlExportHost,
 } from "./rl-export-orchestration";
 
 describe("trajectory-service RL export orchestration", () => {
@@ -16,7 +16,7 @@ describe("trajectory-service RL export orchestration", () => {
     );
     let readLimit = 0;
 
-    const host: TrajectoryServiceRlExportHost = {
+    const host: TrajectoryEvaluationServiceRlExportHost = {
       baseDir,
       sessions: {
         recent(limit: number) {
@@ -46,10 +46,14 @@ describe("trajectory-service RL export orchestration", () => {
     };
 
     try {
-      const result = exportTrajectoryServiceRlReady(host, "session-a", {
-        limit: 10,
-        model: "gpt-test",
-      });
+      const result = exportTrajectoryEvaluationServiceRlReady(
+        host,
+        "session-a",
+        {
+          limit: 10,
+          model: "gpt-test",
+        },
+      );
 
       expect(readLimit).toBe(500);
       expect(result.turnCount).toBe(1);
@@ -64,7 +68,7 @@ describe("trajectory-service RL export orchestration", () => {
     );
     const calls: number[] = [];
 
-    const host: TrajectoryServiceRlExportHost = {
+    const host: TrajectoryEvaluationServiceRlExportHost = {
       baseDir,
       sessions: {
         recent(limit: number) {
@@ -100,8 +104,8 @@ describe("trajectory-service RL export orchestration", () => {
     };
 
     try {
-      exportTrajectoryServiceRlDataset(host, {});
-      exportTrajectoryServiceRlDataset(host, { limit: 3 });
+      exportTrajectoryEvaluationServiceRlDataset(host, {});
+      exportTrajectoryEvaluationServiceRlDataset(host, { limit: 3 });
 
       expect(calls).toEqual([1000, 3]);
     } finally {
@@ -113,7 +117,7 @@ describe("trajectory-service RL export orchestration", () => {
     const baseDir = mkdtempSync(
       join(tmpdir(), "doolittle-trajectory-rl-host-"),
     );
-    const host: TrajectoryServiceRlExportHost = {
+    const host: TrajectoryEvaluationServiceRlExportHost = {
       baseDir,
       sessions: {
         recent() {
@@ -130,7 +134,7 @@ describe("trajectory-service RL export orchestration", () => {
     };
 
     try {
-      const description = describeTrajectoryServiceRlExport(host);
+      const description = describeTrajectoryEvaluationServiceRlExport(host);
 
       expect(description).toContain("Sessions available: 7");
       expect(description).toContain("not ElizaOS SDK trajectory data");

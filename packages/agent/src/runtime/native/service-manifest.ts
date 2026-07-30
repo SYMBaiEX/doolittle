@@ -52,7 +52,7 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
     { service: "personalities", group: "officialBacked" },
     { service: "skills", group: "officialBacked" },
     { service: "skillSynthesis", group: "customEliza" },
-    { service: "trajectories", group: "officialBacked" },
+    { service: "trajectoryEvaluation", group: "customEliza" },
     { service: "delegationProjection", group: "officialBacked" },
     { service: "memory", group: "officialBacked" },
     { service: "sessions", group: "officialBacked" },

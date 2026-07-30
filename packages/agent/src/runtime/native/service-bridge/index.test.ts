@@ -760,7 +760,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
         ],
         queueSummary: () => ({ pending: 1, activeWorkers: 1 }),
       },
-      trajectories: {
+      trajectoryEvaluation: {
         listBundles: () => [{ id: "fallback-bundle" }],
         exportLatest: () => ({ id: "fallback-latest" }),
       },
@@ -801,7 +801,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       shell: true,
       delegation: true,
     });
-    expect(controlPlane.trajectories.bundles).toBe(1);
+    expect(controlPlane.trajectories.evaluationBundles).toBe(1);
     expect(controlPlane.pluginManager.plugins).toBe(2);
     expect(controlPlane.pluginManager.enabled).toBe(1);
     expect(controlPlane.pluginManager.official).toBe(1);

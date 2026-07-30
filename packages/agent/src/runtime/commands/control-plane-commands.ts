@@ -79,7 +79,9 @@ function renderOperatorPulse(
     context.services.runController.getActive(sessionKey),
   );
   const recentTrajectoryCount =
-    safeRead(() => context.services.trajectories.recentEvents(5).length) ?? 0;
+    safeRead(
+      () => context.services.trajectoryEvaluation.recentEvents(5).length,
+    ) ?? 0;
 
   const provider = settings?.model.provider ?? "unknown";
   const model = settings?.model.model ?? "unknown";

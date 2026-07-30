@@ -8,48 +8,48 @@ import {
   exportTrajectoryDataset,
 } from "../bundle-storage";
 import { buildAnalysisPrompt, buildHighlights } from "../evaluation";
-import type { TrajectoryServiceHosts } from "../service-support";
-import type { TrajectoryServiceBundleArtifacts } from "../service-types";
+import type { TrajectoryEvaluationServiceHosts } from "../service-support";
+import type { TrajectoryEvaluationServiceBundleArtifacts } from "../service-types";
 
-export function exportTrajectoryServiceRecent(
-  hosts: TrajectoryServiceHosts,
+export function exportTrajectoryEvaluationServiceRecent(
+  hosts: TrajectoryEvaluationServiceHosts,
   limit = 100,
 ): string {
   return exportTrajectoryDataset(hosts.bundleStorage, { limit });
 }
 
-export function exportTrajectoryServiceDataset(
-  hosts: TrajectoryServiceHosts,
+export function exportTrajectoryEvaluationServiceDataset(
+  hosts: TrajectoryEvaluationServiceHosts,
   options: TrajectoryExportOptions = {},
 ): string {
   return exportTrajectoryDataset(hosts.bundleStorage, options);
 }
 
-export function exportTrajectoryServiceBundle(
-  hosts: TrajectoryServiceHosts,
+export function exportTrajectoryEvaluationServiceBundle(
+  hosts: TrajectoryEvaluationServiceHosts,
   limit = 100,
-): TrajectoryServiceBundleArtifacts {
-  return exportTrajectoryServiceFilteredBundle(hosts, { limit });
+): TrajectoryEvaluationServiceBundleArtifacts {
+  return exportTrajectoryEvaluationServiceFilteredBundle(hosts, { limit });
 }
 
-export function exportTrajectoryServiceLatest(
-  hosts: TrajectoryServiceHosts,
-): TrajectoryServiceBundleArtifacts {
-  return exportTrajectoryServiceBundle(hosts, 100);
+export function exportTrajectoryEvaluationServiceLatest(
+  hosts: TrajectoryEvaluationServiceHosts,
+): TrajectoryEvaluationServiceBundleArtifacts {
+  return exportTrajectoryEvaluationServiceBundle(hosts, 100);
 }
 
-export function exportTrajectoryServiceFilteredBundle(
-  hosts: TrajectoryServiceHosts,
+export function exportTrajectoryEvaluationServiceFilteredBundle(
+  hosts: TrajectoryEvaluationServiceHosts,
   options: TrajectoryExportOptions = {},
-): TrajectoryServiceBundleArtifacts {
+): TrajectoryEvaluationServiceBundleArtifacts {
   return exportTrajectoryBundleRecords(hosts.bundleStorage, options);
 }
 
-export function analyzeTrajectoryService(
-  hosts: TrajectoryServiceHosts,
+export function analyzeTrajectoryEvaluationService(
+  hosts: TrajectoryEvaluationServiceHosts,
   options: TrajectoryExportOptions = {},
 ): TrajectoryAnalysisBundle {
-  const bundle = exportTrajectoryServiceFilteredBundle(hosts, {
+  const bundle = exportTrajectoryEvaluationServiceFilteredBundle(hosts, {
     ...options,
     limit: options.limit ?? 200,
     mode: options.mode ?? "research",

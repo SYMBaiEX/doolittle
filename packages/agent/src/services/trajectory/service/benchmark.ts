@@ -1,46 +1,46 @@
 import { runLatestTrajectoryBenchmark } from "../latest-benchmark";
-import type { TrajectoryService } from "../service";
+import type { TrajectoryEvaluationService } from "../service";
 import * as trajectoryCatalog from "../service-catalog";
 import {
-  createTrajectoryServiceBenchmarkManifest,
-  describeTrajectoryServiceBenchmarkEnvironment,
-  runTrajectoryServiceBenchmark,
+  createTrajectoryEvaluationServiceBenchmarkManifest,
+  describeTrajectoryEvaluationServiceBenchmarkEnvironment,
+  runTrajectoryEvaluationServiceBenchmark,
 } from "../service-operations/benchmark";
-import { getTrajectoryServiceState } from "./state";
-import type { TrajectoryServiceApi } from "./types";
+import { getTrajectoryEvaluationServiceState } from "./state";
+import type { TrajectoryEvaluationServiceApi } from "./types";
 
 export const trajectoryServiceBenchmarkMethods: Pick<
-  TrajectoryServiceApi,
+  TrajectoryEvaluationServiceApi,
   | "describeBenchmarkEnvironment"
   | "createBenchmarkManifest"
   | "runBenchmark"
   | "runLatestBenchmark"
 > = {
-  describeBenchmarkEnvironment(this: TrajectoryService) {
-    return describeTrajectoryServiceBenchmarkEnvironment(
-      getTrajectoryServiceState(this).hosts,
+  describeBenchmarkEnvironment(this: TrajectoryEvaluationService) {
+    return describeTrajectoryEvaluationServiceBenchmarkEnvironment(
+      getTrajectoryEvaluationServiceState(this).hosts,
     );
   },
 
-  createBenchmarkManifest(this: TrajectoryService, input) {
-    return createTrajectoryServiceBenchmarkManifest(
-      getTrajectoryServiceState(this).hosts,
+  createBenchmarkManifest(this: TrajectoryEvaluationService, input) {
+    return createTrajectoryEvaluationServiceBenchmarkManifest(
+      getTrajectoryEvaluationServiceState(this).hosts,
       input,
     );
   },
 
-  runBenchmark(this: TrajectoryService, manifestPath: string) {
-    return runTrajectoryServiceBenchmark(
-      getTrajectoryServiceState(this).hosts,
+  runBenchmark(this: TrajectoryEvaluationService, manifestPath: string) {
+    return runTrajectoryEvaluationServiceBenchmark(
+      getTrajectoryEvaluationServiceState(this).hosts,
       manifestPath,
     );
   },
 
-  runLatestBenchmark(this: TrajectoryService) {
-    const state = getTrajectoryServiceState(this);
+  runLatestBenchmark(this: TrajectoryEvaluationService) {
+    const state = getTrajectoryEvaluationServiceState(this);
     return runLatestTrajectoryBenchmark(
       state.hosts.benchmark,
-      trajectoryCatalog.listTrajectoryServiceBenchmarkManifests(
+      trajectoryCatalog.listTrajectoryEvaluationServiceBenchmarkManifests(
         state.baseDir,
         20,
       ),

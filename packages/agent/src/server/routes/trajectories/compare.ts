@@ -11,7 +11,7 @@ export const handleTrajectoryComparisonRoutes: TrajectoryRouteHandler = async (
     request.method === "GET" &&
     url.pathname === "/trajectories/compare/latest"
   ) {
-    const comparison = context.services.trajectories.compareLatest();
+    const comparison = context.services.trajectoryEvaluation.compareLatest();
     return comparison
       ? json({ comparison })
       : json({ error: "At least two trajectory bundles are required." }, 404);
@@ -26,7 +26,7 @@ export const handleTrajectoryComparisonRoutes: TrajectoryRouteHandler = async (
       );
     }
     return json({
-      comparison: context.services.trajectories.compareBundles(
+      comparison: context.services.trajectoryEvaluation.compareBundles(
         body.leftManifestPath,
         body.rightManifestPath,
       ),

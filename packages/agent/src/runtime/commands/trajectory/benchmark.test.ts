@@ -19,7 +19,7 @@ function createContext() {
 
   const context = {
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         describeBenchmarkEnvironment: () => ({
           provider: "unit-test",
           model: "test-model",

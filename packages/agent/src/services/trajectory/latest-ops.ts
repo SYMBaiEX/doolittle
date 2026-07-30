@@ -12,10 +12,10 @@ import {
   replayTrajectoryBundle,
 } from "./bundle-ops";
 import { evaluateBundle, normalizeEvaluationMode } from "./evaluation";
-import type { TrajectoryServiceHosts } from "./service-support";
+import type { TrajectoryEvaluationServiceHosts } from "./service-support";
 
 export async function evaluateLatestTrajectoryBundle(
-  hosts: TrajectoryServiceHosts,
+  hosts: TrajectoryEvaluationServiceHosts,
 ): Promise<TrajectoryEvaluationBundle | undefined> {
   const latest = hosts.evaluation.listBundles(1)[0];
   if (!latest) {
@@ -29,7 +29,7 @@ export async function evaluateLatestTrajectoryBundle(
 }
 
 export function replayLatestTrajectoryBundle(
-  hosts: TrajectoryServiceHosts,
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryReplayResult | undefined {
   const latest = hosts.evaluation.listBundles(1)[0];
   if (!latest) {
@@ -39,7 +39,7 @@ export function replayLatestTrajectoryBundle(
 }
 
 export function compressLatestTrajectoryBundle(
-  hosts: TrajectoryServiceHosts,
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryCompressionBundle | undefined {
   const latest = hosts.evaluation.listBundles(1)[0];
   if (!latest) {
@@ -49,7 +49,7 @@ export function compressLatestTrajectoryBundle(
 }
 
 export function compareLatestTrajectoryBundles(
-  hosts: TrajectoryServiceHosts,
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryComparisonBundle | undefined {
   const latest = hosts.evaluation.listBundles(2);
   if (latest.length < 2) {
@@ -68,7 +68,7 @@ export function compareLatestTrajectoryBundles(
 }
 
 export async function runLatestTrajectoryBenchmark(
-  hosts: TrajectoryServiceHosts,
+  hosts: TrajectoryEvaluationServiceHosts,
 ): Promise<TrajectoryBenchmarkRun | undefined> {
   const latest = hosts.evaluation.listBundles(1)[0];
   if (!latest) {

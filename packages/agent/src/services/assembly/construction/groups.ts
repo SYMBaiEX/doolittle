@@ -52,7 +52,7 @@ export function createServiceAssemblyLazyServices(
     operator: state.operator,
     autocoderPipeline: state.autocoderPipeline,
     media: state.media,
-    trajectories: state.trajectories,
+    trajectoryEvaluation: state.trajectoryEvaluation,
     skillSynthesis: state.skillSynthesis,
     skillsHub: state.skillsHub,
     contextFiles: state.contextFiles,

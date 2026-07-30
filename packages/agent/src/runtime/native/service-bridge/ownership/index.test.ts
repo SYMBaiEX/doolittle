@@ -132,7 +132,7 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
         roots: [],
       }),
     },
-    trajectories: {
+    trajectoryEvaluation: {
       listBundles: () => ["bundle-a"],
       exportLatest: () => ({ id: "bundle-latest" }),
     },
@@ -237,6 +237,15 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
       getLoadedSkills: () => [],
     },
     ORCHESTRATOR_TASK_SERVICE: {},
+    trajectories: {
+      isEnabled: () => true,
+      listTrajectories: () => ({ trajectories: [], total: 0 }),
+      exportTrajectories: async () => ({
+        data: "",
+        filename: "trajectories.jsonl",
+        mimeType: "application/x-ndjson",
+      }),
+    },
     mcp: {
       status: () => services.mcp.status(),
       getCachedTools: () => services.mcp.getCachedTools(),

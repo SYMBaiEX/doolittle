@@ -3,19 +3,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  createTrajectoryServiceBenchmarkManifest,
-  describeTrajectoryServiceBenchmarkEnvironment,
-  runTrajectoryServiceBenchmark,
+  createTrajectoryEvaluationServiceBenchmarkManifest,
+  describeTrajectoryEvaluationServiceBenchmarkEnvironment,
+  runTrajectoryEvaluationServiceBenchmark,
 } from "./service-operations/benchmark";
 import {
-  analyzeTrajectoryService,
-  exportTrajectoryServiceRecent,
+  analyzeTrajectoryEvaluationService,
+  exportTrajectoryEvaluationServiceRecent,
 } from "./service-operations/exports";
 import {
-  exportTrajectoryServiceRlDataset,
-  exportTrajectoryServiceRlReady,
+  exportTrajectoryEvaluationServiceRlDataset,
+  exportTrajectoryEvaluationServiceRlReady,
 } from "./service-operations/rl";
-import { createTrajectoryServiceHosts } from "./service-support";
+import { createTrajectoryEvaluationServiceHosts } from "./service-support";
 
 describe("trajectory service orchestration", () => {
   it("routes export, analysis, rl export, and benchmark orchestration through helpers", async () => {
@@ -130,13 +130,13 @@ describe("trajectory service orchestration", () => {
         return JSON.parse(readFileSync(manifestPath, "utf8")) as never;
       },
     };
-    const hosts = createTrajectoryServiceHosts(source as never);
+    const hosts = createTrajectoryEvaluationServiceHosts(source as never);
 
     try {
-      const exported = exportTrajectoryServiceRecent(hosts, 2);
+      const exported = exportTrajectoryEvaluationServiceRecent(hosts, 2);
       expect(exported).toContain("trajectory-");
 
-      const analysis = analyzeTrajectoryService(hosts, {
+      const analysis = analyzeTrajectoryEvaluationService(hosts, {
         limit: 10,
         sessionId: "session-a",
         label: "Replay Fixture",
@@ -150,18 +150,22 @@ describe("trajectory service orchestration", () => {
         analysis.highlights.some((line) => line.includes("Messages")),
       ).toBe(true);
 
-      const ready = exportTrajectoryServiceRlReady(hosts, "session-a", {
-        label: "RL Ready",
-        model: "gpt-test",
-        provider: "offline",
-        windowSize: 2,
-      });
+      const ready = exportTrajectoryEvaluationServiceRlReady(
+        hosts,
+        "session-a",
+        {
+          label: "RL Ready",
+          model: "gpt-test",
+          provider: "offline",
+          windowSize: 2,
+        },
+      );
       expect(ready.turnCount).toBeGreaterThan(0);
       expect(readFileSync(ready.manifestPath, "utf8")).toContain(
         '"label": "rl-ready"',
       );
 
-      const dataset = exportTrajectoryServiceRlDataset(hosts, {
+      const dataset = exportTrajectoryEvaluationServiceRlDataset(hosts, {
         label: "RL Debug Dataset",
         windowSize: 2,
       });
@@ -169,23 +173,21 @@ describe("trajectory service orchestration", () => {
       expect(dataset.trainingCompatible).toBe(false);
 
       const benchmarkEnvironment =
-        describeTrajectoryServiceBenchmarkEnvironment(hosts);
+        describeTrajectoryEvaluationServiceBenchmarkEnvironment(hosts);
       expect(benchmarkEnvironment.canEvaluate).toBe(true);
       expect(benchmarkEnvironment.canPackage).toBe(true);
 
-      const benchmarkManifest = createTrajectoryServiceBenchmarkManifest(
-        hosts,
-        {
+      const benchmarkManifest =
+        createTrajectoryEvaluationServiceBenchmarkManifest(hosts, {
           label: "Replay Benchmark",
           rubric: ["coverage", "signal"],
           cases: [
             { manifestPath: analysis.bundle.manifestPath, label: "baseline" },
           ],
-        },
-      );
+        });
       expect(benchmarkManifest.cases).toHaveLength(1);
 
-      const benchmarkRun = await runTrajectoryServiceBenchmark(
+      const benchmarkRun = await runTrajectoryEvaluationServiceBenchmark(
         hosts,
         benchmarkManifest.manifestPath,
       );

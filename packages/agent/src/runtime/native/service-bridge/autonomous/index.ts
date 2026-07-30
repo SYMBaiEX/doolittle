@@ -50,8 +50,8 @@ export interface AutonomousControlPlaneSummary {
   trajectories: {
     source: "native";
     available: true;
-    bundles: number;
-    latestAvailable: boolean;
+    evaluationBundles: number;
+    latestEvaluationBundleAvailable: boolean;
   };
   pluginManager: {
     source: "native" | "product";
@@ -182,10 +182,10 @@ export function getAutonomousControlPlane(
         },
       };
   const researchControl = getNativeResearchControlPlane(runtime);
-  // The SDK service owns canonical runtime recording. Doolittle's trajectory
-  // service owns its separate debug/evaluation bundle projection.
-  const trajectoryBundles = services.trajectories.listBundles();
-  const latestTrajectory = services.trajectories.exportLatest();
+  // The SDK service owns canonical runtime recording. Doolittle's evaluation
+  // service owns a separate, explicitly non-training bundle projection.
+  const evaluationBundles = services.trajectoryEvaluation.listBundles();
+  const latestEvaluationBundle = services.trajectoryEvaluation.exportLatest();
 
   return buildAutonomousControlPlaneSummary({
     config,
@@ -198,10 +198,10 @@ export function getAutonomousControlPlane(
       ? orchestratorTasks
       : [],
     orchestratorQueue,
-    trajectoryBundles: Array.isArray(trajectoryBundles)
-      ? trajectoryBundles
+    evaluationBundles: Array.isArray(evaluationBundles)
+      ? evaluationBundles
       : [],
-    latestTrajectory,
+    latestEvaluationBundle,
     pluginInventory,
     mediaControl,
     researchControl,

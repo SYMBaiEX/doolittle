@@ -45,7 +45,7 @@ export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
   if (request.method === "POST" && url.pathname === "/trajectories/bundle") {
     const body = await readJsonBody<TrajectoryDatasetBody>(request);
     return json(
-      context.services.trajectories.exportFilteredBundle(
+      context.services.trajectoryEvaluation.exportFilteredBundle(
         buildTrajectoryRequest(body ?? {}),
       ),
     );
@@ -54,7 +54,7 @@ export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
   if (request.method === "POST" && url.pathname === "/trajectories/analyze") {
     const body = await readJsonBody<TrajectoryDatasetBody>(request);
     return json({
-      analysis: context.services.trajectories.analyze(
+      analysis: context.services.trajectoryEvaluation.analyze(
         buildTrajectoryRequest(body ?? {}),
       ),
     });
@@ -64,7 +64,7 @@ export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
     const limitRaw = url.searchParams.get("limit");
     const limit = limitRaw ? Number(limitRaw) : 20;
     return json({
-      bundles: context.services.trajectories.listBundles(
+      bundles: context.services.trajectoryEvaluation.listBundles(
         !Number.isNaN(limit) && limit > 0 ? limit : 20,
       ),
     });

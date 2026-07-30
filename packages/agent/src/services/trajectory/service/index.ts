@@ -9,15 +9,15 @@ import type {
 } from "../../run-controller-service";
 import type { SessionService } from "../../session/service";
 import { createTrajectoryEventJournal } from "../event-journal";
-import { buildTrajectoryServiceHosts } from "../service-hosts";
-import type { TrajectoryServiceHostBindings } from "../service-types";
+import { buildTrajectoryEvaluationServiceHosts } from "../service-hosts";
+import type { TrajectoryEvaluationServiceHostBindings } from "../service-types";
 import { trajectoryServiceBenchmarkMethods } from "./benchmark";
 import { trajectoryServiceCatalogMethods } from "./catalog";
 import { trajectoryServiceOperationMethods } from "./operations";
 import { trajectoryServiceRecordingMethods } from "./recording";
 import { trajectoryServiceRlMethods } from "./rl";
-import { setTrajectoryServiceState } from "./state";
-import type { TrajectoryServiceApi } from "./types";
+import { setTrajectoryEvaluationServiceState } from "./state";
+import type { TrajectoryEvaluationServiceApi } from "./types";
 
 export type {
   GatewayMessageLike,
@@ -42,39 +42,48 @@ export type {
   TrajectoryResearchPackageBundle,
 } from "../../../types/trajectory";
 
-export class TrajectoryService implements TrajectoryServiceHostBindings {
-  declare recordEvent: TrajectoryServiceApi["recordEvent"];
-  declare recentEvents: TrajectoryServiceApi["recentEvents"];
-  declare exportRecent: TrajectoryServiceApi["exportRecent"];
-  declare exportDataset: TrajectoryServiceApi["exportDataset"];
-  declare exportBundle: TrajectoryServiceApi["exportBundle"];
-  declare exportLatest: TrajectoryServiceApi["exportLatest"];
-  declare exportFilteredBundle: TrajectoryServiceApi["exportFilteredBundle"];
-  declare analyze: TrajectoryServiceApi["analyze"];
-  declare evaluate: TrajectoryServiceApi["evaluate"];
-  declare evaluateBundle: TrajectoryServiceApi["evaluateBundle"];
-  declare package: TrajectoryServiceApi["package"];
-  declare packageLatest: TrajectoryServiceApi["packageLatest"];
-  declare describeBenchmarkEnvironment: TrajectoryServiceApi["describeBenchmarkEnvironment"];
-  declare createBenchmarkManifest: TrajectoryServiceApi["createBenchmarkManifest"];
-  declare runBenchmark: TrajectoryServiceApi["runBenchmark"];
-  declare runLatestBenchmark: TrajectoryServiceApi["runLatestBenchmark"];
-  declare replayBundle: TrajectoryServiceApi["replayBundle"];
-  declare replayLatest: TrajectoryServiceApi["replayLatest"];
-  declare compressBundle: TrajectoryServiceApi["compressBundle"];
-  declare compressLatest: TrajectoryServiceApi["compressLatest"];
-  declare compareBundles: TrajectoryServiceApi["compareBundles"];
-  declare compareLatest: TrajectoryServiceApi["compareLatest"];
-  declare evaluateLatest: TrajectoryServiceApi["evaluateLatest"];
-  declare ingestGatewayHistory: TrajectoryServiceApi["ingestGatewayHistory"];
-  declare createBatchManifest: TrajectoryServiceApi["createBatchManifest"];
-  declare listBundles: TrajectoryServiceApi["listBundles"];
-  declare describeBundle: TrajectoryServiceApi["describeBundle"];
-  declare listBenchmarkManifests: TrajectoryServiceApi["listBenchmarkManifests"];
-  declare describeBenchmarkManifest: TrajectoryServiceApi["describeBenchmarkManifest"];
-  declare exportRlReady: TrajectoryServiceApi["exportRlReady"];
-  declare exportRlDataset: TrajectoryServiceApi["exportRlDataset"];
-  declare describeRlExport: TrajectoryServiceApi["describeRlExport"];
+/**
+ * Doolittle-owned replay, debugging, benchmarking, and evaluation projection.
+ *
+ * This service intentionally does not own canonical Eliza runtime trajectory
+ * persistence. Training-compatible model and tool traces remain exclusively
+ * owned by the SDK `trajectories` service.
+ */
+export class TrajectoryEvaluationService
+  implements TrajectoryEvaluationServiceHostBindings
+{
+  declare recordEvent: TrajectoryEvaluationServiceApi["recordEvent"];
+  declare recentEvents: TrajectoryEvaluationServiceApi["recentEvents"];
+  declare exportRecent: TrajectoryEvaluationServiceApi["exportRecent"];
+  declare exportDataset: TrajectoryEvaluationServiceApi["exportDataset"];
+  declare exportBundle: TrajectoryEvaluationServiceApi["exportBundle"];
+  declare exportLatest: TrajectoryEvaluationServiceApi["exportLatest"];
+  declare exportFilteredBundle: TrajectoryEvaluationServiceApi["exportFilteredBundle"];
+  declare analyze: TrajectoryEvaluationServiceApi["analyze"];
+  declare evaluate: TrajectoryEvaluationServiceApi["evaluate"];
+  declare evaluateBundle: TrajectoryEvaluationServiceApi["evaluateBundle"];
+  declare package: TrajectoryEvaluationServiceApi["package"];
+  declare packageLatest: TrajectoryEvaluationServiceApi["packageLatest"];
+  declare describeBenchmarkEnvironment: TrajectoryEvaluationServiceApi["describeBenchmarkEnvironment"];
+  declare createBenchmarkManifest: TrajectoryEvaluationServiceApi["createBenchmarkManifest"];
+  declare runBenchmark: TrajectoryEvaluationServiceApi["runBenchmark"];
+  declare runLatestBenchmark: TrajectoryEvaluationServiceApi["runLatestBenchmark"];
+  declare replayBundle: TrajectoryEvaluationServiceApi["replayBundle"];
+  declare replayLatest: TrajectoryEvaluationServiceApi["replayLatest"];
+  declare compressBundle: TrajectoryEvaluationServiceApi["compressBundle"];
+  declare compressLatest: TrajectoryEvaluationServiceApi["compressLatest"];
+  declare compareBundles: TrajectoryEvaluationServiceApi["compareBundles"];
+  declare compareLatest: TrajectoryEvaluationServiceApi["compareLatest"];
+  declare evaluateLatest: TrajectoryEvaluationServiceApi["evaluateLatest"];
+  declare ingestGatewayHistory: TrajectoryEvaluationServiceApi["ingestGatewayHistory"];
+  declare createBatchManifest: TrajectoryEvaluationServiceApi["createBatchManifest"];
+  declare listBundles: TrajectoryEvaluationServiceApi["listBundles"];
+  declare describeBundle: TrajectoryEvaluationServiceApi["describeBundle"];
+  declare listBenchmarkManifests: TrajectoryEvaluationServiceApi["listBenchmarkManifests"];
+  declare describeBenchmarkManifest: TrajectoryEvaluationServiceApi["describeBenchmarkManifest"];
+  declare exportRlReady: TrajectoryEvaluationServiceApi["exportRlReady"];
+  declare exportRlDataset: TrajectoryEvaluationServiceApi["exportRlDataset"];
+  declare describeRlExport: TrajectoryEvaluationServiceApi["describeRlExport"];
 
   constructor(
     baseDir: string,
@@ -84,14 +93,14 @@ export class TrajectoryService implements TrajectoryServiceHostBindings {
   ) {
     mkdirSync(baseDir, { recursive: true });
     const eventJournal = createTrajectoryEventJournal(baseDir);
-    const hosts = buildTrajectoryServiceHosts({
+    const hosts = buildTrajectoryEvaluationServiceHosts({
       baseDir,
       sessions,
       getModelContext,
       eventJournal,
       bindings: this,
     });
-    setTrajectoryServiceState(this, { baseDir, hosts, eventJournal });
+    setTrajectoryEvaluationServiceState(this, { baseDir, hosts, eventJournal });
     runController?.onUpdate((event) => {
       eventJournal.append(runUpdateToTrajectoryEvent(event));
     });
@@ -99,7 +108,7 @@ export class TrajectoryService implements TrajectoryServiceHostBindings {
 }
 
 Object.assign(
-  TrajectoryService.prototype,
+  TrajectoryEvaluationService.prototype,
   trajectoryServiceRecordingMethods,
   trajectoryServiceCatalogMethods,
   trajectoryServiceOperationMethods,

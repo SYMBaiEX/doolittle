@@ -6,22 +6,22 @@ import {
   createTrajectoryBatchManifest,
   ingestTrajectoryGatewayHistory,
 } from "../bundle-storage";
-import type { TrajectoryServiceHosts } from "../service-support";
+import type { TrajectoryEvaluationServiceHosts } from "../service-support";
 import type {
-  TrajectoryServiceBatchManifestInput,
-  TrajectoryServiceGatewayHistoryInput,
+  TrajectoryEvaluationServiceBatchManifestInput,
+  TrajectoryEvaluationServiceGatewayHistoryInput,
 } from "../service-types";
 
-export function ingestTrajectoryServiceGatewayHistory(
-  hosts: TrajectoryServiceHosts,
-  input: TrajectoryServiceGatewayHistoryInput,
+export function ingestTrajectoryEvaluationServiceGatewayHistory(
+  hosts: TrajectoryEvaluationServiceHosts,
+  input: TrajectoryEvaluationServiceGatewayHistoryInput,
 ): TrajectoryGatewayIngestBundle {
   return ingestTrajectoryGatewayHistory(hosts.bundleStorage, input);
 }
 
-export function createTrajectoryServiceBatchManifest(
-  hosts: TrajectoryServiceHosts,
-  input: TrajectoryServiceBatchManifestInput,
+export function createTrajectoryEvaluationServiceBatchManifest(
+  hosts: TrajectoryEvaluationServiceHosts,
+  input: TrajectoryEvaluationServiceBatchManifestInput,
 ): TrajectoryBatchManifest {
   return createTrajectoryBatchManifest(hosts.bundleStorage, input);
 }

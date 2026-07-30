@@ -46,7 +46,7 @@ export async function handleTrajectoryBatchCommands(
 
     return JSON.stringify(
       {
-        batch: context.services.trajectories.createBatchManifest({
+        batch: context.services.trajectoryEvaluation.createBatchManifest({
           label,
           purpose: options.purpose ?? "trajectory batch",
           prompts,

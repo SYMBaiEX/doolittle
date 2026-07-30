@@ -9,7 +9,7 @@ export async function handleTrajectoryCompareCommands(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   if (trimmed === "/trajectories compare latest") {
-    const comparison = context.services.trajectories.compareLatest();
+    const comparison = context.services.trajectoryEvaluation.compareLatest();
     return comparison
       ? JSON.stringify(comparison, null, 2)
       : "At least two trajectory bundles are required for comparison.";
@@ -21,7 +21,7 @@ export async function handleTrajectoryCompareCommands(
     if (!leftRaw || !rightRaw) {
       return "Usage: /trajectories compare <left-manifest|label> :: <right-manifest|label>";
     }
-    const bundles = context.services.trajectories.listBundles(
+    const bundles = context.services.trajectoryEvaluation.listBundles(
       100,
     ) as TrajectoryBundleLike[];
     const leftManifestPath =
@@ -29,7 +29,7 @@ export async function handleTrajectoryCompareCommands(
     const rightManifestPath =
       resolveTrajectoryManifestPath(rightRaw, bundles) ?? rightRaw;
     return JSON.stringify(
-      context.services.trajectories.compareBundles(
+      context.services.trajectoryEvaluation.compareBundles(
         leftManifestPath,
         rightManifestPath,
       ),

@@ -38,7 +38,7 @@ import type { SkillsHubService } from "../../skills-hub/service";
 import type { StartupStateService } from "../../startup-state-service";
 import type { TerminalService } from "../../terminal/service";
 import type { ToolsService } from "../../tools/service";
-import type { TrajectoryService } from "../../trajectory/service";
+import type { TrajectoryEvaluationService } from "../../trajectory/service";
 import type { UserProfileService } from "../../user-profile/service";
 import type { WebService } from "../../web/service";
 import type { WorkspaceService } from "../../workspace-service/index";
@@ -98,7 +98,7 @@ export interface ServiceAssemblyLazy {
   operator: ReturnType<typeof createOperatorServiceSlot>;
   autocoderPipeline: LazySlot<AutocoderPipelineService>;
   media: LazySlot<MediaService>;
-  trajectories: LazySlot<TrajectoryService>;
+  trajectoryEvaluation: LazySlot<TrajectoryEvaluationService>;
   skillSynthesis: LazySlot<SkillSynthesisService>;
   skillsHub: LazySlot<SkillsHubService>;
   contextFiles: LazySlot<ContextFilesService>;
@@ -155,7 +155,7 @@ export interface ServiceConstructionState {
   documents: LazySlot<DocumentsService>;
   contextFiles: LazySlot<ContextFilesService>;
   media: LazySlot<MediaService>;
-  trajectories: LazySlot<TrajectoryService>;
+  trajectoryEvaluation: LazySlot<TrajectoryEvaluationService>;
   contextCompression: LazySlot<ContextCompressionService>;
   fuzzyPatch: LazySlot<FuzzyPatchService>;
   createDocumentsService(

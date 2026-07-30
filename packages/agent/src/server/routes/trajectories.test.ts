@@ -49,7 +49,7 @@ function createContext(options?: { sdk?: boolean }): AppContext {
       }),
     },
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         exportDataset: (input: { label?: string }) =>
           `/tmp/${input.label ?? "latest"}.json`,
         exportFilteredBundle: (input: { label?: string }) => ({

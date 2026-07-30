@@ -89,7 +89,7 @@ async function handleConversationCompression(
   );
   context.services.sessions.replaceSessionMessages(sessionKey, compressed);
   const after = context.services.contextCompression.measure(compressed);
-  context.services.trajectories.recordEvent({
+  context.services.trajectoryEvaluation.recordEvent({
     category: "run",
     event: "session.compressed",
     sessionId: sessionKey,
@@ -131,7 +131,7 @@ function formatOperatorUsage(
   const messages = context.services.sessions.messagesBySession(sessionKey, 500);
   const contextStats = context.services.contextCompression.measure(messages);
   const pct = Math.round(contextStats.usageFraction * 100);
-  const trajectoryEvents = context.services.trajectories
+  const trajectoryEvents = context.services.trajectoryEvaluation
     .recentEvents(200)
     .filter((event) => event.sessionId === sessionKey);
   const runEvents = trajectoryEvents.filter((event) =>
@@ -206,7 +206,7 @@ function formatOperatorInsights(
   const userMemory = context.services.memory.summary("user", input.userId);
   const generatedSkills =
     context.services.skillSynthesis.listGeneratedSkills(5);
-  const events = context.services.trajectories
+  const events = context.services.trajectoryEvaluation
     .recentEvents(300)
     .filter((event) => event.sessionId === sessionKey);
   const failures = events.filter((event) => /failed|error/iu.test(event.event));

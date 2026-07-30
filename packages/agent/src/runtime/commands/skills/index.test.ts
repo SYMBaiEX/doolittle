@@ -177,7 +177,7 @@ describe("skills command router", () => {
             },
           }),
         },
-        trajectories: {
+        trajectoryEvaluation: {
           recordEvent: (event: unknown) => events.push(event),
         },
       },

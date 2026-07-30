@@ -9,11 +9,11 @@ import type { TrajectoryBenchmarkHost } from "./benchmark";
 import type { TrajectoryBundleOperationsHost } from "./bundle-ops";
 import type { TrajectoryBundleStorageHost } from "./bundle-storage";
 import type { TrajectoryEvaluationHost } from "./evaluation";
-import type { TrajectoryServiceRlExportHost } from "./rl-export-orchestration";
-import type { TrajectoryServiceHostBindings } from "./service-types";
+import type { TrajectoryEvaluationServiceRlExportHost } from "./rl-export-orchestration";
+import type { TrajectoryEvaluationServiceHostBindings } from "./service-types";
 
-export interface TrajectoryServiceSupportSource
-  extends TrajectoryServiceHostBindings {
+export interface TrajectoryEvaluationServiceSupportSource
+  extends TrajectoryEvaluationServiceHostBindings {
   baseDir: string;
   sessions: Pick<SessionService, "recent" | "summary">;
   getModelContext?: () => TrajectoryModelContext;
@@ -24,17 +24,17 @@ export interface TrajectoryServiceSupportSource
   readRecords(dataPath: string): TrajectoryRecord[];
 }
 
-export interface TrajectoryServiceHosts {
+export interface TrajectoryEvaluationServiceHosts {
   evaluation: TrajectoryEvaluationHost;
   bundleStorage: TrajectoryBundleStorageHost;
-  rlExport: TrajectoryServiceRlExportHost;
+  rlExport: TrajectoryEvaluationServiceRlExportHost;
   bundleOperations: TrajectoryBundleOperationsHost;
   benchmark: TrajectoryBenchmarkHost;
 }
 
-export function createTrajectoryServiceHosts(
-  source: TrajectoryServiceSupportSource,
-): TrajectoryServiceHosts {
+export function createTrajectoryEvaluationServiceHosts(
+  source: TrajectoryEvaluationServiceSupportSource,
+): TrajectoryEvaluationServiceHosts {
   const sharedSlug = source.slug.bind(source);
   return {
     evaluation: {

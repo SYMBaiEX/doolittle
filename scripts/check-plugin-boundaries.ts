@@ -79,6 +79,17 @@ const INTERNAL_FACADE_GUARDS: Array<{
   },
   {
     root: SERVICES_ROOT,
+    include: /packages\/agent\/src\/services\/types\.ts$/u,
+    patterns: [
+      {
+        pattern: /^\s*trajectories\s*:/mu,
+        reason:
+          "names a product service like the SDK-owned trajectories lifecycle instead of an explicit evaluation projection",
+      },
+    ],
+  },
+  {
+    root: SERVICES_ROOT,
     include: /packages\/agent\/src\/services\/terminal\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [
       {

@@ -10,7 +10,7 @@ import type {
 } from "@/types/runtime";
 import type { NativeUserMemoryOwner } from "./conversation-persistence";
 import { persistUserTurnMemory } from "./conversation-persistence";
-import { recordTrajectoryEvent } from "./trajectory";
+import { recordEvaluationTraceEvent } from "./trajectory";
 
 export interface TurnState {
   agentName: string;
@@ -140,7 +140,7 @@ export async function startTrackedTurn(
     attachments: input.attachmentDescriptors,
     nativeOwner: nativeUserMemoryOwner,
   });
-  recordTrajectoryEvent(context, {
+  recordEvaluationTraceEvent(context, {
     category: "turn",
     event: "turn.started",
     sessionId: turn.sessionId,

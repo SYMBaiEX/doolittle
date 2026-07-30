@@ -1,35 +1,40 @@
-import type { TrajectoryService } from "../service";
+import type { TrajectoryEvaluationService } from "../service";
 import * as trajectoryCatalog from "../service-catalog";
-import { getTrajectoryServiceState } from "./state";
-import type { TrajectoryServiceApi } from "./types";
+import { getTrajectoryEvaluationServiceState } from "./state";
+import type { TrajectoryEvaluationServiceApi } from "./types";
 
 export const trajectoryServiceCatalogMethods: Pick<
-  TrajectoryServiceApi,
+  TrajectoryEvaluationServiceApi,
   | "listBundles"
   | "describeBundle"
   | "listBenchmarkManifests"
   | "describeBenchmarkManifest"
 > = {
-  listBundles(this: TrajectoryService, limit = 20) {
-    return trajectoryCatalog.listTrajectoryServiceBundles(
-      getTrajectoryServiceState(this).baseDir,
+  listBundles(this: TrajectoryEvaluationService, limit = 20) {
+    return trajectoryCatalog.listTrajectoryEvaluationServiceBundles(
+      getTrajectoryEvaluationServiceState(this).baseDir,
       limit,
     );
   },
 
-  describeBundle(this: TrajectoryService, manifestPath: string) {
-    return trajectoryCatalog.describeTrajectoryServiceBundle(manifestPath);
+  describeBundle(this: TrajectoryEvaluationService, manifestPath: string) {
+    return trajectoryCatalog.describeTrajectoryEvaluationServiceBundle(
+      manifestPath,
+    );
   },
 
-  listBenchmarkManifests(this: TrajectoryService, limit = 20) {
-    return trajectoryCatalog.listTrajectoryServiceBenchmarkManifests(
-      getTrajectoryServiceState(this).baseDir,
+  listBenchmarkManifests(this: TrajectoryEvaluationService, limit = 20) {
+    return trajectoryCatalog.listTrajectoryEvaluationServiceBenchmarkManifests(
+      getTrajectoryEvaluationServiceState(this).baseDir,
       limit,
     );
   },
 
-  describeBenchmarkManifest(this: TrajectoryService, manifestPath: string) {
-    return trajectoryCatalog.describeTrajectoryServiceBenchmarkManifest(
+  describeBenchmarkManifest(
+    this: TrajectoryEvaluationService,
+    manifestPath: string,
+  ) {
+    return trajectoryCatalog.describeTrajectoryEvaluationServiceBenchmarkManifest(
       manifestPath,
     );
   },

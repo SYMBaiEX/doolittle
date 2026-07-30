@@ -14,7 +14,7 @@ export async function handleTrajectoryAnalyzeCommands(
         ? { limit: 200 }
         : parseTrajectoryArgs(trimmed.replace("/trajectories analyze ", ""));
     return JSON.stringify(
-      context.services.trajectories.analyze({
+      context.services.trajectoryEvaluation.analyze({
         ...options,
         limit: options.limit ?? 200,
         mode: options.mode ?? "research",
@@ -36,7 +36,7 @@ export async function handleTrajectoryAnalyzeCommands(
         ? { limit: 200 }
         : parseTrajectoryArgs(trimmed.replace("/trajectories evaluate ", ""));
     return JSON.stringify(
-      await context.services.trajectories.evaluate({
+      await context.services.trajectoryEvaluation.evaluate({
         ...options,
         limit: options.limit ?? 200,
         mode: options.mode ?? "evaluation",
@@ -59,7 +59,7 @@ export async function handleTrajectoryAnalyzeCommands(
         ? { limit: 200 }
         : parseTrajectoryArgs(trimmed.replace("/trajectories package ", ""));
     return JSON.stringify(
-      await context.services.trajectories.package({
+      await context.services.trajectoryEvaluation.package({
         ...options,
         limit: options.limit ?? 200,
         mode: options.mode ?? "research",

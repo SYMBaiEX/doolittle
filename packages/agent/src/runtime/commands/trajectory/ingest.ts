@@ -11,7 +11,7 @@ export async function handleTrajectoryIngestCommands(
     }
     const history = await context.gateway.history(200);
     return JSON.stringify(
-      context.services.trajectories.ingestGatewayHistory({
+      context.services.trajectoryEvaluation.ingestGatewayHistory({
         traces: history.traces,
         inbox: history.inbox,
         outbox: history.outbox,
@@ -33,7 +33,7 @@ export async function handleTrajectoryIngestCommands(
     );
     const history = await context.gateway.history(options.limit ?? 200);
     return JSON.stringify(
-      context.services.trajectories.ingestGatewayHistory({
+      context.services.trajectoryEvaluation.ingestGatewayHistory({
         traces: history.traces,
         inbox: history.inbox,
         outbox: history.outbox,

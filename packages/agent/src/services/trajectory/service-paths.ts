@@ -1,6 +1,6 @@
 import { readTrajectoryRecords } from "./bundle-storage";
 
-export function createTrajectoryServiceSlug(value: string): string {
+export function createTrajectoryEvaluationServiceSlug(value: string): string {
   return value
     .trim()
     .toLowerCase()
@@ -9,6 +9,6 @@ export function createTrajectoryServiceSlug(value: string): string {
     .slice(0, 48);
 }
 
-export function readTrajectoryServiceRecords(dataPath: string) {
+export function readTrajectoryEvaluationServiceRecords(dataPath: string) {
   return readTrajectoryRecords(dataPath);
 }

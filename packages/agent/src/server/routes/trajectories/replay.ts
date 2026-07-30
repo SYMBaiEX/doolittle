@@ -5,7 +5,7 @@ import type { TrajectoryReplayBody, TrajectoryRouteHandler } from "./types";
 
 function buildReplayResponse(context: AppContext, manifestPath: string) {
   return json({
-    replay: context.services.trajectories.replayBundle(manifestPath),
+    replay: context.services.trajectoryEvaluation.replayBundle(manifestPath),
   });
 }
 
@@ -19,7 +19,7 @@ export const handleTrajectoryReplayRoutes: TrajectoryRouteHandler = async (
     const label = url.searchParams.get("label");
     const latest = url.searchParams.get("latest") === "true";
     if (latest) {
-      const replay = context.services.trajectories.replayLatest();
+      const replay = context.services.trajectoryEvaluation.replayLatest();
       return replay
         ? json({ replay })
         : json({ error: "No trajectory bundles recorded." }, 404);
@@ -44,7 +44,7 @@ export const handleTrajectoryReplayRoutes: TrajectoryRouteHandler = async (
     request.method === "GET" &&
     url.pathname === "/trajectories/replay/latest"
   ) {
-    const replay = context.services.trajectories.replayLatest();
+    const replay = context.services.trajectoryEvaluation.replayLatest();
     return replay
       ? json({ replay })
       : json({ error: "No trajectory bundles recorded." }, 404);
@@ -53,7 +53,7 @@ export const handleTrajectoryReplayRoutes: TrajectoryRouteHandler = async (
   if (request.method === "POST" && url.pathname === "/trajectories/replay") {
     const body = await readJsonBody<TrajectoryReplayBody>(request);
     if (body?.latest) {
-      const replay = context.services.trajectories.replayLatest();
+      const replay = context.services.trajectoryEvaluation.replayLatest();
       return replay
         ? json({ replay })
         : json({ error: "No trajectory bundles recorded." }, 404);

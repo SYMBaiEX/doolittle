@@ -14,7 +14,7 @@ export const handleTrajectoryIngestRoutes: TrajectoryRouteHandler = async (
     const body = await readJsonBody<TrajectoryIngestBody>(request);
     const history = await context.gateway.history(body?.limit ?? 200);
     return json({
-      bundle: context.services.trajectories.ingestGatewayHistory({
+      bundle: context.services.trajectoryEvaluation.ingestGatewayHistory({
         traces: history.traces,
         inbox: history.inbox,
         outbox: history.outbox,

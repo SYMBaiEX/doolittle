@@ -13,26 +13,26 @@ import {
   compressLatestTrajectoryBundle,
   replayLatestTrajectoryBundle,
 } from "../latest-ops";
-import type { TrajectoryServiceHosts } from "../service-support";
-import type { TrajectoryServiceCompressBundleOptions } from "../service-types";
+import type { TrajectoryEvaluationServiceHosts } from "../service-support";
+import type { TrajectoryEvaluationServiceCompressBundleOptions } from "../service-types";
 
-export function replayTrajectoryServiceBundle(
-  hosts: TrajectoryServiceHosts,
+export function replayTrajectoryEvaluationServiceBundle(
+  hosts: TrajectoryEvaluationServiceHosts,
   manifestPath: string,
 ): TrajectoryReplayResult {
   return replayTrajectoryBundle(hosts.bundleOperations, manifestPath);
 }
 
-export function replayLatestTrajectoryService(
-  hosts: TrajectoryServiceHosts,
+export function replayLatestTrajectoryEvaluationService(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryReplayResult | undefined {
   return replayLatestTrajectoryBundle(hosts);
 }
 
-export function compressTrajectoryServiceBundle(
-  hosts: TrajectoryServiceHosts,
+export function compressTrajectoryEvaluationServiceBundle(
+  hosts: TrajectoryEvaluationServiceHosts,
   manifestPath: string,
-  options: TrajectoryServiceCompressBundleOptions = {},
+  options: TrajectoryEvaluationServiceCompressBundleOptions = {},
 ): TrajectoryCompressionBundle {
   return compressTrajectoryBundle(
     hosts.bundleOperations,
@@ -41,14 +41,14 @@ export function compressTrajectoryServiceBundle(
   );
 }
 
-export function compressLatestTrajectoryService(
-  hosts: TrajectoryServiceHosts,
+export function compressLatestTrajectoryEvaluationService(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryCompressionBundle | undefined {
   return compressLatestTrajectoryBundle(hosts);
 }
 
-export function compareTrajectoryServiceBundles(
-  hosts: TrajectoryServiceHosts,
+export function compareTrajectoryEvaluationServiceBundles(
+  hosts: TrajectoryEvaluationServiceHosts,
   leftManifestPath: string,
   rightManifestPath: string,
 ): TrajectoryComparisonBundle {
@@ -59,8 +59,8 @@ export function compareTrajectoryServiceBundles(
   );
 }
 
-export function compareLatestTrajectoryServiceBundles(
-  hosts: TrajectoryServiceHosts,
+export function compareLatestTrajectoryEvaluationServiceBundles(
+  hosts: TrajectoryEvaluationServiceHosts,
 ): TrajectoryComparisonBundle | undefined {
   return compareLatestTrajectoryBundles(hosts);
 }

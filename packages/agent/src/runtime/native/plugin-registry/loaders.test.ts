@@ -124,7 +124,7 @@ function createServices(): AppServices {
       listGeneratedSkills: () => [],
       synthesize: async () => ({ ok: true }),
     },
-    trajectories: {
+    trajectoryEvaluation: {
       exportLatest: () => ({ ok: true }),
       listBundles: () => [],
       compareLatest: () => ({ ok: true }),

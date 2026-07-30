@@ -81,7 +81,7 @@ export function createServiceConstructionState(
     documents: runtimeBoundDocuments.documents,
     contextFiles: leaves.contextFiles,
     media: leaves.media,
-    trajectories: leaves.trajectories,
+    trajectoryEvaluation: leaves.trajectoryEvaluation,
     contextCompression: leaves.contextCompression,
     fuzzyPatch: leaves.fuzzyPatch,
     createDocumentsService: runtimeBoundDocuments.createDocumentsService,

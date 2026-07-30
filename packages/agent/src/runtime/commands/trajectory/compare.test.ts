@@ -5,7 +5,7 @@ import { handleTrajectoryCompareCommands } from "./compare";
 function createContext() {
   const context = {
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         compareLatest: () => ({ source: "service", compared: true }),
         compareBundles: (left: string, right: string) => ({
           left,

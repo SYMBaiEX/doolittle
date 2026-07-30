@@ -11,7 +11,7 @@ export const handleTrajectoryCompressRoutes: TrajectoryRouteHandler = async (
     request.method === "GET" &&
     url.pathname === "/trajectories/compress/latest"
   ) {
-    const compressed = context.services.trajectories.compressLatest();
+    const compressed = context.services.trajectoryEvaluation.compressLatest();
     return compressed
       ? json({ compressed })
       : json({ error: "No trajectory bundles recorded." }, 404);
@@ -23,7 +23,7 @@ export const handleTrajectoryCompressRoutes: TrajectoryRouteHandler = async (
       return json({ error: "manifestPath is required" }, 400);
     }
     return json({
-      compressed: context.services.trajectories.compressBundle(
+      compressed: context.services.trajectoryEvaluation.compressBundle(
         body.manifestPath,
         {
           sampleCount: body.sampleCount,

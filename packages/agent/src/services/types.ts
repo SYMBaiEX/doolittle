@@ -35,7 +35,7 @@ import type { SkillsHubService } from "./skills-hub/service";
 import type { StartupStateService } from "./startup-state-service";
 import type { TerminalService } from "./terminal/service";
 import type { ToolsService } from "./tools/service";
-import type { TrajectoryService } from "./trajectory/service";
+import type { TrajectoryEvaluationService } from "./trajectory/service";
 import type { UserProfileService } from "./user-profile/service";
 import type { WebService } from "./web/service";
 import type { WorkspaceService } from "./workspace-service/index";
@@ -74,7 +74,7 @@ export interface AppServices {
   delegationProjection: DelegationProjectionService;
   web: WebService;
   media: MediaService;
-  trajectories: TrajectoryService;
+  trajectoryEvaluation: TrajectoryEvaluationService;
   skillSynthesis: SkillSynthesisService;
   userProfiles: UserProfileService;
   contextCompression: ContextCompressionService;

@@ -15,7 +15,7 @@ import {
   maybeGetSkillSynthesisNudge,
 } from "../finalization";
 import type { TurnState } from "../state";
-import { recordTrajectoryEvent } from "../trajectory";
+import { recordEvaluationTraceEvent } from "../trajectory";
 import type {
   PostProviderFinalResult,
   PostProviderSettingsSnapshot,
@@ -114,7 +114,7 @@ export async function finalizePostProviderTurn(input: {
         : "Turn completed after SDK action execution.",
     },
   );
-  recordTrajectoryEvent(input.context, {
+  recordEvaluationTraceEvent(input.context, {
     category: "turn",
     event: input.runFailureMessage ? "turn.failed" : "turn.completed",
     sessionId: input.turn.sessionId,

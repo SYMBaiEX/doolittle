@@ -70,7 +70,7 @@ export const handleGeneratedSkillCommand: SkillCommandHandler = async (
     if (!result) {
       return "No reusable workflow was detected in the latest session yet.";
     }
-    context.services.trajectories.recordEvent({
+    context.services.trajectoryEvaluation.recordEvent({
       category: "skill",
       event: "skill.synthesized",
       sessionId,

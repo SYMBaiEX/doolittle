@@ -87,8 +87,8 @@ export type AutonomousSummaryInput = {
   } | null;
   orchestratorTasks: unknown[];
   orchestratorQueue: unknown;
-  trajectoryBundles: unknown[];
-  latestTrajectory: unknown;
+  evaluationBundles: unknown[];
+  latestEvaluationBundle: unknown;
   pluginInventory: PluginInventoryLike;
   mediaControl: {
     tts: {

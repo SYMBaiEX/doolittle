@@ -14,7 +14,7 @@ import type {
   TrajectoryGatewayIngestInput,
 } from "./bundle-storage/types";
 
-export interface TrajectoryServiceBundleArtifacts {
+export interface TrajectoryEvaluationServiceBundleArtifacts {
   dataPath: string;
   manifestPath: string;
   summaryPath: string;
@@ -23,11 +23,11 @@ export interface TrajectoryServiceBundleArtifacts {
   trainingNotes?: string;
 }
 
-export interface TrajectoryServiceCompressBundleOptions {
+export interface TrajectoryEvaluationServiceCompressBundleOptions {
   sampleCount?: number;
 }
 
-export interface TrajectoryServiceEvaluateBundleOptions {
+export interface TrajectoryEvaluationServiceEvaluateBundleOptions {
   rubric?: string[];
   tags?: string[];
   replay?: TrajectoryReplayResult;
@@ -37,7 +37,7 @@ export interface TrajectoryServiceEvaluateBundleOptions {
   purpose?: string;
 }
 
-export interface TrajectoryServiceBenchmarkManifestInput {
+export interface TrajectoryEvaluationServiceBenchmarkManifestInput {
   label?: string;
   purpose?: string;
   tags?: string[];
@@ -46,11 +46,13 @@ export interface TrajectoryServiceBenchmarkManifestInput {
   cases: TrajectoryBenchmarkCaseInput[];
 }
 
-export type TrajectoryServiceGatewayHistoryInput = TrajectoryGatewayIngestInput;
+export type TrajectoryEvaluationServiceGatewayHistoryInput =
+  TrajectoryGatewayIngestInput;
 
-export type TrajectoryServiceBatchManifestInput = TrajectoryBatchManifestInput;
+export type TrajectoryEvaluationServiceBatchManifestInput =
+  TrajectoryBatchManifestInput;
 
-export interface TrajectoryServiceRlReadyArtifacts {
+export interface TrajectoryEvaluationServiceRlReadyArtifacts {
   dataPath: string;
   manifestPath: string;
   turnCount: number;
@@ -59,7 +61,7 @@ export interface TrajectoryServiceRlReadyArtifacts {
   trainingNotes?: string;
 }
 
-export interface TrajectoryServiceRlDatasetArtifacts {
+export interface TrajectoryEvaluationServiceRlDatasetArtifacts {
   dataPath: string;
   manifestPath: string;
   turnCount: number;
@@ -69,15 +71,15 @@ export interface TrajectoryServiceRlDatasetArtifacts {
   trainingNotes?: string;
 }
 
-export interface TrajectoryServiceCatalogBindings {
+export interface TrajectoryEvaluationServiceCatalogBindings {
   listBundles(limit?: number): TrajectoryBundleEntry[];
   describeBundle(manifestPath: string): TrajectoryBundleEntry;
   listBenchmarkManifests(limit?: number): TrajectoryBenchmarkManifest[];
   describeBenchmarkManifest(manifestPath: string): TrajectoryBenchmarkManifest;
 }
 
-export interface TrajectoryServiceHostBindings
-  extends TrajectoryServiceCatalogBindings {
+export interface TrajectoryEvaluationServiceHostBindings
+  extends TrajectoryEvaluationServiceCatalogBindings {
   replayBundle(manifestPath: string): TrajectoryReplayResult;
   compareBundles(
     leftManifestPath: string,
@@ -85,7 +87,7 @@ export interface TrajectoryServiceHostBindings
   ): TrajectoryComparisonBundle;
   evaluateBundle(
     manifestPath: string,
-    options?: TrajectoryServiceEvaluateBundleOptions,
+    options?: TrajectoryEvaluationServiceEvaluateBundleOptions,
   ): Promise<TrajectoryEvaluationBundle>;
   analyze(options?: TrajectoryExportOptions): TrajectoryAnalysisBundle;
 }

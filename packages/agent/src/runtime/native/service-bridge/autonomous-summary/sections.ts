@@ -102,10 +102,10 @@ export function buildTrajectoriesSection(
   return {
     source: "native",
     available: true,
-    bundles: Array.isArray(input.trajectoryBundles)
-      ? input.trajectoryBundles.length
+    evaluationBundles: Array.isArray(input.evaluationBundles)
+      ? input.evaluationBundles.length
       : 0,
-    latestAvailable: Boolean(input.latestTrajectory),
+    latestEvaluationBundleAvailable: Boolean(input.latestEvaluationBundle),
   };
 }
 

@@ -168,7 +168,7 @@ function recordActionTrajectory(input: {
     input.actionResult,
   );
   try {
-    input.services.trajectories?.recordEvent({
+    input.services.trajectoryEvaluation?.recordEvent({
       category: "action",
       event: input.event,
       sessionId: run?.sessionId,

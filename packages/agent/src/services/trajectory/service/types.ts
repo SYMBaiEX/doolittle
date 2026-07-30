@@ -18,17 +18,17 @@ import type {
   TrajectoryRlReadyOptions,
 } from "../../../types/trajectory";
 import type {
-  TrajectoryServiceBatchManifestInput,
-  TrajectoryServiceBenchmarkManifestInput,
-  TrajectoryServiceBundleArtifacts,
-  TrajectoryServiceCompressBundleOptions,
-  TrajectoryServiceEvaluateBundleOptions,
-  TrajectoryServiceGatewayHistoryInput,
-  TrajectoryServiceRlDatasetArtifacts,
-  TrajectoryServiceRlReadyArtifacts,
+  TrajectoryEvaluationServiceBatchManifestInput,
+  TrajectoryEvaluationServiceBenchmarkManifestInput,
+  TrajectoryEvaluationServiceBundleArtifacts,
+  TrajectoryEvaluationServiceCompressBundleOptions,
+  TrajectoryEvaluationServiceEvaluateBundleOptions,
+  TrajectoryEvaluationServiceGatewayHistoryInput,
+  TrajectoryEvaluationServiceRlDatasetArtifacts,
+  TrajectoryEvaluationServiceRlReadyArtifacts,
 } from "../service-types";
 
-export interface TrajectoryServiceApi {
+export interface TrajectoryEvaluationServiceApi {
   recordEvent(input: TrajectoryEventInput): TrajectoryEventRecord;
   recentEvents(
     limit?: number,
@@ -39,20 +39,20 @@ export interface TrajectoryServiceApi {
   /** Debug/evaluation JSONL only. Use the ElizaOS SDK trajectory service for training exports. */
   exportDataset(options?: TrajectoryExportOptions): string;
   /** Debug/evaluation bundle only. Manifests are marked trainingCompatible:false. */
-  exportBundle(limit?: number): TrajectoryServiceBundleArtifacts;
+  exportBundle(limit?: number): TrajectoryEvaluationServiceBundleArtifacts;
   /** Debug/evaluation bundle only. Manifests are marked trainingCompatible:false. */
-  exportLatest(): TrajectoryServiceBundleArtifacts;
+  exportLatest(): TrajectoryEvaluationServiceBundleArtifacts;
   /** Debug/evaluation bundle only. Manifests are marked trainingCompatible:false. */
   exportFilteredBundle(
     options?: TrajectoryExportOptions,
-  ): TrajectoryServiceBundleArtifacts;
+  ): TrajectoryEvaluationServiceBundleArtifacts;
   analyze(options?: TrajectoryExportOptions): TrajectoryAnalysisBundle;
   evaluate(
     options?: TrajectoryExportOptions,
   ): Promise<TrajectoryEvaluationBundle>;
   evaluateBundle(
     manifestPath: string,
-    options?: TrajectoryServiceEvaluateBundleOptions,
+    options?: TrajectoryEvaluationServiceEvaluateBundleOptions,
   ): Promise<TrajectoryEvaluationBundle>;
   package(
     options?: TrajectoryExportOptions,
@@ -60,7 +60,7 @@ export interface TrajectoryServiceApi {
   packageLatest(): Promise<TrajectoryResearchPackageBundle | undefined>;
   describeBenchmarkEnvironment(): TrajectoryBenchmarkEnvironmentSummary;
   createBenchmarkManifest(
-    input: TrajectoryServiceBenchmarkManifestInput,
+    input: TrajectoryEvaluationServiceBenchmarkManifestInput,
   ): TrajectoryBenchmarkManifest;
   runBenchmark(manifestPath: string): Promise<TrajectoryBenchmarkRun>;
   runLatestBenchmark(): Promise<TrajectoryBenchmarkRun | undefined>;
@@ -68,7 +68,7 @@ export interface TrajectoryServiceApi {
   replayLatest(): TrajectoryReplayResult | undefined;
   compressBundle(
     manifestPath: string,
-    options?: TrajectoryServiceCompressBundleOptions,
+    options?: TrajectoryEvaluationServiceCompressBundleOptions,
   ): TrajectoryCompressionBundle;
   compressLatest(): TrajectoryCompressionBundle | undefined;
   compareBundles(
@@ -78,10 +78,10 @@ export interface TrajectoryServiceApi {
   compareLatest(): TrajectoryComparisonBundle | undefined;
   evaluateLatest(): Promise<TrajectoryEvaluationBundle | undefined>;
   ingestGatewayHistory(
-    input: TrajectoryServiceGatewayHistoryInput,
+    input: TrajectoryEvaluationServiceGatewayHistoryInput,
   ): TrajectoryGatewayIngestBundle;
   createBatchManifest(
-    input: TrajectoryServiceBatchManifestInput,
+    input: TrajectoryEvaluationServiceBatchManifestInput,
   ): TrajectoryBatchManifest;
   listBundles(limit?: number): TrajectoryBundleEntry[];
   describeBundle(manifestPath: string): TrajectoryBundleEntry;
@@ -90,9 +90,9 @@ export interface TrajectoryServiceApi {
   exportRlReady(
     sessionId: string,
     options?: TrajectoryRlReadyOptions,
-  ): TrajectoryServiceRlReadyArtifacts;
+  ): TrajectoryEvaluationServiceRlReadyArtifacts;
   exportRlDataset(
     options?: TrajectoryRlDatasetOptions,
-  ): TrajectoryServiceRlDatasetArtifacts;
+  ): TrajectoryEvaluationServiceRlDatasetArtifacts;
   describeRlExport(): string;
 }

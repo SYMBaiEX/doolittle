@@ -1,28 +1,28 @@
 import type { TrajectoryEventJournal } from "../event-journal";
-import type { TrajectoryService } from "../service";
-import type { TrajectoryServiceHosts } from "../service-support";
+import type { TrajectoryEvaluationService } from "../service";
+import type { TrajectoryEvaluationServiceHosts } from "../service-support";
 
-interface TrajectoryServiceState {
+interface TrajectoryEvaluationServiceState {
   baseDir: string;
-  hosts: TrajectoryServiceHosts;
+  hosts: TrajectoryEvaluationServiceHosts;
   eventJournal: TrajectoryEventJournal;
 }
 
 const trajectoryServiceState = new WeakMap<
-  TrajectoryService,
-  TrajectoryServiceState
+  TrajectoryEvaluationService,
+  TrajectoryEvaluationServiceState
 >();
 
-export function setTrajectoryServiceState(
-  service: TrajectoryService,
-  state: TrajectoryServiceState,
+export function setTrajectoryEvaluationServiceState(
+  service: TrajectoryEvaluationService,
+  state: TrajectoryEvaluationServiceState,
 ): void {
   trajectoryServiceState.set(service, state);
 }
 
-export function getTrajectoryServiceState(
-  service: TrajectoryService,
-): TrajectoryServiceState {
+export function getTrajectoryEvaluationServiceState(
+  service: TrajectoryEvaluationService,
+): TrajectoryEvaluationServiceState {
   const state = trajectoryServiceState.get(service);
   if (!state) {
     throw new Error("Trajectory service state is unavailable");

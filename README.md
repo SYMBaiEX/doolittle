@@ -592,7 +592,7 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 |---|---|---|
 | Delegation and sub-agent execution | Official `ORCHESTRATOR_TASK_SERVICE`; [`delegation/service/index.ts`](./packages/agent/src/services/delegation/service/index.ts) is a read projection | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
 | Run controller and observed progress | [`run-controller-service.ts`](./packages/agent/src/services/run-controller-service.ts) | `/mode`, `/progress`, automatic live run state |
-| Trajectory research | [`trajectory/service/index.ts`](./packages/agent/src/services/trajectory/service/index.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
+| Trajectory evaluation projection | [`trajectory/service/index.ts`](./packages/agent/src/services/trajectory/service/index.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
 | Planning boards | [`doolittle-plugin/planning`](./packages/plugins/doolittle-plugin/planning/) | `/planning` flows |
 | Scheduling and automation | Native Eliza Trigger Tasks through [`cron/service/index.ts`](./packages/agent/src/services/cron/service/index.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
 

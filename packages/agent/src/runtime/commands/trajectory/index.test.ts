@@ -66,7 +66,7 @@ function createContext(options?: {
       getServicesByType: () => [],
     },
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         exportRecent: (limit: number) => `recent:${limit}`,
         exportDataset: (input: Record<string, unknown>) => {
           events.datasetRequests.push(input);

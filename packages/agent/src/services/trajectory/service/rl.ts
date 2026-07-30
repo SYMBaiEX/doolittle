@@ -1,34 +1,38 @@
-import type { TrajectoryService } from "../service";
+import type { TrajectoryEvaluationService } from "../service";
 import {
-  describeTrajectoryServiceRlExport,
-  exportTrajectoryServiceRlDataset,
-  exportTrajectoryServiceRlReady,
+  describeTrajectoryEvaluationServiceRlExport,
+  exportTrajectoryEvaluationServiceRlDataset,
+  exportTrajectoryEvaluationServiceRlReady,
 } from "../service-operations/rl";
-import { getTrajectoryServiceState } from "./state";
-import type { TrajectoryServiceApi } from "./types";
+import { getTrajectoryEvaluationServiceState } from "./state";
+import type { TrajectoryEvaluationServiceApi } from "./types";
 
 export const trajectoryServiceRlMethods: Pick<
-  TrajectoryServiceApi,
+  TrajectoryEvaluationServiceApi,
   "exportRlReady" | "exportRlDataset" | "describeRlExport"
 > = {
-  exportRlReady(this: TrajectoryService, sessionId: string, options = {}) {
-    return exportTrajectoryServiceRlReady(
-      getTrajectoryServiceState(this).hosts,
+  exportRlReady(
+    this: TrajectoryEvaluationService,
+    sessionId: string,
+    options = {},
+  ) {
+    return exportTrajectoryEvaluationServiceRlReady(
+      getTrajectoryEvaluationServiceState(this).hosts,
       sessionId,
       options,
     );
   },
 
-  exportRlDataset(this: TrajectoryService, options = {}) {
-    return exportTrajectoryServiceRlDataset(
-      getTrajectoryServiceState(this).hosts,
+  exportRlDataset(this: TrajectoryEvaluationService, options = {}) {
+    return exportTrajectoryEvaluationServiceRlDataset(
+      getTrajectoryEvaluationServiceState(this).hosts,
       options,
     );
   },
 
-  describeRlExport(this: TrajectoryService) {
-    return describeTrajectoryServiceRlExport(
-      getTrajectoryServiceState(this).hosts,
+  describeRlExport(this: TrajectoryEvaluationService) {
+    return describeTrajectoryEvaluationServiceRlExport(
+      getTrajectoryEvaluationServiceState(this).hosts,
     );
   },
 };

@@ -5,7 +5,7 @@ import {
   prepareTurnState,
   startTrackedTurn,
 } from "../state";
-import { recordTrajectoryEvent } from "../trajectory";
+import { recordEvaluationTraceEvent } from "../trajectory";
 import type { NativeMessagePolicy, NativeTurnSetup } from "./types";
 
 export function resolveNativeMessagePolicy(
@@ -39,7 +39,7 @@ export async function prepareNativeTurnSetup(input: {
     "eliza-message-service",
   );
   const modelSettings = turn.settings?.model ?? {};
-  recordTrajectoryEvent(input.context, {
+  recordEvaluationTraceEvent(input.context, {
     category: "turn",
     event: "turn.routed",
     sessionId: turn.sessionId,

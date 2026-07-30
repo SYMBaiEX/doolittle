@@ -17,7 +17,7 @@ function createContext(): AppContext {
       }),
     },
     services: {
-      trajectories: {
+      trajectoryEvaluation: {
         listBundles: (_limit: number) => [
           {
             manifestPath: "/tmp/alpha.manifest.json",

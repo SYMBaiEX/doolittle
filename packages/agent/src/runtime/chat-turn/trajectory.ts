@@ -13,7 +13,14 @@ type TrajectoryRecorder = {
   recordEvent(input: TrajectoryEventInput): unknown;
 };
 
-export function recordTrajectoryEvent(
+/**
+ * Records Doolittle's auxiliary debug/evaluation projection.
+ *
+ * Canonical model and tool trajectories are owned by the Eliza SDK logger and
+ * its trajectory context below. Keeping this name distinct prevents callers
+ * from mistaking the replay journal for training-compatible SDK data.
+ */
+export function recordEvaluationTraceEvent(
   context: AgentExecutionContext,
   input: TrajectoryEventInput,
 ): void {
@@ -27,7 +34,7 @@ export function recordTrajectoryEvent(
       .runtime?.logger;
     logger?.warn(
       { error, event: input.event, category: input.category },
-      "Failed to record trajectory event",
+      "Failed to record evaluation trace event",
     );
   }
 }
