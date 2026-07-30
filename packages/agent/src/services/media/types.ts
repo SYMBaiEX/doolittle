@@ -1,5 +1,5 @@
 import type { ConnectorType, InteractionMode } from "@doolittle/contracts";
-import type { IAgentRuntime } from "@elizaos/core";
+import type { ModelAnalysisPort } from "../model-analysis-port";
 
 export interface MediaInspection {
   path: string;
@@ -116,14 +116,7 @@ export interface MediaTextRequestMetadata {
   signals?: string[];
 }
 
-/** Runtime-backed port for model-assisted media analysis. */
-export interface MediaTextAnalysisPort {
-  bindRuntime(runtime: IAgentRuntime): void;
-  analyze(
-    prompt: string,
-    options?: { abortSignal?: AbortSignal },
-  ): Promise<string>;
-}
+export type MediaTextAnalysisPort = ModelAnalysisPort;
 
 export interface MediaGenerationOptions {
   name?: string;

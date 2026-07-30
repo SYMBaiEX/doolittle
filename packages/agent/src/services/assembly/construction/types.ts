@@ -116,6 +116,7 @@ export interface ServiceRuntimeBindingDependencies {
   operator: ReturnType<typeof createOperatorServiceSlot>;
   skills: ReturnType<typeof createSkillsServiceSlot>;
   media: LazySlot<MediaService>;
+  trajectoryEvaluation: LazySlot<TrajectoryEvaluationService>;
   createDocumentsService(
     nextRuntime: ConstructorParameters<typeof DocumentsService>[0],
   ): DocumentsService;

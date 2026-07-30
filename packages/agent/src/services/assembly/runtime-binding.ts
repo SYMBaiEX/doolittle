@@ -9,6 +9,7 @@ import type { LazySlot } from "../lazy-slot";
 import type { MediaService } from "../media";
 import type { OperatorService } from "../operator/service";
 import type { SkillsService } from "../skills/service";
+import type { TrajectoryEvaluationService } from "../trajectory/service";
 
 export interface RuntimeBindingDependencies {
   executionApprovals: Pick<ExecutionApprovalService, "bindRuntime">;
@@ -20,6 +21,7 @@ export interface RuntimeBindingDependencies {
   operator: LazySlot<OperatorService>;
   skills: LazySlot<SkillsService>;
   media: LazySlot<MediaService>;
+  trajectoryEvaluation: LazySlot<TrajectoryEvaluationService>;
   createDocumentsService(nextRuntime: IAgentRuntime): DocumentsService;
   setBoundRuntime?(nextRuntime: IAgentRuntime): void;
 }
@@ -35,6 +37,7 @@ export function createRuntimeBinder(
     dependencies.executionApprovals.bindRuntime(nextRuntime);
     dependencies.skills.get().bindRuntime(nextRuntime);
     dependencies.media.get().bindRuntime(nextRuntime);
+    dependencies.trajectoryEvaluation.get().bindRuntime(nextRuntime);
     if (dependencies.documents.peek()) {
       dependencies.documents.set(
         dependencies.createDocumentsService(nextRuntime),

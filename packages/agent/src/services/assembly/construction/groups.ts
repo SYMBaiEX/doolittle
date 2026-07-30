@@ -74,6 +74,7 @@ export function createServiceAssemblyRuntimeBinding(
     operator: state.operator,
     skills: state.skills,
     media: state.media,
+    trajectoryEvaluation: state.trajectoryEvaluation,
     createDocumentsService: state.createDocumentsService,
     setBoundRuntime: state.setBoundRuntime,
   };

@@ -4,6 +4,7 @@ import type {
   TrajectoryModelContext,
   TrajectoryRecord,
 } from "../../types/trajectory";
+import type { ModelAnalysisPort } from "../model-analysis-port";
 import type { SessionService } from "../session/service";
 import type { TrajectoryBenchmarkHost } from "./benchmark";
 import type { TrajectoryBundleOperationsHost } from "./bundle-ops";
@@ -17,6 +18,7 @@ export interface TrajectoryEvaluationServiceSupportSource
   baseDir: string;
   sessions: Pick<SessionService, "recent" | "summary">;
   getModelContext?: () => TrajectoryModelContext;
+  modelAnalysisPort?: ModelAnalysisPort;
   eventJournal?: {
     recent(limit: number, filters?: TrajectoryFilters): TrajectoryEventRecord[];
   };
@@ -45,6 +47,7 @@ export function createTrajectoryEvaluationServiceHosts(
       listBundles: source.listBundles.bind(source),
       analyze: source.analyze.bind(source),
       getModelContext: source.getModelContext,
+      modelAnalysisPort: source.modelAnalysisPort,
     },
     bundleStorage: {
       baseDir: source.baseDir,

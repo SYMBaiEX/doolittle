@@ -1,10 +1,10 @@
 import { ModelType } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
-import { RuntimeMediaTextAnalysisPort } from "./runtime-text-analysis";
+import { RuntimeModelAnalysisPort } from "./model-analysis-port";
 
 function createPort() {
   const useModel = vi.fn(async () => "runtime analysis");
-  const port = new RuntimeMediaTextAnalysisPort(
+  const port = new RuntimeModelAnalysisPort(
     {} as never,
     {
       get: () => ({
@@ -17,13 +17,14 @@ function createPort() {
         },
       }),
     } as never,
+    "media",
   );
   port.bindRuntime({ getSetting: vi.fn(), useModel } as never);
   return { port, useModel };
 }
 
-describe("RuntimeMediaTextAnalysisPort", () => {
-  it("uses the scoped TEXT_LARGE runtime port", async () => {
+describe("RuntimeModelAnalysisPort", () => {
+  it("uses the scoped TEXT_LARGE runtime model", async () => {
     const { port, useModel } = createPort();
 
     await expect(port.analyze("Analyze this media.")).resolves.toBe(

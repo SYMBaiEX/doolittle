@@ -5,6 +5,7 @@ import type {
   TrajectoryModelContext,
   TrajectoryReplayResult,
 } from "../../../types/trajectory";
+import type { ModelAnalysisPort } from "../../model-analysis-port";
 
 /** Subset of TrajectoryEvaluationService the evaluation helpers need. */
 export interface TrajectoryEvaluationHost {
@@ -24,6 +25,7 @@ export interface TrajectoryEvaluationHost {
     tags?: string[];
   };
   getModelContext?: () => TrajectoryModelContext;
+  modelAnalysisPort?: ModelAnalysisPort;
 }
 
 export interface EvaluateTrajectoryBundleOptions {

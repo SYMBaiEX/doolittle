@@ -24,7 +24,6 @@ export async function evaluateBundle(
   );
   const response = await requestTrajectoryModelText(
     resolved.prompt,
-    host.getModelContext?.(),
     {
       focus: resolved.focus,
       replay: resolved.replay,
@@ -32,6 +31,7 @@ export async function evaluateBundle(
       findings: heuristics.findings,
       recommendations: heuristics.recommendations,
     },
+    host.modelAnalysisPort,
   );
   const { evaluationPath, reportPath, responsePath } =
     writeTrajectoryEvaluationArtifacts({

@@ -1,8 +1,10 @@
 import { mkdirSync } from "node:fs";
+import type { IAgentRuntime } from "@elizaos/core";
 import type {
   TrajectoryEventInput,
   TrajectoryModelContext,
 } from "../../../types/trajectory";
+import type { ModelAnalysisPort } from "../../model-analysis-port";
 import type {
   RunControllerService,
   RunUpdateEvent,
@@ -90,6 +92,7 @@ export class TrajectoryEvaluationService
     sessions: SessionService,
     getModelContext?: () => TrajectoryModelContext,
     runController?: Pick<RunControllerService, "onUpdate">,
+    private readonly modelAnalysisPort?: ModelAnalysisPort,
   ) {
     mkdirSync(baseDir, { recursive: true });
     const eventJournal = createTrajectoryEventJournal(baseDir);
@@ -97,6 +100,7 @@ export class TrajectoryEvaluationService
       baseDir,
       sessions,
       getModelContext,
+      modelAnalysisPort,
       eventJournal,
       bindings: this,
     });
@@ -104,6 +108,10 @@ export class TrajectoryEvaluationService
     runController?.onUpdate((event) => {
       eventJournal.append(runUpdateToTrajectoryEvent(event));
     });
+  }
+
+  bindRuntime(runtime: IAgentRuntime): void {
+    this.modelAnalysisPort?.bindRuntime(runtime);
   }
 }
 

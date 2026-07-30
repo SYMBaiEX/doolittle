@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type {
   TrajectoryBundleEntry,
   TrajectoryReplayResult,
@@ -112,6 +112,27 @@ describe("trajectory evaluation orchestration", () => {
       );
       expect(readFileSync(evaluation.responsePath ?? "", "utf8")).toContain(
         "Offline trajectory analysis",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("routes trajectory evaluation through the injected runtime model port", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-trajectory-port-"));
+    const host = createHost(root);
+    const modelAnalysisPort = {
+      bindRuntime: vi.fn(),
+      analyze: vi.fn(async () => "Runtime-backed trajectory evaluation."),
+    };
+    host.modelAnalysisPort = modelAnalysisPort;
+
+    try {
+      const evaluation = await evaluateBundle(host, "bundle.json");
+
+      expect(evaluation.response).toBe("Runtime-backed trajectory evaluation.");
+      expect(modelAnalysisPort.analyze).toHaveBeenCalledWith(
+        expect.stringContaining("trajectory-fixture"),
       );
     } finally {
       rmSync(root, { recursive: true, force: true });

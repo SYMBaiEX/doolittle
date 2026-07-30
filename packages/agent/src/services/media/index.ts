@@ -17,7 +17,6 @@ export {
   slugifyMediaText,
 } from "./paths";
 export { buildOfflineMediaTextResponse } from "./requests/backends";
-export { RuntimeMediaTextAnalysisPort } from "./requests/runtime-text-analysis";
 export { MediaService } from "./service";
 export { executeMediaTranscription } from "./transcription";
 export type {

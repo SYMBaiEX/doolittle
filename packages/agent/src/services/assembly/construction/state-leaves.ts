@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { RuntimeModelAnalysisPort } from "../../../runtime/model-analysis-port";
 import { ContextCompressionService } from "../../context-compression";
 import { ContextFilesService } from "../../context-files-service";
 import { DeliveryService } from "../../delivery-service";
@@ -8,7 +9,7 @@ import { GatewayPairingProjection } from "../../gateway-pairing";
 import { GatewaySessionService } from "../../gateway-session-service";
 import { HookProjectionService } from "../../hook-projection-service";
 import { createLazySlot } from "../../lazy-slot";
-import { MediaService, RuntimeMediaTextAnalysisPort } from "../../media";
+import { MediaService } from "../../media";
 import { PersonalityService } from "../../personality-service";
 import { TerminalService } from "../../terminal/service";
 import { TrajectoryEvaluationService } from "../../trajectory/service";
@@ -44,7 +45,7 @@ export function createServiceConstructionLeaves(params: {
           () => config.workspaceDir,
           directories.mediaDir,
           resolveModelContext,
-          new RuntimeMediaTextAnalysisPort(config, settings),
+          new RuntimeModelAnalysisPort(config, settings, "media"),
         ),
     ),
     trajectoryEvaluation: createLazySlot(
@@ -54,6 +55,7 @@ export function createServiceConstructionLeaves(params: {
           core.sessions,
           resolveModelContext,
           core.runController,
+          new RuntimeModelAnalysisPort(config, settings, "trajectory"),
         ),
     ),
     contextCompression: createLazySlot(

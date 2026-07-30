@@ -77,6 +77,17 @@ describe("createRuntimeBinder", () => {
           };
         },
       } as never,
+      trajectoryEvaluation: {
+        get() {
+          return {
+            bindRuntime(runtime: IAgentRuntime) {
+              calls.push(
+                `trajectory:${(runtime as unknown as { id: string }).id}`,
+              );
+            },
+          };
+        },
+      } as never,
       createDocumentsService(runtime: IAgentRuntime) {
         const id = (runtime as unknown as { id: string }).id;
         calls.push(`factory:${id}`);
@@ -98,6 +109,7 @@ describe("createRuntimeBinder", () => {
       "approvals:runtime-1",
       "skills:runtime-1",
       "media:runtime-1",
+      "trajectory:runtime-1",
       "factory:runtime-1",
       "documents:documents:runtime-1",
       "diagnostics:runtime-1",

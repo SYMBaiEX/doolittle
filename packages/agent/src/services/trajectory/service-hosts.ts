@@ -1,4 +1,5 @@
 import type { TrajectoryModelContext } from "../../types/trajectory";
+import type { ModelAnalysisPort } from "../model-analysis-port";
 import type { SessionService } from "../session/service";
 import type { TrajectoryEventJournal } from "./event-journal";
 import {
@@ -15,6 +16,7 @@ export interface TrajectoryEvaluationServiceHostSource {
   baseDir: string;
   sessions: SessionService;
   getModelContext?: () => TrajectoryModelContext;
+  modelAnalysisPort?: ModelAnalysisPort;
   eventJournal?: TrajectoryEventJournal;
   bindings: TrajectoryEvaluationServiceHostBindings;
 }
@@ -27,6 +29,7 @@ export function buildTrajectoryEvaluationServiceHosts(
     baseDir: source.baseDir,
     sessions: source.sessions,
     getModelContext: source.getModelContext,
+    modelAnalysisPort: source.modelAnalysisPort,
     eventJournal: source.eventJournal,
     slug: createTrajectoryEvaluationServiceSlug,
     describeBundle: bindings.describeBundle.bind(bindings),
