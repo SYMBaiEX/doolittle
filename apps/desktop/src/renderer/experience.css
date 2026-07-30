@@ -3544,6 +3544,9 @@ button.chat-session-meta-pill:hover {
 .chat-workspace.inspector-open {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
   position: relative;
@@ -3557,6 +3560,8 @@ button.chat-session-meta-pill:hover {
 .chat-workspace > #thread-workbench {
   align-self: stretch;
   display: flex;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -3564,7 +3569,11 @@ button.chat-session-meta-pill:hover {
 
 .chat-conversation {
   background: var(--bg);
+  height: 100%;
+  max-height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   width: 100%;
 }
 
