@@ -16,6 +16,7 @@ export {
   coerceRelationshipEntityId,
   patchRuntimeRelationshipCompatibility,
 } from "./relationship-compat";
+export { requireRuntimeService } from "./required-service";
 export {
   agentEventLabel,
   attachRunProgressBridge,

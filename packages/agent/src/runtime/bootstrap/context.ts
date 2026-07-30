@@ -9,6 +9,7 @@ import {
   installDynamicModelProviderRouting,
   installProviderFailureTemplates,
   patchRuntimeRelationshipCompatibility,
+  requireRuntimeService,
 } from "@/runtime/bootstrap/runtime";
 import { createAutomationExecutor } from "@/runtime/bootstrap/runtime/automation-executor";
 import { createDeferredHydrator } from "@/runtime/bootstrap/runtime/deferred-hydration";
@@ -48,9 +49,9 @@ export async function configureBootstrapContext({
   attachRunProgressBridge(runtime, services);
   appendBootstrapTrace("phase:attachRunProgressBridge:done");
 
-  const schedulerService = runtime.getService(DOOLITTLE_SCHEDULER_SERVICE) as {
-    startScheduler?: () => Promise<void>;
-  } | null;
+  const schedulerService = requireRuntimeService<{
+    startScheduler(): Promise<void>;
+  }>(runtime, DOOLITTLE_SCHEDULER_SERVICE, ["startScheduler"]);
   const gateway = createGatewayAccessor({
     services,
     runtime,
@@ -63,9 +64,7 @@ export async function configureBootstrapContext({
       gateway.get();
     },
     startScheduler: async () => {
-      if (schedulerService?.startScheduler) {
-        await schedulerService.startScheduler();
-      }
+      await schedulerService.startScheduler();
     },
     warmSupportServices: () => {
       services.diagnostics;
@@ -76,14 +75,10 @@ export async function configureBootstrapContext({
   });
 
   services.startupState.markReady("runtime", "runtime ready");
-  const workflowDispatch = runtime.getService(
-    DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
-  ) as {
-    setExecutor?: (
-      executor: ReturnType<typeof createAutomationExecutor>,
-    ) => void;
-  } | null;
-  workflowDispatch?.setExecutor?.(
+  const workflowDispatch = requireRuntimeService<{
+    setExecutor(executor: ReturnType<typeof createAutomationExecutor>): void;
+  }>(runtime, DOOLITTLE_WORKFLOW_DISPATCH_SERVICE, ["setExecutor"]);
+  workflowDispatch.setExecutor(
     createAutomationExecutor({
       config,
       services,
