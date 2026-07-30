@@ -1,3 +1,4 @@
+import type { AppServices } from "@doolittle/agent/plugin-api";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -8,10 +9,17 @@ import {
   type SessionSummary,
   type UUID,
 } from "@elizaos/core";
-import type { SessionService } from "@/services/session/service";
 
-export function createMemoryStorageRuntimeService(sessions: SessionService) {
-  class MemoryStorageRuntimeService
+/**
+ * Exposes Doolittle's durable session projection through ElizaOS's official
+ * advanced-memory service contract.
+ *
+ * The service is registered as part of the Doolittle plugin so AgentRuntime
+ * owns its complete lifecycle. Product code must not inject service instances
+ * into runtime internals.
+ */
+export function createMemoryStorageService(sessions: AppServices["sessions"]) {
+  class DoolittleMemoryStorageService
     extends ElizaService
     implements MemoryStorageProvider
   {
@@ -20,7 +28,7 @@ export function createMemoryStorageRuntimeService(sessions: SessionService) {
       "Provides advanced memory storage backed by Doolittle local state.";
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
-      return new MemoryStorageRuntimeService(runtime);
+      return new DoolittleMemoryStorageService(runtime);
     }
 
     async stop(): Promise<void> {
@@ -91,5 +99,5 @@ export function createMemoryStorageRuntimeService(sessions: SessionService) {
     }
   }
 
-  return MemoryStorageRuntimeService;
+  return DoolittleMemoryStorageService;
 }

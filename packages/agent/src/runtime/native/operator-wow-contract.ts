@@ -321,7 +321,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
       "@elizaos/skills should remain the skill format and loading engine, while Doolittle owns approval and workspace placement.",
     ],
     doolittleSurfaces: [
-      "packages/agent/src/runtime/native/memory-storage-runtime.ts",
+      "packages/plugins/doolittle-plugin/memory-storage-service.ts",
       "packages/agent/src/runtime/native/service-bridge/autonomous-skills.ts",
       "packages/skills",
       "docs/skills-hub.md",
@@ -339,7 +339,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add a memory persistence test that writes, restarts the memory runtime, and retrieves the preference.",
-          "Run `nub run test packages/agent/src/runtime/native/memory-storage-runtime.test.ts`.",
+          "Run `nub run test packages/plugins/doolittle-plugin/memory-storage-service.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -370,8 +370,8 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         title: "Add a cross-session durable memory recall test.",
         ownerSurface: "memory",
         files: [
-          "packages/agent/src/runtime/native/memory-storage-runtime.ts",
-          "packages/agent/src/runtime/native/memory-storage-runtime.test.ts",
+          "packages/plugins/doolittle-plugin/memory-storage-service.ts",
+          "packages/plugins/doolittle-plugin/memory-storage-service.test.ts",
           "docs/operator-loop.md",
         ],
         definitionOfDone: [

@@ -15,20 +15,16 @@ import {
   resetPluginSqlPgliteSingleton,
 } from "@/runtime/bootstrap/recovery/storage";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
-import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 import { validateCriticalRuntimeServices } from "./critical";
-import { registerMemoryStorage } from "./memory-service-registration";
 
 export async function initializeRuntimeWithRecovery(
   createRuntime: () => AgentRuntime,
-  services: AppServices,
   config: EnvConfig,
   pgliteRecoveryAttempted = false,
 ): Promise<AgentRuntime> {
   let runtime = createRuntime();
 
-  await registerMemoryStorage(runtime, services);
   try {
     appendBootstrapTrace("phase:runtime.initialize:call");
     await runtime.initialize();
@@ -79,7 +75,6 @@ export async function initializeRuntimeWithRecovery(
     }
 
     runtime = createRuntime();
-    await registerMemoryStorage(runtime, services);
     try {
       appendBootstrapTrace("phase:runtime.initialize:retry-call");
       await runtime.initialize();

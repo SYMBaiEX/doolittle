@@ -77,11 +77,7 @@ export async function buildAppContext({
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");
-  const runtime = await initializeRuntimeWithRecovery(
-    createRuntime,
-    services,
-    config,
-  );
+  const runtime = await initializeRuntimeWithRecovery(createRuntime, config);
   appendBootstrapTrace("phase:initializeRuntime:done");
 
   return configureBootstrapContext({

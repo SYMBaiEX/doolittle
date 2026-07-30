@@ -90,6 +90,23 @@ Implication for Doolittle:
 5. Keep package audit/version tooling explicit about `latest` versus `beta`,
    because npm dist-tags are mixed across the ecosystem.
 
+### Boot Ownership On The Pinned Beta Line
+
+The public runtime documentation now shows a top-level `ElizaOS` orchestrator,
+but `@elizaos/core@2.0.3-beta.7` does not export that class. The pinned SDK does
+export `createRuntimes`, although its fully initialized composition flow does
+not expose the pre-initialize recovery seam Doolittle currently needs for
+local PGlite lock and corruption recovery.
+
+Doolittle therefore keeps direct `AgentRuntime` construction on this exact
+beta line. This is a compatibility boundary, not permission to maintain a
+second service lifecycle: Doolittle-owned runtime capabilities must be
+registered through plugin `services`, actions, providers, evaluators, routes,
+or events. The advanced-memory adapter now follows that rule; it is part of
+the Doolittle plugin and no longer mutates `AgentRuntime` registration maps.
+Re-evaluate the top-level orchestrator when the pinned runtime train exports a
+lifecycle that preserves the same recovery guarantees.
+
 ## Sources Consulted
 
 Primary sources:

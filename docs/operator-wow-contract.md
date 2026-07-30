@@ -233,7 +233,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `memory-learning-skills`
 - Outcome: Doolittle gets better with use by recalling durable preferences, finding past sessions, and proposing approved skills for repeated workflows.
-- Doolittle surfaces: `packages/agent/src/runtime/native/memory-storage-runtime.ts`, `packages/agent/src/runtime/native/service-bridge/autonomous-skills.ts`, `packages/skills`, `docs/skills-hub.md`
+- Doolittle surfaces: `packages/plugins/doolittle-plugin/memory-storage-service.ts`, `packages/agent/src/runtime/native/service-bridge/autonomous-skills.ts`, `packages/skills`, `docs/skills-hub.md`
 
 ### Reference Signals
 
@@ -258,7 +258,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The response distinguishes memory from live facts.
 - Verification:
   - Add a memory persistence test that writes, restarts the memory runtime, and retrieves the preference.
-  - Run `nub run test packages/agent/src/runtime/native/memory-storage-runtime.test.ts`.
+  - Run `nub run test packages/plugins/doolittle-plugin/memory-storage-service.test.ts`.
 
 #### memory-learning-skills.skill-proposal
 
@@ -284,7 +284,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Add a cross-session durable memory recall test.
 - Owner surface: `memory`
-- Files: `packages/agent/src/runtime/native/memory-storage-runtime.ts`, `packages/agent/src/runtime/native/memory-storage-runtime.test.ts`, `docs/operator-loop.md`
+- Files: `packages/plugins/doolittle-plugin/memory-storage-service.ts`, `packages/plugins/doolittle-plugin/memory-storage-service.test.ts`, `docs/operator-loop.md`
 - Definition of done:
   - A saved preference survives runtime recreation.
   - Recall metadata says where the memory came from.

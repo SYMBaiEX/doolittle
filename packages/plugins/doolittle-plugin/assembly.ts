@@ -17,6 +17,7 @@ import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
 import { createGatewayRuntimeService } from "./gateway-service";
+import { createMemoryStorageService } from "./memory-storage-service";
 import { createSchedulerRuntimeService } from "./scheduler-service";
 import { wireSdkCapabilities } from "./sdk-capabilities";
 import {
@@ -53,6 +54,7 @@ export function createDoolittlePluginSurface({
     services,
     config,
   });
+  const MemoryStorageService = createMemoryStorageService(services.sessions);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
 
   return {
@@ -67,6 +69,7 @@ export function createDoolittlePluginSurface({
     ],
     evaluators,
     services: [
+      MemoryStorageService,
       GatewayRuntimeService,
       SchedulerRuntimeService,
       ...createTriggerRuntimeServices(services),

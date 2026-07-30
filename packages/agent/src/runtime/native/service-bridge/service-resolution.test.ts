@@ -11,6 +11,8 @@ describe("service-resolution helpers", () => {
     const runtime = {
       getService(name: string) {
         switch (name) {
+          case "memoryStorage":
+            return { storeLongTermMemory: async () => ({}) };
           case KNOWLEDGE_GRAPH_SERVICE:
             return { getEntityStore: () => ({}) };
           case "pdf":
@@ -32,6 +34,14 @@ describe("service-resolution helpers", () => {
     } as unknown as RuntimeLike;
 
     expect(getEffectiveServiceResolution(runtime)).toEqual([
+      {
+        capability: "memoryStorage",
+        nativeService: "memoryStorage",
+        source: "native",
+        ownership: "plugin",
+        fallback: "unavailable until the Eliza memory storage adapter loads",
+        available: true,
+      },
       {
         capability: "knowledgeGraph",
         nativeService: KNOWLEDGE_GRAPH_SERVICE,

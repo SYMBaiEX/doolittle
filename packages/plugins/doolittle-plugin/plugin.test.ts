@@ -64,5 +64,10 @@ describe("createDoolittlePlugin offline bootstrap", () => {
       "doolittle-research-command",
       "doolittle-command-catalog",
     ]);
+    expect(
+      plugin.services?.some(
+        (service) => service.serviceType === "memoryStorage",
+      ),
+    ).toBe(true);
   });
 });
