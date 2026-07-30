@@ -510,13 +510,16 @@ Doolittle debug bundles remain useful for replay, analysis, and operator trouble
 - Agent registry and skill catalog clients: `@elizaos/agent/services/registry-client`, `@elizaos/agent/services/skill-catalog-client`
 - Native skill file parsing and serialization: `@elizaos/skills`
 - Doolittle MCP execution adapter: `packages/agent/src/services/mcp/`
-- Doolittle skills hub: `packages/agent/src/services/skills-hub/`
+- Doolittle read-only skills projection and portable distribution:
+  `packages/agent/src/services/skills-hub/`
 - Research MCP: `ResearchMcpTool` type for deep research integration
 
 **Code changes needed:**
 1. Keep local and generated skills in canonical `@elizaos/skills` frontmatter so Doolittle skill data stays portable.
 2. Use `@elizaos/agent/services/mcp-marketplace` for marketplace search, details, and config generation.
-3. Use `@elizaos/agent/services/skill-marketplace` and catalog clients for marketplace/catalog discovery instead of local scraping.
+3. Resolve the runtime's official `AGENT_SKILLS_SERVICE` for catalog discovery,
+   search, details, refresh, installation, and uninstallation. Do not introduce
+   a product-owned catalog client or cache.
 4. Keep Doolittle's local MCP execution service as the product adapter until an official MCP execution plugin is promoted to a direct top-level dependency.
 5. Integrate MCP tools with the RESEARCH model type for deep research across internal knowledge bases.
 
