@@ -19,6 +19,8 @@ describe("native service registry", () => {
     expect(registry.productOrchestration).not.toContain("delegation");
     expect(registry.officialBacked).not.toContain("delegation");
     expect(registry.customEliza).not.toContain("cron");
+    expect(registry.productOrchestration).toContain("tools");
+    expect(registry.customEliza).not.toContain("tools");
     expect(describeNativeServiceRegistry(registry)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

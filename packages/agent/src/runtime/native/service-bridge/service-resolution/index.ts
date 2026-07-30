@@ -10,10 +10,12 @@ import type {
 export type {
   EffectiveToolDefinition,
   EffectiveToolInventory,
+  EffectiveToolInventoryOptions,
 } from "./tool-inventory";
 export {
   getEffectiveToolInventory,
   searchEffectiveTools,
+  TOOL_POLICY_PROFILES,
 } from "./tool-inventory";
 export type { EffectiveServiceResolutionRecord, NativePluginManagerSummary };
 

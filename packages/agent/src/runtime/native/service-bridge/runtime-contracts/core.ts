@@ -8,6 +8,7 @@ import {
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
+import type { ToolProfileId } from "@elizaos/core";
 import type {
   BrowserAnalysisBundle,
   BrowserCaptureBundle,
@@ -113,17 +114,15 @@ export interface NativeApprovalService {
 export interface NativeToolPolicyService {
   getAllowedTools?(
     context: {
-      profile?: "minimal" | "coding" | "messaging" | "full";
+      profile?: ToolProfileId;
     },
     availableTools: string[],
   ): string[];
   getDeniedTools?(
     context: {
-      profile?: "minimal" | "coding" | "messaging" | "full";
+      profile?: ToolProfileId;
     },
     availableTools: string[],
   ): Array<{ name: string; reason: string }>;
-  getEffectivePolicy?(context?: {
-    profile?: "minimal" | "coding" | "messaging" | "full";
-  }): unknown;
+  getEffectivePolicy?(context?: { profile?: ToolProfileId }): unknown;
 }

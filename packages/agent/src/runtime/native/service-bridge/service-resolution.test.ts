@@ -32,6 +32,8 @@ describe("service-resolution helpers", () => {
             return { getLoadedSkills: () => [] };
           case "plugin_manager":
             return { list: () => [], categories: () => ({}) };
+          case "tool_policy":
+            return { getAllowedTools: () => [] };
           case "planning":
             return { createSimplePlan: async () => ({}) };
           case DOOLITTLE_OPERATOR_PLANNING_SERVICE:
@@ -177,6 +179,14 @@ describe("service-resolution helpers", () => {
         source: "native",
         ownership: "plugin",
         requirement: "required official Eliza plugin manager service",
+        available: true,
+      },
+      {
+        capability: "toolPolicy",
+        nativeService: "tool_policy",
+        source: "native",
+        ownership: "plugin",
+        requirement: "required official Eliza ToolPolicyService",
         available: true,
       },
       {

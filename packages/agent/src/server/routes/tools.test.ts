@@ -44,6 +44,8 @@ describe("handleToolRoutes", () => {
       }),
     ]);
     expect(body.runtimeOwned).toBe(true);
+    expect(body.policyOwned).toBe(false);
+    expect(body.effectiveProfile).toBe("full");
     expect(body.controlPlane).toEqual({
       total: 1,
       transports: [{ id: "transport-1" }],
@@ -107,6 +109,9 @@ describe("handleToolRoutes", () => {
       enabled: 1,
       disabled: 0,
       runtimeOwned: true,
+      policyOwned: false,
+      effectiveProfile: "full",
+      profiles: [],
       controlPlane: {
         total: 1,
         transports: [{ id: "transport-1" }],
@@ -126,6 +131,48 @@ describe("handleToolRoutes", () => {
 
     expect(await response?.json()).toEqual({
       transports: [{ transport: "native", total: 1, enabled: 1 }],
+    });
+  });
+
+  it("applies a requested Eliza tool profile and rejects unknown profiles", async () => {
+    const context = createContext();
+    context.runtime.getService = ((name: string) =>
+      name === "tool_policy"
+        ? {
+            getAllowedTools: ({ profile }: { profile?: string }) =>
+              profile === "minimal" ? [] : ["READ_FILE"],
+            getDeniedTools: ({ profile }: { profile?: string }) =>
+              profile === "minimal"
+                ? [{ name: "READ_FILE", reason: "Not part of minimal tools." }]
+                : [],
+          }
+        : null) as never;
+
+    const response = await handleToolRoutes(
+      context,
+      new Request("http://localhost/tools?profile=minimal"),
+      new URL("http://localhost/tools?profile=minimal"),
+    );
+    const invalid = await handleToolRoutes(
+      context,
+      new Request("http://localhost/tools?profile=unknown"),
+      new URL("http://localhost/tools?profile=unknown"),
+    );
+
+    expect(await response?.json()).toMatchObject({
+      policyOwned: true,
+      effectiveProfile: "minimal",
+      tools: [
+        {
+          id: "READ_FILE",
+          enabled: false,
+          policyReason: "Not part of minimal tools.",
+        },
+      ],
+    });
+    expect(invalid?.status).toBe(400);
+    expect(await invalid?.json()).toEqual({
+      error: "profile must be one of: minimal, coding, messaging, full",
     });
   });
 

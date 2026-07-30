@@ -1,24 +1,51 @@
+import type { ToolProfileId } from "@elizaos/core";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   getEffectivePluginManagerInventory,
   getEffectiveToolInventory,
   searchEffectiveTools,
+  TOOL_POLICY_PROFILES,
 } from "@/runtime/native/service-bridge/service-resolution";
 import { json } from "@/server/responses";
+
+function requestedProfile(url: URL): ToolProfileId | undefined {
+  const profile = url.searchParams.get("profile");
+  if (!profile) return undefined;
+  return TOOL_POLICY_PROFILES.find((candidate) => candidate === profile);
+}
 
 export async function handleToolRoutes(
   context: AppContext,
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  const rawProfile = url.searchParams.get("profile");
+  const profile = requestedProfile(url);
+  if (
+    url.pathname.startsWith("/tools") &&
+    rawProfile &&
+    profile === undefined
+  ) {
+    return json(
+      {
+        error: `profile must be one of: ${TOOL_POLICY_PROFILES.join(", ")}`,
+      },
+      400,
+    );
+  }
+
   if (request.method === "GET" && url.pathname === "/tools") {
     const inventory = getEffectiveToolInventory(
       context.runtime,
       context.services,
+      { profile },
     );
     return json({
       tools: inventory.tools,
       runtimeOwned: inventory.runtimeOwned,
+      policyOwned: inventory.policyOwned,
+      effectiveProfile: inventory.effectiveProfile,
+      ...(inventory.policyError ? { policyError: inventory.policyError } : {}),
       controlPlane: inventory.summary.controlPlane,
       nativePluginManager: getEffectivePluginManagerInventory(context.runtime),
     });
@@ -30,7 +57,9 @@ export async function handleToolRoutes(
       return json({ error: "query is required" }, 400);
     }
     return json({
-      results: searchEffectiveTools(context.runtime, context.services, query),
+      results: searchEffectiveTools(context.runtime, context.services, query, {
+        profile,
+      }),
     });
   }
 
@@ -38,6 +67,7 @@ export async function handleToolRoutes(
     const inventory = getEffectiveToolInventory(
       context.runtime,
       context.services,
+      { profile },
     );
     return json({
       summary: inventory.summary,
@@ -47,8 +77,9 @@ export async function handleToolRoutes(
 
   if (request.method === "GET" && url.pathname === "/tools/transports") {
     return json({
-      transports: getEffectiveToolInventory(context.runtime, context.services)
-        .summary.transports,
+      transports: getEffectiveToolInventory(context.runtime, context.services, {
+        profile,
+      }).summary.transports,
     });
   }
 
@@ -60,6 +91,7 @@ export async function handleToolRoutes(
     const inventory = getEffectiveToolInventory(
       context.runtime,
       context.services,
+      { profile },
     );
     return json({
       category,
@@ -77,6 +109,7 @@ export async function handleToolRoutes(
     const inventory = getEffectiveToolInventory(
       context.runtime,
       context.services,
+      { profile },
     );
     return json({
       tool: inventory.tools.find(

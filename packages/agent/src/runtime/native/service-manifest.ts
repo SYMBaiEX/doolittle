@@ -65,7 +65,7 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
     { service: "hooks", group: "officialBacked" },
     { service: "contextFiles", group: "customEliza" },
     { service: "settings", group: "customEliza" },
-    { service: "tools", group: "customEliza" },
+    { service: "tools", group: "productOrchestration" },
     { service: "diagnostics", group: "customEliza" },
     { service: "operator", group: "productOrchestration" },
     { service: "gatewayConfig", group: "productOrchestration" },
@@ -174,6 +174,12 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       nativeKey: "pluginManager",
       nativeService: "plugin_manager",
       requirement: "required official Eliza plugin manager service",
+    },
+    {
+      capability: "toolPolicy",
+      nativeKey: "toolPolicy",
+      nativeService: "tool_policy",
+      requirement: "required official Eliza ToolPolicyService",
     },
     {
       capability: "actionPlanning",
