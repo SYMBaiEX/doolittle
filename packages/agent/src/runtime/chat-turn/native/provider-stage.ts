@@ -1,10 +1,7 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import { getProviderReadinessMessage } from "@/runtime/linked-provider-accounts";
 import type { ChatTurnRequest } from "@/types/runtime";
 import { runPostProviderTurn } from "../post-provider";
 import { runProviderModelTurn } from "../provider";
-import { handleReadyResponseTurn } from "./readiness";
-import { runProviderShortcutTurn } from "./shortcut";
 import type { NativeTurnSetup, SettingsSnapshot, TurnPerfTrace } from "./types";
 
 type NativeTurnOptions = AgentTurnHooks & {
@@ -22,17 +19,11 @@ export interface NativeProviderStageInput {
 }
 
 export interface NativeProviderStageDependencies {
-  runProviderShortcutTurn: typeof runProviderShortcutTurn;
-  getProviderReadinessMessage: typeof getProviderReadinessMessage;
-  handleReadyResponseTurn: typeof handleReadyResponseTurn;
   runProviderModelTurn: typeof runProviderModelTurn;
   runPostProviderTurn: typeof runPostProviderTurn;
 }
 
 const defaultDependencies: NativeProviderStageDependencies = {
-  runProviderShortcutTurn,
-  getProviderReadinessMessage,
-  handleReadyResponseTurn,
   runProviderModelTurn,
   runPostProviderTurn,
 };
@@ -46,48 +37,6 @@ export async function runNativeProviderStage(
   const messagePolicy = input.turnSetup.messagePolicy;
   const settingsBefore = input.turnSetup.settingsBefore;
   const responseSource = input.input.source ?? "cli";
-  const shortcutResult = await dependencies.runProviderShortcutTurn({
-    context: input.context,
-    turn,
-    userId: input.effectiveInput.userId,
-    effectiveMessage: input.effectiveInput.message,
-    settingsDuring: input.settingsDuring,
-    attachments: input.effectiveInput.attachments,
-  });
-  if (shortcutResult) {
-    input.perf.mark("native-shortcut");
-    const postShortcutResult = await dependencies.runPostProviderTurn({
-      input: input.input,
-      effectiveInput: input.effectiveInput,
-      context: input.context,
-      options: input.options,
-      turn,
-      response: shortcutResult.response,
-      actionResults: shortcutResult.actionResults,
-      settingsDuring: input.settingsDuring,
-      scheduleProfileObservation,
-    });
-    return postShortcutResult.response;
-  }
-
-  const readinessMessage = await dependencies.getProviderReadinessMessage(
-    input.context,
-    input.settingsDuring.model.provider,
-  );
-  input.perf.mark("provider-readiness");
-  const readyResponse = await dependencies.handleReadyResponseTurn({
-    context: input.context,
-    turn,
-    readinessMessage,
-    scheduleProfileObservation,
-    options: input.options,
-    perf: input.perf,
-    source: input.input.source,
-  });
-  if (readyResponse) {
-    return readyResponse;
-  }
-
   const providerResult = await dependencies.runProviderModelTurn({
     context: input.context,
     turn,
@@ -112,6 +61,7 @@ export async function runNativeProviderStage(
     response: providerResult.response,
     runFailureMessage: providerResult.runFailureMessage,
     actionResults: providerResult.actionResults,
+    nativeResponseMessages: providerResult.responseMessages,
     settingsDuring: input.settingsDuring,
     scheduleProfileObservation,
   });

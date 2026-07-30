@@ -54,13 +54,14 @@ export async function runPostProviderTurn(
     turn: input.turn,
   });
 
-  return finalizePostProviderTurn({
+  return await finalizePostProviderTurn({
     context: input.context,
     turn: input.turn,
     finalResponse,
     runFailureMessage,
     observedActionCount,
     actionResults: input.actionResults,
+    nativeResponseMessages: input.nativeResponseMessages,
     usedFallback: false,
     settingsDuring: input.settingsDuring,
     scheduleProfileObservation: input.scheduleProfileObservation,

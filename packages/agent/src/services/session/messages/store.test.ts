@@ -38,6 +38,15 @@ describe("session/messages/store", () => {
       text: "Replying to the session search",
       createdAt: "2026-03-20T00:00:01.000Z",
     });
+    store.storeMessage({
+      id: "2",
+      sessionId: "room:1",
+      roomId: "room:1",
+      entityId: "assistant:1",
+      role: "assistant",
+      text: "Replying to the session search",
+      createdAt: "2026-03-20T00:00:01.000Z",
+    });
 
     expect(activity).toHaveLength(2);
     expect(store.search("session", 10)).toHaveLength(2);

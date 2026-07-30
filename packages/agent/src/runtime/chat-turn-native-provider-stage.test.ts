@@ -82,20 +82,14 @@ function createInput() {
   } as unknown as Parameters<typeof runNativeProviderStage>[0];
 }
 
-function createDependencies(
-  readinessMessage?: string,
-): NativeProviderStageDependencies {
+function createDependencies(): NativeProviderStageDependencies {
   return {
-    runProviderShortcutTurn: vi.fn(async () => undefined),
-    getProviderReadinessMessage: vi.fn(async () => readinessMessage),
-    handleReadyResponseTurn: vi.fn(
-      async ({ readinessMessage: value }) => value,
-    ),
     runProviderModelTurn: vi.fn(async () => ({
       handledMessage: true,
       response: "SDK response",
       messageId: "message-1",
       actionResults: [],
+      responseMessages: [],
     })),
     runPostProviderTurn: vi.fn(
       async ({
@@ -129,38 +123,5 @@ describe("ElizaOS-native provider stage", () => {
     );
     expect(dependencies.runPostProviderTurn).toHaveBeenCalledTimes(1);
     expect(input.perf.mark).toHaveBeenCalledWith("native-handle-message");
-  });
-
-  it("keeps provider configuration readiness outside the model lifecycle", async () => {
-    const dependencies = createDependencies("Provider needs configuration.");
-
-    const result = await runNativeProviderStage(createInput(), dependencies);
-
-    expect(result).toBe("Provider needs configuration.");
-    expect(dependencies.runProviderModelTurn).not.toHaveBeenCalled();
-    expect(dependencies.runPostProviderTurn).not.toHaveBeenCalled();
-  });
-
-  it("lets the SDK execute explicit shortcuts before provider readiness", async () => {
-    const dependencies = createDependencies("Provider needs configuration.");
-    vi.mocked(dependencies.runProviderShortcutTurn).mockResolvedValue({
-      handledMessage: true,
-      response: "SDK shortcut response",
-      messageId: "shortcut-message",
-      actionResults: [],
-    });
-
-    const result = await runNativeProviderStage(createInput(), dependencies);
-
-    expect(result).toBe("SDK shortcut response");
-    expect(dependencies.getProviderReadinessMessage).not.toHaveBeenCalled();
-    expect(dependencies.handleReadyResponseTurn).not.toHaveBeenCalled();
-    expect(dependencies.runProviderModelTurn).not.toHaveBeenCalled();
-    expect(dependencies.runPostProviderTurn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        response: "SDK shortcut response",
-        actionResults: [],
-      }),
-    );
   });
 });

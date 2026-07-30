@@ -7,6 +7,7 @@ import type {
   RunDepth,
   ToolProgressMode,
 } from "@/types/runtime";
+import { persistUserTurnMemory } from "./conversation-persistence";
 import { recordTrajectoryEvent } from "./trajectory";
 
 export interface TurnState {
@@ -18,6 +19,7 @@ export interface TurnState {
   worldId: string;
   entityId: string;
   messageServerId: string;
+  messageId: string;
   settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
   runId: string;
 }
@@ -37,33 +39,6 @@ export function extractCompatTextContent(
     return content.text;
   }
   return "";
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-export function storeSessionMessage(
-  context: AgentExecutionContext,
-  input: {
-    sessionId: string;
-    roomId: string;
-    entityId: string;
-    role: "user" | "assistant" | "system";
-    text: string;
-    attachments?: import("@/types").StoredMessageAttachment[];
-  },
-): void {
-  context.services.sessions.storeMessage({
-    id: randomUUID(),
-    sessionId: input.sessionId,
-    roomId: input.roomId,
-    entityId: input.entityId,
-    role: input.role,
-    text: input.text,
-    attachments: input.attachments,
-    createdAt: nowIso(),
-  });
 }
 
 export function scheduleBackgroundTask(task: () => void | Promise<void>): void {
@@ -99,6 +74,7 @@ export function createTurnState(
     worldId: createUniqueUuid(context.runtime, messageServerId),
     entityId: stableRuntimeUuid(input.userId),
     messageServerId,
+    messageId: randomUUID(),
     settings: context.services.settings.get(),
     runId: input.runId ?? randomUUID(),
   };
@@ -170,7 +146,7 @@ export function prepareTurnState(
   };
 }
 
-export function startTrackedTurn(
+export async function startTrackedTurn(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
   turn: TurnState,
@@ -179,13 +155,11 @@ export function startTrackedTurn(
     maxIterations: number;
     toolProgressMode: ToolProgressMode;
   },
-): void {
+): Promise<void> {
   const modelSettings = turn.settings?.model ?? {};
-  storeSessionMessage(context, {
-    sessionId: turn.sessionId,
-    roomId: turn.roomId,
-    entityId: turn.entityId,
-    role: "user",
+  await persistUserTurnMemory({
+    context,
+    turn,
     text: input.message,
     attachments: input.attachmentDescriptors,
   });

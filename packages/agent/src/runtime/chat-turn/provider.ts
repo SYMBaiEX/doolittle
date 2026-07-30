@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   type ActionResult,
   ChannelType,
@@ -110,7 +109,7 @@ export function createProviderMessageMemory(
   executionContext: ProviderModelTurnExecutionContext = providerModelTurnContext,
 ): ReturnType<ProviderModelTurnExecutionContext["createMessageMemory"]> {
   const memory = executionContext.createMessageMemory({
-    id: randomUUID() as UUID,
+    id: input.turn.messageId as UUID,
     entityId: input.turn.entityId as UUID,
     roomId: input.turn.roomId as UUID,
     content: {
@@ -151,6 +150,7 @@ export async function runProviderModelTurn(
   runFailureMessage?: string;
   messageId: string;
   actionResults: ActionResult[];
+  responseMessages: import("@elizaos/core").Memory[];
 }> {
   const memory = createProviderMessageMemory(input, executionContext);
   const sessionKey =
@@ -160,6 +160,7 @@ export async function runProviderModelTurn(
     let response = "";
     let handledMessage = false;
     let actionResults: ActionResult[] = [];
+    let responseMessages: import("@elizaos/core").Memory[] = [];
     let messageId = String(memory.id);
     const personalityBefore = getEffectiveActivePersonality(
       input.context.runtime,
@@ -227,6 +228,7 @@ export async function runProviderModelTurn(
       response = messageExecutionResult.response;
       messageId = messageExecutionResult.messageId;
       actionResults = messageExecutionResult.actionResults;
+      responseMessages = messageExecutionResult.responseMessages;
     } finally {
       if (hasOverride) {
         applyModelSettings(
@@ -260,6 +262,7 @@ export async function runProviderModelTurn(
       runFailureMessage,
       messageId,
       actionResults,
+      responseMessages,
     };
   });
 }

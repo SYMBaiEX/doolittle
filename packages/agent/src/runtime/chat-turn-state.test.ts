@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import {
+  persistAssistantTurnMemory,
+  persistUserTurnMemory,
+} from "./chat-turn/conversation-persistence";
+import {
   createProfileObservationScheduler,
   createTurnState,
   extractCompatTextContent,
   startTrackedTurn,
-  storeSessionMessage,
 } from "./chat-turn/state";
 
 describe("chat turn state helpers", () => {
@@ -132,11 +135,15 @@ describe("chat turn state helpers", () => {
     );
   });
 
-  it("tracks user-facing turn events and startTurn payload", () => {
+  it("tracks user-facing turn events and startTurn payload", async () => {
     const startPayload: unknown[] = [];
     const stored: unknown[] = [];
     const context = {
-      runtime: {},
+      runtime: {
+        agentId: "agent-1",
+        createMemory: async (memory: { id: string }) => memory.id,
+        queueEmbeddingGeneration: async () => undefined,
+      },
       services: {
         executionApprovals: {
           latestPendingForSession: () => null,
@@ -145,6 +152,7 @@ describe("chat turn state helpers", () => {
           storeMessage: (msg: unknown) => {
             stored.push(msg);
           },
+          continuityKey: (sessionId: string) => sessionId,
         },
         runController: {
           startTurn: (payload: unknown) => {
@@ -174,9 +182,10 @@ describe("chat turn state helpers", () => {
       connectionSource: "cli",
       worldId: "world-1",
       messageServerId: "msg-server-1",
+      messageId: "message-1",
       settings: context.services.settings.get(),
     } as Parameters<typeof startTrackedTurn>[2];
-    startTrackedTurn(
+    await startTrackedTurn(
       { message: "status check", source: "cli", userId: "alice" },
       context,
       turn,
@@ -195,16 +204,21 @@ describe("chat turn state helpers", () => {
     );
   });
 
-  it("defaults to configured runtime policy and marks pending approvals", () => {
+  it("defaults to configured runtime policy and marks pending approvals", async () => {
     const startPayload: unknown[] = [];
     const context = {
-      runtime: {},
+      runtime: {
+        agentId: "agent-1",
+        createMemory: async (memory: { id: string }) => memory.id,
+        queueEmbeddingGeneration: async () => undefined,
+      },
       services: {
         executionApprovals: {
           latestPendingForSession: () => ({ id: "pending-1" }),
         },
         sessions: {
           storeMessage: () => undefined,
+          continuityKey: (sessionId: string) => sessionId,
         },
         runController: {
           startTurn: (payload: unknown) => {
@@ -234,10 +248,11 @@ describe("chat turn state helpers", () => {
       connectionSource: "gateway",
       worldId: "world-2",
       messageServerId: "msg-2",
+      messageId: "message-2",
       settings: context.services.settings.get(),
     } as Parameters<typeof startTrackedTurn>[2];
 
-    startTrackedTurn(
+    await startTrackedTurn(
       { message: "report", source: "gateway", userId: "bob" },
       context,
       turn,
@@ -282,27 +297,104 @@ describe("chat turn state helpers", () => {
 });
 
 describe("chat turn state helpers with session persistence", () => {
-  it("writes messages with deterministic keys", () => {
+  it("persists assistant messages through Eliza before projecting them", async () => {
     const messages: unknown[] = [];
+    const nativeMemories: unknown[] = [];
     const context = {
       services: {
         sessions: {
           storeMessage: (msg: unknown) => messages.push(msg),
+          continuityKey: (sessionId: string) => sessionId,
         },
       },
-      runtime: {},
+      runtime: {
+        agentId: "agent-1",
+        createMemory: async (memory: unknown) => {
+          nativeMemories.push(memory);
+          return (memory as { id: string }).id;
+        },
+        queueEmbeddingGeneration: async () => undefined,
+      },
       config: {},
     } as unknown as AgentExecutionContext;
 
-    storeSessionMessage(context, {
-      sessionId: "s1",
-      roomId: "r1",
-      entityId: "u1",
-      role: "assistant",
+    await persistAssistantTurnMemory({
+      context,
+      turn: {
+        sessionId: "s1",
+        roomId: "r1",
+        entityId: "u1",
+        messageId: "m1",
+        connectionSource: "desktop",
+      } as Parameters<typeof persistAssistantTurnMemory>[0]["turn"],
       text: "ok",
     });
+    expect(nativeMemories).toHaveLength(1);
     expect(messages).toHaveLength(1);
     expect((messages[0] as { sessionId: string }).sessionId).toBe("s1");
     expect((messages[0] as { role: string }).role).toBe("assistant");
+  });
+
+  it("hydrates a legacy or forked transcript into an empty Eliza room before the new user memory", async () => {
+    const nativeMemories: Array<{ id: string; content: { text: string } }> = [];
+    const context = {
+      services: {
+        sessions: {
+          continuityKey: (sessionId: string) => sessionId,
+          messagesBySession: () => [
+            {
+              id: "legacy-user",
+              sessionId: "fork-1",
+              roomId: "old-room",
+              entityId: "user-1",
+              role: "user",
+              text: "Inherited question",
+              createdAt: "2026-07-29T00:00:00.000Z",
+            },
+            {
+              id: "legacy-assistant",
+              sessionId: "fork-1",
+              roomId: "old-room",
+              entityId: "agent-1",
+              role: "assistant",
+              text: "Inherited answer",
+              createdAt: "2026-07-29T00:00:01.000Z",
+            },
+          ],
+          storeMessage: () => undefined,
+        },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [],
+        createMemory: async (memory: {
+          id: string;
+          content: { text: string };
+        }) => {
+          nativeMemories.push(memory);
+          return memory.id;
+        },
+        queueEmbeddingGeneration: async () => undefined,
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await persistUserTurnMemory({
+      context,
+      turn: {
+        sessionId: "fork-1",
+        roomId: "room-1",
+        entityId: "user-1",
+        messageId: "00000000-0000-4000-8000-000000000001",
+        connectionSource: "desktop",
+      } as Parameters<typeof persistUserTurnMemory>[0]["turn"],
+      text: "Continue from the fork",
+    });
+
+    expect(nativeMemories.map((memory) => memory.content.text)).toEqual([
+      "Inherited question",
+      "Inherited answer",
+      "Continue from the fork",
+    ]);
   });
 });

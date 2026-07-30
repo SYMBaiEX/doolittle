@@ -1,4 +1,4 @@
-import type { ActionResult } from "@elizaos/core";
+import type { ActionResult, Memory } from "@elizaos/core";
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { TurnState } from "../state";
@@ -16,6 +16,7 @@ export interface PostProviderTurnInput {
   response: string;
   runFailureMessage?: string;
   actionResults?: ActionResult[];
+  nativeResponseMessages?: Memory[];
   settingsDuring: PostProviderSettingsSnapshot;
   scheduleProfileObservation: () => void;
 }

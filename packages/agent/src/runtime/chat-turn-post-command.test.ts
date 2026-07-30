@@ -81,7 +81,7 @@ describe("chat turn post-command seam", () => {
       perf,
       {
         runShellPostCommandTurn: async () => "shell-response",
-        prepareNativeTurnSetup: () => {
+        prepareNativeTurnSetup: async () => {
           turnSetupLog.push("called");
           throw new Error("should not run");
         },
@@ -159,7 +159,7 @@ describe("chat turn post-command seam", () => {
       perf,
       {
         runShellPostCommandTurn: async () => undefined,
-        prepareNativeTurnSetup: () => {
+        prepareNativeTurnSetup: async () => {
           observedSetupInput = {
             message: "summarize project",
             source: "cli",
@@ -174,6 +174,7 @@ describe("chat turn post-command seam", () => {
               worldId: "world-1",
               entityId: "entity-1",
               messageServerId: "server-1",
+              messageId: "message-1",
               settings: {
                 model: {
                   provider: "provider-base",

@@ -129,6 +129,7 @@ function createTurn() {
     sessionId: "session-1",
     roomId: "room-1",
     entityId: "user-1",
+    messageId: "message-1",
     connectionSource: "cli",
     localInteractive: true,
   } as unknown as Parameters<typeof runProviderModelTurn>[0]["turn"];
@@ -179,6 +180,8 @@ describe("chat turn provider seam", () => {
     expect(result.handledMessage).toBe(true);
     expect(result.response).toBe("hello from provider");
     expect(result.runFailureMessage).toBeUndefined();
+    expect(result.messageId).toBe("message-1");
+    expect(result.responseMessages).toHaveLength(1);
     expect(harness.progressPhases).toEqual(["model"]);
     expect(harness.thinkingSessions).toEqual(["session-1"]);
     expect(harness.personalityTransitions).toEqual(["reviewer", "default"]);

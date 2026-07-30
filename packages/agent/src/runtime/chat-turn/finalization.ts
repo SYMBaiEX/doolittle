@@ -1,6 +1,6 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
+import { persistAssistantTurnMemory } from "./conversation-persistence";
 import type { TurnState } from "./state";
-import { storeSessionMessage } from "./state";
 import { recordTrajectoryEvent } from "./trajectory";
 
 const SKILL_SYNTHESIS_NUDGE_INTERVAL = 12;
@@ -18,11 +18,9 @@ export async function finalizeTurnResponse(
     response: text,
     phase,
   });
-  storeSessionMessage(context, {
-    sessionId: turn.sessionId,
-    roomId: turn.roomId,
-    entityId: turn.entityId,
-    role: "assistant",
+  await persistAssistantTurnMemory({
+    context,
+    turn,
     text,
   });
   const modelSettings = turn.settings?.model ?? {};
@@ -112,10 +110,4 @@ export function maybeGetSkillSynthesisNudge(
   } catch {
     return undefined;
   }
-}
-
-export function isTurnReadinessMessage(
-  readinessMessage: string | undefined,
-): readinessMessage is string {
-  return Boolean(readinessMessage);
 }

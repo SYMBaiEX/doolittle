@@ -22,16 +22,16 @@ export function resolveNativeMessagePolicy(
   };
 }
 
-export function prepareNativeTurnSetup(input: {
+export async function prepareNativeTurnSetup(input: {
   input: ChatTurnRequest;
   effectiveInput: ChatTurnRequest;
   context: AgentExecutionContext;
   preparedTurn?: PreparedTurnState;
-}): NativeTurnSetup {
+}): Promise<NativeTurnSetup> {
   const { turn, scheduleProfileObservation } =
     input.preparedTurn ?? prepareTurnState(input.input, input.context);
   const messagePolicy = resolveNativeMessagePolicy(turn.settings.agent);
-  startTrackedTurn(input.input, input.context, turn, messagePolicy);
+  await startTrackedTurn(input.input, input.context, turn, messagePolicy);
   const modelSettings = turn.settings?.model ?? {};
   recordTrajectoryEvent(input.context, {
     category: "turn",

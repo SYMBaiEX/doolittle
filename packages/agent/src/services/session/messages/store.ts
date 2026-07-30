@@ -28,10 +28,10 @@ export class SessionMessageStore {
   ) {}
 
   storeMessage(message: StoredMessage): void {
-    this.db
+    const insert = this.db
       .query(
         `
-          INSERT INTO messages (
+          INSERT OR IGNORE INTO messages (
             id, session_id, room_id, entity_id, role, text,
             attachments_json, created_at
           )
@@ -48,6 +48,7 @@ export class SessionMessageStore {
         serializeAttachments(message.attachments),
         message.createdAt,
       );
+    if (insert.changes === 0) return;
 
     this.db
       .query(

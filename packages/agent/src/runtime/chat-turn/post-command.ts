@@ -65,7 +65,7 @@ export async function runPostCommandTurn(
       return shellResponse;
     }
 
-    const nativeTurnSetup = runner.prepareNativeTurnSetup({
+    const nativeTurnSetup = await runner.prepareNativeTurnSetup({
       input,
       effectiveInput,
       context,

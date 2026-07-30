@@ -28,6 +28,7 @@ export type ProviderMessageExecutionResult = {
   runFailureMessage?: string;
   messageId: string;
   actionResults: ActionResult[];
+  responseMessages: Memory[];
 };
 
 type ProviderMessageExecutionInput = {
@@ -82,6 +83,7 @@ export async function executeProviderMessageTurn(
   const sessionId = input.sessionId ?? String(input.memory.roomId);
   const messageId = String(input.memory.id);
   let actionResults: ActionResult[] = [];
+  let responseMessages: Memory[] = [];
 
   await runWithSdkTrajectoryContext(
     input.context,
@@ -152,6 +154,7 @@ export async function executeProviderMessageTurn(
         );
         throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
+        responseMessages = messageResult?.responseMessages ?? [];
         response = input.streamState.getResponse();
         if (!response) {
           const responseText = messageResult?.responseContent?.text;
@@ -223,5 +226,6 @@ export async function executeProviderMessageTurn(
     runFailureMessage,
     messageId,
     actionResults,
+    responseMessages,
   };
 }

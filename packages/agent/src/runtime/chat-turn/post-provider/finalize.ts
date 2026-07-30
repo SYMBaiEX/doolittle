@@ -1,4 +1,4 @@
-import type { ActionResult } from "@elizaos/core";
+import type { ActionResult, Memory } from "@elizaos/core";
 import {
   buildCodingIterationFromActionResults,
   summarizeActionResults,
@@ -7,11 +7,14 @@ import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import { buildProviderNoResponseMessage } from "@/runtime/linked-provider-accounts";
 import type { ChatTurnRequest } from "@/types/runtime";
 import {
+  persistAssistantTurnMemory,
+  projectNativeResponseMemories,
+} from "../conversation-persistence";
+import {
   getContextUsageWarning,
   maybeGetSkillSynthesisNudge,
 } from "../finalization";
 import type { TurnState } from "../state";
-import { storeSessionMessage } from "../state";
 import { recordTrajectoryEvent } from "../trajectory";
 import type {
   PostProviderFinalResult,
@@ -74,24 +77,32 @@ export async function emitPostProviderNotices(input: {
   }
 }
 
-export function finalizePostProviderTurn(input: {
+export async function finalizePostProviderTurn(input: {
   context: AgentExecutionContext;
   turn: TurnState;
   finalResponse: string;
   runFailureMessage?: string;
   observedActionCount: number;
   actionResults?: ActionResult[];
+  nativeResponseMessages?: Memory[];
   usedFallback: boolean;
   settingsDuring: PostProviderSettingsSnapshot;
   scheduleProfileObservation: () => void;
-}): PostProviderFinalResult {
-  storeSessionMessage(input.context, {
-    sessionId: input.turn.sessionId,
-    roomId: input.turn.roomId,
-    entityId: input.turn.entityId,
-    role: "assistant",
-    text: input.finalResponse,
-  });
+}): Promise<PostProviderFinalResult> {
+  if (input.nativeResponseMessages?.length) {
+    projectNativeResponseMemories({
+      context: input.context,
+      turn: input.turn,
+      memories: input.nativeResponseMessages,
+      responseText: input.finalResponse,
+    });
+  } else {
+    await persistAssistantTurnMemory({
+      context: input.context,
+      turn: input.turn,
+      text: input.finalResponse,
+    });
+  }
   const modelSettings = input.settingsDuring.model ?? {};
   const actionResultSummary = summarizeActionResults(input.actionResults);
   const codingIteration = buildCodingIterationFromActionResults(

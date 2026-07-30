@@ -9,6 +9,9 @@ function createContext(): AgentExecutionContext {
   return {
     runtime: {
       character: { name: "Doolittle" },
+      agentId: "agent-1",
+      createMemory: async (memory: { id: string }) => memory.id,
+      queueEmbeddingGeneration: async () => undefined,
     },
     services: {
       settings: {
@@ -26,6 +29,7 @@ function createContext(): AgentExecutionContext {
       },
       sessions: {
         storeMessage: () => undefined,
+        continuityKey: (sessionId: string) => sessionId,
       },
       executionApprovals: {
         latestPendingForSession: () => null,
@@ -51,7 +55,7 @@ function createContext(): AgentExecutionContext {
 }
 
 describe("ElizaOS-native chat turn setup", () => {
-  it("maps product execution settings to an SDK message budget without classifying message text", () => {
+  it("maps product execution settings to an SDK message budget without classifying message text", async () => {
     const context = createContext();
     const request = {
       userId: "alice",
@@ -59,7 +63,7 @@ describe("ElizaOS-native chat turn setup", () => {
       source: "cli",
     } as const;
 
-    const setup = prepareNativeTurnSetup({
+    const setup = await prepareNativeTurnSetup({
       input: request,
       effectiveInput: request,
       context,

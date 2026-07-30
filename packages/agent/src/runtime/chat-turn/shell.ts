@@ -8,12 +8,12 @@ import type {
   AutomationRuntimeOverrides,
   ChatTurnRequest,
 } from "@/types/runtime";
+import { persistAssistantTurnMemory } from "./conversation-persistence";
 import { finalizeTurnResponse } from "./finalization";
 import {
   type PreparedTurnState,
   prepareTurnState,
   startTrackedTurn,
-  storeSessionMessage,
 } from "./state";
 import { recordTrajectoryEvent } from "./trajectory";
 
@@ -61,7 +61,7 @@ export async function runShellPostCommandTurn(
   const command = trimmedMessage.slice(1).trim();
   const { turn, scheduleProfileObservation } =
     input.preparedTurn ?? prepareTurnState(input.input, input.context);
-  startTrackedTurn(input.input, input.context, turn);
+  await startTrackedTurn(input.input, input.context, turn);
 
   if (!command) {
     const usageMessage = await finalizeTurnResponse(
@@ -90,11 +90,9 @@ export async function runShellPostCommandTurn(
 
   if (approvalPrompt) {
     input.context.services.runController.setPendingApprovals(turn.sessionId, 1);
-    storeSessionMessage(input.context, {
-      sessionId: turn.sessionId,
-      roomId: turn.roomId,
-      entityId: turn.entityId,
-      role: "assistant",
+    await persistAssistantTurnMemory({
+      context: input.context,
+      turn,
       text: approvalPrompt,
     });
     input.context.services.runController.finishTurn(turn.sessionId, "complete");
