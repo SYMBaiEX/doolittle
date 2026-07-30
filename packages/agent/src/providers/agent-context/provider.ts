@@ -212,7 +212,7 @@ async function operationsContextResult(
   runtime: IAgentRuntime,
 ): Promise<ProviderResult> {
   try {
-    const cron = getNativeServices(runtime).cron;
+    const cron = getNativeServices(runtime).automation;
     if (!cron) {
       throw new Error("Trigger runtime service is not ready.");
     }

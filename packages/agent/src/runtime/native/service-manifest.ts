@@ -2,6 +2,7 @@ import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph
 import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
+  DOOLITTLE_AUTOMATION_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
 } from "./service-bridge/runtime-contracts";
@@ -45,7 +46,7 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
     { service: "delegation", group: "officialBacked" },
     { service: "memory", group: "customEliza" },
     { service: "sessions", group: "customEliza" },
-    { service: "cron", group: "customEliza" },
+    { service: "cron", group: "officialBacked" },
     { service: "workspace", group: "customEliza" },
     { service: "terminal", group: "customEliza" },
     { service: "repository", group: "customEliza" },
@@ -120,11 +121,11 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       fallback: "mcp",
     },
     {
-      capability: "cron",
-      nativeKey: "cron",
-      nativeService: "cron",
-      productServices: ["cron"],
-      fallback: "cron",
+      capability: "automation",
+      nativeKey: "automation",
+      nativeService: DOOLITTLE_AUTOMATION_SERVICE,
+      productServices: [],
+      fallback: "unavailable until the Eliza Trigger Task projection loads",
     },
     {
       capability: "agentSkills",

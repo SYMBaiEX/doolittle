@@ -102,7 +102,7 @@ export const handleRuntimeStatusCommand: RuntimeWorkspaceCommandHandler =
     }
 
     const status = buildCommonStatusLines(input, context);
-    const cron = getNativeServices(context.runtime).cron;
+    const cron = getNativeServices(context.runtime).automation;
     const cronJobs = cron ? await cron.list() : undefined;
     if (!status.ownership.identity) {
       return [

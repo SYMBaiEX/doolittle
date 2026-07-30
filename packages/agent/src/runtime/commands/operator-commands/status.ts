@@ -12,7 +12,7 @@ export async function handleOperatorStatusCommand(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   if (trimmed === "/doctor") {
-    const cron = getNativeServices(context.runtime).cron;
+    const cron = getNativeServices(context.runtime).automation;
     if (!cron) {
       return "Doctor unavailable: Trigger runtime service is not ready.";
     }

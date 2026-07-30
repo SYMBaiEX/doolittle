@@ -1,3 +1,4 @@
+import { DOOLITTLE_WORKFLOW_DISPATCH_SERVICE } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
 import {
   attachRunProgressBridge,
@@ -6,7 +7,7 @@ import {
   installProviderFailureTemplates,
   patchRuntimeRelationshipCompatibility,
 } from "@/runtime/bootstrap/runtime";
-import { createCronExecutor } from "@/runtime/bootstrap/runtime/cron-executor";
+import { createAutomationExecutor } from "@/runtime/bootstrap/runtime/automation-executor";
 import { createDeferredHydrator } from "@/runtime/bootstrap/runtime/deferred-hydration";
 import { createGatewayAccessor } from "@/runtime/bootstrap/runtime/gateway-factory";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
@@ -73,11 +74,15 @@ export async function configureBootstrapContext({
   });
 
   services.startupState.markReady("runtime", "runtime ready");
-  const workflowDispatch = runtime.getService("WORKFLOW_DISPATCH") as {
-    setExecutor?: (executor: ReturnType<typeof createCronExecutor>) => void;
+  const workflowDispatch = runtime.getService(
+    DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+  ) as {
+    setExecutor?: (
+      executor: ReturnType<typeof createAutomationExecutor>,
+    ) => void;
   } | null;
   workflowDispatch?.setExecutor?.(
-    createCronExecutor({
+    createAutomationExecutor({
       config,
       services,
       runtime,

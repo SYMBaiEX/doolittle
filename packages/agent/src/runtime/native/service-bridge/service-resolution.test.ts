@@ -19,6 +19,8 @@ describe("service-resolution helpers", () => {
             };
           case "shell":
             return { status: () => ({ ready: true }) };
+          case "cron":
+            return { list: async () => [], runs: async () => [] };
           case "AGENT_SKILLS_SERVICE":
             return { getLoadedSkills: () => [] };
           case "plugin_manager":
@@ -96,12 +98,12 @@ describe("service-resolution helpers", () => {
         available: false,
       },
       {
-        capability: "cron",
+        capability: "automation",
         nativeService: "cron",
-        source: "product",
-        ownership: "product",
-        fallback: "cron",
-        available: false,
+        source: "native",
+        ownership: "plugin",
+        fallback: "unavailable until the Eliza Trigger Task projection loads",
+        available: true,
       },
       {
         capability: "agentSkills",

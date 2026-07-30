@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { GatewayRunner } from "@/gateway/runner";
 import type { AppServices } from "@/services";
 import { serveFetchTest } from "@/testing/fetch-server";
-import type { CronJobRecord } from "@/types";
+import type { AutomationJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
-import { buildCronPrompt, createCronExecutor } from "./cron-executor";
+import {
+  buildAutomationPrompt,
+  createAutomationExecutor,
+} from "./automation-executor";
 
-describe("createCronExecutor", () => {
+describe("createAutomationExecutor", () => {
   it("builds automation guidance from the runtime-bound Eliza skill inventory", () => {
     const runtime = {
       getService: (name: string) =>
@@ -43,10 +46,16 @@ describe("createCronExecutor", () => {
       },
     } as unknown as AppServices;
 
-    const prompt = buildCronPrompt(runtime, services, "Ship it.", ["release"], {
-      source: "manual",
-      payload: {},
-    });
+    const prompt = buildAutomationPrompt(
+      runtime,
+      services,
+      "Ship it.",
+      ["release"],
+      {
+        source: "manual",
+        payload: {},
+      },
+    );
 
     expect(prompt).toContain("## Skill: Official Release");
     expect(prompt).toContain("# Official release guidance");
@@ -58,7 +67,7 @@ describe("createCronExecutor", () => {
       received = (await request.json()) as Record<string, unknown>;
       return Response.json({ accepted: true });
     });
-    const job: CronJobRecord = {
+    const job: AutomationJobRecord = {
       id: "automation-1",
       name: "Webhook action",
       prompt: `POST ${server.url}`,
@@ -77,7 +86,7 @@ describe("createCronExecutor", () => {
         url: server.url.toString(),
       },
     };
-    const executor = createCronExecutor({
+    const executor = createAutomationExecutor({
       config: {} as EnvConfig,
       services: {} as AppServices,
       runtime: {} as AgentRuntime,
@@ -107,7 +116,7 @@ describe("createCronExecutor", () => {
     const server = await serveFetchTest(
       () => new Response("not accepted", { status: 422 }),
     );
-    const executor = createCronExecutor({
+    const executor = createAutomationExecutor({
       config: {} as EnvConfig,
       services: {} as AppServices,
       runtime: {} as AgentRuntime,
@@ -129,7 +138,7 @@ describe("createCronExecutor", () => {
         method: "POST",
         url: server.url.toString(),
       },
-    } satisfies CronJobRecord;
+    } satisfies AutomationJobRecord;
 
     try {
       await expect(

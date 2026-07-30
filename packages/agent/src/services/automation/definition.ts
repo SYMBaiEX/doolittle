@@ -2,18 +2,18 @@ import { randomUUID } from "node:crypto";
 import type {
   AutomationAction,
   AutomationCondition,
+  AutomationJobRecord,
   AutomationTrigger,
-  CronJobRecord,
 } from "@/types";
 import type {
   AutomationExecutionContext,
   AutomationTriggerInput,
-  CreateCronJobInput,
+  CreateAutomationInput,
 } from "./types";
 
 const conditionPathPattern = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/iu;
 
-export function buildAutomationDefinition(input: CreateCronJobInput): {
+export function buildAutomationDefinition(input: CreateAutomationInput): {
   trigger: AutomationTrigger;
   condition: AutomationCondition;
   action: AutomationAction;
@@ -33,7 +33,9 @@ export function buildAutomationDefinition(input: CreateCronJobInput): {
   };
 }
 
-export function hydrateAutomationJob(job: CronJobRecord): CronJobRecord {
+export function hydrateAutomationJob(
+  job: AutomationJobRecord,
+): AutomationJobRecord {
   const trigger =
     job.trigger ??
     normalizeAutomationTrigger(
@@ -166,7 +168,7 @@ export function normalizeAutomationAction(
 }
 
 export function automationTriggerMatches(
-  job: CronJobRecord,
+  job: AutomationJobRecord,
   source: AutomationExecutionContext["source"],
 ): boolean {
   const trigger = hydrateAutomationJob(job).trigger;

@@ -1,5 +1,8 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
+import type {
+  AutomationRuntimeOverrides,
+  ChatTurnRequest,
+} from "@/types/runtime";
 import {
   ensureLocalInteractiveSettingsState,
   ensureTurnConnection,
@@ -30,7 +33,7 @@ export async function runPostCommandTurn(
   effectiveInput: ChatTurnRequest,
   context: AgentExecutionContext,
   options: AgentTurnHooks & {
-    runtimeOverrides?: CronJobRuntimeOverrides;
+    runtimeOverrides?: AutomationRuntimeOverrides;
     personalityId?: string;
   },
   perf: TurnPerfTrace,

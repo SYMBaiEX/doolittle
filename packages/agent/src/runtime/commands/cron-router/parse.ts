@@ -1,4 +1,4 @@
-import type { CronJobRuntimeOverrides } from "@/types/runtime";
+import type { AutomationRuntimeOverrides } from "@/types/runtime";
 import type { ParsedCronSegments } from "./types";
 
 export function parseCronSegments(raw: string): ParsedCronSegments | null {
@@ -41,8 +41,8 @@ export function parseCronSegments(raw: string): ParsedCronSegments | null {
 
 export function parseCronRuntimeOptions(
   options: Record<string, string>,
-): CronJobRuntimeOverrides | undefined {
-  const runtime: CronJobRuntimeOverrides = {};
+): AutomationRuntimeOverrides | undefined {
+  const runtime: AutomationRuntimeOverrides = {};
 
   if (options.provider) {
     runtime.provider = options.provider;

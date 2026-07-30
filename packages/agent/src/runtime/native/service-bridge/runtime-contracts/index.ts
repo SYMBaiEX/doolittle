@@ -10,8 +10,8 @@ import type {
 } from "./agent";
 import type {
   NativeApprovalService,
+  NativeAutomationService,
   NativeBrowserService,
-  NativeCronService,
   NativeMcpService,
   NativePdfService,
   NativeShellService,
@@ -48,7 +48,7 @@ export type NativeServices = {
   shell: NativeShellService | undefined;
   browser: NativeBrowserService | undefined;
   mcp: NativeMcpService | undefined;
-  cron: NativeCronService | undefined;
+  automation: NativeAutomationService | undefined;
   agentSkills: NativeAgentSkillsService | undefined;
   trajectoryLogger: NativeTrajectoryLoggerService | undefined;
   agentOrchestrator: NativeAgentOrchestratorService | undefined;

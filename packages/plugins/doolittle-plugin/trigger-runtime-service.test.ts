@@ -1,4 +1,8 @@
 import type { AppServices } from "@doolittle/agent/plugin-api";
+import {
+  DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+} from "@doolittle/contracts";
 import type { IAgentRuntime, ServiceClass, Task, UUID } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
@@ -45,7 +49,7 @@ describe("Eliza trigger runtime adapter", () => {
   it("persists the complete automation definition in the SDK trigger task", async () => {
     const harness = createHarness();
     const service = (await harness
-      .serviceClass("cron")
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
       .start(harness.runtime)) as unknown as {
       create(input: Record<string, unknown>): Promise<{ id: string }>;
       list(): Promise<unknown[]>;
@@ -75,7 +79,7 @@ describe("Eliza trigger runtime adapter", () => {
   it("updates lifecycle directly on the SDK task without a local job store", async () => {
     const harness = createHarness();
     const service = (await harness
-      .serviceClass("cron")
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
       .start(harness.runtime)) as unknown as {
       create(input: Record<string, unknown>): Promise<{ id: string }>;
       pause(id: string): Promise<unknown>;
@@ -101,7 +105,7 @@ describe("Eliza trigger runtime adapter", () => {
   it("reports a clear execution readiness error instead of falling back to local execution", async () => {
     const harness = createHarness();
     const cron = (await harness
-      .serviceClass("cron")
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
       .start(harness.runtime)) as unknown as {
       create(input: Record<string, unknown>): Promise<{ id: string }>;
     };
@@ -111,7 +115,7 @@ describe("Eliza trigger runtime adapter", () => {
       prompt: "Review this project.",
     });
     const dispatcher = (await harness
-      .serviceClass("WORKFLOW_DISPATCH")
+      .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
       .start(harness.runtime)) as unknown as {
       execute(id: string): Promise<{ ok: boolean; error?: string }>;
     };
@@ -124,7 +128,7 @@ describe("Eliza trigger runtime adapter", () => {
   it("persists condition-aware run receipts as SDK tasks with the real source", async () => {
     const harness = createHarness();
     const cron = (await harness
-      .serviceClass("cron")
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
       .start(harness.runtime)) as unknown as {
       create(input: Record<string, unknown>): Promise<{ id: string }>;
       runs(
@@ -145,7 +149,7 @@ describe("Eliza trigger runtime adapter", () => {
       },
     });
     const dispatcher = (await harness
-      .serviceClass("WORKFLOW_DISPATCH")
+      .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
       .start(harness.runtime)) as unknown as {
       setExecutor(
         executor: (

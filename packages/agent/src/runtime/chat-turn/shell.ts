@@ -4,7 +4,10 @@ import {
   formatTerminalCommandResponse,
   requestTerminalCommandApproval,
 } from "@/runtime/commands/shell-command-facade";
-import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
+import type {
+  AutomationRuntimeOverrides,
+  ChatTurnRequest,
+} from "@/types/runtime";
 import { finalizeTurnResponse } from "./finalization";
 import {
   type PreparedTurnState,
@@ -23,7 +26,7 @@ type TurnPerfTrace = {
 };
 
 type ShellCommandTurnOptions = AgentTurnHooks & {
-  runtimeOverrides?: CronJobRuntimeOverrides;
+  runtimeOverrides?: AutomationRuntimeOverrides;
   personalityId?: string;
 };
 

@@ -10,7 +10,7 @@ export async function handleCronReadCommand(
   trimmed: string,
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
-  const nativeCron = getNativeServices(context.runtime).cron;
+  const nativeCron = getNativeServices(context.runtime).automation;
   if (trimmed === "/cron" || trimmed === "/cron list") {
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     const jobs = await nativeCron.list();

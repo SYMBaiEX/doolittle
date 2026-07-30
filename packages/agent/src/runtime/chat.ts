@@ -10,7 +10,10 @@ import {
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
 import { resolveManagedChatAttachments } from "@/services/chat-attachments";
-import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
+import type {
+  AutomationRuntimeOverrides,
+  ChatTurnRequest,
+} from "@/types/runtime";
 import type { AppContext } from "./bootstrap";
 
 export type { LinkedProviderName };
@@ -86,7 +89,7 @@ export async function runModelAnalysisTurn(
     userId?: string;
     roomId?: string;
     personalityId?: string;
-    runtimeOverrides?: CronJobRuntimeOverrides;
+    runtimeOverrides?: AutomationRuntimeOverrides;
   },
 ): Promise<string> {
   return handleAgentTurn(
@@ -138,7 +141,7 @@ export async function handleAgentTurn(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
   options?: {
-    runtimeOverrides?: CronJobRuntimeOverrides;
+    runtimeOverrides?: AutomationRuntimeOverrides;
     personalityId?: string;
   } & AgentTurnHooks,
 ): Promise<string> {

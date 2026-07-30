@@ -1,9 +1,9 @@
 import type { AgentExecutionContext } from "@/runtime/chat";
-import type { CronJobRuntimeOverrides } from "@/types/runtime";
+import type { AutomationRuntimeOverrides } from "@/types/runtime";
 
 export function applyRuntimeOverrides(
   settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>,
-  runtime?: CronJobRuntimeOverrides,
+  runtime?: AutomationRuntimeOverrides,
 ): ReturnType<AgentExecutionContext["services"]["settings"]["get"]> {
   if (!runtime) {
     return settings;

@@ -37,7 +37,7 @@ export async function handleActivityRoutes(
   if (after && !decodeActivityCursor(after)) {
     return json({ error: "after cursor is invalid" }, 400);
   }
-  const cron = getNativeServices(context.runtime).cron;
+  const cron = getNativeServices(context.runtime).automation;
   if (!cron) {
     return json({ error: "Trigger runtime service is not ready." }, 503);
   }

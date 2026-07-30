@@ -24,11 +24,14 @@ export {
   normalizeAutomationAction,
   normalizeAutomationCondition,
   normalizeAutomationTrigger,
-} from "@/services/cron/definition";
-export type { AutomationExecutionContext } from "@/services/cron/types";
+} from "@/services/automation/definition";
 export type {
+  AutomationExecutionContext,
+  AutomationExecutor,
+} from "@/services/automation/types";
+export type {
+  AutomationJobRecord,
   AutomationRunRecord,
-  CronJobRecord,
-  CronJobRuntimeOverrides,
+  AutomationRuntimeOverrides,
   EnvConfig,
 } from "@/types/runtime";

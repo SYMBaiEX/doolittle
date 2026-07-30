@@ -1,10 +1,5 @@
+import type { AutomationJobRecord } from "@doolittle/contracts";
 import type { AppServices } from "@/services";
-
-interface CronJobRecord {
-  name: string;
-  status: string;
-  nextRunAt?: string | null;
-}
 
 interface EnabledTool {
   id: string;
@@ -36,7 +31,7 @@ interface UserProfileEntry {
 }
 
 interface OperationsSectionsInput {
-  cronJobs: CronJobRecord[];
+  cronJobs: Pick<AutomationJobRecord, "name" | "status" | "nextRunAt">[];
   enabledTools: EnabledTool[];
   delegationTasks: DelegationTask[];
   delegationOverview: DelegationOverview | undefined;
@@ -112,7 +107,7 @@ export function renderOperationSections({
     .join("\n");
 
   return [
-    "CRON JOBS",
+    "AUTOMATIONS",
     cronSummary || "(none)",
     "",
     "TOOLS",

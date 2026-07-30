@@ -1,6 +1,11 @@
-import type { AutomationRunRecord, CronJobRecord } from "@/types/runtime";
+import {
+  type AutomationJobRecord,
+  type AutomationRunRecord,
+  DOOLITTLE_AUTOMATION_SERVICE,
+} from "@doolittle/contracts";
 
 export const PDF_SERVICE = "pdf";
+export { DOOLITTLE_AUTOMATION_SERVICE };
 
 export interface NativePdfService {
   convertPdfToTextWithOptions(
@@ -54,17 +59,20 @@ export interface NativeMcpService {
   describeTool(name: string): string;
 }
 
-export interface NativeCronService {
-  list(): CronJobRecord[] | Promise<CronJobRecord[]>;
+export interface NativeAutomationService {
+  list(): AutomationJobRecord[] | Promise<AutomationJobRecord[]>;
   get(
     id: string,
-  ): CronJobRecord | undefined | Promise<CronJobRecord | undefined>;
-  create(input: unknown): CronJobRecord | Promise<CronJobRecord>;
-  update(id: string, patch: unknown): CronJobRecord | Promise<CronJobRecord>;
+  ): AutomationJobRecord | undefined | Promise<AutomationJobRecord | undefined>;
+  create(input: unknown): AutomationJobRecord | Promise<AutomationJobRecord>;
+  update(
+    id: string,
+    patch: unknown,
+  ): AutomationJobRecord | Promise<AutomationJobRecord>;
   runs(limit?: number): AutomationRunRecord[] | Promise<AutomationRunRecord[]>;
-  pause?(id: string): CronJobRecord | Promise<CronJobRecord>;
-  resume?(id: string): CronJobRecord | Promise<CronJobRecord>;
-  runNow?(id: string): CronJobRecord | Promise<CronJobRecord>;
+  pause?(id: string): AutomationJobRecord | Promise<AutomationJobRecord>;
+  resume?(id: string): AutomationJobRecord | Promise<AutomationJobRecord>;
+  runNow?(id: string): AutomationJobRecord | Promise<AutomationJobRecord>;
   triggerNow?(
     id: string,
     source?: "manual" | "webhook",

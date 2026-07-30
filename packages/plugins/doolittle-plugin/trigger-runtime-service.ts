@@ -1,16 +1,21 @@
 import {
   type AppServices,
   type AutomationExecutionContext,
+  type AutomationExecutor,
+  type AutomationJobRecord,
   type AutomationRunRecord,
+  type AutomationRuntimeOverrides,
   automationTriggerMatches,
   buildAutomationDefinition,
-  type CronJobRecord,
-  type CronJobRuntimeOverrides,
   evaluateAutomationCondition,
   normalizeAutomationAction,
   normalizeAutomationCondition,
   normalizeAutomationTrigger,
 } from "@doolittle/agent/plugin-api";
+import {
+  DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+} from "@doolittle/contracts";
 import {
   executeTriggerTask,
   listTriggerTasks,
@@ -35,14 +40,14 @@ import {
 } from "@elizaos/core";
 
 type AutomationInput = Omit<
-  CronJobRecord,
+  AutomationJobRecord,
   "id" | "status" | "oneShot" | "createdAt" | "updatedAt"
 > & {
-  trigger?: CronJobRecord["trigger"];
+  trigger?: AutomationJobRecord["trigger"];
 };
 type AutomationPatch = Partial<
   Pick<
-    CronJobRecord,
+    AutomationJobRecord,
     | "name"
     | "prompt"
     | "schedule"
@@ -54,16 +59,6 @@ type AutomationPatch = Partial<
     | "action"
   >
 > & { clearRuntime?: boolean };
-type AutomationExecutor = (
-  job: CronJobRecord,
-  context: {
-    source: "schedule" | "manual" | "webhook";
-    payload?: Record<string, unknown>;
-  },
-) => Promise<string>;
-
-const WORKFLOW_DISPATCH_SERVICE = "WORKFLOW_DISPATCH";
-const CRON_SERVICE = "cron";
 const AUTOMATION_METADATA_KEY = "doolittleAutomation";
 const AUTOMATION_RUN_METADATA_KEY = "doolittleAutomationRun";
 const AUTOMATION_RUN_TASK_NAME = "DOOLITTLE_AUTOMATION_RUN";
@@ -84,10 +79,10 @@ function durationMs(schedule: string): number | undefined {
 }
 
 function normalizeRuntimeOverrides(
-  runtime?: CronJobRuntimeOverrides,
-): CronJobRuntimeOverrides | undefined {
+  runtime?: AutomationRuntimeOverrides,
+): AutomationRuntimeOverrides | undefined {
   if (!runtime) return undefined;
-  const normalized: CronJobRuntimeOverrides = {};
+  const normalized: AutomationRuntimeOverrides = {};
   if (runtime.provider?.trim()) normalized.provider = runtime.provider.trim();
   if (runtime.model?.trim()) normalized.model = runtime.model.trim();
   if (runtime.baseUrl?.trim()) normalized.baseUrl = runtime.baseUrl.trim();
@@ -109,7 +104,7 @@ function normalizeRuntimeOverrides(
   return Object.keys(normalized).length ? normalized : undefined;
 }
 
-function scheduleDraft(job: CronJobRecord) {
+function scheduleDraft(job: AutomationJobRecord) {
   if (job.trigger?.type === "manual" || job.trigger?.type === "webhook") {
     return {
       triggerType: "event" as const,
@@ -132,7 +127,10 @@ function scheduleDraft(job: CronJobRecord) {
   return { triggerType: "cron" as const, cronExpression: job.schedule.trim() };
 }
 
-function metadataFor(job: CronJobRecord, task?: Task): TriggerTaskMetadata {
+function metadataFor(
+  job: AutomationJobRecord,
+  task?: Task,
+): TriggerTaskMetadata {
   const schedule = scheduleDraft(job);
   const normalized = normalizeTriggerDraft({
     input: {
@@ -178,19 +176,19 @@ function metadataFor(job: CronJobRecord, task?: Task): TriggerTaskMetadata {
   return { ...base, [AUTOMATION_METADATA_KEY]: JSON.stringify(job) };
 }
 
-function readJob(task: Task): CronJobRecord | undefined {
+function readJob(task: Task): AutomationJobRecord | undefined {
   const encoded = (task.metadata as TriggerTaskMetadata | undefined)?.[
     AUTOMATION_METADATA_KEY
   ];
   if (typeof encoded !== "string") return undefined;
   try {
-    return JSON.parse(encoded) as CronJobRecord;
+    return JSON.parse(encoded) as AutomationJobRecord;
   } catch {
     return undefined;
   }
 }
 
-function jobFromTask(task: Task): CronJobRecord | undefined {
+function jobFromTask(task: Task): AutomationJobRecord | undefined {
   const job = readJob(task);
   const trigger = readTriggerConfig(task);
   if (!job || !trigger) return job;
@@ -245,7 +243,7 @@ function sourceFromDispatchPayload(
 
 async function executeAutomation(
   executor: AutomationExecutor,
-  job: CronJobRecord,
+  job: AutomationJobRecord,
   context: AutomationExecutionContext,
 ): Promise<AutomationRunRecord> {
   if (!automationTriggerMatches(job, context.source)) {
@@ -358,7 +356,7 @@ async function taskForJob(runtime: IAgentRuntime, id: string) {
 
 async function persistJob(
   runtime: IAgentRuntime,
-  job: CronJobRecord,
+  job: AutomationJobRecord,
   task?: Task,
 ): Promise<Task> {
   const metadata = metadataFor(job, task);
@@ -379,7 +377,7 @@ async function persistJob(
   return created;
 }
 
-function newJob(input: AutomationInput): CronJobRecord {
+function newJob(input: AutomationInput): AutomationJobRecord {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const definition = buildAutomationDefinition(input);
@@ -404,9 +402,9 @@ function newJob(input: AutomationInput): CronJobRecord {
 }
 
 function updatedJob(
-  previous: CronJobRecord,
+  previous: AutomationJobRecord,
   patch: AutomationPatch,
-): CronJobRecord {
+): AutomationJobRecord {
   const job = structuredClone(previous);
   if (patch.name !== undefined) job.name = patch.name.trim();
   if (patch.prompt !== undefined) {
@@ -458,7 +456,7 @@ export function createTriggerRuntimeServices(
   let executor: AutomationExecutor | undefined;
 
   class TriggerWorkflowDispatchService extends ElizaService {
-    static serviceType = WORKFLOW_DISPATCH_SERVICE;
+    static serviceType = DOOLITTLE_WORKFLOW_DISPATCH_SERVICE;
     capabilityDescription =
       "Dispatches persisted Eliza workflow triggers through Doolittle automation execution.";
     static async start(runtime: IAgentRuntime): Promise<Service> {
@@ -500,7 +498,7 @@ export function createTriggerRuntimeServices(
   }
 
   class TriggerRuntimeService extends ElizaService {
-    static serviceType = CRON_SERVICE;
+    static serviceType = DOOLITTLE_AUTOMATION_SERVICE;
     capabilityDescription =
       "Maps Doolittle automation UX directly onto persisted Eliza Trigger Tasks.";
     static async start(runtime: IAgentRuntime): Promise<Service> {
@@ -509,7 +507,7 @@ export function createTriggerRuntimeServices(
     async list() {
       return (await listTriggerTasks(this.runtime))
         .map(jobFromTask)
-        .filter((job): job is CronJobRecord => Boolean(job));
+        .filter((job): job is AutomationJobRecord => Boolean(job));
     }
     async get(id: string) {
       const task = await taskForJob(this.runtime, id);

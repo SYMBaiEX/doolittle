@@ -9,16 +9,18 @@ import {
 } from "./native-service-registry";
 
 describe("native service registry", () => {
-  it("classifies delegation as an official Eliza-backed projection", () => {
+  it("classifies Eliza-backed projections by their canonical ownership", () => {
     const registry = createNativeServiceRegistry();
 
     expect(registry.officialBacked).toContain("delegation");
+    expect(registry.officialBacked).toContain("cron");
     expect(registry.productOrchestration).not.toContain("delegation");
+    expect(registry.customEliza).not.toContain("cron");
     expect(describeNativeServiceRegistry(registry)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           group: "officialBacked",
-          services: expect.arrayContaining(["delegation"]),
+          services: expect.arrayContaining(["delegation", "cron"]),
         }),
       ]),
     );

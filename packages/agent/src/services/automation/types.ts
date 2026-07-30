@@ -1,9 +1,9 @@
 import type {
   AutomationAction,
   AutomationCondition,
+  AutomationJobRecord,
   AutomationRunRecord,
-  CronJobRecord,
-  CronJobRuntimeOverrides,
+  AutomationRuntimeOverrides,
 } from "@/types";
 
 export type AutomationTriggerInput =
@@ -16,39 +16,25 @@ export interface AutomationExecutionContext {
   payload?: Record<string, unknown>;
 }
 
-export type CronExecutor = (
-  job: CronJobRecord,
+export type AutomationExecutor = (
+  job: AutomationJobRecord,
   context: AutomationExecutionContext,
 ) => Promise<string>;
 
-export interface CreateCronJobInput {
+export interface CreateAutomationInput {
   name: string;
   prompt?: string;
   schedule?: string;
   skills?: string[];
   delivery?: "origin" | "local" | "home";
-  runtime?: CronJobRuntimeOverrides;
+  runtime?: AutomationRuntimeOverrides;
   trigger?: AutomationTriggerInput;
   condition?: AutomationCondition;
   action?: AutomationAction;
 }
 
-export interface UpdateCronJobInput {
-  name?: string;
-  prompt?: string;
-  schedule?: string;
-  skills?: string[];
-  delivery?: "origin" | "local" | "home";
-  runtime?: CronJobRuntimeOverrides;
-  clearRuntime?: boolean;
-  trigger?: AutomationTriggerInput;
-  condition?: AutomationCondition;
-  action?: AutomationAction;
-}
-
-export interface CronTickResult {
-  jobs: CronJobRecord[];
-  dirty: boolean;
-}
-
-export type { AutomationRunRecord, CronJobRecord, CronJobRuntimeOverrides };
+export type {
+  AutomationJobRecord,
+  AutomationRunRecord,
+  AutomationRuntimeOverrides,
+};

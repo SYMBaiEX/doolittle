@@ -17,7 +17,7 @@ export async function handleCronMutationCommand(
   trimmed: string,
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
-  const nativeCron = getNativeServices(context.runtime).cron;
+  const nativeCron = getNativeServices(context.runtime).automation;
   if (trimmed.startsWith("/cron create ")) {
     if (!nativeCron) return TRIGGER_RUNTIME_UNAVAILABLE;
     const payload = trimmed.replace("/cron create ", "");

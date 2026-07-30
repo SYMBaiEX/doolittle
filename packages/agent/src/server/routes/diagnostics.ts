@@ -9,7 +9,7 @@ export async function handleDiagnosticsRoutes(
   url: URL,
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/doctor") {
-    const cron = getNativeServices(context.runtime).cron;
+    const cron = getNativeServices(context.runtime).automation;
     if (!cron) {
       return json({ error: "Trigger runtime service is not ready." }, 503);
     }

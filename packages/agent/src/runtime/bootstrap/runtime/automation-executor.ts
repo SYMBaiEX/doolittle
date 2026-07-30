@@ -2,11 +2,11 @@ import type { AgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "@/gateway/runner";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import type { AppServices } from "@/services";
-import type { AutomationExecutionContext } from "@/services/cron/types";
-import type { CronJobRecord } from "@/types";
+import type { AutomationExecutionContext } from "@/services/automation/types";
+import type { AutomationJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
 
-export function buildCronPrompt(
+export function buildAutomationPrompt(
   runtime: AgentRuntime,
   services: AppServices,
   prompt: string,
@@ -58,7 +58,7 @@ function formatCronDeliverySummary(
     : "\n\nNo home channels are configured yet for delivery.";
 }
 
-export function createCronExecutor(params: {
+export function createAutomationExecutor(params: {
   config: EnvConfig;
   services: AppServices;
   runtime: AgentRuntime;
@@ -67,7 +67,7 @@ export function createCronExecutor(params: {
   const { config, services, runtime, ensureGateway } = params;
 
   return async (
-    job: CronJobRecord,
+    job: AutomationJobRecord,
     executionContext: AutomationExecutionContext,
   ): Promise<string> => {
     if (job.action?.type === "webhook") {
@@ -94,7 +94,7 @@ export function createCronExecutor(params: {
     const { handleAgentTurn } = await import("@/runtime/chat");
     const output = await handleAgentTurn(
       {
-        message: buildCronPrompt(
+        message: buildAutomationPrompt(
           runtime,
           services,
           job.action?.type === "run-agent" || job.action?.type === "prompt"

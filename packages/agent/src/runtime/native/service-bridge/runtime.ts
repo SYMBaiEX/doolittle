@@ -7,10 +7,10 @@ import type {
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
   NativeApprovalService,
+  NativeAutomationService,
   NativeBrowserService,
   NativeCodeGenerationService,
   NativeCodingAgentService,
-  NativeCronService,
   NativeDiscordTransportService,
   NativeE2BService,
   NativeExperienceService,
@@ -32,6 +32,7 @@ import type {
 } from "./runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
+  DOOLITTLE_AUTOMATION_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
 } from "./runtime-contracts";
@@ -65,7 +66,10 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     shell: service<NativeShellService>(runtime, "shell"),
     browser: service<NativeBrowserService>(runtime, "browser"),
     mcp: service<NativeMcpService>(runtime, "mcp"),
-    cron: service<NativeCronService>(runtime, "cron"),
+    automation: service<NativeAutomationService>(
+      runtime,
+      DOOLITTLE_AUTOMATION_SERVICE,
+    ),
     agentSkills: service<NativeAgentSkillsService>(
       runtime,
       AGENT_SKILLS_SERVICE,

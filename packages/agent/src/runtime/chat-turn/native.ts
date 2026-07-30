@@ -1,5 +1,8 @@
 import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
+import type {
+  AutomationRuntimeOverrides,
+  ChatTurnRequest,
+} from "@/types/runtime";
 import { runNativeProviderStage } from "./native/provider-stage";
 import type {
   NativeTurnSetup,
@@ -19,7 +22,7 @@ export async function runNativeMessageTurn(input: {
   effectiveInput: ChatTurnRequest;
   context: AgentExecutionContext;
   options?: AgentTurnHooks & {
-    runtimeOverrides?: CronJobRuntimeOverrides;
+    runtimeOverrides?: AutomationRuntimeOverrides;
     personalityId?: string;
   };
   perf: TurnPerfTrace;

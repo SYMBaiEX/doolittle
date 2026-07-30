@@ -266,10 +266,10 @@ describe("agent context providers", () => {
     ).get(createRuntime() as never, message, {} as never);
 
     expect(core.text).not.toContain("WORKSPACE CONTEXT");
-    expect(core.text).not.toContain("CRON JOBS");
+    expect(core.text).not.toContain("AUTOMATIONS");
     expect(workspace.text).toContain("WORKSPACE CONTEXT");
     expect(workspace.text).toContain("repository status summary");
-    expect(operations.text).toContain("CRON JOBS");
+    expect(operations.text).toContain("AUTOMATIONS");
     expect(operations.text).toContain(
       "READ_FILE: Read through the Eliza action registry.",
     );
