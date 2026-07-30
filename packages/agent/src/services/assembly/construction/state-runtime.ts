@@ -11,12 +11,16 @@ export function createRuntimeBoundDocumentsState<TRuntime, TDocuments>(
   createDocuments: (nextRuntime: TRuntime) => TDocuments,
 ): RuntimeBoundDocumentsState<TRuntime, TDocuments> {
   let boundRuntime = runtime;
-  const fallbackRuntime = {} as TRuntime;
   const createDocumentsService = (nextRuntime: TRuntime): TDocuments =>
     createDocuments(nextRuntime);
-  const documents = createLazySlot(() =>
-    createDocumentsService(boundRuntime ?? fallbackRuntime),
-  );
+  const documents = createLazySlot(() => {
+    if (!boundRuntime) {
+      throw new Error(
+        "DocumentsService requires the initialized Eliza runtime.",
+      );
+    }
+    return createDocumentsService(boundRuntime);
+  });
 
   return {
     documents,

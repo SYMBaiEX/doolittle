@@ -11,7 +11,7 @@ describe("createRuntimeBoundDocumentsState", () => {
     expect(state.documents.get()).toEqual({ tag: "boot" });
   });
 
-  it("falls back before binding and then accepts a later runtime", () => {
+  it("fails closed before binding and then uses the real runtime", () => {
     const calls: string[] = [];
     const state = createRuntimeBoundDocumentsState<
       { id?: string },
@@ -22,12 +22,13 @@ describe("createRuntimeBoundDocumentsState", () => {
       return { tag };
     });
 
-    expect(state.documents.get()).toEqual({ tag: "fallback" });
+    expect(() => state.documents.get()).toThrow(
+      "DocumentsService requires the initialized Eliza runtime.",
+    );
 
     state.setBoundRuntime({ id: "runtime-1" });
-    state.documents.set(state.createDocumentsService({ id: "runtime-1" }));
 
     expect(state.documents.get()).toEqual({ tag: "runtime-1" });
-    expect(calls).toEqual(["fallback", "runtime-1"]);
+    expect(calls).toEqual(["runtime-1"]);
   });
 });
