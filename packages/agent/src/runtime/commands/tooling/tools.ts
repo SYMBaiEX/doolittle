@@ -1,4 +1,8 @@
-import { getEffectivePluginManagerInventory } from "@/runtime/native/service-bridge/service-resolution";
+import {
+  getEffectivePluginManagerInventory,
+  getEffectiveToolInventory,
+  searchEffectiveTools,
+} from "@/runtime/native/service-bridge/service-resolution";
 import type { AgentExecutionContext } from "../../chat";
 
 export async function handleToolsCommand(
@@ -7,12 +11,14 @@ export async function handleToolsCommand(
 ): Promise<string | undefined> {
   if (trimmed === "/tools" || trimmed === "/tools list") {
     const pluginInventory = getEffectivePluginManagerInventory(context.runtime);
-    const toolLines = context.services.tools
-      .list()
-      .map(
-        (tool) =>
-          `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.category}: ${tool.description}`,
-      );
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
+    const toolLines = inventory.tools.map(
+      (tool) =>
+        `- ${tool.id} [${tool.enabled ? "enabled" : "disabled"}] ${tool.category}: ${tool.description}`,
+    );
     const pluginLines =
       pluginInventory?.plugins.map(
         (plugin) => `- native ${JSON.stringify(plugin)}`,
@@ -25,7 +31,11 @@ export async function handleToolsCommand(
     if (!query) {
       return "Usage: /tools search <query>";
     }
-    const tools = context.services.tools.search(query);
+    const tools = searchEffectiveTools(
+      context.runtime,
+      context.services,
+      query,
+    );
     return tools.length
       ? tools
           .map(
@@ -37,9 +47,13 @@ export async function handleToolsCommand(
   }
 
   if (trimmed === "/tools summary" || trimmed === "/tools registry") {
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
     return JSON.stringify(
       {
-        ...context.services.tools.summary(),
+        ...inventory.summary,
         nativePluginManager: getEffectivePluginManagerInventory(
           context.runtime,
         ),
@@ -50,7 +64,10 @@ export async function handleToolsCommand(
   }
 
   if (trimmed === "/tools transports") {
-    const summary = context.services.tools.summary();
+    const summary = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    ).summary;
     return summary.transports.length
       ? summary.transports
           .map(
@@ -66,8 +83,16 @@ export async function handleToolsCommand(
     if (!id) {
       return "Usage: /tools show <tool-id>";
     }
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
     return JSON.stringify(
-      context.services.tools.get(id) ?? { error: `Tool not found: ${id}` },
+      inventory.tools.find(
+        (tool) =>
+          tool.id.toLowerCase() === id.toLowerCase() ||
+          tool.name.toLowerCase() === id.toLowerCase(),
+      ) ?? { error: `Tool not found: ${id}` },
       null,
       2,
     );
@@ -78,7 +103,12 @@ export async function handleToolsCommand(
     if (!category) {
       return "Usage: /tools category <category>";
     }
-    const tools = context.services.tools.byCategory(category);
+    const tools = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    ).tools.filter(
+      (tool) => tool.category.toLowerCase() === category.toLowerCase(),
+    );
     return tools.length
       ? tools
           .map(

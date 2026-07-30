@@ -1,5 +1,9 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectivePluginManagerInventory } from "@/runtime/native/service-bridge/service-resolution";
+import {
+  getEffectivePluginManagerInventory,
+  getEffectiveToolInventory,
+  searchEffectiveTools,
+} from "@/runtime/native/service-bridge/service-resolution";
 import { json } from "@/server/responses";
 
 export async function handleToolRoutes(
@@ -8,8 +12,14 @@ export async function handleToolRoutes(
   url: URL,
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/tools") {
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
     return json({
-      tools: context.services.tools.list(),
+      tools: inventory.tools,
+      runtimeOwned: inventory.runtimeOwned,
+      controlPlane: inventory.summary.controlPlane,
       nativePluginManager: getEffectivePluginManagerInventory(context.runtime),
     });
   }
@@ -20,20 +30,25 @@ export async function handleToolRoutes(
       return json({ error: "query is required" }, 400);
     }
     return json({
-      results: context.services.tools.search(query),
+      results: searchEffectiveTools(context.runtime, context.services, query),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/tools/summary") {
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
     return json({
-      summary: context.services.tools.summary(),
+      summary: inventory.summary,
       nativePluginManager: getEffectivePluginManagerInventory(context.runtime),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/tools/transports") {
     return json({
-      transports: context.services.tools.summary().transports,
+      transports: getEffectiveToolInventory(context.runtime, context.services)
+        .summary.transports,
     });
   }
 
@@ -42,9 +57,15 @@ export async function handleToolRoutes(
     if (!category) {
       return json({ error: "name is required" }, 400);
     }
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
     return json({
       category,
-      tools: context.services.tools.byCategory(category),
+      tools: inventory.tools.filter(
+        (tool) => tool.category.toLowerCase() === category.toLowerCase(),
+      ),
     });
   }
 
@@ -53,8 +74,16 @@ export async function handleToolRoutes(
     if (!id) {
       return json({ error: "id is required" }, 400);
     }
+    const inventory = getEffectiveToolInventory(
+      context.runtime,
+      context.services,
+    );
     return json({
-      tool: context.services.tools.get(id),
+      tool: inventory.tools.find(
+        (tool) =>
+          tool.id.toLowerCase() === id.toLowerCase() ||
+          tool.name.toLowerCase() === id.toLowerCase(),
+      ),
     });
   }
 

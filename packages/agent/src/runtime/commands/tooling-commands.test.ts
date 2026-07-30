@@ -4,7 +4,18 @@ import { handleToolingCommand } from "./tooling-commands";
 
 function createContext(): AgentExecutionContext {
   return {
-    runtime: {},
+    runtime: {
+      getAllActions: () => [
+        {
+          name: "READ_FILE",
+          description: "Read workspace files.",
+        },
+        {
+          name: "WEB_SEARCH",
+          description: "Search the browser and open web.",
+        },
+      ],
+    },
     services: {
       tools: {
         byCategory: (category: string) => [
@@ -80,8 +91,9 @@ describe("tooling command router", () => {
       context,
     );
 
-    expect(listed).toContain("tool-1");
-    expect(searched).toContain("search:browser");
+    expect(listed).toContain("READ_FILE");
+    expect(listed).not.toContain("tool-1");
+    expect(searched).toContain("WEB_SEARCH");
   });
 
   it("dispatches mcp and acp call commands", async () => {

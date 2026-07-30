@@ -7,6 +7,14 @@ import type {
   NativePluginManagerSummary,
 } from "./types";
 
+export type {
+  EffectiveToolDefinition,
+  EffectiveToolInventory,
+} from "./tool-inventory";
+export {
+  getEffectiveToolInventory,
+  searchEffectiveTools,
+} from "./tool-inventory";
 export type { EffectiveServiceResolutionRecord, NativePluginManagerSummary };
 
 export function getEffectiveServiceResolution(

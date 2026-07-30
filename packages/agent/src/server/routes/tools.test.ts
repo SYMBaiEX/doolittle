@@ -4,7 +4,15 @@ import { handleToolRoutes } from "./tools";
 
 function createContext(): AppContext {
   return {
-    runtime: {},
+    runtime: {
+      getAllActions: () => [
+        {
+          name: "READ_FILE",
+          description: "Read workspace files.",
+          similes: ["OPEN_FILE"],
+        },
+      ],
+    },
     services: {
       tools: {
         list: () => [{ id: "tool-1" }],
@@ -29,7 +37,17 @@ describe("handleToolRoutes", () => {
     );
 
     const body = await response?.json();
-    expect(body.tools).toEqual([{ id: "tool-1" }]);
+    expect(body.tools).toEqual([
+      expect.objectContaining({
+        id: "READ_FILE",
+        source: "eliza-action",
+      }),
+    ]);
+    expect(body.runtimeOwned).toBe(true);
+    expect(body.controlPlane).toEqual({
+      total: 1,
+      transports: [{ id: "transport-1" }],
+    });
     expect(body).toHaveProperty("nativePluginManager");
   });
 
@@ -55,13 +73,13 @@ describe("handleToolRoutes", () => {
     const context = createContext();
     const search = await handleToolRoutes(
       context,
-      new Request("http://localhost/tools/search?query=browser"),
-      new URL("http://localhost/tools/search?query=browser"),
+      new Request("http://localhost/tools/search?query=open_file"),
+      new URL("http://localhost/tools/search?query=open_file"),
     );
     const category = await handleToolRoutes(
       context,
-      new Request("http://localhost/tools/category?name=browser"),
-      new URL("http://localhost/tools/category?name=browser"),
+      new Request("http://localhost/tools/category?name=runtime"),
+      new URL("http://localhost/tools/category?name=runtime"),
     );
     const summary = await handleToolRoutes(
       context,
@@ -70,21 +88,33 @@ describe("handleToolRoutes", () => {
     );
     const detail = await handleToolRoutes(
       context,
-      new Request("http://localhost/tools/detail?id=tool-1"),
-      new URL("http://localhost/tools/detail?id=tool-1"),
+      new Request("http://localhost/tools/detail?id=read_file"),
+      new URL("http://localhost/tools/detail?id=read_file"),
     );
     const searchBody = await search?.json();
     const categoryBody = await category?.json();
     const summaryBody = await summary?.json();
     const detailBody = await detail?.json();
 
-    expect(searchBody?.results).toEqual([{ id: "search:browser" }]);
-    expect(categoryBody?.tools).toEqual([{ id: "category:browser" }]);
-    expect(summaryBody?.summary).toEqual({
+    expect(searchBody?.results).toEqual([
+      expect.objectContaining({ id: "READ_FILE" }),
+    ]);
+    expect(categoryBody?.tools).toEqual([
+      expect.objectContaining({ id: "READ_FILE" }),
+    ]);
+    expect(summaryBody?.summary).toMatchObject({
       total: 1,
-      transports: [{ id: "transport-1" }],
+      enabled: 1,
+      disabled: 0,
+      runtimeOwned: true,
+      controlPlane: {
+        total: 1,
+        transports: [{ id: "transport-1" }],
+      },
     });
-    expect(detailBody?.tool).toEqual({ id: "tool-1", detail: true });
+    expect(detailBody?.tool).toEqual(
+      expect.objectContaining({ id: "READ_FILE" }),
+    );
   });
 
   it("returns transports only for the transports route", async () => {
@@ -95,7 +125,7 @@ describe("handleToolRoutes", () => {
     );
 
     expect(await response?.json()).toEqual({
-      transports: [{ id: "transport-1" }],
+      transports: [{ transport: "native", total: 1, enabled: 1 }],
     });
   });
 

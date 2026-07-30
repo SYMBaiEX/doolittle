@@ -8,6 +8,7 @@ import {
 } from "@elizaos/core";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
+import { getEffectiveToolInventory } from "@/runtime/native/service-bridge/service-resolution";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
 import type { AppServices } from "@/services";
@@ -214,7 +215,10 @@ async function operationsContextResult(
       throw new Error("Trigger runtime service is not ready.");
     }
     const cronJobs = await cron.list();
-    const enabledTools = services.tools.enabled();
+    const enabledTools = getEffectiveToolInventory(
+      runtime,
+      services,
+    ).tools.filter((tool) => tool.enabled);
     const delegationTasks = services.delegation.list();
     const delegationOverview = services.delegation.overview();
     const delegationWorkers = services.delegation.workers(5);

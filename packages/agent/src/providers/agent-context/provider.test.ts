@@ -29,6 +29,12 @@ function provider(providers: Provider[], name: string): Provider {
 
 function createRuntime() {
   return {
+    getAllActions: () => [
+      {
+        name: "READ_FILE",
+        description: "Read through the Eliza action registry.",
+      },
+    ],
     getService: (name: string) => {
       if (name === "cron") {
         return {
@@ -148,7 +154,24 @@ function createServices() {
         throw new Error("legacy cron must not be used");
       },
     },
-    tools: { enabled: () => [{ id: "tool-1", description: "Tool one" }] },
+    tools: {
+      list: () => [
+        {
+          id: "legacy-tool",
+          name: "Legacy Tool",
+          category: "runtime",
+          description: "Must not own runtime availability.",
+          enabled: true,
+        },
+      ],
+      summary: () => ({
+        total: 1,
+        enabled: 1,
+        disabled: 0,
+        categories: [],
+        transports: [],
+      }),
+    },
     delegation: {
       list: () => [{ title: "Delegate work", status: "running" }],
       overview: () => ({
@@ -247,6 +270,10 @@ describe("agent context providers", () => {
     expect(workspace.text).toContain("WORKSPACE CONTEXT");
     expect(workspace.text).toContain("repository status summary");
     expect(operations.text).toContain("CRON JOBS");
+    expect(operations.text).toContain(
+      "READ_FILE: Read through the Eliza action registry.",
+    );
+    expect(operations.text).not.toContain("legacy-tool");
   });
 
   it("renders the official Eliza skill inventory in workspace context", async () => {
