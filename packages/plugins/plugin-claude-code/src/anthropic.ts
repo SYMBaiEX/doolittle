@@ -1,5 +1,10 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
-import { resolveModelPromptText } from "@elizaos/provider-transport";
+import {
+  createProviderHttpError,
+  normalizeProviderTransportError,
+  ProviderTransportError,
+  resolveModelPromptText,
+} from "@elizaos/provider-transport";
 import {
   CLAUDE_CODE_VERSION,
   invokeClaudeCodeCliPrint,
@@ -84,8 +89,13 @@ export async function runClaudeCodeTextGeneration(
 ): Promise<string> {
   const provider = getRuntimeProvider(runtime);
   if (provider && provider !== "claude-code") {
-    throw new Error(
+    throw new ProviderTransportError(
       `Claude Code model handler is active, but runtime provider is ${provider}. Restart with the Claude Code provider selected to use this plugin directly.`,
+      {
+        code: "incompatible_provider",
+        provider: "claude-code",
+        detail: provider,
+      },
     );
   }
 
@@ -154,8 +164,12 @@ export async function runClaudeCodeTextGeneration(
 
   if (!accessToken) {
     if (!options.allowCliFallback) {
-      throw new Error(
+      throw new ProviderTransportError(
         "No reusable Claude Code auth material is available for native execution. Complete `claude auth login` plus `claude setup-token`, or enable the local Claude CLI fallback explicitly.",
+        {
+          code: "no_credentials",
+          provider: "claude-code",
+        },
       );
     }
     return invokeCliFallback();
@@ -176,12 +190,24 @@ export async function runClaudeCodeTextGeneration(
     ],
   };
   const signal = claudeRequestSignal(params);
-  let response = await fetch(endpoint, {
-    method: "POST",
-    headers: anthropicHeaders(accessToken),
-    body: JSON.stringify(requestBody),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: anthropicHeaders(accessToken),
+      body: JSON.stringify(requestBody),
+      signal,
+    });
+  } catch (error) {
+    if (options.allowCliFallback) {
+      return invokeCliFallback();
+    }
+    throw normalizeProviderTransportError(
+      "claude-code",
+      "messages request",
+      error,
+    );
+  }
 
   if (
     (response.status === 401 || response.status === 403) &&
@@ -190,12 +216,23 @@ export async function runClaudeCodeTextGeneration(
     const refreshed = await refreshCredentials();
     const refreshedAccessToken = refreshed?.accessToken?.trim();
     if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers: anthropicHeaders(refreshedAccessToken),
-        body: JSON.stringify(requestBody),
-        signal,
-      });
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: anthropicHeaders(refreshedAccessToken),
+          body: JSON.stringify(requestBody),
+          signal,
+        });
+      } catch (error) {
+        if (options.allowCliFallback) {
+          return invokeCliFallback();
+        }
+        throw normalizeProviderTransportError(
+          "claude-code",
+          "messages refresh request",
+          error,
+        );
+      }
     } else if (options.allowCliFallback) {
       return invokeCliFallback();
     }
@@ -206,7 +243,12 @@ export async function runClaudeCodeTextGeneration(
     if (options.allowCliFallback) {
       return invokeCliFallback();
     }
-    throw new Error(`Claude Code request failed (${response.status}): ${body}`);
+    throw createProviderHttpError({
+      provider: "claude-code",
+      operation: "messages request",
+      status: response.status,
+      detail: body,
+    });
   }
 
   const data = (await response.json()) as {

@@ -4,7 +4,12 @@ import type {
   ModelType,
   TextEmbeddingParams,
 } from "@elizaos/core";
-import { resolveModelPromptText } from "@elizaos/provider-transport";
+import {
+  createProviderHttpError,
+  normalizeProviderTransportError,
+  ProviderTransportError,
+  resolveModelPromptText,
+} from "@elizaos/provider-transport";
 import { resolveCloudApiBaseUrl } from "@elizaos/shared/elizacloud/base-url";
 import {
   postElizaCloudChatCompletion,
@@ -34,6 +39,17 @@ import {
 } from "./runtime-settings";
 import type { ElizaCloudPluginOptions } from "./types";
 
+async function runCloudRequest(
+  operation: string,
+  request: () => Promise<Response>,
+): Promise<Response> {
+  try {
+    return await request();
+  } catch (error) {
+    throw normalizeProviderTransportError("elizacloud", operation, error);
+  }
+}
+
 export async function runElizaCloudTextGeneration(
   runtime: IAgentRuntime,
   params: GenerateTextParams,
@@ -42,16 +58,25 @@ export async function runElizaCloudTextGeneration(
 ): Promise<string> {
   const provider = getRuntimeProvider(runtime);
   if (provider && provider !== "elizacloud") {
-    throw new Error(
+    throw new ProviderTransportError(
       `Eliza Cloud model handler is active, but runtime provider is ${provider}. Restart with the Eliza Cloud provider selected to use this plugin directly.`,
+      {
+        code: "incompatible_provider",
+        provider: "elizacloud",
+        detail: provider,
+      },
     );
   }
 
   const credentials = options.getCredentials?.();
   const apiKey = credentials?.apiKey?.trim();
   if (!apiKey) {
-    throw new Error(
+    throw new ProviderTransportError(
       "No Eliza Cloud API key is available for managed cloud execution. Run `elizaos login` or set ELIZAOS_CLOUD_API_KEY first.",
+      {
+        code: "no_credentials",
+        provider: "elizacloud",
+      },
     );
   }
 
@@ -72,64 +97,84 @@ export async function runElizaCloudTextGeneration(
   const maxTokens = params.maxTokens ?? runtimeModel.maxTokens ?? 1200;
 
   if (shouldUseResponsesApi(requestedModel)) {
-    const response = await postElizaCloudResponse(
-      `${baseUrl}/responses`,
-      apiKey,
-      requestedModel,
-      params,
-      maxTokens,
-      conversationId,
+    const response = await runCloudRequest("responses request", () =>
+      postElizaCloudResponse(
+        `${baseUrl}/responses`,
+        apiKey,
+        requestedModel,
+        params,
+        maxTokens,
+        conversationId,
+      ),
     );
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(
-        `Eliza Cloud responses request failed (${response.status}): ${body || "empty response"}`,
-      );
+      throw createProviderHttpError({
+        provider: "elizacloud",
+        operation: "responses request",
+        status: response.status,
+        detail: body,
+      });
     }
     const payload = (await response.json()) as unknown;
     const text = extractTextFromResponsesApi(payload);
     if (text) {
       return text;
     }
-    throw new Error(
+    throw new ProviderTransportError(
       `Eliza Cloud responses request returned no output text for ${requestedModel}.`,
+      {
+        code: "no_output",
+        provider: "elizacloud",
+        operation: "responses request",
+      },
     );
   }
 
-  let response = await postElizaCloudChatCompletion(
-    `${baseUrl}/chat/completions`,
-    apiKey,
-    requestedModel,
-    params,
-    temperature,
-    maxTokens,
-    conversationId,
+  let response = await runCloudRequest("chat completion request", () =>
+    postElizaCloudChatCompletion(
+      `${baseUrl}/chat/completions`,
+      apiKey,
+      requestedModel,
+      params,
+      temperature,
+      maxTokens,
+      conversationId,
+    ),
   );
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(
-      `Eliza Cloud request failed (${response.status}): ${body || "empty response"}`,
-    );
+    throw createProviderHttpError({
+      provider: "elizacloud",
+      operation: "chat completion request",
+      status: response.status,
+      detail: body,
+    });
   }
 
   let payload = (await response.json()) as unknown;
   let text = extractTextFromChatCompletions(payload);
   if (!text && shouldRetryEmptyCloudResponse(requestedModel)) {
-    response = await postElizaCloudChatCompletion(
-      `${baseUrl}/chat/completions`,
-      apiKey,
-      ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL,
-      params,
-      temperature,
-      maxTokens,
-      conversationId,
+    response = await runCloudRequest("fallback chat completion request", () =>
+      postElizaCloudChatCompletion(
+        `${baseUrl}/chat/completions`,
+        apiKey,
+        ELIZA_CLOUD_EMPTY_RESPONSE_FALLBACK_MODEL,
+        params,
+        temperature,
+        maxTokens,
+        conversationId,
+      ),
     );
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(
-        `Eliza Cloud fallback request failed (${response.status}): ${body || "empty response"}`,
-      );
+      throw createProviderHttpError({
+        provider: "elizacloud",
+        operation: "fallback chat completion request",
+        status: response.status,
+        detail: body,
+      });
     }
     payload = (await response.json()) as unknown;
     text = extractTextFromChatCompletions(payload);
@@ -144,8 +189,13 @@ export async function runElizaCloudEmbeddingGeneration(
 ): Promise<number[]> {
   const provider = getRuntimeProvider(runtime);
   if (provider && provider !== "elizacloud") {
-    throw new Error(
+    throw new ProviderTransportError(
       `Eliza Cloud embedding handler is active, but runtime provider is ${provider}. Restart with the Eliza Cloud provider selected to use this plugin directly.`,
+      {
+        code: "incompatible_provider",
+        provider: "elizacloud",
+        detail: provider,
+      },
     );
   }
 
@@ -154,24 +204,34 @@ export async function runElizaCloudEmbeddingGeneration(
     getRuntimeStringSetting(runtime, "ELIZAOS_CLOUD_EMBEDDING_API_KEY") ||
     credentials?.apiKey?.trim();
   if (!apiKey) {
-    throw new Error(
+    throw new ProviderTransportError(
       "No Eliza Cloud embedding API key is available. Set ELIZAOS_CLOUD_EMBEDDING_API_KEY or run `elizaos login`.",
+      {
+        code: "no_credentials",
+        provider: "elizacloud",
+        operation: "embedding request",
+      },
     );
   }
 
-  const response = await postElizaCloudEmbedding(
-    resolveElizaCloudEmbeddingEndpoint(runtime),
-    apiKey,
-    resolveElizaCloudEmbeddingModel(runtime),
-    extractEmbeddingInput(params),
-    getRuntimeNumberSetting(runtime, "ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS"),
+  const response = await runCloudRequest("embedding request", () =>
+    postElizaCloudEmbedding(
+      resolveElizaCloudEmbeddingEndpoint(runtime),
+      apiKey,
+      resolveElizaCloudEmbeddingModel(runtime),
+      extractEmbeddingInput(params),
+      getRuntimeNumberSetting(runtime, "ELIZAOS_CLOUD_EMBEDDING_DIMENSIONS"),
+    ),
   );
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(
-      `Eliza Cloud embeddings request failed (${response.status}): ${body || "empty response"}`,
-    );
+    throw createProviderHttpError({
+      provider: "elizacloud",
+      operation: "embedding request",
+      status: response.status,
+      detail: body,
+    });
   }
 
   const payload = (await response.json()) as unknown;
@@ -180,7 +240,12 @@ export async function runElizaCloudEmbeddingGeneration(
     return vector;
   }
 
-  throw new Error(
+  throw new ProviderTransportError(
     "Eliza Cloud embeddings request returned no embedding vector.",
+    {
+      code: "no_output",
+      provider: "elizacloud",
+      operation: "embedding request",
+    },
   );
 }

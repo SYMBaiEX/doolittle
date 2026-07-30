@@ -1,5 +1,9 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
-import { resolveModelPromptText } from "@elizaos/provider-transport";
+import {
+  normalizeProviderTransportError,
+  ProviderTransportError,
+  resolveModelPromptText,
+} from "@elizaos/provider-transport";
 import {
   DEFAULT_DEVIN_COMMAND,
   DEFAULT_DEVIN_MODEL,
@@ -19,16 +23,25 @@ export async function runDevinTextGeneration(
 ): Promise<string> {
   const provider = getRuntimeProvider(runtime);
   if (provider && provider !== "devin") {
-    throw new Error(
+    throw new ProviderTransportError(
       `Devin model handler is active, but runtime provider is ${provider}. Restart with the Devin provider selected to use this plugin directly.`,
+      {
+        code: "incompatible_provider",
+        provider: "devin",
+        detail: provider,
+      },
     );
   }
 
   const status = options.getStatus();
   const ready = status.nativeReady ?? status.reusable ?? status.fallbackReady;
   if (!ready) {
-    throw new Error(
+    throw new ProviderTransportError(
       "No reusable linked Devin CLI session is available. Run `devin auth login`, then `/accounts connect devin`.",
+      {
+        code: "no_credentials",
+        provider: "devin",
+      },
     );
   }
 
@@ -64,6 +77,6 @@ export async function runDevinTextGeneration(
       },
       "[DOOLITTLE:DEVIN] Devin generate failed",
     );
-    throw error;
+    throw normalizeProviderTransportError("devin", "CLI request", error);
   }
 }

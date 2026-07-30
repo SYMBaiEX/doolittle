@@ -1,5 +1,10 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
-import { resolveModelPromptText } from "@elizaos/provider-transport";
+import {
+  createProviderHttpError,
+  normalizeProviderTransportError,
+  ProviderTransportError,
+  resolveModelPromptText,
+} from "@elizaos/provider-transport";
 import {
   DEFAULT_CODEX_BASE_URL,
   DEFAULT_CODEX_INSTRUCTIONS,
@@ -83,8 +88,13 @@ export async function runCodexTextGeneration(
 ): Promise<string> {
   const provider = getRuntimeProvider(runtime);
   if (provider && provider !== "codex") {
-    throw new Error(
+    throw new ProviderTransportError(
       `Codex model handler is active, but runtime provider is ${provider}. Restart with the Codex provider selected to use this plugin directly.`,
+      {
+        code: "incompatible_provider",
+        provider: "codex",
+        detail: provider,
+      },
     );
   }
 
@@ -94,23 +104,32 @@ export async function runCodexTextGeneration(
   }
   const accessToken = credentials?.accessToken?.trim();
   if (!accessToken) {
-    throw new Error(
+    throw new ProviderTransportError(
       "No reusable linked Codex access token is available for the Codex provider.",
+      {
+        code: "no_credentials",
+        provider: "codex",
+      },
     );
   }
 
   const runtimeModel = getRuntimeModelSettings(runtime);
   const endpoint = `${runtimeModel.baseUrl || DEFAULT_CODEX_BASE_URL}/responses`;
   const signal = codexRequestSignal(params);
-  let response = await fetch(endpoint, {
-    method: "POST",
-    headers: codexRequestHeaders({
-      accessToken,
-      accountId: credentials?.accountId,
-    }),
-    body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: codexRequestHeaders({
+        accessToken,
+        accountId: credentials?.accountId,
+      }),
+      body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
+      signal,
+    });
+  } catch (error) {
+    throw normalizeProviderTransportError("codex", "responses request", error);
+  }
 
   if (
     (response.status === 401 || response.status === 403) &&
@@ -119,21 +138,34 @@ export async function runCodexTextGeneration(
     const refreshed = await options.refreshCredentials();
     const refreshedAccessToken = refreshed?.accessToken?.trim();
     if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers: codexRequestHeaders({
-          accessToken: refreshedAccessToken,
-          accountId: refreshed?.accountId,
-        }),
-        body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
-        signal,
-      });
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: codexRequestHeaders({
+            accessToken: refreshedAccessToken,
+            accountId: refreshed?.accountId,
+          }),
+          body: JSON.stringify(createCodexRequestPayload(params, runtimeModel)),
+          signal,
+        });
+      } catch (error) {
+        throw normalizeProviderTransportError(
+          "codex",
+          "responses refresh request",
+          error,
+        );
+      }
     }
   }
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Codex request failed (${response.status}): ${body}`);
+    throw createProviderHttpError({
+      provider: "codex",
+      operation: "responses request",
+      status: response.status,
+      detail: body,
+    });
   }
 
   return readCodexResponseText(response);
