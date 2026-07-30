@@ -1,5 +1,6 @@
 export const DOOLITTLE_AWARENESS_SERVICE = "doolittle_awareness";
 export const DOOLITTLE_BROWSER_SERVICE = "browser";
+export const DOOLITTLE_CODING_AGENT_SERVICE = "coding_agent";
 export const DOOLITTLE_GATEWAY_SERVICE = "doolittle_gateway";
 export const DOOLITTLE_MCP_SERVICE = "mcp";
 export const DOOLITTLE_SCHEDULER_SERVICE = "doolittle_scheduler";

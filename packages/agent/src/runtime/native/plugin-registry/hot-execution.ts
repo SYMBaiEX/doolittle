@@ -7,7 +7,10 @@ import {
   createPlanningPlugin,
 } from "@plugins/doolittle-plugin";
 import type { AppServices } from "../../../services";
-import { inspectLocalProject } from "../../../services/project-inspection";
+import {
+  findLocalCodebases,
+  inspectLocalProject,
+} from "../../../services/project-inspection";
 import type { EnvConfig } from "../../../types/runtime";
 
 export async function loadHotExecutionPlugins(
@@ -28,6 +31,8 @@ export async function loadHotExecutionPlugins(
         run: (command) => services.terminal.run(command),
       },
       inspectProject: (targetPath) => inspectLocalProject(targetPath),
+      findCodebases: (query, workspaceRoot) =>
+        findLocalCodebases(query, workspaceRoot),
       delegation: {
         list: () => services.delegation.list(),
       },

@@ -216,6 +216,8 @@ export interface NativeAgentOrchestratorService {
 }
 
 export interface NativeCodingAgentService {
+  workspaceRoot(): string;
+  workspaceSummary(limit?: number): string;
   read(path: string): unknown;
   write(path: string, content: string): unknown;
   search(query: string, limit?: number): unknown;
@@ -224,6 +226,12 @@ export interface NativeCodingAgentService {
   repoLog(limit?: number): Promise<unknown>;
   run(command: string): Promise<unknown>;
   inspectProject?(targetPath?: string): Promise<unknown> | unknown;
+  findCodebases(query: string): Promise<
+    Array<{
+      path: string;
+      exactBasenameMatch: boolean;
+    }>
+  >;
   tasks?(): unknown[];
   context?(
     taskDescription: string,

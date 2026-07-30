@@ -1,33 +1,33 @@
-import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
-import { getNativeCodingAgent } from "./native-services";
+import { requireNativeCodingAgent } from "./native-services";
 
-export function readEffectiveWorkspaceFile(
-  runtime: RuntimeLike,
-  services: AppServices,
-  path: string,
-) {
-  return (
-    getNativeCodingAgent(runtime)?.read(path) ?? services.workspace.read(path)
-  );
+export function getNativeWorkspaceRoot(runtime: RuntimeLike): string {
+  return requireNativeCodingAgent(runtime).workspaceRoot();
 }
 
-export async function searchEffectiveWorkspace(
+export function getNativeWorkspaceSummary(
   runtime: RuntimeLike,
-  services: AppServices,
+  limit = 40,
+): string {
+  return requireNativeCodingAgent(runtime).workspaceSummary(limit);
+}
+
+export function readNativeWorkspaceFile(runtime: RuntimeLike, path: string) {
+  return requireNativeCodingAgent(runtime).read(path);
+}
+
+export async function searchNativeWorkspace(
+  runtime: RuntimeLike,
   query: string,
   limit = 20,
 ) {
-  return await (getNativeCodingAgent(runtime)?.search(query, limit) ??
-    services.workspace.search(query, limit));
+  return await requireNativeCodingAgent(runtime).search(query, limit);
 }
 
-export async function writeEffectiveWorkspaceFile(
+export async function writeNativeWorkspaceFile(
   runtime: RuntimeLike,
-  services: AppServices,
   path: string,
   content: string,
 ) {
-  return await (getNativeCodingAgent(runtime)?.write(path, content) ??
-    services.workspace.write(path, content));
+  return await requireNativeCodingAgent(runtime).write(path, content);
 }

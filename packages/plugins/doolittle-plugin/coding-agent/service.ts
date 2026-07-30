@@ -1,3 +1,4 @@
+import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
 import type { Service } from "@elizaos/core";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
 import { buildCodingAgentContext } from "./runtime";
@@ -10,7 +11,7 @@ export function createCodingAgentServiceClass(
   options: CodingAgentPluginOptions,
 ) {
   class CodingAgentService extends ElizaService {
-    static serviceType = "coding_agent";
+    static serviceType = DOOLITTLE_CODING_AGENT_SERVICE;
     capabilityDescription =
       "Coding agent service for workspace, repository, and task orchestration.";
 
@@ -29,6 +30,14 @@ export function createCodingAgentServiceClass(
     }
 
     async stop(): Promise<void> {}
+
+    workspaceRoot() {
+      return this.workspace.root();
+    }
+
+    workspaceSummary(limit = 40) {
+      return this.workspace.summary(limit);
+    }
 
     read(path: string) {
       return this.workspace.read(path);
@@ -60,6 +69,10 @@ export function createCodingAgentServiceClass(
 
     inspectProject(targetPath?: string) {
       return options.inspectProject(targetPath ?? options.workspaceRoot);
+    }
+
+    findCodebases(query: string) {
+      return options.findCodebases(query, this.workspace.root());
     }
 
     tasks() {

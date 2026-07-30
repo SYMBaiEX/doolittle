@@ -1,3 +1,4 @@
+import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
@@ -31,6 +32,13 @@ function createContext() {
                 sourceDir: "/managed",
                 precedence: 80,
               })),
+          };
+        }
+        if (name === DOOLITTLE_CODING_AGENT_SERVICE) {
+          return {
+            repoStatus: async () => "clean",
+            repoDiff: async () => "1 file changed",
+            repoLog: async () => "abc123 fix router extraction",
           };
         }
         return null;

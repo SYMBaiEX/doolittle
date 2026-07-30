@@ -1,34 +1,14 @@
-import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
-import { getNativeCodingAgent } from "./native-services";
+import { requireNativeCodingAgent } from "./native-services";
 
-export async function getEffectiveRepositoryStatus(
-  runtime: RuntimeLike,
-  services: AppServices,
-) {
-  return (
-    (await getNativeCodingAgent(runtime)?.repoStatus()) ??
-    services.repository.status()
-  );
+export async function getNativeRepositoryStatus(runtime: RuntimeLike) {
+  return await requireNativeCodingAgent(runtime).repoStatus();
 }
 
-export async function getEffectiveRepositoryDiff(
-  runtime: RuntimeLike,
-  services: AppServices,
-) {
-  return (
-    (await getNativeCodingAgent(runtime)?.repoDiff()) ??
-    services.repository.diffStat()
-  );
+export async function getNativeRepositoryDiff(runtime: RuntimeLike) {
+  return await requireNativeCodingAgent(runtime).repoDiff();
 }
 
-export async function getEffectiveRepositoryLog(
-  runtime: RuntimeLike,
-  services: AppServices,
-  limit = 10,
-) {
-  return (
-    (await getNativeCodingAgent(runtime)?.repoLog(limit)) ??
-    services.repository.recentCommits(limit)
-  );
+export async function getNativeRepositoryLog(runtime: RuntimeLike, limit = 10) {
+  return await requireNativeCodingAgent(runtime).repoLog(limit);
 }

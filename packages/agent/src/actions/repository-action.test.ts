@@ -7,20 +7,25 @@ import {
 
 describe("repository action command facade", () => {
   it("lets the Eliza planner select and parameterize repository inspection", async () => {
-    const action = createRepositoryAction({
-      repository: {
-        status: () => "working tree clean",
-        diffStat: () => "1 file changed",
-        recentCommits: () => "abc123 converge command handling",
+    const action = createRepositoryAction();
+    const runtime = {
+      getService(serviceType: string) {
+        return serviceType === "coding_agent"
+          ? {
+              repoStatus: () => "working tree clean",
+              repoDiff: () => "1 file changed",
+              repoLog: () => "abc123 converge command handling",
+            }
+          : null;
       },
-    } as never);
+    };
     const message = {
       content: { text: "Tell me about the project architecture." },
     } as never;
 
     await expect(action.validate({} as never, message)).resolves.toBe(true);
     await expect(
-      action.handler({} as never, message, undefined, {
+      action.handler(runtime as never, message, undefined, {
         parameters: { intent: "diff" },
       }),
     ).resolves.toMatchObject({
@@ -40,25 +45,29 @@ describe("repository action command facade", () => {
   });
 
   it("executes slash commands through the action's repository facade", async () => {
-    const services = {
-      repository: {
-        status: () => "working tree clean",
-        diffStat: () => "1 file changed",
-        recentCommits: () => "abc123 converge command handling",
+    const runtime = {
+      getService(serviceType: string) {
+        return serviceType === "coding_agent"
+          ? {
+              repoStatus: () => "working tree clean",
+              repoDiff: () => "1 file changed",
+              repoLog: () => "abc123 converge command handling",
+            }
+          : null;
       },
     };
 
     await expect(
-      executeRepositoryCommand({} as never, services as never, "/repo status"),
+      executeRepositoryCommand(runtime as never, "/repo status"),
     ).resolves.toBe("working tree clean");
     await expect(
-      executeRepositoryCommand({} as never, services as never, "/repo diff"),
+      executeRepositoryCommand(runtime as never, "/repo diff"),
     ).resolves.toBe("1 file changed");
     await expect(
-      executeRepositoryCommand({} as never, services as never, "/repo log"),
+      executeRepositoryCommand(runtime as never, "/repo log"),
     ).resolves.toBe("abc123 converge command handling");
     await expect(
-      executeRepositoryCommand({} as never, services as never, "/repo branch"),
+      executeRepositoryCommand(runtime as never, "/repo branch"),
     ).resolves.toBeUndefined();
   });
 });

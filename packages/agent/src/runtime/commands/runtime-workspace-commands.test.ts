@@ -1,3 +1,4 @@
+import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { ChatTurnRequest } from "@/types/runtime";
@@ -17,22 +18,27 @@ describe("runtime workspace command router", () => {
   it("queues prompts and handles workspace IO through product services", async () => {
     const writes: Array<{ path: string; content: string }> = [];
     const official = createOfficialOrchestratorTestFixture();
+    const workspace = {
+      summary: (limit: number) => `workspace summary ${limit}`,
+      read: (path: string) => `read:${path}`,
+      search: (query: string) => [
+        { path: "src/index.ts", matches: [`match:${query}`] },
+      ],
+      write: (path: string, content: string) => {
+        writes.push({ path, content });
+        return `/workspace/${path}`;
+      },
+    };
     const context = {
-      runtime: official.runtime,
+      runtime: {
+        getService: (name: string) =>
+          name === DOOLITTLE_CODING_AGENT_SERVICE
+            ? workspace
+            : official.runtime.getService(name),
+      },
       services: {
         contextFiles: {
           render: () => "context-file-a\ncontext-file-b",
-        },
-        workspace: {
-          summary: (limit: number) => `workspace summary ${limit}`,
-          read: (path: string) => `read:${path}`,
-          search: (query: string) => [
-            { path: "src/index.ts", matches: [`match:${query}`] },
-          ],
-          write: (path: string, content: string) => {
-            writes.push({ path, content });
-            return `/workspace/${path}`;
-          },
         },
         settings: {
           get: () => ({

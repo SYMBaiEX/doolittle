@@ -1,4 +1,3 @@
-export { getEffectiveCodingAgentContext } from "./context";
 export {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
@@ -13,13 +12,13 @@ export {
   searchEffectiveMcpMarketplace,
 } from "./mcp";
 export {
-  findEffectiveLocalCodebases,
-  inspectEffectiveProject,
+  findNativeLocalCodebases,
+  inspectNativeProject,
 } from "./projects";
 export {
-  getEffectiveRepositoryDiff,
-  getEffectiveRepositoryLog,
-  getEffectiveRepositoryStatus,
+  getNativeRepositoryDiff,
+  getNativeRepositoryLog,
+  getNativeRepositoryStatus,
 } from "./repository";
 export {
   getEffectiveShellHistory,
@@ -27,7 +26,9 @@ export {
   runEffectiveShellCommand,
 } from "./shell";
 export {
-  readEffectiveWorkspaceFile,
-  searchEffectiveWorkspace,
-  writeEffectiveWorkspaceFile,
+  getNativeWorkspaceRoot,
+  getNativeWorkspaceSummary,
+  readNativeWorkspaceFile,
+  searchNativeWorkspace,
+  writeNativeWorkspaceFile,
 } from "./workspace";

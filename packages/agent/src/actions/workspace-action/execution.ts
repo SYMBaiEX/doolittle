@@ -1,7 +1,9 @@
 import { existsSync, statSync } from "node:fs";
 import type { IAgentRuntime } from "@elizaos/core";
-import { findEffectiveLocalCodebases } from "@/runtime/native/service-bridge/tooling";
-import type { AppServices } from "@/services";
+import {
+  findNativeLocalCodebases,
+  getNativeWorkspaceSummary,
+} from "@/runtime/native/service-bridge/tooling";
 import { formatFoundCodebases, summarizeProjectForOutput } from "./output";
 import {
   resolveLocalProjectPath,
@@ -20,7 +22,6 @@ function resolveOverviewPath(
 
 async function executeFindCodebaseIntent(
   runtime: IAgentRuntime,
-  services: AppServices,
   workspaceDir: string,
   intent: Extract<WorkspaceIntent, { kind: "find-codebase" }>,
 ): Promise<string> {
@@ -33,11 +34,7 @@ async function executeFindCodebaseIntent(
   if (explicitProjectPath) {
     try {
       if (statSync(explicitProjectPath).isDirectory()) {
-        return summarizeProjectForOutput(
-          runtime,
-          services,
-          explicitProjectPath,
-        );
+        return summarizeProjectForOutput(runtime, explicitProjectPath);
       }
       return `Found file path: ${explicitProjectPath}`;
     } catch (error) {
@@ -45,11 +42,11 @@ async function executeFindCodebaseIntent(
     }
   }
 
-  const matches = await findEffectiveLocalCodebases(runtime, services, query);
+  const matches = await findNativeLocalCodebases(runtime, query);
   if (matches.length === 1 && existsSync(matches[0]?.path || "")) {
     try {
       if (statSync(matches[0].path).isDirectory()) {
-        return summarizeProjectForOutput(runtime, services, matches[0].path);
+        return summarizeProjectForOutput(runtime, matches[0].path);
       }
     } catch {
       // Fall back to raw result list below.
@@ -60,11 +57,7 @@ async function executeFindCodebaseIntent(
   if (exactMatches.length === 1 && existsSync(exactMatches[0]?.path || "")) {
     try {
       if (statSync(exactMatches[0].path).isDirectory()) {
-        return summarizeProjectForOutput(
-          runtime,
-          services,
-          exactMatches[0].path,
-        );
+        return summarizeProjectForOutput(runtime, exactMatches[0].path);
       }
     } catch {
       // Fall back to raw result list below.
@@ -76,21 +69,19 @@ async function executeFindCodebaseIntent(
 
 export async function executeWorkspaceIntent(
   runtime: IAgentRuntime,
-  services: AppServices,
   workspaceDir: string,
   intent: WorkspaceIntent,
 ): Promise<string> {
   if (intent.kind === "tree") {
-    return services.workspace.summary(40);
+    return getNativeWorkspaceSummary(runtime, 40);
   }
 
   if (intent.kind === "overview") {
     return summarizeProjectForOutput(
       runtime,
-      services,
       resolveOverviewPath(intent, workspaceDir),
     );
   }
 
-  return executeFindCodebaseIntent(runtime, services, workspaceDir, intent);
+  return executeFindCodebaseIntent(runtime, workspaceDir, intent);
 }

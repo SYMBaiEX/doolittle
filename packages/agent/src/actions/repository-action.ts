@@ -8,11 +8,10 @@ import type {
   State,
 } from "@elizaos/core";
 import {
-  getEffectiveRepositoryDiff,
-  getEffectiveRepositoryLog,
-  getEffectiveRepositoryStatus,
+  getNativeRepositoryDiff,
+  getNativeRepositoryLog,
+  getNativeRepositoryStatus,
 } from "@/runtime/native/service-bridge/tooling";
-import type { AppServices } from "@/services";
 
 type RepositoryIntent = "status" | "diff" | "log";
 
@@ -57,31 +56,27 @@ export function resolveRepositoryCommandIntent(
 
 export async function executeRepositoryIntent(
   runtime: IAgentRuntime,
-  services: AppServices,
   intent: RepositoryIntent,
 ): Promise<string> {
   if (intent === "status") {
-    return String(await getEffectiveRepositoryStatus(runtime, services));
+    return String(await getNativeRepositoryStatus(runtime));
   }
   if (intent === "diff") {
-    return String(await getEffectiveRepositoryDiff(runtime, services));
+    return String(await getNativeRepositoryDiff(runtime));
   }
-  return String(await getEffectiveRepositoryLog(runtime, services));
+  return String(await getNativeRepositoryLog(runtime));
 }
 
 /** Shared repository command facade used by slash commands and the action. */
 export async function executeRepositoryCommand(
   runtime: IAgentRuntime,
-  services: AppServices,
   input: string,
 ): Promise<string | undefined> {
   const intent = resolveRepositoryCommandIntent(input);
-  return intent
-    ? executeRepositoryIntent(runtime, services, intent)
-    : undefined;
+  return intent ? executeRepositoryIntent(runtime, intent) : undefined;
 }
 
-export function createRepositoryAction(services: AppServices): Action {
+export function createRepositoryAction(): Action {
   return {
     name: "DOOLITTLE_REPOSITORY",
     similes: ["REPO_STATUS", "REPO_DIFF", "REPO_LOG", "GIT_STATUS"],
@@ -104,7 +99,7 @@ export function createRepositoryAction(services: AppServices): Action {
       let response = "";
 
       if (intent) {
-        response = await executeRepositoryIntent(runtime, services, intent);
+        response = await executeRepositoryIntent(runtime, intent);
       } else {
         response =
           "I can inspect repository status, diffs, or recent commits. Try `/repo status` or ask `what changed in this repo?`.";

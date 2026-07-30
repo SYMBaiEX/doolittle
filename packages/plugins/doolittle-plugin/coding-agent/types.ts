@@ -6,6 +6,8 @@ import type {
 } from "@doolittle/contracts";
 
 export interface WorkspaceServiceLike {
+  root(): string;
+  summary(limit?: number): string;
   read(path: string): string;
   write(path: string, content: string): string | Promise<string>;
   search(
@@ -69,6 +71,16 @@ export type InspectLocalProject = (
   },
 ) => Promise<CodingProjectInspection>;
 
+export interface LocalCodebaseMatch {
+  path: string;
+  exactBasenameMatch: boolean;
+}
+
+export type FindLocalCodebases = (
+  query: string,
+  workspaceRoot: string,
+) => Promise<LocalCodebaseMatch[]>;
+
 export interface CodingAgentContextOptions {
   sessionId?: string;
   workingDirectory?: string;
@@ -82,7 +94,10 @@ export interface CodingAgentContextOptions {
 
 export interface CodingAgentPluginOptions {
   workspaceRoot: string;
-  workspace: Pick<WorkspaceServiceLike, "read" | "write" | "search">;
+  workspace: Pick<
+    WorkspaceServiceLike,
+    "root" | "summary" | "read" | "write" | "search"
+  >;
   repository: Pick<
     RepositoryServiceLike,
     "isRepository" | "status" | "diffStat" | "recentCommits"
@@ -90,4 +105,5 @@ export interface CodingAgentPluginOptions {
   shell: Pick<TerminalServiceLike, "run">;
   delegation: Pick<DelegationServiceLike, "list">;
   inspectProject: InspectLocalProject;
+  findCodebases: FindLocalCodebases;
 }

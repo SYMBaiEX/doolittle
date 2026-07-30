@@ -35,6 +35,7 @@ import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_CODING_AGENT_SERVICE,
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
@@ -87,7 +88,10 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       runtime,
       ORCHESTRATOR_TASK_SERVICE,
     ),
-    codingAgent: service<NativeCodingAgentService>(runtime, "coding_agent"),
+    codingAgent: service<NativeCodingAgentService>(
+      runtime,
+      DOOLITTLE_CODING_AGENT_SERVICE,
+    ),
     approval: service<NativeApprovalService>(runtime, "approval"),
     agentEvent,
     pluginManager: service<NativePluginManagerService>(

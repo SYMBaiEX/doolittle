@@ -4,6 +4,7 @@ import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_CODING_AGENT_SERVICE,
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
@@ -161,7 +162,7 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
     {
       capability: "codingAgent",
       nativeKey: "codingAgent",
-      nativeService: "coding_agent",
+      nativeService: DOOLITTLE_CODING_AGENT_SERVICE,
       productServices: ["workspace", "repository", "terminal", "delegation"],
       fallback: "workspace + repository + terminal + delegation",
     },

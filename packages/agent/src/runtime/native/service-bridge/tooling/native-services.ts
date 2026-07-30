@@ -1,3 +1,4 @@
+import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
 import { getNativeServices } from "../runtime";
 import type {
   NativeCodingAgentService,
@@ -24,4 +25,16 @@ export function getNativeCodingAgent(
   return getNativeServices(runtime).codingAgent as
     | NativeCodingAgentService
     | undefined;
+}
+
+export function requireNativeCodingAgent(
+  runtime: RuntimeLike,
+): NativeCodingAgentService {
+  const service = getNativeCodingAgent(runtime);
+  if (!service) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_CODING_AGENT_SERVICE} is unavailable.`,
+    );
+  }
+  return service;
 }

@@ -5,9 +5,10 @@ import {
 import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/ownership";
 import {
-  readEffectiveWorkspaceFile,
-  searchEffectiveWorkspace,
-  writeEffectiveWorkspaceFile,
+  getNativeWorkspaceSummary,
+  readNativeWorkspaceFile,
+  searchNativeWorkspace,
+  writeNativeWorkspaceFile,
 } from "@/runtime/native/service-bridge/tooling";
 import type { MemoryTarget } from "@/types/runtime";
 import { formatMemorySummary } from "../runtime-status-formatters";
@@ -87,21 +88,18 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
     }
 
     if (trimmed === "/workspace" || trimmed === "/workspace tree") {
-      return context.services.workspace.summary(40);
+      return getNativeWorkspaceSummary(context.runtime, 40);
     }
 
     if (trimmed.startsWith("/workspace read ")) {
       const path = trimmed.replace("/workspace read ", "").trim();
-      return String(
-        readEffectiveWorkspaceFile(context.runtime, context.services, path),
-      );
+      return String(readNativeWorkspaceFile(context.runtime, path));
     }
 
     if (trimmed.startsWith("/workspace search ")) {
       const query = trimmed.replace("/workspace search ", "").trim();
-      const results = (await searchEffectiveWorkspace(
+      const results = (await searchNativeWorkspace(
         context.runtime,
-        context.services,
         query,
         20,
       )) as Array<{
@@ -126,9 +124,8 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
       if (!relativePath || !content) {
         return "Usage: /workspace write <path> :: <content>";
       }
-      const writtenPath = await writeEffectiveWorkspaceFile(
+      const writtenPath = await writeNativeWorkspaceFile(
         context.runtime,
-        context.services,
         relativePath,
         content,
       );

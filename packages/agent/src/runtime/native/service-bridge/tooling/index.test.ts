@@ -2,74 +2,38 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type {
-  CodingAgentContext,
-  CodingIteration,
-  HumanFeedback,
-} from "@doolittle/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
+import {
+  findLocalCodebases,
+  inspectLocalProject,
+} from "@/services/project-inspection";
 import type { RuntimeLike } from "../runtime";
 import {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
-  findEffectiveLocalCodebases,
+  findNativeLocalCodebases,
   getEffectiveCachedMcpTools,
-  getEffectiveCodingAgentContext,
   getEffectiveMcpStatus,
-  getEffectiveRepositoryDiff,
-  getEffectiveRepositoryLog,
-  getEffectiveRepositoryStatus,
   getEffectiveShellHistory,
   getEffectiveShellStatus,
-  inspectEffectiveProject,
+  getNativeRepositoryDiff,
+  getNativeRepositoryLog,
+  getNativeRepositoryStatus,
+  inspectNativeProject,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   probeEffectiveMcp,
-  readEffectiveWorkspaceFile,
+  readNativeWorkspaceFile,
   runEffectiveShellCommand,
   searchEffectiveCachedMcpTools,
-  searchEffectiveWorkspace,
-  writeEffectiveWorkspaceFile,
+  searchNativeWorkspace,
+  writeNativeWorkspaceFile,
 } from "./index";
 
-function makeCodingContext(
-  overrides: Partial<CodingAgentContext> = {},
-): CodingAgentContext {
-  return {
-    sessionId: "session-1",
-    taskDescription: "Inspect the repo",
-    workingDirectory: "/tmp/project",
-    connector: {
-      type: "local-fs",
-      basePath: "/tmp/project",
-      available: true,
-      metadata: {},
-    },
-    interactionMode: "human-in-the-loop",
-    maxIterations: 8,
-    active: true,
-    iterations: [],
-    allFeedback: [],
-    createdAt: 1,
-    updatedAt: 1,
-    ...overrides,
-  } as CodingAgentContext;
-}
-
 describe("tooling bridge helpers", () => {
-  it("prefers native shell, mcp, workspace, context, and repository bridges", async () => {
-    const nativeContext = makeCodingContext({
-      sessionId: "native-session",
-      connector: {
-        type: "git-repo",
-        basePath: "/tmp/native",
-        available: true,
-        metadata: { owner: "native" },
-      },
-    });
-
+  it("prefers native shell, mcp, workspace, and repository bridges", async () => {
     const runtime = {
       getService(name: string) {
         if (name === "shell") {
@@ -97,6 +61,8 @@ describe("tooling bridge helpers", () => {
         }
         if (name === "coding_agent") {
           return {
+            workspaceRoot: () => "/tmp/native",
+            workspaceSummary: (limit = 40) => `native-summary:${limit}`,
             run: async (command: string) => `native-coding-run:${command}`,
             read: (path: string) => `native-read:${path}`,
             search: (query: string, limit = 20) => [
@@ -107,7 +73,6 @@ describe("tooling bridge helpers", () => {
               content,
               source: "native-write",
             }),
-            context: () => nativeContext,
             inspectProject: async (projectPath: string) => ({
               name: "native-project",
               path: projectPath,
@@ -118,6 +83,12 @@ describe("tooling bridge helpers", () => {
               git: { available: false },
               topEntries: [],
             }),
+            findCodebases: async (query: string) => [
+              {
+                path: `/tmp/${query}`,
+                exactBasenameMatch: true,
+              },
+            ],
             repoStatus: async () => ({ source: "native-repo-status" }),
             repoDiff: async () => ({ source: "native-repo-diff" }),
             repoLog: async (limit = 10) => [`native-repo-log:${limit}`],
@@ -209,48 +180,37 @@ describe("tooling bridge helpers", () => {
     await expect(getEffectiveShellStatus(runtime, services)).resolves.toEqual({
       source: "native-shell",
     });
-    expect(readEffectiveWorkspaceFile(runtime, services, "README.md")).toBe(
+    expect(readNativeWorkspaceFile(runtime, "README.md")).toBe(
       "native-read:README.md",
     );
+    await expect(searchNativeWorkspace(runtime, "todo", 4)).resolves.toEqual([
+      "native-search:todo:4",
+    ]);
     await expect(
-      searchEffectiveWorkspace(runtime, services, "todo", 4),
-    ).resolves.toEqual(["native-search:todo:4"]);
-    await expect(
-      writeEffectiveWorkspaceFile(runtime, services, "notes.md", "hello"),
+      writeNativeWorkspaceFile(runtime, "notes.md", "hello"),
     ).resolves.toEqual({
       path: "notes.md",
       content: "hello",
       source: "native-write",
     });
-    expect(
-      getEffectiveCodingAgentContext(runtime, services, {
-        sessionId: "session-1",
-        taskDescription: "Inspect the repo",
-        workspaceRoot: "/tmp/project",
-      }),
-    ).toBe(nativeContext);
     await expect(
-      inspectEffectiveProject(runtime, services, "/tmp/project"),
+      inspectNativeProject(runtime, "/tmp/project"),
     ).resolves.toMatchObject({
       name: "native-project",
       path: "/tmp/project",
     });
-    await expect(
-      getEffectiveRepositoryStatus(runtime, services),
-    ).resolves.toEqual({
+    await expect(getNativeRepositoryStatus(runtime)).resolves.toEqual({
       source: "native-repo-status",
     });
-    await expect(
-      getEffectiveRepositoryDiff(runtime, services),
-    ).resolves.toEqual({
+    await expect(getNativeRepositoryDiff(runtime)).resolves.toEqual({
       source: "native-repo-diff",
     });
-    await expect(
-      getEffectiveRepositoryLog(runtime, services, 2),
-    ).resolves.toEqual(["native-repo-log:2"]);
+    await expect(getNativeRepositoryLog(runtime, 2)).resolves.toEqual([
+      "native-repo-log:2",
+    ]);
   });
 
-  it("falls back to product shell, mcp, workspace, repository, and context helpers", async () => {
+  it("keeps product fallbacks for shell and mcp but requires the native coding service", async () => {
     const runtime = {
       getService() {
         return null;
@@ -339,69 +299,30 @@ describe("tooling bridge helpers", () => {
     await expect(getEffectiveShellStatus(runtime, services)).resolves.toEqual({
       source: "fallback-shell",
     });
-    expect(readEffectiveWorkspaceFile(runtime, services, "README.md")).toBe(
-      "fallback-read:README.md",
+    await expect(
+      Promise.resolve().then(() =>
+        readNativeWorkspaceFile(runtime, "README.md"),
+      ),
+    ).rejects.toThrow(/coding_agent/u);
+    await expect(searchNativeWorkspace(runtime, "todo", 4)).rejects.toThrow(
+      /coding_agent/u,
     );
     await expect(
-      searchEffectiveWorkspace(runtime, services, "todo", 4),
-    ).resolves.toEqual(["fallback-search:todo:4"]);
-    await expect(
-      writeEffectiveWorkspaceFile(runtime, services, "notes.md", "hello"),
-    ).resolves.toEqual({
-      path: "notes.md",
-      content: "hello",
-      source: "fallback-write",
-    });
+      writeNativeWorkspaceFile(runtime, "notes.md", "hello"),
+    ).rejects.toThrow(/coding_agent/u);
 
-    const iteration: CodingIteration = {
-      index: 0,
-      startedAt: 1,
-      completedAt: 2,
-      fileOperations: [{ type: "write", target: "index.html", size: 12 }],
-      commandResults: [],
-      errors: [],
-      feedback: [],
-      selfCorrected: false,
-    };
-    const feedback: HumanFeedback = {
-      id: "feedback-1",
-      timestamp: 3,
-      text: "Keep it local",
-      type: "guidance",
-    };
-
-    const context = getEffectiveCodingAgentContext(runtime, services, {
-      sessionId: "session-2",
-      taskDescription: "Plan the work",
-      workspaceRoot: "/tmp/fallback-workspace",
-      metadata: { owner: "fallback" },
-      iterations: [iteration],
-      allFeedback: [feedback],
-    });
-
-    expect(context.connector.type).toBe("git-repo");
-    expect(context.connector.basePath).toBe("/tmp/fallback-workspace");
-    expect(context.connector.metadata).toEqual({ owner: "fallback" });
-    expect(context.taskDescription).toBe("Plan the work");
-    expect(context.iterations).toEqual([iteration]);
-    expect(context.allFeedback).toEqual([feedback]);
-
-    await expect(
-      getEffectiveRepositoryStatus(runtime, services),
-    ).resolves.toEqual({
-      source: "fallback-repo-status",
-    });
-    await expect(
-      getEffectiveRepositoryDiff(runtime, services),
-    ).resolves.toEqual({
-      source: "fallback-repo-diff",
-    });
-    await expect(
-      getEffectiveRepositoryLog(runtime, services, 2),
-    ).resolves.toEqual(["fallback-repo-log:2"]);
+    await expect(getNativeRepositoryStatus(runtime)).rejects.toThrow(
+      /coding_agent/u,
+    );
+    await expect(getNativeRepositoryDiff(runtime)).rejects.toThrow(
+      /coding_agent/u,
+    );
+    await expect(getNativeRepositoryLog(runtime, 2)).rejects.toThrow(
+      /coding_agent/u,
+    );
   });
 
-  it("falls back to local project inspection and codebase discovery", async () => {
+  it("routes project inspection and codebase discovery through the native coding service", async () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "service-bridge-tooling-"));
     const projectName = `native-bridge-${randomUUID()}`;
     const projectPath = join(tempRoot, projectName);
@@ -428,28 +349,22 @@ describe("tooling bridge helpers", () => {
     );
 
     const runtime = {
-      getService() {
+      getService(name: string) {
+        if (name === "coding_agent") {
+          return {
+            inspectProject: (targetPath: string) =>
+              inspectLocalProject(targetPath),
+            findCodebases: (query: string) =>
+              findLocalCodebases(query, tempRoot),
+          };
+        }
         return null;
       },
     } as unknown as RuntimeLike;
 
-    const services = {
-      workspace: {
-        root: () => tempRoot,
-      },
-    } as unknown as AppServices;
-
     try {
-      const inspection = await inspectEffectiveProject(
-        runtime,
-        services,
-        projectPath,
-      );
-      const matches = await findEffectiveLocalCodebases(
-        runtime,
-        services,
-        projectName,
-      );
+      const inspection = await inspectNativeProject(runtime, projectPath);
+      const matches = await findNativeLocalCodebases(runtime, projectName);
       const normalizedMatches = matches.map((entry) => ({
         ...entry,
         path: entry.path.replace(/\/$/u, ""),

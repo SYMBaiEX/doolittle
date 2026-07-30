@@ -1,29 +1,23 @@
-import type { AppServices } from "@/services";
-import {
-  findLocalCodebases,
-  inspectLocalProject,
-  type LocalProjectInspection,
-} from "@/services/project-inspection";
+import type { LocalProjectInspection } from "@/services/project-inspection";
 import type { RuntimeLike } from "../runtime-contracts";
-import { getNativeCodingAgent } from "./native-services";
+import { requireNativeCodingAgent } from "./native-services";
 
-export async function inspectEffectiveProject(
+export async function inspectNativeProject(
   runtime: RuntimeLike,
-  _services: AppServices,
   projectPath: string,
 ): Promise<LocalProjectInspection> {
-  const nativeInspection =
-    await getNativeCodingAgent(runtime)?.inspectProject?.(projectPath);
-  if (nativeInspection) {
-    return nativeInspection as LocalProjectInspection;
+  const service = requireNativeCodingAgent(runtime);
+  if (typeof service.inspectProject !== "function") {
+    throw new Error(
+      "Required Eliza service coding_agent does not implement inspectProject().",
+    );
   }
-  return inspectLocalProject(projectPath);
+  return (await service.inspectProject(projectPath)) as LocalProjectInspection;
 }
 
-export async function findEffectiveLocalCodebases(
-  _runtime: RuntimeLike,
-  services: AppServices,
+export async function findNativeLocalCodebases(
+  runtime: RuntimeLike,
   query: string,
 ) {
-  return findLocalCodebases(query, services.workspace.root());
+  return requireNativeCodingAgent(runtime).findCodebases(query);
 }

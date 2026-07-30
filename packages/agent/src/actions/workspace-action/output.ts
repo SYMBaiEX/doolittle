@@ -1,6 +1,5 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import { inspectEffectiveProject } from "@/runtime/native/service-bridge/tooling";
-import type { AppServices } from "@/services";
+import { inspectNativeProject } from "@/runtime/native/service-bridge/tooling";
 
 export const WORKSPACE_ACTION_FALLBACK_MESSAGE =
   "I can show the project tree, summarize the selected workspace, or locate a local codebase. Use the dedicated file actions for concrete reads, searches, and edits.";
@@ -98,14 +97,9 @@ export function formatGitStatusForOutput(status: string): string[] {
 
 export async function summarizeProjectForOutput(
   runtime: IAgentRuntime,
-  services: AppServices,
   projectPath: string,
 ): Promise<string> {
-  const inspection = await inspectEffectiveProject(
-    runtime,
-    services,
-    projectPath,
-  );
+  const inspection = await inspectNativeProject(runtime, projectPath);
   return [
     `Repo: ${inspection.name}`,
     `Path: ${inspection.path}`,

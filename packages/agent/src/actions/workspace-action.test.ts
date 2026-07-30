@@ -46,24 +46,26 @@ describe("resolveWorkspaceIntentFromParams", () => {
 
 describe("workspace action contract", () => {
   it("is planner-selectable and executes structured parameters first", async () => {
-    const action = createWorkspaceAction(
-      {
-        workspace: {
-          summary: () => "workspace tree",
-        },
-      } as never,
-      "/workspace",
-    );
+    const action = createWorkspaceAction("/workspace");
+    const runtime = {
+      getService(serviceType: string) {
+        return serviceType === "coding_agent"
+          ? {
+              workspaceSummary: () => "workspace tree",
+            }
+          : null;
+      },
+    };
 
     await expect(
       action.validate(
-        {} as never,
+        runtime as never,
         { content: { text: "Please inspect the project." } } as never,
       ),
     ).resolves.toBe(true);
     await expect(
       action.handler(
-        {} as never,
+        runtime as never,
         {
           content: { text: "This text has no legacy workspace intent." },
         } as never,

@@ -7,7 +7,6 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import type { AppServices } from "@/services";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
@@ -41,7 +40,6 @@ const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
 ];
 
 export function createWorkspaceAction(
-  services: AppServices,
   workspaceDirectory: WorkspaceDirectorySource,
 ): Action {
   return {
@@ -68,7 +66,6 @@ export function createWorkspaceAction(
       const response = intent
         ? await executeWorkspaceIntent(
             runtime,
-            services,
             resolveWorkspaceDirectory(workspaceDirectory),
             intent,
           )
