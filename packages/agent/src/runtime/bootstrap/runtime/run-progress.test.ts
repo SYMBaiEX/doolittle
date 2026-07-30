@@ -8,6 +8,7 @@ import {
   eventActionLabel,
   eventActionResult,
   eventRoomId,
+  shouldProjectNativeToolProgress,
 } from "./run-progress";
 
 describe("run progress helpers", () => {
@@ -78,6 +79,26 @@ describe("run progress helpers", () => {
     );
   });
 
+  it.each([
+    ["off", "action-started", false],
+    ["off", "action-completed", false],
+    ["new", "action-started", true],
+    ["new", "action-completed", false],
+    ["all", "action-completed", true],
+    ["all", "stream", false],
+    ["verbose", "stream", true],
+  ] as const)("projects %s %s activity: %s", (mode, event, expected) => {
+    expect(shouldProjectNativeToolProgress(mode, event)).toBe(expected);
+  });
+
+  it("keeps failed and mutation action results visible even when progress is off", () => {
+    expect(
+      shouldProjectNativeToolProgress("off", "action-completed", {
+        terminalResult: true,
+      }),
+    ).toBe(true);
+  });
+
   it("declares lifecycle projection as native plugin events", async () => {
     const updateRuntimeThinking = vi.fn();
     const updateRuntimeWaiting = vi.fn();
@@ -98,6 +119,57 @@ describe("run progress helpers", () => {
 
     expect(updateRuntimeThinking).toHaveBeenCalledWith("room-1");
     expect(updateRuntimeWaiting).toHaveBeenCalledWith("room-1");
+  });
+
+  it("projects native action events according to the active run's progress mode", async () => {
+    const noteRuntimeActionStarted = vi.fn();
+    const noteRuntimeActionCompleted = vi.fn();
+    const settings = { model: { provider: "ollama", model: "local" } };
+    const services = {
+      runController: {
+        getByRoomId: () => ({ progressMode: "new" }),
+        noteRuntimeActionStarted,
+        noteRuntimeActionCompleted,
+      },
+      settings: { get: () => settings },
+    } as never;
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.ACTION_STARTED]?.[0]?.({
+      roomId: "room-1",
+      content: { actions: ["WEB_SEARCH"] },
+    } as never);
+    await events[EventType.ACTION_COMPLETED]?.[0]?.({
+      roomId: "room-1",
+      content: { actions: ["WEB_SEARCH"] },
+    } as never);
+
+    expect(noteRuntimeActionStarted).toHaveBeenCalledWith(
+      "room-1",
+      "WEB_SEARCH",
+    );
+    expect(noteRuntimeActionCompleted).not.toHaveBeenCalled();
+  });
+
+  it("projects a failed action completion even with progress disabled", async () => {
+    const noteRuntimeActionCompleted = vi.fn();
+    const services = {
+      runController: {
+        getByRoomId: () => ({ progressMode: "off" }),
+        noteRuntimeActionCompleted,
+      },
+      settings: { get: () => ({ model: {} }) },
+    } as never;
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.ACTION_COMPLETED]?.[0]?.({
+      roomId: "room-1",
+      content: {
+        actionResult: { success: false, data: { actionName: "SHELL" } },
+      },
+    } as never);
+
+    expect(noteRuntimeActionCompleted).toHaveBeenCalledWith("room-1", "SHELL");
   });
 
   it("owns AgentEventService subscriptions through an Eliza service lifecycle", async () => {
@@ -125,6 +197,7 @@ describe("run progress helpers", () => {
     const markAgentEventBridgeAttached = vi.fn();
     const services = {
       runController: {
+        getByRoomId: () => ({ progressMode: "verbose" }),
         noteRuntimeStream,
         noteHeartbeat,
         markRuntimeBridgeAttached,

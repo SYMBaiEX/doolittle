@@ -17,12 +17,59 @@ import {
 } from "@/runtime/action-result-metadata";
 import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import type { AppServices } from "@/services";
+import type { ToolProgressMode } from "@/types/runtime";
 
 export type RuntimePayload = unknown;
 export interface RuntimeEventPayload {
   eventType: string;
   payload: RuntimePayload;
   roomId?: string;
+}
+
+export type NativeToolProgressEvent =
+  | "action-started"
+  | "action-completed"
+  | "stream";
+
+/**
+ * The SDK emits a richer event stream than every chat surface should render.
+ * Keep run completion and failure outside this policy; those are terminal
+ * receipts and must always reach the run controller.
+ */
+export function shouldProjectNativeToolProgress(
+  mode: ToolProgressMode,
+  event: NativeToolProgressEvent,
+  options: { terminalResult?: boolean } = {},
+): boolean {
+  if (options.terminalResult) {
+    return true;
+  }
+  if (mode === "off") {
+    return false;
+  }
+  if (mode === "new") {
+    return event === "action-started";
+  }
+  if (mode === "all") {
+    return event !== "stream";
+  }
+  return true;
+}
+
+function progressModeForRoom(
+  services: AppServices,
+  roomId: string,
+): ToolProgressMode {
+  return services.runController.getByRoomId?.(roomId)?.progressMode ?? "new";
+}
+
+function isTerminalActionResult(
+  actionResult: ActionResult | undefined,
+): boolean {
+  return (
+    actionResult?.success === false ||
+    extractLocalMutationFromActionResult(actionResult) !== undefined
+  );
 }
 
 export function eventRoomId(payload: RuntimePayload): string | undefined {
@@ -231,7 +278,14 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
         const roomId = eventRoomId(payload);
         if (roomId) {
           const action = eventActionLabel(payload) ?? "action";
-          services.runController.noteRuntimeActionStarted(roomId, action);
+          if (
+            shouldProjectNativeToolProgress(
+              progressModeForRoom(services, roomId),
+              "action-started",
+            )
+          ) {
+            services.runController.noteRuntimeActionStarted(roomId, action);
+          }
           recordActionTrajectory({
             services,
             roomId,
@@ -247,7 +301,15 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
         if (roomId) {
           const actionResult = eventActionResult(payload);
           const action = eventActionLabel(payload);
-          services.runController.noteRuntimeActionCompleted(roomId, action);
+          if (
+            shouldProjectNativeToolProgress(
+              progressModeForRoom(services, roomId),
+              "action-completed",
+              { terminalResult: isTerminalActionResult(actionResult) },
+            )
+          ) {
+            services.runController.noteRuntimeActionCompleted(roomId, action);
+          }
           const mutation = extractLocalMutationFromActionResult(actionResult);
           if (mutation) {
             services.runController.recordRuntimeLocalMutation(roomId, mutation);
@@ -323,7 +385,14 @@ export function createRunProgressRuntimeService(
         }
         const roomId = String(event.roomId);
         const label = agentEventLabel(event.data);
-        services.runController.noteRuntimeStream(roomId, event.stream, label);
+        if (
+          shouldProjectNativeToolProgress(
+            progressModeForRoom(services, roomId),
+            "stream",
+          )
+        ) {
+          services.runController.noteRuntimeStream(roomId, event.stream, label);
+        }
       });
       this.unsubscribeHeartbeat = agentEvents.subscribeHeartbeat((event) => {
         services.runController.noteHeartbeat(
