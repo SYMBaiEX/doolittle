@@ -6,7 +6,7 @@ import { ExecutionApprovalService } from "../../execution-approval/service";
 import { FuzzyPatchService } from "../../fuzzy-patch";
 import { GatewayPairingProjection } from "../../gateway-pairing";
 import { GatewaySessionService } from "../../gateway-session-service";
-import { HooksService } from "../../hooks-service";
+import { HookProjectionService } from "../../hook-projection-service";
 import { createLazySlot } from "../../lazy-slot";
 import { MediaService } from "../../media";
 import { PersonalityService } from "../../personality-service";
@@ -84,7 +84,7 @@ export function createServiceConstructionLeaves(params: {
       >,
       join(directories.gatewayPairingDir, "pairing.json"),
     ),
-    hooks: new HooksService(directories.hooksDir),
+    hooks: new HookProjectionService(directories.hooksDir),
     personalities: new PersonalityService(config.dataDir),
     workspace: new WorkspaceService(() => config.workspaceDir),
     terminal: new TerminalService(

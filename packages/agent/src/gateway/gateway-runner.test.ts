@@ -7,7 +7,6 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { DeliveryService } from "@/services/delivery-service";
 import { GatewayPairingProjection } from "@/services/gateway-pairing";
 import { GatewaySessionService } from "@/services/gateway-session-service";
-import { HooksService } from "@/services/hooks-service";
 import { RunControllerService } from "@/services/run-controller-service";
 import { SessionService } from "@/services/session/service";
 import { UserProfileService } from "@/services/user-profile/service";
@@ -44,7 +43,11 @@ describe("GatewayRunner", () => {
           join(root, "gateway-sessions"),
         ),
         delivery: new DeliveryService(join(root, "delivery")),
-        hooks: new HooksService(join(root, "hooks")),
+        hooks: {
+          async emit() {
+            return [];
+          },
+        },
         sessions: new SessionService(join(root, "sessions")),
         userProfiles: new UserProfileService(join(root, "profiles")),
         runController: new RunControllerService(),

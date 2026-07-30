@@ -67,6 +67,7 @@ export function createServiceAssemblyRuntimeBinding(
   return {
     executionApprovals: state.executionApprovals,
     pairing: state.pairing,
+    hooks: state.hooks,
     delegationProjection: state.delegationProjection,
     documents: state.documents,
     diagnostics: state.diagnostics,

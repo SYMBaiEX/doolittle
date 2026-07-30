@@ -17,7 +17,7 @@ import type { ExperienceMemoryService } from "./experience-memory-service";
 import type { FuzzyPatchService } from "./fuzzy-patch";
 import type { GatewayPairingProjection } from "./gateway-pairing";
 import type { GatewaySessionService } from "./gateway-session-service";
-import type { HooksService } from "./hooks-service";
+import type { HookProjectionService } from "./hook-projection-service";
 import type { LoggerService } from "./logger-service";
 import type { McpService } from "./mcp";
 import type { MediaService } from "./media";
@@ -50,7 +50,7 @@ export interface AppServices {
   skillsHub: SkillsHubService;
   sessions: SessionService;
   pairing: GatewayPairingProjection;
-  hooks: HooksService;
+  hooks: HookProjectionService;
   logger: LoggerService;
   gatewaySessions: GatewaySessionService;
   executionApprovals: ExecutionApprovalService;
