@@ -16,7 +16,6 @@ import { loadFoundationPlugins } from "./foundation";
 import { loadHotExecutionPlugins } from "./hot-execution";
 import { loadHotIdentityPlugins } from "./hot-identity";
 import { loadProviderPlugins } from "./providers";
-import { deduplicateNativePluginActions } from "./support";
 
 export interface NativePluginAssembly {
   catalog: NativePluginCatalog;
@@ -56,8 +55,6 @@ export async function buildNativePluginAssembly(
     ...execution,
     ...product,
   ];
-  deduplicateNativePluginActions(initial);
-
   const emptyDeferred = createEmptyDeferredPluginGroups();
 
   if (options.hotOnly) {
@@ -84,7 +81,6 @@ export async function buildNativePluginAssembly(
     ...deferredGroups.execution,
   ];
   const all = [...initial, ...deferred];
-  deduplicateNativePluginActions(all);
 
   return {
     catalog,
