@@ -93,11 +93,15 @@ export function createCodingAgentServiceClass(
     }
 
     inspectProject(targetPath?: string) {
-      return options.inspectProject(targetPath ?? options.workspaceRoot);
+      return options.inspectProject(targetPath ?? this.workspace.root());
     }
 
     findCodebases(query: string) {
       return options.findCodebases(query, this.workspace.root());
+    }
+
+    resolveProjectTarget(inputPath: string) {
+      return options.resolveProjectTarget(inputPath, this.workspace.root());
     }
 
     tasks() {
@@ -108,9 +112,10 @@ export function createCodingAgentServiceClass(
       taskDescription: string,
       contextOptions: CodingAgentContextOptions = {},
     ) {
+      const workspaceRoot = this.workspace.root();
       return buildCodingAgentContext({
         taskDescription,
-        workspaceRoot: options.workspaceRoot,
+        workspaceRoot,
         repositoryAvailable: this.repository.isRepository?.() ?? false,
         contextOptions,
       });

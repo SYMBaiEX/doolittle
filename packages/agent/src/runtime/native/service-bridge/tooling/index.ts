@@ -14,6 +14,7 @@ export {
 export {
   findNativeLocalCodebases,
   inspectNativeProject,
+  resolveNativeProjectTarget,
 } from "./projects";
 export {
   getNativeRepositoryDiff,

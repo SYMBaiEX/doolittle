@@ -5,8 +5,9 @@ import { createCodingAgentServiceClass } from "./service";
 
 describe("coding agent service", () => {
   it("owns workspace and repository inspection behind the Eliza service lifecycle", async () => {
+    let currentWorkspaceRoot = "/workspace";
     const workspace = {
-      root: vi.fn(() => "/workspace"),
+      root: vi.fn(() => currentWorkspaceRoot),
       summary: vi.fn((limit = 40) => `tree:${limit}`),
       read: vi.fn((path: string) => `read:${path}`),
       write: vi.fn((path: string, content: string) => `${path}:${content}`),
@@ -62,15 +63,19 @@ describe("coding agent service", () => {
         exactBasenameMatch: true,
       },
     ]);
+    const resolveProjectTarget = vi.fn((inputPath: string, root: string) => ({
+      path: `${root}/${inputPath}`,
+      kind: "directory" as const,
+    }));
 
     const CodingAgentService = createCodingAgentServiceClass({
-      workspaceRoot: "/workspace",
       workspace,
       repository,
       shell: { run: vi.fn() },
       delegation: { list: vi.fn(() => []) },
       inspectProject,
       findCodebases,
+      resolveProjectTarget,
     }) as ServiceClass;
     const service = (await CodingAgentService.start(
       {} as never,
@@ -89,6 +94,11 @@ describe("coding agent service", () => {
       repoStatus(): Promise<string>;
       inspectProject(path?: string): Promise<unknown>;
       findCodebases(query: string): Promise<unknown>;
+      resolveProjectTarget(path: string): unknown;
+      context(taskDescription: string): {
+        workingDirectory: string;
+        connector: { metadata?: Record<string, string> };
+      };
     };
 
     expect(CodingAgentService.serviceType).toBe(DOOLITTLE_CODING_AGENT_SERVICE);
@@ -116,5 +126,23 @@ describe("coding agent service", () => {
       },
     ]);
     expect(findCodebases).toHaveBeenCalledWith("app", "/workspace");
+
+    currentWorkspaceRoot = "/workspace/switched";
+    await expect(service.inspectProject()).resolves.toMatchObject({
+      path: "/workspace/switched",
+    });
+    expect(service.resolveProjectTarget("src")).toEqual({
+      path: "/workspace/switched/src",
+      kind: "directory",
+    });
+    expect(resolveProjectTarget).toHaveBeenCalledWith(
+      "src",
+      "/workspace/switched",
+    );
+    const context = service.context("Inspect this project");
+    expect(context.workingDirectory).toBe("/workspace/switched");
+    expect(context.connector.metadata?.workspaceRoot).toBe(
+      "/workspace/switched",
+    );
   });
 });

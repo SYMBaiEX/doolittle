@@ -1,4 +1,7 @@
 import type {
+  LocalCodebaseMatch,
+  LocalProjectInspection,
+  LocalProjectTarget,
   WorkspaceDirectoryResult,
   WorkspaceFileSearchInput,
   WorkspaceFileSearchResult,
@@ -69,41 +72,23 @@ export interface DelegationProjectionLike {
   list(): unknown[];
 }
 
-export interface CodingProjectInspection {
-  name: string;
-  path: string;
-  type: string;
-  packageName?: string;
-  packageManager?: string;
-  workspacePatterns: string[];
-  scripts: string[];
-  keyFolders: string[];
-  git: {
-    available: boolean;
-    status?: string;
-    recentCommit?: string;
-  };
-  topEntries: string[];
-  readmePreview?: string;
-}
-
 export type InspectLocalProject = (
   projectPath: string,
   options?: {
     topEntriesLimit?: number;
     readmeLines?: number;
   },
-) => Promise<CodingProjectInspection>;
-
-export interface LocalCodebaseMatch {
-  path: string;
-  exactBasenameMatch: boolean;
-}
+) => Promise<LocalProjectInspection>;
 
 export type FindLocalCodebases = (
   query: string,
   workspaceRoot: string,
 ) => Promise<LocalCodebaseMatch[]>;
+
+export type ResolveLocalProjectTarget = (
+  inputPath: string,
+  workspaceRoot: string,
+) => LocalProjectTarget | undefined;
 
 export interface CodingAgentContextOptions {
   sessionId?: string;
@@ -117,7 +102,6 @@ export interface CodingAgentContextOptions {
 }
 
 export interface CodingAgentPluginOptions {
-  workspaceRoot: string;
   workspace: Pick<
     WorkspaceServiceLike,
     | "root"
@@ -139,4 +123,5 @@ export interface CodingAgentPluginOptions {
   delegation: Pick<DelegationProjectionLike, "list">;
   inspectProject: InspectLocalProject;
   findCodebases: FindLocalCodebases;
+  resolveProjectTarget: ResolveLocalProjectTarget;
 }

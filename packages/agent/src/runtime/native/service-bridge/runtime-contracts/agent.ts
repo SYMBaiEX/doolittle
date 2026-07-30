@@ -243,13 +243,19 @@ export interface NativeCodingAgentService {
   repoDiff(): Promise<unknown>;
   repoLog(limit?: number): Promise<unknown>;
   run(command: string): Promise<unknown>;
-  inspectProject?(targetPath?: string): Promise<unknown> | unknown;
+  inspectProject(targetPath?: string): Promise<unknown> | unknown;
   findCodebases(query: string): Promise<
     Array<{
       path: string;
       exactBasenameMatch: boolean;
     }>
   >;
+  resolveProjectTarget(inputPath: string):
+    | {
+        path: string;
+        kind: "directory" | "file";
+      }
+    | undefined;
   tasks?(): unknown[];
   context?(
     taskDescription: string,

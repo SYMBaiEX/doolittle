@@ -10,6 +10,7 @@ import type { AppServices } from "../../../services";
 import {
   findLocalCodebases,
   inspectLocalProject,
+  resolveLocalProjectTarget,
 } from "../../../services/project-inspection";
 import type { EnvConfig } from "../../../types/runtime";
 
@@ -19,7 +20,6 @@ export async function loadHotExecutionPlugins(
 ): Promise<Plugin[]> {
   return [
     createCodingAgentPlugin({
-      workspaceRoot: services.workspace.root(),
       workspace: services.workspace,
       repository: {
         isRepository: () => services.repository.isRepository(),
@@ -33,6 +33,8 @@ export async function loadHotExecutionPlugins(
       inspectProject: (targetPath) => inspectLocalProject(targetPath),
       findCodebases: (query, workspaceRoot) =>
         findLocalCodebases(query, workspaceRoot),
+      resolveProjectTarget: (inputPath, workspaceRoot) =>
+        resolveLocalProjectTarget(inputPath, workspaceRoot),
       delegation: {
         list: () => services.delegationProjection.list(),
       },
