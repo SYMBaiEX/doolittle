@@ -45,14 +45,9 @@ function createContext() {
       skills: {
         list: () => [
           {
-            slug: "legacy-a",
-            description: "Legacy skill A",
-            source: "workspace",
-          },
-          {
-            slug: "legacy-b",
-            description: "Legacy skill B",
-            source: "workspace",
+            slug: "doctor-sdk",
+            description: "Diagnose through Eliza.",
+            source: "managed",
           },
         ],
       },

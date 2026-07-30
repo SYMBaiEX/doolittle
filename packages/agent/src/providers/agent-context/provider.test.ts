@@ -140,9 +140,9 @@ function createServices() {
     skills: {
       list: () => [
         {
-          slug: "terminal-run",
-          source: "workspace",
-          description: "Run terminal commands.",
+          slug: "sdk-release",
+          source: "managed",
+          description: "Ship through the official Eliza skill runtime.",
         },
       ],
     },
@@ -276,7 +276,7 @@ describe("agent context providers", () => {
     expect(operations.text).not.toContain("legacy-tool");
   });
 
-  it("renders the official Eliza skill inventory in workspace context", async () => {
+  it("renders the runtime-bound Eliza skill inventory in workspace context", async () => {
     const workspace = provider(
       createAgentContextProviders(createServices()),
       "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
@@ -291,7 +291,6 @@ describe("agent context providers", () => {
     expect(result.text).toContain(
       "sdk-release [managed]: Ship through the official Eliza skill runtime.",
     );
-    expect(result.text).not.toContain("terminal-run");
     expect(result.data?.skillsCount).toBe(1);
   });
 

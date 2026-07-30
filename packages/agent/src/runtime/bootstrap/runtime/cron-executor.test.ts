@@ -8,7 +8,7 @@ import type { EnvConfig } from "@/types/runtime";
 import { buildCronPrompt, createCronExecutor } from "./cron-executor";
 
 describe("createCronExecutor", () => {
-  it("builds automation guidance from the official Eliza skill inventory", () => {
+  it("builds automation guidance from the runtime-bound Eliza skill inventory", () => {
     const runtime = {
       getService: (name: string) =>
         name === "AGENT_SKILLS_SERVICE"
@@ -33,11 +33,11 @@ describe("createCronExecutor", () => {
         list: () => [
           {
             slug: "release",
-            title: "Legacy Release",
-            description: "Legacy local copy.",
-            path: "/workspace/release/SKILL.md",
-            content: "# Legacy guidance",
-            source: "workspace",
+            title: "Official Release",
+            description: "Release through Eliza.",
+            path: "/managed/release/SKILL.md",
+            content: "# Official release guidance",
+            source: "managed",
           },
         ],
       },
@@ -50,7 +50,6 @@ describe("createCronExecutor", () => {
 
     expect(prompt).toContain("## Skill: Official Release");
     expect(prompt).toContain("# Official release guidance");
-    expect(prompt).not.toContain("Legacy guidance");
   });
 
   it("executes webhook actions as bounded JSON POST requests", async () => {

@@ -45,13 +45,12 @@ function createContext() {
         }),
       },
       skills: {
-        list: () => [
-          {
-            slug: "legacy-local",
-            description: "Must not own diagnostics.",
-            source: "workspace",
-          },
-        ],
+        list: () =>
+          ["release", "review", "verify"].map((slug) => ({
+            slug,
+            description: `${slug} through Eliza`,
+            source: "managed",
+          })),
       },
       contextFiles: {
         list: () => ["a.md", "b.md"],
