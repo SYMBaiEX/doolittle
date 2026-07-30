@@ -453,8 +453,8 @@ tbody tr:hover {
 
 /* biome-ignore lint/style/noDescendingSpecificity: the chat-route chrome contract overrides the global density preset */
 .app-main--chat .chat-header {
-  min-height: 38px;
-  padding: 4px clamp(12px, 2.4vw, 22px);
+  min-height: 42px;
+  padding: 5px clamp(12px, 2.4vw, 22px);
   border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
@@ -477,6 +477,8 @@ tbody tr:hover {
 
 .chat-header-mainline.title-in-app-chrome {
   grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 30px;
+  gap: 8px;
 }
 
 .chat-header-mainline.title-in-app-chrome .chat-header-title-wrap {
@@ -513,6 +515,23 @@ tbody tr:hover {
   padding: 0 7px;
   gap: 5px;
   white-space: nowrap;
+}
+
+/* The window chrome already announces the current conversation and project.
+ * Keep this second line as the compact control strip rather than repeating
+ * those labels a second time. */
+.title-in-app-chrome .chat-meta-project {
+  min-width: 20px;
+  padding-right: 6px;
+  padding-left: 2px;
+}
+
+.title-in-app-chrome .chat-meta-workspace {
+  color: var(--text-soft);
+}
+
+.title-in-app-chrome .chat-model-route > span {
+  display: none;
 }
 
 /* biome-ignore lint/style/noDescendingSpecificity: route labels are scoped independently from earlier summary spans */
@@ -554,8 +573,8 @@ tbody tr:hover {
 }
 
 .chat-session-meta-pill {
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 7px;
   font-size: 9px;
   border-right: 1px solid var(--border);
 }

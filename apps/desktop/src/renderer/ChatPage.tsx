@@ -1750,7 +1750,12 @@ export function ChatPage({
                       }
                       type="button"
                     >
-                      <i aria-hidden="true" /> {activeProject.name}
+                      <i aria-hidden="true" />
+                      <span
+                        className={titleInAppChrome ? "sr-only" : undefined}
+                      >
+                        {activeProject.name}
+                      </span>
                     </button>
                   ) : activeProject ? (
                     <span
@@ -1768,7 +1773,12 @@ export function ChatPage({
                           : activeProject.name
                       }
                     >
-                      <i aria-hidden="true" /> {activeProject.name}
+                      <i aria-hidden="true" />
+                      <span
+                        className={titleInAppChrome ? "sr-only" : undefined}
+                      >
+                        {activeProject.name}
+                      </span>
                     </span>
                   ) : null}
                   <button
@@ -1798,9 +1808,11 @@ export function ChatPage({
                     title={workspacePath || "Open the current coding workspace"}
                     type="button"
                   >
-                    {workspacePath
-                      ? `Workspace · ${fileName(workspacePath)}`
-                      : "Open workspace"}
+                    {titleInAppChrome
+                      ? "Code"
+                      : workspacePath
+                        ? `Workspace · ${fileName(workspacePath)}`
+                        : "Open workspace"}
                   </button>
                   <span className="chat-session-meta-pill chat-meta-updated">
                     {selectedUpdatedAt
