@@ -14,21 +14,16 @@ export const buildIntegrationChecks: DiagnosticsCheckBuilder<
   return [
     {
       id: "integration.browser.native",
-      status: integrationControl.browser.source === "native" ? "pass" : "warn",
+      status: "pass",
       summary: "Native browser integration",
       detail:
-        integrationControl.browser.source === "native"
-          ? "Browser status is resolved through the native Eliza service bridge."
-          : "Browser status is still resolved through the product fallback service.",
+        "Browser status is resolved through the required native Eliza service bridge.",
     },
     {
       id: "integration.mcp.native",
-      status: integrationControl.mcp.source === "native" ? "pass" : "warn",
+      status: "pass",
       summary: "Native MCP integration",
-      detail:
-        integrationControl.mcp.source === "native"
-          ? `MCP status is resolved through the native Eliza service bridge with ${integrationControl.mcp.cachedTools.length} cached tool(s).`
-          : "MCP status is still resolved through the product fallback service.",
+      detail: `MCP status is resolved through the required native Eliza service bridge with ${integrationControl.mcp.cachedTools.length} cached tool(s).`,
     },
   ];
 };

@@ -21,11 +21,8 @@ export interface DiagnosticsExecutionControlLike {
 }
 
 export interface DiagnosticsIntegrationControlLike {
-  browser: {
-    source: string;
-  };
+  browser: object;
   mcp: {
-    source: string;
     cachedTools: unknown[];
   };
 }

@@ -50,8 +50,8 @@ describe("buildDiagnosticsExecutionChecks", () => {
       config,
       agentEventBridgeAttached: true,
       integrationControl: {
-        browser: { source: "native" },
-        mcp: { source: "product", cachedTools: [1, 2] },
+        browser: {},
+        mcp: { cachedTools: [1, 2] },
       },
     });
     expect(
@@ -61,7 +61,7 @@ describe("buildDiagnosticsExecutionChecks", () => {
     expect(
       withIntegration.find((check) => check.id === "integration.mcp.native")
         ?.status,
-    ).toBe("warn");
+    ).toBe("pass");
   });
 
   it("preserves backend and runtime bridge status handling", () => {
