@@ -1,13 +1,22 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { LinkedProviderName } from "@/runtime/linked-provider-accounts";
 
 type RuntimeSettingsReader = {
   getSetting: (key: string) => unknown;
+};
+
+export type TurnCommandHooks = {
+  runLocalShellCommand?: (params: {
+    command: string;
+    afterSuccessConnectProvider?: LinkedProviderName;
+  }) => Promise<string>;
 };
 
 type TurnRuntimeScope = {
   runtime: object;
   settings: ReadonlyMap<string, unknown>;
   personalityId?: string;
+  commandHooks?: TurnCommandHooks;
 };
 
 const turnRuntimeScope = new AsyncLocalStorage<TurnRuntimeScope>();
@@ -35,6 +44,18 @@ export function getScopedTurnPersonalityId(
 ): string | undefined {
   const scope = turnRuntimeScope.getStore();
   return scope?.runtime === runtime ? scope.personalityId : undefined;
+}
+
+/**
+ * Returns command-only hooks for the active SDK message turn. These hooks are
+ * request-scoped so the command action can preserve CLI-specific behavior
+ * without bypassing the Eliza shortcut and action lifecycle.
+ */
+export function getScopedTurnCommandHooks(
+  runtime: object,
+): TurnCommandHooks | undefined {
+  const scope = turnRuntimeScope.getStore();
+  return scope?.runtime === runtime ? scope.commandHooks : undefined;
 }
 
 function installScopedSettingReader(

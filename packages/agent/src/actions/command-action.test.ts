@@ -6,11 +6,23 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 
 const { executeSlashCommand } = vi.hoisted(() => ({
-  executeSlashCommand: vi.fn(async () => "Runtime is ready."),
+  executeSlashCommand: vi.fn(
+    async (
+      _input: unknown,
+      _context: unknown,
+      _hooks?: {
+        runLocalShellCommand?: (params: {
+          command: string;
+          afterSuccessConnectProvider?: "codex";
+        }) => Promise<string>;
+      },
+    ) => "Runtime is ready.",
+  ),
 }));
 
 vi.mock("@/runtime/chat", () => ({ executeSlashCommand }));
@@ -26,12 +38,21 @@ const config = {
   workspaceDir: "/workspace/project",
 } as EnvConfig;
 
-function message(text: string): Memory {
+function message(
+  text: string,
+  options?: { source?: string; sessionId?: string },
+): Memory {
   return {
     id: "00000000-0000-4000-8000-000000000001",
     entityId: "00000000-0000-4000-8000-000000000002",
     roomId: "00000000-0000-4000-8000-000000000003",
-    content: { text },
+    content: { text, source: options?.source },
+    metadata: options?.sessionId
+      ? {
+          sessionId: options.sessionId,
+          doolittle: { source: options.source },
+        }
+      : undefined,
     createdAt: Date.now(),
   } as Memory;
 }
@@ -85,10 +106,68 @@ describe("SDK command action", () => {
     expect(executeSlashCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "/status",
+        roomId: "00000000-0000-4000-8000-000000000003",
         source: "api",
       }),
       expect.objectContaining({ config, runtime }),
+      undefined,
     );
+  });
+
+  it("preserves source, session, and local login hooks inside the SDK action scope", async () => {
+    const services = {} as AppServices;
+    const action = createCommandAction(services, config);
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createCommandShortcut(config.workspaceDir));
+    const runtime = {
+      actions: [action],
+      shortcutRegistry,
+      getSetting: () => undefined,
+    } as unknown as IAgentRuntime & { getSetting: (key: string) => unknown };
+    const runLocalShellCommand = vi.fn(async () => "Authenticated Codex.");
+    executeSlashCommand.mockImplementationOnce(
+      async (_input, _context, hooks) => {
+        await hooks?.runLocalShellCommand?.({
+          command: "codex login",
+          afterSuccessConnectProvider: "codex",
+        });
+        return "Authenticated Codex.";
+      },
+    );
+
+    await runWithTurnRuntimeScope(
+      runtime,
+      {
+        settings: new Map(),
+        commandHooks: { runLocalShellCommand },
+      },
+      () =>
+        action.handler(
+          runtime,
+          message("/accounts login codex", {
+            source: "cli",
+            sessionId: "cli:account-login",
+          }),
+          undefined,
+          undefined,
+          vi.fn(async () => []),
+        ),
+    );
+
+    expect(executeSlashCommand).toHaveBeenCalledWith(
+      {
+        message: "/accounts login codex",
+        userId: "00000000-0000-4000-8000-000000000002",
+        roomId: "cli:account-login",
+        source: "cli",
+      },
+      expect.objectContaining({ config, runtime, services }),
+      expect.objectContaining({ runLocalShellCommand }),
+    );
+    expect(runLocalShellCommand).toHaveBeenCalledWith({
+      command: "codex login",
+      afterSuccessConnectProvider: "codex",
+    });
   });
 
   it("resolves explicit commands through Eliza's pre-LLM shortcut gate", async () => {

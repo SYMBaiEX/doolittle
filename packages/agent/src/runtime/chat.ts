@@ -8,6 +8,7 @@ import {
 } from "@/runtime/linked-provider-accounts";
 import { executeEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
+import type { TurnCommandHooks } from "@/runtime/turn-runtime-scope";
 import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
 import { resolveManagedChatAttachments } from "@/services/chat-attachments";
 import type {
@@ -26,7 +27,7 @@ export type AgentExecutionContext = Pick<
   gateway?: AppContext["gateway"];
 };
 
-export interface AgentTurnHooks {
+export interface AgentTurnHooks extends TurnCommandHooks {
   onResponseProgress?: (update: {
     chunk: string;
     response: string;
@@ -36,10 +37,6 @@ export interface AgentTurnHooks {
     kind: "context" | "skills" | "status";
     message: string;
   }) => void | Promise<void>;
-  runLocalShellCommand?: (params: {
-    command: string;
-    afterSuccessConnectProvider?: LinkedProviderName;
-  }) => Promise<string>;
   abortSignal?: AbortSignal;
 }
 

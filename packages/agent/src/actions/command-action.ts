@@ -8,6 +8,7 @@ import type {
 } from "@elizaos/core";
 import { executeSlashCommand } from "@/runtime/chat";
 import { getCommandCatalogEntries } from "@/runtime/command-catalog";
+import { getScopedTurnCommandHooks } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 
@@ -17,6 +18,27 @@ function messageText(message: Memory): string {
   return typeof message.content === "string"
     ? message.content
     : (message.content?.text ?? "");
+}
+
+function commandInput(message: Memory) {
+  const metadata = message.metadata as
+    | { sessionId?: unknown; doolittle?: { source?: unknown } }
+    | undefined;
+  const source =
+    typeof message.content !== "string" && message.content?.source
+      ? String(message.content.source)
+      : typeof metadata?.doolittle?.source === "string"
+        ? metadata.doolittle.source
+        : "api";
+  return {
+    message: messageText(message),
+    userId: String(message.entityId),
+    roomId:
+      typeof metadata?.sessionId === "string"
+        ? metadata.sessionId
+        : String(message.roomId),
+    source,
+  };
 }
 
 function explicitAlias(command: string): string | undefined {
@@ -87,13 +109,9 @@ export function createCommandAction(
       callback,
     ): Promise<ActionResult> => {
       const response = await executeSlashCommand(
-        {
-          message: messageText(message),
-          userId: String(message.entityId),
-          roomId: String(message.roomId),
-          source: "api",
-        },
+        commandInput(message),
         { config, services, runtime },
+        getScopedTurnCommandHooks(runtime),
       );
       if (!response) {
         const text = "The explicit command was not recognized.";

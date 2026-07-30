@@ -159,6 +159,9 @@ export async function runProviderModelTurn(
     {
       settings: runtimeSettings,
       personalityId: input.options?.personalityId,
+      commandHooks: {
+        runLocalShellCommand: input.options?.runLocalShellCommand,
+      },
     },
     async () => {
       let response = "";
