@@ -1,3 +1,4 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../../chat";
 import { handlePluginRuntimeIntrospectionCommand } from "./plugin";
@@ -7,7 +8,7 @@ function createContext() {
   return {
     runtime: {
       getService: (name: string) => {
-        if (name === "browser") {
+        if (name === DOOLITTLE_BROWSER_SERVICE) {
           return {
             status: async () => ({ ready: true }),
           };

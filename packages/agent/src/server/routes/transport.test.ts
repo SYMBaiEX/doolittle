@@ -1,3 +1,4 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleTransportRoutes } from "@/server/routes/transport";
@@ -41,7 +42,7 @@ function createContext(options?: { withGateway?: boolean }) {
     },
     runtime: {
       getService: (name: string) => {
-        if (name === "browser") {
+        if (name === DOOLITTLE_BROWSER_SERVICE) {
           return {
             status: async () => ({ ready: false }),
           };

@@ -180,7 +180,7 @@ describe("browser bridge helpers", () => {
       },
     } as unknown as RuntimeLike;
 
-    const expected = /Required Eliza service browser is unavailable/;
+    const expected = /Required Eliza service doolittle_browser is unavailable/;
     await expect(getBrowserStatus(runtime)).rejects.toThrow(expected);
     await expect(fetchBrowserPage(runtime, "https://a")).rejects.toThrow(
       expected,

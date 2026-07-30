@@ -1,4 +1,7 @@
-import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
@@ -158,7 +161,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             getEntityStore: () => ({}),
           };
         }
-        if (name === "browser") {
+        if (name === DOOLITTLE_BROWSER_SERVICE) {
           return {
             status: async () => ({ mode: "browser" }),
           };

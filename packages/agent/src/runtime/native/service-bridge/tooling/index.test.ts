@@ -252,40 +252,40 @@ describe("tooling bridge helpers", () => {
     } as unknown as RuntimeLike;
 
     await expect(runEffectiveShellCommand(runtime, "pwd")).rejects.toThrow(
-      /Required Eliza service shell/u,
+      /Required Eliza service doolittle_shell/u,
     );
     expect(() => getEffectiveMcpStatus(runtime)).toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     await expect(probeEffectiveMcp(runtime)).rejects.toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     await expect(discoverEffectiveMcpTools(runtime)).rejects.toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     expect(() => getEffectiveCachedMcpTools(runtime)).toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     expect(() => searchEffectiveCachedMcpTools(runtime, "tool")).toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     expect(() => describeEffectiveCachedMcpTools(runtime, 5)).toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     expect(() => describeEffectiveMcpTool(runtime, "tool-1")).toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     await expect(invokeEffectiveMcp(runtime, "ping")).rejects.toThrow(
-      /Required Eliza service mcp/u,
+      /Required Eliza service doolittle_mcp/u,
     );
     await expect(
       invokeEffectiveMcpTool(runtime, "tool-1", { ok: true }),
-    ).rejects.toThrow(/Required Eliza service mcp/u);
+    ).rejects.toThrow(/Required Eliza service doolittle_mcp/u);
     expect(() => getEffectiveShellHistory(runtime, 3)).toThrow(
-      /Required Eliza service shell/u,
+      /Required Eliza service doolittle_shell/u,
     );
     await expect(getEffectiveShellStatus(runtime)).rejects.toThrow(
-      /Required Eliza service shell/u,
+      /Required Eliza service doolittle_shell/u,
     );
     await expect(
       Promise.resolve().then(() =>

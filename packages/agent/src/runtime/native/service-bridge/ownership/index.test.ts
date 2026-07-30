@@ -1,3 +1,4 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
@@ -222,7 +223,7 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
         },
       }),
     },
-    browser: {
+    [DOOLITTLE_BROWSER_SERVICE]: {
       status: () => services.web.status(),
     },
     coding_agent: {

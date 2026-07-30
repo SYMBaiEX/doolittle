@@ -1,3 +1,4 @@
+import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { listTuiThemes, type TuiThemeName } from "@/runtime/theme-catalog";
@@ -44,7 +45,7 @@ function createContext(): AppContext {
       getSetting: () => "",
       setSetting: () => undefined,
       getService: (name: string) =>
-        name === "shell"
+        name === DOOLITTLE_SHELL_SERVICE
           ? {
               status: async () => ({ ready: true, backend: "native" }),
             }
