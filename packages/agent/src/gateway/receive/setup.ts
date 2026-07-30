@@ -67,7 +67,7 @@ export async function setupGatewayReceive(
   }
 
   const gatewayConfig = loadGatewayConfig(deps.context.config);
-  const auth = authorizeMessage(
+  const auth = await authorizeMessage(
     deps.message,
     gatewayConfig,
     deps.context.services.pairing,

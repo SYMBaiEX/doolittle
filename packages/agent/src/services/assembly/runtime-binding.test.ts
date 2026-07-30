@@ -38,6 +38,11 @@ describe("createRuntimeBinder", () => {
           calls.push(`approvals:${(runtime as unknown as { id: string }).id}`);
         },
       },
+      pairing: {
+        bindRuntime(runtime: IAgentRuntime) {
+          calls.push(`pairing:${(runtime as unknown as { id: string }).id}`);
+        },
+      },
       documents: documents as never,
       diagnostics: {
         peek() {
@@ -73,6 +78,7 @@ describe("createRuntimeBinder", () => {
 
     expect(calls).toEqual([
       "bound:runtime-1",
+      "pairing:runtime-1",
       "delegation:runtime-1",
       "approvals:runtime-1",
       "skills:runtime-1",

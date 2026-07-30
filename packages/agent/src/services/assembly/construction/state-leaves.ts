@@ -1,13 +1,14 @@
+import { join } from "node:path";
 import { ContextCompressionService } from "../../context-compression";
 import { ContextFilesService } from "../../context-files-service";
 import { DeliveryService } from "../../delivery-service";
 import { ExecutionApprovalService } from "../../execution-approval/service";
 import { FuzzyPatchService } from "../../fuzzy-patch";
+import { GatewayPairingProjection } from "../../gateway-pairing";
 import { GatewaySessionService } from "../../gateway-session-service";
 import { HooksService } from "../../hooks-service";
 import { createLazySlot } from "../../lazy-slot";
 import { MediaService } from "../../media";
-import { PairingService } from "../../pairing-service";
 import { PersonalityService } from "../../personality-service";
 import { TerminalService } from "../../terminal/service";
 import { TrajectoryService } from "../../trajectory/service";
@@ -30,7 +31,8 @@ export function createServiceConstructionLeaves(params: {
   core: Pick<ServiceConstructionCore, "sessions" | "runController">;
 }) {
   const { config, directories, bootstrap, core } = params;
-  const { settings, resolveModelContext, defaultModelConfig } = bootstrap;
+  const { settings, resolveModelContext, defaultModelConfig, gatewayConfig } =
+    bootstrap;
 
   return {
     contextFiles: createLazySlot(
@@ -76,7 +78,12 @@ export function createServiceConstructionLeaves(params: {
     executionApprovals: new ExecutionApprovalService(
       directories.gatewayApprovalDir,
     ),
-    pairing: new PairingService(directories.gatewayPairingDir),
+    pairing: new GatewayPairingProjection(
+      Object.keys(gatewayConfig.platforms) as Array<
+        keyof ServiceBootstrapState["gatewayConfig"]["platforms"]
+      >,
+      join(directories.gatewayPairingDir, "pairing.json"),
+    ),
     hooks: new HooksService(directories.hooksDir),
     personalities: new PersonalityService(config.dataDir),
     workspace: new WorkspaceService(() => config.workspaceDir),

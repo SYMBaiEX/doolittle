@@ -3,7 +3,7 @@ import {
   KNOWLEDGE_GRAPH_SERVICE,
   type KnowledgeGraphService,
 } from "@elizaos/agent/services/knowledge-graph/index";
-import type { MemoryStorageProvider } from "@elizaos/core";
+import type { MemoryStorageProvider, PairingService } from "@elizaos/core";
 import type {
   NativeActionPlanningService,
   NativeAgentOrchestratorService,
@@ -95,6 +95,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       DOOLITTLE_CODING_AGENT_SERVICE,
     ),
     approval: service<NativeApprovalService>(runtime, "approval"),
+    pairing: service<PairingService>(runtime, "pairing"),
     agentEvent,
     pluginManager: service<NativePluginManagerService>(
       runtime,

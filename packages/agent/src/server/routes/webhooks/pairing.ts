@@ -10,7 +10,9 @@ export async function handlePairingRoutes(
   if (request.method === "GET" && url.pathname === "/pairing/pending") {
     const platform = url.searchParams.get("platform") as PlatformName | null;
     return json({
-      requests: context.services.pairing.listPending(platform ?? undefined),
+      requests: await context.services.pairing.listPending(
+        platform ?? undefined,
+      ),
     });
   }
 
@@ -20,7 +22,10 @@ export async function handlePairingRoutes(
       code: string;
     };
     return json({
-      approved: context.services.pairing.approve(body.platform, body.code),
+      approved: await context.services.pairing.approve(
+        body.platform,
+        body.code,
+      ),
     });
   }
 
@@ -30,7 +35,7 @@ export async function handlePairingRoutes(
       code: string;
     };
     return json({
-      denied: context.services.pairing.deny(body.platform, body.code),
+      denied: await context.services.pairing.deny(body.platform, body.code),
     });
   }
 

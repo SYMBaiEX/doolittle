@@ -196,13 +196,17 @@ export async function handleControlPlaneCommand(
   }
 
   if (trimmed === "/pairing pending") {
-    return JSON.stringify(context.services.pairing.listPending(), null, 2);
+    return JSON.stringify(
+      await context.services.pairing.listPending(),
+      null,
+      2,
+    );
   }
 
   if (trimmed.startsWith("/pairing approve ")) {
     const [, , platform, code] = trimmed.split(/\s+/u);
     return JSON.stringify(
-      context.services.pairing.approve(platform as never, code),
+      await context.services.pairing.approve(platform as never, code),
       null,
       2,
     );
@@ -211,7 +215,7 @@ export async function handleControlPlaneCommand(
   if (trimmed.startsWith("/pairing deny ")) {
     const [, , platform, code] = trimmed.split(/\s+/u);
     return JSON.stringify(
-      context.services.pairing.deny(platform as never, code),
+      await context.services.pairing.deny(platform as never, code),
       null,
       2,
     );

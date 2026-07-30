@@ -57,7 +57,7 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
     { service: "repository", group: "customEliza" },
     { service: "gatewaySessions", group: "customEliza" },
     { service: "delivery", group: "customEliza" },
-    { service: "pairing", group: "customEliza" },
+    { service: "pairing", group: "officialBacked" },
     { service: "hooks", group: "customEliza" },
     { service: "contextFiles", group: "customEliza" },
     { service: "settings", group: "customEliza" },
@@ -69,6 +69,13 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
 
 export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] =
   [
+    {
+      capability: "pairing",
+      nativeKey: "pairing",
+      nativeService: "pairing",
+      productServices: ["pairing"],
+      fallback: "unavailable until the official Eliza PairingService loads",
+    },
     {
       capability: "memoryStorage",
       nativeKey: "memoryStorage",

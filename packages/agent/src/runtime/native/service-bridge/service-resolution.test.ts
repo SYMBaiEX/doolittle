@@ -12,6 +12,8 @@ describe("service-resolution helpers", () => {
     const runtime = {
       getService(name: string) {
         switch (name) {
+          case "pairing":
+            return { listPendingRequests: async () => [] };
           case "memoryStorage":
             return { storeLongTermMemory: async () => ({}) };
           case KNOWLEDGE_GRAPH_SERVICE:
@@ -39,6 +41,14 @@ describe("service-resolution helpers", () => {
     } as unknown as RuntimeLike;
 
     expect(getEffectiveServiceResolution(runtime)).toEqual([
+      {
+        capability: "pairing",
+        nativeService: "pairing",
+        source: "native",
+        ownership: "plugin",
+        fallback: "unavailable until the official Eliza PairingService loads",
+        available: true,
+      },
       {
         capability: "memoryStorage",
         nativeService: "memoryStorage",

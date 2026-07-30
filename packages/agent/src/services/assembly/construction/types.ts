@@ -13,13 +13,13 @@ import type { DocumentsService } from "../../documents-service";
 import type { ExecutionApprovalService } from "../../execution-approval/service";
 import type { ExperienceMemoryService } from "../../experience-memory-service";
 import type { FuzzyPatchService } from "../../fuzzy-patch";
+import type { GatewayPairingProjection } from "../../gateway-pairing";
 import type { GatewaySessionService } from "../../gateway-session-service";
 import type { HooksService } from "../../hooks-service";
 import type { LazySlot } from "../../lazy-slot";
 import type { LoggerService } from "../../logger-service";
 import type { McpService } from "../../mcp";
 import type { MediaService } from "../../media";
-import type { PairingService } from "../../pairing-service";
 import type { PersonalityService } from "../../personality-service";
 import type { RepositoryService } from "../../repository-service";
 import type { ReviewRecordService } from "../../review-record";
@@ -65,7 +65,7 @@ export interface ServiceAssemblyEager {
   nativeOwnership: NativeOwnershipCache;
   memory: ExperienceMemoryService;
   sessions: SessionService;
-  pairing: PairingService;
+  pairing: GatewayPairingProjection;
   hooks: HooksService;
   logger: LoggerService;
   gatewaySessions: GatewaySessionService;
@@ -108,6 +108,7 @@ export interface ServiceAssemblyLazy {
 
 export interface ServiceRuntimeBindingDependencies {
   executionApprovals: ExecutionApprovalService;
+  pairing: GatewayPairingProjection;
   delegationProjection: DelegationProjectionService;
   documents: LazySlot<DocumentsService>;
   diagnostics: ReturnType<typeof createDiagnosticsServiceSlot>;
@@ -173,7 +174,7 @@ export interface ServiceConstructionState {
   delivery: DeliveryService;
   gatewaySessions: GatewaySessionService;
   executionApprovals: ExecutionApprovalService;
-  pairing: PairingService;
+  pairing: GatewayPairingProjection;
   hooks: HooksService;
   personalities: PersonalityService;
   workspace: WorkspaceService;

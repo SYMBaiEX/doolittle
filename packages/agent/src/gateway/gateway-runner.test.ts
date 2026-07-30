@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 import { loadGatewayConfig } from "@/config/gateway";
 import type { AppContext } from "@/runtime/bootstrap";
 import { DeliveryService } from "@/services/delivery-service";
+import { GatewayPairingProjection } from "@/services/gateway-pairing";
 import { GatewaySessionService } from "@/services/gateway-session-service";
 import { HooksService } from "@/services/hooks-service";
-import { PairingService } from "@/services/pairing-service";
 import { RunControllerService } from "@/services/run-controller-service";
 import { SessionService } from "@/services/session/service";
 import { UserProfileService } from "@/services/user-profile/service";
@@ -35,7 +35,11 @@ describe("GatewayRunner", () => {
       config,
       services: {
         gatewayConfig,
-        pairing: new PairingService(join(root, "pairing")),
+        pairing: new GatewayPairingProjection(
+          Object.keys(gatewayConfig.platforms) as Array<
+            keyof typeof gatewayConfig.platforms
+          >,
+        ),
         gatewaySessions: new GatewaySessionService(
           join(root, "gateway-sessions"),
         ),

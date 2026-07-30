@@ -3,12 +3,14 @@ import type { DelegationProjectionService } from "../delegation/projection";
 import type { DiagnosticsService } from "../diagnostics/service";
 import type { DocumentsService } from "../documents-service";
 import type { ExecutionApprovalService } from "../execution-approval/service";
+import type { GatewayPairingProjection } from "../gateway-pairing";
 import type { LazySlot } from "../lazy-slot";
 import type { OperatorService } from "../operator/service";
 import type { SkillsService } from "../skills/service";
 
 export interface RuntimeBindingDependencies {
   executionApprovals: Pick<ExecutionApprovalService, "bindRuntime">;
+  pairing: Pick<GatewayPairingProjection, "bindRuntime">;
   delegationProjection: Pick<DelegationProjectionService, "bindRuntime">;
   documents: LazySlot<DocumentsService>;
   diagnostics: LazySlot<DiagnosticsService>;
@@ -23,6 +25,7 @@ export function createRuntimeBinder(
 ): (nextRuntime: IAgentRuntime) => void {
   return (nextRuntime: IAgentRuntime) => {
     dependencies.setBoundRuntime?.(nextRuntime);
+    dependencies.pairing.bindRuntime(nextRuntime);
     dependencies.delegationProjection.bindRuntime(nextRuntime);
     dependencies.executionApprovals.bindRuntime(nextRuntime);
     dependencies.skills.get().bindRuntime(nextRuntime);

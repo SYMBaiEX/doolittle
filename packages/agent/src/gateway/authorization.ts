@@ -1,11 +1,11 @@
-import type { PairingService } from "@/services/pairing-service";
+import type { GatewayPairingProjection } from "@/services/gateway-pairing";
 import type { GatewayConfig, IncomingPlatformMessage } from "@/types/gateway";
 
-export function authorizeMessage(
+export async function authorizeMessage(
   message: IncomingPlatformMessage,
   gatewayConfig: GatewayConfig,
-  pairing: PairingService,
-): { allowed: boolean; reason?: string; pairingCode?: string } {
+  pairing: GatewayPairingProjection,
+): Promise<{ allowed: boolean; reason?: string; pairingCode?: string }> {
   const platformConfig = gatewayConfig.platforms[message.platform];
   if (!platformConfig?.enabled) {
     return {
@@ -18,10 +18,7 @@ export function authorizeMessage(
     return { allowed: true };
   }
 
-  if (
-    platformConfig.allowedUserIds.includes(message.userId) ||
-    pairing.isAllowed(message.platform, message.userId)
-  ) {
+  if (platformConfig.allowedUserIds.includes(message.userId)) {
     return { allowed: true };
   }
 
@@ -36,10 +33,17 @@ export function authorizeMessage(
     };
   }
 
-  const request = pairing.create(message.platform, message.userId);
+  const request = await pairing.checkOrRequest(
+    message.platform,
+    message.userId,
+    message.metadata,
+  );
+  if (request.allowed) {
+    return { allowed: true };
+  }
   return {
     allowed: false,
     reason: "User must complete pairing approval.",
-    pairingCode: request.code,
+    pairingCode: request.pairingCode,
   };
 }

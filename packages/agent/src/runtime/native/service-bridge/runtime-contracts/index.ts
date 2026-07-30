@@ -1,7 +1,7 @@
 import type { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
 import type { KnowledgeGraphService } from "@elizaos/agent/services/knowledge-graph/index";
 
-import type { MemoryStorageProvider } from "@elizaos/core";
+import type { MemoryStorageProvider, PairingService } from "@elizaos/core";
 import type {
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
@@ -57,6 +57,7 @@ export type NativeServices = {
   agentOrchestrator: NativeAgentOrchestratorService | undefined;
   codingAgent: NativeCodingAgentService | undefined;
   approval: NativeApprovalService | undefined;
+  pairing: PairingService | undefined;
   agentEvent: ReturnType<typeof getAgentEventService> | null;
   pluginManager: NativePluginManagerService | undefined;
   toolPolicy: NativeToolPolicyService | undefined;
