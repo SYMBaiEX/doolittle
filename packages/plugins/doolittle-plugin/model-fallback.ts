@@ -7,9 +7,8 @@ import {
   type TextGenerationModelType,
 } from "@elizaos/core";
 import { resolveModelPromptText } from "@elizaos/provider-transport";
+import { resolveSelectedModelProviderPlugin } from "./model-router";
 import { readRuntimeModelSettings } from "./runtime-settings";
-
-export const OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY = 1_000;
 
 const DEFAULT_OFFLINE_EMBEDDING_DIMENSIONS = 768;
 const OLLAMA_PREFLIGHT_TIMEOUT_MS = 750;
@@ -81,7 +80,9 @@ export function createOfflineBootstrapTextModel(
     runtime: IAgentRuntime,
     params: GenerateTextParams,
   ): Promise<string> => {
-    const provider = readRuntimeModelSettings(runtime)?.provider?.trim();
+    const selectedProvider =
+      readRuntimeModelSettings(runtime)?.provider?.trim();
+    const provider = resolveSelectedModelProviderPlugin(selectedProvider);
     const promptText = resolveModelPromptText(params);
 
     if (provider && (await selectedOllamaIsReachable(runtime))) {
@@ -96,8 +97,8 @@ export function createOfflineBootstrapTextModel(
 
     return [
       "Doolittle's local runtime is ready, but its model provider is unavailable.",
-      provider
-        ? `Reconnect ${provider} or choose another provider in Settings to continue.`
+      selectedProvider
+        ? `Reconnect ${selectedProvider} or choose another provider in Settings to continue.`
         : "Choose a model provider in Settings to continue.",
       "",
       "Your message is still here:",
@@ -168,7 +169,9 @@ export function createOfflineBootstrapEmbeddingModel(config: EnvConfig) {
     runtime: IAgentRuntime,
     params: TextEmbeddingParams | string | null,
   ): Promise<number[]> => {
-    const provider = readRuntimeModelSettings(runtime)?.provider?.trim();
+    const provider = resolveSelectedModelProviderPlugin(
+      readRuntimeModelSettings(runtime)?.provider,
+    );
     if (provider) {
       try {
         return await runtime.useModel(

@@ -13,6 +13,10 @@ export function readRuntimeModelSettings(
     return undefined;
   }
 
-  const runtimeSettings = JSON.parse(runtimeSettingsRaw) as RuntimeSettings;
-  return runtimeSettings.model;
+  try {
+    const runtimeSettings = JSON.parse(runtimeSettingsRaw) as RuntimeSettings;
+    return runtimeSettings.model;
+  } catch {
+    return undefined;
+  }
 }

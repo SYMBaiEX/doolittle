@@ -11,7 +11,7 @@ import {
 } from "@doolittle/contracts";
 import { ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
-import { OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY } from "./model-fallback";
+import { DOOLITTLE_MODEL_ROUTER_PRIORITY } from "./model-router";
 import { createDoolittlePlugin } from "./plugin";
 
 function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
@@ -26,8 +26,8 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
   } as EnvConfig;
 }
 
-describe("createDoolittlePlugin offline bootstrap", () => {
-  it("registers high-priority embedding and text guards only in offline bootstrap mode", () => {
+describe("createDoolittlePlugin model ownership", () => {
+  it("registers native text routing online and guarded models during offline bootstrap", () => {
     const offlinePlugin = createDoolittlePlugin({
       services: {} as never,
       config: createConfig({ offlineBootstrapMode: true }),
@@ -53,11 +53,11 @@ describe("createDoolittlePlugin offline bootstrap", () => {
       ModelType.TEXT_COMPLETION,
     ]) {
       expect(offlinePlugin.models?.[modelType]).toBeTypeOf("function");
-      expect(onlinePlugin.models?.[modelType]).toBeUndefined();
+      expect(onlinePlugin.models?.[modelType]).toBeTypeOf("function");
     }
-    expect(offlinePlugin.priority).toBe(OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY);
+    expect(offlinePlugin.priority).toBe(DOOLITTLE_MODEL_ROUTER_PRIORITY);
     expect(onlinePlugin.models?.[ModelType.TEXT_EMBEDDING]).toBeUndefined();
-    expect(onlinePlugin.priority).toBeUndefined();
+    expect(onlinePlugin.priority).toBe(DOOLITTLE_MODEL_ROUTER_PRIORITY);
   });
 
   it("registers web and command routing through Eliza actions and shortcuts", () => {

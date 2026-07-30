@@ -46,6 +46,22 @@ describe("createOfflineBootstrapTextModel", () => {
     expect(result).toBe("provider response");
   });
 
+  it("resolves linked-account providers to their registered plugin identity", async () => {
+    const model = createOfflineBootstrapTextModel(ModelType.TEXT_LARGE);
+    const runtime = {
+      getSetting: () => JSON.stringify({ model: { provider: "claude-code" } }),
+      useModel: async (
+        _modelType: string,
+        _params: unknown,
+        provider: string,
+      ) => provider,
+    } as unknown as IAgentRuntime;
+
+    await expect(model(runtime, { prompt: "hello" })).resolves.toBe(
+      "@elizaos/plugin-claude-code",
+    );
+  });
+
   it("returns an actionable local response when the provider is unreachable", async () => {
     const model = createOfflineBootstrapTextModel(ModelType.TEXT_SMALL);
     const runtime = {

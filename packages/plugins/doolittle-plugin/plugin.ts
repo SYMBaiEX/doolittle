@@ -4,8 +4,11 @@ import { createDoolittlePluginSurface } from "./assembly";
 import {
   createOfflineBootstrapEmbeddingModel,
   createOfflineBootstrapTextModel,
-  OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY,
 } from "./model-fallback";
+import {
+  createSelectedProviderTextModels,
+  DOOLITTLE_MODEL_ROUTER_PRIORITY,
+} from "./model-router";
 import type { DoolittlePluginDependencies } from "./types";
 
 export function createDoolittlePlugin({
@@ -21,8 +24,10 @@ export function createDoolittlePlugin({
         createOfflineBootstrapTextModel(modelType)(runtime, params),
       ),
     };
-    plugin.priority = OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY;
+  } else {
+    plugin.models = createSelectedProviderTextModels();
   }
+  plugin.priority = DOOLITTLE_MODEL_ROUTER_PRIORITY;
 
   return plugin;
 }

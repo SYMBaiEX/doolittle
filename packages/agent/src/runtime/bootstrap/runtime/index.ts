@@ -3,10 +3,6 @@ export {
   disposeRuntime,
   initializeElizaRuntime,
 } from "./initialization";
-export {
-  installDynamicModelProviderRouting,
-  resolveModelProviderPlugin,
-} from "./model-provider-routing";
 export { finalizeCoreRuntimeServices } from "./post-initialize-services";
 export {
   buildProviderAuthFailureReply,
