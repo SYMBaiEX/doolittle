@@ -23,11 +23,6 @@ import type {
   CreateProjectInput,
   UpdateProjectInput,
 } from "../projects/store";
-import type {
-  AdvancedLongTermMemory,
-  AdvancedLongTermMemoryCategory,
-  AdvancedSessionSummary,
-} from "./types";
 
 export interface SessionServiceApi {
   storeMessage(message: StoredMessage): void;
@@ -81,54 +76,4 @@ export interface SessionServiceApi {
   removeProjectResource(projectId: string, resourceId: string): boolean;
   assignSessionProject(sessionId: string, projectId?: string): boolean;
   projectIdForSession(sessionId: string): string | undefined;
-  storeLongTermMemory(
-    memory: Omit<
-      AdvancedLongTermMemory,
-      "id" | "createdAt" | "updatedAt" | "accessCount"
-    >,
-  ): Promise<AdvancedLongTermMemory>;
-  getLongTermMemories(
-    agentId: string,
-    entityId: string,
-    opts?: {
-      category?: AdvancedLongTermMemoryCategory;
-      limit?: number;
-    },
-  ): Promise<AdvancedLongTermMemory[]>;
-  updateLongTermMemory(
-    id: string,
-    agentId: string,
-    entityId: string,
-    updates: Partial<
-      Omit<AdvancedLongTermMemory, "id" | "agentId" | "entityId" | "createdAt">
-    >,
-  ): Promise<void>;
-  deleteLongTermMemory(
-    id: string,
-    agentId: string,
-    entityId: string,
-  ): Promise<void>;
-  storeSessionSummary(
-    summary: Omit<AdvancedSessionSummary, "id" | "createdAt" | "updatedAt">,
-  ): Promise<AdvancedSessionSummary>;
-  getCurrentSessionSummary(
-    agentId: string,
-    roomId: string,
-  ): Promise<AdvancedSessionSummary | null>;
-  updateSessionSummary(
-    id: string,
-    agentId: string,
-    roomId: string,
-    updates: Partial<
-      Omit<
-        AdvancedSessionSummary,
-        "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
-      >
-    >,
-  ): Promise<void>;
-  getSessionSummaries(
-    agentId: string,
-    roomId: string,
-    limit?: number,
-  ): Promise<AdvancedSessionSummary[]>;
 }

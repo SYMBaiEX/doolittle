@@ -15,7 +15,10 @@ const agentId = "00000000-0000-4000-8000-000000000001" as UUID;
 const entityId = "00000000-0000-4000-8000-000000000002" as UUID;
 
 async function createProvider(root: string): Promise<MemoryStorageProvider> {
-  const ServiceClass = createMemoryStorageService(new SessionService(root));
+  const ServiceClass = createMemoryStorageService(
+    new SessionService(root),
+    root,
+  );
   return (await ServiceClass.start({
     agentId,
   } as IAgentRuntime)) as unknown as MemoryStorageProvider;

@@ -9,30 +9,33 @@ import {
   type SessionSummary,
   type UUID,
 } from "@elizaos/core";
+import { ElizaMemoryStorageStore } from "./memory-storage/store";
 
 /**
- * Exposes Doolittle's durable session projection through ElizaOS's official
- * advanced-memory service contract.
+ * Implements ElizaOS's official advanced-memory storage contract.
  *
- * The service is registered as part of the Doolittle plugin so AgentRuntime
- * owns its complete lifecycle. Product code must not inject service instances
- * into runtime internals.
+ * AgentRuntime owns the store lifecycle. SessionService remains only the
+ * product query projection used by searchSessions.
  */
-export function createMemoryStorageService(sessions: AppServices["sessions"]) {
+export function createMemoryStorageService(
+  sessions: AppServices["sessions"],
+  dataDir: string,
+) {
   class DoolittleMemoryStorageService
     extends ElizaService
     implements MemoryStorageProvider
   {
     static serviceType = "memoryStorage";
+    private readonly store = new ElizaMemoryStorageStore(dataDir);
     capabilityDescription =
-      "Provides advanced memory storage backed by Doolittle local state.";
+      "Provides Eliza advanced memory storage backed by local SQLite state.";
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
       return new DoolittleMemoryStorageService(runtime);
     }
 
     async stop(): Promise<void> {
-      return;
+      this.store.close();
     }
 
     storeLongTermMemory(
@@ -41,7 +44,7 @@ export function createMemoryStorageService(sessions: AppServices["sessions"]) {
         "id" | "createdAt" | "updatedAt" | "accessCount"
       >,
     ) {
-      return sessions.storeLongTermMemory(memory);
+      return this.store.storeLongTermMemory(memory);
     }
 
     getLongTermMemories(
@@ -52,7 +55,7 @@ export function createMemoryStorageService(sessions: AppServices["sessions"]) {
         limit?: number;
       },
     ) {
-      return sessions.getLongTermMemories(agentId, entityId, opts);
+      return this.store.getLongTermMemories(agentId, entityId, opts);
     }
 
     updateLongTermMemory(
@@ -63,21 +66,21 @@ export function createMemoryStorageService(sessions: AppServices["sessions"]) {
         Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">
       >,
     ) {
-      return sessions.updateLongTermMemory(id, agentId, entityId, updates);
+      return this.store.updateLongTermMemory(id, agentId, entityId, updates);
     }
 
     deleteLongTermMemory(id: UUID, agentId: UUID, entityId: UUID) {
-      return sessions.deleteLongTermMemory(id, agentId, entityId);
+      return this.store.deleteLongTermMemory(id, agentId, entityId);
     }
 
     storeSessionSummary(
       summary: Omit<SessionSummary, "id" | "createdAt" | "updatedAt">,
     ) {
-      return sessions.storeSessionSummary(summary);
+      return this.store.storeSessionSummary(summary);
     }
 
     getCurrentSessionSummary(agentId: UUID, roomId: UUID) {
-      return sessions.getCurrentSessionSummary(agentId, roomId);
+      return this.store.getCurrentSessionSummary(agentId, roomId);
     }
 
     updateSessionSummary(
@@ -91,11 +94,11 @@ export function createMemoryStorageService(sessions: AppServices["sessions"]) {
         >
       >,
     ) {
-      return sessions.updateSessionSummary(id, agentId, roomId, updates);
+      return this.store.updateSessionSummary(id, agentId, roomId, updates);
     }
 
     getSessionSummaries(agentId: UUID, roomId: UUID, limit?: number) {
-      return sessions.getSessionSummaries(agentId, roomId, limit);
+      return this.store.getSessionSummaries(agentId, roomId, limit);
     }
 
     searchSessions(query: string, limit: number) {

@@ -68,7 +68,10 @@ export function createDoolittlePluginSurface({
   });
   const AwarenessRuntimeService = createAwarenessRuntimeService(services);
   const BrowserRuntimeService = createBrowserRuntimeService(services);
-  const MemoryStorageService = createMemoryStorageService(services.sessions);
+  const MemoryStorageService = createMemoryStorageService(
+    services.sessions,
+    config.dataDir,
+  );
   const McpRuntimeService = createMcpRuntimeService(services);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
   const ShellRuntimeService = createShellRuntimeService(services);

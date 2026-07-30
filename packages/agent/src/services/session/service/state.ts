@@ -1,6 +1,5 @@
 import type { SessionTransferService } from "../../session-transfer";
 import type { ProjectStore } from "../projects/store";
-import type { SessionAdvancedMemoryOperations } from "./advanced-memory";
 import type { SessionService } from "./index";
 import type { SessionReadOperations } from "./read";
 import type { SessionSummaryOperations } from "./summary";
@@ -10,7 +9,6 @@ export interface SessionServiceState {
   writes: SessionWriteOperations;
   reads: SessionReadOperations;
   summaries: SessionSummaryOperations;
-  advancedMemory: SessionAdvancedMemoryOperations;
   projects: ProjectStore;
   transfers: SessionTransferService;
 }

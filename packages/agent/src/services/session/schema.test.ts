@@ -9,7 +9,7 @@ describe("session/schema", () => {
 
     const tables = db
       .query(
-        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('messages', 'message_origins', 'session_metadata', 'session_lineage', 'session_imports', 'session_summaries', 'projects', 'project_resources', 'session_projects') ORDER BY name`,
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('messages', 'message_origins', 'session_metadata', 'session_lineage', 'session_imports', 'projects', 'project_resources', 'session_projects') ORDER BY name`,
       )
       .all() as Array<{ name: string }>;
 
@@ -22,7 +22,6 @@ describe("session/schema", () => {
       "session_lineage",
       "session_metadata",
       "session_projects",
-      "session_summaries",
     ]);
     expect(
       (
@@ -31,6 +30,15 @@ describe("session/schema", () => {
         }>
       ).some((column) => column.name === "attachments_json"),
     ).toBe(true);
+    expect(
+      db
+        .query(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'table'
+             AND name IN ('long_term_memories', 'session_summaries')`,
+        )
+        .all(),
+    ).toEqual([]);
   });
 
   it("adds immutable fork lineage tables to a legacy database idempotently", () => {

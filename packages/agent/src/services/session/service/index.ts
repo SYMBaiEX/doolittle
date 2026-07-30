@@ -1,4 +1,3 @@
-import { sessionServiceAdvancedMemoryMethods } from "./advanced-memory-methods";
 import type { SessionServiceApi } from "./api";
 import { createSessionServiceState } from "./composition";
 import { sessionServiceProjectMethods } from "./project-methods";
@@ -15,13 +14,6 @@ export {
   type SessionArchivePreview,
   SessionTransferError,
 } from "../../session-transfer";
-export type {
-  AdvancedLongTermMemory,
-  AdvancedLongTermMemoryCategory,
-  AdvancedMemoryJsonPrimitive,
-  AdvancedMemoryJsonValue,
-  AdvancedSessionSummary,
-} from "./types";
 export { SessionForkError } from "./write";
 
 /**
@@ -66,14 +58,6 @@ export class SessionService {
   declare removeProjectResource: SessionServiceApi["removeProjectResource"];
   declare assignSessionProject: SessionServiceApi["assignSessionProject"];
   declare projectIdForSession: SessionServiceApi["projectIdForSession"];
-  declare storeLongTermMemory: SessionServiceApi["storeLongTermMemory"];
-  declare getLongTermMemories: SessionServiceApi["getLongTermMemories"];
-  declare updateLongTermMemory: SessionServiceApi["updateLongTermMemory"];
-  declare deleteLongTermMemory: SessionServiceApi["deleteLongTermMemory"];
-  declare storeSessionSummary: SessionServiceApi["storeSessionSummary"];
-  declare getCurrentSessionSummary: SessionServiceApi["getCurrentSessionSummary"];
-  declare updateSessionSummary: SessionServiceApi["updateSessionSummary"];
-  declare getSessionSummaries: SessionServiceApi["getSessionSummaries"];
 
   constructor(baseDir: string) {
     setSessionServiceState(this, createSessionServiceState(baseDir));
@@ -85,7 +69,6 @@ Object.assign(
   sessionServiceWriteMethods,
   sessionServiceReadMethods,
   sessionServiceSummaryMethods,
-  sessionServiceAdvancedMemoryMethods,
   sessionServiceProjectMethods,
   sessionServiceTransferMethods,
 );

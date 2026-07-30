@@ -115,47 +115,6 @@ export function migrateSessionDatabase(db: SessionDatabase): void {
     CREATE INDEX IF NOT EXISTS idx_session_imports_source
       ON session_imports (source_application, source_session_id, imported_at DESC);
 
-    CREATE TABLE IF NOT EXISTS long_term_memories (
-      id TEXT PRIMARY KEY,
-      agent_id TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      category TEXT NOT NULL,
-      content TEXT NOT NULL,
-      metadata TEXT,
-      embedding TEXT,
-      confidence REAL,
-      source TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      last_accessed_at TEXT,
-      access_count INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_long_term_memories_agent_entity
-      ON long_term_memories (agent_id, entity_id, created_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_long_term_memories_agent_entity_category
-      ON long_term_memories (agent_id, entity_id, category, created_at DESC);
-
-    CREATE TABLE IF NOT EXISTS session_summaries (
-      id TEXT PRIMARY KEY,
-      agent_id TEXT NOT NULL,
-      room_id TEXT NOT NULL,
-      entity_id TEXT,
-      summary TEXT NOT NULL,
-      message_count INTEGER NOT NULL,
-      last_message_offset INTEGER NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      topics TEXT,
-      metadata TEXT,
-      embedding TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_session_summaries_agent_room
-      ON session_summaries (agent_id, room_id, end_time DESC, updated_at DESC);
   `);
 
   const messageColumns = db
