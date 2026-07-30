@@ -163,9 +163,10 @@ export class DelegationService {
 
   private subscribeToTask(taskId: string): void {
     if (this.taskSubscriptions.has(taskId) || !this.runtime) return;
-    const service = this.runtime.getService?.(
-      ORCHESTRATOR_TASK_SERVICE,
-    ) as NativeAgentOrchestratorService | null | undefined;
+    const service = this.runtime.getService?.(ORCHESTRATOR_TASK_SERVICE) as
+      | NativeAgentOrchestratorService
+      | null
+      | undefined;
     const unsubscribe = service?.subscribeTaskChanges?.(taskId, () => {
       void this.refreshTask(taskId).catch(() => undefined);
     });
@@ -182,11 +183,7 @@ export class DelegationService {
       const { getEffectiveDelegationTask } = await import(
         "@/runtime/native/service-bridge/delegation"
       );
-      const task = await getEffectiveDelegationTask(
-        this.runtime,
-        undefined,
-        taskId,
-      );
+      const task = await getEffectiveDelegationTask(this.runtime, taskId);
       if (task) this.upsertProjection(task);
     })().finally(() => {
       this.taskRefreshes.delete(taskId);

@@ -62,11 +62,7 @@ describe("official delegation service bridge", () => {
       }),
     ]);
     await expect(
-      getEffectiveDelegationTask(
-        runtimeWith(service) as never,
-        undefined,
-        "task-1",
-      ),
+      getEffectiveDelegationTask(runtimeWith(service) as never, "task-1"),
     ).resolves.toMatchObject({ id: "task-1", status: "running" });
   });
 
@@ -106,7 +102,7 @@ describe("official delegation service bridge", () => {
 
   it("returns a compatibility unavailable state for manual supervision", async () => {
     await expect(
-      superviseEffectiveDelegationQueue(runtimeWith({}) as never, undefined),
+      superviseEffectiveDelegationQueue(runtimeWith({}) as never),
     ).resolves.toEqual({
       available: false,
       delegated: true,

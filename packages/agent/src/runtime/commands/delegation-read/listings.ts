@@ -22,10 +22,7 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     trimmed.startsWith("/delegate list ")
   ) {
     const filters = parseDelegationReadFilter(trimmed, "/delegate list");
-    const nativeTasks = await getEffectiveDelegationTasks(
-      context.runtime,
-      context.services,
-    );
+    const nativeTasks = await getEffectiveDelegationTasks(context.runtime);
     if (
       !filters.group &&
       !filters.profile &&
@@ -62,14 +59,8 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
   if (trimmed === "/delegate overview") {
     return JSON.stringify(
       {
-        local: await getEffectiveDelegationOverview(
-          context.runtime,
-          context.services,
-        ),
-        native: await getEffectiveDelegationQueue(
-          context.runtime,
-          context.services,
-        ),
+        local: await getEffectiveDelegationOverview(context.runtime),
+        native: await getEffectiveDelegationQueue(context.runtime),
       },
       null,
       2,
@@ -77,17 +68,12 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
   }
 
   if (trimmed === "/delegate queue" || trimmed.startsWith("/delegate queue ")) {
-    const nativeQueue = await getEffectiveDelegationQueue(
-      context.runtime,
-      context.services,
-    );
+    const nativeQueue = await getEffectiveDelegationQueue(context.runtime);
     if (trimmed === "/delegate queue" && nativeQueue) {
       return JSON.stringify(nativeQueue, null, 2);
     }
     const filters = parseDelegationReadFilter(trimmed, "/delegate queue");
-    const tasks = (
-      await getEffectiveDelegationTasks(context.runtime, context.services)
-    )
+    const tasks = (await getEffectiveDelegationTasks(context.runtime))
       .filter(
         (task) =>
           task.status === "pending" &&
@@ -117,9 +103,9 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     if (!group) {
       return "Usage: /delegate group <group-name>";
     }
-    const tasks = (
-      await getEffectiveDelegationTasks(context.runtime, context.services)
-    ).filter((task) => task.group === group);
+    const tasks = (await getEffectiveDelegationTasks(context.runtime)).filter(
+      (task) => task.group === group,
+    );
     return tasks.length
       ? tasks.map((task) => formatDelegationGroupTask(task)).join("\n\n")
       : `No delegation tasks found for group ${group}.`;
@@ -130,9 +116,9 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
     if (!label) {
       return "Usage: /delegate label <label>";
     }
-    const tasks = (
-      await getEffectiveDelegationTasks(context.runtime, context.services)
-    ).filter((task) => (task.labels ?? task.tags ?? []).includes(label));
+    const tasks = (await getEffectiveDelegationTasks(context.runtime)).filter(
+      (task) => (task.labels ?? task.tags ?? []).includes(label),
+    );
     return tasks.length
       ? tasks
           .map((task: DelegationReadTask) => formatDelegationLabelTask(task))

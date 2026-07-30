@@ -9,7 +9,6 @@ import { requireOfficialOrchestrator } from "./official";
  */
 export async function superviseEffectiveDelegationQueue(
   runtime: RuntimeLike,
-  _services: unknown,
   _runner?: (task: unknown) => Promise<string>,
   _options?: Record<string, unknown>,
 ) {

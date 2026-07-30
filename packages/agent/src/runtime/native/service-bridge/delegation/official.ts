@@ -47,35 +47,6 @@ export function requireOfficialOrchestrator(
   return service;
 }
 
-export function updateDelegationProjection(
-  services: unknown,
-  tasks: readonly DelegationTaskRecord[],
-): void {
-  const delegation = (
-    services as {
-      delegation?: {
-        replaceProjection?: (items: readonly DelegationTaskRecord[]) => void;
-      };
-    }
-  )?.delegation;
-  delegation?.replaceProjection?.(tasks);
-}
-
-export function upsertDelegationProjection(
-  services: unknown,
-  task: DelegationTaskRecord,
-): DelegationTaskRecord {
-  const delegation = (
-    services as {
-      delegation?: {
-        upsertProjection?: (item: DelegationTaskRecord) => void;
-      };
-    }
-  )?.delegation;
-  delegation?.upsertProjection?.(task);
-  return task;
-}
-
 function stringMetadata(
   metadata: Record<string, unknown> | undefined,
 ): Record<string, string> | undefined {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { RuntimeLike } from "./index";
@@ -978,10 +978,10 @@ describe("delegation bridge helpers", () => {
       originalRequest: "Official orchestrator child",
       parentTaskId: parent.id,
     });
-    const services = {} as AppServices;
+    const projection = { upsertProjection: vi.fn() };
 
     await expect(
-      getEffectiveDelegationTask(runtime, services, parent.id),
+      getEffectiveDelegationTask(runtime, parent.id),
     ).resolves.toMatchObject({
       id: parent.id,
       title: "Official task",
@@ -989,7 +989,7 @@ describe("delegation bridge helpers", () => {
       status: "pending",
     });
     await expect(
-      getEffectiveDelegationChildren(runtime, services, parent.id),
+      getEffectiveDelegationChildren(runtime, parent.id),
     ).resolves.toEqual([
       expect.objectContaining({
         id: child.id,
@@ -997,7 +997,7 @@ describe("delegation bridge helpers", () => {
       }),
     ]);
     await expect(
-      getEffectiveDelegationTree(runtime, services, parent.id),
+      getEffectiveDelegationTree(runtime, parent.id),
     ).resolves.toMatchObject({
       task: { id: parent.id },
       children: [{ task: { id: child.id }, children: [] }],
@@ -1005,7 +1005,7 @@ describe("delegation bridge helpers", () => {
     await expect(
       retryEffectiveDelegationTask(
         runtime,
-        services,
+        projection,
         parent.id,
         "retry with official context",
       ),
@@ -1013,6 +1013,9 @@ describe("delegation bridge helpers", () => {
       id: parent.id,
       status: "running",
     });
+    expect(projection.upsertProjection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: parent.id, status: "running" }),
+    );
   });
 });
 

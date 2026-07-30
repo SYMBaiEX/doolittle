@@ -20,7 +20,6 @@ export const handleDelegationDetailsRead: DelegationReadHandler = async (
     }
     const tasks = (await getEffectiveDelegationChildren(
       context.runtime,
-      context.services,
       id,
     )) as DelegationReadTask[];
     return tasks.length
@@ -34,7 +33,7 @@ export const handleDelegationDetailsRead: DelegationReadHandler = async (
       return "Usage: /delegate tree <task-id>";
     }
     return JSON.stringify(
-      await getEffectiveDelegationTree(context.runtime, context.services, id),
+      await getEffectiveDelegationTree(context.runtime, id),
       null,
       2,
     );
@@ -43,7 +42,7 @@ export const handleDelegationDetailsRead: DelegationReadHandler = async (
   if (trimmed.startsWith("/delegate status ")) {
     const id = trimmed.replace("/delegate status ", "").trim();
     return JSON.stringify(
-      await getEffectiveDelegationTask(context.runtime, context.services, id),
+      await getEffectiveDelegationTask(context.runtime, id),
       null,
       2,
     );

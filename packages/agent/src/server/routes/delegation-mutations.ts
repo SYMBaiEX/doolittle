@@ -46,6 +46,7 @@ export async function handleDelegationMutationRoutes(
     return json({
       task: await addEffectiveDelegationNote(
         context.runtime,
+        context.services.delegation,
         id,
         body.note ?? "",
       ),
@@ -65,7 +66,7 @@ export async function handleDelegationMutationRoutes(
     return json({
       task: await retryEffectiveDelegationTask(
         context.runtime,
-        context.services,
+        context.services.delegation,
         id,
         body.note ?? "Requeued via API.",
       ),
@@ -75,7 +76,7 @@ export async function handleDelegationMutationRoutes(
     return json({
       task: await cancelEffectiveDelegationTask(
         context.runtime,
-        context.services,
+        context.services.delegation,
         id,
         body.note ?? "Cancelled via API.",
         {
@@ -88,6 +89,7 @@ export async function handleDelegationMutationRoutes(
     return json({
       task: await completeEffectiveDelegationTask(
         context.runtime,
+        context.services.delegation,
         id,
         body.note,
       ),

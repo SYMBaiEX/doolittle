@@ -20,7 +20,12 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate note <id> :: <note>";
     }
     return JSON.stringify(
-      await addEffectiveDelegationNote(context.runtime, id, note),
+      await addEffectiveDelegationNote(
+        context.runtime,
+        context.services.delegation,
+        id,
+        note,
+      ),
       null,
       2,
     );
@@ -44,7 +49,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await retryEffectiveDelegationTask(
         context.runtime,
-        context.services,
+        context.services.delegation,
         parsed.id,
         parsed.note || "Requeued for retry.",
         parsed.cascadeChildren ? { cascadeChildren: true } : undefined,
@@ -62,7 +67,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await retryEffectiveDelegationTask(
         context.runtime,
-        context.services,
+        context.services.delegation,
         parsed.id,
         parsed.note || "Requeued for retry.",
         parsed.cascadeChildren ? { cascadeChildren: true } : undefined,
@@ -81,7 +86,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await cancelEffectiveDelegationTask(
         context.runtime,
-        context.services,
+        context.services.delegation,
         id,
         note || "Cancelled by operator.",
       ),
@@ -97,7 +102,12 @@ export async function handleDelegationTaskMutation(
       return "Usage: /delegate complete <id> :: <optional note>";
     }
     return JSON.stringify(
-      await completeEffectiveDelegationTask(context.runtime, id, note),
+      await completeEffectiveDelegationTask(
+        context.runtime,
+        context.services.delegation,
+        id,
+        note,
+      ),
       null,
       2,
     );

@@ -39,9 +39,13 @@ describe("runDelegationTaskInWorker", () => {
           ? { getTask, spawnAgentForTask }
           : null,
     };
+    const upsertProjection = vi.fn();
 
     const result = await runDelegationTaskInWorker(
-      { runtime } as never,
+      {
+        runtime,
+        services: { delegation: { upsertProjection } },
+      } as never,
       "task-1",
     );
 
@@ -54,5 +58,8 @@ describe("runDelegationTaskInWorker", () => {
       status: "running",
       executionMode: "delegated",
     });
+    expect(upsertProjection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "task-1", status: "running" }),
+    );
   });
 });

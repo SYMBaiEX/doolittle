@@ -11,10 +11,7 @@ export async function handleDelegationQueueMutation(
     trimmed === "/delegate supervise" ||
     trimmed.startsWith("/delegate supervise ")
   ) {
-    const report = await superviseEffectiveDelegationQueue(
-      context.runtime,
-      context.services,
-    );
+    const report = await superviseEffectiveDelegationQueue(context.runtime);
     return JSON.stringify(report, null, 2);
   }
 
@@ -22,10 +19,7 @@ export async function handleDelegationQueueMutation(
     trimmed === "/delegate execute-queued" ||
     trimmed.startsWith("/delegate execute-queued ")
   ) {
-    const report = await superviseEffectiveDelegationQueue(
-      context.runtime,
-      context.services,
-    );
+    const report = await superviseEffectiveDelegationQueue(context.runtime);
     return JSON.stringify(report, null, 2);
   }
 

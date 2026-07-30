@@ -24,19 +24,23 @@ export async function handleTrajectoryBatchCommands(
     const group = `trajectory-batch:${label}`;
     const tasks = await Promise.all(
       prompts.map((prompt, index) =>
-        createEffectiveDelegationTask(context.runtime, context.services, {
-          title: `Batch prompt ${index + 1}`,
-          objective: prompt,
-          group,
-          profile: "research",
-          priority: "normal",
-          labels: ["trajectory", "batch"],
-          metadata: {
-            source: "trajectory-batch",
-            label,
+        createEffectiveDelegationTask(
+          context.runtime,
+          context.services.delegation,
+          {
+            title: `Batch prompt ${index + 1}`,
+            objective: prompt,
+            group,
+            profile: "research",
+            priority: "normal",
+            labels: ["trajectory", "batch"],
+            metadata: {
+              source: "trajectory-batch",
+              label,
+            },
+            executionMode: "local",
           },
-          executionMode: "local",
-        }),
+        ),
       ),
     );
 

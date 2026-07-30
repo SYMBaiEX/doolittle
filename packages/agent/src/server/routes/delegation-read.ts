@@ -83,10 +83,7 @@ export async function handleDelegationReadRoutes(
 
   if (request.method === "GET" && url.pathname === "/delegation/tasks") {
     const filters = parseDelegationFilters(url);
-    const nativeTasks = await getEffectiveDelegationTasks(
-      context.runtime,
-      context.services,
-    );
+    const nativeTasks = await getEffectiveDelegationTasks(context.runtime);
     if (
       !filters.group &&
       !filters.profile &&
@@ -132,29 +129,17 @@ export async function handleDelegationReadRoutes(
     }
     if (!action) {
       return json({
-        task: await getEffectiveDelegationTask(
-          context.runtime,
-          context.services,
-          id,
-        ),
+        task: await getEffectiveDelegationTask(context.runtime, id),
       });
     }
     if (action === "children") {
       return json({
-        children: await getEffectiveDelegationChildren(
-          context.runtime,
-          context.services,
-          id,
-        ),
+        children: await getEffectiveDelegationChildren(context.runtime, id),
       });
     }
     if (action === "tree") {
       return json({
-        tree: await getEffectiveDelegationTree(
-          context.runtime,
-          context.services,
-          id,
-        ),
+        tree: await getEffectiveDelegationTree(context.runtime, id),
       });
     }
   }
@@ -162,23 +147,14 @@ export async function handleDelegationReadRoutes(
   if (request.method === "GET" && url.pathname === "/delegation/overview") {
     return json({
       overview: {
-        local: await getEffectiveDelegationOverview(
-          context.runtime,
-          context.services,
-        ),
-        native: await getEffectiveDelegationQueue(
-          context.runtime,
-          context.services,
-        ),
+        local: await getEffectiveDelegationOverview(context.runtime),
+        native: await getEffectiveDelegationQueue(context.runtime),
       },
     });
   }
 
   if (request.method === "GET" && url.pathname === "/delegation/groups") {
-    const overview = await getEffectiveDelegationOverview(
-      context.runtime,
-      context.services,
-    );
+    const overview = await getEffectiveDelegationOverview(context.runtime);
     return json({
       groups: overview.byGroup,
       labels: overview.byLabel,
@@ -188,13 +164,11 @@ export async function handleDelegationReadRoutes(
   if (request.method === "GET" && url.pathname === "/delegation/workers") {
     const filters = parseDelegationFilters(url);
     return json({
-      overview: await getEffectiveDelegationOverview(
-        context.runtime,
-        context.services,
+      overview: await getEffectiveDelegationOverview(context.runtime),
+      workers: (await getEffectiveDelegationTasks(context.runtime)).slice(
+        0,
+        filters.limit,
       ),
-      workers: (
-        await getEffectiveDelegationTasks(context.runtime, context.services)
-      ).slice(0, filters.limit),
     });
   }
 

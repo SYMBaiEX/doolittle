@@ -14,7 +14,11 @@ export async function runDelegationTaskInWorker(
   taskId: string,
   _options?: { assumeRunning?: boolean },
 ): Promise<DelegationTaskRecord> {
-  const task = await executeEffectiveDelegationTask(context.runtime, taskId);
+  const task = await executeEffectiveDelegationTask(
+    context.runtime,
+    context.services.delegation,
+    taskId,
+  );
   if (!task) {
     throw new Error(`Delegation task not found: ${taskId}`);
   }

@@ -1,11 +1,10 @@
 import type { DelegationOrchestrationMode } from "@/types/runtime";
 import type { RuntimeLike } from "../runtime";
-import {
-  projectOfficialTask,
-  requireOfficialOrchestrator,
-  upsertDelegationProjection,
-} from "./official";
-import type { EffectiveDelegationCreateInput } from "./types";
+import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
+import type {
+  DelegationProjection,
+  EffectiveDelegationCreateInput,
+} from "./types";
 
 function metadataFor(input: EffectiveDelegationCreateInput) {
   return {
@@ -22,9 +21,17 @@ function metadataFor(input: EffectiveDelegationCreateInput) {
   };
 }
 
+function updateProjection(
+  projection: DelegationProjection | undefined,
+  task: ReturnType<typeof projectOfficialTask>,
+) {
+  projection?.upsertProjection(task);
+  return task;
+}
+
 export async function retryEffectiveDelegationTask(
   runtime: RuntimeLike,
-  services: unknown,
+  projection: DelegationProjection | undefined,
   id: string,
   note?: string,
   _options?: { cascadeChildren?: boolean },
@@ -33,14 +40,12 @@ export async function retryEffectiveDelegationTask(
     instruction: note?.trim() || "Retry this task from its durable context.",
     mode: "new-session",
   });
-  return task
-    ? upsertDelegationProjection(services, projectOfficialTask(task))
-    : null;
+  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }
 
 export async function createEffectiveDelegationTask(
   runtime: RuntimeLike,
-  services: unknown,
+  projection: DelegationProjection | undefined,
   input: EffectiveDelegationCreateInput,
 ) {
   const service = requireOfficialOrchestrator(runtime);
@@ -55,12 +60,12 @@ export async function createEffectiveDelegationTask(
       : undefined,
     metadata: metadataFor(input),
   });
-  return upsertDelegationProjection(services, projectOfficialTask(task));
+  return updateProjection(projection, projectOfficialTask(task));
 }
 
 export async function spawnEffectiveDelegationChild(
   runtime: RuntimeLike,
-  services: unknown,
+  projection: DelegationProjection | undefined,
   parentId: string,
   input: {
     title: string;
@@ -90,12 +95,12 @@ export async function spawnEffectiveDelegationChild(
       : undefined,
     metadata: metadataFor(input),
   });
-  return upsertDelegationProjection(services, projectOfficialTask(task));
+  return updateProjection(projection, projectOfficialTask(task));
 }
 
 export async function cancelEffectiveDelegationTask(
   runtime: RuntimeLike,
-  services: unknown,
+  projection: DelegationProjection | undefined,
   id: string,
   note?: string,
   _options?: { cascadeChildren?: boolean },
@@ -109,13 +114,12 @@ export async function cancelEffectiveDelegationTask(
     });
   }
   const task = await service.pauseTask(id);
-  return task
-    ? upsertDelegationProjection(services, projectOfficialTask(task))
-    : null;
+  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }
 
 export async function addEffectiveDelegationNote(
   runtime: RuntimeLike,
+  projection: DelegationProjection | undefined,
   id: string,
   note: string,
 ) {
@@ -127,11 +131,12 @@ export async function addEffectiveDelegationNote(
   });
   if (!added) return null;
   const task = await service.getTask(id);
-  return task ? projectOfficialTask(task) : null;
+  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }
 
 export async function completeEffectiveDelegationTask(
   runtime: RuntimeLike,
+  projection: DelegationProjection | undefined,
   id: string,
   note?: string,
 ) {
@@ -144,11 +149,12 @@ export async function completeEffectiveDelegationTask(
     verifier: "doolittle-operator",
     humanOverride: true,
   });
-  return task ? projectOfficialTask(task) : null;
+  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }
 
 export async function executeEffectiveDelegationTask(
   runtime: RuntimeLike,
+  projection: DelegationProjection | undefined,
   id: string,
 ) {
   const service = requireOfficialOrchestrator(runtime);
@@ -162,5 +168,5 @@ export async function executeEffectiveDelegationTask(
     workdir: workspaceRoot,
     framework: detail.providerPolicy?.preferredFramework,
   });
-  return task ? projectOfficialTask(task) : null;
+  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }

@@ -59,20 +59,24 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
         return "Usage: /queue <prompt>";
       }
       return JSON.stringify(
-        await createEffectiveDelegationTask(context.runtime, context.services, {
-          title: `Queued prompt ${new Date().toISOString()}`,
-          objective,
-          group: "queued-prompts",
-          profile: "queued",
-          priority: "normal",
-          labels: ["queue", "prompt"],
-          metadata: {
-            source: input.source ?? "cli",
-            userId: input.userId,
-            roomId: input.roomId ?? `room:${input.userId}`,
+        await createEffectiveDelegationTask(
+          context.runtime,
+          context.services.delegation,
+          {
+            title: `Queued prompt ${new Date().toISOString()}`,
+            objective,
+            group: "queued-prompts",
+            profile: "queued",
+            priority: "normal",
+            labels: ["queue", "prompt"],
+            metadata: {
+              source: input.source ?? "cli",
+              userId: input.userId,
+              roomId: input.roomId ?? `room:${input.userId}`,
+            },
+            executionMode: "local",
           },
-          executionMode: "local",
-        }),
+        ),
         null,
         2,
       );

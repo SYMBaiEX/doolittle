@@ -9,7 +9,6 @@ import {
   projectOfficialTask,
   projectOfficialTaskList,
   requireOfficialOrchestrator,
-  updateDelegationProjection,
 } from "./official";
 
 async function listOfficialTaskDetails(runtime: RuntimeLike) {
@@ -24,19 +23,11 @@ async function listOfficialTaskDetails(runtime: RuntimeLike) {
   return details.filter((task) => task !== null);
 }
 
-export async function getEffectiveDelegationTasks(
-  runtime: RuntimeLike,
-  services?: unknown,
-) {
-  const tasks = projectOfficialTaskList(await listOfficialTaskDetails(runtime));
-  updateDelegationProjection(services, tasks);
-  return tasks;
+export async function getEffectiveDelegationTasks(runtime: RuntimeLike) {
+  return projectOfficialTaskList(await listOfficialTaskDetails(runtime));
 }
 
-export async function getEffectiveDelegationQueue(
-  runtime: RuntimeLike,
-  _services?: unknown,
-) {
+export async function getEffectiveDelegationQueue(runtime: RuntimeLike) {
   const service = requireOfficialOrchestrator(runtime);
   const [status, tasks] = await Promise.all([
     service.getStatus(),
@@ -49,10 +40,7 @@ export async function getEffectiveDelegationQueue(
   };
 }
 
-export async function getEffectiveDelegationOverview(
-  runtime: RuntimeLike,
-  _services?: unknown,
-) {
+export async function getEffectiveDelegationOverview(runtime: RuntimeLike) {
   const tasks = await getEffectiveDelegationTasks(runtime);
   return buildDelegationServiceOverview(
     tasks,
@@ -62,7 +50,6 @@ export async function getEffectiveDelegationOverview(
 
 export async function getEffectiveDelegationTask(
   runtime: RuntimeLike,
-  _services: unknown,
   id: string,
 ) {
   const task = await requireOfficialOrchestrator(runtime).getTask(id);
@@ -71,7 +58,6 @@ export async function getEffectiveDelegationTask(
 
 export async function getEffectiveDelegationChildren(
   runtime: RuntimeLike,
-  _services: unknown,
   parentId: string,
 ) {
   return (await getEffectiveDelegationTasks(runtime)).filter(
@@ -90,7 +76,6 @@ function taskById(
 
 export async function getEffectiveDelegationTree(
   runtime: RuntimeLike,
-  _services: unknown,
   id: string,
 ) {
   const tasks = await getEffectiveDelegationTasks(runtime);
@@ -103,7 +88,6 @@ export async function getEffectiveDelegationTree(
 
 export async function getEffectiveDelegationAggregation(
   runtime: RuntimeLike,
-  _services: unknown,
   id: string,
 ) {
   const tasks = await getEffectiveDelegationTasks(runtime);
