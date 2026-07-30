@@ -1,14 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@elizaos/agent/runtime/eliza", () => ({
-  installRuntimeMethodBindings: vi.fn(),
-  shutdownRuntime: vi.fn(),
+vi.mock("@elizaos/agent/runtime/plugin-lifecycle", () => ({
+  installRuntimePluginLifecycle: vi.fn(),
 }));
 
 import { initializeElizaRuntime } from "./initialization";
 
 describe("initializeElizaRuntime", () => {
-  it("installs official bindings before initialization and validates the runtime", async () => {
+  it("installs the official plugin lifecycle before initialization and validates the runtime", async () => {
     const calls: string[] = [];
     const runtime = {
       initialize: vi.fn(async () => {
@@ -16,8 +15,8 @@ describe("initializeElizaRuntime", () => {
       }),
     };
     const lifecycle = {
-      installRuntimeMethodBindings: vi.fn(() => {
-        calls.push("bindings");
+      installRuntimePluginLifecycle: vi.fn(() => {
+        calls.push("plugin-lifecycle");
       }),
       shutdownRuntime: vi.fn().mockResolvedValue(undefined),
       validateRuntime: vi.fn(async () => {
@@ -29,7 +28,7 @@ describe("initializeElizaRuntime", () => {
       initializeElizaRuntime(() => runtime as never, lifecycle),
     ).resolves.toBe(runtime);
 
-    expect(calls).toEqual(["bindings", "initialize", "validate"]);
+    expect(calls).toEqual(["plugin-lifecycle", "initialize", "validate"]);
     expect(lifecycle.shutdownRuntime).not.toHaveBeenCalled();
   });
 
@@ -39,7 +38,7 @@ describe("initializeElizaRuntime", () => {
       initialize: vi.fn().mockRejectedValue(failure),
     };
     const lifecycle = {
-      installRuntimeMethodBindings: vi.fn(),
+      installRuntimePluginLifecycle: vi.fn(),
       shutdownRuntime: vi.fn().mockResolvedValue(undefined),
       validateRuntime: vi.fn().mockResolvedValue(undefined),
     };
@@ -47,7 +46,7 @@ describe("initializeElizaRuntime", () => {
     await expect(
       initializeElizaRuntime(() => runtime as never, lifecycle),
     ).rejects.toBe(failure);
-    expect(lifecycle.installRuntimeMethodBindings).toHaveBeenCalledWith(
+    expect(lifecycle.installRuntimePluginLifecycle).toHaveBeenCalledWith(
       runtime,
     );
     expect(lifecycle.shutdownRuntime).toHaveBeenCalledWith(

@@ -107,11 +107,12 @@ beta line. The installed `bootElizaRuntime` surface only accepts
 `requireConfig`; it loads the upstream state-dir config, character, workspace,
 and plugin resolver itself, so it cannot host Doolittle's injected character
 and native plugin assembly without replacing them. Doolittle still adopts the
-official lower-level lifecycle: `installRuntimeMethodBindings` runs before
-initialization, and partial boot plus long-lived API signal teardown use
-`shutdownRuntime` so Eliza services stop and the database adapter closes.
-This is a compatibility boundary, not permission to maintain a second service
-lifecycle: Doolittle-owned runtime capabilities must be
+official bundle-safe plugin lifecycle through `installRuntimePluginLifecycle`
+before initialization. The pinned SDK's complete `runtime/eliza` application
+barrel also reaches optional app-core, native, and source-tree-only modules, so
+desktop process teardown remains one audited Doolittle boundary that stops the
+official runtime and closes its adapter. This is a compatibility boundary, not
+permission to maintain a second service lifecycle: Doolittle-owned runtime capabilities must be
 registered through plugin `services`, actions, providers, evaluators, routes,
 or events. The advanced-memory adapter now follows that rule; it is part of
 the Doolittle plugin and no longer mutates `AgentRuntime` registration maps.

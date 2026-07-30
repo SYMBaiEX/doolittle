@@ -229,10 +229,10 @@ producer failures become terminal SSE error events, and a disconnected
 renderer cannot crash the runtime by racing a closed stream.
 
 Quitting the application aborts active streams and sends `SIGTERM` to the owned
-child process. The API entrypoint handles that signal idempotently through
-Eliza's adapter-safe `shutdownRuntime` lifecycle before exiting, so plugin
-services stop and PGLite closes cleanly; Electron retains a bounded force-kill
-fallback for a wedged child. Closing the last window does the same by default;
+child process. The API entrypoint handles that signal idempotently through one
+adapter-safe shutdown boundary before exiting, so Eliza plugin services stop
+and PGLite closes cleanly; Electron retains a bounded force-kill fallback for
+a wedged child. Closing the last window does the same by default;
 when the operator has enabled background mode, the main process and runtime
 remain available from the tray. A failed boot stays visible and retryable; the
 renderer never waits on an indefinite loading skeleton.

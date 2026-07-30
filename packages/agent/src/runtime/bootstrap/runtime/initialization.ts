@@ -1,13 +1,11 @@
-import {
-  installRuntimeMethodBindings,
-  shutdownRuntime,
-} from "@elizaos/agent/runtime/eliza";
+import { installRuntimePluginLifecycle } from "@elizaos/agent/runtime/plugin-lifecycle";
 import type { AgentRuntime } from "@elizaos/core";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
+import { shutdownElizaRuntime } from "@/runtime/lifecycle/shutdown";
 import { validateCriticalRuntimeServices } from "./critical";
 
 export interface ElizaRuntimeLifecycle {
-  installRuntimeMethodBindings(runtime: AgentRuntime): void;
+  installRuntimePluginLifecycle(runtime: AgentRuntime): void;
   shutdownRuntime(
     runtime: AgentRuntime | null | undefined,
     context: string,
@@ -17,8 +15,8 @@ export interface ElizaRuntimeLifecycle {
 }
 
 const officialElizaRuntimeLifecycle: ElizaRuntimeLifecycle = {
-  installRuntimeMethodBindings,
-  shutdownRuntime,
+  installRuntimePluginLifecycle,
+  shutdownRuntime: shutdownElizaRuntime,
   validateRuntime: validateCriticalRuntimeServices,
 };
 
@@ -28,9 +26,9 @@ const officialElizaRuntimeLifecycle: ElizaRuntimeLifecycle = {
  *
  * Eliza owns database startup, typed PGlite failures, plugin lifecycle, and
  * required manual-reset guidance. Doolittle owns the product character and
- * plugin composition, then installs Eliza's runtime bindings, records the
- * boundary, validates its required services, and delegates partial teardown
- * to Eliza's adapter-safe shutdown helper.
+ * plugin composition, then installs Eliza's official plugin lifecycle,
+ * records the boundary, validates its required services, and delegates
+ * partial teardown to the centralized adapter-safe shutdown boundary.
  */
 export async function initializeElizaRuntime(
   createRuntime: () => AgentRuntime,
@@ -39,9 +37,9 @@ export async function initializeElizaRuntime(
   const runtime = createRuntime();
 
   try {
-    appendBootstrapTrace("phase:runtime.bindings:call");
-    lifecycle.installRuntimeMethodBindings(runtime);
-    appendBootstrapTrace("phase:runtime.bindings:done");
+    appendBootstrapTrace("phase:runtime.plugin-lifecycle:call");
+    lifecycle.installRuntimePluginLifecycle(runtime);
+    appendBootstrapTrace("phase:runtime.plugin-lifecycle:done");
     appendBootstrapTrace("phase:runtime.initialize:call");
     await runtime.initialize();
     appendBootstrapTrace("phase:runtime.initialize:done");
