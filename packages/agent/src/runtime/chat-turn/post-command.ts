@@ -13,17 +13,14 @@ import {
   type TurnPerfTrace,
 } from "./native";
 import { applyRuntimeOverrides } from "./overrides";
-import { runShellPostCommandTurn } from "./shell";
 import { type PreparedTurnState, prepareTurnState } from "./state";
 
 type PostCommandTurnRunner = {
-  runShellPostCommandTurn: typeof runShellPostCommandTurn;
   runNativeMessageTurn: typeof runNativeMessageTurn;
   prepareNativeTurnSetup: typeof prepareNativeTurnSetup;
 };
 
 const postCommandTurnRunner: PostCommandTurnRunner = {
-  runShellPostCommandTurn,
   runNativeMessageTurn,
   prepareNativeTurnSetup,
 };
@@ -52,18 +49,6 @@ export async function runPostCommandTurn(
       messageServerId: turn.messageServerId,
     });
     await ensureLocalInteractiveSettingsState(context, turn);
-
-    const shellResponse = await runner.runShellPostCommandTurn({
-      input,
-      effectiveInput,
-      context,
-      options,
-      perf,
-      preparedTurn: prepared,
-    });
-    if (shellResponse !== undefined) {
-      return shellResponse;
-    }
 
     const nativeTurnSetup = await runner.prepareNativeTurnSetup({
       input,

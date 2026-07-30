@@ -50,7 +50,7 @@ async function loadRunPostCommandTurn() {
 }
 
 describe("chat turn post-command seam", () => {
-  it("returns shell responses without entering native flow", async () => {
+  it("forwards explicit shell shortcuts into the native Eliza message flow", async () => {
     vi.restoreAllMocks();
     vi.resetModules();
     vi.clearAllMocks();
@@ -80,10 +80,31 @@ describe("chat turn post-command seam", () => {
       },
       perf,
       {
-        runShellPostCommandTurn: async () => "shell-response",
         prepareNativeTurnSetup: async () => {
           turnSetupLog.push("called");
-          throw new Error("should not run");
+          return {
+            turn: {
+              agentName: "Doolittle",
+              localInteractive: true,
+              connectionSource: "cli",
+              sessionId: "room-alice",
+              roomId: "chat-room",
+              worldId: "world-1",
+              entityId: "entity-1",
+              messageServerId: "server-1",
+              messageId: "message-1",
+              settings: context.services.settings.get(),
+              runId: "run-id",
+            },
+            scheduleProfileObservation: () => undefined,
+            messagePolicy: {
+              runDepth: "quick",
+              useMultiStep: false,
+              maxIterations: 1,
+              toolProgressMode: "all",
+            },
+            settingsBefore: context.services.settings.get(),
+          } as NativeTurnSetup;
         },
         runNativeMessageTurn: async () => {
           runNativeLog.push("called");
@@ -92,9 +113,9 @@ describe("chat turn post-command seam", () => {
       },
     );
 
-    expect(response).toBe("shell-response");
-    expect(turnSetupLog).toHaveLength(0);
-    expect(runNativeLog).toHaveLength(0);
+    expect(response).toBe("native-response");
+    expect(turnSetupLog).toHaveLength(1);
+    expect(runNativeLog).toHaveLength(1);
     expect(perf.flushes).toHaveLength(0);
   });
 
@@ -158,7 +179,6 @@ describe("chat turn post-command seam", () => {
       },
       perf,
       {
-        runShellPostCommandTurn: async () => undefined,
         prepareNativeTurnSetup: async () => {
           observedSetupInput = {
             message: "summarize project",

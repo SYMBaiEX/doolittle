@@ -73,6 +73,7 @@ describe("createDoolittlePlugin model ownership", () => {
         "WEB_SEARCH",
         "WEB_FETCH",
         "DOOLITTLE_COMMAND",
+        "DOOLITTLE_SHELL_SHORTCUT",
       ]),
     );
     expect(plugin.actions?.map((action) => action.name)).not.toContain(
@@ -96,6 +97,7 @@ describe("createDoolittlePlugin model ownership", () => {
     expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual([
       "doolittle-web-search-command",
       "doolittle-research-command",
+      "doolittle-shell-command",
       "doolittle-command-catalog",
     ]);
     expect(plugin.services?.map((service) => service.serviceType)).toEqual(

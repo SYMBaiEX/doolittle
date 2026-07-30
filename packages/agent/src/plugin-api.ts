@@ -6,6 +6,10 @@ export { createFileActions } from "@/actions/file-action";
 export { createRepositoryAction } from "@/actions/repository-action";
 export { createResearchAction } from "@/actions/research-action";
 export { createSessionSearchAction } from "@/actions/session-search-action";
+export {
+  createShellCommandAction,
+  createShellCommandShortcut,
+} from "@/actions/shell-command-action";
 export { createWorkspaceAction } from "@/actions/workspace-action";
 export { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
 export { GatewayRunner } from "@/gateway/runner";

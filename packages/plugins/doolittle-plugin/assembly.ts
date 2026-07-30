@@ -12,6 +12,8 @@ import {
   createRunProgressRuntimeService,
   createSelfAwarenessProvider,
   createSessionSearchAction,
+  createShellCommandAction,
+  createShellCommandShortcut,
   createWorkspaceAction,
 } from "@doolittle/agent/plugin-api";
 import { memoryAction } from "@elizaos/agent/actions/memories";
@@ -53,6 +55,7 @@ export function createDoolittlePluginSurface({
 }: DoolittlePluginDependencies): Plugin {
   const actions = withToolPolicyOwnership([
     createCommandAction(services, config),
+    createShellCommandAction(services, config),
     createSessionSearchAction(config.sessionSearchLimit),
     memoryAction,
     triggerAction,
@@ -103,6 +106,7 @@ export function createDoolittlePluginSurface({
     providers,
     shortcuts: [
       ...DOOLITTLE_SDK_SHORTCUTS,
+      createShellCommandShortcut(),
       createCommandShortcut(config.workspaceDir),
     ],
     evaluators,
