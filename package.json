@@ -149,5 +149,8 @@
       "onFail": "warn"
     }
   },
-  "packageManager": "nub@0.6.0"
+  "packageManager": "nub@0.6.0",
+  "patchedDependencies": {
+    "@elizaos/agent@2.0.3-beta.7": "patches/@elizaos+agent@2.0.3-beta.7.patch"
+  }
 }

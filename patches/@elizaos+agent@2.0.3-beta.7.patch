@@ -1,0 +1,31 @@
+diff --git a/services/relationships-graph.d.ts b/services/relationships-graph.d.ts
+--- a/services/relationships-graph.d.ts
++++ b/services/relationships-graph.d.ts
+@@ -3,7 +3,7 @@
+  * Import graph types and helpers from `@elizaos/core` directly.
+  */
+ import type { IAgentRuntime, RelationshipsGraphService } from "@elizaos/core";
+-export { type ClusterMemoriesQuery, type ClusterSearchQuery, createNativeRelationshipsGraphService, getMemoriesForCluster, type RelationshipsConversationMessage, type RelationshipsConversationSnippet, type RelationshipsFactExtractedInformation, type RelationshipsFactProvenance, type RelationshipsGraphEdge, type RelationshipsGraphQuery, type RelationshipsGraphService, type RelationshipsGraphSnapshot, type RelationshipsGraphStats, type RelationshipsIdentityEdge, type RelationshipsIdentityHandle, type RelationshipsIdentitySummary, type RelationshipsMergeCandidate, type RelationshipsPersonDetail, type RelationshipsPersonFact, type RelationshipsPersonSummary, type RelationshipsProfile, type RelationshipsRelevantMemory, type RelationshipsServiceLike, type RelationshipsUserPersonalityPreference, searchMemoriesForCluster, } from "../../../core/src/services/relationships-graph-builder.js";
++export { type ClusterMemoriesQuery, type ClusterSearchQuery, createNativeRelationshipsGraphService, getMemoriesForCluster, type RelationshipsConversationMessage, type RelationshipsConversationSnippet, type RelationshipsFactExtractedInformation, type RelationshipsFactProvenance, type RelationshipsGraphEdge, type RelationshipsGraphQuery, type RelationshipsGraphService, type RelationshipsGraphSnapshot, type RelationshipsGraphStats, type RelationshipsIdentityEdge, type RelationshipsIdentityHandle, type RelationshipsIdentitySummary, type RelationshipsMergeCandidate, type RelationshipsPersonDetail, type RelationshipsPersonFact, type RelationshipsPersonSummary, type RelationshipsProfile, type RelationshipsRelevantMemory, type RelationshipsServiceLike, type RelationshipsUserPersonalityPreference, searchMemoriesForCluster, } from "@elizaos/core";
+ /**
+  * Resolve the merged RelationshipsService and wire its agent-side owner
+  * resolvers. Compatibility wrapper for the old factory; prefer
+@@ -10,4 +10,4 @@
+  * `runtime.getService("relationships")` directly.
+  */
+ export declare function resolveRelationshipsGraphService(runtime: IAgentRuntime): Promise<RelationshipsGraphService | null>;
+-//# sourceMappingURL=relationships-graph.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=relationships-graph.d.ts.map
+diff --git a/services/relationships-graph.js b/services/relationships-graph.js
+--- a/services/relationships-graph.js
++++ b/services/relationships-graph.js
+@@ -4,7 +4,7 @@
+  */
+ import { resolveOwnerEntityId } from "../runtime/owner-entity.js";
+ import { fetchConfiguredOwnerName } from "./owner-name.js";
+-export { createNativeRelationshipsGraphService, getMemoriesForCluster, searchMemoriesForCluster, } from "../../../core/src/services/relationships-graph-builder.js";
++export { createNativeRelationshipsGraphService, getMemoriesForCluster, searchMemoriesForCluster, } from "@elizaos/core";
+ /** Methods the {@link RelationshipsGraphService} return type promises to callers. */
+ const REQUIRED_GRAPH_METHODS = [
+     "getGraphSnapshot",

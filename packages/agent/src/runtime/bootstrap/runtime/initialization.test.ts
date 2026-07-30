@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@elizaos/agent/runtime", () => ({
+vi.mock("@elizaos/agent/runtime/eliza", () => ({
   installRuntimeMethodBindings: vi.fn(),
   shutdownRuntime: vi.fn(),
 }));

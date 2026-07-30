@@ -1,7 +1,7 @@
 import {
   installRuntimeMethodBindings,
   shutdownRuntime,
-} from "@elizaos/agent/runtime";
+} from "@elizaos/agent/runtime/eliza";
 import type { AgentRuntime } from "@elizaos/core";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import { validateCriticalRuntimeServices } from "./critical";

@@ -23,6 +23,11 @@ overrides:
   elizaos: 2.0.3-beta.7
   ollama-ai-provider: npm:ollama-ai-provider-v2@^3.5.1
 
+patchedDependencies:
+  '@elizaos/agent@2.0.3-beta.7':
+    hash: 25f3d28a45dc46ca3acdecd36821588b4c9d292fb117cda024263e4b9e766635
+    path: patches/@elizaos+agent@2.0.3-beta.7.patch
+
 importers:
 
   .:
@@ -41,7 +46,7 @@ importers:
         version: 0.4.5
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
+        version: 2.0.3-beta.7(patch_hash=25f3d28a45dc46ca3acdecd36821588b4c9d292fb117cda024263e4b9e766635)(edafc4185b3748505860ee3fdab75907)
       '@elizaos/app-training':
         specifier: workspace:*
         version: link:packages/app-training
@@ -223,7 +228,7 @@ importers:
         version: link:../logger
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
+        version: 2.0.3-beta.7(patch_hash=25f3d28a45dc46ca3acdecd36821588b4c9d292fb117cda024263e4b9e766635)(edafc4185b3748505860ee3fdab75907)
       '@elizaos/plugin-agent-orchestrator':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(d8475f7963bdace304d47f1548c9199b)
@@ -263,7 +268,7 @@ importers:
     dependencies:
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
+        version: 2.0.3-beta.7(patch_hash=25f3d28a45dc46ca3acdecd36821588b4c9d292fb117cda024263e4b9e766635)(edafc4185b3748505860ee3fdab75907)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
@@ -284,7 +289,7 @@ importers:
     dependencies:
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)
+        version: 2.0.3-beta.7(patch_hash=25f3d28a45dc46ca3acdecd36821588b4c9d292fb117cda024263e4b9e766635)(edafc4185b3748505860ee3fdab75907)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(pg@8.22.0)
@@ -14230,7 +14235,7 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@elizaos/agent@2.0.3-beta.7(edafc4185b3748505860ee3fdab75907)':
+  '@elizaos/agent@2.0.3-beta.7(patch_hash=25f3d28a45dc46ca3acdecd36821588b4c9d292fb117cda024263e4b9e766635)(edafc4185b3748505860ee3fdab75907)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.103(zod@4.4.3)
       '@ai-sdk/google': 3.0.101(zod@4.4.3)
