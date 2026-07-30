@@ -570,7 +570,7 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 
 | Capability | Implementation | CLI | API |
 |---|---|---|---|
-| MEMORY.md / USER.md persistence | [`memory-service.ts`](./packages/agent/src/services/memory-service.ts) | `/memory list memory`, `/memory add user` | `GET /memory?target=memory` |
+| Shared and user memory | [`experience-memory-service.ts`](./packages/agent/src/services/experience-memory-service.ts), backed by the Eliza experience and rolodex services | `/memory list memory`, `/memory add user` | `GET /memory?target=memory`, `GET /memory?target=user&userId=<id>` |
 | Cross-session search | [`session/service/index.ts`](./packages/agent/src/services/session/service/index.ts) | `/search <query>` | `GET /search` |
 | User profiles | [`user-profile/service/index.ts`](./packages/agent/src/services/user-profile/service/index.ts) | `/user profile`, `/user card`, `/user beliefs`, `/user relationship`, `/user engagement` | `GET /profiles/users/card` |
 | Memory nudges | [`memory-nudge-evaluator.ts`](./packages/agent/src/evaluators/memory-nudge-evaluator.ts) | Automatic | Evaluator-driven |
@@ -1053,7 +1053,7 @@ Doolittle uses a stable per-session conversation id with Eliza Cloud so managed 
 | Variable | Purpose |
 |---|---|
 | `DOOLITTLE_MEMORY_CHAR_LIMIT` | Max characters for `MEMORY.md` |
-| `DOOLITTLE_USER_CHAR_LIMIT` | Max characters for `USER.md` |
+| `DOOLITTLE_USER_CHAR_LIMIT` | Max characters for a user's explicit rolodex memory |
 | `DOOLITTLE_SESSION_SEARCH_LIMIT` | Default number of search hits returned by `/search` |
 
 ### Scheduling

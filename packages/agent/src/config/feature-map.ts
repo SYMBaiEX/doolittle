@@ -8,10 +8,11 @@ export const featureMap: FeatureMapping[] = [
       "Mapped into a dedicated `character.json` plus `packages/agent/src/character.ts` bootstrap.",
   },
   {
-    platformCapability: "Persistent MEMORY.md and USER.md stores",
-    elizaImplementation: "Custom memory service + provider",
+    platformCapability: "Persistent assistant and operator memory",
+    elizaImplementation:
+      "Eliza experience service + rolodex-backed user profiles",
     notes:
-      "Preserves bounded memory snapshots and explicit user profile separation.",
+      "Keeps bounded shared MEMORY.md state while canonical user memory lives in the Eliza rolodex profile instead of a second USER.md owner.",
   },
   {
     platformCapability: "Cross-session user and agent profile memory",

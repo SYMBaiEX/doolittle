@@ -40,7 +40,7 @@ Doolittle should use ElizaOS as the native substrate and make the harness feel a
 - `/model list` and `/model use <provider> [model]` provide a coherent operator-facing model route surface across Ollama, Devin, Codex, Claude Code, and Eliza Cloud.
 - `/usage` and `/insights` now summarize context pressure, observed run/tool events, memory, generated skills, and next controls instead of raw JSON.
 - `/skills synthesize latest` creates a generated skill from the active session when a reusable workflow is detected.
-- User profile observations now opportunistically write new names, facts, and preferences into user memory for stronger recall.
+- User profile observations write once to the Eliza rolodex profile. Explicit `/memory ... user` requests use that same profile instead of mirroring facts into a second `USER.md` store.
 - `doolittle-experience` benchmark pack covers the small-talk, memory, CLI recovery, model switching, coding, gateway, and learning-loop native experience path.
 
 ## Next Todo
