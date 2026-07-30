@@ -1,7 +1,6 @@
 import { buildAppContext } from "./app-context";
 import { AppContextManager } from "./app-context-manager";
 
-export { isRecoverablePgliteInitError } from "./recovery/recoverable";
 export { validateCriticalRuntimeServices } from "./runtime";
 export type {
   AppContext,

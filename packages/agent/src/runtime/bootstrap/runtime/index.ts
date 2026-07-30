@@ -1,5 +1,9 @@
 export { validateCriticalRuntimeServices } from "./critical";
 export {
+  disposeRuntime,
+  initializeElizaRuntime,
+} from "./initialization";
+export {
   installDynamicModelProviderRouting,
   resolveModelProviderPlugin,
 } from "./model-provider-routing";
@@ -8,10 +12,6 @@ export {
   buildProviderAuthFailureReply,
   installProviderFailureTemplates,
 } from "./provider-failure-templates";
-export {
-  disposeRuntime,
-  initializeRuntimeWithRecovery,
-} from "./recovery";
 export {
   coerceRelationshipEntityId,
   patchRuntimeRelationshipCompatibility,

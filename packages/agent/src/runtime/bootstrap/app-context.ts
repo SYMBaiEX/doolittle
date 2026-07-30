@@ -5,7 +5,7 @@ import {
   buildPluginSettings,
   loadBootstrapConfig,
 } from "@/runtime/bootstrap/env";
-import { initializeRuntimeWithRecovery } from "@/runtime/bootstrap/runtime";
+import { initializeElizaRuntime } from "@/runtime/bootstrap/runtime";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import type {
   AppContext,
@@ -77,7 +77,7 @@ export async function buildAppContext({
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");
-  const runtime = await initializeRuntimeWithRecovery(createRuntime, config);
+  const runtime = await initializeElizaRuntime(createRuntime);
   appendBootstrapTrace("phase:initializeRuntime:done");
 
   return configureBootstrapContext({
