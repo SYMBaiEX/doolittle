@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createEffectiveDelegationTask,
-  DelegationServiceUnavailableError,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
+  OrchestratorTaskServiceUnavailableError,
   projectOfficialTask,
   superviseEffectiveDelegationQueue,
 } from ".";
@@ -115,7 +115,7 @@ describe("official delegation service bridge", () => {
   it("fails explicitly instead of falling back to a second task store", async () => {
     await expect(
       getEffectiveDelegationTasks({ getService: () => null } as never),
-    ).rejects.toBeInstanceOf(DelegationServiceUnavailableError);
+    ).rejects.toBeInstanceOf(OrchestratorTaskServiceUnavailableError);
   });
 
   it("maps official terminal and paused states into the legacy read model", () => {

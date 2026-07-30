@@ -15,14 +15,14 @@ const TERMINAL_SESSION_STATUSES = new Set([
   "cancelled",
 ]);
 
-export class DelegationServiceUnavailableError extends Error {
+export class OrchestratorTaskServiceUnavailableError extends Error {
   readonly code = "ORCHESTRATOR_TASK_SERVICE_UNAVAILABLE";
 
   constructor() {
     super(
       `${ORCHESTRATOR_TASK_SERVICE} is unavailable. Delegation requires @elizaos/plugin-agent-orchestrator.`,
     );
-    this.name = "DelegationServiceUnavailableError";
+    this.name = "OrchestratorTaskServiceUnavailableError";
   }
 }
 
@@ -42,7 +42,7 @@ export function requireOfficialOrchestrator(
 ): NativeAgentOrchestratorService {
   const service = getOfficialOrchestrator(runtime);
   if (!service) {
-    throw new DelegationServiceUnavailableError();
+    throw new OrchestratorTaskServiceUnavailableError();
   }
   return service;
 }

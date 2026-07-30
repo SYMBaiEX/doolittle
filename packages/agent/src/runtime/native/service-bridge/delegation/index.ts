@@ -1,6 +1,6 @@
 export {
-  DelegationServiceUnavailableError,
   getOfficialOrchestrator,
+  OrchestratorTaskServiceUnavailableError,
   projectOfficialStatus,
   projectOfficialTask,
   projectOfficialTaskList,

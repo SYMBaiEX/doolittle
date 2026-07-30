@@ -1,4 +1,4 @@
-import { DelegationServiceUnavailableError } from "@/runtime/native/service-bridge/delegation";
+import { OrchestratorTaskServiceUnavailableError } from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../chat";
 import { handleDelegationMutationCommand } from "./delegation-command-mutations";
 import { handleDelegationReadCommand } from "./delegation-read";
@@ -30,7 +30,7 @@ export async function handleDelegationCommand(
 
     return undefined;
   } catch (error) {
-    if (error instanceof DelegationServiceUnavailableError) {
+    if (error instanceof OrchestratorTaskServiceUnavailableError) {
       return JSON.stringify(
         {
           available: false,
