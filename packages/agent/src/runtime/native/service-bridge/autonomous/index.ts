@@ -13,14 +13,16 @@ import {
   getNativeMediaControlPlane,
   getNativeResearchControlPlane,
 } from "../control-planes";
+import { requireOfficialOrchestrator } from "../delegation";
 import { getNativeServices, type RuntimeLike } from "../runtime";
+import { requireOfficialAgentSkills } from "../skill-hub";
 import { requireNativeCodingAgent } from "../tooling/native-services";
 
 export interface AutonomousControlPlaneSummary {
   alignment: ReturnType<typeof describeAutonomousAlignment>;
   skills: {
-    source: "native" | "product";
-    available: boolean;
+    source: "native";
+    available: true;
     localSkills: number;
     workspaceTotal: number;
     workspaceCurated: number;
@@ -30,8 +32,8 @@ export interface AutonomousControlPlaneSummary {
     trendingSkills: number;
   };
   orchestrator: {
-    source: "native" | "product";
-    available: boolean;
+    source: "native";
+    available: true;
     tasks: number;
     queuePending: number;
     activeWorkers: number;
@@ -145,6 +147,8 @@ export function getAutonomousControlPlane(
 ): AutonomousControlPlaneSummary {
   const native = {
     ...getNativeServices(runtime),
+    agentSkills: requireOfficialAgentSkills(runtime),
+    agentOrchestrator: requireOfficialOrchestrator(runtime),
     codingAgent: requireNativeCodingAgent(runtime),
   };
   const formsControl = getNativeFormsControlPlane(runtime);

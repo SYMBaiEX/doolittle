@@ -29,19 +29,27 @@ function createContext(): AppContext {
   return {
     config,
     runtime: {
-      getService: (name: string) =>
-        name === "coding_agent"
-          ? {
-              read: () => "",
-              write: () => undefined,
-              search: () => [],
-              repoStatus: async () => ({}),
-              repoDiff: async () => ({}),
-              repoLog: async () => [],
-              run: async () => ({}),
-              tasks: () => [],
-            }
-          : null,
+      getService: (name: string) => {
+        if (name === "coding_agent") {
+          return {
+            read: () => "",
+            write: () => undefined,
+            search: () => [],
+            repoStatus: async () => ({}),
+            repoDiff: async () => ({}),
+            repoLog: async () => [],
+            run: async () => ({}),
+            tasks: () => [],
+          };
+        }
+        if (name === "AGENT_SKILLS_SERVICE") {
+          return { getLoadedSkills: () => [] };
+        }
+        if (name === "ORCHESTRATOR_TASK_SERVICE") {
+          return {};
+        }
+        return null;
+      },
     },
     services: {
       settings: {

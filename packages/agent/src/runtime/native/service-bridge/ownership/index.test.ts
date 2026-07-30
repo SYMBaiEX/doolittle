@@ -233,6 +233,10 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
       run: async () => ({}),
       tasks: () => [],
     },
+    AGENT_SKILLS_SERVICE: {
+      getLoadedSkills: () => [],
+    },
+    ORCHESTRATOR_TASK_SERVICE: {},
     mcp: {
       status: () => services.mcp.status(),
       getCachedTools: () => services.mcp.getCachedTools(),

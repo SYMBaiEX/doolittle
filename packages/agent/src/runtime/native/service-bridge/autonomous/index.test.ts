@@ -36,6 +36,11 @@ describe("autonomous control plane", () => {
         if (name === "ORCHESTRATOR_TASK_SERVICE") {
           return {};
         }
+        if (name === "AGENT_SKILLS_SERVICE") {
+          return {
+            getLoadedSkills: () => [],
+          };
+        }
         if (name === "coding_agent") {
           return {
             read: () => "",
@@ -160,6 +165,14 @@ describe("autonomous control plane", () => {
     expect(controlPlane.orchestrator.tasks).toBe(5);
     expect(controlPlane.orchestrator.queuePending).toBe(2);
     expect(controlPlane.orchestrator.activeWorkers).toBe(2);
+    expect(controlPlane.orchestrator).toMatchObject({
+      source: "native",
+      available: true,
+    });
+    expect(controlPlane.skills).toMatchObject({
+      source: "native",
+      available: true,
+    });
     expect(controlPlane.codingAgent).toMatchObject({
       source: "native",
       available: true,

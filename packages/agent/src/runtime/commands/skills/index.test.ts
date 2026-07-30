@@ -5,7 +5,15 @@ import { handleSkillCommand } from ".";
 describe("skills command router", () => {
   it("renders skills inventory through the extracted router", async () => {
     const result = await handleSkillCommand("/skills", {
-      runtime: {},
+      runtime: {
+        getService: (name: string) =>
+          name === "AGENT_SKILLS_SERVICE"
+            ? {
+                getLoadedSkills: () => [],
+                getManagedSkills: () => [],
+              }
+            : null,
+      },
       services: {
         skills: {
           list: () => [],
@@ -58,7 +66,7 @@ describe("skills command router", () => {
     expect(install).toBe("Usage: /skills install <catalog-slug>");
   });
 
-  it("reports official lifecycle operations unavailable without the service", async () => {
+  it("fails fast when official lifecycle operations bypass bootstrap", async () => {
     const context = {
       runtime: {},
       services: {
@@ -80,10 +88,14 @@ describe("skills command router", () => {
 
     await expect(
       handleSkillCommand("/skills sync", context),
-    ).resolves.toContain("Agent Skills service is unavailable");
+    ).rejects.toMatchObject({
+      code: "AGENT_SKILLS_SERVICE_UNAVAILABLE",
+    });
     await expect(
       handleSkillCommand("/skills install release-checklist", context),
-    ).resolves.toContain('"installed": false');
+    ).rejects.toMatchObject({
+      code: "AGENT_SKILLS_SERVICE_UNAVAILABLE",
+    });
   });
 
   it("renders generated skill details and missing skills cleanly", async () => {

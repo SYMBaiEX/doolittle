@@ -12,8 +12,10 @@ import {
   DOOLITTLE_SCHEDULER_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+  ORCHESTRATOR_TASK_SERVICE,
 } from "@doolittle/contracts";
 import { type AgentRuntime, stringToUuid } from "@elizaos/core";
+import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 
 const CRITICAL_RUNTIME_SERVICES = [
@@ -25,6 +27,8 @@ const CRITICAL_RUNTIME_SERVICES = [
   DOOLITTLE_AWARENESS_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_CODING_AGENT_SERVICE,
+  ORCHESTRATOR_TASK_SERVICE,
+  AgentSkillsService.serviceType,
   DOOLITTLE_GATEWAY_SERVICE,
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,

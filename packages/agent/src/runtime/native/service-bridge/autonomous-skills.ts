@@ -1,10 +1,12 @@
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "./runtime";
+import { requireOfficialAgentSkills } from "./skill-hub";
 
 export function getEffectiveSkills(
-  _runtime: RuntimeLike,
+  runtime: RuntimeLike,
   services: AppServices,
 ) {
+  requireOfficialAgentSkills(runtime);
   return services.skills.list();
 }
 

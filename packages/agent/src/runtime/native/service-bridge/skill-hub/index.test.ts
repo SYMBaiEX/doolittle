@@ -63,19 +63,16 @@ describe("official Agent Skills bridge", () => {
     expect(getCatalog).toHaveBeenCalledWith({ forceRefresh: true });
   });
 
-  it("reports lifecycle operations unavailable instead of fabricating installs", async () => {
+  it("fails fast when the bootstrap-critical official service is unavailable", async () => {
     const runtime = {} as RuntimeLike;
 
     await expect(
       installEffectiveSkill(runtime, "release-checklist"),
-    ).resolves.toMatchObject({
-      available: false,
-      installed: false,
-      error: "Agent Skills service is unavailable.",
+    ).rejects.toMatchObject({
+      code: "AGENT_SKILLS_SERVICE_UNAVAILABLE",
     });
-    await expect(syncEffectiveSkillCatalog(runtime)).resolves.toMatchObject({
-      available: false,
-      error: "Agent Skills service is unavailable.",
+    await expect(syncEffectiveSkillCatalog(runtime)).rejects.toMatchObject({
+      code: "AGENT_SKILLS_SERVICE_UNAVAILABLE",
     });
   });
 

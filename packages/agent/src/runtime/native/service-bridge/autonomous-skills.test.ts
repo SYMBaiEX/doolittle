@@ -6,8 +6,10 @@ import type { RuntimeLike } from "./runtime";
 describe("getEffectiveSkillsSummary", () => {
   it("derives a workspace summary when the service does not expose summary()", () => {
     const runtime = {
-      getService() {
-        return null;
+      getService(name: string) {
+        return name === "AGENT_SKILLS_SERVICE"
+          ? { getLoadedSkills: () => [] }
+          : null;
       },
     } as unknown as RuntimeLike;
 

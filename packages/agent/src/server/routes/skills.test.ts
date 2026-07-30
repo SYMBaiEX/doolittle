@@ -4,7 +4,17 @@ import { handleSkillRoutes } from "./skills";
 
 function createContext(): AppContext {
   return {
-    runtime: {},
+    runtime: {
+      getService(name: string) {
+        if (name !== "AGENT_SKILLS_SERVICE") return null;
+        return {
+          getLoadedSkills: () => [],
+          getManagedSkills: () => [],
+          search: async (query: string) => [{ slug: query, source: "search" }],
+          install: async () => true,
+        };
+      },
+    },
     services: {
       skills: {
         list: () => [{ slug: "voice/tts" }],
@@ -52,7 +62,12 @@ describe("handleSkillRoutes", () => {
     );
 
     const body = await response?.json();
-    expect(Array.isArray(body)).toBe(true);
+    expect(body).toMatchObject({
+      available: true,
+      source: "@elizaos/plugin-agent-skills",
+      query: "voice",
+      results: [{ slug: "voice", source: "search" }],
+    });
   });
 
   it("validates generated detail requests", async () => {
@@ -94,7 +109,7 @@ describe("handleSkillRoutes", () => {
     expect(await installError?.json()).toEqual({ error: "slug is required" });
   });
 
-  it("returns explicit unavailable install state without the official service", async () => {
+  it("routes installs through the official service", async () => {
     const response = await handleSkillRoutes(
       createContext(),
       new Request("http://localhost/skills/install", {
@@ -107,11 +122,10 @@ describe("handleSkillRoutes", () => {
 
     expect(await response?.json()).toEqual({
       install: {
-        available: false,
+        available: true,
         source: "@elizaos/plugin-agent-skills",
         slug: "release-checklist",
-        installed: false,
-        error: "Agent Skills service is unavailable.",
+        installed: true,
       },
     });
   });

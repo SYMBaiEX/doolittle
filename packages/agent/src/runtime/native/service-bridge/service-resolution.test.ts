@@ -135,7 +135,7 @@ describe("service-resolution helpers", () => {
         nativeService: "AGENT_SKILLS_SERVICE",
         source: "native",
         ownership: "plugin",
-        fallback: "offline skills projection + local skillSynthesis",
+        fallback: "required official Eliza Agent Skills service",
         available: true,
       },
       {
@@ -149,9 +149,9 @@ describe("service-resolution helpers", () => {
       {
         capability: "agentOrchestrator",
         nativeService: "ORCHESTRATOR_TASK_SERVICE",
-        source: "product",
-        ownership: "product",
-        fallback: "unavailable without @elizaos/plugin-agent-orchestrator",
+        source: "unavailable",
+        ownership: "plugin",
+        fallback: "required official Eliza Agent Orchestrator service",
         available: false,
       },
       {

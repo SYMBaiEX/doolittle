@@ -13,8 +13,30 @@ import type {
   SkillHubManifest,
 } from "@/services/skills-hub/types";
 import { getNativeServices, type RuntimeLike } from "../runtime";
+import type { NativeAgentSkillsService } from "../runtime-contracts";
 
 const OFFICIAL_SOURCE = "@elizaos/plugin-agent-skills";
+
+export class AgentSkillsServiceUnavailableError extends Error {
+  readonly code = "AGENT_SKILLS_SERVICE_UNAVAILABLE";
+
+  constructor() {
+    super(
+      "AGENT_SKILLS_SERVICE is unavailable. Skills require @elizaos/plugin-agent-skills.",
+    );
+    this.name = "AgentSkillsServiceUnavailableError";
+  }
+}
+
+export function requireOfficialAgentSkills(
+  runtime: RuntimeLike,
+): NativeAgentSkillsService {
+  const service = getNativeServices(runtime).agentSkills;
+  if (!service) {
+    throw new AgentSkillsServiceUnavailableError();
+  }
+  return service;
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -132,10 +154,7 @@ export async function getEffectiveSkillHubCatalog(
   force = false,
   limit = 50,
 ) {
-  const official = getNativeServices(runtime).agentSkills;
-  if (!official) {
-    return services.skillsHub.catalog(force, limit);
-  }
+  const official = requireOfficialAgentSkills(runtime);
   const installed = new Set(
     official.getManagedSkills().map((skill) => skill.slug),
   );
@@ -147,14 +166,11 @@ export async function getEffectiveSkillHubCatalog(
 
 export async function searchEffectiveSkillHubCatalog(
   runtime: RuntimeLike,
-  services: AppServices,
+  _services: AppServices,
   query: string,
   limit = 15,
 ) {
-  const official = getNativeServices(runtime).agentSkills;
-  if (!official) {
-    return services.skillsHub.searchCatalog(query, limit);
-  }
+  const official = requireOfficialAgentSkills(runtime);
   try {
     return {
       available: true,
@@ -202,10 +218,7 @@ export async function getEffectiveSkillHubCatalogEntry(
   services: AppServices,
   slug: string,
 ) {
-  const official = getNativeServices(runtime).agentSkills;
-  if (!official) {
-    return services.skillsHub.catalogEntry(slug);
-  }
+  const official = requireOfficialAgentSkills(runtime);
   const details = await official.getSkillDetails(slug);
   return details
     ? projectSkillDetails(services, details, await official.isInstalled(slug))
@@ -240,23 +253,19 @@ export function getEffectiveSkillHubFamily(
 
 export function getEffectiveSkillHubInstalled(
   runtime: RuntimeLike,
-  services: AppServices,
+  _services: AppServices,
 ) {
-  const official = getNativeServices(runtime).agentSkills;
-  return official
-    ? official.getManagedSkills().map(projectInstalledSkill)
-    : services.skillsHub.installedManifests();
+  return requireOfficialAgentSkills(runtime)
+    .getManagedSkills()
+    .map(projectInstalledSkill);
 }
 
 export function getEffectiveSkillHubInstalledManifest(
   runtime: RuntimeLike,
-  services: AppServices,
+  _services: AppServices,
   slug: string,
 ) {
-  const official = getNativeServices(runtime).agentSkills;
-  if (!official) {
-    return services.skillsHub.installedManifest(slug);
-  }
+  const official = requireOfficialAgentSkills(runtime);
   const skill = official.getLoadedSkill(slug);
   return skill?.source === "managed"
     ? projectInstalledManifest(skill)
@@ -264,14 +273,7 @@ export function getEffectiveSkillHubInstalledManifest(
 }
 
 export async function syncEffectiveSkillCatalog(runtime: RuntimeLike) {
-  const official = getNativeServices(runtime).agentSkills;
-  if (!official) {
-    return {
-      available: false,
-      source: OFFICIAL_SOURCE,
-      error: "Agent Skills service is unavailable.",
-    };
-  }
+  const official = requireOfficialAgentSkills(runtime);
   try {
     return {
       available: true,
@@ -291,16 +293,7 @@ export async function installEffectiveSkill(
   runtime: RuntimeLike,
   slug: string,
 ) {
-  const official = getNativeServices(runtime).agentSkills;
-  if (!official) {
-    return {
-      available: false,
-      source: OFFICIAL_SOURCE,
-      slug,
-      installed: false,
-      error: "Agent Skills service is unavailable.",
-    };
-  }
+  const official = requireOfficialAgentSkills(runtime);
   try {
     const installed = await official.install(slug);
     return {

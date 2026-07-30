@@ -28,6 +28,8 @@ describe("bootstrap runtime services", () => {
       "service:doolittle_awareness",
       "service:browser",
       "service:coding_agent",
+      "service:ORCHESTRATOR_TASK_SERVICE",
+      "service:AGENT_SKILLS_SERVICE",
       "service:doolittle_gateway",
       "service:mcp",
       "service:doolittle_operator_planning",

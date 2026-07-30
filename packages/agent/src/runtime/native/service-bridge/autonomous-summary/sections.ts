@@ -39,8 +39,8 @@ export function buildSkillsSection(
   skillsSummary: ResolvedSkillsSummary,
 ): AutonomousControlPlaneSummary["skills"] {
   return {
-    source: input.native.agentSkills ? "native" : "product",
-    available: Boolean(input.native.agentSkills),
+    source: "native",
+    available: true,
     localSkills: Array.isArray(input.localSkills)
       ? input.localSkills.length
       : 0,
@@ -61,8 +61,8 @@ export function buildOrchestratorSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["orchestrator"] {
   return {
-    source: input.native.agentOrchestrator ? "native" : "product",
-    available: Boolean(input.native.agentOrchestrator),
+    source: "native",
+    available: true,
     tasks:
       input.orchestratorSummary?.tasks ??
       (Array.isArray(input.orchestratorTasks)

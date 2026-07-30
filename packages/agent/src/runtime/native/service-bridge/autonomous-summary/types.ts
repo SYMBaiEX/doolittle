@@ -1,9 +1,13 @@
 import type { describeAutonomousAlignment } from "../../autonomous-stack";
-import type { NativeCodingAgentService } from "../runtime-contracts";
+import type {
+  NativeAgentOrchestratorService,
+  NativeAgentSkillsService,
+  NativeCodingAgentService,
+} from "../runtime-contracts";
 
 export type NativeServicesSnapshot = {
-  agentSkills?: unknown;
-  agentOrchestrator?: unknown;
+  agentSkills: NativeAgentSkillsService;
+  agentOrchestrator: NativeAgentOrchestratorService;
   codingAgent: NativeCodingAgentService;
   trajectoryLogger?: {
     isEnabled?: unknown;

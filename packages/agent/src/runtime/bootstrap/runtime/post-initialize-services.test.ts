@@ -30,14 +30,10 @@ describe("finalizeCoreRuntimeServices", () => {
     ).toHaveBeenCalledWith(runtime);
     expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
       2,
-      "AGENT_SKILLS_SERVICE",
-    );
-    expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
-      3,
       "doolittle_run_progress",
     );
     expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
-      4,
+      3,
       "doolittle_sdk_capabilities",
     );
     expect(runtime.registerService).not.toHaveBeenCalled();
