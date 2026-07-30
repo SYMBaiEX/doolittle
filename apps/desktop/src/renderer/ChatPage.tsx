@@ -1717,20 +1717,60 @@ export function ChatPage({
     >
       <section className="chat-conversation" aria-label="Conversation detail">
         <header className="chat-header">
-          <div>
-            <span className="eyebrow">
-              {activeProject ? "Project conversation" : "Conversation"}
-            </span>
-            <h2>{selectedSession?.title ?? "New conversation"}</h2>
-            <button
-              aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
-              className="chat-model-route"
-              onClick={() => setRouteDialogOpen(true)}
-              type="button"
-            >
-              <span>Route</span>
-              <strong>{modelRouteLabel}</strong>
-            </button>
+          <div className="chat-header-content">
+            <div className="chat-header-topline">
+              <div className="chat-header-title-wrap">
+                <span className="eyebrow">
+                  {activeProject ? "Project conversation" : "Conversation"}
+                </span>
+                <h2>{selectedSession?.title ?? "New conversation"}</h2>
+              </div>
+              <div className="chat-header-top-actions">
+                <button
+                  aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
+                  className="chat-model-route"
+                  onClick={() => setRouteDialogOpen(true)}
+                  type="button"
+                >
+                  <span>Route</span>
+                  <strong>{modelRouteLabel}</strong>
+                </button>
+                <button
+                  aria-controls="mobile-conversations"
+                  aria-expanded={mobileConversationsOpen}
+                  className="chat-mobile-conversations-button secondary-button"
+                  onClick={() => setMobileConversationsOpen(true)}
+                  ref={mobileConversationsButtonRef}
+                  type="button"
+                >
+                  <span>History</span>
+                  <small>{sessions.length}</small>
+                </button>
+                {activeRequest ? (
+                  <button
+                    className="secondary-button"
+                    onClick={() =>
+                      void window.doolittle.cancelChat(activeRequest)
+                    }
+                    type="button"
+                  >
+                    Stop response
+                  </button>
+                ) : null}
+                <button
+                  aria-controls="thread-workbench"
+                  aria-expanded={inspectorVisible}
+                  className={`secondary-button chat-workbench-toggle ${
+                    inspectorVisible ? "selected" : ""
+                  }`}
+                  onClick={toggleInspector}
+                  type="button"
+                >
+                  <span aria-hidden="true">◧</span>
+                  Workbench
+                </button>
+              </div>
+            </div>
             <div className="chat-session-meta">
               {activeProject && onOpenProjectManager ? (
                 <button
@@ -1832,40 +1872,6 @@ export function ChatPage({
                 </button>
               ) : null}
             </div>
-            <button
-              aria-controls="mobile-conversations"
-              aria-expanded={mobileConversationsOpen}
-              className="chat-mobile-conversations-button secondary-button"
-              onClick={() => setMobileConversationsOpen(true)}
-              ref={mobileConversationsButtonRef}
-              type="button"
-            >
-              <span>History</span>
-              <small>{sessions.length}</small>
-            </button>
-          </div>
-          <div className="chat-header-toolbar">
-            {activeRequest ? (
-              <button
-                className="secondary-button"
-                onClick={() => void window.doolittle.cancelChat(activeRequest)}
-                type="button"
-              >
-                Stop response
-              </button>
-            ) : null}
-            <button
-              aria-controls="thread-workbench"
-              aria-expanded={inspectorVisible}
-              className={`secondary-button chat-workbench-toggle ${
-                inspectorVisible ? "selected" : ""
-              }`}
-              onClick={toggleInspector}
-              type="button"
-            >
-              <span aria-hidden="true">◧</span>
-              Workbench
-            </button>
           </div>
         </header>
         <div className="chat-messages">

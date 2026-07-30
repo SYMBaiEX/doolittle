@@ -420,50 +420,62 @@ tbody tr:hover {
 
 /* biome-ignore lint/style/noDescendingSpecificity: this finish layer intentionally overrides the earlier density contract */
 .chat-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  min-height: 56px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-right: clamp(14px, 3vw, 28px);
-  padding-left: clamp(14px, 3vw, 28px);
-  gap: 6px 8px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 52px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-right: clamp(12px, 2.8vw, 24px);
+  padding-left: clamp(12px, 2.8vw, 24px);
+  gap: 5px;
+  overflow: hidden;
 }
 
-.chat-header > div:first-child {
-  grid-column: 1 / 2;
-  grid-row: 1 / -1;
+.chat-header-content {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  grid-template-rows: auto auto;
-  align-items: flex-start;
-  column-gap: 10px;
-  row-gap: 2px;
+  gap: 4px;
 }
 
-.chat-header-toolbar {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: start;
-  margin-top: 0;
-  align-items: center;
-  justify-content: end;
-  gap: 4px;
-  padding-top: 0;
+.chat-header-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-header-title-wrap {
+  min-width: 0;
+}
+
+.chat-header-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
 }
 
 .chat-header :where(h2) {
   margin: 0;
   font-size: 16px;
-  line-height: 1.2;
-  letter-spacing: -0.015em;
+  line-height: 1.18;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-model-route {
-  margin-top: 2px;
-  padding-top: 0;
-  padding-bottom: 0;
+  margin-top: 0;
+  min-height: 26px;
+  padding: 0 7px;
   gap: 5px;
+  white-space: nowrap;
 }
 
 /* biome-ignore lint/style/noDescendingSpecificity: route labels are scoped independently from earlier summary spans */
@@ -473,23 +485,37 @@ tbody tr:hover {
 }
 
 .chat-mobile-conversations-button {
-  min-height: 28px;
-  padding: 3px 8px;
+  min-height: 26px;
+  padding: 0 7px;
   gap: 5px;
 }
 
 .chat-mobile-conversations-button small {
-  min-width: 17px;
-  height: 17px;
+  min-width: 16px;
+  height: 16px;
+}
+
+.chat-session-meta-wrap,
+.chat-session-meta {
+  width: 100%;
+  min-width: 0;
 }
 
 .chat-session-meta {
-  margin-top: 3px;
+  margin-top: 0;
   gap: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.chat-session-meta::-webkit-scrollbar {
+  display: none;
 }
 
 .chat-session-meta-pill {
-  min-height: 20px;
+  min-height: 22px;
   padding: 0 8px;
   font-size: 9px;
   border-right: 1px solid var(--border);
@@ -503,8 +529,8 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.chat-header-toolbar .secondary-button {
-  min-height: 28px;
+.chat-header-top-actions .secondary-button {
+  min-height: 26px;
   padding: 4px 8px;
   font-size: 10px;
 }
@@ -512,18 +538,17 @@ tbody tr:hover {
 @media (max-width: 1024px) {
   /* biome-ignore lint/style/noDescendingSpecificity: responsive geometry must follow the desktop finish override */
   .chat-header {
-    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    gap: 6px;
   }
 
-  .chat-header > div:first-child {
-    grid-column: 1 / 2;
-    grid-row: 1 / -1;
+  .chat-header-content,
+  .chat-header-topline {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
-  .chat-header-toolbar {
-    grid-column: 1;
-    grid-row: auto;
-    margin-top: 1px;
+  .chat-header-top-actions {
     justify-content: flex-start;
   }
 }
