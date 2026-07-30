@@ -65,6 +65,13 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
 export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] =
   [
     {
+      capability: "memoryStorage",
+      nativeKey: "memoryStorage",
+      nativeService: "memoryStorage",
+      productServices: ["sessions"],
+      fallback: "unavailable until the Eliza memory storage adapter loads",
+    },
+    {
       capability: "knowledgeGraph",
       nativeKey: "knowledgeGraph",
       nativeService: KNOWLEDGE_GRAPH_SERVICE,

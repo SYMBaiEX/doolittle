@@ -1,6 +1,7 @@
 import type { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
 import type { KnowledgeGraphService } from "@elizaos/agent/services/knowledge-graph/index";
 
+import type { MemoryStorageProvider } from "@elizaos/core";
 import type {
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
@@ -40,6 +41,7 @@ export * from "./memory";
 export * from "./runtime";
 
 export type NativeServices = {
+  memoryStorage: MemoryStorageProvider | undefined;
   knowledgeGraph: KnowledgeGraphService | undefined;
   pdf: NativePdfService | undefined;
   personality: NativePersonalityService | undefined;
