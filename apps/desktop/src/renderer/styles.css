@@ -2534,26 +2534,28 @@ td {
 }
 
 .chat-run-receipt {
-  margin: 0 0 5px;
+  margin: 0 0 3px;
   overflow: hidden;
   color: var(--text-soft);
-  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  border-radius: 0;
   white-space: normal;
 }
 
 .chat-run-receipt[open] {
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: color-mix(in srgb, var(--surface-soft) 24%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
 }
 
 .chat-run-receipt summary {
   display: grid;
-  min-height: 28px;
+  min-height: 24px;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 7px;
-  padding: 3px 7px;
+  gap: 6px;
+  padding: 2px 3px;
   cursor: pointer;
   list-style: none;
   background: transparent;
@@ -2572,7 +2574,7 @@ td {
 
 .chat-run-receipt summary strong {
   color: var(--text);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 620;
 }
 
@@ -2580,7 +2582,7 @@ td {
   overflow: hidden;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 7px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2617,13 +2619,13 @@ td {
 .chat-run-metrics {
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 7px;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
 .chat-run-receipt ol {
-  max-height: 192px;
+  max-height: 144px;
   margin: 0;
   padding: 3px 11px;
   overflow-y: auto;
@@ -2633,7 +2635,7 @@ td {
 
 .chat-run-receipt li {
   display: grid;
-  min-height: 34px;
+  min-height: 28px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
@@ -2660,7 +2662,7 @@ td {
 .chat-run-receipt li strong {
   overflow: hidden;
   color: var(--text-soft);
-  font-size: var(--text-meta, 10px);
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2669,7 +2671,7 @@ td {
 .chat-run-receipt li time {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 7px;
 }
 
 .chat-run-receipt li small {

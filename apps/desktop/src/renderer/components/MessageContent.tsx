@@ -3,6 +3,7 @@ import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
 import {
   formatToolPayload,
+  type ParsedAgentMessage,
   parseAgentMessage,
   type ToolActivity,
   type ToolActivityStatus,
@@ -13,6 +14,7 @@ import "./message-content.css";
 interface MessageContentProps {
   content: string;
   pending?: boolean;
+  parsedAgentMessage?: ParsedAgentMessage;
   separateAgentEvents?: boolean;
 }
 
@@ -162,33 +164,45 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
   );
 }
 
-function ToolActivityGroup({ tools }: { tools: ToolActivity[] }) {
+function ToolActivityGroup({
+  pending,
+  tools,
+}: {
+  pending: boolean;
+  tools: ToolActivity[];
+}) {
   const completed = tools.filter(
     (activity) => activity.status === "completed",
   ).length;
   const failed = tools.filter((activity) => activity.status === "error").length;
   const active = tools.length - completed - failed;
   const status =
-    failed > 0 ? "error" : active > 0 ? "running" : ("completed" as const);
+    failed > 0
+      ? "error"
+      : active > 0 || pending
+        ? "running"
+        : ("completed" as const);
   const state =
     failed > 0
       ? `${failed} failed`
       : active > 0
         ? `${active} active`
-        : `${completed} completed`;
+        : pending
+          ? "Working"
+          : "Completed";
 
   return (
     <details className={`message-tool-group is-${status}`}>
       <summary>
         <span className={`message-tool-group__state is-${status}`}>
           <i aria-hidden="true" />
-          Tools
+          Activity
         </span>
         <span className="message-tool-group__preview">
           {tools.map(toolLabel).join(" · ")}
         </span>
         <span className="message-tool-group__count">
-          {tools.length} {tools.length === 1 ? "tool" : "tools"} · {state}
+          {state} · {tools.length}
         </span>
         <span className="message-tool-group__chevron" aria-hidden="true">
           ›
@@ -247,18 +261,20 @@ function AgentSteps({
 export function MessageContent({
   content,
   pending = false,
+  parsedAgentMessage,
   separateAgentEvents = false,
 }: MessageContentProps) {
   const parsed = useMemo(
     () =>
-      separateAgentEvents
+      parsedAgentMessage ??
+      (separateAgentEvents
         ? parseAgentMessage(content)
         : {
             text: content,
             tools: [],
             steps: { continued: 0, failed: 0, finished: 0 },
-          },
-    [content, separateAgentEvents],
+          }),
+    [content, parsedAgentMessage, separateAgentEvents],
   );
   const hasActivity =
     parsed.tools.length > 0 ||
@@ -295,7 +311,7 @@ export function MessageContent({
           aria-label="Agent tool activity"
           className="message-tool-activity"
         >
-          <ToolActivityGroup tools={parsed.tools} />
+          <ToolActivityGroup pending={pending} tools={parsed.tools} />
         </section>
       ) : null}
       <AgentSteps {...parsed.steps} />

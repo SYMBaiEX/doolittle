@@ -70,7 +70,8 @@ describe("MessageContent", () => {
 
     expect(html).toContain('class="message-tool-group is-completed"');
     expect(html).toContain('class="message-tool-card is-completed"');
-    expect(html).toContain("1 tool · 1 completed");
+    expect(html).toContain("Completed · 1");
+    expect(html).toContain(">Activity<");
     expect(html).not.toContain("Tool activity");
     expect(html).not.toContain("<details open");
   });
@@ -109,7 +110,34 @@ describe("MessageContent", () => {
 
     expect(html.match(/message-tool-group is-running/gu)).toHaveLength(1);
     expect(html.match(/message-tool-card is-/gu)).toHaveLength(2);
-    expect(html).toContain("2 tools · 1 active");
+    expect(html).toContain("1 active · 2");
     expect(html).toContain("Read File · Web Search");
+  });
+
+  it("keeps a pending tool-backed response in one compact working row", () => {
+    const content = [
+      JSON.stringify({
+        type: "tool_call",
+        toolCall: {
+          id: "call-1",
+          name: "READ_FILE",
+          arguments: { path: "README.md" },
+          status: "completed",
+        },
+        messageId: "message-1",
+      }),
+      JSON.stringify({
+        type: "tool_result",
+        toolCallId: "call-1",
+        result: { success: true },
+      }),
+    ].join("");
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} pending separateAgentEvents />,
+    );
+
+    expect(html).toContain('class="message-tool-group is-running"');
+    expect(html).toContain("Working · 1");
+    expect(html).not.toContain("<details open");
   });
 });

@@ -31,7 +31,10 @@ import {
 } from "./components/ComposerSelectors";
 import { InlineApprovalPanel } from "./components/InlineApprovalPanel";
 import { MessageContent } from "./components/MessageContent";
-import { visibleAssistantText } from "./components/message-output";
+import {
+  parseAgentMessage,
+  visibleAssistantText,
+} from "./components/message-output";
 import type { ProjectLike, ProjectScope } from "./components/ProjectManager";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import {
@@ -1881,6 +1884,24 @@ export function ChatPage({
                 ? message.id.slice("assistant:".length)
                 : "";
               const receipt = requestId ? runReceipts[requestId] : undefined;
+              const parsedAgentMessage =
+                message.role === "assistant" && message.content
+                  ? parseAgentMessage(message.content)
+                  : undefined;
+              const hasToolActivity = Boolean(parsedAgentMessage?.tools.length);
+              const receiptNeedsAttention = Boolean(
+                receipt &&
+                  (receipt.latest.run.pendingApprovals > 0 ||
+                    receipt.latest.run.errorMessage ||
+                    receipt.latest.run.status === "error" ||
+                    receipt.latest.run.status === "cancelled"),
+              );
+              const showRunReceipt = Boolean(
+                receipt &&
+                  (!hasToolActivity ||
+                    receiptNeedsAttention ||
+                    receipt.latest.run.localMutations.length > 0),
+              );
               return (
                 <article
                   className={`chat-message ${message.role} ${
@@ -1900,7 +1921,7 @@ export function ChatPage({
                     <time>{displayTimestamp(message.createdAt)}</time>
                   </div>
                   <div className="chat-message-body">
-                    {receipt ? (
+                    {receipt && showRunReceipt ? (
                       <RunReceiptView
                         pending={Boolean(message.pending)}
                         receipt={receipt}
@@ -1909,6 +1930,7 @@ export function ChatPage({
                     {message.content ? (
                       <MessageContent
                         content={message.content}
+                        parsedAgentMessage={parsedAgentMessage}
                         pending={message.pending}
                         separateAgentEvents={message.role === "assistant"}
                       />
