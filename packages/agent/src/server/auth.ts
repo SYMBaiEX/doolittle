@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 /**
  * HTTP API authorization for Doolittle.
  *
@@ -31,6 +33,63 @@ function extractBearerToken(request: Request): string | undefined {
   const header = request.headers.get("authorization") ?? "";
   const match = header.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || undefined;
+}
+
+function tokenMatches(expected: string, provided: string): boolean {
+  const expectedBytes = Buffer.from(expected);
+  const providedBytes = Buffer.from(provided);
+  return (
+    expectedBytes.byteLength === providedBytes.byteLength &&
+    timingSafeEqual(expectedBytes, providedBytes)
+  );
+}
+
+export interface TerminalRunTokenError {
+  status: 401;
+  reason: string;
+}
+
+export function sdkTerminalRunTokenError(
+  request: Request,
+  body: Record<string, unknown> = {},
+  expectedToken = process.env.ELIZA_TERMINAL_RUN_TOKEN,
+): TerminalRunTokenError | null {
+  const expected = expectedToken?.trim();
+  if (!expected) return null;
+
+  const headerToken =
+    request.headers.get("x-eliza-terminal-token")?.trim() ?? "";
+  const bodyToken =
+    typeof body.terminalToken === "string" ? body.terminalToken.trim() : "";
+  const provided = headerToken || bodyToken;
+  if (!provided) {
+    return {
+      status: 401,
+      reason:
+        "Missing terminal token. Provide X-Eliza-Terminal-Token header or terminalToken in request body.",
+    };
+  }
+  if (!tokenMatches(expected, provided)) {
+    return { status: 401, reason: "Invalid terminal token." };
+  }
+  return null;
+}
+
+/**
+ * The official Eliza SHELL action calls the local SDK terminal endpoint with a
+ * dedicated terminal token rather than Doolittle's operator API bearer token.
+ * Accept that credential only for the exact SDK terminal route. The route
+ * still validates the token again after parsing the body.
+ */
+export function isSdkTerminalRequestAuthorized(
+  request: Request,
+  expectedToken = process.env.ELIZA_TERMINAL_RUN_TOKEN,
+): boolean {
+  const expected = expectedToken?.trim();
+  if (!expected || new URL(request.url).pathname !== "/api/terminal/run") {
+    return false;
+  }
+  return sdkTerminalRunTokenError(request, {}, expected) === null;
 }
 
 /**

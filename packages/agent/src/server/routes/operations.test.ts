@@ -144,6 +144,101 @@ describe("handleOperationsRoutes", () => {
     });
   });
 
+  it("adapts terminal runs to the official Eliza SDK capture contract", async () => {
+    const context = createContext();
+    context.services.terminal.run = async (command, timeoutMs) => ({
+      id: "command-sdk",
+      command,
+      backend: "local",
+      cwd: "/workspace",
+      timeoutMs,
+      timedOut: false,
+      durationMs: 12,
+      exitCode: 0,
+      stdout: "/workspace\n",
+      stderr: "",
+      startedAt: "2026-07-30T00:00:00.000Z",
+      completedAt: "2026-07-30T00:00:00.012Z",
+    });
+
+    const response = await handleOperationsRoutes(
+      context,
+      new Request("http://localhost/api/terminal/run", {
+        method: "POST",
+        body: JSON.stringify({
+          command: "pwd",
+          clientId: "runtime-terminal-action",
+          captureOutput: true,
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/api/terminal/run"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({
+      ok: true,
+      runId: "command-sdk",
+      command: "pwd",
+      exitCode: 0,
+      stdout: "/workspace\n",
+      stderr: "",
+      timedOut: false,
+      maxDurationMs: 30_000,
+      durationMs: 12,
+      cwd: "/workspace",
+    });
+  });
+
+  it("enforces the SDK terminal token and single-line command contract", async () => {
+    const previousToken = process.env.ELIZA_TERMINAL_RUN_TOKEN;
+    process.env.ELIZA_TERMINAL_RUN_TOKEN = "terminal-secret";
+    try {
+      const post = (
+        command: string,
+        token?: string,
+      ): Promise<Response | null> =>
+        handleOperationsRoutes(
+          createContext(),
+          new Request("http://localhost/api/terminal/run", {
+            method: "POST",
+            body: JSON.stringify({
+              command,
+              clientId: "runtime-terminal-action",
+              captureOutput: true,
+              ...(token ? { terminalToken: token } : {}),
+            }),
+            headers: { "content-type": "application/json" },
+          }),
+          new URL("http://localhost/api/terminal/run"),
+        );
+
+      const missing = await post("pwd");
+      const invalid = await post("pwd", "wrong");
+      const multiline = await post("pwd\nwhoami", "terminal-secret");
+
+      expect(missing?.status).toBe(401);
+      await expect(missing?.json()).resolves.toEqual({
+        error:
+          "Missing terminal token. Provide X-Eliza-Terminal-Token header or terminalToken in request body.",
+      });
+      expect(invalid?.status).toBe(401);
+      await expect(invalid?.json()).resolves.toEqual({
+        error: "Invalid terminal token.",
+      });
+      expect(multiline?.status).toBe(400);
+      await expect(multiline?.json()).resolves.toEqual({
+        error: "Command must be a single line without control characters",
+      });
+    } finally {
+      if (previousToken === undefined) {
+        delete process.env.ELIZA_TERMINAL_RUN_TOKEN;
+      } else {
+        process.env.ELIZA_TERMINAL_RUN_TOKEN = previousToken;
+      }
+    }
+  });
+
   it("routes bounded interactive terminal session operations", async () => {
     const context = createContext();
     const calls: Array<{ operation: string; value?: unknown }> = [];

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getNativeResearchControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
+import { sdkTerminalRunTokenError } from "@/server/auth";
 import { json, streamSse } from "@/server/responses";
 
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
@@ -11,6 +12,7 @@ const MIN_COMMAND_TIMEOUT_MS = 1_000;
 const MAX_COMMAND_TIMEOUT_MS = 120_000;
 const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;
 const MAX_TERMINAL_STREAM_BYTES = 2_000_000;
+const MAX_SDK_TERMINAL_CAPTURE_BYTES = 128 * 1024;
 const LOG_LEVELS = new Set([
   "trace",
   "debug",
@@ -90,6 +92,30 @@ function boundedTerminalResult<T extends Record<string, unknown>>(result: T) {
     stderr: takeUtf8Prefix(stderr, stderrLimit),
     outputTruncated:
       stdoutBytes + stderrBytes > MAX_TERMINAL_STREAM_BYTES || undefined,
+  };
+}
+
+function sdkTerminalRunResult(
+  result: Awaited<ReturnType<AppContext["services"]["terminal"]["run"]>>,
+  timeoutMs: number,
+) {
+  const stdoutBytes = new TextEncoder().encode(result.stdout).byteLength;
+  const stderrBytes = new TextEncoder().encode(result.stderr).byteLength;
+  const stdoutLimit = Math.min(stdoutBytes, MAX_SDK_TERMINAL_CAPTURE_BYTES);
+  const stderrLimit = Math.max(0, MAX_SDK_TERMINAL_CAPTURE_BYTES - stdoutLimit);
+  return {
+    ok: true,
+    runId: result.id,
+    command: result.command,
+    exitCode: result.exitCode,
+    stdout: takeUtf8Prefix(result.stdout, stdoutLimit),
+    stderr: takeUtf8Prefix(result.stderr, stderrLimit),
+    timedOut: result.timedOut === true || result.exitCode === 124,
+    truncated:
+      stdoutBytes + stderrBytes > MAX_SDK_TERMINAL_CAPTURE_BYTES || undefined,
+    maxDurationMs: timeoutMs,
+    durationMs: result.durationMs,
+    cwd: result.cwd,
   };
 }
 
@@ -292,6 +318,37 @@ export async function handleOperationsRoutes(
         input.timeoutMs,
       ),
     });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/terminal/run") {
+    const body = (await request.json()) as Record<string, unknown>;
+    const tokenError = sdkTerminalRunTokenError(request, body);
+    if (tokenError) {
+      return json({ error: tokenError.reason }, tokenError.status);
+    }
+    const input = parseTerminalCommandInput(body);
+    if ("error" in input) {
+      return json({ error: input.error }, input.status);
+    }
+    if (/[\r\n]/.test(input.command)) {
+      return json(
+        { error: "Command must be a single line without control characters" },
+        400,
+      );
+    }
+
+    const run = context.services.terminal.run(input.command, input.timeoutMs);
+    if (body.captureOutput !== true) {
+      void run.catch((error) => {
+        context.services.logger.captureError(
+          "sdk-terminal-background-run-failed",
+          error,
+          { command: input.command },
+        );
+      });
+      return json({ ok: true });
+    }
+    return json(sdkTerminalRunResult(await run, input.timeoutMs));
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/run/stream") {

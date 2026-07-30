@@ -6,7 +6,10 @@ import {
 } from "node:http";
 import { Readable } from "node:stream";
 import type { AppContext } from "@/runtime/bootstrap";
-import { isApiRequestAuthorized } from "@/server/auth";
+import {
+  isApiRequestAuthorized,
+  isSdkTerminalRequestAuthorized,
+} from "@/server/auth";
 import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
 import { json } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
@@ -22,6 +25,13 @@ export interface ApiServerAddress {
 }
 
 let activeApiServerInfo: ApiServerAddress | null = null;
+
+export function publishElizaApiPort(
+  port: number,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  env.ELIZA_PORT = String(port);
+}
 
 function toWebRequest(
   incoming: IncomingMessage,
@@ -103,9 +113,11 @@ export async function startApiServer(
       if (request.method === "OPTIONS") {
         response = json({ ok: true });
       } else if (
-        !isApiRequestAuthorized(
-          { host: context.config.host, apiToken: context.config.apiToken },
-          request,
+        !(
+          isApiRequestAuthorized(
+            { host: context.config.host, apiToken: context.config.apiToken },
+            request,
+          ) || isSdkTerminalRequestAuthorized(request)
         )
       ) {
         response = json({ error: "Unauthorized" }, 401);
@@ -122,7 +134,7 @@ export async function startApiServer(
                   apiToken: context.config.apiToken,
                 },
                 request,
-              ),
+              ) || isSdkTerminalRequestAuthorized(request),
           })) ??
           (await dispatchRouteHandlers(
             context,
@@ -170,6 +182,10 @@ export async function startApiServer(
   activeApiServerAddress = address;
   const host = context.config.host;
   const port = bound.port;
+  // Official Eliza actions resolve their in-process API target from
+  // ELIZA_PORT. Doolittle can bind to port 0, so publish the actual bound port
+  // only after Node has selected it.
+  publishElizaApiPort(port);
   const serverInfo: ApiServerAddress = {
     host,
     port,

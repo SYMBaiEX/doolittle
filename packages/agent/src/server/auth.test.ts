@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isApiRequestAuthorized, isLoopbackHost } from "./auth";
+import {
+  isApiRequestAuthorized,
+  isLoopbackHost,
+  isSdkTerminalRequestAuthorized,
+  sdkTerminalRunTokenError,
+} from "./auth";
 
 function request(authorization?: string): Request {
   return new Request("http://x/secrets", {
@@ -39,5 +44,52 @@ describe("isApiRequestAuthorized", () => {
     expect(isApiRequestAuthorized(config, request("Bearer wrong"))).toBe(false);
     expect(isApiRequestAuthorized(config, request())).toBe(false);
     expect(isApiRequestAuthorized(config, request("s3cret"))).toBe(false);
+  });
+});
+
+describe("SDK terminal authorization", () => {
+  it("accepts the dedicated token only on the official terminal route", () => {
+    const terminalRequest = new Request("http://x/api/terminal/run", {
+      headers: { "x-eliza-terminal-token": "terminal-secret" },
+    });
+    const unrelatedRequest = new Request("http://x/secrets", {
+      headers: { "x-eliza-terminal-token": "terminal-secret" },
+    });
+
+    expect(
+      isSdkTerminalRequestAuthorized(terminalRequest, "terminal-secret"),
+    ).toBe(true);
+    expect(
+      isSdkTerminalRequestAuthorized(unrelatedRequest, "terminal-secret"),
+    ).toBe(false);
+    expect(
+      isSdkTerminalRequestAuthorized(terminalRequest, "wrong-secret"),
+    ).toBe(false);
+  });
+
+  it("supports the SDK body token and returns stable rejection reasons", () => {
+    const terminalRequest = new Request("http://x/api/terminal/run");
+
+    expect(
+      sdkTerminalRunTokenError(
+        terminalRequest,
+        { terminalToken: "terminal-secret" },
+        "terminal-secret",
+      ),
+    ).toBeNull();
+    expect(
+      sdkTerminalRunTokenError(terminalRequest, {}, "terminal-secret"),
+    ).toEqual({
+      status: 401,
+      reason:
+        "Missing terminal token. Provide X-Eliza-Terminal-Token header or terminalToken in request body.",
+    });
+    expect(
+      sdkTerminalRunTokenError(
+        terminalRequest,
+        { terminalToken: "wrong" },
+        "terminal-secret",
+      ),
+    ).toEqual({ status: 401, reason: "Invalid terminal token." });
   });
 });
