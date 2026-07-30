@@ -12,6 +12,9 @@ import type { TurnState } from "./state";
 
 export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function nowIso(createdAt?: number): string {
   return new Date(createdAt ?? Date.now()).toISOString();
 }
@@ -103,13 +106,51 @@ async function persistNativeMemory(
 }
 
 function memoryIdForProjection(message: StoredMessage): UUID {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    message.id,
-  )
+  return UUID_PATTERN.test(message.id)
     ? (message.id as UUID)
     : (stableRuntimeUuid(
         `session-projection:${message.sessionId}:${message.id}`,
       ) as UUID);
+}
+
+function canDeleteMemory(
+  runtime: AgentExecutionContext["runtime"],
+): runtime is AgentExecutionContext["runtime"] & {
+  deleteMemory(memoryId: UUID): Promise<void>;
+} {
+  return typeof runtime.deleteMemory === "function";
+}
+
+/**
+ * The installed Eliza runtime exposes deleteMemory. Keep this capability
+ * check at the boundary so old test doubles and older compatible runtimes
+ * degrade safely rather than making SQLite pretend a native deletion happened.
+ */
+export async function deleteNativeConversationMemories(
+  context: AgentExecutionContext,
+  messages: ReadonlyArray<Pick<StoredMessage, "id">>,
+): Promise<{ deleted: string[]; unsupported: string[] }> {
+  // Older CLI/test hosts may have no AgentRuntime memory persistence at all.
+  // In that mode SQLite remains the only available compatibility transcript.
+  const runtime = context.runtime;
+  if (
+    !runtime ||
+    (typeof runtime.createMemory !== "function" && !canDeleteMemory(runtime))
+  ) {
+    return { deleted: [], unsupported: [] };
+  }
+  const ids = messages
+    .map((message) => message.id)
+    .filter((id) => UUID_PATTERN.test(id));
+  const unsupported = messages
+    .map((message) => message.id)
+    .filter((id) => !UUID_PATTERN.test(id));
+  if (!ids.length) return { deleted: [], unsupported };
+  if (!canDeleteMemory(runtime)) {
+    return { deleted: [], unsupported: [...unsupported, ...ids] };
+  }
+  await Promise.all(ids.map((id) => runtime.deleteMemory(id as UUID)));
+  return { deleted: ids, unsupported };
 }
 
 function nativeMemoryFromProjection(
@@ -159,21 +200,54 @@ async function hydrateNativeRoomFromProjection(
   const nativeMessages = await context.runtime.getMemories({
     roomId: turn.roomId as UUID,
     tableName: "messages",
-    limit: 100,
+    // The projection must converge to the complete native transcript, not a
+    // recent 100-message suffix that leaves old cache-only rows searchable.
+    limit: 10_000,
     orderBy: "createdAt",
     orderDirection: "desc",
     includeEmbedding: false,
   });
-  if (nativeMessages.length > 0) {
-    for (const memory of nativeMessages.reverse()) {
-      if (
-        !memory.id ||
-        !contentText(memory.content) ||
-        !isConversationMemory(context, memory)
-      ) {
-        continue;
+  const conversationMemories = nativeMessages
+    .reverse()
+    .filter(
+      (memory) =>
+        memory.id &&
+        contentText(memory.content) &&
+        isConversationMemory(context, memory),
+    );
+  if (conversationMemories.length > 0) {
+    const existing = context.services.sessions.messagesBySession(
+      turn.sessionId,
+      10_000,
+    );
+    const attachmentsById = new Map(
+      existing.map((message) => [message.id, message.attachments]),
+    );
+    const projected = conversationMemories.map((memory) => {
+      const metadata = memory.metadata as
+        | { doolittle?: { projectionOriginMessageId?: string } }
+        | undefined;
+      const attachmentSource =
+        metadata?.doolittle?.projectionOriginMessageId ?? String(memory.id);
+      return toProjectionMessage(
+        context,
+        turn,
+        memory,
+        attachmentsById.get(attachmentSource),
+      );
+    });
+    if (
+      typeof context.services.sessions.replaceSessionMessages === "function"
+    ) {
+      context.services.sessions.replaceSessionMessages(
+        turn.sessionId,
+        projected,
+      );
+    } else {
+      // Narrow doubles/old hosts do not expose a cache-replacement API.
+      for (const message of projected) {
+        context.services.sessions.storeMessage(message);
       }
-      projectMessage(context, turn, memory);
     }
     return;
   }
@@ -182,9 +256,27 @@ async function hydrateNativeRoomFromProjection(
     turn.sessionId,
     10_000,
   );
+  const reprojected: StoredMessage[] = [];
   for (const message of projectedMessages) {
     const memory = nativeMemoryFromProjection(context, turn, message);
     await persistNativeMemory(context, memory, "normal");
+    reprojected.push(
+      toProjectionMessage(context, turn, memory, message.attachments),
+    );
+  }
+  // Legacy rows predate UUID-native memory identity. Once they have been
+  // backfilled, replace only this session's cache with native IDs so later
+  // retry/compression can mutate the actual authoritative memories.
+  if (
+    reprojected.some(
+      (message, index) => message.id !== projectedMessages[index]?.id,
+    ) &&
+    typeof context.services.sessions.replaceSessionMessages === "function"
+  ) {
+    context.services.sessions.replaceSessionMessages(
+      turn.sessionId,
+      reprojected,
+    );
   }
 }
 
@@ -273,4 +365,41 @@ export function projectNativeResponseMemories(input: {
     }
   }
   return false;
+}
+
+/** Persist a summary as an Eliza message, then remove only the native middle
+ * context it replaces. The caller updates the SQLite projection afterwards. */
+export async function replaceNativeConversationContext(input: {
+  context: AgentExecutionContext;
+  turn: TurnState;
+  replaced: StoredMessage[];
+  summary: StoredMessage;
+}): Promise<{ unsupported: string[] }> {
+  const memory = nativeMemoryFromProjection(
+    input.context,
+    input.turn,
+    input.summary,
+  );
+  await persistNativeMemory(input.context, memory, "normal");
+  try {
+    const result = await deleteNativeConversationMemories(
+      input.context,
+      input.replaced,
+    );
+    if (result.unsupported.length) {
+      // Do not allow the projection to claim the old native context vanished.
+      await deleteNativeConversationMemories(input.context, [
+        { id: String(memory.id) },
+      ]);
+      throw new Error(
+        "Native conversation replacement is unavailable for legacy memory ids.",
+      );
+    }
+    return result;
+  } catch (error) {
+    await deleteNativeConversationMemories(input.context, [
+      { id: String(memory.id) },
+    ]).catch(() => undefined);
+    throw error;
+  }
 }

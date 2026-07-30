@@ -3,6 +3,10 @@ import { getEffectiveUserProfile } from "@/runtime/native/service-bridge/ownersh
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 import type { ChatCommandRouterDependencies } from "../chat-command-router/types";
+import {
+  deleteNativeConversationMemories,
+  replaceNativeConversationContext,
+} from "../chat-turn/conversation-persistence";
 
 function buildCompressionPrompt(input: {
   focus: string;
@@ -29,6 +33,7 @@ function buildCompressionPrompt(input: {
 }
 
 async function handleConversationCompression(
+  input: ChatTurnRequest,
   trimmed: string,
   sessionKey: string,
   context: AgentExecutionContext,
@@ -87,6 +92,25 @@ async function handleConversationCompression(
           : new Date(Date.parse(now) + index).toISOString(),
     }),
   );
+  const nativeSummary = compressed.at(1);
+  if (!nativeSummary) {
+    return "Conversation compression could not construct a native summary.";
+  }
+  // Native messages are authoritative. Replace native context before changing
+  // the SQLite cache, otherwise a successful-looking /compress only changes
+  // what the UI displays while the SDK still receives the raw middle turns.
+  await replaceNativeConversationContext({
+    context,
+    turn: {
+      sessionId: sessionKey,
+      roomId: messages[0]?.roomId ?? sessionKey,
+      entityId: "system",
+      messageId: randomUUID(),
+      connectionSource: input.source ?? "cli",
+    } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+    replaced: middleTurns,
+    summary: nativeSummary,
+  });
   context.services.sessions.replaceSessionMessages(sessionKey, compressed);
   const after = context.services.contextCompression.measure(compressed);
   context.services.trajectoryEvaluation.recordEvent({
@@ -245,6 +269,7 @@ export async function handleSessionCommand(
   dependencies: ChatCommandRouterDependencies,
 ): Promise<string | undefined> {
   const compression = await handleConversationCompression(
+    input,
     trimmed,
     sessionKey,
     context,
@@ -264,6 +289,21 @@ export async function handleSessionCommand(
     });
     if (!result.userMessage) {
       return "No conversational exchange is available to undo.";
+    }
+    try {
+      const nativeDelete = await deleteNativeConversationMemories(context, [
+        result.userMessage,
+        ...result.assistantMessages,
+      ]);
+      if (nativeDelete.unsupported.length) {
+        throw new Error("legacy native memory ids");
+      }
+    } catch {
+      context.services.sessions.storeMessage(result.userMessage);
+      for (const message of result.assistantMessages) {
+        context.services.sessions.storeMessage(message);
+      }
+      return "The exchange could not be removed from native conversation history, so it was not undone.";
     }
     return [
       `Undid the latest exchange (${result.deletedMessages} message${result.deletedMessages === 1 ? "" : "s"} removed).`,

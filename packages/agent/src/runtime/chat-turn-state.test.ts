@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import {
+  deleteNativeConversationMemories,
   persistAssistantTurnMemory,
   persistUserTurnMemory,
+  replaceNativeConversationContext,
 } from "./chat-turn/conversation-persistence";
 import {
   createProfileObservationScheduler,
@@ -476,5 +478,67 @@ describe("chat turn state helpers with session persistence", () => {
 
     expect(nativeTexts).toEqual(["Inherited question"]);
     expect(projectedTexts).toEqual(["Continue through Eliza"]);
+  });
+
+  it("replaces native middle context before its projection is changed", async () => {
+    const created: string[] = [];
+    const deleted: string[] = [];
+    const context = {
+      services: {
+        sessions: { continuityKey: (sessionId: string) => sessionId },
+      },
+      runtime: {
+        agentId: "agent-1",
+        createMemory: async (memory: { id: string }) => {
+          created.push(memory.id);
+          return memory.id;
+        },
+        deleteMemory: async (id: string) => {
+          deleted.push(id);
+        },
+        queueEmbeddingGeneration: async () => undefined,
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+    const replacedId = "00000000-0000-4000-8000-000000000010";
+    const summaryId = "00000000-0000-4000-8000-000000000011";
+
+    await replaceNativeConversationContext({
+      context,
+      turn: {
+        sessionId: "s1",
+        roomId: "r1",
+        entityId: "user-1",
+        connectionSource: "desktop",
+      } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+      replaced: [{ id: replacedId } as never],
+      summary: {
+        id: summaryId,
+        sessionId: "s1",
+        roomId: "r1",
+        entityId: "system",
+        role: "system",
+        text: "summary",
+        createdAt: "2026-07-30T00:00:00.000Z",
+      },
+    });
+
+    expect(created).toEqual([summaryId]);
+    expect(deleted).toEqual([replacedId]);
+  });
+
+  it("does not claim native deletion for legacy projection-only ids", async () => {
+    const context = {
+      runtime: {
+        agentId: "agent-1",
+        createMemory: async () => "memory",
+      },
+      services: {},
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      deleteNativeConversationMemories(context, [{ id: "legacy-message" }]),
+    ).resolves.toEqual({ deleted: [], unsupported: ["legacy-message"] });
   });
 });

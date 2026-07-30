@@ -1,4 +1,5 @@
 import { buildCommandResponse } from "@/runtime/chat-command-router";
+import { deleteNativeConversationMemories } from "@/runtime/chat-turn/conversation-persistence";
 import { runPostCommandTurn } from "@/runtime/chat-turn/post-command";
 import { prepareTurnState } from "@/runtime/chat-turn/state";
 import {
@@ -130,6 +131,25 @@ export async function handleAgentTurn(
     );
     if (!replay.userMessage) {
       return "No prior conversational turn is available to retry.";
+    }
+    try {
+      const nativeDelete = await deleteNativeConversationMemories(context, [
+        replay.userMessage,
+        ...replay.assistantMessages,
+      ]);
+      if (nativeDelete.unsupported.length) {
+        throw new Error(
+          "The selected exchange contains legacy native memory ids.",
+        );
+      }
+    } catch {
+      // The projection is a cache; restore it rather than retrying against a
+      // native context that still contains the discarded exchange.
+      context.services.sessions.storeMessage(replay.userMessage);
+      for (const assistantMessage of replay.assistantMessages) {
+        context.services.sessions.storeMessage(assistantMessage);
+      }
+      return "The previous exchange could not be removed from native conversation history, so it was not retried.";
     }
     let replayAttachments: Awaited<
       ReturnType<typeof resolveManagedChatAttachments>
