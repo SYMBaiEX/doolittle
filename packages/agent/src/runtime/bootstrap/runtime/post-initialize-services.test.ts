@@ -32,6 +32,10 @@ describe("finalizeCoreRuntimeServices", () => {
       2,
       "AGENT_SKILLS_SERVICE",
     );
+    expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
+      3,
+      "doolittle_run_progress",
+    );
     expect(runtime.registerService).not.toHaveBeenCalled();
   });
 });

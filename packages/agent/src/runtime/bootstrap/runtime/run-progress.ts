@@ -1,5 +1,15 @@
+import { DOOLITTLE_RUN_PROGRESS_SERVICE } from "@doolittle/contracts";
 import { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
-import { type ActionResult, type AgentRuntime, EventType } from "@elizaos/core";
+import {
+  type ActionResult,
+  AgentEventService,
+  Service as ElizaService,
+  EventType,
+  type IAgentRuntime,
+  type PluginEvents,
+  type Service,
+  type ServiceClass,
+} from "@elizaos/core";
 import {
   extractCommandResultFromActionResult,
   extractFileOperationFromActionResult,
@@ -183,118 +193,158 @@ function recordActionTrajectory(input: {
   }
 }
 
-export function attachRunProgressBridge(
-  runtime: AgentRuntime,
-  services: AppServices,
-): void {
-  const register = (
-    event: string,
-    handler: (payload: RuntimePayload) => void | Promise<void>,
-  ) => {
-    runtime.registerEvent(event, async (payload) => {
-      await handler(payload);
-    });
+export function createRunProgressEvents(services: AppServices): PluginEvents {
+  return {
+    [EventType.RUN_STARTED]: [
+      async (payload) => {
+        const roomId = eventRoomId(payload);
+        if (roomId) {
+          services.runController.updateRuntimeThinking(roomId);
+        }
+      },
+    ],
+    [EventType.RUN_ENDED]: [
+      async (payload) => {
+        const roomId = eventRoomId(payload);
+        if (!roomId) {
+          return;
+        }
+        const status =
+          payload &&
+          typeof payload === "object" &&
+          "status" in payload &&
+          (payload.status === "completed" || payload.status === "timeout")
+            ? "complete"
+            : "error";
+        const errorMessage =
+          payload &&
+          typeof payload === "object" &&
+          "error" in payload &&
+          payload.error
+            ? formatError(payload.error)
+            : undefined;
+        services.runController.finishRuntimeRun(roomId, status, errorMessage);
+      },
+    ],
+    [EventType.ACTION_STARTED]: [
+      async (payload) => {
+        const roomId = eventRoomId(payload);
+        if (roomId) {
+          const action = eventActionLabel(payload) ?? "action";
+          services.runController.noteRuntimeActionStarted(roomId, action);
+          recordActionTrajectory({
+            services,
+            roomId,
+            event: "action.started",
+            action,
+          });
+        }
+      },
+    ],
+    [EventType.ACTION_COMPLETED]: [
+      async (payload) => {
+        const roomId = eventRoomId(payload);
+        if (roomId) {
+          const actionResult = eventActionResult(payload);
+          const action = eventActionLabel(payload);
+          services.runController.noteRuntimeActionCompleted(roomId, action);
+          const mutation = extractLocalMutationFromActionResult(actionResult);
+          if (mutation) {
+            services.runController.recordRuntimeLocalMutation(roomId, mutation);
+          }
+          recordActionTrajectory({
+            services,
+            roomId,
+            event: "action.completed",
+            action,
+            actionResult,
+            status: eventActionStatus(payload),
+          });
+        }
+      },
+    ],
+    [EventType.MESSAGE_RECEIVED]: [
+      async (payload) => {
+        const roomId = eventRoomId(payload);
+        if (roomId) {
+          services.runController.noteRuntimeMessage(roomId);
+        }
+      },
+    ],
+    [EventType.MESSAGE_SENT]: [
+      async (payload) => {
+        const roomId = eventRoomId(payload);
+        if (roomId) {
+          services.runController.updateRuntimeWaiting(roomId);
+        }
+      },
+    ],
   };
+}
 
-  register(EventType.RUN_STARTED, async (payload) => {
-    const roomId = eventRoomId(payload);
-    if (roomId) {
-      services.runController.updateRuntimeThinking(roomId);
+/**
+ * Projects the official AgentEventService stream into Doolittle's desktop run
+ * controller. Declaring this as an Eliza service gives the bridge the same
+ * start/stop ownership as every other runtime capability.
+ */
+export function createRunProgressRuntimeService(
+  services: AppServices,
+): ServiceClass {
+  class RunProgressRuntimeService extends ElizaService {
+    static serviceType = DOOLITTLE_RUN_PROGRESS_SERVICE;
+
+    capabilityDescription =
+      "Projects native Eliza run, tool, and heartbeat events into Doolittle surfaces.";
+
+    private unsubscribeEvents?: () => void;
+    private unsubscribeHeartbeat?: () => void;
+
+    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
+    constructor(runtime?: IAgentRuntime) {
+      super(runtime);
     }
-  });
 
-  register(EventType.RUN_ENDED, async (payload) => {
-    const roomId = eventRoomId(payload);
-    if (!roomId) {
-      return;
+    static async start(runtime: IAgentRuntime): Promise<Service> {
+      await runtime.getServiceLoadPromise(AgentEventService.serviceType);
+      const service = new RunProgressRuntimeService(runtime);
+      service.attach();
+      return service;
     }
-    const status =
-      payload &&
-      typeof payload === "object" &&
-      "status" in payload &&
-      (payload.status === "completed" || payload.status === "timeout")
-        ? "complete"
-        : "error";
-    const errorMessage =
-      payload &&
-      typeof payload === "object" &&
-      "error" in payload &&
-      payload.error
-        ? formatError(payload.error)
-        : undefined;
-    services.runController.finishRuntimeRun(roomId, status, errorMessage);
-  });
 
-  register(EventType.ACTION_STARTED, async (payload) => {
-    const roomId = eventRoomId(payload);
-    if (roomId) {
-      const action = eventActionLabel(payload) ?? "action";
-      services.runController.noteRuntimeActionStarted(roomId, action);
-      recordActionTrajectory({
-        services,
-        roomId,
-        event: "action.started",
-        action,
-      });
-    }
-  });
-
-  register(EventType.ACTION_COMPLETED, async (payload) => {
-    const roomId = eventRoomId(payload);
-    if (roomId) {
-      const actionResult = eventActionResult(payload);
-      const action = eventActionLabel(payload);
-      services.runController.noteRuntimeActionCompleted(roomId, action);
-      const mutation = extractLocalMutationFromActionResult(actionResult);
-      if (mutation) {
-        services.runController.recordRuntimeLocalMutation(roomId, mutation);
+    private attach(): void {
+      const agentEvents = getAgentEventService(this.runtime);
+      if (!agentEvents) {
+        throw new Error("Eliza AgentEventService is unavailable");
       }
-      recordActionTrajectory({
-        services,
-        roomId,
-        event: "action.completed",
-        action,
-        actionResult,
-        status: eventActionStatus(payload),
+
+      this.unsubscribeEvents = agentEvents.subscribe((event) => {
+        if (!event.roomId) {
+          return;
+        }
+        const roomId = String(event.roomId);
+        const label = agentEventLabel(event.data);
+        services.runController.noteRuntimeStream(roomId, event.stream, label);
       });
+      this.unsubscribeHeartbeat = agentEvents.subscribeHeartbeat((event) => {
+        services.runController.noteHeartbeat(
+          event.status,
+          event.preview,
+          event.indicatorType,
+        );
+      });
+      services.runController.markRuntimeBridgeAttached(true);
+      services.runController.markAgentEventBridgeAttached(true);
     }
-  });
 
-  register(EventType.MESSAGE_RECEIVED, async (payload) => {
-    const roomId = eventRoomId(payload);
-    if (roomId) {
-      services.runController.noteRuntimeMessage(roomId);
+    async stop(): Promise<void> {
+      this.unsubscribeEvents?.();
+      this.unsubscribeHeartbeat?.();
+      this.unsubscribeEvents = undefined;
+      this.unsubscribeHeartbeat = undefined;
+      services.runController.markRuntimeBridgeAttached(false);
+      services.runController.markAgentEventBridgeAttached(false);
     }
-  });
-
-  register(EventType.MESSAGE_SENT, async (payload) => {
-    const roomId = eventRoomId(payload);
-    if (roomId) {
-      services.runController.updateRuntimeWaiting(roomId);
-    }
-  });
-
-  const agentEvents = getAgentEventService(runtime);
-  if (agentEvents) {
-    agentEvents.subscribe((event) => {
-      if (!event.roomId) {
-        return;
-      }
-      const roomId = String(event.roomId);
-      const label = agentEventLabel(event.data);
-      services.runController.noteRuntimeStream(roomId, event.stream, label);
-    });
-
-    agentEvents.subscribeHeartbeat((event) => {
-      services.runController.noteHeartbeat(
-        event.status,
-        event.preview,
-        event.indicatorType,
-      );
-    });
-
-    services.runController.markAgentEventBridgeAttached(true);
   }
 
-  services.runController.markRuntimeBridgeAttached(true);
+  return RunProgressRuntimeService;
 }

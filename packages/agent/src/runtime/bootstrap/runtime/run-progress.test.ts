@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { EventType, type IAgentRuntime } from "@elizaos/core";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   agentEventLabel,
+  createRunProgressEvents,
+  createRunProgressRuntimeService,
   eventActionLabel,
   eventActionResult,
   eventRoomId,
@@ -73,5 +76,94 @@ describe("run progress helpers", () => {
     expect(eventActionLabel({ content: { actionResult } })).toBe(
       "SHELL_COMMAND",
     );
+  });
+
+  it("declares lifecycle projection as native plugin events", async () => {
+    const updateRuntimeThinking = vi.fn();
+    const updateRuntimeWaiting = vi.fn();
+    const services = {
+      runController: {
+        updateRuntimeThinking,
+        updateRuntimeWaiting,
+      },
+    } as never;
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.RUN_STARTED]?.[0]?.({
+      roomId: "room-1",
+    } as never);
+    await events[EventType.MESSAGE_SENT]?.[0]?.({
+      roomId: "room-1",
+    } as never);
+
+    expect(updateRuntimeThinking).toHaveBeenCalledWith("room-1");
+    expect(updateRuntimeWaiting).toHaveBeenCalledWith("room-1");
+  });
+
+  it("owns AgentEventService subscriptions through an Eliza service lifecycle", async () => {
+    const eventListeners: Array<(event: never) => void> = [];
+    const heartbeatListeners: Array<(event: never) => void> = [];
+    const unsubscribeEvents = vi.fn();
+    const unsubscribeHeartbeat = vi.fn();
+    const agentEvents = {
+      subscribe: vi.fn((listener: (event: never) => void) => {
+        eventListeners.push(listener);
+        return unsubscribeEvents;
+      }),
+      subscribeHeartbeat: vi.fn((listener: (event: never) => void) => {
+        heartbeatListeners.push(listener);
+        return unsubscribeHeartbeat;
+      }),
+    };
+    const runtime = {
+      getServiceLoadPromise: vi.fn(async () => agentEvents),
+      getService: vi.fn(() => agentEvents),
+    } as unknown as IAgentRuntime;
+    const noteRuntimeStream = vi.fn();
+    const noteHeartbeat = vi.fn();
+    const markRuntimeBridgeAttached = vi.fn();
+    const markAgentEventBridgeAttached = vi.fn();
+    const services = {
+      runController: {
+        noteRuntimeStream,
+        noteHeartbeat,
+        markRuntimeBridgeAttached,
+        markAgentEventBridgeAttached,
+      },
+    } as never;
+
+    const RunProgressService = createRunProgressRuntimeService(services);
+    const service = await RunProgressService.start(runtime);
+    eventListeners[0]?.({
+      roomId: "room-1",
+      stream: "tool",
+      data: { label: "Read file" },
+    } as never);
+    heartbeatListeners[0]?.({
+      status: "thinking",
+      preview: "Working",
+      indicatorType: "progress",
+    } as never);
+
+    expect(runtime.getServiceLoadPromise).toHaveBeenCalledWith("agent_event");
+    expect(noteRuntimeStream).toHaveBeenCalledWith(
+      "room-1",
+      "tool",
+      "Read file",
+    );
+    expect(noteHeartbeat).toHaveBeenCalledWith(
+      "thinking",
+      "Working",
+      "progress",
+    );
+    expect(markRuntimeBridgeAttached).toHaveBeenCalledWith(true);
+    expect(markAgentEventBridgeAttached).toHaveBeenCalledWith(true);
+
+    await service.stop();
+
+    expect(unsubscribeEvents).toHaveBeenCalledOnce();
+    expect(unsubscribeHeartbeat).toHaveBeenCalledOnce();
+    expect(markRuntimeBridgeAttached).toHaveBeenLastCalledWith(false);
+    expect(markAgentEventBridgeAttached).toHaveBeenLastCalledWith(false);
   });
 });

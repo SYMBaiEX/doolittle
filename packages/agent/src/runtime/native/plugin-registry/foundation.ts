@@ -3,6 +3,7 @@ import {
   knowledgeGraphSchema,
 } from "@elizaos/agent/services/knowledge-graph/index";
 import {
+  AgentEventService,
   ApprovalService,
   PairingService,
   type Plugin,
@@ -32,6 +33,7 @@ export function loadFoundationPlugins(): Plugin[] {
         "Official ElizaOS knowledge, approval, policy, and plugin-management services.",
       schema: knowledgeGraphSchema,
       services: [
+        AgentEventService,
         KnowledgeGraphService,
         ApprovalService,
         PairingServiceClass,

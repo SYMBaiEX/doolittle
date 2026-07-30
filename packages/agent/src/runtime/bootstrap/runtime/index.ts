@@ -11,7 +11,8 @@ export {
 export { requireRuntimeService } from "./required-service";
 export {
   agentEventLabel,
-  attachRunProgressBridge,
+  createRunProgressEvents,
+  createRunProgressRuntimeService,
   eventActionLabel,
   eventRoomId,
   type RuntimeEventPayload,

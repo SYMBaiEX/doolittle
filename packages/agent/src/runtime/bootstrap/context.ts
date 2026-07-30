@@ -4,7 +4,6 @@ import {
 } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
 import {
-  attachRunProgressBridge,
   finalizeCoreRuntimeServices,
   requireRuntimeService,
 } from "@/runtime/bootstrap/runtime";
@@ -36,8 +35,6 @@ export async function configureBootstrapContext({
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:done");
   services.nativeOwnership.attachRuntime(runtime, services);
   (services as RuntimeBindableServices).__bindRuntime?.(runtime);
-  attachRunProgressBridge(runtime, services);
-  appendBootstrapTrace("phase:attachRunProgressBridge:done");
 
   const schedulerService = requireRuntimeService<{
     startScheduler(): Promise<void>;

@@ -6,6 +6,8 @@ import {
   createMemoryNudgeEvaluator,
   createRepositoryAction,
   createResearchAction,
+  createRunProgressEvents,
+  createRunProgressRuntimeService,
   createSelfAwarenessProvider,
   createSessionSearchAction,
   createWorkspaceAction,
@@ -65,6 +67,7 @@ export function createDoolittlePluginSurface({
   const McpRuntimeService = createMcpRuntimeService(services);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
   const ShellRuntimeService = createShellRuntimeService(services);
+  const RunProgressRuntimeService = createRunProgressRuntimeService(services);
 
   return {
     name: "doolittle-runtime",
@@ -77,6 +80,7 @@ export function createDoolittlePluginSurface({
       createCommandShortcut(config.workspaceDir),
     ],
     evaluators,
+    events: createRunProgressEvents(services),
     routes: createDoolittleRuntimeRoutes({ services, config }),
     services: [
       MemoryStorageService,
@@ -86,6 +90,7 @@ export function createDoolittlePluginSurface({
       McpRuntimeService,
       SchedulerRuntimeService,
       ShellRuntimeService,
+      RunProgressRuntimeService,
       ...createTriggerRuntimeServices(services),
     ],
     init: async (_config, runtime) => {

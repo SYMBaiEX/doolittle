@@ -146,11 +146,14 @@ describe("loadFoundationPlugins", () => {
   it("mounts the official Eliza knowledge graph service and schema", () => {
     const plugins = loadFoundationPlugins();
     const plugin = plugins[0];
-    const KnowledgeGraph = plugin?.services?.[0];
+    const serviceTypes = plugin?.services?.map(
+      (service) => service.serviceType,
+    );
 
     expect(pluginNames(plugins)).toEqual(["@elizaos/agent-knowledge-graph"]);
     expect(plugin?.schema).toBeDefined();
-    expect(KnowledgeGraph?.serviceType).toBe("eliza_knowledge_graph");
+    expect(serviceTypes).toContain("agent_event");
+    expect(serviceTypes).toContain("eliza_knowledge_graph");
   });
 });
 

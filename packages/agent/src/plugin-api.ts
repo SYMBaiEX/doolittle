@@ -12,6 +12,10 @@ export { GatewayRunner } from "@/gateway/runner";
 export { createAgentContextProviders } from "@/providers/agent-context";
 export { createSelfAwarenessProvider } from "@/providers/self-awareness";
 export type { AppContext } from "@/runtime/bootstrap";
+export {
+  createRunProgressEvents,
+  createRunProgressRuntimeService,
+} from "@/runtime/bootstrap/runtime/run-progress";
 export type { AgentExecutionContext } from "@/runtime/chat";
 export { handleAgentTurn } from "@/runtime/chat";
 export type { AppServices } from "@/services";
