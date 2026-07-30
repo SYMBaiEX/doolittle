@@ -94,11 +94,6 @@ export async function setupGatewayReceive(
       detail: `Authorization failed for ${deps.message.platform}: ${auth.reason ?? "unauthorized"}.`,
     });
 
-    await deps.context.services.hooks.emit("gateway:unauthorized", {
-      platform: deps.message.platform,
-      userId: deps.message.userId,
-      pairingCode: auth.pairingCode ?? "",
-    });
     return {
       traceId: deps.traceId,
       metadataKeys: deps.metadataKeys,

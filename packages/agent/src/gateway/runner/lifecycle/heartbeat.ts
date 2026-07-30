@@ -38,10 +38,6 @@ export async function heartbeatGatewayRunner(
     heartbeatAt,
   );
 
-  await host.context.services.hooks.emit("gateway:heartbeat", {
-    status: host.running ? "running" : "stopped",
-    adapters: String(host.adapters.size),
-  });
   host.writeRuntimeStatus();
 
   const snapshot = await host.snapshotState(reason, 20);

@@ -20,14 +20,21 @@ export async function handleHookRoutes(
       enabled?: boolean;
       template: string;
     };
-    return json({
-      hook: context.services.hooks.add({
-        event: body.event,
-        name: body.name,
-        enabled: body.enabled ?? true,
-        template: body.template,
-      }),
-    });
+    try {
+      return json({
+        hook: context.services.hooks.add({
+          event: body.event,
+          name: body.name,
+          enabled: body.enabled ?? true,
+          template: body.template,
+        }),
+      });
+    } catch (error) {
+      return json(
+        { error: error instanceof Error ? error.message : String(error) },
+        400,
+      );
+    }
   }
 
   if (request.method === "DELETE" && url.pathname.startsWith("/hooks/")) {

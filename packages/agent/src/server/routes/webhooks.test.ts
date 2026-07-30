@@ -88,6 +88,33 @@ describe("handleWebhookRoutes", () => {
     await expect(response?.text()).resolves.toBe("ready");
   });
 
+  it("returns a client error for unsupported managed hook events", async () => {
+    const context = createContext();
+    context.services.hooks.add = () => {
+      throw new Error('Unsupported hook event "made:up".');
+    };
+    const request = new Request("http://localhost/hooks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        event: "made:up",
+        name: "invalid",
+        template: "{{value}}",
+      }),
+    });
+
+    const response = await handleWebhookRoutes(
+      context,
+      request,
+      new URL(request.url),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: 'Unsupported hook event "made:up".',
+    });
+  });
+
   it("returns null for non-webhook routes", async () => {
     const response = await handleWebhookRoutes(
       createContext(),

@@ -326,12 +326,8 @@ describe("gateway runner lifecycle", () => {
         ),
       ).toBe(true);
       expect(
-        hookEvents.some(
-          (event) =>
-            event.name === "gateway:heartbeat" &&
-            event.payload.status === "running",
-        ),
-      ).toBe(true);
+        hookEvents.some((event) => event.name === "gateway:heartbeat"),
+      ).toBe(false);
 
       await stopGatewayRunnerLifecycle(host);
 
