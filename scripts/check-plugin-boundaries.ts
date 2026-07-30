@@ -156,6 +156,22 @@ const INTERNAL_FACADE_GUARDS: Array<{
     ],
   },
   {
+    root: NATIVE_RUNTIME_ROOT,
+    include:
+      /packages\/agent\/src\/runtime\/native\/service-bridge\/browser\/index\.ts$/u,
+    patterns: [
+      {
+        pattern: /\bAppServices\b/u,
+        reason:
+          "allows a product-service fallback for the required Eliza browser lifecycle service",
+      },
+      {
+        pattern: /\bservices\.web\b/u,
+        reason: "bypasses the required Eliza browser lifecycle service",
+      },
+    ],
+  },
+  {
     root: CONTRACTS_ROOT,
     include: /packages\/contracts\/src\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [

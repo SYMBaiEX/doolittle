@@ -61,11 +61,7 @@ export async function getNativeOwnershipSnapshot(
   gatewayConfig?: GatewayConfig,
 ): Promise<NativeOwnershipSnapshot> {
   const [integration, controlPlane] = await Promise.all([
-    getNativeIntegrationControlPlane(runtime, {
-      web: {
-        status: () => services.web.status(),
-      },
-    }),
+    getNativeIntegrationControlPlane(runtime),
     Promise.resolve(
       getNativeOwnershipControlPlane(runtime, services, config, gatewayConfig),
     ),

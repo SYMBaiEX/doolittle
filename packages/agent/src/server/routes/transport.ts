@@ -56,12 +56,7 @@ export async function handleTransportRoutes(
         context.config,
         context.services.gatewayConfig,
       );
-    const integration = await getNativeIntegrationControlPlane(
-      context.runtime,
-      {
-        web: context.services.web,
-      },
-    );
+    const integration = await getNativeIntegrationControlPlane(context.runtime);
     return json({
       resolution: ownership.serviceResolution,
       integration,

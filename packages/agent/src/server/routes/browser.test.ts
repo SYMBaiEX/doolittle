@@ -3,45 +3,61 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleBrowserRoutes } from "./browser";
 
 function createContext(): AppContext {
+  const web = {
+    status: async () => ({
+      captureMode: "pixel",
+      captureReady: true,
+      analysisReady: true,
+    }),
+    fetchText: async (url: string) => `page:${url}`,
+    inspect: async (url: string) => ({ url, mode: "inspect" }),
+    snapshot: async (url: string) => `snapshot:${url}`,
+    screenshot: async (url: string) => `screenshot:${url}`,
+    capture: async (url: string) => ({ url, mode: "capture" }),
+    analyze: async (url: string) => ({
+      url,
+      prompt: `analyze:${url}`,
+      mode: "analysis",
+    }),
+    compare: async (leftUrl: string, rightUrl: string) => ({
+      leftUrl,
+      rightUrl,
+      mode: "compare",
+    }),
+    analyzeComparison: async (leftUrl: string, rightUrl: string) => ({
+      leftUrl,
+      rightUrl,
+      prompt: `compare:${leftUrl}:${rightUrl}`,
+      mode: "comparison-analysis",
+    }),
+  };
   return {
     runtime: {
-      getService: (name: string) =>
-        name === "personality"
-          ? {
-              activeId: () => "primary",
-              get: (id: string) => ({ id }),
-            }
-          : null,
+      getService: (name: string) => {
+        if (name === "personality") {
+          return {
+            activeId: () => "primary",
+            get: (id: string) => ({ id }),
+          };
+        }
+        if (name === "browser") {
+          return {
+            status: web.status,
+            fetch: web.fetchText,
+            inspect: web.inspect,
+            snapshot: web.snapshot,
+            screenshot: web.screenshot,
+            capture: web.capture,
+            analyze: web.analyze,
+            compare: web.compare,
+            analyzeComparison: web.analyzeComparison,
+          };
+        }
+        return null;
+      },
     },
     services: {
-      web: {
-        status: async () => ({
-          captureMode: "pixel",
-          captureReady: true,
-          analysisReady: true,
-        }),
-        fetchText: async (url: string) => `page:${url}`,
-        inspect: async (url: string) => ({ url, mode: "inspect" }),
-        snapshot: async (url: string) => `snapshot:${url}`,
-        screenshot: async (url: string) => `screenshot:${url}`,
-        capture: async (url: string) => ({ url, mode: "capture" }),
-        analyze: async (url: string) => ({
-          url,
-          prompt: `analyze:${url}`,
-          mode: "analysis",
-        }),
-        compare: async (leftUrl: string, rightUrl: string) => ({
-          leftUrl,
-          rightUrl,
-          mode: "compare",
-        }),
-        analyzeComparison: async (leftUrl: string, rightUrl: string) => ({
-          leftUrl,
-          rightUrl,
-          prompt: `compare:${leftUrl}:${rightUrl}`,
-          mode: "comparison-analysis",
-        }),
-      },
+      web,
       personalities: {
         getActive: () => ({ id: "primary" }),
       },

@@ -1,4 +1,4 @@
-import { fetchEffectiveBrowserPage } from "@/runtime/native/service-bridge/browser";
+import { fetchBrowserPage } from "@/runtime/native/service-bridge/browser";
 import type { AgentExecutionContext } from "../../../chat";
 import type { CommandResult } from "../types";
 
@@ -9,7 +9,7 @@ export async function handleBrowserFetchCommand(
   if (trimmed.startsWith("/web fetch ")) {
     const url = trimmed.replace("/web fetch ", "").trim();
     return JSON.stringify(
-      await fetchEffectiveBrowserPage(context.runtime, context.services, url),
+      await fetchBrowserPage(context.runtime, url),
       null,
       2,
     );
@@ -18,7 +18,7 @@ export async function handleBrowserFetchCommand(
   if (trimmed.startsWith("/browser fetch ")) {
     const url = trimmed.replace("/browser fetch ", "").trim();
     return JSON.stringify(
-      await fetchEffectiveBrowserPage(context.runtime, context.services, url),
+      await fetchBrowserPage(context.runtime, url),
       null,
       2,
     );

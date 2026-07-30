@@ -382,17 +382,17 @@ const server = createServer(async (req, res) => {
   }
 
   if (method === "GET" && url.pathname === "/browser/status") {
-    const { getEffectiveBrowserStatus } = await import(
+    const { getBrowserStatus } = await import(
       "../../packages/agent/src/runtime/native/service-bridge/browser/index.ts"
     );
     sendJson(res, {
-      browser: await getEffectiveBrowserStatus(context.runtime, context.services),
+      browser: await getBrowserStatus(context.runtime),
     });
     return;
   }
 
   if (method === "POST" && url.pathname === "/browser/capture") {
-    const { captureEffectiveBrowserPage } = await import(
+    const { captureBrowserPage } = await import(
       "../../packages/agent/src/runtime/native/service-bridge/browser/index.ts"
     );
     const body = await readJson(req);
@@ -401,11 +401,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     sendJson(res, {
-      capture: await captureEffectiveBrowserPage(
-        context.runtime,
-        context.services,
-        body.url,
-      ),
+      capture: await captureBrowserPage(context.runtime, body.url),
     });
     return;
   }

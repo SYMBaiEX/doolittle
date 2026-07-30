@@ -134,8 +134,8 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       capability: "browser",
       nativeKey: "browser",
       nativeService: DOOLITTLE_BROWSER_SERVICE,
-      productServices: ["web"],
-      fallback: "web",
+      productServices: [],
+      fallback: "required Eliza browser service",
     },
     {
       capability: "mcp",

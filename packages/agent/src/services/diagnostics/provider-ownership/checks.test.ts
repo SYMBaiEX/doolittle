@@ -170,15 +170,6 @@ const baseContext = {
   formsControl: undefined,
   runtimeExecutionControl: undefined,
   integrationControl: undefined,
-  browserServices: {
-    web: {
-      status: async () => ({}),
-    },
-    mcp: {
-      status: () => ({ enabled: true }),
-      getCachedTools: () => [],
-    },
-  },
 } as unknown as ProviderOwnershipContext;
 
 describe("buildProviderOwnershipChecks", () => {

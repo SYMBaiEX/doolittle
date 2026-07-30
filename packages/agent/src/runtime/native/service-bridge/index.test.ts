@@ -179,50 +179,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
       },
     } as unknown as RuntimeLike;
 
-    const services = {
-      web: {
-        status: async () => ({
-          provider: "basic",
-          ready: true,
-          mode: "fallback",
-          captureMode: "placeholder",
-          captureReady: false,
-          detail: "fallback",
-          artifacts: {
-            snapshot: false,
-            screenshot: false,
-            comparison: false,
-          },
-        }),
-      },
-      mcp: {
-        status: () => ({ mode: "fallback" }),
-        getCachedTools: () => [],
-      },
-    } as never as {
-      web: {
-        status(): Promise<{
-          provider: "basic";
-          ready: true;
-          mode: "fallback";
-          captureMode: "placeholder";
-          captureReady: false;
-          detail: "fallback";
-          artifacts: {
-            snapshot: false;
-            screenshot: false;
-            comparison: false;
-          };
-        }>;
-      };
-      mcp: { status(): unknown; getCachedTools(): unknown[] };
-    };
-
     const resolution = getEffectiveServiceResolution(runtime);
-    const integration = await getNativeIntegrationControlPlane(
-      runtime,
-      services,
-    );
+    const integration = await getNativeIntegrationControlPlane(runtime);
 
     expect(
       resolution.find((entry) => entry.capability === "knowledgeGraph")

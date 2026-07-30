@@ -12,12 +12,7 @@ export const handleServiceRuntimeIntrospectionCommand: RuntimeIntrospectionComma
     }
 
     const ownership = resolveOwnershipControlPlane(context);
-    const integration = await getNativeIntegrationControlPlane(
-      context.runtime,
-      {
-        web: context.services.web,
-      },
-    );
+    const integration = await getNativeIntegrationControlPlane(context.runtime);
     const messaging = ownership.transportControl.messagingBridge ?? [];
     const transportInventory =
       ownership.transportControl.transportInventory ?? [];

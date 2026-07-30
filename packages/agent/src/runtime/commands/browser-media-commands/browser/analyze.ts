@@ -1,6 +1,6 @@
 import {
-  analyzeEffectiveBrowserComparison,
-  analyzeEffectiveBrowserPage,
+  analyzeBrowserComparison,
+  analyzeBrowserPage,
 } from "@/runtime/native/service-bridge/browser";
 import type { AgentExecutionContext } from "../../../chat";
 import type { BrowserMediaCommandOptions, CommandResult } from "../types";
@@ -15,11 +15,7 @@ export async function handleBrowserAnalyzeCommand(
     if (!url) {
       return "Usage: /browser analyze <url>";
     }
-    const analysis = await analyzeEffectiveBrowserPage(
-      context.runtime,
-      context.services,
-      url,
-    );
+    const analysis = await analyzeBrowserPage(context.runtime, url);
     const response = await options.runAnalysis(analysis.prompt, "browser");
     return JSON.stringify({ analysis, response }, null, 2);
   }
@@ -39,9 +35,8 @@ export async function handleBrowserComparisonAnalysisCommand(
       return "Usage: /browser compare analyze <left-url> :: <right-url>";
     }
 
-    const analysis = await analyzeEffectiveBrowserComparison(
+    const analysis = await analyzeBrowserComparison(
       context.runtime,
-      context.services,
       leftUrl,
       rightUrl,
     );

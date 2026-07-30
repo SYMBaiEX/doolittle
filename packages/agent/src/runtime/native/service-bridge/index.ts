@@ -28,18 +28,17 @@ export {
   getEffectiveSkillsSummary,
 } from "./autonomous";
 export {
-  analyzeEffectiveBrowserComparison,
-  analyzeEffectiveBrowserPage,
-  captureEffectiveBrowserPage,
-  compareEffectiveBrowserPages,
-  fetchEffectiveBrowserPage,
-  getEffectiveBrowserStatus,
-  inspectEffectiveBrowserPage,
-  screenshotEffectiveBrowserPage,
-  snapshotEffectiveBrowserPage,
+  analyzeBrowserComparison,
+  analyzeBrowserPage,
+  captureBrowserPage,
+  compareBrowserPages,
+  fetchBrowserPage,
+  getBrowserStatus,
+  inspectBrowserPage,
+  screenshotBrowserPage,
+  snapshotBrowserPage,
 } from "./browser";
 export type {
-  BrowserIntegrationServices,
   EffectiveMessagingTransportEntry,
   EffectiveServiceResolutionRecord,
   EffectiveTransportInventoryEntry,

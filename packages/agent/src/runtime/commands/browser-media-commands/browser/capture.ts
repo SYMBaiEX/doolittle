@@ -1,7 +1,7 @@
 import {
-  captureEffectiveBrowserPage,
-  screenshotEffectiveBrowserPage,
-  snapshotEffectiveBrowserPage,
+  captureBrowserPage,
+  screenshotBrowserPage,
+  snapshotBrowserPage,
 } from "@/runtime/native/service-bridge/browser";
 import type { AgentExecutionContext } from "../../../chat";
 import type { CommandResult } from "../types";
@@ -12,35 +12,23 @@ export async function handleBrowserCaptureCommand(
 ): Promise<CommandResult> {
   if (trimmed.startsWith("/browser snapshot ")) {
     const url = trimmed.replace("/browser snapshot ", "").trim();
-    return await snapshotEffectiveBrowserPage(
-      context.runtime,
-      context.services,
-      url,
-    );
+    return await snapshotBrowserPage(context.runtime, url);
   }
 
   if (trimmed.startsWith("/web snapshot ")) {
     const url = trimmed.replace("/web snapshot ", "").trim();
-    return await snapshotEffectiveBrowserPage(
-      context.runtime,
-      context.services,
-      url,
-    );
+    return await snapshotBrowserPage(context.runtime, url);
   }
 
   if (trimmed.startsWith("/browser screenshot ")) {
     const url = trimmed.replace("/browser screenshot ", "").trim();
-    return await screenshotEffectiveBrowserPage(
-      context.runtime,
-      context.services,
-      url,
-    );
+    return await screenshotBrowserPage(context.runtime, url);
   }
 
   if (trimmed.startsWith("/browser capture ")) {
     const url = trimmed.replace("/browser capture ", "").trim();
     return JSON.stringify(
-      await captureEffectiveBrowserPage(context.runtime, context.services, url),
+      await captureBrowserPage(context.runtime, url),
       null,
       2,
     );

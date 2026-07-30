@@ -3,8 +3,42 @@ import type { AgentExecutionContext } from "../chat";
 import { handleBrowserMediaCommand } from "./browser-media-commands";
 
 function createContext(): AgentExecutionContext {
+  const web = {
+    status: async () => ({ ready: true }),
+    analyze: async (url: string) => ({ prompt: `analyze:${url}`, url }),
+    analyzeComparison: async (left: string, right: string) => ({
+      prompt: `compare:${left}:${right}`,
+      left,
+      right,
+    }),
+    capture: async (url: string) => ({ url, capture: true }),
+    compare: async (left: string, right: string) => ({
+      left,
+      right,
+      compare: true,
+    }),
+    fetchText: async (url: string) => ({ url, body: "ok" }),
+    inspect: async (url: string) => ({ url, inspect: true }),
+    screenshot: async (url: string) => `screenshot:${url}`,
+    snapshot: async (url: string) => `snapshot:${url}`,
+  };
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "browser"
+          ? {
+              status: web.status,
+              analyze: web.analyze,
+              analyzeComparison: web.analyzeComparison,
+              capture: web.capture,
+              compare: web.compare,
+              fetch: web.fetchText,
+              inspect: web.inspect,
+              screenshot: web.screenshot,
+              snapshot: web.snapshot,
+            }
+          : null,
+    },
     services: {
       media: {
         analyzeWithModel: async (path: string) => ({ path, analysis: true }),
@@ -23,24 +57,7 @@ function createContext(): AgentExecutionContext {
         visionWithModel: async (path: string) => ({ path, vision: true }),
         voiceWithModel: async (path: string) => ({ path, voice: true }),
       },
-      web: {
-        analyze: async (url: string) => ({ prompt: `analyze:${url}`, url }),
-        analyzeComparison: async (left: string, right: string) => ({
-          prompt: `compare:${left}:${right}`,
-          left,
-          right,
-        }),
-        capture: async (url: string) => ({ url, capture: true }),
-        compare: async (left: string, right: string) => ({
-          left,
-          right,
-          compare: true,
-        }),
-        fetchText: async (url: string) => ({ url, body: "ok" }),
-        inspect: async (url: string) => ({ url, inspect: true }),
-        screenshot: async (url: string) => `screenshot:${url}`,
-        snapshot: async (url: string) => `snapshot:${url}`,
-      },
+      web,
     },
   } as unknown as AgentExecutionContext;
 }

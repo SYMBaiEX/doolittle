@@ -109,9 +109,9 @@ describe("service-resolution helpers", () => {
       {
         capability: "browser",
         nativeService: "browser",
-        source: "product",
-        ownership: "product",
-        fallback: "web",
+        source: "unavailable",
+        ownership: "plugin",
+        fallback: "required Eliza browser service",
         available: false,
       },
       {

@@ -220,6 +220,9 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
         },
       }),
     },
+    browser: {
+      status: () => services.web.status(),
+    },
     mcp: {
       status: () => services.mcp.status(),
       getCachedTools: () => services.mcp.getCachedTools(),
@@ -485,7 +488,7 @@ describe("ownership helpers", () => {
     } as never);
 
     expect(snapshot.ui.active.name).toBe("orange");
-    expect(snapshot.integration.browser.source).toBe("product");
+    expect(snapshot.integration.browser.source).toBe("native");
     expect(snapshot.autonomous.alignment.foundationPackages).toContain(
       "@elizaos/agent",
     );
@@ -513,7 +516,7 @@ describe("ownership helpers", () => {
     expect(snapshot.pluginCatalog.length).toBeGreaterThan(0);
     expect(snapshot.workspace.summary).toEqual(services.ecosystem.summary());
     expect(snapshot.ownership.ui.themes.length).toBeGreaterThan(0);
-    expect(snapshot.ownership.integration.browser.source).toBe("product");
+    expect(snapshot.ownership.integration.browser.source).toBe("native");
     expect(snapshot.ownership.media.tts.provider).toBe("fal");
     expect(snapshot.ownership).toHaveProperty("autonomous.research");
     expect(snapshot.accounts.codex).toBeDefined();

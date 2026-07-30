@@ -1,15 +1,15 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { runModelAnalysisTurn } from "@/runtime/chat";
 import {
-  analyzeEffectiveBrowserComparison,
-  analyzeEffectiveBrowserPage,
-  captureEffectiveBrowserPage,
-  compareEffectiveBrowserPages,
-  fetchEffectiveBrowserPage,
-  getEffectiveBrowserStatus,
-  inspectEffectiveBrowserPage,
-  screenshotEffectiveBrowserPage,
-  snapshotEffectiveBrowserPage,
+  analyzeBrowserComparison,
+  analyzeBrowserPage,
+  captureBrowserPage,
+  compareBrowserPages,
+  fetchBrowserPage,
+  getBrowserStatus,
+  inspectBrowserPage,
+  screenshotBrowserPage,
+  snapshotBrowserPage,
 } from "@/runtime/native/service-bridge/browser";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
@@ -80,20 +80,13 @@ export async function handleBrowserRoutes(
     const error = validateBrowserUrl(targetUrl, "url");
     if (error) return json({ error }, 400);
     return json({
-      page: await fetchEffectiveBrowserPage(
-        context.runtime,
-        context.services,
-        targetUrl as string,
-      ),
+      page: await fetchBrowserPage(context.runtime, targetUrl as string),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/browser/status") {
     return json({
-      browser: await getEffectiveBrowserStatus(
-        context.runtime,
-        context.services,
-      ),
+      browser: await getBrowserStatus(context.runtime),
     });
   }
 
@@ -105,9 +98,8 @@ export async function handleBrowserRoutes(
     const error = validateBrowserUrl(targetUrl, "url");
     if (error) return json({ error }, 400);
     return json({
-      inspection: await inspectEffectiveBrowserPage(
+      inspection: await inspectBrowserPage(
         context.runtime,
-        context.services,
         targetUrl as string,
       ),
     });
@@ -121,11 +113,7 @@ export async function handleBrowserRoutes(
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     return json({
-      path: await snapshotEffectiveBrowserPage(
-        context.runtime,
-        context.services,
-        body.url as string,
-      ),
+      path: await snapshotBrowserPage(context.runtime, body.url as string),
     });
   }
 
@@ -134,11 +122,7 @@ export async function handleBrowserRoutes(
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     return json({
-      path: await screenshotEffectiveBrowserPage(
-        context.runtime,
-        context.services,
-        body.url as string,
-      ),
+      path: await screenshotBrowserPage(context.runtime, body.url as string),
     });
   }
 
@@ -147,11 +131,7 @@ export async function handleBrowserRoutes(
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     return json({
-      capture: await captureEffectiveBrowserPage(
-        context.runtime,
-        context.services,
-        body.url as string,
-      ),
+      capture: await captureBrowserPage(context.runtime, body.url as string),
     });
   }
 
@@ -159,9 +139,8 @@ export async function handleBrowserRoutes(
     const body = (await request.json()) as { url?: unknown };
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
-    const analysis = await analyzeEffectiveBrowserPage(
+    const analysis = await analyzeBrowserPage(
       context.runtime,
-      context.services,
       body.url as string,
     );
     return json({
@@ -185,9 +164,8 @@ export async function handleBrowserRoutes(
     const rightError = validateBrowserUrl(body.rightUrl, "rightUrl");
     if (rightError) return json({ error: rightError }, 400);
     return json({
-      comparison: await compareEffectiveBrowserPages(
+      comparison: await compareBrowserPages(
         context.runtime,
-        context.services,
         body.leftUrl as string,
         body.rightUrl as string,
       ),
@@ -209,9 +187,8 @@ export async function handleBrowserRoutes(
     if (leftError) return json({ error: leftError }, 400);
     const rightError = validateBrowserUrl(body.rightUrl, "rightUrl");
     if (rightError) return json({ error: rightError }, 400);
-    const analysis = await analyzeEffectiveBrowserComparison(
+    const analysis = await analyzeBrowserComparison(
       context.runtime,
-      context.services,
       body.leftUrl as string,
       body.rightUrl as string,
     );

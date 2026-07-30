@@ -40,13 +40,20 @@ function createContext(options?: { withGateway?: boolean }) {
       providers: {},
     },
     runtime: {
-      getService: (name: string) =>
-        name === "mcp"
-          ? {
-              status: () => ({ ready: false }),
-              getCachedTools: () => [],
-            }
-          : null,
+      getService: (name: string) => {
+        if (name === "browser") {
+          return {
+            status: async () => ({ ready: false }),
+          };
+        }
+        if (name === "mcp") {
+          return {
+            status: () => ({ ready: false }),
+            getCachedTools: () => [],
+          };
+        }
+        return null;
+      },
     },
     gateway,
     services: {

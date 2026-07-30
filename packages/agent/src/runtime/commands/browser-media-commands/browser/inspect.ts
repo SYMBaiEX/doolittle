@@ -1,6 +1,6 @@
 import {
-  getEffectiveBrowserStatus,
-  inspectEffectiveBrowserPage,
+  getBrowserStatus,
+  inspectBrowserPage,
 } from "@/runtime/native/service-bridge/browser";
 import type { AgentExecutionContext } from "../../../chat";
 import type { CommandResult } from "../types";
@@ -10,17 +10,13 @@ export async function handleBrowserInspectCommand(
   context: AgentExecutionContext,
 ): Promise<CommandResult> {
   if (trimmed === "/browser" || trimmed === "/browser status") {
-    return JSON.stringify(
-      await getEffectiveBrowserStatus(context.runtime, context.services),
-      null,
-      2,
-    );
+    return JSON.stringify(await getBrowserStatus(context.runtime), null, 2);
   }
 
   if (trimmed.startsWith("/browser inspect ")) {
     const url = trimmed.replace("/browser inspect ", "").trim();
     return JSON.stringify(
-      await inspectEffectiveBrowserPage(context.runtime, context.services, url),
+      await inspectBrowserPage(context.runtime, url),
       null,
       2,
     );
@@ -29,7 +25,7 @@ export async function handleBrowserInspectCommand(
   if (trimmed.startsWith("/web inspect ")) {
     const url = trimmed.replace("/web inspect ", "").trim();
     return JSON.stringify(
-      await inspectEffectiveBrowserPage(context.runtime, context.services, url),
+      await inspectBrowserPage(context.runtime, url),
       null,
       2,
     );

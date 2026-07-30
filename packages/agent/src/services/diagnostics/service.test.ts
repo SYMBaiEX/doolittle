@@ -225,6 +225,15 @@ describe("DiagnosticsService", () => {
             getSessionSummaries: () => [],
           };
         }
+        if (name === "browser") {
+          return {
+            status: async () => ({
+              provider: "lightpanda",
+              ready: true,
+              mode: "browser",
+            }),
+          };
+        }
         if (name === "mcp") {
           return {
             status: () => ({ ready: false }),

@@ -1,4 +1,4 @@
-import { compareEffectiveBrowserPages } from "@/runtime/native/service-bridge/browser";
+import { compareBrowserPages } from "@/runtime/native/service-bridge/browser";
 import type { AgentExecutionContext } from "../../../chat";
 import type { BrowserMediaCommandOptions, CommandResult } from "../types";
 import { handleBrowserComparisonAnalysisCommand } from "./analyze";
@@ -24,12 +24,7 @@ export async function handleBrowserCompareCommand(
       return "Usage: /browser compare <left-url> :: <right-url>";
     }
     return JSON.stringify(
-      await compareEffectiveBrowserPages(
-        context.runtime,
-        context.services,
-        leftUrl,
-        rightUrl,
-      ),
+      await compareBrowserPages(context.runtime, leftUrl, rightUrl),
       null,
       2,
     );

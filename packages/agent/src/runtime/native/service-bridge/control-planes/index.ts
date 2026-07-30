@@ -3,7 +3,6 @@ export {
   type NativeE2BService,
 } from "../execution-control-plane";
 export {
-  type BrowserIntegrationServices,
   getNativeIntegrationControlPlane,
   type NativeIntegrationControlPlane,
 } from "../integration-control";

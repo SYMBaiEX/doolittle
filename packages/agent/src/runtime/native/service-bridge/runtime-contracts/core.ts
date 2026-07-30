@@ -52,13 +52,7 @@ export interface NativeShellService {
 }
 
 export interface NativeBrowserService {
-  status?(): Promise<BrowserStatus>;
-  summary?(): {
-    operations: string[];
-    multimodal: boolean;
-    captureReady: boolean;
-    analysisReady: boolean;
-  };
+  status(): Promise<BrowserStatus>;
   fetch(url: string): Promise<string | WebPageSnapshot>;
   inspect(url: string): Promise<BrowserInspection>;
   snapshot(url: string): Promise<string>;

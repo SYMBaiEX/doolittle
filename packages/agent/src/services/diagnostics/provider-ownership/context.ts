@@ -6,17 +6,14 @@ import {
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
-import type { BrowserIntegrationServices } from "@/runtime/native/service-bridge/control-planes";
 import {
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
 } from "@/runtime/native/service-bridge/control-planes";
 import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
-import type { EnvConfig } from "@/types";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
-import { buildBrowserIntegrationServices } from "./integration-services";
 import type {
   ProviderOwnershipCollectInput,
   ProviderOwnershipContext,
@@ -36,9 +33,6 @@ type ProviderOwnershipDependencies = {
   getNativeFormsControlPlane: typeof getNativeFormsControlPlane;
   getNativeIntegrationControlPlane: typeof getNativeIntegrationControlPlane;
   getNativeExecutionControlPlane: typeof getNativeExecutionControlPlane;
-  buildBrowserIntegrationServices: (
-    config: EnvConfig,
-  ) => BrowserIntegrationServices;
 };
 
 const defaultDependencies: ProviderOwnershipDependencies = {
@@ -51,7 +45,6 @@ const defaultDependencies: ProviderOwnershipDependencies = {
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
   getNativeExecutionControlPlane,
-  buildBrowserIntegrationServices,
 };
 
 export async function collectProviderOwnershipContext(
@@ -98,9 +91,7 @@ export async function collectProviderOwnershipContext(
   const integrationControl:
     | ProviderOwnershipNativeIntegrationControl
     | undefined = runtime
-    ? await mergedDeps.getNativeIntegrationControlPlane(runtime, {
-        ...mergedDeps.buildBrowserIntegrationServices(config),
-      })
+    ? await mergedDeps.getNativeIntegrationControlPlane(runtime)
     : undefined;
   const runtimeExecutionControl:
     | ProviderOwnershipNativeExecutionControl
@@ -156,6 +147,5 @@ export async function collectProviderOwnershipContext(
     formsControl,
     integrationControl,
     runtimeExecutionControl,
-    browserServices: mergedDeps.buildBrowserIntegrationServices(config),
   };
 }

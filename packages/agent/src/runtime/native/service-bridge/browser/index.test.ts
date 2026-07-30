@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { AppServices } from "@/services";
 import type {
   BrowserAnalysisBundle,
   BrowserCaptureBundle,
@@ -10,15 +9,15 @@ import type {
 } from "@/services/web/service";
 import type { RuntimeLike } from "../runtime";
 import {
-  analyzeEffectiveBrowserComparison,
-  analyzeEffectiveBrowserPage,
-  captureEffectiveBrowserPage,
-  compareEffectiveBrowserPages,
-  fetchEffectiveBrowserPage,
-  getEffectiveBrowserStatus,
-  inspectEffectiveBrowserPage,
-  screenshotEffectiveBrowserPage,
-  snapshotEffectiveBrowserPage,
+  analyzeBrowserComparison,
+  analyzeBrowserPage,
+  captureBrowserPage,
+  compareBrowserPages,
+  fetchBrowserPage,
+  getBrowserStatus,
+  inspectBrowserPage,
+  screenshotBrowserPage,
+  snapshotBrowserPage,
 } from "./index";
 
 function makeBrowserStatus(
@@ -116,7 +115,7 @@ function makeComparisonAnalysis(
 }
 
 describe("browser bridge helpers", () => {
-  it("prefers native browser operations when available", async () => {
+  it("routes every browser operation through the Eliza lifecycle service", async () => {
     const runtime = {
       getService(name: string) {
         if (name === "browser") {
@@ -143,67 +142,20 @@ describe("browser bridge helpers", () => {
       },
     } as unknown as RuntimeLike;
 
-    const services = {
-      web: {
-        status: async () => makeBrowserStatus({ detail: "fallback" }),
-        fetchText: async (url: string) => `fallback-fetch:${url}`,
-        inspect: async (url: string) => makeInspection(`${url}:fallback`),
-        snapshot: async (url: string) => `fallback-snapshot:${url}`,
-        screenshot: async (url: string) => `fallback-screenshot:${url}`,
-        capture: async (url: string) => makeCapture(`${url}:fallback`),
-        analyze: async (url: string) =>
-          makeAnalysis(url, `fallback-analyze:${url}`),
-        compare: async (leftUrl: string, rightUrl: string) =>
-          makeComparison(`${leftUrl}:fallback`, `${rightUrl}:fallback`),
-        analyzeComparison: async (leftUrl: string, rightUrl: string) =>
-          makeComparisonAnalysis(
-            leftUrl,
-            rightUrl,
-            `fallback-compare:${leftUrl}:${rightUrl}`,
-          ),
-      },
-    } as unknown as AppServices;
-
-    const status = await getEffectiveBrowserStatus(runtime, services);
-    const page = await fetchEffectiveBrowserPage(
+    const status = await getBrowserStatus(runtime);
+    const page = await fetchBrowserPage(runtime, "https://a");
+    const inspection = await inspectBrowserPage(runtime, "https://a");
+    const snapshot = await snapshotBrowserPage(runtime, "https://a");
+    const screenshot = await screenshotBrowserPage(runtime, "https://a");
+    const capture = await captureBrowserPage(runtime, "https://a");
+    const analysis = await analyzeBrowserPage(runtime, "https://a");
+    const comparison = await compareBrowserPages(
       runtime,
-      services,
-      "https://a",
-    );
-    const inspection = await inspectEffectiveBrowserPage(
-      runtime,
-      services,
-      "https://a",
-    );
-    const snapshot = await snapshotEffectiveBrowserPage(
-      runtime,
-      services,
-      "https://a",
-    );
-    const screenshot = await screenshotEffectiveBrowserPage(
-      runtime,
-      services,
-      "https://a",
-    );
-    const capture = await captureEffectiveBrowserPage(
-      runtime,
-      services,
-      "https://a",
-    );
-    const analysis = await analyzeEffectiveBrowserPage(
-      runtime,
-      services,
-      "https://a",
-    );
-    const comparison = await compareEffectiveBrowserPages(
-      runtime,
-      services,
       "https://a",
       "https://b",
     );
-    const comparisonAnalysis = await analyzeEffectiveBrowserComparison(
+    const comparisonAnalysis = await analyzeBrowserComparison(
       runtime,
-      services,
       "https://a",
       "https://b",
     );
@@ -221,110 +173,38 @@ describe("browser bridge helpers", () => {
     );
   });
 
-  it("uses native browser summary before product fallback status", async () => {
-    const runtime = {
-      getService(name: string) {
-        if (name === "browser") {
-          return {
-            summary: () => ({
-              operations: ["capture", "inspect"],
-              multimodal: true,
-              captureReady: true,
-              analysisReady: true,
-            }),
-          };
-        }
-        return null;
-      },
-    } as unknown as RuntimeLike;
-
-    const services = {
-      web: {
-        status: async () => makeBrowserStatus({ detail: "product-fallback" }),
-      },
-    } as unknown as AppServices;
-
-    await expect(getEffectiveBrowserStatus(runtime, services)).resolves.toEqual(
-      {
-        operations: ["capture", "inspect"],
-        multimodal: true,
-        captureReady: true,
-        analysisReady: true,
-      },
-    );
-  });
-
-  it("falls back to product web services when native browser is absent", async () => {
+  it("fails explicitly when the required Eliza browser service is absent", async () => {
     const runtime = {
       getService() {
         return null;
       },
     } as unknown as RuntimeLike;
 
-    const services = {
-      web: {
-        status: async () => makeBrowserStatus({ detail: "fallback-status" }),
-        fetchText: async (url: string) => `fallback-fetch:${url}`,
-        inspect: async (url: string) => makeInspection(`${url}:fallback`),
-        snapshot: async (url: string) => `fallback-snapshot:${url}`,
-        screenshot: async (url: string) => `fallback-screenshot:${url}`,
-        capture: async (url: string) => makeCapture(`${url}:fallback`),
-        analyze: async (url: string) =>
-          makeAnalysis(url, `fallback-analyze:${url}`),
-        compare: async (leftUrl: string, rightUrl: string) =>
-          makeComparison(`${leftUrl}:fallback`, `${rightUrl}:fallback`),
-        analyzeComparison: async (leftUrl: string, rightUrl: string) =>
-          makeComparisonAnalysis(
-            leftUrl,
-            rightUrl,
-            `fallback-compare:${leftUrl}:${rightUrl}`,
-          ),
-      },
-    } as unknown as AppServices;
-
-    expect(await getEffectiveBrowserStatus(runtime, services)).toMatchObject({
-      detail: "fallback-status",
-    });
-    expect(
-      await fetchEffectiveBrowserPage(runtime, services, "https://a"),
-    ).toBe("fallback-fetch:https://a");
-    expect(
-      (await inspectEffectiveBrowserPage(runtime, services, "https://a")).page
-        .url,
-    ).toBe("https://a:fallback");
-    expect(
-      await snapshotEffectiveBrowserPage(runtime, services, "https://a"),
-    ).toBe("fallback-snapshot:https://a");
-    expect(
-      await screenshotEffectiveBrowserPage(runtime, services, "https://a"),
-    ).toBe("fallback-screenshot:https://a");
-    expect(
-      (await captureEffectiveBrowserPage(runtime, services, "https://a")).page
-        .url,
-    ).toBe("https://a:fallback");
-    expect(
-      (await analyzeEffectiveBrowserPage(runtime, services, "https://a"))
-        .prompt,
-    ).toBe("fallback-analyze:https://a");
-    expect(
-      (
-        await compareEffectiveBrowserPages(
-          runtime,
-          services,
-          "https://a",
-          "https://b",
-        )
-      ).left.page.url,
-    ).toBe("https://a:fallback");
-    expect(
-      await analyzeEffectiveBrowserComparison(
-        runtime,
-        services,
-        "https://a",
-        "https://b",
-      ),
-    ).toMatchObject({
-      prompt: "fallback-compare:https://a:https://b",
-    });
+    const expected = /Required Eliza service browser is unavailable/;
+    await expect(getBrowserStatus(runtime)).rejects.toThrow(expected);
+    await expect(fetchBrowserPage(runtime, "https://a")).rejects.toThrow(
+      expected,
+    );
+    await expect(inspectBrowserPage(runtime, "https://a")).rejects.toThrow(
+      expected,
+    );
+    await expect(snapshotBrowserPage(runtime, "https://a")).rejects.toThrow(
+      expected,
+    );
+    await expect(screenshotBrowserPage(runtime, "https://a")).rejects.toThrow(
+      expected,
+    );
+    await expect(captureBrowserPage(runtime, "https://a")).rejects.toThrow(
+      expected,
+    );
+    await expect(analyzeBrowserPage(runtime, "https://a")).rejects.toThrow(
+      expected,
+    );
+    await expect(
+      compareBrowserPages(runtime, "https://a", "https://b"),
+    ).rejects.toThrow(expected);
+    await expect(
+      analyzeBrowserComparison(runtime, "https://a", "https://b"),
+    ).rejects.toThrow(expected);
   });
 });
