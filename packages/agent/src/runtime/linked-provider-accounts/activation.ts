@@ -1,4 +1,4 @@
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { AgentExecutionContext } from "../chat";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 import {
@@ -15,7 +15,7 @@ export function activateLinkedProvider(
   provider: LinkedProviderName;
   model: string;
   baseUrl: string;
-  accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>;
+  accounts: ReturnType<typeof getRuntimeProviderAccountsSnapshot>;
 } {
   const settings = context.services.settings.get();
   const nextModel =
@@ -41,6 +41,6 @@ export function activateLinkedProvider(
     provider,
     model: updated.model.model,
     baseUrl: updated.model.baseUrl,
-    accounts: getLinkedProviderAccountsSnapshot(),
+    accounts: getRuntimeProviderAccountsSnapshot(context.runtime),
   };
 }

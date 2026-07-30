@@ -3,9 +3,9 @@ import {
   resolveCloudApiBaseUrl,
   validateCloudBaseUrl,
 } from "@/runtime/linked-provider-accounts/cloud-url";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { BrowserMcpServices } from "@/runtime/native/service-bridge/control-planes";
 import {
   getNativeExecutionControlPlane,
@@ -29,7 +29,7 @@ import type {
 type ProviderOwnershipDependencies = {
   getNativePackageAudit: typeof getNativePackageAudit;
   getNativePluginCatalog: typeof getNativePluginCatalog;
-  getLinkedProviderAccountsSnapshot: typeof getLinkedProviderAccountsSnapshot;
+  getRuntimeProviderAccountsSnapshot: typeof getRuntimeProviderAccountsSnapshot;
   resolveCloudApiBaseUrl: typeof resolveCloudApiBaseUrl;
   validateCloudBaseUrl: typeof validateCloudBaseUrl;
   getNativeOwnershipControlPlane: typeof getNativeOwnershipControlPlane;
@@ -42,7 +42,7 @@ type ProviderOwnershipDependencies = {
 const defaultDependencies: ProviderOwnershipDependencies = {
   getNativePackageAudit,
   getNativePluginCatalog,
-  getLinkedProviderAccountsSnapshot,
+  getRuntimeProviderAccountsSnapshot,
   resolveCloudApiBaseUrl,
   validateCloudBaseUrl,
   getNativeOwnershipControlPlane,
@@ -106,7 +106,7 @@ export async function collectProviderOwnershipContext(
     ? mergedDeps.getNativeExecutionControlPlane(runtime)
     : undefined;
 
-  const linkedAccounts = mergedDeps.getLinkedProviderAccountsSnapshot();
+  const linkedAccounts = mergedDeps.getRuntimeProviderAccountsSnapshot(runtime);
   const normalizedCloudBaseUrl = mergedDeps.resolveCloudApiBaseUrl(
     config.elizaCloudBaseUrl,
   );

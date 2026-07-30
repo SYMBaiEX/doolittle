@@ -1,4 +1,4 @@
-import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { getNativePackageAudit } from "@/runtime/native/package-audit";
 import type { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
@@ -66,9 +66,8 @@ export type ProviderOwnershipNativePackageAudit = ReturnType<
 export type ProviderOwnershipNativePluginCatalog = ReturnType<
   typeof getNativePluginCatalog
 >;
-export type ProviderOwnershipLinkedProviderAccounts = ReturnType<
-  typeof getLinkedProviderAccountsSnapshot
->;
+export type ProviderOwnershipLinkedProviderAccounts =
+  LinkedProviderAccountsSnapshot;
 
 export interface ProviderOwnershipContext {
   config: EnvConfig;

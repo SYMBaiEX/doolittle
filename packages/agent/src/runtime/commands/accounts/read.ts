@@ -6,10 +6,8 @@ import {
   formatLinkedProviderAdviceNextStep,
   refreshLinkedAccounts,
 } from "@/runtime/linked-provider-accounts";
-import {
-  getLinkedProviderAccountsSnapshot,
-  getLinkedProviderConnectAdvice,
-} from "@/runtime/native/account-auth";
+import { getLinkedProviderConnectAdvice } from "@/runtime/native/account-auth";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { AccountsCommandContext } from "./types";
 
 export async function handleAccountsReadCommand(
@@ -23,12 +21,12 @@ export async function handleAccountsReadCommand(
   ) {
     return formatAccountsOverview(
       context.services.settings.get().model.provider,
-      getLinkedProviderAccountsSnapshot(),
+      getRuntimeProviderAccountsSnapshot(context.runtime),
     );
   }
 
   if (trimmed === "/accounts doctor") {
-    const accounts = getLinkedProviderAccountsSnapshot();
+    const accounts = getRuntimeProviderAccountsSnapshot(context.runtime);
     const elizaCloudAdvice = getLinkedProviderConnectAdvice("elizacloud");
     const codexAdvice = getLinkedProviderConnectAdvice("codex");
     const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");

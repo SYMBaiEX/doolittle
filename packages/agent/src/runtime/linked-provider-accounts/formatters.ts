@@ -1,14 +1,14 @@
 import { displayCommand } from "@/runtime/commands/command-execution";
-import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { buildLinkedProviderConnectAdvice } from "@/runtime/native/account-auth/connect-advice";
 import type {
+  LinkedProviderAccountsSnapshot,
   LinkedProviderConnectAdvice,
   LinkedProviderName,
 } from "@/runtime/native/account-auth/types";
 
 export function formatLinkedAccountSummary(
   provider: LinkedProviderName,
-  snapshot: ReturnType<typeof getLinkedProviderAccountsSnapshot>,
+  snapshot: LinkedProviderAccountsSnapshot,
 ): string {
   const status =
     provider === "codex"
@@ -58,7 +58,7 @@ function formatProviderModeLabel(provider: LinkedProviderName): string {
 
 export function formatAccountsOverview(
   activeProvider: string,
-  accounts: ReturnType<typeof getLinkedProviderAccountsSnapshot>,
+  accounts: LinkedProviderAccountsSnapshot,
 ): string {
   const elizaCloudAdvice = buildLinkedProviderConnectAdvice(
     "elizacloud",

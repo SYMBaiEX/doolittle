@@ -1,8 +1,6 @@
 import { displayCommand } from "@/runtime/commands/command-execution";
-import {
-  getLinkedProviderAccountsSnapshot,
-  resolveLinkedProviderCredentials,
-} from "@/runtime/native/account-auth";
+import { resolveLinkedProviderCredentials } from "@/runtime/native/account-auth";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { AgentExecutionContext } from "../chat";
 import { validateCloudBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
@@ -162,7 +160,7 @@ async function computeProviderReadinessMessage(
     return message;
   }
 
-  const snapshot = getLinkedProviderAccountsSnapshot();
+  const snapshot = getRuntimeProviderAccountsSnapshot(context.runtime);
 
   if (provider === "offline") {
     message = context.config.offlineBootstrapMode
@@ -204,14 +202,8 @@ async function computeProviderReadinessMessage(
 
   if (provider === "elizacloud") {
     const cloudStatus = snapshot.elizaCloud;
-    const credentials = await resolveLinkedProviderCredentials("elizacloud");
-    const apiKey =
-      credentials && "apiKey" in credentials ? credentials.apiKey?.trim() : "";
-    if (!apiKey) {
-      message =
-        cloudStatus.nativeReady || cloudStatus.reusable
-          ? `Eliza Cloud is selected, but the managed cloud credentials still look incomplete. Run \`${displayCommand("/accounts connect elizacloud")}\` to refresh the bond, or run \`elizaos login\` again if the local workspace key is stale.`
-          : `Eliza Cloud is selected, but no managed cloud key is active in this workspace. Run \`elizaos login\`, then \`${displayCommand("/accounts connect elizacloud")}\` to bind the native cloud path.`;
+    if (!(cloudStatus.nativeReady || cloudStatus.reusable)) {
+      message = `Eliza Cloud is selected, but no managed cloud key is active in this workspace. Run \`elizaos login\`, then \`${displayCommand("/accounts connect elizacloud")}\` to bind the native cloud path.`;
       cacheProviderReadiness(runtimeKey, provider, message);
       return message;
     }
@@ -219,16 +211,8 @@ async function computeProviderReadinessMessage(
 
   if (provider === "codex") {
     const codexStatus = snapshot.codex;
-    const credentials = await resolveLinkedProviderCredentials("codex");
-    const accessToken =
-      credentials && "accessToken" in credentials
-        ? credentials.accessToken?.trim()
-        : "";
-    if (!accessToken) {
-      message =
-        codexStatus.nativeReady || codexStatus.reusable
-          ? `Codex is selected, but the bound credentials still look incomplete. Run \`${displayCommand("/accounts connect codex")}\` to rebind them, or run \`codex login\` first if the local store is stale.`
-          : `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
+    if (!(codexStatus.nativeReady || codexStatus.reusable)) {
+      message = `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
       cacheProviderReadiness(runtimeKey, provider, message);
       return message;
     }
@@ -240,35 +224,24 @@ async function computeProviderReadinessMessage(
       cacheProviderReadiness(runtimeKey, provider, undefined);
       return undefined;
     }
-    const credentials = await resolveLinkedProviderCredentials("claude-code");
-    const accessToken =
-      credentials && "accessToken" in credentials
-        ? credentials.accessToken?.trim()
-        : "";
-    if (!accessToken) {
-      if (claudeStatus.fallbackReady) {
-        message = `Claude Code is selected, but native Eliza auth material is still missing. Run \`claude setup-token\` to finish the native path, or \`${displayCommand("/accounts connect claude-code")}\` to activate the local Claude CLI fallback right now.`;
-        cacheProviderReadiness(runtimeKey, provider, message);
-        return message;
-      }
-      message = `Claude Code is selected, but no native Claude Code credentials are available. Run \`claude auth login\` or \`claude setup-token\`, then \`${displayCommand("/accounts connect claude-code")}\` to bind it in Eliza.`;
+    if (claudeStatus.nativeReady || claudeStatus.reusable) {
+      cacheProviderReadiness(runtimeKey, provider, undefined);
+      return undefined;
+    }
+    if (claudeStatus.fallbackReady) {
+      message = `Claude Code is selected, but native Eliza auth material is still missing. Run \`claude setup-token\` to finish the native path, or enable the local Claude CLI fallback and run \`${displayCommand("/accounts connect claude-code")}\`.`;
       cacheProviderReadiness(runtimeKey, provider, message);
       return message;
     }
+    message = `Claude Code is selected, but no native Claude Code credentials are available. Run \`claude auth login\` or \`claude setup-token\`, then \`${displayCommand("/accounts connect claude-code")}\` to bind it in Eliza.`;
+    cacheProviderReadiness(runtimeKey, provider, message);
+    return message;
   }
 
   if (provider === "devin") {
     const devinStatus = snapshot.devin;
-    const credentials = await resolveLinkedProviderCredentials("devin");
-    const command =
-      credentials && "command" in credentials
-        ? credentials.command?.trim()
-        : "";
-    if (!command) {
-      message =
-        devinStatus.nativeReady || devinStatus.reusable
-          ? `Devin is selected, but the local CLI binding still looks incomplete. Run \`${displayCommand("/accounts connect devin")}\` to rebind it, or run \`devin auth login\` first if the local session is stale.`
-          : `Devin is selected, but no active Devin CLI login is available. Run \`devin auth login\`, then \`${displayCommand("/accounts connect devin")}\` to bind SWE model execution.`;
+    if (!(devinStatus.nativeReady || devinStatus.reusable)) {
+      message = `Devin is selected, but no active Devin CLI login is available. Run \`devin auth login\`, then \`${displayCommand("/accounts connect devin")}\` to bind SWE model execution.`;
       cacheProviderReadiness(runtimeKey, provider, message);
       return message;
     }

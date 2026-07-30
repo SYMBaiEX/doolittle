@@ -5,11 +5,11 @@ import {
   refreshLinkedAccounts,
 } from "@/runtime/linked-provider-accounts";
 import {
-  getLinkedProviderAccountsSnapshot,
   getLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
   getLinkedProviderSetupCommand,
 } from "@/runtime/native/account-auth";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
 
 type LinkedProvider = "elizacloud" | "codex" | "claude-code" | "devin";
@@ -61,16 +61,19 @@ export async function connectAccount(
   return connectLinkedProvider(context, provider);
 }
 
-export function getAccountLoginDetails(provider: LinkedProvider) {
+export function getAccountLoginDetails(
+  context: AppContext,
+  provider: LinkedProvider,
+) {
   return {
     provider,
     command: getLinkedProviderLoginCommand(provider),
     setupCommand: getLinkedProviderSetupCommand(provider),
     advice: getLinkedProviderConnectAdvice(provider),
-    accounts: getLinkedProviderAccountsSnapshot(),
+    accounts: getRuntimeProviderAccountsSnapshot(context.runtime),
   };
 }
 
-export function getAccountsSnapshot() {
-  return getLinkedProviderAccountsSnapshot();
+export function getAccountsSnapshot(context: AppContext) {
+  return getRuntimeProviderAccountsSnapshot(context.runtime);
 }

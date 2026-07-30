@@ -6,7 +6,27 @@ const resolveCalls: string[] = [];
 
 function installConnectMocks() {
   vi.doMock("@/runtime/native/account-auth", () => ({
-    getLinkedProviderAccountsSnapshot: () => ({
+    getLinkedProviderConnectAdvice: (provider: string) => ({
+      provider,
+      detail: "advice",
+      preferredAction: "connect",
+      primaryCommand: `/accounts connect ${provider}`,
+    }),
+    resolveLinkedProviderCredentials: async (provider: string) => {
+      resolveCalls.push(provider);
+      return { provider };
+    },
+    refreshLinkedCodexCredentials: async () => {
+      refreshCalls.push("codex");
+      return undefined;
+    },
+    refreshLinkedClaudeCodeCredentials: async () => {
+      refreshCalls.push("claude-code");
+      return undefined;
+    },
+  }));
+  vi.doMock("@/runtime/native/provider-accounts", () => ({
+    getRuntimeProviderAccountsSnapshot: () => ({
       codex: {
         provider: "codex",
         available: true,
@@ -32,24 +52,6 @@ function installConnectMocks() {
         detail: "not ready",
       },
     }),
-    getLinkedProviderConnectAdvice: (provider: string) => ({
-      provider,
-      detail: "advice",
-      preferredAction: "connect",
-      primaryCommand: `/accounts connect ${provider}`,
-    }),
-    resolveLinkedProviderCredentials: async (provider: string) => {
-      resolveCalls.push(provider);
-      return { provider };
-    },
-    refreshLinkedCodexCredentials: async () => {
-      refreshCalls.push("codex");
-      return undefined;
-    },
-    refreshLinkedClaudeCodeCredentials: async () => {
-      refreshCalls.push("claude-code");
-      return undefined;
-    },
   }));
 }
 

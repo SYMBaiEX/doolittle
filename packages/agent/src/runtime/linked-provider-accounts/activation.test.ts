@@ -14,7 +14,9 @@ function installActivationMocks() {
     resolveLinkedProviderCredentials: async () => ({ apiKey: "k" }),
     refreshLinkedCodexCredentials: async () => undefined,
     refreshLinkedClaudeCodeCredentials: async () => undefined,
-    getLinkedProviderAccountsSnapshot: () => {
+  }));
+  vi.doMock("@/runtime/native/provider-accounts", () => ({
+    getRuntimeProviderAccountsSnapshot: () => {
       snapshotCallCount += 1;
       return {
         codex: {

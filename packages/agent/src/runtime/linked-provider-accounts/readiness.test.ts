@@ -43,7 +43,10 @@ function installReadinessMocks() {
         apiKey: "k",
       } as never;
     },
-    getLinkedProviderAccountsSnapshot: () => {
+  }));
+
+  vi.doMock("@/runtime/native/provider-accounts", () => ({
+    getRuntimeProviderAccountsSnapshot: () => {
       snapshotCalls += 1;
       return snapshot;
     },

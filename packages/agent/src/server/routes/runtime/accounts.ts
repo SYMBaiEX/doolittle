@@ -21,14 +21,14 @@ export async function handleRuntimeAccountRoutes(
   ) {
     return json({
       activeProvider: context.services.settings.get().model.provider,
-      accounts: getAccountsSnapshot(),
+      accounts: getAccountsSnapshot(context),
       connect: buildAccountConnectAdvice(),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/accounts/doctor") {
     return json({
-      accounts: getAccountsSnapshot(),
+      accounts: getAccountsSnapshot(context),
       connect: buildAccountConnectAdvice(),
     });
   }
@@ -111,7 +111,7 @@ export async function handleRuntimeAccountRoutes(
         400,
       );
     }
-    return json(getAccountLoginDetails(provider));
+    return json(getAccountLoginDetails(context, provider));
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/setup-token") {
@@ -123,9 +123,9 @@ export async function handleRuntimeAccountRoutes(
     }
     return json({
       provider: body.provider,
-      command: getAccountLoginDetails("claude-code").setupCommand,
-      advice: getAccountLoginDetails("claude-code").advice,
-      accounts: getAccountsSnapshot(),
+      command: getAccountLoginDetails(context, "claude-code").setupCommand,
+      advice: getAccountLoginDetails(context, "claude-code").advice,
+      accounts: getAccountsSnapshot(context),
     });
   }
 

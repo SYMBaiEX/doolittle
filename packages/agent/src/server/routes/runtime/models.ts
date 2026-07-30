@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import { json } from "@/server/responses";
 import type { RuntimeReasoningEffort } from "@/services/settings/runtime-settings";
 import type { EnvConfig } from "@/types";
@@ -136,7 +136,7 @@ export async function handleRuntimeModelRoutes(
   }
 
   const settings = context.services.settings.get().model;
-  const accounts = getLinkedProviderAccountsSnapshot();
+  const accounts = getRuntimeProviderAccountsSnapshot(context.runtime);
   const providers = await discoverModelProviders(
     context.config,
     settings.provider,

@@ -1,6 +1,6 @@
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
 import type { AppServices } from "@/services";
 import type { GatewayConfig } from "@/types/gateway";
@@ -116,7 +116,7 @@ export async function getNativeEcosystemSnapshot(
       latest: getNativePackageAudit(config).runtime.latest,
       beta: getNativePackageAudit(config).runtime.beta,
     },
-    accounts: getLinkedProviderAccountsSnapshot(),
+    accounts: getRuntimeProviderAccountsSnapshot(runtime),
     packageAudit: getNativePackageAudit(config),
     pluginCatalog: getNativePluginCatalog(config),
     sdk,

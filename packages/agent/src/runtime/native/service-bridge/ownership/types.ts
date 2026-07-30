@@ -69,7 +69,7 @@ export interface NativeEcosystemSnapshot {
     beta: string;
   };
   accounts: ReturnType<
-    typeof import("@/runtime/native/account-auth").getLinkedProviderAccountsSnapshot
+    typeof import("@/runtime/native/provider-accounts").getRuntimeProviderAccountsSnapshot
   >;
   packageAudit: ReturnType<
     typeof import("@/runtime/native/package-audit").getNativePackageAudit

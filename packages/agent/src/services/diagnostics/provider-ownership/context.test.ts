@@ -94,7 +94,7 @@ describe("collectProviderOwnershipContext", () => {
       dependencies: {
         getNativePackageAudit: () => nativeAudit,
         getNativePluginCatalog: () => nativePluginCatalog,
-        getLinkedProviderAccountsSnapshot: () => linkedAccounts,
+        getRuntimeProviderAccountsSnapshot: () => linkedAccounts,
         resolveCloudApiBaseUrl: (value?: string) => `resolved:${value}`,
         validateCloudBaseUrl: async () => null,
       },
@@ -204,7 +204,7 @@ describe("collectProviderOwnershipContext", () => {
       dependencies: {
         getNativePackageAudit: () => nativeAudit,
         getNativePluginCatalog: () => nativePluginCatalog,
-        getLinkedProviderAccountsSnapshot: () => linkedAccounts,
+        getRuntimeProviderAccountsSnapshot: () => linkedAccounts,
         resolveCloudApiBaseUrl: (value?: string) => `resolved:${value}`,
         validateCloudBaseUrl: async () => null,
       },

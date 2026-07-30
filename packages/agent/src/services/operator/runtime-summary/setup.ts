@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { getTransportRequirementRecords } from "@/gateway/transport";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import {
   createNativeServiceRegistry,
   describeNativeServiceRegistry,
@@ -15,7 +15,9 @@ import type { OperatorRuntimeSummaryDependencies } from "./types";
 export async function buildOperatorSetupSummary(
   dependencies: OperatorRuntimeSummaryDependencies,
 ) {
-  const linkedAccounts = getLinkedProviderAccountsSnapshot();
+  const linkedAccounts = getRuntimeProviderAccountsSnapshot(
+    dependencies.runtime,
+  );
   const ecosystem = dependencies.agentSdk
     ? await dependencies.agentSdk.overview()
     : undefined;
