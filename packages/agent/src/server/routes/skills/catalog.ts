@@ -77,6 +77,12 @@ export async function handleSkillsFamiliesRoutes(
     url.pathname === "/skills/families" ||
     url.pathname === "/skills/hub/families"
   ) {
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return json({
       families: getEffectiveSkillHubFamilies(context.services, 50),
     });
@@ -87,6 +93,12 @@ export async function handleSkillsFamiliesRoutes(
     if (!slug) {
       return json({ error: "Skill family slug is required." }, 400);
     }
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return json({
       family: getEffectiveSkillHubFamily(context.services, slug) ?? {
         error: `Skill family not found: ${slug}`,
@@ -99,6 +111,12 @@ export async function handleSkillsFamiliesRoutes(
     if (!slug) {
       return json({ error: "Skill family slug is required." }, 400);
     }
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return json({
       family: getEffectiveSkillHubFamily(context.services, slug) ?? {
         error: `Skill family not found: ${slug}`,

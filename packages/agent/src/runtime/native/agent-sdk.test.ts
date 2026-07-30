@@ -13,11 +13,9 @@ const compatibilityRows = [
 function installAgentSdkMocks({
   catalogShouldFail = false,
   registryShouldFail = false,
-  catalogSearchShouldFail = false,
 }: {
   catalogShouldFail?: boolean;
   registryShouldFail?: boolean;
-  catalogSearchShouldFail?: boolean;
 }) {
   vi.doMock("@elizaos/agent/services/registry-client", () => ({
     getConfiguredEndpoints: () => ["https://agent-registry.test"],
@@ -41,18 +39,6 @@ function installAgentSdkMocks({
     ],
   }));
   vi.doMock("@elizaos/plugin-agent-skills", () => ({
-    getCatalogSkill: (slug: string) => ({
-      slug,
-      displayName: "Skill",
-      summary: "Skill summary",
-      tags: { source: "bundled" },
-      stats: {
-        installsCurrent: 1,
-        installsAllTime: 1,
-        stars: 2,
-        versions: 1,
-      },
-    }),
     getCatalogSkills: () => {
       if (catalogShouldFail) {
         throw new Error("catalog timeout");
@@ -98,25 +84,6 @@ function installAgentSdkMocks({
         },
       },
     ],
-    searchCatalogSkills: () => {
-      if (catalogSearchShouldFail) {
-        throw new Error("search timeout");
-      }
-      return [
-        {
-          slug: "planner",
-          displayName: "Planner",
-          summary: "Plan work",
-          tags: { source: "bundled" },
-          stats: {
-            installsCurrent: 100,
-            installsAllTime: 100,
-            stars: 20,
-            versions: 1,
-          },
-        },
-      ];
-    },
   }));
   vi.doMock("@elizaos/agent/services/update-checker", () => ({
     CHANNEL_DIST_TAGS: ["dev", "staging", "prod"],
@@ -187,15 +154,5 @@ describe("agent-sdk helper facade", () => {
     expect(snapshot.total).toBe(0);
     expect(snapshot.nonAppPlugins).toBe(0);
     expect(snapshot.error).toBe("registry offline");
-  });
-
-  it("reports unavailable search result on catalog search failure", async () => {
-    installAgentSdkMocks({ catalogSearchShouldFail: true });
-    const mod = await loadAgentSdkModule();
-
-    const search = await mod.searchAgentSkillCatalog("planner");
-    expect(search.available).toBe(false);
-    expect(search.results).toEqual([]);
-    expect(search.error).toBe("search timeout");
   });
 });

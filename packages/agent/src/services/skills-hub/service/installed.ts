@@ -12,6 +12,20 @@ export function listInstalledRecords(
   return listInstalledSkillHubManifests(context.paths.installedIndexPath);
 }
 
+export function mergeInstalledRecords(
+  imported: SkillHubInstalledRecord[],
+  managed: SkillHubInstalledRecord[],
+): SkillHubInstalledRecord[] {
+  const records = new Map<string, SkillHubInstalledRecord>();
+  for (const record of imported) {
+    records.set(normalizeSkillHubSlug(record.slug), record);
+  }
+  for (const record of managed) {
+    records.set(normalizeSkillHubSlug(record.slug), record);
+  }
+  return [...records.values()];
+}
+
 export function resolveInstalledManifest(
   context: Pick<SkillHubServiceContext, "paths">,
   slug: string,

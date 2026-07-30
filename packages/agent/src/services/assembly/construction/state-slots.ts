@@ -83,12 +83,7 @@ export function createServiceConstructionSlots(params: {
   );
   const skillsHub = createLazySlot(
     () =>
-      new SkillsHubService(
-        skills.get(),
-        skillSynthesis.get(),
-        core.agentSdk,
-        config.dataDir,
-      ),
+      new SkillsHubService(skills.get(), skillSynthesis.get(), config.dataDir),
   );
   const tools = new CapabilityCatalogService(
     createToolsDynamicStateResolver({

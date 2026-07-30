@@ -10,6 +10,7 @@ function createContext(): AppContext {
         return {
           getLoadedSkills: () => [],
           getManagedSkills: () => [],
+          getCatalog: async () => [],
           search: async (query: string) => [{ slug: query, source: "search" }],
           install: async () => true,
         };
@@ -24,10 +25,7 @@ function createContext(): AppContext {
         workspace: () => [{ slug: "voice/tts", source: "workspace" }],
         generated: () => [],
         installed: () => [],
-        searchCatalog: async (query: string) => [
-          { slug: query, source: "search" },
-        ],
-        catalogEntry: async (slug: string) => ({ slug, source: "catalog" }),
+        project: () => undefined,
         manifest: (slug: string) => ({ slug, source: "manifest" }),
         exportBundle: async (slug: string) => ({ slug, type: "bundle" }),
       },

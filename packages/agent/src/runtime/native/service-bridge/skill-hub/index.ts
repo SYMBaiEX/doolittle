@@ -155,13 +155,17 @@ export async function getEffectiveSkillHubCatalog(
   limit = 50,
 ) {
   const official = requireOfficialAgentSkills(runtime);
-  const installed = new Set(
-    official.getManagedSkills().map((skill) => skill.slug),
-  );
+  const managed = official.getManagedSkills();
+  const installed = new Set(managed.map((skill) => skill.slug));
   const catalog = await official.getCatalog({ forceRefresh: force });
-  return catalog
-    .slice(0, Math.max(0, limit))
-    .map((skill) => projectCatalogSkill(services, skill, installed));
+  const projected = catalog.map((skill) =>
+    projectCatalogSkill(services, skill, installed),
+  );
+  services.skillsHub.project({
+    catalog: projected,
+    installed: managed.map(projectInstalledSkill),
+  });
+  return projected.slice(0, Math.max(0, limit));
 }
 
 export async function searchEffectiveSkillHubCatalog(
@@ -253,11 +257,13 @@ export function getEffectiveSkillHubFamily(
 
 export function getEffectiveSkillHubInstalled(
   runtime: RuntimeLike,
-  _services: AppServices,
+  services: AppServices,
 ) {
-  return requireOfficialAgentSkills(runtime)
+  const installed = requireOfficialAgentSkills(runtime)
     .getManagedSkills()
     .map(projectInstalledSkill);
+  services.skillsHub.project({ installed });
+  return installed;
 }
 
 export function getEffectiveSkillHubInstalledManifest(
@@ -319,6 +325,21 @@ export function exportEffectiveSkillHubManifest(
   destinationPath?: string,
 ) {
   return services.skillsHub.exportManifest(slug, destinationPath);
+}
+
+export async function exportEffectiveSkillHubBundle(
+  runtime: RuntimeLike,
+  services: AppServices,
+  label = "skills-hub",
+) {
+  const catalog = await getEffectiveSkillHubCatalog(
+    runtime,
+    services,
+    false,
+    500,
+  );
+  const installed = getEffectiveSkillHubInstalled(runtime, services);
+  return services.skillsHub.exportBundle(label, { catalog, installed });
 }
 
 export function importEffectiveSkillHubManifest(

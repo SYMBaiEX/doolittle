@@ -9,11 +9,6 @@ export function resetFamilyCache(cache: SkillHubServiceCache): void {
   cache.families = undefined;
 }
 
-export function resetCatalogCache(cache: SkillHubServiceCache): void {
-  cache.catalog = undefined;
-  resetFamilyCache(cache);
-}
-
 export function primeCatalogCache(
   cache: SkillHubServiceCache,
   catalog: SkillHubCatalogRecord[],

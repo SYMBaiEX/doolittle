@@ -10,7 +10,6 @@ export interface SkillHubServicePaths {
   familyIndexPath: string;
   familyReadmePath: string;
   installedIndexPath: string;
-  catalogIndexPath: string;
 }
 
 export function buildSkillHubServicePaths(
@@ -28,7 +27,6 @@ export function buildSkillHubServicePaths(
     familyIndexPath: join(skillsRootDir, "index.md"),
     familyReadmePath: join(skillsRootDir, "README.md"),
     installedIndexPath: join(installsDir, "index.json"),
-    catalogIndexPath: join(hubDir, "catalog.json"),
   };
 }
 

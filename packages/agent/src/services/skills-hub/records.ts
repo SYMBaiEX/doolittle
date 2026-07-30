@@ -1,13 +1,8 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import type { AgentSdkService } from "../agent-sdk-service";
 import type { SkillSynthesisService } from "../skill-synthesis/service";
 import type { SkillsService } from "../skills/service";
-import type { SkillHubCatalogRecord, SkillHubWorkspaceRecord } from "./types";
-
-type AgentCatalogEntry = Awaited<
-  ReturnType<AgentSdkService["catalog"]>
->[number];
+import type { SkillHubWorkspaceRecord } from "./types";
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -58,20 +53,6 @@ export function tagsFromSkillHubText(content: string): string[] {
   return [...tags].slice(0, 8);
 }
 
-export function tagsFromSkillHubCatalog(
-  tags: Record<string, string>,
-): string[] {
-  return Object.entries(tags)
-    .flatMap(([key, value]) => [
-      key.trim(),
-      value.trim(),
-      `${key.trim()}:${value.trim()}`,
-    ])
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, 12);
-}
-
 export function buildSkillHubWorkspaceRecords(
   skills: SkillsService,
   skillSynthesis: SkillSynthesisService,
@@ -114,43 +95,6 @@ export function findSkillHubWorkspaceRecord(
   const normalized = normalizeSkillHubSlug(slug);
   return workspace.find(
     (entry) => normalizeSkillHubSlug(entry.slug) === normalized,
-  );
-}
-
-export function buildSkillHubCatalogRecord(
-  entry: AgentCatalogEntry,
-  workspace: SkillHubWorkspaceRecord[],
-  manifestsDir: string,
-): SkillHubCatalogRecord {
-  const workspaceEntry = findSkillHubWorkspaceRecord(workspace, entry.slug);
-
-  return {
-    slug: entry.slug,
-    displayName: entry.displayName,
-    summary: entry.summary,
-    tags: entry.tags,
-    tagList: tagsFromSkillHubCatalog(entry.tags),
-    installsCurrent: entry.stats.installsCurrent,
-    installsAllTime: entry.stats.installsAllTime,
-    stars: entry.stats.stars,
-    versions: entry.stats.versions,
-    installed: Boolean(workspaceEntry),
-    workspacePath: workspaceEntry?.path,
-    manifestPath: join(
-      manifestsDir,
-      `${normalizeSkillHubSlug(entry.slug)}.json`,
-    ),
-    source: "catalog",
-  };
-}
-
-export function buildSkillHubCatalogRecords(
-  catalog: AgentCatalogEntry[],
-  workspace: SkillHubWorkspaceRecord[],
-  manifestsDir: string,
-): SkillHubCatalogRecord[] {
-  return catalog.map((entry) =>
-    buildSkillHubCatalogRecord(entry, workspace, manifestsDir),
   );
 }
 

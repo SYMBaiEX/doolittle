@@ -1,4 +1,5 @@
 import {
+  exportEffectiveSkillHubBundle,
   exportEffectiveSkillHubManifest,
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubCatalogEntry,
@@ -120,7 +121,11 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
     }
     if (raw === "all") {
       return JSON.stringify(
-        await context.services.skillsHub.exportBundle("skills-hub"),
+        await exportEffectiveSkillHubBundle(
+          context.runtime,
+          context.services,
+          "skills-hub",
+        ),
         null,
         2,
       );

@@ -3,15 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { DelegationTaskRecord } from "@/types";
-import { AgentSdkService } from "../agent-sdk-service";
 import { SkillSynthesisService } from "../skill-synthesis/service";
 import { SkillsService } from "../skills/service";
 import { SkillsHubService } from "./service";
-
-type CatalogEntry = Awaited<ReturnType<AgentSdkService["catalog"]>>[number];
+import type { SkillHubCatalogRecord, SkillHubInstalledRecord } from "./types";
 
 describe("SkillsHubService", () => {
-  it("syncs, exports, imports, and installs skill manifests", async () => {
+  it("projects official catalog records and distributes local skill manifests", async () => {
     const root = join(tmpdir(), `doolittle-skills-hub-${Date.now()}`);
     const skillsDir = join(root, "skills");
     const dataDir = join(root, "data");
@@ -64,69 +62,43 @@ describe("SkillsHubService", () => {
       "utf8",
     );
 
-    const agentSdk = new AgentSdkService();
-    const catalogCreatedAt = Date.now();
-    const workspaceCatalogEntry: CatalogEntry = {
+    const workspaceCatalogEntry: SkillHubCatalogRecord = {
       slug: "planning/coordination",
       displayName: "Planning Coordination",
       summary: "Coordinate planning work across multiple projects.",
       tags: { domain: "planning" },
-      createdAt: catalogCreatedAt,
-      updatedAt: catalogCreatedAt + 1_000,
-      latestVersion: {
-        version: "1.0.0",
-        createdAt: catalogCreatedAt,
-        changelog: "Initial release",
-      },
-      stats: {
-        comments: 2,
-        downloads: 144,
-        installsAllTime: 88,
-        installsCurrent: 12,
-        stars: 21,
-        versions: 3,
-      },
+      tagList: ["domain", "planning", "domain:planning"],
+      installsAllTime: 88,
+      installsCurrent: 12,
+      stars: 21,
+      versions: 3,
+      installed: true,
+      workspacePath: workspaceSkillPath,
+      manifestPath: join(
+        dataDir,
+        "skill-manifests",
+        "planning-coordination.json",
+      ),
+      source: "catalog",
     };
-    const remoteCatalogEntry: CatalogEntry = {
+    const remoteCatalogEntry: SkillHubCatalogRecord = {
       slug: "distribution/catalog-skill",
       displayName: "Distribution Catalog",
       summary: "Catalog skill used to exercise installs.",
       tags: { domain: "distribution" },
-      createdAt: catalogCreatedAt,
-      updatedAt: catalogCreatedAt + 1_000,
-      latestVersion: {
-        version: "1.0.0",
-        createdAt: catalogCreatedAt,
-        changelog: "Initial release",
-      },
-      stats: {
-        comments: 1,
-        downloads: 27,
-        installsAllTime: 15,
-        installsCurrent: 5,
-        stars: 4,
-        versions: 2,
-      },
+      tagList: ["domain", "distribution", "domain:distribution"],
+      installsAllTime: 15,
+      installsCurrent: 5,
+      stars: 4,
+      versions: 2,
+      installed: false,
+      manifestPath: join(
+        dataDir,
+        "skill-manifests",
+        "distribution-catalog-skill.json",
+      ),
+      source: "catalog",
     };
-    agentSdk.catalog = async () => [workspaceCatalogEntry, remoteCatalogEntry];
-    agentSdk.catalogSkill = async (slug: string) =>
-      slug === remoteCatalogEntry.slug ? remoteCatalogEntry : null;
-    agentSdk.searchSkillCatalog = async () => ({
-      available: true,
-      query: "planning",
-      results: [
-        {
-          slug: workspaceCatalogEntry.slug,
-          displayName: workspaceCatalogEntry.displayName,
-          summary: workspaceCatalogEntry.summary,
-          score: 0.99,
-          latestVersion: workspaceCatalogEntry.latestVersion?.version ?? null,
-          downloads: workspaceCatalogEntry.stats.downloads,
-          stars: workspaceCatalogEntry.stats.stars,
-          installs: workspaceCatalogEntry.stats.installsCurrent,
-        },
-      ],
-    });
 
     const skills = new SkillsService(skillsDir);
     const synthesis = new SkillSynthesisService(skillsDir);
@@ -142,13 +114,12 @@ describe("SkillsHubService", () => {
     };
     synthesis.synthesizeFromTask(task);
 
-    const hub = new SkillsHubService(skills, synthesis, agentSdk, dataDir);
+    const hub = new SkillsHubService(skills, synthesis, dataDir);
 
     try {
-      const sync = await hub.syncCatalog(true);
-      expect(sync.workspaceTotal).toBe(2);
-      expect(sync.generatedTotal).toBe(1);
-      expect(sync.catalogTotal).toBe(2);
+      hub.project({
+        catalog: [workspaceCatalogEntry, remoteCatalogEntry],
+      });
 
       const summary = hub.summary();
       expect(summary.workspaceTotal).toBe(2);
@@ -171,14 +142,6 @@ describe("SkillsHubService", () => {
       expect(
         hub.family("planning/coordination")?.workspaceTotal,
       ).toBeGreaterThan(0);
-
-      const catalog = await hub.catalog(true, 10);
-      expect(
-        catalog.some((entry) => entry.slug === workspaceCatalogEntry.slug),
-      ).toBe(true);
-      expect(
-        catalog.some((entry) => entry.slug === remoteCatalogEntry.slug),
-      ).toBe(true);
 
       const workspaceManifest = hub.manifest("planning/coordination");
       expect(workspaceManifest?.kind).toBe("skill-manifest");
@@ -215,13 +178,33 @@ describe("SkillsHubService", () => {
         hub.installedManifests().some((entry) => entry.slug === imported.slug),
       ).toBe(true);
 
+      const managedRecord: SkillHubInstalledRecord = {
+        slug: "managed/release-checklist",
+        title: "Release Checklist",
+        path: join(root, "managed", "release-checklist", "SKILL.md"),
+        installedAt: new Date().toISOString(),
+        source: "managed",
+        root: "managed",
+        category: "release-checklist",
+      };
       expect(() => hub.exportManifest(remoteCatalogEntry.slug)).toThrow(
         "Catalog skills must be installed through the official Agent Skills service",
       );
 
-      const bundle = await hub.exportBundle("skills-hub");
+      const bundle = await hub.exportBundle("skills-hub", {
+        catalog: [workspaceCatalogEntry, remoteCatalogEntry],
+        installed: [managedRecord],
+      });
       expect(bundle.manifestCount).toBeGreaterThan(0);
-      expect(bundle.installedCount).toBeGreaterThan(0);
+      expect(bundle.installedCount).toBe(2);
+      expect(bundle.sync.workspaceTotal).toBe(2);
+      expect(bundle.sync.generatedTotal).toBe(1);
+      expect(bundle.sync.catalogTotal).toBe(2);
+      expect(bundle.sync.installedTotal).toBe(2);
+      expect(readFileSync(bundle.bundlePath, "utf8")).toContain(imported.slug);
+      expect(readFileSync(bundle.bundlePath, "utf8")).toContain(
+        managedRecord.slug,
+      );
       expect(readFileSync(bundle.bundlePath, "utf8")).toContain("skills-hub");
     } finally {
       rmSync(root, { recursive: true, force: true });

@@ -19,25 +19,33 @@ export async function handleSkillsHubRoutes(
   }
 
   if (url.pathname === "/skills/hub") {
+    const catalog = await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      50,
+    );
+    const installed = getEffectiveSkillHubInstalled(
+      context.runtime,
+      context.services,
+    );
     return json({
       summary: getEffectiveSkillHubSummary(context.services),
       workspace: getEffectiveSkillHubWorkspace(context.services),
       generated: getEffectiveSkillHubGenerated(context.services),
-      installed: getEffectiveSkillHubInstalled(
-        context.runtime,
-        context.services,
-      ),
+      installed,
       families: getEffectiveSkillHubFamilies(context.services, 50),
-      catalog: await getEffectiveSkillHubCatalog(
-        context.runtime,
-        context.services,
-        false,
-        50,
-      ),
+      catalog,
     });
   }
 
   if (url.pathname === "/skills/hub/distribution") {
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return json({
       distribution: getEffectiveSkillHubSummary(context.services).distribution,
     });

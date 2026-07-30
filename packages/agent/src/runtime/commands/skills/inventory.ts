@@ -5,6 +5,7 @@ import {
 import { getEffectiveGeneratedSkills } from "@/runtime/native/service-bridge/ownership";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import {
+  getEffectiveSkillHubCatalog,
   getEffectiveSkillHubFamilies,
   getEffectiveSkillHubFamily,
   getEffectiveSkillHubInstalled,
@@ -67,6 +68,12 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
   }
 
   if (trimmed === "/skills summary") {
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return JSON.stringify(
       {
         workspace: getEffectiveSkillsSummary(context.runtime, context.services),
@@ -82,6 +89,12 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
   }
 
   if (trimmed === "/skills hub") {
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return JSON.stringify(
       getEffectiveSkillHubSummary(context.services),
       null,
@@ -90,6 +103,12 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
   }
 
   if (trimmed === "/skills hub distribution") {
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return JSON.stringify(
       getEffectiveSkillHubSummary(context.services).distribution,
       null,
@@ -98,6 +117,12 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
   }
 
   if (trimmed === "/skills families" || trimmed === "/skills hub families") {
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return JSON.stringify(
       getEffectiveSkillHubFamilies(context.services, 50),
       null,
@@ -110,6 +135,12 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
     if (!slug) {
       return "Usage: /skills family <slug>";
     }
+    await getEffectiveSkillHubCatalog(
+      context.runtime,
+      context.services,
+      false,
+      500,
+    );
     return JSON.stringify(
       getEffectiveSkillHubFamily(context.services, slug) ?? {
         error: `Skill family not found: ${slug}`,

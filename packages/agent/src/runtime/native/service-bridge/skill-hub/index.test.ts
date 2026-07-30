@@ -15,8 +15,8 @@ function services(): AppServices {
       get: () => undefined,
     },
     skillsHub: {
-      catalog: async () => [],
       manifest: () => undefined,
+      project: vi.fn(),
     },
   } as unknown as AppServices;
 }
@@ -27,6 +27,7 @@ describe("official Agent Skills bridge", () => {
   });
 
   it("projects the official service catalog into the product catalog shape", async () => {
+    const appServices = services();
     const getCatalog = vi.fn(async () => [
       {
         slug: "release-checklist",
@@ -35,6 +36,15 @@ describe("official Agent Skills bridge", () => {
         version: "1.0.0",
         tags: { domain: "release" },
         stats: { downloads: 42, stars: 7 },
+        updatedAt: Date.now(),
+      },
+      {
+        slug: "incident-triage",
+        displayName: "Incident Triage",
+        summary: "Restore service safely.",
+        version: "1.0.0",
+        tags: { domain: "operations" },
+        stats: { downloads: 21, stars: 3 },
         updatedAt: Date.now(),
       },
     ]);
@@ -50,7 +60,7 @@ describe("official Agent Skills bridge", () => {
     } as unknown as RuntimeLike;
 
     await expect(
-      getEffectiveSkillHubCatalog(runtime, services(), true, 10),
+      getEffectiveSkillHubCatalog(runtime, appServices, true, 1),
     ).resolves.toEqual([
       expect.objectContaining({
         slug: "release-checklist",
@@ -61,6 +71,19 @@ describe("official Agent Skills bridge", () => {
       }),
     ]);
     expect(getCatalog).toHaveBeenCalledWith({ forceRefresh: true });
+    expect(appServices.skillsHub.project).toHaveBeenCalledWith({
+      catalog: [
+        expect.objectContaining({
+          slug: "release-checklist",
+          source: "catalog",
+        }),
+        expect.objectContaining({
+          slug: "incident-triage",
+          source: "catalog",
+        }),
+      ],
+      installed: [],
+    });
   });
 
   it("fails fast when the bootstrap-critical official service is unavailable", async () => {

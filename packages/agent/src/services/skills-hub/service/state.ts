@@ -1,9 +1,9 @@
-import type { AgentSdkService } from "../../agent-sdk-service";
 import type { SkillSynthesisService } from "../../skill-synthesis/service";
 import type { SkillsService } from "../../skills/service";
 import type {
   SkillHubCatalogRecord,
   SkillHubFamilyRecord,
+  SkillHubInstalledRecord,
   SkillHubSyncReport,
 } from "../types";
 import type { SkillHubServiceContext } from "./context";
@@ -13,6 +13,7 @@ import { buildSkillHubServicePaths, ensureSkillHubServicePaths } from "./paths";
 export interface SkillHubServiceCache {
   lastSyncReport?: SkillHubSyncReport;
   catalog?: SkillHubCatalogRecord[];
+  installed?: SkillHubInstalledRecord[];
   families?: SkillHubFamilyRecord[];
 }
 
@@ -24,7 +25,6 @@ export interface SkillHubServiceState {
 export function createSkillHubServiceState(input: {
   skills: SkillsService;
   skillSynthesis: SkillSynthesisService;
-  agentSdk: AgentSdkService;
   baseDir: string;
 }): SkillHubServiceState {
   const paths = buildSkillHubServicePaths(
@@ -38,7 +38,6 @@ export function createSkillHubServiceState(input: {
     context: {
       skills: input.skills,
       skillSynthesis: input.skillSynthesis,
-      agentSdk: input.agentSdk,
       paths,
       manifestHost: createSkillHubManifestHost(paths),
     },

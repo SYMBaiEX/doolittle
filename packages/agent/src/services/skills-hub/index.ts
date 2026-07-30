@@ -1,4 +1,4 @@
-export * from "./catalog-sync";
+export * from "./distribution-artifacts";
 export * from "./family-summary";
 export * from "./manifests";
 export * from "./records";

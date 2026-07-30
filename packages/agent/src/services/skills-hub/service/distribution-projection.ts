@@ -1,7 +1,7 @@
 import {
-  buildSkillHubSyncArtifacts,
-  writeSkillHubSyncSnapshot,
-} from "../catalog-sync";
+  buildSkillHubDistributionArtifacts,
+  writeSkillHubDistributionSnapshot,
+} from "../distribution-artifacts";
 import type {
   SkillHubCatalogRecord,
   SkillHubInstalledRecord,
@@ -10,7 +10,7 @@ import type {
   SkillHubWorkspaceRecord,
 } from "../types";
 
-export async function syncCatalogArtifacts(input: {
+export async function writeDistributionProjection(input: {
   workspace: SkillHubWorkspaceRecord[];
   catalog: SkillHubCatalogRecord[];
   installed: SkillHubInstalledRecord[];
@@ -26,13 +26,13 @@ export async function syncCatalogArtifacts(input: {
     syncDir,
     exportManifest,
   } = input;
-  const { report, exportedManifests } = buildSkillHubSyncArtifacts({
+  const { report, exportedManifests } = buildSkillHubDistributionArtifacts({
     workspace,
     catalog,
     installed,
     manifestsDir,
     exportManifest,
   });
-  writeSkillHubSyncSnapshot(syncDir, report, exportedManifests);
+  writeSkillHubDistributionSnapshot(syncDir, report, exportedManifests);
   return report;
 }

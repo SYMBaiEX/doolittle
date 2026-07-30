@@ -1,11 +1,8 @@
 import {
-  getAgentCatalogSkill,
-  getAgentCatalogSkills,
   getAgentRegistrySnapshot,
   getAgentSdkAudit,
   getAgentSkillCatalogSnapshot,
   searchAgentRegistry,
-  searchAgentSkillCatalog,
 } from "@/runtime/native/agent-sdk";
 
 type AgentSdkAudit = Awaited<ReturnType<typeof getAgentSdkAudit>>;
@@ -15,9 +12,6 @@ type AgentRegistrySnapshot = Awaited<
 type AgentSkillCatalogSnapshot = Awaited<
   ReturnType<typeof getAgentSkillCatalogSnapshot>
 >;
-type AgentCatalogSkill = Awaited<
-  ReturnType<typeof getAgentCatalogSkills>
->[number];
 
 export interface AgentSdkOverview {
   audit: AgentSdkAudit;
@@ -63,7 +57,6 @@ export class AgentSdkService {
   private auditCache?: AgentSdkAudit;
   private registryCache?: AgentRegistrySnapshot;
   private skillCatalogCache?: AgentSkillCatalogSnapshot;
-  private catalogCache?: AgentCatalogSkill[];
 
   snapshot() {
     return {
@@ -99,22 +92,6 @@ export class AgentSdkService {
     }
     this.skillCatalogCache = await getAgentSkillCatalogSnapshot(limit);
     return this.skillCatalogCache;
-  }
-
-  async searchSkillCatalog(query: string, limit = 15) {
-    return searchAgentSkillCatalog(query, limit);
-  }
-
-  async catalog(force = false, limit = 50): Promise<AgentCatalogSkill[]> {
-    if (!force && this.catalogCache) {
-      return this.catalogCache.slice(0, limit);
-    }
-    this.catalogCache = await getAgentCatalogSkills();
-    return this.catalogCache.slice(0, limit);
-  }
-
-  async catalogSkill(slug: string) {
-    return getAgentCatalogSkill(slug);
   }
 
   async overview(force = false): Promise<AgentSdkOverview> {

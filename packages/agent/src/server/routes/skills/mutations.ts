@@ -1,5 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
+  exportEffectiveSkillHubBundle,
   exportEffectiveSkillHubManifest,
   importEffectiveSkillHubManifest,
   installEffectiveSkill,
@@ -30,7 +31,9 @@ export async function handleSkillsMutationRoutes(
     };
     if (body.bundle) {
       return json({
-        bundle: await context.services.skillsHub.exportBundle(
+        bundle: await exportEffectiveSkillHubBundle(
+          context.runtime,
+          context.services,
           body.slug ?? "skills-hub",
         ),
       });

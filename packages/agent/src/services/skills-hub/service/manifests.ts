@@ -1,4 +1,4 @@
-import { writeSkillHubBundle } from "../catalog-sync";
+import { writeSkillHubBundle } from "../distribution-artifacts";
 import type { SkillsHubManifestHost } from "../manifests";
 import {
   buildSkillHubManifestFromWorkspace,

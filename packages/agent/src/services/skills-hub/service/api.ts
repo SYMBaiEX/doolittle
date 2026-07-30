@@ -1,17 +1,21 @@
 import type { SkillsHubServiceApi } from "./api-types";
-import { searchCatalog } from "./catalog";
 import {
-  loadServiceCatalog,
-  loadServiceCatalogEntry,
-  syncServiceCatalog,
-} from "./catalog-runtime";
+  primeCatalogCache,
+  rememberSyncReport,
+  resetFamilyCache,
+} from "./cache";
 import {
   exportServiceBundle,
   exportServiceManifest,
   importServiceManifest,
   resolveServiceManifest,
 } from "./distribution";
-import { listInstalledRecords, resolveInstalledManifest } from "./installed";
+import { writeDistributionProjection } from "./distribution-projection";
+import {
+  listInstalledRecords,
+  mergeInstalledRecords,
+  resolveInstalledManifest,
+} from "./installed";
 import type { SkillHubServiceState } from "./state";
 import {
   buildServiceSummary,
@@ -29,6 +33,8 @@ export function createSkillsHubServiceApi(
   const workspace = () => collectSkillHubWorkspace(state.context);
 
   const installedManifests = () => listInstalledRecords(state.context);
+  const installedRecords = () =>
+    mergeInstalledRecords(installedManifests(), state.cache.installed ?? []);
 
   const installedManifest = (slug: string) =>
     resolveInstalledManifest(state.context, slug);
@@ -46,20 +52,15 @@ export function createSkillsHubServiceApi(
       destinationPath,
     });
 
-  const catalog: SkillsHubServiceApi["catalog"] = async (
-    force = false,
-    limit = 50,
-  ) =>
-    loadServiceCatalog({
-      cache: state.cache,
-      context: {
-        agentSdk: state.context.agentSdk,
-        paths: state.context.paths,
-      },
-      workspace: workspace(),
-      force,
-      limit,
-    });
+  const project: SkillsHubServiceApi["project"] = (input) => {
+    if (input.catalog) {
+      primeCatalogCache(state.cache, input.catalog);
+    }
+    if (input.installed) {
+      state.cache.installed = input.installed;
+      resetFamilyCache(state.cache);
+    }
+  };
 
   const families: SkillsHubServiceApi["families"] = (
     force = false,
@@ -72,26 +73,37 @@ export function createSkillsHubServiceApi(
         skills: state.context.skills,
       },
       workspace: workspace(),
-      installed: installedManifests(),
+      installed: installedRecords(),
       force,
       limit,
     });
 
-  const syncCatalog: SkillsHubServiceApi["syncCatalog"] = async (
-    force = false,
+  const exportBundle: SkillsHubServiceApi["exportBundle"] = async (
+    label = "skills-hub",
+    projection = {},
   ) => {
+    project(projection);
     const currentWorkspace = workspace();
-    const currentCatalog = await catalog(force, 500);
-    const currentInstalled = installedManifests();
+    const currentCatalog = state.cache.catalog ?? [];
+    const currentInstalled = installedRecords();
 
-    return syncServiceCatalog({
-      cache: state.cache,
-      context: {
-        paths: state.context.paths,
-      },
+    const sync = await writeDistributionProjection({
       workspace: currentWorkspace,
       catalog: currentCatalog,
       installed: currentInstalled,
+      manifestsDir: state.context.paths.manifestsDir,
+      syncDir: state.context.paths.hubDir,
+      exportManifest: (slug) => exportManifest(slug),
+    });
+    rememberSyncReport(state.cache, sync);
+    return exportServiceBundle({
+      context: {
+        paths: state.context.paths,
+      },
+      label,
+      workspace: currentWorkspace,
+      installed: currentInstalled,
+      sync,
       exportManifest: (slug) => exportManifest(slug),
     });
   };
@@ -99,17 +111,13 @@ export function createSkillsHubServiceApi(
   return {
     workspace,
     generated: () => collectGeneratedWorkspaceSkills(workspace()),
+    project,
     families,
     family: (slug) =>
       findServiceFamily({
         slug,
         loadFamilies: () => families(false, 500),
       }),
-    catalog,
-    searchCatalog: (query, limit = 15) =>
-      searchCatalog(state.context, query, limit),
-    sync: (force = false) => syncCatalog(force),
-    syncCatalog,
     manifest: (slug) =>
       resolveServiceManifest({
         context: {
@@ -119,29 +127,8 @@ export function createSkillsHubServiceApi(
         slug,
         installedLookup: installedManifest,
       }),
-    catalogEntry: (slug) =>
-      loadServiceCatalogEntry({
-        context: {
-          agentSdk: state.context.agentSdk,
-          paths: state.context.paths,
-        },
-        slug,
-        workspace: workspace(),
-      }),
     exportManifest,
-    exportBundle: async (label = "skills-hub") => {
-      const sync = await syncCatalog();
-      return exportServiceBundle({
-        context: {
-          paths: state.context.paths,
-        },
-        label,
-        workspace: workspace(),
-        installed: installedManifests(),
-        sync,
-        exportManifest: (slug) => exportManifest(slug),
-      });
-    },
+    exportBundle,
     importManifest: (sourcePath) =>
       importServiceManifest({
         cache: state.cache,
@@ -154,7 +141,7 @@ export function createSkillsHubServiceApi(
     installedManifest,
     summary: (force = false) => {
       const currentWorkspace = workspace();
-      const currentInstalled = installedManifests();
+      const currentInstalled = installedRecords();
       return buildServiceSummary({
         cache: state.cache,
         context: {

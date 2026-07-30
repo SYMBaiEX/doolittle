@@ -12,10 +12,8 @@ import {
 } from "@elizaos/agent/services/version-compat";
 import {
   type CatalogSkill,
-  getCatalogSkill,
   getCatalogSkills,
   getTrendingSkills,
-  searchCatalogSkills,
 } from "@elizaos/plugin-agent-skills";
 
 const FOUNDATION_PACKAGES = [
@@ -152,31 +150,6 @@ export async function getAgentSkillCatalogSnapshot(limit = 20) {
         installs: number;
         stars: number;
       }>,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-export async function getAgentCatalogSkills() {
-  return getCatalogSkills();
-}
-
-export async function getAgentCatalogSkill(slug: string) {
-  return getCatalogSkill(slug);
-}
-
-export async function searchAgentSkillCatalog(query: string, limit = 15) {
-  try {
-    return {
-      available: true,
-      query,
-      results: await searchCatalogSkills(query, limit),
-    };
-  } catch (error) {
-    return {
-      available: false,
-      query,
-      results: [],
       error: error instanceof Error ? error.message : String(error),
     };
   }

@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../../chat";
 import { handleSkillCommand } from ".";
 
+function skillsHubFixture() {
+  return {
+    exportBundle: async () => ({ bundle: true }),
+    generated: () => [],
+    installedManifests: () => [],
+    manifest: () => null,
+    project: () => undefined,
+    summary: () => ({ distribution: {} }),
+    workspace: () => [],
+  };
+}
+
 describe("skills command router", () => {
   it("renders skills inventory through the extracted router", async () => {
     const result = await handleSkillCommand("/skills", {
@@ -19,15 +31,7 @@ describe("skills command router", () => {
           list: () => [],
           get: () => null,
         },
-        skillsHub: {
-          catalogEntry: async () => null,
-          exportBundle: async () => ({ bundle: true }),
-          generated: () => [],
-          installedManifests: () => [],
-          manifest: () => null,
-          summary: () => ({ distribution: {} }),
-          workspace: () => [],
-        },
+        skillsHub: skillsHubFixture(),
       },
     } as unknown as AgentExecutionContext);
 
@@ -42,15 +46,7 @@ describe("skills command router", () => {
           list: () => [],
           get: () => null,
         },
-        skillsHub: {
-          catalogEntry: async () => null,
-          exportBundle: async () => ({ bundle: true }),
-          generated: () => [],
-          installedManifests: () => [],
-          manifest: () => null,
-          summary: () => ({ distribution: {} }),
-          workspace: () => [],
-        },
+        skillsHub: skillsHubFixture(),
       },
     } as unknown as AgentExecutionContext;
 
@@ -74,15 +70,7 @@ describe("skills command router", () => {
           list: () => [],
           get: () => null,
         },
-        skillsHub: {
-          catalogEntry: async () => null,
-          exportBundle: async () => ({ bundle: true }),
-          generated: () => [],
-          installedManifests: () => [],
-          manifest: () => null,
-          summary: () => ({ distribution: {} }),
-          workspace: () => [],
-        },
+        skillsHub: skillsHubFixture(),
       },
     } as unknown as AgentExecutionContext;
 
@@ -106,15 +94,7 @@ describe("skills command router", () => {
           list: () => [],
           get: () => null,
         },
-        skillsHub: {
-          catalogEntry: async () => null,
-          exportBundle: async () => ({ bundle: true }),
-          generated: () => [],
-          installedManifests: () => [],
-          manifest: () => null,
-          summary: () => ({ distribution: {} }),
-          workspace: () => [],
-        },
+        skillsHub: skillsHubFixture(),
         skillSynthesis: {
           getGeneratedSkill: (slug: string) =>
             slug === "release-checklist" ? { slug, ok: true } : null,
@@ -147,15 +127,7 @@ describe("skills command router", () => {
           list: () => [],
           get: () => null,
         },
-        skillsHub: {
-          catalogEntry: async () => null,
-          exportBundle: async () => ({ bundle: true }),
-          generated: () => [],
-          installedManifests: () => [],
-          manifest: () => null,
-          summary: () => ({ distribution: {} }),
-          workspace: () => [],
-        },
+        skillsHub: skillsHubFixture(),
         sessions: {
           messagesBySession: () => [
             {

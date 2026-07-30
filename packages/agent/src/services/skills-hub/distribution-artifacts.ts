@@ -1,12 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentSdkService } from "../agent-sdk-service";
-import {
-  buildSkillHubCatalogRecord,
-  buildSkillHubCatalogRecords,
-  nowIso,
-  toSkillHubBundleSlug,
-} from "./records";
+import { nowIso, toSkillHubBundleSlug } from "./records";
 import type {
   SkillHubCatalogRecord,
   SkillHubInstalledRecord,
@@ -24,56 +18,7 @@ export interface SkillHubBundleSummary {
   sync: SkillHubSyncReport;
 }
 
-export function writeSkillHubCatalogSnapshot(
-  catalogIndexPath: string,
-  catalog: SkillHubCatalogRecord[],
-): void {
-  writeFileSync(
-    catalogIndexPath,
-    JSON.stringify(
-      {
-        generatedAt: nowIso(),
-        catalog,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
-}
-
-export async function loadSkillHubCatalogRecords(input: {
-  agentSdk: AgentSdkService;
-  workspace: SkillHubWorkspaceRecord[];
-  manifestsDir: string;
-  catalogIndexPath: string;
-  force: boolean;
-  limit: number;
-}): Promise<SkillHubCatalogRecord[]> {
-  const catalog = await input.agentSdk.catalog(input.force, input.limit);
-  const records = buildSkillHubCatalogRecords(
-    catalog,
-    input.workspace,
-    input.manifestsDir,
-  );
-  writeSkillHubCatalogSnapshot(input.catalogIndexPath, records);
-  return records;
-}
-
-export async function loadSkillHubCatalogEntry(input: {
-  agentSdk: AgentSdkService;
-  slug: string;
-  workspace: SkillHubWorkspaceRecord[];
-  manifestsDir: string;
-}): Promise<SkillHubCatalogRecord | undefined> {
-  const entry = await input.agentSdk.catalogSkill(input.slug);
-  if (!entry) {
-    return undefined;
-  }
-  return buildSkillHubCatalogRecord(entry, input.workspace, input.manifestsDir);
-}
-
-export function buildSkillHubSyncArtifacts(input: {
+export function buildSkillHubDistributionArtifacts(input: {
   workspace: SkillHubWorkspaceRecord[];
   catalog: SkillHubCatalogRecord[];
   installed: SkillHubInstalledRecord[];
@@ -114,13 +59,13 @@ export function buildSkillHubSyncArtifacts(input: {
   return { report, exportedManifests };
 }
 
-export function writeSkillHubSyncSnapshot(
+export function writeSkillHubDistributionSnapshot(
   hubDir: string,
   report: SkillHubSyncReport,
   manifests: SkillHubManifest[],
 ): void {
   writeFileSync(
-    join(hubDir, "sync-latest.json"),
+    join(hubDir, "projection-latest.json"),
     JSON.stringify(report, null, 2),
     "utf8",
   );

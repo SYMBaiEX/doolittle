@@ -96,6 +96,7 @@ export {
 export type { RuntimeLike } from "./runtime";
 export { getNativeServices } from "./runtime";
 export {
+  exportEffectiveSkillHubBundle,
   exportEffectiveSkillHubManifest,
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubCatalogEntry,
