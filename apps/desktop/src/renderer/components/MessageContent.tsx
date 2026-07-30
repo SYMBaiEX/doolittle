@@ -226,18 +226,15 @@ function AgentSteps({
   failed: number;
   finished: number;
 }) {
-  const total = continued + failed + finished;
-  if (!total) return null;
+  if (!failed) return null;
   return (
     <details className="message-agent-steps">
       <summary>
         <span aria-hidden="true">⌁</span>
-        <strong>
-          {continued > 0
-            ? `Agent replanned ${continued} ${continued === 1 ? "time" : "times"}`
-            : "Agent run evaluation"}
-        </strong>
-        <small>{total} recorded</small>
+        <strong>Run diagnostics</strong>
+        <small>
+          {failed} {failed === 1 ? "issue" : "issues"}
+        </small>
         <i aria-hidden="true">›</i>
       </summary>
       <div>

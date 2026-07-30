@@ -1898,9 +1898,10 @@ export function ChatPage({
               );
               const showRunReceipt = Boolean(
                 receipt &&
-                  (!hasToolActivity ||
-                    receiptNeedsAttention ||
-                    receipt.latest.run.localMutations.length > 0),
+                  (receiptNeedsAttention ||
+                    (!hasToolActivity &&
+                      (message.pending ||
+                        receipt.latest.run.localMutations.length > 0))),
               );
               return (
                 <article

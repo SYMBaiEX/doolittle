@@ -141,4 +141,37 @@ describe("MessageContent", () => {
     expect(html).not.toContain("message-tool-group");
     expect(html).not.toContain("<details open");
   });
+
+  it("keeps successful evaluator bookkeeping out of the transcript", () => {
+    const content = JSON.stringify({
+      type: "evaluation",
+      evaluation: {
+        success: true,
+        decision: "FINISH",
+      },
+    });
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} separateAgentEvents />,
+    );
+
+    expect(html).not.toContain("Run diagnostics");
+    expect(html).not.toContain("completion signal");
+  });
+
+  it("surfaces failed evaluator bookkeeping as compact diagnostics", () => {
+    const content = JSON.stringify({
+      type: "evaluation",
+      evaluation: {
+        success: false,
+        decision: "FINISH",
+      },
+    });
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} separateAgentEvents />,
+    );
+
+    expect(html).toContain("Run diagnostics");
+    expect(html).toContain("1 issue");
+    expect(html).not.toContain("<details open");
+  });
 });
