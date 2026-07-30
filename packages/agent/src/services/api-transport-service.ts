@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-interface ApiResponseRecord {
+export interface ApiResponseRecord {
   id: string;
   roomId: string;
   userId: string;
@@ -21,6 +21,15 @@ interface ApiTransportUpdateEvent {
   type: "create";
   record: ApiResponseRecord;
 }
+
+export type ApiTransportContinuation =
+  | { ok: true; roomId: string }
+  | {
+      ok: false;
+      code: "response_not_found" | "response_user_mismatch";
+      status: 403 | 404;
+      error: string;
+    };
 
 export interface ApiTransportCreateInput {
   id?: string;
@@ -86,14 +95,31 @@ export class ApiTransportService {
     return this.read().responses.slice(-limit).reverse();
   }
 
-  resolveRoomId(previousResponseId?: string, fallbackUserId?: string): string {
-    if (previousResponseId) {
-      const existing = this.get(previousResponseId);
-      if (existing) {
-        return existing.roomId;
-      }
+  resolveContinuation(
+    previousResponseId: string | undefined,
+    userId: string,
+  ): ApiTransportContinuation {
+    if (!previousResponseId) {
+      return { ok: true, roomId: `api:${userId}` };
     }
-    return `api:${fallbackUserId ?? "user"}`;
+    const existing = this.get(previousResponseId);
+    if (!existing) {
+      return {
+        ok: false,
+        code: "response_not_found",
+        status: 404,
+        error: "previous_response_id was not found",
+      };
+    }
+    if (existing.userId !== userId) {
+      return {
+        ok: false,
+        code: "response_user_mismatch",
+        status: 403,
+        error: "previous_response_id belongs to another user",
+      };
+    }
+    return { ok: true, roomId: existing.roomId };
   }
 
   onUpdate(listener: (event: ApiTransportUpdateEvent) => void): () => void {

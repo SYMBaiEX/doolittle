@@ -24,10 +24,21 @@ function createContext() {
     services: {
       runController,
       apiTransport: {
-        resolveRoomId: (
-          _previousResponseId: string | undefined,
+        resolveContinuation: (
+          previousResponseId: string | undefined,
           userId: string,
-        ) => `room:${userId}`,
+        ) =>
+          previousResponseId === "missing"
+            ? {
+                ok: false as const,
+                code: "response_not_found" as const,
+                status: 404 as const,
+                error: "previous_response_id was not found",
+              }
+            : {
+                ok: true as const,
+                roomId: `room:${userId}`,
+              },
         list: (limit: number) => [
           {
             id: `resp-list-${limit}`,
@@ -283,6 +294,30 @@ describe("handleConversationRoutes", () => {
     expect(response?.status).toBe(400);
     await expect(response?.json()).resolves.toEqual({
       error: "input is required",
+    });
+  });
+
+  it("rejects an unknown previous response before agent execution", async () => {
+    const context = createContext();
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({
+          input: "continue",
+          previous_response_id: "missing",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.status).toBe(404);
+    await expect(response?.json()).resolves.toEqual({
+      error: "previous_response_id was not found",
+      code: "response_not_found",
     });
   });
 

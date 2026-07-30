@@ -87,10 +87,20 @@ export async function handleResponsesRoute(
   }
 
   const userId = body.user ?? "api-user";
-  const roomId = context.services.apiTransport.resolveRoomId(
+  const continuation = context.services.apiTransport.resolveContinuation(
     body.previous_response_id,
     userId,
   );
+  if (!continuation.ok) {
+    return json(
+      {
+        error: continuation.error,
+        code: continuation.code,
+      },
+      continuation.status,
+    );
+  }
+  const roomId = continuation.roomId;
 
   if (body.stream) {
     const streamResponseId = createApiResponseId();

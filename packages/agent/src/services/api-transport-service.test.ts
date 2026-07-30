@@ -26,8 +26,39 @@ describe("ApiTransportService", () => {
       expect(second.roomId).toBe(first.roomId);
       expect(first.id).toBe("resp_stable");
       expect(service.get(first.id)?.outputText).toBe("world");
-      expect(service.resolveRoomId(first.id, "user-1")).toBe(first.roomId);
+      expect(service.resolveContinuation(first.id, "user-1")).toEqual({
+        ok: true,
+        roomId: first.roomId,
+      });
       expect(service.list(2)).toHaveLength(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects missing and cross-user response continuations", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-api-transport-"));
+    const service = new ApiTransportService(root);
+
+    try {
+      const record = service.create({
+        input: "hello",
+        outputText: "world",
+        userId: "user-1",
+      });
+
+      expect(service.resolveContinuation("resp_missing", "user-1")).toEqual({
+        ok: false,
+        code: "response_not_found",
+        status: 404,
+        error: "previous_response_id was not found",
+      });
+      expect(service.resolveContinuation(record.id, "user-2")).toEqual({
+        ok: false,
+        code: "response_user_mismatch",
+        status: 403,
+        error: "previous_response_id belongs to another user",
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
