@@ -1,4 +1,4 @@
-import type { AppServices } from "@doolittle/agent/plugin-api";
+import type { AutomationExecutor } from "@doolittle/agent/plugin-api";
 import {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
@@ -7,7 +7,9 @@ import type { IAgentRuntime, ServiceClass, Task, UUID } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 
-function createHarness() {
+function createHarness(
+  executor: AutomationExecutor = async () => "automation complete",
+) {
   const tasks = new Map<string, Task>();
   const runtime = {
     agentId: "00000000-0000-4000-8000-000000000001",
@@ -33,7 +35,7 @@ function createHarness() {
       error: () => undefined,
     },
   } as unknown as IAgentRuntime;
-  const classes = createTriggerRuntimeServices({} as AppServices);
+  const classes = createTriggerRuntimeServices(() => executor);
   const serviceClass = (type: string) => {
     const service = classes.find(
       (entry) =>
@@ -102,8 +104,9 @@ describe("Eliza trigger runtime adapter", () => {
     expect(harness.tasks).toHaveLength(0);
   });
 
-  it("reports a clear execution readiness error instead of falling back to local execution", async () => {
-    const harness = createHarness();
+  it("owns a ready executor from the service start lifecycle", async () => {
+    const executor = vi.fn(async () => "manual review complete");
+    const harness = createHarness(executor);
     const cron = (await harness
       .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
       .start(harness.runtime)) as unknown as {
@@ -117,16 +120,24 @@ describe("Eliza trigger runtime adapter", () => {
     const dispatcher = (await harness
       .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
       .start(harness.runtime)) as unknown as {
-      execute(id: string): Promise<{ ok: boolean; error?: string }>;
+      execute(
+        id: string,
+        payload?: Record<string, unknown>,
+      ): Promise<{ ok: boolean; error?: string }>;
     };
-    await expect(dispatcher.execute(job.id)).resolves.toEqual({
-      ok: false,
-      error: "Automation execution is not ready.",
-    });
+    await expect(
+      dispatcher.execute(job.id, {
+        eventKind: `doolittle.manual.${job.id}`,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(executor).toHaveBeenCalledOnce();
   });
 
   it("persists condition-aware run receipts as SDK tasks with the real source", async () => {
-    const harness = createHarness();
+    const executor = vi.fn(
+      async (_job: unknown, _context: { source: string }) => "release reviewed",
+    );
+    const harness = createHarness(executor as AutomationExecutor);
     const cron = (await harness
       .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
       .start(harness.runtime)) as unknown as {
@@ -151,21 +162,11 @@ describe("Eliza trigger runtime adapter", () => {
     const dispatcher = (await harness
       .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
       .start(harness.runtime)) as unknown as {
-      setExecutor(
-        executor: (
-          _job: unknown,
-          context: { source: string },
-        ) => Promise<string>,
-      ): void;
       execute(
         id: string,
         payload: Record<string, unknown>,
       ): Promise<{ ok: boolean }>;
     };
-    const executor = vi.fn(
-      async (_job: unknown, _context: { source: string }) => "release reviewed",
-    );
-    dispatcher.setExecutor(executor);
 
     await expect(
       dispatcher.execute(job.id, {

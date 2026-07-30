@@ -1,7 +1,7 @@
-import type { AgentRuntime } from "@elizaos/core";
+import type { IAgentRuntime } from "@elizaos/core";
 
 export function requireRuntimeService<TService extends object>(
-  runtime: AgentRuntime,
+  runtime: IAgentRuntime,
   serviceType: string,
   requiredMethods: readonly (keyof TService)[] = [],
 ): TService {

@@ -1,5 +1,4 @@
 import {
-  type AppServices,
   type AutomationExecutionContext,
   type AutomationExecutor,
   type AutomationJobRecord,
@@ -451,27 +450,23 @@ function updatedJob(
 }
 
 export function createTriggerRuntimeServices(
-  _services: AppServices,
+  createExecutor: (runtime: IAgentRuntime) => AutomationExecutor,
 ): ServiceClass[] {
-  let executor: AutomationExecutor | undefined;
-
   class TriggerWorkflowDispatchService extends ElizaService {
     static serviceType = DOOLITTLE_WORKFLOW_DISPATCH_SERVICE;
     capabilityDescription =
       "Dispatches persisted Eliza workflow triggers through Doolittle automation execution.";
+    private readonly executor = createExecutor(this.runtime);
+
     static async start(runtime: IAgentRuntime): Promise<Service> {
       return new TriggerWorkflowDispatchService(runtime);
     }
-    setExecutor(next: AutomationExecutor) {
-      executor = next;
-    }
+
     async execute(workflowId: string, payload: Record<string, unknown> = {}) {
       const task = await taskForJob(this.runtime, workflowId);
       const job = task && readJob(task);
       if (!task || !job)
         return { ok: false, error: `Cron job not found: ${workflowId}` };
-      if (!executor)
-        return { ok: false, error: "Automation execution is not ready." };
       try {
         const eventPayload =
           payload.eventPayload &&
@@ -479,7 +474,7 @@ export function createTriggerRuntimeServices(
           !Array.isArray(payload.eventPayload)
             ? (payload.eventPayload as Record<string, unknown>)
             : undefined;
-        const receipt = await executeAutomation(executor, job, {
+        const receipt = await executeAutomation(this.executor, job, {
           source: sourceFromDispatchPayload(payload),
           payload: eventPayload,
         });

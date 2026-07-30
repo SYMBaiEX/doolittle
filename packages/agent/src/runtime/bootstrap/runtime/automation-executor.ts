@@ -1,4 +1,4 @@
-import type { AgentRuntime } from "@elizaos/core";
+import type { IAgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "@/gateway/runner";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import type { AppServices } from "@/services";
@@ -7,7 +7,7 @@ import type { AutomationJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
 
 export function buildAutomationPrompt(
-  runtime: AgentRuntime,
+  runtime: IAgentRuntime,
   services: AppServices,
   prompt: string,
   skillSlugs: string[],
@@ -61,7 +61,7 @@ function formatCronDeliverySummary(
 export function createAutomationExecutor(params: {
   config: EnvConfig;
   services: AppServices;
-  runtime: AgentRuntime;
+  runtime: IAgentRuntime;
   ensureGateway(): GatewayRunner;
 }) {
   const { config, services, runtime, ensureGateway } = params;

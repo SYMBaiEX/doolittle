@@ -1,13 +1,9 @@
-import {
-  DOOLITTLE_SCHEDULER_SERVICE,
-  DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
-} from "@doolittle/contracts";
+import { DOOLITTLE_SCHEDULER_SERVICE } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
 import {
   finalizeCoreRuntimeServices,
   requireRuntimeService,
 } from "@/runtime/bootstrap/runtime";
-import { createAutomationExecutor } from "@/runtime/bootstrap/runtime/automation-executor";
 import { createDeferredHydrator } from "@/runtime/bootstrap/runtime/deferred-hydration";
 import { createGatewayAccessor } from "@/runtime/bootstrap/runtime/gateway-factory";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
@@ -62,18 +58,6 @@ export async function configureBootstrapContext({
   });
 
   services.startupState.markReady("runtime", "runtime ready");
-  const workflowDispatch = requireRuntimeService<{
-    setExecutor(executor: ReturnType<typeof createAutomationExecutor>): void;
-  }>(runtime, DOOLITTLE_WORKFLOW_DISPATCH_SERVICE, ["setExecutor"]);
-  workflowDispatch.setExecutor(
-    createAutomationExecutor({
-      config,
-      services,
-      runtime,
-      ensureGateway: () => gateway.get(),
-    }),
-  );
-
   const context = {
     config,
     services,

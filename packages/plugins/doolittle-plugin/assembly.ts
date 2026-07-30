@@ -1,8 +1,10 @@
 import {
   createAgentContextProviders,
+  createAutomationExecutor,
   createCommandAction,
   createCommandShortcut,
   createFileActions,
+  createGatewayAccessor,
   createMemoryNudgeEvaluator,
   createRepositoryAction,
   createResearchAction,
@@ -72,6 +74,15 @@ export function createDoolittlePluginSurface({
   const ShellRuntimeService = createShellRuntimeService(services);
   const RunProgressRuntimeService = createRunProgressRuntimeService(services);
   const SdkCapabilitiesRuntimeService = createSdkCapabilitiesRuntimeService();
+  const triggerRuntimeServices = createTriggerRuntimeServices((runtime) => {
+    const gateway = createGatewayAccessor({ services, runtime });
+    return createAutomationExecutor({
+      config,
+      services,
+      runtime,
+      ensureGateway: () => gateway.get(),
+    });
+  });
 
   return {
     name: "doolittle-runtime",
@@ -99,7 +110,7 @@ export function createDoolittlePluginSurface({
       ShellRuntimeService,
       RunProgressRuntimeService,
       SdkCapabilitiesRuntimeService,
-      ...createTriggerRuntimeServices(services),
+      ...triggerRuntimeServices,
     ],
   };
 }
