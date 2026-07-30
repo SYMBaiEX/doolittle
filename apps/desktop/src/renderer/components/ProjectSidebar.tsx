@@ -28,6 +28,24 @@ function projectLocationLabel(project: ProjectLike): string {
     : repository;
 }
 
+function sessionActivityLabel(session: SessionSummary): string {
+  const value = session.endedAt ?? session.startedAt;
+  if (!value) return "";
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) return "";
+  const elapsed = Date.now() - timestamp.getTime();
+  const day = 86_400_000;
+  if (elapsed < 60_000) return "now";
+  if (elapsed < 3_600_000)
+    return `${Math.max(1, Math.floor(elapsed / 60_000))}m`;
+  if (elapsed < day) return `${Math.max(1, Math.floor(elapsed / 3_600_000))}h`;
+  if (elapsed < day * 7) return `${Math.max(1, Math.floor(elapsed / day))}d`;
+  return timestamp.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function ProjectMark({ project }: { project: ProjectLike }) {
   return (
     <span
@@ -290,7 +308,7 @@ export function ProjectHistorySidebar({
       buildProjectSidebarModel(
         projects,
         sessions,
-        4,
+        5,
         new Set(Object.keys(pinnedSessions)),
       ),
     [pinnedSessions, projects, sessions],
@@ -406,7 +424,12 @@ export function ProjectHistorySidebar({
                 type="button"
               >
                 <i aria-hidden="true" />
-                <span>{conversationLabel(session)}</span>
+                <span className="project-rail-chat__title">
+                  {conversationLabel(session)}
+                </span>
+                <time dateTime={session.endedAt ?? session.startedAt}>
+                  {sessionActivityLabel(session)}
+                </time>
               </button>
               <button
                 aria-label={`${pinned ? "Unpin" : "Pin"} ${conversationLabel(
@@ -442,7 +465,10 @@ export function ProjectHistorySidebar({
   return (
     <section aria-labelledby="sidebar-projects" className="sidebar-projects">
       <div className="sidebar-projects__heading">
-        <span id="sidebar-projects">Projects</span>
+        <span id="sidebar-projects">
+          Projects
+          <small>{model.projects.length}</small>
+        </span>
         <div>
           <button
             aria-label="Choose a repository"
@@ -450,7 +476,7 @@ export function ProjectHistorySidebar({
             title="Choose a repository"
             type="button"
           >
-            +
+            <span aria-hidden="true">＋</span>
           </button>
           <button
             aria-label="Manage projects"
@@ -458,7 +484,7 @@ export function ProjectHistorySidebar({
             title="Manage projects"
             type="button"
           >
-            ···
+            <span aria-hidden="true">•••</span>
           </button>
         </div>
       </div>
@@ -470,8 +496,11 @@ export function ProjectHistorySidebar({
         onClick={() => onSelectScope("all")}
         type="button"
       >
-        <span aria-hidden="true">⌘</span>
-        <strong>All conversations</strong>
+        <span aria-hidden="true">◷</span>
+        <span>
+          <strong>All conversations</strong>
+          <em>Browse recent and pinned chats</em>
+        </span>
         <small>{sessions.length}</small>
       </button>
       <div className="sidebar-projects__list">
