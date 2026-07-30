@@ -2534,7 +2534,7 @@ td {
 }
 
 .chat-run-receipt {
-  margin: 0 0 8px;
+  margin: 0 0 5px;
   overflow: hidden;
   color: var(--text-soft);
   background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
@@ -2549,11 +2549,11 @@ td {
 
 .chat-run-receipt summary {
   display: grid;
-  min-height: 34px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 28px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: 7px;
+  padding: 3px 7px;
   cursor: pointer;
   list-style: none;
   background: transparent;
@@ -2572,7 +2572,7 @@ td {
 
 .chat-run-receipt summary strong {
   color: var(--text);
-  font-size: var(--text-meta, 10px);
+  font-size: 9px;
   font-weight: 620;
 }
 
@@ -2580,7 +2580,7 @@ td {
   overflow: hidden;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2617,13 +2617,13 @@ td {
 .chat-run-metrics {
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
 .chat-run-receipt ol {
-  max-height: 248px;
+  max-height: 192px;
   margin: 0;
   padding: 3px 11px;
   overflow-y: auto;
@@ -2633,11 +2633,11 @@ td {
 
 .chat-run-receipt li {
   display: grid;
-  min-height: 43px;
+  min-height: 34px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 7px 1px;
+  padding: 5px 1px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
 }
 
@@ -2669,7 +2669,7 @@ td {
 .chat-run-receipt li time {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: var(--text-meta, 10px);
+  font-size: 8px;
 }
 
 .chat-run-receipt li small {
@@ -2687,16 +2687,27 @@ td {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 11px;
+  padding: 5px 11px;
   border-top: 1px solid var(--border);
 }
 
 .chat-run-receipt footer code {
   overflow: hidden;
   color: var(--faint);
-  font-size: var(--text-meta, 10px);
+  font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chat-run-chevron {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  transition: transform 140ms ease;
+}
+
+.chat-run-receipt[open] .chat-run-chevron {
+  transform: rotate(90deg);
 }
 
 .thinking::after {

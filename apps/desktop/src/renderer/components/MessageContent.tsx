@@ -162,6 +162,47 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
   );
 }
 
+function ToolActivityGroup({ tools }: { tools: ToolActivity[] }) {
+  const completed = tools.filter(
+    (activity) => activity.status === "completed",
+  ).length;
+  const failed = tools.filter((activity) => activity.status === "error").length;
+  const active = tools.length - completed - failed;
+  const status =
+    failed > 0 ? "error" : active > 0 ? "running" : ("completed" as const);
+  const state =
+    failed > 0
+      ? `${failed} failed`
+      : active > 0
+        ? `${active} active`
+        : `${completed} completed`;
+
+  return (
+    <details className={`message-tool-group is-${status}`}>
+      <summary>
+        <span className={`message-tool-group__state is-${status}`}>
+          <i aria-hidden="true" />
+          Tools
+        </span>
+        <span className="message-tool-group__preview">
+          {tools.map(toolLabel).join(" · ")}
+        </span>
+        <span className="message-tool-group__count">
+          {tools.length} {tools.length === 1 ? "tool" : "tools"} · {state}
+        </span>
+        <span className="message-tool-group__chevron" aria-hidden="true">
+          ›
+        </span>
+      </summary>
+      <div className="message-tool-group__body">
+        {tools.map((activity) => (
+          <ToolActivityCard activity={activity} key={activity.id} />
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function AgentSteps({
   continued,
   failed,
@@ -254,9 +295,7 @@ export function MessageContent({
           aria-label="Agent tool activity"
           className="message-tool-activity"
         >
-          {parsed.tools.map((activity) => (
-            <ToolActivityCard activity={activity} key={activity.id} />
-          ))}
+          <ToolActivityGroup tools={parsed.tools} />
         </section>
       ) : null}
       <AgentSteps {...parsed.steps} />

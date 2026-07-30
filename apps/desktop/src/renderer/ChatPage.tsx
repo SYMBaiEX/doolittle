@@ -321,6 +321,9 @@ function RunReceiptView({
           {latest.run.observedActionCount} actions ·{" "}
           {latest.run.localMutations.length} changes
         </span>
+        <span className="chat-run-chevron" aria-hidden="true">
+          ›
+        </span>
       </summary>
       <ol>
         {visibleEvents.slice(-14).map((event) => {
