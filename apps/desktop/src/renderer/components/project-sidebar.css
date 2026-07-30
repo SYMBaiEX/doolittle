@@ -305,7 +305,7 @@
   background: var(--accent);
 }
 
-.project-rail-all > span {
+.project-rail-all > span:first-child {
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 15px;
