@@ -108,7 +108,6 @@ export function resolveElizaCloudEmbeddingModel(
 export function resolveElizaCloudModelSelection(
   runtime: IAgentRuntime,
   preferredType: (typeof ModelType)[keyof typeof ModelType],
-  prompt: string,
 ): string {
   const runtimeModel = getRuntimeModelSettings(runtime);
   const configuredSmall =
@@ -119,10 +118,6 @@ export function resolveElizaCloudModelSelection(
     getRuntimeStringSetting(runtime, "ELIZAOS_CLOUD_LARGE_MODEL") ||
     DEFAULT_ELIZA_CLOUD_MODEL;
 
-  if (isStructuredPlannerPrompt(prompt)) {
-    return configuredLarge;
-  }
-
   switch (preferredType) {
     case ModelType.TEXT_SMALL:
     case ModelType.TEXT_REASONING_SMALL:
@@ -130,20 +125,4 @@ export function resolveElizaCloudModelSelection(
     default:
       return configuredLarge;
   }
-}
-
-export function isStructuredPlannerPrompt(prompt: string): boolean {
-  const normalized = prompt.toLowerCase();
-  const hasPlannerKeys =
-    normalized.includes("thought") &&
-    normalized.includes("providers") &&
-    normalized.includes("action") &&
-    normalized.includes("params") &&
-    normalized.includes("isfinish");
-  const hasJsonConstraint =
-    normalized.includes("json") ||
-    normalized.includes("schema") ||
-    normalized.includes("valid object") ||
-    normalized.includes("double quotes");
-  return hasPlannerKeys || (hasJsonConstraint && normalized.includes("action"));
 }

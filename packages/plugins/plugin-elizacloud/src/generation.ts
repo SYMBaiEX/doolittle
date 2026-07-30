@@ -8,7 +8,6 @@ import {
   createProviderHttpError,
   normalizeProviderTransportError,
   ProviderTransportError,
-  resolveModelPromptText,
 } from "@elizaos/provider-transport";
 import { resolveCloudApiBaseUrl } from "@elizaos/shared/elizacloud/base-url";
 import {
@@ -87,7 +86,6 @@ export async function runElizaCloudTextGeneration(
   const requestedModel = resolveElizaCloudModelSelection(
     runtime,
     preferredType,
-    resolveModelPromptText(params),
   );
   const conversationId = getRuntimeStringSetting(
     runtime,

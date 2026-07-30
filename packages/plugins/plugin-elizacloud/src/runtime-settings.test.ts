@@ -11,7 +11,6 @@ import {
   getRuntimeNumberSetting,
   getRuntimeProvider,
   getRuntimeStringSetting,
-  isStructuredPlannerPrompt,
   resolveElizaCloudEmbeddingEndpoint,
   resolveElizaCloudEmbeddingModel,
   resolveElizaCloudModelSelection,
@@ -115,7 +114,7 @@ describe("runtimeSettings helpers", () => {
     );
   });
 
-  it("selects model based on planner detection and requested model type", () => {
+  it("selects models from the official Eliza model type", () => {
     const runtime: MockRuntime = {
       getSetting: (key) => {
         if (key === "runtimeSettings") {
@@ -141,21 +140,12 @@ describe("runtimeSettings helpers", () => {
       resolveElizaCloudModelSelection(
         runtime as IAgentRuntime,
         ModelType.TEXT_SMALL,
-        '{"thought":"ok","providers":[],"action":"respond","params":{},"isFinish":true}',
-      ),
-    ).toBe("runtime-large");
-    expect(
-      resolveElizaCloudModelSelection(
-        runtime as IAgentRuntime,
-        ModelType.TEXT_SMALL,
-        "short normal prompt",
       ),
     ).toBe("runtime-small");
     expect(
       resolveElizaCloudModelSelection(
         runtime as IAgentRuntime,
-        ModelType.TEXT_COMPLETION,
-        "short normal prompt",
+        ModelType.ACTION_PLANNER,
       ),
     ).toBe("runtime-large");
   });
@@ -169,24 +159,13 @@ describe("runtimeSettings helpers", () => {
       resolveElizaCloudModelSelection(
         runtime as IAgentRuntime,
         ModelType.TEXT_SMALL,
-        "hi",
       ),
     ).toBe(DEFAULT_ELIZA_CLOUD_SMALL_MODEL);
     expect(
       resolveElizaCloudModelSelection(
         runtime as IAgentRuntime,
         ModelType.TEXT_LARGE,
-        "hi",
       ),
     ).toBe(DEFAULT_ELIZA_CLOUD_MODEL);
-  });
-
-  it("detects structured planner prompts", () => {
-    expect(
-      isStructuredPlannerPrompt(
-        'Return valid JSON schema with keys "thought", "providers", "action", "params", and "isFinish".',
-      ),
-    ).toBe(true);
-    expect(isStructuredPlannerPrompt("just a normal text message")).toBe(false);
   });
 });
