@@ -1,4 +1,10 @@
 import type { EnvConfig } from "@doolittle/agent/plugin-api";
+import {
+  DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_GATEWAY_SERVICE,
+  DOOLITTLE_SCHEDULER_SERVICE,
+  DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+} from "@doolittle/contracts";
 import { ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { OFFLINE_BOOTSTRAP_EMBEDDING_PRIORITY } from "./model-fallback";
@@ -64,10 +70,14 @@ describe("createDoolittlePlugin offline bootstrap", () => {
       "doolittle-research-command",
       "doolittle-command-catalog",
     ]);
-    expect(
-      plugin.services?.some(
-        (service) => service.serviceType === "memoryStorage",
-      ),
-    ).toBe(true);
+    expect(plugin.services?.map((service) => service.serviceType)).toEqual(
+      expect.arrayContaining([
+        "memoryStorage",
+        DOOLITTLE_GATEWAY_SERVICE,
+        DOOLITTLE_SCHEDULER_SERVICE,
+        DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+        DOOLITTLE_AUTOMATION_SERVICE,
+      ]),
+    );
   });
 });

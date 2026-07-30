@@ -1,18 +1,23 @@
+import { DOOLITTLE_GATEWAY_SERVICE } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
-import { GatewayRunner } from "@/gateway/runner";
+import type { GatewayRunner } from "@/gateway/runner";
 import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
 
 export function createGatewayAccessor(params: {
-  config: EnvConfig;
   services: AppServices;
   runtime: AgentRuntime;
 }): { get(): GatewayRunner } {
-  const { config, services, runtime } = params;
-  const gatewayService = runtime.getService("doolittle_gateway") as {
+  const { services, runtime } = params;
+  const gatewayService = runtime.getService(DOOLITTLE_GATEWAY_SERVICE) as {
     runner?: GatewayRunner;
     ensureRunner?: () => GatewayRunner;
   } | null;
+  const ensureRunner = gatewayService?.ensureRunner?.bind(gatewayService);
+  if (!ensureRunner) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_GATEWAY_SERVICE} is unavailable.`,
+    );
+  }
   let gatewayInstance = gatewayService?.runner;
 
   return {
@@ -22,13 +27,7 @@ export function createGatewayAccessor(params: {
           "gateway",
           "preparing messaging gateway",
         );
-        gatewayInstance =
-          gatewayService?.ensureRunner?.() ??
-          new GatewayRunner({
-            config,
-            services,
-            runtime,
-          });
+        gatewayInstance = ensureRunner();
         services.startupState.markReady("gateway", "gateway runner ready");
       }
       return gatewayInstance;

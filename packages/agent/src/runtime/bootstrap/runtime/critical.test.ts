@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { validateCriticalRuntimeServices } from "./critical";
 
 describe("bootstrap runtime services", () => {
-  it("loads rolodex before probing the world rooms", async () => {
+  it("loads critical plugin services before probing the world rooms", async () => {
     const calls: string[] = [];
     const runtime = {
       agentId: "agent-123",
@@ -19,6 +19,13 @@ describe("bootstrap runtime services", () => {
 
     await validateCriticalRuntimeServices(runtime as never);
 
-    expect(calls).toEqual(["service:rolodex", "rooms"]);
+    expect(calls).toEqual([
+      "service:rolodex",
+      "service:doolittle_gateway",
+      "service:doolittle_scheduler",
+      "service:WORKFLOW_DISPATCH",
+      "service:cron",
+      "rooms",
+    ]);
   });
 });

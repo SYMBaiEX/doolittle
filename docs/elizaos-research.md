@@ -107,6 +107,11 @@ second service lifecycle: Doolittle-owned runtime capabilities must be
 registered through plugin `services`, actions, providers, evaluators, routes,
 or events. The advanced-memory adapter now follows that rule; it is part of
 the Doolittle plugin and no longer mutates `AgentRuntime` registration maps.
+Gateway creation follows the same invariant: bootstrap requires the
+`doolittle_gateway` service and resolves its runner exclusively through that
+service instead of silently constructing a parallel product-owned runner. The
+gateway, scheduler, workflow dispatch, and automation services are validated
+as critical plugin services before the runtime is exposed.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.

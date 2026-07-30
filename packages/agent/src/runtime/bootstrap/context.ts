@@ -1,4 +1,7 @@
-import { DOOLITTLE_WORKFLOW_DISPATCH_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_SCHEDULER_SERVICE,
+  DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+} from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
 import {
   attachRunProgressBridge,
@@ -45,11 +48,10 @@ export async function configureBootstrapContext({
   attachRunProgressBridge(runtime, services);
   appendBootstrapTrace("phase:attachRunProgressBridge:done");
 
-  const schedulerService = runtime.getService("doolittle_scheduler") as {
+  const schedulerService = runtime.getService(DOOLITTLE_SCHEDULER_SERVICE) as {
     startScheduler?: () => Promise<void>;
   } | null;
   const gateway = createGatewayAccessor({
-    config,
     services,
     runtime,
   });

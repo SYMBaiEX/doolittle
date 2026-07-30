@@ -1,4 +1,5 @@
 import type { AppServices } from "@doolittle/agent/plugin-api";
+import { DOOLITTLE_SCHEDULER_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -10,7 +11,7 @@ export function createSchedulerRuntimeService(
   services: AppServices,
 ): ServiceClass {
   class SchedulerRuntimeService extends ElizaService {
-    static serviceType = "doolittle_scheduler";
+    static serviceType = DOOLITTLE_SCHEDULER_SERVICE;
 
     capabilityDescription =
       "Runs Doolittle session maintenance beside Eliza Trigger Tasks.";

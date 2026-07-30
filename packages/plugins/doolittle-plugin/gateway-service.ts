@@ -1,4 +1,5 @@
 import { GatewayRunner } from "@doolittle/agent/plugin-api";
+import { DOOLITTLE_GATEWAY_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -12,7 +13,7 @@ export function createGatewayRuntimeService({
   services,
 }: DoolittlePluginDependencies): ServiceClass {
   class GatewayRuntimeService extends ElizaService {
-    static serviceType = "doolittle_gateway";
+    static serviceType = DOOLITTLE_GATEWAY_SERVICE;
 
     capabilityDescription =
       "Manages the Doolittle gateway lifecycle and platform routing.";
