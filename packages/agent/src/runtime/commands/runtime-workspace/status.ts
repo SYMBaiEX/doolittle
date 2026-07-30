@@ -1,4 +1,7 @@
-import { getAutonomousControlPlane } from "@/runtime/native/service-bridge/autonomous";
+import {
+  getAutonomousControlPlane,
+  getEffectiveSkillsSummary,
+} from "@/runtime/native/service-bridge/autonomous";
 import {
   getEffectiveMemorySnapshot,
   getNativeOwnershipControlPlane,
@@ -114,7 +117,7 @@ export const handleRuntimeStatusCommand: RuntimeWorkspaceCommandHandler =
       `Profiles summary: ${formatRolodexSummary(status.ownership.identity.rolodex)}`,
       `Experience summary: ${formatExperienceSummary(status.ownership.identity.experience)}`,
       `Native ownership: services=${status.ownership.serviceResolution.length} plugins=${status.ownership.pluginManager?.summary.enabled ?? 0}`,
-      `Skills: ${context.services.skills.list().length}`,
+      `Skills: ${getEffectiveSkillsSummary(context.runtime, context.services).total}`,
       `Cron jobs: ${cronJobs ? cronJobs.length : "unavailable (Trigger runtime service is not ready.)"}`,
       `Gateway sessions: ${context.services.gatewaySessions.list().length}`,
     ].join("\n");

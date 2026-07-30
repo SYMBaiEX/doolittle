@@ -5,9 +5,54 @@ import type { AppServices } from "@/services";
 import { serveFetchTest } from "@/testing/fetch-server";
 import type { CronJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
-import { createCronExecutor } from "./cron-executor";
+import { buildCronPrompt, createCronExecutor } from "./cron-executor";
 
 describe("createCronExecutor", () => {
+  it("builds automation guidance from the official Eliza skill inventory", () => {
+    const runtime = {
+      getService: (name: string) =>
+        name === "AGENT_SKILLS_SERVICE"
+          ? {
+              getLoadedSkills: () => [
+                {
+                  slug: "release",
+                  name: "Official Release",
+                  description: "Release through Eliza.",
+                  path: "/managed/release",
+                  content: "# Official release guidance",
+                  source: "managed",
+                  sourceDir: "/managed",
+                  precedence: 80,
+                },
+              ],
+            }
+          : null,
+    } as unknown as AgentRuntime;
+    const services = {
+      skills: {
+        list: () => [
+          {
+            slug: "release",
+            title: "Legacy Release",
+            description: "Legacy local copy.",
+            path: "/workspace/release/SKILL.md",
+            content: "# Legacy guidance",
+            source: "workspace",
+          },
+        ],
+      },
+    } as unknown as AppServices;
+
+    const prompt = buildCronPrompt(runtime, services, "Ship it.", ["release"], {
+      source: "manual",
+      payload: {},
+    });
+
+    expect(prompt).toContain("## Skill: Official Release");
+    expect(prompt).toContain("# Official release guidance");
+    expect(prompt).not.toContain("Legacy guidance");
+  });
+
   it("executes webhook actions as bounded JSON POST requests", async () => {
     let received: Record<string, unknown> = {};
     const server = await serveFetchTest(async (request) => {

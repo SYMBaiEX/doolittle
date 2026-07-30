@@ -6,6 +6,7 @@ import {
   type ProviderResult,
   type State,
 } from "@elizaos/core";
+import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
@@ -174,8 +175,9 @@ function coreContextResult(
 
 async function workspaceContextResult(
   services: AppServices,
+  runtime: IAgentRuntime,
 ): Promise<ProviderResult> {
-  const skillEntries = services.skills.list();
+  const skillEntries = getEffectiveSkills(runtime, services);
   const recentTerminal = services.terminal.recent(5);
   let repoSummary = "";
   try {
@@ -273,7 +275,8 @@ export function createAgentContextProviders(services: AppServices): Provider[] {
     contextGate: { anyOf: ["code", "files", "terminal"] },
     cacheStable: false,
     cacheScope: "turn",
-    get: async (): Promise<ProviderResult> => workspaceContextResult(services),
+    get: async (runtime: IAgentRuntime): Promise<ProviderResult> =>
+      workspaceContextResult(services, runtime),
   };
 
   const operationsProvider: Provider = {

@@ -29,12 +29,30 @@ function provider(providers: Provider[], name: string): Provider {
 
 function createRuntime() {
   return {
-    getService: (name: string) =>
-      name === "cron"
-        ? {
-            list: () => [{ name: "nightly", status: "running" }],
-          }
-        : null,
+    getService: (name: string) => {
+      if (name === "cron") {
+        return {
+          list: () => [{ name: "nightly", status: "running" }],
+        };
+      }
+      if (name === "AGENT_SKILLS_SERVICE") {
+        return {
+          getLoadedSkills: () => [
+            {
+              slug: "sdk-release",
+              name: "SDK Release",
+              description: "Ship through the official Eliza skill runtime.",
+              path: "/managed/sdk-release",
+              content: "# SDK Release",
+              source: "managed",
+              sourceDir: "/managed",
+              precedence: 80,
+            },
+          ],
+        };
+      }
+      return null;
+    },
   };
 }
 
@@ -229,6 +247,25 @@ describe("agent context providers", () => {
     expect(workspace.text).toContain("WORKSPACE CONTEXT");
     expect(workspace.text).toContain("repository status summary");
     expect(operations.text).toContain("CRON JOBS");
+  });
+
+  it("renders the official Eliza skill inventory in workspace context", async () => {
+    const workspace = provider(
+      createAgentContextProviders(createServices()),
+      "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
+    );
+
+    const result = await workspace.get(
+      createRuntime() as never,
+      createMemory(),
+      {} as never,
+    );
+
+    expect(result.text).toContain(
+      "sdk-release [managed]: Ship through the official Eliza skill runtime.",
+    );
+    expect(result.text).not.toContain("terminal-run");
+    expect(result.data?.skillsCount).toBe(1);
   });
 
   it("adds bounded latest ACP editor state only to desktop turns", async () => {

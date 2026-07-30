@@ -5,12 +5,30 @@ import { handleDiagnosticsRoutes } from "@/server/routes/diagnostics";
 function createContext() {
   return {
     runtime: {
-      getService: (name: string) =>
-        name === "cron"
-          ? {
-              runs: () => [{ id: "cron-1" }],
-            }
-          : null,
+      getService: (name: string) => {
+        if (name === "cron") {
+          return {
+            runs: () => [{ id: "cron-1" }],
+          };
+        }
+        if (name === "AGENT_SKILLS_SERVICE") {
+          return {
+            getLoadedSkills: () => [
+              {
+                slug: "doctor-sdk",
+                name: "Doctor SDK",
+                description: "Diagnose through Eliza.",
+                path: "/managed/doctor-sdk",
+                content: "# Doctor SDK",
+                source: "managed",
+                sourceDir: "/managed",
+                precedence: 80,
+              },
+            ],
+          };
+        }
+        return null;
+      },
     },
     services: {
       diagnostics: {
@@ -25,7 +43,18 @@ function createContext() {
         updatePreview: async () => ({ pending: false }),
       },
       skills: {
-        list: () => ["skill-a", "skill-b"],
+        list: () => [
+          {
+            slug: "legacy-a",
+            description: "Legacy skill A",
+            source: "workspace",
+          },
+          {
+            slug: "legacy-b",
+            description: "Legacy skill B",
+            source: "workspace",
+          },
+        ],
       },
       contextFiles: {
         list: () => ["ctx.md"],
@@ -61,7 +90,22 @@ describe("handleDiagnosticsRoutes", () => {
       checks: {
         ok: true,
         input: {
-          skillsCount: 2,
+          skillsCount: 1,
+          skillsSummary: {
+            total: 1,
+            curated: 0,
+            generated: 0,
+            workspace: 0,
+            bundled: 0,
+            managed: 1,
+            project: 0,
+            plugin: 0,
+            extra: 0,
+            invocable: 1,
+            categories: [{ name: "doctor-sdk", count: 1 }],
+            roots: [{ name: "doctor-sdk", count: 1 }],
+            sources: [{ name: "managed", count: 1 }],
+          },
           contextFilesCount: 1,
           recentCronRuns: 1,
           recentTerminalCommands: 1,

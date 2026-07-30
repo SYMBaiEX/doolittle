@@ -12,12 +12,29 @@ function createContext() {
 
   const context = {
     runtime: {
-      getService: (name: string) =>
-        name === "cron"
-          ? {
-              runs: () => [{ id: "cron-1" }, { id: "cron-2" }],
-            }
-          : null,
+      getService: (name: string) => {
+        if (name === "cron") {
+          return {
+            runs: () => [{ id: "cron-1" }, { id: "cron-2" }],
+          };
+        }
+        if (name === "AGENT_SKILLS_SERVICE") {
+          return {
+            getLoadedSkills: () =>
+              ["release", "review", "verify"].map((slug) => ({
+                slug,
+                name: slug,
+                description: `${slug} through Eliza`,
+                path: `/managed/${slug}`,
+                content: `# ${slug}`,
+                source: "managed",
+                sourceDir: "/managed",
+                precedence: 80,
+              })),
+          };
+        }
+        return null;
+      },
     },
     services: {
       settings: {
@@ -28,7 +45,13 @@ function createContext() {
         }),
       },
       skills: {
-        summary: () => ({ total: 3, groups: [] }),
+        list: () => [
+          {
+            slug: "legacy-local",
+            description: "Must not own diagnostics.",
+            source: "workspace",
+          },
+        ],
       },
       contextFiles: {
         list: () => ["a.md", "b.md"],

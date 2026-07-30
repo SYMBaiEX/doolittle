@@ -1,3 +1,4 @@
+import { getEffectiveSkillsSummary } from "@/runtime/native/service-bridge/autonomous";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import {
@@ -18,7 +19,10 @@ export async function handleOperatorStatusCommand(
     const transportOverview = context.gateway
       ? await context.gateway.transportOverview()
       : undefined;
-    const skillsSummary = context.services.skills.summary();
+    const skillsSummary = getEffectiveSkillsSummary(
+      context.runtime,
+      context.services,
+    );
     const recentCronRuns = await cron.runs(5);
     const checks = await context.services.diagnostics.run({
       skillsCount: skillsSummary.total,

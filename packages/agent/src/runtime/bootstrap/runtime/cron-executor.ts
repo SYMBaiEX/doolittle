@@ -1,11 +1,13 @@
 import type { AgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "@/gateway/runner";
+import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import type { AppServices } from "@/services";
 import type { AutomationExecutionContext } from "@/services/cron/types";
 import type { CronJobRecord } from "@/types";
 import type { EnvConfig } from "@/types/runtime";
 
-function buildCronPrompt(
+export function buildCronPrompt(
+  runtime: AgentRuntime,
   services: AppServices,
   prompt: string,
   skillSlugs: string[],
@@ -18,8 +20,11 @@ function buildCronPrompt(
     return `${prompt}${payloadContext}`;
   }
 
+  const skillsBySlug = new Map(
+    getEffectiveSkills(runtime, services).map((skill) => [skill.slug, skill]),
+  );
   const loadedSkills = skillSlugs
-    .map((slug) => services.skills.get(slug))
+    .map((slug) => skillsBySlug.get(slug))
     .filter((skill): skill is NonNullable<typeof skill> => Boolean(skill));
 
   if (!loadedSkills.length) {
@@ -90,6 +95,7 @@ export function createCronExecutor(params: {
     const output = await handleAgentTurn(
       {
         message: buildCronPrompt(
+          runtime,
           services,
           job.action?.type === "run-agent" || job.action?.type === "prompt"
             ? job.action.prompt
