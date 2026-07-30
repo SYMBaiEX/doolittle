@@ -24,6 +24,13 @@ export type {
 } from "./types";
 export { SessionForkError } from "./write";
 
+/**
+ * Doolittle's query projection for Eliza-owned conversation memories plus
+ * product-only project, fork, title, import/export, and usage metadata.
+ *
+ * Chat turns persist through AgentRuntime first. The message rows here are a
+ * synchronous desktop/CLI read model, not an independent conversation source.
+ */
 export class SessionService {
   declare storeMessage: SessionServiceApi["storeMessage"];
   declare replaceSessionMessages: SessionServiceApi["replaceSessionMessages"];

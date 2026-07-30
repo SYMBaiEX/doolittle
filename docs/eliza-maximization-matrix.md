@@ -22,7 +22,7 @@ increase.
 | Embeddings | `@elizaos/plugin-ollama`, ElizaOS local embedding support through installed provider packages | Doolittle should keep embedding ownership in official SDK/provider packages instead of workspace shadow packages | `@elizaos/plugin-ollama` plus exported local embedding support when it becomes a direct dependency |
 | Personality | [`packages/plugins/doolittle-plugin/identity/personality`](../packages/plugins/doolittle-plugin/identity/personality), [`packages/agent/src/services/personality-service.ts`](../packages/agent/src/services/personality-service.ts) | Doolittle keeps product-specific personality behavior while exposing it as an Eliza service | Doolittle identity facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
 | User profiles and memory | [`packages/plugins/doolittle-plugin/identity/rolodex`](../packages/plugins/doolittle-plugin/identity/rolodex), [`packages/agent/src/services/user-profile/service/index.ts`](../packages/agent/src/services/user-profile/service/index.ts) | Profile flows are Doolittle-owned but exposed through a native service boundary | Doolittle profile facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
-| Session and experience | [`packages/plugins/doolittle-plugin/identity/experience`](../packages/plugins/doolittle-plugin/identity/experience), [`packages/agent/src/services/session/service/index.ts`](../packages/agent/src/services/session/service/index.ts) | Experience views are Doolittle-owned but exposed through a native service boundary | Doolittle experience facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
+| Session and experience | Eliza rooms and `messages` memories are canonical for every user and assistant turn; [`packages/agent/src/runtime/chat-turn/conversation-persistence.ts`](../packages/agent/src/runtime/chat-turn/conversation-persistence.ts) projects native memories into [`packages/agent/src/services/session/service/index.ts`](../packages/agent/src/services/session/service/index.ts) for synchronous desktop/CLI history | Doolittle still owns project membership, titles, forks, archive/import metadata, FTS, and usage views because those are product semantics rather than a second chat lifecycle | Keep Eliza memories authoritative and keep the local session database limited to a product read model |
 
 ## Execution and Orchestration
 
@@ -53,6 +53,6 @@ increase.
 ## Current Highest-Value Next Steps
 
 1. Keep execution, automation, orchestration, and mutation proof on their SDK-owned contracts; remove compatibility facades when their final callers disappear.
-2. Move session conversation storage toward Eliza rooms and memories while retaining Doolittle project, fork, and desktop metadata as a product projection.
+2. Keep the session read projection synchronized from Eliza-owned memories while retaining Doolittle project, fork, search, import/export, and desktop metadata as product behavior.
 3. Keep Telegram moving into native runtime ownership, and keep Discord clearly gateway-owned until a direct native dependency is installed.
 4. Retire skill marketplace compatibility code as `@elizaos/skills` and the official agent-skills plugin publish matching catalog APIs.

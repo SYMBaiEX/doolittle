@@ -45,7 +45,7 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
     { service: "trajectories", group: "officialBacked" },
     { service: "delegation", group: "officialBacked" },
     { service: "memory", group: "customEliza" },
-    { service: "sessions", group: "customEliza" },
+    { service: "sessions", group: "officialBacked" },
     { service: "cron", group: "officialBacked" },
     { service: "workspace", group: "customEliza" },
     { service: "terminal", group: "customEliza" },
