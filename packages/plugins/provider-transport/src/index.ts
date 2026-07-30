@@ -203,14 +203,12 @@ export function createElizaTextGenerationModelHandlers(
  * linked-account CLIs and APIs that can only receive text.
  */
 export function resolveModelPromptText(params: GenerateTextParams): string {
-  if (params.prompt !== undefined && params.prompt.length > 0) {
-    return params.prompt;
-  }
-
-  const input =
-    promptSegmentsText(params) ||
-    renderChatMessagesForPrompt(transportMessages(params.messages)) ||
-    "";
+  const segmentedPrompt = promptSegmentsText(params);
+  const input = segmentedPrompt.length
+    ? segmentedPrompt
+    : params.prompt?.length
+      ? params.prompt
+      : renderChatMessagesForPrompt(transportMessages(params.messages)) || "";
   return appendToolContract(input, params.tools ?? [], params.toolChoice);
 }
 

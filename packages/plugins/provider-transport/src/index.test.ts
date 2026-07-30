@@ -94,6 +94,42 @@ describe("resolveModelPromptText", () => {
     ).toBe("stable dynamic");
   });
 
+  it("uses matching SDK prompt segments as the canonical prompt", () => {
+    expect(
+      resolveModelPromptText({
+        prompt: "stable dynamic",
+        promptSegments: [
+          { content: "stable ", stable: true },
+          { content: "dynamic", stable: false },
+        ],
+      } as GenerateTextParams),
+    ).toBe("stable dynamic");
+  });
+
+  it("prefers SDK prompt segments when a legacy prompt disagrees", () => {
+    expect(
+      resolveModelPromptText({
+        prompt: "stale flattened prompt",
+        promptSegments: [
+          { content: "current stable context\n", stable: true },
+          { content: "current request", stable: false },
+        ],
+      } as GenerateTextParams),
+    ).toBe("current stable context\ncurrent request");
+  });
+
+  it("falls back to the legacy prompt when segments contain no text", () => {
+    expect(
+      resolveModelPromptText({
+        prompt: "legacy fallback",
+        promptSegments: [
+          { content: "", stable: true },
+          { content: "", stable: false },
+        ],
+      } as GenerateTextParams),
+    ).toBe("legacy fallback");
+  });
+
   it("uses the canonical Eliza renderer for chat-native messages", () => {
     expect(
       resolveModelPromptText({
