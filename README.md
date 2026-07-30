@@ -619,7 +619,7 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 | Operator summaries | [`operator/service.ts`](./packages/agent/src/services/operator/service.ts) | `/status`, `/runtime status` |
 | Tool registry | [`tools/service.ts`](./packages/agent/src/services/tools/service.ts) | `/tools list`, `/tools summary`, `/tools search` |
 | Gateway orchestration | [`gateway-session-service.ts`](./packages/agent/src/services/gateway-session-service.ts) | `/gateway state`, `/gateway trace` |
-| Pairing and allowlists | [`pairing-service.ts`](./packages/agent/src/services/pairing-service.ts) | `/pairing pending` |
+| Pairing and allowlists | Eliza [`PairingService`](https://docs.elizaos.ai/) projected through [`gateway-pairing.ts`](./packages/agent/src/services/gateway-pairing.ts) | `/pairing pending` |
 | Account management | [`accounts-commands.ts`](./packages/agent/src/runtime/commands/accounts-commands.ts) | `/accounts`, `/accounts connect`, `/accounts use` |
 
 ---
