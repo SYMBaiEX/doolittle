@@ -2,10 +2,50 @@ import { type GenerateTextParams, ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import {
   createElizaTextGenerationModelHandlers,
+  createProviderHttpError,
   ELIZA_TEXT_GENERATION_MODEL_TYPES,
   isElizaTextGenerationModelType,
+  normalizeProviderTransportError,
+  ProviderTransportError,
   resolveModelPromptText,
 } from "./index";
+
+describe("provider transport failures", () => {
+  it("exposes structured HTTP failures for host recovery UX", () => {
+    const error = createProviderHttpError({
+      provider: "codex",
+      operation: "responses request",
+      status: 429,
+      detail: "slow down",
+    });
+
+    expect(error).toBeInstanceOf(ProviderTransportError);
+    expect(error).toMatchObject({
+      code: "rate_limited",
+      provider: "codex",
+      operation: "responses request",
+      retryable: true,
+      status: 429,
+      detail: "slow down",
+    });
+  });
+
+  it("normalizes abort and timeout failures without parsing prose", () => {
+    expect(
+      normalizeProviderTransportError(
+        "claude-code",
+        "messages request",
+        new DOMException("stopped", "AbortError"),
+      ),
+    ).toMatchObject({ code: "cancelled", retryable: false });
+
+    const timeout = new Error("deadline");
+    timeout.name = "TimeoutError";
+    expect(
+      normalizeProviderTransportError("codex", "responses request", timeout),
+    ).toMatchObject({ code: "timeout", retryable: true });
+  });
+});
 
 describe("Eliza text model registrations", () => {
   it("keeps routing and provider registrations on one SDK model surface", async () => {
