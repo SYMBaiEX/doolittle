@@ -55,8 +55,6 @@ type ProviderMessageExecutionInput = {
     error: unknown,
     baseUrl: string,
   ) => string;
-  buildNativePlanningFailureMessage: () => string;
-  isRecoverableNativePlanningError: (error: unknown) => boolean;
 };
 
 function memoryText(memory: Memory): string {
@@ -223,15 +221,12 @@ export async function executeProviderMessageTurn(
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
-        const isRecoverable = input.isRecoverableNativePlanningError(error);
-        const failureMessage = isRecoverable
-          ? input.buildNativePlanningFailureMessage()
-          : input.buildProviderFailureMessage(
-              input.settingsDuring.model.provider,
-              input.settingsDuring.model.model,
-              error,
-              input.settingsDuring.model.baseUrl,
-            );
+        const failureMessage = input.buildProviderFailureMessage(
+          input.settingsDuring.model.provider,
+          input.settingsDuring.model.model,
+          error,
+          input.settingsDuring.model.baseUrl,
+        );
         input.context.runtime.logger?.warn(
           {
             error,

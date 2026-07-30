@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  applyRuntimeOverrides,
-  isRecoverableNativePlanningError,
-} from "./chat-turn/core";
+import { applyRuntimeOverrides } from "./chat-turn/core";
 
 describe("chat turn core helpers", () => {
   it("merges runtime overrides without clobbering unspecified model settings", () => {
@@ -32,11 +29,5 @@ describe("chat turn core helpers", () => {
         maxTokens: 4096,
       },
     });
-  });
-
-  it("recognizes recoverable native planning failures", () => {
-    expect(
-      isRecoverableNativePlanningError(new Error("parse error in prompt")),
-    ).toBe(true);
   });
 });

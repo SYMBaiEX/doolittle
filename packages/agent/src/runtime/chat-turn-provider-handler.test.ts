@@ -125,8 +125,6 @@ describe("chat turn provider handler", () => {
       connectionSource: "cli",
       roomId: "room-1",
       buildProviderFailureMessage: () => "fatal",
-      buildNativePlanningFailureMessage: () => "recoverable",
-      isRecoverableNativePlanningError: () => false,
     });
 
     expect(result.handledMessage).toBe(true);
@@ -205,8 +203,6 @@ describe("chat turn provider handler", () => {
       connectionSource: "cli",
       roomId: "room-sdk",
       buildProviderFailureMessage: () => "fatal",
-      buildNativePlanningFailureMessage: () => "recoverable",
-      isRecoverableNativePlanningError: () => false,
     });
 
     expect(result.response).toBe("response message");
@@ -220,10 +216,11 @@ describe("chat turn provider handler", () => {
     expect(llmCalls).toEqual([]);
   });
 
-  it("surfaces recoverable SDK planning failures without a second executor", async () => {
+  it("surfaces SDK message-service failures without a second executor", async () => {
+    const planningFailure = new Error("dynamic prompt parse failed");
     const { context, notices } = createContext({
       onHandleMessage: async () => {
-        throw new Error("local planning failed");
+        throw planningFailure;
       },
     });
     const streamState = createProviderStreamState({
@@ -258,16 +255,17 @@ describe("chat turn provider handler", () => {
       onNotice: undefined,
       connectionSource: "cli",
       roomId: "room-2",
-      buildProviderFailureMessage: () => "fatal",
-      buildNativePlanningFailureMessage: () => "recoverable",
-      isRecoverableNativePlanningError: () => true,
+      buildProviderFailureMessage: (_provider, _model, error) => {
+        expect(error).toBe(planningFailure);
+        return "turn failed";
+      },
     });
 
     expect(result.handledMessage).toBe(false);
-    expect(result.response).toBe("recoverable");
-    expect(result.runFailureMessage).toBe("recoverable");
+    expect(result.response).toBe("turn failed");
+    expect(result.runFailureMessage).toBe("turn failed");
     expect(notices).toEqual([]);
-    expect(streamState.getResponse()).toBe("recoverable");
+    expect(streamState.getResponse()).toBe("turn failed");
   });
 
   it("emits status notices and returns provider failures for non-recoverable errors", async () => {
@@ -314,8 +312,6 @@ describe("chat turn provider handler", () => {
       connectionSource: "cli",
       roomId: "room-3",
       buildProviderFailureMessage: () => "provider unavailable",
-      buildNativePlanningFailureMessage: () => "recoverable",
-      isRecoverableNativePlanningError: () => false,
     });
 
     expect(result.handledMessage).toBe(false);
@@ -370,8 +366,6 @@ describe("chat turn provider handler", () => {
         connectionSource: "desktop",
         roomId: "room-cancel",
         buildProviderFailureMessage: () => "provider unavailable",
-        buildNativePlanningFailureMessage: () => "recoverable",
-        isRecoverableNativePlanningError: () => true,
       }),
     ).rejects.toThrow("provider aborted");
     expect(notices).toEqual([]);

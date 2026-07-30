@@ -218,10 +218,6 @@ export async function runProviderModelTurn(
         roomId: input.turn.roomId,
         buildProviderFailureMessage:
           executionContext.buildProviderFailureMessage,
-        buildNativePlanningFailureMessage:
-          executionContext.buildNativePlanningFailureMessage,
-        isRecoverableNativePlanningError:
-          executionContext.isRecoverableNativePlanningError,
       });
       handledMessage = messageExecutionResult.handledMessage;
       runFailureMessage = messageExecutionResult.runFailureMessage;

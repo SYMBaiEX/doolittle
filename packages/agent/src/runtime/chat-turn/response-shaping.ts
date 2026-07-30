@@ -8,25 +8,6 @@ type ChatRuntimeContext = Pick<
   gateway?: AppContext["gateway"];
 };
 
-export function isRecoverableNativePlanningError(error: unknown): boolean {
-  const detail =
-    error instanceof Error ? error.message.trim() : String(error).trim();
-  const normalized = detail.toLowerCase();
-
-  return [
-    "dynamicpromptexecfromstate",
-    "dynamic prompt",
-    "parse error",
-    "failed to parse",
-    "unexpected token",
-    "json",
-  ].some((fragment) => normalized.includes(fragment));
-}
-
-export function buildNativePlanningFailureMessage(): string {
-  return "The native planner hit a local prompt-shaping error on this turn. Try a more explicit command, or rerun with `/doctor` if it keeps happening.";
-}
-
 export function buildSystemFactsContext(context: ChatRuntimeContext): string {
   const terminalAvailable = "yes";
   const settings = context.services.settings.get();

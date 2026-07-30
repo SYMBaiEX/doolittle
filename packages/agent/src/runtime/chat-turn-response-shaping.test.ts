@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildNativePlanningFailureMessage,
-  buildSystemFactsContext,
-  isRecoverableNativePlanningError,
-} from "./chat-turn/response-shaping";
+import { buildSystemFactsContext } from "./chat-turn/response-shaping";
 
 describe("chat turn response shaping helpers", () => {
   it("produces live system facts", () => {
@@ -29,12 +25,5 @@ describe("chat turn response shaping helpers", () => {
     expect(facts).toContain("shell access=yes");
     expect(facts).toContain("execution backend=local");
     expect(facts).toContain("provider=openai");
-  });
-
-  it("flags recoverable planning failures and uses the local planner fallback text", () => {
-    expect(
-      isRecoverableNativePlanningError(new Error("parse error in prompt")),
-    ).toBe(true);
-    expect(buildNativePlanningFailureMessage()).toContain("/doctor");
   });
 });
