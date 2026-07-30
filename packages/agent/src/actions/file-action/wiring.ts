@@ -11,16 +11,16 @@ import {
 } from "@elizaos/core";
 import { buildActionResultData } from "@/runtime/action-result-metadata";
 import {
-  resolveWorkspaceDirectory,
-  type WorkspaceDirectorySource,
-} from "@/services/workspace-directory";
-import {
-  createLocalDirectory,
-  patchLocalTextFile,
-  readLocalTextFile,
-  searchLocalFiles,
-  writeLocalTextFile,
-} from "./operations";
+  createNativeWorkspaceDirectory,
+  patchNativeWorkspaceFile,
+  readNativeWorkspaceFileLines,
+  searchNativeWorkspaceFiles,
+  writeNativeWorkspaceFileResult,
+} from "@/runtime/native/service-bridge/tooling";
+import type {
+  WorkspaceFileSearchResult,
+  WorkspaceReadLinesResult,
+} from "@/services/workspace-service";
 
 type ParamRecord = Record<string, unknown>;
 type ActionParameters = NonNullable<Action["parameters"]>;
@@ -29,7 +29,7 @@ const READ_FILE_PARAMETERS: ActionParameters = [
   {
     name: "path",
     description:
-      "File path to read. Supports absolute paths, ~/ paths, dev/code/projects paths, and account-qualified paths like symbiex/dev/app/file.ts.",
+      "File path to read inside the selected workspace. Relative paths are resolved from the workspace root.",
     required: true,
     schema: { type: "string" },
   },
@@ -51,7 +51,7 @@ const WRITE_FILE_PARAMETERS: ActionParameters = [
   {
     name: "path",
     description:
-      "File path to create or overwrite. Supports absolute paths, ~/ paths, dev/code/projects paths, and account-qualified paths like symbiex/dev/the-effect/index.html.",
+      "File path to create or overwrite inside the selected workspace.",
     required: true,
     schema: { type: "string" },
   },
@@ -66,8 +66,7 @@ const WRITE_FILE_PARAMETERS: ActionParameters = [
 const CREATE_DIRECTORY_PARAMETERS: ActionParameters = [
   {
     name: "path",
-    description:
-      "Directory path to create. Supports absolute paths, ~/ paths, dev/code/projects paths, and account-qualified paths like symbiex/dev/the-effect.",
+    description: "Directory path to create inside the selected workspace.",
     required: true,
     schema: { type: "string" },
   },
@@ -202,26 +201,35 @@ function handlerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function firstResponseLine(response: string): string {
-  return response.split(/\r?\n/u)[0]?.trim() || response.trim();
+function formatReadResult(result: WorkspaceReadLinesResult): string {
+  return [
+    `Read: ${result.path}`,
+    `Lines: ${result.offset}-${result.end} of ${result.total}`,
+    ...result.lines.map((line) => `${line.number}|${line.text}`),
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-function responseNumber(response: string, label: string): number | undefined {
-  const match = new RegExp(`^${label}:\\s*(\\d+)`, "imu").exec(response);
-  return match ? Number.parseInt(match[1] ?? "", 10) : undefined;
+function formatSearchResult(result: WorkspaceFileSearchResult): string {
+  if (result.target === "files") {
+    return [
+      `File matches for "${result.pattern}" in ${result.root}:`,
+      ...result.matches.map((match) => match.path),
+    ].join("\n");
+  }
+  if (!result.matches.length) {
+    return `No content matches for "${result.pattern}" in ${result.root}.`;
+  }
+  return [
+    `Content matches for "${result.pattern}" in ${result.root}:`,
+    ...result.matches.map(
+      (match) => `${match.path}:${match.line ?? 1}: ${match.text ?? ""}`,
+    ),
+  ].join("\n");
 }
 
-function resolvedMutationPath(response: string): string | undefined {
-  const match =
-    /^(?:Wrote|Patched|Created directory|Directory already existed):\s*(.+)$/imu.exec(
-      response,
-    );
-  return match?.[1]?.trim();
-}
-
-function createReadFileAction(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action {
+function createReadFileAction(): Action {
   return {
     name: "READ_FILE",
     similes: ["DOOLITTLE_READ_FILE", "VIEW_FILE", "OPEN_FILE"],
@@ -234,24 +242,25 @@ function createReadFileAction(
     cacheStable: true,
     validate: async () => true,
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
       try {
-        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "READ_FILE",
           READ_FILE_PARAMETERS,
           options,
         );
         const path = stringParam(params, "path", "file", "target");
-        const response = readLocalTextFile({ workspaceDir }, path, {
-          offset: numberParam(params, "offset", 1),
-          limit: numberParam(params, "limit", 500),
-        });
+        const response = formatReadResult(
+          readNativeWorkspaceFileLines(runtime, path, {
+            offset: numberParam(params, "offset", 1),
+            limit: numberParam(params, "limit", 500),
+          }),
+        );
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(
           true,
@@ -270,9 +279,7 @@ function createReadFileAction(
   };
 }
 
-function createWriteFileAction(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action {
+function createWriteFileAction(): Action {
   return {
     name: "WRITE_FILE",
     similes: ["DOOLITTLE_WRITE_FILE", "CREATE_FILE", "SAVE_FILE"],
@@ -285,7 +292,7 @@ function createWriteFileAction(
     cacheStable: true,
     validate: async () => true,
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
@@ -293,7 +300,6 @@ function createWriteFileAction(
     ) => {
       let path = "";
       try {
-        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "WRITE_FILE",
           WRITE_FILE_PARAMETERS,
@@ -304,14 +310,19 @@ function createWriteFileAction(
         if (!content) {
           throw new Error("content is required.");
         }
-        const response = writeLocalTextFile({ workspaceDir }, path, content);
+        const result = await writeNativeWorkspaceFileResult(
+          runtime,
+          path,
+          content,
+        );
+        const response = `Wrote: ${result.path}\nBytes: ${result.bytes}`;
         const mutation = {
           action: "WRITE_FILE",
           requestedPath: path,
-          resolvedPath: resolvedMutationPath(response),
+          resolvedPath: result.path,
           success: true,
-          message: firstResponseLine(response),
-          bytes: responseNumber(response, "Bytes"),
+          message: `Wrote: ${result.path}`,
+          bytes: result.bytes,
         };
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(
@@ -323,7 +334,7 @@ function createWriteFileAction(
               fileOperation: {
                 type: "write",
                 target: path,
-                size: mutation.bytes ?? content.length,
+                size: result.bytes,
               },
             },
             { path },
@@ -351,14 +362,12 @@ function createWriteFileAction(
   };
 }
 
-function createDirectoryAction(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action {
+function createDirectoryAction(): Action {
   return {
     name: "CREATE_DIRECTORY",
     similes: ["MKDIR", "CREATE_FOLDER", "DOOLITTLE_CREATE_DIRECTORY"],
     description:
-      "Create a local directory under the workspace or a local development root. WRITE_FILE creates parent directories automatically, so use this only when the directory itself is the requested artifact.",
+      "Create a local directory inside the selected workspace. WRITE_FILE creates parent directories automatically, so use this only when the directory itself is the requested artifact.",
     descriptionCompressed: "Create a local directory.",
     routingHint:
       "create an empty directory as the requested artifact -> CREATE_DIRECTORY",
@@ -367,7 +376,7 @@ function createDirectoryAction(
     cacheStable: true,
     validate: async () => true,
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
@@ -375,20 +384,22 @@ function createDirectoryAction(
     ) => {
       let path = "";
       try {
-        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "CREATE_DIRECTORY",
           CREATE_DIRECTORY_PARAMETERS,
           options,
         );
         path = stringParam(params, "path", "directory", "folder", "target");
-        const response = createLocalDirectory({ workspaceDir }, path);
+        const result = createNativeWorkspaceDirectory(runtime, path);
+        const response = `${
+          result.existed ? "Directory already existed" : "Created directory"
+        }: ${result.path}`;
         const mutation = {
           action: "CREATE_DIRECTORY",
           requestedPath: path,
-          resolvedPath: resolvedMutationPath(response),
+          resolvedPath: result.path,
           success: true,
-          message: firstResponseLine(response),
+          message: response,
         };
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(
@@ -424,9 +435,7 @@ function createDirectoryAction(
   };
 }
 
-function createPatchFileAction(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action {
+function createPatchFileAction(): Action {
   return {
     name: "PATCH_FILE",
     similes: ["DOOLITTLE_PATCH_FILE", "EDIT_FILE", "MODIFY_FILE"],
@@ -439,7 +448,7 @@ function createPatchFileAction(
     cacheStable: true,
     validate: async () => true,
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
@@ -447,7 +456,6 @@ function createPatchFileAction(
     ) => {
       let path = "";
       try {
-        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "PATCH_FILE",
           PATCH_FILE_PARAMETERS,
@@ -456,8 +464,8 @@ function createPatchFileAction(
         path = stringParam(params, "path", "file", "target");
         const oldText = stringParam(params, "oldText", "old_string", "old");
         const newText = stringParam(params, "newText", "new_string", "new");
-        const response = patchLocalTextFile(
-          { workspaceDir },
+        const result = await patchNativeWorkspaceFile(
+          runtime,
           path,
           oldText,
           newText,
@@ -465,13 +473,14 @@ function createPatchFileAction(
             replaceAll: booleanParam(params, "replaceAll"),
           },
         );
+        const response = `Patched: ${result.path}\nReplacements: ${result.replacements}`;
         const mutation = {
           action: "PATCH_FILE",
           requestedPath: path,
-          resolvedPath: resolvedMutationPath(response),
+          resolvedPath: result.path,
           success: true,
-          message: firstResponseLine(response),
-          replacements: responseNumber(response, "Replacements"),
+          message: `Patched: ${result.path}`,
+          replacements: result.replacements,
         };
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(
@@ -511,9 +520,7 @@ function createPatchFileAction(
   };
 }
 
-function createSearchFilesAction(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action {
+function createSearchFilesAction(): Action {
   return {
     name: "SEARCH_FILES",
     similes: ["DOOLITTLE_SEARCH_FILES", "FIND_FILES", "GREP_FILES"],
@@ -527,14 +534,13 @@ function createSearchFilesAction(
     cacheStable: true,
     validate: async () => true,
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       _message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
       try {
-        const workspaceDir = resolveWorkspaceDirectory(workspaceDirectory);
         const params = validateParams(
           "SEARCH_FILES",
           SEARCH_FILES_PARAMETERS,
@@ -542,14 +548,13 @@ function createSearchFilesAction(
         );
         const target =
           stringParam(params, "target") === "files" ? "files" : "content";
-        const response = searchLocalFiles(
-          { workspaceDir },
-          {
+        const response = formatSearchResult(
+          searchNativeWorkspaceFiles(runtime, {
             pattern: stringParam(params, "pattern", "query", "term"),
             path: stringParam(params, "path", "directory") || ".",
             target,
             limit: numberParam(params, "limit", 50),
-          },
+          }),
         );
         await callback?.({ text: response, source: "file-action" });
         return createActionResult(
@@ -571,14 +576,12 @@ function createSearchFilesAction(
   };
 }
 
-export function createFileActions(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action[] {
+export function createFileActions(): Action[] {
   return [
-    createReadFileAction(workspaceDirectory),
-    createWriteFileAction(workspaceDirectory),
-    createDirectoryAction(workspaceDirectory),
-    createPatchFileAction(workspaceDirectory),
-    createSearchFilesAction(workspaceDirectory),
+    createReadFileAction(),
+    createWriteFileAction(),
+    createDirectoryAction(),
+    createPatchFileAction(),
+    createSearchFilesAction(),
   ];
 }

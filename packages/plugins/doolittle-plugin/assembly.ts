@@ -41,7 +41,7 @@ export function createDoolittlePluginSurface({
     createMemoryAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
     triggerAction,
-    ...createFileActions(() => services.workspace.root()),
+    ...createFileActions(),
     createWorkspaceAction(() => services.workspace.root()),
     terminalAction,
     createRepositoryAction(),
