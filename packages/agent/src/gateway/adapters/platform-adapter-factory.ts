@@ -1,3 +1,4 @@
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { getNativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
 import type { PlatformName } from "@/types/gateway";
 import type { PlatformAdapter } from "../platforms/base";
@@ -31,6 +32,7 @@ export function createPlatformAdapter(
           context.services.gatewayConfig,
           platform,
         ),
+      () => getNativeServices(context.runtime).telegram,
     );
   }
   if (platform === "discord") {

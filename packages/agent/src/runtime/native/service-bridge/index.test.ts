@@ -454,7 +454,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["1", {}]]),
           };
@@ -502,7 +502,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["1", {}]]),
           };
@@ -552,7 +552,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["1", {}]]),
           };
@@ -603,7 +603,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["1", {}]]),
           };

@@ -12,7 +12,7 @@ import { isTransportGatewayEnabled } from "./gateway";
 function getNativeMessagingServices(runtime: RuntimeLike) {
   return getNativeServices(runtime) as {
     telegram?: {
-      bot?: unknown;
+      getBot?: () => unknown;
       messageManager?: unknown;
       knownChats?: Map<string, unknown>;
     };
@@ -33,10 +33,9 @@ function buildTelegramMessagingEntry(
     native.telegram?.knownChats instanceof Map
       ? native.telegram.knownChats.size
       : 0;
+  const telegramBot = native.telegram?.getBot?.();
   const telegramLive = Boolean(
-    telegramPlugin?.enabled &&
-      native.telegram?.bot &&
-      native.telegram?.messageManager,
+    telegramPlugin?.enabled && telegramBot && native.telegram?.messageManager,
   );
 
   return {

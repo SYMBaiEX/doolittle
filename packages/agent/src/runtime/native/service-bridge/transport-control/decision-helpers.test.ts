@@ -51,7 +51,7 @@ describe("transport decision helpers", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["chat-1", {}]]),
           };
@@ -133,7 +133,7 @@ describe("transport decision helpers", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["chat-1", { id: "chat-1" }]]),
           };

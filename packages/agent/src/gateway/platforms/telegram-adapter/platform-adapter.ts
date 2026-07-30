@@ -1,3 +1,4 @@
+import type { NativeTelegramTransportService } from "@/runtime/native/service-bridge/runtime-contracts";
 import type { NativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
 import type { DeliveryService } from "@/services/delivery-service";
 import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
@@ -9,18 +10,23 @@ import {
   editMessagingRecord,
 } from "../messaging-adapter-shared";
 import { MessagingPlatformState } from "../messaging-state";
-import { parseTelegramResponse } from "./response";
-import { editTelegramMessage, sendTelegramMessage } from "./send";
 import {
-  getTelegramApiRoot,
+  editNativeTelegramMessage,
+  requireNativeTelegramService,
+  sendNativeTelegramMessage,
+} from "./native-transport";
+import {
   isTelegramConfigured,
-  requireTelegramBotToken,
   TELEGRAM_CONFIGURED_DETAIL,
   TELEGRAM_MISSING_DETAIL,
   TELEGRAM_STARTED_DETAIL,
   TELEGRAM_STOP_DETAIL,
   TELEGRAM_STOPPED_DETAIL,
 } from "./status";
+
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export class TelegramPlatformAdapter implements PlatformAdapter {
   private readonly state: MessagingPlatformState;
@@ -32,6 +38,9 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     private readonly nativeBridge?: () =>
       | NativeMessagingTransportState
       | undefined,
+    private readonly nativeService: () =>
+      | NativeTelegramTransportService
+      | undefined = () => undefined,
   ) {
     this.state = new MessagingPlatformState(name);
   }
@@ -67,23 +76,23 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
   }
 
   async send(message: OutboundPlatformMessage) {
-    const botToken = requireTelegramBotToken(this.config, this.state);
-    const { response, bodyText } = await sendTelegramMessage(
-      getTelegramApiRoot(this.config),
-      botToken,
-      message,
-    );
-
-    if (!response.ok) {
-      this.state.fail(`Telegram send failed (${response.status}): ${bodyText}`);
-    }
+    const responseMetadata = await (async () => {
+      try {
+        const service = requireNativeTelegramService(this.nativeService);
+        return await sendNativeTelegramMessage(service, message);
+      } catch (error) {
+        return this.state.fail(
+          `Telegram native send failed: ${errorDetail(error)}`,
+        );
+      }
+    })();
 
     return deliverMessagingRecord({
       delivery: this.delivery,
       message,
       name: this.name,
       platformLabel: "Telegram",
-      responseMetadata: parseTelegramResponse(bodyText),
+      responseMetadata,
       state: this.state,
     });
   }
@@ -92,7 +101,6 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
     delivery: Awaited<ReturnType<TelegramPlatformAdapter["send"]>>,
     message: OutboundPlatformMessage,
   ) {
-    const botToken = requireTelegramBotToken(this.config, this.state);
     const chatId = delivery.metadata?.platformRoomId ?? message.roomId;
     const telegramMessageId =
       delivery.metadata?.platformMessageId ?? message.replyToId;
@@ -103,24 +111,28 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
       );
     }
 
-    const { response, bodyText } = await editTelegramMessage(
-      getTelegramApiRoot(this.config),
-      botToken,
-      chatId,
-      telegramMessageId,
-      message.text,
-    );
-
-    if (!response.ok) {
-      this.state.fail(`Telegram edit failed (${response.status}): ${bodyText}`);
-    }
+    const responseMetadata = await (async () => {
+      try {
+        const service = requireNativeTelegramService(this.nativeService);
+        return await editNativeTelegramMessage(service, {
+          roomId: chatId,
+          messageId: telegramMessageId,
+          text: message.text,
+          threadId: message.threadId ?? delivery.threadId,
+        });
+      } catch (error) {
+        return this.state.fail(
+          `Telegram native edit failed: ${errorDetail(error)}`,
+        );
+      }
+    })();
 
     return editMessagingRecord({
       delivery: this.delivery,
       existingRecord: delivery,
       message,
       platformLabel: "Telegram",
-      responseMetadata: parseTelegramResponse(bodyText),
+      responseMetadata,
       state: this.state,
       locationLabel: message.roomId,
     });

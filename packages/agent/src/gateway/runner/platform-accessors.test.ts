@@ -26,7 +26,7 @@ describe("gateway runner platform accessors", () => {
       getService(name: string) {
         if (name === "telegram") {
           return {
-            bot: {},
+            getBot: () => ({}),
             messageManager: {},
             knownChats: new Map([["1", {}]]),
           };

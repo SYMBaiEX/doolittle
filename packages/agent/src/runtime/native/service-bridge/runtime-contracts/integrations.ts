@@ -17,9 +17,50 @@ export interface NativeDiscordTransportService {
   history?: (limit?: number) => unknown[];
 }
 
+export interface NativeTelegramSentMessage {
+  message_id: string | number;
+  chat: {
+    id: string | number;
+  };
+}
+
+export interface NativeTelegramMessageManager {
+  sendMessage(
+    chatId: string | number,
+    content: {
+      text?: string;
+      source?: string;
+      metadata?: Record<string, string>;
+    },
+    replyToMessageId?: number,
+    messageThreadId?: number,
+  ): Promise<NativeTelegramSentMessage[]>;
+  editMessage(
+    chatId: string | number,
+    messageId: number,
+    text: string,
+    messageThreadId?: number,
+  ): Promise<void>;
+}
+
+export interface NativeTelegramBot {
+  telegram: {
+    sendVoice(
+      chatId: string | number,
+      voice: { source: unknown },
+      options?: {
+        caption?: string;
+        message_thread_id?: number;
+        reply_parameters?: { message_id: number };
+      },
+    ): Promise<NativeTelegramSentMessage>;
+  };
+}
+
 export interface NativeTelegramTransportService {
-  bot?: unknown;
-  messageManager?: unknown;
+  getBot?: () => NativeTelegramBot | null;
+  getBots?: () => NativeTelegramBot[];
+  messageManager?: NativeTelegramMessageManager | null;
   knownChats?: Map<string | number, unknown>;
 }
 
