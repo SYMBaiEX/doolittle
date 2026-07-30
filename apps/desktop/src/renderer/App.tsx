@@ -44,6 +44,12 @@ import {
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { UtilityDrawer } from "./components/UtilityDrawer";
 import {
+  acknowledgeNavigationIntent,
+  createOrchestrationTaskNavigationIntent,
+  createWorkspaceFileNavigationIntent,
+  type DesktopNavigationIntent,
+} from "./desktop-navigation-intent";
+import {
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopTheme,
@@ -79,6 +85,7 @@ import {
 import { projectNavigationTarget } from "./project-navigation";
 import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
 import { workspacePathsEqual } from "./workspace-path";
+import { resolveWorkspaceSelection } from "./workspace-selection";
 
 const DashboardPage = lazy(() =>
   import("./DashboardPage").then((module) => ({
@@ -481,6 +488,8 @@ export function App() {
   const [selectedSession, setSelectedSession] = useState(initialConversation);
   const [pendingChatContext, setPendingChatContext] =
     useState<ChatContextHandoff | null>(null);
+  const [pendingNavigationIntent, setPendingNavigationIntent] =
+    useState<DesktopNavigationIntent | null>(null);
   const [globalError, setGlobalError] = useState("");
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
@@ -753,10 +762,40 @@ export function App() {
   }, [pushToast]);
 
   const switchToRecentWorkspace = useCallback(
-    async (path: string, announce = true) => {
+    async (
+      path: string,
+      options: {
+        announce?: boolean;
+        sessionId?: string;
+        transition?: number;
+      } = {},
+    ) => {
+      const announce = options.announce ?? true;
+      const transition = options.transition ?? projectTransitionRef.current + 1;
+      if (options.transition === undefined) {
+        projectTransitionRef.current = transition;
+        pendingProjectScopeRef.current = null;
+      }
       try {
         const result = await window.doolittle.switchWorkspace(path);
+        if (projectTransitionRef.current !== transition) return false;
+        const selection = resolveWorkspaceSelection({
+          workspacePath: result.state.currentPath,
+          projects,
+          sessions,
+          selectedSessionId: options.sessionId ?? selectedSession,
+          createSessionId: newConversationId,
+          pathsEqual,
+        });
+        // Commit the runtime workspace and its project/chat identity as one
+        // parent-owned transition. A recent folder cannot leave the Code/Git
+        // surface on one repository while Chat is scoped to another.
         setWorkspace(result.state);
+        setProjectScope(selection.projectScope);
+        setSelectedSession(selection.sessionId);
+        if (options.transition === undefined) {
+          pendingProjectScopeRef.current = null;
+        }
         if (announce) {
           pushToast({
             tone: "success",
@@ -775,7 +814,7 @@ export function App() {
         return false;
       }
     },
-    [pushToast],
+    [projects, pushToast, selectedSession, sessions],
   );
 
   const reloadProjects = useCallback(async () => {
@@ -787,7 +826,11 @@ export function App() {
   }, []);
 
   const activateProjectWorkspace = useCallback(
-    async (scope: ProjectScope): Promise<boolean> => {
+    async (
+      scope: ProjectScope,
+      transition?: number,
+      sessionId?: string,
+    ): Promise<boolean> => {
       const project =
         scope === "all" || scope === "unscoped"
           ? undefined
@@ -801,7 +844,11 @@ export function App() {
             pathsEqual(path, project.primaryPath as string),
           )
         ) {
-          return switchToRecentWorkspace(project.primaryPath, false);
+          return switchToRecentWorkspace(project.primaryPath, {
+            announce: false,
+            sessionId,
+            transition,
+          });
         } else {
           pushToast({
             tone: "warning",
@@ -842,15 +889,17 @@ export function App() {
         !pathsEqual(project?.primaryPath, workspace.currentPath);
       const activate = () => {
         if (projectTransitionRef.current !== transition) return;
-        void activateProjectWorkspace(scope).then((activated) => {
-          if (projectTransitionRef.current !== transition) return;
-          pendingProjectScopeRef.current = null;
-          if (!activated) return;
-          setProjectScope(scope);
-          setSelectedSession(sessionId);
-          if (nextView) setView(nextView);
-          onActivated?.();
-        });
+        void activateProjectWorkspace(scope, transition, sessionId).then(
+          (activated) => {
+            if (projectTransitionRef.current !== transition) return;
+            pendingProjectScopeRef.current = null;
+            if (!activated) return;
+            setProjectScope(scope);
+            setSelectedSession(sessionId);
+            if (nextView) setView(nextView);
+            onActivated?.();
+          },
+        );
       };
       if (needsWorkspaceSwitch) {
         window.setTimeout(activate, PROJECT_SWITCH_DEBOUNCE_MS);
@@ -1248,7 +1297,7 @@ export function App() {
     ) {
       return;
     }
-    void switchToRecentWorkspace(projectPath);
+    void switchToRecentWorkspace(projectPath, { announce: false });
   }, [
     backend.phase,
     projectScope,
@@ -1522,6 +1571,12 @@ export function App() {
     setPendingChatContext((current) => (current?.id === id ? null : current));
   }, []);
 
+  const consumeNavigationIntent = useCallback((id: string) => {
+    setPendingNavigationIntent((current) =>
+      acknowledgeNavigationIntent(current, id),
+    );
+  }, []);
+
   const globalSearch = useGlobalSearch(
     paletteQuery,
     paletteOpen && backend.phase === "ready",
@@ -1541,30 +1596,43 @@ export function App() {
           break;
         case "workspace":
           setView("code");
-          window.setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent("doolittle:open-workspace-file", {
-                detail: { path: target.path },
-              }),
-            );
-          }, 0);
+          setPendingNavigationIntent(
+            createWorkspaceFileNavigationIntent(target.path),
+          );
           break;
         case "task":
-          setView("orchestration");
-          window.setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent("doolittle:select-orchestration-task", {
-                detail: { taskId: target.taskId },
-              }),
+          if (
+            target.workspacePath &&
+            !pathsEqual(target.workspacePath, workspace.currentPath)
+          ) {
+            void switchToRecentWorkspace(target.workspacePath, {
+              announce: false,
+            }).then((switched) => {
+              if (!switched) return;
+              setView("orchestration");
+              setPendingNavigationIntent(
+                createOrchestrationTaskNavigationIntent(target.taskId),
+              );
+            });
+          } else {
+            setView("orchestration");
+            setPendingNavigationIntent(
+              createOrchestrationTaskNavigationIntent(target.taskId),
             );
-          }, 0);
+          }
           break;
         case "log":
           setView("logs");
           break;
       }
     },
-    [openSession, selectProjectScope, setView],
+    [
+      openSession,
+      selectProjectScope,
+      setView,
+      switchToRecentWorkspace,
+      workspace.currentPath,
+    ],
   );
 
   const searchCommandGroups = useMemo<CommandGroup[]>(() => {
@@ -1924,6 +1992,8 @@ export function App() {
           <CodingWorkspacePage
             active={backend.phase === "ready"}
             key={workspace.currentPath || "local-workspace"}
+            navigationIntent={pendingNavigationIntent}
+            onAcknowledgeNavigationIntent={consumeNavigationIntent}
             onSendToChat={openChatWithContext}
             projectScope={projectScope}
             workspacePath={workspace.currentPath}
@@ -1959,6 +2029,8 @@ export function App() {
           <OrchestrationPage
             active={backend.phase === "ready"}
             key={`${workspace.currentPath}\u0000${projectScope}`}
+            navigationIntent={pendingNavigationIntent}
+            onAcknowledgeNavigationIntent={consumeNavigationIntent}
             projectScope={projectScope}
             workspaceLabel={
               activeProject?.name ??

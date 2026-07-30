@@ -13,7 +13,7 @@ export type GlobalSearchTarget =
   | { kind: "project"; projectId: string }
   | { kind: "projectSource"; projectId: string; resourceId: string }
   | { kind: "workspace"; path: string }
-  | { kind: "task"; taskId: string }
+  | { kind: "task"; taskId: string; workspacePath?: string }
   | { kind: "log"; id: string };
 
 export interface GlobalSearchResult {
@@ -204,7 +204,11 @@ export function normalizeGlobalSearchResults(
           label: title,
           description: `${asString(task.status, "pending")} · ${objective || id}`,
           keywords: [id, title, objective, normalizedQuery],
-          target: { kind: "task", taskId: id },
+          target: {
+            kind: "task",
+            taskId: id,
+            workspacePath: asString(task.workspaceRoot) || undefined,
+          },
         };
       })
       .filter((result): result is GlobalSearchResult => result !== null),

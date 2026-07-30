@@ -51,6 +51,7 @@ test("normalizes, deduplicates, and bounds results from local search sources", (
             title: "Check runtime",
             objective: "Find runtime status",
             status: "running",
+            workspaceRoot: "/work/runtime",
           },
           {
             id: "task-2",
@@ -85,6 +86,13 @@ test("normalizes, deduplicates, and bounds results from local search sources", (
     "project-source:project-1:source-1",
   );
   expect(results.map((result) => result.id)).toContain("task:task-1");
+  expect(results.find((result) => result.id === "task:task-1")?.target).toEqual(
+    {
+      kind: "task",
+      taskId: "task-1",
+      workspacePath: "/work/runtime",
+    },
+  );
   expect(results.map((result) => result.id)).not.toContain("task:task-2");
   expect(
     results.find((result) => result.id === "workspace:src/runtime-0.ts")

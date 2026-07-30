@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { ArtifactViewer } from "./components/ArtifactViewer";
+import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
   asArray,
   asNumber,
@@ -380,11 +381,15 @@ function DetailTag({
 
 export function OrchestrationPage({
   active,
+  navigationIntent,
+  onAcknowledgeNavigationIntent,
   projectScope = "all",
   workspaceLabel,
   workspacePath,
 }: {
   active: boolean;
+  navigationIntent: DesktopNavigationIntent | null;
+  onAcknowledgeNavigationIntent: (id: string) => void;
   projectScope?: string;
   workspaceLabel?: string;
   workspacePath?: string;
@@ -409,6 +414,7 @@ export function OrchestrationPage({
   });
   const confirmDialogRef = useRef<HTMLDivElement>(null);
   const confirmReturnRef = useRef<HTMLButtonElement | null>(null);
+  const consumedNavigationIntents = useRef(new Set<string>());
 
   const overviewResource = useApiResource<DelegationOverviewResponse>(
     active ? "/delegation/overview" : null,
@@ -545,25 +551,38 @@ export function OrchestrationPage({
   const [notices, setNotices] = useState<SurfaceNotice[]>([]);
 
   useEffect(() => {
-    const selectTask = (event: Event) => {
-      const taskId =
-        event instanceof CustomEvent &&
-        event.detail &&
-        typeof event.detail === "object" &&
-        typeof event.detail.taskId === "string"
-          ? event.detail.taskId.trim()
-          : "";
-      if (!taskId) return;
-      setActiveTab("tasks");
-      setSelectedTaskId(taskId);
-    };
-    window.addEventListener("doolittle:select-orchestration-task", selectTask);
-    return () =>
-      window.removeEventListener(
-        "doolittle:select-orchestration-task",
-        selectTask,
-      );
-  }, []);
+    if (navigationIntent?.kind !== "orchestration-task" || !active) return;
+    if (consumedNavigationIntents.current.has(navigationIntent.id)) {
+      onAcknowledgeNavigationIntent(navigationIntent.id);
+      return;
+    }
+    const taskId = navigationIntent.target.taskId.trim();
+    if (!taskId || tasksResource.loading) return;
+    if (!tasks.some((task) => task.id === taskId)) {
+      consumedNavigationIntents.current.add(navigationIntent.id);
+      setNotices((current) => [
+        {
+          id: Date.now(),
+          tone: "warn",
+          message:
+            "That task is no longer available in the selected workspace.",
+        },
+        ...current,
+      ]);
+      onAcknowledgeNavigationIntent(navigationIntent.id);
+      return;
+    }
+    consumedNavigationIntents.current.add(navigationIntent.id);
+    setActiveTab("tasks");
+    setSelectedTaskId(taskId);
+    onAcknowledgeNavigationIntent(navigationIntent.id);
+  }, [
+    active,
+    navigationIntent,
+    onAcknowledgeNavigationIntent,
+    tasks,
+    tasksResource.loading,
+  ]);
 
   useEffect(() => {
     if (tasks.length > 0 && !tasks.some((task) => task.id === selectedTaskId)) {

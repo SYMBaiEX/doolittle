@@ -25,6 +25,7 @@ import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import type { ProjectScope } from "./components/ProjectManager";
 import { WorkspaceFileTree } from "./components/WorkspaceFileTree";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
+import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
   asArray,
   asNumber,
@@ -347,11 +348,15 @@ function patchLines(patch: string): Array<{
 
 export function CodingWorkspacePage({
   active,
+  navigationIntent,
+  onAcknowledgeNavigationIntent,
   onSendToChat,
   projectScope,
   workspacePath,
 }: {
   active: boolean;
+  navigationIntent: DesktopNavigationIntent | null;
+  onAcknowledgeNavigationIntent: (id: string) => void;
   onSendToChat: (request: ChatContextRequest) => void;
   projectScope: ProjectScope;
   workspacePath: string;
@@ -383,6 +388,7 @@ export function CodingWorkspacePage({
   const [fileNotice, setFileNotice] = useState<ActionNotice | null>(null);
   const [savingFile, setSavingFile] = useState(false);
   const fileDirtyRef = useRef(false);
+  const consumedNavigationIntents = useRef(new Set<string>());
   const acpEditor = useDesktopAcpEditorBridge({
     active,
     workspacePath,
@@ -535,35 +541,27 @@ export function CodingWorkspacePage({
           tone: "warn",
           message: "Save or discard this file before opening another one.",
         });
-        return;
+        return false;
       }
       setSelectedPath(path);
       setEditorPane(destination);
+      return true;
     },
     [fileDirty, selectedPath],
   );
 
   useEffect(() => {
-    const onOpenWorkspaceFile = (event: Event) => {
-      const path =
-        event instanceof CustomEvent &&
-        event.detail &&
-        typeof event.detail === "object" &&
-        typeof event.detail.path === "string"
-          ? event.detail.path.trim()
-          : "";
-      if (active && path) openPath(path);
-    };
-    window.addEventListener(
-      "doolittle:open-workspace-file",
-      onOpenWorkspaceFile,
-    );
-    return () =>
-      window.removeEventListener(
-        "doolittle:open-workspace-file",
-        onOpenWorkspaceFile,
-      );
-  }, [active, openPath]);
+    if (navigationIntent?.kind !== "workspace-file" || !active) return;
+    if (consumedNavigationIntents.current.has(navigationIntent.id)) {
+      onAcknowledgeNavigationIntent(navigationIntent.id);
+      return;
+    }
+    const path = navigationIntent.target.path.trim();
+    if (path && openPath(path)) {
+      consumedNavigationIntents.current.add(navigationIntent.id);
+      onAcknowledgeNavigationIntent(navigationIntent.id);
+    }
+  }, [active, navigationIntent, onAcknowledgeNavigationIntent, openPath]);
 
   useEffect(() => {
     localStorage.setItem(EXPLORER_VISIBLE_KEY, String(explorerVisible));
