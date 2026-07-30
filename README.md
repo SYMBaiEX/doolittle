@@ -563,7 +563,7 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 | Terminal execution (local, Docker, Podman, SSH, Singularity, Daytona, Modal) | [`terminal/service.ts`](./packages/agent/src/services/terminal/service.ts) | `/execution status`, `/execution backends`, `/execution set backend`, `/terminal run` | `GET /execution/status`, `POST /terminal/run` |
 | Repository inspection | [`repository-service.ts`](./packages/agent/src/services/repository-service.ts) | `/repo status`, `/repo diff`, `/repo log` | `GET /repo/status`, `GET /repo/diff` |
 | Autocoder | [`doolittle-plugin/autocoder`](./packages/plugins/doolittle-plugin/autocoder/) | Native codegen actions | Via runtime actions |
-| Workspace exploration | [`workspace-service.ts`](./packages/agent/src/services/workspace-service.ts) | `/workspace tree`, `/workspace read`, `/workspace search` | `GET /workspace/tree`, `GET /workspace/read` |
+| Workspace exploration | [`workspace-service/index.ts`](./packages/agent/src/services/workspace-service/index.ts) | `/workspace tree`, `/workspace read`, `/workspace search` | `GET /workspace/tree`, `GET /workspace/read` |
 | Workspace context files | [`context-files-service.ts`](./packages/agent/src/services/context-files-service.ts) | `/context files` | `GET /context/files` |
 
 ### Remembers across sessions
@@ -574,7 +574,7 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 | Cross-session search | [`session/service/index.ts`](./packages/agent/src/services/session/service/index.ts) | `/search <query>` | `GET /search` |
 | User profiles | [`user-profile/service/index.ts`](./packages/agent/src/services/user-profile/service/index.ts) | `/user profile`, `/user card`, `/user beliefs`, `/user relationship`, `/user engagement` | `GET /profiles/users/card` |
 | Memory nudges | [`memory-nudge-evaluator.ts`](./packages/agent/src/evaluators/memory-nudge-evaluator.ts) | Automatic | Evaluator-driven |
-| Shared task context | [`agent-context-provider.ts`](./packages/agent/src/providers/agent-context-provider.ts) | Automatic | Provider-driven |
+| Shared task context | [`agent-context/provider.ts`](./packages/agent/src/providers/agent-context/provider.ts) | Automatic | Provider-driven |
 
 ### Learns and adapts
 
@@ -590,19 +590,19 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 
 | Capability | Implementation | CLI |
 |---|---|---|
-| Delegation and sub-agent execution | Official `ORCHESTRATOR_TASK_SERVICE`; [`delegation/service/index.ts`](./packages/agent/src/services/delegation/service/index.ts) is a read projection | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
-| Run controller and observed progress | [`run-controller-service.ts`](./packages/agent/src/services/run-controller-service.ts) | `/mode`, `/progress`, automatic live run state |
+| Delegation and sub-agent execution | Official `ORCHESTRATOR_TASK_SERVICE`; [`delegation/projection.ts`](./packages/agent/src/services/delegation/projection.ts) is a read projection | `/delegate create`, `/delegate spawn`, `/delegate execute`, `/delegate supervise` |
+| Run controller and observed progress | [`run-controller-service/index.ts`](./packages/agent/src/services/run-controller-service/index.ts) | `/mode`, `/progress`, automatic live run state |
 | Trajectory evaluation projection | [`trajectory/service/index.ts`](./packages/agent/src/services/trajectory/service/index.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
 | Planning boards | [`doolittle-plugin/planning`](./packages/plugins/doolittle-plugin/planning/) | `/planning` flows |
-| Scheduling and automation | Native Eliza Trigger Tasks through [`cron/service/index.ts`](./packages/agent/src/services/cron/service/index.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
+| Scheduling and automation | Native Eliza Trigger Tasks through [`trigger-runtime-service.ts`](./packages/plugins/doolittle-plugin/trigger-runtime-service.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
 
 ### Reaches the outside world
 
 | Capability | Implementation | CLI |
 |---|---|---|
 | Browser (Lightpanda) | [`web/service.ts`](./packages/agent/src/services/web/service.ts) | `/browser fetch`, `/browser inspect`, `/browser snapshot`, `/browser screenshot`, `/browser capture`, `/browser analyze`, `/browser compare` |
-| MCP bridge | [`mcp-service.ts`](./packages/agent/src/services/mcp-service.ts) | `/mcp status`, `/mcp tools`, `/mcp cached`, `/mcp invoke`, `/mcp call` |
-| ACP registry | [`acp-service.ts`](./packages/agent/src/services/acp-service.ts) | `/acp status`, `/acp registry`, `/acp publish`, `/acp tools`, `/acp call` |
+| MCP bridge | [`mcp-service.ts`](./packages/plugins/doolittle-plugin/mcp-service.ts) | `/mcp status`, `/mcp tools`, `/mcp cached`, `/mcp invoke`, `/mcp call` |
+| ACP registry | [`acp/service.ts`](./packages/agent/src/services/acp/service.ts) | `/acp status`, `/acp registry`, `/acp publish`, `/acp tools`, `/acp call` |
 | Delivery routing | [`delivery-service.ts`](./packages/agent/src/services/delivery-service.ts) | Via gateway — Telegram, Discord, Slack, WhatsApp, Signal, Matrix, email, SMS |
 | Media processing | [`media/service.ts`](./packages/agent/src/services/media/service.ts) | `/media transcript`, `/media caption`, `/media analyze`, `/media voice`, `/media vision`, `/media generate`, `/media speak` |
 | PDF extraction | [`documents-service.ts`](./packages/agent/src/services/documents-service.ts) | `/pdf extract` |
@@ -614,13 +614,13 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 | Diagnostics | [`diagnostics/service.ts`](./packages/agent/src/services/diagnostics/service.ts) | `doolittle doctor`, `/doctor` |
 | Startup hydration state | [`startup-state-service.ts`](./packages/agent/src/services/startup-state-service.ts) | `/status`, `/doctor`, `GET /runtime/status` |
 | Context compression | [`context-compression/service.ts`](./packages/agent/src/services/context-compression/service.ts) | Automatic history pressure management |
-| Run progress streaming | [`run-controller-service.ts`](./packages/agent/src/services/run-controller-service.ts) | Automatic |
-| Event hooks | [`hooks-service.ts`](./packages/agent/src/services/hooks-service.ts) | `/hooks add`, `/hooks recent` |
-| Operator summaries | [`operator/service.ts`](./packages/agent/src/services/operator/service.ts) | `/status`, `/runtime status` |
+| Run progress streaming | [`run-controller-service/index.ts`](./packages/agent/src/services/run-controller-service/index.ts) | Automatic |
+| Event hooks | [`hook-projection-service.ts`](./packages/agent/src/services/hook-projection-service.ts) | `/hooks add`, `/hooks recent` |
+| Operator summaries | [`operator/service/index.ts`](./packages/agent/src/services/operator/service/index.ts) | `/status`, `/runtime status` |
 | Tool registry | [`tools/service.ts`](./packages/agent/src/services/tools/service.ts) | `/tools list`, `/tools summary`, `/tools search` |
-| Gateway orchestration | [`gateway-session-service.ts`](./packages/agent/src/services/gateway-session-service.ts) | `/gateway state`, `/gateway trace` |
+| Gateway orchestration | [`gateway-session-service/index.ts`](./packages/agent/src/services/gateway-session-service/index.ts) | `/gateway state`, `/gateway trace` |
 | Pairing and allowlists | Eliza [`PairingService`](https://docs.elizaos.ai/) projected through [`gateway-pairing.ts`](./packages/agent/src/services/gateway-pairing.ts) | `/pairing pending` |
-| Account management | [`accounts-commands.ts`](./packages/agent/src/runtime/commands/accounts-commands.ts) | `/accounts`, `/accounts connect`, `/accounts use` |
+| Account management | [`accounts/index.ts`](./packages/agent/src/runtime/commands/accounts/index.ts) | `/accounts`, `/accounts connect`, `/accounts use` |
 
 ---
 

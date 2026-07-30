@@ -1,5 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { listNativeCapabilityTruth } from "../../packages/agent/src/runtime/native/capability-truth";
 import { listOperatorWowContract } from "../../packages/agent/src/runtime/native/operator-wow-contract";
 import { buildInventoryRows } from "./inventory";
@@ -11,6 +17,115 @@ import {
 } from "./render";
 import { pluginReadmeTargets } from "./targets";
 import type { SyncMode } from "./types";
+
+const MARKDOWN_LINK_TARGETS = [
+  "README.md",
+  "docs/eliza-maximization-matrix.md",
+] as const;
+
+function markdownFragment(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/<[^>]+>/gu, "")
+    .replace(/[`*_~]/gu, "")
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, "")
+    .trim()
+    .replace(/\s+/gu, "-");
+}
+
+function hasMarkdownFragment(content: string, fragment: string): boolean {
+  const headings = [...content.matchAll(/^#{1,6}\s+(.+)$/gmu)].map((match) =>
+    markdownFragment(match[1] ?? ""),
+  );
+  if (headings.length === 0) return true;
+
+  const wanted = decodeURIComponent(fragment).toLowerCase();
+  return headings.some((heading, index) => {
+    const duplicateIndex = headings
+      .slice(0, index)
+      .filter((item) => item === heading).length;
+    return (
+      (duplicateIndex ? `${heading}-${duplicateIndex}` : heading) === wanted
+    );
+  });
+}
+
+/**
+ * Checks the small set of architecture docs that are maintained alongside the
+ * generated truth files. External URLs, mail links, and same-page anchors are
+ * intentionally ignored; local files and Markdown heading fragments are
+ * checked without following or executing anything.
+ */
+export function validateMarkdownLinks(
+  root: string,
+  files: readonly string[] = MARKDOWN_LINK_TARGETS,
+): string[] {
+  const failures: string[] = [];
+  const linkPattern = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)/gu;
+
+  for (const relativePath of files) {
+    const absolutePath = join(root, relativePath);
+    if (!existsSync(absolutePath)) {
+      failures.push(`${relativePath}: file does not exist`);
+      continue;
+    }
+    const content = readFileSync(absolutePath, "utf8");
+    for (const match of content.matchAll(linkPattern)) {
+      const rawTarget = (match[1] ?? "").replace(/^<|>$/gu, "");
+      if (
+        !rawTarget ||
+        rawTarget.startsWith("#") ||
+        /^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(rawTarget)
+      ) {
+        continue;
+      }
+
+      const [targetPath, fragment] = rawTarget.split("#", 2);
+      let decodedPath: string;
+      try {
+        decodedPath = decodeURIComponent(targetPath);
+      } catch {
+        failures.push(`${relativePath}: invalid link encoding: ${rawTarget}`);
+        continue;
+      }
+      const target = join(dirname(absolutePath), decodedPath);
+      const repositoryRelativeTarget = relative(root, target);
+      if (
+        decodedPath.startsWith("/") ||
+        /^[A-Za-z]:[\\/]/u.test(decodedPath) ||
+        repositoryRelativeTarget === ".." ||
+        /^\.\.(?:[\\/]|$)/u.test(repositoryRelativeTarget)
+      ) {
+        const line = content.slice(0, match.index ?? 0).split("\n").length;
+        failures.push(
+          `${relativePath}:${line}: link escapes repository: ${rawTarget}`,
+        );
+        continue;
+      }
+      if (!existsSync(target)) {
+        const line = content.slice(0, match.index ?? 0).split("\n").length;
+        failures.push(
+          `${relativePath}:${line}: missing link target: ${rawTarget}`,
+        );
+        continue;
+      }
+      if (!fragment || !statSync(target).isFile() || !target.endsWith(".md")) {
+        continue;
+      }
+      try {
+        if (!hasMarkdownFragment(readFileSync(target, "utf8"), fragment)) {
+          const line = content.slice(0, match.index ?? 0).split("\n").length;
+          failures.push(
+            `${relativePath}:${line}: missing link fragment: ${rawTarget}`,
+          );
+        }
+      } catch {
+        failures.push(`${relativePath}: invalid link fragment: ${rawTarget}`);
+      }
+    }
+  }
+  return failures;
+}
 
 function syncFile(
   root: string,
@@ -78,6 +193,8 @@ export function runSyncDocTruth(options?: { root?: string; mode?: SyncMode }) {
       failures.push(failure);
     }
   }
+
+  failures.push(...validateMarkdownLinks(root));
 
   return failures;
 }
