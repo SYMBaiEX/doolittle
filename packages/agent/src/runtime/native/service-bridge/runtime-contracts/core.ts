@@ -2,11 +2,25 @@ import {
   type AutomationJobRecord,
   type AutomationRunRecord,
   DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
+import type {
+  BrowserAnalysisBundle,
+  BrowserCaptureBundle,
+  BrowserComparisonAnalysisBundle,
+  BrowserComparisonBundle,
+  BrowserInspection,
+  BrowserStatus,
+  WebPageSnapshot,
+} from "@/services/web/service";
 
 export const PDF_SERVICE = "pdf";
-export { DOOLITTLE_AUTOMATION_SERVICE, DOOLITTLE_SHELL_SERVICE };
+export {
+  DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
+};
 
 export interface NativePdfService {
   convertPdfToTextWithOptions(
@@ -31,21 +45,24 @@ export interface NativeShellService {
 }
 
 export interface NativeBrowserService {
-  status(): Promise<unknown>;
+  status?(): Promise<BrowserStatus>;
   summary?(): {
     operations: string[];
     multimodal: boolean;
     captureReady: boolean;
     analysisReady: boolean;
   };
-  fetch(url: string): Promise<string>;
-  inspect(url: string): Promise<unknown>;
+  fetch(url: string): Promise<string | WebPageSnapshot>;
+  inspect(url: string): Promise<BrowserInspection>;
   snapshot(url: string): Promise<string>;
   screenshot(url: string): Promise<string>;
-  capture(url: string): Promise<unknown>;
-  analyze(url: string): Promise<unknown>;
-  compare(leftUrl: string, rightUrl: string): Promise<unknown>;
-  analyzeComparison(leftUrl: string, rightUrl: string): Promise<unknown>;
+  capture(url: string): Promise<BrowserCaptureBundle>;
+  analyze(url: string): Promise<BrowserAnalysisBundle>;
+  compare(leftUrl: string, rightUrl: string): Promise<BrowserComparisonBundle>;
+  analyzeComparison(
+    leftUrl: string,
+    rightUrl: string,
+  ): Promise<BrowserComparisonAnalysisBundle>;
 }
 
 export interface NativeMcpService {

@@ -2,6 +2,7 @@ import type { EnvConfig } from "@doolittle/agent/plugin-api";
 import {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_AWARENESS_SERVICE,
+  DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_GATEWAY_SERVICE,
   DOOLITTLE_SCHEDULER_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
@@ -76,6 +77,7 @@ describe("createDoolittlePlugin offline bootstrap", () => {
       expect.arrayContaining([
         "memoryStorage",
         DOOLITTLE_AWARENESS_SERVICE,
+        DOOLITTLE_BROWSER_SERVICE,
         DOOLITTLE_GATEWAY_SERVICE,
         DOOLITTLE_SCHEDULER_SERVICE,
         DOOLITTLE_SHELL_SERVICE,

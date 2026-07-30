@@ -34,6 +34,7 @@ import type {
 import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
@@ -67,7 +68,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     rolodex: service<NativeRolodexService>(runtime, "rolodex"),
     experience: service<NativeExperienceService>(runtime, "experience"),
     shell: service<NativeShellService>(runtime, DOOLITTLE_SHELL_SERVICE),
-    browser: service<NativeBrowserService>(runtime, "browser"),
+    browser: service<NativeBrowserService>(runtime, DOOLITTLE_BROWSER_SERVICE),
     mcp: service<NativeMcpService>(runtime, "mcp"),
     automation: service<NativeAutomationService>(
       runtime,

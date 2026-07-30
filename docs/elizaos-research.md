@@ -119,6 +119,10 @@ Local command execution follows the same boundary: the Doolittle plugin
 registers the canonical `shell` service, delegates policy and backend work to
 the existing terminal implementation, and makes actions resolve execution
 through the runtime service instead of bypassing Eliza service ownership.
+Browser capture and evidence operations are likewise registered as the
+canonical `browser` service. CLI commands, API routes, and runtime diagnostics
+resolve that service first while the existing web implementation retains
+truthful browser-versus-placeholder behavior behind the plugin boundary.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.

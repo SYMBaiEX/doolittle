@@ -5,35 +5,10 @@ import type {
   BrowserComparisonAnalysisBundle,
   BrowserComparisonBundle,
   BrowserInspection,
-  BrowserStatus,
   WebPageSnapshot,
 } from "@/services/web/service";
-import { getNativeServices, type RuntimeLike } from "../runtime";
-
-interface NativeBrowserSummary {
-  operations: string[];
-  multimodal: boolean;
-  captureReady: boolean;
-  analysisReady: boolean;
-}
-
-interface NativeBrowserService {
-  status?(): Promise<BrowserStatus>;
-  summary?(): NativeBrowserSummary;
-  fetch(url: string): Promise<string | WebPageSnapshot>;
-  inspect(url: string): Promise<BrowserInspection>;
-  snapshot(url: string): Promise<string>;
-  screenshot(url: string): Promise<string>;
-  capture(url: string): Promise<BrowserCaptureBundle>;
-  analyze(url: string): Promise<BrowserAnalysisBundle>;
-  compare(leftUrl: string, rightUrl: string): Promise<BrowserComparisonBundle>;
-  analyzeComparison(
-    leftUrl: string,
-    rightUrl: string,
-  ): Promise<BrowserComparisonAnalysisBundle>;
-}
-
-type BrowserAnalysisResult = { prompt: string } & Record<string, unknown>;
+import { getNativeServices } from "../runtime";
+import type { NativeBrowserService, RuntimeLike } from "../runtime-contracts";
 
 function getNativeBrowser(
   runtime: RuntimeLike,
@@ -58,9 +33,8 @@ export async function fetchEffectiveBrowserPage(
   services: AppServices,
   url: string,
 ): Promise<string | WebPageSnapshot> {
-  return (
-    (await getNativeBrowser(runtime)?.fetch(url)) ?? services.web.fetchText(url)
-  );
+  const browser = getNativeBrowser(runtime);
+  return browser ? browser.fetch(url) : services.web.fetchText(url);
 }
 
 export async function inspectEffectiveBrowserPage(
@@ -68,9 +42,8 @@ export async function inspectEffectiveBrowserPage(
   services: AppServices,
   url: string,
 ): Promise<BrowserInspection> {
-  return (
-    (await getNativeBrowser(runtime)?.inspect(url)) ?? services.web.inspect(url)
-  );
+  const browser = getNativeBrowser(runtime);
+  return browser ? browser.inspect(url) : services.web.inspect(url);
 }
 
 export async function snapshotEffectiveBrowserPage(
@@ -78,10 +51,8 @@ export async function snapshotEffectiveBrowserPage(
   services: AppServices,
   url: string,
 ): Promise<string> {
-  return (
-    ((await getNativeBrowser(runtime)?.snapshot(url)) as string | undefined) ??
-    ((await services.web.snapshot(url)) as string)
-  );
+  const browser = getNativeBrowser(runtime);
+  return browser ? browser.snapshot(url) : services.web.snapshot(url);
 }
 
 export async function screenshotEffectiveBrowserPage(
@@ -89,10 +60,8 @@ export async function screenshotEffectiveBrowserPage(
   services: AppServices,
   url: string,
 ): Promise<string> {
-  return (
-    (await getNativeBrowser(runtime)?.screenshot(url)) ??
-    services.web.screenshot(url)
-  );
+  const browser = getNativeBrowser(runtime);
+  return browser ? browser.screenshot(url) : services.web.screenshot(url);
 }
 
 export async function captureEffectiveBrowserPage(
@@ -100,19 +69,17 @@ export async function captureEffectiveBrowserPage(
   services: AppServices,
   url: string,
 ): Promise<BrowserCaptureBundle> {
-  return (
-    (await getNativeBrowser(runtime)?.capture(url)) ?? services.web.capture(url)
-  );
+  const browser = getNativeBrowser(runtime);
+  return browser ? browser.capture(url) : services.web.capture(url);
 }
 
 export async function analyzeEffectiveBrowserPage(
   runtime: RuntimeLike,
   services: AppServices,
   url: string,
-): Promise<BrowserAnalysisResult> {
-  return (((await getNativeBrowser(runtime)?.analyze(url)) as
-    | BrowserAnalysisResult
-    | undefined) ?? services.web.analyze(url)) as BrowserAnalysisResult;
+): Promise<BrowserAnalysisBundle> {
+  const browser = getNativeBrowser(runtime);
+  return browser ? browser.analyze(url) : services.web.analyze(url);
 }
 
 export async function compareEffectiveBrowserPages(
@@ -121,10 +88,10 @@ export async function compareEffectiveBrowserPages(
   leftUrl: string,
   rightUrl: string,
 ): Promise<BrowserComparisonBundle> {
-  return (
-    (await getNativeBrowser(runtime)?.compare(leftUrl, rightUrl)) ??
-    services.web.compare(leftUrl, rightUrl)
-  );
+  const browser = getNativeBrowser(runtime);
+  return browser
+    ? browser.compare(leftUrl, rightUrl)
+    : services.web.compare(leftUrl, rightUrl);
 }
 
 export async function analyzeEffectiveBrowserComparison(
@@ -132,10 +99,9 @@ export async function analyzeEffectiveBrowserComparison(
   services: AppServices,
   leftUrl: string,
   rightUrl: string,
-): Promise<BrowserAnalysisResult> {
-  return (((await getNativeBrowser(runtime)?.analyzeComparison(
-    leftUrl,
-    rightUrl,
-  )) as BrowserAnalysisResult | undefined) ??
-    services.web.analyzeComparison(leftUrl, rightUrl)) as BrowserAnalysisResult;
+): Promise<BrowserComparisonAnalysisBundle> {
+  const browser = getNativeBrowser(runtime);
+  return browser
+    ? browser.analyzeComparison(leftUrl, rightUrl)
+    : services.web.analyzeComparison(leftUrl, rightUrl);
 }

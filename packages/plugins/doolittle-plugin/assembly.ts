@@ -17,6 +17,7 @@ import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
 import { createAwarenessRuntimeService } from "./awareness-service";
+import { createBrowserRuntimeService } from "./browser-service";
 import { createGatewayRuntimeService } from "./gateway-service";
 import { createMemoryStorageService } from "./memory-storage-service";
 import { createDoolittleRuntimeRoutes } from "./routes";
@@ -58,6 +59,7 @@ export function createDoolittlePluginSurface({
     config,
   });
   const AwarenessRuntimeService = createAwarenessRuntimeService(services);
+  const BrowserRuntimeService = createBrowserRuntimeService(services);
   const MemoryStorageService = createMemoryStorageService(services.sessions);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
   const ShellRuntimeService = createShellRuntimeService(services);
@@ -77,6 +79,7 @@ export function createDoolittlePluginSurface({
     services: [
       MemoryStorageService,
       AwarenessRuntimeService,
+      BrowserRuntimeService,
       GatewayRuntimeService,
       SchedulerRuntimeService,
       ShellRuntimeService,
