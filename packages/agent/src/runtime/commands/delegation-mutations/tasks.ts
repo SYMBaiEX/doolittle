@@ -37,7 +37,7 @@ export async function handleDelegationTaskMutation(
 
   if (trimmed.startsWith("/delegate execute ")) {
     const id = trimmed.replace("/delegate execute ", "").trim();
-    return JSON.stringify(await options.runDelegationTaskInWorker(id), null, 2);
+    return JSON.stringify(await options.executeDelegationTask(id), null, 2);
   }
 
   if (trimmed.startsWith("/delegate retry ")) {

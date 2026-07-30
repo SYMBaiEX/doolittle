@@ -7,10 +7,7 @@ export async function handleDelegationCommand(
   trimmed: string,
   context: AgentExecutionContext,
   options: {
-    runDelegationTaskInWorker: (
-      taskId: string,
-      options?: { assumeRunning?: boolean },
-    ) => Promise<unknown>;
+    executeDelegationTask: (taskId: string) => Promise<unknown>;
   },
 ): Promise<string | undefined> {
   try {

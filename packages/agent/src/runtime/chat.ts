@@ -1,5 +1,4 @@
 import { buildCommandResponse } from "@/runtime/chat-command-router";
-import { runDelegationTaskInWorker as runDelegationTaskInWorkerImpl } from "@/runtime/chat-delegation-worker";
 import { runPostCommandTurn } from "@/runtime/chat-turn/post-command";
 import { prepareTurnState } from "@/runtime/chat-turn/state";
 import {
@@ -7,6 +6,7 @@ import {
   type LinkedProviderName,
   syncProviderSettings,
 } from "@/runtime/linked-provider-accounts";
+import { executeEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
 import { resolveManagedChatAttachments } from "@/services/chat-attachments";
@@ -111,16 +111,6 @@ export async function runModelAnalysisTurn(
   );
 }
 
-export async function runDelegationTaskInWorker(
-  context: AgentExecutionContext,
-  taskId: string,
-  options?: { assumeRunning?: boolean },
-): Promise<
-  ReturnType<AgentExecutionContext["services"]["delegationProjection"]["get"]>
-> {
-  return runDelegationTaskInWorkerImpl(context, taskId, options);
-}
-
 export async function executeSlashCommand(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
@@ -131,8 +121,17 @@ export async function executeSlashCommand(
       runModelAnalysisTurn(context, prompt, label, {
         personalityId: getEffectiveActivePersonality(context.runtime).id,
       }),
-    runDelegationTaskInWorker: (taskId, options) =>
-      runDelegationTaskInWorker(context, taskId, options),
+    executeDelegationTask: async (taskId) => {
+      const task = await executeEffectiveDelegationTask(
+        context.runtime,
+        context.services.delegationProjection,
+        taskId,
+      );
+      if (!task) {
+        throw new Error(`Delegation task not found: ${taskId}`);
+      }
+      return task;
+    },
   });
 }
 

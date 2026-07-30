@@ -55,10 +55,24 @@ function contextWithOfficialService(): AgentExecutionContext {
 }
 
 const options = {
-  runDelegationTaskInWorker: async () => detail(),
+  executeDelegationTask: async () => detail(),
 };
 
 describe("delegation command router", () => {
+  it("executes a task through the injected native-service seam", async () => {
+    const executeDelegationTask = async (taskId: string) => ({
+      ...detail(),
+      id: taskId,
+    });
+    const response = await handleDelegationCommand(
+      "/delegate execute task-42",
+      contextWithOfficialService(),
+      { executeDelegationTask },
+    );
+
+    expect(response).toContain('"id": "task-42"');
+  });
+
   it("renders official tasks through the legacy CLI model", async () => {
     const response = await handleDelegationCommand(
       "/delegate list",

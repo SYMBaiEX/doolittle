@@ -18,7 +18,7 @@ function createInput(
 
 const dependencies: ChatCommandRouterDependencies = {
   runAnalysis: async () => "compressed summary",
-  runDelegationTaskInWorker: async () => undefined as never,
+  executeDelegationTask: async () => undefined as never,
 };
 
 describe("session command router", () => {

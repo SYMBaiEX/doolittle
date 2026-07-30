@@ -3,9 +3,8 @@ import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
 
 export type ChatCommandRouterDependencies = {
   runAnalysis: (prompt: string, label: string) => Promise<string>;
-  runDelegationTaskInWorker: (
+  executeDelegationTask: (
     taskId: string,
-    options?: { assumeRunning?: boolean },
   ) => Promise<
     ReturnType<AgentExecutionContext["services"]["delegationProjection"]["get"]>
   >;

@@ -90,6 +90,46 @@ describe("chat turn orchestration", () => {
     vi.clearAllMocks();
   });
 
+  it("injects direct official delegation execution into command routing", async () => {
+    const executeEffectiveDelegationTask = vi.fn(async () => ({
+      id: "task-1",
+    }));
+    const buildCommandResponse = vi.fn(
+      async (
+        _input: ChatTurnRequest,
+        _context: AgentExecutionContext,
+        _hooks: unknown,
+        dependencies: {
+          executeDelegationTask: (taskId: string) => Promise<unknown>;
+        },
+      ) => dependencies.executeDelegationTask("task-1"),
+    );
+    vi.doMock("@/runtime/chat-command-router", () => ({
+      buildCommandResponse,
+    }));
+    vi.doMock("@/runtime/native/service-bridge/delegation", () => ({
+      executeEffectiveDelegationTask,
+    }));
+
+    const { executeSlashCommand } = await loadHandleAgentTurn();
+    const context = createContext({
+      services: {
+        ...createContext().services,
+        delegationProjection: { get: () => ({ id: "task-1" }) } as never,
+      },
+    });
+    await expect(
+      executeSlashCommand(createInput("/delegate execute task-1"), context),
+    ).resolves.toEqual({
+      id: "task-1",
+    });
+    expect(executeEffectiveDelegationTask).toHaveBeenCalledWith(
+      context.runtime,
+      context.services.delegationProjection,
+      "task-1",
+    );
+  });
+
   it("routes explicit commands through the SDK message lifecycle", async () => {
     let effectiveInput: ChatTurnRequest | undefined;
     const runPostCommandTurn = vi.fn(

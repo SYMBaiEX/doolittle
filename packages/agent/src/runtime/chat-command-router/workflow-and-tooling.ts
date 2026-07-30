@@ -20,6 +20,6 @@ export const workflowAndToolingRoutes = [
   ({ trimmed, context }) => handleTrajectoryCommand(trimmed, context),
   ({ trimmed, context, dependencies }) =>
     handleDelegationCommand(trimmed, context, {
-      runDelegationTaskInWorker: dependencies.runDelegationTaskInWorker,
+      executeDelegationTask: dependencies.executeDelegationTask,
     }),
 ] as const satisfies ChatCommandRouteGroup;

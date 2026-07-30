@@ -100,7 +100,7 @@ function createRoute(
     calls.push(`${name}:${trimmed}:${sessionKey}`);
     expect(hooks).toBeDefined();
     expect(dependencies.runAnalysis).toBeTypeOf("function");
-    expect(dependencies.runDelegationTaskInWorker).toBeTypeOf("function");
+    expect(dependencies.executeDelegationTask).toBeTypeOf("function");
     return response;
   };
 }
@@ -150,7 +150,7 @@ describe("chat command router", () => {
       {} as never,
       {
         runAnalysis: async () => "analysis",
-        runDelegationTaskInWorker: async () => ({ id: "task-1" }) as never,
+        executeDelegationTask: async () => ({ id: "task-1" }) as never,
       },
     );
 
@@ -182,7 +182,7 @@ describe("chat command router", () => {
       {} as never,
       {
         runAnalysis: async () => "analysis",
-        runDelegationTaskInWorker: async () => ({ id: "task-1" }) as never,
+        executeDelegationTask: async () => ({ id: "task-1" }) as never,
       },
     );
 
