@@ -1,6 +1,8 @@
 export interface NativePluginManagerService {
-  list(): unknown[];
-  categories(): unknown;
+  getAllPlugins?(): unknown[];
+  getLoadedPlugins?(): unknown[];
+  list?(): unknown[];
+  categories?(): unknown;
   summary?(): {
     total: number;
     enabled: number;

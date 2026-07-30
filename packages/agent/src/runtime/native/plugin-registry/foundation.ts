@@ -3,7 +3,12 @@ import {
   KnowledgeGraphService,
   knowledgeGraphSchema,
 } from "@elizaos/agent/services/knowledge-graph/index";
-import { ApprovalService, type Plugin, ToolPolicyService } from "@elizaos/core";
+import {
+  ApprovalService,
+  type Plugin,
+  PluginManagerService,
+  ToolPolicyService,
+} from "@elizaos/core";
 
 /**
  * Mount the stable, independently importable Eliza foundation services.
@@ -25,6 +30,7 @@ export function loadFoundationPlugins(): Plugin[] {
         ApprovalService,
         ToolPolicyService,
         DatabaseTrajectoryLogger,
+        PluginManagerService,
       ],
     },
   ];

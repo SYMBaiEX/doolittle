@@ -13,6 +13,7 @@ import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 
 const CRITICAL_RUNTIME_SERVICES = [
   "rolodex",
+  "plugin_manager",
   DOOLITTLE_AWARENESS_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_GATEWAY_SERVICE,

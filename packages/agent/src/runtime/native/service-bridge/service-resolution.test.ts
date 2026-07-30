@@ -191,6 +191,80 @@ describe("service-resolution helpers", () => {
     });
   });
 
+  it("adapts the official Eliza plugin manager runtime state", () => {
+    const runtime = {
+      getService(name: string) {
+        if (name === "plugin_manager") {
+          return {
+            getAllPlugins: () => [
+              {
+                id: "official",
+                name: "@elizaos/plugin-sql",
+                status: "ready",
+                plugin: {
+                  description: "SQL persistence",
+                  actions: [],
+                  providers: [{ name: "database" }],
+                  services: [{ serviceType: "database" }],
+                },
+              },
+              {
+                id: "product",
+                name: "doolittle-runtime",
+                status: "loaded",
+                plugin: {
+                  description: "Doolittle product plugin",
+                  actions: [{ name: "RUN_IN_TERMINAL" }],
+                  providers: [],
+                  services: [{ serviceType: "shell" }],
+                },
+              },
+            ],
+          };
+        }
+        return null;
+      },
+    } as unknown as RuntimeLike;
+
+    expect(getEffectivePluginManagerInventory(runtime)).toEqual({
+      plugins: [
+        {
+          id: "official",
+          name: "@elizaos/plugin-sql",
+          status: "ready",
+          enabled: true,
+          source: "official",
+          description: "SQL persistence",
+          actions: 0,
+          providers: 1,
+          services: 1,
+        },
+        {
+          id: "product",
+          name: "doolittle-runtime",
+          status: "loaded",
+          enabled: true,
+          source: "vendored",
+          description: "Doolittle product plugin",
+          actions: 1,
+          providers: 0,
+          services: 1,
+        },
+      ],
+      categories: {
+        official: 1,
+        vendored: 1,
+      },
+      summary: {
+        total: 2,
+        enabled: 2,
+        official: 1,
+        vendored: 1,
+        categories: 2,
+      },
+    });
+  });
+
   it("derives plugin manager summary values when the native summary is missing", () => {
     const runtime = {
       getService(name: string) {

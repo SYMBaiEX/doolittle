@@ -1,6 +1,6 @@
 import type { RuntimeLike } from "../runtime";
 import { getNativeServices } from "../runtime";
-import { buildDerivedPluginManagerSummary } from "./plugin-manager-summary";
+import { readNativePluginManagerInventory } from "./plugin-manager-inventory";
 import { buildEffectiveServiceResolutionRecords } from "./records";
 import type {
   EffectiveServiceResolutionRecord,
@@ -32,14 +32,5 @@ export function getEffectivePluginManagerInventory(runtime: RuntimeLike): {
   if (!pluginManager) {
     return null;
   }
-  const plugins = pluginManager.list();
-  const categories = pluginManager.categories();
-  const summary =
-    pluginManager.summary?.() ??
-    buildDerivedPluginManagerSummary(plugins, categories);
-  return {
-    plugins,
-    categories,
-    summary,
-  };
+  return readNativePluginManagerInventory(pluginManager);
 }
