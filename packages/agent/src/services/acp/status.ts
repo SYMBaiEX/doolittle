@@ -63,7 +63,7 @@ export function createAcpServiceStatus(
       timeoutMs: input.timeoutMs,
       detail: input.command
         ? `Official ACP v${PROTOCOL_VERSION} runtime is ready; an external ACP command is also configured. Tools: ${input.toolCount}.`
-        : `Official ACP v${PROTOCOL_VERSION} runtime is ready in-process and through packages/agent/src/acp-server.ts. Tools: ${input.toolCount}.`,
+        : `Official ACP v${PROTOCOL_VERSION} runtime is ready in-process and through "doolittle acp". Tools: ${input.toolCount}.`,
       lastProbeAt: input.lastProbeAt,
       lastInvocationAt: input.lastInvocationAt,
       lastError: input.lastError,

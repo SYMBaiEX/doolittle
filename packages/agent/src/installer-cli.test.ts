@@ -17,6 +17,7 @@ function runCommand(
   command: string,
   args: string[],
   extraEnv: Record<string, string> = {},
+  input?: string,
 ) {
   const sandboxHome = mkdtempSync(join(tmpdir(), "doolittle-e2e-"));
   const environment = { ...process.env };
@@ -33,11 +34,15 @@ function runCommand(
       ...extraEnv,
     },
     encoding: "utf8",
+    input,
+    timeout: 30_000,
   });
   const output = `${result.stdout}\n${result.stderr}`.trim();
   rmSync(sandboxHome, { recursive: true, force: true });
   return {
     code: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
     output,
   };
 }
@@ -71,4 +76,27 @@ describe("installer and launcher smoke tests", () => {
     expect(result.output).toContain("Preflight");
     expect(result.output).toContain("Bootstrap check complete.");
   });
+
+  it("launches ACP through the installed CLI surface with protocol-clean stdout", () => {
+    const result = runCommand(
+      NUB_PATH,
+      ["packages/agent/src/index.ts", "acp"],
+      { DOOLITTLE_WORKSPACE_DIR: ROOT },
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: 1, clientCapabilities: {} },
+      })}\n`,
+    );
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).not.toContain("API listening");
+    expect(result.stdout.trim()).toMatch(/^\{.+\}$/u);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      jsonrpc: "2.0",
+      id: 1,
+      result: { protocolVersion: 1 },
+    });
+  }, 30_000);
 });

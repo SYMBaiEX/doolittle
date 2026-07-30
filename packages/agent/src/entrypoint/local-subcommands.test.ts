@@ -27,6 +27,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runAcpServer: vi.fn(async () => {}),
       },
     );
 
@@ -52,6 +53,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runAcpServer: vi.fn(async () => {}),
       },
     );
 
@@ -81,6 +83,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runAcpServer: vi.fn(async () => {}),
       },
     );
 
@@ -113,6 +116,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand,
+        runAcpServer: vi.fn(async () => {}),
       },
     );
 
@@ -124,5 +128,30 @@ describe("handleLocalEntrypointSubcommand", () => {
       }),
     );
     expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("routes ACP through the protocol-only stdio entrypoint", async () => {
+    const runAcpServer = vi.fn(async () => {});
+    const handled = await handleLocalEntrypointSubcommand(
+      {
+        command: "acp",
+        rest: [],
+        repoRoot: "/repo",
+        renderTopLevelHelp: () => "help text",
+        entryLogger: createLogger() as never,
+        runOnboardingWizard: async () => {},
+      },
+      {
+        existsSync: vi.fn(() => true),
+        resolve: ((...parts: string[]) => parts.join("/")) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
+        runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runAcpServer,
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(runAcpServer).toHaveBeenCalledOnce();
   });
 });

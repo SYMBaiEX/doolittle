@@ -12,6 +12,7 @@ interface LocalSubcommandDeps {
   runProcess: typeof runInheritedTextProcess;
   renderCommandCatalog: typeof renderCommandCatalog;
   runDesktopCommand: typeof runDesktopCommand;
+  runAcpServer: () => Promise<void>;
 }
 
 const localSubcommandDeps: LocalSubcommandDeps = {
@@ -20,6 +21,7 @@ const localSubcommandDeps: LocalSubcommandDeps = {
   runProcess: runInheritedTextProcess,
   renderCommandCatalog,
   runDesktopCommand,
+  runAcpServer: async () => (await import("./acp-server")).startAcpServer(),
 };
 
 export async function handleLocalEntrypointSubcommand(
@@ -79,6 +81,11 @@ export async function handleLocalEntrypointSubcommand(
       writeStderrLine(result.message);
     }
     exit(result.exitCode);
+    return true;
+  }
+
+  if (input.command === "acp") {
+    await deps.runAcpServer();
     return true;
   }
 

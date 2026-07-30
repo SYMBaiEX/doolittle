@@ -16,6 +16,7 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
+const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
 const pgliteDist = resolve(
   repoRoot,
@@ -63,8 +64,25 @@ console.log(
 
 await build({
   absWorkingDir: repoRoot,
-  entryPoints: [resolve(repoRoot, "packages", "agent", "src", "index.ts")],
-  outfile: outputPath,
+  entryPoints: {
+    "doolittle-runtime": resolve(
+      repoRoot,
+      "packages",
+      "agent",
+      "src",
+      "index.ts",
+    ),
+    "doolittle-acp": resolve(
+      repoRoot,
+      "packages",
+      "agent",
+      "src",
+      "acp-server.ts",
+    ),
+  },
+  outdir: outputDir,
+  entryNames: "[name]",
+  outExtension: { ".js": ".mjs" },
   bundle: true,
   platform: "node",
   format: "esm",
@@ -174,17 +192,19 @@ writeFileSync(
   "utf8",
 );
 
-// The source entrypoint uses `#!/usr/bin/env nub` for source-checkout launches.
-// Packaged apps execute this bundle as an argument to Electron's embedded Node,
-// so retaining that source-only launcher hint is misleading and unnecessary.
-const bundledRuntime = readFileSync(outputPath, "utf8");
-writeFileSync(
-  outputPath,
-  bundledRuntime.replace(/^#![^\r\n]*(?:\r?\n|$)/u, ""),
-  "utf8",
-);
+// Source entrypoints use `#!/usr/bin/env nub` for source-checkout launches.
+// Packaged apps execute these bundles through Electron's embedded Node, so
+// retaining that source-only launcher hint is misleading and unnecessary.
+const bundledEntries = [outputPath, acpOutputPath].map((entry) => {
+  const bundle = readFileSync(entry, "utf8");
+  const withoutShebang = bundle.replace(/^#![^\r\n]*(?:\r?\n|$)/u, "");
+  writeFileSync(entry, withoutShebang, "utf8");
+  return withoutShebang;
+});
 
-for (const packageName of discoverDynamicCommonJsPackages(bundledRuntime)) {
+for (const packageName of discoverDynamicCommonJsPackages(
+  bundledEntries.join("\n"),
+)) {
   const manifestPath = resolve(
     runtimeNodeModulesDir,
     packageName,
@@ -203,6 +223,7 @@ writeFileSync(
     {
       runtime: "node",
       entry: basename(outputPath),
+      acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
       assets: pgliteAssets.length,
     },

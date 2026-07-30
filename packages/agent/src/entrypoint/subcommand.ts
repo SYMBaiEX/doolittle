@@ -14,6 +14,7 @@ export type EntrypointSubcommand =
   | "doctor"
   | "dev"
   | "api"
+  | "acp"
   | "gateway"
   | "plain"
   | "exec"
@@ -99,6 +100,7 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
     check: "doctor",
     dev: "dev",
     api: "api",
+    acp: "acp",
     gateway: "gateway",
     plain: "plain",
     "plain-cli": "plain",

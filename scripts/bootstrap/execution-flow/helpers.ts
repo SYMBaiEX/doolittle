@@ -97,7 +97,7 @@ export function resolveMcpPresetCommand(preset: string): string {
 }
 
 export function resolveAcpPresetCommand(preset: string): string {
-  return preset === "local-agent" ? "doolittle api" : "";
+  return preset === "local-agent" ? "doolittle acp" : "";
 }
 
 export function applyExecutionFlowResult(

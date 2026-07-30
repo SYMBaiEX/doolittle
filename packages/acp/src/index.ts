@@ -288,8 +288,8 @@ export function buildAcpRegistryEntry(input: {
         }
       : {
           type: "command",
-          command: "nub",
-          args: ["packages/agent/src/acp-server.ts"],
+          command: "doolittle",
+          args: ["acp"],
         },
     capabilities: {
       tools: input.toolCount,

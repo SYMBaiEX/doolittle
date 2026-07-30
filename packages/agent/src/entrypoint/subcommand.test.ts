@@ -33,6 +33,10 @@ describe("resolveSubcommand", () => {
       command: "desktop",
       rest: [],
     });
+    expect(resolveSubcommand(["acp"])).toEqual({
+      command: "acp",
+      rest: [],
+    });
     expect(resolveSubcommand(["desktop", "--help"])).toEqual({
       command: "desktop",
       rest: ["--help"],

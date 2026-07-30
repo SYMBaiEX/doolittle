@@ -25,6 +25,17 @@ function resolveMaxIterations(
   return RUN_DEPTH_ITERATION_PRESETS[values.DOOLITTLE_RUN_DEPTH];
 }
 
+/**
+ * `doolittle api` was accidentally offered as an ACP command by older
+ * bootstrap flows. It starts an HTTP server, not the required NDJSON stdio
+ * protocol, so migrate only that known-invalid value at config load time.
+ */
+export function resolveAcpServerCommand(
+  command: string | undefined,
+): string | undefined {
+  return command?.trim() === "doolittle api" ? "doolittle acp" : command;
+}
+
 export function buildEnvConfig(
   values: ParsedEnvValues,
   directories: ManagedDirectories,
@@ -137,7 +148,7 @@ export function buildEnvConfig(
     sshStrictHostKeyChecking: values.DOOLITTLE_SSH_STRICT_HOST_KEY_CHECKING,
     mcpServerCommand: values.MCP_SERVER_COMMAND,
     mcpTimeoutMs: values.MCP_TIMEOUT_MS,
-    acpServerCommand: values.ACP_SERVER_COMMAND,
+    acpServerCommand: resolveAcpServerCommand(values.ACP_SERVER_COMMAND),
     acpTimeoutMs: values.ACP_TIMEOUT_MS,
     memoryCharLimit: values.DOOLITTLE_MEMORY_CHAR_LIMIT,
     userCharLimit: values.DOOLITTLE_USER_CHAR_LIMIT,

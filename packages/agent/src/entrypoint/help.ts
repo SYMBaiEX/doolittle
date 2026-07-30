@@ -40,6 +40,7 @@ export function renderTopLevelHelp(): string {
     "",
     "Setup and recovery:",
     "  doolittle desktop         Build and open the native desktop app",
+    "  doolittle acp             Run the ACP stdio server for editors",
     "  doolittle setup           Run onboarding",
     "  doolittle doctor          Check readiness and local setup",
     "",

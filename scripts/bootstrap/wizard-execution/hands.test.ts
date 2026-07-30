@@ -228,7 +228,7 @@ describe("bootstrap execution hands flow", () => {
     expect(result.mcpServerCommand).toBe(
       "npx -y @modelcontextprotocol/server-filesystem .",
     );
-    expect(result.acpServerCommand).toBe("doolittle api");
+    expect(result.acpServerCommand).toBe("doolittle acp");
     expect(result.falApiKey).toBe("fal");
     expect(result.e2bApiKey).toBe("e2b");
     expect(result.githubToken).toBe("gh");

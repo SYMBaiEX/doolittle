@@ -56,6 +56,23 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
 
   expect(pkg.workspaceCount).toBe(4);
   expect(registry.capabilities.tools).toBe(7);
+  expect(registry.distribution).toEqual({
+    type: "command",
+    command: "/bin/zsh",
+    args: ["-lc", "nub run start"],
+  });
+  expect(
+    buildAcpRegistryEntry({
+      agentName: "Doolittle",
+      description: "Doolittle runtime",
+      package: pkg,
+      toolCount: 7,
+    }).distribution,
+  ).toEqual({
+    type: "command",
+    command: "doolittle",
+    args: ["acp"],
+  });
   expect(editor.installCommand).toContain("nub install");
   expect(bundle.tools.length).toBe(1);
 });

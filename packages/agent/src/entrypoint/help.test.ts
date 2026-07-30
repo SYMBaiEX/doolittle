@@ -10,6 +10,7 @@ describe("renderTopLevelHelp", () => {
     expect(renderTopLevelHelp()).toContain("doolittle progress");
     expect(renderTopLevelHelp()).toContain("doolittle tools");
     expect(renderTopLevelHelp()).toContain("doolittle skills");
+    expect(renderTopLevelHelp()).toContain("doolittle acp");
     expect(renderTopLevelHelp()).toContain("Daily shell:");
     expect(renderTopLevelHelp()).toContain("One-shot operator views:");
   });

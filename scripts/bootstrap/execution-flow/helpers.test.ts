@@ -54,7 +54,7 @@ describe("bootstrap execution flow helpers", () => {
     expect(resolveMcpPresetCommand("filesystem")).toContain(
       "@modelcontextprotocol/server-filesystem",
     );
-    expect(resolveAcpPresetCommand("local-agent")).toBe("doolittle api");
+    expect(resolveAcpPresetCommand("local-agent")).toBe("doolittle acp");
   });
 
   it("applies execution results back onto the wizard answer bag", () => {

@@ -11,12 +11,14 @@ terminal methods are handled by the runtime bridge in `packages/agent`.
 The registry executable is:
 
 ```sh
-nub packages/agent/src/acp-server.ts
+doolittle acp
 ```
 
 It reserves stdout for newline-delimited ACP JSON-RPC and redirects application
-logs to stderr. Doolittle's API/desktop runtime also uses the same official SDK
-agent and client apps in-process.
+logs to stderr. This is an installed command, so editor registries never depend
+on a checkout-relative source path. Desktop bundles include the matching
+`doolittle-acp.mjs` runtime entrypoint. Doolittle's API/desktop runtime also
+uses the same official SDK agent and client apps in-process.
 
 Editor focus and rich context are not advertised as stable ACP capabilities.
 Clients opt in with `doolittle/editor-context` and `doolittle/resources` in

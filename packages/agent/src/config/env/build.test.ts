@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEnvConfig } from "./build";
+import { buildEnvConfig, resolveAcpServerCommand } from "./build";
 import type { ManagedDirectories } from "./directories";
 import { parseEnv } from "./schema";
 
@@ -63,5 +63,13 @@ describe("env config builder", () => {
         directories,
       ).claudeCodeCliFallback,
     ).toBe(false);
+  });
+
+  it("migrates the retired HTTP ACP launcher without touching custom commands", () => {
+    expect(resolveAcpServerCommand("doolittle api")).toBe("doolittle acp");
+    expect(resolveAcpServerCommand("custom-acp --stdio")).toBe(
+      "custom-acp --stdio",
+    );
+    expect(resolveAcpServerCommand(undefined)).toBeUndefined();
   });
 });
