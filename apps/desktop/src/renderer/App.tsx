@@ -2300,6 +2300,14 @@ export function App() {
             <span aria-live="polite" className="sr-only">
               {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
             </span>
+            {view === "chat" ? (
+              <div
+                aria-label="Conversation controls"
+                className="chat-chrome-host"
+                ref={setChatChromeHost}
+                role="toolbar"
+              />
+            ) : null}
             <div className="window-tools">
               <button
                 aria-label="Open command palette"
@@ -2353,14 +2361,6 @@ export function App() {
               </button>
             </div>
           </div>
-          {view === "chat" ? (
-            <div
-              aria-label="Conversation controls"
-              className="chat-chrome-host"
-              ref={setChatChromeHost}
-              role="toolbar"
-            />
-          ) : null}
         </div>
         {backend.phase === "degraded" ? (
           <div className="runtime-banner">
