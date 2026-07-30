@@ -40,6 +40,9 @@ describe("chat chrome density contract", () => {
       /\.chat-header-top-actions\s*{[^}]*-webkit-app-region:\s*no-drag;/s,
     );
     expect(css).toMatch(
+      /\.chat-model-route\s*{[^}]*align-self:\s*center;[^}]*align-items:\s*center;[^}]*line-height:\s*1;/s,
+    );
+    expect(css).toMatch(
       /\.chat-session-meta\s*{[^}]*-webkit-app-region:\s*no-drag;/s,
     );
   });

@@ -557,15 +557,19 @@ button.chat-context-compact:focus-visible {
 }
 
 .chat-model-route {
+  align-self: center;
+  align-items: center;
   margin-top: 0;
   min-height: 18px;
   padding: 0 5px;
   gap: 4px;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .chat-model-route > strong {
   font-size: 10px;
+  line-height: 1;
 }
 
 .chat-mobile-conversations-button {
