@@ -296,6 +296,5 @@ export function attachRunProgressBridge(
     services.runController.markAgentEventBridgeAttached(true);
   }
 
-  services.awareness.initialize(services);
   services.runController.markRuntimeBridgeAttached(true);
 }

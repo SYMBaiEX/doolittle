@@ -1,6 +1,7 @@
 import type { EnvConfig } from "@doolittle/agent/plugin-api";
 import {
   DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_AWARENESS_SERVICE,
   DOOLITTLE_GATEWAY_SERVICE,
   DOOLITTLE_SCHEDULER_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
@@ -73,6 +74,7 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     expect(plugin.services?.map((service) => service.serviceType)).toEqual(
       expect.arrayContaining([
         "memoryStorage",
+        DOOLITTLE_AWARENESS_SERVICE,
         DOOLITTLE_GATEWAY_SERVICE,
         DOOLITTLE_SCHEDULER_SERVICE,
         DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,

@@ -16,6 +16,7 @@ import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
+import { createAwarenessRuntimeService } from "./awareness-service";
 import { createGatewayRuntimeService } from "./gateway-service";
 import { createMemoryStorageService } from "./memory-storage-service";
 import { createDoolittleRuntimeRoutes } from "./routes";
@@ -48,13 +49,14 @@ export function createDoolittlePluginSurface({
   const providers: Provider[] = [
     ...getSessionProviders(),
     ...createAgentContextProviders(services),
-    createSelfAwarenessProvider(services),
+    createSelfAwarenessProvider(),
   ];
   const evaluators: Evaluator[] = [createMemoryNudgeEvaluator(services)];
   const GatewayRuntimeService = createGatewayRuntimeService({
     services,
     config,
   });
+  const AwarenessRuntimeService = createAwarenessRuntimeService(services);
   const MemoryStorageService = createMemoryStorageService(services.sessions);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
 
@@ -72,6 +74,7 @@ export function createDoolittlePluginSurface({
     routes: createDoolittleRuntimeRoutes({ services, config }),
     services: [
       MemoryStorageService,
+      AwarenessRuntimeService,
       GatewayRuntimeService,
       SchedulerRuntimeService,
       ...createTriggerRuntimeServices(services),

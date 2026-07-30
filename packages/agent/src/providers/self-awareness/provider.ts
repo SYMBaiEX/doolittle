@@ -1,3 +1,4 @@
+import { DOOLITTLE_AWARENESS_SERVICE } from "@doolittle/contracts";
 import type {
   IAgentRuntime,
   Memory,
@@ -5,22 +6,25 @@ import type {
   ProviderResult,
   State,
 } from "@elizaos/core";
-import type { AppServices } from "@/services";
+
+interface AwarenessRuntimeService {
+  composeSummary(runtime: IAgentRuntime): Promise<string>;
+}
 
 /**
  * Surfaces the agent's composed self-awareness summary into the runtime
  * provider context so the model can reason about its own operational state.
  *
- * The ElizaOS `AwarenessRegistry` (assembled by {@link AwarenessService} with
- * the runtime / run / startup / settings / capabilities contributors) produces
- * a Layer-1 summary via `composeSummary`. The registry is built at startup, but
- * nothing injected its output into a turn — this provider closes that gap.
+ * The registered Doolittle awareness service owns the ElizaOS
+ * `AwarenessRegistry` and its runtime / run / startup / settings / capabilities
+ * contributors. This provider only projects the resulting Layer-1 summary into
+ * the turn context.
  *
  * Additive and fault-tolerant: `composeSummary` already returns `""` on
  * contributor failure, and any throw is swallowed, so the turn is never broken
  * and nothing is injected when there is no summary to show.
  */
-export function createSelfAwarenessProvider(services: AppServices): Provider {
+export function createSelfAwarenessProvider(): Provider {
   return {
     name: "DOOLITTLE_SELF_AWARENESS_PROVIDER",
     description:
@@ -34,7 +38,10 @@ export function createSelfAwarenessProvider(services: AppServices): Provider {
     ): Promise<ProviderResult> => {
       let summary = "";
       try {
-        summary = (await services.awareness.composeSummary(runtime)).trim();
+        const service = runtime.getService(
+          DOOLITTLE_AWARENESS_SERVICE,
+        ) as AwarenessRuntimeService | null;
+        summary = (await service?.composeSummary(runtime))?.trim() ?? "";
       } catch {
         summary = "";
       }
