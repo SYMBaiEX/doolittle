@@ -23,17 +23,18 @@ export interface SkillProposalIndex {
 }
 
 export function createGeneratedSkillStorage(skillsDir: string) {
-  const generatedDir = join(skillsDir, "generated");
-  const indexPath = join(generatedDir, "index.json");
-  const proposalsPath = join(generatedDir, "proposals.json");
+  const metadataDir = join(skillsDir, ".generated");
+  const indexPath = join(metadataDir, "index.json");
+  const proposalsPath = join(metadataDir, "proposals.json");
 
-  mkdirSync(generatedDir, { recursive: true });
+  mkdirSync(metadataDir, { recursive: true });
   if (!existsSync(indexPath)) {
     writeFileSync(indexPath, JSON.stringify({ skills: [] }, null, 2), "utf8");
   }
 
   return {
-    generatedDir,
+    generatedDir: skillsDir,
+    metadataDir,
     indexPath,
     proposalsPath,
     readIndex(): GeneratedSkillIndex {

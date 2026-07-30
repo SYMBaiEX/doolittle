@@ -1,0 +1,48 @@
+{
+  "skills": [
+    {
+      "slug": "adapter-spike",
+      "title": "Adapter spike",
+      "taskId": "af605989-fb98-4c8e-b137-201b80d72bb6",
+      "path": "packages/skills/adapter-spike/SKILL.md",
+      "createdAt": "2026-03-20T06:59:35.894Z",
+      "updatedAt": "2026-03-20T06:59:35.894Z",
+      "noteCount": 1,
+      "signalCount": 0,
+      "objective": "validate transport registry flow"
+    },
+    {
+      "slug": "queue-one",
+      "title": "Queue one",
+      "taskId": "46207110-6dc3-4be8-b3cd-bf8d854c292a",
+      "path": "packages/skills/queue-one/SKILL.md",
+      "createdAt": "2026-04-11T17:38:28.467Z",
+      "updatedAt": "2026-04-11T17:38:28.467Z",
+      "noteCount": 1,
+      "signalCount": 0,
+      "objective": "/status"
+    },
+    {
+      "slug": "queue-two",
+      "title": "Queue two",
+      "taskId": "64a7ca49-1a96-4ce4-b650-cbdb226c8d5b",
+      "path": "packages/skills/queue-two/SKILL.md",
+      "createdAt": "2026-03-20T06:59:35.936Z",
+      "updatedAt": "2026-03-20T06:59:35.936Z",
+      "noteCount": 1,
+      "signalCount": 0,
+      "objective": "/runtime status"
+    },
+    {
+      "slug": "status-audit",
+      "title": "Status audit",
+      "taskId": "eab878d3-0b34-4731-8f16-b0ebf0721882",
+      "path": "packages/skills/status-audit/SKILL.md",
+      "createdAt": "2026-04-11T17:38:28.467Z",
+      "updatedAt": "2026-04-11T17:38:28.467Z",
+      "noteCount": 1,
+      "signalCount": 0,
+      "objective": "/status"
+    }
+  ]
+}

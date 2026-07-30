@@ -106,14 +106,12 @@ describe("skill hub family builders", () => {
   it("builds generated family with generated totals", () => {
     const family = buildGeneratedFamilyRecord(
       workspace.filter((entry) => entry.source === "generated"),
-      catalog,
-      installed,
       "/tmp/skills",
     );
 
     expect(family.slug).toBe("generated");
     expect(family.generatedTotal).toBe(1);
-    expect(family.catalogTotal).toBe(1);
+    expect(family.catalogTotal).toBe(0);
     expect(family.installedTotal).toBe(0);
     expect(family.recent[0]?.slug).toBe("generated/task");
   });

@@ -75,7 +75,9 @@ describe("SkillsService", () => {
     expect(summary.invocable).toBeGreaterThan(0);
     expect(summary.roots.map((entry) => entry.name)).toContain("execution");
     expect(summary.roots.map((entry) => entry.name)).toContain("research");
-    expect(summary.roots.map((entry) => entry.name)).toContain("generated");
+    expect(summary.categories.map((entry) => entry.name)).toContain(
+      "generated",
+    );
     expect(
       service
         .workspace()

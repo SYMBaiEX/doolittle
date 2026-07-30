@@ -7,7 +7,7 @@ import {
 describe("bootstrap summary builders", () => {
   it("builds the check summary with directories, probes, and env messages", () => {
     const summary = buildBootstrapCheckSummary({
-      createdDirs: [".doolittle", "packages/skills/generated (exists)"],
+      createdDirs: [".doolittle", "packages/skills/.generated (exists)"],
       dependencyProbes: [
         { label: "Nub toolkit", installed: true },
         { label: "Docker", installed: false },

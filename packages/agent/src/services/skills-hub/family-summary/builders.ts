@@ -76,8 +76,6 @@ export function buildCuratedFamilyRecord(
 
 export function buildGeneratedFamilyRecord(
   generated: SkillHubWorkspaceRecord[],
-  catalog: SkillHubCatalogRecord[],
-  installed: InstalledSkillHubRecord[],
   skillsRootDir: string,
 ): SkillHubFamilyRecord {
   return {
@@ -85,15 +83,12 @@ export function buildGeneratedFamilyRecord(
     title: "Generated Skills",
     description:
       "Skill manifests synthesized from delegated workstreams and replayed tasks.",
-    path: join(skillsRootDir, "generated"),
+    path: join(skillsRootDir, ".generated"),
     kind: "generated",
     workspaceTotal: generated.length,
     generatedTotal: generated.length,
-    catalogTotal: catalog.filter((entry) => entry.slug.startsWith("generated/"))
-      .length,
-    installedTotal: installed.filter((entry) =>
-      entry.slug.startsWith("generated/"),
-    ).length,
+    catalogTotal: 0,
+    installedTotal: 0,
     recent: buildRecentEntries(
       generated.map((entry) => ({
         slug: entry.slug,

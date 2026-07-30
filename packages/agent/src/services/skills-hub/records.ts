@@ -94,7 +94,7 @@ export function buildSkillHubWorkspaceRecords(
       root: rootFromSkillHubSlug(skill.slug),
       category: categoryFromSkillHubSlug(skill.slug),
       tags: tagsFromSkillHubText(content),
-      source: normalized.startsWith("generated/") ? "generated" : "workspace",
+      source: skill.source === "generated" ? "generated" : "workspace",
       installable: true,
       contentLength: content.length,
       lineCount: countSkillHubLines(content),

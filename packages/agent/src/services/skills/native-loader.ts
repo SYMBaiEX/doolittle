@@ -57,7 +57,12 @@ function mapNativeEntry(
     return undefined;
   }
 
-  const source = resolveNativeSource(filePath, entry.skill.source, roots);
+  const source = resolveNativeSource(
+    filePath,
+    entry.skill.source,
+    roots,
+    entry.skill.provenance?.source,
+  );
   const slug = resolveNativeSlug(filePath, entry.skill.name, roots);
   const content = readFileSync(filePath, "utf8");
   const commandSpec = commandSpecBySkillName.get(entry.skill.name);
@@ -79,10 +84,13 @@ function resolveNativeSource(
   filePath: string,
   source: string | undefined,
   roots: NativeSkillRoots,
+  provenanceSource?: string,
 ): SkillSource {
   if (isUnderPath(filePath, roots.workspaceSkillsDir)) {
-    const slug = stripSkillSuffix(relative(roots.workspaceSkillsDir, filePath));
-    return slug.startsWith("generated/") ? "generated" : "workspace";
+    return provenanceSource === "agent-generated" ||
+      provenanceSource === "agent-refined"
+      ? "generated"
+      : "workspace";
   }
   if (isUnderPath(filePath, roots.bundledSkillsDir)) {
     return "bundled";

@@ -39,3 +39,9 @@ Curated skills:
 Generated skills use the same direct-child layout after approval. Their
 provenance is recorded in frontmatter and their bookkeeping lives under the
 hidden `.generated` metadata directory.
+
+- [`adapter-spike`](./adapter-spike/SKILL.md)
+- [`queue-one`](./queue-one/SKILL.md)
+- [`queue-two`](./queue-two/SKILL.md)
+- [`status-audit`](./status-audit/SKILL.md)
+- [generated skill index](./.generated/index.json)

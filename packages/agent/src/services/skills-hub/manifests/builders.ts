@@ -15,7 +15,7 @@ export function buildSkillHubManifestFromWorkspace(
     slug,
     title: skill.title,
     description: skill.description,
-    source: slug.startsWith("generated/") ? "generated" : "workspace",
+    source: skill.source === "generated" ? "generated" : "workspace",
     path: join(host.manifestsDir, `${slug}.json`),
     root: host.rootFromSlug(slug),
     category: host.categoryFromSlug(slug),

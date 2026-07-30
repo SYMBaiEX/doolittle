@@ -27,14 +27,7 @@ export function buildSkillHubFamilies(
     ),
   );
   if (generated.length > 0) {
-    families.push(
-      buildGeneratedFamilyRecord(
-        generated,
-        input.catalog,
-        input.installed,
-        input.skillsRootDir,
-      ),
-    );
+    families.push(buildGeneratedFamilyRecord(generated, input.skillsRootDir));
   }
 
   return families.sort(

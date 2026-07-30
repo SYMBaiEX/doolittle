@@ -13,7 +13,7 @@ export function resolveBootstrapDirectories(): string[] {
     ".doolittle/hooks",
     ".doolittle/remote-artifacts",
     ".doolittle/trajectories",
-    "packages/skills/generated",
+    "packages/skills/.generated",
     "packages/skill-packs-optional/generated",
   ];
 }

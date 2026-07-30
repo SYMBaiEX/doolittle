@@ -73,14 +73,14 @@ description: Capture a browser page with a repeatable workflow.
 
     try {
       writeFileSync(
-        join(root, "generated", "index.json"),
+        join(root, ".generated", "index.json"),
         JSON.stringify({
           skills: [
             {
               slug: "legacy-skill",
               title: "Legacy Skill",
               taskId: "task-legacy",
-              path: join(root, "generated", "legacy-skill", "SKILL.md"),
+              path: join(root, "legacy-skill", "SKILL.md"),
               createdAt: "2026-03-21T00:00:00.000Z",
             },
           ],
@@ -109,7 +109,7 @@ description: Capture a browser page with a repeatable workflow.
       });
       expect(service.listGeneratedSkills()).toHaveLength(0);
       expect(
-        readFileSync(join(root, "generated", "proposals.json"), "utf8"),
+        readFileSync(join(root, ".generated", "proposals.json"), "utf8"),
       ).toContain(proposal.id);
       expect(service.getProposal(proposal.id)?.activatedPath).toBeUndefined();
 
