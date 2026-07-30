@@ -34,9 +34,10 @@ export const featureMap: FeatureMapping[] = [
   },
   {
     platformCapability: "Scheduled automations and cron jobs",
-    elizaImplementation: "Custom cron service + `/cron` command family",
+    elizaImplementation:
+      "Eliza Trigger Tasks + Doolittle automation projection and `/cron` commands",
     notes:
-      "Supports intervals, one-shot delays, and 5-field cron expressions with persistent job storage, local artifact persistence, and home-channel delivery routing.",
+      "Eliza Task storage and trigger scheduling are canonical; Doolittle adds operator-friendly conditions, actions, receipts, runtime overrides, and delivery routing.",
   },
   {
     platformCapability: "Workspace exploration and file access",
@@ -135,7 +136,7 @@ export const featureMap: FeatureMapping[] = [
   },
   {
     platformCapability: "Tool-mediated memory nudges",
-    elizaImplementation: "Custom evaluator",
+    elizaImplementation: "Doolittle evaluator registered through ElizaOS",
     notes:
       "Detects explicit remember/save cues and writes them into the appropriate memory store.",
   },
