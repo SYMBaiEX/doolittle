@@ -2,6 +2,7 @@ import { KnowledgeGraphService } from "@elizaos/agent/services/knowledge-graph/i
 import {
   AgentEventService,
   ApprovalService,
+  HookService,
   PairingService,
   PluginManagerService,
   ToolPolicyService,
@@ -15,6 +16,7 @@ describe("foundation plugin ownership", () => {
 
     expect(foundation?.services).toEqual([
       AgentEventService,
+      HookService,
       KnowledgeGraphService,
       ApprovalService,
       PairingService,

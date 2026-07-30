@@ -8,7 +8,7 @@ import {
   KNOWLEDGE_GRAPH_SERVICE,
   type KnowledgeGraphService,
 } from "@elizaos/agent/services/knowledge-graph/index";
-import type { PairingService } from "@elizaos/core";
+import type { HookService, PairingService } from "@elizaos/core";
 import type {
   NativeActionPlanningService,
   NativeAgentOrchestratorService,
@@ -111,6 +111,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     ),
     approval: service<NativeApprovalService>(runtime, "approval"),
     pairing: service<PairingService>(runtime, "pairing"),
+    hooks: service<HookService>(runtime, "hooks"),
     agentEvent,
     pluginManager: service<NativePluginManagerService>(
       runtime,

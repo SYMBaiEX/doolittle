@@ -14,6 +14,8 @@ describe("service-resolution helpers", () => {
         switch (name) {
           case "pairing":
             return { listPendingRequests: async () => [] };
+          case "hooks":
+            return { getSnapshot: () => ({ hooks: [] }) };
           case "memoryStorage":
             return { storeLongTermMemory: async () => ({}) };
           case KNOWLEDGE_GRAPH_SERVICE:
@@ -47,6 +49,14 @@ describe("service-resolution helpers", () => {
         source: "native",
         ownership: "plugin",
         requirement: "required official Eliza PairingService",
+        available: true,
+      },
+      {
+        capability: "hooks",
+        nativeService: "hooks",
+        source: "native",
+        ownership: "plugin",
+        requirement: "required official Eliza HookService",
         available: true,
       },
       {

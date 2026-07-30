@@ -150,7 +150,7 @@ describe("loadFoundationPlugins", () => {
       (service) => service.serviceType,
     );
 
-    expect(pluginNames(plugins)).toEqual(["@elizaos/agent-knowledge-graph"]);
+    expect(pluginNames(plugins)).toEqual(["doolittle-eliza-foundation"]);
     expect(plugin?.schema).toBeDefined();
     expect(serviceTypes).toContain("agent_event");
     expect(serviceTypes).toContain("eliza_knowledge_graph");

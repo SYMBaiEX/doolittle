@@ -5,6 +5,7 @@ import {
 import {
   AgentEventService,
   ApprovalService,
+  HookService,
   PairingService,
   type Plugin,
   PluginManagerService,
@@ -28,12 +29,13 @@ const PairingServiceClass = PairingService as unknown as ServiceClass;
 export function loadFoundationPlugins(): Plugin[] {
   return [
     {
-      name: "@elizaos/agent-knowledge-graph",
+      name: "doolittle-eliza-foundation",
       description:
-        "Official ElizaOS knowledge, approval, policy, and plugin-management services.",
+        "Official ElizaOS knowledge, hooks, approval, policy, and plugin-management services.",
       schema: knowledgeGraphSchema,
       services: [
         AgentEventService,
+        HookService,
         KnowledgeGraphService,
         ApprovalService,
         PairingServiceClass,

@@ -1,7 +1,7 @@
 import type { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
 import type { KnowledgeGraphService } from "@elizaos/agent/services/knowledge-graph/index";
 
-import type { PairingService } from "@elizaos/core";
+import type { HookService, PairingService } from "@elizaos/core";
 import type {
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
@@ -59,6 +59,7 @@ export type NativeServices = {
   codingAgent: NativeCodingAgentService | undefined;
   approval: NativeApprovalService | undefined;
   pairing: PairingService | undefined;
+  hooks: HookService | undefined;
   agentEvent: ReturnType<typeof getAgentEventService> | null;
   pluginManager: NativePluginManagerService | undefined;
   toolPolicy: NativeToolPolicyService | undefined;
