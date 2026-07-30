@@ -698,6 +698,18 @@ describe("getEffectiveMessagingTransportInventory", () => {
         if (name === "ORCHESTRATOR_TASK_SERVICE") {
           return {};
         }
+        if (name === "coding_agent") {
+          return {
+            read: () => "",
+            write: () => undefined,
+            search: () => [],
+            repoStatus: async () => ({}),
+            repoDiff: async () => ({}),
+            repoLog: async () => [],
+            run: async () => ({}),
+            tasks: () => [],
+          };
+        }
         if (name === "trajectories") {
           return {
             bundles: () => [{ id: "bundle-1" }],
@@ -781,6 +793,14 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(controlPlane.skills.catalogSkills).toBe(9);
     expect(controlPlane.orchestrator.tasks).toBe(2);
     expect(controlPlane.orchestrator.queuePending).toBe(1);
+    expect(controlPlane.codingAgent).toMatchObject({
+      source: "native",
+      available: true,
+      workspace: true,
+      repository: true,
+      shell: true,
+      delegation: true,
+    });
     expect(controlPlane.trajectories.bundles).toBe(1);
     expect(controlPlane.pluginManager.plugins).toBe(2);
     expect(controlPlane.pluginManager.enabled).toBe(1);
@@ -794,7 +814,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(controlPlane.media.tts.available).toBe(true);
     expect(controlPlane.research.actionBench.actions).toBeGreaterThan(0);
     expect(controlPlane.research.autocoder.ready).toBe(false);
-    expect(controlPlane.totals.nativeServices).toBe(4);
+    expect(controlPlane.totals.nativeServices).toBe(5);
   });
 });
 

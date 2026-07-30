@@ -36,14 +36,6 @@ export function requireNativeMcp(runtime: RuntimeLike): NativeMcpService {
   return service;
 }
 
-export function getNativeCodingAgent(
-  runtime: RuntimeLike,
-): NativeCodingAgentService | undefined {
-  return getNativeServices(runtime).codingAgent as
-    | NativeCodingAgentService
-    | undefined;
-}
-
 export function requireNativeMemoryStorage(
   runtime: RuntimeLike,
 ): NativeMemoryStorageService {
@@ -58,7 +50,9 @@ export function requireNativeMemoryStorage(
 export function requireNativeCodingAgent(
   runtime: RuntimeLike,
 ): NativeCodingAgentService {
-  const service = getNativeCodingAgent(runtime);
+  const service = getNativeServices(runtime).codingAgent as
+    | NativeCodingAgentService
+    | undefined;
   if (!service) {
     throw new Error(
       `Required Eliza service ${DOOLITTLE_CODING_AGENT_SERVICE} is unavailable.`,

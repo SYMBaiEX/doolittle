@@ -172,6 +172,18 @@ const INTERNAL_FACADE_GUARDS: Array<{
     ],
   },
   {
+    root: NATIVE_RUNTIME_ROOT,
+    include: /packages\/agent\/src\/runtime\/native\/service-manifest\.ts$/u,
+    patterns: [
+      {
+        pattern:
+          /capability:\s*["']codingAgent["'][\s\S]{0,320}productServices:\s*\[\s*["']/u,
+        reason:
+          "advertises a product fallback for the bootstrap-critical Eliza coding agent service",
+      },
+    ],
+  },
+  {
     root: CONTRACTS_ROOT,
     include: /packages\/contracts\/src\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [

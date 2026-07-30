@@ -36,6 +36,18 @@ describe("autonomous control plane", () => {
         if (name === "ORCHESTRATOR_TASK_SERVICE") {
           return {};
         }
+        if (name === "coding_agent") {
+          return {
+            read: () => "",
+            write: () => undefined,
+            search: () => [],
+            repoStatus: async () => ({}),
+            repoDiff: async () => ({}),
+            repoLog: async () => [],
+            run: async () => ({}),
+            tasks: () => [],
+          };
+        }
         if (name === "plugin_manager") {
           return {
             list: () => [1, 2],
@@ -148,5 +160,10 @@ describe("autonomous control plane", () => {
     expect(controlPlane.orchestrator.tasks).toBe(5);
     expect(controlPlane.orchestrator.queuePending).toBe(2);
     expect(controlPlane.orchestrator.activeWorkers).toBe(2);
+    expect(controlPlane.codingAgent).toMatchObject({
+      source: "native",
+      available: true,
+      delegation: true,
+    });
   });
 });

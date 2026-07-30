@@ -14,6 +14,7 @@ import {
   getNativeResearchControlPlane,
 } from "../control-planes";
 import { getNativeServices, type RuntimeLike } from "../runtime";
+import { requireNativeCodingAgent } from "../tooling/native-services";
 
 export interface AutonomousControlPlaneSummary {
   alignment: ReturnType<typeof describeAutonomousAlignment>;
@@ -36,8 +37,8 @@ export interface AutonomousControlPlaneSummary {
     activeWorkers: number;
   };
   codingAgent: {
-    source: "native" | "product";
-    available: boolean;
+    source: "native";
+    available: true;
     workspace: boolean;
     repository: boolean;
     shell: boolean;
@@ -142,7 +143,10 @@ export function getAutonomousControlPlane(
   services: AppServices,
   config?: EnvConfig,
 ): AutonomousControlPlaneSummary {
-  const native = getNativeServices(runtime);
+  const native = {
+    ...getNativeServices(runtime),
+    codingAgent: requireNativeCodingAgent(runtime),
+  };
   const formsControl = getNativeFormsControlPlane(runtime);
   const executionControl = getNativeExecutionControlPlane(runtime);
   const skillsCatalog = services.agentSdk.snapshot().skillCatalog;

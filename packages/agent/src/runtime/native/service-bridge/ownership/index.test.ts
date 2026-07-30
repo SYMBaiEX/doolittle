@@ -223,6 +223,16 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
     browser: {
       status: () => services.web.status(),
     },
+    coding_agent: {
+      read: () => "",
+      write: () => undefined,
+      search: () => [],
+      repoStatus: async () => ({}),
+      repoDiff: async () => ({}),
+      repoLog: async () => [],
+      run: async () => ({}),
+      tasks: () => [],
+    },
     mcp: {
       status: () => services.mcp.status(),
       getCachedTools: () => services.mcp.getCachedTools(),

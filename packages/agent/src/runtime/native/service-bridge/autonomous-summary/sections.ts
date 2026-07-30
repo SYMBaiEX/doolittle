@@ -81,18 +81,18 @@ export function buildCodingAgentSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["codingAgent"] {
   return {
-    source: input.native.codingAgent ? "native" : "product",
-    available: Boolean(input.native.codingAgent),
+    source: "native",
+    available: true,
     workspace:
-      typeof input.native.codingAgent?.read === "function" &&
-      typeof input.native.codingAgent?.write === "function" &&
-      typeof input.native.codingAgent?.search === "function",
+      typeof input.native.codingAgent.read === "function" &&
+      typeof input.native.codingAgent.write === "function" &&
+      typeof input.native.codingAgent.search === "function",
     repository:
-      typeof input.native.codingAgent?.repoStatus === "function" &&
-      typeof input.native.codingAgent?.repoDiff === "function" &&
-      typeof input.native.codingAgent?.repoLog === "function",
-    shell: typeof input.native.codingAgent?.run === "function",
-    delegation: typeof input.native.codingAgent?.delegate === "function",
+      typeof input.native.codingAgent.repoStatus === "function" &&
+      typeof input.native.codingAgent.repoDiff === "function" &&
+      typeof input.native.codingAgent.repoLog === "function",
+    shell: typeof input.native.codingAgent.run === "function",
+    delegation: typeof input.native.codingAgent.tasks === "function",
   };
 }
 

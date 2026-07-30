@@ -28,7 +28,21 @@ function createContext(): AppContext {
 
   return {
     config,
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "coding_agent"
+          ? {
+              read: () => "",
+              write: () => undefined,
+              search: () => [],
+              repoStatus: async () => ({}),
+              repoDiff: async () => ({}),
+              repoLog: async () => [],
+              run: async () => ({}),
+              tasks: () => [],
+            }
+          : null,
+    },
     services: {
       settings: {
         get: () => ({

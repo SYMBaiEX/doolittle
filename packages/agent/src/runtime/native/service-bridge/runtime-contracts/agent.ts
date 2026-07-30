@@ -256,8 +256,8 @@ export interface NativeCodingAgentService {
         kind: "directory" | "file";
       }
     | undefined;
-  tasks?(): unknown[];
-  context?(
+  tasks(): unknown[];
+  context(
     taskDescription: string,
     options?: {
       sessionId?: string;

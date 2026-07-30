@@ -176,13 +176,8 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       capability: "codingAgent",
       nativeKey: "codingAgent",
       nativeService: DOOLITTLE_CODING_AGENT_SERVICE,
-      productServices: [
-        "workspace",
-        "repository",
-        "terminal",
-        "delegationProjection",
-      ],
-      fallback: "workspace + repository + terminal + delegation projection",
+      productServices: [],
+      fallback: "required Eliza coding agent service",
     },
     {
       capability: "pluginManager",

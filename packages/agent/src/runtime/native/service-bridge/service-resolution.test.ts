@@ -157,9 +157,9 @@ describe("service-resolution helpers", () => {
       {
         capability: "codingAgent",
         nativeService: "coding_agent",
-        source: "product",
-        ownership: "product",
-        fallback: "workspace + repository + terminal + delegation projection",
+        source: "unavailable",
+        ownership: "plugin",
+        fallback: "required Eliza coding agent service",
         available: false,
       },
       {
