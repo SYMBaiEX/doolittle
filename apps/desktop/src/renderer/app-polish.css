@@ -433,17 +433,14 @@ tbody tr:hover {
 }
 
 .chat-header-content {
-  display: flex;
-  flex-direction: column;
   min-width: 0;
-  gap: 4px;
 }
 
-.chat-header-topline {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
+.chat-header-mainline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
   min-width: 0;
 }
 
@@ -451,19 +448,24 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.chat-session-meta-wrap {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .chat-header-top-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
 }
 
 .chat-header :where(h2) {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.18;
+  font-size: 14px;
+  line-height: 1.15;
   letter-spacing: -0.012em;
   white-space: nowrap;
   overflow: hidden;
@@ -507,7 +509,9 @@ tbody tr:hover {
   max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
-  padding-bottom: 2px;
+  padding-bottom: 0;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .chat-session-meta::-webkit-scrollbar {
@@ -515,7 +519,7 @@ tbody tr:hover {
 }
 
 .chat-session-meta-pill {
-  min-height: 22px;
+  min-height: 20px;
   padding: 0 8px;
   font-size: 9px;
   border-right: 1px solid var(--border);
@@ -530,9 +534,20 @@ tbody tr:hover {
 }
 
 .chat-header-top-actions .secondary-button {
-  min-height: 26px;
-  padding: 4px 8px;
+  min-height: 24px;
+  padding: 3px 7px;
   font-size: 10px;
+}
+
+@media (max-width: 1320px) {
+  .chat-header-mainline {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .chat-session-meta-wrap {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -543,13 +558,22 @@ tbody tr:hover {
   }
 
   .chat-header-content,
-  .chat-header-topline {
+  .chat-header-mainline {
     width: 100%;
-    flex-wrap: wrap;
+  }
+
+  .chat-header-mainline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-session-meta-wrap {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .chat-header-top-actions {
     justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 

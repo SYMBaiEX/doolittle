@@ -1718,12 +1718,114 @@ export function ChatPage({
       <section className="chat-conversation" aria-label="Conversation detail">
         <header className="chat-header">
           <div className="chat-header-content">
-            <div className="chat-header-topline">
+            <div className="chat-header-mainline">
               <div className="chat-header-title-wrap">
-                <span className="eyebrow">
-                  {activeProject ? "Project conversation" : "Conversation"}
-                </span>
                 <h2>{selectedSession?.title ?? "New conversation"}</h2>
+              </div>
+              <div className="chat-session-meta-wrap">
+                <div className="chat-session-meta">
+                  {activeProject && onOpenProjectManager ? (
+                    <button
+                      className="chat-session-meta-pill chat-project-badge chat-meta-project"
+                      onClick={onOpenProjectManager}
+                      style={
+                        activeProject.color
+                          ? ({
+                              "--project-color": activeProject.color,
+                            } as CSSProperties)
+                          : undefined
+                      }
+                      title={
+                        activeProject.primaryPath
+                          ? `${activeProject.name} · ${activeProject.primaryPath}`
+                          : activeProject.name
+                      }
+                      type="button"
+                    >
+                      <i aria-hidden="true" /> {activeProject.name}
+                    </button>
+                  ) : activeProject ? (
+                    <span
+                      className="chat-session-meta-pill chat-project-badge chat-meta-project"
+                      style={
+                        activeProject.color
+                          ? ({
+                              "--project-color": activeProject.color,
+                            } as CSSProperties)
+                          : undefined
+                      }
+                      title={
+                        activeProject.primaryPath
+                          ? `${activeProject.name} · ${activeProject.primaryPath}`
+                          : activeProject.name
+                      }
+                    >
+                      <i aria-hidden="true" /> {activeProject.name}
+                    </span>
+                  ) : null}
+                  <button
+                    aria-pressed={Boolean(selectedSession?.pinned)}
+                    className={`chat-session-meta-pill chat-meta-pin ${
+                      selectedSession?.pinned ? "selected" : ""
+                    }`.trim()}
+                    onClick={() => togglePin(selectedId)}
+                    type="button"
+                  >
+                    {selectedSession?.pinned ? "Pinned" : "Pin"}
+                  </button>
+                  {selectedSession?.parentSessionId ? (
+                    <span
+                      className="chat-session-meta-pill chat-meta-branch"
+                      title={`Forked from ${selectedSession.parentSessionId}`}
+                    >
+                      Branch
+                    </span>
+                  ) : null}
+                  <span className="chat-session-meta-pill chat-meta-count">
+                    {selectedMessageCount.toLocaleString()} messages
+                  </span>
+                  <button
+                    className="chat-session-meta-pill chat-meta-workspace"
+                    onClick={() => onOpenWorkspaceView("code")}
+                    title={workspacePath || "Open the current coding workspace"}
+                    type="button"
+                  >
+                    {workspacePath
+                      ? `Workspace · ${fileName(workspacePath)}`
+                      : "Open workspace"}
+                  </button>
+                  <span className="chat-session-meta-pill chat-meta-updated">
+                    {selectedUpdatedAt
+                      ? `Updated ${displayTimestamp(selectedUpdatedAt)}`
+                      : "Not started"}
+                  </span>
+                  <span
+                    className={`chat-session-meta-pill chat-meta-context context-${selectedContextTone}`}
+                  >
+                    {selectedContext
+                      ? `${Math.round(selectedContextPercent)}% context`
+                      : selectedUsageError
+                        ? "Context unavailable"
+                        : "Fresh context"}
+                  </span>
+                  {selectedContextPercent >= 70 ? (
+                    <button
+                      className="chat-session-meta-pill context-action"
+                      onClick={() => {
+                        setDraft((current) =>
+                          current.trim() ? current : "/compress ",
+                        );
+                        requestAnimationFrame(() =>
+                          composerRef.current?.focus(),
+                        );
+                      }}
+                      title="Prepare a context-compression command"
+                      type="button"
+                    >
+                      Compress context
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <div className="chat-header-top-actions">
                 <button
@@ -1770,107 +1872,6 @@ export function ChatPage({
                   Workbench
                 </button>
               </div>
-            </div>
-            <div className="chat-session-meta">
-              {activeProject && onOpenProjectManager ? (
-                <button
-                  className="chat-session-meta-pill chat-project-badge chat-meta-project"
-                  onClick={onOpenProjectManager}
-                  style={
-                    activeProject.color
-                      ? ({
-                          "--project-color": activeProject.color,
-                        } as CSSProperties)
-                      : undefined
-                  }
-                  title={
-                    activeProject.primaryPath
-                      ? `${activeProject.name} · ${activeProject.primaryPath}`
-                      : activeProject.name
-                  }
-                  type="button"
-                >
-                  <i aria-hidden="true" /> {activeProject.name}
-                </button>
-              ) : activeProject ? (
-                <span
-                  className="chat-session-meta-pill chat-project-badge chat-meta-project"
-                  style={
-                    activeProject.color
-                      ? ({
-                          "--project-color": activeProject.color,
-                        } as CSSProperties)
-                      : undefined
-                  }
-                  title={
-                    activeProject.primaryPath
-                      ? `${activeProject.name} · ${activeProject.primaryPath}`
-                      : activeProject.name
-                  }
-                >
-                  <i aria-hidden="true" /> {activeProject.name}
-                </span>
-              ) : null}
-              <button
-                aria-pressed={Boolean(selectedSession?.pinned)}
-                className={`chat-session-meta-pill chat-meta-pin ${
-                  selectedSession?.pinned ? "selected" : ""
-                }`.trim()}
-                onClick={() => togglePin(selectedId)}
-                type="button"
-              >
-                {selectedSession?.pinned ? "Pinned" : "Pin"}
-              </button>
-              {selectedSession?.parentSessionId ? (
-                <span
-                  className="chat-session-meta-pill chat-meta-branch"
-                  title={`Forked from ${selectedSession.parentSessionId}`}
-                >
-                  Branch
-                </span>
-              ) : null}
-              <span className="chat-session-meta-pill chat-meta-count">
-                {selectedMessageCount.toLocaleString()} messages
-              </span>
-              <button
-                className="chat-session-meta-pill chat-meta-workspace"
-                onClick={() => onOpenWorkspaceView("code")}
-                title={workspacePath || "Open the current coding workspace"}
-                type="button"
-              >
-                {workspacePath
-                  ? `Workspace · ${fileName(workspacePath)}`
-                  : "Open workspace"}
-              </button>
-              <span className="chat-session-meta-pill chat-meta-updated">
-                {selectedUpdatedAt
-                  ? `Updated ${displayTimestamp(selectedUpdatedAt)}`
-                  : "Not started"}
-              </span>
-              <span
-                className={`chat-session-meta-pill chat-meta-context context-${selectedContextTone}`}
-              >
-                {selectedContext
-                  ? `${Math.round(selectedContextPercent)}% context`
-                  : selectedUsageError
-                    ? "Context unavailable"
-                    : "Fresh context"}
-              </span>
-              {selectedContextPercent >= 70 ? (
-                <button
-                  className="chat-session-meta-pill context-action"
-                  onClick={() => {
-                    setDraft((current) =>
-                      current.trim() ? current : "/compress ",
-                    );
-                    requestAnimationFrame(() => composerRef.current?.focus());
-                  }}
-                  title="Prepare a context-compression command"
-                  type="button"
-                >
-                  Compress context
-                </button>
-              ) : null}
             </div>
           </div>
         </header>
