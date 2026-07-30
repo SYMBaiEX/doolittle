@@ -1,3 +1,4 @@
+import { getEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { getEffectiveGeneratedSkills } from "@/runtime/native/service-bridge/ownership";
 
 import type { SkillCommandHandler } from "./types";
@@ -91,9 +92,7 @@ export const handleGeneratedSkillCommand: SkillCommandHandler = async (
 
   if (trimmed.startsWith("/skills synthesize ")) {
     const id = trimmed.replace("/skills synthesize ", "").trim();
-    const task = context.services.delegationProjection
-      .list()
-      .find((entry) => entry.id === id);
+    const task = await getEffectiveDelegationTask(context.runtime, id);
     if (!task) {
       return `Delegation task not found: ${id}`;
     }

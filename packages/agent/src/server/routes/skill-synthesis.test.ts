@@ -3,15 +3,46 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleSkillSynthesisRoutes } from "./skill-synthesis";
 
 function createContext(): AppContext {
-  return {
-    runtime: {},
-    services: {
-      delegationProjection: {
-        list: () => [
-          { id: "task-1", title: "Investigate" },
-          { id: "task-2", title: "Ship" },
-        ],
+  const tasks = new Map(
+    ["task-1", "task-2"].map((id) => [
+      id,
+      {
+        id,
+        title: id === "task-1" ? "Investigate" : "Ship",
+        kind: "coding",
+        status: "open",
+        priority: "normal",
+        paused: false,
+        originalRequest: id,
+        summary: undefined,
+        sessionCount: 0,
+        activeSessionCount: 0,
+        latestSessionId: null,
+        latestWorkdir: null,
+        createdAt: "2026-07-28T00:00:00.000Z",
+        updatedAt: "2026-07-28T00:00:00.000Z",
+        closedAt: null,
+        goal: id,
+        parentTaskId: null,
+        acceptanceCriteria: [],
+        providerPolicy: null,
+        metadata: {},
+        sessions: [],
+        messages: [],
+        events: [],
       },
+    ]),
+  );
+  return {
+    runtime: {
+      getService: (name: string) =>
+        name === "ORCHESTRATOR_TASK_SERVICE"
+          ? {
+              getTask: async (id: string) => tasks.get(id) ?? null,
+            }
+          : null,
+    },
+    services: {
       skillSynthesis: {
         synthesizeFromTask: (task: { id: string }) => `generated:${task.id}`,
         listProposals: () => [],

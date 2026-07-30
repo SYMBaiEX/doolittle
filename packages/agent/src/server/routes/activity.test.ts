@@ -5,12 +5,20 @@ import { handleActivityRoutes } from "./activity";
 function context(): AppContext {
   return {
     runtime: {
-      getService: (name: string) =>
-        name === "cron"
-          ? {
-              runs: () => [],
-            }
-          : null,
+      getService: (name: string) => {
+        if (name === "cron") {
+          return {
+            runs: () => [],
+          };
+        }
+        if (name === "ORCHESTRATOR_TASK_SERVICE") {
+          return {
+            listTasks: async () => [],
+            getTask: async () => null,
+          };
+        }
+        return null;
+      },
     },
     services: {
       runController: {
@@ -38,7 +46,6 @@ function context(): AppContext {
           throw new Error("legacy cron must not be used");
         },
       },
-      delegationProjection: { list: () => [] },
       executionApprovals: { list: () => [] },
       delivery: { recent: () => [] },
     },

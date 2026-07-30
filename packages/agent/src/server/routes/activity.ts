@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { getEffectiveDelegationTasks } from "@/runtime/native/service-bridge/delegation";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 import {
@@ -41,7 +42,10 @@ export async function handleActivityRoutes(
   if (!cron) {
     return json({ error: "Trigger runtime service is not ready." }, 503);
   }
-  const automationRuns = await cron.runs(ACTIVITY_FEED_MAX_LIMIT);
+  const [automationRuns, delegationTasks] = await Promise.all([
+    cron.runs(ACTIVITY_FEED_MAX_LIMIT),
+    getEffectiveDelegationTasks(context.runtime),
+  ]);
   return json(
     buildActivityFeed(
       context.services,
@@ -49,7 +53,7 @@ export async function handleActivityRoutes(
         limit,
         after,
       },
-      { automationRuns },
+      { automationRuns, delegationTasks },
     ),
   );
 }

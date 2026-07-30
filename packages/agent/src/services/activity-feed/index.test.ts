@@ -37,9 +37,6 @@ function services(
     runController: {
       listReceipts: () => [baseRun],
     },
-    delegationProjection: {
-      list: () => [],
-    },
     executionApprovals: {
       list: () => [],
     },
@@ -93,12 +90,11 @@ describe("activity feed", () => {
 
     const result = buildActivityFeed(
       services({
-        delegationProjection: { list: () => [delegation] },
         executionApprovals: { list: () => [approval] },
         delivery: { recent: () => [delivery] },
       }),
       {},
-      { automationRuns: [automation] },
+      { automationRuns: [automation], delegationTasks: [delegation] },
     );
 
     expect(result.events.map((event) => event.kind)).toEqual([

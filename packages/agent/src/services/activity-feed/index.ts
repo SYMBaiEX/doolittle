@@ -45,9 +45,6 @@ export interface ActivityFeedServices {
   runController: {
     listReceipts(limit?: number): RunSnapshot[];
   };
-  delegationProjection: {
-    list(): DelegationTaskRecord[];
-  };
   executionApprovals: {
     list(): ExecutionApprovalRecord[];
   };
@@ -63,6 +60,7 @@ export interface ActivityFeedOptions {
 
 export interface ActivityFeedSourceData {
   automationRuns?: AutomationRunRecord[];
+  delegationTasks?: DelegationTaskRecord[];
 }
 
 export interface ActivityFeedResult {
@@ -310,7 +308,7 @@ export function buildActivityFeed(
     ...(sourceData.automationRuns ?? [])
       .slice(0, MAX_ACTIVITY_EVENTS)
       .map(normalizeAutomation),
-    ...services.delegationProjection.list().map(normalizeDelegation),
+    ...(sourceData.delegationTasks ?? []).map(normalizeDelegation),
     ...services.executionApprovals.list().map(normalizeApproval),
     ...services.delivery.recent(MAX_ACTIVITY_EVENTS).map(normalizeDelivery),
   ].filter((event): event is ActivityEvent => event !== null);

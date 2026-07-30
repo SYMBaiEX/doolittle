@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { getEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import { json } from "@/server/responses";
 import {
   type CreateSkillProposalInput,
@@ -71,9 +72,7 @@ export async function handleSkillSynthesisRoutes(
     const taskId = body && stringValue(body.taskId);
     if (!taskId) return json({ error: "taskId is required" }, 400);
 
-    const task = context.services.delegationProjection
-      .list()
-      .find((entry) => entry.id === taskId);
+    const task = await getEffectiveDelegationTask(context.runtime, taskId);
     const path = task
       ? context.services.skillSynthesis.synthesizeFromTask(task)
       : null;
