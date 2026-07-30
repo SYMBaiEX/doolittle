@@ -1,6 +1,10 @@
 import { renderCommandCatalog } from "@/runtime/command-catalog";
 import { displayCommand } from "@/runtime/commands/command-execution";
-import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
+import {
+  getEffectiveActivePersonality,
+  listEffectiveUserProfiles,
+} from "@/runtime/native/service-bridge/ownership";
+import type { AppServices } from "@/services";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 
@@ -48,7 +52,10 @@ function renderProfilePulse(
   context: AgentExecutionContext,
   userId: string,
 ): string {
-  const profiles = safeRead(() => context.services.userProfiles.list()) ?? [];
+  const profiles =
+    (safeRead(() => listEffectiveUserProfiles(context.runtime)) as
+      | ReturnType<AppServices["userProfiles"]["list"]>
+      | undefined) ?? [];
   const profile = profiles.find((entry) => entry.userId === userId);
   if (!profile) {
     return "Profile: new";
@@ -64,7 +71,7 @@ function renderOperatorPulse(
   const sessionKey = input.roomId ?? `room:${input.userId}`;
   const settings = safeRead(() => context.services.settings.get());
   const personality = safeRead(() =>
-    getEffectiveActivePersonality(context.runtime, context.services),
+    getEffectiveActivePersonality(context.runtime),
   );
   const usage = safeRead(() => context.services.sessions.usage(sessionKey));
   const startup = safeRead(() => context.services.startupState.getSnapshot());

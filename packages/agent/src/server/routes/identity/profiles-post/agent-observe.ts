@@ -37,7 +37,6 @@ export const handleAgentObserve: IdentityProfileRouteHandler = async ({
   return json({
     profile: observeEffectiveAgentProfile(
       context.runtime,
-      context.services,
       body.note,
       body.source,
     ),

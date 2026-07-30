@@ -36,10 +36,7 @@ function buildCommonStatusLines(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
 ) {
-  const personality = getEffectiveActivePersonality(
-    context.runtime,
-    context.services,
-  );
+  const personality = getEffectiveActivePersonality(context.runtime);
   const settings = context.services.settings.get();
   const startup = context.services.startupState.getSnapshot();
   const activeRun = context.services.runController.getActive(

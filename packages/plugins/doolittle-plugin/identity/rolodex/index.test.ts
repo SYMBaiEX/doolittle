@@ -5,6 +5,16 @@ describe("createRolodexPlugin", () => {
   it("exposes search, beliefs, relationship, and engagement", async () => {
     const plugin = createRolodexPlugin({
       profiles: {
+        list: () => [],
+        get: (userId: string) => ({
+          userId,
+          preferences: [],
+          facts: [],
+          beliefs: [],
+          beliefSources: [],
+          notes: [],
+          lastSeenAt: "2026-03-24T00:00:00.000Z",
+        }),
         card: (userId: string) => `card:${userId}`,
         remember: (input) => ({
           userId: input.userId,
@@ -33,6 +43,42 @@ describe("createRolodexPlugin", () => {
           lastSource: input.source,
           updatedAt: "2026-03-24T00:00:00.000Z",
         }),
+        observe: (userId: string, message: string) => ({
+          userId,
+          preferences: [],
+          facts: [],
+          beliefs: [],
+          beliefSources: [],
+          notes: [message],
+          lastSeenAt: "2026-03-24T00:00:00.000Z",
+        }),
+        context: (userId: string, query: string) => ({ userId, query }),
+        conclude: (userId: string, query: string, conclusion: string) => ({
+          userId,
+          query,
+          conclusion,
+        }),
+        setMode: (userId: string, mode: "local" | "hybrid") => ({
+          userId,
+          memoryMode: mode,
+          preferences: [],
+          facts: [],
+          beliefs: [],
+          beliefSources: [],
+          notes: [],
+          lastSeenAt: "2026-03-24T00:00:00.000Z",
+        }),
+        configureModeling: (userId: string, settings) => ({
+          userId,
+          ...settings,
+          preferences: [],
+          facts: [],
+          beliefs: [],
+          beliefSources: [],
+          notes: [],
+          lastSeenAt: "2026-03-24T00:00:00.000Z",
+        }),
+        seedAgent: (seed) => seed,
         agentProfile: () => "agent:Doolittle",
         search: (_query: string, _limit = 10) => [
           {
@@ -100,7 +146,15 @@ describe("createRolodexPlugin", () => {
     }
 
     const service = (await serviceFactory.start({} as never)) as unknown as {
+      list(): unknown[];
+      get(userId: string): unknown;
       card(userId: string): unknown;
+      context(userId: string, query: string): unknown;
+      configureModeling(
+        userId: string,
+        settings: { userMemoryMode?: "local" | "hybrid" },
+      ): unknown;
+      seedAgent(seed: { name?: string }): unknown;
       search(query: string, limit?: number): unknown;
       beliefs(userId: string): unknown;
       relationship(userId: string): unknown;
@@ -108,7 +162,19 @@ describe("createRolodexPlugin", () => {
       summary(): unknown;
     };
 
+    expect(service.list()).toEqual([]);
+    expect(service.get("user-1")).toMatchObject({ userId: "user-1" });
     expect(service.card("user-1")).toBe("card:user-1");
+    expect(service.context("user-1", "bun")).toEqual({
+      userId: "user-1",
+      query: "bun",
+    });
+    expect(
+      service.configureModeling("user-1", { userMemoryMode: "hybrid" }),
+    ).toMatchObject({ userId: "user-1", userMemoryMode: "hybrid" });
+    expect(service.seedAgent({ name: "Doolittle" })).toEqual({
+      name: "Doolittle",
+    });
     expect(service.search("bun", 5)).toEqual([
       {
         userId: "user-1",

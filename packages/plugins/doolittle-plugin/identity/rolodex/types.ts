@@ -152,7 +152,30 @@ export interface UserProfileRecord {
   lastSeenAt: string;
 }
 
+export interface UserProfileInteractionContext {
+  source?: string;
+  channel?: string;
+  sessionId?: string;
+  signal?: string;
+}
+
+export interface UserProfileModelingSettings {
+  userMemoryMode?: "local" | "hybrid";
+  assistantMemoryMode?: "local" | "hybrid";
+  dialecticMode?: "off" | "assist" | "conclude";
+}
+
+export interface UserProfileAgentSeed {
+  name?: string;
+  goals?: string[];
+  strengths?: string[];
+  workStyle?: string[];
+  notes?: string[];
+}
+
 export interface UserProfileServiceLike {
+  list(): UserProfileRecord[];
+  get(userId: string): UserProfileRecord;
   card(userId: string): string;
   remember(
     userId: string,
@@ -173,6 +196,25 @@ export interface UserProfileServiceLike {
     lastSource?: string;
     updatedAt: string;
   };
+  observe(
+    userId: string,
+    message: string,
+    source?: string,
+    context?: UserProfileInteractionContext,
+  ): UserProfileRecord;
+  context(userId: string, query: string): unknown;
+  conclude(
+    userId: string,
+    query: string,
+    conclusion: string,
+    source?: string,
+  ): unknown;
+  setMode(userId: string, mode: "local" | "hybrid"): UserProfileRecord;
+  configureModeling(
+    userId: string,
+    settings: UserProfileModelingSettings,
+  ): UserProfileRecord;
+  seedAgent(seed: UserProfileAgentSeed): unknown;
   agentProfile(): string;
   search(query: string, limit?: number): UserProfileSearchHit[];
   beliefs(userId: string): UserProfileBeliefSummary;

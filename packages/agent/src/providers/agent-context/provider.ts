@@ -8,7 +8,11 @@ import {
 } from "@elizaos/core";
 import { messageUserId } from "@/runtime/message-user";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
-import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
+import {
+  getEffectiveActivePersonality,
+  getEffectiveUserProfile,
+  listEffectiveUserProfiles,
+} from "@/runtime/native/service-bridge/ownership";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { getEffectiveToolInventory } from "@/runtime/native/service-bridge/service-resolution";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
@@ -27,12 +31,14 @@ function sessionIdFor(message: Memory): string {
 }
 
 function renderUserProfileContext(
-  services: AppServices,
+  runtime: IAgentRuntime,
   userId: string | undefined,
 ): string[] {
   if (!userId) return [];
   try {
-    const profile = services.userProfiles.get(userId);
+    const profile = getEffectiveUserProfile(runtime, userId) as ReturnType<
+      AppServices["userProfiles"]["get"]
+    >;
     return [
       "DURABLE USER PROFILE",
       profile.displayName
@@ -129,7 +135,7 @@ function coreContextResult(
   message: Memory,
 ): ProviderResult {
   const sessionId = sessionIdFor(message);
-  const personality = getEffectiveActivePersonality(runtime, services);
+  const personality = getEffectiveActivePersonality(runtime);
   const settings = services.settings.get();
   const memorySummary = services.memory.summary("memory");
   const userId = messageUserId(message);
@@ -139,7 +145,7 @@ function coreContextResult(
     sessionId,
     workspaceDir: services.workspace.root(),
   });
-  const userProfileContext = renderUserProfileContext(services, userId);
+  const userProfileContext = renderUserProfileContext(runtime, userId);
   const soulContext = renderDoolittleSoulContext(services.workspace.root());
   const editorContext = renderAcpEditorContext(services, message);
 
@@ -213,7 +219,9 @@ async function operationsContextResult(
     const delegationTasks = services.delegationProjection.list();
     const delegationOverview = services.delegationProjection.overview();
     const delegationWorkers = services.delegationProjection.workers(5);
-    const userProfileEntries = services.userProfiles.list();
+    const userProfileEntries = listEffectiveUserProfiles(runtime) as ReturnType<
+      AppServices["userProfiles"]["list"]
+    >;
 
     return {
       text: renderOperationSections({

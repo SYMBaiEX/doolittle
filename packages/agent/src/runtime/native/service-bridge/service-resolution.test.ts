@@ -79,7 +79,7 @@ describe("service-resolution helpers", () => {
         nativeService: "personality",
         source: "product",
         ownership: "product",
-        fallback: "personalities",
+        fallback: "required Eliza personality service",
         available: false,
       },
       {
@@ -87,7 +87,7 @@ describe("service-resolution helpers", () => {
         nativeService: "rolodex",
         source: "product",
         ownership: "product",
-        fallback: "userProfiles",
+        fallback: "required Eliza rolodex service",
         available: false,
       },
       {
@@ -95,7 +95,7 @@ describe("service-resolution helpers", () => {
         nativeService: "experience",
         source: "product",
         ownership: "product",
-        fallback: "sessions + memory",
+        fallback: "required Eliza experience service",
         available: false,
       },
       {

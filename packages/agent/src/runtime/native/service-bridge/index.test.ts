@@ -1127,12 +1127,12 @@ describe("identity bridge helpers", () => {
       characters: 1,
       preview: ["fallback"],
     });
-    expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
+    expect(getEffectivePersonalitySummary(runtime)).toEqual({
       total: 4,
       activeId: "operator",
       names: ["Operator", "Concise", "Teacher", "Autonomous"],
     });
-    expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
+    expect(getEffectiveRolodexSummary(runtime)).toEqual({
       totalProfiles: 2,
       agentName: "Doolittle",
       recentProfiles: ["alice", "bob"],
@@ -1154,7 +1154,7 @@ describe("identity bridge helpers", () => {
       topSignals: [],
       recentSignals: ["native-signal"],
     });
-    expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
+    expect(getEffectiveExperienceSummary(runtime)).toEqual({
       sessions: {
         totalSessions: 5,
         recentSessionIds: ["session-1", "session-2"],
@@ -1170,7 +1170,7 @@ describe("identity bridge helpers", () => {
     });
   });
 
-  it("falls back to product summaries when native services are unavailable", () => {
+  it("keeps product memory readable but requires Eliza identity services", () => {
     const runtime = {
       getService() {
         return null;
@@ -1231,46 +1231,14 @@ describe("identity bridge helpers", () => {
       characters: 48,
       preview: ["memory:fallback"],
     });
-    expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
-      total: 2,
-      activeId: "operator",
-      names: ["Operator", "Teacher"],
-    });
-    expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
-      totalProfiles: 7,
-      agentName: "Doolittle",
-      recentProfiles: ["carol", "dave"],
-      totalBeliefs: 1,
-      totalBeliefSources: 0,
-      activeRelationships: 0,
-      trustedRelationships: 0,
-      engagedProfiles: 0,
-      relationshipStatusCounts: {
-        new: 7,
-        growing: 0,
-        active: 0,
-        trusted: 0,
-      },
-      topBeliefProfiles: [],
-      topRelationships: [],
-      topEngagements: [],
-      topChannels: [],
-      topSignals: [],
-      recentSignals: ["fallback"],
-    });
-    expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
-      sessions: {
-        totalSessions: 9,
-        recentSessionIds: ["session-a"],
-      },
-      memory: {
-        shared: {
-          target: "memory",
-          entries: 3,
-          characters: 48,
-          preview: ["memory:fallback"],
-        },
-      },
-    });
+    expect(() => getEffectivePersonalitySummary(runtime)).toThrow(
+      "Required Eliza service personality is unavailable.",
+    );
+    expect(() => getEffectiveRolodexSummary(runtime)).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() => getEffectiveExperienceSummary(runtime)).toThrow(
+      "Required Eliza service experience is unavailable.",
+    );
   });
 });

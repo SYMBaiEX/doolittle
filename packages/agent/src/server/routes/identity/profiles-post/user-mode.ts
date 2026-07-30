@@ -1,3 +1,4 @@
+import { setEffectiveUserProfileMode } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
   badRequest,
@@ -34,6 +35,10 @@ export const handleUserMode: IdentityProfileRouteHandler = async ({
   }
 
   return json({
-    profile: context.services.userProfiles.setMode(body.userId, body.mode),
+    profile: setEffectiveUserProfileMode(
+      context.runtime,
+      body.userId,
+      body.mode,
+    ),
   });
 };

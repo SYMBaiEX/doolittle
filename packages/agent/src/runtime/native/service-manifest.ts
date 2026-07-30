@@ -1,3 +1,8 @@
+import {
+  DOOLITTLE_EXPERIENCE_SERVICE,
+  DOOLITTLE_PERSONALITY_SERVICE,
+  DOOLITTLE_ROLODEX_SERVICE,
+} from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
@@ -100,23 +105,23 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
     {
       capability: "personality",
       nativeKey: "personality",
-      nativeService: "personality",
+      nativeService: DOOLITTLE_PERSONALITY_SERVICE,
       productServices: ["personalities"],
-      fallback: "personalities",
+      fallback: "required Eliza personality service",
     },
     {
       capability: "rolodex",
       nativeKey: "rolodex",
-      nativeService: "rolodex",
+      nativeService: DOOLITTLE_ROLODEX_SERVICE,
       productServices: ["userProfiles"],
-      fallback: "userProfiles",
+      fallback: "required Eliza rolodex service",
     },
     {
       capability: "experience",
       nativeKey: "experience",
-      nativeService: "experience",
+      nativeService: DOOLITTLE_EXPERIENCE_SERVICE,
       productServices: ["sessions", "memory"],
-      fallback: "sessions + memory",
+      fallback: "required Eliza experience service",
     },
     {
       capability: "shell",

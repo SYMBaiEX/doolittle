@@ -1,3 +1,4 @@
+import { DOOLITTLE_EXPERIENCE_SERVICE } from "@doolittle/contracts";
 import type { AppServices } from "@/services";
 import type { MemorySummary } from "@/services/experience-memory-service";
 import { getNativeServices, type RuntimeLike } from "../runtime";
@@ -14,14 +15,12 @@ export function getEffectiveMemorySnapshot(
 
 export function getEffectiveExperienceSummary(
   runtime: RuntimeLike,
-  services: Pick<AppServices, "memory" | "sessions">,
 ): NativeExperienceSummary {
-  return (getNativeServices(runtime).experience?.summary?.() ?? {
-    sessions: {
-      ...services.sessions.summary(),
-    },
-    memory: {
-      shared: getEffectiveMemorySnapshot(runtime, services, "memory"),
-    },
-  }) as NativeExperienceSummary;
+  const service = getNativeServices(runtime).experience;
+  if (!service) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_EXPERIENCE_SERVICE} is unavailable.`,
+    );
+  }
+  return service.summary() as NativeExperienceSummary;
 }

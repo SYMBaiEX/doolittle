@@ -1,3 +1,4 @@
+import { configureEffectiveUserProfileModeling } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
   badRequest,
@@ -38,10 +39,14 @@ export const handleUserModeling: IdentityProfileRouteHandler = async ({
   }
 
   return json({
-    profile: context.services.userProfiles.configureModeling(body.userId, {
-      userMemoryMode: body.userMemoryMode,
-      assistantMemoryMode: body.assistantMemoryMode,
-      dialecticMode: body.dialecticMode,
-    }),
+    profile: configureEffectiveUserProfileModeling(
+      context.runtime,
+      body.userId,
+      {
+        userMemoryMode: body.userMemoryMode,
+        assistantMemoryMode: body.assistantMemoryMode,
+        dialecticMode: body.dialecticMode,
+      },
+    ),
   });
 };

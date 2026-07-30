@@ -31,6 +31,20 @@ function createProviderContext() {
       logger: {
         warn: () => undefined,
       },
+      getService: (name: string) => {
+        if (name !== "personality") {
+          return null;
+        }
+        return {
+          activeId: () => activePersonalityId,
+          get: (id: string) => ({ id }),
+          activate: (id: string) => {
+            activePersonalityId = id;
+            personalityTransitions.push(id);
+            return { id };
+          },
+        };
+      },
       getSetting: (key: string) => {
         if (key === "ELIZAOS_CLOUD_CONVERSATION_ID") {
           return conversationId;

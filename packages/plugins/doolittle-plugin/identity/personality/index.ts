@@ -1,3 +1,4 @@
+import { DOOLITTLE_PERSONALITY_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -20,7 +21,7 @@ export function createPersonalityPlugin(
   options: PersonalityPluginOptions,
 ): Plugin {
   class PersonalityService extends ElizaService {
-    static serviceType = "personality";
+    static serviceType = DOOLITTLE_PERSONALITY_SERVICE;
     capabilityDescription =
       "Doolittle personality service backed by local personality profiles.";
 

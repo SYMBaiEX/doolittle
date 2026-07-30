@@ -3,8 +3,56 @@ import type { AgentExecutionContext } from "../chat";
 import { handleIdentityStatusCommand } from "./identity-status-router";
 
 function createContext(): AgentExecutionContext {
+  const profiles = [
+    {
+      id: "focus",
+      name: "Focus",
+      description: "Stays on task.",
+      systemAddendum: "Prefer decisive execution.",
+    },
+    {
+      id: "coach",
+      name: "Coach",
+      description: "Teaches patiently.",
+      systemAddendum: "Explain clearly.",
+    },
+  ];
+  let activeId = "focus";
+
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) => {
+        if (name === "personality") {
+          return {
+            activeId: () => activeId,
+            get: (id: string) => profiles.find((profile) => profile.id === id),
+            list: () => profiles,
+            activate: (id: string) => {
+              const profile = profiles.find((entry) => entry.id === id);
+              if (!profile) throw new Error(`Unknown personality: ${id}`);
+              activeId = id;
+              return profile;
+            },
+            summary: () => ({
+              total: profiles.length,
+              activeId,
+              names: profiles.map((profile) => profile.name),
+            }),
+          };
+        }
+        if (name === "experience") {
+          return {
+            summary: () => ({
+              sessions: { total: 3 },
+              memory: {
+                shared: { target: "memory", entries: 4 },
+              },
+            }),
+          };
+        }
+        return null;
+      },
+    },
     services: {
       personalities: {
         getActive: () => ({

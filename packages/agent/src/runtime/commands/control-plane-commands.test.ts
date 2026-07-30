@@ -14,7 +14,33 @@ describe("control plane commands", () => {
       "/pulse",
       {
         config: { agentName: "Doolittle", workspaceDir: "/tmp/workspace" },
-        runtime: {},
+        runtime: {
+          getService: (name: string) => {
+            if (name === "personality") {
+              return {
+                activeId: () => "operator",
+                get: () => ({
+                  id: "operator",
+                  name: "Operator",
+                }),
+              };
+            }
+            if (name === "rolodex") {
+              return {
+                list: () => [
+                  {
+                    userId: "user-1",
+                    displayName: "Symbiex",
+                    facts: ["Alabama"],
+                    preferences: ["terminal-native"],
+                    notes: [],
+                  },
+                ],
+              };
+            }
+            return null;
+          },
+        },
         services: {
           settings: {
             get: () => ({

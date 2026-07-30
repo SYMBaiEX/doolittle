@@ -45,9 +45,9 @@ export function getNativeOwnershipControlPlane(
     pluginManager: getEffectivePluginManagerInventory(runtime),
     identity: services
       ? {
-          personality: getEffectivePersonalitySummary(runtime, services),
-          rolodex: getEffectiveRolodexSummary(runtime, services),
-          experience: getEffectiveExperienceSummary(runtime, services),
+          personality: getEffectivePersonalitySummary(runtime),
+          rolodex: getEffectiveRolodexSummary(runtime),
+          experience: getEffectiveExperienceSummary(runtime),
         }
       : undefined,
     ecosystem: services?.ecosystem.summary(),

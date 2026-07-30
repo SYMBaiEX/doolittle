@@ -60,8 +60,30 @@ describe("user profile command router", () => {
   });
 
   it("parses user modeling configuration and remember commands", async () => {
+    const rememberProfile = (
+      userId: string,
+      kind: string,
+      value: string,
+      source?: string,
+    ) => ({
+      userId,
+      kind,
+      value,
+      source,
+    });
     const context = {
-      runtime: {},
+      runtime: {
+        getService: (name: string) =>
+          name === "rolodex"
+            ? {
+                remember: rememberProfile,
+                configureModeling: (
+                  userId: string,
+                  settings: Record<string, unknown>,
+                ) => ({ userId, settings }),
+              }
+            : null,
+      },
       services: {
         userProfiles: {
           configureModeling: (
@@ -75,17 +97,7 @@ describe("user profile command router", () => {
             userId,
             settings,
           }),
-          remember: (
-            userId: string,
-            kind: string,
-            value: string,
-            source?: string,
-          ) => ({
-            userId,
-            kind,
-            value,
-            source,
-          }),
+          remember: rememberProfile,
         },
       },
     } as unknown as AgentExecutionContext;
@@ -114,8 +126,29 @@ describe("user profile command router", () => {
   });
 
   it("composes user conclusions and agent observation fallbacks", async () => {
+    const observeAgent = (note: string, source?: string) => ({
+      note,
+      source,
+    });
     const context = {
-      runtime: {},
+      runtime: {
+        getService: (name: string) =>
+          name === "rolodex"
+            ? {
+                observeAgent,
+                context: (userId: string, query: string) => ({
+                  userId,
+                  query,
+                }),
+                conclude: (
+                  userId: string,
+                  query: string,
+                  conclusion: string,
+                  source?: string,
+                ) => ({ userId, query, conclusion, source }),
+              }
+            : null,
+      },
       services: {
         userProfiles: {
           context: (userId: string, query: string) => ({ userId, query }),
@@ -130,10 +163,7 @@ describe("user profile command router", () => {
             conclusion,
             source,
           }),
-          observeAgent: (note: string, source?: string) => ({
-            note,
-            source,
-          }),
+          observeAgent,
         },
       },
     } as unknown as AgentExecutionContext;
@@ -159,17 +189,21 @@ describe("user profile command router", () => {
   });
 
   it("parses agent seed input into structured profile data", async () => {
+    const seedAgent = (seed: {
+      name?: string;
+      goals?: string[];
+      strengths?: string[];
+      workStyle?: string[];
+      notes?: string[];
+    }) => seed;
     const context = {
-      runtime: {},
+      runtime: {
+        getService: (name: string) =>
+          name === "rolodex" ? { seedAgent } : null,
+      },
       services: {
         userProfiles: {
-          seedAgent: (seed: {
-            name?: string;
-            goals?: string[];
-            strengths?: string[];
-            workStyle?: string[];
-            notes?: string[];
-          }) => seed,
+          seedAgent,
         },
       },
     } as unknown as AgentExecutionContext;

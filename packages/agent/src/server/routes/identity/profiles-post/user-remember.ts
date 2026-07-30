@@ -50,7 +50,6 @@ export const handleUserRemember: IdentityProfileRouteHandler = async ({
   return json({
     profile: rememberEffectiveUserProfile(
       context.runtime,
-      context.services,
       body.userId,
       body.kind,
       body.value,

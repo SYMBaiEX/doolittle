@@ -167,10 +167,7 @@ export async function handleBrowserRoutes(
     return json({
       analysis,
       response: await runAnalysisTurn(context, analysis.prompt, "browser", {
-        personalityId: getEffectiveActivePersonality(
-          context.runtime,
-          context.services,
-        ).id,
+        personalityId: getEffectiveActivePersonality(context.runtime).id,
       }),
     });
   }
@@ -225,10 +222,7 @@ export async function handleBrowserRoutes(
         analysis.prompt,
         "browser-comparison",
         {
-          personalityId: getEffectiveActivePersonality(
-            context.runtime,
-            context.services,
-          ).id,
+          personalityId: getEffectiveActivePersonality(context.runtime).id,
         },
       ),
     });

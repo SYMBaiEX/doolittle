@@ -1,3 +1,4 @@
+import { DOOLITTLE_ROLODEX_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -17,6 +18,8 @@ type RolodexRememberKind = Parameters<UserProfileServiceLike["remember"]>[1];
 
 export interface RolodexPluginOptions {
   profiles: {
+    list: UserProfileServiceLike["list"];
+    get: UserProfileServiceLike["get"];
     card: UserProfileServiceLike["card"];
     remember(input: {
       userId: string;
@@ -29,6 +32,12 @@ export interface RolodexPluginOptions {
       text: string;
       source: string;
     }): ReturnType<UserProfileServiceLike["observeAgent"]>;
+    observe: UserProfileServiceLike["observe"];
+    context: UserProfileServiceLike["context"];
+    conclude: UserProfileServiceLike["conclude"];
+    setMode: UserProfileServiceLike["setMode"];
+    configureModeling: UserProfileServiceLike["configureModeling"];
+    seedAgent: UserProfileServiceLike["seedAgent"];
     agentProfile: UserProfileServiceLike["agentProfile"];
     search(query: string, limit?: number): UserProfileSearchHit[];
     beliefs(userId: string): UserProfileBeliefSummary;
@@ -40,7 +49,7 @@ export interface RolodexPluginOptions {
 
 export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
   class RolodexService extends ElizaService {
-    static serviceType = "rolodex";
+    static serviceType = DOOLITTLE_ROLODEX_SERVICE;
     capabilityDescription =
       "Doolittle rolodex/profile memory service layered onto local profiles.";
 
@@ -50,6 +59,14 @@ export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
 
     async stop(): Promise<void> {
       return;
+    }
+
+    list() {
+      return options.profiles.list();
+    }
+
+    get(userId: string) {
+      return options.profiles.get(userId);
     }
 
     card(userId: string) {
@@ -76,6 +93,43 @@ export function createRolodexPlugin(options: RolodexPluginOptions): Plugin {
 
     observeAgent(text: string, source = "rolodex") {
       return options.profiles.observeAgent({ text, source });
+    }
+
+    observe(
+      userId: string,
+      message: string,
+      source?: string,
+      context?: Parameters<UserProfileServiceLike["observe"]>[3],
+    ) {
+      return options.profiles.observe(userId, message, source, context);
+    }
+
+    context(userId: string, query: string) {
+      return options.profiles.context(userId, query);
+    }
+
+    conclude(
+      userId: string,
+      query: string,
+      conclusion: string,
+      source?: string,
+    ) {
+      return options.profiles.conclude(userId, query, conclusion, source);
+    }
+
+    setMode(userId: string, mode: "local" | "hybrid") {
+      return options.profiles.setMode(userId, mode);
+    }
+
+    configureModeling(
+      userId: string,
+      settings: Parameters<UserProfileServiceLike["configureModeling"]>[1],
+    ) {
+      return options.profiles.configureModeling(userId, settings);
+    }
+
+    seedAgent(seed: Parameters<UserProfileServiceLike["seedAgent"]>[0]) {
+      return options.profiles.seedAgent(seed);
     }
 
     agentProfile() {

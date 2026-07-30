@@ -20,23 +20,20 @@ export async function handleIdentityStatusCommand(
   },
 ): Promise<string | undefined> {
   if (trimmed === "/personality" || trimmed === "/personality status") {
-    const active = getEffectiveActivePersonality(
-      context.runtime,
-      context.services,
-    );
+    const active = getEffectiveActivePersonality(context.runtime);
     return [
       `${active.name} (${active.id})`,
       active.description,
       active.systemAddendum,
       `Summary: ${options.formatPersonalitySummary(
-        getEffectivePersonalitySummary(context.runtime, context.services),
+        getEffectivePersonalitySummary(context.runtime),
       )}`,
     ].join("\n");
   }
 
   if (trimmed === "/personality list") {
     return (
-      getEffectivePersonalityList(context.runtime, context.services) as Array<{
+      getEffectivePersonalityList(context.runtime) as Array<{
         id: string;
         description: string;
       }>
@@ -47,17 +44,13 @@ export async function handleIdentityStatusCommand(
 
   if (trimmed.startsWith("/personality set ")) {
     const id = trimmed.replace("/personality set ", "").trim();
-    const profile = activateEffectivePersonality(
-      context.runtime,
-      context.services,
-      id,
-    );
+    const profile = activateEffectivePersonality(context.runtime, id);
     return `Active personality set to ${profile.name}.`;
   }
 
   if (trimmed === "/personality summary") {
     return JSON.stringify(
-      getEffectivePersonalitySummary(context.runtime, context.services),
+      getEffectivePersonalitySummary(context.runtime),
       null,
       2,
     );
@@ -69,7 +62,7 @@ export async function handleIdentityStatusCommand(
 
   if (trimmed === "/experience" || trimmed === "/experience summary") {
     return JSON.stringify(
-      getEffectiveExperienceSummary(context.runtime, context.services),
+      getEffectiveExperienceSummary(context.runtime),
       null,
       2,
     );

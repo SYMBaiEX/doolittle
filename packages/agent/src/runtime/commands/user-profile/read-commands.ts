@@ -6,7 +6,9 @@ import {
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  listEffectiveUserProfiles,
 } from "@/runtime/native/service-bridge/ownership";
+import type { AppServices } from "@/services";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import { stringifyCommandResult } from "./shared";
@@ -18,17 +20,13 @@ export function handleUserProfileReadCommand(
 ): string | undefined {
   if (trimmed === "/user" || trimmed === "/user profile") {
     return stringifyCommandResult(
-      getEffectiveUserProfileCard(
-        context.runtime,
-        context.services,
-        input.userId,
-      ),
+      getEffectiveUserProfileCard(context.runtime, input.userId),
     );
   }
 
   if (trimmed === "/user beliefs") {
     return JSON.stringify(
-      getEffectiveUserBeliefs(context.runtime, context.services, input.userId),
+      getEffectiveUserBeliefs(context.runtime, input.userId),
       null,
       2,
     );
@@ -36,11 +34,7 @@ export function handleUserProfileReadCommand(
 
   if (trimmed === "/user relationship") {
     return JSON.stringify(
-      getEffectiveUserRelationship(
-        context.runtime,
-        context.services,
-        input.userId,
-      ),
+      getEffectiveUserRelationship(context.runtime, input.userId),
       null,
       2,
     );
@@ -48,11 +42,7 @@ export function handleUserProfileReadCommand(
 
   if (trimmed === "/user engagement") {
     return JSON.stringify(
-      getEffectiveUserEngagement(
-        context.runtime,
-        context.services,
-        input.userId,
-      ),
+      getEffectiveUserEngagement(context.runtime, input.userId),
       null,
       2,
     );
@@ -63,7 +53,7 @@ export function handleUserProfileReadCommand(
     trimmed === "/profiles users summary"
   ) {
     return JSON.stringify(
-      getEffectiveUserProfileSummary(context.runtime, context.services),
+      getEffectiveUserProfileSummary(context.runtime),
       null,
       2,
     );
@@ -75,7 +65,7 @@ export function handleUserProfileReadCommand(
       return "Usage: /user search <query>";
     }
     return JSON.stringify(
-      getEffectiveUserProfileSearch(context.runtime, context.services, query),
+      getEffectiveUserProfileSearch(context.runtime, query),
       null,
       2,
     );
@@ -83,22 +73,22 @@ export function handleUserProfileReadCommand(
 
   if (trimmed === "/user card" || trimmed === "/profiles card") {
     return stringifyCommandResult(
-      getEffectiveUserProfileCard(
-        context.runtime,
-        context.services,
-        input.userId,
-      ),
+      getEffectiveUserProfileCard(context.runtime, input.userId),
     );
   }
 
   if (trimmed === "/agent profile") {
     return stringifyCommandResult(
-      getEffectiveAgentProfileCard(context.runtime, context.services),
+      getEffectiveAgentProfileCard(context.runtime),
     );
   }
 
   if (trimmed === "/user list") {
-    const profiles = context.services.userProfiles.list().slice(0, 20);
+    const profiles = (
+      listEffectiveUserProfiles(context.runtime) as ReturnType<
+        AppServices["userProfiles"]["list"]
+      >
+    ).slice(0, 20);
     return profiles.length
       ? profiles
           .map(
@@ -115,7 +105,7 @@ export function handleUserProfileReadCommand(
       return "Usage: /profiles users search <query>";
     }
     return JSON.stringify(
-      getEffectiveUserProfileSearch(context.runtime, context.services, query),
+      getEffectiveUserProfileSearch(context.runtime, query),
       null,
       2,
     );

@@ -36,6 +36,28 @@ function createRuntime() {
       },
     ],
     getService: (name: string) => {
+      if (name === "personality") {
+        return {
+          activeId: () => "persona-1",
+          get: () => ({
+            id: "persona-1",
+            name: "Doolittle",
+            description: "A focused assistant.",
+            systemAddendum: "Stay concise.",
+          }),
+        };
+      }
+      if (name === "rolodex") {
+        return {
+          get: () => ({
+            displayName: "Alex",
+            aliases: [],
+            facts: ["prefers SDK-native agents"],
+            preferences: ["uses Bun"],
+          }),
+          list: () => [],
+        };
+      }
       if (name === "cron") {
         return {
           list: () => [{ name: "nightly", status: "running" }],
@@ -237,7 +259,11 @@ describe("agent context providers", () => {
       "DOOLITTLE_CORE_CONTEXT_PROVIDER",
     );
 
-    const result = await core.get({} as never, createMemory(), {} as never);
+    const result = await core.get(
+      createRuntime() as never,
+      createMemory(),
+      {} as never,
+    );
 
     expect(result.text).toContain("SESSION CONTEXT");
     expect(result.text).toContain("sessionId=session-1");
@@ -255,7 +281,7 @@ describe("agent context providers", () => {
     const core = await provider(
       providers,
       "DOOLITTLE_CORE_CONTEXT_PROVIDER",
-    ).get({} as never, message, {} as never);
+    ).get(createRuntime() as never, message, {} as never);
     const workspace = await provider(
       providers,
       "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
@@ -301,12 +327,12 @@ describe("agent context providers", () => {
     );
 
     const desktop = await core.get(
-      {} as never,
+      createRuntime() as never,
       createMemory("desktop-turn", "desktop-room", "desktop"),
       {} as never,
     );
     const api = await core.get(
-      {} as never,
+      createRuntime() as never,
       createMemory("api-turn", "api-room", "api"),
       {} as never,
     );

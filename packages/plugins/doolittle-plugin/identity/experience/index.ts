@@ -1,3 +1,4 @@
+import { DOOLITTLE_EXPERIENCE_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -29,7 +30,7 @@ export function createExperiencePlugin(
   options: ExperiencePluginOptions,
 ): Plugin {
   class ExperienceService extends ElizaService {
-    static serviceType = "experience";
+    static serviceType = DOOLITTLE_EXPERIENCE_SERVICE;
     capabilityDescription =
       "Doolittle experience service backed by session summaries and memory state.";
 

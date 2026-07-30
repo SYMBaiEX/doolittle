@@ -4,7 +4,15 @@ import { handleBrowserRoutes } from "./browser";
 
 function createContext(): AppContext {
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "personality"
+          ? {
+              activeId: () => "primary",
+              get: (id: string) => ({ id }),
+            }
+          : null,
+    },
     services: {
       web: {
         status: async () => ({

@@ -3,10 +3,13 @@ import {
   getEffectiveRolodexSummary,
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
+  getEffectiveUserProfile,
   getEffectiveUserProfileCard,
+  getEffectiveUserProfileContext,
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  listEffectiveUserProfiles,
   recallEffectiveUserProfile,
 } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
@@ -22,8 +25,8 @@ const handleUserProfiles: IdentityProfileRouteHandler = ({ context, url }) => {
   const userId = getSearchParam(url, "userId");
   return json({
     profiles: userId
-      ? [context.services.userProfiles.get(userId)]
-      : context.services.userProfiles.list(),
+      ? [getEffectiveUserProfile(context.runtime, userId)]
+      : listEffectiveUserProfiles(context.runtime),
   });
 };
 
@@ -36,7 +39,6 @@ const handleUserSearch: IdentityProfileRouteHandler = ({ context, url }) => {
   return json({
     hits: getEffectiveUserProfileSearch(
       context.runtime,
-      context.services,
       query,
       getPositiveLimit(url, "limit", 10),
     ),
@@ -50,12 +52,8 @@ const handleUserCard: IdentityProfileRouteHandler = ({ context, url }) => {
   }
 
   return json({
-    card: getEffectiveUserProfileCard(
-      context.runtime,
-      context.services,
-      userId,
-    ),
-    summary: getEffectiveRolodexSummary(context.runtime, context.services),
+    card: getEffectiveUserProfileCard(context.runtime, userId),
+    summary: getEffectiveRolodexSummary(context.runtime),
   });
 };
 
@@ -67,12 +65,7 @@ const handleUserRecall: IdentityProfileRouteHandler = ({ context, url }) => {
   }
 
   return json({
-    hits: recallEffectiveUserProfile(
-      context.runtime,
-      context.services,
-      userId,
-      query,
-    ),
+    hits: recallEffectiveUserProfile(context.runtime, userId, query),
   });
 };
 
@@ -83,7 +76,7 @@ const handleUserBeliefs: IdentityProfileRouteHandler = ({ context, url }) => {
   }
 
   return json({
-    beliefs: getEffectiveUserBeliefs(context.runtime, context.services, userId),
+    beliefs: getEffectiveUserBeliefs(context.runtime, userId),
   });
 };
 
@@ -97,11 +90,7 @@ const handleUserRelationship: IdentityProfileRouteHandler = ({
   }
 
   return json({
-    relationship: getEffectiveUserRelationship(
-      context.runtime,
-      context.services,
-      userId,
-    ),
+    relationship: getEffectiveUserRelationship(context.runtime, userId),
   });
 };
 
@@ -115,30 +104,23 @@ const handleUserEngagement: IdentityProfileRouteHandler = ({
   }
 
   return json({
-    engagement: getEffectiveUserEngagement(
-      context.runtime,
-      context.services,
-      userId,
-    ),
+    engagement: getEffectiveUserEngagement(context.runtime, userId),
   });
 };
 
 const handleAgentProfile: IdentityProfileRouteHandler = ({ context }) => {
-  const agentProfile = getEffectiveAgentProfile(
-    context.runtime,
-    context.services,
-  );
+  const agentProfile = getEffectiveAgentProfile(context.runtime);
 
   return json({
     profile: agentProfile,
-    card: agentProfile ?? context.services.userProfiles.renderAgent(),
-    summary: getEffectiveRolodexSummary(context.runtime, context.services),
+    card: agentProfile,
+    summary: getEffectiveRolodexSummary(context.runtime),
   });
 };
 
 const handleUserSummary: IdentityProfileRouteHandler = ({ context }) =>
   json({
-    summary: getEffectiveUserProfileSummary(context.runtime, context.services),
+    summary: getEffectiveUserProfileSummary(context.runtime),
   });
 
 const handleUserContext: IdentityProfileRouteHandler = ({ context, url }) => {
@@ -149,7 +131,7 @@ const handleUserContext: IdentityProfileRouteHandler = ({ context, url }) => {
   }
 
   return json({
-    context: context.services.userProfiles.context(userId, query),
+    context: getEffectiveUserProfileContext(context.runtime, userId, query),
   });
 };
 

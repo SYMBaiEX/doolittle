@@ -21,6 +21,8 @@ export async function loadHotIdentityPlugins(
     }),
     createRolodexPlugin({
       profiles: {
+        list: () => services.userProfiles.list(),
+        get: (userId) => services.userProfiles.get(userId),
         card: (userId) => services.userProfiles.card(userId),
         remember: (input) =>
           services.userProfiles.remember(
@@ -32,6 +34,16 @@ export async function loadHotIdentityPlugins(
         recall: (userId, query) => services.userProfiles.recall(userId, query),
         observeAgent: (input) =>
           services.userProfiles.observeAgent(input.text, input.source),
+        observe: (userId, message, source, context) =>
+          services.userProfiles.observe(userId, message, source, context),
+        context: (userId, query) =>
+          services.userProfiles.context(userId, query),
+        conclude: (userId, query, conclusion, source) =>
+          services.userProfiles.conclude(userId, query, conclusion, source),
+        setMode: (userId, mode) => services.userProfiles.setMode(userId, mode),
+        configureModeling: (userId, settings) =>
+          services.userProfiles.configureModeling(userId, settings),
+        seedAgent: (seed) => services.userProfiles.seedAgent(seed),
         agentProfile: () => services.userProfiles.agentProfile(),
         search: (query, limit) => services.userProfiles.search(query, limit),
         beliefs: (userId) => services.userProfiles.beliefs(userId),

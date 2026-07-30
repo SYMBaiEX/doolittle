@@ -182,6 +182,47 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
   } as unknown as AppServices;
 }
 
+function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
+  return makeRuntime({
+    personality: {
+      activeId: () => services.personalities.getActive().id,
+      get: (id: string) => services.personalities.get(id),
+      activate: (id: string) => services.personalities.setActive(id),
+      summary: () => services.personalities.summary(),
+      list: () => services.personalities.list(),
+    },
+    rolodex: {
+      card: (userId: string) => services.userProfiles.renderCards(userId),
+      recall: (userId: string, query: string) =>
+        services.userProfiles.recall(userId, query),
+      remember: (
+        userId: string,
+        kind: string,
+        value: string,
+        source?: string,
+      ) => services.userProfiles.remember(userId, kind as never, value, source),
+      observeAgent: (note: string, source?: string) =>
+        services.userProfiles.observeAgent(note, source),
+      agentProfile: () => services.userProfiles.renderAgent(),
+      summary: () => services.userProfiles.summary(),
+      search: (query: string, limit?: number) =>
+        services.userProfiles.search(query, limit),
+      beliefs: (userId: string) => services.userProfiles.beliefs(userId),
+      relationship: (userId: string) =>
+        services.userProfiles.relationship(userId),
+      engagement: (userId: string) => services.userProfiles.engagement(userId),
+    },
+    experience: {
+      summary: () => ({
+        sessions: services.sessions.summary(),
+        memory: {
+          shared: services.memory.summary("memory"),
+        },
+      }),
+    },
+  });
+}
+
 describe("ownership helpers", () => {
   it("prefers native ownership and generated-skill helpers when available", () => {
     const runtime = makeRuntime({
@@ -263,12 +304,12 @@ describe("ownership helpers", () => {
       characters: 50,
       preview: ["memory"],
     });
-    expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
+    expect(getEffectivePersonalitySummary(runtime)).toEqual({
       total: 4,
       activeId: "operator",
       names: ["Operator", "Autonomous"],
     });
-    expect(getEffectiveRolodexSummary(runtime, services)).toEqual({
+    expect(getEffectiveRolodexSummary(runtime)).toEqual({
       totalProfiles: 3,
       agentName: "Native",
       recentProfiles: ["beta"],
@@ -290,59 +331,50 @@ describe("ownership helpers", () => {
       topSignals: [],
       recentSignals: ["native"],
     });
-    expect(getEffectivePersonalityList(runtime, services)).toEqual([
+    expect(getEffectivePersonalityList(runtime)).toEqual([
       { id: "native", name: "Native" },
     ]);
-    expect(getEffectiveActivePersonality(runtime, services)).toEqual({
+    expect(getEffectiveActivePersonality(runtime)).toEqual({
       id: "native",
       name: "Native",
     });
-    expect(activateEffectivePersonality(runtime, services, "teacher")).toEqual({
+    expect(activateEffectivePersonality(runtime, "teacher")).toEqual({
       id: "teacher",
       name: "Native:teacher",
     });
-    expect(getEffectiveUserProfileCard(runtime, services, "user-1")).toBe(
+    expect(getEffectiveUserProfileCard(runtime, "user-1")).toBe(
       "native-card:user-1",
     );
+    expect(recallEffectiveUserProfile(runtime, "user-1", "query")).toEqual([
+      "native-recall:user-1:query",
+    ]);
     expect(
-      recallEffectiveUserProfile(runtime, services, "user-1", "query"),
-    ).toEqual(["native-recall:user-1:query"]);
-    expect(
-      rememberEffectiveUserProfile(
-        runtime,
-        services,
-        "user-1",
-        "fact",
-        "value",
-        "test",
-      ),
+      rememberEffectiveUserProfile(runtime, "user-1", "fact", "value", "test"),
     ).toMatchObject({ owner: "native" });
-    expect(
-      observeEffectiveAgentProfile(runtime, services, "note", "test"),
-    ).toMatchObject({ owner: "native" });
-    expect(getEffectiveAgentProfile(runtime, services)).toBe("native-agent");
-    expect(getEffectiveAgentProfileCard(runtime, services)).toBe(
-      "native-agent",
+    expect(observeEffectiveAgentProfile(runtime, "note", "test")).toMatchObject(
+      { owner: "native" },
     );
-    expect(getEffectiveUserProfileSearch(runtime, services, "alpha")).toEqual([
+    expect(getEffectiveAgentProfile(runtime)).toBe("native-agent");
+    expect(getEffectiveAgentProfileCard(runtime)).toBe("native-agent");
+    expect(getEffectiveUserProfileSearch(runtime, "alpha")).toEqual([
       { name: "native-result" },
     ]);
-    expect(getEffectiveUserBeliefs(runtime, services, "user-1")).toEqual([
+    expect(getEffectiveUserBeliefs(runtime, "user-1")).toEqual([
       "native-belief",
     ]);
-    expect(getEffectiveUserRelationship(runtime, services, "user-1")).toEqual({
+    expect(getEffectiveUserRelationship(runtime, "user-1")).toEqual({
       status: "trusted",
     });
-    expect(getEffectiveUserEngagement(runtime, services, "user-1")).toEqual({
+    expect(getEffectiveUserEngagement(runtime, "user-1")).toEqual({
       score: 99,
     });
-    expect(getEffectiveUserProfileSummary(runtime, services)).toEqual(
-      getEffectiveRolodexSummary(runtime, services),
+    expect(getEffectiveUserProfileSummary(runtime)).toEqual(
+      getEffectiveRolodexSummary(runtime),
     );
     expect(getEffectiveGeneratedSkills(runtime, services)).toEqual([
       "generated/fallback",
     ]);
-    expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
+    expect(getEffectiveExperienceSummary(runtime)).toEqual({
       sessions: { totalSessions: 9, recentSessionIds: ["n1", "n2", "n3"] },
       memory: {
         shared: {
@@ -355,7 +387,7 @@ describe("ownership helpers", () => {
     });
   });
 
-  it("falls back to product service summaries when native services are absent", () => {
+  it("fails clearly instead of bypassing missing Eliza identity services", () => {
     const runtime = makeRuntime();
     const services = makeServices();
 
@@ -365,75 +397,56 @@ describe("ownership helpers", () => {
       characters: 50,
       preview: ["memory"],
     });
-    expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
-      total: 2,
-      activeId: "agent",
-      names: ["Fallback", "Agent"],
-    });
-    expect(getEffectiveRolodexSummary(runtime, services)).toEqual(
-      services.userProfiles.summary(),
+    expect(() => getEffectivePersonalitySummary(runtime)).toThrow(
+      "Required Eliza service personality is unavailable.",
     );
-    expect(getEffectivePersonalityList(runtime, services)).toEqual([
-      { id: "fallback", name: "Fallback" },
-      { id: "agent", name: "Agent" },
-    ]);
-    expect(getEffectiveActivePersonality(runtime, services)).toEqual({
-      id: "agent",
-      name: "Agent",
-    });
-    expect(activateEffectivePersonality(runtime, services, "teacher")).toEqual({
-      id: "teacher",
-      name: "Fallback:teacher",
-    });
-    expect(getEffectiveUserProfileCard(runtime, services, "user-2")).toBe(
-      "fallback-card:user-2",
+    expect(() => getEffectivePersonalityList(runtime)).toThrow(
+      "Required Eliza service personality is unavailable.",
     );
-    expect(
-      recallEffectiveUserProfile(runtime, services, "user-2", "query"),
-    ).toEqual(["fallback-recall:user-2:query"]);
-    expect(
-      rememberEffectiveUserProfile(
-        runtime,
-        services,
-        "user-2",
-        "fact",
-        "value",
-      ),
-    ).toMatchObject({ owner: "fallback" });
-    expect(
-      observeEffectiveAgentProfile(runtime, services, "note"),
-    ).toMatchObject({ owner: "fallback" });
-    expect(getEffectiveAgentProfile(runtime, services)).toEqual({
-      id: "fallback-agent",
-    });
-    expect(getEffectiveAgentProfileCard(runtime, services)).toBe(
-      "fallback-agent-card",
+    expect(() => getEffectiveActivePersonality(runtime)).toThrow(
+      "Required Eliza service personality is unavailable.",
+    );
+    expect(() => activateEffectivePersonality(runtime, "teacher")).toThrow(
+      "Required Eliza service personality is unavailable.",
+    );
+    expect(() => getEffectiveRolodexSummary(runtime)).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() => getEffectiveUserProfileCard(runtime, "user-2")).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() =>
+      recallEffectiveUserProfile(runtime, "user-2", "query"),
+    ).toThrow("Required Eliza service rolodex is unavailable.");
+    expect(() =>
+      rememberEffectiveUserProfile(runtime, "user-2", "fact", "value"),
+    ).toThrow("Required Eliza service rolodex is unavailable.");
+    expect(() => observeEffectiveAgentProfile(runtime, "note")).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() => getEffectiveAgentProfile(runtime)).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() => getEffectiveAgentProfileCard(runtime)).toThrow(
+      "Required Eliza service rolodex is unavailable.",
     );
     expect(getEffectiveGeneratedSkills(runtime, services)).toEqual([
       "generated/fallback",
     ]);
-    expect(getEffectiveUserProfileSearch(runtime, services, "alpha")).toEqual([
-      { name: "fallback:alpha" },
-    ]);
-    expect(getEffectiveUserBeliefs(runtime, services, "user-2")).toEqual([
-      "fallback-belief",
-    ]);
-    expect(getEffectiveExperienceSummary(runtime, services)).toEqual({
-      sessions: { totalSessions: 4, recentSessionIds: ["s-1"] },
-      memory: {
-        shared: {
-          target: "memory",
-          entries: 3,
-          characters: 50,
-          preview: ["memory"],
-        },
-      },
-    });
+    expect(() => getEffectiveUserProfileSearch(runtime, "alpha")).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() => getEffectiveUserBeliefs(runtime, "user-2")).toThrow(
+      "Required Eliza service rolodex is unavailable.",
+    );
+    expect(() => getEffectiveExperienceSummary(runtime)).toThrow(
+      "Required Eliza service experience is unavailable.",
+    );
   });
 
   it("builds native ownership control plane identity when services are provided", async () => {
-    const runtime = makeRuntime();
     const services = makeServices();
+    const runtime = makeRequiredIdentityRuntime(services);
 
     const controlPlane = getNativeOwnershipControlPlane(runtime, services, {
       falApiKey: "fal-key",
@@ -459,8 +472,8 @@ describe("ownership helpers", () => {
   });
 
   it("builds ownership snapshot from native controls", async () => {
-    const runtime = makeRuntime();
     const services = makeServices();
+    const runtime = makeRequiredIdentityRuntime(services);
 
     const snapshot = await getNativeOwnershipSnapshot(runtime, services, {
       openAiApiKey: "openai-key",
@@ -479,8 +492,8 @@ describe("ownership helpers", () => {
   });
 
   it("builds ecosystem snapshot with ownership fallback when native ownership is unavailable", async () => {
-    const runtime = makeRuntime();
     const services = makeServices();
+    const runtime = makeRequiredIdentityRuntime(services);
 
     const snapshot = await getNativeEcosystemSnapshot(
       runtime,

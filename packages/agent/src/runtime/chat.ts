@@ -129,10 +129,7 @@ export async function executeSlashCommand(
   return buildCommandResponse(input, context, hooks, {
     runAnalysis: (prompt, label) =>
       runModelAnalysisTurn(context, prompt, label, {
-        personalityId: getEffectiveActivePersonality(
-          context.runtime,
-          context.services,
-        ).id,
+        personalityId: getEffectiveActivePersonality(context.runtime).id,
       }),
     runDelegationTaskInWorker: (taskId, options) =>
       runDelegationTaskInWorker(context, taskId, options),

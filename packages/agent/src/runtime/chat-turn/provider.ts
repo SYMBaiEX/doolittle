@@ -164,7 +164,6 @@ export async function runProviderModelTurn(
     let messageId = String(memory.id);
     const personalityBefore = getEffectiveActivePersonality(
       input.context.runtime,
-      input.context.services,
     );
     const previousConversationId = input.context.runtime.getSetting(
       "ELIZAOS_CLOUD_CONVERSATION_ID",
@@ -184,7 +183,6 @@ export async function runProviderModelTurn(
     ) {
       activateEffectivePersonality(
         input.context.runtime,
-        input.context.services,
         input.options.personalityId,
       );
     }
@@ -240,7 +238,6 @@ export async function runProviderModelTurn(
       ) {
         activateEffectivePersonality(
           input.context.runtime,
-          input.context.services,
           personalityBefore.id,
         );
       }

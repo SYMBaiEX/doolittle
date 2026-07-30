@@ -1,186 +1,219 @@
+import {
+  DOOLITTLE_PERSONALITY_SERVICE,
+  DOOLITTLE_ROLODEX_SERVICE,
+} from "@doolittle/contracts";
 import type { AppServices } from "@/services";
+import type { PersonalityProfile } from "@/types";
 import { getNativeServices, type RuntimeLike } from "../runtime";
+import type {
+  NativePersonalityService,
+  NativeRolodexService,
+} from "../runtime-contracts";
 import type { NativePersonalitySummary, NativeRolodexSummary } from "./types";
 
-/**
- * Identity is owned by the registered Eliza services. The product services are
- * persistence ports injected into those plugins and remain the compatibility
- * fallback while a runtime is booting or a plugin is unavailable.
- */
-export type IdentityServices = Pick<
-  AppServices,
-  "personalities" | "userProfiles"
->;
+type UserMemoryKind = Parameters<NativeRolodexService["remember"]>[1];
 
-type PersonalityProfile = ReturnType<
-  IdentityServices["personalities"]["getActive"]
->;
-type UserMemoryKind = Parameters<
-  IdentityServices["userProfiles"]["remember"]
->[1];
+function requirePersonalityService(
+  runtime: RuntimeLike,
+): NativePersonalityService {
+  const service = getNativeServices(runtime).personality;
+  if (!service) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_PERSONALITY_SERVICE} is unavailable.`,
+    );
+  }
+  return service;
+}
+
+function requireRolodexService(runtime: RuntimeLike): NativeRolodexService {
+  const service = getNativeServices(runtime).rolodex;
+  if (!service) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_ROLODEX_SERVICE} is unavailable.`,
+    );
+  }
+  return service;
+}
 
 export function getEffectiveActivePersonality(
   runtime: RuntimeLike,
-  services: IdentityServices,
 ): PersonalityProfile {
-  const personality = getNativeServices(runtime).personality;
-  const activeId = personality?.activeId();
-  return ((activeId ? personality?.get(activeId) : undefined) ??
-    services.personalities.getActive()) as PersonalityProfile;
+  const service = requirePersonalityService(runtime);
+  const activeId = service.activeId();
+  const profile = activeId ? service.get(activeId) : undefined;
+  if (!profile) {
+    throw new Error("The Eliza personality service has no active profile.");
+  }
+  return profile as PersonalityProfile;
 }
 
 export function activateEffectivePersonality(
   runtime: RuntimeLike,
-  services: IdentityServices,
   id: string,
 ): PersonalityProfile {
-  return (getNativeServices(runtime).personality?.activate(id) ??
-    services.personalities.setActive(id)) as PersonalityProfile;
+  return requirePersonalityService(runtime).activate(id) as PersonalityProfile;
 }
 
 export function getEffectivePersonalitySummary(
   runtime: RuntimeLike,
-  services: IdentityServices,
 ): NativePersonalitySummary {
-  return (getNativeServices(runtime).personality?.summary?.() ??
-    services.personalities.summary()) as NativePersonalitySummary;
+  return requirePersonalityService(
+    runtime,
+  ).summary() as NativePersonalitySummary;
 }
 
 export function getEffectivePersonalityList(
   runtime: RuntimeLike,
-  services: IdentityServices,
 ): PersonalityProfile[] {
-  return (getNativeServices(runtime).personality?.list?.() ??
-    services.personalities.list()) as PersonalityProfile[];
+  return requirePersonalityService(runtime).list() as PersonalityProfile[];
 }
 
 export function getEffectiveRolodexSummary(
   runtime: RuntimeLike,
-  services: IdentityServices,
 ): NativeRolodexSummary {
-  return (getNativeServices(runtime).rolodex?.summary?.() ??
-    services.userProfiles.summary()) as NativeRolodexSummary;
+  return requireRolodexService(runtime).summary() as NativeRolodexSummary;
 }
 
 export function getEffectiveUserProfileSummary(
   runtime: RuntimeLike,
-  services: IdentityServices,
 ): NativeRolodexSummary {
-  return getEffectiveRolodexSummary(runtime, services);
+  return getEffectiveRolodexSummary(runtime);
+}
+
+export function listEffectiveUserProfiles(runtime: RuntimeLike) {
+  return requireRolodexService(runtime).list();
+}
+
+export function getEffectiveUserProfile(runtime: RuntimeLike, userId: string) {
+  return requireRolodexService(runtime).get(userId);
 }
 
 export function getEffectiveUserProfileSearch(
   runtime: RuntimeLike,
-  services: IdentityServices,
   query: string,
   limit = 10,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.search?.(query, limit) ??
-    services.userProfiles.search(query, limit)
-  );
+  return requireRolodexService(runtime).search(query, limit);
 }
 
 export function getEffectiveUserProfileCard(
   runtime: RuntimeLike,
-  services: IdentityServices,
   userId: string,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.card(userId) ??
-    services.userProfiles.renderCards(userId)
-  );
+  return requireRolodexService(runtime).card(userId);
 }
 
 export function recallEffectiveUserProfile(
   runtime: RuntimeLike,
-  services: IdentityServices,
   userId: string,
   query: string,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.recall(userId, query) ??
-    services.userProfiles.recall(userId, query)
-  );
+  return requireRolodexService(runtime).recall(userId, query);
 }
 
 export function rememberEffectiveUserProfile(
   runtime: RuntimeLike,
-  services: IdentityServices,
   userId: string,
   kind: UserMemoryKind,
   value: string,
   source?: string,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.remember(userId, kind, value, source) ??
-    services.userProfiles.remember(userId, kind, value, source)
-  );
+  return requireRolodexService(runtime).remember(userId, kind, value, source);
 }
 
 export function observeEffectiveAgentProfile(
   runtime: RuntimeLike,
-  services: IdentityServices,
   note: string,
   source?: string,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.observeAgent(note, source) ??
-    services.userProfiles.observeAgent(note, source)
-  );
+  return requireRolodexService(runtime).observeAgent(note, source);
 }
 
-export function getEffectiveAgentProfile(
+export function observeEffectiveUserProfile(
   runtime: RuntimeLike,
-  services: IdentityServices,
-) {
-  return (
-    getNativeServices(runtime).rolodex?.agentProfile() ??
-    services.userProfiles.getAgent()
-  );
-}
-
-export function getEffectiveAgentProfileCard(
-  runtime: RuntimeLike,
-  services: IdentityServices,
-) {
-  return (
-    getNativeServices(runtime).rolodex?.agentProfile() ??
-    services.userProfiles.renderAgent()
-  );
-}
-
-export function getEffectiveUserBeliefs(
-  runtime: RuntimeLike,
-  services: IdentityServices,
   userId: string,
+  message: string,
+  source?: string,
+  context?: Parameters<NativeRolodexService["observe"]>[3],
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.beliefs?.(userId) ??
-    services.userProfiles.beliefs(userId)
+  return requireRolodexService(runtime).observe(
+    userId,
+    message,
+    source,
+    context,
   );
+}
+
+export function getEffectiveUserProfileContext(
+  runtime: RuntimeLike,
+  userId: string,
+  query: string,
+) {
+  return requireRolodexService(runtime).context(userId, query);
+}
+
+export function concludeEffectiveUserProfile(
+  runtime: RuntimeLike,
+  userId: string,
+  query: string,
+  conclusion: string,
+  source?: string,
+) {
+  return requireRolodexService(runtime).conclude(
+    userId,
+    query,
+    conclusion,
+    source,
+  );
+}
+
+export function setEffectiveUserProfileMode(
+  runtime: RuntimeLike,
+  userId: string,
+  mode: "local" | "hybrid",
+) {
+  return requireRolodexService(runtime).setMode(userId, mode);
+}
+
+export function configureEffectiveUserProfileModeling(
+  runtime: RuntimeLike,
+  userId: string,
+  settings: Parameters<NativeRolodexService["configureModeling"]>[1],
+) {
+  return requireRolodexService(runtime).configureModeling(userId, settings);
+}
+
+export function seedEffectiveAgentProfile(
+  runtime: RuntimeLike,
+  seed: Parameters<NativeRolodexService["seedAgent"]>[0],
+) {
+  return requireRolodexService(runtime).seedAgent(seed);
+}
+
+export function getEffectiveAgentProfile(runtime: RuntimeLike) {
+  return requireRolodexService(runtime).agentProfile();
+}
+
+export function getEffectiveAgentProfileCard(runtime: RuntimeLike) {
+  return requireRolodexService(runtime).agentProfile();
+}
+
+export function getEffectiveUserBeliefs(runtime: RuntimeLike, userId: string) {
+  return requireRolodexService(runtime).beliefs(userId);
 }
 
 export function getEffectiveUserRelationship(
   runtime: RuntimeLike,
-  services: IdentityServices,
   userId: string,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.relationship?.(userId) ??
-    services.userProfiles.relationship(userId)
-  );
+  return requireRolodexService(runtime).relationship(userId);
 }
 
 export function getEffectiveUserEngagement(
   runtime: RuntimeLike,
-  services: IdentityServices,
   userId: string,
 ) {
-  return (
-    getNativeServices(runtime).rolodex?.engagement?.(userId) ??
-    services.userProfiles.engagement(userId)
-  );
+  return requireRolodexService(runtime).engagement(userId);
 }
 
 export function getEffectiveGeneratedSkills(

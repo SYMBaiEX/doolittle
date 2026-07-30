@@ -286,7 +286,16 @@ describe("chat turn state helpers", () => {
           },
         },
       },
-      runtime: {},
+      runtime: {
+        getService: (name: string) =>
+          name === "rolodex"
+            ? {
+                observe: async () => {
+                  observed.push("observed");
+                },
+              }
+            : null,
+      },
       config: {},
     } as unknown as AgentExecutionContext;
     const schedule = createProfileObservationScheduler(

@@ -15,41 +15,25 @@ export async function handleIdentityRoutes(
   url: URL,
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/personality") {
-    const active = getEffectiveActivePersonality(
-      context.runtime,
-      context.services,
-    );
-    const available = getEffectivePersonalityList(
-      context.runtime,
-      context.services,
-    );
+    const active = getEffectiveActivePersonality(context.runtime);
+    const available = getEffectivePersonalityList(context.runtime);
     return json({
       active,
       available,
-      summary: getEffectivePersonalitySummary(
-        context.runtime,
-        context.services,
-      ),
+      summary: getEffectivePersonalitySummary(context.runtime),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/personality/summary") {
     return json({
-      summary: getEffectivePersonalitySummary(
-        context.runtime,
-        context.services,
-      ),
+      summary: getEffectivePersonalitySummary(context.runtime),
     });
   }
 
   if (request.method === "POST" && url.pathname === "/personality") {
     const body = (await request.json()) as { id: string };
     return json({
-      active: activateEffectivePersonality(
-        context.runtime,
-        context.services,
-        body.id,
-      ),
+      active: activateEffectivePersonality(context.runtime, body.id),
     });
   }
 
@@ -63,7 +47,7 @@ export async function handleIdentityRoutes(
     (url.pathname === "/experience" || url.pathname === "/experience/summary")
   ) {
     return json({
-      summary: getEffectiveExperienceSummary(context.runtime, context.services),
+      summary: getEffectiveExperienceSummary(context.runtime),
     });
   }
 

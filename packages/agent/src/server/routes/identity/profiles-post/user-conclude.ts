@@ -1,3 +1,7 @@
+import {
+  concludeEffectiveUserProfile,
+  getEffectiveUserProfileContext,
+} from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
   badRequest,
@@ -38,8 +42,13 @@ export const handleUserConclude: IdentityProfileRouteHandler = async ({
   }
 
   return json({
-    context: context.services.userProfiles.context(body.userId, body.query),
-    conclusion: context.services.userProfiles.conclude(
+    context: getEffectiveUserProfileContext(
+      context.runtime,
+      body.userId,
+      body.query,
+    ),
+    conclusion: concludeEffectiveUserProfile(
+      context.runtime,
       body.userId,
       body.query,
       body.conclusion,

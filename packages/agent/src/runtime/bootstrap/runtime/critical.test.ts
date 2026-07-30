@@ -20,7 +20,9 @@ describe("bootstrap runtime services", () => {
     await validateCriticalRuntimeServices(runtime as never);
 
     expect(calls).toEqual([
+      "service:personality",
       "service:rolodex",
+      "service:experience",
       "service:plugin_manager",
       "service:planning",
       "service:doolittle_awareness",

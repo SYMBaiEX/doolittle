@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { type Content, createUniqueUuid } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import { observeEffectiveUserProfile } from "@/runtime/native/service-bridge/ownership";
 import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import type {
   ChatTurnRequest,
@@ -88,7 +89,8 @@ export function createProfileObservationScheduler(
 ): () => void {
   return () => {
     scheduleBackgroundTask(() => {
-      context.services.userProfiles.observe(
+      observeEffectiveUserProfile(
+        context.runtime,
         input.userId,
         input.message,
         input.source,

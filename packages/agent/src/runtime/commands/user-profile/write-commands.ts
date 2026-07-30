@@ -1,7 +1,12 @@
 import {
+  concludeEffectiveUserProfile,
+  configureEffectiveUserProfileModeling,
+  getEffectiveUserProfileContext,
   observeEffectiveAgentProfile,
   recallEffectiveUserProfile,
   rememberEffectiveUserProfile,
+  seedEffectiveAgentProfile,
+  setEffectiveUserProfileMode,
 } from "@/runtime/native/service-bridge/ownership";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
@@ -23,12 +28,7 @@ export function handleUserProfileWriteCommand(
       return "Usage: /user recall <query>";
     }
     return JSON.stringify(
-      recallEffectiveUserProfile(
-        context.runtime,
-        context.services,
-        input.userId,
-        query,
-      ),
+      recallEffectiveUserProfile(context.runtime, input.userId, query),
       null,
       2,
     );
@@ -40,7 +40,7 @@ export function handleUserProfileWriteCommand(
       return "Usage: /user context <question>";
     }
     return JSON.stringify(
-      context.services.userProfiles.context(input.userId, query),
+      getEffectiveUserProfileContext(context.runtime, input.userId, query),
       null,
       2,
     );
@@ -56,8 +56,13 @@ export function handleUserProfileWriteCommand(
     }
     return JSON.stringify(
       {
-        context: context.services.userProfiles.context(input.userId, query),
-        conclusion: context.services.userProfiles.conclude(
+        context: getEffectiveUserProfileContext(
+          context.runtime,
+          input.userId,
+          query,
+        ),
+        conclusion: concludeEffectiveUserProfile(
+          context.runtime,
           input.userId,
           query,
           conclusion,
@@ -77,7 +82,6 @@ export function handleUserProfileWriteCommand(
     return JSON.stringify(
       rememberEffectiveUserProfile(
         context.runtime,
-        context.services,
         input.userId,
         "note",
         note,
@@ -94,7 +98,7 @@ export function handleUserProfileWriteCommand(
       return "Usage: /user mode <local|hybrid>";
     }
     return JSON.stringify(
-      context.services.userProfiles.setMode(input.userId, mode),
+      setEffectiveUserProfileMode(context.runtime, input.userId, mode),
       null,
       2,
     );
@@ -112,7 +116,11 @@ export function handleUserProfileWriteCommand(
       return "Usage: /user modeling user:<local|hybrid> | assistant:<local|hybrid> | dialectic:<off|assist|conclude>";
     }
     return JSON.stringify(
-      context.services.userProfiles.configureModeling(input.userId, settings),
+      configureEffectiveUserProfileModeling(
+        context.runtime,
+        input.userId,
+        settings,
+      ),
       null,
       2,
     );
@@ -132,7 +140,6 @@ export function handleUserProfileWriteCommand(
     return JSON.stringify(
       rememberEffectiveUserProfile(
         context.runtime,
-        context.services,
         input.userId,
         kind,
         value,
@@ -149,12 +156,7 @@ export function handleUserProfileWriteCommand(
       return "Usage: /agent observe <text>";
     }
     return JSON.stringify(
-      observeEffectiveAgentProfile(
-        context.runtime,
-        context.services,
-        note,
-        input.source,
-      ),
+      observeEffectiveAgentProfile(context.runtime, note, input.source),
       null,
       2,
     );
@@ -166,7 +168,7 @@ export function handleUserProfileWriteCommand(
       return "Usage: /agent seed name:Doolittle | goals:a,b | strengths:x,y | style:m,n | notes:p,q";
     }
     return JSON.stringify(
-      context.services.userProfiles.seedAgent(parseAgentSeed(raw)),
+      seedEffectiveAgentProfile(context.runtime, parseAgentSeed(raw)),
       null,
       2,
     );

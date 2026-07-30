@@ -1,3 +1,8 @@
+import {
+  DOOLITTLE_EXPERIENCE_SERVICE,
+  DOOLITTLE_PERSONALITY_SERVICE,
+  DOOLITTLE_ROLODEX_SERVICE,
+} from "@doolittle/contracts";
 import { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
 import {
   KNOWLEDGE_GRAPH_SERVICE,
@@ -72,9 +77,15 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       KNOWLEDGE_GRAPH_SERVICE,
     ),
     pdf: service<NativePdfService>(runtime, PDF_SERVICE),
-    personality: service<NativePersonalityService>(runtime, "personality"),
-    rolodex: service<NativeRolodexService>(runtime, "rolodex"),
-    experience: service<NativeExperienceService>(runtime, "experience"),
+    personality: service<NativePersonalityService>(
+      runtime,
+      DOOLITTLE_PERSONALITY_SERVICE,
+    ),
+    rolodex: service<NativeRolodexService>(runtime, DOOLITTLE_ROLODEX_SERVICE),
+    experience: service<NativeExperienceService>(
+      runtime,
+      DOOLITTLE_EXPERIENCE_SERVICE,
+    ),
     shell: service<NativeShellService>(runtime, DOOLITTLE_SHELL_SERVICE),
     browser: service<NativeBrowserService>(runtime, DOOLITTLE_BROWSER_SERVICE),
     mcp: service<NativeMcpService>(runtime, DOOLITTLE_MCP_SERVICE),

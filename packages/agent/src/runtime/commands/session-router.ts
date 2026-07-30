@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getEffectiveUserProfile } from "@/runtime/native/service-bridge/ownership";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 import type { ChatCommandRouterDependencies } from "../chat-command-router/types";
@@ -197,7 +198,10 @@ function formatOperatorInsights(
   context: AgentExecutionContext,
 ): string {
   const usage = context.services.sessions.usage(sessionKey);
-  const profile = context.services.userProfiles.get(input.userId);
+  const profile = getEffectiveUserProfile(
+    context.runtime,
+    input.userId,
+  ) as ReturnType<AgentExecutionContext["services"]["userProfiles"]["get"]>;
   const sharedMemory = context.services.memory.summary("memory");
   const userMemory = context.services.memory.summary("user", input.userId);
   const generatedSkills =

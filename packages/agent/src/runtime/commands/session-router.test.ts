@@ -278,6 +278,20 @@ describe("session command router", () => {
       createdAt: `2026-03-28T00:00:0${index}.000Z`,
     }));
     const context = {
+      runtime: {
+        getService: (name: string) =>
+          name === "rolodex"
+            ? {
+                get: () => ({
+                  displayName: "Alex",
+                  status: "engaged",
+                  facts: ["uses Bun"],
+                  preferences: ["concise"],
+                  aliases: ["A"],
+                }),
+              }
+            : null,
+      },
       services: {
         sessions: {
           messagesBySession: () => messages,

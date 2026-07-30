@@ -39,7 +39,6 @@ export const handleUserNote: IdentityProfileRouteHandler = async ({
   return json({
     profile: rememberEffectiveUserProfile(
       context.runtime,
-      context.services,
       body.userId,
       "note",
       body.note,

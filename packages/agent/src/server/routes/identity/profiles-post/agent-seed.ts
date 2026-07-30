@@ -1,3 +1,4 @@
+import { seedEffectiveAgentProfile } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
   type IdentityProfileRouteHandler,
@@ -23,6 +24,6 @@ export const handleAgentSeed: IdentityProfileRouteHandler = async ({
   const body = await readAgentSeedBody(request);
 
   return json({
-    profile: context.services.userProfiles.seedAgent(body),
+    profile: seedEffectiveAgentProfile(context.runtime, body),
   });
 };

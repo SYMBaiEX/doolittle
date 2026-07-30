@@ -2,9 +2,10 @@ export {
   getEffectiveExperienceSummary,
   getEffectiveMemorySnapshot,
 } from "./experience";
-export type { IdentityServices } from "./identity";
 export {
   activateEffectivePersonality,
+  concludeEffectiveUserProfile,
+  configureEffectiveUserProfileModeling,
   getEffectiveActivePersonality,
   getEffectiveAgentProfile,
   getEffectiveAgentProfileCard,
@@ -14,13 +15,19 @@ export {
   getEffectiveRolodexSummary,
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
+  getEffectiveUserProfile,
   getEffectiveUserProfileCard,
+  getEffectiveUserProfileContext,
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  listEffectiveUserProfiles,
   observeEffectiveAgentProfile,
+  observeEffectiveUserProfile,
   recallEffectiveUserProfile,
   rememberEffectiveUserProfile,
+  seedEffectiveAgentProfile,
+  setEffectiveUserProfileMode,
 } from "./identity";
 export {
   getNativeEcosystemSnapshot,
