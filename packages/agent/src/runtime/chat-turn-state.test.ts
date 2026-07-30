@@ -412,4 +412,60 @@ describe("chat turn state helpers with session persistence", () => {
       "desktop-user",
     );
   });
+
+  it("leaves current native user persistence to Eliza after hydrating inherited history", async () => {
+    const nativeTexts: string[] = [];
+    const projectedTexts: string[] = [];
+    const context = {
+      services: {
+        sessions: {
+          continuityKey: (sessionId: string) => sessionId,
+          messagesBySession: () => [
+            {
+              id: "legacy-user",
+              sessionId: "fork-2",
+              roomId: "old-room",
+              entityId: "user-1",
+              role: "user",
+              text: "Inherited question",
+              createdAt: "2026-07-29T00:00:00.000Z",
+            },
+          ],
+          storeMessage: (message: { text: string }) => {
+            projectedTexts.push(message.text);
+          },
+        },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [],
+        createMemory: async (memory: {
+          id: string;
+          content: { text: string };
+        }) => {
+          nativeTexts.push(memory.content.text);
+          return memory.id;
+        },
+        queueEmbeddingGeneration: async () => undefined,
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await persistUserTurnMemory({
+      context,
+      turn: {
+        sessionId: "fork-2",
+        roomId: "room-2",
+        entityId: "user-1",
+        messageId: "00000000-0000-4000-8000-000000000002",
+        connectionSource: "desktop",
+      } as Parameters<typeof persistUserTurnMemory>[0]["turn"],
+      userId: "desktop-user",
+      text: "Continue through Eliza",
+      nativeOwner: "eliza-message-service",
+    });
+
+    expect(nativeTexts).toEqual(["Inherited question"]);
+    expect(projectedTexts).toEqual(["Continue through Eliza"]);
+  });
 });

@@ -10,6 +10,8 @@ import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import type { StoredMessage, StoredMessageAttachment } from "@/types";
 import type { TurnState } from "./state";
 
+export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";
+
 function nowIso(createdAt?: number): string {
   return new Date(createdAt ?? Date.now()).toISOString();
 }
@@ -192,6 +194,7 @@ export async function persistUserTurnMemory(input: {
   userId: string;
   text: string;
   attachments?: StoredMessageAttachment[];
+  nativeOwner?: NativeUserMemoryOwner;
 }): Promise<void> {
   await hydrateNativeRoomFromProjection(input.context, input.turn);
   const memory: Memory = {
@@ -215,7 +218,9 @@ export async function persistUserTurnMemory(input: {
     },
     createdAt: Date.now(),
   };
-  await persistNativeMemory(input.context, memory, "high");
+  if ((input.nativeOwner ?? "doolittle") === "doolittle") {
+    await persistNativeMemory(input.context, memory, "high");
+  }
   projectMessage(input.context, input.turn, memory, input.attachments);
 }
 

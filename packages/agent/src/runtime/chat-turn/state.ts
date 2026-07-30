@@ -7,6 +7,7 @@ import type {
   RunDepth,
   ToolProgressMode,
 } from "@/types/runtime";
+import type { NativeUserMemoryOwner } from "./conversation-persistence";
 import { persistUserTurnMemory } from "./conversation-persistence";
 import { recordTrajectoryEvent } from "./trajectory";
 
@@ -126,6 +127,7 @@ export async function startTrackedTurn(
     maxIterations: number;
     toolProgressMode: ToolProgressMode;
   },
+  nativeUserMemoryOwner: NativeUserMemoryOwner = "doolittle",
 ): Promise<void> {
   const modelSettings = turn.settings?.model ?? {};
   await persistUserTurnMemory({
@@ -134,6 +136,7 @@ export async function startTrackedTurn(
     userId: input.userId,
     text: input.message,
     attachments: input.attachmentDescriptors,
+    nativeOwner: nativeUserMemoryOwner,
   });
   recordTrajectoryEvent(context, {
     category: "turn",

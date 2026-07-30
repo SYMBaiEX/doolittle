@@ -5,13 +5,18 @@ import {
   resolveNativeMessagePolicy,
 } from "./chat-turn/native/setup";
 
-function createContext(): AgentExecutionContext {
+function createContext(nativeWrites: string[] = []): AgentExecutionContext {
   return {
     runtime: {
       character: { name: "Doolittle" },
       agentId: "agent-1",
-      createMemory: async (memory: { id: string }) => memory.id,
-      queueEmbeddingGeneration: async () => undefined,
+      createMemory: async (memory: { id: string }) => {
+        nativeWrites.push(memory.id);
+        return memory.id;
+      },
+      queueEmbeddingGeneration: async () => {
+        nativeWrites.push("embedding");
+      },
     },
     services: {
       settings: {
@@ -56,7 +61,8 @@ function createContext(): AgentExecutionContext {
 
 describe("ElizaOS-native chat turn setup", () => {
   it("maps product execution settings to an SDK message budget without classifying message text", async () => {
-    const context = createContext();
+    const nativeWrites: string[] = [];
+    const context = createContext(nativeWrites);
     const request = {
       userId: "alice",
       message: "hello",
@@ -78,6 +84,7 @@ describe("ElizaOS-native chat turn setup", () => {
     });
     expect(setup).not.toHaveProperty("turnClassification");
     expect(setup).not.toHaveProperty("derivedTurnPolicy");
+    expect(nativeWrites).toEqual([]);
   });
 
   it("lets quick mode disable the planner loop while preserving SDK direct replies", () => {

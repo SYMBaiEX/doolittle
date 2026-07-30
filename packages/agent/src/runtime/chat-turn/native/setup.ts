@@ -31,7 +31,13 @@ export async function prepareNativeTurnSetup(input: {
   const { turn, scheduleProfileObservation } =
     input.preparedTurn ?? prepareTurnState(input.input, input.context);
   const messagePolicy = resolveNativeMessagePolicy(turn.settings.agent);
-  await startTrackedTurn(input.input, input.context, turn, messagePolicy);
+  await startTrackedTurn(
+    input.input,
+    input.context,
+    turn,
+    messagePolicy,
+    "eliza-message-service",
+  );
   const modelSettings = turn.settings?.model ?? {};
   recordTrajectoryEvent(input.context, {
     category: "turn",
