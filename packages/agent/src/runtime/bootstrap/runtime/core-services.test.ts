@@ -30,6 +30,7 @@ describe("ensureCoreRuntimeServices", () => {
     const registered: unknown[] = [];
     const runtime = {
       getService: vi.fn(() => undefined),
+      getServiceLoadPromise: vi.fn(async () => ({ loaded: true })),
       registerService: vi.fn(async (service: unknown) => {
         registered.push(service);
       }),
@@ -45,6 +46,9 @@ describe("ensureCoreRuntimeServices", () => {
     expect(
       trajectoryPersistence.installDatabaseTrajectoryLogger,
     ).toHaveBeenCalledWith(runtime);
+    expect(runtime.getServiceLoadPromise).toHaveBeenCalledWith(
+      "AGENT_SKILLS_SERVICE",
+    );
   });
 
   it("does not register an existing SDK database trajectory logger", async () => {
@@ -52,6 +56,7 @@ describe("ensureCoreRuntimeServices", () => {
       getService: vi.fn((serviceType: string) =>
         serviceType === DatabaseTrajectoryLogger.serviceType ? {} : undefined,
       ),
+      getServiceLoadPromise: vi.fn(async () => ({ loaded: true })),
       registerService: vi.fn(),
     } as unknown as AgentRuntime;
 

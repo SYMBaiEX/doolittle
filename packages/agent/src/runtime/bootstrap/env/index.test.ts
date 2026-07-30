@@ -184,6 +184,7 @@ describe("bootstrap environment", () => {
     expect(settings.SKILLS_DIR).toContain(".elizaos/skills");
     expect(settings.BUNDLED_SKILLS_DIRS).toBe(getSkillsDir());
     expect(settings.SKILLS_AUTO_LOAD).toBe("true");
+    expect(settings.SKILLS_SYNC_CATALOG_ON_START).toBe("false");
     expect(settings.OLLAMA_API_ENDPOINT).toBe("http://localhost:11434/api");
     expect(settings.OLLAMA_SMALL_MODEL).toBe("granite4.1:3b");
     expect(settings.OLLAMA_MEDIUM_MODEL).toBe("granite4.1:3b");

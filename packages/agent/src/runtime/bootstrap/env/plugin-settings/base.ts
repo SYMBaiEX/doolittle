@@ -40,6 +40,8 @@ export function buildBaseSettings(
     WORKSPACE_SKILLS_DIR: env.WORKSPACE_SKILLS_DIR?.trim() || config.skillsDir,
     BUNDLED_SKILLS_DIRS: env.BUNDLED_SKILLS_DIRS?.trim() || getSkillsDir(),
     SKILLS_AUTO_LOAD: "true",
+    SKILLS_SYNC_CATALOG_ON_START:
+      env.SKILLS_SYNC_CATALOG_ON_START?.trim() || "false",
     ELIZAOS_CLOUD_BASE_URL: config.elizaCloudBaseUrl,
     ELIZAOS_CLOUD_SMALL_MODEL: config.elizaCloudSmallModel,
     ELIZAOS_CLOUD_LARGE_MODEL: config.elizaCloudLargeModel,

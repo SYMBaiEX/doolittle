@@ -7,6 +7,7 @@ import {
   ApprovalService,
   ToolPolicyService,
 } from "@elizaos/core";
+import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 
 export async function ensureCoreRuntimeServices(
   runtime: AgentRuntime,
@@ -21,4 +22,5 @@ export async function ensureCoreRuntimeServices(
     await runtime.registerService(DatabaseTrajectoryLogger);
   }
   await installDatabaseTrajectoryLogger(runtime);
+  await runtime.getServiceLoadPromise(AgentSkillsService.serviceType);
 }
