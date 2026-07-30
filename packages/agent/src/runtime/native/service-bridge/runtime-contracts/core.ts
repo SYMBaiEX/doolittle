@@ -1,5 +1,23 @@
 import type { AutomationRunRecord, CronJobRecord } from "@/types/runtime";
 
+export const PDF_SERVICE = "pdf";
+
+export interface NativePdfService {
+  convertPdfToTextWithOptions(
+    pdfBuffer: Buffer | Uint8Array,
+    options?: {
+      startPage?: number;
+      endPage?: number;
+      preserveWhitespace?: boolean;
+      cleanContent?: boolean;
+    },
+  ): Promise<{
+    success: boolean;
+    text?: string;
+    error?: string;
+  }>;
+}
+
 export interface NativeShellService {
   run(command: string): Promise<unknown>;
   history(limit?: number): unknown[];

@@ -14,6 +14,7 @@ import type {
   NativeGitHubService,
   NativeKnowledgeService,
   NativeMcpService,
+  NativePdfService,
   NativePersonalityService,
   NativePlanningService,
   NativePluginManagerService,
@@ -29,6 +30,7 @@ import type {
 import {
   AGENT_SKILLS_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
+  PDF_SERVICE,
 } from "./runtime-contracts";
 
 export type { RuntimeLike } from "./runtime-contracts";
@@ -50,6 +52,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
 
   return {
     knowledge: service<NativeKnowledgeService>(runtime, "knowledge"),
+    pdf: service<NativePdfService>(runtime, PDF_SERVICE),
     personality: service<NativePersonalityService>(runtime, "personality"),
     rolodex: service<NativeRolodexService>(runtime, "rolodex"),
     experience: service<NativeExperienceService>(runtime, "experience"),

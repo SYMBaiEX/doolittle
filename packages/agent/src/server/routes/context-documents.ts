@@ -1,5 +1,4 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 
 export async function handleContextDocumentRoutes(
@@ -27,16 +26,13 @@ export async function handleContextDocumentRoutes(
       return json({ error: "path or base64 is required" }, 400);
     }
 
-    const nativeServices = getNativeServices(context.runtime);
     const text = body.path
-      ? nativeServices.knowledge?.extractPdf
-        ? await nativeServices.knowledge.extractPdf(body.path)
-        : await context.services.documents.extractPdfFromPath(body.path, {
-            startPage: body.startPage,
-            endPage: body.endPage,
-            preserveWhitespace: body.preserveWhitespace,
-            cleanContent: body.cleanContent,
-          })
+      ? await context.services.documents.extractPdfFromPath(body.path, {
+          startPage: body.startPage,
+          endPage: body.endPage,
+          preserveWhitespace: body.preserveWhitespace,
+          cleanContent: body.cleanContent,
+        })
       : await context.services.documents.extractPdfFromBase64(
           body.base64 as string,
           {

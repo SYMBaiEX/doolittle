@@ -18,7 +18,7 @@ increase.
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Knowledge ingestion | `@elizaos/plugin-pdf`, installed native knowledge service, [`packages/agent/src/services/documents-service.ts`](../packages/agent/src/services/documents-service.ts) | Product memory and document lifecycle remain harness-owned where the installed SDK has no equivalent | Move recall and ingest status closer to the installed knowledge service without inventing unpublished SDK routes |
+| Knowledge ingestion | The registered `@elizaos/plugin-pdf` `pdf` service owns PDF conversion; [`packages/agent/src/services/documents-service.ts`](../packages/agent/src/services/documents-service.ts) only resolves workspace paths/base64 and projects extraction into product UX | The installed runtime does not expose a generic document-memory knowledge service; Doolittle file memory remains product-owned instead of pretending an unpublished service exists | Keep PDF extraction service-native; adopt a generic knowledge service only when a direct registered dependency provides its public contract |
 | Embeddings | `@elizaos/plugin-ollama`, ElizaOS local embedding support through installed provider packages | Doolittle should keep embedding ownership in official SDK/provider packages instead of workspace shadow packages | `@elizaos/plugin-ollama` plus exported local embedding support when it becomes a direct dependency |
 | Personality | [`packages/plugins/doolittle-plugin/identity/personality`](../packages/plugins/doolittle-plugin/identity/personality), [`packages/agent/src/services/personality-service.ts`](../packages/agent/src/services/personality-service.ts) | Doolittle keeps product-specific personality behavior while exposing it as an Eliza service | Doolittle identity facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
 | User profiles and memory | [`packages/plugins/doolittle-plugin/identity/rolodex`](../packages/plugins/doolittle-plugin/identity/rolodex), [`packages/agent/src/services/user-profile/service/index.ts`](../packages/agent/src/services/user-profile/service/index.ts) | Profile flows are Doolittle-owned but exposed through a native service boundary | Doolittle profile facet inside the consolidated product plugin; upstream only when ElizaOS publishes a matching service contract |
@@ -52,7 +52,7 @@ increase.
 
 ## Current Highest-Value Next Steps
 
-1. Move installed knowledge and official embedding services closer to the center of recall and document lifecycle without naming unpublished SDK entrypoints.
+1. Keep PDF extraction on the registered native service and evaluate the official knowledge graph only for entity/relationship use cases it actually implements.
 2. Keep execution, automation, orchestration, and mutation proof on their SDK-owned contracts; remove compatibility facades when their final callers disappear.
 3. Keep Telegram moving into native runtime ownership, and keep Discord clearly gateway-owned until a direct native dependency is installed.
 4. Retire skill marketplace compatibility code as `@elizaos/skills` and the official agent-skills plugin publish matching catalog APIs.

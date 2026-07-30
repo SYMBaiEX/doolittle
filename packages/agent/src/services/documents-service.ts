@@ -1,5 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { IAgentRuntime } from "@elizaos/core";
+import {
+  type NativePdfService,
+  PDF_SERVICE,
+} from "@/runtime/native/service-bridge/runtime-contracts";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
@@ -14,7 +19,7 @@ export interface PdfExtractOptions {
 
 export class DocumentsService {
   constructor(
-    private readonly runtime: unknown,
+    private readonly runtime: Partial<Pick<IAgentRuntime, "getService">>,
     private readonly workspaceDirectory: WorkspaceDirectorySource,
   ) {}
 
@@ -49,8 +54,14 @@ export class DocumentsService {
     pdfBuffer: Buffer,
     options: PdfExtractOptions,
   ): Promise<string> {
-    const { PdfService } = await import("@elizaos/plugin-pdf");
-    const pdfService = new PdfService(this.runtime as never);
+    const pdfService = this.runtime.getService?.(
+      PDF_SERVICE,
+    ) as NativePdfService | null;
+    if (!pdfService) {
+      throw new Error(
+        "The Eliza PDF service is not ready. Ensure @elizaos/plugin-pdf is registered.",
+      );
+    }
     const result = await pdfService.convertPdfToTextWithOptions(
       pdfBuffer,
       options,

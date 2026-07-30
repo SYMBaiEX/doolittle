@@ -2,16 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleContextDocumentRoutes } from "./context-documents";
 
-function createContext(options?: { nativePdf?: boolean }): AppContext {
+function createContext(): AppContext {
   return {
-    runtime: {
-      getService: (name: string) =>
-        name === "knowledge" && options?.nativePdf
-          ? {
-              extractPdf: async (path: string) => `native:${path}`,
-            }
-          : undefined,
-    },
+    runtime: {},
     services: {
       contextFiles: {
         list: () => ["README.md", "notes.md"],
@@ -38,7 +31,7 @@ describe("handleContextDocumentRoutes", () => {
       new URL("http://localhost/context/files"),
     );
     const pathResponse = await handleContextDocumentRoutes(
-      createContext({ nativePdf: true }),
+      createContext(),
       new Request("http://localhost/documents/pdf/extract", {
         method: "POST",
         body: JSON.stringify({ path: "/tmp/demo.pdf" }),
@@ -60,7 +53,7 @@ describe("handleContextDocumentRoutes", () => {
       files: ["README.md", "notes.md"],
     });
     await expect(pathResponse?.json()).resolves.toEqual({
-      text: "native:/tmp/demo.pdf",
+      text: "path:/tmp/demo.pdf:{}",
     });
     await expect(base64Response?.json()).resolves.toEqual({
       text: 'base64:PDFDATA:{"startPage":1}',

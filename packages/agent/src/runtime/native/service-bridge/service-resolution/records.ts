@@ -1,11 +1,13 @@
 import {
   AGENT_SKILLS_SERVICE,
   type NativeServices,
+  PDF_SERVICE,
 } from "../runtime-contracts";
 import type { EffectiveServiceResolutionRecord } from "./types";
 
 type ServiceResolutionKey =
   | "knowledge"
+  | "pdf"
   | "personality"
   | "rolodex"
   | "experience"
@@ -31,7 +33,13 @@ const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] = [
     capability: "knowledge",
     nativeKey: "knowledge",
     nativeService: "knowledge",
-    fallback: "documents + memory + sessions",
+    fallback: "memory + sessions",
+  },
+  {
+    capability: "pdf",
+    nativeKey: "pdf",
+    nativeService: PDF_SERVICE,
+    fallback: "unavailable until @elizaos/plugin-pdf is registered",
   },
   {
     capability: "personality",

@@ -1,6 +1,4 @@
 export interface NativeKnowledgeService {
-  ingestPdf(path: string): Promise<unknown>;
-  extractPdf?(path: string): Promise<string>;
   remember(text: string, source?: string): unknown;
   recall(query: string, limit?: number): unknown;
   search?(query: string, limit?: number): unknown;

@@ -12,6 +12,10 @@ describe("service-resolution helpers", () => {
         switch (name) {
           case "knowledge":
             return { summary: () => ({ entries: 1 }) };
+          case "pdf":
+            return {
+              convertPdfToTextWithOptions: async () => ({ success: true }),
+            };
           case "shell":
             return { status: () => ({ ready: true }) };
           case "AGENT_SKILLS_SERVICE":
@@ -30,7 +34,15 @@ describe("service-resolution helpers", () => {
         nativeService: "knowledge",
         source: "native",
         ownership: "plugin",
-        fallback: "documents + memory + sessions",
+        fallback: "memory + sessions",
+        available: true,
+      },
+      {
+        capability: "pdf",
+        nativeService: "pdf",
+        source: "native",
+        ownership: "plugin",
+        fallback: "unavailable until @elizaos/plugin-pdf is registered",
         available: true,
       },
       {

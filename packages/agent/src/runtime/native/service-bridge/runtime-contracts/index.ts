@@ -12,6 +12,7 @@ import type {
   NativeBrowserService,
   NativeCronService,
   NativeMcpService,
+  NativePdfService,
   NativeShellService,
   NativeToolPolicyService,
 } from "./core";
@@ -40,6 +41,7 @@ export * from "./runtime";
 
 export type NativeServices = {
   knowledge: NativeKnowledgeService | undefined;
+  pdf: NativePdfService | undefined;
   personality: NativePersonalityService | undefined;
   rolodex: NativeRolodexService | undefined;
   experience: NativeExperienceService | undefined;
