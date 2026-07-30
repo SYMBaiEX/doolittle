@@ -54,7 +54,7 @@ export interface AutonomousControlPlaneSummary {
     latestEvaluationBundleAvailable: boolean;
   };
   pluginManager: {
-    source: "native" | "product";
+    source: "native" | "unavailable";
     available: boolean;
     plugins: number;
     categories: number;
@@ -64,7 +64,7 @@ export interface AutonomousControlPlaneSummary {
   };
   media: {
     tts: {
-      source: "native-plugin" | "product";
+      source: "native-plugin";
       available: boolean;
       configured: boolean;
       provider: "fal" | "openai" | "none";
@@ -83,31 +83,31 @@ export interface AutonomousControlPlaneSummary {
     };
   };
   forms: {
-    source: "native" | "product";
+    source: "native" | "unavailable";
     available: boolean;
     total: number;
     templates: number;
   };
   execution: {
     approvals: {
-      source: "native" | "product";
+      source: "native" | "unavailable";
       available: boolean;
       asyncRequest: boolean;
       selectionHandling: boolean;
     };
     agentEvents: {
-      source: "native" | "product";
+      source: "native" | "unavailable";
       available: boolean;
       heartbeat: boolean;
       lastHeartbeatStatus: string | null;
     };
     e2b: {
-      source: "native" | "product";
+      source: "native" | "unavailable";
       available: boolean;
       sandboxes: number;
     };
     toolPolicy: {
-      source: "native" | "product";
+      source: "native" | "unavailable";
       available: boolean;
       actions: number;
       codingAllowed: number;
@@ -115,13 +115,13 @@ export interface AutonomousControlPlaneSummary {
       fullAllowed: number;
     };
     planning: {
-      source: "native" | "product";
+      source: "native" | "unavailable";
       available: boolean;
       operatorPlanningAvailable: boolean;
       plans: number;
     };
     codeGeneration: {
-      source: "native" | "product";
+      source: "native" | "unavailable";
       available: boolean;
       ready: boolean;
     };

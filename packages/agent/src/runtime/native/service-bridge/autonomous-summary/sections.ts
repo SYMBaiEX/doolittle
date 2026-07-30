@@ -113,7 +113,7 @@ export function buildPluginManagerSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["pluginManager"] {
   return {
-    source: input.native.pluginManager ? "native" : "product",
+    source: input.native.pluginManager ? "native" : "unavailable",
     available: Boolean(input.native.pluginManager),
     plugins: input.pluginInventory?.summary?.total ?? 0,
     categories: input.pluginInventory?.summary?.categories ?? 0,
@@ -157,7 +157,7 @@ export function buildFormsSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["forms"] {
   return {
-    source: input.native.forms ? "native" : "product",
+    source: input.native.forms ? "native" : "unavailable",
     available: Boolean(input.native.forms),
     total: input.formsControl.forms.total,
     templates: input.formsControl.templates,
@@ -169,25 +169,25 @@ export function buildExecutionSection(
 ): AutonomousControlPlaneSummary["execution"] {
   return {
     approvals: {
-      source: input.native.approval ? "native" : "product",
+      source: input.native.approval ? "native" : "unavailable",
       available: Boolean(input.native.approval),
       asyncRequest: input.executionControl.approvals.asyncRequest,
       selectionHandling: input.executionControl.approvals.selectionHandling,
     },
     agentEvents: {
-      source: input.native.agentEvent ? "native" : "product",
+      source: input.native.agentEvent ? "native" : "unavailable",
       available: Boolean(input.native.agentEvent),
       heartbeat: input.executionControl.agentEvents.heartbeat,
       lastHeartbeatStatus:
         input.executionControl.agentEvents.lastHeartbeatStatus,
     },
     e2b: {
-      source: input.native.e2b ? "native" : "product",
+      source: input.native.e2b ? "native" : "unavailable",
       available: Boolean(input.native.e2b),
       sandboxes: input.executionControl.e2b.sandboxes,
     },
     toolPolicy: {
-      source: input.native.toolPolicy ? "native" : "product",
+      source: input.native.toolPolicy ? "native" : "unavailable",
       available: Boolean(input.native.toolPolicy),
       actions: input.executionControl.toolPolicy.actions,
       codingAllowed: input.executionControl.toolPolicy.codingAllowed,
@@ -195,13 +195,18 @@ export function buildExecutionSection(
       fullAllowed: input.executionControl.toolPolicy.fullAllowed,
     },
     planning: {
-      source: input.native.actionPlanning ? "native" : "product",
-      available: Boolean(input.native.actionPlanning),
+      source:
+        input.native.actionPlanning || input.native.operatorPlanning
+          ? "native"
+          : "unavailable",
+      available: Boolean(
+        input.native.actionPlanning || input.native.operatorPlanning,
+      ),
       operatorPlanningAvailable: Boolean(input.native.operatorPlanning),
       plans: input.executionControl.planning.plans.total,
     },
     codeGeneration: {
-      source: input.native.codeGeneration ? "native" : "product",
+      source: input.native.codeGeneration ? "native" : "unavailable",
       available: Boolean(input.native.codeGeneration),
       ready: input.executionControl.codeGeneration.ready,
     },

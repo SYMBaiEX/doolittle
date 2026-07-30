@@ -517,7 +517,7 @@ describe("ownership helpers", () => {
     );
     expect(snapshot.forms).toMatchObject({
       available: false,
-      source: "product",
+      source: "unavailable",
     });
   });
 

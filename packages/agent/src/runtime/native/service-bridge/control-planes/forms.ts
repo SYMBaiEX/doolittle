@@ -10,7 +10,7 @@ export function getNativeFormsControlPlane(runtime: RuntimeLike) {
   const persistenceAvailable = forms?.isPersistenceAvailable?.() ?? false;
 
   return {
-    source: forms ? ("native-plugin" as const) : ("product" as const),
+    source: forms ? ("native-plugin" as const) : ("unavailable" as const),
     available: Boolean(forms),
     capability:
       forms?.capabilityDescription ??

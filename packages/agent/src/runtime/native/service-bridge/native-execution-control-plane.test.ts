@@ -17,11 +17,11 @@ function createRuntime(
 }
 
 describe("native execution control plane", () => {
-  it("reports unavailable product defaults when native services are missing", () => {
+  it("reports unavailable capabilities when native services are missing", () => {
     const runtime = createRuntime({});
 
     const control = getNativeExecutionControlPlaneDetails(runtime, {
-      source: "product",
+      source: "unavailable",
       available: false,
       actionPlanningAvailable: false,
       capability: "Planning unavailable.",
@@ -37,7 +37,7 @@ describe("native execution control plane", () => {
     });
 
     expect(control.approvals).toEqual({
-      source: "product",
+      source: "unavailable",
       available: false,
       asyncRequest: false,
       selectionHandling: false,

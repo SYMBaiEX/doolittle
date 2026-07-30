@@ -13,7 +13,7 @@ export function getNativePlanningControlPlane(
   const linkedWorkflows = countEntriesWithKey(plans, "workflowId");
 
   return {
-    source: planning ? ("native-plugin" as const) : ("product" as const),
+    source: planning ? ("native-plugin" as const) : ("unavailable" as const),
     available: Boolean(planning),
     actionPlanningAvailable: Boolean(actionPlanning),
     capability:

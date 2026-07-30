@@ -33,13 +33,15 @@ export function getNativeExecutionControlPlaneDetails(
 
   return {
     approvals: {
-      source: native.approval ? ("native" as const) : ("product" as const),
+      source: native.approval ? ("native" as const) : ("unavailable" as const),
       available: Boolean(native.approval),
       asyncRequest: typeof native.approval?.requestApprovalAsync === "function",
       selectionHandling: typeof native.approval?.handleSelection === "function",
     },
     agentEvents: {
-      source: native.agentEvent ? ("native" as const) : ("product" as const),
+      source: native.agentEvent
+        ? ("native" as const)
+        : ("unavailable" as const),
       available: Boolean(native.agentEvent),
       heartbeat: typeof native.agentEvent?.subscribeHeartbeat === "function",
       lastHeartbeatStatus:
@@ -47,7 +49,9 @@ export function getNativeExecutionControlPlaneDetails(
     },
     e2b: e2bControl,
     toolPolicy: {
-      source: native.toolPolicy ? ("native" as const) : ("product" as const),
+      source: native.toolPolicy
+        ? ("native" as const)
+        : ("unavailable" as const),
       available: Boolean(native.toolPolicy),
       actions: runtimeActions.length,
       codingAllowed:
@@ -70,7 +74,7 @@ export function getNativeExecutionControlPlaneDetails(
     codeGeneration: {
       source: native.codeGeneration
         ? ("native-plugin" as const)
-        : ("product" as const),
+        : ("unavailable" as const),
       available: Boolean(native.codeGeneration),
       capability:
         native.codeGeneration?.capabilityDescription ??
