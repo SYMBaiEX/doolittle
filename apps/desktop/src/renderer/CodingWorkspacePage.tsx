@@ -387,6 +387,8 @@ export function CodingWorkspacePage({
   const [draftContent, setDraftContent] = useState("");
   const [fileNotice, setFileNotice] = useState<ActionNotice | null>(null);
   const [savingFile, setSavingFile] = useState(false);
+  const [acpTaskOpen, setAcpTaskOpen] = useState(false);
+  const [acpTaskDraft, setAcpTaskDraft] = useState("");
   const fileDirtyRef = useRef(false);
   const consumedNavigationIntents = useRef(new Set<string>());
   const acpEditor = useDesktopAcpEditorBridge({
@@ -746,6 +748,11 @@ export function CodingWorkspacePage({
       workspacePath,
       projectScope,
     });
+  };
+
+  const submitAcpTask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await acpEditor.prompt(acpTaskDraft);
   };
 
   return (
@@ -1228,6 +1235,83 @@ export function CodingWorkspacePage({
               </EmptyBlock>
             )}
           </section>
+          {acpTaskOpen ? (
+            <form
+              aria-label="ACP editor task"
+              className="coding-acp-task"
+              onSubmit={(event) => void submitAcpTask(event)}
+            >
+              <div className="coding-acp-task-row">
+                <label
+                  className="coding-acp-task-label"
+                  htmlFor="coding-acp-task-input"
+                >
+                  <span>ACP task</span>
+                  <small>
+                    {selectedPath
+                      ? `Current Monaco context · ${fileName(selectedPath)}`
+                      : "Workspace context"}
+                  </small>
+                </label>
+                <input
+                  disabled={acpEditor.promptBusy}
+                  id="coding-acp-task-input"
+                  onChange={(event) => setAcpTaskDraft(event.target.value)}
+                  placeholder="Inspect, edit, test, or explain…"
+                  value={acpTaskDraft}
+                />
+                {acpEditor.promptBusy ? (
+                  <button
+                    className="secondary-button"
+                    disabled={acpEditor.promptPhase === "cancelling"}
+                    onClick={() => void acpEditor.cancel()}
+                    type="button"
+                  >
+                    {acpEditor.promptPhase === "cancelling"
+                      ? "Cancelling…"
+                      : "Cancel"}
+                  </button>
+                ) : (
+                  <button
+                    className="primary-button"
+                    disabled={
+                      acpEditor.phase !== "connected" || !acpTaskDraft.trim()
+                    }
+                    type="submit"
+                  >
+                    Run
+                  </button>
+                )}
+                <button
+                  aria-label="Close ACP editor task"
+                  className="ghost-button coding-acp-task-close"
+                  onClick={() => setAcpTaskOpen(false)}
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+              {acpEditor.promptError ? (
+                <p className="coding-acp-task-error" role="alert">
+                  {acpEditor.promptError}
+                </p>
+              ) : acpEditor.responseText ? (
+                <output className="coding-acp-task-output">
+                  {acpEditor.responseText}
+                </output>
+              ) : acpEditor.promptBusy ? (
+                <p className="coding-acp-task-progress" role="status">
+                  {acpEditor.lastUpdateLabel
+                    ? `${acpEditor.lastUpdateLabel} · ${acpEditor.updates.length} updates`
+                    : "Doolittle is working through ACP…"}
+                </p>
+              ) : acpEditor.stopReason ? (
+                <p className="coding-acp-task-progress" role="status">
+                  ACP task finished · {acpEditor.stopReason}
+                </p>
+              ) : null}
+            </form>
+          ) : null}
           <footer className="coding-editor-status">
             <span
               className={
@@ -1262,7 +1346,35 @@ export function CodingWorkspacePage({
                     ? "linking"
                     : "idle"}
             </span>
+            {acpEditor.updates.length > 0 ? (
+              <span
+                className="coding-acp-progress"
+                title={
+                  acpEditor.lastUpdateLabel || "Structured ACP session updates"
+                }
+              >
+                {acpEditor.lastUpdateLabel || "ACP"} ·{" "}
+                {acpEditor.updates.length}
+              </span>
+            ) : null}
+            {acpEditor.promptBusy && !acpTaskOpen ? (
+              <button
+                className="coding-status-action coding-acp-cancel"
+                onClick={() => void acpEditor.cancel()}
+                type="button"
+              >
+                Cancel ACP
+              </button>
+            ) : null}
             <span className="coding-spacer" />
+            <button
+              aria-expanded={acpTaskOpen}
+              className="coding-status-action coding-acp-task-toggle"
+              onClick={() => setAcpTaskOpen((current) => !current)}
+              type="button"
+            >
+              ACP task
+            </button>
             {selectedPath ? (
               <button
                 className="coding-status-action"
