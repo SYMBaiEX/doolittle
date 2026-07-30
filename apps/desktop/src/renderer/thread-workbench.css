@@ -272,6 +272,7 @@
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 /* The rail owns its scroll regions. It must never enlarge the chat route. */
@@ -310,7 +311,9 @@
 }
 
 .thread-workbench-panel-heading {
+  align-items: flex-start;
   flex: 0 0 auto;
+  gap: 10px;
   margin-bottom: 0;
 }
 
@@ -466,6 +469,7 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .thread-workbench-brief {
@@ -477,6 +481,8 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .thread-workbench-brief-stack,
@@ -765,7 +771,9 @@
   font: 9px / 1.45 var(--font-mono, ui-monospace, monospace);
   margin: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 10px;
+  scrollbar-gutter: stable;
   tab-size: 2;
   white-space: pre-wrap;
 }
@@ -834,7 +842,9 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 28px 16px 16px;
+  scrollbar-gutter: stable;
   text-align: center;
 }
 
@@ -897,6 +907,31 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.thread-workbench :is(.loading-block, .empty-block, .notice) {
+  margin: 0;
+  min-width: 0;
+}
+
+.thread-workbench .loading-block,
+.thread-workbench .empty-block,
+.thread-workbench .notice {
+  border-radius: 9px;
+  padding: 10px 11px;
+}
+
+.thread-workbench .loading-block span,
+.thread-workbench .empty-block span,
+.thread-workbench .notice span,
+.thread-workbench .notice p {
+  overflow-wrap: anywhere;
+}
+
+.thread-workbench .empty-block {
+  min-height: 96px;
 }
 
 .thread-workbench-settings section {
@@ -1031,6 +1066,50 @@
 @media (prefers-reduced-motion: reduce) {
   .thread-workbench-preview-orbit i {
     animation: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .thread-workbench {
+    max-width: min(var(--thread-workbench-width), 44vw);
+    min-width: min(var(--thread-workbench-width), 44vw);
+  }
+
+  .thread-workbench-header {
+    gap: 11px;
+    padding: 15px 13px 12px;
+  }
+
+  .thread-workbench-panel {
+    padding-inline: 11px;
+  }
+
+  .thread-workbench-repository small {
+    display: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .thread-workbench {
+    max-width: min(var(--thread-workbench-width), 40vw);
+    min-width: min(var(--thread-workbench-width), 40vw);
+  }
+
+  .thread-workbench-heading strong {
+    font-size: 13px;
+  }
+
+  .thread-workbench-repository {
+    padding: 8px;
+  }
+
+  .thread-workbench-repo-mark {
+    height: 25px;
+    width: 25px;
+  }
+
+  .thread-workbench-repository strong {
+    font-size: 10px;
   }
 }
 

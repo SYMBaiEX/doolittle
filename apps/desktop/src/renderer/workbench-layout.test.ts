@@ -30,6 +30,12 @@ describe("thread workbench viewport layout contract", () => {
       /\.chat-conversation\s*{[^}]*display:\s*grid;[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto;/s,
     );
     expect(experienceCss).toMatch(
+      /\.chat-workspace > \.chat-conversation\s*{[^}]*grid-column:\s*1;[^}]*grid-row:\s*1;/s,
+    );
+    expect(experienceCss).toMatch(
+      /\.chat-messages\s*{[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
+    );
+    expect(experienceCss).toMatch(
       /\.chat-workspace,\s*\.chat-workspace\.inspector-open\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*grid-template-rows:\s*minmax\(0, 1fr\);[^}]*align-items:\s*stretch;/s,
     );
     expect(experienceCss).not.toMatch(
@@ -69,6 +75,9 @@ describe("thread workbench viewport layout contract", () => {
       /\.thread-workbench-pane-stack\s*{[^}]*display:\s*grid;[^}]*gap:\s*10px;[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
     );
     expect(threadWorkbenchCss).toMatch(
+      /\.thread-workbench-pane-stack\s*{[^}]*scrollbar-gutter:\s*stable;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
       /\.thread-workbench-pane-stack > \.git-control-panel \.git-control-scroll\s*{[^}]*min-height:\s*0;[^}]*max-height:\s*100%;[^}]*overscroll-behavior:\s*contain;/s,
     );
     expect(threadWorkbenchCss).not.toContain("calc(100% - 42px)");
@@ -92,6 +101,9 @@ describe("thread workbench viewport layout contract", () => {
   it("keeps the compact tab strip inside a narrow sidebar", () => {
     expect(threadWorkbenchCss).toMatch(
       /\.thread-workbench-tabs\s*{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\);[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /@media \(max-width: 1180px\)[\s\S]*?\.thread-workbench-repository small\s*{[^}]*display:\s*none;/s,
     );
     expect(threadWorkbenchCss).toMatch(
       /@media \(max-width: 720px\)[\s\S]*?\.thread-workbench-tabs button small\s*{[^}]*display:\s*none;/s,

@@ -3517,6 +3517,11 @@ button.chat-session-meta-pill:hover {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.chat-workspace > .chat-conversation {
+  grid-column: 1;
+  grid-row: 1;
+}
+
 .chat-workspace > #thread-workbench {
   grid-column: 2;
   grid-row: 1;
@@ -3715,7 +3720,10 @@ button.chat-session-meta-pill:hover {
 }
 
 .chat-messages {
+  min-height: 0;
   min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px clamp(24px, 5vw, 76px) 28px;
   scroll-padding-bottom: 150px;
 }
@@ -3872,6 +3880,7 @@ button.chat-session-meta-pill:hover {
   position: relative;
   flex: 0 0 auto;
   grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
   width: min(900px, calc(100% - 44px));
   gap: 7px 10px;
   margin-bottom: 12px;
