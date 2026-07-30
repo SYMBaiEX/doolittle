@@ -102,7 +102,7 @@ describe("control plane commands", () => {
               },
             ],
           },
-          trajectories: {
+          trajectoryEvaluation: {
             recentEvents: () => [{ id: "event-1" }],
           },
         },

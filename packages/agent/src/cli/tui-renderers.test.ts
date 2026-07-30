@@ -48,6 +48,17 @@ function createContext(): AppContext {
         if (name === "ORCHESTRATOR_TASK_SERVICE") {
           return {};
         }
+        if (name === "trajectories") {
+          return {
+            isEnabled: () => true,
+            listTrajectories: () => ({ trajectories: [], total: 0 }),
+            exportTrajectories: async () => ({
+              data: "",
+              filename: "trajectories.jsonl",
+              mimeType: "application/x-ndjson",
+            }),
+          };
+        }
         return null;
       },
     },
@@ -128,7 +139,7 @@ function createContext(): AppContext {
       skills: {
         list: () => [],
       },
-      trajectories: {
+      trajectoryEvaluation: {
         listBundles: () => [],
         exportLatest: () => undefined,
       },
