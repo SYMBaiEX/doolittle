@@ -1,34 +1,8 @@
-import { mkdirSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createWorkspaceAction,
-  resolveLocalProjectPath,
   resolveWorkspaceIntentFromParams,
 } from "./workspace-action";
-
-describe("resolveLocalProjectPath", () => {
-  it("resolves account-relative home paths like symbiex/dev", () => {
-    const parent = join(tmpdir(), `doolittle-home-${Date.now()}`);
-    const home = join(parent, "symbiex");
-    const dev = join(home, "dev");
-    mkdirSync(dev, { recursive: true });
-
-    const previousHome = process.env.HOME;
-    process.env.HOME = home;
-    try {
-      expect(resolveLocalProjectPath("symbiex/dev", "/workspace")).toBe(dev);
-    } finally {
-      if (previousHome === undefined) {
-        delete process.env.HOME;
-      } else {
-        process.env.HOME = previousHome;
-      }
-      rmSync(parent, { recursive: true, force: true });
-    }
-  });
-});
 
 describe("resolveWorkspaceIntentFromParams", () => {
   it("parses broad inspection intents from action parameters", () => {
@@ -46,7 +20,7 @@ describe("resolveWorkspaceIntentFromParams", () => {
 
 describe("workspace action contract", () => {
   it("is planner-selectable and executes structured parameters first", async () => {
-    const action = createWorkspaceAction("/workspace");
+    const action = createWorkspaceAction();
     const runtime = {
       getService(serviceType: string) {
         return serviceType === "coding_agent"
@@ -82,5 +56,96 @@ describe("workspace action contract", () => {
       "path",
       "query",
     ]);
+  });
+
+  it("delegates target classification and inspection to the live coding-agent service", async () => {
+    const inspectedPaths: Array<string | undefined> = [];
+    const action = createWorkspaceAction();
+    const runtime = {
+      getService(serviceType: string) {
+        return serviceType === "coding_agent"
+          ? {
+              resolveProjectTarget: (path: string) =>
+                path === "src/index.ts"
+                  ? { path: "/workspace/src/index.ts", kind: "file" }
+                  : path === "packages/agent"
+                    ? { path: "/workspace/packages/agent", kind: "directory" }
+                    : undefined,
+              inspectProject: async (path?: string) => {
+                inspectedPaths.push(path);
+                return {
+                  name: "agent",
+                  path: path ?? "/workspace/current",
+                  type: "TypeScript package",
+                  workspacePatterns: [],
+                  scripts: [],
+                  keyFolders: ["src"],
+                  git: { available: false },
+                  topEntries: ["src"],
+                };
+              },
+            }
+          : null;
+      },
+    };
+
+    await expect(
+      action.handler(
+        runtime as never,
+        { content: { text: "Inspect packages/agent" } } as never,
+        undefined,
+        { parameters: { intent: "overview", path: "packages/agent" } },
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      text: expect.stringContaining("Path: /workspace/packages/agent"),
+    });
+    await expect(
+      action.handler(
+        runtime as never,
+        { content: { text: "Find src/index.ts" } } as never,
+        undefined,
+        { parameters: { intent: "find-codebase", query: "src/index.ts" } },
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      text: "Found file path: /workspace/src/index.ts",
+    });
+    expect(inspectedPaths).toEqual(["/workspace/packages/agent"]);
+  });
+
+  it("inspects the service's current workspace when overview has no path", async () => {
+    const action = createWorkspaceAction();
+    const inspectedPaths: Array<string | undefined> = [];
+    const runtime = {
+      getService(serviceType: string) {
+        return serviceType === "coding_agent"
+          ? {
+              inspectProject: async (path?: string) => {
+                inspectedPaths.push(path);
+                return {
+                  name: "current",
+                  path: "/workspace/switched",
+                  type: "project directory",
+                  workspacePatterns: [],
+                  scripts: [],
+                  keyFolders: [],
+                  git: { available: false },
+                  topEntries: [],
+                };
+              },
+            }
+          : null;
+      },
+    };
+
+    await action.handler(
+      runtime as never,
+      { content: { text: "What is this project?" } } as never,
+      undefined,
+      { parameters: { intent: "overview" } },
+    );
+
+    expect(inspectedPaths).toEqual([undefined]);
   });
 });

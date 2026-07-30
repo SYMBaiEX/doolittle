@@ -1,28 +1,32 @@
-import { existsSync, statSync } from "node:fs";
 import type { IAgentRuntime } from "@elizaos/core";
 import {
   findNativeLocalCodebases,
   getNativeWorkspaceSummary,
+  resolveNativeProjectTarget,
 } from "@/runtime/native/service-bridge/tooling";
 import { formatFoundCodebases, summarizeProjectForOutput } from "./output";
-import {
-  resolveLocalProjectPath,
-  sanitizeFindQuery,
-  type WorkspaceIntent,
-} from "./parsing";
+import { sanitizeFindQuery, type WorkspaceIntent } from "./parsing";
 
-function resolveOverviewPath(
+async function executeOverviewIntent(
+  runtime: IAgentRuntime,
   intent: Extract<WorkspaceIntent, { kind: "overview" }>,
-  workspaceDir: string,
-): string {
-  return intent.path
-    ? (resolveLocalProjectPath(intent.path, workspaceDir) ?? workspaceDir)
-    : workspaceDir;
+): Promise<string> {
+  if (!intent.path) {
+    return summarizeProjectForOutput(runtime);
+  }
+
+  const target = resolveNativeProjectTarget(runtime, intent.path);
+  if (!target) {
+    return `Project path not found: ${intent.path}`;
+  }
+  if (target.kind === "file") {
+    return `Found file path: ${target.path}`;
+  }
+  return summarizeProjectForOutput(runtime, target.path);
 }
 
 async function executeFindCodebaseIntent(
   runtime: IAgentRuntime,
-  workspaceDir: string,
   intent: Extract<WorkspaceIntent, { kind: "find-codebase" }>,
 ): Promise<string> {
   const query = sanitizeFindQuery(intent.query);
@@ -30,37 +34,26 @@ async function executeFindCodebaseIntent(
     return "I couldn't determine the codebase name to search for.";
   }
 
-  const explicitProjectPath = resolveLocalProjectPath(query, workspaceDir);
-  if (explicitProjectPath) {
-    try {
-      if (statSync(explicitProjectPath).isDirectory()) {
-        return summarizeProjectForOutput(runtime, explicitProjectPath);
-      }
-      return `Found file path: ${explicitProjectPath}`;
-    } catch (error) {
-      return `I found ${explicitProjectPath}, but couldn't inspect it: ${error instanceof Error ? error.message : String(error)}`;
-    }
+  const explicitTarget = resolveNativeProjectTarget(runtime, query);
+  if (explicitTarget?.kind === "directory") {
+    return summarizeProjectForOutput(runtime, explicitTarget.path);
+  }
+  if (explicitTarget?.kind === "file") {
+    return `Found file path: ${explicitTarget.path}`;
   }
 
   const matches = await findNativeLocalCodebases(runtime, query);
-  if (matches.length === 1 && existsSync(matches[0]?.path || "")) {
-    try {
-      if (statSync(matches[0].path).isDirectory()) {
-        return summarizeProjectForOutput(runtime, matches[0].path);
-      }
-    } catch {
-      // Fall back to raw result list below.
-    }
-  }
-
   const exactMatches = matches.filter((match) => match.exactBasenameMatch);
-  if (exactMatches.length === 1 && existsSync(exactMatches[0]?.path || "")) {
-    try {
-      if (statSync(exactMatches[0].path).isDirectory()) {
-        return summarizeProjectForOutput(runtime, exactMatches[0].path);
-      }
-    } catch {
-      // Fall back to raw result list below.
+  const inspectableMatch =
+    matches.length === 1
+      ? matches[0]
+      : exactMatches.length === 1
+        ? exactMatches[0]
+        : undefined;
+  if (inspectableMatch) {
+    const target = resolveNativeProjectTarget(runtime, inspectableMatch.path);
+    if (target?.kind === "directory") {
+      return summarizeProjectForOutput(runtime, target.path);
     }
   }
 
@@ -69,7 +62,6 @@ async function executeFindCodebaseIntent(
 
 export async function executeWorkspaceIntent(
   runtime: IAgentRuntime,
-  workspaceDir: string,
   intent: WorkspaceIntent,
 ): Promise<string> {
   if (intent.kind === "tree") {
@@ -77,11 +69,8 @@ export async function executeWorkspaceIntent(
   }
 
   if (intent.kind === "overview") {
-    return summarizeProjectForOutput(
-      runtime,
-      resolveOverviewPath(intent, workspaceDir),
-    );
+    return executeOverviewIntent(runtime, intent);
   }
 
-  return executeFindCodebaseIntent(runtime, workspaceDir, intent);
+  return executeFindCodebaseIntent(runtime, intent);
 }

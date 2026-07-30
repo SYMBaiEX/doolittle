@@ -7,10 +7,6 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import {
-  resolveWorkspaceDirectory,
-  type WorkspaceDirectorySource,
-} from "@/services/workspace-directory";
 import { executeWorkspaceIntent } from "./execution";
 import { WORKSPACE_ACTION_FALLBACK_MESSAGE } from "./output";
 import { resolveWorkspaceActionIntent } from "./parsing";
@@ -39,9 +35,7 @@ const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
   },
 ];
 
-export function createWorkspaceAction(
-  workspaceDirectory: WorkspaceDirectorySource,
-): Action {
+export function createWorkspaceAction(): Action {
   return {
     name: "DOOLITTLE_WORKSPACE",
     similes: ["WORKSPACE_TREE", "WORKSPACE_OVERVIEW", "FIND_CODEBASE"],
@@ -64,11 +58,7 @@ export function createWorkspaceAction(
     ): Promise<ActionResult> => {
       const intent = resolveWorkspaceActionIntent(options);
       const response = intent
-        ? await executeWorkspaceIntent(
-            runtime,
-            resolveWorkspaceDirectory(workspaceDirectory),
-            intent,
-          )
+        ? await executeWorkspaceIntent(runtime, intent)
         : WORKSPACE_ACTION_FALLBACK_MESSAGE;
 
       await callback?.({ text: response, source: "workspace-action" });

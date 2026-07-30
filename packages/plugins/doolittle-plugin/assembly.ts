@@ -42,7 +42,7 @@ export function createDoolittlePluginSurface({
     createSessionSearchAction(services, config.sessionSearchLimit),
     triggerAction,
     ...createFileActions(),
-    createWorkspaceAction(() => services.workspace.root()),
+    createWorkspaceAction(),
     terminalAction,
     createRepositoryAction(),
     createShortcutCompatibleWebSearchAction(),

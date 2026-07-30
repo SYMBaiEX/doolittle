@@ -97,7 +97,7 @@ export function formatGitStatusForOutput(status: string): string[] {
 
 export async function summarizeProjectForOutput(
   runtime: IAgentRuntime,
-  projectPath: string,
+  projectPath?: string,
 ): Promise<string> {
   const inspection = await inspectNativeProject(runtime, projectPath);
   return [
