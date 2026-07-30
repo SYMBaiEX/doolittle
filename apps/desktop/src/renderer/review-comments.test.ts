@@ -8,6 +8,7 @@ import {
   parseReviewPatchLines,
   type ReviewCommentStorage,
   reviewCommentIdentity,
+  reviewRecordMatchesIdentity,
   saveReviewComments,
 } from "./review-comments";
 
@@ -40,16 +41,60 @@ function repositoryReview(): RepositoryReview {
 }
 
 describe("review comments", () => {
-  it("scopes persisted drafts to the repository root and revision", () => {
+  it("scopes persisted drafts to the repository root, branch, and revision", () => {
     const first = reviewCommentIdentity(repositoryReview());
     const next = reviewCommentIdentity({
       ...repositoryReview(),
       local: { ...repositoryReview().local, head: "def456" },
     });
+    const sameCommitOnAnotherBranch = reviewCommentIdentity({
+      ...repositoryReview(),
+      local: { ...repositoryReview().local, branch: "feature/other" },
+    });
 
     expect(first.storageKey).not.toBe(next.storageKey);
+    expect(first.storageKey).not.toBe(sameCommitOnAnotherBranch.storageKey);
     expect(first.workspace).toBe("/work/doolittle");
+    expect(first.branch).toBe("feature/review");
     expect(first.revision).toBe("abc123");
+  });
+
+  it("does not merge or migrate a durable record from another branch", () => {
+    const identity = reviewCommentIdentity(repositoryReview());
+
+    expect(
+      reviewRecordMatchesIdentity(identity, {
+        repositoryRoot: "/work/doolittle",
+        branch: "feature/review",
+        head: "abc123",
+      }),
+    ).toBe(true);
+    expect(
+      reviewRecordMatchesIdentity(identity, {
+        repositoryRoot: "/work/doolittle",
+        branch: "feature/other",
+        head: "abc123",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not copy local drafts to another branch at the same commit", () => {
+    const storage = memoryStorage();
+    const source = reviewCommentIdentity(repositoryReview());
+    const otherBranch = reviewCommentIdentity({
+      ...repositoryReview(),
+      local: { ...repositoryReview().local, branch: "feature/other" },
+    });
+    const comment = createReviewComment({
+      id: "comment-1",
+      path: "src/file.ts",
+      body: "Keep this branch-specific.",
+      now: "2026-07-27T12:00:00.000Z",
+    });
+
+    saveReviewComments(source, [comment], storage);
+
+    expect(loadReviewComments(otherBranch, storage)).toEqual([]);
   });
 
   it("tracks old and new line anchors from unified diff hunks", () => {

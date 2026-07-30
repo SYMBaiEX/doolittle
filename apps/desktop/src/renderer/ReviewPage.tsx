@@ -46,6 +46,7 @@ import {
   type ReviewCommentAnchor,
   type ReviewRecordResponse,
   reviewCommentIdentity,
+  reviewRecordMatchesIdentity,
   saveReviewComments,
 } from "./review-comments";
 import "./review.css";
@@ -503,12 +504,16 @@ export function ReviewPage({
   }, [commentIdentity]);
 
   useEffect(() => {
-    if (!active || !branchRecord.data?.record) return;
+    const record = branchRecord.data?.record;
+    if (
+      !active ||
+      !record ||
+      !reviewRecordMatchesIdentity(commentIdentity, record.scope)
+    ) {
+      return;
+    }
     const local = loadReviewComments(commentIdentity, window.localStorage);
-    const merged = mergeReviewComments(
-      local,
-      branchRecord.data.record.comments,
-    );
+    const merged = mergeReviewComments(local, record.comments);
     setComments(merged);
     saveReviewComments(commentIdentity, merged, window.localStorage);
   }, [active, branchRecord.data, commentIdentity]);
@@ -519,6 +524,11 @@ export function ReviewPage({
       !active ||
       branchRecord.loading ||
       branchRecord.error ||
+      !branchRecord.data?.record ||
+      !reviewRecordMatchesIdentity(
+        commentIdentity,
+        branchRecord.data.record.scope,
+      ) ||
       migratedRecordRef.current === migrationKey
     ) {
       return;
@@ -554,6 +564,7 @@ export function ReviewPage({
   }, [
     active,
     branchRecord.error,
+    branchRecord.data?.record,
     branchRecord.loading,
     branchRecord.reload,
     commentIdentity,

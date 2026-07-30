@@ -2,7 +2,10 @@ import type { RepositoryReview } from "../shared/contracts";
 
 export const REVIEW_COMMENT_BODY_LIMIT = 2_000;
 export const REVIEW_FEEDBACK_LIMIT = 12_000;
-const REVIEW_COMMENT_STORAGE_PREFIX = "doolittle.review-comments.v1";
+// Version 1 keyed drafts only by repository root and HEAD. A shared commit can
+// exist on more than one branch, so keep version 1 inaccessible rather than
+// guessing which branch owns those drafts during durable-record migration.
+const REVIEW_COMMENT_STORAGE_PREFIX = "doolittle.review-comments.v2";
 
 export type ReviewCommentSide = "old" | "new";
 export type ReviewCommentStatus = "open" | "resolved";
@@ -25,6 +28,7 @@ export interface ReviewComment {
 
 export interface ReviewCommentIdentity {
   workspace: string;
+  branch: string;
   revision: string;
   storageKey: string;
 }
@@ -81,16 +85,25 @@ export function reviewCommentIdentity(
 ): ReviewCommentIdentity {
   const workspace =
     review?.local.root ?? review?.repository?.slug ?? "local-workspace";
-  const revision =
-    review?.local.head ??
-    review?.branch ??
-    review?.local.branch ??
-    "working-tree";
+  const branch = review?.local.branch ?? review?.branch ?? "detached";
+  const revision = review?.local.head ?? "working-tree";
   return {
     workspace,
+    branch,
     revision,
-    storageKey: `${REVIEW_COMMENT_STORAGE_PREFIX}:${safeSegment(workspace)}:${safeSegment(revision)}`,
+    storageKey: `${REVIEW_COMMENT_STORAGE_PREFIX}:${safeSegment(workspace)}:${safeSegment(branch)}:${safeSegment(revision)}`,
   };
+}
+
+export function reviewRecordMatchesIdentity(
+  identity: ReviewCommentIdentity,
+  scope: ReviewRecordSnapshot["scope"],
+): boolean {
+  return (
+    scope.repositoryRoot === identity.workspace &&
+    scope.branch === identity.branch &&
+    scope.head === identity.revision
+  );
 }
 
 function patchLineKind(line: string): ReviewPatchLine["kind"] {
