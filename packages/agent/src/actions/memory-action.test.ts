@@ -8,8 +8,11 @@ import {
   resolveMemoryOperationFromParams,
 } from "./memory-action";
 
-function message(text: string): Memory {
-  return { content: { text } } as Memory;
+function message(text: string, userId?: string): Memory {
+  return {
+    content: { text },
+    metadata: userId ? { doolittle: { userId } } : undefined,
+  } as Memory;
 }
 
 function memoryServices() {
@@ -56,7 +59,11 @@ describe("memory action", () => {
         oldText: "obsolete",
       }),
     ).toBe("memory removed");
-    expect(services.memory.remove).toHaveBeenCalledWith("user", "obsolete");
+    expect(services.memory.remove).toHaveBeenCalledWith(
+      "user",
+      "obsolete",
+      undefined,
+    );
   });
 
   it("is planner-selectable and prefers structured parameters", async () => {
@@ -68,7 +75,7 @@ describe("memory action", () => {
     ).resolves.toBe(true);
     const result = await action.handler(
       {} as never,
-      message("Remember that I use Nub."),
+      message("Remember that I use Nub.", "alice"),
       undefined,
       {
         parameters: {
@@ -82,6 +89,7 @@ describe("memory action", () => {
     expect(services.memory.add).toHaveBeenCalledWith(
       "user",
       "Uses Nub for package scripts.",
+      "alice",
     );
     expect(result).toMatchObject({
       success: true,

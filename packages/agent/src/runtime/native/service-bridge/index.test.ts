@@ -1076,12 +1076,6 @@ describe("identity bridge helpers", () => {
                   characters: 144,
                   preview: ["native"],
                 },
-                user: {
-                  target: "user",
-                  entries: 4,
-                  characters: 72,
-                  preview: ["native-user"],
-                },
               },
             }),
           };
@@ -1171,12 +1165,6 @@ describe("identity bridge helpers", () => {
           entries: 9,
           characters: 144,
           preview: ["native"],
-        },
-        user: {
-          target: "user",
-          entries: 4,
-          characters: 72,
-          preview: ["native-user"],
         },
       },
     });
@@ -1281,12 +1269,6 @@ describe("identity bridge helpers", () => {
           entries: 3,
           characters: 48,
           preview: ["memory:fallback"],
-        },
-        user: {
-          target: "user",
-          entries: 1,
-          characters: 12,
-          preview: ["user:fallback"],
         },
       },
     });

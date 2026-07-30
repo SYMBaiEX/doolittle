@@ -49,7 +49,7 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
     { service: "skillSynthesis", group: "officialBacked" },
     { service: "trajectories", group: "officialBacked" },
     { service: "delegationProjection", group: "officialBacked" },
-    { service: "memory", group: "customEliza" },
+    { service: "memory", group: "officialBacked" },
     { service: "sessions", group: "officialBacked" },
     { service: "cron", group: "officialBacked" },
     { service: "workspace", group: "customEliza" },

@@ -5,6 +5,7 @@ import type {
 } from "../types";
 import { createSeedAgentMutation } from "./agent";
 import { createConcludeMutation } from "./conclusion";
+import { createSetExplicitMemoriesMutation } from "./explicit-memory";
 import { defaultMutationHost } from "./host";
 import {
   createConfigureModelingMutation,
@@ -19,6 +20,7 @@ import { createRememberMutation } from "./remember";
 
 export { createSeedAgentMutation } from "./agent";
 export { createConcludeMutation } from "./conclusion";
+export { createSetExplicitMemoriesMutation } from "./explicit-memory";
 export { defaultMutationHost } from "./host";
 export {
   createConfigureModelingMutation,
@@ -44,6 +46,7 @@ export function createUserProfileMutations(
     configureModeling: createConfigureModelingMutation(storage),
     addNote: createAddNoteMutation(remember),
     remember,
+    setExplicitMemories: createSetExplicitMemoriesMutation(storage, host),
     observe: createObserveMutation(storage, host),
     observeAgent: createObserveAgentMutation(storage, host),
     conclude: createConcludeMutation(storage, host),

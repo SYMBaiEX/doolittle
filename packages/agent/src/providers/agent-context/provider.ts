@@ -6,6 +6,7 @@ import {
   type ProviderResult,
   type State,
 } from "@elizaos/core";
+import { messageUserId } from "@/runtime/message-user";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
@@ -23,16 +24,6 @@ function sessionIdFor(message: Memory): string {
     extractSessionContext(message)?.sessionId ??
     String(message.roomId ?? "global")
   );
-}
-
-function userIdFor(message: Memory): string | undefined {
-  const metadata = message.metadata as
-    | { doolittle?: { userId?: unknown } }
-    | undefined;
-  const userId = metadata?.doolittle?.userId;
-  return typeof userId === "string" && userId.trim()
-    ? userId.trim()
-    : undefined;
 }
 
 function renderUserProfileContext(
@@ -141,16 +132,14 @@ function coreContextResult(
   const personality = getEffectiveActivePersonality(runtime, services);
   const settings = services.settings.get();
   const memorySummary = services.memory.summary("memory");
-  const userSummary = services.memory.summary("user");
+  const userId = messageUserId(message);
+  const userSummary = services.memory.summary("user", userId);
   const projectContext = buildProjectPromptContext({
     sessions: services.sessions,
     sessionId,
     workspaceDir: services.workspace.root(),
   });
-  const userProfileContext = renderUserProfileContext(
-    services,
-    userIdFor(message),
-  );
+  const userProfileContext = renderUserProfileContext(services, userId);
   const soulContext = renderDoolittleSoulContext(services.workspace.root());
   const editorContext = renderAcpEditorContext(services, message);
 

@@ -72,6 +72,11 @@ export interface UserProfileMutationActions {
     source?: string,
     context?: import("./storage").UserProfileInteractionContext,
   ): import("@/types").UserProfileRecord;
+  setExplicitMemories(
+    userId: string,
+    memories: string[],
+    source?: string,
+  ): import("@/types").UserProfileRecord;
   observe(
     userId: string,
     message: string,

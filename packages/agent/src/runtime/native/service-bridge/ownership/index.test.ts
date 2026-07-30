@@ -250,12 +250,6 @@ describe("ownership helpers", () => {
               characters: 80,
               preview: ["native-memory"],
             },
-            user: {
-              target: "user",
-              entries: 2,
-              characters: 20,
-              preview: ["native-user"],
-            },
           },
         }),
       },
@@ -357,12 +351,6 @@ describe("ownership helpers", () => {
           characters: 80,
           preview: ["native-memory"],
         },
-        user: {
-          target: "user",
-          entries: 2,
-          characters: 20,
-          preview: ["native-user"],
-        },
       },
     });
   });
@@ -438,12 +426,6 @@ describe("ownership helpers", () => {
           entries: 3,
           characters: 50,
           preview: ["memory"],
-        },
-        user: {
-          target: "user",
-          entries: 1,
-          characters: 10,
-          preview: ["user"],
         },
       },
     });

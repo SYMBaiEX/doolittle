@@ -1,4 +1,4 @@
-export type MemoryTarget = "memory" | "user";
+export type MemoryTarget = "memory";
 
 export interface MemorySummary {
   target: MemoryTarget;

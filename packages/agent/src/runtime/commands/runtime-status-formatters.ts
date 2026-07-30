@@ -67,19 +67,12 @@ export function formatExperienceSummary(summary: {
       characters: number;
       preview: string[];
     };
-    user: {
-      target: string;
-      entries: number;
-      characters: number;
-      preview: string[];
-    };
   };
 }): string {
   return [
     `sessions=${summary.sessions.totalSessions}`,
     `recent=${summary.sessions.recentSessionIds.length ? summary.sessions.recentSessionIds.join(",") : "none"}`,
     `memory.shared=${summary.memory.shared.entries}/${summary.memory.shared.characters}`,
-    `memory.user=${summary.memory.user.entries}/${summary.memory.user.characters}`,
   ].join(" ");
 }
 

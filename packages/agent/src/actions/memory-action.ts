@@ -7,6 +7,7 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import { messageUserId } from "@/runtime/message-user";
 import type { AppServices } from "@/services";
 import type { MemoryTarget } from "@/types";
 
@@ -107,21 +108,23 @@ export function resolveMemoryOperationFromParams(
 export function executeMemoryOperation(
   services: Pick<AppServices, "memory">,
   operation: MemoryOperation,
+  userId?: string,
 ): string {
   if (operation.action === "list") {
-    return services.memory.renderSnapshot(operation.target);
+    return services.memory.renderSnapshot(operation.target, userId);
   }
   if (operation.action === "add") {
-    return services.memory.add(operation.target, operation.content);
+    return services.memory.add(operation.target, operation.content, userId);
   }
   if (operation.action === "replace") {
     return services.memory.replace(
       operation.target,
       operation.oldText,
       operation.content,
+      userId,
     );
   }
-  return services.memory.remove(operation.target, operation.oldText);
+  return services.memory.remove(operation.target, operation.oldText, userId);
 }
 
 export function createMemoryAction(services: AppServices): Action {
@@ -156,7 +159,11 @@ export function createMemoryAction(services: AppServices): Action {
         return { success: false, text: response };
       }
 
-      const response = executeMemoryOperation(services, command);
+      const response = executeMemoryOperation(
+        services,
+        command,
+        messageUserId(message),
+      );
 
       await callback?.({ text: response, source: "memory-action" });
       return {

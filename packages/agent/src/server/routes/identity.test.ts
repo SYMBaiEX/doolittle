@@ -26,7 +26,6 @@ describe("handleIdentityRoutes", () => {
         sessions: { active: 2 },
         memory: {
           shared: { target: "memory", entries: 1 },
-          user: { target: "user", entries: 1 },
         },
       },
     });

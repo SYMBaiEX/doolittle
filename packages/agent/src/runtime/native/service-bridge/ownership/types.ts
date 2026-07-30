@@ -1,6 +1,6 @@
 import type { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
 import type { AppServices } from "@/services";
-import type { MemorySummary } from "@/services/memory-service";
+import type { MemorySummary } from "@/services/experience-memory-service";
 import type { UserProfileWorkspaceSummary } from "@/types/user-profile";
 import type { AutonomousControlPlaneSummary } from "../autonomous";
 import type {
@@ -30,7 +30,6 @@ export interface NativeExperienceSummary {
   };
   memory: {
     shared: MemorySummary;
-    user: MemorySummary;
   };
 }
 

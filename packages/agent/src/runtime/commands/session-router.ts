@@ -199,7 +199,7 @@ function formatOperatorInsights(
   const usage = context.services.sessions.usage(sessionKey);
   const profile = context.services.userProfiles.get(input.userId);
   const sharedMemory = context.services.memory.summary("memory");
-  const userMemory = context.services.memory.summary("user");
+  const userMemory = context.services.memory.summary("user", input.userId);
   const generatedSkills =
     context.services.skillSynthesis.listGeneratedSkills(5);
   const events = context.services.trajectories

@@ -272,11 +272,17 @@ describe("chat turn state helpers", () => {
 
   it("schedules profile observation on the next macrotask", async () => {
     const observed: string[] = [];
+    const flatMemoryWrites: string[] = [];
     const context = {
       services: {
         userProfiles: {
           observe: async () => {
             observed.push("observed");
+          },
+        },
+        memory: {
+          add: (_target: string, value: string) => {
+            flatMemoryWrites.push(value);
           },
         },
       },
@@ -293,6 +299,7 @@ describe("chat turn state helpers", () => {
     expect(observed).toHaveLength(0);
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(observed).toHaveLength(1);
+    expect(flatMemoryWrites).toHaveLength(0);
   });
 });
 
@@ -336,7 +343,11 @@ describe("chat turn state helpers with session persistence", () => {
   });
 
   it("hydrates a legacy or forked transcript into an empty Eliza room before the new user memory", async () => {
-    const nativeMemories: Array<{ id: string; content: { text: string } }> = [];
+    const nativeMemories: Array<{
+      id: string;
+      content: { text: string };
+      metadata?: { doolittle?: { userId?: string } };
+    }> = [];
     const context = {
       services: {
         sessions: {
@@ -388,6 +399,7 @@ describe("chat turn state helpers with session persistence", () => {
         messageId: "00000000-0000-4000-8000-000000000001",
         connectionSource: "desktop",
       } as Parameters<typeof persistUserTurnMemory>[0]["turn"],
+      userId: "desktop-user",
       text: "Continue from the fork",
     });
 
@@ -396,5 +408,8 @@ describe("chat turn state helpers with session persistence", () => {
       "Inherited answer",
       "Continue from the fork",
     ]);
+    expect(nativeMemories.at(-1)?.metadata?.doolittle?.userId).toBe(
+      "desktop-user",
+    );
   });
 });

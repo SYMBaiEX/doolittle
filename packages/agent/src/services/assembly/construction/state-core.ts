@@ -3,14 +3,15 @@ import { AgentSdkService } from "../../agent-sdk-service";
 import { ApiTransportService } from "../../api-transport-service";
 import { AwarenessService } from "../../awareness-service";
 import { DelegationProjectionService } from "../../delegation/projection";
+import { ExperienceMemoryService } from "../../experience-memory-service";
 import { McpService } from "../../mcp";
-import { MemoryService } from "../../memory-service";
 import { RepositoryService } from "../../repository-service";
 import { ReviewRecordService } from "../../review-record";
 import { RunControllerService } from "../../run-controller-service";
 import { SessionService } from "../../session/service";
 import type { SettingsService } from "../../settings-service";
 import type { ToolsService } from "../../tools/service";
+import { UserProfileService } from "../../user-profile/service";
 import type { ServiceDirectoryLayout } from "../service-directories";
 import type { ServiceConstructionInput } from "./types";
 
@@ -29,7 +30,8 @@ export interface ServiceConstructionCore {
   reviewRecords: ReviewRecordService;
   runController: RunControllerService;
   awareness: AwarenessService;
-  memory: MemoryService;
+  memory: ExperienceMemoryService;
+  userProfiles: UserProfileService;
   delegationProjection: DelegationProjectionService;
   setTools(nextTools: ToolsService): void;
 }
@@ -42,6 +44,7 @@ export function createServiceConstructionCore(params: {
   const { config, directories, settings } = params;
   const tools = createDeferredToolsAccessor();
   const sessions = new SessionService(config.dataDir);
+  const userProfiles = new UserProfileService(directories.profilesDir);
 
   return {
     sessions,
@@ -59,10 +62,15 @@ export function createServiceConstructionCore(params: {
     reviewRecords: new ReviewRecordService(config.dataDir),
     runController: new RunControllerService(config.dataDir),
     awareness: new AwarenessService(),
-    memory: new MemoryService(config.dataDir, {
-      memory: config.memoryCharLimit,
-      user: config.userCharLimit,
-    }),
+    memory: new ExperienceMemoryService(
+      config.dataDir,
+      {
+        memory: config.memoryCharLimit,
+        user: config.userCharLimit,
+      },
+      userProfiles,
+    ),
+    userProfiles,
     delegationProjection: new DelegationProjectionService(),
     setTools(nextTools: ToolsService) {
       tools.setTools(nextTools);

@@ -20,8 +20,8 @@ export interface ExperiencePluginOptions {
     };
   };
   memory: Pick<MemoryServiceLike, "read" | "summary"> & {
-    read(target?: "memory" | "user"): string;
-    summary(target?: "memory" | "user"): MemorySummary;
+    read(target?: "memory"): string;
+    summary(target?: "memory"): MemorySummary;
   };
 }
 
@@ -50,10 +50,7 @@ export function createExperiencePlugin(
     }
 
     memorySnapshot() {
-      return {
-        shared: options.memory.read("memory"),
-        user: options.memory.read("user"),
-      };
+      return options.memory.read("memory");
     }
 
     summary() {
@@ -61,7 +58,6 @@ export function createExperiencePlugin(
         sessions: options.sessions.summary(),
         memory: {
           shared: options.memory.summary("memory"),
-          user: options.memory.summary("user"),
         },
       };
     }

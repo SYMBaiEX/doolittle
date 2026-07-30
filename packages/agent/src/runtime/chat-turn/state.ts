@@ -87,16 +87,7 @@ export function createProfileObservationScheduler(
 ): () => void {
   return () => {
     scheduleBackgroundTask(() => {
-      const profileService = context.services
-        .userProfiles as typeof context.services.userProfiles & {
-        get?: typeof context.services.userProfiles.get;
-      };
-      const before = profileService.get?.(input.userId) ?? {
-        displayName: undefined,
-        facts: [],
-        preferences: [],
-      };
-      const after = context.services.userProfiles.observe(
+      context.services.userProfiles.observe(
         input.userId,
         input.message,
         input.source,
@@ -107,26 +98,6 @@ export function createProfileObservationScheduler(
           signal: input.message.slice(0, 160),
         },
       );
-      const remember = (value: string) => {
-        try {
-          context.services.memory?.add("user", value);
-        } catch {
-          // Memory writes are opportunistic; profile storage remains primary.
-        }
-      };
-      if (after.displayName && after.displayName !== before.displayName) {
-        remember(`User display name: ${after.displayName}`);
-      }
-      for (const fact of after.facts.filter(
-        (entry) => !before.facts.includes(entry),
-      )) {
-        remember(`User fact: ${fact}`);
-      }
-      for (const preference of after.preferences.filter(
-        (entry) => !before.preferences.includes(entry),
-      )) {
-        remember(`User preference: ${preference}`);
-      }
     });
   };
 }
@@ -160,6 +131,7 @@ export async function startTrackedTurn(
   await persistUserTurnMemory({
     context,
     turn,
+    userId: input.userId,
     text: input.message,
     attachments: input.attachmentDescriptors,
   });

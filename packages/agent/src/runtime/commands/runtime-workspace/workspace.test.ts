@@ -23,6 +23,6 @@ describe("runtime workspace commands", () => {
         context,
       ),
     ).resolves.toBe("memory added");
-    expect(add).toHaveBeenCalledWith("user", "prefers Nub");
+    expect(add).toHaveBeenCalledWith("user", "prefers Nub", "owner");
   });
 });

@@ -189,6 +189,7 @@ async function hydrateNativeRoomFromProjection(
 export async function persistUserTurnMemory(input: {
   context: AgentExecutionContext;
   turn: TurnState;
+  userId: string;
   text: string;
   attachments?: StoredMessageAttachment[];
 }): Promise<void> {
@@ -208,6 +209,7 @@ export async function persistUserTurnMemory(input: {
       sessionKey: continuityKey(input.context, input.turn.sessionId),
       doolittle: {
         role: "user",
+        userId: input.userId,
         source: input.turn.connectionSource,
       },
     },

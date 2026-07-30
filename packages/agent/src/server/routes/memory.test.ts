@@ -7,11 +7,13 @@ function createContext() {
     runtime: {},
     services: {
       memory: {
-        summary: (target: "memory" | "user") => ({
+        summary: (target: "memory" | "user", userId?: string) => ({
           target,
+          userId,
           count: target === "user" ? 1 : 2,
         }),
-        renderSnapshot: (target: "memory" | "user") => `${target} snapshot`,
+        renderSnapshot: (target: "memory" | "user", userId?: string) =>
+          `${target}:${userId} snapshot`,
       },
     },
   } as unknown as AppContext;
@@ -21,14 +23,14 @@ describe("handleMemoryRoutes", () => {
   it("returns memory snapshots with resolved targets", async () => {
     const response = await handleMemoryRoutes(
       createContext(),
-      new Request("http://localhost/memory?target=user"),
-      new URL("http://localhost/memory?target=user"),
+      new Request("http://localhost/memory?target=user&userId=alice"),
+      new URL("http://localhost/memory?target=user&userId=alice"),
     );
 
     await expect(response?.json()).resolves.toEqual({
       target: "user",
-      summary: { target: "user", count: 1 },
-      snapshot: "user snapshot",
+      summary: { target: "user", userId: "alice", count: 1 },
+      snapshot: "user:alice snapshot",
     });
   });
 

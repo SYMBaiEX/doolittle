@@ -104,6 +104,6 @@ export function createServiceConstructionState(
     workspace: leaves.workspace,
     terminal: leaves.terminal,
     web: leaves.web,
-    userProfiles: leaves.userProfiles,
+    userProfiles: core.userProfiles,
   };
 }

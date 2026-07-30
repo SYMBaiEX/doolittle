@@ -11,7 +11,6 @@ import { PairingService } from "../../pairing-service";
 import { PersonalityService } from "../../personality-service";
 import { TerminalService } from "../../terminal/service";
 import { TrajectoryService } from "../../trajectory/service";
-import { UserProfileService } from "../../user-profile/service";
 import { WebService } from "../../web/service";
 import { WorkspaceService } from "../../workspace-service/index";
 import type {
@@ -95,6 +94,5 @@ export function createServiceConstructionLeaves(params: {
       }),
       directories.webDir,
     ),
-    userProfiles: new UserProfileService(directories.profilesDir),
   };
 }

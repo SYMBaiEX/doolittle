@@ -37,20 +37,25 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
         trimmed === `/memory list ${target}`
       ) {
         return [
-          context.services.memory.renderSnapshot(target),
+          context.services.memory.renderSnapshot(target, input.userId),
           "",
           `Summary: ${formatMemorySummary(
             getEffectiveMemorySnapshot(
               context.runtime,
               context.services,
               target,
+              input.userId,
             ),
           )}`,
         ].join("\n");
       }
       const operation = parseMemoryCommand(trimmed);
       if (operation && operation.action !== "list") {
-        return executeMemoryOperation(context.services, operation);
+        return executeMemoryOperation(
+          context.services,
+          operation,
+          input.userId,
+        );
       }
     }
 

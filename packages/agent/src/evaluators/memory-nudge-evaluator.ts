@@ -1,4 +1,5 @@
 import type { Evaluator, Memory } from "@elizaos/core";
+import { messageUserId } from "@/runtime/message-user";
 import type { AppServices } from "@/services";
 
 type MemoryNudgePrepared = {
@@ -81,13 +82,17 @@ export function createMemoryNudgeEvaluator(
     processors: [
       {
         name: "persist-memory-nudge",
-        process: async ({ prepared }) => {
+        process: async ({ prepared, message }) => {
           if (!prepared.fact) {
             return undefined;
           }
 
           try {
-            services.memory.add(prepared.target, prepared.fact);
+            services.memory.add(
+              prepared.target,
+              prepared.fact,
+              messageUserId(message),
+            );
           } catch {
             // Ignore duplicate or over-limit writes inside the evaluator path.
           }

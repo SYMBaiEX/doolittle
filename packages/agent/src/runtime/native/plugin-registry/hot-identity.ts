@@ -47,8 +47,11 @@ export async function loadHotIdentityPlugins(
         summary: () => services.sessions.summary(),
       },
       memory: {
-        read: (target) => services.memory.read(target),
-        summary: (target = "memory") => services.memory.summary(target),
+        read: () => services.memory.read("memory"),
+        summary: () => ({
+          ...services.memory.summary("memory"),
+          target: "memory" as const,
+        }),
       },
     }),
   ];

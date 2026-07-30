@@ -9,11 +9,12 @@ import type { AppServices } from "@/services";
 import { createMemoryNudgeEvaluator } from "./memory-nudge-evaluator";
 
 function makeServices() {
-  const writes: Array<{ target: string; content: string }> = [];
+  const writes: Array<{ target: string; content: string; userId?: string }> =
+    [];
   const services = {
     memory: {
-      add: (target: string, content: string) => {
-        writes.push({ target, content });
+      add: (target: string, content: string, userId?: string) => {
+        writes.push({ target, content, userId });
         return content;
       },
     },
@@ -95,7 +96,13 @@ describe("memoryNudge evaluator", () => {
 
     await processor.process(await processorContext("remember that we use Bun"));
 
-    expect(writes).toEqual([{ target: "memory", content: "we use Bun" }]);
+    expect(writes).toEqual([
+      {
+        target: "memory",
+        content: "we use Bun",
+        userId: "desktop-user",
+      },
+    ]);
   });
 
   it("swallows duplicate or over-limit memory write failures", async () => {

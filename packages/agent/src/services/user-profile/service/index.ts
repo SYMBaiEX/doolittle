@@ -166,6 +166,14 @@ export class UserProfileService
     );
   }
 
+  setExplicitMemories(
+    userId: string,
+    memories: string[],
+    source?: string,
+  ): UserProfileRecord {
+    return this.mutations.setExplicitMemories(userId, memories, source);
+  }
+
   observe(
     userId: string,
     message: string,
