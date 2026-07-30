@@ -97,9 +97,10 @@ Implication for Doolittle:
 
 The public runtime documentation now shows a top-level `ElizaOS` orchestrator,
 but `@elizaos/core@2.0.3-beta.7` does not export that class. The pinned SDK does
-export `createRuntimes`, although its fully initialized composition flow does
-not expose the pre-initialize recovery seam Doolittle currently needs for
-local PGlite lock and corruption recovery.
+export `createRuntimes`. Doolittle no longer maintains a pre-initialize PGlite
+recovery loop: the pinned `@elizaos/agent` runtime owns typed lock, corruption,
+and manual-reset failures, and Doolittle preserves those failures instead of
+parsing database prose or resetting data directories itself.
 
 Doolittle therefore keeps direct `AgentRuntime` construction on this exact
 beta line. This is a compatibility boundary, not permission to maintain a
@@ -135,8 +136,9 @@ tool caching, and receipts to the existing implementation.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.
-Re-evaluate the top-level orchestrator when the pinned runtime train exports a
-lifecycle that preserves the same recovery guarantees.
+Re-evaluate the top-level orchestrator when the pinned runtime train exports
+that public lifecycle; until then direct `AgentRuntime` construction remains
+the smallest supported composition boundary.
 
 ## Sources Consulted
 
