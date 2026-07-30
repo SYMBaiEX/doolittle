@@ -108,33 +108,45 @@ export async function runClaudeCodeTextGeneration(
       ? params.tools[0]
       : undefined;
   const invokeCliFallback = async (): Promise<string> => {
-    const cliOutput = await (
-      options.invokeCliPrint ?? invokeClaudeCodeCliPrint
-    )({
-      prompt: promptText,
-      // Claude CLI aliases follow the newest model available to the signed-in
-      // account. They also avoid coupling fallback execution to retired API
-      // snapshot IDs retained in existing conversations.
-      model: resolveClaudeCliModel(model),
-      systemPrompt: CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT,
-      ...(effort ? { effort } : {}),
-      ...(requiredSingleTool?.parameters
-        ? {
-            jsonSchema: requiredSingleTool.parameters as Record<
-              string,
-              unknown
-            >,
-          }
-        : {}),
-    });
-    return cliOutput || "No response returned.";
+    try {
+      const cliOutput = await (
+        options.invokeCliPrint ?? invokeClaudeCodeCliPrint
+      )({
+        prompt: promptText,
+        // Claude CLI aliases follow the newest model available to the signed-in
+        // account. They also avoid coupling fallback execution to retired API
+        // snapshot IDs retained in existing conversations.
+        model: resolveClaudeCliModel(model),
+        systemPrompt: CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT,
+        ...(effort ? { effort } : {}),
+        ...(requiredSingleTool?.parameters
+          ? {
+              jsonSchema: requiredSingleTool.parameters as Record<
+                string,
+                unknown
+              >,
+            }
+          : {}),
+      });
+      return cliOutput || "No response returned.";
+    } catch (error) {
+      throw normalizeProviderTransportError(
+        "claude-code",
+        "CLI request",
+        error,
+      );
+    }
   };
   const refreshCredentials = async () => {
     try {
       return await options.refreshCredentials?.();
     } catch (error) {
       if (!options.allowCliFallback) {
-        throw error;
+        throw normalizeProviderTransportError(
+          "claude-code",
+          "credential refresh",
+          error,
+        );
       }
       return undefined;
     }

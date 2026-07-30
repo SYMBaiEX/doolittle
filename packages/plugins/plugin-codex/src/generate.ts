@@ -98,9 +98,20 @@ export async function runCodexTextGeneration(
     );
   }
 
+  const refreshCredentials = async () => {
+    try {
+      return await options.refreshCredentials?.();
+    } catch (error) {
+      throw normalizeProviderTransportError(
+        "codex",
+        "credential refresh",
+        error,
+      );
+    }
+  };
   let credentials = options.getCredentials?.();
   if (!credentials?.accessToken?.trim() && options.refreshCredentials) {
-    credentials = await options.refreshCredentials();
+    credentials = await refreshCredentials();
   }
   const accessToken = credentials?.accessToken?.trim();
   if (!accessToken) {
@@ -135,7 +146,7 @@ export async function runCodexTextGeneration(
     (response.status === 401 || response.status === 403) &&
     options.refreshCredentials
   ) {
-    const refreshed = await options.refreshCredentials();
+    const refreshed = await refreshCredentials();
     const refreshedAccessToken = refreshed?.accessToken?.trim();
     if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
       try {
