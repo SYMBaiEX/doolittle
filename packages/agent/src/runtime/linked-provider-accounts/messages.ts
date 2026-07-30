@@ -1,4 +1,7 @@
-import { ProviderTransportError } from "@elizaos/provider-transport";
+import {
+  ProviderTransportError,
+  providerErrorCodeForStatus,
+} from "@elizaos/provider-transport";
 import { displayCommand } from "@/runtime/commands/command-execution";
 import { resolveCloudApiBaseUrl } from "./cloud-url";
 
@@ -105,107 +108,57 @@ export function buildProviderFailureMessage(
 
   const detail =
     error instanceof Error ? error.message.trim() : String(error).trim();
-  const normalized = detail.toLowerCase();
-  const cloudBaseUrl = normalizeElizaCloudBaseUrl(baseUrl);
-
-  if (
-    normalized.includes("aborted") ||
-    normalized.includes("aborterror") ||
-    normalized.includes("signal is aborted")
-  ) {
+  if (error instanceof Error && error.name === "AbortError") {
     return "The turn was cancelled before the provider finished responding.";
   }
-
-  if (
-    normalized.includes("failed query:") &&
-    normalized.includes("relationships")
-  ) {
-    return `The Eliza runtime hit an internal relationships query error while building turn context. Retry the turn after startup finishes, and run \`${displayCommand("/doctor")}\` if it keeps happening.`;
+  const status = readErrorStatus(error);
+  if (status !== undefined) {
+    return buildStructuredProviderFailureMessage(
+      provider,
+      model,
+      new ProviderTransportError(detail, {
+        code: providerErrorCodeForStatus(status),
+        provider,
+        status,
+        detail,
+      }),
+      baseUrl,
+    );
   }
-
-  if (
-    normalized.includes("cannot connect to api") ||
-    normalized.includes("unable to connect") ||
-    normalized.includes("failedtoopensocket") ||
-    normalized.includes("connectionrefused")
-  ) {
-    if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) is active, but I could not reach the Cloud API at \`${cloudBaseUrl}\`. Check network access and the configured base URL, then run \`${displayCommand("/accounts doctor")}\` for a provider-specific diagnosis.`;
-    }
-    return `The active provider (${provider}:${model}) could not be reached from this shell. Check network access and provider credentials, then run \`${displayCommand("/accounts doctor")}\`.`;
-  }
-
-  if (
-    normalized.includes("typo in the url or port") ||
-    normalized.includes("could not be resolved") ||
-    normalized.includes("getaddrinfo") ||
-    normalized.includes("dns")
-  ) {
-    if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) could not resolve the configured API base URL \`${cloudBaseUrl}\`. Compare \`ELIZAOS_CLOUD_BASE_URL\` with the native cloud path, then run \`${displayCommand("/accounts doctor")}\` to verify the normalized URL.`;
-    }
-    return `The active provider (${provider}:${model}) could not resolve its configured endpoint. Check the base URL/host configuration, then run \`${displayCommand("/accounts doctor")}\`.`;
-  }
-
-  if (
-    normalized.includes("timed out") ||
-    normalized.includes("timeout") ||
-    normalized.includes("abortedsignal") ||
-    normalized.includes("network timeout")
-  ) {
-    if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) timed out while waiting for \`${cloudBaseUrl}\`. Check latency or service availability, then run \`${displayCommand("/accounts doctor")}\` if it keeps happening.`;
-    }
-    return `The active provider (${provider}:${model}) timed out before returning a response.`;
-  }
-
-  if (normalized.includes("401") || normalized.includes("unauthorized")) {
-    if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) rejected this request as unauthorized. Run \`${displayCommand("/accounts doctor")}\`, then \`${displayCommand("/accounts connect elizacloud")}\` or \`elizaos login\` to refresh the managed bond.`;
-    }
-    if (
-      provider === "codex" ||
-      provider === "claude-code" ||
-      provider === "devin"
-    ) {
-      return `The linked ${provider} session for ${model} is no longer authorized. Run \`${displayCommand(`/accounts connect ${provider}`)}\` after refreshing the local login.`;
-    }
-  }
-
-  if (normalized.includes("429") || normalized.includes("rate limit")) {
-    return `The active provider (${provider}:${model}) is rate-limiting this request right now. Wait a moment or switch models with \`${displayCommand("/accounts")}\`.`;
-  }
-
-  if (
-    normalized.includes("402") ||
-    normalized.includes("payment required") ||
-    normalized.includes("insufficient credits") ||
-    normalized.includes("insufficient funds")
-  ) {
-    if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) rejected the request because the managed cloud account is out of credits or billing is blocked. Add credits in ${ELIZA_CLOUD_BILLING_URL} and rerun \`${displayCommand("/accounts doctor")}\` if the shell still reports Cloud auth issues.`;
-    }
-    return `The active provider (${provider}:${model}) rejected the request because the account is out of credits or billing is blocked.`;
-  }
-
-  if (
-    normalized.includes("invalid cloud base url") ||
-    normalized.includes("must use https") ||
-    normalized.includes("blocked local hostname") ||
-    normalized.includes("blocked address")
-  ) {
-    if (provider === "elizacloud") {
-      return `Eliza Cloud (${model}) is configured with an invalid base URL: \`${cloudBaseUrl}\`. Run \`${displayCommand("/accounts doctor")}\` and correct \`ELIZAOS_CLOUD_BASE_URL\` before retrying.`;
-    }
-  }
-
-  if (normalized.includes("no output generated")) {
-    return buildProviderNoResponseMessage(provider, model);
+  if (error instanceof TypeError) {
+    return buildStructuredProviderFailureMessage(
+      provider,
+      model,
+      new ProviderTransportError(detail, {
+        code: "unavailable",
+        provider,
+        detail,
+        retryable: true,
+        cause: error,
+      }),
+      baseUrl,
+    );
   }
 
   const compactDetail =
     detail.length > 220 ? `${detail.slice(0, 217)}...` : detail;
   return `${buildProviderNoResponseMessage(provider, model)} Last error: ${compactDetail}`;
+}
+
+function readErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    cause?: unknown;
+  };
+  const status =
+    typeof candidate.status === "number"
+      ? candidate.status
+      : typeof candidate.statusCode === "number"
+        ? candidate.statusCode
+        : undefined;
+  return status ?? readErrorStatus(candidate.cause);
 }
 
 function buildStructuredProviderFailureMessage(

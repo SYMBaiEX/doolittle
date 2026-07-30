@@ -14,20 +14,23 @@ describe("linked-provider-accounts messages", () => {
     const message = buildProviderFailureMessage(
       "elizacloud",
       "openai/gpt-5.4",
-      new Error("Could not be resolved"),
+      new TypeError("fetch failed"),
       "https://cloud.example.com",
     );
 
-    expect(message).toContain("could not resolve");
+    expect(message).toContain("temporarily unavailable");
     expect(message).toContain("cloud.example.com");
     expect(message).toContain("/accounts doctor");
   });
 
-  it("falls back to no-response guidance for generic failures", () => {
+  it("renders no-response guidance from a structured empty result", () => {
     const message = buildProviderFailureMessage(
       "codex",
       "gpt-5.4",
-      new Error("No output generated"),
+      new ProviderTransportError("No output generated", {
+        code: "no_output",
+        provider: "codex",
+      }),
     );
 
     expect(message).toBe(buildProviderNoResponseMessage("codex", "gpt-5.4"));
@@ -46,6 +49,16 @@ describe("linked-provider-accounts messages", () => {
 
     expect(message).toContain("no longer authorized");
     expect(message).toContain("/accounts connect codex");
+    expect(message).not.toContain("Last error");
+  });
+
+  it("uses structural HTTP status from third-party provider errors", () => {
+    const error = Object.assign(new Error("service rejected the request"), {
+      statusCode: 429,
+    });
+    const message = buildProviderFailureMessage("openai", "gpt-5.4", error);
+
+    expect(message).toContain("rate-limiting");
     expect(message).not.toContain("Last error");
   });
 
