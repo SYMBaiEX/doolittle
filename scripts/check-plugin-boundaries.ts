@@ -169,6 +169,18 @@ const INTERNAL_FACADE_GUARDS: Array<{
   },
   {
     root: NATIVE_RUNTIME_ROOT,
+    include: /packages\/agent\/src\/runtime\/native\/agent-sdk\.ts$/u,
+    patterns: [
+      {
+        pattern:
+          /@elizaos\/plugin-agent-skills|\bgetCatalogSkills\b|\bgetTrendingSkills\b/u,
+        reason:
+          "creates a shadow skill-catalog client instead of projecting the official Agent Skills service",
+      },
+    ],
+  },
+  {
+    root: NATIVE_RUNTIME_ROOT,
     include:
       /packages\/agent\/src\/runtime\/native\/service-bridge\/tooling\/(?:shell|mcp)\.ts$/u,
     patterns: [

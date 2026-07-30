@@ -21,6 +21,7 @@ function createBoundaryFixture(options: {
   includeDuplicatedModelRegistrations?: boolean;
   includeUnownedModelPrompt?: boolean;
   includeRawTelegramTransport?: boolean;
+  includeShadowSkillCatalog?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -54,6 +55,14 @@ function createBoundaryFixture(options: {
     options.includeUnownedModelPrompt
       ? "export async function run(runtime: { useModel(type: string, params: unknown): Promise<unknown> }) { return runtime.useModel('TEXT_LARGE', { prompt: 'ad hoc' }); }\n"
       : 'export const action = "no-owned-model-call";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(packagesDir, "agent", "src", "runtime", "native", "agent-sdk.ts"),
+    options.includeShadowSkillCatalog
+      ? 'import { getCatalogSkills } from "@elizaos/plugin-agent-skills";\nexport const catalog = getCatalogSkills;\n'
+      : 'export const sdkAudit = "packages-and-registry-only";\n',
     "utf8",
   );
 
@@ -185,5 +194,16 @@ describe("check-plugin-boundaries", () => {
       "bypasses the official Eliza Telegram service",
     );
     expect(result.stderr).toContain("telegram-adapter/transport.ts");
+  });
+
+  it("rejects a shadow skill-catalog client in the SDK audit facade", () => {
+    fixture = createBoundaryFixture({ includeShadowSkillCatalog: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "creates a shadow skill-catalog client instead of projecting the official Agent Skills service",
+    );
+    expect(result.stderr).toContain("runtime/native/agent-sdk.ts");
   });
 });

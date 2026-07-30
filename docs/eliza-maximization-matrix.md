@@ -12,7 +12,7 @@ increase.
 |---|---|---|---|
 | Runtime core | `@elizaos/core` `AgentRuntime` + `DefaultMessageService`, `@elizaos/agent`, `@elizaos/skills` | The product still owns the outer CLI/API/desktop harness and runtime boot policy | Evaluate the top-level `ElizaOS` harness only when it preserves Doolittle's provider and local-runtime guarantees |
 | Native plugin assembly | [`packages/agent/src/runtime/native/plugin-registry/index.ts`](../packages/agent/src/runtime/native/plugin-registry/index.ts), `@elizaos/agent/services/registry-client` | Some plugin inventory and service ownership still flow through product summaries | Use exported registry/plugin-manager contracts before adding direct plugin-manager dependencies |
-| Agent SDK usage | [`packages/agent/src/runtime/native/agent-sdk.ts`](../packages/agent/src/runtime/native/agent-sdk.ts), [`packages/agent/src/services/agent-sdk-service.ts`](../packages/agent/src/services/agent-sdk-service.ts) | Registry/catalog/compat data is not yet the dominant source for all runtime/operator decisions | `@elizaos/agent` |
+| Agent SDK usage | [`packages/agent/src/runtime/native/agent-sdk.ts`](../packages/agent/src/runtime/native/agent-sdk.ts) and [`packages/agent/src/services/agent-sdk-service.ts`](../packages/agent/src/services/agent-sdk-service.ts) own package compatibility and plugin-registry inspection; skill catalog state is excluded and comes from the official Agent Skills service projection | Product summaries still project SDK package and registry state for operator UX, but do not own their lifecycle | Continue consuming exported `@elizaos/agent` compatibility and registry contracts without broadening this facade into another lifecycle owner |
 
 ## Knowledge and Identity
 

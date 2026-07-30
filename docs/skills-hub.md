@@ -20,6 +20,10 @@ generation as read-only data.
 Desktop/API catalog reads are bounded so an unavailable remote registry cannot
 stall the local harness. A timed-out read leaves the last successful projection
 untouched while the official service request remains the only refresh path.
+The projection carries an explicit `catalogProjected` state, allowing an empty
+official catalog to remain distinguishable from a catalog that has not loaded.
+Diagnostics, tools, autonomous summaries, and operator views all read that
+single projection rather than maintaining independent catalog caches.
 
 ## Runtime Commands
 
