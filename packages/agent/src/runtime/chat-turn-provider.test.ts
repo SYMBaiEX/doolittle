@@ -233,7 +233,7 @@ describe("chat turn provider seam", () => {
     ]);
   });
 
-  it("surfaces recoverable planning failures without a second executor", async () => {
+  it("surfaces SDK failures through the unified turn-failure path", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();
     harness.context.runtime.messageService = {
@@ -259,7 +259,8 @@ describe("chat turn provider seam", () => {
     });
 
     expect(result.handledMessage).toBe(false);
-    expect(result.response).toContain("native planner");
+    expect(result.response).toContain("OpenAI");
+    expect(result.response).toContain("parse error in prompt");
     expect(result.runFailureMessage).toBe(result.response);
     expect(harness.notices).toEqual([result.response]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
