@@ -16,6 +16,7 @@ export const DEFAULT_NATIVE_SERVICE_REGISTRY: NativeServiceRegistry = {
     "skills",
     "skillSynthesis",
     "trajectories",
+    "delegation",
   ],
   customEliza: [
     "memory",
@@ -33,7 +34,7 @@ export const DEFAULT_NATIVE_SERVICE_REGISTRY: NativeServiceRegistry = {
     "tools",
     "diagnostics",
   ],
-  productOrchestration: ["operator", "gatewayConfig", "delegation"],
+  productOrchestration: ["operator", "gatewayConfig"],
 };
 
 export function createNativeServiceRegistry(): NativeServiceRegistry {
