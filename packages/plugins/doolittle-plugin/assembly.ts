@@ -9,9 +9,9 @@ import {
   createResearchAction,
   createSelfAwarenessProvider,
   createSessionSearchAction,
-  createTerminalAction,
   createWorkspaceAction,
 } from "@doolittle/agent/plugin-api";
+import { terminalAction } from "@elizaos/agent/actions/terminal";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
@@ -43,7 +43,7 @@ export function createDoolittlePluginSurface({
     triggerAction,
     ...createFileActions(() => services.workspace.root()),
     createWorkspaceAction(() => services.workspace.root()),
-    createTerminalAction(services),
+    terminalAction,
     createRepositoryAction(),
     createShortcutCompatibleWebSearchAction(),
     webFetch,

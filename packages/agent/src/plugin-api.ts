@@ -7,7 +7,6 @@ export { createMemoryAction } from "@/actions/memory-action";
 export { createRepositoryAction } from "@/actions/repository-action";
 export { createResearchAction } from "@/actions/research-action";
 export { createSessionSearchAction } from "@/actions/session-search-action";
-export { createTerminalAction } from "@/actions/terminal-action";
 export { createWorkspaceAction } from "@/actions/workspace-action";
 export { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
 export { GatewayRunner } from "@/gateway/runner";

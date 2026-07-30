@@ -67,8 +67,21 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     });
 
     expect(plugin.actions?.map((action) => action.name)).toEqual(
-      expect.arrayContaining(["WEB_SEARCH", "WEB_FETCH", "DOOLITTLE_COMMAND"]),
+      expect.arrayContaining([
+        "SHELL",
+        "WEB_SEARCH",
+        "WEB_FETCH",
+        "DOOLITTLE_COMMAND",
+      ]),
     );
+    expect(plugin.actions?.map((action) => action.name)).not.toContain(
+      "RUN_IN_TERMINAL",
+    );
+    expect(
+      plugin.actions
+        ?.find((action) => action.name === "SHELL")
+        ?.similes?.includes("RUN_IN_TERMINAL"),
+    ).toBe(true);
     expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual([
       "doolittle-web-search-command",
       "doolittle-research-command",
