@@ -112,17 +112,6 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
   };
 }
 
-const nativeServicesCache = new WeakMap<object, NativeServices>();
-
 export function getNativeServices(runtime: RuntimeLike) {
-  if (!runtime || typeof runtime !== "object") {
-    return buildNativeServices(runtime);
-  }
-  const cached = nativeServicesCache.get(runtime);
-  if (cached) {
-    return cached;
-  }
-  const resolved = buildNativeServices(runtime);
-  nativeServicesCache.set(runtime, resolved);
-  return resolved;
+  return buildNativeServices(runtime);
 }
