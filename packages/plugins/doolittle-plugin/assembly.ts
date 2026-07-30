@@ -3,7 +3,6 @@ import {
   createCommandAction,
   createCommandShortcut,
   createFileActions,
-  createMemoryAction,
   createMemoryNudgeEvaluator,
   createRepositoryAction,
   createResearchAction,
@@ -11,6 +10,7 @@ import {
   createSessionSearchAction,
   createWorkspaceAction,
 } from "@doolittle/agent/plugin-api";
+import { memoryAction } from "@elizaos/agent/actions/memories";
 import { terminalAction } from "@elizaos/agent/actions/terminal";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
@@ -38,8 +38,8 @@ export function createDoolittlePluginSurface({
 }: DoolittlePluginDependencies): Plugin {
   const actions: Action[] = [
     createCommandAction(services, config),
-    createMemoryAction(services),
     createSessionSearchAction(services, config.sessionSearchLimit),
+    memoryAction,
     triggerAction,
     ...createFileActions(),
     createWorkspaceAction(),

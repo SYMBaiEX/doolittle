@@ -68,6 +68,7 @@ describe("createDoolittlePlugin offline bootstrap", () => {
 
     expect(plugin.actions?.map((action) => action.name)).toEqual(
       expect.arrayContaining([
+        "MEMORY",
         "SHELL",
         "WEB_SEARCH",
         "WEB_FETCH",
@@ -76,6 +77,9 @@ describe("createDoolittlePlugin offline bootstrap", () => {
     );
     expect(plugin.actions?.map((action) => action.name)).not.toContain(
       "RUN_IN_TERMINAL",
+    );
+    expect(plugin.actions?.map((action) => action.name)).not.toContain(
+      "DOOLITTLE_MEMORY",
     );
     expect(
       plugin.actions

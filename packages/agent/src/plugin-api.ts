@@ -3,7 +3,6 @@ export {
   createCommandShortcut,
 } from "@/actions/command-action";
 export { createFileActions } from "@/actions/file-action";
-export { createMemoryAction } from "@/actions/memory-action";
 export { createRepositoryAction } from "@/actions/repository-action";
 export { createResearchAction } from "@/actions/research-action";
 export { createSessionSearchAction } from "@/actions/session-search-action";
