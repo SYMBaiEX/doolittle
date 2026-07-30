@@ -436,9 +436,9 @@ tbody tr:hover {
 
 .app-main--chat > .window-dragbar--chat {
   display: grid;
-  flex: 0 0 64px;
-  grid-template-rows: 32px 32px;
-  min-height: 64px;
+  flex: 0 0 58px;
+  grid-template-rows: 30px 28px;
+  min-height: 58px;
   background: color-mix(in srgb, var(--bg) 98%, var(--surface));
   border-bottom-color: color-mix(in srgb, var(--border) 64%, transparent);
 }
@@ -486,7 +486,7 @@ tbody tr:hover {
 .chat-header-mainline {
   display: grid;
   grid-template-columns: minmax(132px, 0.52fr) minmax(0, 1fr) auto;
-  grid-template-rows: 32px;
+  grid-template-rows: 28px;
   align-items: center;
   height: 100%;
   gap: 6px 9px;
@@ -513,9 +513,9 @@ tbody tr:hover {
 
 .chat-context-compact {
   display: inline-flex;
-  min-height: 18px;
+  min-height: 16px;
   align-items: center;
-  padding: 0 4px;
+  padding: 0 5px;
   color: var(--muted);
   background: transparent;
   border: 0;
@@ -545,7 +545,7 @@ button.chat-context-compact:focus-visible {
 
 .chat-chrome-host :where(h2) {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.15;
   letter-spacing: -0.012em;
   white-space: nowrap;
@@ -555,20 +555,18 @@ button.chat-context-compact:focus-visible {
 
 .chat-model-route {
   margin-top: 0;
-  min-height: 20px;
+  min-height: 18px;
   padding: 0 5px;
   gap: 4px;
   white-space: nowrap;
 }
 
-/* biome-ignore lint/style/noDescendingSpecificity: route labels are scoped independently from earlier summary spans */
-.chat-model-route > span,
 .chat-model-route > strong {
   font-size: 10px;
 }
 
 .chat-mobile-conversations-button {
-  min-height: 20px;
+  min-height: 18px;
   padding: 0 5px;
   gap: 4px;
 }
@@ -600,7 +598,7 @@ button.chat-context-compact:focus-visible {
 }
 
 .chat-session-meta-pill {
-  min-height: 18px;
+  min-height: 16px;
   padding: 0 5px;
   font-size: 9px;
   border-right: 1px solid var(--border);
@@ -615,7 +613,7 @@ button.chat-context-compact:focus-visible {
 }
 
 .chat-header-top-actions .secondary-button {
-  min-height: 20px;
+  min-height: 18px;
   padding: 1px 5px;
   font-size: 9px;
 }
@@ -634,6 +632,7 @@ button.chat-context-compact:focus-visible {
 
   .chat-header-mainline {
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 28px;
   }
 }
 
