@@ -17,33 +17,32 @@ export function getEffectiveMcpStatus(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return getNativeMcp(runtime)?.status() ?? services.mcp.status();
+  const mcp = getNativeMcp(runtime);
+  return mcp ? mcp.status() : services.mcp.status();
 }
 
 export async function probeEffectiveMcp(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return (await getNativeMcp(runtime)?.probe()) ?? services.mcp.probe();
+  const mcp = getNativeMcp(runtime);
+  return mcp ? mcp.probe() : services.mcp.probe();
 }
 
 export async function discoverEffectiveMcpTools(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return (
-    (await getNativeMcp(runtime)?.discoverTools()) ??
-    services.mcp.discoverTools()
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp ? mcp.discoverTools() : services.mcp.discoverTools();
 }
 
 export function getEffectiveCachedMcpTools(
   runtime: RuntimeLike,
   services: AppServices,
 ) {
-  return (
-    getNativeMcp(runtime)?.getCachedTools() ?? services.mcp.getCachedTools()
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp ? mcp.getCachedTools() : services.mcp.getCachedTools();
 }
 
 export function searchEffectiveCachedMcpTools(
@@ -51,10 +50,10 @@ export function searchEffectiveCachedMcpTools(
   services: AppServices,
   query: string,
 ) {
-  return (
-    getNativeMcp(runtime)?.searchCachedTools(query) ??
-    services.mcp.searchCachedTools(query)
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp
+    ? mcp.searchCachedTools(query)
+    : services.mcp.searchCachedTools(query);
 }
 
 export function describeEffectiveCachedMcpTools(
@@ -62,10 +61,10 @@ export function describeEffectiveCachedMcpTools(
   services: AppServices,
   limit = 20,
 ) {
-  return (
-    getNativeMcp(runtime)?.describeCachedTools(limit) ??
-    services.mcp.describeCachedTools(limit)
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp
+    ? mcp.describeCachedTools(limit)
+    : services.mcp.describeCachedTools(limit);
 }
 
 export function describeEffectiveMcpTool(
@@ -73,9 +72,8 @@ export function describeEffectiveMcpTool(
   services: AppServices,
   name: string,
 ) {
-  return (
-    getNativeMcp(runtime)?.describeTool(name) ?? services.mcp.describeTool(name)
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp ? mcp.describeTool(name) : services.mcp.describeTool(name);
 }
 
 export async function invokeEffectiveMcp(
@@ -83,9 +81,8 @@ export async function invokeEffectiveMcp(
   services: AppServices,
   input: string,
 ) {
-  return (
-    (await getNativeMcp(runtime)?.invoke(input)) ?? services.mcp.invoke(input)
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp ? mcp.invoke(input) : services.mcp.invoke(input);
 }
 
 export async function invokeEffectiveMcpTool(
@@ -94,10 +91,10 @@ export async function invokeEffectiveMcpTool(
   name: string,
   input: Record<string, unknown>,
 ) {
-  return (
-    (await getNativeMcp(runtime)?.invokeTool(name, input)) ??
-    services.mcp.invokeTool(name, input)
-  );
+  const mcp = getNativeMcp(runtime);
+  return mcp
+    ? mcp.invokeTool(name, input)
+    : services.mcp.invokeTool(name, input);
 }
 
 export async function searchEffectiveMcpMarketplace(query: string, limit = 10) {

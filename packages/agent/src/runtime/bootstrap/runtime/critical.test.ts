@@ -24,6 +24,7 @@ describe("bootstrap runtime services", () => {
       "service:doolittle_awareness",
       "service:browser",
       "service:doolittle_gateway",
+      "service:mcp",
       "service:doolittle_scheduler",
       "service:shell",
       "service:WORKFLOW_DISPATCH",

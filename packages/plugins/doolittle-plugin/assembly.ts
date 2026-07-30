@@ -19,6 +19,7 @@ import { getSessionProviders } from "@elizaos/core";
 import { createAwarenessRuntimeService } from "./awareness-service";
 import { createBrowserRuntimeService } from "./browser-service";
 import { createGatewayRuntimeService } from "./gateway-service";
+import { createMcpRuntimeService } from "./mcp-service";
 import { createMemoryStorageService } from "./memory-storage-service";
 import { createDoolittleRuntimeRoutes } from "./routes";
 import { createSchedulerRuntimeService } from "./scheduler-service";
@@ -61,6 +62,7 @@ export function createDoolittlePluginSurface({
   const AwarenessRuntimeService = createAwarenessRuntimeService(services);
   const BrowserRuntimeService = createBrowserRuntimeService(services);
   const MemoryStorageService = createMemoryStorageService(services.sessions);
+  const McpRuntimeService = createMcpRuntimeService(services);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
   const ShellRuntimeService = createShellRuntimeService(services);
 
@@ -81,6 +83,7 @@ export function createDoolittlePluginSurface({
       AwarenessRuntimeService,
       BrowserRuntimeService,
       GatewayRuntimeService,
+      McpRuntimeService,
       SchedulerRuntimeService,
       ShellRuntimeService,
       ...createTriggerRuntimeServices(services),

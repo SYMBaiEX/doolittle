@@ -3,6 +3,7 @@ import {
   type AutomationRunRecord,
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
 import type {
@@ -19,6 +20,7 @@ export const PDF_SERVICE = "pdf";
 export {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 };
 

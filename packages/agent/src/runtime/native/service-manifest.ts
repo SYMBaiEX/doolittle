@@ -4,6 +4,7 @@ import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
@@ -125,7 +126,7 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
     {
       capability: "mcp",
       nativeKey: "mcp",
-      nativeService: "mcp",
+      nativeService: DOOLITTLE_MCP_SERVICE,
       productServices: ["mcp"],
       fallback: "mcp",
     },

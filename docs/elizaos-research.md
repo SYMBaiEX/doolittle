@@ -123,6 +123,10 @@ Browser capture and evidence operations are likewise registered as the
 canonical `browser` service. CLI commands, API routes, and runtime diagnostics
 resolve that service first while the existing web implementation retains
 truthful browser-versus-placeholder behavior behind the plugin boundary.
+MCP discovery and invocation now use the same model: official Eliza marketplace
+helpers remain the source for server discovery, while the canonical `mcp`
+service owns runtime resolution and delegates configured local execution,
+tool caching, and receipts to the existing implementation.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.

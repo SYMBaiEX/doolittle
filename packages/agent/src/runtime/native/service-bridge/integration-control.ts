@@ -1,13 +1,5 @@
-import { getNativeServices, type RuntimeLike } from "./runtime";
-
-interface NativeBrowserService {
-  status(): Promise<unknown>;
-}
-
-interface NativeMcpService {
-  status(): unknown;
-  getCachedTools(): unknown[];
-}
+import { getNativeServices } from "./runtime";
+import type { RuntimeLike } from "./runtime-contracts";
 
 export interface BrowserMcpServices {
   web: {
@@ -39,15 +31,16 @@ async function resolveBrowserIntegrationStatus(
   runtime: RuntimeLike,
   services: BrowserMcpServices,
 ) {
-  const native = getNativeServices(runtime) as {
-    browser?: NativeBrowserService;
-  };
+  const native = getNativeServices(runtime);
   if (native.browser) {
     return {
       source: "native" as const,
       ownership: "plugin" as const,
       available: true,
-      status: await native.browser.status(),
+      status:
+        (await native.browser.status?.()) ??
+        native.browser.summary?.() ??
+        (await services.web.status()),
     };
   }
   return {
@@ -62,7 +55,7 @@ function resolveMcpIntegrationStatus(
   runtime: RuntimeLike,
   services: BrowserMcpServices,
 ) {
-  const native = getNativeServices(runtime) as { mcp?: NativeMcpService };
+  const native = getNativeServices(runtime);
   if (native.mcp) {
     return {
       source: "native" as const,

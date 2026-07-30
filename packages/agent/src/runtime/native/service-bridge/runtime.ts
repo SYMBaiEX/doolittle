@@ -35,6 +35,7 @@ import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
@@ -69,7 +70,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     experience: service<NativeExperienceService>(runtime, "experience"),
     shell: service<NativeShellService>(runtime, DOOLITTLE_SHELL_SERVICE),
     browser: service<NativeBrowserService>(runtime, DOOLITTLE_BROWSER_SERVICE),
-    mcp: service<NativeMcpService>(runtime, "mcp"),
+    mcp: service<NativeMcpService>(runtime, DOOLITTLE_MCP_SERVICE),
     automation: service<NativeAutomationService>(
       runtime,
       DOOLITTLE_AUTOMATION_SERVICE,
