@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ToolsService } from "./service";
+import { CapabilityCatalogService } from "./service";
 
-describe("ToolsService", () => {
+describe("CapabilityCatalogService", () => {
   it("summarizes the registry and exposes lookup helpers", () => {
-    const service = new ToolsService(() => ({
+    const service = new CapabilityCatalogService(() => ({
       mcpEnabled: true,
       discoveredMcpTools: 2,
       discoveredMcpToolNames: ["sum", "echo"],

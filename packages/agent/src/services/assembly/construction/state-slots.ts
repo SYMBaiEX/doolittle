@@ -9,7 +9,7 @@ import {
 } from "../../service-slots";
 import { SkillSynthesisService } from "../../skill-synthesis/service";
 import { SkillsHubService } from "../../skills-hub/service";
-import { ToolsService } from "../../tools/service";
+import { CapabilityCatalogService } from "../../tools/service";
 import type {
   RuntimeModelContextResolver,
   ServiceBootstrapState,
@@ -91,7 +91,7 @@ export function createServiceConstructionSlots(params: {
         config.dataDir,
       ),
   );
-  const tools = new ToolsService(
+  const tools = new CapabilityCatalogService(
     createToolsDynamicStateResolver({
       mcp: core.mcp,
       acp: core.acp,

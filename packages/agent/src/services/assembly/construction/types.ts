@@ -37,7 +37,7 @@ import type { SkillsService } from "../../skills/service";
 import type { SkillsHubService } from "../../skills-hub/service";
 import type { StartupStateService } from "../../startup-state-service";
 import type { TerminalService } from "../../terminal/service";
-import type { ToolsService } from "../../tools/service";
+import type { CapabilityCatalogService } from "../../tools/service";
 import type { TrajectoryEvaluationService } from "../../trajectory/service";
 import type { UserProfileService } from "../../user-profile/service";
 import type { WebService } from "../../web/service";
@@ -77,7 +77,7 @@ export interface ServiceAssemblyEager {
   terminal: TerminalService;
   repository: RepositoryService;
   reviewRecords: ReviewRecordService;
-  tools: ToolsService;
+  tools: CapabilityCatalogService;
   mcp: McpService;
   acp: AcpService;
   delegationProjection: DelegationProjectionService;
@@ -152,7 +152,7 @@ export interface ServiceConstructionState {
   skills: ReturnType<typeof createSkillsServiceSlot>;
   skillSynthesis: LazySlot<SkillSynthesisService>;
   skillsHub: LazySlot<SkillsHubService>;
-  tools: ToolsService;
+  tools: CapabilityCatalogService;
   documents: LazySlot<DocumentsService>;
   contextFiles: LazySlot<ContextFilesService>;
   media: LazySlot<MediaService>;

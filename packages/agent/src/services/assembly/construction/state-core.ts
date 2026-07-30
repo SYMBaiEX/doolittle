@@ -10,14 +10,14 @@ import { ReviewRecordService } from "../../review-record";
 import { RunControllerService } from "../../run-controller-service";
 import { SessionService } from "../../session/service";
 import type { SettingsService } from "../../settings-service";
-import type { ToolsService } from "../../tools/service";
+import type { CapabilityCatalogService } from "../../tools/service";
 import { UserProfileService } from "../../user-profile/service";
 import type { ServiceDirectoryLayout } from "../service-directories";
 import type { ServiceConstructionInput } from "./types";
 
 interface DeferredToolsAccessor {
-  setTools(nextTools: ToolsService): void;
-  toolsDefinitions(): ReturnType<ToolsService["baseDefinitions"]>;
+  setTools(nextTools: CapabilityCatalogService): void;
+  toolsDefinitions(): ReturnType<CapabilityCatalogService["baseDefinitions"]>;
 }
 
 export interface ServiceConstructionCore {
@@ -33,7 +33,7 @@ export interface ServiceConstructionCore {
   memory: ExperienceMemoryService;
   userProfiles: UserProfileService;
   delegationProjection: DelegationProjectionService;
-  setTools(nextTools: ToolsService): void;
+  setTools(nextTools: CapabilityCatalogService): void;
 }
 
 export function createServiceConstructionCore(params: {
@@ -72,16 +72,16 @@ export function createServiceConstructionCore(params: {
     ),
     userProfiles,
     delegationProjection: new DelegationProjectionService(),
-    setTools(nextTools: ToolsService) {
+    setTools(nextTools: CapabilityCatalogService) {
       tools.setTools(nextTools);
     },
   };
 }
 
 function createDeferredToolsAccessor(): DeferredToolsAccessor {
-  let tools: ToolsService | undefined;
+  let tools: CapabilityCatalogService | undefined;
   return {
-    setTools(nextTools: ToolsService) {
+    setTools(nextTools: CapabilityCatalogService) {
       tools = nextTools;
     },
     toolsDefinitions() {

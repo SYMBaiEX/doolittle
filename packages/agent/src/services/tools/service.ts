@@ -4,7 +4,14 @@ import { expandPluginTools, patchToolDescription } from "./descriptions";
 import { buildToolRegistrySummary } from "./summary";
 import type { ToolRegistryDynamicState, ToolRegistrySummary } from "./types";
 
-export class ToolsService {
+/**
+ * Product-facing capability catalog.
+ *
+ * Executable action registration and allow/deny policy are owned by the Eliza
+ * runtime. This service only describes Doolittle product surfaces that may be
+ * backed by those actions, services, or protocol adapters.
+ */
+export class CapabilityCatalogService {
   constructor(
     private readonly getDynamicState: () => ToolRegistryDynamicState = () => ({
       mcpEnabled: false,

@@ -34,7 +34,7 @@ import type { SkillsService } from "./skills/service";
 import type { SkillsHubService } from "./skills-hub/service";
 import type { StartupStateService } from "./startup-state-service";
 import type { TerminalService } from "./terminal/service";
-import type { ToolsService } from "./tools/service";
+import type { CapabilityCatalogService } from "./tools/service";
 import type { TrajectoryEvaluationService } from "./trajectory/service";
 import type { UserProfileService } from "./user-profile/service";
 import type { WebService } from "./web/service";
@@ -67,7 +67,7 @@ export interface AppServices {
   reviewRecords: ReviewRecordService;
   diagnostics: DiagnosticsService;
   operator: OperatorService;
-  tools: ToolsService;
+  tools: CapabilityCatalogService;
   mcp: McpService;
   acp: AcpService;
   autocoderPipeline: AutocoderPipelineService;
