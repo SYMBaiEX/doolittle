@@ -17,6 +17,7 @@ import { requireOfficialOrchestrator } from "../delegation";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 import { requireOfficialAgentSkills } from "../skill-hub";
 import { requireNativeCodingAgent } from "../tooling/native-services";
+import { requireNativeTrajectoryLogger } from "../trajectory";
 
 export interface AutonomousControlPlaneSummary {
   alignment: ReturnType<typeof describeAutonomousAlignment>;
@@ -47,8 +48,8 @@ export interface AutonomousControlPlaneSummary {
     delegation: boolean;
   };
   trajectories: {
-    source: "native" | "product";
-    available: boolean;
+    source: "native";
+    available: true;
     bundles: number;
     latestAvailable: boolean;
   };
@@ -150,6 +151,7 @@ export function getAutonomousControlPlane(
     agentSkills: requireOfficialAgentSkills(runtime),
     agentOrchestrator: requireOfficialOrchestrator(runtime),
     codingAgent: requireNativeCodingAgent(runtime),
+    trajectoryLogger: requireNativeTrajectoryLogger(runtime),
   };
   const formsControl = getNativeFormsControlPlane(runtime);
   const executionControl = getNativeExecutionControlPlane(runtime);

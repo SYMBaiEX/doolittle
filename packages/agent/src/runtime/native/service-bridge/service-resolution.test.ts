@@ -141,9 +141,9 @@ describe("service-resolution helpers", () => {
       {
         capability: "trajectoryLogger",
         nativeService: "trajectories",
-        source: "product",
-        ownership: "product",
-        fallback: "trajectories",
+        source: "unavailable",
+        ownership: "plugin",
+        fallback: "required official Eliza trajectories service",
         available: false,
       },
       {

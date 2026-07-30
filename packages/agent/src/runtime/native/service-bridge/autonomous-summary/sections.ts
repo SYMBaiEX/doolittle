@@ -100,8 +100,8 @@ export function buildTrajectoriesSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["trajectories"] {
   return {
-    source: input.native.trajectoryLogger ? "native" : "product",
-    available: Boolean(input.native.trajectoryLogger),
+    source: "native",
+    available: true,
     bundles: Array.isArray(input.trajectoryBundles)
       ? input.trajectoryBundles.length
       : 0,

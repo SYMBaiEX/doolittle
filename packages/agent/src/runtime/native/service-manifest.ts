@@ -162,8 +162,8 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       capability: "trajectoryLogger",
       nativeKey: "trajectoryLogger",
       nativeService: "trajectories",
-      productServices: ["trajectories"],
-      fallback: "trajectories",
+      productServices: [],
+      fallback: "required official Eliza trajectories service",
     },
     {
       capability: "agentOrchestrator",

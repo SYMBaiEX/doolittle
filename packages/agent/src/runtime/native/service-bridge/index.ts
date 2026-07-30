@@ -141,3 +141,7 @@ export {
   writeNativeWorkspaceFile,
   writeNativeWorkspaceFileResult,
 } from "./tooling";
+export {
+  NativeTrajectoryLoggerUnavailableError,
+  requireNativeTrajectoryLogger,
+} from "./trajectory";

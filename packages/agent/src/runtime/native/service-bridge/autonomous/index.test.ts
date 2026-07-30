@@ -53,6 +53,17 @@ describe("autonomous control plane", () => {
             tasks: () => [],
           };
         }
+        if (name === "trajectories") {
+          return {
+            isEnabled: () => true,
+            listTrajectories: () => ({ trajectories: [], total: 0 }),
+            exportTrajectories: async () => ({
+              data: "",
+              filename: "trajectories.jsonl",
+              mimeType: "application/x-ndjson",
+            }),
+          };
+        }
         if (name === "plugin_manager") {
           return {
             list: () => [1, 2],

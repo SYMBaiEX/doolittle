@@ -3,17 +3,14 @@ import type {
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
   NativeCodingAgentService,
+  NativeTrajectoryLoggerService,
 } from "../runtime-contracts";
 
 export type NativeServicesSnapshot = {
   agentSkills: NativeAgentSkillsService;
   agentOrchestrator: NativeAgentOrchestratorService;
   codingAgent: NativeCodingAgentService;
-  trajectoryLogger?: {
-    isEnabled?: unknown;
-    listTrajectories?: unknown;
-    exportTrajectories?: unknown;
-  } | null;
+  trajectoryLogger: NativeTrajectoryLoggerService;
   pluginManager?: unknown;
   actionPlanning?: unknown;
   operatorPlanning?: unknown;

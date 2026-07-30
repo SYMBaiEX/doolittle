@@ -193,6 +193,12 @@ const INTERNAL_FACADE_GUARDS: Array<{
         reason:
           "advertises a product fallback for the bootstrap-critical official Eliza Agent Orchestrator service",
       },
+      {
+        pattern:
+          /capability:\s*["']trajectoryLogger["'][^}]*productServices:\s*\[\s*["']/u,
+        reason:
+          "advertises a product fallback for the bootstrap-critical official Eliza trajectories service",
+      },
     ],
   },
   {
