@@ -5,6 +5,15 @@ import type { LinkedProviderName } from "./types";
 
 type ProviderRuntimeSettingValue = string | boolean | null;
 
+export type ProviderRuntimeSettingsContext = Pick<
+  AgentExecutionContext,
+  "config" | "runtime"
+> & {
+  services: {
+    settings: Pick<AgentExecutionContext["services"]["settings"], "get">;
+  };
+};
+
 export function resolveDefaultProviderModel(
   context: AgentExecutionContext,
   provider: LinkedProviderName,
@@ -51,8 +60,10 @@ export function syncProviderSettings(
  * use the same map through the request-scoped settings accessor instead.
  */
 export function buildProviderRuntimeSettings(
-  context: AgentExecutionContext,
-  settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>,
+  context: ProviderRuntimeSettingsContext,
+  settings: ReturnType<
+    ProviderRuntimeSettingsContext["services"]["settings"]["get"]
+  >,
 ): Map<string, ProviderRuntimeSettingValue> {
   const runtimeSettings = new Map<string, ProviderRuntimeSettingValue>([
     ["runtimeSettings", JSON.stringify(settings)],

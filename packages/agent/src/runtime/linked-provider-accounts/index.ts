@@ -14,6 +14,7 @@ import {
 } from "./messages";
 import {
   buildProviderRuntimeSettings,
+  type ProviderRuntimeSettingsContext,
   syncProviderSettings,
 } from "./model-settings";
 import { withLinkedProviderMutationLock } from "./mutation-lock";
@@ -24,6 +25,7 @@ import {
 } from "./readiness";
 
 export type { LinkedProviderName } from "./types";
+export type { ProviderRuntimeSettingsContext };
 export {
   activateLinkedProvider,
   buildProviderFailureMessage,

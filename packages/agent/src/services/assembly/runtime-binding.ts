@@ -6,6 +6,7 @@ import type { ExecutionApprovalService } from "../execution-approval/service";
 import type { GatewayPairingProjection } from "../gateway-pairing";
 import type { HookProjectionService } from "../hook-projection-service";
 import type { LazySlot } from "../lazy-slot";
+import type { MediaService } from "../media";
 import type { OperatorService } from "../operator/service";
 import type { SkillsService } from "../skills/service";
 
@@ -18,6 +19,7 @@ export interface RuntimeBindingDependencies {
   diagnostics: LazySlot<DiagnosticsService>;
   operator: LazySlot<OperatorService>;
   skills: LazySlot<SkillsService>;
+  media: LazySlot<MediaService>;
   createDocumentsService(nextRuntime: IAgentRuntime): DocumentsService;
   setBoundRuntime?(nextRuntime: IAgentRuntime): void;
 }
@@ -32,6 +34,7 @@ export function createRuntimeBinder(
     dependencies.delegationProjection.bindRuntime(nextRuntime);
     dependencies.executionApprovals.bindRuntime(nextRuntime);
     dependencies.skills.get().bindRuntime(nextRuntime);
+    dependencies.media.get().bindRuntime(nextRuntime);
     if (dependencies.documents.peek()) {
       dependencies.documents.set(
         dependencies.createDocumentsService(nextRuntime),

@@ -73,6 +73,7 @@ export function createServiceAssemblyRuntimeBinding(
     diagnostics: state.diagnostics,
     operator: state.operator,
     skills: state.skills,
+    media: state.media,
     createDocumentsService: state.createDocumentsService,
     setBoundRuntime: state.setBoundRuntime,
   };

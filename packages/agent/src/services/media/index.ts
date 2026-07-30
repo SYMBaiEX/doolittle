@@ -16,7 +16,8 @@ export {
   buildMediaAnalysisPaths,
   slugifyMediaText,
 } from "./paths";
-export { requestMediaModelText } from "./requests/backends";
+export { buildOfflineMediaTextResponse } from "./requests/backends";
+export { RuntimeMediaTextAnalysisPort } from "./requests/runtime-text-analysis";
 export { MediaService } from "./service";
 export { executeMediaTranscription } from "./transcription";
 export type {
@@ -32,6 +33,7 @@ export type {
   MediaModelContext,
   MediaSpeechBundle,
   MediaSpeechOptions,
+  MediaTextAnalysisPort,
   MediaTextRequestMetadata,
   MediaTranscriptionBundle,
   MediaTranscriptionOptions,

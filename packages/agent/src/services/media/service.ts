@@ -10,7 +10,7 @@ import {
   generateMediaSpeechArtifact,
 } from "./generation";
 import { MediaInspectionSupport } from "./inspection/service";
-import { requestMediaModelText } from "./requests/backends";
+import { buildOfflineMediaTextResponse } from "./requests/backends";
 import { executeMediaTranscription } from "./transcription";
 import type {
   MediaAnalysisBundle,
@@ -23,6 +23,8 @@ import type {
   MediaModelContext,
   MediaSpeechBundle,
   MediaSpeechOptions,
+  MediaTextAnalysisPort,
+  MediaTextRequestMetadata,
   MediaTranscriptionBundle,
   MediaTranscriptionOptions,
 } from "./types";
@@ -34,12 +36,28 @@ export class MediaService {
     workspaceDirectory: WorkspaceDirectorySource,
     private readonly outputDir = ".doolittle/media",
     private readonly getModelContext?: () => MediaModelContext,
+    private readonly textAnalysisPort?: MediaTextAnalysisPort,
   ) {
     mkdirSync(this.outputDir, { recursive: true });
     this.inspectionSupport = new MediaInspectionSupport(
       workspaceDirectory,
       this.outputDir,
     );
+  }
+
+  bindRuntime(
+    runtime: Parameters<MediaTextAnalysisPort["bindRuntime"]>[0],
+  ): void {
+    this.textAnalysisPort?.bindRuntime(runtime);
+  }
+
+  private requestTextAnalysis(
+    prompt: string,
+    metadata: MediaTextRequestMetadata,
+  ): Promise<string> {
+    return this.textAnalysisPort
+      ? this.textAnalysisPort.analyze(prompt)
+      : Promise.resolve(buildOfflineMediaTextResponse(prompt, metadata));
   }
 
   inspect(path: string): MediaInspection {
@@ -81,15 +99,12 @@ export class MediaService {
   ): Promise<MediaModelAnalysisBundle> {
     const analysis = this.analyze(path, focus);
     const modelContext = this.getModelContext?.();
-    const response = await requestMediaModelText(
-      analysis.prompt,
-      modelContext,
-      {
-        focus: analysis.focus,
-        inspection: analysis.inspection,
-        signals: analysis.signals,
-      },
-    );
+    const metadata = {
+      focus: analysis.focus,
+      inspection: analysis.inspection,
+      signals: analysis.signals,
+    };
+    const response = await this.requestTextAnalysis(analysis.prompt, metadata);
     return persistMediaAnalysisArtifacts({
       analysis,
       outputDir: this.outputDir,
@@ -120,8 +135,8 @@ export class MediaService {
         bundle: (p) => this.bundle(p),
         buildSignals: (inspection) =>
           this.inspectionSupport.buildSignals(inspection),
-        requestModelText: (requestPrompt, modelContext, metadata) =>
-          requestMediaModelText(requestPrompt, modelContext, metadata),
+        requestModelText: (requestPrompt, _modelContext, metadata) =>
+          this.requestTextAnalysis(requestPrompt, metadata),
       },
     });
   }
@@ -143,8 +158,8 @@ export class MediaService {
       options,
       modelContext: this.getModelContext?.(),
       dependencies: {
-        requestModelText: (requestPrompt, modelContext, metadata) =>
-          requestMediaModelText(requestPrompt, modelContext, metadata),
+        requestModelText: (requestPrompt, _modelContext, metadata) =>
+          this.requestTextAnalysis(requestPrompt, metadata),
       },
     });
   }
@@ -159,8 +174,8 @@ export class MediaService {
       options,
       modelContext: this.getModelContext?.(),
       dependencies: {
-        requestModelText: (requestPrompt, modelContext, metadata) =>
-          requestMediaModelText(requestPrompt, modelContext, metadata),
+        requestModelText: (requestPrompt, _modelContext, metadata) =>
+          this.requestTextAnalysis(requestPrompt, metadata),
       },
     });
   }

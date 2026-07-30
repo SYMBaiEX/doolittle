@@ -68,6 +68,15 @@ describe("createRuntimeBinder", () => {
           };
         },
       } as never,
+      media: {
+        get() {
+          return {
+            bindRuntime(runtime: IAgentRuntime) {
+              calls.push(`media:${(runtime as unknown as { id: string }).id}`);
+            },
+          };
+        },
+      } as never,
       createDocumentsService(runtime: IAgentRuntime) {
         const id = (runtime as unknown as { id: string }).id;
         calls.push(`factory:${id}`);
@@ -88,6 +97,7 @@ describe("createRuntimeBinder", () => {
       "delegation:runtime-1",
       "approvals:runtime-1",
       "skills:runtime-1",
+      "media:runtime-1",
       "factory:runtime-1",
       "documents:documents:runtime-1",
       "diagnostics:runtime-1",

@@ -1,6 +1,8 @@
 import { ModelType } from "@elizaos/core";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { buildProviderRuntimeSettings } from "@/runtime/linked-provider-accounts";
+import {
+  buildProviderRuntimeSettings,
+  type ProviderRuntimeSettingsContext,
+} from "@/runtime/linked-provider-accounts";
 import {
   buildCacheablePrompt,
   hashParts,
@@ -17,6 +19,8 @@ export interface ModelAnalysisOptions {
   abortSignal?: AbortSignal;
 }
 
+export type ModelAnalysisContext = ProviderRuntimeSettingsContext;
+
 function throwIfAborted(signal: AbortSignal | undefined): void {
   if (!signal?.aborted) return;
   const error = new Error("Model analysis was cancelled.");
@@ -32,7 +36,7 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
  * state must use a named Action or a normal message turn instead.
  */
 export async function runModelAnalysis(
-  context: AgentExecutionContext,
+  context: ModelAnalysisContext,
   prompt: string,
   options: ModelAnalysisOptions,
 ): Promise<string> {

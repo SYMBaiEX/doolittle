@@ -2,8 +2,9 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fal } from "@fal-ai/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MediaService } from "./service";
+import type { MediaTextAnalysisPort } from "./types";
 
 const ONE_BY_ONE_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5X4nQAAAAASUVORK5CYII=";
@@ -433,19 +434,28 @@ describe("MediaService", () => {
     }
   });
 
-  it("uses a configured provider for model-assisted media flows", async () => {
+  it("routes all model-assisted media text through the injected runtime port", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-media-provider-"));
     const originalFetch = globalThis.fetch;
     const requests: string[] = [];
-    const service = new MediaService(root, join(root, "media"), () => ({
-      provider: "openai",
-      model: "gpt-4.1-mini",
-      baseUrl: "https://example.invalid/v1",
-      temperature: 0.2,
-      maxTokens: 128,
-      openAiApiKey: "test-key",
-      openAiImageModel: "gpt-image-1",
-    }));
+    const textAnalysisPort: MediaTextAnalysisPort = {
+      bindRuntime: vi.fn(),
+      analyze: vi.fn(async () => "Runtime-backed media summary."),
+    };
+    const service = new MediaService(
+      root,
+      join(root, "media"),
+      () => ({
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        baseUrl: "https://example.invalid/v1",
+        temperature: 0.2,
+        maxTokens: 128,
+        openAiApiKey: "test-key",
+        openAiImageModel: "gpt-image-1",
+      }),
+      textAnalysisPort,
+    );
     const audioPath = join(root, "voice.wav");
 
     try {
@@ -455,16 +465,6 @@ describe("MediaService", () => {
       ) => {
         const url = typeof input === "string" ? input : input.toString();
         requests.push(url);
-        if (url.includes("/chat/completions")) {
-          return new Response(
-            JSON.stringify({
-              choices: [
-                { message: { content: "Model-backed media summary." } },
-              ],
-            }),
-            { status: 200 },
-          );
-        }
         if (url.includes("/images/generations")) {
           return new Response(
             JSON.stringify({
@@ -478,21 +478,97 @@ describe("MediaService", () => {
 
       writeFileSync(audioPath, ONE_SECOND_WAV);
       const analysis = await service.analyzeWithModel("voice.wav");
+
+      expect(analysis.response).toContain("Runtime-backed media summary");
+      expect(textAnalysisPort.analyze).toHaveBeenCalledWith(
+        expect.stringContaining("concise, actionable analysis"),
+      );
+      expect(
+        requests.some((entry) => entry.includes("/chat/completions")),
+      ).toBe(false);
       const generation = await service.generateImage(
         "A compact dashboard icon",
       );
-
-      expect(analysis.response).toContain("Model-backed media summary");
+      expect(textAnalysisPort.analyze).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("Create a concise image-generation brief"),
+      );
       expect(generation.artifactKind).toBe("png");
       expect(existsSync(generation.artifactPath)).toBe(true);
-      expect(
-        requests.some((entry) => entry.includes("/chat/completions")),
-      ).toBe(true);
       expect(
         requests.some((entry) => entry.includes("/images/generations")),
       ).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the runtime text port for provider-backed transcription fallback", async () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-media-transcript-port-"),
+    );
+    const originalFetch = globalThis.fetch;
+    const textAnalysisPort: MediaTextAnalysisPort = {
+      bindRuntime: vi.fn(),
+      analyze: vi.fn(async () => "Runtime-backed transcript summary."),
+    };
+    const service = new MediaService(
+      root,
+      join(root, "media"),
+      () => ({
+        provider: "anthropic",
+        model: "claude-sonnet",
+        baseUrl: "https://example.invalid",
+        temperature: 0.2,
+        maxTokens: 128,
+        anthropicApiKey: "test-key",
+      }),
+      textAnalysisPort,
+    );
+
+    try {
+      globalThis.fetch = vi.fn(async () => {
+        throw new Error("text analysis must not use provider HTTP");
+      }) as typeof fetch;
+      writeFileSync(join(root, "voice.wav"), ONE_SECOND_WAV);
+
+      const transcription = await service.transcribe("voice.wav");
+
+      expect(transcription.source).toBe("anthropic");
+      expect(transcription.transcriptText).toBe(
+        "Runtime-backed transcript summary.",
+      );
+      expect(textAnalysisPort.analyze).toHaveBeenCalledWith(
+        expect.stringContaining("transcription"),
+      );
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves injected text-analysis failures", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-media-analysis-error-"));
+    const failure = new Error("selected model unavailable");
+    const textAnalysisPort: MediaTextAnalysisPort = {
+      bindRuntime: vi.fn(),
+      analyze: vi.fn(async () => {
+        throw failure;
+      }),
+    };
+    const service = new MediaService(
+      root,
+      join(root, "media"),
+      undefined,
+      textAnalysisPort,
+    );
+
+    try {
+      writeFileSync(join(root, "voice.wav"), ONE_SECOND_WAV);
+      await expect(service.analyzeWithModel("voice.wav")).rejects.toBe(failure);
+    } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
