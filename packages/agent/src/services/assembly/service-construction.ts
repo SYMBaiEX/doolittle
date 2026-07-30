@@ -55,6 +55,7 @@ export function createAppServiceGroups(
       documents: state.documents,
       diagnostics: state.diagnostics,
       operator: state.operator,
+      skills: state.skills,
       createDocumentsService: state.createDocumentsService,
       setBoundRuntime: state.setBoundRuntime,
     },

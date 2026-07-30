@@ -1,5 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { IAgentRuntime } from "@elizaos/core";
+import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 import {
   getCuratedActiveDir,
   getSkillsDir,
@@ -12,6 +14,7 @@ import {
   type WorkspaceDirectorySource,
 } from "../workspace-directory";
 import { loadNativeSkills } from "./native-loader";
+import { projectOfficialSkills } from "./official-loader";
 import { buildSkillsSummary } from "./summary";
 import type { SkillsSnapshot, SkillsWorkspaceSummary } from "./types";
 
@@ -22,6 +25,7 @@ export class SkillsService {
   private readonly managedSkillsDir = join(homedir(), ".elizaos", "skills");
   private readonly curatedSkillsDir = getCuratedActiveDir();
   private snapshot?: SkillsSnapshot;
+  private runtime?: IAgentRuntime;
 
   constructor(
     private readonly skillsDir: string,
@@ -31,6 +35,11 @@ export class SkillsService {
 
   rootDir(): string {
     return this.skillsDir;
+  }
+
+  bindRuntime(runtime: IAgentRuntime): void {
+    this.runtime = runtime;
+    this.invalidateWorkspace();
   }
 
   invalidateWorkspace(): void {
@@ -83,7 +92,7 @@ export class SkillsService {
       return this.snapshot;
     }
 
-    const { workspace, native, commandSpecs } = this.loadNativeSkills();
+    const { workspace, native, commandSpecs } = this.loadSkills();
     const allBySlug = new Map<string, SkillDocument>();
 
     for (const skill of native) {
@@ -127,6 +136,21 @@ export class SkillsService {
         workspaceSkillsDir: this.skillsDir,
       },
     });
+  }
+
+  private loadSkills(): {
+    workspace: SkillDocument[];
+    native: SkillDocument[];
+    commandSpecs: SkillCommandSpec[];
+  } {
+    const local = this.loadNativeSkills();
+    const official = this.runtime?.getService(AgentSkillsService.serviceType) as
+      | AgentSkillsService
+      | null
+      | undefined;
+    return official
+      ? projectOfficialSkills(official.getLoadedSkills(), local)
+      : local;
   }
 
   private buildSummary(

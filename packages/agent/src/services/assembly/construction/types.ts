@@ -112,6 +112,7 @@ export interface ServiceRuntimeBindingDependencies {
   documents: LazySlot<DocumentsService>;
   diagnostics: ReturnType<typeof createDiagnosticsServiceSlot>;
   operator: ReturnType<typeof createOperatorServiceSlot>;
+  skills: ReturnType<typeof createSkillsServiceSlot>;
   createDocumentsService(
     nextRuntime: ConstructorParameters<typeof DocumentsService>[0],
   ): DocumentsService;

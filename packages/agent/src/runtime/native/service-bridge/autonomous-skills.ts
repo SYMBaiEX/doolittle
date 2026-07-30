@@ -1,42 +1,11 @@
-import { basename, join } from "node:path";
-import type { LoadedSkillWithSource } from "@elizaos/plugin-agent-skills";
 import type { AppServices } from "@/services";
-import type { SkillDocument } from "@/types";
-import { getNativeServices, type RuntimeLike } from "./runtime";
-
-function projectOfficialSkill(
-  skill: LoadedSkillWithSource,
-  local?: SkillDocument,
-): SkillDocument {
-  return {
-    slug: skill.slug,
-    title: skill.name,
-    description: skill.description,
-    path:
-      basename(skill.path).toLowerCase() === "skill.md"
-        ? skill.path
-        : join(skill.path, "SKILL.md"),
-    content: skill.content,
-    source: local?.source ?? skill.source,
-    commandName: local?.commandName,
-    userInvocable: local?.userInvocable,
-    disableModelInvocation: local?.disableModelInvocation,
-  };
-}
+import type { RuntimeLike } from "./runtime";
 
 export function getEffectiveSkills(
-  runtime: RuntimeLike,
+  _runtime: RuntimeLike,
   services: AppServices,
-): SkillDocument[] {
-  const official = getNativeServices(runtime).agentSkills;
-  const local = services.skills.list();
-  if (!official) {
-    return local;
-  }
-  const localBySlug = new Map(local.map((skill) => [skill.slug, skill]));
-  return official
-    .getLoadedSkills()
-    .map((skill) => projectOfficialSkill(skill, localBySlug.get(skill.slug)));
+) {
+  return services.skills.list();
 }
 
 export function getEffectiveSkillsSummary(

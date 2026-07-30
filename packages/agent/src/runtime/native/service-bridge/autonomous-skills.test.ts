@@ -45,7 +45,7 @@ describe("getEffectiveSkillsSummary", () => {
     });
   });
 
-  it("projects the official service contract onto the product skill shape", () => {
+  it("uses the runtime-bound product skill facade as the single read path", () => {
     const runtime = {
       getService(name: string) {
         if (name !== "AGENT_SKILLS_SERVICE") return null;
@@ -67,7 +67,12 @@ describe("getEffectiveSkillsSummary", () => {
     } as unknown as RuntimeLike;
     const services = {
       skills: {
-        list: () => [],
+        list: () => [
+          {
+            slug: "release-checklist",
+            source: "managed",
+          },
+        ],
       },
     } as unknown as AppServices;
 
