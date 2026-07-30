@@ -1,6 +1,6 @@
 # Eliza Maximization Matrix
 
-Last updated: July 28, 2026
+Last updated: July 30, 2026
 
 This matrix tracks where Doolittle is already strongly aligned with the
 ElizaOS beta-targeted runtime stack and where native service ownership can still
@@ -10,7 +10,7 @@ increase.
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Runtime core | `@elizaos/core` `AgentRuntime` + `DefaultMessageService`, `@elizaos/agent`, and `@elizaos/skills`; Doolittle installs the official bundle-safe plugin lifecycle before initialization and keeps partial-boot/API-process adapter closure at one audited boundary | The product still owns the outer CLI/API/desktop composition because the pinned `bootElizaRuntime` accepts only `requireConfig`, while the complete `runtime/eliza` application barrel is not safe to bundle into the desktop host | Keep the product composition thin and adopt an SDK shutdown subpath when Eliza publishes one that does not pull optional app-core, native, or source-tree-only modules |
+| Runtime core | `@elizaos/core` `AgentRuntime` + `DefaultMessageService`, `@elizaos/agent`, and `@elizaos/skills`; Doolittle registers the independently importable beta.7 foundation classes for permissions, pending prompts, global pause, handoff, character persistence, local files, media generation, knowledge, hooks, approvals, pairing, tool policy, plugin management, and agent events | The product still owns the outer CLI/API/desktop composition because the aggregate `runtime/eliza-plugin` also pulls routes, actions, trigger/media init hooks, notifications, and an unavailable relationships-graph-builder import | Keep the product composition thin; add only independently importable service classes with focused start/stop proof, and adopt aggregate-plugin behavior only when its full dependency and lifecycle surface is desktop-safe |
 | Native plugin assembly | [`packages/agent/src/runtime/native/plugin-registry/index.ts`](../packages/agent/src/runtime/native/plugin-registry/index.ts), `@elizaos/agent/services/registry-client` | Some plugin inventory and service ownership still flow through product summaries | Use exported registry/plugin-manager contracts before adding direct plugin-manager dependencies |
 | Agent SDK usage | [`packages/agent/src/runtime/native/agent-sdk.ts`](../packages/agent/src/runtime/native/agent-sdk.ts) and [`packages/agent/src/services/agent-sdk-service.ts`](../packages/agent/src/services/agent-sdk-service.ts) own package compatibility and plugin-registry inspection; skill catalog state is excluded and comes from the official Agent Skills service projection | Product summaries still project SDK package and registry state for operator UX, but do not own their lifecycle | Continue consuming exported `@elizaos/agent` compatibility and registry contracts without broadening this facade into another lifecycle owner |
 

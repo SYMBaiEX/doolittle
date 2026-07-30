@@ -143,7 +143,7 @@ describe("createEmptyDeferredPluginGroups", () => {
 });
 
 describe("loadFoundationPlugins", () => {
-  it("mounts the official Eliza knowledge graph service and schema", () => {
+  it("mounts the aggregate-safe official Eliza foundation services and schema", () => {
     const plugins = loadFoundationPlugins();
     const plugin = plugins[0];
     const serviceTypes = plugin?.services?.map(
@@ -154,6 +154,17 @@ describe("loadFoundationPlugins", () => {
     expect(plugin?.schema).toBeDefined();
     expect(serviceTypes).toContain("agent_event");
     expect(serviceTypes).toContain("eliza_knowledge_graph");
+    expect(serviceTypes).toEqual(
+      expect.arrayContaining([
+        "eliza_permissions_registry",
+        "eliza_pending_prompts",
+        "eliza_global_pause",
+        "eliza_handoff",
+        "eliza_character_persistence",
+        "aws_s3",
+        "media_generation",
+      ]),
+    );
   });
 });
 
