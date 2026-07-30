@@ -1,4 +1,7 @@
-import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
@@ -225,6 +228,10 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
     },
     [DOOLITTLE_BROWSER_SERVICE]: {
       status: () => services.web.status(),
+    },
+    [DOOLITTLE_MCP_SERVICE]: {
+      status: () => services.mcp.status(),
+      getCachedTools: () => services.mcp.getCachedTools(),
     },
     coding_agent: {
       read: () => "",
