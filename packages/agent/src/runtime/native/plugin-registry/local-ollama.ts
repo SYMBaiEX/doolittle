@@ -265,19 +265,3 @@ export function createDoolittleOllamaUxPlugin(config: EnvConfig): Plugin {
     priority: -10,
   };
 }
-
-export function createOllamaEmbeddingOnlyPlugin(ollamaPlugin: Plugin): Plugin {
-  const embeddingHandler = ollamaPlugin.models?.[ModelType.TEXT_EMBEDDING];
-
-  return {
-    name: ollamaPlugin.name,
-    description: "SDK Ollama embedding handler for non-Ollama text providers.",
-    config: ollamaPlugin.config,
-    init: ollamaPlugin.init,
-    models: embeddingHandler
-      ? {
-          [ModelType.TEXT_EMBEDDING]: embeddingHandler,
-        }
-      : undefined,
-  };
-}

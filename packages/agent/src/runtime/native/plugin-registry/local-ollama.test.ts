@@ -2,14 +2,10 @@ import {
   type IAgentRuntime,
   ModelType,
   type PipelineHookSpec,
-  type Plugin,
 } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types";
-import {
-  createDoolittleOllamaUxPlugin,
-  createOllamaEmbeddingOnlyPlugin,
-} from "./local-ollama";
+import { createDoolittleOllamaUxPlugin } from "./local-ollama";
 
 function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
   return {
@@ -111,33 +107,5 @@ describe("createDoolittleOllamaUxPlugin", () => {
     });
 
     expect(params.maxTokens).toBe(1200);
-  });
-});
-
-describe("createOllamaEmbeddingOnlyPlugin", () => {
-  it("filters the official Ollama plugin down to the embedding model", async () => {
-    const embeddingHandler = async () => [0.1, 0.2, 0.3];
-    const officialPlugin = {
-      name: "ollama",
-      description: "Official Ollama plugin",
-      config: {
-        OLLAMA_API_ENDPOINT: "http://localhost:11434/api",
-      },
-      init: () => undefined,
-      models: {
-        [ModelType.TEXT_EMBEDDING]: embeddingHandler,
-        [ModelType.TEXT_LARGE]: async () => "text",
-      },
-    } as unknown as Plugin;
-
-    const plugin = createOllamaEmbeddingOnlyPlugin(officialPlugin);
-
-    expect(plugin.name).toBe("ollama");
-    expect(plugin.config).toEqual(officialPlugin.config);
-    expect(plugin.init).toBe(officialPlugin.init);
-    expect(plugin.models?.[ModelType.TEXT_LARGE]).toBeUndefined();
-    await expect(
-      plugin.models?.[ModelType.TEXT_EMBEDDING]?.({} as IAgentRuntime, "hello"),
-    ).resolves.toEqual([0.1, 0.2, 0.3]);
   });
 });

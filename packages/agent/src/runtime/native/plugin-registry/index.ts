@@ -18,8 +18,6 @@ import { loadHotIdentityPlugins } from "./hot-identity";
 import { loadProviderPlugins } from "./providers";
 import { deduplicateNativePluginActions } from "./support";
 
-export { shouldIncludeDirectProviderPlugin } from "./support";
-
 export interface NativePluginAssembly {
   catalog: NativePluginCatalog;
   groupedCatalog: NativePluginCatalogGroups;
