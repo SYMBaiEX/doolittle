@@ -22,6 +22,11 @@ import type {
   ThemeResponse,
   WorkspaceState,
 } from "../shared/contracts";
+import {
+  type ChatContextHandoff,
+  type ChatContextRequest,
+  resolveChatContextProjectScope,
+} from "./chat-context-handoff";
 import { ActivityCenter } from "./components/ActivityCenter";
 import { type CommandGroup, CommandPalette } from "./components/CommandPalette";
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
@@ -474,6 +479,8 @@ export function App() {
     recentPaths: [],
   });
   const [selectedSession, setSelectedSession] = useState(initialConversation);
+  const [pendingChatContext, setPendingChatContext] =
+    useState<ChatContextHandoff | null>(null);
   const [globalError, setGlobalError] = useState("");
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
@@ -817,7 +824,12 @@ export function App() {
   );
 
   const transitionToProjectScope = useCallback(
-    (scope: ProjectScope, sessionId: string, nextView?: View) => {
+    (
+      scope: ProjectScope,
+      sessionId: string,
+      nextView?: View,
+      onActivated?: () => void,
+    ) => {
       const transition = projectTransitionRef.current + 1;
       projectTransitionRef.current = transition;
       pendingProjectScopeRef.current = scope;
@@ -837,6 +849,7 @@ export function App() {
           setProjectScope(scope);
           setSelectedSession(sessionId);
           if (nextView) setView(nextView);
+          onActivated?.();
         });
       };
       if (needsWorkspaceSwitch) {
@@ -1459,20 +1472,55 @@ export function App() {
   );
 
   const openChatWithContext = useCallback(
-    (text: string) => {
-      const context = text.trim();
-      if (!context) return;
-      setView("chat");
-      window.setTimeout(() => {
-        window.dispatchEvent(
-          new CustomEvent("doolittle:insert-chat-context", {
-            detail: { text: context },
-          }),
-        );
-      }, 0);
+    (request: ChatContextRequest) => {
+      const text = request.text.trim();
+      if (!text) return;
+      const scope = resolveChatContextProjectScope(
+        { ...request, text },
+        projects,
+        pathsEqual,
+      );
+      if (!scope) {
+        pushToast({
+          tone: "warning",
+          title: "Context was not sent",
+          message:
+            "Select or create a project for this workspace before sending its context to Chat.",
+        });
+        return;
+      }
+      const belongsToScope = (session: SessionSummary) =>
+        scope === "unscoped" ? !session.projectId : session.projectId === scope;
+      const targetSession =
+        sessions.find(
+          (session) =>
+            session.sessionId === selectedSession && belongsToScope(session),
+        ) ??
+        sessions
+          .filter(belongsToScope)
+          .sort((left, right) =>
+            (right.endedAt ?? right.startedAt ?? "").localeCompare(
+              left.endedAt ?? left.startedAt ?? "",
+            ),
+          )[0];
+      const sessionId = targetSession?.sessionId ?? newConversationId();
+      const handoff: ChatContextHandoff = {
+        id: crypto.randomUUID(),
+        text,
+        workspacePath: request.workspacePath,
+        projectScope: scope,
+        sessionId,
+      };
+      transitionToProjectScope(scope, sessionId, "chat", () => {
+        setPendingChatContext(handoff);
+      });
     },
-    [setView],
+    [projects, pushToast, selectedSession, sessions, transitionToProjectScope],
   );
+
+  const consumeChatContext = useCallback((id: string) => {
+    setPendingChatContext((current) => (current?.id === id ? null : current));
+  }, []);
 
   const globalSearch = useGlobalSearch(
     paletteQuery,
@@ -1857,7 +1905,9 @@ export function App() {
             onSelect={setSelectedSession}
             onOpenModelsPage={() => setView("models")}
             onOpenWorkspaceView={setView}
+            onConsumeContextHandoff={consumeChatContext}
             pendingApprovals={pendingApprovals}
+            pendingContextHandoff={pendingChatContext}
             projects={projectCards}
             projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
@@ -1875,6 +1925,7 @@ export function App() {
             active={backend.phase === "ready"}
             key={workspace.currentPath || "local-workspace"}
             onSendToChat={openChatWithContext}
+            projectScope={projectScope}
             workspacePath={workspace.currentPath}
           />
         );
@@ -1882,7 +1933,13 @@ export function App() {
         return (
           <BrowserPage
             active={backend.phase === "ready"}
-            onSendToChat={openChatWithContext}
+            onSendToChat={(text) =>
+              openChatWithContext({
+                text,
+                workspacePath: workspace.currentPath,
+                projectScope,
+              })
+            }
           />
         );
       case "gateway":

@@ -17,6 +17,7 @@ import type {
   RepositoryReviewResponse,
   RepositoryWorkflowRun,
 } from "../shared/contracts";
+import type { ChatContextRequest } from "./chat-context-handoff";
 import { ArtifactViewer } from "./components/ArtifactViewer";
 import { GitControlPanel } from "./components/GitControlPanel";
 import { GitHubPullRequestPanel } from "./components/GitHubPullRequestPanel";
@@ -355,7 +356,7 @@ export function ReviewPage({
   workspacePath,
 }: {
   active: boolean;
-  onSendToChat: (text: string) => void;
+  onSendToChat: (request: ChatContextRequest) => void;
   projectScope: string;
   workspacePath: string;
 }) {
@@ -717,12 +718,14 @@ export function ReviewPage({
 
   const sendReviewFeedback = async () => {
     if (openCommentCount === 0) return;
-    onSendToChat(
-      compileReviewFeedback({
+    onSendToChat({
+      text: compileReviewFeedback({
         identity: commentIdentity,
         comments,
       }),
-    );
+      workspacePath,
+      projectScope,
+    });
     try {
       applyDurableRecord(
         await desktopRequest<ReviewRecordResponse>(
@@ -1233,8 +1236,8 @@ export function ReviewPage({
                             className="primary-button"
                             disabled={!patch.data?.patch?.patch}
                             onClick={() =>
-                              onSendToChat(
-                                [
+                              onSendToChat({
+                                text: [
                                   `Review and improve the change in ${selected.path}.`,
                                   `<review_context path="${selected.path}">`,
                                   (patch.data?.patch?.patch ?? "").slice(
@@ -1243,7 +1246,9 @@ export function ReviewPage({
                                   ),
                                   "</review_context>",
                                 ].join("\n"),
-                              )
+                                workspacePath,
+                                projectScope,
+                              })
                             }
                             type="button"
                           >

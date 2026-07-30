@@ -61,4 +61,14 @@ describe("chat chrome density contract", () => {
       /\.chat-context-compact\s*{[^}]*white-space:\s*nowrap;/s,
     );
   });
+
+  it("passes durable context handoffs into the lazy Chat surface instead of timing a window event", () => {
+    expect(app).toContain("pendingContextHandoff={pendingChatContext}");
+    expect(app).toContain("onConsumeContextHandoff={consumeChatContext}");
+    expect(app).not.toContain("doolittle:insert-chat-context");
+    expect(chatPage).toContain(
+      "pendingContextHandoff.sessionId !== selectedId",
+    );
+    expect(chatPage).toContain("consumedContextHandoffs.current");
+  });
 });

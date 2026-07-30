@@ -24,6 +24,7 @@ import type {
   SessionSummary,
   SessionUsageSummary,
 } from "../shared/contracts";
+import type { ChatContextHandoff } from "./chat-context-handoff";
 import { commandCompletions } from "./command-completion";
 import {
   ComposerModelSelector,
@@ -409,6 +410,7 @@ export function ChatPage({
   refreshRuntime,
   onOpenModelsPage,
   onOpenWorkspaceView,
+  onConsumeContextHandoff,
   activeProject,
   projects,
   projectLabels,
@@ -417,6 +419,7 @@ export function ChatPage({
   onSelectProjectForNewChat,
   onRequestNewConversation,
   pendingApprovals,
+  pendingContextHandoff,
   runningTasks,
   chromeHost,
 }: {
@@ -429,6 +432,7 @@ export function ChatPage({
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
   onOpenWorkspaceView: (view: ThreadWorkbenchFullView) => void;
+  onConsumeContextHandoff: (id: string) => void;
   activeProject?: {
     id: string;
     name: string;
@@ -442,6 +446,7 @@ export function ChatPage({
   onSelectProjectForNewChat?: (scope: ProjectScope) => void;
   onRequestNewConversation?: () => void;
   pendingApprovals: number;
+  pendingContextHandoff: ChatContextHandoff | null;
   runningTasks: number;
   chromeHost: HTMLElement | null;
 }) {
@@ -553,6 +558,7 @@ export function ChatPage({
     sessionId: string;
     attachments: ManagedAttachmentDescriptor[];
   } | null>(null);
+  const consumedContextHandoffs = useRef(new Set<string>());
 
   const refreshSessionUsage = useCallback(
     async (sessionId: string) => {
@@ -794,26 +800,25 @@ export function ChatPage({
   }, []);
 
   useEffect(() => {
-    const handleInsertContext = (event: Event) => {
-      const text =
-        event instanceof CustomEvent &&
-        event.detail &&
-        typeof event.detail === "object" &&
-        typeof event.detail.text === "string"
-          ? event.detail.text.trim()
-          : "";
-      insertChatContext(text);
-    };
-    window.addEventListener(
-      "doolittle:insert-chat-context",
-      handleInsertContext,
-    );
-    return () =>
-      window.removeEventListener(
-        "doolittle:insert-chat-context",
-        handleInsertContext,
-      );
-  }, [insertChatContext]);
+    if (
+      !pendingContextHandoff ||
+      pendingContextHandoff.sessionId !== selectedId
+    ) {
+      return;
+    }
+    if (consumedContextHandoffs.current.has(pendingContextHandoff.id)) {
+      onConsumeContextHandoff(pendingContextHandoff.id);
+      return;
+    }
+    consumedContextHandoffs.current.add(pendingContextHandoff.id);
+    insertChatContext(pendingContextHandoff.text);
+    onConsumeContextHandoff(pendingContextHandoff.id);
+  }, [
+    insertChatContext,
+    onConsumeContextHandoff,
+    pendingContextHandoff,
+    selectedId,
+  ]);
 
   useEffect(() => {
     const selectedIsRemote = remoteSessions.some(

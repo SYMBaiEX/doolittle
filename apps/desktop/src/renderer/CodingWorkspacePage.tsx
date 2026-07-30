@@ -15,12 +15,14 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ChatContextRequest } from "./chat-context-handoff";
 import { detectCodeLanguage } from "./code-language";
 import { CodeEditor } from "./components/CodeEditor";
 import { ExecutionEnvironmentPanel } from "./components/ExecutionEnvironmentPanel";
 import { GitControlPanel } from "./components/GitControlPanel";
 import { InteractiveTerminal } from "./components/InteractiveTerminal";
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
+import type { ProjectScope } from "./components/ProjectManager";
 import { WorkspaceFileTree } from "./components/WorkspaceFileTree";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import {
@@ -346,10 +348,12 @@ function patchLines(patch: string): Array<{
 export function CodingWorkspacePage({
   active,
   onSendToChat,
+  projectScope,
   workspacePath,
 }: {
   active: boolean;
-  onSendToChat: (text: string) => void;
+  onSendToChat: (request: ChatContextRequest) => void;
+  projectScope: ProjectScope;
   workspacePath: string;
 }) {
   const [explorerVisible, setExplorerVisible] = useState(() =>
@@ -720,8 +724,8 @@ export function CodingWorkspacePage({
     void acpEditor.flushEditorState();
     if (editorPane === "diff") {
       const patch = patchResource.data?.patch?.patch ?? "";
-      onSendToChat(
-        [
+      onSendToChat({
+        text: [
           `Review and improve the change in ${selectedPath}.`,
           `<review_context path="${selectedPath}" source="${
             stagedPatch ? "staged" : "working-tree"
@@ -729,17 +733,21 @@ export function CodingWorkspacePage({
           boundedContext(patch || "No textual patch was available."),
           "</review_context>",
         ].join("\n"),
-      );
+        workspacePath,
+        projectScope,
+      });
       return;
     }
-    onSendToChat(
-      [
+    onSendToChat({
+      text: [
         `Help me work on ${selectedPath}.`,
         `<file_context path="${selectedPath}">`,
         boundedContext(draftContent || originalContent),
         "</file_context>",
       ].join("\n"),
-    );
+      workspacePath,
+      projectScope,
+    });
   };
 
   return (
@@ -1304,7 +1312,13 @@ export function CodingWorkspacePage({
                 ) : (
                   <InteractiveTerminal
                     active={active}
-                    onSendToChat={onSendToChat}
+                    onSendToChat={(text) =>
+                      onSendToChat({
+                        text,
+                        workspacePath: summary.root || workspacePath || "",
+                        projectScope,
+                      })
+                    }
                     workspacePath={summary.root || workspacePath || ""}
                   />
                 )
