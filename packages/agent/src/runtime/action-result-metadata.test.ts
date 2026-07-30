@@ -108,4 +108,31 @@ describe("action result metadata helpers", () => {
       extractVerifiedLocalMutationFromActionResult(actionResult),
     ).toBeUndefined();
   });
+
+  it("preserves official SHELL results without inventing a working directory", () => {
+    const summary = summarizeActionResults([
+      {
+        success: true,
+        text: "Shell command completed: `pwd`",
+        data: {
+          actionName: "SHELL",
+          command: "pwd",
+          exitCode: 0,
+          stdout: "/workspace\n",
+          stderr: "",
+        },
+      },
+    ]);
+
+    expect(summary.commandResults).toEqual([
+      {
+        command: "pwd",
+        exitCode: 0,
+        stdout: "/workspace",
+        stderr: "",
+        durationMs: undefined,
+        success: true,
+      },
+    ]);
+  });
 });

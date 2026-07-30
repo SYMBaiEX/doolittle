@@ -16,7 +16,7 @@ export interface CommandResult {
   exitCode: number;
   stdout: string;
   stderr: string;
-  executedIn: string;
+  executedIn?: string;
   durationMs?: number;
   success: boolean;
 }

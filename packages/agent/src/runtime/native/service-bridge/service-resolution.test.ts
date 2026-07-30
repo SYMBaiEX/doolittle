@@ -237,7 +237,7 @@ describe("service-resolution helpers", () => {
                 status: "loaded",
                 plugin: {
                   description: "Doolittle product plugin",
-                  actions: [{ name: "RUN_IN_TERMINAL" }],
+                  actions: [{ name: "SHELL" }],
                   providers: [],
                   services: [{ serviceType: "shell" }],
                 },

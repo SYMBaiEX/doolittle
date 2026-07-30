@@ -164,7 +164,7 @@ export function extractCommandResultFromActionResult(
     stringValue(commandResult.workingDirectory) ??
     stringValue(commandResult.workdir);
   const success = booleanValue(commandResult.success);
-  if (!command || typeof exitCode !== "number" || !executedIn) {
+  if (!command || typeof exitCode !== "number") {
     return undefined;
   }
   return {
@@ -172,7 +172,7 @@ export function extractCommandResultFromActionResult(
     exitCode,
     stdout: stringValue(commandResult.stdout) ?? "",
     stderr: stringValue(commandResult.stderr) ?? "",
-    executedIn,
+    ...(executedIn ? { executedIn } : {}),
     durationMs: numberValue(commandResult.durationMs),
     success: success ?? actionResult?.success !== false,
   };
@@ -191,7 +191,9 @@ function resolveCommandResultSource(
 
   const actionName = stringValue(data.actionName)?.toUpperCase();
   const looksLikeSdkTerminalResult =
-    (actionName === "SHELL_COMMAND" || actionName === "RUN_IN_TERMINAL") &&
+    (actionName === "SHELL" ||
+      actionName === "SHELL_COMMAND" ||
+      actionName === "RUN_IN_TERMINAL") &&
     stringValue(data.command) &&
     typeof numberValue(data.exitCode) === "number";
   return looksLikeSdkTerminalResult ? (data as CommandResultSource) : undefined;
