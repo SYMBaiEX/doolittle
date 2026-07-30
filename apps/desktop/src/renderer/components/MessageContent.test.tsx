@@ -46,7 +46,7 @@ describe("MessageContent", () => {
     expect(html).not.toContain("onclick");
   });
 
-  it("renders tool calls as compact, collapsed disclosure rows", () => {
+  it("renders one tool call as one compact collapsed disclosure row", () => {
     const content = [
       JSON.stringify({
         type: "tool_call",
@@ -68,10 +68,11 @@ describe("MessageContent", () => {
       <MessageContent content={content} separateAgentEvents />,
     );
 
-    expect(html).toContain('class="message-tool-group is-completed"');
     expect(html).toContain('class="message-tool-card is-completed"');
-    expect(html).toContain("Completed · 1");
-    expect(html).toContain(">Activity<");
+    expect(html).toContain("Doolittle Workspace");
+    expect(html).toContain("Completed");
+    expect(html).not.toContain("message-tool-group");
+    expect(html).not.toContain(">Activity<");
     expect(html).not.toContain("Tool activity");
     expect(html).not.toContain("<details open");
   });
@@ -114,7 +115,7 @@ describe("MessageContent", () => {
     expect(html).toContain("Read File · Web Search");
   });
 
-  it("keeps a pending tool-backed response in one compact working row", () => {
+  it("keeps a pending single-tool response in one compact row", () => {
     const content = [
       JSON.stringify({
         type: "tool_call",
@@ -136,8 +137,8 @@ describe("MessageContent", () => {
       <MessageContent content={content} pending separateAgentEvents />,
     );
 
-    expect(html).toContain('class="message-tool-group is-running"');
-    expect(html).toContain("Working · 1");
+    expect(html).toContain('class="message-tool-card is-completed"');
+    expect(html).not.toContain("message-tool-group");
     expect(html).not.toContain("<details open");
   });
 });

@@ -311,7 +311,11 @@ export function MessageContent({
           aria-label="Agent tool activity"
           className="message-tool-activity"
         >
-          <ToolActivityGroup pending={pending} tools={parsed.tools} />
+          {parsed.tools.length === 1 ? (
+            <ToolActivityCard activity={parsed.tools[0]} />
+          ) : (
+            <ToolActivityGroup pending={pending} tools={parsed.tools} />
+          )}
         </section>
       ) : null}
       <AgentSteps {...parsed.steps} />
