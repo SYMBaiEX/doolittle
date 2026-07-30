@@ -2,11 +2,7 @@ import { join } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
 import { writeSdkTrajectoryExport } from "@/services/trajectory/sdk-native";
-import {
-  buildTrajectoryRequest,
-  getTrajectoryLogger,
-  readJsonBody,
-} from "./helpers";
+import { buildTrajectoryRequest, readJsonBody } from "./helpers";
 import type { TrajectoryDatasetBody, TrajectoryRouteHandler } from "./types";
 
 export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
@@ -14,8 +10,6 @@ export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
   request: Request,
   url: URL,
 ): Promise<Response | null> => {
-  const nativeTrajectory = getTrajectoryLogger(context);
-
   if (request.method === "POST" && url.pathname === "/trajectories/export") {
     const body = await readJsonBody<TrajectoryDatasetBody>(request);
     const sdkExport = await writeSdkTrajectoryExport({
@@ -70,13 +64,9 @@ export const handleTrajectoryDatasetRoutes: TrajectoryRouteHandler = async (
     const limitRaw = url.searchParams.get("limit");
     const limit = limitRaw ? Number(limitRaw) : 20;
     return json({
-      bundles:
-        (typeof nativeTrajectory?.bundles === "function"
-          ? nativeTrajectory.bundles()
-          : undefined) ??
-        context.services.trajectories.listBundles(
-          !Number.isNaN(limit) && limit > 0 ? limit : 20,
-        ),
+      bundles: context.services.trajectories.listBundles(
+        !Number.isNaN(limit) && limit > 0 ? limit : 20,
+      ),
     });
   }
 

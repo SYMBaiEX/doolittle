@@ -14,8 +14,9 @@ export type NativeServicesSnapshot = {
     delegate?: unknown;
   } | null;
   trajectoryLogger?: {
-    bundles?: unknown;
-    exportLatest?: unknown;
+    isEnabled?: unknown;
+    listTrajectories?: unknown;
+    exportTrajectories?: unknown;
   } | null;
   pluginManager?: unknown;
   planning?: unknown;

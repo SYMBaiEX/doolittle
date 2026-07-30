@@ -55,6 +55,7 @@ export type SdkTrajectoryListItem = {
   status: "active" | "completed" | "error" | "timeout";
   createdAt: string;
   llmCallCount: number;
+  metadata?: Record<string, unknown>;
 };
 export type SdkTrajectoryListOptions = {
   limit?: number;
@@ -73,6 +74,23 @@ export type SdkTrajectoryListResult = {
   total: number;
   offset: number;
   limit: number;
+};
+export type SdkTrajectoryLogger = {
+  isEnabled?: () => boolean;
+  setEnabled?: (enabled: boolean) => void;
+  startTrajectory?: (...args: never[]) => unknown;
+  startStep?: (...args: never[]) => unknown;
+  endTrajectory?: (...args: never[]) => unknown;
+  flushWriteQueue?: (...args: never[]) => unknown;
+  logLlmCall?: (...args: never[]) => unknown;
+  logProviderAccess?: (...args: never[]) => unknown;
+  exportTrajectories?: (
+    options: SdkTrajectoryExportOptions,
+  ) => Promise<SdkTrajectoryExportResult> | SdkTrajectoryExportResult;
+  listTrajectories?: (
+    options: SdkTrajectoryListOptions,
+  ) => Promise<SdkTrajectoryListResult> | SdkTrajectoryListResult;
+  getTrajectoryDetail?: (...args: never[]) => unknown;
 };
 export type SdkTrajectoryStatus =
   | "completed"

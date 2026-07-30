@@ -171,14 +171,10 @@ export function getAutonomousControlPlane(
         },
       };
   const researchControl = getNativeResearchControlPlane(runtime);
-  const trajectoryBundles =
-    typeof native.trajectoryLogger?.bundles === "function"
-      ? native.trajectoryLogger.bundles()
-      : services.trajectories.listBundles();
-  const latestTrajectory =
-    typeof native.trajectoryLogger?.exportLatest === "function"
-      ? native.trajectoryLogger.exportLatest()
-      : services.trajectories.exportLatest();
+  // The SDK service owns canonical runtime recording. Doolittle's trajectory
+  // service owns its separate debug/evaluation bundle projection.
+  const trajectoryBundles = services.trajectories.listBundles();
+  const latestTrajectory = services.trajectories.exportLatest();
 
   return buildAutonomousControlPlaneSummary({
     config,

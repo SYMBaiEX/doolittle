@@ -1,4 +1,3 @@
-import { DatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-persistence";
 import {
   KnowledgeGraphService,
   knowledgeGraphSchema,
@@ -23,13 +22,12 @@ export function loadFoundationPlugins(): Plugin[] {
     {
       name: "@elizaos/agent-knowledge-graph",
       description:
-        "Official ElizaOS knowledge, approval, policy, and trajectory services.",
+        "Official ElizaOS knowledge, approval, policy, and plugin-management services.",
       schema: knowledgeGraphSchema,
       services: [
         KnowledgeGraphService,
         ApprovalService,
         ToolPolicyService,
-        DatabaseTrajectoryLogger,
         PluginManagerService,
       ],
     },

@@ -1,5 +1,5 @@
 import { json } from "@/server/responses";
-import { getTrajectoryLogger, readJsonBody } from "./helpers";
+import { readJsonBody } from "./helpers";
 import type { TrajectoryCompareBody, TrajectoryRouteHandler } from "./types";
 
 export const handleTrajectoryComparisonRoutes: TrajectoryRouteHandler = async (
@@ -7,16 +7,11 @@ export const handleTrajectoryComparisonRoutes: TrajectoryRouteHandler = async (
   request,
   url,
 ): Promise<Response | null> => {
-  const nativeTrajectory = getTrajectoryLogger(context);
-
   if (
     request.method === "GET" &&
     url.pathname === "/trajectories/compare/latest"
   ) {
-    const comparison =
-      typeof nativeTrajectory?.compareLatest === "function"
-        ? nativeTrajectory.compareLatest()
-        : context.services.trajectories.compareLatest();
+    const comparison = context.services.trajectories.compareLatest();
     return comparison
       ? json({ comparison })
       : json({ error: "At least two trajectory bundles are required." }, 404);

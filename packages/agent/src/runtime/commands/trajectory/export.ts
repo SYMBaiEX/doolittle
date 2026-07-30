@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import {
   formatSdkTrajectoryExportReceipt,
   resolveNativeSdkTrajectoryLogger,
@@ -129,14 +128,9 @@ export async function handleTrajectoryExportCommands(
         })),
       );
     }
-    const legacyNativeBundles = getNativeServices(
-      context.runtime,
-    ).trajectoryLogger?.bundles?.() as TrajectoryBundleLike[] | undefined;
-    const fallbackBundles =
-      legacyNativeBundles ??
-      (context.services.trajectories.listBundles(
-        options.limit ?? 10,
-      ) as TrajectoryBundleLike[]);
+    const fallbackBundles = context.services.trajectories.listBundles(
+      options.limit ?? 10,
+    ) as TrajectoryBundleLike[];
     return formatTrajectoryBundleList(fallbackBundles);
   }
 

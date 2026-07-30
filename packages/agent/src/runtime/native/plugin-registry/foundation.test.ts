@@ -1,4 +1,3 @@
-import { DatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-persistence";
 import { KnowledgeGraphService } from "@elizaos/agent/services/knowledge-graph/index";
 import {
   ApprovalService,
@@ -16,7 +15,6 @@ describe("foundation plugin ownership", () => {
       KnowledgeGraphService,
       ApprovalService,
       ToolPolicyService,
-      DatabaseTrajectoryLogger,
       PluginManagerService,
     ]);
   });

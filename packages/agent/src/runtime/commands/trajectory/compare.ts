@@ -1,4 +1,3 @@
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import {
   resolveTrajectoryManifestPath,
@@ -10,13 +9,7 @@ export async function handleTrajectoryCompareCommands(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   if (trimmed === "/trajectories compare latest") {
-    const nativeTrajectory = getNativeServices(
-      context.runtime,
-    ).trajectoryLogger;
-    const comparison =
-      typeof nativeTrajectory?.compareLatest === "function"
-        ? nativeTrajectory.compareLatest()
-        : context.services.trajectories.compareLatest();
+    const comparison = context.services.trajectories.compareLatest();
     return comparison
       ? JSON.stringify(comparison, null, 2)
       : "At least two trajectory bundles are required for comparison.";

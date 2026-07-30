@@ -21,10 +21,15 @@ describe("finalizeCoreRuntimeServices", () => {
 
     await finalizeCoreRuntimeServices(runtime);
 
+    expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
+      1,
+      "trajectories",
+    );
     expect(
       trajectoryPersistence.installDatabaseTrajectoryLogger,
     ).toHaveBeenCalledWith(runtime);
-    expect(runtime.getServiceLoadPromise).toHaveBeenCalledWith(
+    expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
+      2,
       "AGENT_SKILLS_SERVICE",
     );
     expect(runtime.registerService).not.toHaveBeenCalled();

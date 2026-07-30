@@ -4,7 +4,6 @@ import type { AgentExecutionContext } from "../../chat";
 import { handleTrajectoryCommand } from ".";
 
 function createContext(options?: {
-  native?: boolean;
   gateway?: boolean;
   latestCompression?: Record<string, unknown> | undefined;
   latestReplay?: Record<string, unknown> | undefined;
@@ -61,23 +60,6 @@ function createContext(options?: {
       getService: (service: string) => {
         if (service === "ORCHESTRATOR_TASK_SERVICE") {
           return official.service;
-        }
-        if (service === "trajectories" && options?.native) {
-          return {
-            exportLatest: () => "/tmp/native-export.jsonl",
-            bundles: () => [
-              {
-                label: "native-bundle",
-                createdAt: "2026-03-28T03:00:00.000Z",
-                messageCount: 21,
-                sessionCount: 5,
-                filters: { sessionId: "native-session", role: "assistant" },
-                dataPath: "/tmp/native-bundle.jsonl",
-                manifestPath: "/tmp/native-bundle.json",
-              },
-            ],
-            compareLatest: () => ({ source: "native", compared: true }),
-          };
         }
         return undefined;
       },
@@ -171,9 +153,8 @@ function createContext(options?: {
 }
 
 describe("trajectory command router", () => {
-  it("uses SDK-only training export while keeping native debug list and compare overrides", async () => {
+  it("keeps canonical SDK export separate from product debug list and compare", async () => {
     const { context } = createContext({
-      native: true,
       latestComparison: { source: "product" },
     });
 
@@ -188,8 +169,8 @@ describe("trajectory command router", () => {
     );
 
     expect(exported).toContain("ElizaOS SDK trajectory export unavailable");
-    expect(listed).toContain("native-bundle");
-    expect(compared).toContain('"source": "native"');
+    expect(listed).toContain("baseline");
+    expect(compared).toContain('"source": "product"');
   });
 
   it("applies trajectory defaults and resolves benchmark labels", async () => {

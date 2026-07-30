@@ -2,19 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../../chat";
 import { handleTrajectoryCompareCommands } from "./compare";
 
-function createContext(options?: { native?: boolean }) {
+function createContext() {
   const context = {
-    runtime: {
-      getService: (service: string) =>
-        service === "trajectories" && options?.native
-          ? {
-              compareLatest: () => ({
-                source: "native",
-                compared: true,
-              }),
-            }
-          : undefined,
-    },
     services: {
       trajectories: {
         compareLatest: () => ({ source: "service", compared: true }),
@@ -47,13 +36,13 @@ function createContext(options?: { native?: boolean }) {
 }
 
 describe("trajectory compare commands", () => {
-  it("uses native compare latest when available", async () => {
-    const { context } = createContext({ native: true });
+  it("uses the product debug-bundle comparison", async () => {
+    const { context } = createContext();
     const compared = await handleTrajectoryCompareCommands(
       "/trajectories compare latest",
       context,
     );
-    expect(compared).toContain('"source": "native"');
+    expect(compared).toContain('"source": "service"');
   });
 
   it("falls back to service compare for explicit pair manifests", async () => {

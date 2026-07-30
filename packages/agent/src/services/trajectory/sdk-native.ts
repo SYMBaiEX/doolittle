@@ -5,64 +5,10 @@ import {
   resolveTrajectoryLogger,
   TrajectoriesService,
 } from "@elizaos/core";
-
-type SdkTrajectoryExportResult = {
-  data: string;
-  filename: string;
-  mimeType: string;
-};
-
-type SdkTrajectoryExportOptions = {
-  format: "json" | "art" | "csv";
-  includePrompts?: boolean;
-  trajectoryIds?: string[];
-  startDate?: string;
-  endDate?: string;
-  scenarioId?: string;
-  batchId?: string;
-};
-
-type SdkTrajectoryListOptions = {
-  limit?: number;
-  offset?: number;
-  status?: "active" | "completed" | "error" | "timeout";
-  source?: string;
-  startDate?: string;
-  endDate?: string;
-  search?: string;
-  scenarioId?: string;
-  batchId?: string;
-  isTrainingData?: boolean;
-};
-
-type SdkTrajectoryListResult = {
-  trajectories: Array<{
-    id: string;
-    createdAt: string;
-    llmCallCount: number;
-    metadata?: Record<string, unknown>;
-  }>;
-  total: number;
-  offset: number;
-  limit: number;
-};
-
-export type SdkTrajectoryLoggerLike = {
-  isEnabled?: () => boolean;
-  startTrajectory?: (...args: never[]) => unknown;
-  startStep?: (...args: never[]) => unknown;
-  endTrajectory?: (...args: never[]) => unknown;
-  flushWriteQueue?: (...args: never[]) => unknown;
-  logLlmCall?: (...args: never[]) => unknown;
-  logProviderAccess?: (...args: never[]) => unknown;
-  exportTrajectories?: (
-    options: SdkTrajectoryExportOptions,
-  ) => Promise<SdkTrajectoryExportResult> | SdkTrajectoryExportResult;
-  listTrajectories?: (
-    options: SdkTrajectoryListOptions,
-  ) => Promise<SdkTrajectoryListResult> | SdkTrajectoryListResult;
-  getTrajectoryDetail?: (...args: never[]) => unknown;
-};
+import type {
+  SdkTrajectoryExportOptions,
+  SdkTrajectoryLogger,
+} from "@/types/trajectory/sdk";
 
 function isSdkRuntime(runtime: unknown): runtime is IAgentRuntime {
   return (
@@ -76,7 +22,7 @@ function isSdkRuntime(runtime: unknown): runtime is IAgentRuntime {
 
 export function resolveNativeSdkTrajectoryLogger(
   runtime: unknown,
-): SdkTrajectoryLoggerLike | undefined {
+): SdkTrajectoryLogger | undefined {
   if (!isSdkRuntime(runtime)) {
     return undefined;
   }
@@ -84,8 +30,8 @@ export function resolveNativeSdkTrajectoryLogger(
     return (
       (TrajectoriesService.resolveFromRuntime(
         runtime,
-      ) as SdkTrajectoryLoggerLike | null) ??
-      (resolveTrajectoryLogger(runtime) as SdkTrajectoryLoggerLike | null) ??
+      ) as SdkTrajectoryLogger | null) ??
+      (resolveTrajectoryLogger(runtime) as SdkTrajectoryLogger | null) ??
       undefined
     );
   } catch {

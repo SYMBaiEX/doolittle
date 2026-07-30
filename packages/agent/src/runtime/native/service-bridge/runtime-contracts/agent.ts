@@ -1,4 +1,5 @@
 import type { AgentSkillsService } from "@elizaos/plugin-agent-skills";
+import type { SdkTrajectoryLogger } from "@/types/trajectory/sdk";
 
 export const AGENT_SKILLS_SERVICE = "AGENT_SKILLS_SERVICE";
 
@@ -44,12 +45,7 @@ export interface NativeHumanFeedback {
   type: "correction" | "guidance" | "approval" | "rejection";
 }
 
-export interface NativeTrajectoryLoggerService {
-  exportLatest(): unknown;
-  listBundles(): unknown[];
-  compareLatest(): unknown;
-  bundles?(): unknown[];
-}
+export type NativeTrajectoryLoggerService = SdkTrajectoryLogger;
 
 export const ORCHESTRATOR_TASK_SERVICE = "ORCHESTRATOR_TASK_SERVICE";
 export const ACP_SUBPROCESS_SERVICE = "ACP_SUBPROCESS_SERVICE";

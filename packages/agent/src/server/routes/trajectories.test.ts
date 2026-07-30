@@ -6,21 +6,9 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import { handleTrajectoryRoutes } from "./trajectories";
 
-function createContext(options?: {
-  native?: boolean;
-  sdk?: boolean;
-}): AppContext {
+function createContext(options?: { sdk?: boolean }): AppContext {
   const official = createOfficialOrchestratorTestFixture();
   const dataDir = mkdtempSync(join(tmpdir(), "doolittle-routes-"));
-  const nativeTrajectory = options?.native
-    ? {
-        exportLatest: () => "/native/export.json",
-        bundles: () => [
-          { manifestPath: "/native/bundle.json", label: "native" },
-        ],
-        compareLatest: () => ({ native: true }),
-      }
-    : null;
   const sdkTrajectory = options?.sdk
     ? {
         startTrajectory: () => "sdk-trajectory",
@@ -46,7 +34,7 @@ function createContext(options?: {
           return official.service;
         }
         if (service === "trajectories") {
-          return nativeTrajectory;
+          return sdkTrajectory;
         }
         return null;
       },
@@ -169,8 +157,8 @@ function createJsonRequest(
 }
 
 describe("handleTrajectoryRoutes", () => {
-  it("requires SDK trajectory export while preserving native bundles and latest comparisons", async () => {
-    const context = createContext({ native: true });
+  it("requires SDK trajectory export while preserving product debug bundles and comparisons", async () => {
+    const context = createContext();
 
     const exported = await handleTrajectoryRoutes(
       context,
@@ -197,9 +185,16 @@ describe("handleTrajectoryRoutes", () => {
       expectedTrainingSource: "elizaos-sdk",
     });
     expect(await bundles?.json()).toEqual({
-      bundles: [{ manifestPath: "/native/bundle.json", label: "native" }],
+      bundles: [
+        expect.objectContaining({
+          manifestPath: "/tmp/alpha.manifest.json",
+          label: "alpha",
+        }),
+      ],
     });
-    expect(await comparison?.json()).toEqual({ comparison: { native: true } });
+    expect(await comparison?.json()).toEqual({
+      comparison: { latest: "comparison" },
+    });
   });
 
   it("exports through the ElizaOS SDK trajectory service when available", async () => {
