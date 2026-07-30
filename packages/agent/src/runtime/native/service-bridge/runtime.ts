@@ -1,4 +1,8 @@
 import { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
+import {
+  KNOWLEDGE_GRAPH_SERVICE,
+  type KnowledgeGraphService,
+} from "@elizaos/agent/services/knowledge-graph/index";
 import type {
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
@@ -12,7 +16,6 @@ import type {
   NativeExperienceService,
   NativeFormsService,
   NativeGitHubService,
-  NativeKnowledgeService,
   NativeMcpService,
   NativePdfService,
   NativePersonalityService,
@@ -51,7 +54,10 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       : null;
 
   return {
-    knowledge: service<NativeKnowledgeService>(runtime, "knowledge"),
+    knowledgeGraph: service<KnowledgeGraphService>(
+      runtime,
+      KNOWLEDGE_GRAPH_SERVICE,
+    ),
     pdf: service<NativePdfService>(runtime, PDF_SERVICE),
     personality: service<NativePersonalityService>(runtime, "personality"),
     rolodex: service<NativeRolodexService>(runtime, "rolodex"),

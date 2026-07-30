@@ -12,6 +12,7 @@ import {
   createEmptyDeferredPluginGroups,
   loadDeferredPluginGroups,
 } from "./deferred-groups";
+import { loadFoundationPlugins } from "./foundation";
 import { loadHotExecutionPlugins } from "./hot-execution";
 import { loadHotIdentityPlugins } from "./hot-identity";
 import { loadProviderPlugins } from "./providers";
@@ -25,7 +26,7 @@ export interface NativePluginAssembly {
   foundation: Plugin[];
   providers: Plugin[];
   messaging: Plugin[];
-  knowledge: Plugin[];
+  identity: Plugin[];
   research: Plugin[];
   execution: Plugin[];
   product: Plugin[];
@@ -45,7 +46,7 @@ export async function buildNativePluginAssembly(
 ): Promise<NativePluginAssembly> {
   const catalog = getNativePluginCatalog(config);
   const groupedCatalog = groupNativePluginCatalog(catalog);
-  const foundation: Plugin[] = [];
+  const foundation = loadFoundationPlugins();
   const providers = await loadProviderPlugins(config);
   const identity = await loadHotIdentityPlugins(services);
   const execution = await loadHotExecutionPlugins(services, config);
@@ -68,7 +69,7 @@ export async function buildNativePluginAssembly(
       foundation,
       providers,
       messaging: emptyDeferred.messaging,
-      knowledge: identity,
+      identity,
       research: emptyDeferred.research,
       execution,
       product,
@@ -92,7 +93,7 @@ export async function buildNativePluginAssembly(
     groupedCatalog,
     foundation,
     providers,
-    knowledge: identity,
+    identity,
     messaging: deferredGroups.messaging,
     research: deferredGroups.research,
     execution: [...execution, ...deferredGroups.execution],

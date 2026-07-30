@@ -6,6 +6,7 @@ import {
   createEmptyDeferredPluginGroups,
   loadDeferredPluginGroups,
 } from "./deferred-groups";
+import { loadFoundationPlugins } from "./foundation";
 import { loadHotExecutionPlugins } from "./hot-execution";
 
 vi.mock("@elizaos/plugin-agent-orchestrator", () => ({
@@ -137,6 +138,18 @@ describe("createEmptyDeferredPluginGroups", () => {
       research: [],
       execution: [],
     });
+  });
+});
+
+describe("loadFoundationPlugins", () => {
+  it("mounts the official Eliza knowledge graph service and schema", () => {
+    const plugins = loadFoundationPlugins();
+    const plugin = plugins[0];
+    const KnowledgeGraph = plugin?.services?.[0];
+
+    expect(pluginNames(plugins)).toEqual(["@elizaos/agent-knowledge-graph"]);
+    expect(plugin?.schema).toBeDefined();
+    expect(KnowledgeGraph?.serviceType).toBe("eliza_knowledge_graph");
   });
 });
 

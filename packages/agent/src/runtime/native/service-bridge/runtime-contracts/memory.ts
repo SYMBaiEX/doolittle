@@ -1,12 +1,3 @@
-export interface NativeKnowledgeService {
-  remember(text: string, source?: string): unknown;
-  recall(query: string, limit?: number): unknown;
-  search?(query: string, limit?: number): unknown;
-  read?(target?: "memory" | "user"): string;
-  list?(target?: "memory" | "user"): string[];
-  summary?(target?: "memory" | "user"): unknown;
-}
-
 export interface NativePersonalityService {
   list(): unknown[];
   get(id: string): unknown;

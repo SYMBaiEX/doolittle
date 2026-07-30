@@ -1,3 +1,4 @@
+import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
@@ -63,11 +64,11 @@ export const SERVICE_REGISTRY_DEFINITIONS: readonly ServiceRegistryDefinition[] 
 export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] =
   [
     {
-      capability: "knowledge",
-      nativeKey: "knowledge",
-      nativeService: "knowledge",
-      productServices: ["memory", "sessions"],
-      fallback: "memory + sessions",
+      capability: "knowledgeGraph",
+      nativeKey: "knowledgeGraph",
+      nativeService: KNOWLEDGE_GRAPH_SERVICE,
+      productServices: [],
+      fallback: "unavailable until the official Eliza foundation plugin loads",
     },
     {
       capability: "pdf",

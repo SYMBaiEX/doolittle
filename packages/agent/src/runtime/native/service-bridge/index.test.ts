@@ -142,17 +142,12 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(execution.secretsManager.keys).toContain("OPENAI_API_KEY");
   });
 
-  it("marks browser, knowledge, and orchestrator bridges as plugin-owned when native services are present", async () => {
+  it("marks browser, the official knowledge graph, and orchestrator as plugin-owned when native services are present", async () => {
     const runtime = {
       getService(name: string) {
-        if (name === "knowledge") {
+        if (name === "eliza_knowledge_graph") {
           return {
-            summary: () => ({
-              target: "memory",
-              entries: 2,
-              characters: 40,
-              preview: ["native"],
-            }),
+            getEntityStore: () => ({}),
           };
         }
         if (name === "browser") {
@@ -222,7 +217,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
     );
 
     expect(
-      resolution.find((entry) => entry.capability === "knowledge")?.ownership,
+      resolution.find((entry) => entry.capability === "knowledgeGraph")
+        ?.ownership,
     ).toBe("plugin");
     expect(
       resolution.find((entry) => entry.capability === "browser")?.ownership,
@@ -1020,19 +1016,9 @@ describe("delegation bridge helpers", () => {
 });
 
 describe("identity bridge helpers", () => {
-  it("prefers native knowledge, personality, rolodex, and experience summaries when available", () => {
+  it("keeps durable text memory distinct while preferring native identity and experience summaries", () => {
     const runtime = {
       getService(name: string) {
-        if (name === "knowledge") {
-          return {
-            summary: (target: "memory" | "user") => ({
-              target,
-              entries: target === "memory" ? 9 : 4,
-              characters: target === "memory" ? 144 : 72,
-              preview: [`${target}:native-preview`],
-            }),
-          };
-        }
         if (name === "personality") {
           return {
             summary: () => ({
@@ -1129,15 +1115,15 @@ describe("identity bridge helpers", () => {
 
     expect(getEffectiveMemorySnapshot(runtime, services, "memory")).toEqual({
       target: "memory",
-      entries: 9,
-      characters: 144,
-      preview: ["memory:native-preview"],
+      entries: 1,
+      characters: 1,
+      preview: ["fallback"],
     });
     expect(getEffectiveMemorySnapshot(runtime, services, "user")).toEqual({
       target: "user",
-      entries: 4,
-      characters: 72,
-      preview: ["user:native-preview"],
+      entries: 1,
+      characters: 1,
+      preview: ["fallback"],
     });
     expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
       total: 4,

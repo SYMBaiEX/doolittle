@@ -4,17 +4,16 @@ import { getNativeServices, type RuntimeLike } from "../runtime";
 import type { NativeExperienceSummary } from "./types";
 
 export function getEffectiveMemorySnapshot(
-  runtime: RuntimeLike,
-  services: AppServices,
+  _runtime: RuntimeLike,
+  services: Pick<AppServices, "memory">,
   target: "memory" | "user" = "memory",
 ): MemorySummary {
-  return (getNativeServices(runtime).knowledge?.summary?.(target) ??
-    services.memory.summary(target)) as MemorySummary;
+  return services.memory.summary(target);
 }
 
 export function getEffectiveExperienceSummary(
   runtime: RuntimeLike,
-  services: AppServices,
+  services: Pick<AppServices, "memory" | "sessions">,
 ): NativeExperienceSummary {
   return (getNativeServices(runtime).experience?.summary?.() ?? {
     sessions: {

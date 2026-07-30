@@ -185,14 +185,6 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
 describe("ownership helpers", () => {
   it("prefers native ownership and generated-skill helpers when available", () => {
     const runtime = makeRuntime({
-      knowledge: {
-        summary: (target: "memory" | "user") => ({
-          target,
-          entries: 8,
-          characters: target === "memory" ? 80 : 20,
-          preview: [target === "memory" ? "native-memory" : "native-user"],
-        }),
-      },
       personality: {
         activeId: () => "native",
         get: (id: string) => ({ id, name: "Native" }),
@@ -273,9 +265,9 @@ describe("ownership helpers", () => {
 
     expect(getEffectiveMemorySnapshot(runtime, services, "memory")).toEqual({
       target: "memory",
-      entries: 8,
-      characters: 80,
-      preview: ["native-memory"],
+      entries: 3,
+      characters: 50,
+      preview: ["memory"],
     });
     expect(getEffectivePersonalitySummary(runtime, services)).toEqual({
       total: 4,
@@ -481,7 +473,7 @@ describe("ownership helpers", () => {
     expect(controlPlane.pluginManager).toBeNull();
     expect(
       controlPlane.serviceResolution.map((entry) => entry.capability),
-    ).toContain("knowledge");
+    ).toContain("knowledgeGraph");
   });
 
   it("builds ownership snapshot from native controls", async () => {

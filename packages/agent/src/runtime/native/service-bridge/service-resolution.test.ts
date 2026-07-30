@@ -1,3 +1,4 @@
+import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import { describe, expect, it } from "vitest";
 import type { RuntimeLike } from "./runtime";
 import {
@@ -10,8 +11,8 @@ describe("service-resolution helpers", () => {
     const runtime = {
       getService(name: string) {
         switch (name) {
-          case "knowledge":
-            return { summary: () => ({ entries: 1 }) };
+          case KNOWLEDGE_GRAPH_SERVICE:
+            return { getEntityStore: () => ({}) };
           case "pdf":
             return {
               convertPdfToTextWithOptions: async () => ({ success: true }),
@@ -30,11 +31,12 @@ describe("service-resolution helpers", () => {
 
     expect(getEffectiveServiceResolution(runtime)).toEqual([
       {
-        capability: "knowledge",
-        nativeService: "knowledge",
+        capability: "knowledgeGraph",
+        nativeService: KNOWLEDGE_GRAPH_SERVICE,
         source: "native",
         ownership: "plugin",
-        fallback: "memory + sessions",
+        fallback:
+          "unavailable until the official Eliza foundation plugin loads",
         available: true,
       },
       {
