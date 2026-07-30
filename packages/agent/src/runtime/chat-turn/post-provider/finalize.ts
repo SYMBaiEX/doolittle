@@ -89,14 +89,15 @@ export async function finalizePostProviderTurn(input: {
   settingsDuring: PostProviderSettingsSnapshot;
   scheduleProfileObservation: () => void;
 }): Promise<PostProviderFinalResult> {
-  if (input.nativeResponseMessages?.length) {
-    projectNativeResponseMemories({
-      context: input.context,
-      turn: input.turn,
-      memories: input.nativeResponseMessages,
-      responseText: input.finalResponse,
-    });
-  } else {
+  const projectedNativeResponse = input.nativeResponseMessages?.length
+    ? projectNativeResponseMemories({
+        context: input.context,
+        turn: input.turn,
+        memories: input.nativeResponseMessages,
+        responseText: input.finalResponse,
+      })
+    : false;
+  if (!projectedNativeResponse) {
     await persistAssistantTurnMemory({
       context: input.context,
       turn: input.turn,

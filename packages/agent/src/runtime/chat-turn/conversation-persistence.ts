@@ -253,18 +253,17 @@ export function projectNativeResponseMemories(input: {
   turn: TurnState;
   memories: Memory[];
   responseText: string;
-}): void {
+}): boolean {
   const visible = input.memories.filter(
     (memory) => memory.id && contentText(memory.content),
   );
   const expected = input.responseText.trim();
-  let memory = visible.at(-1);
   for (let index = visible.length - 1; index >= 0; index -= 1) {
     const candidate = visible[index];
     if (candidate && contentText(candidate.content).trim() === expected) {
-      memory = candidate;
-      break;
+      projectMessage(input.context, input.turn, candidate);
+      return true;
     }
   }
-  if (memory) projectMessage(input.context, input.turn, memory);
+  return false;
 }

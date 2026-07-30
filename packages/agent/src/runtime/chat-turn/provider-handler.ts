@@ -183,10 +183,9 @@ export async function executeProviderMessageTurn(
             maxMultiStepIterations: input.messagePolicy.useMultiStep
               ? input.messagePolicy.maxIterations
               : 1,
-            // Doolittle's contract is a terminal answer after tool work. The
-            // SDK otherwise inherits CONTINUE_AFTER_ACTIONS from process
-            // settings, which can end a successful WEB_SEARCH at its action
-            // callback instead of asking the planner to synthesize a reply.
+            // Declare Doolittle's terminal-after-tools contract explicitly.
+            // The current V5 planner owns its continuation loop internally;
+            // terminal response selection below remains the enforcement point.
             continueAfterActions: true,
             abortSignal: input.abortSignal,
             onStreamChunk: input.onNotice

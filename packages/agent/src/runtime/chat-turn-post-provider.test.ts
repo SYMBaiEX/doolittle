@@ -112,6 +112,35 @@ describe("ElizaOS-native post-provider seam", () => {
     expect(harness.storedMessages).toEqual(["This is the selected project."]);
   });
 
+  it("never projects an early native preamble as the terminal tool response", async () => {
+    const harness = createHarness();
+
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        response: "",
+        actionResults: [
+          {
+            success: true,
+            data: { actionName: "WEB_SEARCH" },
+          },
+        ],
+        nativeResponseMessages: [
+          {
+            id: "early-response",
+            content: {
+              text: "I don't have a web-search tool available.",
+            },
+          },
+        ] as Parameters<
+          typeof runPostProviderTurn
+        >[0]["nativeResponseMessages"],
+      }),
+    );
+
+    expect(result.response).not.toContain("don't have a web-search tool");
+    expect(harness.storedMessages).toEqual([result.response]);
+  });
+
   it("does not run a second executor after an SDK failure", async () => {
     const harness = createHarness();
 
