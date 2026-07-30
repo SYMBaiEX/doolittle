@@ -23,7 +23,7 @@ export class DiagnosticsService {
 
   constructor(
     private readonly config: EnvConfig,
-    private readonly gatewayConfig: GatewayConfig,
+    private gatewayConfig: GatewayConfig,
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
     private readonly ecosystemService?: EcosystemService,
@@ -39,6 +39,10 @@ export class DiagnosticsService {
 
   currentGatewayConfig(): GatewayConfig {
     return this.gatewayConfig;
+  }
+
+  updateGatewayConfig(gatewayConfig: GatewayConfig): void {
+    this.gatewayConfig = gatewayConfig;
   }
 
   async run(input: DiagnosticsRunInput): Promise<DiagnosticCheck[]> {

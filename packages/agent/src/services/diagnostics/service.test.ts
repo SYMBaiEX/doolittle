@@ -162,6 +162,25 @@ function buildGatewayConfig(): GatewayConfig {
 }
 
 describe("DiagnosticsService", () => {
+  it("updates gateway configuration without replacing the service", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-diagnostics-config-"));
+    const service = new DiagnosticsService(
+      buildConfig(root),
+      buildGatewayConfig(),
+    );
+    const next = {
+      ...buildGatewayConfig(),
+      sessionTimeoutMinutes: 30,
+    };
+
+    try {
+      service.updateGatewayConfig(next);
+      expect(service.currentGatewayConfig()).toBe(next);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("reports richer operator checks and setup checklist hints", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-diagnostics-"));
     const service = new DiagnosticsService(

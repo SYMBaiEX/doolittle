@@ -54,6 +54,14 @@ function createContext() {
   mkdirSync(gatewayDataDir, { recursive: true });
 
   const gatewayConfig = buildGatewayConfig();
+  let currentGatewayConfig = gatewayConfig;
+  const diagnostics = {
+    currentGatewayConfig: () => currentGatewayConfig,
+    updateGatewayConfig: (nextGatewayConfig: typeof gatewayConfig) => {
+      currentGatewayConfig = nextGatewayConfig;
+    },
+  };
+  const operator = {};
   const gateway = {
     health: async () => ({ ready: true }),
     history: async (limit: number) => ({
@@ -153,6 +161,8 @@ function createContext() {
         startupState: undefined,
         awareness: undefined,
         autocoderPipeline: undefined,
+        diagnostics,
+        operator,
       },
     } as unknown as AppContext,
   };
@@ -179,8 +189,10 @@ describe("handleGatewayRuntimeRoutes", () => {
     expect(body.traces).toEqual([{ id: "trace-1" }]);
   });
 
-  it("updates gateway config and rewires diagnostics/operator services", async () => {
+  it("updates gateway config without replacing live service instances", async () => {
     const { context } = createContext();
+    const diagnostics = context.services.diagnostics;
+    const operator = context.services.operator;
     const nextGatewayConfig = {
       ...buildGatewayConfig(),
       sessionTimeoutMinutes: 30,
@@ -206,6 +218,8 @@ describe("handleGatewayRuntimeRoutes", () => {
     expect(
       context.services.diagnostics.currentGatewayConfig().sessionTimeoutMinutes,
     ).toBe(30);
+    expect(context.services.diagnostics).toBe(diagnostics);
+    expect(context.services.operator).toBe(operator);
   });
 
   it("validates watch, edit, and progressive payloads", async () => {
