@@ -507,6 +507,9 @@ export function App() {
     [backend.phase],
   );
   const appMainRef = useRef<HTMLElement | null>(null);
+  const [chatChromeHost, setChatChromeHost] = useState<HTMLElement | null>(
+    null,
+  );
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarReturnFocusRef = useRef<HTMLElement | null>(null);
   const utilityRef = useRef<HTMLElement | null>(null);
@@ -1886,6 +1889,7 @@ export function App() {
             runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}
+            chromeHost={chatChromeHost}
             workspacePath={workspace.currentPath}
           />
         );
@@ -2265,76 +2269,11 @@ export function App() {
             view === "chat" ? " window-dragbar--chat" : ""
           }`}
         >
-          <button
-            aria-label="Open navigation"
-            className="menu-button"
-            onClick={openSidebarForMobile}
-            type="button"
-          >
-            <svg
-              aria-hidden="true"
-              fill="none"
-              viewBox="0 0 20 20"
-              stroke="currentColor"
-            >
-              <path d="M3 5h14M3 10h14M3 15h14" />
-            </svg>
-          </button>
-          <div className="window-context">
-            <span>{activeSection?.label ?? "Doolittle"}</span>
-            <strong>{activeItem?.label ?? "Desktop"}</strong>
+          <div className="window-dragbar-primary">
             <button
-              className="window-project-scope"
-              onClick={openProjectManager}
-              title={`Current project scope: ${projectScopeLabel}. Change project.`}
-              type="button"
-            >
-              {projectScopeLabel}
-            </button>
-          </div>
-          <span aria-live="polite" className="sr-only">
-            {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
-          </span>
-          <div className="window-tools">
-            <button
-              aria-label="Open command palette"
-              className="window-command-button"
-              onClick={() => setPaletteOpen(true)}
-              title="Search pages and commands"
-              type="button"
-            >
-              <span>Search or jump to…</span>
-              <kbd>
-                {window.doolittle.platform === "darwin" ? "⌘K" : "Ctrl K"}
-              </kbd>
-            </button>
-            <button
-              aria-label="Open tools and settings"
-              aria-expanded={utilityOpen}
-              className="window-utility-button"
-              onClick={openUtilities}
-              type="button"
-            >
-              Tools
-            </button>
-            <div
-              className={`window-runtime-status ${backend.phase}`}
-              title={backend.message}
-            >
-              <i />
-              <span>
-                {backend.phase === "ready"
-                  ? "Local runtime"
-                  : backend.phase === "booting"
-                    ? "Starting"
-                    : "Offline"}
-              </span>
-            </div>
-            <button
-              aria-label="Refresh runtime data"
-              className="icon-button"
-              onClick={() => void refreshWithFeedback()}
-              title="Refresh runtime"
+              aria-label="Open navigation"
+              className="menu-button"
+              onClick={openSidebarForMobile}
               type="button"
             >
               <svg
@@ -2343,10 +2282,85 @@ export function App() {
                 viewBox="0 0 20 20"
                 stroke="currentColor"
               >
-                <path d="M15.5 6.5V3m0 3.5H12M4.7 7.1A6 6 0 0 1 15.5 6.5M4.5 13.5V17m0-3.5H8m7.3-.6A6 6 0 0 1 4.5 13.5" />
+                <path d="M3 5h14M3 10h14M3 15h14" />
               </svg>
             </button>
+            <div className="window-context">
+              <span>{activeSection?.label ?? "Doolittle"}</span>
+              <strong>{activeItem?.label ?? "Desktop"}</strong>
+              <button
+                className="window-project-scope"
+                onClick={openProjectManager}
+                title={`Current project scope: ${projectScopeLabel}. Change project.`}
+                type="button"
+              >
+                {projectScopeLabel}
+              </button>
+            </div>
+            <span aria-live="polite" className="sr-only">
+              {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
+            </span>
+            <div className="window-tools">
+              <button
+                aria-label="Open command palette"
+                className="window-command-button"
+                onClick={() => setPaletteOpen(true)}
+                title="Search pages and commands"
+                type="button"
+              >
+                <span>Search or jump to…</span>
+                <kbd>
+                  {window.doolittle.platform === "darwin" ? "⌘K" : "Ctrl K"}
+                </kbd>
+              </button>
+              <button
+                aria-label="Open tools and settings"
+                aria-expanded={utilityOpen}
+                className="window-utility-button"
+                onClick={openUtilities}
+                type="button"
+              >
+                Tools
+              </button>
+              <div
+                className={`window-runtime-status ${backend.phase}`}
+                title={backend.message}
+              >
+                <i />
+                <span>
+                  {backend.phase === "ready"
+                    ? "Local runtime"
+                    : backend.phase === "booting"
+                      ? "Starting"
+                      : "Offline"}
+                </span>
+              </div>
+              <button
+                aria-label="Refresh runtime data"
+                className="icon-button"
+                onClick={() => void refreshWithFeedback()}
+                title="Refresh runtime"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  fill="none"
+                  viewBox="0 0 20 20"
+                  stroke="currentColor"
+                >
+                  <path d="M15.5 6.5V3m0 3.5H12M4.7 7.1A6 6 0 0 1 15.5 6.5M4.5 13.5V17m0-3.5H8m7.3-.6A6 6 0 0 1 4.5 13.5" />
+                </svg>
+              </button>
+            </div>
           </div>
+          {view === "chat" ? (
+            <div
+              aria-label="Conversation controls"
+              className="chat-chrome-host"
+              ref={setChatChromeHost}
+              role="toolbar"
+            />
+          ) : null}
         </div>
         {backend.phase === "degraded" ? (
           <div className="runtime-banner">

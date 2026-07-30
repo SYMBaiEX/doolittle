@@ -418,25 +418,32 @@ tbody tr:hover {
   border-radius: 0;
 }
 
-/* biome-ignore lint/style/noDescendingSpecificity: this finish layer intentionally overrides the earlier density contract */
-.chat-header {
-  position: relative;
-  display: flex;
+.window-dragbar {
   flex-direction: column;
-  min-height: 52px;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  padding-right: clamp(12px, 2.8vw, 24px);
-  padding-left: clamp(12px, 2.8vw, 24px);
-  gap: 5px;
-  overflow: hidden;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+.window-dragbar-primary {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px 0 18px;
 }
 
 .app-main--chat > .window-dragbar--chat {
+  flex: 0 0 68px;
+  min-height: 68px;
+  border-bottom-color: color-mix(in srgb, var(--border) 64%, transparent);
+}
+
+.window-dragbar--chat .window-dragbar-primary {
   flex: 0 0 32px;
   min-height: 32px;
   padding-right: 10px;
-  border-bottom-color: color-mix(in srgb, var(--border) 64%, transparent);
 }
 
 .window-dragbar--chat .window-command-button,
@@ -452,13 +459,15 @@ tbody tr:hover {
   margin-left: 6px;
 }
 
-/* biome-ignore lint/style/noDescendingSpecificity: the chat-route chrome contract overrides the global density preset */
-.app-main--chat .chat-header {
+.chat-chrome-host {
+  position: relative;
+  display: flex;
   flex: 0 0 36px;
   min-height: 36px;
   padding: 0 clamp(12px, 2.4vw, 22px);
   gap: 0;
-  border-top: 0;
+  overflow: hidden;
+  -webkit-app-region: drag;
 }
 
 .chat-header-content {
@@ -494,7 +503,7 @@ tbody tr:hover {
   min-width: 0;
 }
 
-.chat-header :where(h2) {
+.chat-chrome-host :where(h2) {
   margin: 0;
   font-size: 13px;
   line-height: 1.15;
@@ -572,8 +581,24 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
-  /* biome-ignore lint/style/noDescendingSpecificity: responsive geometry must follow the desktop finish override */
-  .app-main--chat .chat-header {
+  .window-dragbar-primary {
+    min-height: 44px;
+    gap: 6px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .app-main--chat > .window-dragbar--chat {
+    flex-basis: 102px;
+    min-height: 102px;
+  }
+
+  .window-dragbar--chat .window-dragbar-primary {
+    flex-basis: 44px;
+    min-height: 44px;
+  }
+
+  .chat-chrome-host {
     flex-basis: 58px;
     min-height: 58px;
     padding-top: 4px;
