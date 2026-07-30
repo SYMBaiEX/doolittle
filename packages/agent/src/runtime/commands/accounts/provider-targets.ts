@@ -23,7 +23,7 @@ export async function handleAccountsProviderCommand(
         "/accounts refresh <elizacloud|codex|claude-code|devin>",
       );
     }
-    const snapshot = await refreshLinkedAccounts(provider);
+    const snapshot = await refreshLinkedAccounts(provider, context.runtime);
     return [
       `Refreshed ${provider}.`,
       "",

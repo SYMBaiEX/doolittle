@@ -26,6 +26,7 @@ function installConnectMocks() {
     },
   }));
   vi.doMock("@/runtime/native/provider-accounts", () => ({
+    refreshRuntimeProviderAccount: async () => false,
     getRuntimeProviderAccountsSnapshot: () => ({
       codex: {
         provider: "codex",

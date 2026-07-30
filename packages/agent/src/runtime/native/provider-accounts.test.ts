@@ -33,9 +33,8 @@ vi.mock("./account-auth", () => ({
   getLinkedProviderAccountsSnapshot: () => structuredClone(bootstrapSnapshot),
 }));
 
-const { getRuntimeProviderAccountsSnapshot } = await import(
-  "./provider-accounts"
-);
+const { getRuntimeProviderAccountsSnapshot, refreshRuntimeProviderAccount } =
+  await import("./provider-accounts");
 
 describe("getRuntimeProviderAccountsSnapshot", () => {
   it("prefers registered Eliza provider services and preserves bootstrap metadata", () => {
@@ -76,6 +75,31 @@ describe("getRuntimeProviderAccountsSnapshot", () => {
 
     expect(getRuntimeProviderAccountsSnapshot(runtime)).toEqual(
       bootstrapSnapshot,
+    );
+  });
+
+  it("refreshes credentials through the registered provider service", async () => {
+    const refreshRuntimeCredentials = vi.fn(async () => undefined);
+    const runtime = {
+      getService: () => ({
+        status: () => bootstrapSnapshot.codex,
+        refreshRuntimeCredentials,
+      }),
+    } as unknown as IAgentRuntime;
+
+    await expect(refreshRuntimeProviderAccount(runtime, "codex")).resolves.toBe(
+      true,
+    );
+    expect(refreshRuntimeCredentials).toHaveBeenCalledOnce();
+  });
+
+  it("reports when no provider service is registered", async () => {
+    const runtime = {
+      getService: () => null,
+    } as unknown as IAgentRuntime;
+
+    await expect(refreshRuntimeProviderAccount(runtime, "codex")).resolves.toBe(
+      false,
     );
   });
 });

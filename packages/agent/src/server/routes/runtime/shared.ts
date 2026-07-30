@@ -46,8 +46,11 @@ export function buildAccountConnectAdvice() {
   };
 }
 
-export async function refreshAccounts(provider: LinkedProvider | "all") {
-  return refreshLinkedAccounts(provider);
+export async function refreshAccounts(
+  context: AppContext,
+  provider: LinkedProvider | "all",
+) {
+  return refreshLinkedAccounts(provider, context.runtime);
 }
 
 export function activateAccount(context: AppContext, provider: LinkedProvider) {

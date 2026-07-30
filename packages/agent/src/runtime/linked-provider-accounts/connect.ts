@@ -4,7 +4,10 @@ import {
   refreshLinkedCodexCredentials,
   resolveLinkedProviderCredentials,
 } from "@/runtime/native/account-auth";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
+import {
+  getRuntimeProviderAccountsSnapshot,
+  refreshRuntimeProviderAccount,
+} from "@/runtime/native/provider-accounts";
 import type { AgentExecutionContext } from "../chat";
 import { activateLinkedProvider } from "./activation";
 import type { LinkedProviderName } from "./types";
@@ -24,7 +27,7 @@ export async function connectLinkedProvider(
   const fallbackAllowed =
     provider === "claude-code" ? context.config.claudeCodeCliFallback : false;
 
-  await refreshLinkedAccounts(provider);
+  await refreshLinkedAccounts(provider, context.runtime);
   const accounts = getRuntimeProviderAccountsSnapshot(context.runtime);
   const advice = getLinkedProviderConnectAdvice(provider);
   const status =
@@ -64,39 +67,34 @@ export async function connectLinkedProvider(
 
 export async function refreshLinkedAccounts(
   provider?: LinkedProviderName | "all",
+  runtime?: AgentExecutionContext["runtime"],
 ): Promise<ReturnType<typeof getRuntimeProviderAccountsSnapshot>> {
   if (!provider || provider === "all") {
-    const tasks = [
-      resolveProviderCredentials("elizacloud"),
-      resolveProviderCredentials("codex"),
-      resolveProviderCredentials("claude-code"),
-      resolveProviderCredentials("devin"),
-      refreshLinkedCodexCredentials().catch(() => undefined),
-      refreshLinkedClaudeCodeCredentials().catch(() => undefined),
-    ];
-    await Promise.all(tasks);
-    return getRuntimeProviderAccountsSnapshot();
+    await Promise.all(
+      (
+        ["elizacloud", "codex", "claude-code", "devin"] as LinkedProviderName[]
+      ).map((providerName) =>
+        refreshProviderAccount(providerName, runtime).catch(() => undefined),
+      ),
+    );
+    return getRuntimeProviderAccountsSnapshot(runtime);
   }
 
-  if (provider === "elizacloud") {
-    await resolveProviderCredentials("elizacloud");
-    return getRuntimeProviderAccountsSnapshot();
-  }
+  await refreshProviderAccount(provider, runtime);
+  return getRuntimeProviderAccountsSnapshot(runtime);
+}
 
+async function refreshProviderAccount(
+  provider: LinkedProviderName,
+  runtime?: AgentExecutionContext["runtime"],
+): Promise<void> {
+  if (await refreshRuntimeProviderAccount(runtime, provider)) return;
+  await resolveProviderCredentials(provider);
   if (provider === "codex") {
-    await resolveProviderCredentials("codex");
     await refreshLinkedCodexCredentials();
-    return getRuntimeProviderAccountsSnapshot();
+  } else if (provider === "claude-code") {
+    await refreshLinkedClaudeCodeCredentials();
   }
-
-  if (provider === "devin") {
-    await resolveProviderCredentials("devin");
-    return getRuntimeProviderAccountsSnapshot();
-  }
-
-  await resolveProviderCredentials("claude-code");
-  await refreshLinkedClaudeCodeCredentials();
-  return getRuntimeProviderAccountsSnapshot();
 }
 
 async function resolveProviderCredentials(

@@ -52,7 +52,7 @@ export async function handleRuntimeAccountRoutes(
       );
     }
     try {
-      return json(await refreshAccounts(provider));
+      return json(await refreshAccounts(context, provider));
     } catch (error) {
       return json(
         {

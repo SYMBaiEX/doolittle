@@ -7,6 +7,7 @@ import {
 
 interface RuntimeProviderAccountService {
   status(): LinkedProviderAccountStatus;
+  refreshRuntimeCredentials?(): Promise<unknown>;
 }
 
 type ProviderAccountRuntime = {
@@ -34,12 +35,26 @@ function getRuntimeAccountStatus(
   runtime: ProviderAccountRuntime | null | undefined,
   provider: LinkedProviderName,
 ): LinkedProviderAccountStatus | undefined {
-  if (!runtime) return undefined;
+  const service = getRuntimeProviderAccountService(runtime, provider);
+  if (!service) return undefined;
   try {
-    const service = runtime.getService?.(
-      SERVICE_TYPE_BY_PROVIDER[provider],
-    ) as RuntimeProviderAccountService | null;
-    return service?.status();
+    return service.status();
+  } catch {
+    return undefined;
+  }
+}
+
+function getRuntimeProviderAccountService(
+  runtime: ProviderAccountRuntime | null | undefined,
+  provider: LinkedProviderName,
+): RuntimeProviderAccountService | undefined {
+  if (!runtime?.getService) return undefined;
+  try {
+    return (
+      (runtime.getService(
+        SERVICE_TYPE_BY_PROVIDER[provider],
+      ) as RuntimeProviderAccountService | null) ?? undefined
+    );
   } catch {
     return undefined;
   }
@@ -70,4 +85,14 @@ export function getRuntimeProviderAccountStatus(
 ): LinkedProviderAccountStatus {
   const snapshot = getRuntimeProviderAccountsSnapshot(runtime);
   return snapshot[SNAPSHOT_KEY_BY_PROVIDER[provider]];
+}
+
+export async function refreshRuntimeProviderAccount(
+  runtime: ProviderAccountRuntime | null | undefined,
+  provider: LinkedProviderName,
+): Promise<boolean> {
+  const service = getRuntimeProviderAccountService(runtime, provider);
+  if (!service) return false;
+  await service.refreshRuntimeCredentials?.();
+  return true;
 }

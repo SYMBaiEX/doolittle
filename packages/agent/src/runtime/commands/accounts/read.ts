@@ -63,7 +63,7 @@ export async function handleAccountsReadCommand(
   }
 
   if (trimmed === "/accounts refresh") {
-    const snapshot = await refreshLinkedAccounts("all");
+    const snapshot = await refreshLinkedAccounts("all", context.runtime);
     return [
       "Refreshed linked provider state.",
       "",
