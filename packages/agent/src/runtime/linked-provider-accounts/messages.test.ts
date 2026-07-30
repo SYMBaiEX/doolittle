@@ -1,3 +1,4 @@
+import { ProviderTransportError } from "@elizaos/provider-transport";
 import { describe, expect, it } from "vitest";
 import {
   formatAccountsOverview,
@@ -30,6 +31,39 @@ describe("linked-provider-accounts messages", () => {
     );
 
     expect(message).toBe(buildProviderNoResponseMessage("codex", "gpt-5.4"));
+  });
+
+  it("renders recovery guidance from structured provider failures", () => {
+    const message = buildProviderFailureMessage(
+      "codex",
+      "gpt-5.4",
+      new ProviderTransportError("expired", {
+        code: "unauthorized",
+        provider: "codex",
+        status: 401,
+      }),
+    );
+
+    expect(message).toContain("no longer authorized");
+    expect(message).toContain("/accounts connect codex");
+    expect(message).not.toContain("Last error");
+  });
+
+  it("renders retry guidance from structured availability failures", () => {
+    const message = buildProviderFailureMessage(
+      "elizacloud",
+      "openai/gpt-5.4",
+      new ProviderTransportError("maintenance", {
+        code: "unavailable",
+        provider: "elizacloud",
+        retryable: true,
+        status: 503,
+      }),
+      "https://cloud.example.com",
+    );
+
+    expect(message).toContain("temporarily unavailable");
+    expect(message).toContain("cloud.example.com");
   });
 
   it("renders account summaries and overviews", () => {
