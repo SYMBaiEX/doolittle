@@ -119,6 +119,11 @@ Local command execution follows the same boundary: the Doolittle plugin
 registers the canonical `shell` service, delegates policy and backend work to
 the existing terminal implementation, and makes actions resolve execution
 through the runtime service instead of bypassing Eliza service ownership.
+Workspace and repository inspection follow the same invariant through the
+hot `coding_agent` service. Planner-selected workspace/repository actions and
+operator commands resolve that service from the runtime; they no longer
+capture the full product service graph or silently execute through a parallel
+fallback when native service registration is broken.
 Browser capture and evidence operations are likewise registered as the
 canonical `browser` service. CLI commands, API routes, and runtime diagnostics
 resolve that service first while the existing web implementation retains
