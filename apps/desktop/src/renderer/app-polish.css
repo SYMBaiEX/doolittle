@@ -418,6 +418,144 @@ tbody tr:hover {
   border-radius: 0;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: this finish layer intentionally overrides the earlier density contract */
+.chat-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  min-height: 56px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-right: clamp(14px, 3vw, 28px);
+  padding-left: clamp(14px, 3vw, 28px);
+  gap: 6px 8px;
+}
+
+.chat-header > div:first-child {
+  grid-column: 1 / 2;
+  grid-row: 1 / -1;
+  min-width: 0;
+  grid-template-rows: auto auto;
+  align-items: flex-start;
+  column-gap: 10px;
+  row-gap: 2px;
+}
+
+.chat-header-toolbar {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  margin-top: 0;
+  align-items: center;
+  justify-content: end;
+  gap: 4px;
+  padding-top: 0;
+}
+
+.chat-header :where(h2) {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.chat-model-route {
+  margin-top: 2px;
+  padding-top: 0;
+  padding-bottom: 0;
+  gap: 5px;
+}
+
+/* biome-ignore lint/style/noDescendingSpecificity: route labels are scoped independently from earlier summary spans */
+.chat-model-route > span,
+.chat-model-route > strong {
+  font-size: 10px;
+}
+
+.chat-mobile-conversations-button {
+  min-height: 28px;
+  padding: 3px 8px;
+  gap: 5px;
+}
+
+.chat-mobile-conversations-button small {
+  min-width: 17px;
+  height: 17px;
+}
+
+.chat-session-meta {
+  margin-top: 3px;
+  gap: 0;
+}
+
+.chat-session-meta-pill {
+  min-height: 20px;
+  padding: 0 8px;
+  font-size: 9px;
+  border-right: 1px solid var(--border);
+}
+
+.chat-session-meta-pill.chat-meta-count,
+.chat-session-meta-pill.chat-meta-updated {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-header-toolbar .secondary-button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+@media (max-width: 1024px) {
+  /* biome-ignore lint/style/noDescendingSpecificity: responsive geometry must follow the desktop finish override */
+  .chat-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-header > div:first-child {
+    grid-column: 1 / 2;
+    grid-row: 1 / -1;
+  }
+
+  .chat-header-toolbar {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 1px;
+    justify-content: flex-start;
+  }
+}
+
+.chat-messages {
+  padding-top: 20px;
+  padding-right: clamp(16px, 4vw, 56px);
+  padding-bottom: 14px;
+  padding-left: clamp(16px, 4vw, 56px);
+}
+
+.chat-composer {
+  width: min(calc(100% - 16px), 860px);
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 9px 8px;
+}
+
+.chat-composer textarea {
+  min-height: 46px;
+}
+
+.chat-composer > button[type="submit"] {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.chat-composer-tools {
+  gap: 5px;
+  margin-top: 4px;
+}
+
 .settings-inline-choice {
   display: flex;
   align-items: center;
