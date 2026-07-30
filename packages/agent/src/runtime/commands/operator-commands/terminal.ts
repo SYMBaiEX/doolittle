@@ -14,11 +14,7 @@ export async function handleOperatorTerminalCommand(
   hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
   if (trimmed === "/terminal" || trimmed === "/terminal recent") {
-    const commands = getEffectiveShellHistory(
-      context.runtime,
-      context.services,
-      10,
-    ) as Array<{
+    const commands = getEffectiveShellHistory(context.runtime, 10) as Array<{
       exitCode: number;
       command: string;
       backend?: string;

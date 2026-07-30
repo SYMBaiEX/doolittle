@@ -1,6 +1,7 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { getEffectiveSkillsSummary } from "@/runtime/native/service-bridge/autonomous";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
+import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
 import { json } from "@/server/responses";
 
 export async function handleDiagnosticsRoutes(
@@ -27,7 +28,8 @@ export async function handleDiagnosticsRoutes(
         skillsSummary,
         contextFilesCount: context.services.contextFiles.list().length,
         recentCronRuns: recentCronRuns.length,
-        recentTerminalCommands: context.services.terminal.recent(5).length,
+        recentTerminalCommands: getEffectiveShellHistory(context.runtime, 5)
+          .length,
         repositoryAvailable: context.services.repository.isRepository(),
         gatewayTransportOverview: transportOverview,
       }),

@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getNativeResearchControlPlane } from "@/runtime/native/service-bridge/control-planes";
-import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
+import {
+  getEffectiveShellHistory,
+  runEffectiveShellCommand,
+} from "@/runtime/native/service-bridge/tooling";
 import { sdkTerminalRunTokenError } from "@/server/auth";
 import { json, streamSse } from "@/server/responses";
 
@@ -302,7 +305,7 @@ export async function handleOperationsRoutes(
 
   if (request.method === "GET" && url.pathname === "/terminal/history") {
     return json({
-      commands: getEffectiveShellHistory(context.runtime, context.services, 25),
+      commands: getEffectiveShellHistory(context.runtime, 25),
     });
   }
 
@@ -313,7 +316,8 @@ export async function handleOperationsRoutes(
       return json({ error: input.error }, input.status);
     }
     return json({
-      result: await context.services.terminal.run(
+      result: await runEffectiveShellCommand(
+        context.runtime,
         input.command,
         input.timeoutMs,
       ),
@@ -337,7 +341,11 @@ export async function handleOperationsRoutes(
       );
     }
 
-    const run = context.services.terminal.run(input.command, input.timeoutMs);
+    const run = runEffectiveShellCommand(
+      context.runtime,
+      input.command,
+      input.timeoutMs,
+    );
     if (body.captureOutput !== true) {
       void run.catch((error) => {
         context.services.logger.captureError(

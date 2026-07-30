@@ -220,6 +220,10 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
         },
       }),
     },
+    mcp: {
+      status: () => services.mcp.status(),
+      getCachedTools: () => services.mcp.getCachedTools(),
+    },
   });
 }
 

@@ -41,7 +41,7 @@ export async function executeTerminalCommand(
   services: AppServices,
   command: string,
 ): Promise<TerminalCommandResult> {
-  const rawResult = await runEffectiveShellCommand(runtime, services, command);
+  const rawResult = await runEffectiveShellCommand(runtime, command);
   return normalizeTerminalCommandResult(
     rawResult,
     command,

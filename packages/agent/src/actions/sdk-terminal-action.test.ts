@@ -6,28 +6,36 @@ import { serveFetchTest } from "@/testing/fetch-server";
 
 describe("official Eliza SHELL action integration", () => {
   it("executes through Doolittle's SDK-compatible terminal route", async () => {
+    const terminal = {
+      run: async (command: string, timeoutMs?: number) => ({
+        id: "sdk-shell-run",
+        command,
+        backend: "local",
+        cwd: "/workspace",
+        timeoutMs,
+        timedOut: false,
+        durationMs: 4,
+        exitCode: 0,
+        stdout: "/workspace\n",
+        stderr: "",
+        startedAt: "2026-07-30T00:00:00.000Z",
+        completedAt: "2026-07-30T00:00:00.004Z",
+      }),
+    };
     const context = {
-      runtime: {},
+      runtime: {
+        getService: (name: string) =>
+          name === "shell"
+            ? {
+                run: terminal.run,
+              }
+            : null,
+      },
       services: {
         logger: {
           captureError: () => "",
         },
-        terminal: {
-          run: async (command: string, timeoutMs?: number) => ({
-            id: "sdk-shell-run",
-            command,
-            backend: "local",
-            cwd: "/workspace",
-            timeoutMs,
-            timedOut: false,
-            durationMs: 4,
-            exitCode: 0,
-            stdout: "/workspace\n",
-            stderr: "",
-            startedAt: "2026-07-30T00:00:00.000Z",
-            completedAt: "2026-07-30T00:00:00.004Z",
-          }),
-        },
+        terminal,
       },
     } as unknown as AppContext;
     const server = await serveFetchTest(async (request) => {

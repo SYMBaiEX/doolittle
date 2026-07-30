@@ -193,10 +193,7 @@ export async function handleSettingsThemeCommand(
 
   if (trimmed === "/execution" || trimmed === "/execution status") {
     const settings = context.services.settings.get().execution;
-    const native = await getEffectiveShellStatus(
-      context.runtime,
-      context.services,
-    );
+    const native = await getEffectiveShellStatus(context.runtime);
     const health = await context.services.terminal.health();
     return JSON.stringify(
       {

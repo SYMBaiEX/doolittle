@@ -3,7 +3,7 @@ import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { getNativePackageAudit } from "@/runtime/native/package-audit";
 import type { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type {
-  BrowserMcpServices,
+  BrowserIntegrationServices,
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
@@ -107,7 +107,7 @@ export interface ProviderOwnershipContext {
   formsControl?: ProviderOwnershipNativeFormsControl;
   integrationControl?: ProviderOwnershipNativeIntegrationControl;
   runtimeExecutionControl?: ProviderOwnershipNativeExecutionControl;
-  browserServices: BrowserMcpServices;
+  browserServices: BrowserIntegrationServices;
 }
 
 export interface DiagnosticsProviderOwnershipChecksResult {

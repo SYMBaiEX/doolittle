@@ -4,8 +4,46 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleOperationsRoutes } from "./operations";
 
 function createContext(): AppContext {
+  const terminal = {
+    recent: (limit: number) => [{ command: `history:${limit}` }],
+    run: async (command: string, _timeoutMs?: number) => ({
+      command,
+      ok: true,
+    }),
+    runStreamingLocal: async (
+      command: string,
+      callbacks?: {
+        onStdout?: (chunk: string) => void;
+        onStderr?: (chunk: string) => void;
+      },
+      timeoutMs?: number,
+    ) => {
+      callbacks?.onStdout?.("streamed output");
+      return {
+        id: "command-stream",
+        command,
+        backend: "local",
+        cwd: "/workspace",
+        timeoutMs,
+        exitCode: 0,
+        stdout: "streamed output",
+        stderr: "",
+        startedAt: "2026-07-27T00:00:00.000Z",
+        completedAt: "2026-07-27T00:00:00.100Z",
+      };
+    },
+  };
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "shell"
+          ? {
+              run: (command: string, timeoutMs?: number) =>
+                terminal.run(command, timeoutMs),
+              history: (limit?: number) => terminal.recent(limit ?? 10),
+            }
+          : null,
+    },
     services: {
       logger: {
         list: () => [],
@@ -23,32 +61,7 @@ function createContext(): AppContext {
       delivery: {
         recent: (limit: number) => [{ id: `delivery:${limit}` }],
       },
-      terminal: {
-        recent: (limit: number) => [{ command: `history:${limit}` }],
-        run: async (command: string) => ({ command, ok: true }),
-        runStreamingLocal: async (
-          command: string,
-          callbacks?: {
-            onStdout?: (chunk: string) => void;
-            onStderr?: (chunk: string) => void;
-          },
-          timeoutMs?: number,
-        ) => {
-          callbacks?.onStdout?.("streamed output");
-          return {
-            id: "command-stream",
-            command,
-            backend: "local",
-            cwd: "/workspace",
-            timeoutMs,
-            exitCode: 0,
-            stdout: "streamed output",
-            stderr: "",
-            startedAt: "2026-07-27T00:00:00.000Z",
-            completedAt: "2026-07-27T00:00:00.100Z",
-          };
-        },
-      },
+      terminal,
     },
   } as unknown as AppContext;
 }

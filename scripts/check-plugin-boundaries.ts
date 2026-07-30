@@ -140,6 +140,22 @@ const INTERNAL_FACADE_GUARDS: Array<{
     ],
   },
   {
+    root: NATIVE_RUNTIME_ROOT,
+    include:
+      /packages\/agent\/src\/runtime\/native\/service-bridge\/tooling\/(?:shell|mcp)\.ts$/u,
+    patterns: [
+      {
+        pattern: /\bAppServices\b/u,
+        reason:
+          "allows a product-service fallback for a required Eliza lifecycle service",
+      },
+      {
+        pattern: /\bservices\.(?:terminal|mcp)\b/u,
+        reason: "bypasses the required Eliza shell or MCP lifecycle service",
+      },
+    ],
+  },
+  {
     root: CONTRACTS_ROOT,
     include: /packages\/contracts\/src\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [

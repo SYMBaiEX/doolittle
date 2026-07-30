@@ -39,7 +39,15 @@ function createContext(options?: { withGateway?: boolean }) {
       discordBotToken: "",
       providers: {},
     },
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "mcp"
+          ? {
+              status: () => ({ ready: false }),
+              getCachedTools: () => [],
+            }
+          : null,
+    },
     gateway,
     services: {
       gatewayConfig: {

@@ -16,7 +16,6 @@ export const handleServiceRuntimeIntrospectionCommand: RuntimeIntrospectionComma
       context.runtime,
       {
         web: context.services.web,
-        mcp: context.services.mcp,
       },
     );
     const messaging = ownership.transportControl.messagingBridge ?? [];

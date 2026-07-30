@@ -39,7 +39,7 @@ export {
   snapshotEffectiveBrowserPage,
 } from "./browser";
 export type {
-  BrowserMcpServices,
+  BrowserIntegrationServices,
   EffectiveMessagingTransportEntry,
   EffectiveServiceResolutionRecord,
   EffectiveTransportInventoryEntry,

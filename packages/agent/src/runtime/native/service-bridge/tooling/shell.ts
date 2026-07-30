@@ -1,31 +1,18 @@
-import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime-contracts";
-import { getNativeShell } from "./native-services";
+import { requireNativeShell } from "./native-services";
 
 export async function runEffectiveShellCommand(
   runtime: RuntimeLike,
-  services: AppServices,
   command: string,
+  timeoutMs?: number,
 ) {
-  const shell = getNativeShell(runtime);
-  return shell ? shell.run(command) : services.terminal.run(command);
+  return requireNativeShell(runtime).run(command, timeoutMs);
 }
 
-export function getEffectiveShellHistory(
-  runtime: RuntimeLike,
-  services: AppServices,
-  limit = 10,
-): unknown[] {
-  return (
-    getNativeShell(runtime)?.history(limit) ?? services.terminal.recent(limit)
-  );
+export function getEffectiveShellHistory(runtime: RuntimeLike, limit = 10) {
+  return requireNativeShell(runtime).history(limit);
 }
 
-export async function getEffectiveShellStatus(
-  runtime: RuntimeLike,
-  services: AppServices,
-) {
-  return (
-    (await getNativeShell(runtime)?.status()) ?? services.terminal.status()
-  );
+export async function getEffectiveShellStatus(runtime: RuntimeLike) {
+  return requireNativeShell(runtime).status();
 }

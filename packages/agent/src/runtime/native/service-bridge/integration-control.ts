@@ -1,13 +1,10 @@
 import { getNativeServices } from "./runtime";
 import type { RuntimeLike } from "./runtime-contracts";
+import { requireNativeMcp } from "./tooling/native-services";
 
-export interface BrowserMcpServices {
+export interface BrowserIntegrationServices {
   web: {
     status(): Promise<unknown>;
-  };
-  mcp: {
-    status(): unknown;
-    getCachedTools(): unknown[];
   };
 }
 
@@ -29,7 +26,7 @@ export interface NativeIntegrationControlPlane {
 
 async function resolveBrowserIntegrationStatus(
   runtime: RuntimeLike,
-  services: BrowserMcpServices,
+  services: BrowserIntegrationServices,
 ) {
   const native = getNativeServices(runtime);
   if (native.browser) {
@@ -51,43 +48,25 @@ async function resolveBrowserIntegrationStatus(
   };
 }
 
-function resolveMcpIntegrationStatus(
-  runtime: RuntimeLike,
-  services: BrowserMcpServices,
-) {
-  const native = getNativeServices(runtime);
-  if (native.mcp) {
-    return {
-      source: "native" as const,
-      ownership: "plugin" as const,
-      available: true,
-      status: native.mcp.status(),
-      cachedTools: native.mcp.getCachedTools(),
-    };
-  }
+function resolveMcpIntegrationStatus(runtime: RuntimeLike) {
+  const mcp = requireNativeMcp(runtime);
   return {
-    source: "product" as const,
-    ownership: "product" as const,
-    available: false,
-    status: services.mcp.status(),
-    cachedTools: services.mcp.getCachedTools(),
+    source: "native" as const,
+    ownership: "plugin" as const,
+    available: true,
+    status: mcp.status(),
+    cachedTools: mcp.getCachedTools(),
   };
 }
 
 export async function getNativeIntegrationControlPlane(
   runtime: RuntimeLike,
-  services: BrowserMcpServices,
+  services: BrowserIntegrationServices,
 ): Promise<NativeIntegrationControlPlane> {
   const browser = await resolveBrowserIntegrationStatus(runtime, services);
-  const mcp = resolveMcpIntegrationStatus(runtime, services);
+  const mcp = resolveMcpIntegrationStatus(runtime);
   return {
     browser,
-    mcp: {
-      source: mcp.source,
-      ownership: mcp.available ? "plugin" : "product",
-      available: mcp.available,
-      status: mcp.status,
-      cachedTools: mcp.cachedTools,
-    },
+    mcp,
   };
 }

@@ -18,27 +18,19 @@ export async function handleMcpCommand(
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
   if (trimmed === "/mcp" || trimmed === "/mcp status") {
-    return JSON.stringify(
-      getEffectiveMcpStatus(context.runtime, context.services),
-      null,
-      2,
-    );
+    return JSON.stringify(getEffectiveMcpStatus(context.runtime), null, 2);
   }
 
   if (trimmed === "/mcp tools") {
     return JSON.stringify(
-      await discoverEffectiveMcpTools(context.runtime, context.services),
+      await discoverEffectiveMcpTools(context.runtime),
       null,
       2,
     );
   }
 
   if (trimmed === "/mcp cached") {
-    return JSON.stringify(
-      getEffectiveCachedMcpTools(context.runtime, context.services),
-      null,
-      2,
-    );
+    return JSON.stringify(getEffectiveCachedMcpTools(context.runtime), null, 2);
   }
 
   if (trimmed.startsWith("/mcp cached search ")) {
@@ -47,14 +39,14 @@ export async function handleMcpCommand(
       return "Usage: /mcp cached search <query>";
     }
     return JSON.stringify(
-      searchEffectiveCachedMcpTools(context.runtime, context.services, query),
+      searchEffectiveCachedMcpTools(context.runtime, query),
       null,
       2,
     );
   }
 
   if (trimmed === "/mcp cached describe") {
-    return describeEffectiveCachedMcpTools(context.runtime, context.services);
+    return describeEffectiveCachedMcpTools(context.runtime);
   }
 
   if (trimmed === "/mcp marketplace search") {
@@ -90,7 +82,6 @@ export async function handleMcpCommand(
     const limit = Number(raw);
     return describeEffectiveCachedMcpTools(
       context.runtime,
-      context.services,
       Number.isFinite(limit) && limit > 0 ? limit : 20,
     );
   }
@@ -100,13 +91,13 @@ export async function handleMcpCommand(
     if (!name) {
       return "Usage: /mcp describe <tool-name>";
     }
-    return describeEffectiveMcpTool(context.runtime, context.services, name);
+    return describeEffectiveMcpTool(context.runtime, name);
   }
 
   if (trimmed.startsWith("/mcp invoke ")) {
     const input = trimmed.replace("/mcp invoke ", "").trim();
     return JSON.stringify(
-      await invokeEffectiveMcp(context.runtime, context.services, input),
+      await invokeEffectiveMcp(context.runtime, input),
       null,
       2,
     );
@@ -120,7 +111,6 @@ export async function handleMcpCommand(
     return JSON.stringify(
       await invokeEffectiveMcpTool(
         context.runtime,
-        context.services,
         payload.toolName,
         payload.parsedInput,
       ),

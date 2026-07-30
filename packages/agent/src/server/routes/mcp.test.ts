@@ -3,24 +3,27 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleMcpRoutes } from "./mcp";
 
 function createContext(): AppContext {
+  const mcp = {
+    status: () => ({ connected: true }),
+    probe: async () => ({ ok: true }),
+    discoverTools: async () => [{ name: "discover:tool" }],
+    getCachedTools: () => [{ name: "tool-1" }],
+    searchCachedTools: (query: string) => [{ name: `search:${query}` }],
+    describeCachedTools: (limit: number) => `cached:${limit}`,
+    describeTool: (name: string) => `tool:${name}`,
+    invoke: async (input: string) => ({ input, type: "invoke" }),
+    invokeTool: async (tool: string, input: Record<string, unknown>) => ({
+      tool,
+      input,
+      type: "tool",
+    }),
+  };
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) => (name === "mcp" ? mcp : null),
+    },
     services: {
-      mcp: {
-        status: () => ({ connected: true }),
-        probe: async () => ({ ok: true }),
-        discoverTools: async () => [{ name: "discover:tool" }],
-        getCachedTools: () => [{ name: "tool-1" }],
-        searchCachedTools: (query: string) => [{ name: `search:${query}` }],
-        describeCachedTools: (limit: number) => `cached:${limit}`,
-        describeTool: (name: string) => `tool:${name}`,
-        invoke: async (input: string) => ({ input, type: "invoke" }),
-        invokeTool: async (tool: string, input: Record<string, unknown>) => ({
-          tool,
-          input,
-          type: "tool",
-        }),
-      },
+      mcp,
     },
   } as unknown as AppContext;
 }

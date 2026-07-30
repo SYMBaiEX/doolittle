@@ -5,7 +5,15 @@ import { handleServiceRuntimeIntrospectionCommand } from "./service";
 
 function createContext() {
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) =>
+        name === "mcp"
+          ? {
+              status: () => ({ ready: true }),
+              getCachedTools: () => [{ name: "tool-a" }],
+            }
+          : null,
+    },
     config: {
       elizaCloudApiKey: undefined,
       elizaCloudEnabled: false,

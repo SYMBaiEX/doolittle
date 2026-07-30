@@ -6,7 +6,7 @@ import {
 import { getNativePackageAudit } from "@/runtime/native/package-audit";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
-import type { BrowserMcpServices } from "@/runtime/native/service-bridge/control-planes";
+import type { BrowserIntegrationServices } from "@/runtime/native/service-bridge/control-planes";
 import {
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
@@ -16,7 +16,7 @@ import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/
 import type { EnvConfig } from "@/types";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
-import { buildBrowserMcpServices } from "./integration-services";
+import { buildBrowserIntegrationServices } from "./integration-services";
 import type {
   ProviderOwnershipCollectInput,
   ProviderOwnershipContext,
@@ -36,7 +36,9 @@ type ProviderOwnershipDependencies = {
   getNativeFormsControlPlane: typeof getNativeFormsControlPlane;
   getNativeIntegrationControlPlane: typeof getNativeIntegrationControlPlane;
   getNativeExecutionControlPlane: typeof getNativeExecutionControlPlane;
-  buildBrowserMcpServices: (config: EnvConfig) => BrowserMcpServices;
+  buildBrowserIntegrationServices: (
+    config: EnvConfig,
+  ) => BrowserIntegrationServices;
 };
 
 const defaultDependencies: ProviderOwnershipDependencies = {
@@ -49,7 +51,7 @@ const defaultDependencies: ProviderOwnershipDependencies = {
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
   getNativeExecutionControlPlane,
-  buildBrowserMcpServices,
+  buildBrowserIntegrationServices,
 };
 
 export async function collectProviderOwnershipContext(
@@ -97,7 +99,7 @@ export async function collectProviderOwnershipContext(
     | ProviderOwnershipNativeIntegrationControl
     | undefined = runtime
     ? await mergedDeps.getNativeIntegrationControlPlane(runtime, {
-        ...mergedDeps.buildBrowserMcpServices(config),
+        ...mergedDeps.buildBrowserIntegrationServices(config),
       })
     : undefined;
   const runtimeExecutionControl:
@@ -154,6 +156,6 @@ export async function collectProviderOwnershipContext(
     formsControl,
     integrationControl,
     runtimeExecutionControl,
-    browserServices: mergedDeps.buildBrowserMcpServices(config),
+    browserServices: mergedDeps.buildBrowserIntegrationServices(config),
   };
 }

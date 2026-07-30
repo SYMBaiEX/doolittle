@@ -43,6 +43,12 @@ function createContext(): AppContext {
     runtime: {
       getSetting: () => "",
       setSetting: () => undefined,
+      getService: (name: string) =>
+        name === "shell"
+          ? {
+              status: async () => ({ ready: true, backend: "native" }),
+            }
+          : null,
     },
     services: {
       settings: {

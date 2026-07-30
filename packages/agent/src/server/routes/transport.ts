@@ -60,7 +60,6 @@ export async function handleTransportRoutes(
       context.runtime,
       {
         web: context.services.web,
-        mcp: context.services.mcp,
       },
     );
     return json({

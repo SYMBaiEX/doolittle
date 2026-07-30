@@ -1,4 +1,8 @@
-import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_CODING_AGENT_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
+} from "@doolittle/contracts";
 import { getNativeServices } from "../runtime";
 import type {
   NativeCodingAgentService,
@@ -8,16 +12,28 @@ import type {
   RuntimeLike,
 } from "../runtime-contracts";
 
-export function getNativeShell(
-  runtime: RuntimeLike,
-): NativeShellService | undefined {
-  return getNativeServices(runtime).shell as NativeShellService | undefined;
+export function requireNativeShell(runtime: RuntimeLike): NativeShellService {
+  const service = getNativeServices(runtime).shell as
+    | NativeShellService
+    | undefined;
+  if (!service) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_SHELL_SERVICE} is unavailable.`,
+    );
+  }
+  return service;
 }
 
-export function getNativeMcp(
-  runtime: RuntimeLike,
-): NativeMcpService | undefined {
-  return getNativeServices(runtime).mcp as NativeMcpService | undefined;
+export function requireNativeMcp(runtime: RuntimeLike): NativeMcpService {
+  const service = getNativeServices(runtime).mcp as
+    | NativeMcpService
+    | undefined;
+  if (!service) {
+    throw new Error(
+      `Required Eliza service ${DOOLITTLE_MCP_SERVICE} is unavailable.`,
+    );
+  }
+  return service;
 }
 
 export function getNativeCodingAgent(

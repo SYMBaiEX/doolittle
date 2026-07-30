@@ -52,7 +52,6 @@ export async function runRuntimeShellCommand(
 ): Promise<ShellCommandTurnResult> {
   return (await runEffectiveShellCommand(
     context.runtime,
-    context.services,
     command,
   )) as ShellCommandTurnResult;
 }

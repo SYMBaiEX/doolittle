@@ -65,10 +65,6 @@ export async function getNativeOwnershipSnapshot(
       web: {
         status: () => services.web.status(),
       },
-      mcp: {
-        status: () => services.mcp.status(),
-        getCachedTools: () => services.mcp.getCachedTools(),
-      },
     }),
     Promise.resolve(
       getNativeOwnershipControlPlane(runtime, services, config, gatewayConfig),

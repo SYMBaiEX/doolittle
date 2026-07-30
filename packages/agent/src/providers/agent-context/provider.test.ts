@@ -79,6 +79,11 @@ function createRuntime() {
           ],
         };
       }
+      if (name === "shell") {
+        return {
+          history: () => [{ exitCode: 0, command: "git status" }],
+        };
+      }
       return null;
     },
   };
@@ -285,7 +290,7 @@ describe("agent context providers", () => {
     const workspace = await provider(
       providers,
       "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
-    ).get({} as never, message, {} as never);
+    ).get(createRuntime() as never, message, {} as never);
     const operations = await provider(
       providers,
       "DOOLITTLE_OPERATIONS_CONTEXT_PROVIDER",

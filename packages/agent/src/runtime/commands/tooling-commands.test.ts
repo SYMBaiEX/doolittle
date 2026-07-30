@@ -3,6 +3,20 @@ import type { AgentExecutionContext } from "../chat";
 import { handleToolingCommand } from "./tooling-commands";
 
 function createContext(): AgentExecutionContext {
+  const mcp = {
+    describeCachedTools: (limit: number) => `cached:${limit}`,
+    describeTool: (name: string) => `tool:${name}`,
+    discoverTools: async () => [{ name: "search" }],
+    getCachedTools: () => [],
+    invoke: async (input: string) => ({ invoked: input }),
+    invokeTool: async (name: string, input: Record<string, unknown>) => ({
+      name,
+      input,
+    }),
+    probe: async () => ({ ok: true }),
+    searchCachedTools: (query: string) => [{ id: query }],
+    status: () => ({ ready: true }),
+  };
   return {
     runtime: {
       getAllActions: () => [
@@ -15,6 +29,7 @@ function createContext(): AgentExecutionContext {
           description: "Search the browser and open web.",
         },
       ],
+      getService: (name: string) => (name === "mcp" ? mcp : null),
     },
     services: {
       tools: {
@@ -47,18 +62,7 @@ function createContext(): AgentExecutionContext {
           transports: [{ transport: "service", enabled: 1, total: 1 }],
         }),
       },
-      mcp: {
-        describeCachedTools: (limit: number) => `cached:${limit}`,
-        describeTool: (name: string) => `tool:${name}`,
-        discoverTools: async () => [{ name: "search" }],
-        invoke: async (input: string) => ({ invoked: input }),
-        invokeTool: async (name: string, input: Record<string, unknown>) => ({
-          name,
-          input,
-        }),
-        probe: async () => ({ ok: true }),
-        searchCachedTools: (query: string) => [{ id: query }],
-      },
+      mcp,
       acp: {
         describeTool: (name: string) => `acp:${name}`,
         editorSummary: () => ({ editor: true }),

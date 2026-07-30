@@ -1,7 +1,7 @@
 export interface EffectiveServiceResolutionRecord {
   capability: string;
   nativeService: string;
-  source: "native" | "product";
+  source: "native" | "product" | "unavailable";
   ownership: "plugin" | "product";
   fallback: string;
   available: boolean;

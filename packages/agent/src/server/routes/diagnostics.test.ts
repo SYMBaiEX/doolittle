@@ -27,6 +27,11 @@ function createContext() {
             ],
           };
         }
+        if (name === "shell") {
+          return {
+            history: () => [{ id: "cmd-1" }],
+          };
+        }
         return null;
       },
     },

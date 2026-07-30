@@ -41,6 +41,22 @@ function createContext() {
             repoLog: async () => "abc123 fix router extraction",
           };
         }
+        if (name === "shell") {
+          return {
+            history: () => [
+              {
+                exitCode: 0,
+                command: "pwd",
+                backend: "local",
+                backendMode: "direct",
+                backendEngine: "bun",
+                durationMs: 12,
+                stdout: "/workspace",
+                stderr: "",
+              },
+            ],
+          };
+        }
         return null;
       },
     },

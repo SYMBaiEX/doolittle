@@ -1,7 +1,9 @@
-import type { BrowserMcpServices } from "@/runtime/native/service-bridge/control-planes";
+import type { BrowserIntegrationServices } from "@/runtime/native/service-bridge/control-planes";
 import type { EnvConfig } from "@/types";
 
-export function buildBrowserMcpServices(config: EnvConfig): BrowserMcpServices {
+export function buildBrowserIntegrationServices(
+  config: EnvConfig,
+): BrowserIntegrationServices {
   return {
     web: {
       status: async () => ({
@@ -23,19 +25,6 @@ export function buildBrowserMcpServices(config: EnvConfig): BrowserMcpServices {
           comparison: Boolean(config.browserCommand),
         },
       }),
-    },
-    mcp: {
-      status: () => ({
-        enabled: Boolean(config.mcpServerCommand),
-        detail: config.mcpServerCommand
-          ? `MCP bridge command configured: ${config.mcpServerCommand}`
-          : "MCP_SERVER_COMMAND is not configured.",
-        command: config.mcpServerCommand || undefined,
-        timeoutMs: config.mcpTimeoutMs,
-        discoveredTools: 0,
-        cachedToolNames: [],
-      }),
-      getCachedTools: () => [],
     },
   };
 }

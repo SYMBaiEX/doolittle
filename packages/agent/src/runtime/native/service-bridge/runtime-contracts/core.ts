@@ -17,6 +17,7 @@ import type {
   BrowserStatus,
   WebPageSnapshot,
 } from "@/services/web/service";
+import type { TerminalCommandRecord } from "@/types/execution";
 
 export const PDF_SERVICE = "pdf";
 export {
@@ -45,8 +46,8 @@ export interface NativePdfService {
 }
 
 export interface NativeShellService {
-  run(command: string): Promise<unknown>;
-  history(limit?: number): unknown[];
+  run(command: string, timeoutMs?: number): Promise<TerminalCommandRecord>;
+  history(limit?: number): TerminalCommandRecord[];
   status(): Promise<unknown>;
 }
 

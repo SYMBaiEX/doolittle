@@ -15,6 +15,7 @@ import {
 } from "@/runtime/native/service-bridge/ownership";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { getEffectiveToolInventory } from "@/runtime/native/service-bridge/service-resolution";
+import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
 import type { AppServices } from "@/services";
@@ -176,7 +177,7 @@ async function workspaceContextResult(
   runtime: IAgentRuntime,
 ): Promise<ProviderResult> {
   const skillEntries = getEffectiveSkills(runtime, services);
-  const recentTerminal = services.terminal.recent(5);
+  const recentTerminal = getEffectiveShellHistory(runtime, 5);
   let repoSummary = "";
   try {
     repoSummary = await services.repository.status();

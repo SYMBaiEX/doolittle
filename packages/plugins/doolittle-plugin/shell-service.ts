@@ -23,8 +23,10 @@ export function createShellRuntimeService(services: AppServices): ServiceClass {
       return new ShellRuntimeService(runtime);
     }
 
-    run(command: string): Promise<unknown> {
-      return services.terminal.run(command);
+    run(command: string, timeoutMs?: number): Promise<unknown> {
+      return timeoutMs === undefined
+        ? services.terminal.run(command)
+        : services.terminal.run(command, timeoutMs);
     }
 
     history(limit = 10): unknown[] {

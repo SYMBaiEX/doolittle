@@ -225,6 +225,12 @@ describe("DiagnosticsService", () => {
             getSessionSummaries: () => [],
           };
         }
+        if (name === "mcp") {
+          return {
+            status: () => ({ ready: false }),
+            getCachedTools: () => [],
+          };
+        }
         return null;
       },
     } as unknown as RuntimeLike;

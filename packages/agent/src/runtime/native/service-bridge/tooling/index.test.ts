@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { AppServices } from "@/services";
 import {
   findLocalCodebases,
   inspectLocalProject,
@@ -134,86 +133,43 @@ describe("tooling bridge helpers", () => {
       },
     } as unknown as RuntimeLike;
 
-    const services = {
-      terminal: {
-        run: async (command: string) => `fallback-shell:${command}`,
-        recent: (limit = 10) => [`fallback-history:${limit}`],
-        status: async () => ({ source: "fallback-shell" }),
-      },
-      mcp: {
-        status: () => ({ source: "fallback-mcp" }),
-        probe: async () => ({ ok: true, source: "fallback-mcp" }),
-        discoverTools: async () => [{ name: "fallback-tool" }],
-        getCachedTools: () => [{ name: "fallback-tool" }],
-        searchCachedTools: (query: string) => [`fallback-search:${query}`],
-        describeCachedTools: (limit = 20) => `fallback-describe:${limit}`,
-        describeTool: (name: string) => `fallback-tool:${name}`,
-        invoke: async (input: string) => `fallback-invoke:${input}`,
-        invokeTool: async (name: string, input: Record<string, unknown>) => ({
-          name,
-          input,
-          source: "fallback-mcp",
-        }),
-      },
-      workspace: {
-        read: (path: string) => `fallback-read:${path}`,
-        search: (query: string, limit = 20) => [
-          `fallback-search:${query}:${limit}`,
-        ],
-        write: (path: string, content: string) => ({
-          path,
-          content,
-          source: "fallback-write",
-        }),
-        root: () => "/tmp/fallback-workspace",
-      },
-      repository: {
-        isRepository: () => false,
-        status: async () => ({ source: "fallback-repo-status" }),
-        diffStat: async () => ({ source: "fallback-repo-diff" }),
-        recentCommits: async (limit = 10) => [`fallback-repo-log:${limit}`],
-      },
-    } as unknown as AppServices;
-
-    expect(await runEffectiveShellCommand(runtime, services, "pwd")).toBe(
+    expect(await runEffectiveShellCommand(runtime, "pwd")).toBe(
       "native-shell:pwd",
     );
-    expect(getEffectiveMcpStatus(runtime, services)).toEqual({
+    expect(getEffectiveMcpStatus(runtime)).toEqual({
       source: "native-mcp",
     });
-    await expect(probeEffectiveMcp(runtime, services)).resolves.toEqual({
+    await expect(probeEffectiveMcp(runtime)).resolves.toEqual({
       ok: true,
       source: "native-mcp",
     });
-    await expect(discoverEffectiveMcpTools(runtime, services)).resolves.toEqual(
-      [{ name: "native-tool" }],
-    );
-    expect(getEffectiveCachedMcpTools(runtime, services)).toEqual([
+    await expect(discoverEffectiveMcpTools(runtime)).resolves.toEqual([
       { name: "native-tool" },
     ]);
-    expect(searchEffectiveCachedMcpTools(runtime, services, "tool")).toEqual([
+    expect(getEffectiveCachedMcpTools(runtime)).toEqual([
+      { name: "native-tool" },
+    ]);
+    expect(searchEffectiveCachedMcpTools(runtime, "tool")).toEqual([
       "native-search:tool",
     ]);
-    expect(describeEffectiveCachedMcpTools(runtime, services, 5)).toBe(
+    expect(describeEffectiveCachedMcpTools(runtime, 5)).toBe(
       "native-describe:5",
     );
-    expect(describeEffectiveMcpTool(runtime, services, "tool-1")).toBe(
+    expect(describeEffectiveMcpTool(runtime, "tool-1")).toBe(
       "native-tool:tool-1",
     );
-    await expect(invokeEffectiveMcp(runtime, services, "ping")).resolves.toBe(
+    await expect(invokeEffectiveMcp(runtime, "ping")).resolves.toBe(
       "native-invoke:ping",
     );
     await expect(
-      invokeEffectiveMcpTool(runtime, services, "tool-1", { ok: true }),
+      invokeEffectiveMcpTool(runtime, "tool-1", { ok: true }),
     ).resolves.toEqual({
       name: "tool-1",
       input: { ok: true },
       source: "native-mcp",
     });
-    expect(getEffectiveShellHistory(runtime, services, 3)).toEqual([
-      "native-history:3",
-    ]);
-    await expect(getEffectiveShellStatus(runtime, services)).resolves.toEqual({
+    expect(getEffectiveShellHistory(runtime, 3)).toEqual(["native-history:3"]);
+    await expect(getEffectiveShellStatus(runtime)).resolves.toEqual({
       source: "native-shell",
     });
     expect(readNativeWorkspaceFile(runtime, "README.md")).toBe(
@@ -288,95 +244,49 @@ describe("tooling bridge helpers", () => {
     ]);
   });
 
-  it("keeps product fallbacks for shell and mcp but requires the native coding service", async () => {
+  it("requires lifecycle-owned shell, MCP, and coding services", async () => {
     const runtime = {
       getService() {
         return null;
       },
     } as unknown as RuntimeLike;
 
-    const services = {
-      terminal: {
-        run: async (command: string) => `fallback-shell:${command}`,
-        recent: (limit = 10) => [`fallback-history:${limit}`],
-        status: async () => ({ source: "fallback-shell" }),
-      },
-      mcp: {
-        status: () => ({ source: "fallback-mcp" }),
-        probe: async () => ({ ok: true, source: "fallback-mcp" }),
-        discoverTools: async () => [{ name: "fallback-tool" }],
-        getCachedTools: () => [{ name: "fallback-tool" }],
-        searchCachedTools: (query: string) => [`fallback-search:${query}`],
-        describeCachedTools: (limit = 20) => `fallback-describe:${limit}`,
-        describeTool: (name: string) => `fallback-tool:${name}`,
-        invoke: async (input: string) => `fallback-invoke:${input}`,
-        invokeTool: async (name: string, input: Record<string, unknown>) => ({
-          name,
-          input,
-          source: "fallback-mcp",
-        }),
-      },
-      workspace: {
-        read: (path: string) => `fallback-read:${path}`,
-        search: (query: string, limit = 20) => [
-          `fallback-search:${query}:${limit}`,
-        ],
-        write: (path: string, content: string) => ({
-          path,
-          content,
-          source: "fallback-write",
-        }),
-        root: () => "/tmp/fallback-workspace",
-      },
-      repository: {
-        isRepository: () => true,
-        status: async () => ({ source: "fallback-repo-status" }),
-        diffStat: async () => ({ source: "fallback-repo-diff" }),
-        recentCommits: async (limit = 10) => [`fallback-repo-log:${limit}`],
-      },
-    } as unknown as AppServices;
-
-    expect(await runEffectiveShellCommand(runtime, services, "pwd")).toBe(
-      "fallback-shell:pwd",
+    await expect(runEffectiveShellCommand(runtime, "pwd")).rejects.toThrow(
+      /Required Eliza service shell/u,
     );
-    expect(getEffectiveMcpStatus(runtime, services)).toEqual({
-      source: "fallback-mcp",
-    });
-    await expect(probeEffectiveMcp(runtime, services)).resolves.toEqual({
-      ok: true,
-      source: "fallback-mcp",
-    });
-    await expect(discoverEffectiveMcpTools(runtime, services)).resolves.toEqual(
-      [{ name: "fallback-tool" }],
+    expect(() => getEffectiveMcpStatus(runtime)).toThrow(
+      /Required Eliza service mcp/u,
     );
-    expect(getEffectiveCachedMcpTools(runtime, services)).toEqual([
-      { name: "fallback-tool" },
-    ]);
-    expect(searchEffectiveCachedMcpTools(runtime, services, "tool")).toEqual([
-      "fallback-search:tool",
-    ]);
-    expect(describeEffectiveCachedMcpTools(runtime, services, 5)).toBe(
-      "fallback-describe:5",
+    await expect(probeEffectiveMcp(runtime)).rejects.toThrow(
+      /Required Eliza service mcp/u,
     );
-    expect(describeEffectiveMcpTool(runtime, services, "tool-1")).toBe(
-      "fallback-tool:tool-1",
+    await expect(discoverEffectiveMcpTools(runtime)).rejects.toThrow(
+      /Required Eliza service mcp/u,
     );
-    await expect(invokeEffectiveMcp(runtime, services, "ping")).resolves.toBe(
-      "fallback-invoke:ping",
+    expect(() => getEffectiveCachedMcpTools(runtime)).toThrow(
+      /Required Eliza service mcp/u,
+    );
+    expect(() => searchEffectiveCachedMcpTools(runtime, "tool")).toThrow(
+      /Required Eliza service mcp/u,
+    );
+    expect(() => describeEffectiveCachedMcpTools(runtime, 5)).toThrow(
+      /Required Eliza service mcp/u,
+    );
+    expect(() => describeEffectiveMcpTool(runtime, "tool-1")).toThrow(
+      /Required Eliza service mcp/u,
+    );
+    await expect(invokeEffectiveMcp(runtime, "ping")).rejects.toThrow(
+      /Required Eliza service mcp/u,
     );
     await expect(
-      invokeEffectiveMcpTool(runtime, services, "tool-1", { ok: true }),
-    ).resolves.toEqual({
-      name: "tool-1",
-      input: { ok: true },
-      source: "fallback-mcp",
-    });
-    expect(getEffectiveShellHistory(runtime, services, 3)).toEqual([
-      "fallback-history:3",
-    ]);
-    await expect(getEffectiveShellStatus(runtime, services)).resolves.toEqual({
-      source: "fallback-shell",
-    });
+      invokeEffectiveMcpTool(runtime, "tool-1", { ok: true }),
+    ).rejects.toThrow(/Required Eliza service mcp/u);
+    expect(() => getEffectiveShellHistory(runtime, 3)).toThrow(
+      /Required Eliza service shell/u,
+    );
+    await expect(getEffectiveShellStatus(runtime)).rejects.toThrow(
+      /Required Eliza service shell/u,
+    );
     await expect(
       Promise.resolve().then(() =>
         readNativeWorkspaceFile(runtime, "README.md"),

@@ -19,22 +19,19 @@ export async function handleMcpRoutes(
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/mcp/status") {
     return json({
-      mcp: getEffectiveMcpStatus(context.runtime, context.services),
+      mcp: getEffectiveMcpStatus(context.runtime),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/mcp/tools") {
     return json({
-      discovery: await discoverEffectiveMcpTools(
-        context.runtime,
-        context.services,
-      ),
+      discovery: await discoverEffectiveMcpTools(context.runtime),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/mcp/cached") {
     return json({
-      tools: getEffectiveCachedMcpTools(context.runtime, context.services),
+      tools: getEffectiveCachedMcpTools(context.runtime),
     });
   }
 
@@ -44,11 +41,7 @@ export async function handleMcpRoutes(
       return json({ error: "query is required" }, 400);
     }
     return json({
-      tools: searchEffectiveCachedMcpTools(
-        context.runtime,
-        context.services,
-        query,
-      ),
+      tools: searchEffectiveCachedMcpTools(context.runtime, query),
     });
   }
 
@@ -59,14 +52,14 @@ export async function handleMcpRoutes(
     }
     return json({
       tool:
-        getEffectiveCachedMcpTools(context.runtime, context.services).find(
+        getEffectiveCachedMcpTools(context.runtime).find(
           (tool: unknown) =>
             tool &&
             typeof tool === "object" &&
             "name" in tool &&
             String((tool as { name?: unknown }).name) === name,
         ) ?? null,
-      detail: describeEffectiveMcpTool(context.runtime, context.services, name),
+      detail: describeEffectiveMcpTool(context.runtime, name),
     });
   }
 
@@ -76,7 +69,6 @@ export async function handleMcpRoutes(
     return json({
       detail: describeEffectiveCachedMcpTools(
         context.runtime,
-        context.services,
         !Number.isNaN(limit) && limit > 0 ? limit : 20,
       ),
     });
@@ -84,7 +76,7 @@ export async function handleMcpRoutes(
 
   if (request.method === "POST" && url.pathname === "/mcp/probe") {
     return json({
-      probe: await probeEffectiveMcp(context.runtime, context.services),
+      probe: await probeEffectiveMcp(context.runtime),
     });
   }
 
@@ -94,11 +86,7 @@ export async function handleMcpRoutes(
       return json({ error: "input is required" }, 400);
     }
     return json({
-      result: await invokeEffectiveMcp(
-        context.runtime,
-        context.services,
-        body.input,
-      ),
+      result: await invokeEffectiveMcp(context.runtime, body.input),
     });
   }
 
@@ -113,7 +101,6 @@ export async function handleMcpRoutes(
     return json({
       result: await invokeEffectiveMcpTool(
         context.runtime,
-        context.services,
         body.tool,
         body.input ?? {},
       ),

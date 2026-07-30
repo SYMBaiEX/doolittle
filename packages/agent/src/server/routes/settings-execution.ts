@@ -88,7 +88,7 @@ export async function handleSettingsExecutionRoutes(
     return json({
       active,
       backends: await context.services.terminal.health(),
-      native: await getEffectiveShellStatus(context.runtime, context.services),
+      native: await getEffectiveShellStatus(context.runtime),
     });
   }
 

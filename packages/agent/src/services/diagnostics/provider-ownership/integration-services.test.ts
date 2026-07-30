@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EnvConfig } from "@/types";
-import { buildBrowserMcpServices } from "./integration-services";
+import { buildBrowserIntegrationServices } from "./integration-services";
 
 function buildBaseConfig(overrides: Partial<EnvConfig> = {}) {
   return {
@@ -12,9 +12,9 @@ function buildBaseConfig(overrides: Partial<EnvConfig> = {}) {
   } as EnvConfig;
 }
 
-describe("buildBrowserMcpServices", () => {
+describe("buildBrowserIntegrationServices", () => {
   it("builds pixel-backed browser metadata for lightpanda provider", async () => {
-    const services = buildBrowserMcpServices(
+    const services = buildBrowserIntegrationServices(
       buildBaseConfig({
         browserProvider: "lightpanda",
         browserCommand: "lightpanda",
@@ -27,15 +27,10 @@ describe("buildBrowserMcpServices", () => {
       captureMode: "pixel",
       captureReady: true,
     });
-    expect(services.mcp.status()).toMatchObject({
-      enabled: false,
-      command: undefined,
-      timeoutMs: 10000,
-    });
   });
 
   it("builds fallback browser metadata for non-pixel provider", async () => {
-    const services = buildBrowserMcpServices(
+    const services = buildBrowserIntegrationServices(
       buildBaseConfig({
         browserProvider: "basic",
         browserCommand: undefined,
@@ -47,9 +42,6 @@ describe("buildBrowserMcpServices", () => {
       mode: "fallback",
       captureMode: "placeholder",
       captureReady: false,
-    });
-    expect(services.mcp.status()).toMatchObject({
-      enabled: false,
     });
   });
 });
