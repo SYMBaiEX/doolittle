@@ -1,9 +1,9 @@
-export { ensureCoreRuntimeServices } from "./core-services";
 export { validateCriticalRuntimeServices } from "./critical";
 export {
   installDynamicModelProviderRouting,
   resolveModelProviderPlugin,
 } from "./model-provider-routing";
+export { finalizeCoreRuntimeServices } from "./post-initialize-services";
 export {
   buildProviderAuthFailureReply,
   installProviderFailureTemplates,

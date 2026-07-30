@@ -2,7 +2,7 @@ import { DOOLITTLE_WORKFLOW_DISPATCH_SERVICE } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
 import {
   attachRunProgressBridge,
-  ensureCoreRuntimeServices,
+  finalizeCoreRuntimeServices,
   installDynamicModelProviderRouting,
   installProviderFailureTemplates,
   patchRuntimeRelationshipCompatibility,
@@ -32,9 +32,9 @@ export async function configureBootstrapContext({
 }: BootstrapContextParams): Promise<BootstrapContext> {
   patchRuntimeRelationshipCompatibility(runtime);
   appendBootstrapTrace("phase:patchRelationshipsCompatibility:done");
-  appendBootstrapTrace("phase:ensureCoreRuntimeServices:start");
-  await ensureCoreRuntimeServices(runtime);
-  appendBootstrapTrace("phase:ensureCoreRuntimeServices:done");
+  appendBootstrapTrace("phase:finalizeCoreRuntimeServices:start");
+  await finalizeCoreRuntimeServices(runtime);
+  appendBootstrapTrace("phase:finalizeCoreRuntimeServices:done");
   services.nativeOwnership.attachRuntime(runtime, services);
   (services as RuntimeBindableServices).__bindRuntime?.(runtime);
   installDynamicModelProviderRouting(
