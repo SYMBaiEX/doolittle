@@ -13,9 +13,8 @@ const executionEnvironmentSource = readFileSync(
 
 describe("workspace switching ownership", () => {
   it("keeps picker and direct worktree transitions owned by App", () => {
-    expect(appSource).toContain(
-      "if (!result.canceled) applyWorkspaceSelection(result.state);",
-    );
+    expect(appSource).toContain("projectTransitionRef.current === transition");
+    expect(appSource).toContain("applyWorkspaceSelection(result.state);");
     expect(appSource).toContain("onChooseWorkspace={chooseWorkspace}");
     expect(appSource).toContain("onOpenWorkspacePath={openWorkspacePath}");
     expect(codingWorkspaceSource).toContain(

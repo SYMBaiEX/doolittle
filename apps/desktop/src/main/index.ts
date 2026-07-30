@@ -270,6 +270,17 @@ function switchRecentWorkspace(path: string): Promise<WorkspacePickResult> {
   return operation;
 }
 
+function openWorkspacePath(path: string): Promise<WorkspacePickResult> {
+  const operation = workspaceSwitchQueue.then(() =>
+    openWorkspacePathImpl(path),
+  );
+  workspaceSwitchQueue = operation.then(
+    () => undefined,
+    () => undefined,
+  );
+  return operation;
+}
+
 function reportWorkspacePickerError(error: unknown): void {
   dialog.showErrorBox(
     "Unable to open workspace",
@@ -584,7 +595,7 @@ app.whenReady().then(async () => {
       getState: () =>
         workspaceState?.getState() ?? { currentPath: "", recentPaths: [] },
       pickWorkspace,
-      openWorkspace: openWorkspacePathImpl,
+      openWorkspace: openWorkspacePath,
       switchWorkspace: switchRecentWorkspace,
       subscribe: (listener) =>
         workspaceState?.subscribe(listener) ?? (() => undefined),

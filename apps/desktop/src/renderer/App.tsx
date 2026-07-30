@@ -782,10 +782,15 @@ export function App() {
 
   const chooseWorkspace =
     useCallback(async (): Promise<WorkspacePickResult> => {
+      const transition = projectTransitionRef.current + 1;
+      projectTransitionRef.current = transition;
+      pendingProjectScopeRef.current = null;
       workspaceSwitchInFlightRef.current += 1;
       try {
         const result = await window.doolittle.pickWorkspace();
-        if (!result.canceled) applyWorkspaceSelection(result.state);
+        if (projectTransitionRef.current === transition && !result.canceled) {
+          applyWorkspaceSelection(result.state);
+        }
         return result;
       } finally {
         workspaceSwitchInFlightRef.current -= 1;
@@ -794,10 +799,15 @@ export function App() {
 
   const openWorkspacePath = useCallback(
     async (path: string): Promise<WorkspacePickResult> => {
+      const transition = projectTransitionRef.current + 1;
+      projectTransitionRef.current = transition;
+      pendingProjectScopeRef.current = null;
       workspaceSwitchInFlightRef.current += 1;
       try {
         const result = await window.doolittle.openWorkspace(path);
-        if (!result.canceled) applyWorkspaceSelection(result.state);
+        if (projectTransitionRef.current === transition && !result.canceled) {
+          applyWorkspaceSelection(result.state);
+        }
         return result;
       } finally {
         workspaceSwitchInFlightRef.current -= 1;
