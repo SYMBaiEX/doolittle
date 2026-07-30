@@ -86,21 +86,14 @@ function createContext() {
 }
 
 describe("handleRuntimeRoutes", () => {
-  it("returns health status", async () => {
+  it("leaves plugin-owned health routing to the Eliza route bridge", async () => {
     const response = await handleRuntimeRoutes(
       createContext(),
       new Request("http://localhost/health"),
       new URL("http://localhost/health"),
     );
 
-    expect(response).not.toBeNull();
-    await expect(response?.json()).resolves.toEqual({
-      status: "ok",
-      name: "Doolittle Test",
-      mode: "api",
-      processId: process.pid,
-      workspaceDir: process.cwd(),
-    });
+    expect(response).toBeNull();
   });
 
   it("switches the live workspace without rebuilding the runtime context", async () => {

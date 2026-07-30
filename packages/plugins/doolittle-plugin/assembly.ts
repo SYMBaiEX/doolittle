@@ -18,6 +18,7 @@ import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
 import { createGatewayRuntimeService } from "./gateway-service";
 import { createMemoryStorageService } from "./memory-storage-service";
+import { createDoolittleRuntimeRoutes } from "./routes";
 import { createSchedulerRuntimeService } from "./scheduler-service";
 import { wireSdkCapabilities } from "./sdk-capabilities";
 import {
@@ -68,6 +69,7 @@ export function createDoolittlePluginSurface({
       createCommandShortcut(config.workspaceDir),
     ],
     evaluators,
+    routes: createDoolittleRuntimeRoutes({ services, config }),
     services: [
       MemoryStorageService,
       GatewayRuntimeService,

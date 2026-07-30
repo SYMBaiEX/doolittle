@@ -66,7 +66,9 @@ Current plugin docs cover actions, providers, evaluators, services, routes, even
 Implication for Doolittle:
 
 - the Doolittle plugin surface should prefer native plugin components over app-only extension points
-- plugin-provided routes may be a good fit for runtime-owned APIs
+- plugin-provided routes are bridged through the Node harness with Eliza's
+  canonical `dispatchRoute`; `/health` and `/features` are now owned by the
+  Doolittle runtime plugin instead of parallel server handlers
 - model/provider wrappers should stay plugin-native so they can benefit from SDK routing and model selection
 
 ## Application Direction For Doolittle
@@ -86,7 +88,8 @@ Implication for Doolittle:
    orchestrator only where the installed beta SDK supports it without losing
    desktop, provider, or local-first lifecycle guarantees.
 3. Promote gateway lifecycle and account/provider bridges into real ElizaOS `Service` classes where they are still app-bound.
-4. Move runtime-owned HTTP surfaces into plugin routes when the ownership boundary is clear.
+4. Continue moving runtime-owned HTTP surfaces through the established plugin
+   route bridge when the ownership boundary is clear.
 5. Keep package audit/version tooling explicit about `latest` versus `beta`,
    because npm dist-tags are mixed across the ecosystem.
 
@@ -104,6 +107,9 @@ second service lifecycle: Doolittle-owned runtime capabilities must be
 registered through plugin `services`, actions, providers, evaluators, routes,
 or events. The advanced-memory adapter now follows that rule; it is part of
 the Doolittle plugin and no longer mutates `AgentRuntime` registration maps.
+The API harness likewise dispatches registered Eliza plugin routes before
+product-only handlers; the initial health and feature inventory routes are
+defined by the Doolittle plugin.
 Re-evaluate the top-level orchestrator when the pinned runtime train exports a
 lifecycle that preserves the same recovery guarantees.
 

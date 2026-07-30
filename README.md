@@ -244,7 +244,10 @@ Quick shortcuts:
 
 ### HTTP API
 
-When `DOOLITTLE_MODE=api` or `both`, a Node-native HTTP server exposes every capability as REST endpoints:
+When `DOOLITTLE_MODE=api` or `both`, the Node-native HTTP harness exposes
+Eliza `runtime.routes` first, then falls through to product-only REST adapters.
+Runtime-owned endpoints therefore use the same canonical plugin route
+definitions as other Eliza transports:
 
 ```bash
 curl -X POST http://localhost:3000/chat \

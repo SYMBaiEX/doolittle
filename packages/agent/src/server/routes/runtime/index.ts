@@ -1,7 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimeAccountRoutes } from "./accounts";
 import { handleRuntimeEcosystemRoutes } from "./ecosystem";
-import { handleRuntimeHealthRoutes } from "./health";
 import { handleRuntimeModelRoutes } from "./models";
 import { handleRuntimeStatusRoutes } from "./status";
 import { handleRuntimeWorkspaceRoutes } from "./workspace";
@@ -12,7 +11,6 @@ export async function handleRuntimeRoutes(
   url: URL,
 ): Promise<Response | null> {
   const handlers = [
-    handleRuntimeHealthRoutes,
     handleRuntimeWorkspaceRoutes,
     handleRuntimeAccountRoutes,
     handleRuntimeModelRoutes,

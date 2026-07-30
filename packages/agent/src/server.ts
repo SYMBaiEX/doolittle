@@ -7,6 +7,7 @@ import {
 import { Readable } from "node:stream";
 import type { AppContext } from "@/runtime/bootstrap";
 import { isApiRequestAuthorized } from "@/server/auth";
+import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
 import { json } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
@@ -110,12 +111,26 @@ export async function startApiServer(
         response = json({ error: "Unauthorized" }, 401);
       } else {
         response =
+          (await dispatchRuntimePluginRoute({
+            runtime: context.runtime,
+            request,
+            url,
+            isAuthorized: () =>
+              isApiRequestAuthorized(
+                {
+                  host: context.config.host,
+                  apiToken: context.config.apiToken,
+                },
+                request,
+              ),
+          })) ??
           (await dispatchRouteHandlers(
             context,
             request,
             url,
             apiRouteHandlers,
-          )) ?? json({ error: "Not found" }, 404);
+          )) ??
+          json({ error: "Not found" }, 404);
       }
       await writeWebResponse(response, outgoing);
     } catch (error) {
