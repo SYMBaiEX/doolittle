@@ -432,13 +432,40 @@ tbody tr:hover {
   overflow: hidden;
 }
 
+.app-main--chat > .window-dragbar--chat {
+  min-height: 34px;
+  padding-right: 10px;
+  border-bottom-color: transparent;
+}
+
+.window-dragbar--chat .window-command-button,
+.window-dragbar--chat .window-utility-button {
+  min-height: 26px;
+}
+
+.window-dragbar--chat .window-context {
+  gap: 6px;
+}
+
+.window-dragbar--chat .window-context span::after {
+  margin-left: 6px;
+}
+
+/* biome-ignore lint/style/noDescendingSpecificity: the chat-route chrome contract overrides the global density preset */
+.app-main--chat .chat-header {
+  min-height: 38px;
+  padding: 4px clamp(12px, 2.4vw, 22px);
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
 .chat-header-content {
+  width: 100%;
   min-width: 0;
 }
 
 .chat-header-mainline {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(112px, 0.5fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px 10px;
   min-width: 0;
@@ -446,6 +473,14 @@ tbody tr:hover {
 
 .chat-header-title-wrap {
   min-width: 0;
+}
+
+.chat-header-mainline.title-in-app-chrome {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.chat-header-mainline.title-in-app-chrome .chat-header-title-wrap {
+  display: contents;
 }
 
 .chat-session-meta-wrap {
@@ -539,18 +574,7 @@ tbody tr:hover {
   font-size: 10px;
 }
 
-@media (max-width: 1320px) {
-  .chat-header-mainline {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .chat-session-meta-wrap {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-}
-
-@media (max-width: 1024px) {
+@media (max-width: 760px) {
   /* biome-ignore lint/style/noDescendingSpecificity: responsive geometry must follow the desktop finish override */
   .chat-header {
     min-height: auto;
@@ -563,6 +587,10 @@ tbody tr:hover {
   }
 
   .chat-header-mainline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-header-mainline.title-in-app-chrome {
     grid-template-columns: minmax(0, 1fr);
   }
 

@@ -1587,6 +1587,9 @@ export function App() {
   const projectScopeLabel =
     activeProject?.name ??
     (projectScope === "unscoped" ? "General" : "All projects");
+  const chatChromeTitle =
+    sessions.find((session) => session.sessionId === selectedSession)?.title ??
+    "New conversation";
 
   useEffect(() => {
     document.title = `${activeItem?.label ?? "Desktop"} — Doolittle`;
@@ -1887,6 +1890,7 @@ export function App() {
             runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}
+            titleInAppChrome
             workspacePath={workspace.currentPath}
           />
         );
@@ -2257,8 +2261,15 @@ export function App() {
           </div>
         </div>
       </aside>
-      <section className="app-main" ref={appMainRef}>
-        <div className="window-dragbar">
+      <section
+        className={`app-main${view === "chat" ? " app-main--chat" : ""}`}
+        ref={appMainRef}
+      >
+        <div
+          className={`window-dragbar${
+            view === "chat" ? " window-dragbar--chat" : ""
+          }`}
+        >
           <button
             aria-label="Open navigation"
             className="menu-button"
@@ -2276,13 +2287,21 @@ export function App() {
           </button>
           <div className="window-context">
             <span>{activeSection?.label ?? "Doolittle"}</span>
-            <strong>{activeItem?.label ?? "Desktop"}</strong>
-            <em title={`Current project scope: ${projectScopeLabel}`}>
-              {projectScopeLabel}
-            </em>
+            <strong>
+              {view === "chat"
+                ? chatChromeTitle
+                : (activeItem?.label ?? "Desktop")}
+            </strong>
+            {view !== "chat" ? (
+              <em title={`Current project scope: ${projectScopeLabel}`}>
+                {projectScopeLabel}
+              </em>
+            ) : null}
           </div>
           <span aria-live="polite" className="sr-only">
-            {activeItem?.label ?? "Desktop"} opened for {projectScopeLabel}
+            {view === "chat"
+              ? `${chatChromeTitle} opened for ${projectScopeLabel}`
+              : `${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
           </span>
           <div className="window-tools">
             <button

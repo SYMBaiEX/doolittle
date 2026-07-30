@@ -418,6 +418,7 @@ export function ChatPage({
   onRequestNewConversation,
   pendingApprovals,
   runningTasks,
+  titleInAppChrome = false,
 }: {
   backend: BackendState;
   runtime: RuntimeStatus | null;
@@ -442,6 +443,7 @@ export function ChatPage({
   onRequestNewConversation?: () => void;
   pendingApprovals: number;
   runningTasks: number;
+  titleInAppChrome?: boolean;
 }) {
   const initialId = useMemo(
     () => selectedId || newConversationId(),
@@ -1718,9 +1720,15 @@ export function ChatPage({
       <section className="chat-conversation" aria-label="Conversation detail">
         <header className="chat-header">
           <div className="chat-header-content">
-            <div className="chat-header-mainline">
+            <div
+              className={`chat-header-mainline${
+                titleInAppChrome ? " title-in-app-chrome" : ""
+              }`}
+            >
               <div className="chat-header-title-wrap">
-                <h2>{selectedSession?.title ?? "New conversation"}</h2>
+                <h2 className={titleInAppChrome ? "sr-only" : undefined}>
+                  {selectedSession?.title ?? "New conversation"}
+                </h2>
               </div>
               <div className="chat-session-meta-wrap">
                 <div className="chat-session-meta">
