@@ -890,7 +890,7 @@ export function ToolsPage({ active }: { active: boolean }) {
             tools.data?.policyError
               ? tools.data.policyError
               : tools.data?.policyOwned
-                ? "Eliza ToolPolicyService"
+                ? `Eliza ToolPolicyService · ${asNumber(totals.pluginTools)} plugin tools`
                 : "Registered actions only"
           }
         />
