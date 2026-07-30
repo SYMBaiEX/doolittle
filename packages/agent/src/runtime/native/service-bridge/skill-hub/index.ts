@@ -16,6 +16,8 @@ import { getNativeServices, type RuntimeLike } from "../runtime";
 import type { NativeAgentSkillsService } from "../runtime-contracts";
 
 const OFFICIAL_SOURCE = "@elizaos/plugin-agent-skills";
+const CATALOG_READ_TIMEOUT_MS = 3_000;
+const catalogReads = new WeakMap<object, Promise<SkillCatalogEntry[]>>();
 
 export class AgentSkillsServiceUnavailableError extends Error {
   readonly code = "AGENT_SKILLS_SERVICE_UNAVAILABLE";
@@ -40,6 +42,47 @@ export function requireOfficialAgentSkills(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function officialCatalogRead(
+  official: NativeAgentSkillsService,
+  forceRefresh: boolean,
+): Promise<SkillCatalogEntry[]> {
+  const key = official as object;
+  let request = forceRefresh ? undefined : catalogReads.get(key);
+  if (!request) {
+    request = official.getCatalog({ forceRefresh });
+    catalogReads.set(key, request);
+    const tracked = request;
+    void tracked
+      .finally(() => {
+        if (catalogReads.get(key) === tracked) {
+          catalogReads.delete(key);
+        }
+      })
+      .catch(() => undefined);
+  }
+  return request;
+}
+
+async function boundedCatalogRead(
+  official: NativeAgentSkillsService,
+  forceRefresh: boolean,
+): Promise<SkillCatalogEntry[] | undefined> {
+  const request = officialCatalogRead(official, forceRefresh);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      request,
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => resolve(undefined), CATALOG_READ_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    return undefined;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function skillFilePath(skill: LoadedSkillWithSource): string {
@@ -157,7 +200,13 @@ export async function getEffectiveSkillHubCatalog(
   const official = requireOfficialAgentSkills(runtime);
   const managed = official.getManagedSkills();
   const installed = new Set(managed.map((skill) => skill.slug));
-  const catalog = await official.getCatalog({ forceRefresh: force });
+  const catalog = await boundedCatalogRead(official, force);
+  if (!catalog) {
+    services.skillsHub.project({
+      installed: managed.map(projectInstalledSkill),
+    });
+    return [];
+  }
   const projected = catalog.map((skill) =>
     projectCatalogSkill(services, skill, installed),
   );

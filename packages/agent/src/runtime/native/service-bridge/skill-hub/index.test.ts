@@ -86,6 +86,38 @@ describe("official Agent Skills bridge", () => {
     });
   });
 
+  it("degrades a stalled official catalog read without replacing the last projection", async () => {
+    vi.useFakeTimers();
+    try {
+      const appServices = services();
+      const runtime = {
+        getService(name: string) {
+          return name === "AGENT_SKILLS_SERVICE"
+            ? {
+                getCatalog: () => new Promise(() => undefined),
+                getManagedSkills: () => [],
+              }
+            : null;
+        },
+      } as unknown as RuntimeLike;
+
+      const result = getEffectiveSkillHubCatalog(
+        runtime,
+        appServices,
+        false,
+        10,
+      );
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      await expect(result).resolves.toEqual([]);
+      expect(appServices.skillsHub.project).toHaveBeenCalledWith({
+        installed: [],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("fails fast when the bootstrap-critical official service is unavailable", async () => {
     const runtime = {} as RuntimeLike;
 

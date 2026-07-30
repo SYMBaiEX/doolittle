@@ -17,6 +17,9 @@ The hub does not load or persist a second catalog cache. Catalog and
 managed-install records are read from `AGENT_SKILLS_SERVICE`, retained only as
 an ephemeral read projection for product summaries, and supplied to bundle
 generation as read-only data.
+Desktop/API catalog reads are bounded so an unavailable remote registry cannot
+stall the local harness. A timed-out read leaves the last successful projection
+untouched while the official service request remains the only refresh path.
 
 ## Runtime Commands
 
