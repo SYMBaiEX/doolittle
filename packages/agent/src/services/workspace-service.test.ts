@@ -67,6 +67,13 @@ describe("WorkspaceService", () => {
       await service.write("tracked.txt", "agent write\n");
       expect(await service.listCheckpoints()).toHaveLength(checkpointCount + 1);
       expect(service.read("tracked.txt")).toBe("agent write\n");
+
+      const postWriteCheckpointCount = (await service.listCheckpoints()).length;
+      await service.patch("tracked.txt", "agent", "safe agent");
+      expect(await service.listCheckpoints()).toHaveLength(
+        postWriteCheckpointCount + 1,
+      );
+      expect(service.read("tracked.txt")).toBe("safe agent write\n");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -95,7 +102,7 @@ describe("WorkspaceService", () => {
       await expect(
         service.write("tracked.txt", "agent write\n"),
       ).rejects.toThrow(
-        "Workspace write was not performed because its safety checkpoint failed",
+        "Workspace mutation was not performed because its safety checkpoint failed",
       );
       expect(service.read("tracked.txt")).toBe("base\n");
       await expect(service.listCheckpoints()).resolves.toEqual([]);
@@ -162,6 +169,103 @@ describe("WorkspaceService", () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results[0]?.path).toContain("src/auth.ts");
       expect(results[0]?.matches.join("\n")).toContain("linkedProviderAuth");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("owns structured file operations inside the selected workspace", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-files-"));
+    const service = new WorkspaceService(root);
+
+    try {
+      const write = await service.writeFile(
+        "src/app.ts",
+        "const first = true;\nconst second = true;\nconst second = false;\n",
+      );
+      expect(write).toEqual({
+        path: join(root, "src", "app.ts"),
+        bytes: 63,
+      });
+
+      expect(service.readLines("src/app.ts", { offset: 2, limit: 1 })).toEqual({
+        path: join(root, "src", "app.ts"),
+        offset: 2,
+        end: 2,
+        total: 4,
+        lines: [{ number: 2, text: "const second = true;" }],
+      });
+
+      expect(service.createDirectory("src/generated")).toEqual({
+        path: join(root, "src", "generated"),
+        existed: false,
+      });
+      expect(service.createDirectory("src/generated").existed).toBe(true);
+
+      await expect(
+        service.patch("src/app.ts", "second", "updated"),
+      ).rejects.toThrow("oldText matched 2 times");
+      await expect(
+        service.patch("src/app.ts", "second", "updated", {
+          replaceAll: true,
+        }),
+      ).resolves.toMatchObject({ replacements: 2 });
+
+      expect(
+        service.searchFiles({
+          pattern: "updated",
+          path: "src",
+          target: "content",
+          limit: 10,
+        }),
+      ).toMatchObject({
+        root: join(root, "src"),
+        pattern: "updated",
+        target: "content",
+        matches: [
+          {
+            path: "src/app.ts",
+            line: 2,
+            text: "const updated = true;",
+          },
+          {
+            path: "src/app.ts",
+            line: 3,
+            text: "const updated = false;",
+          },
+        ],
+      });
+      expect(
+        service.searchFiles({
+          pattern: "app\\.ts",
+          target: "files",
+        }).matches,
+      ).toEqual([{ path: "src/app.ts" }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects structured file operations outside the workspace", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-bounds-"));
+    const service = new WorkspaceService(root);
+
+    try {
+      expect(() => service.readLines("../outside.txt")).toThrow(
+        "inside the configured workspace",
+      );
+      expect(() => service.createDirectory("../outside")).toThrow(
+        "inside the configured workspace",
+      );
+      expect(() =>
+        service.searchFiles({ pattern: "secret", path: ".." }),
+      ).toThrow("inside the configured workspace");
+      await expect(service.writeFile("../outside.txt", "no")).rejects.toThrow(
+        "inside the configured workspace",
+      );
+      await expect(
+        service.patch("../outside.txt", "old", "new"),
+      ).rejects.toThrow("inside the configured workspace");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -1,5 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
-import { dirname, join, normalize, resolve, sep } from "node:path";
+import { dirname, join, normalize, relative, resolve, sep } from "node:path";
+import { assertWorkspacePathIsSafe } from "./policy";
 
 export function resolveWorkspacePath(
   workspaceDir: string,
@@ -53,4 +54,18 @@ export function assertWorkspacePathResolvesInside(
   ) {
     throw new Error("Workspace path cannot resolve outside the workspace.");
   }
+}
+
+export function resolveWorkspaceServicePath(
+  workspaceDir: string,
+  path: string,
+  operation: "read" | "write",
+): string {
+  const resolvedPath = resolveWorkspacePath(workspaceDir, path);
+  const relativePath = workspaceRelativePath(
+    relative(workspaceDir, resolvedPath),
+  );
+  assertWorkspacePathIsSafe(relativePath, operation);
+  assertWorkspacePathResolvesInside(workspaceDir, resolvedPath);
+  return resolvedPath;
 }
