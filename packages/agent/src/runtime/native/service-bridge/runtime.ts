@@ -3,7 +3,7 @@ import {
   KNOWLEDGE_GRAPH_SERVICE,
   type KnowledgeGraphService,
 } from "@elizaos/agent/services/knowledge-graph/index";
-import type { MemoryStorageProvider, PairingService } from "@elizaos/core";
+import type { PairingService } from "@elizaos/core";
 import type {
   NativeActionPlanningService,
   NativeAgentOrchestratorService,
@@ -19,6 +19,7 @@ import type {
   NativeFormsService,
   NativeGitHubService,
   NativeMcpService,
+  NativeMemoryStorageService,
   NativeOperatorPlanningService,
   NativePdfService,
   NativePersonalityService,
@@ -62,7 +63,10 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       : null;
 
   return {
-    memoryStorage: service<MemoryStorageProvider>(runtime, "memoryStorage"),
+    memoryStorage: service<NativeMemoryStorageService>(
+      runtime,
+      "memoryStorage",
+    ),
     knowledgeGraph: service<KnowledgeGraphService>(
       runtime,
       KNOWLEDGE_GRAPH_SERVICE,

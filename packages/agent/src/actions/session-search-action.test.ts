@@ -1,6 +1,5 @@
 import type { Memory } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
-import type { AppServices } from "@/services";
 import { createSessionSearchAction } from "./session-search-action";
 
 function message(text: string): Memory {
@@ -17,16 +16,18 @@ describe("session search action", () => {
         text: "Use Nub for package scripts.",
       },
     ]);
-    const action = createSessionSearchAction(
-      { sessions: { search } } as unknown as AppServices,
-      6,
-    );
+    const action = createSessionSearchAction(6);
+    const runtime = {
+      getService(name: string) {
+        return name === "memoryStorage" ? { searchSessions: search } : null;
+      },
+    };
 
     await expect(
-      action.validate({} as never, message("What did we decide before?")),
+      action.validate(runtime as never, message("What did we decide before?")),
     ).resolves.toBe(true);
     const result = await action.handler(
-      {} as never,
+      runtime as never,
       message("What did we decide before?"),
       undefined,
       { parameters: { query: "package scripts" } },
@@ -43,13 +44,15 @@ describe("session search action", () => {
 
   it("retains explicit command fallback for SDK shortcut compatibility", async () => {
     const search = vi.fn(() => []);
-    const action = createSessionSearchAction(
-      { sessions: { search } } as unknown as AppServices,
-      4,
-    );
+    const action = createSessionSearchAction(4);
+    const runtime = {
+      getService(name: string) {
+        return name === "memoryStorage" ? { searchSessions: search } : null;
+      },
+    };
 
     const result = await action.handler(
-      {} as never,
+      runtime as never,
       message("/search prior decision"),
       undefined,
       undefined,

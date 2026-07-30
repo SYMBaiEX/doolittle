@@ -11,6 +11,7 @@ export {
   searchEffectiveCachedMcpTools,
   searchEffectiveMcpMarketplace,
 } from "./mcp";
+export { searchNativeSessions } from "./memory";
 export {
   findNativeLocalCodebases,
   inspectNativeProject,

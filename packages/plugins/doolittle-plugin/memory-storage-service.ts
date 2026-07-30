@@ -97,6 +97,10 @@ export function createMemoryStorageService(sessions: AppServices["sessions"]) {
     getSessionSummaries(agentId: UUID, roomId: UUID, limit?: number) {
       return sessions.getSessionSummaries(agentId, roomId, limit);
     }
+
+    searchSessions(query: string, limit: number) {
+      return sessions.search(query, limit);
+    }
   }
 
   return DoolittleMemoryStorageService;

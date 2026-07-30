@@ -7,7 +7,8 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import type { AppServices } from "@/services";
+import { searchNativeSessions } from "@/runtime/native/service-bridge/tooling";
+import type { SessionSearchResult } from "@/types";
 
 function messageText(message: Memory): string {
   return typeof message.content === "string"
@@ -34,7 +35,7 @@ function explicitSearchQuery(message: Memory): string | undefined {
 }
 
 export function formatSessionSearchResults(
-  matches: ReturnType<AppServices["sessions"]["search"]>,
+  matches: SessionSearchResult[],
 ): string {
   return matches.length
     ? matches
@@ -46,10 +47,7 @@ export function formatSessionSearchResults(
     : "No prior session matches found.";
 }
 
-export function createSessionSearchAction(
-  services: AppServices,
-  limit: number,
-): Action {
+export function createSessionSearchAction(limit: number): Action {
   return {
     name: "DOOLITTLE_SESSION_SEARCH",
     similes: ["SEARCH_SESSIONS", "LOOK_UP_HISTORY"],
@@ -62,7 +60,7 @@ export function createSessionSearchAction(
     cacheStable: true,
     validate: async () => true,
     handler: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       message: Memory,
       _state: State | undefined,
       _options: HandlerOptions | undefined,
@@ -75,7 +73,7 @@ export function createSessionSearchAction(
         await callback?.({ text: usage, source: "session-search-action" });
         return { success: false, text: usage, userFacingText: usage };
       }
-      const matches = services.sessions.search(query, limit);
+      const matches = searchNativeSessions(runtime, query, limit);
       const response = formatSessionSearchResults(matches);
 
       await callback?.({ text: response, source: "session-search-action" });

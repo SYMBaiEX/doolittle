@@ -38,7 +38,7 @@ export function createDoolittlePluginSurface({
 }: DoolittlePluginDependencies): Plugin {
   const actions: Action[] = [
     createCommandAction(services, config),
-    createSessionSearchAction(services, config.sessionSearchLimit),
+    createSessionSearchAction(config.sessionSearchLimit),
     memoryAction,
     triggerAction,
     ...createFileActions(),
