@@ -2,10 +2,11 @@ import {
   type AutomationJobRecord,
   type AutomationRunRecord,
   DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
 
 export const PDF_SERVICE = "pdf";
-export { DOOLITTLE_AUTOMATION_SERVICE };
+export { DOOLITTLE_AUTOMATION_SERVICE, DOOLITTLE_SHELL_SERVICE };
 
 export interface NativePdfService {
   convertPdfToTextWithOptions(

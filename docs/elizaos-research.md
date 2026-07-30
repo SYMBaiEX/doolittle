@@ -115,6 +115,10 @@ as critical plugin services before the runtime is exposed.
 The self-awareness registry also starts through the plugin-owned
 `doolittle_awareness` service; the provider resolves that service at turn time
 instead of relying on run-progress initialization side effects.
+Local command execution follows the same boundary: the Doolittle plugin
+registers the canonical `shell` service, delegates policy and backend work to
+the existing terminal implementation, and makes actions resolve execution
+through the runtime service instead of bypassing Eliza service ownership.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.

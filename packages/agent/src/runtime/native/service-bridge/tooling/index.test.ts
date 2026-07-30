@@ -169,7 +169,7 @@ describe("tooling bridge helpers", () => {
     } as unknown as AppServices;
 
     expect(await runEffectiveShellCommand(runtime, services, "pwd")).toBe(
-      "fallback-shell:pwd",
+      "native-shell:pwd",
     );
     expect(getEffectiveMcpStatus(runtime, services)).toEqual({
       source: "native-mcp",

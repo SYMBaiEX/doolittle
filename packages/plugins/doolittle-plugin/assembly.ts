@@ -26,6 +26,7 @@ import {
   createShortcutCompatibleWebSearchAction,
   DOOLITTLE_SDK_SHORTCUTS,
 } from "./sdk-native-surface";
+import { createShellRuntimeService } from "./shell-service";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 import type { DoolittlePluginDependencies } from "./types";
 
@@ -59,6 +60,7 @@ export function createDoolittlePluginSurface({
   const AwarenessRuntimeService = createAwarenessRuntimeService(services);
   const MemoryStorageService = createMemoryStorageService(services.sessions);
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
+  const ShellRuntimeService = createShellRuntimeService(services);
 
   return {
     name: "doolittle-runtime",
@@ -77,6 +79,7 @@ export function createDoolittlePluginSurface({
       AwarenessRuntimeService,
       GatewayRuntimeService,
       SchedulerRuntimeService,
+      ShellRuntimeService,
       ...createTriggerRuntimeServices(services),
     ],
     init: async (_config, runtime) => {

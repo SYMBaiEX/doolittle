@@ -34,6 +34,7 @@ import type {
 import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
 } from "./runtime-contracts";
@@ -65,7 +66,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     personality: service<NativePersonalityService>(runtime, "personality"),
     rolodex: service<NativeRolodexService>(runtime, "rolodex"),
     experience: service<NativeExperienceService>(runtime, "experience"),
-    shell: service<NativeShellService>(runtime, "shell"),
+    shell: service<NativeShellService>(runtime, DOOLITTLE_SHELL_SERVICE),
     browser: service<NativeBrowserService>(runtime, "browser"),
     mcp: service<NativeMcpService>(runtime, "mcp"),
     automation: service<NativeAutomationService>(

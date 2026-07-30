@@ -3,6 +3,7 @@ import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
   DOOLITTLE_AUTOMATION_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
 } from "./service-bridge/runtime-contracts";
@@ -109,7 +110,7 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
     {
       capability: "shell",
       nativeKey: "shell",
-      nativeService: "shell",
+      nativeService: DOOLITTLE_SHELL_SERVICE,
       productServices: ["terminal"],
       fallback: "terminal",
     },
