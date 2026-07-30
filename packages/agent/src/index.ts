@@ -1,4 +1,5 @@
 #!/usr/bin/env nub
+import type { AgentRuntime } from "@elizaos/core";
 import { restoreTerminalState } from "@/cli/render-utils";
 import { isCliStartupExitError, runOnboardingWizard } from "@/cli/startup";
 import {
@@ -9,6 +10,7 @@ import { handleEntrypointInitialCommandFlow } from "@/entrypoint/initial-command
 import { resolveEntrypointInvocation } from "@/entrypoint/invocation";
 import { writeStderrLine } from "@/entrypoint/output";
 import { prepareEntrypointRuntimeBoot } from "@/entrypoint/runtime-boot";
+import { installRuntimeProcessLifecycle } from "@/entrypoint/runtime-process-lifecycle";
 import { handleEntrypointRuntimeSurface } from "@/entrypoint/runtime-surface";
 import {
   formatTopLevelError,
@@ -69,6 +71,13 @@ async function main(): Promise<number> {
     writeStderrLine,
     formatTopLevelError,
   });
+
+  if (commandPlan.shouldUseApiSurface) {
+    installRuntimeProcessLifecycle({
+      runtime: context.runtime as AgentRuntime,
+      label: `${context.config.agentName} ${command}`,
+    });
+  }
 
   if (runtimePlan.shouldStartApi && runtimePlan.shouldStartApiImmediately) {
     await startServer();

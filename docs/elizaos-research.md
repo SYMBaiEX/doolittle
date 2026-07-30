@@ -103,8 +103,15 @@ and manual-reset failures, and Doolittle preserves those failures instead of
 parsing database prose or resetting data directories itself.
 
 Doolittle therefore keeps direct `AgentRuntime` construction on this exact
-beta line. This is a compatibility boundary, not permission to maintain a
-second service lifecycle: Doolittle-owned runtime capabilities must be
+beta line. The installed `bootElizaRuntime` surface only accepts
+`requireConfig`; it loads the upstream state-dir config, character, workspace,
+and plugin resolver itself, so it cannot host Doolittle's injected character
+and native plugin assembly without replacing them. Doolittle still adopts the
+official lower-level lifecycle: `installRuntimeMethodBindings` runs before
+initialization, and partial boot plus long-lived API signal teardown use
+`shutdownRuntime` so Eliza services stop and the database adapter closes.
+This is a compatibility boundary, not permission to maintain a second service
+lifecycle: Doolittle-owned runtime capabilities must be
 registered through plugin `services`, actions, providers, evaluators, routes,
 or events. The advanced-memory adapter now follows that rule; it is part of
 the Doolittle plugin and no longer mutates `AgentRuntime` registration maps.
@@ -159,8 +166,9 @@ content-part events, and each stream terminates with completed or failed
 state. The underlying turn still runs through the Eliza-owned gateway/runtime
 rather than a second API-only model loop.
 Re-evaluate the top-level orchestrator when the pinned runtime train exports
-that public lifecycle; until then direct `AgentRuntime` construction remains
-the smallest supported composition boundary.
+an injectable public lifecycle; until then direct `AgentRuntime` construction
+plus the official method-binding and shutdown hooks remains the smallest
+supported composition boundary.
 
 ## Sources Consulted
 

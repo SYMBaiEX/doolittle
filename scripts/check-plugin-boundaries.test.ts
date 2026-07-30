@@ -22,6 +22,7 @@ function createBoundaryFixture(options: {
   includeUnownedModelPrompt?: boolean;
   includeRawTelegramTransport?: boolean;
   includeShadowSkillCatalog?: boolean;
+  includeManualRuntimeShutdown?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -40,6 +41,7 @@ function createBoundaryFixture(options: {
       "telegram-adapter",
     ),
     join(packagesDir, "agent", "src", "runtime"),
+    join(packagesDir, "agent", "src", "runtime", "bootstrap", "runtime"),
     join(packagesDir, "agent", "src", "runtime", "native"),
     join(packagesDir, "agent", "src", "actions"),
     join(packagesDir, "contracts", "src"),
@@ -63,6 +65,22 @@ function createBoundaryFixture(options: {
     options.includeShadowSkillCatalog
       ? 'import { getCatalogSkills } from "@elizaos/plugin-agent-skills";\nexport const catalog = getCatalogSkills;\n'
       : 'export const sdkAudit = "packages-and-registry-only";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(
+      packagesDir,
+      "agent",
+      "src",
+      "runtime",
+      "bootstrap",
+      "runtime",
+      "initialization.ts",
+    ),
+    options.includeManualRuntimeShutdown
+      ? "export async function shutdown(runtime: { stop(): Promise<void> }) { await runtime.stop(); }\n"
+      : 'export const lifecycle = "official-eliza-shutdown";\n',
     "utf8",
   );
 
@@ -205,5 +223,18 @@ describe("check-plugin-boundaries", () => {
       "creates a shadow skill-catalog client instead of projecting the official Agent Skills service",
     );
     expect(result.stderr).toContain("runtime/native/agent-sdk.ts");
+  });
+
+  it("rejects manual runtime teardown inside the bootstrap lifecycle", () => {
+    fixture = createBoundaryFixture({ includeManualRuntimeShutdown: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "bypasses the official Eliza adapter-safe runtime shutdown lifecycle",
+    );
+    expect(result.stderr).toContain(
+      "runtime/bootstrap/runtime/initialization.ts",
+    );
   });
 });

@@ -156,6 +156,18 @@ const INTERNAL_FACADE_GUARDS: Array<{
     ],
   },
   {
+    root: RUNTIME_ROOT,
+    include:
+      /packages\/agent\/src\/runtime\/bootstrap\/runtime\/(?!.+\.test\.[cm]?ts$).+\.[cm]?ts$/u,
+    patterns: [
+      {
+        pattern: /\bruntime\.(?:stop|close)\s*\(/u,
+        reason:
+          "bypasses the official Eliza adapter-safe runtime shutdown lifecycle",
+      },
+    ],
+  },
+  {
     root: NATIVE_RUNTIME_ROOT,
     include: /packages\/agent\/src\/runtime\/native\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [
