@@ -8,7 +8,6 @@ import {
   type SkillCommandSpec,
 } from "@elizaos/skills/index";
 import type { SkillDocument } from "@/types";
-import type { AgentSdkService } from "../agent-sdk-service";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
@@ -29,7 +28,6 @@ export class SkillsService {
 
   constructor(
     private readonly skillsDir: string,
-    private readonly agentSdk: AgentSdkService,
     private readonly workspaceDirectory: WorkspaceDirectorySource = process.cwd(),
   ) {}
 
@@ -72,14 +70,6 @@ export class SkillsService {
 
   commandSpecs(): SkillCommandSpec[] {
     return this.ensureSnapshot().commandSpecs;
-  }
-
-  async catalog(limit = 20) {
-    return this.agentSdk.skillCatalog(false, limit);
-  }
-
-  async searchCatalog(query: string, limit = 15) {
-    return this.agentSdk.searchSkillCatalog(query, limit);
   }
 
   private ensureSnapshot(force = false): SkillsSnapshot {

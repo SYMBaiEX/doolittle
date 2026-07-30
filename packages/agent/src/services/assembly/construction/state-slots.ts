@@ -76,7 +76,6 @@ export function createServiceConstructionSlots(params: {
   });
   const skills = createSkillsServiceSlot({
     config,
-    agentSdk: core.agentSdk,
     startupState,
   });
   const skillSynthesis = createLazySlot(

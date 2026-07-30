@@ -144,16 +144,14 @@ export function createOperatorServiceSlot(params: {
 
 export function createSkillsServiceSlot(params: {
   config: EnvConfig;
-  agentSdk: AgentSdkService;
   startupState: StartupStateService;
 }): LazySlot<SkillsService> {
-  const { config, agentSdk, startupState } = params;
+  const { config, startupState } = params;
   return createLazySlot(() => {
     startupState.markWarming("skills", "loading workspace and bundled skills");
     try {
       const service = new SkillsService(
         config.skillsDir,
-        agentSdk,
         () => config.workspaceDir,
       );
       startupState.markReady("skills", "skills catalog ready");

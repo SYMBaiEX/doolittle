@@ -10,69 +10,15 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { IAgentRuntime } from "@elizaos/core";
 import { describe, expect, test } from "vitest";
-import type { AgentSdkService } from "./agent-sdk-service";
 import { SkillsService } from "./skills/service";
 
 describe("SkillsService", () => {
-  test("delegates catalog and search lookups to the shared agent sdk service", async () => {
-    const calls: Array<
-      | { method: "skillCatalog"; force: boolean; limit: number }
-      | { method: "searchSkillCatalog"; query: string; limit: number }
-    > = [];
-
-    const agentSdk = {
-      async skillCatalog(force = false, limit = 20) {
-        calls.push({ method: "skillCatalog", force, limit });
-        return {
-          available: true,
-          total: 1,
-          trending: [],
-        };
-      },
-      async searchSkillCatalog(query: string, limit = 15) {
-        calls.push({ method: "searchSkillCatalog", query, limit });
-        return {
-          available: true,
-          query,
-          results: [],
-        };
-      },
-    } as unknown as AgentSdkService;
-
-    const service = new SkillsService("/tmp", agentSdk);
-
-    await service.catalog(7);
-    await service.searchCatalog("operator", 3);
-
-    expect(calls).toEqual([
-      { method: "skillCatalog", force: false, limit: 7 },
-      { method: "searchSkillCatalog", query: "operator", limit: 3 },
-    ]);
-  });
-
   test("summarizes workspace breadth by root family", async () => {
-    const agentSdk = {
-      async skillCatalog() {
-        return {
-          available: true,
-          total: 0,
-          trending: [],
-        };
-      },
-      async searchSkillCatalog() {
-        return {
-          available: true,
-          query: "",
-          results: [],
-        };
-      },
-    } as unknown as AgentSdkService;
-
     const workspaceDir = fileURLToPath(
       new URL("../../../../", import.meta.url),
     );
     const skillsDir = resolve(workspaceDir, "packages/skills");
-    const service = new SkillsService(skillsDir, agentSdk, workspaceDir);
+    const service = new SkillsService(skillsDir, workspaceDir);
 
     const summary = service.summary();
 
@@ -121,11 +67,7 @@ describe("SkillsService", () => {
       ].join("\n"),
       "utf8",
     );
-    const service = new SkillsService(
-      root,
-      {} as AgentSdkService,
-      process.cwd(),
-    );
+    const service = new SkillsService(root, process.cwd());
     const runtime = {
       getService(name: string) {
         if (name !== "AGENT_SKILLS_SERVICE") return null;

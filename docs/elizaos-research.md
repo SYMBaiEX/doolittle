@@ -133,6 +133,11 @@ MCP discovery and invocation now use the same model: official Eliza marketplace
 helpers remain the source for server discovery, while the canonical `mcp`
 service owns runtime resolution and delegates configured local execution,
 tool caching, and receipts to the existing implementation.
+Skills use the same ownership split. The official `AgentSkillsService` owns
+loaded inventory, catalog search, details, synchronization, and installation.
+Doolittle's `SkillsService` only projects workspace metadata for the desktop
+and startup path; it no longer exposes a second catalog facade. Generated
+families, manifests, and portable bundles remain product distribution views.
 Telegram follows the same ownership rule. The official plugin's `telegram`
 service owns bot lifecycle, inbound processing, message persistence, retries,
 chunking, sends, and edits. The gateway adapter resolves that live service and

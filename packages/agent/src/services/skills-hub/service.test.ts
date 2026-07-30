@@ -128,7 +128,7 @@ describe("SkillsHubService", () => {
       ],
     });
 
-    const skills = new SkillsService(skillsDir, agentSdk);
+    const skills = new SkillsService(skillsDir);
     const synthesis = new SkillSynthesisService(skillsDir);
     const task: DelegationTaskRecord = {
       id: "task-1",
