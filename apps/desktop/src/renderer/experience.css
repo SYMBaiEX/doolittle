@@ -788,7 +788,11 @@ textarea {
 }
 
 .chat-workspace > #thread-workbench {
-  display: contents;
+  align-self: stretch;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-sessions {
@@ -3540,6 +3544,8 @@ button.chat-session-meta-pill:hover {
 .chat-workspace.inspector-open {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
   position: relative;
   transition: grid-template-columns 180ms var(--ease-out);
 }
@@ -3549,7 +3555,11 @@ button.chat-session-meta-pill:hover {
 }
 
 .chat-workspace > #thread-workbench {
-  display: contents;
+  align-self: stretch;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-conversation {

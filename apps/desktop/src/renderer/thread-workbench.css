@@ -21,7 +21,9 @@
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100%;
   max-width: min(var(--thread-workbench-width), 48vw);
+  min-height: 0;
   min-width: min(var(--thread-workbench-width), 48vw);
+  overflow: hidden;
   position: relative;
   width: var(--thread-workbench-width);
 }
@@ -204,6 +206,10 @@
 }
 
 .thread-workbench-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
   min-height: 0;
   overflow: hidden;
   padding: 13px 12px;
@@ -228,7 +234,8 @@
 }
 
 .thread-workbench-panel-heading {
-  margin-bottom: 10px;
+  flex: 0 0 auto;
+  margin-bottom: 0;
 }
 
 .thread-workbench-panel-title {
@@ -267,9 +274,10 @@
 .thread-workbench-split,
 .thread-workbench-terminal {
   display: grid;
+  flex: 1 1 auto;
   gap: 10px;
   grid-template-rows: minmax(120px, 0.8fr) minmax(150px, 1.2fr);
-  height: calc(100% - 42px);
+  height: auto;
   min-height: 0;
 }
 
@@ -321,7 +329,8 @@
 .thread-workbench-checkpoints {
   display: grid;
   gap: 7px;
-  margin-bottom: 10px;
+  flex: 0 0 auto;
+  margin-bottom: 0;
   padding: 9px;
   border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
   border-radius: 9px;
@@ -377,11 +386,12 @@
 
 .thread-workbench-brief {
   display: grid;
+  flex: 1 1 auto;
   gap: 10px;
   grid-template-columns: 1fr;
-  overflow: auto;
-  height: calc(100% - 42px);
+  height: auto;
   min-height: 0;
+  overflow: auto;
 }
 
 .thread-workbench-brief-stack,
@@ -694,8 +704,9 @@
 
 .thread-workbench-plan-list {
   display: grid;
+  flex: 1 1 auto;
   gap: 7px;
-  height: calc(100% - 42px);
+  height: auto;
 }
 
 .thread-workbench-plan-card {
@@ -729,7 +740,9 @@
   align-items: center;
   display: flex;
   flex-direction: column;
-  min-height: calc(100% - 42px);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   padding: 28px 16px 16px;
   text-align: center;
 }
@@ -787,10 +800,11 @@
 
 .thread-workbench-settings {
   display: grid;
+  flex: 1 1 auto;
   gap: 8px;
-  overflow: auto;
+  height: auto;
   min-height: 0;
-  height: calc(100% - 42px);
+  overflow: auto;
 }
 
 .thread-workbench-settings section {
