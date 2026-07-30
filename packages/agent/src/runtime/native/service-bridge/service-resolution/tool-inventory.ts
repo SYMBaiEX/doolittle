@@ -3,7 +3,7 @@ import type { ToolDefinition } from "@/types";
 import type { RuntimeLike } from "../runtime";
 
 export interface EffectiveToolDefinition extends ToolDefinition {
-  source: "eliza-action" | "product-fallback";
+  source: "eliza-action";
   similes?: string[];
 }
 
@@ -63,13 +63,6 @@ function registeredActions(runtime: RuntimeLike): EffectiveToolDefinition[] {
   return tools;
 }
 
-function productFallback(services: AppServices): EffectiveToolDefinition[] {
-  return services.tools.list().map((tool) => ({
-    ...tool,
-    source: "product-fallback" as const,
-  }));
-}
-
 function summarize(
   tools: EffectiveToolDefinition[],
   runtimeOwned: boolean,
@@ -109,13 +102,12 @@ export function getEffectiveToolInventory(
   services: AppServices,
 ): EffectiveToolInventory {
   const runtimeTools = registeredActions(runtime);
-  const runtimeOwned = runtimeTools.length > 0;
-  const tools = runtimeOwned ? runtimeTools : productFallback(services);
+  const runtimeOwned = typeof runtime.getAllActions === "function";
   const controlPlane = services.tools.summary();
   return {
-    tools,
+    tools: runtimeTools,
     runtimeOwned,
-    summary: summarize(tools, runtimeOwned, controlPlane),
+    summary: summarize(runtimeTools, runtimeOwned, controlPlane),
   };
 }
 

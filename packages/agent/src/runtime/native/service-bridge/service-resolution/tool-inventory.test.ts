@@ -13,7 +13,7 @@ function services(): AppServices {
           id: "workspace.read",
           name: "Workspace Read",
           category: "workspace",
-          description: "Product fallback.",
+          description: "Control-plane catalog entry.",
           enabled: true,
           transport: "service",
         },
@@ -67,15 +67,26 @@ describe("effective tool inventory", () => {
     ).toHaveLength(1);
   });
 
-  it("falls back to the product catalog before runtime actions are available", () => {
+  it("does not present control-plane catalog entries as executable tools", () => {
     const inventory = getEffectiveToolInventory({}, services());
 
     expect(inventory.runtimeOwned).toBe(false);
-    expect(inventory.tools).toEqual([
-      expect.objectContaining({
-        id: "workspace.read",
-        source: "product-fallback",
-      }),
-    ]);
+    expect(inventory.tools).toEqual([]);
+    expect(inventory.summary).toMatchObject({
+      total: 0,
+      enabled: 0,
+      runtimeOwned: false,
+      controlPlane: { total: 1 },
+    });
+  });
+
+  it("treats an empty registered action set as runtime-owned truth", () => {
+    const inventory = getEffectiveToolInventory(
+      { getAllActions: () => [] },
+      services(),
+    );
+
+    expect(inventory.runtimeOwned).toBe(true);
+    expect(inventory.tools).toEqual([]);
   });
 });
