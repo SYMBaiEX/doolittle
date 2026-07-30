@@ -14,6 +14,19 @@ export type AutomationTriggerInput =
 export interface AutomationExecutionContext {
   source: "schedule" | "manual" | "webhook";
   payload?: Record<string, unknown>;
+  /** Stable execution identity shared with the persisted Eliza Trigger receipt. */
+  executionId?: string;
+  /** Cancels model work and webhook delivery without abandoning the receipt. */
+  abortSignal?: AbortSignal;
+  /** Lifecycle events consumed by the native trigger service for its receipt. */
+  onProgress?: (progress: AutomationExecutionProgress) => void | Promise<void>;
+}
+
+export interface AutomationExecutionProgress {
+  phase: "action" | "delivery";
+  status: "started" | "completed" | "failed" | "cancelled";
+  message: string;
+  metadata?: Record<string, unknown>;
 }
 
 export type AutomationExecutor = (

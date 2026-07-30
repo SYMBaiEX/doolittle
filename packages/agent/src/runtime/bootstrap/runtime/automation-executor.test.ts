@@ -63,6 +63,7 @@ describe("createAutomationExecutor", () => {
 
   it("executes webhook actions as bounded JSON POST requests", async () => {
     let received: Record<string, unknown> = {};
+    const progress: string[] = [];
     const server = await serveFetchTest(async (request) => {
       received = (await request.json()) as Record<string, unknown>;
       return Response.json({ accepted: true });
@@ -99,6 +100,10 @@ describe("createAutomationExecutor", () => {
       const output = await executor(job, {
         source: "manual",
         payload: { event: "release.ready" },
+        executionId: "automation-execution-1",
+        onProgress: (event) => {
+          progress.push(`${event.phase}:${event.status}`);
+        },
       });
 
       expect(JSON.parse(output)).toEqual({ accepted: true });
@@ -107,6 +112,7 @@ describe("createAutomationExecutor", () => {
         trigger: "manual",
         payload: { event: "release.ready" },
       });
+      expect(progress).toEqual(["action:started", "action:completed"]);
     } finally {
       server.stop(true);
     }
@@ -147,5 +153,45 @@ describe("createAutomationExecutor", () => {
     } finally {
       server.stop(true);
     }
+  });
+
+  it("honors cancellation before an automation action starts", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const progress: string[] = [];
+    const executor = createAutomationExecutor({
+      config: {} as EnvConfig,
+      services: {} as AppServices,
+      runtime: {} as AgentRuntime,
+      ensureGateway: () => ({}) as GatewayRunner,
+    });
+    const job = {
+      id: "automation-cancelled",
+      name: "Cancelled webhook",
+      prompt: "POST https://example.com/webhook",
+      schedule: "manual",
+      delivery: "local",
+      skills: [],
+      status: "active",
+      oneShot: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      action: {
+        type: "webhook",
+        method: "POST",
+        url: "https://example.com/webhook",
+      },
+    } satisfies AutomationJobRecord;
+
+    await expect(
+      executor(job, {
+        source: "manual",
+        abortSignal: controller.signal,
+        onProgress: (event) => {
+          progress.push(`${event.phase}:${event.status}`);
+        },
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(progress).toEqual(["action:cancelled"]);
   });
 });

@@ -252,6 +252,7 @@ async function executeAutomation(
   }
 
   const startedAt = new Date();
+  const executionId = crypto.randomUUID();
   const trace: NonNullable<AutomationRunRecord["trace"]> = [
     {
       id: crypto.randomUUID(),
@@ -297,7 +298,23 @@ async function executeAutomation(
   let output = "";
   let status: AutomationRunRecord["status"] = "completed";
   try {
-    output = await executor(job, context);
+    output = await executor(job, {
+      ...context,
+      executionId,
+      onProgress: async (progress) => {
+        await context.onProgress?.(progress);
+        trace.push({
+          id: crypto.randomUUID(),
+          phase: progress.phase,
+          status:
+            progress.status === "failed" || progress.status === "cancelled"
+              ? "failed"
+              : "completed",
+          message: progress.message,
+          createdAt: new Date().toISOString(),
+        });
+      },
+    });
     trace.push({
       id: crypto.randomUUID(),
       phase: "action",
@@ -330,7 +347,7 @@ async function executeAutomation(
     createdAt: completedAt.toISOString(),
   });
   return {
-    id: crypto.randomUUID(),
+    id: executionId,
     jobId: job.id,
     jobName: job.name,
     output,
