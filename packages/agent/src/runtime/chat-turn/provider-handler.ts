@@ -236,15 +236,16 @@ export async function executeProviderMessageTurn(
             // terminal response selection below remains the enforcement point.
             continueAfterActions: true,
             abortSignal: input.abortSignal,
-            onStreamChunk: input.onNotice
-              ? input.streamState.onStreamChunk
-              : undefined,
+            onStreamChunk: input.streamState.onStreamChunk,
           },
         );
         throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
         responseMessages = messageResult?.responseMessages ?? [];
         actionResults = actionResultsFromState(messageResult?.state);
+        if (actionResults.length === 0) {
+          actionResults = input.streamState.getActionResults();
+        }
         if (actionResults.length === 0) {
           actionResults =
             input.context.runtime.getActionResults?.(messageId) ?? [];

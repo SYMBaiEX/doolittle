@@ -122,11 +122,19 @@ describe("chat turn provider streaming", () => {
       '{"type":"tool_call","toolName":"WEB_SEARCH","arguments":{"query":"today"}}',
     );
     await state.onStreamChunk(
-      '{"type":"tool_result","toolName":"WEB_SEARCH","output":"result"}',
+      '{"type":"tool_result","toolCall":{"name":"WEB_SEARCH"},"result":{"success":true,"userFacingText":"Current result","verifiedUserFacing":true}}',
     );
     await state.onStreamChunk('{"type":"evaluation","decision":"FINISH"}');
 
     expect(state.getResponse()).toBe("");
+    expect(state.getActionResults()).toEqual([
+      {
+        success: true,
+        userFacingText: "Current result",
+        verifiedUserFacing: true,
+        data: { actionName: "WEB_SEARCH" },
+      },
+    ]);
     expect(progress).toEqual([]);
   });
 

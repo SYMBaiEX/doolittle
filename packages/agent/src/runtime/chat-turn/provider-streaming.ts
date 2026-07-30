@@ -1,4 +1,4 @@
-import type { Content, Memory } from "@elizaos/core";
+import type { ActionResult, Content, Memory } from "@elizaos/core";
 import type { resolveStreamingUpdate } from "@elizaos/shared/utils/streaming-text";
 import type { extractCompatTextContent } from "./state";
 
@@ -17,6 +17,57 @@ function isInternalCallbackEventType(value: unknown): boolean {
   return typeof value === "string" && INTERNAL_CALLBACK_EVENT_TYPES.has(value);
 }
 
+function parseInternalCallbackEnvelope(
+  text: string,
+): Record<string, unknown> | null {
+  try {
+    const envelope: unknown = JSON.parse(text);
+    return typeof envelope === "object" &&
+      envelope !== null &&
+      !Array.isArray(envelope)
+      ? (envelope as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function actionResultFromEnvelope(
+  envelope: Record<string, unknown> | null,
+): ActionResult | null {
+  if (envelope?.type !== "tool_result") return null;
+  const result = envelope.result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return null;
+  }
+  const record = result as Record<string, unknown>;
+  if (typeof record.success !== "boolean") return null;
+  const toolCall =
+    envelope.toolCall &&
+    typeof envelope.toolCall === "object" &&
+    !Array.isArray(envelope.toolCall)
+      ? (envelope.toolCall as Record<string, unknown>)
+      : null;
+  const actionName =
+    typeof toolCall?.name === "string" ? toolCall.name : undefined;
+  const data =
+    record.data &&
+    typeof record.data === "object" &&
+    !Array.isArray(record.data)
+      ? ({ ...(record.data as Record<string, unknown>) } as NonNullable<
+          ActionResult["data"]
+        >)
+      : ({} as NonNullable<ActionResult["data"]>);
+  if (actionName && typeof data.actionName !== "string") {
+    data.actionName = actionName;
+  }
+  return {
+    ...(record as unknown as ActionResult),
+    success: record.success,
+    data,
+  };
+}
+
 function isInternalCallbackContent(
   content: Content,
   actionName?: string,
@@ -33,16 +84,8 @@ function isInternalCallbackContent(
     return false;
   }
 
-  try {
-    const envelope: unknown = JSON.parse(content.text);
-    return (
-      typeof envelope === "object" &&
-      envelope !== null &&
-      isInternalCallbackEventType((envelope as { type?: unknown }).type)
-    );
-  } catch {
-    return false;
-  }
+  const envelope = parseInternalCallbackEnvelope(content.text);
+  return isInternalCallbackEventType(envelope?.type);
 }
 
 export type ProviderModelResponseProgress = {
@@ -68,6 +111,7 @@ export type ProviderStreamState = {
     actionName?: string,
   ) => Promise<Memory[]>;
   onStreamChunk: (chunk: string) => Promise<void>;
+  getActionResults: () => ActionResult[];
   getResponse: () => string;
   setResponse: (nextResponse: string) => void;
 };
@@ -77,6 +121,7 @@ export function createProviderStreamState(
 ): ProviderStreamState {
   let activeStreamSource: ProviderStreamSource = "unset";
   let response = "";
+  const actionResults: ActionResult[] = [];
 
   /**
    * The Eliza message service may emit a response-handler acknowledgement
@@ -137,15 +182,21 @@ export function createProviderStreamState(
     onStreamChunk: async (chunk: string) => {
       // The SDK serializes tool calls, tool results, and evaluator updates
       // through onStreamChunk. They are run telemetry, not assistant prose.
+      const envelope = chunk ? parseInternalCallbackEnvelope(chunk) : null;
+      const actionResult = actionResultFromEnvelope(envelope);
+      if (actionResult) {
+        actionResults.push(actionResult);
+      }
       if (
         !chunk ||
-        isInternalCallbackContent({ text: chunk } as Content) ||
+        isInternalCallbackEventType(envelope?.type) ||
         !claimStreamSource("onStreamChunk")
       ) {
         return;
       }
       await appendIncomingText(chunk);
     },
+    getActionResults: () => [...actionResults],
     getResponse: () => response,
     setResponse: (nextResponse: string) => {
       response = nextResponse;
