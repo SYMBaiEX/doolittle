@@ -3,6 +3,11 @@ export interface LocalCodebaseMatch {
   exactBasenameMatch: boolean;
 }
 
+export interface LocalProjectTarget {
+  path: string;
+  kind: "directory" | "file";
+}
+
 export interface LocalProjectInspection {
   name: string;
   path: string;

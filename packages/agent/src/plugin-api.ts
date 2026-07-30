@@ -29,6 +29,11 @@ export type {
   AutomationExecutor,
 } from "@/services/automation/types";
 export type {
+  LocalCodebaseMatch,
+  LocalProjectInspection,
+  LocalProjectTarget,
+} from "@/services/project-inspection";
+export type {
   WorkspaceDirectoryResult,
   WorkspaceFileSearchInput,
   WorkspaceFileSearchMatch,
