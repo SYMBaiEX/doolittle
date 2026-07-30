@@ -136,6 +136,10 @@ describe("effective tool inventory", () => {
                       },
                     ]
                   : [],
+              getPluginToolGroups: () => ({
+                all: ["shell"],
+                byPlugin: new Map([["doolittle-runtime", ["shell"]]]),
+              }),
             }
           : null,
     };
@@ -154,6 +158,8 @@ describe("effective tool inventory", () => {
         disabled: 1,
         policyOwned: true,
         effectiveProfile: "coding",
+        pluginTools: 1,
+        pluginGroups: [{ plugin: "doolittle-runtime", tools: 1 }],
       },
     });
     expect(inventory.summary.profiles).toEqual([
@@ -207,5 +213,29 @@ describe("effective tool inventory", () => {
       policyError: "policy unavailable",
       profiles: [],
     });
+  });
+
+  it("uses the Eliza character tool profile when no override is requested", () => {
+    const runtime = {
+      character: {
+        name: "Doolittle",
+        settings: { toolProfile: "minimal" },
+      },
+      getAllActions: () => [{ name: "READ_FILE" }],
+      getService: (name: string) =>
+        name === "tool_policy"
+          ? {
+              getAllowedTools: ({ profile }: { profile?: string }) =>
+                profile === "minimal" ? [] : ["READ_FILE"],
+            }
+          : null,
+    };
+
+    const inventory = getEffectiveToolInventory(runtime as never, services());
+
+    expect(inventory.effectiveProfile).toBe("minimal");
+    expect(inventory.tools).toEqual([
+      expect.objectContaining({ id: "READ_FILE", enabled: false }),
+    ]);
   });
 });

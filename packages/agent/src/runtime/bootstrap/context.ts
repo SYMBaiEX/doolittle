@@ -11,6 +11,7 @@ import type {
   BootstrapContext,
   BootstrapContextParams,
 } from "@/runtime/bootstrap/types";
+import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { AppServices } from "@/services";
 import { createAcpProtocolHost } from "@/services/acp/host";
 
@@ -42,7 +43,10 @@ export async function configureBootstrapContext({
   const ensureDeferredHydration = createDeferredHydrator({
     services,
     loadDeferredPlugins,
-    registerPlugin: (plugin) => runtime.registerPlugin(plugin),
+    registerPlugin: async (plugin) => {
+      await runtime.registerPlugin(plugin);
+      getNativeServices(runtime).toolPolicy?.updatePluginGroups?.();
+    },
     ensureGateway: () => {
       gateway.get();
     },

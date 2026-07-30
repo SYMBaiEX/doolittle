@@ -43,6 +43,8 @@ export interface EffectiveToolInventory {
       allowed: number;
       denied: number;
     }>;
+    pluginTools: number;
+    pluginGroups: Array<{ plugin: string; tools: number }>;
     policyError?: string;
     controlPlane: ReturnType<AppServices["tools"]["summary"]>;
   };
@@ -94,12 +96,21 @@ interface ToolPolicyProjection {
   tools: EffectiveToolDefinition[];
   policyOwned: boolean;
   profiles: EffectiveToolInventory["summary"]["profiles"];
+  pluginTools: number;
+  pluginGroups: EffectiveToolInventory["summary"]["pluginGroups"];
   policyError?: string;
 }
 
 function normalizeToolNames(names: string[]): Set<string> {
   return new Set(
     names.map((name) => name.trim().toLowerCase()).filter(Boolean),
+  );
+}
+
+function configuredToolProfile(runtime: RuntimeLike): ToolProfileId {
+  const configured = runtime.character?.settings?.toolProfile;
+  return (
+    TOOL_POLICY_PROFILES.find((profile) => profile === configured) ?? "full"
   );
 }
 
@@ -114,6 +125,8 @@ function projectToolPolicy(
       tools,
       policyOwned: false,
       profiles: [],
+      pluginTools: 0,
+      pluginGroups: [],
     };
   }
 
@@ -143,6 +156,7 @@ function projectToolPolicy(
 
     const effectiveAllowed =
       allowedByProfile.get(effectiveProfile) ?? new Set<string>();
+    const pluginToolGroups = policy.getPluginToolGroups?.();
     return {
       tools: tools.map((tool) => {
         const key = tool.id.toLowerCase();
@@ -169,12 +183,23 @@ function projectToolPolicy(
           denied: tools.length - allowed,
         };
       }),
+      pluginTools: pluginToolGroups?.all.length ?? 0,
+      pluginGroups: pluginToolGroups
+        ? [...pluginToolGroups.byPlugin.entries()]
+            .map(([plugin, entries]) => ({
+              plugin,
+              tools: entries.length,
+            }))
+            .sort((left, right) => left.plugin.localeCompare(right.plugin))
+        : [],
     };
   } catch (error) {
     return {
       tools,
       policyOwned: false,
       profiles: [],
+      pluginTools: 0,
+      pluginGroups: [],
       policyError: error instanceof Error ? error.message : String(error),
     };
   }
@@ -185,7 +210,7 @@ function summarize(
   runtimeOwned: boolean,
   policy: Pick<
     ToolPolicyProjection,
-    "policyOwned" | "profiles" | "policyError"
+    "policyOwned" | "profiles" | "pluginTools" | "pluginGroups" | "policyError"
   >,
   effectiveProfile: ToolProfileId,
   controlPlane: ReturnType<AppServices["tools"]["summary"]>,
@@ -218,6 +243,8 @@ function summarize(
     policyOwned: policy.policyOwned,
     effectiveProfile,
     profiles: policy.profiles,
+    pluginTools: policy.pluginTools,
+    pluginGroups: policy.pluginGroups,
     ...(policy.policyError ? { policyError: policy.policyError } : {}),
     controlPlane,
   };
@@ -230,7 +257,7 @@ export function getEffectiveToolInventory(
 ): EffectiveToolInventory {
   const runtimeTools = registeredActions(runtime);
   const runtimeOwned = typeof runtime.getAllActions === "function";
-  const effectiveProfile = options.profile ?? "full";
+  const effectiveProfile = options.profile ?? configuredToolProfile(runtime);
   const policy = projectToolPolicy(runtime, runtimeTools, effectiveProfile);
   const controlPlane = services.tools.summary();
   return {

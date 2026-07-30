@@ -39,11 +39,19 @@ import { createShellRuntimeService } from "./shell-service";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 import type { DoolittlePluginDependencies } from "./types";
 
+export const DOOLITTLE_RUNTIME_PLUGIN_ID = "doolittle-runtime";
+
+function withToolPolicyOwnership(actions: Action[]): Action[] {
+  return actions.map((action) =>
+    Object.assign(action, { pluginId: DOOLITTLE_RUNTIME_PLUGIN_ID }),
+  );
+}
+
 export function createDoolittlePluginSurface({
   services,
   config,
 }: DoolittlePluginDependencies): Plugin {
-  const actions: Action[] = [
+  const actions = withToolPolicyOwnership([
     createCommandAction(services, config),
     createSessionSearchAction(config.sessionSearchLimit),
     memoryAction,
@@ -55,7 +63,7 @@ export function createDoolittlePluginSurface({
     createShortcutCompatibleWebSearchAction(),
     webFetch,
     createResearchAction(),
-  ];
+  ]);
   const providers: Provider[] = [
     ...getSessionProviders(),
     ...createAgentContextProviders(services),
@@ -88,7 +96,7 @@ export function createDoolittlePluginSurface({
   });
 
   return {
-    name: "doolittle-runtime",
+    name: DOOLITTLE_RUNTIME_PLUGIN_ID,
     description:
       "Persistent memory, skills, search, and scheduling for Doolittle on ElizaOS.",
     actions,

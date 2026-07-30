@@ -112,6 +112,11 @@ export interface NativeApprovalService {
 }
 
 export interface NativeToolPolicyService {
+  updatePluginGroups?(): void;
+  getPluginToolGroups?(): {
+    all: string[];
+    byPlugin: Map<string, string[]>;
+  };
   getAllowedTools?(
     context: {
       profile?: ToolProfileId;

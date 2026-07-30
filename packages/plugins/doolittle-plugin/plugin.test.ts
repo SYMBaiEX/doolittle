@@ -9,7 +9,7 @@ import {
   DOOLITTLE_SHELL_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
 } from "@doolittle/contracts";
-import { ModelType } from "@elizaos/core";
+import { type Action, ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { DOOLITTLE_MODEL_ROUTER_PRIORITY } from "./model-router";
 import { createDoolittlePlugin } from "./plugin";
@@ -81,6 +81,13 @@ describe("createDoolittlePlugin model ownership", () => {
     expect(plugin.actions?.map((action) => action.name)).not.toContain(
       "DOOLITTLE_MEMORY",
     );
+    expect(
+      plugin.actions?.every(
+        (action) =>
+          (action as Action & { pluginId?: string }).pluginId ===
+          "doolittle-runtime",
+      ),
+    ).toBe(true);
     expect(
       plugin.actions
         ?.find((action) => action.name === "SHELL")

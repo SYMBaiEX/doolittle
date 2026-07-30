@@ -1,6 +1,7 @@
 {
   "name": "Doolittle",
   "settings": {
+    "toolProfile": "full",
     "DEFAULT_TEMPERATURE": 0.7,
     "DEFAULT_MAX_TOKENS": 4096,
     "TEXT_SMALL_TEMPERATURE": 0.6,
