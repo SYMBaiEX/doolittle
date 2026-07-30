@@ -40,10 +40,11 @@ export class AcpService {
   private readonly persistence: AcpPersistence;
   private readonly protocol: AcpProtocolRuntime;
   private readonly telemetry = new AcpTelemetry();
+  private getRuntimeTools: () => ToolDefinition[] = () => [];
+  private runtimeToolsBound = false;
 
   constructor(
     private readonly config: EnvConfig,
-    private readonly getTools: () => ToolDefinition[],
     private readonly getSessionSummary: () => AcpSessionSummarySource,
     private readonly listSessions: (limit: number) => SessionSummary[],
     getSessionMessages: (
@@ -55,7 +56,7 @@ export class AcpService {
     this.catalog = new AcpCatalog(
       this.config,
       this.paths,
-      this.getTools,
+      () => this.getRuntimeTools(),
       this.getSessionSummary,
       this.listSessions,
     );
@@ -73,6 +74,11 @@ export class AcpService {
 
   bindProtocolHost(host: AcpProtocolHost): void {
     this.protocol.bindHost(host);
+  }
+
+  bindRuntimeTools(getTools: () => ToolDefinition[]): void {
+    this.getRuntimeTools = getTools;
+    this.runtimeToolsBound = true;
   }
 
   agentApp() {
@@ -148,6 +154,7 @@ export class AcpService {
       exportDir: this.paths.exportDir,
       importDir: this.paths.importDir,
       toolCount: this.tools().length,
+      toolSource: this.runtimeToolsBound ? "eliza-runtime" : "unbound",
       lastProbeAt: telemetry.lastProbeAt,
       lastInvocationAt: telemetry.lastInvocationAt,
       lastPublishAt: telemetry.lastPublishAt,

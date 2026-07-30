@@ -58,14 +58,13 @@ describe("AcpService", () => {
         preview: [],
       },
     ];
-    const service = new AcpService(
-      config,
-      () => tools,
-      sessionSummary,
-      listSessions,
-    );
+    const service = new AcpService(config, sessionSummary, listSessions);
 
     try {
+      expect(service.tools()).toEqual([]);
+      expect(service.status().toolSource).toBe("unbound");
+      service.bindRuntimeTools(() => tools);
+
       expect(service.packageMetadata().name).toBe("doolittle");
       expect(service.editorSummary().registryPath).toContain("agent.json");
       expect(service.sessionSummary().titledSessions).toBe(2);
@@ -77,7 +76,25 @@ describe("AcpService", () => {
       expect(service.tools().some((tool) => tool.kind === "execute")).toBe(
         true,
       );
+      expect(service.tools().every((tool) => tool.source === "doolittle")).toBe(
+        true,
+      );
+      expect(service.status()).toMatchObject({
+        toolCount: 2,
+        toolSource: "eliza-runtime",
+      });
       expect(service.describeTool("workspace.read")).toContain("ACP TOOL");
+
+      tools.push({
+        id: "WEB_SEARCH",
+        name: "Web Search",
+        category: "runtime",
+        description: "Search current information on the web.",
+        enabled: true,
+        transport: "native",
+      });
+      expect(service.tools().map((tool) => tool.name)).toContain("WEB_SEARCH");
+      expect(service.status().toolCount).toBe(3);
 
       const probe = await service.probe();
       expect(probe.ok).toBe(true);

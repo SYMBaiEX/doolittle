@@ -89,7 +89,7 @@ export class AcpCatalog {
       name: tool.id,
       description: tool.description,
       kind: guessAcpToolKind(tool),
-      source: tool.transport === "native" ? "mcp" : "doolittle",
+      source: tool.category === "mcp" ? "mcp" : "doolittle",
     }));
   }
 

@@ -299,7 +299,6 @@ function createFixture(
   } as EnvConfig;
   const service = new AcpService(
     config,
-    () => [],
     () => ({
       totalSessions: sessions.length,
       recentSessionIds: sessions.map((entry) => entry.sessionId),

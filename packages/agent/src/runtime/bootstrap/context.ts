@@ -12,6 +12,7 @@ import type {
   BootstrapContextParams,
 } from "@/runtime/bootstrap/types";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
+import { getRuntimeToolProjection } from "@/runtime/native/service-bridge/service-resolution";
 import type { AppServices } from "@/services";
 import { createAcpProtocolHost } from "@/services/acp/host";
 
@@ -72,6 +73,9 @@ export async function configureBootstrapContext({
     ensureDeferredHydration,
   } as BootstrapContext;
   services.acp.bindProtocolHost(createAcpProtocolHost(context));
+  services.acp.bindRuntimeTools(() =>
+    getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
+  );
 
   if (eagerDeferredHydration) {
     appendBootstrapTrace("phase:deferredHydration:start");

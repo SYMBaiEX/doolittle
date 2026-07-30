@@ -115,8 +115,6 @@ export function createServiceConstructionSlots(params: {
     }),
   );
 
-  core.setTools(tools);
-
   return {
     ecosystem,
     autocoderPipeline,

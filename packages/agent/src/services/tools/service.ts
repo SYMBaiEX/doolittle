@@ -42,10 +42,6 @@ export class CapabilityCatalogService {
     }),
   ) {}
 
-  baseDefinitions(): ToolDefinition[] {
-    return TOOL_CATALOG.map((tool) => ({ ...tool }));
-  }
-
   list(): ToolDefinition[] {
     const dynamic = this.getDynamicState();
     const baseTools = TOOL_CATALOG.map((tool) =>

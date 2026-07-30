@@ -10,15 +10,9 @@ import { ReviewRecordService } from "../../review-record";
 import { RunControllerService } from "../../run-controller-service";
 import { SessionService } from "../../session/service";
 import type { SettingsService } from "../../settings-service";
-import type { CapabilityCatalogService } from "../../tools/service";
 import { UserProfileService } from "../../user-profile/service";
 import type { ServiceDirectoryLayout } from "../service-directories";
 import type { ServiceConstructionInput } from "./types";
-
-interface DeferredToolsAccessor {
-  setTools(nextTools: CapabilityCatalogService): void;
-  toolsDefinitions(): ReturnType<CapabilityCatalogService["baseDefinitions"]>;
-}
 
 export interface ServiceConstructionCore {
   sessions: SessionService;
@@ -33,7 +27,6 @@ export interface ServiceConstructionCore {
   memory: ExperienceMemoryService;
   userProfiles: UserProfileService;
   delegationProjection: DelegationProjectionService;
-  setTools(nextTools: CapabilityCatalogService): void;
 }
 
 export function createServiceConstructionCore(params: {
@@ -42,7 +35,6 @@ export function createServiceConstructionCore(params: {
   settings: SettingsService;
 }): ServiceConstructionCore {
   const { config, directories, settings } = params;
-  const tools = createDeferredToolsAccessor();
   const sessions = new SessionService(config.dataDir);
   const userProfiles = new UserProfileService(directories.profilesDir);
 
@@ -53,7 +45,6 @@ export function createServiceConstructionCore(params: {
     mcp: new McpService(() => settings.get().mcp),
     acp: new AcpService(
       config,
-      () => tools.toolsDefinitions(),
       () => sessions.summary(),
       (limit) => sessions.listSessions(limit),
       (sessionId, limit) => sessions.messagesBySession(sessionId, limit),
@@ -72,20 +63,5 @@ export function createServiceConstructionCore(params: {
     ),
     userProfiles,
     delegationProjection: new DelegationProjectionService(),
-    setTools(nextTools: CapabilityCatalogService) {
-      tools.setTools(nextTools);
-    },
-  };
-}
-
-function createDeferredToolsAccessor(): DeferredToolsAccessor {
-  let tools: CapabilityCatalogService | undefined;
-  return {
-    setTools(nextTools: CapabilityCatalogService) {
-      tools = nextTools;
-    },
-    toolsDefinitions() {
-      return tools ? tools.baseDefinitions() : [];
-    },
   };
 }

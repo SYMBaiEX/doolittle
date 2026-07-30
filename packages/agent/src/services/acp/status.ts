@@ -18,6 +18,7 @@ export interface AcpServiceStatus extends CommandBridgeStatusBase {
   exportDir: string;
   importDir: string;
   toolCount: number;
+  toolSource: "eliza-runtime" | "unbound";
   lastPublishAt?: string;
   lastExportAt?: string;
   lastImportAt?: string;
@@ -37,6 +38,7 @@ export interface AcpServiceStatusInput {
   exportDir: string;
   importDir: string;
   toolCount: number;
+  toolSource: "eliza-runtime" | "unbound";
   lastProbeAt?: string;
   lastInvocationAt?: string;
   lastPublishAt?: string;
@@ -74,6 +76,7 @@ export function createAcpServiceStatus(
     exportDir: input.exportDir,
     importDir: input.importDir,
     toolCount: input.toolCount,
+    toolSource: input.toolSource,
     lastPublishAt: input.lastPublishAt,
     lastExportAt: input.lastExportAt,
     lastImportAt: input.lastImportAt,

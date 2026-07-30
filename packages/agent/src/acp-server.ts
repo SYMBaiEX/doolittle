@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import { ndJsonStream } from "@doolittle/acp";
 import { getAppContext } from "@/runtime/bootstrap";
 import { loadBootstrapConfig } from "@/runtime/bootstrap/env";
+import { getRuntimeToolProjection } from "@/runtime/native/service-bridge/service-resolution";
 import { createServices } from "@/services";
 import { createAcpProtocolHost } from "@/services/acp/host";
 
@@ -37,6 +38,11 @@ services.acp.bindProtocolHost({
       startupMode: "api",
       eagerDeferredHydration: true,
     });
+    services.acp.bindRuntimeTools(() =>
+      getRuntimeToolProjection(context.runtime).tools.filter(
+        (tool) => tool.enabled,
+      ),
+    );
     return createAcpProtocolHost(context).executeTurn(input);
   },
 });
