@@ -205,6 +205,78 @@ describe("official ACP protocol runtime", () => {
     }
   });
 
+  it("isolates returned updates when prompts from two sessions interleave", async () => {
+    const fixture = createFixture();
+    let signalAlphaStarted = () => {};
+    let releaseAlpha = () => {};
+    let signalAlphaFinished = () => {};
+    const alphaStarted = new Promise<void>((resolve) => {
+      signalAlphaStarted = resolve;
+    });
+    const alphaCanFinish = new Promise<void>((resolve) => {
+      releaseAlpha = resolve;
+    });
+    const alphaFinished = new Promise<void>((resolve) => {
+      signalAlphaFinished = resolve;
+    });
+
+    fixture.service.bindProtocolHost(
+      createHost(fixture.root, {
+        executeTurn: async (input) => {
+          if (input.message.includes("alpha")) {
+            await input.onText("alpha-1");
+            signalAlphaStarted();
+            await alphaCanFinish;
+            await input.onText("alpha-2");
+            signalAlphaFinished();
+            return "alpha";
+          }
+          await input.onText("beta-1");
+          releaseAlpha();
+          await alphaFinished;
+          await input.onText("beta-2");
+          return "beta";
+        },
+      }),
+    );
+
+    try {
+      const alphaSession = await fixture.service.newProtocolSession();
+      const betaSession = await fixture.service.newProtocolSession();
+      const alphaPrompt = fixture.service.promptProtocolSession({
+        sessionId: alphaSession.sessionId,
+        prompt: [{ type: "text", text: "alpha" }],
+      });
+      await alphaStarted;
+      const betaPrompt = fixture.service.promptProtocolSession({
+        sessionId: betaSession.sessionId,
+        prompt: [{ type: "text", text: "beta" }],
+      });
+
+      const [alphaResult, betaResult] = await Promise.all([
+        alphaPrompt,
+        betaPrompt,
+      ]);
+      expect(agentUpdateText(alphaResult.updates)).toEqual([
+        "alpha-1",
+        "alpha-2",
+      ]);
+      expect(agentUpdateText(betaResult.updates)).toEqual(["beta-1", "beta-2"]);
+      expect(
+        alphaResult.updates.every(
+          (entry) => entry.sessionId === alphaSession.sessionId,
+        ),
+      ).toBe(true);
+      expect(
+        betaResult.updates.every(
+          (entry) => entry.sessionId === betaSession.sessionId,
+        ),
+      ).toBe(true);
+    } finally {
+      fixture.dispose();
+    }
+  });
+
   it("rejects session roots outside the configured workspace", async () => {
     const fixture = createFixture();
     fixture.service.bindProtocolHost(createHost(fixture.root));
@@ -392,4 +464,15 @@ function runEvent(
       ...overrides,
     },
   };
+}
+
+function agentUpdateText(
+  updates: ReturnType<AcpService["protocolUpdates"]>["updates"],
+): string[] {
+  return updates.flatMap((entry) =>
+    entry.update.sessionUpdate === "agent_message_chunk" &&
+    entry.update.content.type === "text"
+      ? [entry.update.content.text]
+      : [],
+  );
 }

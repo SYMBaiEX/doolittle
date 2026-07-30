@@ -175,14 +175,14 @@ export class AcpProtocolRuntime {
     updates: AcpSessionUpdateRecord[];
   }> {
     await this.ensureInitialized();
-    const before = this.updates.length;
+    const beforeCursor = this.updates.at(-1)?.cursor ?? 0;
     const response = await this.localConnection.agent.request(
       methods.agent.session.prompt,
       params,
     );
     return {
       stopReason: response.stopReason,
-      updates: this.updates.slice(before),
+      updates: this.sessionUpdates(params.sessionId, beforeCursor).updates,
     };
   }
 
