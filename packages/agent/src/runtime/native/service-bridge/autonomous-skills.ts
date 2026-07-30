@@ -20,9 +20,10 @@ export function getEffectiveSkillsSummary(
   for (const skill of workspaceSkills) {
     const slug = String(skill.slug ?? "");
     const root = slug.split("/")[0] || "unknown";
-    const category = slug.startsWith("generated/")
-      ? "generated"
-      : slug.split("/").slice(0, 2).join("/") || root;
+    const category =
+      skill.source === "generated"
+        ? "generated"
+        : slug.split("/").slice(0, 2).join("/") || root;
     roots.set(root, (roots.get(root) ?? 0) + 1);
     categories.set(category, (categories.get(category) ?? 0) + 1);
     const source = skill.source ?? "workspace";
@@ -36,14 +37,13 @@ export function getEffectiveSkillsSummary(
   }
   const sourceCount = (source: string) => sources.get(source) ?? 0;
   const generated = workspaceSkills.filter(
-    (skill) =>
-      skill.source === "generated" || skill.slug.startsWith("generated/"),
+    (skill) => skill.source === "generated",
   ).length;
   return {
     total: workspaceSkills.length,
     curated: sourceCount("curated"),
     generated,
-    workspace: sourceCount("workspace"),
+    workspace: sourceCount("workspace") + generated,
     bundled: sourceCount("bundled"),
     managed: sourceCount("managed"),
     project: sourceCount("project"),

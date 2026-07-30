@@ -8,11 +8,7 @@ export function titleizeSlug(value: string): string {
 }
 
 export function matchesFamily(slug: string, familySlug: string): boolean {
-  return (
-    slug === familySlug ||
-    slug.startsWith(`${familySlug}/`) ||
-    (familySlug === "generated" && slug.startsWith("generated/"))
-  );
+  return slug === familySlug || slug.startsWith(`${familySlug}/`);
 }
 
 export function rootFromSlug(slug: string): string {

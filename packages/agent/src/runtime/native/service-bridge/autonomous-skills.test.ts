@@ -14,9 +14,9 @@ describe("getEffectiveSkillsSummary", () => {
     const services = {
       skills: {
         list: () => [
-          { slug: "browser/research" },
-          { slug: "browser/navigation" },
-          { slug: "generated/queue-one" },
+          { slug: "browser-research" },
+          { slug: "browser-navigation" },
+          { slug: "queue-one", source: "generated" },
         ],
       },
     } as unknown as AppServices;
@@ -33,15 +33,19 @@ describe("getEffectiveSkillsSummary", () => {
       extra: 0,
       invocable: 3,
       categories: [
-        { name: "browser/research", count: 1 },
-        { name: "browser/navigation", count: 1 },
+        { name: "browser-research", count: 1 },
+        { name: "browser-navigation", count: 1 },
         { name: "generated", count: 1 },
       ],
       roots: [
-        { name: "browser", count: 2 },
+        { name: "browser-research", count: 1 },
+        { name: "browser-navigation", count: 1 },
+        { name: "queue-one", count: 1 },
+      ],
+      sources: [
+        { name: "workspace", count: 2 },
         { name: "generated", count: 1 },
       ],
-      sources: [{ name: "workspace", count: 3 }],
     });
   });
 
