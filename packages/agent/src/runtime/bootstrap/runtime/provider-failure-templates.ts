@@ -1,5 +1,3 @@
-import type { AgentRuntime } from "@elizaos/core";
-
 interface ActiveModelRoute {
   provider: string;
   model?: string;
@@ -36,12 +34,10 @@ export function buildProviderAuthFailureReply(route: ActiveModelRoute): string {
   return `${label}${model} rejected the active account session. Open Settings → Providers and reconnect ${label}, then try again.`;
 }
 
-export function installProviderFailureTemplates(
-  runtime: AgentRuntime,
+export function createProviderFailureTemplates(
   getActiveModelRoute: () => ActiveModelRoute,
-): void {
-  runtime.character.templates = {
-    ...runtime.character.templates,
+): Record<string, () => string> {
+  return {
     authFailedReply: () => buildProviderAuthFailureReply(getActiveModelRoute()),
   };
 }

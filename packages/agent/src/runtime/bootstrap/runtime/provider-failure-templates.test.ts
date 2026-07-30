@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildProviderAuthFailureReply,
-  installProviderFailureTemplates,
+  createProviderFailureTemplates,
 } from "./provider-failure-templates";
 
 describe("buildProviderAuthFailureReply", () => {
@@ -31,32 +31,19 @@ describe("buildProviderAuthFailureReply", () => {
   });
 });
 
-describe("installProviderFailureTemplates", () => {
+describe("createProviderFailureTemplates", () => {
   it("reads the active route when the failure occurs", () => {
     let provider = "codex";
-    const runtime: {
-      character: {
-        templates: Record<string, string | (() => string)>;
-      };
-    } = {
-      character: {
-        templates: {
-          existing: "keep",
-        },
-      },
-    };
-
-    installProviderFailureTemplates(runtime as never, () => ({
+    const templates = createProviderFailureTemplates(() => ({
       provider,
       model: provider === "codex" ? "gpt-5.4" : "claude-sonnet-4.6",
     }));
 
-    const template = runtime.character.templates.authFailedReply;
-    expect(runtime.character.templates.existing).toBe("keep");
+    const template = templates.authFailedReply;
     expect(typeof template).toBe("function");
-    expect((template as () => string)()).toContain("Codex");
+    expect(template?.()).toContain("Codex");
 
     provider = "claude-code";
-    expect((template as () => string)()).toContain("Claude Code");
+    expect(template?.()).toContain("Claude Code");
   });
 });

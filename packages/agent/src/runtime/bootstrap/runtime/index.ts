@@ -6,7 +6,7 @@ export {
 export { finalizeCoreRuntimeServices } from "./post-initialize-services";
 export {
   buildProviderAuthFailureReply,
-  installProviderFailureTemplates,
+  createProviderFailureTemplates,
 } from "./provider-failure-templates";
 export { requireRuntimeService } from "./required-service";
 export {

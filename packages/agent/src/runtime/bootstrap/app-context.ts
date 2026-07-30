@@ -5,7 +5,10 @@ import {
   buildPluginSettings,
   loadBootstrapConfig,
 } from "@/runtime/bootstrap/env";
-import { initializeElizaRuntime } from "@/runtime/bootstrap/runtime";
+import {
+  createProviderFailureTemplates,
+  initializeElizaRuntime,
+} from "@/runtime/bootstrap/runtime";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import type {
   AppContext,
@@ -65,6 +68,12 @@ export async function buildAppContext({
         name: config.agentName,
         advancedMemory: true,
         advancedPlanning: true,
+        templates: {
+          ...(character.templates ?? {}),
+          ...createProviderFailureTemplates(
+            () => services.settings.get().model,
+          ),
+        },
         settings: {
           ...(character.settings ?? {}),
           ...buildPluginSettings(config, services, runtimeSettings),

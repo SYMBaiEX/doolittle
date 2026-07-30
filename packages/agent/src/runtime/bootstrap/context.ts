@@ -6,7 +6,6 @@ import type { AgentRuntime } from "@elizaos/core";
 import {
   attachRunProgressBridge,
   finalizeCoreRuntimeServices,
-  installProviderFailureTemplates,
   requireRuntimeService,
 } from "@/runtime/bootstrap/runtime";
 import { createAutomationExecutor } from "@/runtime/bootstrap/runtime/automation-executor";
@@ -37,7 +36,6 @@ export async function configureBootstrapContext({
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:done");
   services.nativeOwnership.attachRuntime(runtime, services);
   (services as RuntimeBindableServices).__bindRuntime?.(runtime);
-  installProviderFailureTemplates(runtime, () => services.settings.get().model);
   attachRunProgressBridge(runtime, services);
   appendBootstrapTrace("phase:attachRunProgressBridge:done");
 
