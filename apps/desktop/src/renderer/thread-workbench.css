@@ -218,6 +218,43 @@
 }
 
 .thread-workbench-panel {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 13px 12px;
+}
+
+.thread-workbench-panel-body {
+  min-height: 0;
+  min-width: 0;
+}
+
+.thread-workbench-panel-body--files,
+.thread-workbench-panel-body--terminal {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.thread-workbench-panel-body--changes {
+  display: grid;
+  grid-template-rows: minmax(140px, 0.96fr) minmax(180px, 1.04fr);
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.thread-workbench-panel-body--plans,
+.thread-workbench-panel-body--brief,
+.thread-workbench-panel-body--settings,
+.thread-workbench-panel-body--preview {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -226,37 +263,45 @@
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 13px 12px;
+}
+
+.thread-workbench-pane-stack {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 /* The rail owns its scroll regions. It must never enlarge the chat route. */
-.thread-workbench-panel > .git-control-panel {
-  flex: 0 1 42%;
+.thread-workbench-pane-stack > .git-control-panel {
   min-height: 0;
   overflow: hidden;
 }
 
-.thread-workbench-panel > .git-control-panel .git-control-scroll {
-  flex: 1 1 auto;
+.thread-workbench-pane-stack > .git-control-panel .git-control-scroll {
   min-height: 0;
+  max-height: 100%;
   overscroll-behavior: contain;
 }
 
-:where(.thread-workbench-panel) > .thread-workbench-checkpoints {
+:where(.thread-workbench-panel-body) > .thread-workbench-checkpoints,
+:where(.thread-workbench-pane-stack) > .thread-workbench-checkpoints {
   flex: 0 0 auto;
 }
 
-.thread-workbench-panel > .notice {
+.thread-workbench-panel-body > .notice {
   align-items: flex-start;
   flex-direction: column;
   overflow-wrap: anywhere;
 }
 
-.thread-workbench-panel > .notice span {
+.thread-workbench-panel-body > .notice span {
   flex: none;
 }
 
-.thread-workbench-panel > .notice .text-button {
+.thread-workbench-panel-body > .notice .text-button {
   align-self: flex-end;
 }
 
@@ -314,8 +359,8 @@
   overflow: hidden;
 }
 
-.thread-workbench-panel > .thread-workbench-split,
-.thread-workbench-panel > .thread-workbench-terminal {
+.thread-workbench-panel-body > .thread-workbench-split,
+.thread-workbench-panel-body > .thread-workbench-terminal {
   min-height: 150px;
 }
 

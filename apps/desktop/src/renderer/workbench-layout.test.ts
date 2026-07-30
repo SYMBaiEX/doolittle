@@ -21,13 +21,16 @@ const appPolishCss = readFileSync(
 describe("thread workbench viewport layout contract", () => {
   it("mounts the workbench as a dedicated sibling pane beside the chat conversation", () => {
     expect(chatPage).toMatch(
-      /<section className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div id="thread-workbench">[\s\S]*?<ThreadWorkbenchRail/s,
+      /<section className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div className="chat-workbench-pane" id="thread-workbench">[\s\S]*?<ThreadWorkbenchRail/s,
     );
     expect(experienceCss).toMatch(
-      /\.chat-workspace > #thread-workbench\s*{[^}]*align-self:\s*stretch;[^}]*display:\s*flex;[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
+      /\.chat-workspace > #thread-workbench\s*{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;[^}]*align-self:\s*stretch;[^}]*display:\s*grid;[^}]*grid-template-rows:\s*minmax\(0, 1fr\);[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
     );
     expect(experienceCss).toMatch(
-      /\.chat-conversation\s*{[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
+      /\.chat-conversation\s*{[^}]*display:\s*grid;[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(experienceCss).toMatch(
+      /\.chat-workspace,\s*\.chat-workspace\.inspector-open\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*grid-template-rows:\s*minmax\(0, 1fr\);[^}]*align-items:\s*stretch;/s,
     );
     expect(experienceCss).not.toMatch(
       /\.chat-workspace > #thread-workbench\s*{[^}]*display:\s*contents;/s,
@@ -45,7 +48,13 @@ describe("thread workbench viewport layout contract", () => {
       /\.thread-workbench\s*{[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
     );
     expect(threadWorkbenchCss).toMatch(
-      /\.thread-workbench-panel\s*{[^}]*display:\s*flex;[^}]*flex:\s*1 1 auto;[^}]*flex-direction:\s*column;[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
+      /\.thread-workbench-panel\s*{[^}]*display:\s*grid;[^}]*flex:\s*1 1 auto;[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\);[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /\.thread-workbench-panel-body--(files|terminal)\s*{[^}]*display:\s*flex;[^}]*flex:\s*1 1 auto;[^}]*flex-direction:\s*column;[^}]*gap:\s*10px;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /\.thread-workbench-panel-body--changes\s*{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*minmax\(140px, 0\.96fr\) minmax\(180px, 1\.04fr\);[^}]*gap:\s*10px;[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s,
     );
     expect(threadWorkbenchCss).toMatch(
       /\.thread-workbench-split,\s*\.thread-workbench-terminal\s*{[^}]*flex:\s*1 1 auto;[^}]*height:\s*auto;[^}]*min-height:\s*0;/s,
@@ -57,14 +66,26 @@ describe("thread workbench viewport layout contract", () => {
       /\.thread-workbench-(brief|plan-list|settings|preview-status)[\s\S]*?flex:\s*1 1 auto;/s,
     );
     expect(threadWorkbenchCss).toMatch(
-      /\.thread-workbench-panel > \.git-control-panel\s*{[^}]*flex:\s*0 1 42%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
+      /\.thread-workbench-pane-stack\s*{[^}]*display:\s*grid;[^}]*gap:\s*10px;[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
     );
     expect(threadWorkbenchCss).toMatch(
-      /\.thread-workbench-panel > \.git-control-panel \.git-control-scroll\s*{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overscroll-behavior:\s*contain;/s,
+      /\.thread-workbench-pane-stack > \.git-control-panel \.git-control-scroll\s*{[^}]*min-height:\s*0;[^}]*max-height:\s*100%;[^}]*overscroll-behavior:\s*contain;/s,
     );
     expect(threadWorkbenchCss).not.toContain("calc(100% - 42px)");
     expect(threadWorkbenchCss).not.toMatch(
       /@media \(max-width: 880px\)[\s\S]*?\.thread-workbench\s*{[^}]*position:\s*fixed;/s,
+    );
+  });
+
+  it("avoids an implicit second grid row when the sidebar opens", () => {
+    expect(experienceCss).toMatch(
+      /\.chat-workspace\.inspector-open\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(experienceCss).not.toMatch(
+      /\.chat-workspace(?:\.inspector-open)?\s*{[^}]*grid-template-rows:\s*minmax\(0, 1fr\)\s+auto;/s,
+    );
+    expect(experienceCss).not.toMatch(
+      /\.chat-workspace > #thread-workbench\s*{[^}]*grid-row:\s*2;/s,
     );
   });
 

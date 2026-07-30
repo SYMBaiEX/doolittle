@@ -2546,7 +2546,7 @@ export function ChatPage({
         </div>
       ) : null}
       {inspectorVisible ? (
-        <div id="thread-workbench">
+        <div className="chat-workbench-pane" id="thread-workbench">
           <ThreadWorkbenchRail
             active={backend.phase === "ready"}
             onInsertContext={insertChatContext}

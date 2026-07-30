@@ -822,7 +822,7 @@ export function ThreadWorkbenchRail({
         </div>
 
         {model.selectedTab === "files" ? (
-          <>
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--files">
             <ResourceState
               error={tree.error}
               loading={tree.loading}
@@ -912,94 +912,100 @@ export function ThreadWorkbenchRail({
                 </div>
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {model.selectedTab === "changes" ? (
-          <>
-            <GitControlPanel
-              active={Boolean(repositorySummary?.isRepository)}
-              branches={asArray(branches.data?.branches) as RepositoryBranch[]}
-              changes={changeEntries as RepositoryControlChange[]}
-              conflicts={
-                asArray(conflicts.data?.conflicts) as RepositoryConflict[]
-              }
-              onRefresh={refreshGit}
-              remotes={asArray(remotes.data?.remotes) as RepositoryRemote[]}
-              stashes={asArray(stashes.data?.stashes) as RepositoryStash[]}
-              variant="compact"
-              worktrees={
-                asArray(worktrees.data?.worktrees) as Array<{
-                  path: string;
-                  branch?: string;
-                  current?: boolean;
-                  prunable?: boolean;
-                }>
-              }
-            />
-            <section
-              aria-label="Workspace checkpoints"
-              className="thread-workbench-checkpoints"
-            >
-              <div>
-                <strong>Checkpoints</strong>
-                <small>
-                  Local Git snapshots. Restore requires confirmation and never
-                  restarts Doolittle.
-                </small>
-              </div>
-              {checkpoints.data?.support?.supported ? (
-                <button
-                  className="thread-workbench-text-button"
-                  disabled={checkpointBusy}
-                  onClick={() => void createCheckpoint()}
-                  type="button"
-                >
-                  {checkpointBusy ? "Working…" : "Create checkpoint"}
-                </button>
-              ) : (
-                <small>
-                  {asString(
-                    checkpoints.data?.support?.reason,
-                    "Checkpoints unavailable.",
-                  )}
-                </small>
-              )}
-              {checkpointMessage ? (
-                <p role="status">{checkpointMessage}</p>
-              ) : null}
-              {checkpoints.data?.support?.supported ? (
-                <div className="thread-workbench-checkpoint-list">
-                  {asArray(checkpoints.data?.checkpoints)
-                    .slice(0, 8)
-                    .map((value) => {
-                      const checkpoint = asRecord(value);
-                      const id = asString(checkpoint.id);
-                      if (!id) return null;
-                      return (
-                        <div key={id}>
-                          <span className="thread-workbench-checkpoint-details">
-                            <strong>
-                              {asString(checkpoint.label, "Checkpoint")}
-                            </strong>
-                            <small>
-                              {displayTimestamp(asString(checkpoint.createdAt))}{" "}
-                              · {asString(checkpoint.revision).slice(0, 8)}
-                            </small>
-                          </span>
-                          <button
-                            disabled={checkpointBusy}
-                            onClick={() => void restoreCheckpoint(id)}
-                            type="button"
-                          >
-                            Restore
-                          </button>
-                        </div>
-                      );
-                    })}
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--changes">
+            <div className="thread-workbench-pane-stack">
+              <GitControlPanel
+                active={Boolean(repositorySummary?.isRepository)}
+                branches={
+                  asArray(branches.data?.branches) as RepositoryBranch[]
+                }
+                changes={changeEntries as RepositoryControlChange[]}
+                conflicts={
+                  asArray(conflicts.data?.conflicts) as RepositoryConflict[]
+                }
+                onRefresh={refreshGit}
+                remotes={asArray(remotes.data?.remotes) as RepositoryRemote[]}
+                stashes={asArray(stashes.data?.stashes) as RepositoryStash[]}
+                variant="compact"
+                worktrees={
+                  asArray(worktrees.data?.worktrees) as Array<{
+                    path: string;
+                    branch?: string;
+                    current?: boolean;
+                    prunable?: boolean;
+                  }>
+                }
+              />
+              <section
+                aria-label="Workspace checkpoints"
+                className="thread-workbench-checkpoints"
+              >
+                <div>
+                  <strong>Checkpoints</strong>
+                  <small>
+                    Local Git snapshots. Restore requires confirmation and never
+                    restarts Doolittle.
+                  </small>
                 </div>
-              ) : null}
-            </section>
+                {checkpoints.data?.support?.supported ? (
+                  <button
+                    className="thread-workbench-text-button"
+                    disabled={checkpointBusy}
+                    onClick={() => void createCheckpoint()}
+                    type="button"
+                  >
+                    {checkpointBusy ? "Working…" : "Create checkpoint"}
+                  </button>
+                ) : (
+                  <small>
+                    {asString(
+                      checkpoints.data?.support?.reason,
+                      "Checkpoints unavailable.",
+                    )}
+                  </small>
+                )}
+                {checkpointMessage ? (
+                  <p role="status">{checkpointMessage}</p>
+                ) : null}
+                {checkpoints.data?.support?.supported ? (
+                  <div className="thread-workbench-checkpoint-list">
+                    {asArray(checkpoints.data?.checkpoints)
+                      .slice(0, 8)
+                      .map((value) => {
+                        const checkpoint = asRecord(value);
+                        const id = asString(checkpoint.id);
+                        if (!id) return null;
+                        return (
+                          <div key={id}>
+                            <span className="thread-workbench-checkpoint-details">
+                              <strong>
+                                {asString(checkpoint.label, "Checkpoint")}
+                              </strong>
+                              <small>
+                                {displayTimestamp(
+                                  asString(checkpoint.createdAt),
+                                )}{" "}
+                                · {asString(checkpoint.revision).slice(0, 8)}
+                              </small>
+                            </span>
+                            <button
+                              disabled={checkpointBusy}
+                              onClick={() => void restoreCheckpoint(id)}
+                              type="button"
+                            >
+                              Restore
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : null}
+              </section>
+            </div>
             <ResourceState
               error={changes.error}
               loading={changes.loading}
@@ -1077,11 +1083,11 @@ export function ThreadWorkbenchRail({
                 ) : null}
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {model.selectedTab === "terminal" ? (
-          <>
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--terminal">
             <ResourceState
               error={terminal.error}
               loading={terminal.loading}
@@ -1144,11 +1150,11 @@ export function ThreadWorkbenchRail({
                 )}
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {model.selectedTab === "plans" ? (
-          <>
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--plans">
             <ResourceState
               error={plans.error}
               loading={plans.loading}
@@ -1187,11 +1193,11 @@ export function ThreadWorkbenchRail({
                 ) : null}
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {model.selectedTab === "brief" ? (
-          <>
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--brief">
             <ResourceState
               error={
                 plans.error ||
@@ -1460,11 +1466,11 @@ export function ThreadWorkbenchRail({
                 </section>
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {model.selectedTab === "settings" ? (
-          <>
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--settings">
             <ResourceState
               error={settings.error}
               loading={settings.loading}
@@ -1529,11 +1535,11 @@ export function ThreadWorkbenchRail({
                 </section>
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {model.selectedTab === "preview" ? (
-          <>
+          <div className="thread-workbench-panel-body thread-workbench-panel-body--preview">
             <ResourceState
               error={preview.error}
               loading={preview.loading}
@@ -1571,7 +1577,7 @@ export function ThreadWorkbenchRail({
                 ) : null}
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
       </section>
 
