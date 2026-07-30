@@ -15,6 +15,15 @@ describe("chat chrome density contract", () => {
     );
     expect(chatPage).toContain("createPortal(");
     expect(chatPage).not.toContain('className="chat-header"');
+    expect(chatPage).toMatch(
+      /className="chat-session-meta"[\s\S]*?chat-meta-count[\s\S]*?chat-meta-workspace[\s\S]*?chat-meta-updated/,
+    );
+    expect(chatPage).toMatch(
+      /className="chat-model-route"[\s\S]*?setRouteDialogOpen\(true\)/,
+    );
+    expect(chatPage).toMatch(
+      /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Workbench/,
+    );
     expect(css).toMatch(
       /\.app-main--chat > \.window-dragbar--chat\s*{[^}]*display:\s*flex;[^}]*flex:\s*0 0 44px;[^}]*min-height:\s*44px;/s,
     );
@@ -26,6 +35,12 @@ describe("chat chrome density contract", () => {
     );
     expect(css).toMatch(
       /\.chat-header-mainline\s*{[^}]*grid-template-columns:\s*minmax\(132px,\s*0\.7fr\)\s*minmax\(0,\s*1fr\)\s*auto;[^}]*grid-template-rows:\s*44px;/s,
+    );
+    expect(css).toMatch(
+      /\.chat-header-top-actions\s*{[^}]*-webkit-app-region:\s*no-drag;/s,
+    );
+    expect(css).toMatch(
+      /\.chat-session-meta\s*{[^}]*-webkit-app-region:\s*no-drag;/s,
     );
   });
 

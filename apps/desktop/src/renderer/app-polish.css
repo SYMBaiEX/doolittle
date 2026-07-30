@@ -511,6 +511,7 @@ tbody tr:hover {
   align-items: center;
   gap: 4px;
   min-width: 0;
+  -webkit-app-region: no-drag;
 }
 
 .chat-context-compact {
@@ -593,6 +594,7 @@ button.chat-context-compact:focus-visible {
   padding-bottom: 0;
   align-items: center;
   flex-wrap: nowrap;
+  -webkit-app-region: no-drag;
 }
 
 .chat-session-meta::-webkit-scrollbar {
