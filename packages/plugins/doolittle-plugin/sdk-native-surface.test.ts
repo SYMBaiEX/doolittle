@@ -194,4 +194,42 @@ describe("Eliza-native Doolittle surface", () => {
     );
     expect(result?.verifiedUserFacing).toBe(true);
   });
+
+  it("recovers a verified final answer from the SDK's capped search JSON", async () => {
+    const truncatedResult =
+      '{\n  "search_id": "search-1",\n  "results": [\n    {\n' +
+      '      "url": "https://news.ycombinator.com/",\n' +
+      '      "title": "Hacker News",\n' +
+      '      "excerpts": ["The current leading story is about a new vision system. ' +
+      "This excerpt is intentionally cut off";
+    const action = createShortcutCompatibleWebSearchAction({
+      name: "WEB_SEARCH",
+      description: "Search the web",
+      validate: vi.fn(async () => true),
+      handler: vi.fn(async () => ({
+        success: true,
+        text: truncatedResult,
+        data: {
+          actionName: "WEB_SEARCH",
+          query: "Hacker News today",
+          value: truncatedResult,
+        },
+      })),
+    } as Action);
+
+    const result = await action.handler(
+      {} as never,
+      { content: { text: "What is on Hacker News today?" } } as Memory,
+      undefined,
+      { parameters: { query: "Hacker News today" } },
+    );
+
+    expect(result?.verifiedUserFacing).toBe(true);
+    expect(result?.userFacingText).toContain(
+      "[Hacker News](https://news.ycombinator.com/)",
+    );
+    expect(result?.userFacingText).toContain(
+      "The current leading story is about a new vision system.",
+    );
+  });
 });
