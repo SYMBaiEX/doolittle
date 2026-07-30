@@ -14,7 +14,7 @@
   --text-caption: 12px;
   --text-body: 14px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --sidebar-width: 264px;
+  --sidebar-width: 292px;
   --sidebar-compact-width: 68px;
   --shell-shadow-md: 0 10px 28px
     color-mix(in srgb, var(--shadow) 12%, transparent);
@@ -48,8 +48,8 @@ textarea {
 
 .app-sidebar {
   isolation: isolate;
-  padding-right: 12px;
-  padding-left: 12px;
+  padding-right: 14px;
+  padding-left: 14px;
   background: color-mix(in srgb, var(--surface) 98%, var(--bg));
   border-right-color: color-mix(in srgb, var(--border) 84%, transparent);
   box-shadow: none;
@@ -58,8 +58,8 @@ textarea {
 
 .app-brand {
   gap: 11px;
-  min-height: 58px;
-  padding: 3px 4px 13px;
+  min-height: 62px;
+  padding: 4px 4px 12px;
   border-bottom-color: color-mix(in srgb, var(--border) 76%, transparent);
 }
 
@@ -116,8 +116,9 @@ textarea {
 
 .sidebar-quick-actions {
   display: grid;
-  gap: 2px;
-  padding: 12px 0 8px;
+  grid-template-columns: minmax(0, 1fr) 36px 36px;
+  gap: 5px;
+  padding: 12px 0 9px;
   -webkit-app-region: no-drag;
 }
 
@@ -135,10 +136,24 @@ textarea {
   text-align: left;
 }
 
+.sidebar-quick-actions > button:not(:first-child) {
+  grid-template-columns: 1fr;
+  min-height: 40px;
+  place-items: center;
+  padding: 0;
+  background: var(--surface-soft);
+  border-color: var(--border);
+}
+
+.sidebar-quick-actions > button:not(:first-child) strong,
+.sidebar-quick-actions > button:not(:first-child) kbd {
+  display: none;
+}
+
 .sidebar-quick-actions button:first-child {
   color: var(--text);
   min-height: 40px;
-  margin-bottom: 3px;
+  margin-bottom: 0;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-soft));
   border-color: color-mix(in srgb, var(--accent) 15%, var(--border));
 }
@@ -369,6 +384,11 @@ textarea {
   display: grid;
   grid-template-columns: 1fr;
   padding: 5px;
+}
+
+.nav-collapsed .sidebar-quick-actions,
+.desktop-shell.nav-collapsed .sidebar-focus-nav {
+  grid-template-columns: 1fr;
 }
 
 .nav-collapsed .sidebar-quick-actions button > span {
@@ -3029,8 +3049,8 @@ button.chat-session-meta-pill:hover {
 }
 
 .app-sidebar {
-  padding-right: 12px;
-  padding-left: 12px;
+  padding-right: 14px;
+  padding-left: 14px;
   background: color-mix(in srgb, var(--surface) 97%, var(--bg));
 }
 
@@ -3042,7 +3062,7 @@ button.chat-session-meta-pill:hover {
 
 .app-brand {
   position: relative;
-  min-height: 60px;
+  min-height: 62px;
   padding-right: 4px;
   padding-left: 4px;
 }
@@ -3182,7 +3202,8 @@ button.chat-session-meta-pill:hover {
 
 .sidebar-focus-nav {
   display: grid;
-  gap: 1px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
   padding: 9px 0 8px;
   border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
   -webkit-app-region: no-drag;
@@ -3191,12 +3212,12 @@ button.chat-session-meta-pill:hover {
 .sidebar-focus-nav > button {
   position: relative;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 15px minmax(0, 1fr);
   width: 100%;
-  min-height: 34px;
+  min-height: 35px;
   align-items: center;
-  gap: 10px;
-  padding: 7px 9px;
+  gap: 7px;
+  padding: 7px 8px;
   color: var(--muted);
   background: transparent;
   border: 0;
@@ -3220,7 +3241,7 @@ button.chat-session-meta-pill:hover {
   position: absolute;
   top: 7px;
   bottom: 7px;
-  left: -12px;
+  left: -14px;
   width: 2px;
   content: "";
   background: var(--accent);
@@ -3237,6 +3258,8 @@ button.chat-session-meta-pill:hover {
 }
 
 .sidebar-focus-nav .sidebar-utility-button {
+  grid-column: 1 / -1;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
   margin-top: 4px;
   padding-top: 9px;
   border-top: 1px solid var(--border);
