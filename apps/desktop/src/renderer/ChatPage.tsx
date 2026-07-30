@@ -1726,16 +1726,6 @@ export function ChatPage({
                 </div>
                 <div className="chat-session-meta-wrap">
                   <div className="chat-session-meta">
-                    <button
-                      aria-pressed={Boolean(selectedSession?.pinned)}
-                      className={`chat-session-meta-pill chat-meta-pin ${
-                        selectedSession?.pinned ? "selected" : ""
-                      }`.trim()}
-                      onClick={() => togglePin(selectedId)}
-                      type="button"
-                    >
-                      {selectedSession?.pinned ? "Pinned" : "Pin"}
-                    </button>
                     {selectedSession?.parentSessionId ? (
                       <span
                         className="chat-session-meta-pill chat-meta-branch"
@@ -1755,9 +1745,7 @@ export function ChatPage({
                       }
                       type="button"
                     >
-                      {workspacePath
-                        ? `Workspace · ${fileName(workspacePath)}`
-                        : "Open workspace"}
+                      Code
                     </button>
                     <span className="chat-session-meta-pill chat-meta-updated">
                       {selectedUpdatedAt
@@ -1793,6 +1781,26 @@ export function ChatPage({
                   </div>
                 </div>
                 <div className="chat-header-top-actions">
+                  <button
+                    aria-label={
+                      selectedSession?.pinned
+                        ? "Unpin conversation"
+                        : "Pin conversation"
+                    }
+                    aria-pressed={Boolean(selectedSession?.pinned)}
+                    className={`chat-session-meta-pill chat-meta-pin ${
+                      selectedSession?.pinned ? "selected" : ""
+                    }`.trim()}
+                    onClick={() => togglePin(selectedId)}
+                    title={
+                      selectedSession?.pinned
+                        ? "Unpin conversation"
+                        : "Pin conversation"
+                    }
+                    type="button"
+                  >
+                    {selectedSession?.pinned ? "Pinned" : "Pin"}
+                  </button>
                   <button
                     aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
                     className="chat-model-route"
