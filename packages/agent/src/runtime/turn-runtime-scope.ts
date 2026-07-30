@@ -1,0 +1,57 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
+type RuntimeSettingsReader = {
+  getSetting: (key: string) => unknown;
+};
+
+type TurnRuntimeScope = {
+  runtime: object;
+  settings: ReadonlyMap<string, unknown>;
+  personalityId?: string;
+};
+
+const turnRuntimeScope = new AsyncLocalStorage<TurnRuntimeScope>();
+const originalSettingReaders = new WeakMap<object, (key: string) => unknown>();
+
+/**
+ * Runs an SDK turn with request-local runtime settings.
+ *
+ * Eliza provider plugins receive the shared runtime and resolve credentials,
+ * models, and session metadata through `runtime.getSetting`. Intercepting that
+ * accessor once lets all first- and third-party providers observe a stable
+ * turn snapshot without changing the shared runtime or serialising requests.
+ */
+export function runWithTurnRuntimeScope<T>(
+  runtime: RuntimeSettingsReader & object,
+  scope: Omit<TurnRuntimeScope, "runtime">,
+  task: () => T,
+): T {
+  installScopedSettingReader(runtime);
+  return turnRuntimeScope.run({ runtime, ...scope }, task);
+}
+
+export function getScopedTurnPersonalityId(
+  runtime: object,
+): string | undefined {
+  const scope = turnRuntimeScope.getStore();
+  return scope?.runtime === runtime ? scope.personalityId : undefined;
+}
+
+function installScopedSettingReader(
+  runtime: RuntimeSettingsReader & object,
+): void {
+  if (originalSettingReaders.has(runtime)) {
+    return;
+  }
+
+  const originalGetSetting = runtime.getSetting.bind(runtime);
+  originalSettingReaders.set(runtime, originalGetSetting);
+
+  runtime.getSetting = (key: string): unknown => {
+    const scope = turnRuntimeScope.getStore();
+    if (scope?.runtime === runtime && scope.settings.has(key)) {
+      return scope.settings.get(key);
+    }
+    return originalGetSetting(key);
+  };
+}

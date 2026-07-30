@@ -12,7 +12,11 @@ import {
   ELIZA_CLOUD_BILLING_URL,
   normalizeElizaCloudBaseUrl,
 } from "./messages";
-import { syncProviderSettings } from "./model-settings";
+import {
+  buildProviderRuntimeSettings,
+  syncProviderSettings,
+} from "./model-settings";
+import { withLinkedProviderMutationLock } from "./mutation-lock";
 import { resolveLinkedProviderName } from "./provider-name";
 import {
   describeElizaCloudDoctorState,
@@ -24,6 +28,7 @@ export {
   activateLinkedProvider,
   buildProviderFailureMessage,
   buildProviderNoResponseMessage,
+  buildProviderRuntimeSettings,
   connectLinkedProvider,
   describeElizaCloudDoctorState,
   ELIZA_CLOUD_BILLING_URL,
@@ -36,4 +41,5 @@ export {
   refreshLinkedAccounts,
   resolveLinkedProviderName,
   syncProviderSettings,
+  withLinkedProviderMutationLock,
 };

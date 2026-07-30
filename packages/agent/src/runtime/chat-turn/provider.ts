@@ -8,16 +8,9 @@ import {
   type UUID,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import {
-  activateEffectivePersonality,
-  getEffectiveActivePersonality,
-} from "@/runtime/native/service-bridge/ownership";
+import { buildProviderRuntimeSettings } from "@/runtime/linked-provider-accounts";
+import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import type { NativeMessagePolicy } from "./native/types";
-import { withProviderRuntimeLock } from "./provider/lock";
-import {
-  applyScopedRuntimeModelSettings,
-  restoreRuntimeSetting,
-} from "./provider/settings";
 import {
   type ModelSettingsSnapshot,
   type ProviderModelTurnExecutionContext,
@@ -155,52 +148,30 @@ export async function runProviderModelTurn(
   const sessionKey =
     (memory as typeof memory & { sessionKey?: string }).sessionKey ??
     resolveSdkSessionKey(input.context, input.turn.sessionId);
-  return withProviderRuntimeLock(input.context.runtime, async () => {
-    let response = "";
-    let handledMessage = false;
-    let actionResults: ActionResult[] = [];
-    let responseMessages: import("@elizaos/core").Memory[] = [];
-    let messageId = String(memory.id);
-    const personalityBefore = getEffectiveActivePersonality(
-      input.context.runtime,
-    );
-    const previousConversationId = input.context.runtime.getSetting(
-      "ELIZAOS_CLOUD_CONVERSATION_ID",
-    );
-    // The provider router resolves `runtimeSettings` for every SDK model call.
-    // Always scope it to the captured turn snapshot, including ordinary chat
-    // turns, so a settings update cannot switch providers between Stage 1 and
-    // a later planner/tool continuation.
-    applyScopedRuntimeModelSettings(
-      input.context,
-      input.settingsDuring,
-      executionContext,
-    );
+  const runtimeSettings = buildProviderRuntimeSettings(
+    input.context,
+    input.settingsDuring,
+  );
+  runtimeSettings.set("ELIZAOS_CLOUD_CONVERSATION_ID", sessionKey);
 
-    if (
-      input.options?.personalityId &&
-      input.options.personalityId !== personalityBefore.id
-    ) {
-      activateEffectivePersonality(
-        input.context.runtime,
-        input.options.personalityId,
-      );
-    }
+  return runWithTurnRuntimeScope(
+    input.context.runtime,
+    {
+      settings: runtimeSettings,
+      personalityId: input.options?.personalityId,
+    },
+    async () => {
+      let response = "";
+      let handledMessage = false;
+      let actionResults: ActionResult[] = [];
+      let responseMessages: import("@elizaos/core").Memory[] = [];
+      let messageId = String(memory.id);
+      const streamState = createProviderStreamState({
+        resolveStreamingUpdate: executionContext.resolveStreamingUpdate,
+        extractCompatTextContent: executionContext.extractCompatTextContent,
+        onResponseProgress: input.options?.onResponseProgress,
+      });
 
-    const streamState = createProviderStreamState({
-      resolveStreamingUpdate: executionContext.resolveStreamingUpdate,
-      extractCompatTextContent: executionContext.extractCompatTextContent,
-      onResponseProgress: input.options?.onResponseProgress,
-    });
-
-    input.context.runtime.setSetting(
-      "ELIZAOS_CLOUD_CONVERSATION_ID",
-      sessionKey,
-    );
-
-    let runFailureMessage: string | undefined;
-
-    try {
       input.context.services.runController.updateThinking(input.turn.sessionId);
       const messageExecutionResult = await executeProviderMessageTurn({
         context: input.context,
@@ -218,44 +189,20 @@ export async function runProviderModelTurn(
           executionContext.buildProviderFailureMessage,
       });
       handledMessage = messageExecutionResult.handledMessage;
-      runFailureMessage = messageExecutionResult.runFailureMessage;
+      const runFailureMessage = messageExecutionResult.runFailureMessage;
       response = messageExecutionResult.response;
       messageId = messageExecutionResult.messageId;
       actionResults = messageExecutionResult.actionResults;
       responseMessages = messageExecutionResult.responseMessages;
-    } finally {
-      // Restore the latest persisted route, not `settingsBefore`: a queued
-      // settings change is allowed to take effect for the next turn.
-      applyScopedRuntimeModelSettings(
-        input.context,
-        input.context.services.settings.get(),
-        executionContext,
-      );
 
-      if (
-        input.options?.personalityId &&
-        input.options.personalityId !== personalityBefore.id
-      ) {
-        activateEffectivePersonality(
-          input.context.runtime,
-          personalityBefore.id,
-        );
-      }
-
-      restoreRuntimeSetting(
-        input.context,
-        "ELIZAOS_CLOUD_CONVERSATION_ID",
-        previousConversationId,
-      );
-    }
-
-    return {
-      handledMessage,
-      response,
-      runFailureMessage,
-      messageId,
-      actionResults,
-      responseMessages,
-    };
-  });
+      return {
+        handledMessage,
+        response,
+        runFailureMessage,
+        messageId,
+        actionResults,
+        responseMessages,
+      };
+    },
+  );
 }

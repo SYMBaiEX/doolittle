@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { withProviderRuntimeLock } from "@/runtime/chat-turn/provider/lock";
+import { withLinkedProviderMutationLock } from "@/runtime/linked-provider-accounts";
 import { json } from "@/server/responses";
 import {
   activateAccount,
@@ -76,7 +76,7 @@ export async function handleRuntimeAccountRoutes(
       );
     }
     return json(
-      await withProviderRuntimeLock(context.runtime, async () =>
+      await withLinkedProviderMutationLock(context.runtime, async () =>
         activateAccount(context, provider),
       ),
     );
@@ -95,7 +95,7 @@ export async function handleRuntimeAccountRoutes(
     }
     try {
       return json(
-        await withProviderRuntimeLock(context.runtime, () =>
+        await withLinkedProviderMutationLock(context.runtime, () =>
           connectAccount(context, provider),
         ),
       );

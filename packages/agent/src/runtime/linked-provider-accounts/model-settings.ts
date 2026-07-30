@@ -3,6 +3,8 @@ import { resolveCloudApiBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 import type { LinkedProviderName } from "./types";
 
+type ProviderRuntimeSettingValue = string | boolean | null;
+
 export function resolveDefaultProviderModel(
   context: AgentExecutionContext,
   provider: LinkedProviderName,
@@ -38,13 +40,29 @@ export function syncProviderSettings(
   context: AgentExecutionContext,
   settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>,
 ): void {
-  context.runtime.setSetting("runtimeSettings", JSON.stringify(settings));
+  for (const [key, value] of buildProviderRuntimeSettings(context, settings)) {
+    context.runtime.setSetting(key, value);
+  }
+}
+
+/**
+ * Produces the runtime settings a provider adapter needs for one route.
+ * Callers that persist a route write these values to the runtime; model turns
+ * use the same map through the request-scoped settings accessor instead.
+ */
+export function buildProviderRuntimeSettings(
+  context: AgentExecutionContext,
+  settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>,
+): Map<string, ProviderRuntimeSettingValue> {
+  const runtimeSettings = new Map<string, ProviderRuntimeSettingValue>([
+    ["runtimeSettings", JSON.stringify(settings)],
+  ]);
 
   const provider = settings.model.provider;
   const model = settings.model.model;
   const baseUrl = settings.model.baseUrl;
 
-  context.runtime.setSetting(
+  runtimeSettings.set(
     "ELIZAOS_CLOUD_ENABLED",
     provider === "elizacloud" ? "true" : "false",
   );
@@ -53,34 +71,35 @@ export function syncProviderSettings(
     const preservedSmallModel =
       context.runtime.getSetting("ELIZAOS_CLOUD_SMALL_MODEL") ||
       context.config.elizaCloudSmallModel;
-    context.runtime.setSetting(
+    runtimeSettings.set(
       "ELIZAOS_CLOUD_SMALL_MODEL",
       String(preservedSmallModel),
     );
-    context.runtime.setSetting("ELIZAOS_CLOUD_LARGE_MODEL", model);
-    context.runtime.setSetting(
+    runtimeSettings.set("ELIZAOS_CLOUD_LARGE_MODEL", model);
+    runtimeSettings.set(
       "ELIZAOS_CLOUD_BASE_URL",
       normalizeElizaCloudBaseUrl(baseUrl),
     );
-    return;
+    return runtimeSettings;
   }
 
   if (provider === "anthropic" || provider === "claude-code") {
-    context.runtime.setSetting("ANTHROPIC_SMALL_MODEL", model);
-    context.runtime.setSetting("ANTHROPIC_LARGE_MODEL", model);
-    context.runtime.setSetting("ANTHROPIC_BASE_URL", baseUrl);
-    return;
+    runtimeSettings.set("ANTHROPIC_SMALL_MODEL", model);
+    runtimeSettings.set("ANTHROPIC_LARGE_MODEL", model);
+    runtimeSettings.set("ANTHROPIC_BASE_URL", baseUrl);
+    return runtimeSettings;
   }
 
   if (provider === "devin") {
-    context.runtime.setSetting("DEVIN_MODEL", model);
-    return;
+    runtimeSettings.set("DEVIN_MODEL", model);
+    return runtimeSettings;
   }
 
-  context.runtime.setSetting("OPENAI_SMALL_MODEL", model);
-  context.runtime.setSetting("OPENAI_LARGE_MODEL", model);
-  context.runtime.setSetting(
+  runtimeSettings.set("OPENAI_SMALL_MODEL", model);
+  runtimeSettings.set("OPENAI_LARGE_MODEL", model);
+  runtimeSettings.set(
     "OPENAI_BASE_URL",
     provider === "codex" ? "https://chatgpt.com/backend-api/codex" : baseUrl,
   );
+  return runtimeSettings;
 }

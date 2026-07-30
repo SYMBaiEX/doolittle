@@ -1,8 +1,8 @@
 import { extractSessionContext, type Media } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
-import { withProviderRuntimeLock } from "@/runtime/chat-turn/provider/lock";
 import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
+import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { runProviderModelTurn } from "./chat-turn/provider";
 
 function createProviderContext() {
@@ -104,7 +104,8 @@ function createProviderContext() {
         },
       },
       sessions: {
-        continuityKey: () => "continuity-1",
+        continuityKey: (sessionId: string) =>
+          sessionId === "session-1" ? "continuity-1" : "continuity-2",
       },
       runController: {
         updateThinking: (sessionId: string) => {
@@ -219,17 +220,11 @@ describe("chat turn provider seam", () => {
       continueAfterActions: true,
     });
     expect(harness.thinkingSessions).toEqual(["session-1"]);
-    expect(harness.personalityTransitions).toEqual(["reviewer", "default"]);
+    expect(harness.personalityTransitions).toEqual([]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
     expect(harness.getConversationId()).toBe("previous-conversation");
     expect(harness.emittedEvents).toHaveLength(0);
-    expect(
-      harness.runtimeSettings.some(
-        (entry) =>
-          entry.key === "ELIZAOS_CLOUD_CONVERSATION_ID" &&
-          entry.value === "continuity-1",
-      ),
-    ).toBe(true);
+    expect(harness.runtimeSettings).toEqual([]);
     const sessionContext = extractSessionContext(
       harness.getHandledMemory() as Parameters<typeof extractSessionContext>[0],
     );
@@ -497,10 +492,24 @@ describe("chat turn provider seam", () => {
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
   });
 
-  it("pins a turn's route while a queued settings change applies to the next turn", async () => {
+  it("isolates concurrent provider turns and lets persisted settings update immediately", async () => {
     const harness = createProviderContext();
     const firstSettings = harness.context.services.settings.get();
-    const observedProviders: string[] = [];
+    const codexSettings = {
+      model: {
+        provider: "codex",
+        model: "gpt-5.4",
+        baseUrl: "https://ignored.example.com",
+        temperature: 0.2,
+        maxTokens: 2048,
+      },
+    } as typeof firstSettings;
+    const observedScopes: Array<{
+      provider: string;
+      model: unknown;
+      conversationId: unknown;
+      personalityId: string;
+    }> = [];
     let releaseStage!: () => void;
     const stagePaused = new Promise<void>((resolve) => {
       releaseStage = resolve;
@@ -515,16 +524,26 @@ describe("chat turn provider seam", () => {
       handleMessage: async (runtime: {
         getSetting: (key: string) => unknown;
       }) => {
-        const provider = () =>
-          JSON.parse(String(runtime.getSetting("runtimeSettings"))).model
-            .provider as string;
-        observedProviders.push(provider());
+        const observeScope = () => {
+          const provider = JSON.parse(
+            String(runtime.getSetting("runtimeSettings")),
+          ).model.provider as string;
+          observedScopes.push({
+            provider,
+            model: runtime.getSetting("OPENAI_LARGE_MODEL"),
+            conversationId: runtime.getSetting("ELIZAOS_CLOUD_CONVERSATION_ID"),
+            personalityId: getEffectiveActivePersonality(
+              runtime as Parameters<typeof getEffectiveActivePersonality>[0],
+            ).id,
+          });
+        };
+        observeScope();
         calls += 1;
         if (calls === 1) {
           markStageStarted();
           await stagePaused;
           // Represents the planner/tool continuation after Stage 1.
-          observedProviders.push(provider());
+          observeScope();
         }
         return {
           responseContent: { text: "done" },
@@ -550,43 +569,61 @@ describe("chat turn provider seam", () => {
     });
     await stageStarted;
 
-    let updateApplied = false;
-    const queuedSettingsUpdate = withProviderRuntimeLock(
-      harness.context.runtime,
-      async () => {
-        harness.context.services.settings.set("model.provider", "codex");
-        harness.context.services.settings.set("model.model", "gpt-5.4");
-        syncProviderSettings(
-          harness.context,
-          harness.context.services.settings.get(),
-        );
-        updateApplied = true;
-      },
-    );
-    await Promise.resolve();
-    expect(updateApplied).toBe(false);
-
-    releaseStage();
-    await firstTurn;
-    await queuedSettingsUpdate;
-
-    const secondSettings = harness.context.services.settings.get();
-    await runProviderModelTurn({
+    const secondTurn = runProviderModelTurn({
       context: harness.context,
-      turn: createTurn(),
-      userId: "alice",
+      turn: {
+        ...createTurn(),
+        sessionId: "session-2",
+        messageId: "message-2",
+      },
+      userId: "bob",
       effectiveMessage: "Second turn",
-      settingsBefore: secondSettings,
-      settingsDuring: secondSettings,
+      settingsBefore: codexSettings,
+      settingsDuring: codexSettings,
       messagePolicy: {
         runDepth: "standard",
         useMultiStep: true,
         maxIterations: 3,
         toolProgressMode: "all",
       },
+      options: { personalityId: "architect" },
     });
+    await secondTurn;
 
-    expect(observedProviders).toEqual(["openai", "openai", "codex"]);
-    expect(updateApplied).toBe(true);
+    harness.context.services.settings.set("model.provider", "codex");
+    harness.context.services.settings.set("model.model", "gpt-5.4");
+    syncProviderSettings(
+      harness.context,
+      harness.context.services.settings.get(),
+    );
+    expect(
+      JSON.parse(String(harness.context.runtime.getSetting("runtimeSettings")))
+        .model.provider,
+    ).toBe("codex");
+
+    releaseStage();
+    await firstTurn;
+
+    expect(observedScopes).toEqual([
+      {
+        provider: "openai",
+        model: "gpt-4.1",
+        conversationId: "continuity-1",
+        personalityId: "default",
+      },
+      {
+        provider: "codex",
+        model: "gpt-5.4",
+        conversationId: "continuity-2",
+        personalityId: "architect",
+      },
+      {
+        provider: "openai",
+        model: "gpt-4.1",
+        conversationId: "continuity-1",
+        personalityId: "default",
+      },
+    ]);
+    expect(harness.personalityTransitions).toEqual([]);
   });
 });

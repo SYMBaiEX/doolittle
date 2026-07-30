@@ -2,6 +2,7 @@ import {
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
+import { getScopedTurnPersonalityId } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { PersonalityProfile } from "@/types";
 import { getNativeServices, type RuntimeLike } from "../runtime";
@@ -39,7 +40,7 @@ export function getEffectiveActivePersonality(
   runtime: RuntimeLike,
 ): PersonalityProfile {
   const service = requirePersonalityService(runtime);
-  const activeId = service.activeId();
+  const activeId = getScopedTurnPersonalityId(runtime) ?? service.activeId();
   const profile = activeId ? service.get(activeId) : undefined;
   if (!profile) {
     throw new Error("The Eliza personality service has no active profile.");
