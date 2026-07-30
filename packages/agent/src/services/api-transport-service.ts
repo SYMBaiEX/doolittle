@@ -23,12 +23,17 @@ interface ApiTransportUpdateEvent {
 }
 
 export interface ApiTransportCreateInput {
+  id?: string;
   input: string;
   outputText: string;
   userId: string;
   roomId?: string;
   previousResponseId?: string;
   metadata?: Record<string, string>;
+}
+
+export function createApiResponseId(): string {
+  return `resp_${randomUUID().replace(/-/gu, "")}`;
 }
 
 export class ApiTransportService {
@@ -52,7 +57,7 @@ export class ApiTransportService {
       ? store.responses.find((entry) => entry.id === input.previousResponseId)
       : undefined;
     const record: ApiResponseRecord = {
-      id: `resp_${randomUUID().replace(/-/gu, "")}`,
+      id: input.id ?? createApiResponseId(),
       roomId: input.roomId ?? previous?.roomId ?? `api:${input.userId}`,
       userId: input.userId,
       input: input.input,

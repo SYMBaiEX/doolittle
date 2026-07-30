@@ -11,6 +11,7 @@ describe("ApiTransportService", () => {
 
     try {
       const first = service.create({
+        id: "resp_stable",
         input: "hello",
         outputText: "world",
         userId: "user-1",
@@ -23,6 +24,7 @@ describe("ApiTransportService", () => {
       });
 
       expect(second.roomId).toBe(first.roomId);
+      expect(first.id).toBe("resp_stable");
       expect(service.get(first.id)?.outputText).toBe("world");
       expect(service.resolveRoomId(first.id, "user-1")).toBe(first.roomId);
       expect(service.list(2)).toHaveLength(2);

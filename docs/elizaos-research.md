@@ -146,6 +146,12 @@ longer carries a second raw Bot API implementation.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.
+Its Responses-compatible projection now follows the official semantic stream
+lifecycle: one stable response ID is created before output, events carry
+monotonic sequence numbers, text is represented through output-item and
+content-part events, and each stream terminates with completed or failed
+state. The underlying turn still runs through the Eliza-owned gateway/runtime
+rather than a second API-only model loop.
 Re-evaluate the top-level orchestrator when the pinned runtime train exports
 that public lifecycle; until then direct `AgentRuntime` construction remains
 the smallest supported composition boundary.
@@ -158,4 +164,5 @@ Primary sources:
 - ElizaOS services docs: https://docs.elizaos.ai/runtime/services
 - ElizaOS project docs: https://docs.elizaos.ai/projects/overview
 - ElizaOS plugin reference: https://docs.elizaos.ai/plugins/reference
+- OpenAI streaming Responses guide: https://developers.openai.com/api/docs/guides/streaming-responses
 - npm package metadata via `npm view` for `elizaos`, `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `@elizaos/autonomous`, `@elizaos/plugin-openai`, and `@elizaos/plugin-sql`

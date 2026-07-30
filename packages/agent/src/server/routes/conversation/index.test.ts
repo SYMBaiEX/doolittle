@@ -46,6 +46,7 @@ function createContext() {
               }
             : undefined,
         create: (input: {
+          id?: string;
           input: string;
           outputText: string;
           userId: string;
@@ -53,7 +54,7 @@ function createContext() {
           previousResponseId?: string;
           metadata?: Record<string, string>;
         }) => ({
-          id: "resp-1",
+          id: input.id ?? "resp-1",
           createdAt: 123,
           previousResponseId: input.previousResponseId,
           outputText: input.outputText,
@@ -339,7 +340,7 @@ describe("handleConversationRoutes", () => {
           deliveryId: "delivery-1",
         };
       },
-    } as typeof context.gateway;
+    } as unknown as typeof context.gateway;
 
     const response = await handleConversationRoutes(
       context,
@@ -361,10 +362,78 @@ describe("handleConversationRoutes", () => {
       "text/event-stream",
     );
     const body = await response?.text();
-    expect(body).toContain("event: response.created");
-    expect(body).toContain("event: response.output_text.delta");
-    expect(body).toContain("assistant reply");
-    expect(body).toContain("event: response.completed");
+    const events = (body ?? "")
+      .trim()
+      .split("\n\n")
+      .map((frame) => {
+        const [eventLine, dataLine] = frame.split("\n");
+        return {
+          event: eventLine?.replace("event: ", ""),
+          data: JSON.parse(dataLine?.replace("data: ", "") ?? "{}") as {
+            sequence_number?: number;
+            response?: { id?: string; output_text?: string };
+          },
+        };
+      });
+    expect(events.map((entry) => entry.event)).toEqual([
+      "response.created",
+      "response.in_progress",
+      "response.output_item.added",
+      "response.content_part.added",
+      "response.output_text.delta",
+      "response.output_text.delta",
+      "response.output_text.done",
+      "response.content_part.done",
+      "response.output_item.done",
+      "response.completed",
+    ]);
+    expect(events.map((entry) => entry.data.sequence_number)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    ]);
+    expect(events[0]?.data.response?.id).toMatch(/^resp_/u);
+    expect(events.at(-1)?.data.response?.id).toBe(events[0]?.data.response?.id);
+    expect(events.at(-1)?.data.response?.output_text).toBe("assistant reply");
+  });
+
+  it("accepts Responses input text content blocks", async () => {
+    const context = createContext();
+    let receivedText = "";
+    context.gateway = {
+      receive: async (payload: { text: string }) => {
+        receivedText = payload.text;
+        return {
+          ok: true,
+          response: "assistant reply",
+          traceId: "trace-1",
+          deliveryId: "delivery-1",
+        };
+      },
+    } as unknown as typeof context.gateway;
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({
+          input: [
+            {
+              role: "user",
+              content: [
+                { type: "input_text", text: "First line" },
+                { type: "input_text", text: "Second line" },
+              ],
+            },
+          ],
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(receivedText).toBe("First line\nSecond line");
   });
 
   it("returns null for unrelated routes", async () => {
