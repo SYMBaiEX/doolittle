@@ -1,4 +1,9 @@
-import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
+} from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import { describe, expect, it } from "vitest";
 import type { RuntimeLike } from "./runtime";
@@ -24,7 +29,7 @@ describe("service-resolution helpers", () => {
             return {
               convertPdfToTextWithOptions: async () => ({ success: true }),
             };
-          case "shell":
+          case DOOLITTLE_SHELL_SERVICE:
             return { status: () => ({ ready: true }) };
           case "cron":
             return { list: async () => [], runs: async () => [] };
@@ -111,7 +116,7 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "shell",
-        nativeService: "shell",
+        nativeService: DOOLITTLE_SHELL_SERVICE,
         source: "native",
         ownership: "plugin",
         requirement: "required Eliza shell service",
@@ -119,7 +124,7 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "browser",
-        nativeService: "browser",
+        nativeService: DOOLITTLE_BROWSER_SERVICE,
         source: "unavailable",
         ownership: "plugin",
         requirement: "required Eliza browser service",
@@ -127,7 +132,7 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "mcp",
-        nativeService: "mcp",
+        nativeService: DOOLITTLE_MCP_SERVICE,
         source: "unavailable",
         ownership: "plugin",
         requirement: "required Eliza MCP service",
