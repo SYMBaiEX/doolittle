@@ -801,20 +801,34 @@ export function ConnectionsPage({
 interface ToolsResponse {
   tools?: unknown[];
   nativePluginManager?: unknown;
+  runtimeOwned?: boolean;
+  policyOwned?: boolean;
+  effectiveProfile?: string;
+  policyError?: string;
 }
 
 interface ToolsSummaryResponse {
   summary?: Record<string, unknown>;
 }
 
+type ToolProfile = "minimal" | "coding" | "messaging" | "full";
+
+const TOOL_PROFILES: readonly ToolProfile[] = [
+  "minimal",
+  "coding",
+  "messaging",
+  "full",
+];
+
 export function ToolsPage({ active }: { active: boolean }) {
-  const tools = useApiResource<ToolsResponse>(active ? "/tools" : null, [
+  const [profile, setProfile] = useState<ToolProfile>("full");
+  const toolsPath = active ? `/tools?profile=${profile}` : null;
+  const summaryPath = active ? `/tools/summary?profile=${profile}` : null;
+  const tools = useApiResource<ToolsResponse>(toolsPath, [active, profile]);
+  const summary = useApiResource<ToolsSummaryResponse>(summaryPath, [
     active,
+    profile,
   ]);
-  const summary = useApiResource<ToolsSummaryResponse>(
-    active ? "/tools/summary" : null,
-    [active],
-  );
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const entries = asArray(tools.data?.tools).map(asRecord);
@@ -865,6 +879,21 @@ export function ToolsPage({ active }: { active: boolean }) {
           label="Categories"
           value={asArray(totals.categories).length}
         />
+        <MetricCard
+          label="Policy"
+          value={
+            tools.data?.policyOwned
+              ? titleCase(tools.data.effectiveProfile ?? profile)
+              : "Unverified"
+          }
+          detail={
+            tools.data?.policyError
+              ? tools.data.policyError
+              : tools.data?.policyOwned
+                ? "Eliza ToolPolicyService"
+                : "Registered actions only"
+          }
+        />
       </div>
       <McpControlPanel active={active} />
       <AcpBridgePanel active={active} />
@@ -886,6 +915,17 @@ export function ToolsPage({ active }: { active: boolean }) {
           {categories.map((value) => (
             <option key={value} value={value}>
               {titleCase(value)}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Eliza tool profile"
+          value={profile}
+          onChange={(event) => setProfile(event.target.value as ToolProfile)}
+        >
+          {TOOL_PROFILES.map((value) => (
+            <option key={value} value={value}>
+              {titleCase(value)} profile
             </option>
           ))}
         </select>
@@ -917,7 +957,15 @@ export function ToolsPage({ active }: { active: boolean }) {
               <p>{asString(entry.description, "No description provided.")}</p>
               <div className="card-footer">
                 <code>{asString(entry.id)}</code>
-                <span>{titleCase(asString(entry.transport, "native"))}</span>
+                <span>
+                  {entry.enabled === false && entry.policyReason
+                    ? asString(entry.policyReason)
+                    : asArray(entry.allowedProfiles).length
+                      ? asArray(entry.allowedProfiles)
+                          .map((value) => titleCase(asString(value)))
+                          .join(" · ")
+                      : titleCase(asString(entry.transport, "native"))}
+                </span>
               </div>
             </article>
           ))}
