@@ -113,8 +113,6 @@ export {
   searchEffectiveSkillsMarketplace,
   syncEffectiveSkillCatalog,
 } from "./skill-hub";
-export type { EffectiveTurnCapabilityPolicy } from "./tool-policy";
-export { getEffectiveTurnCapabilityPolicy } from "./tool-policy";
 export {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
