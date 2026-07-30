@@ -1,3 +1,8 @@
+import {
+  type NativeServiceRegistryGroup,
+  SERVICE_REGISTRY_DEFINITIONS,
+} from "@/runtime/native/service-manifest";
+
 export interface NativeServiceRegistry {
   officialBacked: string[];
   customEliza: string[];
@@ -5,37 +10,16 @@ export interface NativeServiceRegistry {
 }
 
 export const DEFAULT_NATIVE_SERVICE_REGISTRY: NativeServiceRegistry = {
-  officialBacked: [
-    "documents",
-    "mcp",
-    "acp",
-    "web",
-    "media",
-    "userProfiles",
-    "personalities",
-    "skills",
-    "skillSynthesis",
-    "trajectories",
-    "delegation",
-  ],
-  customEliza: [
-    "memory",
-    "sessions",
-    "cron",
-    "workspace",
-    "terminal",
-    "repository",
-    "gatewaySessions",
-    "delivery",
-    "pairing",
-    "hooks",
-    "contextFiles",
-    "settings",
-    "tools",
-    "diagnostics",
-  ],
-  productOrchestration: ["operator", "gatewayConfig"],
+  officialBacked: servicesForGroup("officialBacked"),
+  customEliza: servicesForGroup("customEliza"),
+  productOrchestration: servicesForGroup("productOrchestration"),
 };
+
+function servicesForGroup(group: NativeServiceRegistryGroup): string[] {
+  return SERVICE_REGISTRY_DEFINITIONS.filter(
+    (definition) => definition.group === group,
+  ).map((definition) => definition.service);
+}
 
 export function createNativeServiceRegistry(): NativeServiceRegistry {
   return {

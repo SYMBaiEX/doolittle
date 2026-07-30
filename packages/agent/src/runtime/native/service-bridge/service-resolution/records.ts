@@ -1,126 +1,13 @@
-import {
-  AGENT_SKILLS_SERVICE,
-  type NativeServices,
-  PDF_SERVICE,
-} from "../runtime-contracts";
+import { SERVICE_RESOLUTION_DEFINITIONS } from "../../service-manifest";
+import type { NativeServices } from "../runtime-contracts";
 import type { EffectiveServiceResolutionRecord } from "./types";
-
-type ServiceResolutionKey =
-  | "knowledge"
-  | "pdf"
-  | "personality"
-  | "rolodex"
-  | "experience"
-  | "shell"
-  | "browser"
-  | "mcp"
-  | "cron"
-  | "agentSkills"
-  | "trajectoryLogger"
-  | "agentOrchestrator"
-  | "codingAgent"
-  | "pluginManager";
-
-interface ServiceResolutionDefinition {
-  capability: string;
-  nativeKey: ServiceResolutionKey;
-  nativeService: string;
-  fallback: string;
-}
-
-const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinition[] = [
-  {
-    capability: "knowledge",
-    nativeKey: "knowledge",
-    nativeService: "knowledge",
-    fallback: "memory + sessions",
-  },
-  {
-    capability: "pdf",
-    nativeKey: "pdf",
-    nativeService: PDF_SERVICE,
-    fallback: "unavailable until @elizaos/plugin-pdf is registered",
-  },
-  {
-    capability: "personality",
-    nativeKey: "personality",
-    nativeService: "personality",
-    fallback: "personalities",
-  },
-  {
-    capability: "rolodex",
-    nativeKey: "rolodex",
-    nativeService: "rolodex",
-    fallback: "userProfiles",
-  },
-  {
-    capability: "experience",
-    nativeKey: "experience",
-    nativeService: "experience",
-    fallback: "sessions + memory",
-  },
-  {
-    capability: "shell",
-    nativeKey: "shell",
-    nativeService: "shell",
-    fallback: "terminal",
-  },
-  {
-    capability: "browser",
-    nativeKey: "browser",
-    nativeService: "browser",
-    fallback: "web",
-  },
-  {
-    capability: "mcp",
-    nativeKey: "mcp",
-    nativeService: "mcp",
-    fallback: "mcp",
-  },
-  {
-    capability: "cron",
-    nativeKey: "cron",
-    nativeService: "cron",
-    fallback: "cron",
-  },
-  {
-    capability: "agentSkills",
-    nativeKey: "agentSkills",
-    nativeService: AGENT_SKILLS_SERVICE,
-    fallback: "offline skills projection + local skillSynthesis",
-  },
-  {
-    capability: "trajectoryLogger",
-    nativeKey: "trajectoryLogger",
-    nativeService: "trajectories",
-    fallback: "trajectories",
-  },
-  {
-    capability: "agentOrchestrator",
-    nativeKey: "agentOrchestrator",
-    nativeService: "ORCHESTRATOR_TASK_SERVICE",
-    fallback: "unavailable without @elizaos/plugin-agent-orchestrator",
-  },
-  {
-    capability: "codingAgent",
-    nativeKey: "codingAgent",
-    nativeService: "coding_agent",
-    fallback: "workspace + repository + terminal + delegation",
-  },
-  {
-    capability: "pluginManager",
-    nativeKey: "pluginManager",
-    nativeService: "plugin_manager",
-    fallback: "native plugin catalog",
-  },
-];
 
 function resolveOwnership(nativeService: unknown): "plugin" | "product" {
   return nativeService ? "plugin" : "product";
 }
 
 export function buildEffectiveServiceResolutionRecords(
-  native: Pick<NativeServices, ServiceResolutionKey>,
+  native: NativeServices,
 ): EffectiveServiceResolutionRecord[] {
   return SERVICE_RESOLUTION_DEFINITIONS.map(
     ({ capability, nativeKey, nativeService, fallback }) => {
