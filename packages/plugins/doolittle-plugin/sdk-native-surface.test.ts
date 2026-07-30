@@ -192,5 +192,6 @@ describe("Eliza-native Doolittle surface", () => {
     expect(result?.userFacingText).toContain(
       "ElizaOS projects are deployable agent applications.",
     );
+    expect(result?.verifiedUserFacing).toBe(true);
   });
 });

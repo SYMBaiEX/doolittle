@@ -376,6 +376,64 @@ describe("chat turn provider seam", () => {
     expect(harness.progressPhases).toEqual([]);
   });
 
+  it("uses verified tool output when SDK terminal synthesis returns its structured failure reply", async () => {
+    const harness = createProviderContext();
+    const settingsBefore = harness.context.services.settings.get();
+    harness.context.runtime.messageService = {
+      handleMessage: async (
+        _runtime: unknown,
+        _memory: unknown,
+        onContent: (content: { text?: string }) => Promise<unknown>,
+      ) => {
+        await onContent({ text: "I cannot search the web." });
+        return {
+          responseContent: {
+            thought:
+              "Handle a temporary reply failure during running the native tool message runtime.",
+            actions: ["REPLY"],
+            text: "Something went wrong on my end. Please try again.",
+          },
+          responseMessages: [],
+          state: {
+            data: {
+              actionResults: [
+                {
+                  success: true,
+                  userFacingText:
+                    "### Web results\n\n1. [Hacker News](https://news.ycombinator.com/)",
+                  verifiedUserFacing: true,
+                  data: { actionName: "WEB_SEARCH" },
+                },
+              ],
+            },
+          },
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const result = await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "What is news today from Hacker News?",
+      settingsBefore,
+      settingsDuring: settingsBefore,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 3,
+        toolProgressMode: "all",
+      },
+      options: harness.options,
+    });
+
+    expect(result.response).toContain(
+      "[Hacker News](https://news.ycombinator.com/)",
+    );
+    expect(result.response).not.toContain("Something went wrong");
+    expect(result.actionResults).toHaveLength(1);
+  });
+
   it("converts non-recoverable provider failures into a user-facing notice", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();

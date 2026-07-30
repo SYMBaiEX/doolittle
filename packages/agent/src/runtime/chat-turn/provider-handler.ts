@@ -69,19 +69,67 @@ function responseText(memory: Memory | undefined): string {
   return typeof content?.text === "string" ? content.text.trim() : "";
 }
 
+type TerminalResponseContent = {
+  text?: unknown;
+  thought?: unknown;
+  actions?: unknown;
+};
+
+function actionResultsFromState(state: unknown): ActionResult[] {
+  if (!state || typeof state !== "object") return [];
+  const data = (state as { data?: unknown }).data;
+  if (!data || typeof data !== "object") return [];
+  const actionResults = (data as { actionResults?: unknown }).actionResults;
+  return Array.isArray(actionResults) ? (actionResults as ActionResult[]) : [];
+}
+
+function verifiedActionResponse(
+  actionResults: readonly ActionResult[],
+): string {
+  for (const result of [...actionResults].reverse()) {
+    if (
+      result.success &&
+      result.verifiedUserFacing === true &&
+      typeof result.userFacingText === "string" &&
+      result.userFacingText.trim()
+    ) {
+      return result.userFacingText.trim();
+    }
+  }
+  return "";
+}
+
+function isSdkTemporaryFailure(content: TerminalResponseContent): boolean {
+  const thought =
+    typeof content.thought === "string" ? content.thought.trim() : "";
+  const actions = Array.isArray(content.actions) ? content.actions : [];
+  return (
+    actions.includes("REPLY") &&
+    thought.startsWith("Handle a temporary reply failure during ")
+  );
+}
+
 /**
  * The message service can invoke callbacks for a response-handler preamble
  * before its planner executes actions. Its returned responseContent is the
  * terminal response after that loop and is the only safe user-facing answer.
  */
 function resolveTerminalMessageResponse(input: {
-  responseContent?: { text?: unknown } | null;
+  responseContent?: TerminalResponseContent | null;
   responseMessages: Memory[];
   provisionalResponse: string;
   actionResults: ActionResult[];
 }): string {
+  const verifiedResponse = verifiedActionResponse(input.actionResults);
   const responseContent = input.responseContent?.text;
   if (typeof responseContent === "string" && responseContent.trim()) {
+    if (
+      input.responseContent &&
+      verifiedResponse &&
+      isSdkTemporaryFailure(input.responseContent)
+    ) {
+      return verifiedResponse;
+    }
     return responseContent.trim();
   }
 
@@ -90,7 +138,7 @@ function resolveTerminalMessageResponse(input: {
   // in that collection. Post-provider will surface the normal no-response
   // notice rather than accidentally ending a turn before tool synthesis.
   if (input.actionResults.length > 0) {
-    return "";
+    return verifiedResponse;
   }
 
   for (const message of [...input.responseMessages].reverse()) {
@@ -196,8 +244,11 @@ export async function executeProviderMessageTurn(
         throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
         responseMessages = messageResult?.responseMessages ?? [];
-        actionResults =
-          input.context.runtime.getActionResults?.(messageId) ?? [];
+        actionResults = actionResultsFromState(messageResult?.state);
+        if (actionResults.length === 0) {
+          actionResults =
+            input.context.runtime.getActionResults?.(messageId) ?? [];
+        }
         response = resolveTerminalMessageResponse({
           responseContent: messageResult?.responseContent,
           responseMessages,

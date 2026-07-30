@@ -175,6 +175,7 @@ export function createShortcutCompatibleWebSearchAction(
       return {
         ...result,
         userFacingText: fallback,
+        verifiedUserFacing: true,
       };
     },
   };
