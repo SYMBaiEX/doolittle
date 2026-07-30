@@ -73,9 +73,15 @@ describe("SkillsService", () => {
     expect(summary.bundled).toBeGreaterThan(0);
     expect(summary.workspace).toBeGreaterThan(10);
     expect(summary.invocable).toBeGreaterThan(0);
-    expect(summary.roots.map((entry) => entry.name)).toContain("platform");
+    expect(summary.roots.map((entry) => entry.name)).toContain("execution");
     expect(summary.roots.map((entry) => entry.name)).toContain("research");
     expect(summary.roots.map((entry) => entry.name)).toContain("generated");
+    expect(
+      service
+        .workspace()
+        .filter((skill) => skill.source === "workspace")
+        .every((skill) => !skill.slug.includes("/")),
+    ).toBe(true);
     expect(
       service.workspace().every((skill) => skill.source !== "bundled"),
     ).toBe(true);

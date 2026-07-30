@@ -1,42 +1,41 @@
 # Doolittle Skills Index
 
-Curated skill families:
+Doolittle stores each active skill as a direct child of this directory. This is
+the native Agent Skills filesystem shape used by `@elizaos/plugin-agent-skills`.
 
-- `identity/modeling` - [`packages/skills/identity/modeling/SKILL.md`](./identity/modeling/SKILL.md)
-- `memory/profile-learning` - [`packages/skills/memory/profile-learning/SKILL.md`](./memory/profile-learning/SKILL.md)
-- `productivity/repo-ops` - [`packages/skills/productivity/repo-ops/SKILL.md`](./productivity/repo-ops/SKILL.md)
-- `automation/reports` - [`packages/skills/automation/reports/SKILL.md`](./automation/reports/SKILL.md)
-- `communications/inbox` - [`packages/skills/communications/inbox/SKILL.md`](./communications/inbox/SKILL.md)
-- `documentation/authoring` - [`packages/skills/documentation/authoring/SKILL.md`](./documentation/authoring/SKILL.md)
-- `data/ingestion` - [`packages/skills/data/ingestion/SKILL.md`](./data/ingestion/SKILL.md)
-- `distribution/install` - [`packages/skills/distribution/install/SKILL.md`](./distribution/install/SKILL.md)
-- `testing/regression` - [`packages/skills/testing/regression/SKILL.md`](./testing/regression/SKILL.md)
-- `knowledge/rag` - [`packages/skills/knowledge/rag/SKILL.md`](./knowledge/rag/SKILL.md)
-- `operations/release` - [`packages/skills/operations/release/SKILL.md`](./operations/release/SKILL.md)
-- `observability/telemetry` - [`packages/skills/observability/telemetry/SKILL.md`](./observability/telemetry/SKILL.md)
-- `integrations/workspace` - [`packages/skills/integrations/workspace/SKILL.md`](./integrations/workspace/SKILL.md)
-- `safety/review` - [`packages/skills/safety/review/SKILL.md`](./safety/review/SKILL.md)
-- `planning/coordination` - [`packages/skills/planning/coordination/SKILL.md`](./planning/coordination/SKILL.md)
-- `support/incidents` - [`packages/skills/support/incidents/SKILL.md`](./support/incidents/SKILL.md)
-- `community/engagement` - [`packages/skills/community/engagement/SKILL.md`](./community/engagement/SKILL.md)
-- `platform/execution` - [`packages/skills/platform/execution/SKILL.md`](./platform/execution/SKILL.md)
-- `platform/transport` - [`packages/skills/platform/transport/SKILL.md`](./platform/transport/SKILL.md)
-- `platform/delegation` - [`packages/skills/platform/delegation/SKILL.md`](./platform/delegation/SKILL.md)
-- `platform/mcp` - [`packages/skills/platform/mcp/SKILL.md`](./platform/mcp/SKILL.md)
-- `browser/research` - [`packages/skills/browser/research/SKILL.md`](./browser/research/SKILL.md)
-- `media/voice` - [`packages/skills/media/voice/SKILL.md`](./media/voice/SKILL.md)
-- `media/vision` - [`packages/skills/media/vision/SKILL.md`](./media/vision/SKILL.md)
-- `research/trajectory` - [`packages/skills/research/trajectory/SKILL.md`](./research/trajectory/SKILL.md)
-- `research/evaluation` - [`packages/skills/research/evaluation/SKILL.md`](./research/evaluation/SKILL.md)
-- `research/batch` - [`packages/skills/research/batch/SKILL.md`](./research/batch/SKILL.md)
-- `research/action-bench` - [`packages/skills/research/action-bench/SKILL.md`](./research/action-bench/SKILL.md)
-- `research/autocoder` - [`packages/skills/research/autocoder/SKILL.md`](./research/autocoder/SKILL.md)
-- `media/voice/tts` - [`packages/skills/media/voice/tts/SKILL.md`](./media/voice/tts/SKILL.md)
+Curated skills:
 
-Generated skill families:
+- [`action-bench`](./action-bench/SKILL.md)
+- [`authoring`](./authoring/SKILL.md)
+- [`autocoder`](./autocoder/SKILL.md)
+- [`batch`](./batch/SKILL.md)
+- [`coordination`](./coordination/SKILL.md)
+- [`delegation`](./delegation/SKILL.md)
+- [`engagement`](./engagement/SKILL.md)
+- [`evaluation`](./evaluation/SKILL.md)
+- [`execution`](./execution/SKILL.md)
+- [`inbox`](./inbox/SKILL.md)
+- [`incidents`](./incidents/SKILL.md)
+- [`ingestion`](./ingestion/SKILL.md)
+- [`install`](./install/SKILL.md)
+- [`mcp`](./mcp/SKILL.md)
+- [`modeling`](./modeling/SKILL.md)
+- [`profile-learning`](./profile-learning/SKILL.md)
+- [`rag`](./rag/SKILL.md)
+- [`regression`](./regression/SKILL.md)
+- [`release`](./release/SKILL.md)
+- [`repo-ops`](./repo-ops/SKILL.md)
+- [`reports`](./reports/SKILL.md)
+- [`research`](./research/SKILL.md)
+- [`review`](./review/SKILL.md)
+- [`telemetry`](./telemetry/SKILL.md)
+- [`trajectory`](./trajectory/SKILL.md)
+- [`transport`](./transport/SKILL.md)
+- [`tts`](./tts/SKILL.md)
+- [`vision`](./vision/SKILL.md)
+- [`voice`](./voice/SKILL.md)
+- [`workspace`](./workspace/SKILL.md)
 
-- [`packages/skills/generated/index.json`](./generated/index.json)
-- `generated/adapter-spike`
-- `generated/queue-one`
-- `generated/queue-two`
-- `generated/status-audit`
+Generated skills use the same direct-child layout after approval. Their
+provenance is recorded in frontmatter and their bookkeeping lives under the
+hidden `.generated` metadata directory.
