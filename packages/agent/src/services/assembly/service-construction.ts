@@ -1,6 +1,6 @@
 import type { EnvConfig } from "@/types";
 import type { DocumentsService } from "../documents-service";
-import { createServiceAssemblyEagerServices } from "./construction/groups";
+import { createServiceAssemblyResult } from "./construction/groups";
 import { createServiceConstructionState } from "./construction/state";
 import type { ServiceAssemblyResult } from "./construction/types";
 import type {
@@ -32,33 +32,5 @@ export function createAppServiceGroups(
     native,
   );
 
-  return {
-    eagerServices: createServiceAssemblyEagerServices(state),
-    lazyServices: {
-      skills: state.skills,
-      documents: state.documents,
-      ecosystem: state.ecosystem,
-      diagnostics: state.diagnostics,
-      operator: state.operator,
-      autocoderPipeline: state.autocoderPipeline,
-      media: state.media,
-      trajectoryEvaluation: state.trajectoryEvaluation,
-      skillSynthesis: state.skillSynthesis,
-      skillsHub: state.skillsHub,
-      contextFiles: state.contextFiles,
-      contextCompression: state.contextCompression,
-      fuzzyPatch: state.fuzzyPatch,
-    },
-    runtimeBinding: {
-      executionApprovals: state.executionApprovals,
-      pairing: state.pairing,
-      delegationProjection: state.delegationProjection,
-      documents: state.documents,
-      diagnostics: state.diagnostics,
-      operator: state.operator,
-      skills: state.skills,
-      createDocumentsService: state.createDocumentsService,
-      setBoundRuntime: state.setBoundRuntime,
-    },
-  };
+  return createServiceAssemblyResult(state);
 }
