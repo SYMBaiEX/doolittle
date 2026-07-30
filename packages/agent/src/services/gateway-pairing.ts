@@ -1,17 +1,11 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   checkPairingAllowed,
-  type PairingAllowlistEntry as ElizaPairingAllowlistEntry,
   PairingService as ElizaPairingService,
   type IAgentRuntime,
   type PairingRequest,
-  stringToUuid,
 } from "@elizaos/core";
-import type {
-  PairingAllowlistEntry,
-  PairingRequestRecord,
-  PlatformName,
-} from "@/types";
+import type { PairingRequestRecord, PlatformName } from "@/types";
+import { migrateLegacyPairingStore } from "./gateway-pairing-migration";
 
 function isoDate(value: Date | string): string {
   return value instanceof Date
@@ -27,16 +21,6 @@ function projectPendingRequest(request: PairingRequest): PairingRequestRecord {
     code: request.code,
     createdAt: isoDate(request.createdAt),
     status: "pending",
-  };
-}
-
-function projectAllowlistEntry(
-  entry: ElizaPairingAllowlistEntry,
-): PairingAllowlistEntry {
-  return {
-    platform: entry.channel as PlatformName,
-    userId: entry.senderId,
-    approvedAt: isoDate(entry.createdAt),
   };
 }
 
@@ -67,17 +51,6 @@ export class GatewayPairingProjection {
       platforms.map((entry) => service.listPendingRequests(entry)),
     );
     return requests.flat().map(projectPendingRequest);
-  }
-
-  async listAllowlist(
-    platform?: PlatformName,
-  ): Promise<PairingAllowlistEntry[]> {
-    const service = await this.service();
-    const platforms = platform ? [platform] : this.platforms;
-    const entries = await Promise.all(
-      platforms.map((entry) => service.getAllowlist(entry)),
-    );
-    return entries.flat().map(projectAllowlistEntry);
   }
 
   async checkOrRequest(
@@ -139,18 +112,6 @@ export class GatewayPairingProjection {
     };
   }
 
-  async revoke(platform: PlatformName, userId: string): Promise<void> {
-    await (await this.service()).removeFromAllowlist(platform, userId);
-  }
-
-  async clearPending(): Promise<void> {
-    const runtime = this.requireRuntime();
-    const requests = await this.listPending();
-    await Promise.all(
-      requests.map((request) => runtime.deletePairingRequest(request.id)),
-    );
-  }
-
   private requireRuntime(): IAgentRuntime {
     if (!this.runtime) {
       throw new Error("Eliza pairing runtime is not bound.");
@@ -167,81 +128,12 @@ export class GatewayPairingProjection {
     if (!service) {
       throw new Error("Eliza PairingService is not available.");
     }
-    this.migration ??= this.migrateLegacyStore(runtime, service);
+    this.migration ??= migrateLegacyPairingStore(
+      this.legacyStoreFile,
+      runtime,
+      service,
+    );
     await this.migration;
     return service;
-  }
-
-  private async migrateLegacyStore(
-    runtime: IAgentRuntime,
-    service: ElizaPairingService,
-  ): Promise<void> {
-    const filePath = this.legacyStoreFile;
-    if (!filePath || !existsSync(filePath)) {
-      return;
-    }
-    const markerPath = `${filePath}.eliza-migrated`;
-    if (existsSync(markerPath)) {
-      return;
-    }
-
-    const legacy = JSON.parse(readFileSync(filePath, "utf8")) as {
-      requests?: PairingRequestRecord[];
-      allowlist?: PairingAllowlistEntry[];
-    };
-    for (const entry of legacy.allowlist ?? []) {
-      await service.addToAllowlist(entry.platform, entry.userId, {
-        migratedFrom: "doolittle-json",
-        approvedAt: entry.approvedAt,
-      });
-    }
-
-    for (const entry of legacy.requests ?? []) {
-      if (entry.status !== "pending") {
-        continue;
-      }
-      const pending = await service.listPendingRequests(entry.platform);
-      if (pending.some((request) => request.senderId === entry.userId)) {
-        continue;
-      }
-      if (
-        pending.some(
-          (request) => request.code.toUpperCase() === entry.code.toUpperCase(),
-        )
-      ) {
-        await service.upsertRequest({
-          channel: entry.platform,
-          senderId: entry.userId,
-          metadata: { migratedFrom: "doolittle-json" },
-        });
-        continue;
-      }
-      const createdAt = new Date(entry.createdAt);
-      await runtime.createPairingRequest({
-        id: stringToUuid(
-          `pairing-${entry.platform}-${entry.userId}-${entry.createdAt}`,
-        ),
-        channel: entry.platform,
-        senderId: entry.userId,
-        code: entry.code,
-        createdAt,
-        lastSeenAt: createdAt,
-        metadata: { migratedFrom: "doolittle-json" },
-        agentId: runtime.agentId,
-      });
-    }
-
-    writeFileSync(
-      markerPath,
-      JSON.stringify(
-        {
-          migratedAt: new Date().toISOString(),
-          owner: "Eliza PairingService",
-        },
-        null,
-        2,
-      ),
-      "utf8",
-    );
   }
 }
