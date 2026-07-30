@@ -44,7 +44,6 @@ describe("thread workbench state", () => {
       head: "",
       lifecycle: "idle",
       selectedTab: "files",
-      railOpen: true,
       railWidth: THREAD_WORKBENCH_DEFAULT_WIDTH,
     });
   });
@@ -59,7 +58,6 @@ describe("thread workbench state", () => {
       {
         ...first,
         selectedTab: "terminal",
-        railOpen: false,
         railWidth: 444,
       },
       storage,
@@ -72,7 +70,6 @@ describe("thread workbench state", () => {
       ),
     ).toMatchObject({
       selectedTab: "terminal",
-      railOpen: false,
       railWidth: 444,
     });
     expect(
@@ -82,7 +79,6 @@ describe("thread workbench state", () => {
       ),
     ).toMatchObject({
       selectedTab: "files",
-      railOpen: true,
       railWidth: THREAD_WORKBENCH_DEFAULT_WIDTH,
     });
     expect(storage.values.has(threadWorkbenchStorageKey("first"))).toBe(true);
@@ -103,7 +99,6 @@ describe("thread workbench state", () => {
         selectedTab: "unknown",
         lifecycle: "destroyed",
         railWidth: 9_999,
-        railOpen: "yes",
       },
       fallback,
     );
@@ -115,7 +110,6 @@ describe("thread workbench state", () => {
       environment: "local-v1",
       selectedTab: "files",
       lifecycle: "active",
-      railOpen: true,
       railWidth: THREAD_WORKBENCH_MAX_WIDTH,
     });
   });

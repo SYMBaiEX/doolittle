@@ -30,7 +30,6 @@ export interface ThreadWorkbenchState {
   worktreePath?: string;
   lifecycle: ThreadWorkbenchLifecycle;
   selectedTab: ThreadWorkbenchTab;
-  railOpen: boolean;
   railWidth: number;
 }
 
@@ -202,7 +201,6 @@ export function createThreadWorkbenchState(
       : {}),
     lifecycle: input.lifecycle ?? "idle",
     selectedTab: "files",
-    railOpen: true,
     railWidth: THREAD_WORKBENCH_DEFAULT_WIDTH,
   };
 }
@@ -234,8 +232,6 @@ export function parseThreadWorkbenchState(
     selectedTab: isWorkbenchTab(value.selectedTab)
       ? value.selectedTab
       : fallback.selectedTab,
-    railOpen:
-      typeof value.railOpen === "boolean" ? value.railOpen : fallback.railOpen,
     railWidth: clampThreadWorkbenchWidth(
       typeof value.railWidth === "number"
         ? value.railWidth

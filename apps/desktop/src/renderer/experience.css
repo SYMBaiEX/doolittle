@@ -773,28 +773,6 @@ textarea {
   }
 }
 
-/* Conversation workspace */
-
-.chat-workspace {
-  grid-template-columns: 242px minmax(440px, 1fr);
-  background: var(--bg);
-  overflow: hidden;
-  position: relative;
-  transition: grid-template-columns 180ms var(--ease-out);
-}
-
-.chat-workspace.inspector-open {
-  grid-template-columns: 242px minmax(440px, 1fr) auto;
-}
-
-.chat-workspace > #thread-workbench {
-  align-self: stretch;
-  display: flex;
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden;
-}
-
 .chat-sessions {
   padding: 14px 10px 10px;
   background: var(--surface);
@@ -2729,20 +2707,6 @@ button.chat-session-meta-pill:hover {
 }
 
 @media (max-width: 1180px) {
-  .chat-workspace,
-  .chat-workspace.inspector-open {
-    grid-template-columns: 222px minmax(400px, 1fr);
-  }
-
-  .chat-workspace.inspector-open > #thread-workbench {
-    bottom: 0;
-    display: block;
-    position: absolute;
-    right: 0;
-    top: 0;
-    z-index: 28;
-  }
-
   .window-command-button {
     width: 190px;
   }
@@ -2835,11 +2799,6 @@ button.chat-session-meta-pill:hover {
   .window-dragbar .icon-button {
     width: 40px;
     height: 40px;
-  }
-
-  .chat-workspace,
-  .chat-workspace.inspector-open {
-    grid-template-columns: 1fr;
   }
 
   .chat-header {
@@ -4265,28 +4224,6 @@ button.chat-session-meta-pill:hover {
 }
 
 @media (max-width: 700px) {
-  .chat-workspace,
-  .chat-workspace.inspector-open {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .chat-workspace.inspector-open > #thread-workbench {
-    animation: inspector-in 180ms var(--ease-out) both;
-    background: var(--surface);
-    border-left: 1px solid var(--border-strong);
-    bottom: 0;
-    box-shadow: -18px 0 54px color-mix(in srgb, var(--shadow) 20%, transparent);
-    display: block;
-    height: 100%;
-    max-width: calc(100% - 16px);
-    overflow: hidden;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: fit-content;
-    z-index: 28;
-  }
-
   .window-context span,
   .window-command-button,
   .chat-status-runtime small,
@@ -4388,10 +4325,6 @@ button.chat-session-meta-pill:hover {
 
   .chat-context-meter {
     grid-template-columns: auto minmax(50px, 1fr) auto;
-  }
-
-  .chat-workspace > #thread-workbench {
-    width: calc(100% - 16px);
   }
 }
 

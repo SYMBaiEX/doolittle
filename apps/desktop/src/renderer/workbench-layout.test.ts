@@ -13,6 +13,10 @@ const threadWorkbenchCss = readFileSync(
   new URL("./thread-workbench.css", import.meta.url),
   "utf8",
 );
+const appPolishCss = readFileSync(
+  new URL("./app-polish.css", import.meta.url),
+  "utf8",
+);
 
 describe("thread workbench viewport layout contract", () => {
   it("mounts the workbench as a dedicated sibling pane beside the chat conversation", () => {
@@ -27,6 +31,12 @@ describe("thread workbench viewport layout contract", () => {
     );
     expect(experienceCss).not.toMatch(
       /\.chat-workspace > #thread-workbench\s*{[^}]*display:\s*contents;/s,
+    );
+    expect(experienceCss).not.toMatch(
+      /\.chat-workspace\.inspector-open > #thread-workbench\s*{[^}]*position:\s*absolute;/s,
+    );
+    expect(appPolishCss).not.toContain(
+      ':root[data-density="compact"] .chat-workspace.inspector-open',
     );
   });
 

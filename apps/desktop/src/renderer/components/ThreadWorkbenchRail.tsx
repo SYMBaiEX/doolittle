@@ -340,10 +340,9 @@ export function ThreadWorkbenchRail({
   onRequestClose,
 }: ThreadWorkbenchRailProps) {
   const storage = useMemo(() => browserThreadWorkbenchStorage(), []);
-  const [model, setModel] = useState<ThreadWorkbenchState>(() => ({
-    ...loadThreadWorkbenchState({ sessionId, workspacePath }, storage),
-    railOpen: true,
-  }));
+  const [model, setModel] = useState<ThreadWorkbenchState>(() =>
+    loadThreadWorkbenchState({ sessionId, workspacePath }, storage),
+  );
   const [selectedFile, setSelectedFile] = useState("");
   const [selectedChange, setSelectedChange] = useState("");
   const [selectedCommand, setSelectedCommand] = useState("");
@@ -351,11 +350,7 @@ export function ThreadWorkbenchRail({
   const [checkpointMessage, setCheckpointMessage] = useState("");
   const [checkpointBusy, setCheckpointBusy] = useState(false);
   const acpEditor = useDesktopAcpEditorBridge({
-    active:
-      active &&
-      model.railOpen &&
-      model.selectedTab === "files" &&
-      !!workspacePath,
+    active: active && model.selectedTab === "files" && !!workspacePath,
     workspacePath,
   });
   const tabRefs = useRef<Record<ThreadWorkbenchTab, HTMLButtonElement | null>>({
@@ -373,98 +368,73 @@ export function ThreadWorkbenchRail({
     [active, workspacePath],
   );
   const tree = useApiResource<WorkspaceTreeResponse>(
-    active && model.railOpen && model.selectedTab === "files"
-      ? "/workspace/tree?depth=12"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "files" ? "/workspace/tree?depth=12" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const changes = useApiResource<RepositoryChangesResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/repo/changes"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/repo/changes" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const branches = useApiResource<RepositoryBranchesResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/repo/branches"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/repo/branches" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const remotes = useApiResource<RepositoryRemotesResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/repo/remotes"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/repo/remotes" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const stashes = useApiResource<RepositoryStashesResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/repo/stashes"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/repo/stashes" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const conflicts = useApiResource<RepositoryConflictsResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/repo/conflicts"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/repo/conflicts" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const worktrees = useApiResource<RepositoryWorktreesResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/repo/worktrees"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/repo/worktrees" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const checkpoints = useApiResource<WorkspaceCheckpointResponse>(
-    active && model.railOpen && model.selectedTab === "changes"
-      ? "/workspace/checkpoints"
-      : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    active && model.selectedTab === "changes" ? "/workspace/checkpoints" : null,
+    [active, model.selectedTab, workspacePath],
   );
   const terminal = useApiResource<TerminalHistoryResponse>(
     active &&
-      model.railOpen &&
       (model.selectedTab === "terminal" || model.selectedTab === "brief")
       ? "/terminal/history"
       : null,
-    [active, model.railOpen, model.selectedTab, workspacePath],
+    [active, model.selectedTab, workspacePath],
   );
   const plans = useApiResource<PlansResponse>(
-    active &&
-      model.railOpen &&
-      (model.selectedTab === "plans" || model.selectedTab === "brief")
+    active && (model.selectedTab === "plans" || model.selectedTab === "brief")
       ? "/plans"
       : null,
-    [active, model.railOpen, model.selectedTab],
+    [active, model.selectedTab],
   );
   const settings = useApiResource<SettingsResponse>(
-    active && model.railOpen && model.selectedTab === "settings"
-      ? "/settings"
-      : null,
-    [active, model.railOpen, model.selectedTab],
+    active && model.selectedTab === "settings" ? "/settings" : null,
+    [active, model.selectedTab],
   );
   const delegationTasks = useApiResource<DelegationTasksResponse>(
-    active && model.railOpen && model.selectedTab === "brief"
+    active && model.selectedTab === "brief"
       ? "/delegation/tasks?limit=8"
       : null,
-    [active, model.railOpen, model.selectedTab],
+    [active, model.selectedTab],
   );
   const codegen = useApiResource<CodegenRunsResponse>(
-    active && model.railOpen && model.selectedTab === "brief"
-      ? "/codegen/runs"
-      : null,
-    [active, model.railOpen, model.selectedTab],
+    active && model.selectedTab === "brief" ? "/codegen/runs" : null,
+    [active, model.selectedTab],
   );
   const approvals = useApiResource<ExecutionApprovalsResponse>(
-    active && model.railOpen && model.selectedTab === "brief"
+    active && model.selectedTab === "brief"
       ? "/execution/approvals?status=pending"
       : null,
-    [active, model.railOpen, model.selectedTab],
+    [active, model.selectedTab],
   );
   const preview = useApiResource<BrowserStatusResponse>(
-    active && model.railOpen && model.selectedTab === "preview"
-      ? "/browser/status"
-      : null,
-    [active, model.railOpen, model.selectedTab],
+    active && model.selectedTab === "preview" ? "/browser/status" : null,
+    [active, model.selectedTab],
   );
 
   const fileEntries = useMemo(
@@ -543,21 +513,21 @@ export function ThreadWorkbenchRail({
         asString(entry.id, `terminal-${index}`) === selectedCommand,
     ) ?? commandEntries[0];
   const file = useApiResource<WorkspaceReadResponse>(
-    active && model.railOpen && model.selectedTab === "files" && currentFile
+    active && model.selectedTab === "files" && currentFile
       ? `/workspace/read?path=${encodeURIComponent(currentFile)}`
       : null,
-    [active, model.railOpen, model.selectedTab, currentFile],
+    [active, model.selectedTab, currentFile],
   );
   const patch = useApiResource<RepositoryPatchResponse>(
-    active && model.railOpen && model.selectedTab === "changes" && currentChange
+    active && model.selectedTab === "changes" && currentChange
       ? `/repo/patch?path=${encodeURIComponent(currentChange)}&staged=false`
       : null,
-    [active, model.railOpen, model.selectedTab, currentChange],
+    [active, model.selectedTab, currentChange],
   );
 
   useEffect(() => {
-    setModel({
-      ...loadThreadWorkbenchState(
+    setModel(
+      loadThreadWorkbenchState(
         {
           sessionId,
           workspacePath,
@@ -565,8 +535,7 @@ export function ThreadWorkbenchRail({
         },
         storage,
       ),
-      railOpen: true,
-    });
+    );
     setSelectedFile("");
     setSelectedChange("");
     setSelectedCommand("");
@@ -624,7 +593,7 @@ export function ThreadWorkbenchRail({
   };
 
   const selectTab = (tab: ThreadWorkbenchTab) => {
-    setModel((current) => ({ ...current, selectedTab: tab, railOpen: true }));
+    setModel((current) => ({ ...current, selectedTab: tab }));
   };
   const insert = (label: string, value: string) => {
     onInsertContext(value);

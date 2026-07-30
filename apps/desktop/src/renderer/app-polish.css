@@ -25,18 +25,6 @@
   --control-height: 30px;
 }
 
-:root[data-density="compact"] .chat-workspace {
-  grid-template-columns: 220px minmax(440px, 1fr);
-}
-
-:root[data-density="compact"] .chat-workspace.inspector-open {
-  grid-template-columns: 220px minmax(440px, 1fr) auto;
-}
-
-:root[data-density="compact"] .chat-sessions {
-  padding: 9px 7px 7px;
-}
-
 :root[data-density="compact"] .chat-header {
   min-height: 58px;
 }
