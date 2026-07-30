@@ -1,5 +1,4 @@
 import {
-  type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -418,7 +417,6 @@ export function ChatPage({
   onRequestNewConversation,
   pendingApprovals,
   runningTasks,
-  titleInAppChrome = false,
 }: {
   backend: BackendState;
   runtime: RuntimeStatus | null;
@@ -443,7 +441,6 @@ export function ChatPage({
   onRequestNewConversation?: () => void;
   pendingApprovals: number;
   runningTasks: number;
-  titleInAppChrome?: boolean;
 }) {
   const initialId = useMemo(
     () => selectedId || newConversationId(),
@@ -1720,67 +1717,12 @@ export function ChatPage({
       <section className="chat-conversation" aria-label="Conversation detail">
         <header className="chat-header">
           <div className="chat-header-content">
-            <div
-              className={`chat-header-mainline${
-                titleInAppChrome ? " title-in-app-chrome" : ""
-              }`}
-            >
+            <div className="chat-header-mainline">
               <div className="chat-header-title-wrap">
-                <h2 className={titleInAppChrome ? "sr-only" : undefined}>
-                  {selectedSession?.title ?? "New conversation"}
-                </h2>
+                <h2>{selectedSession?.title ?? "New conversation"}</h2>
               </div>
               <div className="chat-session-meta-wrap">
                 <div className="chat-session-meta">
-                  {activeProject && onOpenProjectManager ? (
-                    <button
-                      className="chat-session-meta-pill chat-project-badge chat-meta-project"
-                      onClick={onOpenProjectManager}
-                      style={
-                        activeProject.color
-                          ? ({
-                              "--project-color": activeProject.color,
-                            } as CSSProperties)
-                          : undefined
-                      }
-                      title={
-                        activeProject.primaryPath
-                          ? `${activeProject.name} · ${activeProject.primaryPath}`
-                          : activeProject.name
-                      }
-                      type="button"
-                    >
-                      <i aria-hidden="true" />
-                      <span
-                        className={titleInAppChrome ? "sr-only" : undefined}
-                      >
-                        {activeProject.name}
-                      </span>
-                    </button>
-                  ) : activeProject ? (
-                    <span
-                      className="chat-session-meta-pill chat-project-badge chat-meta-project"
-                      style={
-                        activeProject.color
-                          ? ({
-                              "--project-color": activeProject.color,
-                            } as CSSProperties)
-                          : undefined
-                      }
-                      title={
-                        activeProject.primaryPath
-                          ? `${activeProject.name} · ${activeProject.primaryPath}`
-                          : activeProject.name
-                      }
-                    >
-                      <i aria-hidden="true" />
-                      <span
-                        className={titleInAppChrome ? "sr-only" : undefined}
-                      >
-                        {activeProject.name}
-                      </span>
-                    </span>
-                  ) : null}
                   <button
                     aria-pressed={Boolean(selectedSession?.pinned)}
                     className={`chat-session-meta-pill chat-meta-pin ${
@@ -1808,11 +1750,9 @@ export function ChatPage({
                     title={workspacePath || "Open the current coding workspace"}
                     type="button"
                   >
-                    {titleInAppChrome
-                      ? "Code"
-                      : workspacePath
-                        ? `Workspace · ${fileName(workspacePath)}`
-                        : "Open workspace"}
+                    {workspacePath
+                      ? `Workspace · ${fileName(workspacePath)}`
+                      : "Open workspace"}
                   </button>
                   <span className="chat-session-meta-pill chat-meta-updated">
                     {selectedUpdatedAt

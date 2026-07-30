@@ -1587,10 +1587,6 @@ export function App() {
   const projectScopeLabel =
     activeProject?.name ??
     (projectScope === "unscoped" ? "General" : "All projects");
-  const chatChromeTitle =
-    sessions.find((session) => session.sessionId === selectedSession)?.title ??
-    "New conversation";
-
   useEffect(() => {
     document.title = `${activeItem?.label ?? "Desktop"} — Doolittle`;
   }, [activeItem?.label]);
@@ -1890,7 +1886,6 @@ export function App() {
             runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}
-            titleInAppChrome
             workspacePath={workspace.currentPath}
           />
         );
@@ -2287,21 +2282,18 @@ export function App() {
           </button>
           <div className="window-context">
             <span>{activeSection?.label ?? "Doolittle"}</span>
-            <strong>
-              {view === "chat"
-                ? chatChromeTitle
-                : (activeItem?.label ?? "Desktop")}
-            </strong>
-            {view !== "chat" ? (
-              <em title={`Current project scope: ${projectScopeLabel}`}>
-                {projectScopeLabel}
-              </em>
-            ) : null}
+            <strong>{activeItem?.label ?? "Desktop"}</strong>
+            <button
+              className="window-project-scope"
+              onClick={openProjectManager}
+              title={`Current project scope: ${projectScopeLabel}. Change project.`}
+              type="button"
+            >
+              {projectScopeLabel}
+            </button>
           </div>
           <span aria-live="polite" className="sr-only">
-            {view === "chat"
-              ? `${chatChromeTitle} opened for ${projectScopeLabel}`
-              : `${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
+            {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
           </span>
           <div className="window-tools">
             <button

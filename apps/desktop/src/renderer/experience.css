@@ -2743,7 +2743,7 @@ button.chat-session-meta-pill:hover {
     width: 190px;
   }
 
-  .window-context em {
+  .window-context :where(em, .window-project-scope) {
     display: none;
   }
 }
@@ -3322,7 +3322,7 @@ button.chat-session-meta-pill:hover {
   letter-spacing: -0.005em;
 }
 
-.window-context em {
+.window-context :where(em, .window-project-scope) {
   overflow: hidden;
   max-width: 150px;
   padding: 2px 6px;
@@ -3336,6 +3336,17 @@ button.chat-session-meta-pill:hover {
   letter-spacing: 0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.window-project-scope {
+  min-height: 22px;
+  -webkit-app-region: no-drag;
+}
+
+.window-project-scope:hover,
+.window-project-scope:focus-visible {
+  color: var(--text-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
 }
 
 .window-utility-button {
