@@ -49,4 +49,19 @@ describe("native service registry", () => {
       }
     }
   });
+
+  it("assigns action and operator planning to distinct runtime services", () => {
+    const actionPlanning = SERVICE_RESOLUTION_DEFINITIONS.find(
+      (definition) => definition.capability === "actionPlanning",
+    );
+    const operatorPlanning = SERVICE_RESOLUTION_DEFINITIONS.find(
+      (definition) => definition.capability === "operatorPlanning",
+    );
+
+    expect(actionPlanning?.nativeService).toBe("planning");
+    expect(operatorPlanning?.nativeService).toBe("doolittle_operator_planning");
+    expect(operatorPlanning?.nativeService).not.toBe(
+      actionPlanning?.nativeService,
+    );
+  });
 });

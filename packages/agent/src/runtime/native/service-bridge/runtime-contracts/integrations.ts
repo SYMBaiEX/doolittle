@@ -37,7 +37,18 @@ export interface NativeFormsService {
   forcePersist?: () => Promise<{ path: string; total: number }>;
 }
 
-export interface NativePlanningService {
+export interface NativeActionPlanningService {
+  capabilityDescription?: string;
+  createSimplePlan?: (...args: unknown[]) => Promise<unknown>;
+  createComprehensivePlan?: (...args: unknown[]) => Promise<unknown>;
+  executePlan?: (...args: unknown[]) => Promise<unknown>;
+  validatePlan?: (...args: unknown[]) => Promise<unknown>;
+  adaptPlan?: (...args: unknown[]) => Promise<unknown>;
+  getPlanStatus?: (planId: string) => Promise<unknown>;
+  cancelPlan?: (planId: string) => Promise<boolean>;
+}
+
+export interface NativeOperatorPlanningService {
   capabilityDescription?: string;
   listPlans?: () => unknown[];
   getPlan?: (
@@ -56,8 +67,6 @@ export interface NativePlanningService {
     completed: number;
     linkedTasks: number;
     linkedWorkflows: number;
-    delegationTasks: number;
-    workflows: number;
   };
 }
 

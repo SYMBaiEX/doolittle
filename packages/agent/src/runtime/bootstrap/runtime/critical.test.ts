@@ -22,11 +22,13 @@ describe("bootstrap runtime services", () => {
     expect(calls).toEqual([
       "service:rolodex",
       "service:plugin_manager",
+      "service:planning",
       "service:doolittle_awareness",
       "service:browser",
       "service:coding_agent",
       "service:doolittle_gateway",
       "service:mcp",
+      "service:doolittle_operator_planning",
       "service:doolittle_scheduler",
       "service:shell",
       "service:WORKFLOW_DISPATCH",

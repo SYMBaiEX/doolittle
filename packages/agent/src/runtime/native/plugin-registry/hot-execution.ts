@@ -40,14 +40,6 @@ export async function loadHotExecutionPlugins(
     agentOrchestratorPlugin,
     agentSkillsPlugin,
     createPlanningPlugin({
-      delegation: {
-        list: () => services.delegation.list(),
-        get: (id) => services.delegation.get(id),
-      },
-      workflows: {
-        list: (limit = 50) => services.autocoderPipeline.listWorkflows(limit),
-        get: (id) => services.autocoderPipeline.workflow(id),
-      },
       storage: {
         dataRoot: join(config.dataDir, "plugins"),
       },

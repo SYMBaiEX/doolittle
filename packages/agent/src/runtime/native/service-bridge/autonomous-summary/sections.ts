@@ -26,7 +26,8 @@ export function collectServiceSources(
     native.codingAgent,
     native.trajectoryLogger,
     native.pluginManager,
-    native.planning,
+    native.actionPlanning,
+    native.operatorPlanning,
     native.approval,
     native.agentEvent,
     native.toolPolicy,
@@ -194,8 +195,9 @@ export function buildExecutionSection(
       fullAllowed: input.executionControl.toolPolicy.fullAllowed,
     },
     planning: {
-      source: input.native.planning ? "native" : "product",
-      available: Boolean(input.native.planning),
+      source: input.native.actionPlanning ? "native" : "product",
+      available: Boolean(input.native.actionPlanning),
+      operatorPlanningAvailable: Boolean(input.native.operatorPlanning),
       plans: input.executionControl.planning.plans.total,
     },
     codeGeneration: {

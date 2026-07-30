@@ -5,6 +5,7 @@ import {
 } from "@elizaos/agent/services/knowledge-graph/index";
 import type { MemoryStorageProvider } from "@elizaos/core";
 import type {
+  NativeActionPlanningService,
   NativeAgentOrchestratorService,
   NativeAgentSkillsService,
   NativeApprovalService,
@@ -18,9 +19,9 @@ import type {
   NativeFormsService,
   NativeGitHubService,
   NativeMcpService,
+  NativeOperatorPlanningService,
   NativePdfService,
   NativePersonalityService,
-  NativePlanningService,
   NativePluginManagerService,
   NativeRolodexService,
   NativeSecretsManagerService,
@@ -37,6 +38,7 @@ import {
   DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_CODING_AGENT_SERVICE,
   DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
@@ -110,7 +112,11 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     ),
     e2b: service<NativeE2BService>(runtime, "e2b"),
     forms: service<NativeFormsService>(runtime, "forms"),
-    planning: service<NativePlanningService>(runtime, "planning"),
+    actionPlanning: service<NativeActionPlanningService>(runtime, "planning"),
+    operatorPlanning: service<NativeOperatorPlanningService>(
+      runtime,
+      DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+    ),
     github: service<NativeGitHubService>(runtime, "github"),
     secretsManager: service<NativeSecretsManagerService>(
       runtime,

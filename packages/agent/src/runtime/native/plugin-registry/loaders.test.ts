@@ -1,3 +1,4 @@
+import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
 import type { Plugin } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "../../../services";
@@ -166,6 +167,13 @@ describe("loadHotExecutionPlugins", () => {
       "@elizaos/plugin-agent-skills",
       "@doolittle/plugin-planning",
     ]);
+    const operatorPlanning = plugins.find(
+      (plugin) => plugin.name === "@doolittle/plugin-planning",
+    );
+    expect(operatorPlanning?.services?.[0]?.serviceType).toBe(
+      DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+    );
+    expect(operatorPlanning?.services?.[0]?.serviceType).not.toBe("planning");
   });
 });
 

@@ -23,6 +23,7 @@ describe("native execution control plane", () => {
     const control = getNativeExecutionControlPlaneDetails(runtime, {
       source: "product",
       available: false,
+      actionPlanningAvailable: false,
       capability: "Planning unavailable.",
       plans: {
         total: 0,
@@ -30,6 +31,8 @@ describe("native execution control plane", () => {
         linkedWorkflows: 0,
       },
       supportsCreate: false,
+      supportsApprove: false,
+      supportsSteer: false,
       detail: "Planning unavailable.",
     });
 
@@ -106,6 +109,7 @@ describe("native execution control plane", () => {
     const control = getNativeExecutionControlPlaneDetails(runtime, {
       source: "native-plugin",
       available: true,
+      actionPlanningAvailable: true,
       capability: "Planning available",
       plans: {
         total: 4,
@@ -113,6 +117,8 @@ describe("native execution control plane", () => {
         linkedWorkflows: 1,
       },
       supportsCreate: true,
+      supportsApprove: true,
+      supportsSteer: true,
       detail: "Planning wired.",
     });
 

@@ -1,9 +1,9 @@
 import type { StoredPlanRecord } from "@doolittle/contracts";
-import type { NativePlanningService } from "../runtime-contracts";
+import type { NativeOperatorPlanningService } from "../runtime-contracts";
 import { type RuntimeLike, resolveMethod, resolveService } from "./resolve";
 
-type Svc = NativePlanningService;
-const KEY = "planning";
+type Svc = NativeOperatorPlanningService;
+const KEY = "operatorPlanning";
 
 export async function listEffectivePlans(
   runtime: RuntimeLike,

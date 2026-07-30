@@ -1,3 +1,4 @@
+import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import { describe, expect, it } from "vitest";
 import type { RuntimeLike } from "./runtime";
@@ -27,6 +28,10 @@ describe("service-resolution helpers", () => {
             return { getLoadedSkills: () => [] };
           case "plugin_manager":
             return { list: () => [], categories: () => ({}) };
+          case "planning":
+            return { createSimplePlan: async () => ({}) };
+          case DOOLITTLE_OPERATOR_PLANNING_SERVICE:
+            return { listPlans: () => [] };
           default:
             return null;
         }
@@ -153,6 +158,24 @@ describe("service-resolution helpers", () => {
         source: "native",
         ownership: "plugin",
         fallback: "native plugin catalog",
+        available: true,
+      },
+      {
+        capability: "actionPlanning",
+        nativeService: "planning",
+        source: "native",
+        ownership: "plugin",
+        fallback:
+          "unavailable until the official Eliza planning service is registered",
+        available: true,
+      },
+      {
+        capability: "operatorPlanning",
+        nativeService: DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+        source: "native",
+        ownership: "plugin",
+        fallback:
+          "unavailable until the Doolittle operator-plan projection is registered",
         available: true,
       },
     ]);

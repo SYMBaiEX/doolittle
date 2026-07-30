@@ -6,6 +6,7 @@ import {
   DOOLITTLE_BROWSER_SERVICE,
   DOOLITTLE_CODING_AGENT_SERVICE,
   DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
   PDF_SERVICE,
@@ -172,5 +173,21 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       nativeService: "plugin_manager",
       productServices: [],
       fallback: "native plugin catalog",
+    },
+    {
+      capability: "actionPlanning",
+      nativeKey: "actionPlanning",
+      nativeService: "planning",
+      productServices: [],
+      fallback:
+        "unavailable until the official Eliza planning service is registered",
+    },
+    {
+      capability: "operatorPlanning",
+      nativeKey: "operatorPlanning",
+      nativeService: DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+      productServices: [],
+      fallback:
+        "unavailable until the Doolittle operator-plan projection is registered",
     },
   ];

@@ -19,7 +19,8 @@ export type NativeServicesSnapshot = {
     exportTrajectories?: unknown;
   } | null;
   pluginManager?: unknown;
-  planning?: unknown;
+  actionPlanning?: unknown;
+  operatorPlanning?: unknown;
   approval?: unknown;
   agentEvent?: unknown;
   toolPolicy?: unknown;
@@ -67,6 +68,7 @@ export type ExecutionControlLike = {
     plans: {
       total: number;
     };
+    actionPlanningAvailable?: boolean;
   };
   codeGeneration: {
     ready: boolean;

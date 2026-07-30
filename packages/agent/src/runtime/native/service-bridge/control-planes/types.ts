@@ -18,6 +18,7 @@ export type NativeResearchServices = {
 export interface NativePlanningControlPlane {
   source: "native-plugin" | "product";
   available: boolean;
+  actionPlanningAvailable: boolean;
   capability: string;
   plans: {
     total: number;

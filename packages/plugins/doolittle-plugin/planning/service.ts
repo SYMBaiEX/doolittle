@@ -1,5 +1,9 @@
 import { join } from "node:path";
-import type { StoredPlanRecord } from "@doolittle/contracts";
+import {
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+  ORCHESTRATOR_TASK_SERVICE,
+  type StoredPlanRecord,
+} from "@doolittle/contracts";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
 import {
   normalizeMetadata,
@@ -8,7 +12,7 @@ import {
   normalizeText,
 } from "./normalization";
 import { ensureStoreInitialized, readStore, writeStore } from "./storage";
-import type { PlanningPluginOptions, PlanningStore } from "./types";
+import type { PlanningStore } from "./types";
 import { nextId, nowIso } from "./utils";
 
 export type PlanApprovalResult =
@@ -24,33 +28,51 @@ export type PlanSteeringResult =
   | { kind: "task_not_found"; plan: StoredPlanRecord; taskId: string }
   | { kind: "invalid_instruction"; plan: StoredPlanRecord }
   | {
-      kind: "task_not_pending";
+      kind: "task_not_steerable";
       plan: StoredPlanRecord;
       taskId: string;
       status: unknown;
     }
-  | { kind: "native_only"; plan: StoredPlanRecord };
+  | { kind: "orchestrator_unavailable"; plan: StoredPlanRecord };
 
-type PlanningDependencyProvider = Pick<
-  PlanningPluginOptions,
-  "delegation" | "workflows"
->;
+interface OrchestratorTask {
+  status?: unknown;
+  paused?: unknown;
+}
 
-export const createPlanningService = (
-  storageRoot: string,
-  options: PlanningDependencyProvider,
-) => {
+interface OrchestratorTaskService {
+  getTask(id: string): Promise<OrchestratorTask | null>;
+  addMessage(
+    id: string,
+    input: {
+      content: string;
+      senderKind: "orchestrator";
+      direction: "system";
+    },
+  ): Promise<boolean>;
+}
+
+const STEERABLE_TASK_STATUSES = new Set([
+  "open",
+  "active",
+  "waiting_on_user",
+  "blocked",
+]);
+
+export const createPlanningService = (storageRoot: string) => {
   class PlanningService extends ElizaService {
-    static serviceType = "planning";
+    static serviceType = DOOLITTLE_OPERATOR_PLANNING_SERVICE;
 
     capabilityDescription =
-      "Workspace-native planning service for native execution, delegation, and workflow graph coordination.";
+      "Doolittle operator-plan projection linked to native Eliza tasks and workflow graphs.";
 
     private readonly rootDir = storageRoot;
     private readonly storePath = join(this.rootDir, "plans-store.json");
+    private readonly agentRuntime: IAgentRuntime | undefined;
 
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
+      this.agentRuntime = runtime;
       ensureStoreInitialized(this.rootDir, this.storePath);
     }
 
@@ -78,8 +100,6 @@ export const createPlanningService = (
         linkedTasks: plans.filter((entry) => Boolean(entry.taskId)).length,
         linkedWorkflows: plans.filter((entry) => Boolean(entry.workflowId))
           .length,
-        delegationTasks: options.delegation.list().length,
-        workflows: options.workflows.list(50).length,
       };
     }
 
@@ -168,33 +188,44 @@ export const createPlanningService = (
       if (!plan.taskId) {
         return { kind: "unlinked", plan };
       }
-      if (!options.delegation.get || !options.delegation.addNote) {
-        return { kind: "native_only", plan };
+      const orchestrator = this.agentRuntime?.getService(
+        ORCHESTRATOR_TASK_SERVICE,
+      ) as OrchestratorTaskService | null | undefined;
+      if (!orchestrator) {
+        return { kind: "orchestrator_unavailable", plan };
       }
 
-      let task: unknown;
+      let task: OrchestratorTask | null;
       try {
-        task = options.delegation.get(plan.taskId);
+        task = await orchestrator.getTask(plan.taskId);
       } catch {
         return { kind: "task_not_found", plan, taskId: plan.taskId };
       }
-      if (!task || typeof task !== "object") {
+      if (!task) {
         return { kind: "task_not_found", plan, taskId: plan.taskId };
       }
-      const taskStatus = (task as { status?: unknown }).status;
-      if (taskStatus !== "pending") {
+      const taskStatus = task.status;
+      if (
+        task.paused === true ||
+        typeof taskStatus !== "string" ||
+        !STEERABLE_TASK_STATUSES.has(taskStatus)
+      ) {
         return {
-          kind: "task_not_pending",
+          kind: "task_not_steerable",
           plan,
           taskId: plan.taskId,
           status: taskStatus,
         };
       }
 
-      options.delegation.addNote(
-        plan.taskId,
-        `operator-steer: ${normalizedInstruction}`,
-      );
+      const added = await orchestrator.addMessage(plan.taskId, {
+        content: `operator-steer: ${normalizedInstruction}`,
+        senderKind: "orchestrator",
+        direction: "system",
+      });
+      if (!added) {
+        return { kind: "task_not_found", plan, taskId: plan.taskId };
+      }
       return { kind: "steered", plan, taskId: plan.taskId };
     }
 

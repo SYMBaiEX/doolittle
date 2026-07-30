@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleCodegenRoutes } from "@/server/routes/codegen";
@@ -38,7 +39,7 @@ function createFixtureContext(workspaceDir: string, dataDir: string) {
       if (name === "ORCHESTRATOR_TASK_SERVICE") {
         return official.service;
       }
-      if (name === "planning") {
+      if (name === DOOLITTLE_OPERATOR_PLANNING_SERVICE) {
         return {
           listPlans: () => plans,
           createPlan: (input: Record<string, unknown>) => {

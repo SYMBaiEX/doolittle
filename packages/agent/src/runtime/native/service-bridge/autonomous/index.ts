@@ -113,6 +113,7 @@ export interface AutonomousControlPlaneSummary {
     planning: {
       source: "native" | "product";
       available: boolean;
+      operatorPlanningAvailable: boolean;
       plans: number;
     };
     codeGeneration: {

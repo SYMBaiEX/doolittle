@@ -1,106 +1,13 @@
-import {
-  getNativeE2BSandboxControlPlane,
-  type NativeE2BService,
-} from "./execution-control-plane";
+import type { NativePlanningControlPlane } from "./control-planes/types";
+import { getNativeE2BSandboxControlPlane } from "./execution-control-plane";
 import { getNativeServices, type RuntimeLike } from "./runtime";
-import type { NativeToolPolicyService } from "./runtime-contracts";
-
-interface NativeFormsService {
-  capabilityDescription?: string;
-  isPersistenceAvailable?: () => boolean;
-  listForms?: () => unknown[];
-  getTemplates?: () => Map<string, object> | object[] | Record<string, object>;
-  createForm?: (
-    templateOrForm: unknown,
-    metadata?: unknown,
-  ) => Promise<unknown>;
-  getForm?: (formId: string) => Promise<unknown | undefined>;
-  cancelForm?: (formId: string) => Promise<boolean>;
-  forcePersist?: () => Promise<{ path: string; total: number }>;
-}
-
-interface NativePlanningService {
-  capabilityDescription?: string;
-  listPlans?: () => unknown[];
-  getPlan?: (planId: string) => Promise<unknown | undefined> | unknown;
-  createPlan?: (input: unknown) => Promise<unknown> | unknown;
-  summary?: () => {
-    total: number;
-    active: number;
-    draft: number;
-    completed: number;
-    linkedTasks: number;
-    linkedWorkflows: number;
-    delegationTasks: number;
-    workflows: number;
-  };
-}
-
-interface NativeCodeGenerationService {
-  capabilityDescription?: string;
-  performResearch?: (...args: unknown[]) => unknown;
-  generatePRD?: (...args: unknown[]) => unknown;
-  performQA?: (...args: unknown[]) => unknown;
-  generateCode?: (...args: unknown[]) => unknown;
-  generateCodeInternal?: (...args: unknown[]) => unknown;
-  runValidationSuite?: (...args: unknown[]) => unknown;
-  generateCodeInChunks?: (...args: unknown[]) => unknown;
-  installDependencies?: (...args: unknown[]) => unknown;
-}
-
-interface NativeGitHubService {
-  capabilityDescription?: string;
-  createRepository?: (name: string, isPrivate?: boolean) => Promise<unknown>;
-  deleteRepository?: (name: string) => Promise<unknown>;
-}
-
-interface NativeSecretsManagerService {
-  capabilityDescription?: string;
-  getSecret?: (key: string) => Promise<unknown> | unknown;
-  setSecret?: (key: string, value: string) => Promise<unknown> | unknown;
-  hasSecret?: (key: string) => Promise<boolean> | boolean;
-  listSecretKeys?: () => Promise<string[]> | string[];
-}
-
-interface NativeApprovalService {
-  requestApprovalAsync?(input: unknown): Promise<string>;
-  handleSelection?(taskId: string, selectedOption: string): Promise<void>;
-  getPendingApprovals?(roomId: string): Promise<unknown[]>;
-}
-
-interface NativeAgentEventService {
-  subscribeHeartbeat?: () => unknown;
-  getLastHeartbeat?: () => { status?: string };
-}
-
-interface NativePlanningControlPlane {
-  source: "native-plugin" | "product";
-  available: boolean;
-  capability: string;
-  plans: {
-    total: number;
-    linkedTasks: number;
-    linkedWorkflows: number;
-  };
-  supportsCreate: boolean;
-  detail: string;
-}
+import type { NativeCodeGenerationService } from "./runtime-contracts";
 
 export function getNativeExecutionControlPlaneDetails(
   runtime: RuntimeLike,
   planningControl: NativePlanningControlPlane,
 ) {
-  const native = getNativeServices(runtime) as {
-    approval?: NativeApprovalService;
-    agentEvent?: NativeAgentEventService | null;
-    e2b?: NativeE2BService;
-    toolPolicy?: NativeToolPolicyService;
-    forms?: NativeFormsService;
-    planning?: NativePlanningService;
-    codeGeneration?: NativeCodeGenerationService;
-    github?: NativeGitHubService;
-    secretsManager?: NativeSecretsManagerService;
-  };
+  const native = getNativeServices(runtime);
   const runtimeActions =
     typeof runtime.getAllActions === "function"
       ? runtime.getAllActions().map((action: { name: string }) => action.name)

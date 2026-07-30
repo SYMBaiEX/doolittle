@@ -1,6 +1,10 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+  ORCHESTRATOR_TASK_SERVICE,
+} from "@doolittle/contracts";
 import type { IAgentRuntime, Service, ServiceClass } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { createPlanningPlugin } from "./index";
@@ -9,66 +13,13 @@ describe("plugin-planning", () => {
   it("creates and summarizes persisted plans", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-planning-"));
     const plugin = createPlanningPlugin({
-      delegation: {
-        list: () => [
-          {
-            id: "task-1",
-            title: "Task 1",
-            objective: "Do task 1",
-            status: "pending",
-            executionMode: "local",
-            notes: [],
-            createdAt: "2026-03-24T00:00:00.000Z",
-            updatedAt: "2026-03-24T00:00:00.000Z",
-          },
-        ],
-        get: (id) => ({
-          id,
-          title: "Task 1",
-          objective: "Do task 1",
-          status: "pending",
-          executionMode: "local",
-          notes: [],
-          createdAt: "2026-03-24T00:00:00.000Z",
-          updatedAt: "2026-03-24T00:00:00.000Z",
-        }),
-        addNote: (_id, _note) => undefined,
-      },
-      workflows: {
-        list: () => [
-          {
-            id: "workflow-1",
-            createdAt: "2026-03-24T00:00:00.000Z",
-            updatedAt: "2026-03-24T00:00:00.000Z",
-            startedAt: "2026-03-24T00:00:00.000Z",
-            title: "Workflow 1",
-            objective: "Ship workflow 1",
-            kind: "generate",
-            status: "running",
-            runIds: [],
-            artifactPaths: [],
-          },
-        ],
-        get: (id) => ({
-          id,
-          createdAt: "2026-03-24T00:00:00.000Z",
-          updatedAt: "2026-03-24T00:00:00.000Z",
-          startedAt: "2026-03-24T00:00:00.000Z",
-          title: "Workflow 1",
-          objective: "Ship workflow 1",
-          kind: "generate",
-          status: "running",
-          runIds: [],
-          artifactPaths: [],
-        }),
-      },
       storage: {
         dataRoot: root,
       },
     });
-    const PlanningService = plugin.services?.[0] as ServiceClass | undefined;
+    const PlanningService = plugin.services?.[0] as ServiceClass;
     expect(PlanningService).toBeDefined();
-    const service = (await PlanningService?.start(
+    const service = (await PlanningService.start(
       undefined as unknown as IAgentRuntime,
     )) as Service & {
       createPlan(input: unknown): Promise<unknown>;
@@ -95,28 +46,33 @@ describe("plugin-planning", () => {
       total: 1,
       linkedTasks: 1,
       linkedWorkflows: 1,
-      delegationTasks: 1,
-      workflows: 1,
     });
+    expect(PlanningService.serviceType).toBe(
+      DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+    );
+    expect(PlanningService.serviceType).not.toBe("planning");
   });
 
-  it("approves drafts with an operator receipt and steers only pending linked tasks", async () => {
+  it("approves drafts and steers linked tasks through the official orchestrator", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-planning-reviewed-"));
-    const notes: string[] = [];
-    let taskStatus = "pending";
-    const plugin = createPlanningPlugin({
-      delegation: {
-        list: () => [],
-        get: () => ({ status: taskStatus }),
-        addNote: (_id, note) => notes.push(note),
+    const messages: Array<{ id: string; content: string }> = [];
+    let taskStatus = "open";
+    const orchestrator = {
+      getTask: async () => ({ status: taskStatus, paused: false }),
+      addMessage: async (id: string, input: { content: string }) => {
+        messages.push({ id, content: input.content });
+        return true;
       },
-      workflows: { list: () => [] },
+    };
+    const runtime = {
+      getService: (serviceType: string) =>
+        serviceType === ORCHESTRATOR_TASK_SERVICE ? orchestrator : null,
+    } as unknown as IAgentRuntime;
+    const plugin = createPlanningPlugin({
       storage: { dataRoot: root },
     });
     const PlanningService = plugin.services?.[0] as ServiceClass;
-    const service = (await PlanningService.start(
-      undefined as unknown as IAgentRuntime,
-    )) as Service & {
+    const service = (await PlanningService.start(runtime)) as Service & {
       createPlan(
         input: unknown,
       ): Promise<{ id: string; metadata: Record<string, unknown> }>;
@@ -155,11 +111,16 @@ describe("plugin-planning", () => {
         taskId: "task-1",
       },
     );
-    expect(notes).toEqual(["operator-steer: Keep the diff focused."]);
+    expect(messages).toEqual([
+      {
+        id: "task-1",
+        content: "operator-steer: Keep the diff focused.",
+      },
+    ]);
 
-    taskStatus = "running";
+    taskStatus = "done";
     expect(await service.steerPlan(draft.id, "Too late.")).toMatchObject({
-      kind: "task_not_pending",
+      kind: "task_not_steerable",
     });
   });
 });

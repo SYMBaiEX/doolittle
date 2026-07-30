@@ -1,3 +1,4 @@
+import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
@@ -86,7 +87,13 @@ describe("getEffectiveMessagingTransportInventory", () => {
         }
         if (name === "planning") {
           return {
-            capabilityDescription: "planning",
+            capabilityDescription: "Official Eliza action planning",
+            createSimplePlan: async () => ({ id: "action-plan-1" }),
+          };
+        }
+        if (name === DOOLITTLE_OPERATOR_PLANNING_SERVICE) {
+          return {
+            capabilityDescription: "Doolittle operator planning",
             listPlans: () => [
               { id: "plan-1", taskId: "task-1", status: "active" },
               { id: "plan-2", workflowId: "workflow-1", status: "draft" },
@@ -128,6 +135,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(forms.forms.active).toBe(1);
     expect(forms.persistenceAvailable).toBe(true);
     expect(planning.available).toBe(true);
+    expect(planning.actionPlanningAvailable).toBe(true);
     expect(planning.plans.total).toBe(2);
     expect(execution.e2b.available).toBe(true);
     expect(execution.planning.available).toBe(true);
@@ -307,7 +315,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             }),
           };
         }
-        if (name === "planning") {
+        if (name === DOOLITTLE_OPERATOR_PLANNING_SERVICE) {
           return {
             listPlans: () => [
               {

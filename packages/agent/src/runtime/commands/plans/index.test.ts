@@ -1,3 +1,4 @@
+import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../../chat";
 import { handlePlansCommand } from ".";
@@ -13,7 +14,7 @@ function createRuntime() {
   };
   return {
     getService(name: string) {
-      if (name === "planning") {
+      if (name === DOOLITTLE_OPERATOR_PLANNING_SERVICE) {
         return planning;
       }
       return undefined;

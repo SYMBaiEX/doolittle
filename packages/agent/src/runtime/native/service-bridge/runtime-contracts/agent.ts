@@ -1,7 +1,9 @@
+import { ORCHESTRATOR_TASK_SERVICE } from "@doolittle/contracts";
 import type { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 import type { SdkTrajectoryLogger } from "@/types/trajectory/sdk";
 
 export const AGENT_SKILLS_SERVICE = "AGENT_SKILLS_SERVICE";
+export { ORCHESTRATOR_TASK_SERVICE };
 
 /**
  * Public contract exposed by @elizaos/plugin-agent-skills under
@@ -47,7 +49,6 @@ export interface NativeHumanFeedback {
 
 export type NativeTrajectoryLoggerService = SdkTrajectoryLogger;
 
-export const ORCHESTRATOR_TASK_SERVICE = "ORCHESTRATOR_TASK_SERVICE";
 export const ACP_SUBPROCESS_SERVICE = "ACP_SUBPROCESS_SERVICE";
 
 export type NativeOrchestratorTaskStatus =

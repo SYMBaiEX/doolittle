@@ -19,11 +19,12 @@ import type {
   NativeToolPolicyService,
 } from "./core";
 import type {
+  NativeActionPlanningService,
   NativeDiscordTransportService,
   NativeE2BService,
   NativeFormsService,
   NativeGitHubService,
-  NativePlanningService,
+  NativeOperatorPlanningService,
   NativePluginManagerService,
   NativeSecretsManagerService,
   NativeTelegramTransportService,
@@ -64,7 +65,8 @@ export type NativeServices = {
   codeGeneration: NativeCodeGenerationService | undefined;
   e2b: NativeE2BService | undefined;
   forms: NativeFormsService | undefined;
-  planning: NativePlanningService | undefined;
+  actionPlanning: NativeActionPlanningService | undefined;
+  operatorPlanning: NativeOperatorPlanningService | undefined;
   github: NativeGitHubService | undefined;
   secretsManager: NativeSecretsManagerService | undefined;
 };

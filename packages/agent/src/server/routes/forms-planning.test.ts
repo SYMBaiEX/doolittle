@@ -1,3 +1,4 @@
+import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleFormsPlanningRoutes } from "./forms-planning";
@@ -20,7 +21,7 @@ function createContext(): AppContext {
             cancelForm: (id: string) => ({ id, status: "cancelled" }),
           };
         }
-        if (name === "planning") {
+        if (name === DOOLITTLE_OPERATOR_PLANNING_SERVICE) {
           return {
             listPlans: () => [{ id: "plan-1", taskId: "task-1" }],
             createPlan: (input: unknown) => ({ id: "plan-new", input }),
@@ -40,7 +41,7 @@ describe("handleFormsPlanningRoutes", () => {
     return {
       runtime: {
         getService: (name: string) =>
-          name === "planning" ? planning : undefined,
+          name === DOOLITTLE_OPERATOR_PLANNING_SERVICE ? planning : undefined,
       },
     } as unknown as AppContext;
   }
@@ -234,12 +235,12 @@ describe("handleFormsPlanningRoutes", () => {
       }),
       new URL("http://localhost/plans/plan-1/steer"),
     );
-    const pendingConflict = await handleFormsPlanningRoutes(
+    const terminalConflict = await handleFormsPlanningRoutes(
       createPlanActionContext({
         steerPlan: () => ({
-          kind: "task_not_pending",
+          kind: "task_not_steerable",
           taskId: "task-1",
-          status: "running",
+          status: "done",
         }),
       }),
       new Request("http://localhost/plans/plan-1/steer", {
@@ -249,8 +250,10 @@ describe("handleFormsPlanningRoutes", () => {
       }),
       new URL("http://localhost/plans/plan-1/steer"),
     );
-    const nativeOnly = await handleFormsPlanningRoutes(
-      createPlanActionContext({ steerPlan: () => ({ kind: "native_only" }) }),
+    const orchestratorUnavailable = await handleFormsPlanningRoutes(
+      createPlanActionContext({
+        steerPlan: () => ({ kind: "orchestrator_unavailable" }),
+      }),
       new Request("http://localhost/plans/plan-1/steer", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -263,8 +266,8 @@ describe("handleFormsPlanningRoutes", () => {
     expect(requests).toEqual([["plan-1", "Keep the change small."]]);
     expect(invalid?.status).toBe(400);
     expect(unlinked?.status).toBe(409);
-    expect(pendingConflict?.status).toBe(409);
-    expect(nativeOnly?.status).toBe(409);
+    expect(terminalConflict?.status).toBe(409);
+    expect(orchestratorUnavailable?.status).toBe(503);
   });
 
   it("rejects unsafe plan action identifiers before service dispatch", async () => {

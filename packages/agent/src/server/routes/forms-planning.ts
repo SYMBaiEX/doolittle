@@ -174,11 +174,11 @@ export async function handleFormsPlanningRoutes(
       if (result.kind === "task_not_found") {
         return json({ error: "The linked product task was not found." }, 409);
       }
-      if (result.kind === "task_not_pending") {
+      if (result.kind === "task_not_steerable") {
         return json(
           {
             error:
-              "Operator steering is only accepted before the linked task starts.",
+              "The linked Eliza task is paused, terminal, or otherwise not accepting operator steering.",
             taskId: result.taskId,
             status: result.status,
           },
@@ -191,13 +191,13 @@ export async function handleFormsPlanningRoutes(
           400,
         );
       }
-      if (result.kind === "native_only") {
+      if (result.kind === "orchestrator_unavailable") {
         return json(
           {
             error:
-              "Operator steering requires the product planning and delegation services; native-only plans cannot be steered.",
+              "Operator steering requires the official Eliza orchestrator service.",
           },
-          409,
+          503,
         );
       }
       if (result.kind === "invalid_state") {
