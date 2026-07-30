@@ -12,10 +12,6 @@ export {
   buildProviderAuthFailureReply,
   installProviderFailureTemplates,
 } from "./provider-failure-templates";
-export {
-  coerceRelationshipEntityId,
-  patchRuntimeRelationshipCompatibility,
-} from "./relationship-compat";
 export { requireRuntimeService } from "./required-service";
 export {
   agentEventLabel,

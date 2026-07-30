@@ -8,7 +8,6 @@ import {
   finalizeCoreRuntimeServices,
   installDynamicModelProviderRouting,
   installProviderFailureTemplates,
-  patchRuntimeRelationshipCompatibility,
   requireRuntimeService,
 } from "@/runtime/bootstrap/runtime";
 import { createAutomationExecutor } from "@/runtime/bootstrap/runtime/automation-executor";
@@ -34,8 +33,6 @@ export async function configureBootstrapContext({
   startupMode,
   loadDeferredPlugins,
 }: BootstrapContextParams): Promise<BootstrapContext> {
-  patchRuntimeRelationshipCompatibility(runtime);
-  appendBootstrapTrace("phase:patchRelationshipsCompatibility:done");
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:start");
   await finalizeCoreRuntimeServices(runtime);
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:done");
