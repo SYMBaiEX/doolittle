@@ -69,10 +69,8 @@ function responseText(memory: Memory | undefined): string {
   return typeof content?.text === "string" ? content.text.trim() : "";
 }
 
-type TerminalResponseContent = {
+type SdkResponseContent = {
   text?: unknown;
-  thought?: unknown;
-  actions?: unknown;
 };
 
 function actionResultsFromState(state: unknown): ActionResult[] {
@@ -83,53 +81,19 @@ function actionResultsFromState(state: unknown): ActionResult[] {
   return Array.isArray(actionResults) ? (actionResults as ActionResult[]) : [];
 }
 
-function verifiedActionResponse(
-  actionResults: readonly ActionResult[],
-): string {
-  for (const result of [...actionResults].reverse()) {
-    if (
-      result.success &&
-      result.verifiedUserFacing === true &&
-      typeof result.userFacingText === "string" &&
-      result.userFacingText.trim()
-    ) {
-      return result.userFacingText.trim();
-    }
-  }
-  return "";
-}
-
-function isSdkTemporaryFailure(content: TerminalResponseContent): boolean {
-  const thought =
-    typeof content.thought === "string" ? content.thought.trim() : "";
-  const actions = Array.isArray(content.actions) ? content.actions : [];
-  return (
-    actions.includes("REPLY") &&
-    thought.startsWith("Handle a temporary reply failure during ")
-  );
-}
-
 /**
  * The message service can invoke callbacks for a response-handler preamble
  * before its planner executes actions. Its returned responseContent is the
  * terminal response after that loop and is the only safe user-facing answer.
  */
-function resolveTerminalMessageResponse(input: {
-  responseContent?: TerminalResponseContent | null;
+function resolveSdkMessageResponse(input: {
+  responseContent?: SdkResponseContent | null;
   responseMessages: Memory[];
   provisionalResponse: string;
   actionResults: ActionResult[];
 }): string {
-  const verifiedResponse = verifiedActionResponse(input.actionResults);
   const responseContent = input.responseContent?.text;
   if (typeof responseContent === "string" && responseContent.trim()) {
-    if (
-      input.responseContent &&
-      verifiedResponse &&
-      isSdkTemporaryFailure(input.responseContent)
-    ) {
-      return verifiedResponse;
-    }
     return responseContent.trim();
   }
 
@@ -138,7 +102,7 @@ function resolveTerminalMessageResponse(input: {
   // in that collection. Post-provider will surface the normal no-response
   // notice rather than accidentally ending a turn before tool synthesis.
   if (input.actionResults.length > 0) {
-    return verifiedResponse;
+    return "";
   }
 
   for (const message of [...input.responseMessages].reverse()) {
@@ -232,8 +196,8 @@ export async function executeProviderMessageTurn(
               ? input.messagePolicy.maxIterations
               : 1,
             // Declare Doolittle's terminal-after-tools contract explicitly.
-            // The current V5 planner owns its continuation loop internally;
-            // terminal response selection below remains the enforcement point.
+            // The SDK planner owns its continuation loop and returned
+            // responseContent remains the canonical terminal answer.
             continueAfterActions: true,
             abortSignal: input.abortSignal,
             onStreamChunk: input.streamState.onStreamChunk,
@@ -250,7 +214,7 @@ export async function executeProviderMessageTurn(
           actionResults =
             input.context.runtime.getActionResults?.(messageId) ?? [];
         }
-        response = resolveTerminalMessageResponse({
+        response = resolveSdkMessageResponse({
           responseContent: messageResult?.responseContent,
           responseMessages,
           provisionalResponse: input.streamState.getResponse(),

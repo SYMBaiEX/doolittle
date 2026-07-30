@@ -329,12 +329,14 @@ describe("chat turn provider seam", () => {
     expect(harness.progressPhases).toEqual([]);
   });
 
-  it("does not expose an early preamble when an action run has no terminal reply", async () => {
+  it("does not promote an action receipt when an action run has no terminal reply", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();
     harness.setActionResults([
       {
-        success: false,
+        success: true,
+        userFacingText: "Raw search result",
+        verifiedUserFacing: true,
         data: { actionName: "WEB_SEARCH" },
       },
     ]);
@@ -376,7 +378,7 @@ describe("chat turn provider seam", () => {
     expect(harness.progressPhases).toEqual([]);
   });
 
-  it("uses verified tool output when SDK terminal synthesis returns its structured failure reply", async () => {
+  it("keeps the SDK terminal response canonical when a tool result also has user-facing text", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();
     harness.context.runtime.messageService = {
@@ -427,10 +429,12 @@ describe("chat turn provider seam", () => {
       options: harness.options,
     });
 
-    expect(result.response).toContain(
+    expect(result.response).toBe(
+      "Something went wrong on my end. Please try again.",
+    );
+    expect(result.response).not.toContain(
       "[Hacker News](https://news.ycombinator.com/)",
     );
-    expect(result.response).not.toContain("Something went wrong");
     expect(result.actionResults).toHaveLength(1);
   });
 
