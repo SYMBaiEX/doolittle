@@ -50,6 +50,17 @@ export interface EffectiveToolInventory {
   };
 }
 
+export interface RuntimeToolProjection {
+  tools: EffectiveToolDefinition[];
+  runtimeOwned: boolean;
+  policyOwned: boolean;
+  effectiveProfile: ToolProfileId;
+  profiles: EffectiveToolInventory["summary"]["profiles"];
+  pluginTools: number;
+  pluginGroups: EffectiveToolInventory["summary"]["pluginGroups"];
+  policyError?: string;
+}
+
 function titleFromActionName(name: string): string {
   return name
     .replace(/[_-]+/gu, " ")
@@ -255,24 +266,46 @@ export function getEffectiveToolInventory(
   services: AppServices,
   options: EffectiveToolInventoryOptions = {},
 ): EffectiveToolInventory {
+  const projection = getRuntimeToolProjection(runtime, options);
+  const controlPlane = services.tools.summary();
+  return {
+    tools: projection.tools,
+    runtimeOwned: projection.runtimeOwned,
+    policyOwned: projection.policyOwned,
+    effectiveProfile: projection.effectiveProfile,
+    ...(projection.policyError ? { policyError: projection.policyError } : {}),
+    summary: summarize(
+      projection.tools,
+      projection.runtimeOwned,
+      projection,
+      projection.effectiveProfile,
+      controlPlane,
+    ),
+  };
+}
+
+/**
+ * Resolve registered Eliza actions through ToolPolicyService without consulting
+ * Doolittle's product capability catalog. Protocol adapters use this projection
+ * to avoid owning a second tool registry or recursing through their own status.
+ */
+export function getRuntimeToolProjection(
+  runtime: RuntimeLike,
+  options: EffectiveToolInventoryOptions = {},
+): RuntimeToolProjection {
   const runtimeTools = registeredActions(runtime);
   const runtimeOwned = typeof runtime.getAllActions === "function";
   const effectiveProfile = options.profile ?? configuredToolProfile(runtime);
   const policy = projectToolPolicy(runtime, runtimeTools, effectiveProfile);
-  const controlPlane = services.tools.summary();
   return {
     tools: policy.tools,
     runtimeOwned,
     policyOwned: policy.policyOwned,
     effectiveProfile,
+    profiles: policy.profiles,
+    pluginTools: policy.pluginTools,
+    pluginGroups: policy.pluginGroups,
     ...(policy.policyError ? { policyError: policy.policyError } : {}),
-    summary: summarize(
-      policy.tools,
-      runtimeOwned,
-      policy,
-      effectiveProfile,
-      controlPlane,
-    ),
   };
 }
 

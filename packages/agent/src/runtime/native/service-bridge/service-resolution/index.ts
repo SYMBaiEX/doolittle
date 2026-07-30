@@ -11,9 +11,11 @@ export type {
   EffectiveToolDefinition,
   EffectiveToolInventory,
   EffectiveToolInventoryOptions,
+  RuntimeToolProjection,
 } from "./tool-inventory";
 export {
   getEffectiveToolInventory,
+  getRuntimeToolProjection,
   searchEffectiveTools,
   TOOL_POLICY_PROFILES,
 } from "./tool-inventory";

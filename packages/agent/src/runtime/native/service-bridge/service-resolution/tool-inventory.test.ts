@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import {
   getEffectiveToolInventory,
+  getRuntimeToolProjection,
   searchEffectiveTools,
 } from "./tool-inventory";
 
@@ -186,6 +187,39 @@ describe("effective tool inventory", () => {
         policyReason: "Messaging tools are disabled in coding mode.",
       }),
     ]);
+  });
+
+  it("exposes a pure runtime projection for protocol adapters", () => {
+    const runtime = {
+      character: {
+        name: "Doolittle",
+        settings: { toolProfile: "coding" },
+      },
+      getAllActions: () => [
+        { name: "READ_FILE", description: "Read a workspace file." },
+        { name: "SEND_MESSAGE", description: "Send a message." },
+      ],
+      getService: (name: string) =>
+        name === "tool_policy"
+          ? {
+              getAllowedTools: ({ profile }: { profile?: string }) =>
+                profile === "coding"
+                  ? ["READ_FILE"]
+                  : ["READ_FILE", "SEND_MESSAGE"],
+            }
+          : null,
+    };
+
+    const projection = getRuntimeToolProjection(runtime as never);
+
+    expect(projection).toMatchObject({
+      runtimeOwned: true,
+      policyOwned: true,
+      effectiveProfile: "coding",
+    });
+    expect(
+      projection.tools.filter((tool) => tool.enabled).map((tool) => tool.id),
+    ).toEqual(["READ_FILE"]);
   });
 
   it("surfaces policy failures without hiding registered actions", () => {
