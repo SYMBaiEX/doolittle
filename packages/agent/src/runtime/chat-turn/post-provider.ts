@@ -54,7 +54,7 @@ export async function runPostProviderTurn(
     turn: input.turn,
   });
 
-  return await finalizePostProviderTurn({
+  const finalized = await finalizePostProviderTurn({
     context: input.context,
     turn: input.turn,
     finalResponse,
@@ -66,4 +66,16 @@ export async function runPostProviderTurn(
     settingsDuring: input.settingsDuring,
     scheduleProfileObservation: input.scheduleProfileObservation,
   });
+
+  // Provider callbacks are deliberately provisional because the Eliza
+  // message-service may continue into an action/planner loop. Deliver one
+  // response frame only after that loop has produced and persisted its
+  // terminal response.
+  await input.options?.onResponseProgress?.({
+    chunk: finalized.response,
+    response: finalized.response,
+    phase: "model",
+  });
+
+  return finalized;
 }

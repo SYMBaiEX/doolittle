@@ -22,6 +22,8 @@ function createProviderContext() {
   };
   let activePersonalityId = "default";
   let conversationId: unknown = "previous-conversation";
+  let actionResults: unknown[] = [];
+  let messageOptions: unknown;
 
   const context = {
     runtime: {
@@ -49,8 +51,10 @@ function createProviderContext() {
           _runtime: unknown,
           _memory: unknown,
           onContent: (content: unknown) => Promise<unknown>,
+          options?: unknown,
         ) => {
           handledMemory = _memory;
+          messageOptions = options;
           await onContent({ text: "hello from provider" });
           return {
             responseMessages: [
@@ -64,6 +68,7 @@ function createProviderContext() {
           };
         },
       },
+      getActionResults: () => actionResults,
     },
     services: {
       personalities: {
@@ -111,7 +116,11 @@ function createProviderContext() {
     settingsState,
     thinkingSessions,
     getConversationId: () => conversationId,
+    setActionResults: (next: unknown[]) => {
+      actionResults = next;
+    },
     getHandledMemory: () => handledMemory,
+    getMessageOptions: () => messageOptions,
     options: {
       personalityId: "reviewer",
       onNotice: async (notice: { message: string }) => {
@@ -182,7 +191,10 @@ describe("chat turn provider seam", () => {
     expect(result.runFailureMessage).toBeUndefined();
     expect(result.messageId).toBe("message-1");
     expect(result.responseMessages).toHaveLength(1);
-    expect(harness.progressPhases).toEqual(["model"]);
+    expect(harness.progressPhases).toEqual([]);
+    expect(harness.getMessageOptions()).toMatchObject({
+      continueAfterActions: true,
+    });
     expect(harness.thinkingSessions).toEqual(["session-1"]);
     expect(harness.personalityTransitions).toEqual(["reviewer", "default"]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
@@ -251,6 +263,117 @@ describe("chat turn provider seam", () => {
     expect(result.runFailureMessage).toBe(result.response);
     expect(harness.notices).toEqual([result.response]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
+  });
+
+  it("withholds an early tool preamble until the SDK returns its terminal synthesis", async () => {
+    const harness = createProviderContext();
+    const settingsBefore = harness.context.services.settings.get();
+    harness.setActionResults([
+      {
+        success: true,
+        data: { actionName: "WEB_SEARCH" },
+      },
+    ]);
+    harness.context.runtime.messageService = {
+      handleMessage: async (
+        _runtime: unknown,
+        _memory: unknown,
+        onContent: (content: { text?: string }) => Promise<unknown>,
+        options?: { onStreamChunk?: (chunk: string) => Promise<void> },
+      ) => {
+        await onContent({
+          text: "I don't have a web-search tool available, but I can try.",
+        });
+        await options?.onStreamChunk?.(
+          '{"type":"tool_call","toolName":"WEB_SEARCH","arguments":{"query":"Hacker News today"}}',
+        );
+        await options?.onStreamChunk?.(
+          '{"type":"tool_result","toolName":"WEB_SEARCH","output":"front-page results"}',
+        );
+        return {
+          responseContent: {
+            text: "I checked Hacker News. Here are the leading stories…",
+          },
+          responseMessages: [
+            {
+              id: "final-1",
+              content: {
+                text: "I checked Hacker News. Here are the leading stories…",
+              },
+            },
+          ],
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const result = await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "What is news today from Hacker News?",
+      settingsBefore,
+      settingsDuring: settingsBefore,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 3,
+        toolProgressMode: "all",
+      },
+      options: harness.options,
+    });
+
+    expect(result.response).toBe(
+      "I checked Hacker News. Here are the leading stories…",
+    );
+    expect(result.actionResults).toHaveLength(1);
+    expect(harness.progressPhases).toEqual([]);
+  });
+
+  it("does not expose an early preamble when an action run has no terminal reply", async () => {
+    const harness = createProviderContext();
+    const settingsBefore = harness.context.services.settings.get();
+    harness.setActionResults([
+      {
+        success: false,
+        data: { actionName: "WEB_SEARCH" },
+      },
+    ]);
+    harness.context.runtime.messageService = {
+      handleMessage: async (
+        _runtime: unknown,
+        _memory: unknown,
+        onContent: (content: { text?: string }) => Promise<unknown>,
+      ) => {
+        await onContent({ text: "I cannot search the web." });
+        return {
+          responseMessages: [
+            {
+              id: "early-1",
+              content: { text: "I cannot search the web." },
+            },
+          ],
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const result = await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "Search the web.",
+      settingsBefore,
+      settingsDuring: settingsBefore,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 3,
+        toolProgressMode: "all",
+      },
+      options: harness.options,
+    });
+
+    expect(result.response).toBe("");
+    expect(harness.progressPhases).toEqual([]);
   });
 
   it("converts non-recoverable provider failures into a user-facing notice", async () => {

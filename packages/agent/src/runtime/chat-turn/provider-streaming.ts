@@ -78,28 +78,25 @@ export function createProviderStreamState(
   let activeStreamSource: ProviderStreamSource = "unset";
   let response = "";
 
-  const emitChunk = async (chunk: string): Promise<void> => {
+  /**
+   * The Eliza message service may emit a response-handler acknowledgement
+   * before it enters the planner/action loop. Keep that text available as a
+   * compatibility fallback, but never deliver it to the client: a later tool
+   * call can make it stale or explicitly supersede it with the final planner
+   * response. The terminal delivery happens in post-provider/finalize.ts.
+   */
+  const appendProvisionalText = async (chunk: string): Promise<void> => {
     if (!chunk) {
       return;
     }
     response += chunk;
-    await context.onResponseProgress?.({
-      chunk,
-      response,
-      phase: "model",
-    });
   };
 
-  const emitSnapshot = async (text: string): Promise<void> => {
+  const replaceProvisionalText = async (text: string): Promise<void> => {
     if (!text) {
       return;
     }
     response = text;
-    await context.onResponseProgress?.({
-      chunk: text,
-      response,
-      phase: "model",
-    });
   };
 
   const claimStreamSource = (
@@ -118,10 +115,10 @@ export function createProviderStreamState(
       return;
     }
     if (update.kind === "append") {
-      await emitChunk(update.emittedText);
+      await appendProvisionalText(update.emittedText);
       return;
     }
-    await emitSnapshot(update.nextText);
+    await replaceProvisionalText(update.nextText);
   };
 
   return {
@@ -138,7 +135,13 @@ export function createProviderStreamState(
       return [];
     },
     onStreamChunk: async (chunk: string) => {
-      if (!chunk || !claimStreamSource("onStreamChunk")) {
+      // The SDK serializes tool calls, tool results, and evaluator updates
+      // through onStreamChunk. They are run telemetry, not assistant prose.
+      if (
+        !chunk ||
+        isInternalCallbackContent({ text: chunk } as Content) ||
+        !claimStreamSource("onStreamChunk")
+      ) {
         return;
       }
       await appendIncomingText(chunk);

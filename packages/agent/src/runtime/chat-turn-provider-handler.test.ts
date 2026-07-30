@@ -83,7 +83,7 @@ function createTurnSettings() {
 }
 
 describe("chat turn provider handler", () => {
-  it("returns the streamed SDK response without re-emitting SDK message events", async () => {
+  it("returns the terminal SDK response without re-emitting SDK message events", async () => {
     const { context, emittedEvents } = createContext({
       sdkEmitsMessageSent: true,
     });
@@ -130,10 +130,10 @@ describe("chat turn provider handler", () => {
     });
 
     expect(result.handledMessage).toBe(true);
-    expect(result.response).toBe("provider response");
+    expect(result.response).toBe("response message");
     expect(result.runFailureMessage).toBeUndefined();
     expect(emittedEvents).toEqual(["MESSAGE_SENT"]);
-    expect(streamState.getResponse()).toBe("provider response");
+    expect(streamState.getResponse()).toBe("response message");
   });
 
   it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {
@@ -209,7 +209,7 @@ describe("chat turn provider handler", () => {
       isRecoverableNativePlanningError: () => false,
     });
 
-    expect(result.response).toBe("provider response");
+    expect(result.response).toBe("response message");
     expect(started).toHaveLength(1);
     expect(ended).toEqual([
       { trajectoryId: "trajectory-1", status: "completed" },

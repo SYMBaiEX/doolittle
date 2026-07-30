@@ -87,6 +87,31 @@ describe("ElizaOS-native post-provider seam", () => {
     expect(scheduleProfileObservation).toHaveBeenCalledTimes(1);
   });
 
+  it("publishes exactly the persisted terminal response", async () => {
+    const harness = createHarness();
+    const progress: Array<{ chunk: string; response: string; phase: string }> =
+      [];
+
+    await runPostProviderTurn(
+      createInput(harness.context, {
+        options: {
+          onResponseProgress: async (update) => {
+            progress.push(update);
+          },
+        },
+      }),
+    );
+
+    expect(progress).toEqual([
+      {
+        chunk: "This is the selected project.",
+        response: "This is the selected project.",
+        phase: "model",
+      },
+    ]);
+    expect(harness.storedMessages).toEqual(["This is the selected project."]);
+  });
+
   it("does not run a second executor after an SDK failure", async () => {
     const harness = createHarness();
 

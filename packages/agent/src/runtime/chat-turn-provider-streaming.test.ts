@@ -36,7 +36,7 @@ function makeStreamingState({ onProgress = true } = {}) {
 }
 
 describe("chat turn provider streaming", () => {
-  it("locks progress arbitration to callback source when callback emits first", async () => {
+  it("keeps callback text provisional until terminal finalization", async () => {
     const { state, progress } = makeStreamingState();
 
     await state.onCallbackContent({ text: "hello" } as Content);
@@ -44,22 +44,17 @@ describe("chat turn provider streaming", () => {
     await state.onCallbackContent({ text: "!" } as Content);
 
     expect(state.getResponse()).toBe("hello!");
-    expect(progress).toEqual([
-      { response: "hello", chunk: "hello" },
-      { response: "hello!", chunk: "!" },
-    ]);
+    expect(progress).toEqual([]);
   });
 
-  it("locks progress arbitration to stream chunk source when stream chunk emits first", async () => {
+  it("keeps stream text provisional until terminal finalization", async () => {
     const { state, progress } = makeStreamingState();
 
     await state.onStreamChunk("from-stream");
     await state.onCallbackContent({ text: "from-callback" } as Content);
 
     expect(state.getResponse()).toBe("from-stream");
-    expect(progress).toEqual([
-      { response: "from-stream", chunk: "from-stream" },
-    ]);
+    expect(progress).toEqual([]);
   });
 
   it("does not surface structured internal callback envelopes as assistant text", async () => {
@@ -92,9 +87,7 @@ describe("chat turn provider streaming", () => {
     await state.onCallbackContent({ text: "Visible reply." } as Content);
 
     expect(state.getResponse()).toBe("Visible reply.");
-    expect(progress).toEqual([
-      { response: "Visible reply.", chunk: "Visible reply." },
-    ]);
+    expect(progress).toEqual([]);
   });
 
   it("continues to surface normal assistant callback text", async () => {
@@ -119,9 +112,22 @@ describe("chat turn provider streaming", () => {
     await state.onCallbackContent({ text: "Grounded answer." } as Content);
 
     expect(state.getResponse()).toBe("Grounded answer.");
-    expect(progress).toEqual([
-      { response: "Grounded answer.", chunk: "Grounded answer." },
-    ]);
+    expect(progress).toEqual([]);
+  });
+
+  it("suppresses structured tool events sent through the SDK stream channel", async () => {
+    const { state, progress } = makeStreamingState();
+
+    await state.onStreamChunk(
+      '{"type":"tool_call","toolName":"WEB_SEARCH","arguments":{"query":"today"}}',
+    );
+    await state.onStreamChunk(
+      '{"type":"tool_result","toolName":"WEB_SEARCH","output":"result"}',
+    );
+    await state.onStreamChunk('{"type":"evaluation","decision":"FINISH"}');
+
+    expect(state.getResponse()).toBe("");
+    expect(progress).toEqual([]);
   });
 
   it("updates and resets response without progress callback", async () => {

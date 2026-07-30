@@ -64,6 +64,43 @@ function memoryText(memory: Memory): string {
   return typeof content?.text === "string" ? content.text : "";
 }
 
+function responseText(memory: Memory | undefined): string {
+  const content = memory?.content as { text?: unknown } | undefined;
+  return typeof content?.text === "string" ? content.text.trim() : "";
+}
+
+/**
+ * The message service can invoke callbacks for a response-handler preamble
+ * before its planner executes actions. Its returned responseContent is the
+ * terminal response after that loop and is the only safe user-facing answer.
+ */
+function resolveTerminalMessageResponse(input: {
+  responseContent?: { text?: unknown } | null;
+  responseMessages: Memory[];
+  provisionalResponse: string;
+  actionResults: ActionResult[];
+}): string {
+  const responseContent = input.responseContent?.text;
+  if (typeof responseContent === "string" && responseContent.trim()) {
+    return responseContent.trim();
+  }
+
+  // A tool/action run without a canonical terminal response must not fall
+  // back to responseMessages: the SDK includes response-handler early replies
+  // in that collection. Post-provider will surface the normal no-response
+  // notice rather than accidentally ending a turn before tool synthesis.
+  if (input.actionResults.length > 0) {
+    return "";
+  }
+
+  for (const message of [...input.responseMessages].reverse()) {
+    const text = responseText(message);
+    if (text) return text;
+  }
+
+  return input.provisionalResponse.trim();
+}
+
 function throwIfTurnAborted(signal: AbortSignal | undefined): void {
   if (!signal?.aborted) return;
   if (signal.reason instanceof Error) throw signal.reason;
@@ -146,6 +183,11 @@ export async function executeProviderMessageTurn(
             maxMultiStepIterations: input.messagePolicy.useMultiStep
               ? input.messagePolicy.maxIterations
               : 1,
+            // Doolittle's contract is a terminal answer after tool work. The
+            // SDK otherwise inherits CONTINUE_AFTER_ACTIONS from process
+            // settings, which can end a successful WEB_SEARCH at its action
+            // callback instead of asking the planner to synthesize a reply.
+            continueAfterActions: true,
             abortSignal: input.abortSignal,
             onStreamChunk: input.onNotice
               ? input.streamState.onStreamChunk
@@ -155,14 +197,15 @@ export async function executeProviderMessageTurn(
         throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
         responseMessages = messageResult?.responseMessages ?? [];
-        response = input.streamState.getResponse();
-        if (!response) {
-          const responseText = messageResult?.responseContent?.text;
-          if (typeof responseText === "string" && responseText.trim()) {
-            response = responseText;
-            input.streamState.setResponse(response);
-          }
-        }
+        actionResults =
+          input.context.runtime.getActionResults?.(messageId) ?? [];
+        response = resolveTerminalMessageResponse({
+          responseContent: messageResult?.responseContent,
+          responseMessages,
+          provisionalResponse: input.streamState.getResponse(),
+          actionResults,
+        });
+        input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
         const isRecoverable = input.isRecoverableNativePlanningError(error);
@@ -192,7 +235,9 @@ export async function executeProviderMessageTurn(
         input.streamState.setResponse(response);
       } finally {
         actionResults =
-          input.context.runtime.getActionResults?.(messageId) ?? [];
+          actionResults.length > 0
+            ? actionResults
+            : (input.context.runtime.getActionResults?.(messageId) ?? []);
         const elapsedMs = elapsedMsSince(startedAt);
         recordTrajectoryEvent(input.context, {
           category: "model",
