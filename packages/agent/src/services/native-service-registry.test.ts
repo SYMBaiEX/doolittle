@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  SERVICE_REGISTRY_DEFINITIONS,
-  SERVICE_RESOLUTION_DEFINITIONS,
-} from "@/runtime/native/service-manifest";
+import { SERVICE_RESOLUTION_DEFINITIONS } from "@/runtime/native/service-manifest";
 import {
   createNativeServiceRegistry,
   describeNativeServiceRegistry,
