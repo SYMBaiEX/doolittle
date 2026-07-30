@@ -8,6 +8,7 @@ import {
 } from "@elizaos/core";
 import { messageUserId } from "@/runtime/message-user";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
+import { getEffectiveDelegationTasks } from "@/runtime/native/service-bridge/delegation";
 import {
   getEffectiveActivePersonality,
   getEffectiveUserProfile,
@@ -19,6 +20,10 @@ import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/toolin
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
 import type { AppServices } from "@/services";
+import {
+  buildDelegationProjectionOverview,
+  buildDelegationProjectionWorkers,
+} from "@/services/delegation/reporting";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";
 import { renderOperationSections } from "./sections/operations";
@@ -217,9 +222,15 @@ async function operationsContextResult(
       runtime,
       services,
     ).tools.filter((tool) => tool.enabled);
-    const delegationTasks = services.delegationProjection.list();
-    const delegationOverview = services.delegationProjection.overview();
-    const delegationWorkers = services.delegationProjection.workers(5);
+    const delegationTasks = await getEffectiveDelegationTasks(runtime);
+    const delegationOverview = buildDelegationProjectionOverview(
+      delegationTasks,
+      delegationTasks.filter((task) => task.status === "running").length,
+    );
+    const delegationWorkers = buildDelegationProjectionWorkers(
+      delegationTasks,
+      5,
+    );
     const userProfileEntries = listEffectiveUserProfiles(runtime) as ReturnType<
       AppServices["userProfiles"]["list"]
     >;

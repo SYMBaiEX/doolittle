@@ -84,6 +84,37 @@ function createRuntime() {
           history: () => [{ exitCode: 0, command: "git status" }],
         };
       }
+      if (name === "ORCHESTRATOR_TASK_SERVICE") {
+        const task = {
+          id: "task-1",
+          title: "Delegate work",
+          kind: "coding",
+          status: "active",
+          priority: "normal",
+          paused: false,
+          originalRequest: "Delegate work",
+          summary: undefined,
+          sessionCount: 1,
+          activeSessionCount: 1,
+          latestSessionId: "session-1",
+          latestWorkdir: "/workspace/demo",
+          createdAt: "2026-07-28T00:00:00.000Z",
+          updatedAt: "2026-07-28T00:01:00.000Z",
+          closedAt: null,
+          goal: "Delegate work",
+          parentTaskId: null,
+          acceptanceCriteria: [],
+          providerPolicy: null,
+          metadata: {},
+          sessions: [],
+          messages: [],
+          events: [],
+        };
+        return {
+          listTasks: async () => [task],
+          getTask: async () => task,
+        };
+      }
       return null;
     },
   };
@@ -200,23 +231,15 @@ function createServices() {
       }),
     },
     delegationProjection: {
-      list: () => [{ title: "Delegate work", status: "running" }],
-      overview: () => ({
-        total: 1,
-        pending: 0,
-        running: 1,
-        completed: 0,
-        failed: 0,
-        cancelled: 0,
-        activeWorkers: 1,
-        aliveWorkers: 1,
-        stalledWorkers: 0,
-        concurrency: 1,
-        byProfile: [],
-        byPriority: [],
-        byOrchestration: [],
-      }),
-      workers: () => [],
+      list: () => {
+        throw new Error("stale delegation projection must not be used");
+      },
+      overview: () => {
+        throw new Error("stale delegation projection must not be used");
+      },
+      workers: () => {
+        throw new Error("stale delegation projection must not be used");
+      },
     },
     userProfiles: {
       list: () => [],
