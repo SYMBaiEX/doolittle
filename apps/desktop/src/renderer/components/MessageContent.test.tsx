@@ -142,6 +142,27 @@ describe("MessageContent", () => {
     expect(html).not.toContain("<details open");
   });
 
+  it("uses the most useful tool target as an inline compact summary", () => {
+    const content = JSON.stringify({
+      type: "tool_call",
+      toolCall: {
+        id: "call-1",
+        name: "READ_FILE",
+        arguments: { path: "packages/agent/src/index.ts" },
+        status: "running",
+      },
+      messageId: "message-1",
+    });
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} separateAgentEvents />,
+    );
+
+    expect(html).toContain("Read File");
+    expect(html).toContain("packages/agent/src/index.ts");
+    expect(html).toContain('title="packages/agent/src/index.ts"');
+    expect(html).not.toContain("<details open");
+  });
+
   it("keeps successful evaluator bookkeeping out of the transcript", () => {
     const content = JSON.stringify({
       type: "evaluation",

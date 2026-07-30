@@ -290,10 +290,10 @@
 .message-tool-card > summary,
 .message-agent-steps > summary {
   display: grid;
-  min-height: 24px;
+  min-height: 22px;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 2px 3px;
   cursor: pointer;
   list-style: none;
@@ -329,12 +329,14 @@
 }
 
 .message-tool-card__summary {
-  display: grid;
+  display: flex;
   min-width: 0;
-  gap: 1px;
+  align-items: baseline;
+  gap: 5px;
 }
 
 .message-tool-card__summary strong {
+  flex: 0 1 auto;
   overflow: hidden;
   color: var(--text-soft);
   font-size: 9px;
@@ -343,7 +345,16 @@
   white-space: nowrap;
 }
 
+.message-tool-card__summary > i {
+  flex: 0 0 auto;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-style: normal;
+}
+
 .message-tool-card__summary small {
+  flex: 1 1 auto;
   overflow: hidden;
   color: var(--faint);
   font-family: var(--font-mono);

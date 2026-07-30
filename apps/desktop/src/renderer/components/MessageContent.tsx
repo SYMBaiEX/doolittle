@@ -57,10 +57,23 @@ function toolLabel(activity: ToolActivity): string {
 }
 
 function toolSummary(activity: ToolActivity): string | undefined {
+  if (typeof activity.input === "string") {
+    return activity.input.trim() || undefined;
+  }
   if (!activity.input || typeof activity.input !== "object") return undefined;
-  const query = (activity.input as Record<string, unknown>).query;
-  if (typeof query !== "string" || !query.trim()) return undefined;
-  return query.trim();
+  const input = activity.input as Record<string, unknown>;
+  for (const key of [
+    "query",
+    "path",
+    "filePath",
+    "command",
+    "url",
+    "workingDirectory",
+  ]) {
+    const value = input[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
 }
 
 function clippedPayload(value: unknown): { text: string; clipped: boolean } {
@@ -135,7 +148,12 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
         </span>
         <span className="message-tool-card__summary">
           <strong>{toolLabel(activity)}</strong>
-          {summary ? <small>{summary}</small> : null}
+          {summary ? (
+            <>
+              <i aria-hidden="true">·</i>
+              <small title={summary}>{summary}</small>
+            </>
+          ) : null}
         </span>
         <span className={`message-tool-card__status is-${activity.status}`}>
           <i aria-hidden="true" />
