@@ -1,5 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { runModelAnalysisTurn } from "@/runtime/chat";
+import { runModelAnalysis } from "@/runtime/model-analysis";
 import {
   analyzeBrowserComparison,
   analyzeBrowserPage,
@@ -14,7 +14,7 @@ import {
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 
-type BrowserAnalysisTurn = typeof runModelAnalysisTurn;
+type BrowserAnalysisTurn = typeof runModelAnalysis;
 
 const MAX_BROWSER_URL_LENGTH = 4_096;
 
@@ -73,7 +73,7 @@ export async function handleBrowserRoutes(
   context: AppContext,
   request: Request,
   url: URL,
-  runAnalysisTurn: BrowserAnalysisTurn = runModelAnalysisTurn,
+  runAnalysisTurn: BrowserAnalysisTurn = runModelAnalysis,
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/web/fetch") {
     const targetUrl = url.searchParams.get("url");
@@ -145,8 +145,10 @@ export async function handleBrowserRoutes(
     );
     return json({
       analysis,
-      response: await runAnalysisTurn(context, analysis.prompt, "browser", {
+      response: await runAnalysisTurn(context, analysis.prompt, {
+        label: "browser",
         personalityId: getEffectiveActivePersonality(context.runtime).id,
+        abortSignal: request.signal,
       }),
     });
   }
@@ -194,14 +196,11 @@ export async function handleBrowserRoutes(
     );
     return json({
       analysis,
-      response: await runAnalysisTurn(
-        context,
-        analysis.prompt,
-        "browser-comparison",
-        {
-          personalityId: getEffectiveActivePersonality(context.runtime).id,
-        },
-      ),
+      response: await runAnalysisTurn(context, analysis.prompt, {
+        label: "browser-comparison",
+        personalityId: getEffectiveActivePersonality(context.runtime).id,
+        abortSignal: request.signal,
+      }),
     });
   }
 

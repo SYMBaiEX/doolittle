@@ -16,6 +16,7 @@ import type {
   ChatTurnRequest,
 } from "@/types/runtime";
 import type { AppContext } from "./bootstrap";
+import { runModelAnalysis } from "./model-analysis";
 
 export type { LinkedProviderName };
 export { connectLinkedProvider, syncProviderSettings };
@@ -78,36 +79,6 @@ class TurnPerfTrace {
   }
 }
 
-export async function runModelAnalysisTurn(
-  context: AgentExecutionContext,
-  prompt: string,
-  label: string,
-  options?: {
-    userId?: string;
-    roomId?: string;
-    personalityId?: string;
-    runtimeOverrides?: AutomationRuntimeOverrides;
-  },
-): Promise<string> {
-  return handleAgentTurn(
-    {
-      message: prompt,
-      userId: options?.userId ?? `analysis:${label}`,
-      roomId: options?.roomId ?? `analysis:${label}`,
-      source: "analysis",
-    },
-    context,
-    options?.personalityId
-      ? {
-          personalityId: options.personalityId,
-          runtimeOverrides: options.runtimeOverrides,
-        }
-      : {
-          runtimeOverrides: options?.runtimeOverrides,
-        },
-  );
-}
-
 export async function executeSlashCommand(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
@@ -115,7 +86,8 @@ export async function executeSlashCommand(
 ): Promise<string | undefined> {
   return buildCommandResponse(input, context, hooks, {
     runAnalysis: (prompt, label) =>
-      runModelAnalysisTurn(context, prompt, label, {
+      runModelAnalysis(context, prompt, {
+        label,
         personalityId: getEffectiveActivePersonality(context.runtime).id,
       }),
     executeDelegationTask: async (taskId) => {

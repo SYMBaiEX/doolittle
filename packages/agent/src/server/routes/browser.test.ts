@@ -272,6 +272,10 @@ describe("handleBrowserRoutes", () => {
 
   it("dispatches analyze and compare routes through the injected analysis runner", async () => {
     const context = createContext();
+    const analysisOptions: Array<{
+      label: string;
+      abortSignal?: AbortSignal;
+    }> = [];
     const analyze = await handleBrowserRoutes(
       context,
       new Request("http://localhost/browser/analyze", {
@@ -280,8 +284,10 @@ describe("handleBrowserRoutes", () => {
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/browser/analyze"),
-      async (_context, prompt, label, options) =>
-        `${label}:${prompt}:${options?.personalityId ?? "none"}`,
+      async (_context, prompt, options) => {
+        analysisOptions.push(options);
+        return `${options.label}:${prompt}:${options.personalityId ?? "none"}`;
+      },
     );
     const compareAnalyze = await handleBrowserRoutes(
       context,
@@ -294,8 +300,10 @@ describe("handleBrowserRoutes", () => {
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/browser/compare/analyze"),
-      async (_context, prompt, label, options) =>
-        `${label}:${prompt}:${options?.personalityId ?? "none"}`,
+      async (_context, prompt, options) => {
+        analysisOptions.push(options);
+        return `${options.label}:${prompt}:${options.personalityId ?? "none"}`;
+      },
     );
 
     await expect(analyze?.json()).resolves.toEqual({
@@ -315,6 +323,11 @@ describe("handleBrowserRoutes", () => {
       },
       response: "browser-comparison:compare:https://left:https://right:primary",
     });
+    expect(analysisOptions.map((options) => options.label)).toEqual([
+      "browser",
+      "browser-comparison",
+    ]);
+    expect(analysisOptions.every((options) => options.abortSignal)).toBe(true);
   });
 
   it("returns null for unrelated routes", async () => {
