@@ -15,8 +15,7 @@ import {
 import type { NativeMessagePolicy } from "./native/types";
 import { withProviderRuntimeLock } from "./provider/lock";
 import {
-  applyModelSettings,
-  hasModelOverride,
+  applyScopedRuntimeModelSettings,
   restoreRuntimeSetting,
 } from "./provider/settings";
 import {
@@ -168,14 +167,15 @@ export async function runProviderModelTurn(
     const previousConversationId = input.context.runtime.getSetting(
       "ELIZAOS_CLOUD_CONVERSATION_ID",
     );
-    const hasOverride = hasModelOverride(
-      input.settingsBefore,
+    // The provider router resolves `runtimeSettings` for every SDK model call.
+    // Always scope it to the captured turn snapshot, including ordinary chat
+    // turns, so a settings update cannot switch providers between Stage 1 and
+    // a later planner/tool continuation.
+    applyScopedRuntimeModelSettings(
+      input.context,
       input.settingsDuring,
+      executionContext,
     );
-
-    if (hasOverride) {
-      applyModelSettings(input.context, input.settingsDuring, executionContext);
-    }
 
     if (
       input.options?.personalityId &&
@@ -224,13 +224,13 @@ export async function runProviderModelTurn(
       actionResults = messageExecutionResult.actionResults;
       responseMessages = messageExecutionResult.responseMessages;
     } finally {
-      if (hasOverride) {
-        applyModelSettings(
-          input.context,
-          input.settingsBefore,
-          executionContext,
-        );
-      }
+      // Restore the latest persisted route, not `settingsBefore`: a queued
+      // settings change is allowed to take effect for the next turn.
+      applyScopedRuntimeModelSettings(
+        input.context,
+        input.context.services.settings.get(),
+        executionContext,
+      );
 
       if (
         input.options?.personalityId &&

@@ -1,6 +1,8 @@
 import { extractSessionContext, type Media } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import { withProviderRuntimeLock } from "@/runtime/chat-turn/provider/lock";
+import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
 import { runProviderModelTurn } from "./chat-turn/provider";
 
 function createProviderContext() {
@@ -24,6 +26,9 @@ function createProviderContext() {
   let conversationId: unknown = "previous-conversation";
   let actionResults: unknown[] = [];
   let messageOptions: unknown;
+  const runtimeSettingValues = new Map<string, unknown>([
+    ["runtimeSettings", JSON.stringify({ model: settingsState.model })],
+  ]);
 
   const context = {
     runtime: {
@@ -46,12 +51,16 @@ function createProviderContext() {
         };
       },
       getSetting: (key: string) => {
+        if (runtimeSettingValues.has(key)) {
+          return runtimeSettingValues.get(key);
+        }
         if (key === "ELIZAOS_CLOUD_CONVERSATION_ID") {
           return conversationId;
         }
         return undefined;
       },
       setSetting: (key: string, value: unknown) => {
+        runtimeSettingValues.set(key, value);
         if (key === "ELIZAOS_CLOUD_CONVERSATION_ID") {
           conversationId = value;
         }
@@ -486,5 +495,98 @@ describe("chat turn provider seam", () => {
     expect(result.response).toContain("connection refused");
     expect(harness.notices).toEqual([result.response]);
     expect(harness.settingsState.model).toEqual(settingsBefore.model);
+  });
+
+  it("pins a turn's route while a queued settings change applies to the next turn", async () => {
+    const harness = createProviderContext();
+    const firstSettings = harness.context.services.settings.get();
+    const observedProviders: string[] = [];
+    let releaseStage!: () => void;
+    const stagePaused = new Promise<void>((resolve) => {
+      releaseStage = resolve;
+    });
+    let markStageStarted!: () => void;
+    const stageStarted = new Promise<void>((resolve) => {
+      markStageStarted = resolve;
+    });
+    let calls = 0;
+
+    harness.context.runtime.messageService = {
+      handleMessage: async (runtime: {
+        getSetting: (key: string) => unknown;
+      }) => {
+        const provider = () =>
+          JSON.parse(String(runtime.getSetting("runtimeSettings"))).model
+            .provider as string;
+        observedProviders.push(provider());
+        calls += 1;
+        if (calls === 1) {
+          markStageStarted();
+          await stagePaused;
+          // Represents the planner/tool continuation after Stage 1.
+          observedProviders.push(provider());
+        }
+        return {
+          responseContent: { text: "done" },
+          responseMessages: [],
+          state: { data: {} },
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const firstTurn = runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "First turn",
+      settingsBefore: firstSettings,
+      settingsDuring: firstSettings,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 3,
+        toolProgressMode: "all",
+      },
+    });
+    await stageStarted;
+
+    let updateApplied = false;
+    const queuedSettingsUpdate = withProviderRuntimeLock(
+      harness.context.runtime,
+      async () => {
+        harness.context.services.settings.set("model.provider", "codex");
+        harness.context.services.settings.set("model.model", "gpt-5.4");
+        syncProviderSettings(
+          harness.context,
+          harness.context.services.settings.get(),
+        );
+        updateApplied = true;
+      },
+    );
+    await Promise.resolve();
+    expect(updateApplied).toBe(false);
+
+    releaseStage();
+    await firstTurn;
+    await queuedSettingsUpdate;
+
+    const secondSettings = harness.context.services.settings.get();
+    await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "Second turn",
+      settingsBefore: secondSettings,
+      settingsDuring: secondSettings,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 3,
+        toolProgressMode: "all",
+      },
+    });
+
+    expect(observedProviders).toEqual(["openai", "openai", "codex"]);
+    expect(updateApplied).toBe(true);
   });
 });

@@ -36,6 +36,20 @@ export function applyModelSettings(
   );
 }
 
+/**
+ * Installs a turn-local route into the Eliza runtime without changing the
+ * persisted Doolittle settings. The selected-provider model router reads the
+ * runtime setting for every SDK model stage, so this scope pins Stage 1,
+ * planning, and post-tool synthesis to the turn's original snapshot.
+ */
+export function applyScopedRuntimeModelSettings(
+  context: AgentExecutionContext,
+  settings: ModelSettingsSnapshot,
+  executionContext: ProviderModelTurnExecutionContext,
+): void {
+  executionContext.syncProviderSettings(context, settings);
+}
+
 export function restoreRuntimeSetting(
   context: AgentExecutionContext,
   key: string,

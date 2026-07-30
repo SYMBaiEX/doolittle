@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { withProviderRuntimeLock } from "@/runtime/chat-turn/provider/lock";
 import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
 import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
@@ -192,8 +193,23 @@ export async function handleSettingsExecutionRoutes(
       path: change.path as string,
       value: change.value,
     }));
-    const settings = context.services.settings.setMany(changes);
-    syncProviderSettings(context, settings);
+    const updatesModelRoute = changes.some((change) =>
+      change.path.startsWith("model."),
+    );
+    const applyChanges = () => {
+      const next = context.services.settings.setMany(changes);
+      if (updatesModelRoute) {
+        syncProviderSettings(context, next);
+      }
+      return next;
+    };
+    // Model routing is global to the Eliza runtime. Queue route changes behind
+    // an active provider turn so its captured route remains stable.
+    const settings = updatesModelRoute
+      ? await withProviderRuntimeLock(context.runtime, async () =>
+          applyChanges(),
+        )
+      : applyChanges();
     return json({
       settings,
     });

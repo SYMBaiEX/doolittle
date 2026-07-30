@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { withProviderRuntimeLock } from "@/runtime/chat-turn/provider/lock";
 import { json } from "@/server/responses";
 import {
   activateAccount,
@@ -74,7 +75,11 @@ export async function handleRuntimeAccountRoutes(
         400,
       );
     }
-    return json(activateAccount(context, provider));
+    return json(
+      await withProviderRuntimeLock(context.runtime, async () =>
+        activateAccount(context, provider),
+      ),
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/connect") {
@@ -89,7 +94,11 @@ export async function handleRuntimeAccountRoutes(
       );
     }
     try {
-      return json(await connectAccount(context, provider));
+      return json(
+        await withProviderRuntimeLock(context.runtime, () =>
+          connectAccount(context, provider),
+        ),
+      );
     } catch (error) {
       return json(
         {
