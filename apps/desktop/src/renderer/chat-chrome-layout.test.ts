@@ -29,5 +29,8 @@ describe("chat chrome density contract", () => {
     expect(css).toMatch(
       /@media \(max-width: 760px\)[\s\S]*?\.app-main--chat > \.window-dragbar--chat\s*{[^}]*flex-basis:\s*62px;[^}]*min-height:\s*62px;/,
     );
+    expect(css).toMatch(
+      /\.chat-context-compact\s*{[^}]*white-space:\s*nowrap;/s,
+    );
   });
 });

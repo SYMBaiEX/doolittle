@@ -510,6 +510,38 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.chat-context-compact {
+  display: inline-flex;
+  min-height: 18px;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.chat-context-compact.context-warn {
+  color: var(--warn);
+}
+
+.chat-context-compact.context-bad {
+  color: var(--bad);
+}
+
+button.chat-context-compact:hover,
+button.chat-context-compact:focus-visible {
+  color: var(--accent);
+  background: var(--surface-soft);
+}
+
+.chat-header-top-actions > .chat-meta-pin {
+  border-right: 0;
+}
+
 .chat-chrome-host :where(h2) {
   margin: 0;
   font-size: 13px;
@@ -652,8 +684,6 @@ tbody tr:hover {
     flex-wrap: nowrap;
   }
 
-  /* biome-ignore lint/style/noDescendingSpecificity: compact mobile chrome overrides generic disclosure text */
-  .chat-model-route > span,
   .chat-workbench-toggle {
     font-size: 0;
   }

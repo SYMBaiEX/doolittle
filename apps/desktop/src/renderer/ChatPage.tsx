@@ -970,6 +970,11 @@ export function ChatPage({
   const selectedContextTone = selectedContext
     ? contextPressureTone(selectedContext.usageFraction)
     : "neutral";
+  const selectedContextLabel = selectedContext
+    ? `${Math.round(selectedContextPercent)}%`
+    : selectedUsageError
+      ? "—"
+      : "0%";
   const latestAssistant = [...selectedMessages]
     .reverse()
     .find((message) => message.role === "assistant");
@@ -1752,35 +1757,38 @@ export function ChatPage({
                         ? `Updated ${displayTimestamp(selectedUpdatedAt)}`
                         : "Not started"}
                     </span>
-                    <span
-                      className={`chat-session-meta-pill chat-meta-context context-${selectedContextTone}`}
-                    >
-                      {selectedContext
-                        ? `${Math.round(selectedContextPercent)}% context`
-                        : selectedUsageError
-                          ? "Context unavailable"
-                          : "Fresh context"}
-                    </span>
-                    {selectedContextPercent >= 70 ? (
-                      <button
-                        className="chat-session-meta-pill context-action"
-                        onClick={() => {
-                          setDraft((current) =>
-                            current.trim() ? current : "/compress ",
-                          );
-                          requestAnimationFrame(() =>
-                            composerRef.current?.focus(),
-                          );
-                        }}
-                        title="Prepare a context-compression command"
-                        type="button"
-                      >
-                        Compress context
-                      </button>
-                    ) : null}
                   </div>
                 </div>
                 <div className="chat-header-top-actions">
+                  {selectedContextPercent >= 70 ? (
+                    <button
+                      aria-label={`${selectedContextLabel} context used. Prepare context compression.`}
+                      className={`chat-context-compact context-${selectedContextTone}`}
+                      onClick={() => {
+                        setDraft((current) =>
+                          current.trim() ? current : "/compress ",
+                        );
+                        requestAnimationFrame(() =>
+                          composerRef.current?.focus(),
+                        );
+                      }}
+                      title={`${selectedContextLabel} context used · Compress context`}
+                      type="button"
+                    >
+                      {selectedContextLabel}
+                    </button>
+                  ) : (
+                    <span
+                      className={`chat-context-compact context-${selectedContextTone}`}
+                      title={
+                        selectedUsageError
+                          ? "Context usage unavailable"
+                          : `${selectedContextLabel} context used`
+                      }
+                    >
+                      {selectedContextLabel}
+                    </span>
+                  )}
                   <button
                     aria-label={
                       selectedSession?.pinned
@@ -1799,7 +1807,9 @@ export function ChatPage({
                     }
                     type="button"
                   >
-                    {selectedSession?.pinned ? "Pinned" : "Pin"}
+                    <span aria-hidden="true">
+                      {selectedSession?.pinned ? "◆" : "◇"}
+                    </span>
                   </button>
                   <button
                     aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
@@ -1807,7 +1817,6 @@ export function ChatPage({
                     onClick={() => setRouteDialogOpen(true)}
                     type="button"
                   >
-                    <span>Route</span>
                     <strong>{modelRouteLabel}</strong>
                   </button>
                   <button
