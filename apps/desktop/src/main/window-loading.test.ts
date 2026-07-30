@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type DesktopWindowLoader, loadDesktopWindow } from "./window-loading";
 
 function fakeWindow(
@@ -63,5 +63,31 @@ describe("loadDesktopWindow", () => {
     );
 
     expect(events).toEqual(["listen", "load-file", "show", "focus"]);
+  });
+
+  it("reveals on a bounded fallback when Electron stalls during loading", async () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    const window = fakeWindow(events, { emitReadyDuringLoad: false });
+    window.loadFile = () => {
+      events.push("load-file");
+      return new Promise<void>(() => undefined);
+    };
+
+    try {
+      void loadDesktopWindow(window, {
+        rendererFile: "/app/renderer/index.html",
+        revealTimeoutMs: 1_000,
+        startMaximized: false,
+      });
+
+      await vi.advanceTimersByTimeAsync(999);
+      expect(events).toEqual(["listen", "load-file"]);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(events).toEqual(["listen", "load-file", "show", "focus"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
