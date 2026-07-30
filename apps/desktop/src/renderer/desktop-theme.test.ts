@@ -1,11 +1,51 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  APPEARANCE_CHANGE_EVENT,
+  applyDesktopAppearance,
+  applyDesktopDensity,
+  applyDesktopTheme,
+  DENSITY_CHANGE_EVENT,
   parseDesktopThemeProfile,
   resolveAppearance,
+  subscribeToDesktopThemeChanges,
+  THEME_CHANGE_EVENT,
   themeCssTokens,
 } from "./desktop-theme";
 
 describe("desktop theme", () => {
+  let storage: Map<string, string>;
+  let root: {
+    dataset: Record<string, string>;
+    style: { setProperty: (property: string, value: string) => void };
+  };
+
+  beforeEach(() => {
+    storage = new Map();
+    root = {
+      dataset: {},
+      style: {
+        setProperty: (property, value) =>
+          storage.set(`style:${property}`, value),
+      },
+    };
+    const events = new EventTarget();
+    vi.stubGlobal(
+      "window",
+      Object.assign(events, {
+        matchMedia: () => ({ matches: false }),
+      }),
+    );
+    vi.stubGlobal("document", { documentElement: root });
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("sanitizes a runtime theme profile for renderer use", () => {
     expect(
       parseDesktopThemeProfile({
@@ -78,5 +118,65 @@ describe("desktop theme", () => {
     expect(resolveAppearance("system", true)).toBe("dark");
     expect(resolveAppearance("system", false)).toBe("light");
     expect(resolveAppearance("light", true)).toBe("light");
+  });
+
+  it("applies appearance, density, and palette tokens to the root shell immediately", () => {
+    const profile = parseDesktopThemeProfile({
+      name: "ember",
+      label: "Crimson Forge",
+      primary: "#D7263D",
+      secondary: "#FF6B6B",
+      amberGlow: "#FFC857",
+      greenGlow: "#93FFB0",
+    });
+    if (!profile) throw new Error("Expected a valid theme profile");
+
+    applyDesktopAppearance("system", true);
+    applyDesktopDensity("compact");
+    applyDesktopTheme(profile);
+
+    expect(root.dataset).toMatchObject({
+      appearance: "dark",
+      appearancePreference: "system",
+      density: "compact",
+      theme: "ember",
+    });
+    expect(storage.get("doolittle.desktop.appearance")).toBe("system");
+    expect(storage.get("doolittle.desktop.density")).toBe("compact");
+    expect(storage.get("doolittle.desktop.theme")).toBe(
+      JSON.stringify(profile),
+    );
+    expect(storage.get("style:--accent")).toBe("#D7263D");
+  });
+
+  it("forwards valid changes once and removes its window subscriptions", () => {
+    const changes: string[] = [];
+    const unsubscribe = subscribeToDesktopThemeChanges({
+      onAppearance: (value) => changes.push(`appearance:${value}`),
+      onDensity: (value) => changes.push(`density:${value}`),
+      onTheme: (value) => changes.push(`theme:${value.name}`),
+    });
+    const dispatch = (type: string, detail: unknown) => {
+      const event = new Event(type);
+      Object.defineProperty(event, "detail", { value: detail });
+      window.dispatchEvent(event);
+    };
+
+    dispatch(APPEARANCE_CHANGE_EVENT, "light");
+    dispatch(DENSITY_CHANGE_EVENT, "compact");
+    dispatch(THEME_CHANGE_EVENT, {
+      name: "ember",
+      label: "Crimson Forge",
+      primary: "#D7263D",
+    });
+    unsubscribe();
+    dispatch(APPEARANCE_CHANGE_EVENT, "dark");
+    dispatch(DENSITY_CHANGE_EVENT, "comfortable");
+
+    expect(changes).toEqual([
+      "appearance:light",
+      "density:compact",
+      "theme:ember",
+    ]);
   });
 });

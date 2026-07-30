@@ -39,11 +39,9 @@ import {
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { UtilityDrawer } from "./components/UtilityDrawer";
 import {
-  APPEARANCE_CHANGE_EVENT,
-  APPEARANCE_STORAGE_KEY,
+  applyDesktopAppearance,
+  applyDesktopDensity,
   applyDesktopTheme,
-  DENSITY_CHANGE_EVENT,
-  DENSITY_STORAGE_KEY,
   type DesktopAppearance,
   type DesktopDensity,
   loadAppearancePreference,
@@ -51,7 +49,7 @@ import {
   loadStoredDesktopTheme,
   parseDesktopThemeProfile,
   resolveAppearance,
-  THEME_CHANGE_EVENT,
+  subscribeToDesktopThemeChanges,
 } from "./desktop-theme";
 import {
   type GlobalSearchTarget,
@@ -1154,14 +1152,11 @@ export function App() {
   );
 
   useEffect(() => {
-    document.documentElement.dataset.appearance = resolvedAppearance;
-    document.documentElement.dataset.appearancePreference = appearance;
-    localStorage.setItem(APPEARANCE_STORAGE_KEY, appearance);
-  }, [appearance, resolvedAppearance]);
+    applyDesktopAppearance(appearance, systemPrefersDark);
+  }, [appearance, systemPrefersDark]);
 
   useEffect(() => {
-    document.documentElement.dataset.density = density;
-    localStorage.setItem(DENSITY_STORAGE_KEY, density);
+    applyDesktopDensity(density);
   }, [density]);
 
   useEffect(() => {
@@ -1196,30 +1191,11 @@ export function App() {
   }, [backend.phase]);
 
   useEffect(() => {
-    const handleAppearance = (event: Event) => {
-      const next = (event as CustomEvent<DesktopAppearance>).detail;
-      if (next === "dark" || next === "light" || next === "system") {
-        setAppearance(next);
-      }
-    };
-    const handleTheme = (event: Event) => {
-      const profile = parseDesktopThemeProfile(
-        (event as CustomEvent<unknown>).detail,
-      );
-      if (profile) applyDesktopTheme(profile);
-    };
-    const handleDensity = (event: Event) => {
-      const next = (event as CustomEvent<DesktopDensity>).detail;
-      if (next === "compact" || next === "comfortable") setDensity(next);
-    };
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
-    window.addEventListener(DENSITY_CHANGE_EVENT, handleDensity);
-    window.addEventListener(THEME_CHANGE_EVENT, handleTheme);
-    return () => {
-      window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
-      window.removeEventListener(DENSITY_CHANGE_EVENT, handleDensity);
-      window.removeEventListener(THEME_CHANGE_EVENT, handleTheme);
-    };
+    return subscribeToDesktopThemeChanges({
+      onAppearance: setAppearance,
+      onDensity: setDensity,
+      onTheme: applyDesktopTheme,
+    });
   }, []);
 
   useEffect(() => {

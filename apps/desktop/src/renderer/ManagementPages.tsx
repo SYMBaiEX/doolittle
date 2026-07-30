@@ -13,11 +13,12 @@ import type {
 } from "../shared/contracts";
 import { ConnectionsPage, ModelsPage } from "./AgentPages";
 import {
-  APPEARANCE_STORAGE_KEY,
   announceAppearance,
   announceDensity,
   announceTheme,
-  DENSITY_STORAGE_KEY,
+  applyDesktopAppearance,
+  applyDesktopDensity,
+  applyDesktopTheme,
   type DesktopAppearance,
   type DesktopDensity,
   loadAppearancePreference,
@@ -915,10 +916,12 @@ export function SettingsPage({ active }: { active: boolean }) {
         theme,
       });
       const profile = parseDesktopThemeProfile(response.profile);
-      if (profile) announceTheme(profile);
-      setSavedMessage(
-        `${profile?.label ?? titleCase(theme)} is now active everywhere.`,
-      );
+      if (!profile) {
+        throw new Error("The runtime did not return a valid theme profile.");
+      }
+      applyDesktopTheme(profile);
+      announceTheme(profile);
+      setSavedMessage(`${profile.label} is now active everywhere.`);
       themes.reload();
       settings.reload();
     } catch (error) {
@@ -928,7 +931,7 @@ export function SettingsPage({ active }: { active: boolean }) {
 
   const changeAppearance = (next: DesktopAppearance) => {
     setAppearance(next);
-    localStorage.setItem(APPEARANCE_STORAGE_KEY, next);
+    applyDesktopAppearance(next);
     announceAppearance(next);
     setSavedMessage(
       next === "system"
@@ -939,7 +942,7 @@ export function SettingsPage({ active }: { active: boolean }) {
 
   const changeDensity = (next: DesktopDensity) => {
     setDensity(next);
-    localStorage.setItem(DENSITY_STORAGE_KEY, next);
+    applyDesktopDensity(next);
     announceDensity(next);
     setSavedMessage(`${titleCase(next)} interface density is now active.`);
   };

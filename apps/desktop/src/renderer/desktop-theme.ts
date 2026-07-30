@@ -84,6 +84,21 @@ export function applyDesktopTheme(profile: DesktopThemeProfile): void {
   localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(profile));
 }
 
+export function applyDesktopAppearance(
+  preference: DesktopAppearance,
+  systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches,
+): void {
+  const root = document.documentElement;
+  root.dataset.appearance = resolveAppearance(preference, systemPrefersDark);
+  root.dataset.appearancePreference = preference;
+  localStorage.setItem(APPEARANCE_STORAGE_KEY, preference);
+}
+
+export function applyDesktopDensity(density: DesktopDensity): void {
+  document.documentElement.dataset.density = density;
+  localStorage.setItem(DENSITY_STORAGE_KEY, density);
+}
+
 export function loadStoredDesktopTheme(): DesktopThemeProfile | null {
   try {
     return parseDesktopThemeProfile(
@@ -138,4 +153,42 @@ export function announceTheme(profile: DesktopThemeProfile): void {
       detail: profile,
     }),
   );
+}
+
+export interface DesktopThemeChangeHandlers {
+  onAppearance: (appearance: DesktopAppearance) => void;
+  onDensity: (density: DesktopDensity) => void;
+  onTheme: (theme: DesktopThemeProfile) => void;
+}
+
+export function subscribeToDesktopThemeChanges(
+  handlers: DesktopThemeChangeHandlers,
+): () => void {
+  const handleAppearance = (event: Event) => {
+    const next = (event as CustomEvent<DesktopAppearance>).detail;
+    if (next === "dark" || next === "light" || next === "system") {
+      handlers.onAppearance(next);
+    }
+  };
+  const handleDensity = (event: Event) => {
+    const next = (event as CustomEvent<DesktopDensity>).detail;
+    if (next === "compact" || next === "comfortable") {
+      handlers.onDensity(next);
+    }
+  };
+  const handleTheme = (event: Event) => {
+    const profile = parseDesktopThemeProfile(
+      (event as CustomEvent<unknown>).detail,
+    );
+    if (profile) handlers.onTheme(profile);
+  };
+
+  window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
+  window.addEventListener(DENSITY_CHANGE_EVENT, handleDensity);
+  window.addEventListener(THEME_CHANGE_EVENT, handleTheme);
+  return () => {
+    window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearance);
+    window.removeEventListener(DENSITY_CHANGE_EVENT, handleDensity);
+    window.removeEventListener(THEME_CHANGE_EVENT, handleTheme);
+  };
 }
