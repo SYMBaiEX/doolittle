@@ -92,7 +92,7 @@ export function buildCodingAgentSection(
       typeof input.native.codingAgent.repoDiff === "function" &&
       typeof input.native.codingAgent.repoLog === "function",
     shell: typeof input.native.codingAgent.run === "function",
-    delegation: typeof input.native.codingAgent.tasks === "function",
+    delegation: Boolean(input.native.agentOrchestrator),
   };
 }
 

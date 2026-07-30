@@ -33,7 +33,7 @@ export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     maturity: "alpha",
     enablement: "always",
     notes:
-      "Doolittle coding agent service bridging workspace, repository, shell, and delegation. Consolidated into doolittle-plugin.",
+      "Doolittle coding workspace adapter for project files, repository inspection, and shell execution. Delegation remains owned by the official agent orchestrator.",
   },
   {
     id: "execution.agent-orchestrator",

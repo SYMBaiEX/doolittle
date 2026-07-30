@@ -13,12 +13,11 @@ export function createCodingAgentServiceClass(
   class CodingAgentService extends ElizaService {
     static serviceType = DOOLITTLE_CODING_AGENT_SERVICE;
     capabilityDescription =
-      "Coding agent service for workspace, repository, and task orchestration.";
+      "Coding workspace service for project files, repository inspection, and shell execution.";
 
     private readonly workspace = options.workspace;
     private readonly repository = options.repository;
     private readonly shell = options.shell;
-    private readonly delegation = options.delegation;
 
     // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
@@ -102,10 +101,6 @@ export function createCodingAgentServiceClass(
 
     resolveProjectTarget(inputPath: string) {
       return options.resolveProjectTarget(inputPath, this.workspace.root());
-    }
-
-    tasks() {
-      return this.delegation.list();
     }
 
     context(

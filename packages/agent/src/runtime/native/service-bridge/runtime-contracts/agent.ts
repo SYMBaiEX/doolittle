@@ -259,7 +259,6 @@ export interface NativeCodingAgentService {
         kind: "directory" | "file";
       }
     | undefined;
-  tasks(): unknown[];
   context(
     taskDescription: string,
     options?: {

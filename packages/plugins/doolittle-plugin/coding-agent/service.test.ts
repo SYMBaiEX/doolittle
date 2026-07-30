@@ -72,7 +72,6 @@ describe("coding agent service", () => {
       workspace,
       repository,
       shell: { run: vi.fn() },
-      delegation: { list: vi.fn(() => []) },
       inspectProject,
       findCodebases,
       resolveProjectTarget,
@@ -99,6 +98,7 @@ describe("coding agent service", () => {
         workingDirectory: string;
         connector: { metadata?: Record<string, string> };
       };
+      tasks?: unknown;
     };
 
     expect(CodingAgentService.serviceType).toBe(DOOLITTLE_CODING_AGENT_SERVICE);
@@ -144,5 +144,6 @@ describe("coding agent service", () => {
     expect(context.connector.metadata?.workspaceRoot).toBe(
       "/workspace/switched",
     );
+    expect(service.tasks).toBeUndefined();
   });
 });

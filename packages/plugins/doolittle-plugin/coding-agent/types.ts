@@ -68,10 +68,6 @@ export interface TerminalServiceLike {
   ): Promise<unknown> | unknown;
 }
 
-export interface DelegationProjectionLike {
-  list(): unknown[];
-}
-
 export type InspectLocalProject = (
   projectPath: string,
   options?: {
@@ -120,7 +116,6 @@ export interface CodingAgentPluginOptions {
     "isRepository" | "status" | "diffStat" | "recentCommits"
   >;
   shell: Pick<TerminalServiceLike, "run">;
-  delegation: Pick<DelegationProjectionLike, "list">;
   inspectProject: InspectLocalProject;
   findCodebases: FindLocalCodebases;
   resolveProjectTarget: ResolveLocalProjectTarget;
