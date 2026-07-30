@@ -1,3 +1,4 @@
+import { LongTermMemoryCategory } from "@elizaos/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { NodeSessionDatabase as Database } from "@/services/session/database";
 import { migrateSessionDatabase } from "../schema";
@@ -18,7 +19,7 @@ describe("session/advanced-memory/store", () => {
       const m = await store.storeLongTermMemory({
         agentId: "agent-1",
         entityId: "entity-1",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "Prefers dark mode.",
       });
       expect(m.id).toBeTruthy();
@@ -30,7 +31,7 @@ describe("session/advanced-memory/store", () => {
       await store.storeLongTermMemory({
         agentId: "a",
         entityId: "e",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "Prefers dark mode.",
       });
       const results = await store.getLongTermMemories("a", "e");
@@ -44,17 +45,17 @@ describe("session/advanced-memory/store", () => {
       await store.storeLongTermMemory({
         agentId: "a",
         entityId: "e",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "Semantic fact.",
       });
       await store.storeLongTermMemory({
         agentId: "a",
         entityId: "e",
-        category: "episodic",
+        category: LongTermMemoryCategory.EPISODIC,
         content: "Episodic event.",
       });
       const semantic = await store.getLongTermMemories("a", "e", {
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
       });
       expect(semantic).toHaveLength(1);
       expect(semantic[0].category).toBe("semantic");
@@ -65,7 +66,7 @@ describe("session/advanced-memory/store", () => {
         await store.storeLongTermMemory({
           agentId: "a",
           entityId: "e",
-          category: "semantic",
+          category: LongTermMemoryCategory.SEMANTIC,
           content: `item-${i}`,
         });
       }
@@ -77,7 +78,7 @@ describe("session/advanced-memory/store", () => {
       const m = await store.storeLongTermMemory({
         agentId: "a",
         entityId: "e",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "Old content.",
       });
       await store.updateLongTermMemory(m.id, "a", "e", {
@@ -91,7 +92,7 @@ describe("session/advanced-memory/store", () => {
       const m = await store.storeLongTermMemory({
         agentId: "a",
         entityId: "e",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "Gone.",
       });
       await store.deleteLongTermMemory(m.id, "a", "e");
@@ -103,7 +104,7 @@ describe("session/advanced-memory/store", () => {
       await store.storeLongTermMemory({
         agentId: "a",
         entityId: "e1",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "E1 content.",
       });
       const results = await store.getLongTermMemories("a", "e2");

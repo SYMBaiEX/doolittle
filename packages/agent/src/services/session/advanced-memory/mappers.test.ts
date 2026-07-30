@@ -1,3 +1,4 @@
+import { LongTermMemoryCategory } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import {
   mapLongTermMemoryRow,
@@ -16,7 +17,7 @@ describe("session/advanced-memory/mappers", () => {
         id: "memory-1",
         agent_id: "agent-1",
         entity_id: "entity-1",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "Cloud is preferred.",
         metadata: JSON.stringify({ source: "test" }),
         embedding: JSON.stringify([1, 2, 3]),

@@ -1,17 +1,20 @@
 import {
   Service as ElizaService,
   type IAgentRuntime,
+  type LongTermMemory,
+  type LongTermMemoryCategory,
+  type MemoryStorageProvider,
   type Service,
+  type SessionSummary,
+  type UUID,
 } from "@elizaos/core";
-import type {
-  AdvancedLongTermMemory,
-  AdvancedLongTermMemoryCategory,
-  AdvancedSessionSummary,
-  SessionService,
-} from "@/services/session/service";
+import type { SessionService } from "@/services/session/service";
 
 export function createMemoryStorageRuntimeService(sessions: SessionService) {
-  class MemoryStorageRuntimeService extends ElizaService {
+  class MemoryStorageRuntimeService
+    extends ElizaService
+    implements MemoryStorageProvider
+  {
     static serviceType = "memoryStorage";
     capabilityDescription =
       "Provides advanced memory storage backed by Doolittle local state.";
@@ -26,7 +29,7 @@ export function createMemoryStorageRuntimeService(sessions: SessionService) {
 
     storeLongTermMemory(
       memory: Omit<
-        AdvancedLongTermMemory,
+        LongTermMemory,
         "id" | "createdAt" | "updatedAt" | "accessCount"
       >,
     ) {
@@ -34,10 +37,10 @@ export function createMemoryStorageRuntimeService(sessions: SessionService) {
     }
 
     getLongTermMemories(
-      agentId: string,
-      entityId: string,
+      agentId: UUID,
+      entityId: UUID,
       opts?: {
-        category?: AdvancedLongTermMemoryCategory;
+        category?: LongTermMemoryCategory;
         limit?: number;
       },
     ) {
@@ -45,40 +48,37 @@ export function createMemoryStorageRuntimeService(sessions: SessionService) {
     }
 
     updateLongTermMemory(
-      id: string,
-      agentId: string,
-      entityId: string,
+      id: UUID,
+      agentId: UUID,
+      entityId: UUID,
       updates: Partial<
-        Omit<
-          AdvancedLongTermMemory,
-          "id" | "agentId" | "entityId" | "createdAt"
-        >
+        Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">
       >,
     ) {
       return sessions.updateLongTermMemory(id, agentId, entityId, updates);
     }
 
-    deleteLongTermMemory(id: string, agentId: string, entityId: string) {
+    deleteLongTermMemory(id: UUID, agentId: UUID, entityId: UUID) {
       return sessions.deleteLongTermMemory(id, agentId, entityId);
     }
 
     storeSessionSummary(
-      summary: Omit<AdvancedSessionSummary, "id" | "createdAt" | "updatedAt">,
+      summary: Omit<SessionSummary, "id" | "createdAt" | "updatedAt">,
     ) {
       return sessions.storeSessionSummary(summary);
     }
 
-    getCurrentSessionSummary(agentId: string, roomId: string) {
+    getCurrentSessionSummary(agentId: UUID, roomId: UUID) {
       return sessions.getCurrentSessionSummary(agentId, roomId);
     }
 
     updateSessionSummary(
-      id: string,
-      agentId: string,
-      roomId: string,
+      id: UUID,
+      agentId: UUID,
+      roomId: UUID,
       updates: Partial<
         Omit<
-          AdvancedSessionSummary,
+          SessionSummary,
           "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
         >
       >,
@@ -86,7 +86,7 @@ export function createMemoryStorageRuntimeService(sessions: SessionService) {
       return sessions.updateSessionSummary(id, agentId, roomId, updates);
     }
 
-    getSessionSummaries(agentId: string, roomId: string, limit?: number) {
+    getSessionSummaries(agentId: UUID, roomId: UUID, limit?: number) {
       return sessions.getSessionSummaries(agentId, roomId, limit);
     }
   }

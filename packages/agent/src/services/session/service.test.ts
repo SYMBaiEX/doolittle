@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { LongTermMemoryCategory } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { SessionService } from "./service";
 import type { SessionForkError } from "./service/write";
@@ -410,7 +411,7 @@ describe("SessionService", () => {
       const memory = await service.storeLongTermMemory({
         agentId: "agent-1",
         entityId: "entity-1",
-        category: "semantic",
+        category: LongTermMemoryCategory.SEMANTIC,
         content: "The user prefers Eliza Cloud for default runs.",
         metadata: { source: "test" },
         confidence: 0.91,
