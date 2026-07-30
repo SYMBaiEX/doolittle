@@ -1,25 +1,29 @@
 import { EventType, type IAgentRuntime, type Task } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
-import { wireSdkCapabilities } from "./sdk-capabilities";
+import { describe, expect, it, vi } from "vitest";
+import {
+  createSdkCapabilitiesRuntimeService,
+  createSdkCapabilityEvents,
+} from "./sdk-capabilities";
 
 function makeRuntime(opts?: {
   existingTask?: boolean;
-  throwOnEvent?: boolean;
+  throwOnWorker?: boolean;
 }) {
   const calls = {
-    events: [] as string[],
     workers: [] as string[],
+    unregisteredWorkers: [] as string[],
     created: [] as string[],
   };
   const runtime = {
-    registerEvent: (event: string) => {
-      if (opts?.throwOnEvent) {
-        throw new Error("event registration unavailable");
-      }
-      calls.events.push(event);
-    },
     registerTaskWorker: (worker: { name: string }) => {
+      if (opts?.throwOnWorker) {
+        throw new Error("task workers unavailable");
+      }
       calls.workers.push(worker.name);
+    },
+    unregisterTaskWorker: (name: string) => {
+      calls.unregisteredWorkers.push(name);
+      return true;
     },
     getTask: async () =>
       opts?.existingTask ? ({ id: "existing" } as unknown as Task) : null,
@@ -33,26 +37,54 @@ function makeRuntime(opts?: {
   return { runtime, calls };
 }
 
-describe("wireSdkCapabilities", () => {
-  it("registers the tool audit hook and schedules the maintenance task", async () => {
+describe("SDK capability lifecycle", () => {
+  it("declares tool audit through the native plugin event surface", async () => {
+    const debug = vi.fn();
+    const events = createSdkCapabilityEvents();
+    const handler = events[EventType.HOOK_TOOL_AFTER]?.[0];
+
+    await handler?.({
+      runtime: { logger: { debug } },
+      toolName: "READ_FILE",
+      result: { ok: true },
+    } as never);
+
+    expect(debug).toHaveBeenCalledWith(
+      {
+        src: "doolittle:tool-audit",
+        tool: "READ_FILE",
+        ok: true,
+      },
+      "[DOOLITTLE] tool executed",
+    );
+  });
+
+  it("registers workers after service start and schedules the maintenance task", async () => {
     const { runtime, calls } = makeRuntime();
-    await wireSdkCapabilities(runtime);
-    expect(calls.events).toContain(EventType.HOOK_TOOL_AFTER);
+    const ServiceClass = createSdkCapabilitiesRuntimeService();
+    const service = await ServiceClass.start(runtime);
+
     expect(calls.workers).toContain("DOOLITTLE_SELF_MAINTENANCE");
     expect(calls.created).toContain("DOOLITTLE_SELF_MAINTENANCE");
+
+    await service.stop();
+    expect(calls.unregisteredWorkers).toContain("DOOLITTLE_SELF_MAINTENANCE");
   });
 
   it("does not recreate the maintenance task when it already exists", async () => {
     const { runtime, calls } = makeRuntime({ existingTask: true });
-    await wireSdkCapabilities(runtime);
+    const ServiceClass = createSdkCapabilitiesRuntimeService();
+    await ServiceClass.start(runtime);
+
     expect(calls.workers).toContain("DOOLITTLE_SELF_MAINTENANCE");
     expect(calls.created).toEqual([]);
   });
 
-  it("is fault-tolerant: a hook failure never blocks task registration", async () => {
-    const { runtime, calls } = makeRuntime({ throwOnEvent: true });
-    await expect(wireSdkCapabilities(runtime)).resolves.toBeUndefined();
-    expect(calls.events).toEqual([]);
-    expect(calls.workers).toContain("DOOLITTLE_SELF_MAINTENANCE");
+  it("keeps optional worker failures from blocking runtime startup", async () => {
+    const { runtime, calls } = makeRuntime({ throwOnWorker: true });
+    const ServiceClass = createSdkCapabilitiesRuntimeService();
+
+    await expect(ServiceClass.start(runtime)).resolves.toBeDefined();
+    expect(calls.workers).toEqual([]);
   });
 });

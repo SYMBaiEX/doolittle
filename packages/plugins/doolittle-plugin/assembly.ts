@@ -25,7 +25,10 @@ import { createMcpRuntimeService } from "./mcp-service";
 import { createMemoryStorageService } from "./memory-storage-service";
 import { createDoolittleRuntimeRoutes } from "./routes";
 import { createSchedulerRuntimeService } from "./scheduler-service";
-import { wireSdkCapabilities } from "./sdk-capabilities";
+import {
+  createSdkCapabilitiesRuntimeService,
+  createSdkCapabilityEvents,
+} from "./sdk-capabilities";
 import {
   createShortcutCompatibleWebSearchAction,
   DOOLITTLE_SDK_SHORTCUTS,
@@ -68,6 +71,7 @@ export function createDoolittlePluginSurface({
   const SchedulerRuntimeService = createSchedulerRuntimeService(services);
   const ShellRuntimeService = createShellRuntimeService(services);
   const RunProgressRuntimeService = createRunProgressRuntimeService(services);
+  const SdkCapabilitiesRuntimeService = createSdkCapabilitiesRuntimeService();
 
   return {
     name: "doolittle-runtime",
@@ -80,7 +84,10 @@ export function createDoolittlePluginSurface({
       createCommandShortcut(config.workspaceDir),
     ],
     evaluators,
-    events: createRunProgressEvents(services),
+    events: {
+      ...createRunProgressEvents(services),
+      ...createSdkCapabilityEvents(),
+    },
     routes: createDoolittleRuntimeRoutes({ services, config }),
     services: [
       MemoryStorageService,
@@ -91,10 +98,8 @@ export function createDoolittlePluginSurface({
       SchedulerRuntimeService,
       ShellRuntimeService,
       RunProgressRuntimeService,
+      SdkCapabilitiesRuntimeService,
       ...createTriggerRuntimeServices(services),
     ],
-    init: async (_config, runtime) => {
-      await wireSdkCapabilities(runtime);
-    },
   };
 }

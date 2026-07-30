@@ -36,6 +36,10 @@ describe("finalizeCoreRuntimeServices", () => {
       3,
       "doolittle_run_progress",
     );
+    expect(runtime.getServiceLoadPromise).toHaveBeenNthCalledWith(
+      4,
+      "doolittle_sdk_capabilities",
+    );
     expect(runtime.registerService).not.toHaveBeenCalled();
   });
 });

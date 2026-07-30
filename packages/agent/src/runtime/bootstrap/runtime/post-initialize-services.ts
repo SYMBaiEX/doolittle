@@ -1,4 +1,7 @@
-import { DOOLITTLE_RUN_PROGRESS_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_RUN_PROGRESS_SERVICE,
+  DOOLITTLE_SDK_CAPABILITIES_SERVICE,
+} from "@doolittle/contracts";
 import { installDatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-persistence";
 import type { AgentRuntime } from "@elizaos/core";
 import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
@@ -18,4 +21,5 @@ export async function finalizeCoreRuntimeServices(
   await installDatabaseTrajectoryLogger(runtime);
   await runtime.getServiceLoadPromise(AgentSkillsService.serviceType);
   await runtime.getServiceLoadPromise(DOOLITTLE_RUN_PROGRESS_SERVICE);
+  await runtime.getServiceLoadPromise(DOOLITTLE_SDK_CAPABILITIES_SERVICE);
 }
