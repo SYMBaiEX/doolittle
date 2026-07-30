@@ -1,3 +1,4 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type {
   BrowserAnalysisBundle,
@@ -118,7 +119,7 @@ describe("browser bridge helpers", () => {
   it("routes every browser operation through the Eliza lifecycle service", async () => {
     const runtime = {
       getService(name: string) {
-        if (name === "browser") {
+        if (name === DOOLITTLE_BROWSER_SERVICE) {
           return {
             status: async () => makeBrowserStatus({ mode: "browser" }),
             fetch: async (url: string) => `native-fetch:${url}`,

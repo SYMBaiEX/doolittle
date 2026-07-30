@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
   findLocalCodebases,
@@ -40,14 +44,14 @@ describe("tooling bridge helpers", () => {
   it("prefers native shell, mcp, workspace, and repository bridges", async () => {
     const runtime = {
       getService(name: string) {
-        if (name === "shell") {
+        if (name === DOOLITTLE_SHELL_SERVICE) {
           return {
             run: async (command: string) => `native-shell:${command}`,
             history: (limit = 10) => [`native-history:${limit}`],
             status: async () => ({ source: "native-shell" }),
           };
         }
-        if (name === "mcp") {
+        if (name === DOOLITTLE_MCP_SERVICE) {
           return {
             status: () => ({ source: "native-mcp" }),
             probe: async () => ({ ok: true, source: "native-mcp" }),

@@ -1,3 +1,4 @@
+import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppLogRecord } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
@@ -36,7 +37,7 @@ function createContext(): AppContext {
   return {
     runtime: {
       getService: (name: string) =>
-        name === "shell"
+        name === DOOLITTLE_SHELL_SERVICE
           ? {
               run: (command: string, timeoutMs?: number) =>
                 terminal.run(command, timeoutMs),

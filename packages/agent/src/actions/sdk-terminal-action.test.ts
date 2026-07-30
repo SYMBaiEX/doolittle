@@ -1,3 +1,4 @@
+import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import { terminalAction } from "@elizaos/agent/actions/terminal";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
@@ -25,7 +26,7 @@ describe("official Eliza SHELL action integration", () => {
     const context = {
       runtime: {
         getService: (name: string) =>
-          name === "shell"
+          name === DOOLITTLE_SHELL_SERVICE
             ? {
                 run: terminal.run,
               }

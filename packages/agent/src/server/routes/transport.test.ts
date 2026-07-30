@@ -1,4 +1,7 @@
-import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleTransportRoutes } from "@/server/routes/transport";
@@ -47,7 +50,7 @@ function createContext(options?: { withGateway?: boolean }) {
             status: async () => ({ ready: false }),
           };
         }
-        if (name === "mcp") {
+        if (name === DOOLITTLE_MCP_SERVICE) {
           return {
             status: () => ({ ready: false }),
             getCachedTools: () => [],

@@ -1,3 +1,4 @@
+import { DOOLITTLE_MCP_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../chat";
 import { handleToolingCommand } from "./tooling-commands";
@@ -29,7 +30,8 @@ function createContext(): AgentExecutionContext {
           description: "Search the browser and open web.",
         },
       ],
-      getService: (name: string) => (name === "mcp" ? mcp : null),
+      getService: (name: string) =>
+        name === DOOLITTLE_MCP_SERVICE ? mcp : null,
     },
     services: {
       tools: {

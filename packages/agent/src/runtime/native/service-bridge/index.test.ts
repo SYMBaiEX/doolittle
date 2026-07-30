@@ -1,5 +1,6 @@
 import {
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
 } from "@doolittle/contracts";
 import { describe, expect, it, vi } from "vitest";
@@ -166,7 +167,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             status: async () => ({ mode: "browser" }),
           };
         }
-        if (name === "mcp") {
+        if (name === DOOLITTLE_MCP_SERVICE) {
           return {
             status: () => ({ mode: "native" }),
             getCachedTools: () => [{ name: "tool-1" }],

@@ -1,3 +1,4 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleBrowserRoutes } from "./browser";
@@ -40,7 +41,7 @@ function createContext(): AppContext {
             get: (id: string) => ({ id }),
           };
         }
-        if (name === "browser") {
+        if (name === DOOLITTLE_BROWSER_SERVICE) {
           return {
             status: web.status,
             fetch: web.fetchText,

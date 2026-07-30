@@ -1,7 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
 import type { EnvConfig, GatewayConfig } from "@/types";
@@ -235,7 +238,7 @@ describe("DiagnosticsService", () => {
             }),
           };
         }
-        if (name === "mcp") {
+        if (name === DOOLITTLE_MCP_SERVICE) {
           return {
             status: () => ({ ready: false }),
             getCachedTools: () => [],

@@ -1,3 +1,4 @@
+import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import type { Memory, Provider } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
@@ -79,7 +80,7 @@ function createRuntime() {
           ],
         };
       }
-      if (name === "shell") {
+      if (name === DOOLITTLE_SHELL_SERVICE) {
         return {
           history: () => [{ exitCode: 0, command: "git status" }],
         };

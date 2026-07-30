@@ -1,44 +1,43 @@
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import { getNativeServices, type RuntimeLike } from "./runtime";
 
 describe("getNativeServices", () => {
-  it("accepts a retired service id only for the Doolittle product shape", () => {
-    const loaded = new Map<string, unknown>();
+  it("resolves Doolittle projections only through their namespaced contracts", () => {
+    const shell = { run: async () => ({}), history: () => [] };
+    const browser = { capture: async () => ({}) };
+    const mcp = { invoke: async () => ({}) };
+    const loaded = new Map<string, unknown>([
+      [DOOLITTLE_SHELL_SERVICE, shell],
+      [DOOLITTLE_BROWSER_SERVICE, browser],
+      [DOOLITTLE_MCP_SERVICE, mcp],
+    ]);
     const runtime = {
       getService(name: string) {
         return loaded.get(name) ?? null;
       },
     } as RuntimeLike;
 
-    expect(getNativeServices(runtime).browser).toBeUndefined();
-
-    const browser = {
-      status: () => ({ ready: true }),
-      fetch: async () => "",
-      inspect: async () => ({}),
-      snapshot: async () => "",
-      screenshot: async () => "",
-      capture: async () => ({}),
-      analyze: async () => ({}),
-      compare: async () => ({}),
-      analyzeComparison: async () => ({}),
-    };
-    loaded.set("browser", browser);
-
-    expect(getNativeServices(runtime).browser).toBe(browser);
+    const services = getNativeServices(runtime);
+    expect(services.shell).toBe(shell);
+    expect(services.browser).toBe(browser);
+    expect(services.mcp).toBe(mcp);
   });
 
-  it("does not treat an official browser service as the product projection", () => {
-    const officialBrowser = {
-      status: () => ({ ready: true }),
-      dispatchCommand: async () => ({ ok: true }),
-    };
+  it("keeps official service identifiers reserved for their SDK owners", () => {
     const runtime = {
       getService(name: string) {
-        return name === "browser" ? officialBrowser : null;
+        return ["shell", "browser", "mcp"].includes(name) ? {} : null;
       },
     } as RuntimeLike;
 
-    expect(getNativeServices(runtime).browser).toBeUndefined();
+    const services = getNativeServices(runtime);
+    expect(services.shell).toBeUndefined();
+    expect(services.browser).toBeUndefined();
+    expect(services.mcp).toBeUndefined();
   });
 });

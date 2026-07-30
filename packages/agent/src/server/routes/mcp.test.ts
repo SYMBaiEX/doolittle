@@ -1,3 +1,4 @@
+import { DOOLITTLE_MCP_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleMcpRoutes } from "./mcp";
@@ -20,7 +21,8 @@ function createContext(): AppContext {
   };
   return {
     runtime: {
-      getService: (name: string) => (name === "mcp" ? mcp : null),
+      getService: (name: string) =>
+        name === DOOLITTLE_MCP_SERVICE ? mcp : null,
     },
     services: {
       mcp,

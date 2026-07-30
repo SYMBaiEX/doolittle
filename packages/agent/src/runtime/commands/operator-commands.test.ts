@@ -1,4 +1,7 @@
-import { DOOLITTLE_CODING_AGENT_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_CODING_AGENT_SERVICE,
+  DOOLITTLE_SHELL_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
@@ -41,7 +44,7 @@ function createContext() {
             repoLog: async () => "abc123 fix router extraction",
           };
         }
-        if (name === "shell") {
+        if (name === DOOLITTLE_SHELL_SERVICE) {
           return {
             history: () => [
               {

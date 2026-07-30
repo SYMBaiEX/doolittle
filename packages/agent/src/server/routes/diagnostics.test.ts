@@ -1,3 +1,4 @@
+import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleDiagnosticsRoutes } from "@/server/routes/diagnostics";
@@ -27,7 +28,7 @@ function createContext() {
             ],
           };
         }
-        if (name === "shell") {
+        if (name === DOOLITTLE_SHELL_SERVICE) {
           return {
             history: () => [{ id: "cmd-1" }],
           };

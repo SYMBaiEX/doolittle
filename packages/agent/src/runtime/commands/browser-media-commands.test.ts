@@ -1,3 +1,4 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../chat";
 import { handleBrowserMediaCommand } from "./browser-media-commands";
@@ -25,7 +26,7 @@ function createContext(): AgentExecutionContext {
   return {
     runtime: {
       getService: (name: string) =>
-        name === "browser"
+        name === DOOLITTLE_BROWSER_SERVICE
           ? {
               status: web.status,
               analyze: web.analyze,

@@ -1,4 +1,7 @@
-import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_MCP_SERVICE,
+} from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "../../chat";
 import { handlePluginRuntimeIntrospectionCommand } from "./plugin";
@@ -13,7 +16,7 @@ function createContext() {
             status: async () => ({ ready: true }),
           };
         }
-        if (name === "mcp") {
+        if (name === DOOLITTLE_MCP_SERVICE) {
           return {
             status: () => ({ ready: true }),
             getCachedTools: () => [{ name: "tool-a" }],

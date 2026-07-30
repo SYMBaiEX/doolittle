@@ -59,37 +59,6 @@ function service<T>(runtime: RuntimeLike, name: string): T | undefined {
   return (runtime.getService(name) as T | null) ?? undefined;
 }
 
-function hasAnyMethod(
-  value: unknown,
-  methods: readonly string[],
-): value is Record<string, (...args: never[]) => unknown> {
-  if (!value || typeof value !== "object") return false;
-  return methods.some(
-    (method) =>
-      typeof (value as Record<string, unknown>)[method] === "function",
-  );
-}
-
-/**
- * Resolve a namespaced Doolittle projection while accepting the retired
- * unnamespaced identifier only when the service has the product contract.
- *
- * This is a migration boundary for persisted/test hosts, not a route to the
- * official plugin service: shape checking prevents the official `shell`,
- * `browser`, or `mcp` service from being mistaken for Doolittle's projection.
- */
-function productProjection<T>(
-  runtime: RuntimeLike,
-  namespacedName: string,
-  retiredName: string,
-  productMethods: readonly string[],
-): T | undefined {
-  const current = service<T>(runtime, namespacedName);
-  if (current) return current;
-  const retired = service<unknown>(runtime, retiredName);
-  return hasAnyMethod(retired, productMethods) ? (retired as T) : undefined;
-}
-
 function buildNativeServices(runtime: RuntimeLike): NativeServices {
   const agentEvent =
     runtime && typeof runtime.getService === "function"
@@ -117,24 +86,9 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       runtime,
       DOOLITTLE_EXPERIENCE_SERVICE,
     ),
-    shell: productProjection<NativeShellService>(
-      runtime,
-      DOOLITTLE_SHELL_SERVICE,
-      "shell",
-      ["run", "history"],
-    ),
-    browser: productProjection<NativeBrowserService>(
-      runtime,
-      DOOLITTLE_BROWSER_SERVICE,
-      "browser",
-      ["capture", "analyze", "compare", "analyzeComparison"],
-    ),
-    mcp: productProjection<NativeMcpService>(
-      runtime,
-      DOOLITTLE_MCP_SERVICE,
-      "mcp",
-      ["invoke", "invokeTool", "getCachedTools"],
-    ),
+    shell: service<NativeShellService>(runtime, DOOLITTLE_SHELL_SERVICE),
+    browser: service<NativeBrowserService>(runtime, DOOLITTLE_BROWSER_SERVICE),
+    mcp: service<NativeMcpService>(runtime, DOOLITTLE_MCP_SERVICE),
     automation: service<NativeAutomationService>(
       runtime,
       DOOLITTLE_AUTOMATION_SERVICE,
