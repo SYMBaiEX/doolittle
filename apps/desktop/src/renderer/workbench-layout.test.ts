@@ -45,10 +45,13 @@ describe("thread workbench viewport layout contract", () => {
       /\.thread-workbench\s*{[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
     );
     expect(threadWorkbenchCss).toMatch(
-      /\.thread-workbench-panel\s*{[^}]*display:\s*flex;[^}]*flex:\s*1 1 auto;[^}]*flex-direction:\s*column;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
+      /\.thread-workbench-panel\s*{[^}]*display:\s*flex;[^}]*flex:\s*1 1 auto;[^}]*flex-direction:\s*column;[^}]*min-height:\s*0;[^}]*min-width:\s*0;[^}]*overflow:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
     );
     expect(threadWorkbenchCss).toMatch(
       /\.thread-workbench-split,\s*\.thread-workbench-terminal\s*{[^}]*flex:\s*1 1 auto;[^}]*height:\s*auto;[^}]*min-height:\s*0;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /\.thread-workbench-split,\s*\.thread-workbench-terminal\s*{[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s,
     );
     expect(threadWorkbenchCss).toMatch(
       /\.thread-workbench-(brief|plan-list|settings|preview-status)[\s\S]*?flex:\s*1 1 auto;/s,
@@ -60,5 +63,17 @@ describe("thread workbench viewport layout contract", () => {
       /\.thread-workbench-panel > \.git-control-panel \.git-control-scroll\s*{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;[^}]*overscroll-behavior:\s*contain;/s,
     );
     expect(threadWorkbenchCss).not.toContain("calc(100% - 42px)");
+    expect(threadWorkbenchCss).not.toMatch(
+      /@media \(max-width: 880px\)[\s\S]*?\.thread-workbench\s*{[^}]*position:\s*fixed;/s,
+    );
+  });
+
+  it("keeps the compact tab strip inside a narrow sidebar", () => {
+    expect(threadWorkbenchCss).toMatch(
+      /\.thread-workbench-tabs\s*{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\);[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.thread-workbench-tabs button small\s*{[^}]*display:\s*none;/s,
+    );
   });
 });
