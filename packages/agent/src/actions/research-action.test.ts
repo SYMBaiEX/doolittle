@@ -1,5 +1,6 @@
 import type { IAgentRuntime, Memory, ResearchResult } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { promptCacheMetrics } from "@/runtime/prompt-cache";
 import { createResearchAction } from "./research-action";
 
 function message(text: string): Memory {
@@ -25,6 +26,8 @@ function makeRuntime(opts: {
 const noModelRuntime = makeRuntime({ hasModel: false });
 
 describe("research action (ModelType.RESEARCH adoption)", () => {
+  beforeEach(() => promptCacheMetrics.reset());
+
   it("lets the Eliza planner select research for natural-language turns", async () => {
     const action = createResearchAction();
     expect(
@@ -97,6 +100,8 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       },
     );
     expect(result?.success).toBe(true);
+    expect(result?.verifiedUserFacing).toBe(true);
+    expect(result?.userFacingText).toBe(delivered);
     expect(delivered).toContain("RAG combines retrieval with generation.");
     expect(delivered).toContain("Sources:");
     expect(delivered).toContain("https://a.example/x");
@@ -123,8 +128,21 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       { parameters: { question: "planner question" } },
     );
 
-    expect(observedInput).toBe("planner question");
+    expect(observedInput).toContain(
+      "Produce a rigorous research report for the user.",
+    );
+    expect(observedInput).toContain("Research question:\nplanner question");
     expect(result?.text).toBe("Planner report.");
+
+    const cacheSnapshot = promptCacheMetrics.snapshot();
+    expect(cacheSnapshot.calls).toBe(1);
+    expect(cacheSnapshot.eligibleCalls).toBe(0);
+    expect(cacheSnapshot.segmentsEmitted).toBe(0);
+    expect(cacheSnapshot.byProvider.research).toMatchObject({
+      calls: 1,
+      eligible: 0,
+      segmentsEmitted: 0,
+    });
   });
 
   it("reports a clear failure when the model throws", async () => {

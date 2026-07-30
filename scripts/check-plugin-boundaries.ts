@@ -19,6 +19,7 @@ const NATIVE_RUNTIME_ROOT = join(
 const CONTRACTS_ROOT = join(ROOT, "packages", "contracts", "src");
 const BOOTSTRAP_SCRIPTS_ROOT = join(ROOT, "scripts", "bootstrap");
 const AGENT_SRC_ROOT = join(ROOT, "packages", "agent", "src");
+const ACTIONS_ROOT = join(AGENT_SRC_ROOT, "actions");
 const ALLOWED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const FORBIDDEN_IMPORT_PATTERNS: Array<{
   pattern: RegExp;
@@ -217,6 +218,36 @@ function collectInternalFacadeFailures(): string[] {
   return failures;
 }
 
+function collectModelPromptOwnershipFailures(): string[] {
+  const failures: string[] = [];
+
+  for (const filePath of walk(ACTIONS_ROOT)) {
+    const relativePath = relative(ROOT, filePath);
+    if (
+      relativePath.endsWith(".test.ts") ||
+      relativePath.endsWith(".test.tsx")
+    ) {
+      continue;
+    }
+
+    const source = readFileSync(filePath, "utf8");
+    if (!/\.useModel\s*\(/u.test(source)) {
+      continue;
+    }
+
+    if (
+      !/\bbuildCacheablePrompt\s*\(/u.test(source) ||
+      !/\bpromptCacheMetrics\.recordPlan\s*\(/u.test(source)
+    ) {
+      failures.push(
+        `${relativePath} (owns a direct runtime.useModel prompt without the shared prompt-cache builder and plan telemetry)`,
+      );
+    }
+  }
+
+  return failures;
+}
+
 function main(): void {
   const pluginDirs = readdirSync(PLUGINS_ROOT)
     .filter((entry) => entry !== "node_modules" && !entry.startsWith("."))
@@ -242,6 +273,7 @@ function main(): void {
   }
 
   failures.push(...collectInternalFacadeFailures());
+  failures.push(...collectModelPromptOwnershipFailures());
 
   if (failures.length > 0) {
     console.error("Plugin boundary / internal facade check failed:");

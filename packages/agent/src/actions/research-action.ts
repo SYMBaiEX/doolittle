@@ -9,8 +9,19 @@ import {
   type ResearchAnnotation,
   type State,
 } from "@elizaos/core";
+import {
+  buildCacheablePrompt,
+  hashParts,
+  promptCacheMetrics,
+} from "@/runtime/prompt-cache";
 
 const RESEARCH_PREFIX = "/research";
+const RESEARCH_PROMPT_VERSION = "doolittle-research-action-v1";
+const RESEARCH_PROMPT_CONTRACT = [
+  "Produce a rigorous research report for the user.",
+  "Use current sources, cite every material factual claim, distinguish sourced facts from inference, and state important limitations.",
+  "Answer the research question directly before adding supporting detail.",
+].join("\n");
 
 function messageText(message: Memory): string {
   return typeof message.content === "string"
@@ -62,6 +73,25 @@ function renderSources(annotations: ResearchAnnotation[]): string {
   return lines.length > 0 ? `\n\nSources:\n${lines.join("\n")}` : "";
 }
 
+function buildResearchInput(question: string, conversationId?: string): string {
+  // ModelType.RESEARCH accepts structured ResearchParams rather than the
+  // promptSegments/providerOptions used by text-generation models. Route the
+  // prompt through the shared abstraction with the transport id `research` so
+  // the stable/volatile contract and observability remain authoritative
+  // without falsely claiming that provider cache hints were emitted.
+  const prompt = buildCacheablePrompt({
+    stableBlocks: [RESEARCH_PROMPT_CONTRACT],
+    volatile: `Research question:\n${question}`,
+    joiner: "\n\n",
+    provider: "research",
+    model: "model-type:research",
+    versionDigest: hashParts([RESEARCH_PROMPT_VERSION]),
+    conversationId,
+  });
+  promptCacheMetrics.recordPlan(prompt.stats);
+  return prompt.prompt;
+}
+
 /**
  * Adopts the ElizaOS `ModelType.RESEARCH` deep-research model (o3-deep-research)
  * as a first-class action. Triggered by `/research <question>`, it runs the
@@ -95,30 +125,39 @@ export function createResearchAction(): Action {
       if (!question) {
         const usage = "Usage: /research <a detailed question>";
         await callback?.({ text: usage, source: "research-action" });
-        return { success: false, text: usage };
+        return { success: false, text: usage, userFacingText: usage };
       }
 
       if (!runtime.getModel(ModelType.RESEARCH)) {
         const unavailable =
           "Deep research is unavailable: no RESEARCH model is registered. Set OPENAI_API_KEY and enable the OpenAI provider to use `/research`.";
         await callback?.({ text: unavailable, source: "research-action" });
-        return { success: false, text: unavailable };
+        return {
+          success: false,
+          text: unavailable,
+          userFacingText: unavailable,
+        };
       }
 
       try {
         const result = await runtime.useModel(ModelType.RESEARCH, {
-          input: question,
+          input: buildResearchInput(question, message.roomId),
           tools: [{ type: "web_search_preview" }],
         });
         const report = `${result.text}${renderSources(result.annotations ?? [])}`;
         await callback?.({ text: report, source: "research-action" });
-        return { success: true, text: report };
+        return {
+          success: true,
+          text: report,
+          userFacingText: report,
+          verifiedUserFacing: true,
+        };
       } catch (error) {
         const failure = `Deep research failed: ${
           error instanceof Error ? error.message : String(error)
         }`;
         await callback?.({ text: failure, source: "research-action" });
-        return { success: false, text: failure };
+        return { success: false, text: failure, userFacingText: failure };
       }
     },
     examples: [

@@ -11,8 +11,9 @@ message pipeline.
   and a full provider cache plan there. **Do not reimplement that.**
 - Normal chat turns no longer contain a Doolittle-owned `useModel` fast path.
   They enter the SDK message service, so its cache plan is authoritative.
-- This module remains the shared abstraction for any non-chat prompt Doolittle
-  may own. It currently has no normal-chat integration point.
+- This module remains the shared abstraction for non-chat prompts Doolittle
+  owns. The deep-research action uses it for a stable research contract plus a
+  volatile question; there is intentionally no normal-chat integration point.
 
 ## Where it lives
 
@@ -96,6 +97,11 @@ hit-rate requires the SDK to forward cache usage — see "Known limitations".
 - Real hit-rate/token-savings telemetry needs the SDK to forward provider cache
   usage through `MODEL_USED` (or a usage callback). Today only the *plan* is
   observable.
+- `ModelType.RESEARCH` accepts structured `ResearchParams` and does not expose
+  `promptSegments` or `providerOptions`. Its Doolittle prompt still uses this
+  module for stable/volatile construction and plan telemetry, but is recorded
+  under the non-cacheable `research` transport until the SDK supports cache
+  hints for that model type.
 - Custom provider plugins (claude-code, codex, elizacloud) ignore `promptSegments`
   — make them segment-aware to extend explicit caching to those providers.
 - There is intentionally no Doolittle prelude in the SDK message path. Stable
