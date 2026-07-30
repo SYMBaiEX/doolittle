@@ -47,7 +47,7 @@ increase.
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
-| Telegram | `@elizaos/plugin-telegram`, [`packages/agent/src/gateway/platforms/telegram-adapter/index.ts`](../packages/agent/src/gateway/platforms/telegram-adapter/index.ts) | Gateway and adapter logic still own more runtime behavior than the native messaging service | `@elizaos/plugin-telegram` |
+| Telegram | `@elizaos/plugin-telegram` owns bot startup, inbound processing, rooms/entities, retries, chunking, message persistence, normal sends, and edits; [`packages/agent/src/gateway/platforms/telegram-adapter/index.ts`](../packages/agent/src/gateway/platforms/telegram-adapter/index.ts) resolves the live `telegram` service and projects its deliveries into the Doolittle journal | Doolittle retains gateway routing, delivery receipts, health presentation, and the voice-note product hint; it no longer owns a parallel raw Bot API sender | Keep outbound behavior on the native `telegram` service and keep the gateway adapter limited to routing and product receipts |
 | Discord | [`packages/agent/src/gateway/platforms/discord-adapter/index.ts`](../packages/agent/src/gateway/platforms/discord-adapter/index.ts) | Discord is gateway-owned until a direct native Discord dependency is added | Add an official native dependency only when the runtime uses it directly |
 | Plugin inventory and tools | Eliza's registered actions own executable tool availability through [`service-resolution/tool-inventory.ts`](../packages/agent/src/runtime/native/service-bridge/service-resolution/tool-inventory.ts); `@elizaos/agent/services/registry-client` and the plugin manager own plugin inventory; [`packages/agent/src/services/tools/service.ts`](../packages/agent/src/services/tools/service.ts) supplies control-plane metadata and startup fallback | The product catalog still describes non-action control-plane capabilities that have no direct registered-action equivalent | Keep executable availability action-native and preserve the product catalog only as labeled metadata/fallback |
 
@@ -55,5 +55,5 @@ increase.
 
 1. Keep execution, automation, orchestration, and mutation proof on their SDK-owned contracts; remove compatibility facades when their final callers disappear.
 2. Keep the session read projection synchronized from Eliza-owned memories while retaining Doolittle project, fork, search, import/export, and desktop metadata as product behavior.
-3. Keep Telegram moving into native runtime ownership, and keep Discord clearly gateway-owned until a direct native dependency is installed.
+3. Keep Telegram on native runtime ownership, and keep Discord clearly gateway-owned until a direct native dependency is installed.
 4. Retire skill marketplace compatibility code as `@elizaos/skills` and the official agent-skills plugin publish matching catalog APIs.

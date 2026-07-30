@@ -133,6 +133,11 @@ MCP discovery and invocation now use the same model: official Eliza marketplace
 helpers remain the source for server discovery, while the canonical `mcp`
 service owns runtime resolution and delegates configured local execution,
 tool caching, and receipts to the existing implementation.
+Telegram follows the same ownership rule. The official plugin's `telegram`
+service owns bot lifecycle, inbound processing, message persistence, retries,
+chunking, sends, and edits. The gateway adapter resolves that live service and
+adds only Doolittle routing, health, and delivery-journal projection; it no
+longer carries a second raw Bot API implementation.
 The API harness likewise dispatches registered Eliza plugin routes before
 product-only handlers; the initial health and feature inventory routes are
 defined by the Doolittle plugin.

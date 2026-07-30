@@ -20,6 +20,7 @@ function createBoundaryFixture(options: {
   includeInternalFacadeViolation?: boolean;
   includeDuplicatedModelRegistrations?: boolean;
   includeUnownedModelPrompt?: boolean;
+  includeRawTelegramTransport?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -29,6 +30,14 @@ function createBoundaryFixture(options: {
     join(packagesDir, "plugins", "plugin-dummy"),
     join(packagesDir, "agent", "src", "services"),
     join(packagesDir, "agent", "src", "gateway"),
+    join(
+      packagesDir,
+      "agent",
+      "src",
+      "gateway",
+      "platforms",
+      "telegram-adapter",
+    ),
     join(packagesDir, "agent", "src", "runtime"),
     join(packagesDir, "agent", "src", "runtime", "native"),
     join(packagesDir, "agent", "src", "actions"),
@@ -70,6 +79,22 @@ function createBoundaryFixture(options: {
       "utf8",
     );
   }
+
+  writeFileSync(
+    join(
+      packagesDir,
+      "agent",
+      "src",
+      "gateway",
+      "platforms",
+      "telegram-adapter",
+      "transport.ts",
+    ),
+    options.includeRawTelegramTransport
+      ? "export async function send(url: string) { return fetch(url); }\n"
+      : 'export const transport = "runtime-owned";\n',
+    "utf8",
+  );
 
   return root;
 }
@@ -149,5 +174,16 @@ describe("check-plugin-boundaries", () => {
       "owns a direct runtime.useModel prompt without the shared prompt-cache builder",
     );
     expect(result.stderr).toContain("model-action.ts");
+  });
+
+  it("rejects a parallel raw Telegram transport", () => {
+    fixture = createBoundaryFixture({ includeRawTelegramTransport: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "bypasses the official Eliza Telegram service",
+    );
+    expect(result.stderr).toContain("telegram-adapter/transport.ts");
   });
 });

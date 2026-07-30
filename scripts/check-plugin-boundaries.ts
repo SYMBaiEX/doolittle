@@ -126,6 +126,23 @@ const INTERNAL_FACADE_GUARDS: Array<{
     ],
   },
   {
+    root: GATEWAY_ROOT,
+    include:
+      /packages\/agent\/src\/gateway\/platforms\/telegram-adapter\/(?!(?:.+\.)?test\.[cm]?ts$).+\.[cm]?ts$/u,
+    patterns: [
+      {
+        pattern: /\bfetch\s*\(/u,
+        reason:
+          "bypasses the official Eliza Telegram service with a parallel HTTP transport",
+      },
+      {
+        pattern: /\bFormData\b/u,
+        reason:
+          "reimplements Telegram Bot API uploads outside the official Eliza Telegram service",
+      },
+    ],
+  },
+  {
     root: RUNTIME_ROOT,
     include:
       /packages\/agent\/src\/runtime\/(?:(?!chat-turn\/compatibility\.test\.ts).)+\.(?:[cm]?ts|tsx)$/u,
