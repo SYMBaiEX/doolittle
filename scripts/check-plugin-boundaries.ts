@@ -177,9 +177,21 @@ const INTERNAL_FACADE_GUARDS: Array<{
     patterns: [
       {
         pattern:
-          /capability:\s*["']codingAgent["'][\s\S]{0,320}productServices:\s*\[\s*["']/u,
+          /capability:\s*["']codingAgent["'][^}]*productServices:\s*\[\s*["']/u,
         reason:
           "advertises a product fallback for the bootstrap-critical Eliza coding agent service",
+      },
+      {
+        pattern:
+          /capability:\s*["']agentSkills["'][^}]*productServices:\s*\[\s*["']/u,
+        reason:
+          "advertises a product fallback for the bootstrap-critical official Eliza Agent Skills service",
+      },
+      {
+        pattern:
+          /capability:\s*["']agentOrchestrator["'][^}]*productServices:\s*\[\s*["']/u,
+        reason:
+          "advertises a product fallback for the bootstrap-critical official Eliza Agent Orchestrator service",
       },
     ],
   },
