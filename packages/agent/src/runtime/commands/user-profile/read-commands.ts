@@ -1,11 +1,12 @@
 import {
+  getEffectiveAgentProfileCard,
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
+  getEffectiveUserProfileCard,
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
 } from "@/runtime/native/service-bridge/ownership";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import { stringifyCommandResult } from "./shared";
@@ -15,14 +16,14 @@ export function handleUserProfileReadCommand(
   trimmed: string,
   context: AgentExecutionContext,
 ): string | undefined {
-  const nativeServices = getNativeServices(context.runtime);
-
   if (trimmed === "/user" || trimmed === "/user profile") {
-    const nativeCard = nativeServices.rolodex?.card(input.userId);
-    if (nativeCard) {
-      return stringifyCommandResult(nativeCard);
-    }
-    return context.services.userProfiles.render(input.userId);
+    return stringifyCommandResult(
+      getEffectiveUserProfileCard(
+        context.runtime,
+        context.services,
+        input.userId,
+      ),
+    );
   }
 
   if (trimmed === "/user beliefs") {
@@ -81,19 +82,19 @@ export function handleUserProfileReadCommand(
   }
 
   if (trimmed === "/user card" || trimmed === "/profiles card") {
-    const nativeCard = nativeServices.rolodex?.card(input.userId);
-    if (nativeCard) {
-      return stringifyCommandResult(nativeCard);
-    }
-    return context.services.userProfiles.renderCards(input.userId);
+    return stringifyCommandResult(
+      getEffectiveUserProfileCard(
+        context.runtime,
+        context.services,
+        input.userId,
+      ),
+    );
   }
 
   if (trimmed === "/agent profile") {
-    const nativeProfile = nativeServices.rolodex?.agentProfile();
-    if (nativeProfile) {
-      return stringifyCommandResult(nativeProfile);
-    }
-    return context.services.userProfiles.renderAgent();
+    return stringifyCommandResult(
+      getEffectiveAgentProfileCard(context.runtime, context.services),
+    );
   }
 
   if (trimmed === "/user list") {

@@ -1,14 +1,10 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import type { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
-
-export type NativeServices = ReturnType<typeof getNativeServices>;
 
 export type IdentityProfileRouteInput = {
   context: AppContext;
   request: Request;
   url: URL;
-  nativeServices: NativeServices;
 };
 
 export type IdentityProfileRouteHandler = (

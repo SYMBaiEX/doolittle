@@ -3,6 +3,7 @@ import {
   getEffectiveSkillsSummary,
 } from "@/runtime/native/service-bridge/autonomous";
 import {
+  getEffectiveActivePersonality,
   getEffectiveMemorySnapshot,
   getNativeOwnershipControlPlane,
 } from "@/runtime/native/service-bridge/ownership";
@@ -35,7 +36,10 @@ function buildCommonStatusLines(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
 ) {
-  const personality = context.services.personalities.getActive();
+  const personality = getEffectiveActivePersonality(
+    context.runtime,
+    context.services,
+  );
   const settings = context.services.settings.get();
   const startup = context.services.startupState.getSnapshot();
   const activeRun = context.services.runController.getActive(

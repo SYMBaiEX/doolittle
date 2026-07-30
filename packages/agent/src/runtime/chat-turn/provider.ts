@@ -9,6 +9,10 @@ import {
   type UUID,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import {
+  activateEffectivePersonality,
+  getEffectiveActivePersonality,
+} from "@/runtime/native/service-bridge/ownership";
 import type { NativeMessagePolicy } from "./native/types";
 import { withProviderRuntimeLock } from "./provider/lock";
 import {
@@ -157,7 +161,10 @@ export async function runProviderModelTurn(
     let handledMessage = false;
     let actionResults: ActionResult[] = [];
     let messageId = String(memory.id);
-    const personalityBefore = input.context.services.personalities.getActive();
+    const personalityBefore = getEffectiveActivePersonality(
+      input.context.runtime,
+      input.context.services,
+    );
     const previousConversationId = input.context.runtime.getSetting(
       "ELIZAOS_CLOUD_CONVERSATION_ID",
     );
@@ -174,7 +181,9 @@ export async function runProviderModelTurn(
       input.options?.personalityId &&
       input.options.personalityId !== personalityBefore.id
     ) {
-      input.context.services.personalities.setActive(
+      activateEffectivePersonality(
+        input.context.runtime,
+        input.context.services,
         input.options.personalityId,
       );
     }
@@ -231,7 +240,11 @@ export async function runProviderModelTurn(
         input.options?.personalityId &&
         input.options.personalityId !== personalityBefore.id
       ) {
-        input.context.services.personalities.setActive(personalityBefore.id);
+        activateEffectivePersonality(
+          input.context.runtime,
+          input.context.services,
+          personalityBefore.id,
+        );
       }
 
       restoreRuntimeSetting(

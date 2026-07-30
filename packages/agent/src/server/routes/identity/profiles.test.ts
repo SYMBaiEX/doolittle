@@ -5,21 +5,16 @@ import { createIdentityTestContext } from "./test-context";
 describe("handleIdentityProfileRoutes", () => {
   it("handles profile lookups and validation locally", async () => {
     const context = createIdentityTestContext();
-    const nativeServices = {} as Parameters<
-      typeof handleIdentityProfileRoutes
-    >[3];
 
     const search = await handleIdentityProfileRoutes(
       context,
       new Request("http://localhost/profiles/users/search?query=test&limit=4"),
       new URL("http://localhost/profiles/users/search?query=test&limit=4"),
-      nativeServices,
     );
     const missingUserId = await handleIdentityProfileRoutes(
       context,
       new Request("http://localhost/profiles/users/card"),
       new URL("http://localhost/profiles/users/card"),
-      nativeServices,
     );
     const mode = await handleIdentityProfileRoutes(
       context,
@@ -32,7 +27,6 @@ describe("handleIdentityProfileRoutes", () => {
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/profiles/users/mode"),
-      nativeServices,
     );
 
     await expect(search?.json()).resolves.toEqual({
@@ -48,8 +42,7 @@ describe("handleIdentityProfileRoutes", () => {
   });
 
   it("uses native rolodex handlers when available", async () => {
-    const context = createIdentityTestContext();
-    const nativeServices = {
+    const context = createIdentityTestContext({
       rolodex: {
         card: (userId: string) => ({ userId, kind: "native-card" }),
         remember: (
@@ -59,13 +52,12 @@ describe("handleIdentityProfileRoutes", () => {
           source?: string,
         ) => ({ userId, kind, value, source, native: true }),
       },
-    } as Parameters<typeof handleIdentityProfileRoutes>[3];
+    });
 
     const card = await handleIdentityProfileRoutes(
       context,
       new Request("http://localhost/profiles/users/card?userId=user-9"),
       new URL("http://localhost/profiles/users/card?userId=user-9"),
-      nativeServices,
     );
     const remember = await handleIdentityProfileRoutes(
       context,
@@ -79,7 +71,6 @@ describe("handleIdentityProfileRoutes", () => {
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/profiles/users/remember"),
-      nativeServices,
     );
 
     await expect(card?.json()).resolves.toEqual({
@@ -99,15 +90,11 @@ describe("handleIdentityProfileRoutes", () => {
 
   it("supports summary aliases and conclude responses", async () => {
     const context = createIdentityTestContext();
-    const nativeServices = {} as Parameters<
-      typeof handleIdentityProfileRoutes
-    >[3];
 
     const summary = await handleIdentityProfileRoutes(
       context,
       new Request("http://localhost/profiles/summary"),
       new URL("http://localhost/profiles/summary"),
-      nativeServices,
     );
     const conclude = await handleIdentityProfileRoutes(
       context,
@@ -122,7 +109,6 @@ describe("handleIdentityProfileRoutes", () => {
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/profiles/users/conclude"),
-      nativeServices,
     );
 
     await expect(summary?.json()).resolves.toEqual({
@@ -151,7 +137,6 @@ describe("handleIdentityProfileRoutes", () => {
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/profiles/users/remember"),
-      {} as Parameters<typeof handleIdentityProfileRoutes>[3],
     );
 
     expect(response?.status).toBe(400);
@@ -165,7 +150,6 @@ describe("handleIdentityProfileRoutes", () => {
       createIdentityTestContext(),
       new Request("http://localhost/not-profile"),
       new URL("http://localhost/not-profile"),
-      {} as Parameters<typeof handleIdentityProfileRoutes>[3],
     );
 
     expect(response).toBeNull();

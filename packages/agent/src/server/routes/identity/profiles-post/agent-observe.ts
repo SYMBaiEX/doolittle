@@ -1,3 +1,4 @@
+import { observeEffectiveAgentProfile } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
   badRequest,
@@ -27,7 +28,6 @@ async function readAgentObserveBody(
 export const handleAgentObserve: IdentityProfileRouteHandler = async ({
   context,
   request,
-  nativeServices,
 }) => {
   const body = await readAgentObserveBody(request);
   if (!body) {
@@ -35,8 +35,11 @@ export const handleAgentObserve: IdentityProfileRouteHandler = async ({
   }
 
   return json({
-    profile:
-      nativeServices.rolodex?.observeAgent(body.note, body.source) ??
-      context.services.userProfiles.observeAgent(body.note, body.source),
+    profile: observeEffectiveAgentProfile(
+      context.runtime,
+      context.services,
+      body.note,
+      body.source,
+    ),
   });
 };

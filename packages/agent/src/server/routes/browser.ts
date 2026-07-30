@@ -11,6 +11,7 @@ import {
   screenshotEffectiveBrowserPage,
   snapshotEffectiveBrowserPage,
 } from "@/runtime/native/service-bridge/browser";
+import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 
 type BrowserAnalysisTurn = typeof runModelAnalysisTurn;
@@ -166,7 +167,10 @@ export async function handleBrowserRoutes(
     return json({
       analysis,
       response: await runAnalysisTurn(context, analysis.prompt, "browser", {
-        personalityId: context.services.personalities.getActive().id,
+        personalityId: getEffectiveActivePersonality(
+          context.runtime,
+          context.services,
+        ).id,
       }),
     });
   }
@@ -221,7 +225,10 @@ export async function handleBrowserRoutes(
         analysis.prompt,
         "browser-comparison",
         {
-          personalityId: context.services.personalities.getActive().id,
+          personalityId: getEffectiveActivePersonality(
+            context.runtime,
+            context.services,
+          ).id,
         },
       ),
     });

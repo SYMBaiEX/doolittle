@@ -1,8 +1,13 @@
 import type { AppContext } from "@/runtime/bootstrap";
 
-export function createIdentityTestContext(): AppContext {
+export function createIdentityTestContext(
+  nativeServices: Record<string, unknown> = {},
+): AppContext {
   return {
-    runtime: {},
+    runtime: {
+      getService: (name: string) => nativeServices[name] ?? null,
+      getAllActions: () => [],
+    },
     services: {
       personalities: {
         getActive: () => ({ id: "primary", name: "Primary" }),

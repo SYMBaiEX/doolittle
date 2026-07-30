@@ -7,6 +7,7 @@ import {
   type LinkedProviderName,
   syncProviderSettings,
 } from "@/runtime/linked-provider-accounts";
+import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
 import { resolveManagedChatAttachments } from "@/services/chat-attachments";
 import type { ChatTurnRequest, CronJobRuntimeOverrides } from "@/types/runtime";
@@ -123,7 +124,10 @@ export async function executeSlashCommand(
   return buildCommandResponse(input, context, hooks, {
     runAnalysis: (prompt, label) =>
       runModelAnalysisTurn(context, prompt, label, {
-        personalityId: context.services.personalities.getActive().id,
+        personalityId: getEffectiveActivePersonality(
+          context.runtime,
+          context.services,
+        ).id,
       }),
     runDelegationTaskInWorker: (taskId, options) =>
       runDelegationTaskInWorker(context, taskId, options),

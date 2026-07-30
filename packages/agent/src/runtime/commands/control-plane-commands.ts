@@ -1,5 +1,6 @@
 import { renderCommandCatalog } from "@/runtime/command-catalog";
 import { displayCommand } from "@/runtime/commands/command-execution";
+import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 
@@ -63,7 +64,7 @@ function renderOperatorPulse(
   const sessionKey = input.roomId ?? `room:${input.userId}`;
   const settings = safeRead(() => context.services.settings.get());
   const personality = safeRead(() =>
-    context.services.personalities.getActive(),
+    getEffectiveActivePersonality(context.runtime, context.services),
   );
   const usage = safeRead(() => context.services.sessions.usage(sessionKey));
   const startup = safeRead(() => context.services.startupState.getSnapshot());

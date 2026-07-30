@@ -1,10 +1,11 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import {
+  activateEffectivePersonality,
+  getEffectiveActivePersonality,
   getEffectiveExperienceSummary,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
 } from "@/runtime/native/service-bridge/ownership";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { json } from "@/server/responses";
 import { handleIdentityProfileRoutes } from "./identity/profiles";
 
@@ -13,25 +14,17 @@ export async function handleIdentityRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
-  const nativeServices = getNativeServices(context.runtime);
-
   if (request.method === "GET" && url.pathname === "/personality") {
-    const activeId =
-      nativeServices.personality?.activeId() ??
-      context.services.personalities.getActive().id;
+    const active = getEffectiveActivePersonality(
+      context.runtime,
+      context.services,
+    );
     const available = getEffectivePersonalityList(
       context.runtime,
       context.services,
     );
     return json({
-      active:
-        available.find(
-          (entry) =>
-            typeof entry === "object" &&
-            entry !== null &&
-            "id" in entry &&
-            entry.id === activeId,
-        ) ?? context.services.personalities.getActive(),
+      active,
       available,
       summary: getEffectivePersonalitySummary(
         context.runtime,
@@ -52,18 +45,15 @@ export async function handleIdentityRoutes(
   if (request.method === "POST" && url.pathname === "/personality") {
     const body = (await request.json()) as { id: string };
     return json({
-      active:
-        nativeServices.personality?.activate(body.id) ??
-        context.services.personalities.setActive(body.id),
+      active: activateEffectivePersonality(
+        context.runtime,
+        context.services,
+        body.id,
+      ),
     });
   }
 
-  const profileRoute = await handleIdentityProfileRoutes(
-    context,
-    request,
-    url,
-    nativeServices,
-  );
+  const profileRoute = await handleIdentityProfileRoutes(context, request, url);
   if (profileRoute) {
     return profileRoute;
   }

@@ -7,6 +7,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
+import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { getEffectiveToolInventory } from "@/runtime/native/service-bridge/service-resolution";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
@@ -133,10 +134,11 @@ function renderAcpEditorContext(
 
 function coreContextResult(
   services: AppServices,
+  runtime: IAgentRuntime,
   message: Memory,
 ): ProviderResult {
   const sessionId = sessionIdFor(message);
-  const personality = services.personalities.getActive();
+  const personality = getEffectiveActivePersonality(runtime, services);
   const settings = services.settings.get();
   const memorySummary = services.memory.summary("memory");
   const userSummary = services.memory.summary("user");
@@ -266,10 +268,10 @@ export function createAgentContextProviders(services: AppServices): Provider[] {
     cacheStable: false,
     cacheScope: "room",
     get: async (
-      _runtime: IAgentRuntime,
+      runtime: IAgentRuntime,
       message: Memory,
       _state: State,
-    ): Promise<ProviderResult> => coreContextResult(services, message),
+    ): Promise<ProviderResult> => coreContextResult(services, runtime, message),
   };
 
   const workspaceProvider: Provider = {

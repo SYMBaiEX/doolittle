@@ -5,21 +5,16 @@ import { createIdentityTestContext } from "./test-context";
 function createPostInput(
   path: string,
   body: unknown,
-  nativeServices: Parameters<
-    typeof handleIdentityProfilePostRoute
-  >[0]["nativeServices"] = {} as Parameters<
-    typeof handleIdentityProfilePostRoute
-  >[0]["nativeServices"],
+  nativeServices: Record<string, unknown> = {},
 ) {
   return {
-    context: createIdentityTestContext(),
+    context: createIdentityTestContext(nativeServices),
     request: new Request(`http://localhost${path}`, {
       method: "POST",
       body: JSON.stringify(body),
       headers: { "content-type": "application/json" },
     }),
     url: new URL(`http://localhost${path}`),
-    nativeServices,
   };
 }
 
@@ -65,7 +60,8 @@ describe("handleIdentityProfilePostRoute", () => {
     await expect(note?.json()).resolves.toEqual({
       profile: {
         userId: "user-1",
-        note: "captures local note",
+        kind: "note",
+        value: "captures local note",
         source: "test",
       },
     });
@@ -111,7 +107,7 @@ describe("handleIdentityProfilePostRoute", () => {
           native: true,
         }),
       },
-    } as Parameters<typeof handleIdentityProfilePostRoute>[0]["nativeServices"];
+    };
 
     const note = await handleIdentityProfilePostRoute(
       createPostInput(
@@ -121,7 +117,7 @@ describe("handleIdentityProfilePostRoute", () => {
           note: "prefer native handlers",
           source: "test",
         },
-        nativeServices,
+        { rolodex: nativeServices.rolodex },
       ),
     );
     const remember = await handleIdentityProfilePostRoute(
@@ -133,7 +129,7 @@ describe("handleIdentityProfilePostRoute", () => {
           value: "likes route splits",
           source: "test",
         },
-        nativeServices,
+        { rolodex: nativeServices.rolodex },
       ),
     );
     const observe = await handleIdentityProfilePostRoute(
@@ -143,7 +139,7 @@ describe("handleIdentityProfilePostRoute", () => {
           note: "agent learned something",
           source: "test",
         },
-        nativeServices,
+        { rolodex: nativeServices.rolodex },
       ),
     );
 

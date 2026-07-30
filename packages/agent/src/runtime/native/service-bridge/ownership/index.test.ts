@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
 import {
+  activateEffectivePersonality,
+  getEffectiveActivePersonality,
+  getEffectiveAgentProfile,
+  getEffectiveAgentProfileCard,
   getEffectiveExperienceSummary,
   getEffectiveGeneratedSkills,
   getEffectiveMemorySnapshot,
@@ -10,12 +14,16 @@ import {
   getEffectiveRolodexSummary,
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
+  getEffectiveUserProfileCard,
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
   getNativeEcosystemSnapshot,
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
+  observeEffectiveAgentProfile,
+  recallEffectiveUserProfile,
+  rememberEffectiveUserProfile,
 } from "./index";
 
 function makeRuntime(services: Record<string, unknown> = {}): RuntimeLike {
@@ -38,6 +46,7 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
       }),
     },
     personalities: {
+      getActive: () => ({ id: "agent", name: "Agent" }),
       list: () => [
         { id: "fallback", name: "Fallback" },
         { id: "agent", name: "Agent" },
@@ -47,8 +56,26 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
         activeId: "agent",
         names: ["Fallback", "Agent"],
       }),
+      setActive: (id: string) => ({ id, name: `Fallback:${id}` }),
     },
     userProfiles: {
+      renderCards: (userId: string) => `fallback-card:${userId}`,
+      recall: (userId: string, query: string) => [
+        `fallback-recall:${userId}:${query}`,
+      ],
+      remember: (
+        userId: string,
+        kind: string,
+        value: string,
+        source?: string,
+      ) => ({ userId, kind, value, source, owner: "fallback" }),
+      observeAgent: (note: string, source?: string) => ({
+        note,
+        source,
+        owner: "fallback",
+      }),
+      getAgent: () => ({ id: "fallback-agent" }),
+      renderAgent: () => "fallback-agent-card",
       summary: () => ({
         totalProfiles: 2,
         agentName: "Fallback",
@@ -167,6 +194,9 @@ describe("ownership helpers", () => {
         }),
       },
       personality: {
+        activeId: () => "native",
+        get: (id: string) => ({ id, name: "Native" }),
+        activate: (id: string) => ({ id, name: `Native:${id}` }),
         summary: () => ({
           total: 4,
           activeId: "operator",
@@ -175,6 +205,22 @@ describe("ownership helpers", () => {
         list: () => [{ id: "native", name: "Native" }],
       },
       rolodex: {
+        card: (userId: string) => `native-card:${userId}`,
+        recall: (userId: string, query: string) => [
+          `native-recall:${userId}:${query}`,
+        ],
+        remember: (
+          userId: string,
+          kind: string,
+          value: string,
+          source?: string,
+        ) => ({ userId, kind, value, source, owner: "native" }),
+        observeAgent: (note: string, source?: string) => ({
+          note,
+          source,
+          owner: "native",
+        }),
+        agentProfile: () => "native-agent",
         summary: () => ({
           totalProfiles: 3,
           agentName: "Native",
@@ -261,6 +307,37 @@ describe("ownership helpers", () => {
     expect(getEffectivePersonalityList(runtime, services)).toEqual([
       { id: "native", name: "Native" },
     ]);
+    expect(getEffectiveActivePersonality(runtime, services)).toEqual({
+      id: "native",
+      name: "Native",
+    });
+    expect(activateEffectivePersonality(runtime, services, "teacher")).toEqual({
+      id: "teacher",
+      name: "Native:teacher",
+    });
+    expect(getEffectiveUserProfileCard(runtime, services, "user-1")).toBe(
+      "native-card:user-1",
+    );
+    expect(
+      recallEffectiveUserProfile(runtime, services, "user-1", "query"),
+    ).toEqual(["native-recall:user-1:query"]);
+    expect(
+      rememberEffectiveUserProfile(
+        runtime,
+        services,
+        "user-1",
+        "fact",
+        "value",
+        "test",
+      ),
+    ).toMatchObject({ owner: "native" });
+    expect(
+      observeEffectiveAgentProfile(runtime, services, "note", "test"),
+    ).toMatchObject({ owner: "native" });
+    expect(getEffectiveAgentProfile(runtime, services)).toBe("native-agent");
+    expect(getEffectiveAgentProfileCard(runtime, services)).toBe(
+      "native-agent",
+    );
     expect(getEffectiveUserProfileSearch(runtime, services, "alpha")).toEqual([
       { name: "native-result" },
     ]);
@@ -320,6 +397,38 @@ describe("ownership helpers", () => {
       { id: "fallback", name: "Fallback" },
       { id: "agent", name: "Agent" },
     ]);
+    expect(getEffectiveActivePersonality(runtime, services)).toEqual({
+      id: "agent",
+      name: "Agent",
+    });
+    expect(activateEffectivePersonality(runtime, services, "teacher")).toEqual({
+      id: "teacher",
+      name: "Fallback:teacher",
+    });
+    expect(getEffectiveUserProfileCard(runtime, services, "user-2")).toBe(
+      "fallback-card:user-2",
+    );
+    expect(
+      recallEffectiveUserProfile(runtime, services, "user-2", "query"),
+    ).toEqual(["fallback-recall:user-2:query"]);
+    expect(
+      rememberEffectiveUserProfile(
+        runtime,
+        services,
+        "user-2",
+        "fact",
+        "value",
+      ),
+    ).toMatchObject({ owner: "fallback" });
+    expect(
+      observeEffectiveAgentProfile(runtime, services, "note"),
+    ).toMatchObject({ owner: "fallback" });
+    expect(getEffectiveAgentProfile(runtime, services)).toEqual({
+      id: "fallback-agent",
+    });
+    expect(getEffectiveAgentProfileCard(runtime, services)).toBe(
+      "fallback-agent-card",
+    );
     expect(getEffectiveGeneratedSkills(runtime, services)).toEqual([
       "generated/fallback",
     ]);

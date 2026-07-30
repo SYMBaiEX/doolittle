@@ -1,3 +1,4 @@
+import { rememberEffectiveUserProfile } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
   badRequest,
@@ -40,7 +41,6 @@ async function readUserRememberBody(
 export const handleUserRemember: IdentityProfileRouteHandler = async ({
   context,
   request,
-  nativeServices,
 }) => {
   const body = await readUserRememberBody(request);
   if (!body) {
@@ -48,18 +48,13 @@ export const handleUserRemember: IdentityProfileRouteHandler = async ({
   }
 
   return json({
-    profile:
-      nativeServices.rolodex?.remember(
-        body.userId,
-        body.kind,
-        body.value,
-        body.source,
-      ) ??
-      context.services.userProfiles.remember(
-        body.userId,
-        body.kind,
-        body.value,
-        body.source,
-      ),
+    profile: rememberEffectiveUserProfile(
+      context.runtime,
+      context.services,
+      body.userId,
+      body.kind,
+      body.value,
+      body.source,
+    ),
   });
 };

@@ -1,4 +1,8 @@
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
+import {
+  observeEffectiveAgentProfile,
+  recallEffectiveUserProfile,
+  rememberEffectiveUserProfile,
+} from "@/runtime/native/service-bridge/ownership";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
 import {
@@ -13,16 +17,18 @@ export function handleUserProfileWriteCommand(
   trimmed: string,
   context: AgentExecutionContext,
 ): string | undefined {
-  const nativeServices = getNativeServices(context.runtime);
-
   if (trimmed.startsWith("/user recall ")) {
     const query = trimmed.replace("/user recall ", "").trim();
     if (!query) {
       return "Usage: /user recall <query>";
     }
     return JSON.stringify(
-      nativeServices.rolodex?.recall(input.userId, query) ??
-        context.services.userProfiles.recall(input.userId, query),
+      recallEffectiveUserProfile(
+        context.runtime,
+        context.services,
+        input.userId,
+        query,
+      ),
       null,
       2,
     );
@@ -69,13 +75,14 @@ export function handleUserProfileWriteCommand(
       return "Usage: /user note <text>";
     }
     return JSON.stringify(
-      nativeServices.rolodex?.remember(
+      rememberEffectiveUserProfile(
+        context.runtime,
+        context.services,
         input.userId,
         "note",
         note,
         input.source,
-      ) ??
-        context.services.userProfiles.addNote(input.userId, note, input.source),
+      ),
       null,
       2,
     );
@@ -123,25 +130,14 @@ export function handleUserProfileWriteCommand(
       return USER_REMEMBER_USAGE;
     }
     return JSON.stringify(
-      nativeServices.rolodex?.remember(
+      rememberEffectiveUserProfile(
+        context.runtime,
+        context.services,
         input.userId,
         kind,
         value,
         input.source,
-      ) ??
-        context.services.userProfiles.remember(
-          input.userId,
-          kind as
-            | "preference"
-            | "fact"
-            | "goal"
-            | "context"
-            | "constraint"
-            | "note"
-            | "memory",
-          value,
-          input.source,
-        ),
+      ),
       null,
       2,
     );
@@ -153,8 +149,12 @@ export function handleUserProfileWriteCommand(
       return "Usage: /agent observe <text>";
     }
     return JSON.stringify(
-      nativeServices.rolodex?.observeAgent(note, input.source) ??
-        context.services.userProfiles.observeAgent(note, input.source),
+      observeEffectiveAgentProfile(
+        context.runtime,
+        context.services,
+        note,
+        input.source,
+      ),
       null,
       2,
     );

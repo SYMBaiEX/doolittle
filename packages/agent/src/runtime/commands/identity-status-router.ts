@@ -1,9 +1,10 @@
 import {
+  activateEffectivePersonality,
+  getEffectiveActivePersonality,
   getEffectiveExperienceSummary,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
 } from "@/runtime/native/service-bridge/ownership";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import type { AgentExecutionContext } from "../chat";
 
 export async function handleIdentityStatusCommand(
@@ -19,7 +20,10 @@ export async function handleIdentityStatusCommand(
   },
 ): Promise<string | undefined> {
   if (trimmed === "/personality" || trimmed === "/personality status") {
-    const active = context.services.personalities.getActive();
+    const active = getEffectiveActivePersonality(
+      context.runtime,
+      context.services,
+    );
     return [
       `${active.name} (${active.id})`,
       active.description,
@@ -43,10 +47,11 @@ export async function handleIdentityStatusCommand(
 
   if (trimmed.startsWith("/personality set ")) {
     const id = trimmed.replace("/personality set ", "").trim();
-    const profile =
-      (getNativeServices(context.runtime).personality?.activate(id) as
-        | { id: string; name: string }
-        | undefined) ?? context.services.personalities.setActive(id);
+    const profile = activateEffectivePersonality(
+      context.runtime,
+      context.services,
+      id,
+    );
     return `Active personality set to ${profile.name}.`;
   }
 

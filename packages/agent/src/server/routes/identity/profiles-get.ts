@@ -1,10 +1,13 @@
 import {
+  getEffectiveAgentProfile,
   getEffectiveRolodexSummary,
   getEffectiveUserBeliefs,
   getEffectiveUserEngagement,
+  getEffectiveUserProfileCard,
   getEffectiveUserProfileSearch,
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
+  recallEffectiveUserProfile,
 } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
 import {
@@ -40,29 +43,23 @@ const handleUserSearch: IdentityProfileRouteHandler = ({ context, url }) => {
   });
 };
 
-const handleUserCard: IdentityProfileRouteHandler = ({
-  context,
-  url,
-  nativeServices,
-}) => {
+const handleUserCard: IdentityProfileRouteHandler = ({ context, url }) => {
   const userId = getSearchParam(url, "userId");
   if (!userId) {
     return badRequest("userId is required");
   }
 
   return json({
-    card:
-      nativeServices.rolodex?.card(userId) ??
-      context.services.userProfiles.renderCards(userId),
+    card: getEffectiveUserProfileCard(
+      context.runtime,
+      context.services,
+      userId,
+    ),
     summary: getEffectiveRolodexSummary(context.runtime, context.services),
   });
 };
 
-const handleUserRecall: IdentityProfileRouteHandler = ({
-  context,
-  url,
-  nativeServices,
-}) => {
+const handleUserRecall: IdentityProfileRouteHandler = ({ context, url }) => {
   const userId = getSearchParam(url, "userId");
   const query = getSearchParam(url, "query");
   if (!userId || !query) {
@@ -70,9 +67,12 @@ const handleUserRecall: IdentityProfileRouteHandler = ({
   }
 
   return json({
-    hits:
-      nativeServices.rolodex?.recall(userId, query) ??
-      context.services.userProfiles.recall(userId, query),
+    hits: recallEffectiveUserProfile(
+      context.runtime,
+      context.services,
+      userId,
+      query,
+    ),
   });
 };
 
@@ -123,13 +123,11 @@ const handleUserEngagement: IdentityProfileRouteHandler = ({
   });
 };
 
-const handleAgentProfile: IdentityProfileRouteHandler = ({
-  context,
-  nativeServices,
-}) => {
-  const agentProfile =
-    nativeServices.rolodex?.agentProfile() ??
-    context.services.userProfiles.getAgent();
+const handleAgentProfile: IdentityProfileRouteHandler = ({ context }) => {
+  const agentProfile = getEffectiveAgentProfile(
+    context.runtime,
+    context.services,
+  );
 
   return json({
     profile: agentProfile,
