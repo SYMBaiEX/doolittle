@@ -1,10 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import { getRuntimeDatabaseAdapter } from "./adapter-access";
-import { patchMemoryCountingAdapter } from "./memory-counting-patching";
-import {
-  patchRelationshipGetCompatibility,
-  patchRelationshipWriteCompatibility,
-} from "./relationship-compatibility";
+import { patchRelationshipWriteCompatibility } from "./relationship-compatibility";
 
 export function patchDatabaseAdapter(runtime: IAgentRuntime): void {
   const adapter = getRuntimeDatabaseAdapter(runtime);
@@ -12,7 +8,7 @@ export function patchDatabaseAdapter(runtime: IAgentRuntime): void {
     return;
   }
 
-  patchMemoryCountingAdapter(adapter);
-  patchRelationshipGetCompatibility(adapter);
+  // beta.7's official adapter owns memory counting and relationship reads.
+  // Keep only Doolittle's product-specific relationship write projection.
   patchRelationshipWriteCompatibility(adapter);
 }

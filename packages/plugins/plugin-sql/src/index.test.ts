@@ -3,6 +3,19 @@ import { describe, expect, it, vi } from "vitest";
 import { __testing } from "./index";
 
 describe("@elizaos/plugin-sql compatibility patch", () => {
+  it("leaves beta.7 memory counting and relationship reads untouched", () => {
+    const countMemories = vi.fn().mockResolvedValue(3);
+    const getRelationships = vi.fn().mockResolvedValue([]);
+    const adapter = { countMemories, getRelationships };
+
+    __testing.patchDatabaseAdapter({
+      databaseAdapter: adapter,
+    } as unknown as IAgentRuntime);
+
+    expect(adapter.countMemories).toBe(countMemories);
+    expect(adapter.getRelationships).toBe(getRelationships);
+  });
+
   it("updates an existing relationship instead of retrying a duplicate insert", async () => {
     const existing: Relationship = {
       id: "rel-1",

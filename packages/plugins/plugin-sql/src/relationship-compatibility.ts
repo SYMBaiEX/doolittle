@@ -6,46 +6,6 @@ import {
   normalizeRelationshipTags,
 } from "./metadata-normalization";
 
-export function patchRelationshipGetCompatibility(
-  adapter: LegacySqlAdapter,
-): void {
-  if (adapter.__elizaAgentRelationshipCompatibilityPatched) {
-    return;
-  }
-
-  const originalGetRelationships = adapter.getRelationships?.bind(adapter);
-  if (originalGetRelationships) {
-    adapter.getRelationships = async (params) => {
-      const candidates = [
-        params.entityId,
-        Array.isArray(params.entityIds) ? params.entityIds[0] : undefined,
-        params.sourceEntityId,
-        params.targetEntityId,
-      ];
-      const entityId = candidates
-        .find(
-          (value): value is string =>
-            typeof value === "string" && value.trim().length > 0,
-        )
-        ?.trim();
-
-      if (!entityId) {
-        return [];
-      }
-
-      return originalGetRelationships({
-        ...params,
-        entityId,
-        entityIds: undefined,
-        sourceEntityId: undefined,
-        targetEntityId: undefined,
-      });
-    };
-  }
-
-  adapter.__elizaAgentRelationshipCompatibilityPatched = true;
-}
-
 export function patchRelationshipWriteCompatibility(
   adapter: LegacySqlAdapter,
 ): void {

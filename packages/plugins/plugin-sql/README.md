@@ -8,5 +8,7 @@ repo.
 
 The published runtime track for this repository is verified at `2.0.3-beta.7` and
 is kept explicit via dependency alignment rather than `npm` `latest` tags.
-The workspace wrapper remains responsible for Doolittle-specific relationship
-metadata normalization and duplicate-insert recovery.
+The workspace wrapper only retains Doolittle-specific relationship metadata
+normalization and duplicate-insert recovery. Memory counting and relationship
+reads are delegated directly to the official beta.7 adapter so its complete
+room, entity, agent, metadata, and multi-entity filters remain intact.
