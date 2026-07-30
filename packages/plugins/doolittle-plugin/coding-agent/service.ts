@@ -47,6 +47,31 @@ export function createCodingAgentServiceClass(
       return this.workspace.write(path, content);
     }
 
+    readLines(path: string, options: { offset?: number; limit?: number } = {}) {
+      return this.workspace.readLines(path, options);
+    }
+
+    writeFile(path: string, content: string) {
+      return this.workspace.writeFile(path, content);
+    }
+
+    createDirectory(path: string) {
+      return this.workspace.createDirectory(path);
+    }
+
+    patch(
+      path: string,
+      oldText: string,
+      newText: string,
+      options: { replaceAll?: boolean } = {},
+    ) {
+      return this.workspace.patch(path, oldText, newText, options);
+    }
+
+    searchFiles(input: Parameters<typeof this.workspace.searchFiles>[0]) {
+      return this.workspace.searchFiles(input);
+    }
+
     search(query: string, limit = 20) {
       return this.workspace.search(query, limit);
     }

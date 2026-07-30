@@ -114,6 +114,7 @@ export {
   syncEffectiveSkillCatalog,
 } from "./skill-hub";
 export {
+  createNativeWorkspaceDirectory,
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
@@ -130,10 +131,14 @@ export {
   inspectNativeProject,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
+  patchNativeWorkspaceFile,
   probeEffectiveMcp,
   readNativeWorkspaceFile,
+  readNativeWorkspaceFileLines,
   runEffectiveShellCommand,
   searchEffectiveCachedMcpTools,
   searchNativeWorkspace,
+  searchNativeWorkspaceFiles,
   writeNativeWorkspaceFile,
+  writeNativeWorkspaceFileResult,
 } from "./tooling";

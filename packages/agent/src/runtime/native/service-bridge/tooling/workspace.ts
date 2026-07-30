@@ -16,6 +16,14 @@ export function readNativeWorkspaceFile(runtime: RuntimeLike, path: string) {
   return requireNativeCodingAgent(runtime).read(path);
 }
 
+export function readNativeWorkspaceFileLines(
+  runtime: RuntimeLike,
+  path: string,
+  options: { offset?: number; limit?: number } = {},
+) {
+  return requireNativeCodingAgent(runtime).readLines(path, options);
+}
+
 export async function searchNativeWorkspace(
   runtime: RuntimeLike,
   query: string,
@@ -30,4 +38,43 @@ export async function writeNativeWorkspaceFile(
   content: string,
 ) {
   return await requireNativeCodingAgent(runtime).write(path, content);
+}
+
+export async function writeNativeWorkspaceFileResult(
+  runtime: RuntimeLike,
+  path: string,
+  content: string,
+) {
+  return await requireNativeCodingAgent(runtime).writeFile(path, content);
+}
+
+export function createNativeWorkspaceDirectory(
+  runtime: RuntimeLike,
+  path: string,
+) {
+  return requireNativeCodingAgent(runtime).createDirectory(path);
+}
+
+export async function patchNativeWorkspaceFile(
+  runtime: RuntimeLike,
+  path: string,
+  oldText: string,
+  newText: string,
+  options: { replaceAll?: boolean } = {},
+) {
+  return await requireNativeCodingAgent(runtime).patch(
+    path,
+    oldText,
+    newText,
+    options,
+  );
+}
+
+export function searchNativeWorkspaceFiles(
+  runtime: RuntimeLike,
+  input: Parameters<
+    ReturnType<typeof requireNativeCodingAgent>["searchFiles"]
+  >[0],
+) {
+  return requireNativeCodingAgent(runtime).searchFiles(input);
 }

@@ -1,4 +1,12 @@
 import type {
+  WorkspaceDirectoryResult,
+  WorkspaceFileSearchInput,
+  WorkspaceFileSearchResult,
+  WorkspacePatchResult,
+  WorkspaceReadLinesResult,
+  WorkspaceWriteResult,
+} from "@doolittle/agent/plugin-api";
+import type {
   CodingIteration,
   ConnectorType,
   HumanFeedback,
@@ -10,6 +18,22 @@ export interface WorkspaceServiceLike {
   summary(limit?: number): string;
   read(path: string): string;
   write(path: string, content: string): string | Promise<string>;
+  readLines(
+    path: string,
+    options?: { offset?: number; limit?: number },
+  ): WorkspaceReadLinesResult;
+  writeFile(
+    path: string,
+    content: string,
+  ): WorkspaceWriteResult | Promise<WorkspaceWriteResult>;
+  createDirectory(path: string): WorkspaceDirectoryResult;
+  patch(
+    path: string,
+    oldText: string,
+    newText: string,
+    options?: { replaceAll?: boolean },
+  ): WorkspacePatchResult | Promise<WorkspacePatchResult>;
+  searchFiles(input: WorkspaceFileSearchInput): WorkspaceFileSearchResult;
   search(
     query: string,
     limit?: number,
@@ -96,7 +120,16 @@ export interface CodingAgentPluginOptions {
   workspaceRoot: string;
   workspace: Pick<
     WorkspaceServiceLike,
-    "root" | "summary" | "read" | "write" | "search"
+    | "root"
+    | "summary"
+    | "read"
+    | "write"
+    | "readLines"
+    | "writeFile"
+    | "createDirectory"
+    | "patch"
+    | "searchFiles"
+    | "search"
   >;
   repository: Pick<
     RepositoryServiceLike,

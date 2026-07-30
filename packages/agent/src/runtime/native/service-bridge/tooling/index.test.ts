@@ -10,6 +10,7 @@ import {
 } from "@/services/project-inspection";
 import type { RuntimeLike } from "../runtime";
 import {
+  createNativeWorkspaceDirectory,
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
@@ -24,12 +25,16 @@ import {
   inspectNativeProject,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
+  patchNativeWorkspaceFile,
   probeEffectiveMcp,
   readNativeWorkspaceFile,
+  readNativeWorkspaceFileLines,
   runEffectiveShellCommand,
   searchEffectiveCachedMcpTools,
   searchNativeWorkspace,
+  searchNativeWorkspaceFiles,
   writeNativeWorkspaceFile,
+  writeNativeWorkspaceFileResult,
 } from "./index";
 
 describe("tooling bridge helpers", () => {
@@ -65,6 +70,11 @@ describe("tooling bridge helpers", () => {
             workspaceSummary: (limit = 40) => `native-summary:${limit}`,
             run: async (command: string) => `native-coding-run:${command}`,
             read: (path: string) => `native-read:${path}`,
+            readLines: (path: string, options: unknown) => ({
+              path,
+              options,
+              source: "native-read-lines",
+            }),
             search: (query: string, limit = 20) => [
               `native-search:${query}:${limit}`,
             ],
@@ -72,6 +82,32 @@ describe("tooling bridge helpers", () => {
               path,
               content,
               source: "native-write",
+            }),
+            writeFile: async (path: string, content: string) => ({
+              path,
+              bytes: content.length,
+              source: "native-write-file",
+            }),
+            createDirectory: (path: string) => ({
+              path,
+              existed: false,
+              source: "native-directory",
+            }),
+            patch: async (
+              path: string,
+              oldText: string,
+              newText: string,
+              options: unknown,
+            ) => ({
+              path,
+              oldText,
+              newText,
+              options,
+              source: "native-patch",
+            }),
+            searchFiles: (input: unknown) => ({
+              input,
+              source: "native-search-files",
             }),
             inspectProject: async (projectPath: string) => ({
               name: "native-project",
@@ -183,6 +219,16 @@ describe("tooling bridge helpers", () => {
     expect(readNativeWorkspaceFile(runtime, "README.md")).toBe(
       "native-read:README.md",
     );
+    expect(
+      readNativeWorkspaceFileLines(runtime, "README.md", {
+        offset: 2,
+        limit: 4,
+      }),
+    ).toEqual({
+      path: "README.md",
+      options: { offset: 2, limit: 4 },
+      source: "native-read-lines",
+    });
     await expect(searchNativeWorkspace(runtime, "todo", 4)).resolves.toEqual([
       "native-search:todo:4",
     ]);
@@ -192,6 +238,38 @@ describe("tooling bridge helpers", () => {
       path: "notes.md",
       content: "hello",
       source: "native-write",
+    });
+    await expect(
+      writeNativeWorkspaceFileResult(runtime, "notes.md", "hello"),
+    ).resolves.toEqual({
+      path: "notes.md",
+      bytes: 5,
+      source: "native-write-file",
+    });
+    expect(createNativeWorkspaceDirectory(runtime, "src")).toEqual({
+      path: "src",
+      existed: false,
+      source: "native-directory",
+    });
+    await expect(
+      patchNativeWorkspaceFile(runtime, "notes.md", "old", "new", {
+        replaceAll: true,
+      }),
+    ).resolves.toEqual({
+      path: "notes.md",
+      oldText: "old",
+      newText: "new",
+      options: { replaceAll: true },
+      source: "native-patch",
+    });
+    expect(
+      searchNativeWorkspaceFiles(runtime, {
+        pattern: "todo",
+        path: "src",
+      }),
+    ).toEqual({
+      input: { pattern: "todo", path: "src" },
+      source: "native-search-files",
     });
     await expect(
       inspectNativeProject(runtime, "/tmp/project"),
@@ -304,11 +382,32 @@ describe("tooling bridge helpers", () => {
         readNativeWorkspaceFile(runtime, "README.md"),
       ),
     ).rejects.toThrow(/coding_agent/u);
+    await expect(
+      Promise.resolve().then(() =>
+        readNativeWorkspaceFileLines(runtime, "README.md"),
+      ),
+    ).rejects.toThrow(/coding_agent/u);
     await expect(searchNativeWorkspace(runtime, "todo", 4)).rejects.toThrow(
       /coding_agent/u,
     );
     await expect(
       writeNativeWorkspaceFile(runtime, "notes.md", "hello"),
+    ).rejects.toThrow(/coding_agent/u);
+    await expect(
+      writeNativeWorkspaceFileResult(runtime, "notes.md", "hello"),
+    ).rejects.toThrow(/coding_agent/u);
+    await expect(
+      Promise.resolve().then(() =>
+        createNativeWorkspaceDirectory(runtime, "src"),
+      ),
+    ).rejects.toThrow(/coding_agent/u);
+    await expect(
+      patchNativeWorkspaceFile(runtime, "notes.md", "old", "new"),
+    ).rejects.toThrow(/coding_agent/u);
+    await expect(
+      Promise.resolve().then(() =>
+        searchNativeWorkspaceFiles(runtime, { pattern: "todo" }),
+      ),
     ).rejects.toThrow(/coding_agent/u);
 
     await expect(getNativeRepositoryStatus(runtime)).rejects.toThrow(

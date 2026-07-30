@@ -1,5 +1,13 @@
 import { ORCHESTRATOR_TASK_SERVICE } from "@doolittle/contracts";
 import type { AgentSkillsService } from "@elizaos/plugin-agent-skills";
+import type {
+  WorkspaceDirectoryResult,
+  WorkspaceFileSearchInput,
+  WorkspaceFileSearchResult,
+  WorkspacePatchResult,
+  WorkspaceReadLinesResult,
+  WorkspaceWriteResult,
+} from "@/services/workspace-service";
 import type { SdkTrajectoryLogger } from "@/types/trajectory/sdk";
 
 export const AGENT_SKILLS_SERVICE = "AGENT_SKILLS_SERVICE";
@@ -217,6 +225,19 @@ export interface NativeCodingAgentService {
   workspaceSummary(limit?: number): string;
   read(path: string): unknown;
   write(path: string, content: string): unknown;
+  readLines(
+    path: string,
+    options?: { offset?: number; limit?: number },
+  ): WorkspaceReadLinesResult;
+  writeFile(path: string, content: string): Promise<WorkspaceWriteResult>;
+  createDirectory(path: string): WorkspaceDirectoryResult;
+  patch(
+    path: string,
+    oldText: string,
+    newText: string,
+    options?: { replaceAll?: boolean },
+  ): Promise<WorkspacePatchResult>;
+  searchFiles(input: WorkspaceFileSearchInput): WorkspaceFileSearchResult;
   search(query: string, limit?: number): unknown;
   repoStatus(): Promise<unknown>;
   repoDiff(): Promise<unknown>;

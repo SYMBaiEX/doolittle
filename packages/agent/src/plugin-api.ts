@@ -29,6 +29,15 @@ export type {
   AutomationExecutor,
 } from "@/services/automation/types";
 export type {
+  WorkspaceDirectoryResult,
+  WorkspaceFileSearchInput,
+  WorkspaceFileSearchMatch,
+  WorkspaceFileSearchResult,
+  WorkspacePatchResult,
+  WorkspaceReadLinesResult,
+  WorkspaceWriteResult,
+} from "@/services/workspace-service";
+export type {
   AutomationJobRecord,
   AutomationRunRecord,
   AutomationRuntimeOverrides,

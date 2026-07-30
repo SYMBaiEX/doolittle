@@ -26,9 +26,14 @@ export {
   runEffectiveShellCommand,
 } from "./shell";
 export {
+  createNativeWorkspaceDirectory,
   getNativeWorkspaceRoot,
   getNativeWorkspaceSummary,
+  patchNativeWorkspaceFile,
   readNativeWorkspaceFile,
+  readNativeWorkspaceFileLines,
   searchNativeWorkspace,
+  searchNativeWorkspaceFiles,
   writeNativeWorkspaceFile,
+  writeNativeWorkspaceFileResult,
 } from "./workspace";
