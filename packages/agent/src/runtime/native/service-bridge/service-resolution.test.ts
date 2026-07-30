@@ -46,7 +46,7 @@ describe("service-resolution helpers", () => {
         nativeService: "pairing",
         source: "native",
         ownership: "plugin",
-        fallback: "unavailable until the official Eliza PairingService loads",
+        requirement: "required official Eliza PairingService",
         available: true,
       },
       {
@@ -54,7 +54,7 @@ describe("service-resolution helpers", () => {
         nativeService: "memoryStorage",
         source: "native",
         ownership: "plugin",
-        fallback: "unavailable until the Eliza memory storage adapter loads",
+        requirement: "required Eliza memory storage service",
         available: true,
       },
       {
@@ -62,8 +62,7 @@ describe("service-resolution helpers", () => {
         nativeService: KNOWLEDGE_GRAPH_SERVICE,
         source: "native",
         ownership: "plugin",
-        fallback:
-          "unavailable until the official Eliza foundation plugin loads",
+        requirement: "required official Eliza knowledge graph service",
         available: true,
       },
       {
@@ -71,7 +70,7 @@ describe("service-resolution helpers", () => {
         nativeService: "pdf",
         source: "native",
         ownership: "plugin",
-        fallback: "unavailable until @elizaos/plugin-pdf is registered",
+        requirement: "required official Eliza PDF service",
         available: true,
       },
       {
@@ -79,7 +78,7 @@ describe("service-resolution helpers", () => {
         nativeService: "personality",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required Eliza personality service",
+        requirement: "required Eliza personality service",
         available: false,
       },
       {
@@ -87,7 +86,7 @@ describe("service-resolution helpers", () => {
         nativeService: "rolodex",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required Eliza rolodex service",
+        requirement: "required Eliza rolodex service",
         available: false,
       },
       {
@@ -95,7 +94,7 @@ describe("service-resolution helpers", () => {
         nativeService: "experience",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required Eliza experience service",
+        requirement: "required Eliza experience service",
         available: false,
       },
       {
@@ -103,7 +102,7 @@ describe("service-resolution helpers", () => {
         nativeService: "shell",
         source: "native",
         ownership: "plugin",
-        fallback: "required Eliza shell service",
+        requirement: "required Eliza shell service",
         available: true,
       },
       {
@@ -111,7 +110,7 @@ describe("service-resolution helpers", () => {
         nativeService: "browser",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required Eliza browser service",
+        requirement: "required Eliza browser service",
         available: false,
       },
       {
@@ -119,7 +118,7 @@ describe("service-resolution helpers", () => {
         nativeService: "mcp",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required Eliza MCP service",
+        requirement: "required Eliza MCP service",
         available: false,
       },
       {
@@ -127,7 +126,7 @@ describe("service-resolution helpers", () => {
         nativeService: "cron",
         source: "native",
         ownership: "plugin",
-        fallback: "unavailable until the Eliza Trigger Task projection loads",
+        requirement: "required Eliza Trigger Task projection",
         available: true,
       },
       {
@@ -135,7 +134,7 @@ describe("service-resolution helpers", () => {
         nativeService: "AGENT_SKILLS_SERVICE",
         source: "native",
         ownership: "plugin",
-        fallback: "required official Eliza Agent Skills service",
+        requirement: "required official Eliza Agent Skills service",
         available: true,
       },
       {
@@ -143,7 +142,7 @@ describe("service-resolution helpers", () => {
         nativeService: "trajectories",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required official Eliza trajectories service",
+        requirement: "required official Eliza trajectories service",
         available: false,
       },
       {
@@ -151,7 +150,7 @@ describe("service-resolution helpers", () => {
         nativeService: "ORCHESTRATOR_TASK_SERVICE",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required official Eliza Agent Orchestrator service",
+        requirement: "required official Eliza Agent Orchestrator service",
         available: false,
       },
       {
@@ -159,7 +158,7 @@ describe("service-resolution helpers", () => {
         nativeService: "coding_agent",
         source: "unavailable",
         ownership: "plugin",
-        fallback: "required Eliza coding agent service",
+        requirement: "required Eliza coding agent service",
         available: false,
       },
       {
@@ -167,7 +166,7 @@ describe("service-resolution helpers", () => {
         nativeService: "plugin_manager",
         source: "native",
         ownership: "plugin",
-        fallback: "native plugin catalog",
+        requirement: "required official Eliza plugin manager service",
         available: true,
       },
       {
@@ -175,8 +174,7 @@ describe("service-resolution helpers", () => {
         nativeService: "planning",
         source: "native",
         ownership: "plugin",
-        fallback:
-          "unavailable until the official Eliza planning service is registered",
+        requirement: "required official Eliza planning service",
         available: true,
       },
       {
@@ -184,8 +182,7 @@ describe("service-resolution helpers", () => {
         nativeService: DOOLITTLE_OPERATOR_PLANNING_SERVICE,
         source: "native",
         ownership: "plugin",
-        fallback:
-          "unavailable until the Doolittle operator-plan projection is registered",
+        requirement: "required Eliza operator-plan projection",
         available: true,
       },
     ]);

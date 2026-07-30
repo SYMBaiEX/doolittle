@@ -31,8 +31,7 @@ export interface ServiceResolutionDefinition {
   capability: string;
   nativeKey: keyof NativeServices;
   nativeService: string;
-  productServices: readonly string[];
-  fallback: string;
+  requirement: string;
 }
 
 /**
@@ -78,128 +77,108 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       capability: "pairing",
       nativeKey: "pairing",
       nativeService: "pairing",
-      productServices: ["pairing"],
-      fallback: "unavailable until the official Eliza PairingService loads",
+      requirement: "required official Eliza PairingService",
     },
     {
       capability: "memoryStorage",
       nativeKey: "memoryStorage",
       nativeService: "memoryStorage",
-      productServices: ["sessions"],
-      fallback: "unavailable until the Eliza memory storage adapter loads",
+      requirement: "required Eliza memory storage service",
     },
     {
       capability: "knowledgeGraph",
       nativeKey: "knowledgeGraph",
       nativeService: KNOWLEDGE_GRAPH_SERVICE,
-      productServices: [],
-      fallback: "unavailable until the official Eliza foundation plugin loads",
+      requirement: "required official Eliza knowledge graph service",
     },
     {
       capability: "pdf",
       nativeKey: "pdf",
       nativeService: PDF_SERVICE,
-      productServices: ["documents"],
-      fallback: "unavailable until @elizaos/plugin-pdf is registered",
+      requirement: "required official Eliza PDF service",
     },
     {
       capability: "personality",
       nativeKey: "personality",
       nativeService: DOOLITTLE_PERSONALITY_SERVICE,
-      productServices: [],
-      fallback: "required Eliza personality service",
+      requirement: "required Eliza personality service",
     },
     {
       capability: "rolodex",
       nativeKey: "rolodex",
       nativeService: DOOLITTLE_ROLODEX_SERVICE,
-      productServices: [],
-      fallback: "required Eliza rolodex service",
+      requirement: "required Eliza rolodex service",
     },
     {
       capability: "experience",
       nativeKey: "experience",
       nativeService: DOOLITTLE_EXPERIENCE_SERVICE,
-      productServices: [],
-      fallback: "required Eliza experience service",
+      requirement: "required Eliza experience service",
     },
     {
       capability: "shell",
       nativeKey: "shell",
       nativeService: DOOLITTLE_SHELL_SERVICE,
-      productServices: [],
-      fallback: "required Eliza shell service",
+      requirement: "required Eliza shell service",
     },
     {
       capability: "browser",
       nativeKey: "browser",
       nativeService: DOOLITTLE_BROWSER_SERVICE,
-      productServices: [],
-      fallback: "required Eliza browser service",
+      requirement: "required Eliza browser service",
     },
     {
       capability: "mcp",
       nativeKey: "mcp",
       nativeService: DOOLITTLE_MCP_SERVICE,
-      productServices: [],
-      fallback: "required Eliza MCP service",
+      requirement: "required Eliza MCP service",
     },
     {
       capability: "automation",
       nativeKey: "automation",
       nativeService: DOOLITTLE_AUTOMATION_SERVICE,
-      productServices: [],
-      fallback: "unavailable until the Eliza Trigger Task projection loads",
+      requirement: "required Eliza Trigger Task projection",
     },
     {
       capability: "agentSkills",
       nativeKey: "agentSkills",
       nativeService: AGENT_SKILLS_SERVICE,
-      productServices: [],
-      fallback: "required official Eliza Agent Skills service",
+      requirement: "required official Eliza Agent Skills service",
     },
     {
       capability: "trajectoryLogger",
       nativeKey: "trajectoryLogger",
       nativeService: "trajectories",
-      productServices: [],
-      fallback: "required official Eliza trajectories service",
+      requirement: "required official Eliza trajectories service",
     },
     {
       capability: "agentOrchestrator",
       nativeKey: "agentOrchestrator",
       nativeService: ORCHESTRATOR_TASK_SERVICE,
-      productServices: [],
-      fallback: "required official Eliza Agent Orchestrator service",
+      requirement: "required official Eliza Agent Orchestrator service",
     },
     {
       capability: "codingAgent",
       nativeKey: "codingAgent",
       nativeService: DOOLITTLE_CODING_AGENT_SERVICE,
-      productServices: [],
-      fallback: "required Eliza coding agent service",
+      requirement: "required Eliza coding agent service",
     },
     {
       capability: "pluginManager",
       nativeKey: "pluginManager",
       nativeService: "plugin_manager",
-      productServices: [],
-      fallback: "native plugin catalog",
+      requirement: "required official Eliza plugin manager service",
     },
     {
       capability: "actionPlanning",
       nativeKey: "actionPlanning",
       nativeService: "planning",
-      productServices: [],
-      fallback:
-        "unavailable until the official Eliza planning service is registered",
+      requirement: "required official Eliza planning service",
     },
     {
       capability: "operatorPlanning",
       nativeKey: "operatorPlanning",
       nativeService: DOOLITTLE_OPERATOR_PLANNING_SERVICE,
-      productServices: [],
-      fallback:
-        "unavailable until the Doolittle operator-plan projection is registered",
+      requirement: "required Eliza operator-plan projection",
     },
   ];

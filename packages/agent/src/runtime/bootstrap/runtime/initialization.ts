@@ -18,9 +18,6 @@ export async function initializeElizaRuntime(
     appendBootstrapTrace("phase:runtime.initialize:call");
     await runtime.initialize();
     appendBootstrapTrace("phase:runtime.initialize:done");
-    appendBootstrapTrace("phase:memoryStorage:load:start");
-    await runtime.getServiceLoadPromise("memoryStorage");
-    appendBootstrapTrace("phase:memoryStorage:load:done");
     await validateCriticalRuntimeServices(runtime);
     return runtime;
   } catch (error) {

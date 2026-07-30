@@ -128,7 +128,7 @@ export interface AutonomousControlPlaneSummary {
   };
   totals: {
     nativeServices: number;
-    productFallbacks: number;
+    unavailableServices: number;
   };
 }
 

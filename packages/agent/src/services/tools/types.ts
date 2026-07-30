@@ -90,7 +90,7 @@ export interface ToolRegistrySummary {
     skillHubInstalledTotal: number;
     skillHubFamilyTotal: number;
     nativeServices: number;
-    productFallbacks: number;
+    unavailableServices: number;
   };
   ecosystem: {
     registryAvailable: boolean;

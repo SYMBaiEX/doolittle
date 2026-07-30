@@ -6,20 +6,15 @@ export function buildEffectiveServiceResolutionRecords(
   native: NativeServices,
 ): EffectiveServiceResolutionRecord[] {
   return SERVICE_RESOLUTION_DEFINITIONS.map(
-    ({ capability, nativeKey, nativeService, productServices, fallback }) => {
+    ({ capability, nativeKey, nativeService, requirement }) => {
       const service = native[nativeKey];
-      const hasProductFallback = productServices.length > 0;
 
       return {
         capability,
         nativeService,
-        source: service
-          ? ("native" as const)
-          : hasProductFallback
-            ? ("product" as const)
-            : ("unavailable" as const),
-        ownership: service || !hasProductFallback ? "plugin" : "product",
-        fallback,
+        source: service ? ("native" as const) : ("unavailable" as const),
+        ownership: "plugin" as const,
+        requirement,
         available: Boolean(service),
       };
     },

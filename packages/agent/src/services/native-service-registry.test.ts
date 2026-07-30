@@ -41,18 +41,10 @@ describe("native service registry", () => {
     expect(second.officialBacked).not.toContain("test-only");
   });
 
-  it("maps every native capability fallback to a declared product service", () => {
-    const declared = new Set(
-      SERVICE_REGISTRY_DEFINITIONS.map((definition) => definition.service),
-    );
-
+  it("keeps native capability resolution free of product fallback ownership", () => {
     for (const definition of SERVICE_RESOLUTION_DEFINITIONS) {
-      for (const service of definition.productServices) {
-        expect(
-          declared.has(service),
-          `${definition.capability} references undeclared service ${service}`,
-        ).toBe(true);
-      }
+      expect(definition).not.toHaveProperty("productServices");
+      expect(definition.requirement).toMatch(/^(required|optional)/);
     }
   });
 

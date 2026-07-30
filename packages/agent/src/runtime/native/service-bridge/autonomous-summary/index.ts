@@ -34,7 +34,7 @@ export function buildAutonomousControlPlaneSummary(
     execution: buildExecutionSection(input),
     totals: {
       nativeServices: serviceSources.filter(Boolean).length,
-      productFallbacks: serviceSources.filter((entry) => !entry).length,
+      unavailableServices: serviceSources.filter((entry) => !entry).length,
     },
   };
 }

@@ -104,9 +104,9 @@ export function buildToolRegistrySummary(
         nativeOwnershipControlPlane?.serviceResolution.filter(
           (entry) => entry.source === "native",
         ).length ?? 0,
-      productFallbacks:
+      unavailableServices:
         nativeOwnershipControlPlane?.serviceResolution.filter(
-          (entry) => entry.source === "product",
+          (entry) => entry.source === "unavailable",
         ).length ?? 0,
     },
     ecosystem: {
