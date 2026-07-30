@@ -435,14 +435,16 @@ tbody tr:hover {
 }
 
 .app-main--chat > .window-dragbar--chat {
-  flex: 0 0 56px;
-  min-height: 56px;
+  display: grid;
+  flex: 0 0 64px;
+  grid-template-rows: 32px 32px;
+  min-height: 64px;
+  background: color-mix(in srgb, var(--bg) 98%, var(--surface));
   border-bottom-color: color-mix(in srgb, var(--border) 64%, transparent);
 }
 
 .window-dragbar--chat .window-dragbar-primary {
-  flex: 0 0 28px;
-  min-height: 28px;
+  min-height: 0;
   padding-right: 10px;
 }
 
@@ -468,8 +470,7 @@ tbody tr:hover {
 .chat-chrome-host {
   position: relative;
   display: flex;
-  flex: 0 0 28px;
-  min-height: 28px;
+  min-height: 0;
   padding: 0 clamp(12px, 2.4vw, 22px);
   gap: 0;
   overflow: hidden;
@@ -485,7 +486,7 @@ tbody tr:hover {
 .chat-header-mainline {
   display: grid;
   grid-template-columns: minmax(132px, 0.52fr) minmax(0, 1fr) auto;
-  grid-template-rows: 28px;
+  grid-template-rows: 32px;
   align-items: center;
   height: 100%;
   gap: 6px 9px;
@@ -638,16 +639,16 @@ button.chat-context-compact:focus-visible {
 
 @media (max-width: 760px) {
   .window-dragbar--chat .window-dragbar-primary {
-    flex-basis: 32px;
-    min-height: 32px;
+    min-height: 0;
     gap: 6px;
     padding-right: 8px;
     padding-left: 8px;
   }
 
   .app-main--chat > .window-dragbar--chat {
-    flex-basis: 62px;
-    min-height: 62px;
+    flex-basis: 68px;
+    grid-template-rows: 34px 34px;
+    min-height: 68px;
   }
 
   .window-dragbar--chat .window-dragbar-primary .menu-button,
@@ -657,8 +658,7 @@ button.chat-context-compact:focus-visible {
   }
 
   .chat-chrome-host {
-    flex-basis: 30px;
-    min-height: 30px;
+    min-height: 0;
   }
 
   .chat-header-content,
@@ -668,7 +668,7 @@ button.chat-context-compact:focus-visible {
 
   .chat-header-mainline {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 30px;
+    grid-template-rows: 34px;
     gap: 0 6px;
   }
 
