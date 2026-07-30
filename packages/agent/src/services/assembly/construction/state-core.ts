@@ -2,7 +2,7 @@ import { AcpService } from "../../acp";
 import { AgentSdkService } from "../../agent-sdk-service";
 import { ApiTransportService } from "../../api-transport-service";
 import { AwarenessService } from "../../awareness-service";
-import { DelegationService } from "../../delegation/service";
+import { DelegationProjectionService } from "../../delegation/projection";
 import { McpService } from "../../mcp";
 import { MemoryService } from "../../memory-service";
 import { RepositoryService } from "../../repository-service";
@@ -30,7 +30,7 @@ export interface ServiceConstructionCore {
   runController: RunControllerService;
   awareness: AwarenessService;
   memory: MemoryService;
-  delegation: DelegationService;
+  delegationProjection: DelegationProjectionService;
   setTools(nextTools: ToolsService): void;
 }
 
@@ -63,7 +63,7 @@ export function createServiceConstructionCore(params: {
       memory: config.memoryCharLimit,
       user: config.userCharLimit,
     }),
-    delegation: new DelegationService(),
+    delegationProjection: new DelegationProjectionService(),
     setTools(nextTools: ToolsService) {
       tools.setTools(nextTools);
     },

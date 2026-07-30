@@ -71,7 +71,7 @@ export async function handleSkillSynthesisRoutes(
     const taskId = body && stringValue(body.taskId);
     if (!taskId) return json({ error: "taskId is required" }, 400);
 
-    const task = context.services.delegation
+    const task = context.services.delegationProjection
       .list()
       .find((entry) => entry.id === taskId);
     const path = task

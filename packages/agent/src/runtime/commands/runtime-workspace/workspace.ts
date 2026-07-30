@@ -62,7 +62,7 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
       return JSON.stringify(
         await createEffectiveDelegationTask(
           context.runtime,
-          context.services.delegation,
+          context.services.delegationProjection,
           {
             title: `Queued prompt ${new Date().toISOString()}`,
             objective,

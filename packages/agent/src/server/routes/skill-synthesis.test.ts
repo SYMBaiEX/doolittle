@@ -6,7 +6,7 @@ function createContext(): AppContext {
   return {
     runtime: {},
     services: {
-      delegation: {
+      delegationProjection: {
         list: () => [
           { id: "task-1", title: "Investigate" },
           { id: "task-2", title: "Ship" },

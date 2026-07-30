@@ -15,7 +15,7 @@ import {
 } from "./read-model";
 import { isDelegationProcessAlive } from "./utils";
 
-export function buildDelegationServiceOverview(
+export function buildDelegationProjectionOverview(
   tasks: DelegationTaskRecord[],
   activeExecutions: number,
 ): DelegationOverview {
@@ -25,7 +25,7 @@ export function buildDelegationServiceOverview(
   });
 }
 
-export function buildDelegationServiceWorkers(
+export function buildDelegationProjectionWorkers(
   tasks: DelegationTaskRecord[],
   limit: number,
   filter?: DelegationTaskFilter,
@@ -37,7 +37,7 @@ export function buildDelegationServiceWorkers(
   });
 }
 
-export function buildDelegationServiceTree(
+export function buildDelegationProjectionTree(
   id: string,
   getTask: (taskId: string) => DelegationTaskRecord,
   listChildren: (parentTaskId: string) => DelegationTaskRecord[],
@@ -48,7 +48,7 @@ export function buildDelegationServiceTree(
   });
 }
 
-export function buildDelegationServiceAggregation(
+export function buildDelegationProjectionAggregation(
   id: string,
   getTask: (taskId: string) => DelegationTaskRecord,
 ): DelegationAggregationSummary {

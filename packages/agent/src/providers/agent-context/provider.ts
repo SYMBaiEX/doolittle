@@ -221,9 +221,9 @@ async function operationsContextResult(
       runtime,
       services,
     ).tools.filter((tool) => tool.enabled);
-    const delegationTasks = services.delegation.list();
-    const delegationOverview = services.delegation.overview();
-    const delegationWorkers = services.delegation.workers(5);
+    const delegationTasks = services.delegationProjection.list();
+    const delegationOverview = services.delegationProjection.overview();
+    const delegationWorkers = services.delegationProjection.workers(5);
     const userProfileEntries = services.userProfiles.list();
 
     return {

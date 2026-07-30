@@ -38,7 +38,7 @@ function context(): AppContext {
           throw new Error("legacy cron must not be used");
         },
       },
-      delegation: { list: () => [] },
+      delegationProjection: { list: () => [] },
       executionApprovals: { list: () => [] },
       delivery: { recent: () => [] },
     },

@@ -37,7 +37,7 @@ function services(
     runController: {
       listReceipts: () => [baseRun],
     },
-    delegation: {
+    delegationProjection: {
       list: () => [],
     },
     executionApprovals: {
@@ -93,7 +93,7 @@ describe("activity feed", () => {
 
     const result = buildActivityFeed(
       services({
-        delegation: { list: () => [delegation] },
+        delegationProjection: { list: () => [delegation] },
         executionApprovals: { list: () => [approval] },
         delivery: { recent: () => [delivery] },
       }),

@@ -17,9 +17,6 @@ function createContext(): AppContext {
       }),
     },
     services: {
-      delegation: {
-        create: () => ({ id: "task-1" }),
-      },
       trajectories: {
         listBundles: (_limit: number) => [
           {

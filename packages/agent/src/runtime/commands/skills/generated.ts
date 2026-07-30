@@ -91,7 +91,7 @@ export const handleGeneratedSkillCommand: SkillCommandHandler = async (
 
   if (trimmed.startsWith("/skills synthesize ")) {
     const id = trimmed.replace("/skills synthesize ", "").trim();
-    const task = context.services.delegation
+    const task = context.services.delegationProjection
       .list()
       .find((entry) => entry.id === id);
     if (!task) {

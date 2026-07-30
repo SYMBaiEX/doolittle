@@ -103,7 +103,7 @@ export async function handleDelegationCommandRoutes(
       return json({
         task: await createEffectiveDelegationTask(
           context.runtime,
-          context.services.delegation,
+          context.services.delegationProjection,
           toDelegationTaskInput(body, workspaceRoot) as Required<
             Pick<DelegationTaskBody, "title" | "objective">
           > &
@@ -144,7 +144,7 @@ export async function handleDelegationCommandRoutes(
       return json({
         task: await spawnEffectiveDelegationChild(
           context.runtime,
-          context.services.delegation,
+          context.services.delegationProjection,
           id,
           {
             title: body.title ?? "Child task",

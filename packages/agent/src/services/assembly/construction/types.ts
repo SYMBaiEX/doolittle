@@ -7,7 +7,7 @@ import type { AutocoderPipelineService } from "../../autocoder-pipeline/service"
 import type { AwarenessService } from "../../awareness-service";
 import type { ContextCompressionService } from "../../context-compression";
 import type { ContextFilesService } from "../../context-files-service";
-import type { DelegationService } from "../../delegation/service";
+import type { DelegationProjectionService } from "../../delegation/projection";
 import type { DeliveryService } from "../../delivery-service";
 import type { DocumentsService } from "../../documents-service";
 import type { ExecutionApprovalService } from "../../execution-approval/service";
@@ -80,7 +80,7 @@ export interface ServiceAssemblyEager {
   tools: ToolsService;
   mcp: McpService;
   acp: AcpService;
-  delegation: DelegationService;
+  delegationProjection: DelegationProjectionService;
   web: WebService;
   userProfiles: UserProfileService;
   settings: SettingsService;
@@ -108,7 +108,7 @@ export interface ServiceAssemblyLazy {
 
 export interface ServiceRuntimeBindingDependencies {
   executionApprovals: ExecutionApprovalService;
-  delegation: DelegationService;
+  delegationProjection: DelegationProjectionService;
   documents: LazySlot<DocumentsService>;
   diagnostics: ReturnType<typeof createDiagnosticsServiceSlot>;
   operator: ReturnType<typeof createOperatorServiceSlot>;
@@ -169,7 +169,7 @@ export interface ServiceConstructionState {
   settings: SettingsService;
   startupState: StartupStateService;
   memory: MemoryService;
-  delegation: DelegationService;
+  delegationProjection: DelegationProjectionService;
   delivery: DeliveryService;
   gatewaySessions: GatewaySessionService;
   executionApprovals: ExecutionApprovalService;

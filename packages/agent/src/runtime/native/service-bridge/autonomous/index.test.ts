@@ -126,7 +126,7 @@ describe("autonomous control plane", () => {
       skillSynthesis: {
         listGeneratedSkills: () => [],
       },
-      delegation: {
+      delegationProjection: {
         list: () => [
           { id: "task-1", status: "pending" },
           { id: "task-2", status: "pending" },

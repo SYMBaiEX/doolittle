@@ -30,7 +30,7 @@ export function createServiceAssemblyEagerServices(
     tools: state.tools,
     mcp: state.mcp,
     acp: state.acp,
-    delegation: state.delegation,
+    delegationProjection: state.delegationProjection,
     web: state.web,
     userProfiles: state.userProfiles,
     settings: state.settings,
@@ -66,7 +66,7 @@ export function createServiceAssemblyRuntimeBinding(
 ): ServiceRuntimeBindingDependencies {
   return {
     executionApprovals: state.executionApprovals,
-    delegation: state.delegation,
+    delegationProjection: state.delegationProjection,
     documents: state.documents,
     diagnostics: state.diagnostics,
     operator: state.operator,

@@ -139,7 +139,7 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
     skillSynthesis: {
       listGeneratedSkills: () => ["generated/fallback"],
     },
-    delegation: {
+    delegationProjection: {
       list: () => [],
       queueSummary: () => ({ pending: 0, activeWorkers: 0 }),
       create: () => ({ ok: true }),

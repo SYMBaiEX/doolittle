@@ -783,7 +783,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
       skillSynthesis: {
         listGeneratedSkills: () => [{ slug: "generated-skill" }],
       },
-      delegation: {
+      delegationProjection: {
         list: () => [
           { id: "official-task-1", status: "pending" },
           { id: "official-task-2", status: "running" },

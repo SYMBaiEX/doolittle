@@ -56,7 +56,7 @@ function createServices(): AppServices {
       diffStat: () => ({ files: 0 }),
       recentCommits: () => [],
     },
-    delegation: {
+    delegationProjection: {
       list: () => [],
       get: () => ({ id: "task-1" }),
       queueSummary: () => ({ queued: 0 }),

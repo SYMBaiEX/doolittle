@@ -41,7 +41,7 @@ export interface TerminalServiceLike {
   ): Promise<unknown> | unknown;
 }
 
-export interface DelegationServiceLike {
+export interface DelegationProjectionLike {
   list(): unknown[];
 }
 
@@ -103,7 +103,7 @@ export interface CodingAgentPluginOptions {
     "isRepository" | "status" | "diffStat" | "recentCommits"
   >;
   shell: Pick<TerminalServiceLike, "run">;
-  delegation: Pick<DelegationServiceLike, "list">;
+  delegation: Pick<DelegationProjectionLike, "list">;
   inspectProject: InspectLocalProject;
   findCodebases: FindLocalCodebases;
 }

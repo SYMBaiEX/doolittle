@@ -16,7 +16,7 @@ export async function runDelegationTaskInWorker(
 ): Promise<DelegationTaskRecord> {
   const task = await executeEffectiveDelegationTask(
     context.runtime,
-    context.services.delegation,
+    context.services.delegationProjection,
     taskId,
   );
   if (!task) {

@@ -37,7 +37,7 @@ function createObserverContext() {
       terminal: {
         onUpdate: terminal.on,
       },
-      delegation: {
+      delegationProjection: {
         onUpdate: delegation.on,
       },
       runController: {

@@ -17,7 +17,6 @@ export interface ServiceDirectoryLayout {
   gatewayDeliveryDir: string;
   autocoderDir: string;
   hooksDir: string;
-  delegationDir: string;
   terminalDir: string;
   webDir: string;
   mediaDir: string;
@@ -39,7 +38,6 @@ export function createServiceDirectoryLayout(
     gatewayApprovalDir: join(config.gatewayDataDir, "approvals"),
     gatewayDeliveryDir: join(config.gatewayDataDir, "delivery"),
     autocoderDir: join(config.dataDir, "autocoder"),
-    delegationDir: join(config.dataDir, "delegation"),
     hooksDir: config.hooksDir,
     terminalDir: join(config.dataDir, "terminal"),
     webDir:

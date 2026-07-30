@@ -34,7 +34,7 @@ export async function loadHotExecutionPlugins(
       findCodebases: (query, workspaceRoot) =>
         findLocalCodebases(query, workspaceRoot),
       delegation: {
-        list: () => services.delegation.list(),
+        list: () => services.delegationProjection.list(),
       },
     }),
     agentOrchestratorPlugin,

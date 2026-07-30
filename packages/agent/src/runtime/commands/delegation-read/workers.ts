@@ -18,7 +18,7 @@ export const handleDelegationWorkersRead: DelegationReadHandler = async (
   const filters = parseDelegationReadFilter(trimmed, "/delegate workers");
   const overview = await getEffectiveDelegationOverview(context.runtime);
   const projected = await getEffectiveDelegationTasks(context.runtime);
-  const tasks = buildDelegationServiceWorkers(projected, 20, {
+  const tasks = buildDelegationProjectionWorkers(projected, 20, {
     group: filters.group,
     profile: filters.profile,
     priority: filters.priority,
@@ -43,4 +43,4 @@ import {
   getEffectiveDelegationOverview,
   getEffectiveDelegationTasks,
 } from "@/runtime/native/service-bridge/delegation";
-import { buildDelegationServiceWorkers } from "@/services/delegation/reporting";
+import { buildDelegationProjectionWorkers } from "@/services/delegation/reporting";

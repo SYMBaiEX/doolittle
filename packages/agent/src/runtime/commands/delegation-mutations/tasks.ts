@@ -22,7 +22,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await addEffectiveDelegationNote(
         context.runtime,
-        context.services.delegation,
+        context.services.delegationProjection,
         id,
         note,
       ),
@@ -49,7 +49,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await retryEffectiveDelegationTask(
         context.runtime,
-        context.services.delegation,
+        context.services.delegationProjection,
         parsed.id,
         parsed.note || "Requeued for retry.",
         parsed.cascadeChildren ? { cascadeChildren: true } : undefined,
@@ -67,7 +67,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await retryEffectiveDelegationTask(
         context.runtime,
-        context.services.delegation,
+        context.services.delegationProjection,
         parsed.id,
         parsed.note || "Requeued for retry.",
         parsed.cascadeChildren ? { cascadeChildren: true } : undefined,
@@ -86,7 +86,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await cancelEffectiveDelegationTask(
         context.runtime,
-        context.services.delegation,
+        context.services.delegationProjection,
         id,
         note || "Cancelled by operator.",
       ),
@@ -104,7 +104,7 @@ export async function handleDelegationTaskMutation(
     return JSON.stringify(
       await completeEffectiveDelegationTask(
         context.runtime,
-        context.services.delegation,
+        context.services.delegationProjection,
         id,
         note,
       ),

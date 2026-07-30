@@ -22,7 +22,7 @@ export async function createAutocoderWorkflowContext(
   const sessionId = input.sessionId ?? "api:local-user";
   const task = await createEffectiveDelegationTask(
     context.runtime,
-    context.services.delegation,
+    context.services.delegationProjection,
     {
       title: input.title,
       objective: input.objective,
@@ -50,7 +50,7 @@ export async function createAutocoderWorkflowContext(
   });
   await addEffectiveDelegationNote(
     context.runtime,
-    context.services.delegation,
+    context.services.delegationProjection,
     task.id,
     `system: attached autocoder workflow ${workflow.id}`,
   );
@@ -69,7 +69,7 @@ export async function completeAutocoderWorkflowContext(
 ): Promise<void> {
   await completeEffectiveDelegationTask(
     context.runtime,
-    context.services.delegation,
+    context.services.delegationProjection,
     taskId,
     `${note} workflow=${workflowId}`,
   );
@@ -84,7 +84,7 @@ export async function failAutocoderWorkflowContext(
   const message = error instanceof Error ? error.message : String(error);
   await cancelEffectiveDelegationTask(
     context.runtime,
-    context.services.delegation,
+    context.services.delegationProjection,
     taskId,
     `${message} workflow=${workflowId}`,
   );

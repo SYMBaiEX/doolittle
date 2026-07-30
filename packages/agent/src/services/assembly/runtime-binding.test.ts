@@ -28,7 +28,7 @@ describe("createRuntimeBinder", () => {
     };
 
     const bindRuntime = createRuntimeBinder({
-      delegation: {
+      delegationProjection: {
         bindRuntime(runtime: IAgentRuntime) {
           calls.push(`delegation:${(runtime as unknown as { id: string }).id}`);
         },

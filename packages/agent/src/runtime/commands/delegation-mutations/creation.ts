@@ -26,7 +26,7 @@ export async function handleDelegationCreationMutation(
     );
     const task = await createEffectiveDelegationTask(
       context.runtime,
-      context.services.delegation,
+      context.services.delegationProjection,
       {
         title: parsed.head,
         objective: parsed.objective,
@@ -56,7 +56,7 @@ export async function handleDelegationCreationMutation(
     );
     const child = await spawnEffectiveDelegationChild(
       context.runtime,
-      context.services.delegation,
+      context.services.delegationProjection,
       parsed.parentId,
       {
         title: parsed.options.title ?? `${parsed.parentId} child`,

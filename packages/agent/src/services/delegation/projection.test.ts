@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DelegationService } from "./service";
+import { DelegationProjectionService } from "./projection";
 
 function officialTask(overrides: Record<string, unknown> = {}) {
   return {
@@ -30,9 +30,9 @@ function officialTask(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("DelegationService read projection", () => {
+describe("DelegationProjectionService", () => {
   it("projects official task records without owning persistence", () => {
-    const service = new DelegationService();
+    const service = new DelegationProjectionService();
     service.replaceProjection([
       {
         id: "task-1",
@@ -57,7 +57,7 @@ describe("DelegationService read projection", () => {
   });
 
   it("exposes no product-owned lifecycle or worker APIs", () => {
-    const service = new DelegationService() as unknown as Record<
+    const service = new DelegationProjectionService() as unknown as Record<
       string,
       unknown
     >;
@@ -86,7 +86,7 @@ describe("DelegationService read projection", () => {
       getService: (name: string) =>
         name === "ORCHESTRATOR_TASK_SERVICE" ? official : null,
     };
-    const service = new DelegationService();
+    const service = new DelegationProjectionService();
 
     service.bindRuntime(runtime as never);
     await service.refresh();
@@ -109,7 +109,7 @@ describe("DelegationService read projection", () => {
   });
 
   it("only notifies renderers when projected task state changes", () => {
-    const service = new DelegationService();
+    const service = new DelegationProjectionService();
     const listener = vi.fn();
     service.onUpdate(listener);
     const task = {

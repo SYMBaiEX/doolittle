@@ -15,7 +15,7 @@ import { handleDelegationCommandRoutes } from "@/server/routes/delegation-comman
 import { handleFormsPlanningRoutes } from "@/server/routes/forms-planning";
 import { handleReviewRecordRoutes } from "@/server/routes/review-record";
 import { AutocoderPipelineService } from "@/services/autocoder-pipeline";
-import { DelegationService } from "@/services/delegation/service";
+import { DelegationProjectionService } from "@/services/delegation/projection";
 import { ReviewRecordService } from "@/services/review-record";
 import { serveFetchTest } from "@/testing/fetch-server";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
@@ -31,7 +31,7 @@ afterEach(() => {
 function createFixtureContext(workspaceDir: string, dataDir: string) {
   const plans: Array<Record<string, unknown>> = [];
   const official = createOfficialOrchestratorTestFixture();
-  const delegation = new DelegationService();
+  const delegationProjection = new DelegationProjectionService();
   const pipeline = new AutocoderPipelineService(join(dataDir, "pipeline"));
   const reviewRecords = new ReviewRecordService(join(dataDir, "review"));
   const runtime = {
@@ -76,7 +76,7 @@ function createFixtureContext(workspaceDir: string, dataDir: string) {
       runtime,
       services: {
         autocoderPipeline: pipeline,
-        delegation,
+        delegationProjection,
         repository: {
           resolveWorktreeRoot: async (candidate: string) => {
             if (candidate !== workspaceDir) {

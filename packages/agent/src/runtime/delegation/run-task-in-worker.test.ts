@@ -44,7 +44,7 @@ describe("runDelegationTaskInWorker", () => {
     const result = await runDelegationTaskInWorker(
       {
         runtime,
-        services: { delegation: { upsertProjection } },
+        services: { delegationProjection: { upsertProjection } },
       } as never,
       "task-1",
     );

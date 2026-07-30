@@ -7,7 +7,7 @@ export type ChatCommandRouterDependencies = {
     taskId: string,
     options?: { assumeRunning?: boolean },
   ) => Promise<
-    ReturnType<AgentExecutionContext["services"]["delegation"]["get"]>
+    ReturnType<AgentExecutionContext["services"]["delegationProjection"]["get"]>
   >;
 };
 

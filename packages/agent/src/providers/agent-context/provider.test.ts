@@ -172,7 +172,7 @@ function createServices() {
         transports: [],
       }),
     },
-    delegation: {
+    delegationProjection: {
       list: () => [{ title: "Delegate work", status: "running" }],
       overview: () => ({
         total: 1,

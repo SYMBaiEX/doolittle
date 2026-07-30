@@ -11,7 +11,9 @@ interface DelegationTask {
   status: string;
 }
 
-type DelegationOverview = ReturnType<AppServices["delegation"]["overview"]>;
+type DelegationOverview = ReturnType<
+  AppServices["delegationProjection"]["overview"]
+>;
 
 interface DelegationWorker {
   title: string;

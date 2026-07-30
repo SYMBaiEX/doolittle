@@ -7,7 +7,7 @@ import type { AutocoderPipelineService } from "./autocoder-pipeline/service";
 import type { AwarenessService } from "./awareness-service";
 import type { ContextCompressionService } from "./context-compression";
 import type { ContextFilesService } from "./context-files-service";
-import type { DelegationService } from "./delegation/service";
+import type { DelegationProjectionService } from "./delegation/projection";
 import type { DeliveryService } from "./delivery-service";
 import type { DiagnosticsService } from "./diagnostics/service";
 import type { DocumentsService } from "./documents-service";
@@ -71,7 +71,7 @@ export interface AppServices {
   mcp: McpService;
   acp: AcpService;
   autocoderPipeline: AutocoderPipelineService;
-  delegation: DelegationService;
+  delegationProjection: DelegationProjectionService;
   web: WebService;
   media: MediaService;
   trajectories: TrajectoryService;

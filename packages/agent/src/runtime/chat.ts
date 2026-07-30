@@ -115,7 +115,9 @@ export async function runDelegationTaskInWorker(
   context: AgentExecutionContext,
   taskId: string,
   options?: { assumeRunning?: boolean },
-): Promise<ReturnType<AgentExecutionContext["services"]["delegation"]["get"]>> {
+): Promise<
+  ReturnType<AgentExecutionContext["services"]["delegationProjection"]["get"]>
+> {
   return runDelegationTaskInWorkerImpl(context, taskId, options);
 }
 

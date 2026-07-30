@@ -51,7 +51,7 @@ export function createAppServiceGroups(
     },
     runtimeBinding: {
       executionApprovals: state.executionApprovals,
-      delegation: state.delegation,
+      delegationProjection: state.delegationProjection,
       documents: state.documents,
       diagnostics: state.diagnostics,
       operator: state.operator,

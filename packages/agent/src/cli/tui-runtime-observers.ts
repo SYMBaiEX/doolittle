@@ -60,7 +60,7 @@ export function installTuiRuntimeObservers(
       }
       scheduleRefreshPanels();
     }),
-    context.services.delegation.onUpdate((event) => {
+    context.services.delegationProjection.onUpdate((event) => {
       appendActivity("task", truncate(event.detail, 160), "info");
       if (isBusy()) {
         pushLiveToolEvent(`delegate ${truncate(event.detail, 72)}`);

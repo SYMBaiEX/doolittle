@@ -69,7 +69,7 @@ export function createServiceConstructionState(
     runController: core.runController,
     awareness: core.awareness,
     memory: core.memory,
-    delegation: core.delegation,
+    delegationProjection: core.delegationProjection,
     ecosystem: slots.ecosystem,
     autocoderPipeline: slots.autocoderPipeline,
     diagnostics: slots.diagnostics,

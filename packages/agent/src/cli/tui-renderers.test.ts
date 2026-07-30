@@ -66,7 +66,7 @@ function createContext(): AppContext {
           },
         ],
       },
-      delegation: {
+      delegationProjection: {
         overview: () => ({
           running: 1,
           pending: 2,

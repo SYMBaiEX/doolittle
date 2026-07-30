@@ -4,18 +4,18 @@ import {
   ORCHESTRATOR_TASK_SERVICE,
 } from "@/runtime/native/service-bridge/runtime-contracts";
 import type { DelegationTaskRecord } from "@/types";
-import type { DelegationTaskFilter } from "../read-model";
-import { matchDelegationTaskFilter } from "../read-model";
+import type { DelegationTaskFilter } from "./read-model";
+import { matchDelegationTaskFilter } from "./read-model";
 import {
-  buildDelegationServiceAggregation,
-  buildDelegationServiceOverview,
-  buildDelegationServiceTree,
-  buildDelegationServiceWorkers,
-} from "../reporting";
+  buildDelegationProjectionAggregation,
+  buildDelegationProjectionOverview,
+  buildDelegationProjectionTree,
+  buildDelegationProjectionWorkers,
+} from "./reporting";
 import {
   buildDelegationUpdateEvent,
   type DelegationUpdateEvent,
-} from "../utils";
+} from "./utils";
 
 /**
  * Synchronous read projection retained for legacy Doolittle renderers.
@@ -24,7 +24,7 @@ import {
  * task state lives in @elizaos/plugin-agent-orchestrator; async API/CLI paths
  * update this cache after reading that service.
  */
-export class DelegationService {
+export class DelegationProjectionService {
   private runtime?: IAgentRuntime;
   private tasks: DelegationTaskRecord[] = [];
   private listeners = new Set<(event: DelegationUpdateEvent) => void>();
@@ -103,14 +103,14 @@ export class DelegationService {
   }
 
   overview() {
-    return buildDelegationServiceOverview(
+    return buildDelegationProjectionOverview(
       this.tasks,
       this.tasks.filter((task) => task.status === "running").length,
     );
   }
 
   workers(limit = 20, filter?: DelegationTaskFilter) {
-    return buildDelegationServiceWorkers(this.tasks, limit, filter);
+    return buildDelegationProjectionWorkers(this.tasks, limit, filter);
   }
 
   listChildren(parentTaskId: string): DelegationTaskRecord[] {
@@ -118,7 +118,7 @@ export class DelegationService {
   }
 
   tree(id: string) {
-    return buildDelegationServiceTree(
+    return buildDelegationProjectionTree(
       id,
       (taskId) => this.get(taskId),
       (parentId) => this.listChildren(parentId),
@@ -126,7 +126,9 @@ export class DelegationService {
   }
 
   aggregate(id: string) {
-    return buildDelegationServiceAggregation(id, (taskId) => this.get(taskId));
+    return buildDelegationProjectionAggregation(id, (taskId) =>
+      this.get(taskId),
+    );
   }
 
   queueSummary() {

@@ -1,7 +1,7 @@
 import {
-  buildDelegationServiceAggregation,
-  buildDelegationServiceOverview,
-  buildDelegationServiceTree,
+  buildDelegationProjectionAggregation,
+  buildDelegationProjectionOverview,
+  buildDelegationProjectionTree,
 } from "@/services/delegation/reporting";
 import type { DelegationTaskRecord } from "@/types";
 import type { RuntimeLike } from "../runtime";
@@ -34,7 +34,7 @@ export async function getEffectiveDelegationQueue(runtime: RuntimeLike) {
     getEffectiveDelegationTasks(runtime),
   ]);
   return {
-    ...buildDelegationServiceOverview(tasks, status.activeSessionCount),
+    ...buildDelegationProjectionOverview(tasks, status.activeSessionCount),
     service: "ORCHESTRATOR_TASK_SERVICE",
     available: true,
   };
@@ -42,7 +42,7 @@ export async function getEffectiveDelegationQueue(runtime: RuntimeLike) {
 
 export async function getEffectiveDelegationOverview(runtime: RuntimeLike) {
   const tasks = await getEffectiveDelegationTasks(runtime);
-  return buildDelegationServiceOverview(
+  return buildDelegationProjectionOverview(
     tasks,
     tasks.filter((task) => task.status === "running").length,
   );
@@ -79,7 +79,7 @@ export async function getEffectiveDelegationTree(
   id: string,
 ) {
   const tasks = await getEffectiveDelegationTasks(runtime);
-  return buildDelegationServiceTree(
+  return buildDelegationProjectionTree(
     id,
     (taskId) => taskById(tasks, taskId),
     (parentId) => tasks.filter((task) => task.parentTaskId === parentId),
@@ -91,7 +91,7 @@ export async function getEffectiveDelegationAggregation(
   id: string,
 ) {
   const tasks = await getEffectiveDelegationTasks(runtime);
-  return buildDelegationServiceAggregation(id, (taskId) =>
+  return buildDelegationProjectionAggregation(id, (taskId) =>
     taskById(tasks, taskId),
   );
 }

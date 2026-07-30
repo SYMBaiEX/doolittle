@@ -26,7 +26,7 @@ export function renderStatusContent(
   );
   const audit = getNativePackageAudit(context.config);
   const sessions = context.services.sessions.listSessions(6);
-  const delegation = context.services.delegation.overview();
+  const delegation = context.services.delegationProjection.overview();
   const gatewaySessions = context.services.gatewaySessions.list();
   const autonomousControl = getAutonomousControlPlane(
     context.runtime,

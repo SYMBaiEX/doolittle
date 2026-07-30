@@ -151,8 +151,8 @@ export function getAutonomousControlPlane(
   // This control-plane renderer is synchronous. The product delegation service
   // is a read projection of the official async task service; it never owns
   // persistence or worker lifecycle.
-  const orchestratorTasks = services.delegation.list();
-  const orchestratorQueue = services.delegation.queueSummary();
+  const orchestratorTasks = services.delegationProjection.list();
+  const orchestratorQueue = services.delegationProjection.queueSummary();
   const orchestratorSummary = {
     tasks: orchestratorTasks.length,
     queuePending: orchestratorTasks.filter((task) => task.status === "pending")

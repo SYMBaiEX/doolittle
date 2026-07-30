@@ -25,7 +25,7 @@ export const handleTrajectoryBatchRoutes: TrajectoryRouteHandler = async (
     prompts.map((prompt, index) =>
       createEffectiveDelegationTask(
         context.runtime,
-        context.services.delegation,
+        context.services.delegationProjection,
         {
           title: `Batch prompt ${index + 1}`,
           objective: prompt,

@@ -149,7 +149,7 @@ describe("service-resolution helpers", () => {
         nativeService: "coding_agent",
         source: "product",
         ownership: "product",
-        fallback: "workspace + repository + terminal + delegation",
+        fallback: "workspace + repository + terminal + delegation projection",
         available: false,
       },
       {
