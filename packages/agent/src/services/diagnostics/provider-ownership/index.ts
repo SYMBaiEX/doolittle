@@ -20,6 +20,7 @@ export async function buildDiagnosticsProviderOwnershipChecks(
     nativeOwnership: input.nativeOwnership,
     agentSdk: input.agentSdk,
     ecosystemService: input.ecosystemService,
+    skillsHubService: input.skillsHubService,
   });
 
   const checks = buildProviderOwnershipChecks(

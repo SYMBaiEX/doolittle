@@ -89,9 +89,7 @@ describe("autonomous control plane", () => {
 
     const services = {
       agentSdk: {
-        snapshot: () => ({
-          skillCatalog: { total: 10, trending: ["browser", "search"] },
-        }),
+        snapshot: () => ({}),
       },
       skills: {
         list: () => [{ slug: "tool/one" }, { slug: "generated/test" }],
@@ -149,7 +147,10 @@ describe("autonomous control plane", () => {
         snapshot: async () => null,
       },
       skillsHub: {
-        summary: () => ({}),
+        summary: () => ({
+          catalogProjected: true,
+          catalogTotal: 10,
+        }),
       },
       skillSynthesis: {
         listGeneratedSkills: () => [],

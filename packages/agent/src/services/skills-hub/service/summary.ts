@@ -54,6 +54,7 @@ export function buildServiceSummary(input: {
 }): SkillHubSummary {
   return buildSummary({
     workspace: input.workspace,
+    catalogProjected: input.cache.catalogProjected ?? false,
     catalog: input.cache.catalog ?? [],
     installed: input.installed,
     families: input.families,

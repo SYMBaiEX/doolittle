@@ -56,9 +56,9 @@ const PATCHERS: Record<string, DescriptionPatcher> = {
 
   "skills.catalog": (tool, dynamic) => ({
     ...tool,
-    description: dynamic.agentSdkCatalogAvailable
-      ? `ElizaOS skill catalog available with ${dynamic.agentSdkCatalogSkills ?? 0} cached skills.`
-      : "ElizaOS skill catalog is unavailable in the current environment.",
+    description: dynamic.skillsHubCatalogProjected
+      ? `Official ElizaOS skill catalog projection contains ${dynamic.skillsHubCatalogTotal ?? 0} skills.`
+      : "The official ElizaOS skill catalog has not been projected into the product view yet.",
   }),
 
   "skills.hub": (tool, dynamic) => ({

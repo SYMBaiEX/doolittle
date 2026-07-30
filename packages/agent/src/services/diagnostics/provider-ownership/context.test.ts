@@ -8,6 +8,7 @@ import type { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
+import type { SkillsHubService } from "../../skills-hub/service";
 import { collectProviderOwnershipContext } from "./context";
 import type { ProviderOwnershipNativeOwnershipControl } from "./types";
 
@@ -173,11 +174,6 @@ describe("collectProviderOwnershipContext", () => {
             nonAppPlugins: 3,
             error: undefined,
           },
-          skillCatalog: {
-            available: false,
-            total: 0,
-            error: "missing",
-          },
         }) as const,
       compatibility: async () =>
         ({
@@ -196,11 +192,19 @@ describe("collectProviderOwnershipContext", () => {
           modelingProfiles: 3,
         }) as const,
     } as unknown as EcosystemService;
+    const skillsHubService = {
+      summary: () =>
+        ({
+          catalogProjected: true,
+          catalogTotal: 14,
+        }) as const,
+    } as unknown as SkillsHubService;
     const context = await collectProviderOwnershipContext({
       config,
       gatewayConfig,
       agentSdk,
       ecosystemService,
+      skillsHubService,
       dependencies: {
         getNativePackageAudit: () => nativeAudit,
         getNativePluginCatalog: () => nativePluginCatalog,
@@ -214,6 +218,11 @@ describe("collectProviderOwnershipContext", () => {
       available: true,
       total: 12,
       nonAppPlugins: 3,
+      error: undefined,
+    });
+    expect(context.ecosystem?.skillCatalog).toEqual({
+      available: true,
+      total: 14,
       error: undefined,
     });
     expect(context.compatibility).toEqual({

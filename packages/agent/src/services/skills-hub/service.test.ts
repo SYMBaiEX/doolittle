@@ -117,11 +117,13 @@ describe("SkillsHubService", () => {
     const hub = new SkillsHubService(skills, synthesis, dataDir);
 
     try {
+      expect(hub.summary().catalogProjected).toBe(false);
       hub.project({
         catalog: [workspaceCatalogEntry, remoteCatalogEntry],
       });
 
       const summary = hub.summary();
+      expect(summary.catalogProjected).toBe(true);
       expect(summary.workspaceTotal).toBe(2);
       expect(summary.generatedTotal).toBe(1);
       expect(summary.catalogTotal).toBe(2);
@@ -206,6 +208,35 @@ describe("SkillsHubService", () => {
         managedRecord.slug,
       );
       expect(readFileSync(bundle.bundlePath, "utf8")).toContain("skills-hub");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("distinguishes an official empty projection from a catalog that has not loaded", () => {
+    const root = join(tmpdir(), `doolittle-skills-hub-empty-${Date.now()}`);
+    const skillsDir = join(root, "skills");
+    const dataDir = join(root, "data");
+    mkdirSync(skillsDir, { recursive: true });
+
+    const hub = new SkillsHubService(
+      new SkillsService(skillsDir),
+      new SkillSynthesisService(skillsDir),
+      dataDir,
+    );
+
+    try {
+      expect(hub.summary()).toMatchObject({
+        catalogProjected: false,
+        catalogTotal: 0,
+      });
+
+      hub.project({ catalog: [] });
+
+      expect(hub.summary()).toMatchObject({
+        catalogProjected: true,
+        catalogTotal: 0,
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

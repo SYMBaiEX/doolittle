@@ -11,10 +11,8 @@ const compatibilityRows = [
 ];
 
 function installAgentSdkMocks({
-  catalogShouldFail = false,
   registryShouldFail = false,
 }: {
-  catalogShouldFail?: boolean;
   registryShouldFail?: boolean;
 }) {
   vi.doMock("@elizaos/agent/services/registry-client", () => ({
@@ -35,53 +33,6 @@ function installAgentSdkMocks({
       },
       {
         name: "plugin-b",
-      },
-    ],
-  }));
-  vi.doMock("@elizaos/plugin-agent-skills", () => ({
-    getCatalogSkills: () => {
-      if (catalogShouldFail) {
-        throw new Error("catalog timeout");
-      }
-      return [
-        {
-          slug: "planner",
-          displayName: "Planner",
-          summary: "Plan work",
-          tags: { source: "bundled" },
-          stats: {
-            installsCurrent: 101,
-            installsAllTime: 101,
-            stars: 999,
-            versions: 1,
-          },
-        },
-        {
-          slug: "browser",
-          displayName: "Browser",
-          summary: "Browse pages",
-          tags: { source: "bundled" },
-          stats: {
-            installsCurrent: 15,
-            installsAllTime: 15,
-            stars: 77,
-            versions: 1,
-          },
-        },
-      ];
-    },
-    getTrendingSkills: () => [
-      {
-        slug: "planner",
-        displayName: "Planner",
-        summary: "Plan work",
-        tags: { source: "bundled" },
-        stats: {
-          installsCurrent: 100,
-          installsAllTime: 100,
-          stars: 20,
-          versions: 1,
-        },
       },
     ],
   }));
@@ -129,20 +80,9 @@ describe("agent-sdk helper facade", () => {
     const report = await mod.getAgentSdkAudit();
     expect(report.coreVersion).toBe(coreVersion);
     expect(report.channels).toEqual(["dev", "staging", "prod"]);
-    expect(report.skillCatalog.available).toBe(true);
-    expect(report.skillCatalog.cachedSkills).toBe(2);
+    expect(report).not.toHaveProperty("skillCatalog");
     expect(report.compatibility.length).toBeGreaterThan(5);
     expect(report.compatibility[0]?.compatible).toBeDefined();
-  });
-
-  it("handles catalog failures as degraded skill catalog availability", async () => {
-    installAgentSdkMocks({ catalogShouldFail: true });
-    const mod = await loadAgentSdkModule();
-
-    const report = await mod.getAgentSdkAudit();
-    expect(report.skillCatalog.available).toBe(false);
-    expect(report.skillCatalog.error).toBe("catalog timeout");
-    expect(report.skillCatalog.cachedSkills).toBe(0);
   });
 
   it("reports unavailable registry snapshot on registry lookup failure", async () => {

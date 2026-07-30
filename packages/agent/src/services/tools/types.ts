@@ -37,11 +37,10 @@ export interface ToolRegistryDynamicState {
   nativeWorkspaceOnlyPackages?: number;
   agentSdkRegistryAvailable?: boolean;
   agentSdkRegistryPlugins?: number;
-  agentSdkCatalogAvailable?: boolean;
-  agentSdkCatalogSkills?: number;
   agentSdkCompatibilityFailures?: number;
   skillsHubTotal?: number;
   skillsHubGenerated?: number;
+  skillsHubCatalogProjected?: boolean;
   skillsHubCatalogTotal?: number;
   skillsHubManifestCount?: number;
   skillsHubInstalledTotal?: number;

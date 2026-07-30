@@ -8,6 +8,7 @@ import type { AwarenessService } from "../awareness-service";
 import type { EcosystemService } from "../ecosystem-service";
 import type { RunControllerService } from "../run-controller-service";
 import type { SettingsService } from "../settings-service";
+import type { SkillsHubService } from "../skills-hub/service";
 import type { StartupStateService } from "../startup-state-service";
 import {
   buildDiagnosticsFilesystemChecks,
@@ -27,6 +28,7 @@ export class DiagnosticsService {
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
     private readonly ecosystemService?: EcosystemService,
+    private readonly skillsHubService?: SkillsHubService,
     private readonly settings?: SettingsService,
     private readonly runController?: RunControllerService,
     private readonly startupState?: StartupStateService,
@@ -64,6 +66,7 @@ export class DiagnosticsService {
       nativeOwnership: this.nativeOwnership,
       agentSdk: this.agentSdk,
       ecosystemService: this.ecosystemService,
+      skillsHubService: this.skillsHubService,
       gatewayTransportOverview: input.gatewayTransportOverview,
     });
     checks.push(...providerOwnershipChecks);

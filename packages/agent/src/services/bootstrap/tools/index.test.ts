@@ -41,7 +41,6 @@ describe("createToolsDynamicStateResolver", () => {
           calls.agentSdkSnapshot += 1;
           return {
             registry: { available: true, total: 4 },
-            skillCatalog: { available: true, total: 9 },
             audit: {
               compatibility: [{ compatible: true }, { compatible: false }],
             },
@@ -54,6 +53,7 @@ describe("createToolsDynamicStateResolver", () => {
           return {
             workspaceTotal: 12,
             generatedTotal: 5,
+            catalogProjected: true,
             catalogTotal: 7,
             exportedManifests: 3,
             installedTotal: 8,
@@ -107,6 +107,7 @@ describe("createToolsDynamicStateResolver", () => {
             skillHub: {
               workspaceTotal: 12,
               generatedTotal: 5,
+              catalogProjected: true,
               catalogTotal: 7,
               installedTotal: 8,
               installable: 0,
@@ -175,7 +176,8 @@ describe("createToolsDynamicStateResolver", () => {
     expect(state.nativePluginManagerVendored).toBe(1);
     expect(state.nativePluginManagerCategories).toBe(2);
     expect(state.agentSdkRegistryPlugins).toBe(4);
-    expect(state.agentSdkCatalogSkills).toBe(9);
+    expect(state.skillsHubCatalogProjected).toBe(true);
+    expect(state.skillsHubCatalogTotal).toBe(7);
     expect(state.agentSdkCompatibilityFailures).toBe(1);
     expect(state.skillsHubInstalledTotal).toBe(8);
     expect(state.ecosystemBenchmarkPacks).toBe(6);

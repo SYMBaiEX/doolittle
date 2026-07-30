@@ -30,6 +30,7 @@ export interface SkillHubFamilyInput {
 
 export interface SkillHubSummaryInput {
   workspace: SkillHubWorkspaceRecord[];
+  catalogProjected: boolean;
   catalog: SkillHubCatalogRecord[];
   installed: InstalledSkillHubRecord[];
   families: SkillHubFamilyRecord[];

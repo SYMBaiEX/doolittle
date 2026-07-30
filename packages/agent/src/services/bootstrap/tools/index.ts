@@ -71,15 +71,13 @@ export function createToolsDynamicStateResolver(
       nativeWorkspaceOnlyPackages: nativePackageAudit.summary.workspaceOnly,
       agentSdkRegistryAvailable: agentSdkSnapshot.registry?.available ?? false,
       agentSdkRegistryPlugins: agentSdkSnapshot.registry?.total ?? 0,
-      agentSdkCatalogAvailable:
-        agentSdkSnapshot.skillCatalog?.available ?? false,
-      agentSdkCatalogSkills: agentSdkSnapshot.skillCatalog?.total ?? 0,
       agentSdkCompatibilityFailures:
         agentSdkSnapshot.audit?.compatibility.filter(
           (entry) => !entry.compatible,
         ).length ?? 0,
       skillsHubTotal: skillsHubSummary.workspaceTotal,
       skillsHubGenerated: skillsHubSummary.generatedTotal,
+      skillsHubCatalogProjected: skillsHubSummary.catalogProjected,
       skillsHubCatalogTotal: skillsHubSummary.catalogTotal,
       skillsHubManifestCount: skillsHubSummary.exportedManifests,
       skillsHubInstalledTotal: skillsHubSummary.installedTotal,

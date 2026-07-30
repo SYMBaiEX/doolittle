@@ -8,6 +8,7 @@ import type { AutocoderPipelineService } from "../../autocoder-pipeline/service"
 import type { DiagnosticsService } from "../../diagnostics/service";
 import type { EcosystemService } from "../../ecosystem-service";
 import type { RepositoryService } from "../../repository-service";
+import type { SkillsHubService } from "../../skills-hub/service";
 import type { SetupSummary, UpdatePreview } from "../service/types";
 import type { OperatorVersionSummary } from "../version";
 
@@ -30,6 +31,7 @@ export interface OperatorRuntimeSummaryDependencies {
   agentSdk?: Pick<AgentSdkService, "overview">;
   nativeOwnership?: Pick<NativeOwnershipCache, "controlPlane">;
   ecosystemService?: Pick<EcosystemService, "summary">;
+  skillsHubService?: Pick<SkillsHubService, "summary">;
   runtime?: RuntimeLike;
 }
 

@@ -735,11 +735,12 @@ describe("getEffectiveMessagingTransportInventory", () => {
 
     const services = {
       agentSdk: {
-        snapshot: () => ({
-          skillCatalog: {
-            total: 9,
-            trending: [{ slug: "browser" }, { slug: "mcp" }],
-          },
+        snapshot: () => ({}),
+      },
+      skillsHub: {
+        summary: () => ({
+          catalogProjected: true,
+          catalogTotal: 9,
         }),
       },
       skills: {
@@ -790,6 +791,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
 
     expect(controlPlane.skills.source).toBe("native");
     expect(controlPlane.skills.localSkills).toBe(1);
+    expect(controlPlane.skills.catalogProjected).toBe(true);
     expect(controlPlane.skills.catalogSkills).toBe(9);
     expect(controlPlane.orchestrator.tasks).toBe(2);
     expect(controlPlane.orchestrator.queuePending).toBe(1);

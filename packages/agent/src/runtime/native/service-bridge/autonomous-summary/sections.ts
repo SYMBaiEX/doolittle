@@ -52,8 +52,8 @@ export function buildSkillsSection(
       ? Number(skillsSummary.generated ?? 0)
       : 0,
     workspaceFamilies: skillsSummary ? (skillsSummary.roots?.length ?? 0) : 0,
-    catalogSkills: input.skillsCatalog?.total ?? 0,
-    trendingSkills: input.skillsCatalog?.trending?.length ?? 0,
+    catalogProjected: input.skillsHub.catalogProjected,
+    catalogSkills: input.skillsHub.catalogTotal,
   };
 }
 

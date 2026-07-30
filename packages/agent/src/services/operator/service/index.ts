@@ -6,6 +6,7 @@ import type { AutocoderPipelineService } from "../../autocoder-pipeline/service"
 import type { DiagnosticsService } from "../../diagnostics/service";
 import type { EcosystemService } from "../../ecosystem-service";
 import type { RepositoryService } from "../../repository-service";
+import type { SkillsHubService } from "../../skills-hub/service";
 import type {
   MigrationHistoryEntry,
   MigrationInspection,
@@ -58,6 +59,7 @@ export class OperatorService {
     private readonly agentSdk?: AgentSdkService,
     private readonly nativeOwnership?: NativeOwnershipCache,
     private readonly ecosystemService?: EcosystemService,
+    private readonly skillsHubService?: SkillsHubService,
   ) {
     this.migrations = createOperatorMigrationOperations(this.config);
     this.runtimeAttachment = createOperatorRuntimeAttachment();
@@ -110,6 +112,7 @@ export class OperatorService {
       agentSdk: this.agentSdk,
       nativeOwnership: this.nativeOwnership,
       ecosystemService: this.ecosystemService,
+      skillsHubService: this.skillsHubService,
     };
   }
 }

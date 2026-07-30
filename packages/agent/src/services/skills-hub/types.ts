@@ -96,6 +96,7 @@ export interface SkillHubFamilyRecord {
 export interface SkillHubSummary {
   workspaceTotal: number;
   generatedTotal: number;
+  catalogProjected: boolean;
   catalogTotal: number;
   installedTotal: number;
   installable: number;

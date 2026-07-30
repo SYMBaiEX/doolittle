@@ -107,7 +107,11 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
       summary: () => ({ totalSessions: 4, recentSessionIds: ["s-1"] }),
     },
     skillsHub: {
-      summary: () => ({ total: 4 }),
+      summary: () => ({
+        workspaceTotal: 4,
+        catalogProjected: true,
+        catalogTotal: 11,
+      }),
     },
     ecosystem: {
       summary: () => ({ status: "fallback" }),
@@ -117,10 +121,8 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
       optionalSkillPacks: () => [],
     },
     agentSdk: {
-      snapshot: () => ({ skillCatalog: { total: 11, trending: ["browser"] } }),
-      overview: async () => ({
-        skillCatalog: { total: 11, trending: ["browser"] },
-      }),
+      snapshot: () => ({}),
+      overview: async () => ({}),
     },
     skills: {
       list: () => [{ slug: "tool/fallback" }],

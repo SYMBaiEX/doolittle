@@ -12,6 +12,7 @@ import { buildSkillHubServicePaths, ensureSkillHubServicePaths } from "./paths";
 
 export interface SkillHubServiceCache {
   lastSyncReport?: SkillHubSyncReport;
+  catalogProjected?: boolean;
   catalog?: SkillHubCatalogRecord[];
   installed?: SkillHubInstalledRecord[];
   families?: SkillHubFamilyRecord[];

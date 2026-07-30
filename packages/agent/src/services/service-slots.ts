@@ -11,6 +11,7 @@ import type { RepositoryService } from "./repository-service";
 import type { RunControllerService } from "./run-controller-service";
 import type { SettingsService } from "./settings-service";
 import { SkillsService } from "./skills/service";
+import type { SkillsHubService } from "./skills-hub/service";
 import type { StartupStateService } from "./startup-state-service";
 
 export function createEcosystemServiceSlot(
@@ -40,6 +41,7 @@ export function createDiagnosticsServiceSlot(params: {
   agentSdk: AgentSdkService;
   nativeOwnership: NativeOwnershipCache;
   ecosystem: LazySlot<EcosystemService>;
+  skillsHub: LazySlot<SkillsHubService>;
   settings: SettingsService;
   runController: RunControllerService;
   startupState: StartupStateService;
@@ -54,6 +56,7 @@ export function createDiagnosticsServiceSlot(params: {
     agentSdk,
     nativeOwnership,
     ecosystem,
+    skillsHub,
     settings,
     runController,
     startupState,
@@ -70,6 +73,7 @@ export function createDiagnosticsServiceSlot(params: {
         agentSdk,
         nativeOwnership,
         ecosystem.get(),
+        skillsHub.get(),
         settings,
         runController,
         startupState,
@@ -98,6 +102,7 @@ export function createOperatorServiceSlot(params: {
   agentSdk: AgentSdkService;
   nativeOwnership: NativeOwnershipCache;
   ecosystem: LazySlot<EcosystemService>;
+  skillsHub: LazySlot<SkillsHubService>;
   startupState: StartupStateService;
   runtime?:
     | { attachRuntime(nextRuntime: NonNullable<unknown>): void }
@@ -111,6 +116,7 @@ export function createOperatorServiceSlot(params: {
     agentSdk,
     nativeOwnership,
     ecosystem,
+    skillsHub,
     startupState,
     runtime,
   } = params;
@@ -126,6 +132,7 @@ export function createOperatorServiceSlot(params: {
         agentSdk,
         nativeOwnership,
         ecosystem.get(),
+        skillsHub.get(),
       );
       if (runtime) {
         service.attachRuntime(runtime as never);

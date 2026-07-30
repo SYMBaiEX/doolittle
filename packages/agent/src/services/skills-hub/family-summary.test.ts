@@ -209,6 +209,7 @@ describe("skills hub family and summary helpers", () => {
 
     const summary = buildSkillHubSummary({
       workspace,
+      catalogProjected: true,
       catalog,
       installed,
       families,
@@ -223,6 +224,7 @@ describe("skills hub family and summary helpers", () => {
 
     expect(summary.workspaceTotal).toBe(2);
     expect(summary.generatedTotal).toBe(1);
+    expect(summary.catalogProjected).toBe(true);
     expect(summary.catalogTotal).toBe(1);
     expect(
       summary.distribution.sources.some(

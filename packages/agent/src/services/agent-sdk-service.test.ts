@@ -11,16 +11,11 @@ describe("AgentSdkService", () => {
         ecosystemPackages?: string[];
         ecosystemInstalled?: Record<string, string | undefined>;
         compatibility: unknown[];
-        skillCatalog: { cachedSkills: number };
       }>;
       registry: () => Promise<{
         endpoints: string[];
         total: number;
         nonAppPlugins: number;
-      }>;
-      skillCatalog: () => Promise<{
-        total: number;
-        trending: Array<{ slug: string }>;
       }>;
     };
 
@@ -33,20 +28,12 @@ describe("AgentSdkService", () => {
       ecosystemPackages: [],
       ecosystemInstalled: {},
       compatibility: [{ plugin: "@elizaos/plugin-openai", compatible: true }],
-      skillCatalog: {
-        cachedSkills: 8,
-      },
     });
 
     sdk.registry = async () => ({
       endpoints: ["npm", "github"],
       total: 14,
       nonAppPlugins: 11,
-    });
-
-    sdk.skillCatalog = async () => ({
-      total: 27,
-      trending: [{ slug: "operator" }, { slug: "browser" }],
     });
 
     const overview = await service.overview();
@@ -61,8 +48,6 @@ describe("AgentSdkService", () => {
       registryEndpoints: 2,
       registryPlugins: 14,
       nonAppPlugins: 11,
-      skillCatalogSkills: 27,
-      trendingSkills: 2,
     });
   });
 });

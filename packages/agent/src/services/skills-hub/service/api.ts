@@ -53,7 +53,8 @@ export function createSkillsHubServiceApi(
     });
 
   const project: SkillsHubServiceApi["project"] = (input) => {
-    if (input.catalog) {
+    if (input.catalog !== undefined) {
+      state.cache.catalogProjected = true;
       primeCatalogCache(state.cache, input.catalog);
     }
     if (input.installed) {

@@ -5,6 +5,7 @@ import type { SkillHubSummaryInput } from "./types";
 
 export function buildSkillHubSummary(input: SkillHubSummaryInput): {
   workspaceTotal: number;
+  catalogProjected: boolean;
   catalogTotal: number;
   generatedTotal: number;
   installedTotal: number;
@@ -140,6 +141,7 @@ export function buildSkillHubSummary(input: SkillHubSummaryInput): {
 
   return {
     workspaceTotal: input.workspace.length,
+    catalogProjected: input.catalogProjected,
     generatedTotal: generated.length,
     catalogTotal: input.lastSyncReport?.catalogTotal ?? catalog.length,
     installedTotal: input.installed.length,

@@ -12,6 +12,7 @@ import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
 import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
+import type { SkillsHubService } from "../../skills-hub/service";
 
 export type GatewayTransportOverview = {
   mismatchCount: number;
@@ -35,6 +36,7 @@ export interface DiagnosticsProviderOwnershipChecksInput {
   nativeOwnership?: NativeOwnershipCache;
   agentSdk?: AgentSdkService;
   ecosystemService?: EcosystemService;
+  skillsHubService?: SkillsHubService;
   gatewayTransportOverview?: GatewayTransportOverview;
 }
 
@@ -45,6 +47,7 @@ export interface ProviderOwnershipCollectInput {
   nativeOwnership?: NativeOwnershipCache;
   agentSdk?: AgentSdkService;
   ecosystemService?: EcosystemService;
+  skillsHubService?: SkillsHubService;
 }
 
 export type ProviderOwnershipNativeIntegrationControl = Awaited<

@@ -45,12 +45,24 @@ export function createServiceConstructionSlots(params: {
   const autocoderPipeline = createLazySlot(
     () => new AutocoderPipelineService(directories.autocoderDir),
   );
+  const skills = createSkillsServiceSlot({
+    config,
+    startupState,
+  });
+  const skillSynthesis = createLazySlot(
+    () => new SkillSynthesisService(config.skillsDir),
+  );
+  const skillsHub = createLazySlot(
+    () =>
+      new SkillsHubService(skills.get(), skillSynthesis.get(), config.dataDir),
+  );
   const diagnostics = createDiagnosticsServiceSlot({
     config,
     gatewayConfig,
     agentSdk: core.agentSdk,
     nativeOwnership,
     ecosystem,
+    skillsHub,
     settings,
     runController: core.runController,
     startupState,
@@ -65,6 +77,7 @@ export function createServiceConstructionSlots(params: {
     agentSdk: core.agentSdk,
     nativeOwnership,
     ecosystem,
+    skillsHub,
     startupState,
     runtime: runtime
       ? {
@@ -74,17 +87,6 @@ export function createServiceConstructionSlots(params: {
         }
       : undefined,
   });
-  const skills = createSkillsServiceSlot({
-    config,
-    startupState,
-  });
-  const skillSynthesis = createLazySlot(
-    () => new SkillSynthesisService(config.skillsDir),
-  );
-  const skillsHub = createLazySlot(
-    () =>
-      new SkillsHubService(skills.get(), skillSynthesis.get(), config.dataDir),
-  );
   const tools = new CapabilityCatalogService(
     createToolsDynamicStateResolver({
       mcp: core.mcp,

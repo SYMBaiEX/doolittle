@@ -29,8 +29,8 @@ export interface AutonomousControlPlaneSummary {
     workspaceCurated: number;
     workspaceGenerated: number;
     workspaceFamilies: number;
+    catalogProjected: boolean;
     catalogSkills: number;
-    trendingSkills: number;
   };
   orchestrator: {
     source: "native";
@@ -155,7 +155,7 @@ export function getAutonomousControlPlane(
   };
   const formsControl = getNativeFormsControlPlane(runtime);
   const executionControl = getNativeExecutionControlPlane(runtime);
-  const skillsCatalog = services.agentSdk.snapshot().skillCatalog;
+  const skillsHub = services.skillsHub.summary();
   const skillsSummary = getEffectiveSkillsSummary(runtime, services);
   const localSkills = getEffectiveSkills(runtime, services);
   // This control-plane renderer is synchronous. The product delegation service
@@ -192,7 +192,7 @@ export function getAutonomousControlPlane(
     native,
     localSkills,
     skillsSummary,
-    skillsCatalog,
+    skillsHub,
     orchestratorSummary,
     orchestratorTasks: Array.isArray(orchestratorTasks)
       ? orchestratorTasks

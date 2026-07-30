@@ -96,10 +96,8 @@ function createDependencies(overrides: Record<string, unknown> = {}) {
             ecosystemPackages: [],
             ecosystemInstalled: {},
             compatibility: [],
-            skillCatalog: { cachedSkills: 22 },
           },
           registry: { available: true, total: 7 },
-          skillCatalog: { available: true, total: 22 },
           summary: {
             foundationPackages: 0,
             installedFoundationPackages: 0,
@@ -110,9 +108,14 @@ function createDependencies(overrides: Record<string, unknown> = {}) {
             registryEndpoints: 0,
             registryPlugins: 7,
             nonAppPlugins: 0,
-            skillCatalogSkills: 22,
-            trendingSkills: 0,
           },
+        }) as never,
+    },
+    skillsHubService: {
+      summary: () =>
+        ({
+          catalogProjected: true,
+          catalogTotal: 22,
         }) as never,
     },
     ecosystemService: {

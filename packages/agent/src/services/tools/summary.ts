@@ -112,8 +112,8 @@ export function buildToolRegistrySummary(
     ecosystem: {
       registryAvailable: dynamic.agentSdkRegistryAvailable ?? false,
       registryPlugins: dynamic.agentSdkRegistryPlugins ?? 0,
-      skillCatalogAvailable: dynamic.agentSdkCatalogAvailable ?? false,
-      skillCatalogSkills: dynamic.agentSdkCatalogSkills ?? 0,
+      skillCatalogAvailable: dynamic.skillsHubCatalogProjected ?? false,
+      skillCatalogSkills: dynamic.skillsHubCatalogTotal ?? 0,
       compatibilityFailures: dynamic.agentSdkCompatibilityFailures ?? 0,
       skillsHubTotal:
         nativeOwnershipSnapshot?.skillHub.workspaceTotal ??

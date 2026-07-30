@@ -73,13 +73,10 @@ export type AutonomousSummaryInput = {
   native: NativeServicesSnapshot;
   localSkills: unknown[];
   skillsSummary: unknown;
-  skillsCatalog:
-    | {
-        total?: number;
-        trending?: unknown[];
-      }
-    | null
-    | undefined;
+  skillsHub: {
+    catalogProjected: boolean;
+    catalogTotal: number;
+  };
   orchestratorSummary?: {
     tasks?: number;
     queuePending?: number;

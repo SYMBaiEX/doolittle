@@ -22,6 +22,7 @@ function toRuntimeSummaryDependencies(
     agentSdk: bindings.agentSdk,
     nativeOwnership: bindings.nativeOwnership,
     ecosystemService: bindings.ecosystemService,
+    skillsHubService: bindings.skillsHubService,
     runtime: getAttachedOperatorRuntime(bindings.runtimeAttachment),
   };
 }

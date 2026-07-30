@@ -10,11 +10,6 @@ import {
   getInstalledVersion,
   validatePluginCompat,
 } from "@elizaos/agent/services/version-compat";
-import {
-  type CatalogSkill,
-  getCatalogSkills,
-  getTrendingSkills,
-} from "@elizaos/plugin-agent-skills";
 
 const FOUNDATION_PACKAGES = [
   "@elizaos/agent",
@@ -57,14 +52,6 @@ export async function getAgentSdkAudit() {
     ),
   );
 
-  let catalogSkills: CatalogSkill[] = [];
-  let catalogError: string | undefined;
-  try {
-    catalogSkills = await getCatalogSkills();
-  } catch (error) {
-    catalogError = error instanceof Error ? error.message : String(error);
-  }
-
   return {
     foundationPackages: [...FOUNDATION_PACKAGES],
     installed,
@@ -73,12 +60,6 @@ export async function getAgentSdkAudit() {
     coreVersion,
     channels: CHANNEL_DIST_TAGS,
     compatibility,
-    skillCatalog: {
-      available: catalogError === undefined,
-      cachedSkills: catalogSkills.length,
-      sample: catalogSkills.slice(0, 5).map((skill) => skill.slug),
-      error: catalogError,
-    },
   };
 }
 
@@ -119,37 +100,6 @@ export async function searchAgentRegistry(query: string, limit = 15) {
       available: false,
       query,
       results: [],
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-export async function getAgentSkillCatalogSnapshot(limit = 20) {
-  try {
-    const [catalog, trending] = await Promise.all([
-      getCatalogSkills(),
-      getTrendingSkills(limit),
-    ]);
-    return {
-      available: true,
-      total: catalog.length,
-      trending: trending.map((skill) => ({
-        slug: skill.slug,
-        displayName: skill.displayName,
-        installs: skill.stats.installsCurrent,
-        stars: skill.stats.stars,
-      })),
-    };
-  } catch (error) {
-    return {
-      available: false,
-      total: 0,
-      trending: [] as Array<{
-        slug: string;
-        displayName: string;
-        installs: number;
-        stars: number;
-      }>,
       error: error instanceof Error ? error.message : String(error),
     };
   }

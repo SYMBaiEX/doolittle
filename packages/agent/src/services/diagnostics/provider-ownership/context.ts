@@ -14,6 +14,7 @@ import {
 import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
+import type { SkillsHubService } from "../../skills-hub/service";
 import type {
   ProviderOwnershipCollectInput,
   ProviderOwnershipContext,
@@ -51,6 +52,7 @@ export async function collectProviderOwnershipContext(
   input: ProviderOwnershipCollectInput & {
     agentSdk?: AgentSdkService;
     ecosystemService?: EcosystemService;
+    skillsHubService?: SkillsHubService;
     dependencies?: Partial<ProviderOwnershipDependencies>;
   },
 ): Promise<ProviderOwnershipContext> {
@@ -61,6 +63,7 @@ export async function collectProviderOwnershipContext(
     nativeOwnership,
     agentSdk,
     ecosystemService,
+    skillsHubService,
     dependencies,
   } = input;
   const mergedDeps: ProviderOwnershipDependencies = {
@@ -74,7 +77,7 @@ export async function collectProviderOwnershipContext(
   const workspaceEcosystem = ecosystemService?.summary();
   const compatibility = agentSdk ? await agentSdk.compatibility() : undefined;
   const registrySnapshot = ecosystem?.registry;
-  const skillCatalog = ecosystem?.skillCatalog;
+  const skillCatalog = skillsHubService?.summary();
   const ownership =
     nativeOwnership?.controlPlane() ??
     (runtime
@@ -127,9 +130,11 @@ export async function collectProviderOwnershipContext(
         : undefined,
       skillCatalog: skillCatalog
         ? {
-            available: skillCatalog.available,
-            total: skillCatalog.total,
-            error: skillCatalog.error,
+            available: skillCatalog.catalogProjected,
+            total: skillCatalog.catalogTotal,
+            error: skillCatalog.catalogProjected
+              ? undefined
+              : "official catalog projection has not run",
           }
         : undefined,
     },

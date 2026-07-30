@@ -23,8 +23,8 @@ export function buildEcosystemChecks(
       status: skillCatalog?.available ? "pass" : "warn",
       summary: "ElizaOS skill catalog",
       detail: skillCatalog?.available
-        ? `Skill catalog available with ${skillCatalog.total} cached skills.`
-        : `Skill catalog unavailable: ${skillCatalog?.error ?? "unknown error"}`,
+        ? `Official skill catalog projection contains ${skillCatalog.total} skills.`
+        : `Official skill catalog projection unavailable: ${skillCatalog?.error ?? "unknown error"}`,
     },
     {
       id: "ecosystem.compatibility",

@@ -2,6 +2,7 @@ import type { getNativeOwnershipControlPlane } from "@/runtime/native/service-br
 import type { AgentSdkService } from "@/services/agent-sdk-service";
 import type { AutocoderPipelineService } from "@/services/autocoder-pipeline/service";
 import type { EcosystemService } from "@/services/ecosystem-service";
+import type { SkillsHubService } from "@/services/skills-hub/service";
 
 type OwnershipControlPlane = ReturnType<typeof getNativeOwnershipControlPlane>;
 
@@ -54,10 +55,12 @@ export interface OperatorCondensedSummary {
 export function buildOperatorCondensedSummary(input: {
   ownership?: OwnershipControlPlane;
   ecosystem?: Awaited<ReturnType<AgentSdkService["overview"]>>;
+  skillsHub?: ReturnType<SkillsHubService["summary"]>;
   workspaceEcosystem?: ReturnType<EcosystemService["summary"]>;
   pipeline?: ReturnType<AutocoderPipelineService["summary"]>;
 }): OperatorCondensedSummary {
-  const { ownership, ecosystem, workspaceEcosystem, pipeline } = input;
+  const { ownership, ecosystem, skillsHub, workspaceEcosystem, pipeline } =
+    input;
   const pluginManager = ownership?.pluginManager ?? null;
   const identity = ownership?.identity;
 
@@ -87,8 +90,8 @@ export function buildOperatorCondensedSummary(input: {
     ecosystem: {
       registryAvailable: ecosystem?.registry.available ?? false,
       registryPlugins: ecosystem?.registry.total ?? 0,
-      skillCatalogAvailable: ecosystem?.skillCatalog.available ?? false,
-      skillCatalogSkills: ecosystem?.skillCatalog.total ?? 0,
+      skillCatalogAvailable: skillsHub?.catalogProjected ?? false,
+      skillCatalogSkills: skillsHub?.catalogTotal ?? 0,
       compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
       benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
       distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,

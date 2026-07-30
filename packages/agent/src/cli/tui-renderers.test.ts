@@ -129,11 +129,12 @@ function createContext(): AppContext {
       },
       gatewayConfig,
       agentSdk: {
-        snapshot: () => ({
-          skillCatalog: {
-            total: 0,
-            trending: [],
-          },
+        snapshot: () => ({}),
+      },
+      skillsHub: {
+        summary: () => ({
+          catalogProjected: true,
+          catalogTotal: 0,
         }),
       },
       skills: {

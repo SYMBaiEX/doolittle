@@ -21,6 +21,7 @@ export function buildSkillHubFamilies(input: {
 
 export function buildSkillHubSummary(input: {
   workspace: SkillHubWorkspaceRecord[];
+  catalogProjected: boolean;
   catalog: SkillHubCatalogRecord[];
   installed: InstalledSkillHubRecord[];
   families: SkillHubFamilyRecord[];

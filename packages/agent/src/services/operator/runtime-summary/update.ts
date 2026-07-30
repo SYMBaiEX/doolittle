@@ -23,9 +23,11 @@ export async function buildOperatorUpdatePreview(
   const transportControl = ownership?.transportControl;
   const pipeline = dependencies.autocoderPipeline?.summary();
   const workspaceEcosystem = dependencies.ecosystemService?.summary();
+  const skillsHub = dependencies.skillsHubService?.summary();
   const condensed = buildOperatorCondensedSummary({
     ownership,
     ecosystem,
+    skillsHub,
     workspaceEcosystem,
     pipeline,
   });

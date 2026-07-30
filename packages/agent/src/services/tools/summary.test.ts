@@ -38,11 +38,10 @@ describe("buildToolRegistrySummary", () => {
       nativeLaggingLatestPackages: 1,
       agentSdkRegistryAvailable: true,
       agentSdkRegistryPlugins: 7,
-      agentSdkCatalogAvailable: true,
-      agentSdkCatalogSkills: 9,
       agentSdkCompatibilityFailures: 1,
       skillsHubTotal: 5,
       skillsHubGenerated: 2,
+      skillsHubCatalogProjected: true,
       skillsHubCatalogTotal: 3,
       skillsHubManifestCount: 4,
       skillsHubInstalledTotal: 1,
@@ -67,6 +66,8 @@ describe("buildToolRegistrySummary", () => {
     expect(summary.native.total).toBe(6);
     expect(summary.ownership.skillHubTotal).toBe(5);
     expect(summary.ecosystem.registryAvailable).toBe(true);
+    expect(summary.ecosystem.skillCatalogAvailable).toBe(true);
+    expect(summary.ecosystem.skillCatalogSkills).toBe(3);
     expect(summary.ecosystem.modelingProfiles).toBe(3);
   });
 });

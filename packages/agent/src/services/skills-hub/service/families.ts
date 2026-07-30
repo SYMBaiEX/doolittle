@@ -28,6 +28,7 @@ export function buildFamilyRecords(input: {
 
 export function buildSummary(input: {
   workspace: SkillHubWorkspaceRecord[];
+  catalogProjected: boolean;
   catalog: SkillHubCatalogRecord[];
   installed: SkillHubInstalledRecord[];
   families: SkillHubFamilyRecord[];
@@ -40,6 +41,7 @@ export function buildSummary(input: {
 }): SkillHubSummary {
   return buildSkillHubSummary({
     workspace: input.workspace,
+    catalogProjected: input.catalogProjected,
     catalog: input.catalog,
     installed: input.installed,
     families: input.families,
