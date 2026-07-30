@@ -20,6 +20,7 @@ import type {
   SessionSummary,
   SessionsResponse,
   ThemeResponse,
+  WorkspacePickResult,
   WorkspaceState,
 } from "../shared/contracts";
 import {
@@ -530,6 +531,7 @@ export function App() {
   const utilityReturnFocusRef = useRef<HTMLElement | null>(null);
   const projectTransitionRef = useRef(0);
   const pendingProjectScopeRef = useRef<ProjectScope | null>(null);
+  const workspaceSwitchInFlightRef = useRef(0);
   const [isMobileSidebarMode, setIsMobileSidebarMode] = useState(
     () => window.matchMedia(MOBILE_SIDEBAR_QUERY).matches,
   );
@@ -761,6 +763,49 @@ export function App() {
     }
   }, [pushToast]);
 
+  const applyWorkspaceSelection = useCallback(
+    (state: WorkspaceState, sessionId = selectedSession) => {
+      const selection = resolveWorkspaceSelection({
+        workspacePath: state.currentPath,
+        projects,
+        sessions,
+        selectedSessionId: sessionId,
+        createSessionId: newConversationId,
+        pathsEqual,
+      });
+      setWorkspace(state);
+      setProjectScope(selection.projectScope);
+      setSelectedSession(selection.sessionId);
+    },
+    [projects, selectedSession, sessions],
+  );
+
+  const chooseWorkspace =
+    useCallback(async (): Promise<WorkspacePickResult> => {
+      workspaceSwitchInFlightRef.current += 1;
+      try {
+        const result = await window.doolittle.pickWorkspace();
+        if (!result.canceled) applyWorkspaceSelection(result.state);
+        return result;
+      } finally {
+        workspaceSwitchInFlightRef.current -= 1;
+      }
+    }, [applyWorkspaceSelection]);
+
+  const openWorkspacePath = useCallback(
+    async (path: string): Promise<WorkspacePickResult> => {
+      workspaceSwitchInFlightRef.current += 1;
+      try {
+        const result = await window.doolittle.openWorkspace(path);
+        if (!result.canceled) applyWorkspaceSelection(result.state);
+        return result;
+      } finally {
+        workspaceSwitchInFlightRef.current -= 1;
+      }
+    },
+    [applyWorkspaceSelection],
+  );
+
   const switchToRecentWorkspace = useCallback(
     async (
       path: string,
@@ -776,23 +821,17 @@ export function App() {
         projectTransitionRef.current = transition;
         pendingProjectScopeRef.current = null;
       }
+      workspaceSwitchInFlightRef.current += 1;
       try {
         const result = await window.doolittle.switchWorkspace(path);
         if (projectTransitionRef.current !== transition) return false;
-        const selection = resolveWorkspaceSelection({
-          workspacePath: result.state.currentPath,
-          projects,
-          sessions,
-          selectedSessionId: options.sessionId ?? selectedSession,
-          createSessionId: newConversationId,
-          pathsEqual,
-        });
         // Commit the runtime workspace and its project/chat identity as one
         // parent-owned transition. A recent folder cannot leave the Code/Git
         // surface on one repository while Chat is scoped to another.
-        setWorkspace(result.state);
-        setProjectScope(selection.projectScope);
-        setSelectedSession(selection.sessionId);
+        applyWorkspaceSelection(
+          result.state,
+          options.sessionId ?? selectedSession,
+        );
         if (options.transition === undefined) {
           pendingProjectScopeRef.current = null;
         }
@@ -812,9 +851,11 @@ export function App() {
           message: error instanceof Error ? error.message : String(error),
         });
         return false;
+      } finally {
+        workspaceSwitchInFlightRef.current -= 1;
       }
     },
-    [projects, pushToast, selectedSession, sessions],
+    [applyWorkspaceSelection, pushToast, selectedSession],
   );
 
   const reloadProjects = useCallback(async () => {
@@ -1469,8 +1510,14 @@ export function App() {
 
   useEffect(() => {
     void window.doolittle.getWorkspaceState().then(setWorkspace);
-    return window.doolittle.onWorkspaceState(setWorkspace);
-  }, []);
+    return window.doolittle.onWorkspaceState((state) => {
+      if (workspaceSwitchInFlightRef.current > 0) {
+        setWorkspace(state);
+        return;
+      }
+      applyWorkspaceSelection(state);
+    });
+  }, [applyWorkspaceSelection]);
 
   useEffect(() => {
     if (backend.phase === "ready") {
@@ -1994,6 +2041,8 @@ export function App() {
             key={workspace.currentPath || "local-workspace"}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={consumeNavigationIntent}
+            onChooseWorkspace={chooseWorkspace}
+            onOpenWorkspacePath={openWorkspacePath}
             onSendToChat={openChatWithContext}
             projectScope={projectScope}
             workspacePath={workspace.currentPath}

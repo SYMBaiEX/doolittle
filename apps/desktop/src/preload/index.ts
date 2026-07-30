@@ -34,6 +34,7 @@ const bridge: DoolittleDesktopBridge = {
   },
   getWorkspaceState: () => ipcRenderer.invoke("workspace:get-state"),
   pickWorkspace: () => ipcRenderer.invoke("workspace:pick"),
+  openWorkspace: (path) => ipcRenderer.invoke("workspace:open", path),
   switchWorkspace: (path) =>
     ipcRenderer.invoke("workspace:switch-recent", path),
   onWorkspaceState: (listener) => {

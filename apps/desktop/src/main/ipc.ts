@@ -1811,6 +1811,7 @@ interface ActiveTerminalRun {
 export interface WorkspaceIpcController {
   getState(): WorkspaceState;
   pickWorkspace(): Promise<WorkspacePickResult>;
+  openWorkspace?(path: string): Promise<WorkspacePickResult>;
   switchWorkspace(path: string): Promise<WorkspacePickResult>;
   subscribe(listener: (state: WorkspaceState) => void): () => void;
 }
@@ -2003,6 +2004,15 @@ export function registerIpc(
   ipcMain.handle("backend:retry", () => backend.restart());
   ipcMain.handle("workspace:get-state", () => workspace.getState());
   ipcMain.handle("workspace:pick", () => workspace.pickWorkspace());
+  ipcMain.handle("workspace:open", (_event, path: unknown) => {
+    if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
+      throw new Error("A valid workspace path is required.");
+    }
+    if (!workspace.openWorkspace) {
+      throw new Error("Opening a workspace path is unavailable.");
+    }
+    return workspace.openWorkspace(path);
+  });
   ipcMain.handle("workspace:switch-recent", (_event, path: unknown) => {
     if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
       throw new Error("A valid recent workspace path is required.");
@@ -2755,6 +2765,7 @@ export function registerIpc(
     ipcMain.removeHandler("backend:retry");
     ipcMain.removeHandler("workspace:get-state");
     ipcMain.removeHandler("workspace:pick");
+    ipcMain.removeHandler("workspace:open");
     ipcMain.removeHandler("workspace:switch-recent");
     ipcMain.removeHandler("desktop:lifecycle-state");
     ipcMain.removeHandler("desktop:set-background-mode");

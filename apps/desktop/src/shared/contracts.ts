@@ -1228,6 +1228,7 @@ export interface DoolittleDesktopBridge {
   onBackendState(listener: (state: BackendState) => void): () => void;
   getWorkspaceState(): Promise<WorkspaceState>;
   pickWorkspace(): Promise<WorkspacePickResult>;
+  openWorkspace(path: string): Promise<WorkspacePickResult>;
   switchWorkspace(path: string): Promise<WorkspacePickResult>;
   onWorkspaceState(listener: (state: WorkspaceState) => void): () => void;
   onAppCommand(listener: (command: DesktopCommand) => void): () => void;

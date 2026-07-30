@@ -210,6 +210,47 @@ async function switchRecentWorkspaceImpl(
   });
 }
 
+async function openWorkspacePathImpl(
+  requestedPath: string,
+): Promise<WorkspacePickResult> {
+  if (!workspaceState || !backend) {
+    throw new Error("The desktop workspace manager is not ready.");
+  }
+  const normalizedPath = normalizeWorkspaceDirectory(requestedPath);
+  const result = mainWindow
+    ? await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        title: "Open workspace",
+        message: "Open this worktree as the active Doolittle workspace?",
+        detail: normalizedPath,
+        buttons: ["Open workspace", "Cancel"],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      })
+    : await dialog.showMessageBox({
+        type: "question",
+        title: "Open workspace",
+        message: "Open this worktree as the active Doolittle workspace?",
+        detail: normalizedPath,
+        buttons: ["Open workspace", "Cancel"],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      });
+  if (result.response !== 0) {
+    return {
+      canceled: true,
+      state: workspaceState.getState(),
+    };
+  }
+  await backend.switchWorkspace(normalizedPath);
+  return workspaceState.applyPickerResult({
+    canceled: false,
+    filePaths: [normalizedPath],
+  });
+}
+
 function pickWorkspace(): Promise<WorkspacePickResult> {
   if (workspacePickInFlight) return workspacePickInFlight;
   workspacePickInFlight = pickWorkspaceImpl().finally(() => {
@@ -543,6 +584,7 @@ app.whenReady().then(async () => {
       getState: () =>
         workspaceState?.getState() ?? { currentPath: "", recentPaths: [] },
       pickWorkspace,
+      openWorkspace: openWorkspacePathImpl,
       switchWorkspace: switchRecentWorkspace,
       subscribe: (listener) =>
         workspaceState?.subscribe(listener) ?? (() => undefined),

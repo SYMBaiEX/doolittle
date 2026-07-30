@@ -1,5 +1,5 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { WorkspaceState } from "../../shared/contracts";
+import { type FormEvent, useMemo, useState } from "react";
+import type { WorkspacePickResult } from "../../shared/contracts";
 import {
   asArray,
   asRecord,
@@ -57,12 +57,9 @@ export function worktreeLabel(worktree: ExecutionEnvironmentWorktree): string {
   return "Worktree";
 }
 
-function isCurrentWorkspace(
-  path: string,
-  state: WorkspaceState | null,
-): boolean {
-  if (!state?.currentPath) return false;
-  return path === state.currentPath;
+function isCurrentWorkspace(path: string, workspacePath: string): boolean {
+  if (!workspacePath) return false;
+  return path === workspacePath;
 }
 
 export function ExecutionEnvironmentPanel({
@@ -72,6 +69,8 @@ export function ExecutionEnvironmentPanel({
   worktrees,
   loading,
   error,
+  onChooseWorkspace,
+  onOpenWorkspacePath,
   onRefresh,
 }: {
   active: boolean;
@@ -80,11 +79,10 @@ export function ExecutionEnvironmentPanel({
   worktrees: unknown;
   loading: boolean;
   error: string | null;
+  onChooseWorkspace: () => Promise<WorkspacePickResult>;
+  onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onRefresh: () => void;
 }) {
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
-    null,
-  );
   const [branch, setBranch] = useState("");
   const [path, setPath] = useState("");
   const [creating, setCreating] = useState(false);
@@ -95,36 +93,6 @@ export function ExecutionEnvironmentPanel({
     [worktrees],
   );
 
-  useEffect(() => {
-    if (!active) return;
-    let disposed = false;
-    const update = (next: WorkspaceState) => {
-      if (!disposed) setWorkspaceState(next);
-    };
-    void window.doolittle
-      .getWorkspaceState()
-      .then(update)
-      .catch((cause: unknown) => {
-        if (!disposed) {
-          setNotice({
-            tone: "bad",
-            message: `Could not read the selected workspace: ${errorMessage(cause)}`,
-          });
-        }
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [active]);
-
-  useEffect(() => {
-    if (!active) return;
-    return window.doolittle.onWorkspaceState((state) => {
-      setWorkspaceState(state);
-      onRefresh();
-    });
-  }, [active, onRefresh]);
-
   const chooseWorkspace = async () => {
     if (opening) return;
     setOpening(true);
@@ -133,8 +101,7 @@ export function ExecutionEnvironmentPanel({
       message: "Choose the worktree directory in the native workspace picker.",
     });
     try {
-      const result = await window.doolittle.pickWorkspace();
-      setWorkspaceState(result.state);
+      const result = await onChooseWorkspace();
       if (result.canceled) {
         setNotice({
           tone: "neutral",
@@ -147,6 +114,31 @@ export function ExecutionEnvironmentPanel({
         });
         onRefresh();
       }
+    } catch (cause) {
+      setNotice({ tone: "bad", message: errorMessage(cause) });
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  const openWorktree = async (worktreePath: string) => {
+    if (opening) return;
+    setOpening(true);
+    setNotice({
+      tone: "neutral",
+      message: "Confirm the exact worktree in the native dialog.",
+    });
+    try {
+      const result = await onOpenWorkspacePath(worktreePath);
+      setNotice(
+        result.canceled
+          ? { tone: "neutral", message: "Workspace selection cancelled." }
+          : {
+              tone: "good",
+              message: `Opened ${compactPath(result.state.currentPath)} locally.`,
+            },
+      );
+      if (!result.canceled) onRefresh();
     } catch (cause) {
       setNotice({ tone: "bad", message: errorMessage(cause) });
     } finally {
@@ -199,12 +191,8 @@ export function ExecutionEnvironmentPanel({
       <header className="execution-environments-header">
         <div>
           <span className="eyebrow">Execution environment</span>
-          <strong
-            title={workspaceState?.currentPath || workspaceRoot || undefined}
-          >
-            {compactPath(
-              workspaceState?.currentPath || workspaceRoot || "Local workspace",
-            )}
+          <strong title={workspaceRoot || undefined}>
+            {compactPath(workspaceRoot || "Local workspace")}
           </strong>
         </div>
         <Badge tone="good">Local</Badge>
@@ -299,7 +287,7 @@ export function ExecutionEnvironmentPanel({
           {normalizedWorktrees.map((worktree) => (
             <article
               className={
-                isCurrentWorkspace(worktree.path, workspaceState)
+                isCurrentWorkspace(worktree.path, workspaceRoot)
                   ? "current"
                   : ""
               }
@@ -307,21 +295,21 @@ export function ExecutionEnvironmentPanel({
             >
               <div>
                 <strong>{worktreeLabel(worktree)}</strong>
-                {isCurrentWorkspace(worktree.path, workspaceState) ? (
+                {isCurrentWorkspace(worktree.path, workspaceRoot) ? (
                   <Badge tone="good">Current</Badge>
                 ) : null}
                 {worktree.prunable ? <Badge tone="warn">Prunable</Badge> : null}
               </div>
               <code title={worktree.path}>{compactPath(worktree.path)}</code>
               {worktree.head ? <small>{worktree.head}</small> : null}
-              {!isCurrentWorkspace(worktree.path, workspaceState) ? (
+              {!isCurrentWorkspace(worktree.path, workspaceRoot) ? (
                 <button
                   className="coding-status-action execution-environments-choose"
                   disabled={opening}
-                  onClick={() => void chooseWorkspace()}
+                  onClick={() => void openWorktree(worktree.path)}
                   type="button"
                 >
-                  Choose to open…
+                  Open worktree
                 </button>
               ) : null}
             </article>

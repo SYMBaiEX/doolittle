@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { WorkspacePickResult } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { detectCodeLanguage } from "./code-language";
 import { CodeEditor } from "./components/CodeEditor";
@@ -350,6 +351,8 @@ export function CodingWorkspacePage({
   active,
   navigationIntent,
   onAcknowledgeNavigationIntent,
+  onChooseWorkspace,
+  onOpenWorkspacePath,
   onSendToChat,
   projectScope,
   workspacePath,
@@ -357,6 +360,8 @@ export function CodingWorkspacePage({
   active: boolean;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
+  onChooseWorkspace: () => Promise<WorkspacePickResult>;
+  onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onSendToChat: (request: ChatContextRequest) => void;
   projectScope: ProjectScope;
   workspacePath: string;
@@ -1496,6 +1501,8 @@ export function CodingWorkspacePage({
                   error={worktreeResource.error}
                   isRepository={summary.isRepository}
                   loading={worktreeResource.loading}
+                  onChooseWorkspace={onChooseWorkspace}
+                  onOpenWorkspacePath={onOpenWorkspacePath}
                   onRefresh={refreshAll}
                   workspaceRoot={summary.root ?? ""}
                   worktrees={worktreeResource.data?.worktrees}
