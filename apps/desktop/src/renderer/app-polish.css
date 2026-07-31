@@ -2188,14 +2188,14 @@ th {
     grid-template-columns:
       var(--sidebar-width)
       minmax(0, 1fr)
-      minmax(260px, min(var(--utility-drawer-width), 44vw));
+      minmax(292px, min(var(--utility-drawer-width), 44vw));
   }
 
   .desktop-shell.nav-collapsed.utility-open {
     grid-template-columns:
       var(--sidebar-compact-width)
       minmax(0, 1fr)
-      minmax(260px, min(var(--utility-drawer-width), 44vw));
+      minmax(292px, min(var(--utility-drawer-width), 44vw));
   }
 
   .utility-layer {

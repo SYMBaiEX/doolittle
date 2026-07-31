@@ -1,7 +1,7 @@
 export const APP_SIDEBAR_WIDTH_KEY =
   "doolittle.desktop.layout.sidebar-width.v2";
 export const UTILITY_DRAWER_WIDTH_KEY =
-  "doolittle.desktop.layout.utility-drawer-width.v1";
+  "doolittle.desktop.layout.utility-drawer-width.v2";
 export const CODE_EXPLORER_WIDTH_KEY =
   "doolittle.desktop.code.explorer-width.v1";
 export const CODE_UTILITY_WIDTH_KEY = "doolittle.desktop.code.utility-width.v1";
@@ -13,9 +13,9 @@ export const APP_SIDEBAR_WIDTH = {
 } as const;
 
 export const UTILITY_DRAWER_WIDTH = {
-  default: 520,
-  min: 360,
-  max: 760,
+  default: 380,
+  min: 292,
+  max: 560,
 } as const;
 
 export const CODE_EXPLORER_WIDTH = {
