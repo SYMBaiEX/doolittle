@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ChatContextRequest } from "./chat-context-handoff";
 import { ArtifactViewer } from "./components/ArtifactViewer";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
@@ -30,9 +31,10 @@ import {
   orchestrationTimingLabel,
   scopeTasksByWorkspace,
 } from "./orchestration-helpers";
+import { ReviewPage } from "./ReviewPage";
 import "./orchestration.css";
 
-type TabId = "tasks" | "agents" | "plans" | "runs";
+export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
 type NoticeKind = "neutral" | "good" | "warn" | "bad";
 type TaskAction =
   | "execute"
@@ -249,11 +251,12 @@ type ConfirmedAction = {
   action: "cancel" | "fail";
 };
 
-const TABS: Array<{ id: TabId; label: string }> = [
-  { id: "tasks", label: "Tasks" },
+export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
+  { id: "tasks", label: "Queue" },
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
   { id: "runs", label: "Runs" },
+  { id: "review", label: "Review" },
 ];
 
 function runArtifacts(record: CodegenRunRecord): unknown[] {
@@ -383,18 +386,26 @@ export function OrchestrationPage({
   active,
   navigationIntent,
   onAcknowledgeNavigationIntent,
+  onSectionChange,
+  onSendToChat,
   projectScope = "all",
+  reviewMode = false,
   workspaceLabel,
   workspacePath,
 }: {
   active: boolean;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
+  onSectionChange?: (section: WorkTabId) => void;
+  onSendToChat: (request: ChatContextRequest) => void;
   projectScope?: string;
+  reviewMode?: boolean;
   workspaceLabel?: string;
   workspacePath?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("tasks");
+  const [activeTab, setActiveTab] = useState<WorkTabId>(
+    reviewMode ? "review" : "tasks",
+  );
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState("");
@@ -406,15 +417,24 @@ export function OrchestrationPage({
   const [bundleError, setBundleError] = useState("");
   const [bundleLoading, setBundleLoading] = useState(false);
   const [confirmedRunCancellation, setConfirmedRunCancellation] = useState("");
-  const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({
+  const tabRefs = useRef<Record<WorkTabId, HTMLButtonElement | null>>({
     tasks: null,
     agents: null,
     plans: null,
     runs: null,
+    review: null,
   });
   const confirmDialogRef = useRef<HTMLDivElement>(null);
   const confirmReturnRef = useRef<HTMLButtonElement | null>(null);
   const consumedNavigationIntents = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (reviewMode) {
+      setActiveTab("review");
+    } else {
+      setActiveTab((current) => (current === "review" ? "tasks" : current));
+    }
+  }, [reviewMode]);
 
   const overviewResource = useApiResource<DelegationOverviewResponse>(
     active ? "/delegation/overview" : null,
@@ -1150,14 +1170,16 @@ export function OrchestrationPage({
     }
   };
 
-  const selectTab = (tab: TabId) => {
+  const selectTab = (tab: WorkTabId) => {
     setActiveTab(tab);
+    onSectionChange?.(tab);
     requestAnimationFrame(() => tabRefs.current[tab]?.focus());
   };
 
   const moveTab = (direction: -1 | 1) => {
-    const index = TABS.findIndex((entry) => entry.id === activeTab);
-    const next = TABS[(index + direction + TABS.length) % TABS.length];
+    const index = WORK_TABS.findIndex((entry) => entry.id === activeTab);
+    const next =
+      WORK_TABS[(index + direction + WORK_TABS.length) % WORK_TABS.length];
     selectTab(next.id);
   };
 
@@ -1251,12 +1273,12 @@ export function OrchestrationPage({
     <div className="page orchestration-page">
       <header className="orchestration-header">
         <div>
-          <span className="eyebrow">Operator workspace</span>
-          <h1>Tasks & agents</h1>
+          <span className="eyebrow">Agent operations</span>
+          <h1>Work</h1>
           <p>
-            Delegate, supervise, inspect, and ship
+            Start, supervise, inspect, and approve agent work
             {projectScope === "all"
-              ? " from one live surface."
+              ? " from one focused surface."
               : ` in ${workspaceLabel || "the selected project"}.`}
           </p>
         </div>
@@ -1306,7 +1328,7 @@ export function OrchestrationPage({
           aria-label="Orchestration sections"
           className="orchestration-tabs"
         >
-          {TABS.map((entry) => (
+          {WORK_TABS.map((entry) => (
             <button
               key={entry.id}
               ref={(element) => {
@@ -1320,7 +1342,7 @@ export function OrchestrationPage({
               disabled={!active}
               tabIndex={entry.id === activeTab ? 0 : -1}
               className={entry.id === activeTab ? "selected" : ""}
-              onClick={() => setActiveTab(entry.id)}
+              onClick={() => selectTab(entry.id)}
               onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
                 if (event.key === "ArrowLeft") {
                   event.preventDefault();
@@ -1332,11 +1354,11 @@ export function OrchestrationPage({
                 }
                 if (event.key === "Home") {
                   event.preventDefault();
-                  selectTab(TABS[0].id);
+                  selectTab(WORK_TABS[0].id);
                 }
                 if (event.key === "End") {
                   event.preventDefault();
-                  selectTab(TABS.at(-1)?.id ?? "runs");
+                  selectTab(WORK_TABS.at(-1)?.id ?? "review");
                 }
               }}
             >
@@ -1345,6 +1367,9 @@ export function OrchestrationPage({
               {entry.id === "agents" ? <span>{workers.length}</span> : null}
               {entry.id === "plans" ? <span>{plans.length}</span> : null}
               {entry.id === "runs" ? <span>{runs.length}</span> : null}
+              {entry.id === "review" && approvalCount > 0 ? (
+                <span>{approvalCount}</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -1615,7 +1640,15 @@ export function OrchestrationPage({
         aria-labelledby={`orchestration-tab-${activeTab}`}
         className="orchestration-panel"
       >
-        {activeTab === "tasks" ? (
+        {activeTab === "review" ? (
+          <ReviewPage
+            active={active}
+            embedded
+            onSendToChat={onSendToChat}
+            projectScope={projectScope}
+            workspacePath={workspacePath ?? ""}
+          />
+        ) : activeTab === "tasks" ? (
           <div className="orchestration-master-detail">
             <aside className="orchestration-master">
               <div className="orchestration-pane-heading">

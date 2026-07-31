@@ -107,9 +107,6 @@ const BrowserPage = lazy(() =>
 const GatewayPage = lazy(() =>
   import("./GatewayPage").then((module) => ({ default: module.GatewayPage })),
 );
-const ReviewPage = lazy(() =>
-  import("./ReviewPage").then((module) => ({ default: module.ReviewPage })),
-);
 const OrchestrationPage = lazy(() =>
   import("./OrchestrationPage").then((module) => ({
     default: module.OrchestrationPage,
@@ -274,8 +271,7 @@ const navigation: Array<{
       { id: "chat", label: "Chat" },
       { id: "code", label: "Code" },
       { id: "browser", label: "Browser & preview" },
-      { id: "review", label: "Review" },
-      { id: "orchestration", label: "Tasks & agents" },
+      { id: "orchestration", label: "Work" },
     ],
   },
   {
@@ -334,7 +330,8 @@ const VIEW_DESCRIPTIONS: Record<View, string> = {
   browser: "Preview localhost apps and capture browser evidence",
   gateway: "Inspect recorded gateway messages and replay an inbound record",
   review: "Approve decisions and inspect workspace changes and agent outputs",
-  orchestration: "Direct tasks, agents, plans, and code generation runs",
+  orchestration:
+    "Start, supervise, inspect, and approve tasks, agents, plans, and runs",
   sessions: "Search and inspect conversation history",
   activity: "Review deliveries, commands, and runtime events",
   analytics: "Understand local usage and activity",
@@ -368,10 +365,9 @@ const PRIMARY_NAV_ITEMS = [
   { id: "code" as const, label: "Code", description: "Workspace" },
   {
     id: "orchestration" as const,
-    label: "Tasks",
-    description: "Agents and tasks",
+    label: "Work",
+    description: "Agent work and review",
   },
-  { id: "review" as const, label: "Review", description: "Approvals" },
 ];
 
 function loadOpenSections(): Set<NavigationSectionId> {
@@ -1726,10 +1722,13 @@ export function App() {
     selectGlobalSearchResult,
   ]);
 
+  const navigationView = view === "review" ? "orchestration" : view;
   const activeSection = navigation.find((section) =>
-    section.items.some((item) => item.id === view),
+    section.items.some((item) => item.id === navigationView),
   );
-  const activeItem = activeSection?.items.find((item) => item.id === view);
+  const activeItem = activeSection?.items.find(
+    (item) => item.id === navigationView,
+  );
   const pendingApprovals = asArray(approvalsResource.data?.approvals).length;
   const runningTasks = asArray(tasksResource.data?.tasks).length;
   const activeProject =
@@ -2074,15 +2073,6 @@ export function App() {
       case "gateway":
         return <GatewayPage active={backend.phase === "ready"} />;
       case "review":
-        return (
-          <ReviewPage
-            active={backend.phase === "ready"}
-            key={`${workspace.currentPath}\u0000${projectScope}`}
-            onSendToChat={openChatWithContext}
-            projectScope={projectScope}
-            workspacePath={workspace.currentPath}
-          />
-        );
       case "orchestration":
         return (
           <OrchestrationPage
@@ -2090,7 +2080,16 @@ export function App() {
             key={`${workspace.currentPath}\u0000${projectScope}`}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={consumeNavigationIntent}
+            onSectionChange={(section) => {
+              if (section === "review" && view !== "review") {
+                setView("review");
+              } else if (section !== "review" && view === "review") {
+                setView("orchestration");
+              }
+            }}
+            onSendToChat={openChatWithContext}
             projectScope={projectScope}
+            reviewMode={view === "review"}
             workspaceLabel={
               activeProject?.name ??
               (projectScope === "unscoped" ? "General" : "All projects")
@@ -2371,8 +2370,8 @@ export function App() {
         <nav className="sidebar-focus-nav" aria-label="Primary workspace">
           {PRIMARY_NAV_ITEMS.map((item) => (
             <button
-              aria-current={view === item.id ? "page" : undefined}
-              className={view === item.id ? "selected" : ""}
+              aria-current={navigationView === item.id ? "page" : undefined}
+              className={navigationView === item.id ? "selected" : ""}
               key={item.id}
               onClick={() => setView(item.id)}
               title={navCollapsed ? item.label : item.description}

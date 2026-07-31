@@ -18,7 +18,6 @@ import type {
   RepositoryWorkflowRun,
 } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
-import { ArtifactViewer } from "./components/ArtifactViewer";
 import { GitControlPanel } from "./components/GitControlPanel";
 import { GitHubPullRequestPanel } from "./components/GitHubPullRequestPanel";
 import {
@@ -53,7 +52,7 @@ import {
 import { reviewWorkState } from "./review-work-state";
 import "./review.css";
 
-type ReviewFilter = "all" | "approvals" | "ci" | "changes" | "runs";
+type ReviewFilter = "all" | "approvals" | "ci" | "changes";
 type ReviewKind = Exclude<ReviewFilter, "all">;
 
 const REVIEW_FILTERS: ReadonlyArray<{
@@ -62,7 +61,6 @@ const REVIEW_FILTERS: ReadonlyArray<{
 }> = [
   { id: "all", label: "Activity" },
   { id: "approvals", label: "Needs you" },
-  { id: "runs", label: "Agent runs" },
   { id: "changes", label: "Files" },
   { id: "ci", label: "Checks" },
 ];
@@ -198,7 +196,6 @@ function compactCommand(command: string): string {
 function reviewItems(
   approvals: ApprovalResponse | null,
   changes: ChangesResponse | null,
-  runs: RunsResponse | null,
   repositoryReview: RepositoryReview | undefined,
 ): ReviewItem[] {
   const approvalItems = asArray(approvals?.approvals).map((value, index) => {
@@ -236,26 +233,6 @@ function reviewItems(
           : "working",
       timestamp: undefined,
       path,
-      raw: record,
-    };
-  });
-
-  const runItems = asArray(runs?.runs).map((value, index) => {
-    const record = asRecord(value);
-    const id = asString(record.id, `run-${index}`);
-    return {
-      id: `runs:${id}`,
-      kind: "runs" as const,
-      title:
-        asString(record.projectName) ||
-        asString(record.title) ||
-        `Code generation ${id}`,
-      description:
-        asString(record.outputPreview) ||
-        `${asString(record.kind, "generation")} run`,
-      status: asString(record.status, "unknown"),
-      timestamp:
-        asString(record.updatedAt) || asString(record.createdAt) || undefined,
       raw: record,
     };
   });
@@ -322,7 +299,6 @@ function reviewItems(
     ...pullRequestItems,
     ...checkItems,
     ...changeItems,
-    ...runItems,
     ...workflowItems,
   ].sort((left, right) => {
     const priority = (item: ReviewItem): number => {
@@ -338,11 +314,6 @@ function reviewItems(
   });
 }
 
-function runArtifacts(record: Record<string, unknown>): unknown[] {
-  const opaque = asArray(record.artifacts);
-  return opaque.length > 0 ? opaque : asArray(record.artifactPaths);
-}
-
 export function reviewWorkspaceScopeKey(
   workspacePath: string,
   projectScope: string,
@@ -352,11 +323,13 @@ export function reviewWorkspaceScopeKey(
 
 export function ReviewPage({
   active,
+  embedded = false,
   onSendToChat,
   projectScope,
   workspacePath,
 }: {
   active: boolean;
+  embedded?: boolean;
   onSendToChat: (request: ChatContextRequest) => void;
   projectScope: string;
   workspacePath: string;
@@ -427,8 +400,8 @@ export function ReviewPage({
     [review],
   );
   const items = useMemo(
-    () => reviewItems(approvals.data, changes.data, runs.data, review),
-    [approvals.data, changes.data, review, runs.data],
+    () => reviewItems(approvals.data, changes.data, review),
+    [approvals.data, changes.data, review],
   );
   const visibleItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -806,36 +779,39 @@ export function ReviewPage({
 
   return (
     <div
-      className="page review-page"
+      className={`page review-page${embedded ? " review-page--embedded" : ""}`}
       data-project-scope={projectScope}
       data-workspace-path={workspacePath}
     >
-      <header className="review-header">
-        <div>
-          <span className="eyebrow">Agent work</span>
-          <h1>Review what Doolittle did</h1>
-          <p>
-            Inspect the outcome, changed files, verification, and decisions from
-            completed work without reconstructing the agent’s entire chat.
-          </p>
-        </div>
-        <div className="review-header-status">
-          <span>
-            <strong>{pendingCount}</strong> needs you
-          </span>
-          <span>
-            <strong>{items.length}</strong> work events
-          </span>
-          <button
-            className="secondary-button"
-            disabled={!active}
-            onClick={reload}
-            type="button"
-          >
-            Refresh
-          </button>
-        </div>
-      </header>
+      {!embedded ? (
+        <header className="review-header">
+          <div>
+            <span className="eyebrow">Agent work</span>
+            <h1>Review what Doolittle did</h1>
+            <p>
+              Inspect the outcome, changed files, verification, and decisions
+              from completed work without reconstructing the agent’s entire
+              chat.
+            </p>
+          </div>
+          <div className="review-header-status">
+            <span>
+              <strong>{pendingCount}</strong> needs you
+            </span>
+            <span>
+              <strong>{items.length}</strong> work events
+            </span>
+            <button
+              className="secondary-button"
+              disabled={!active}
+              onClick={reload}
+              type="button"
+            >
+              Refresh
+            </button>
+          </div>
+        </header>
+      ) : null}
 
       <section
         aria-label="Current agent work outcome"
@@ -1130,8 +1106,9 @@ export function ReviewPage({
 
           <section className="review-detail">
             {!selected ? (
-              <EmptyBlock title="Nothing to inspect yet">
-                Finish an agent task to create a reviewable work event.
+              <EmptyBlock title="No review items yet">
+                Decisions, changed files, and verification results appear here.
+                Completed run history stays in the Runs tab.
               </EmptyBlock>
             ) : (
               <>
@@ -1656,58 +1633,6 @@ export function ReviewPage({
                         </dl>
                       </>
                     )}
-                  </div>
-                ) : null}
-
-                {selected.kind === "runs" ? (
-                  <div className="review-run">
-                    <dl className="review-facts">
-                      <div>
-                        <dt>Run</dt>
-                        <dd>{asString(selected.raw.id)}</dd>
-                      </div>
-                      <div>
-                        <dt>Workflow</dt>
-                        <dd>
-                          {asString(selected.raw.workflowId, "Standalone")}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Kind</dt>
-                        <dd>{asString(selected.raw.kind, "generation")}</dd>
-                      </div>
-                      <div>
-                        <dt>Artifacts</dt>
-                        <dd>{runArtifacts(selected.raw).length}</dd>
-                      </div>
-                    </dl>
-                    <div className="review-output">
-                      <span>Output preview</span>
-                      <pre>
-                        {asString(
-                          selected.raw.outputPreview,
-                          "No output preview was captured for this run.",
-                        )}
-                      </pre>
-                    </div>
-                    {runArtifacts(selected.raw).length > 0 ? (
-                      <div className="review-artifacts">
-                        <span>Artifacts</span>
-                        <ArtifactViewer
-                          artifacts={runArtifacts(selected.raw)}
-                          runId={asString(selected.raw.id)}
-                        />
-                      </div>
-                    ) : null}
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        window.location.hash = "/orchestration";
-                      }}
-                      type="button"
-                    >
-                      Open runs
-                    </button>
                   </div>
                 ) : null}
               </>
