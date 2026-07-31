@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { WORK_TABS } from "./OrchestrationPage";
 
 describe("consolidated work surface", () => {
