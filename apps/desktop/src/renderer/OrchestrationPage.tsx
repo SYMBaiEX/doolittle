@@ -1244,11 +1244,6 @@ export function OrchestrationPage({
                 <span className="master-summary">
                   {normalizeText(asString(task.objective), 92)}
                 </span>
-                <span className="master-chip-row">
-                  <span>{asString(task.group, "ungrouped")}</span>
-                  <span>{asString(task.profile, "default")}</span>
-                  <span>{asString(task.executionMode, "local")}</span>
-                </span>
                 <span className="master-row master-row-bottom">
                   <small>
                     {orchestrationTimingLabel({
@@ -1273,13 +1268,12 @@ export function OrchestrationPage({
     <div className="page orchestration-page">
       <header className="orchestration-header">
         <div>
-          <span className="eyebrow">Agent operations</span>
-          <h1>Work</h1>
+          <h1>Agent work</h1>
           <p>
-            Start, supervise, inspect, and approve agent work
+            Tasks, active runs, and completed changes
             {projectScope === "all"
-              ? " from one focused surface."
-              : ` in ${workspaceLabel || "the selected project"}.`}
+              ? " across every project."
+              : ` for ${workspaceLabel || "the selected project"}.`}
           </p>
         </div>
         <div className="orchestration-header-metrics">
@@ -1716,97 +1710,102 @@ export function OrchestrationPage({
                   </div>
 
                   <div className="orchestration-action-deck">
-                    <button
-                      className="primary-button"
-                      type="button"
-                      onClick={() => runTaskAction(selectedTask, "execute")}
-                      disabled={
-                        !active || busyKeys[`task:${selectedTask.id}:execute`]
-                      }
-                    >
-                      Execute
-                    </button>
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => runTaskAction(selectedTask, "run")}
-                      disabled={
-                        !active || busyKeys[`task:${selectedTask.id}:run`]
-                      }
-                    >
-                      Mark running
-                    </button>
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => runTaskAction(selectedTask, "retry")}
-                      disabled={
-                        !active || busyKeys[`task:${selectedTask.id}:retry`]
-                      }
-                    >
-                      Retry
-                    </button>
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => runTaskAction(selectedTask, "complete")}
-                      disabled={
-                        !active || busyKeys[`task:${selectedTask.id}:complete`]
-                      }
-                    >
-                      Complete
-                    </button>
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() =>
-                        setShowChildCreate((current) => {
-                          const next = !current;
-                          if (next) {
-                            setChildWorkspaceRoot(
-                              asString(selectedTask.workspaceRoot),
-                            );
-                          }
-                          return next;
-                        })
-                      }
-                      aria-expanded={showChildCreate}
-                      disabled={!active}
-                    >
-                      Spawn child
-                    </button>
-                    <button
-                      className="danger-button"
-                      type="button"
-                      onClick={(event) =>
-                        requestDestructiveTaskAction(
-                          selectedTask,
-                          "fail",
-                          event.currentTarget,
-                        )
-                      }
-                      disabled={
-                        !active || busyKeys[`task:${selectedTask.id}:fail`]
-                      }
-                    >
-                      Fail
-                    </button>
-                    <button
-                      className="danger-button"
-                      type="button"
-                      onClick={(event) =>
-                        requestDestructiveTaskAction(
-                          selectedTask,
-                          "cancel",
-                          event.currentTarget,
-                        )
-                      }
-                      disabled={
-                        !active || busyKeys[`task:${selectedTask.id}:cancel`]
-                      }
-                    >
-                      Cancel
-                    </button>
+                    <div className="orchestration-action-main">
+                      <button
+                        className="primary-button"
+                        type="button"
+                        onClick={() => runTaskAction(selectedTask, "execute")}
+                        disabled={
+                          !active || busyKeys[`task:${selectedTask.id}:execute`]
+                        }
+                      >
+                        Execute
+                      </button>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => runTaskAction(selectedTask, "run")}
+                        disabled={
+                          !active || busyKeys[`task:${selectedTask.id}:run`]
+                        }
+                      >
+                        Mark running
+                      </button>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => runTaskAction(selectedTask, "complete")}
+                        disabled={
+                          !active ||
+                          busyKeys[`task:${selectedTask.id}:complete`]
+                        }
+                      >
+                        Complete
+                      </button>
+                    </div>
+                    <div className="orchestration-action-secondary">
+                      <button
+                        className="text-button"
+                        type="button"
+                        onClick={() => runTaskAction(selectedTask, "retry")}
+                        disabled={
+                          !active || busyKeys[`task:${selectedTask.id}:retry`]
+                        }
+                      >
+                        Retry
+                      </button>
+                      <button
+                        className="text-button"
+                        type="button"
+                        onClick={() =>
+                          setShowChildCreate((current) => {
+                            const next = !current;
+                            if (next) {
+                              setChildWorkspaceRoot(
+                                asString(selectedTask.workspaceRoot),
+                              );
+                            }
+                            return next;
+                          })
+                        }
+                        aria-expanded={showChildCreate}
+                        disabled={!active}
+                      >
+                        Add child
+                      </button>
+                      <button
+                        className="text-button danger-text-button"
+                        type="button"
+                        onClick={(event) =>
+                          requestDestructiveTaskAction(
+                            selectedTask,
+                            "fail",
+                            event.currentTarget,
+                          )
+                        }
+                        disabled={
+                          !active || busyKeys[`task:${selectedTask.id}:fail`]
+                        }
+                      >
+                        Mark failed
+                      </button>
+                      <button
+                        className="text-button danger-text-button"
+                        type="button"
+                        onClick={(event) =>
+                          requestDestructiveTaskAction(
+                            selectedTask,
+                            "cancel",
+                            event.currentTarget,
+                          )
+                        }
+                        disabled={
+                          !active || busyKeys[`task:${selectedTask.id}:cancel`]
+                        }
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
 
                   {confirmedAction?.taskId === selectedTask.id ? (
