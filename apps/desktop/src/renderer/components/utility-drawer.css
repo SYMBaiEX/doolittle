@@ -3,7 +3,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 18px 10px;
+  padding: 14px 14px 9px;
 }
 
 .utility-drawer__header h2 {
@@ -38,7 +38,7 @@
   position: relative;
   display: grid;
   gap: 5px;
-  padding: 0 18px 12px;
+  padding: 0 14px 10px;
 }
 
 .utility-drawer__search label {
@@ -75,7 +75,7 @@
 }
 
 .utility-drawer__activity {
-  padding: 0 18px;
+  padding: 0 14px;
 }
 
 .utility-drawer__navigation {
@@ -83,9 +83,11 @@
   min-height: 0;
   flex: 1;
   align-content: start;
-  gap: 4px;
-  padding: 10px 12px 18px;
+  gap: 2px;
+  padding: 8px 9px 14px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .utility-drawer__group {
@@ -97,7 +99,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 6px 5px;
+  min-height: 30px;
+  padding: 6px 7px 4px;
   color: var(--muted);
   background: transparent;
   border: 0;
@@ -125,7 +128,8 @@
   align-items: center;
   gap: 9px;
   min-width: 0;
-  padding: 8px 8px;
+  min-height: 42px;
+  padding: 7px 8px;
   color: var(--text-soft);
   background: transparent;
   border: 1px solid transparent;
@@ -141,7 +145,8 @@
 .utility-drawer__items > button.is-selected {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 9%, var(--surface-soft));
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-color: transparent;
+  box-shadow: inset 2px 0 var(--accent);
 }
 
 .utility-drawer__icon {

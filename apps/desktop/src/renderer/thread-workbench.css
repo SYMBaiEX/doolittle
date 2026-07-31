@@ -6,15 +6,15 @@
     transparent
   );
   background:
-    radial-gradient(
-      circle at 88% -10%,
-      color-mix(in srgb, var(--thread-workbench-accent) 13%, transparent),
-      transparent 36%
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-raised) 48%, transparent),
+      transparent 110px
     ),
-    color-mix(in srgb, var(--surface) 96%, black);
+    color-mix(in srgb, var(--surface) 98%, var(--bg));
   border-left: 1px solid
     color-mix(in srgb, var(--border, #3a322b) 82%, transparent);
-  box-shadow: -18px 0 60px rgb(0 0 0 / 18%);
+  box-shadow: -16px 0 42px rgb(0 0 0 / 14%);
   color: var(--text, #f7efe5);
   display: grid;
   flex: 0 0 var(--thread-workbench-width);
@@ -65,8 +65,8 @@
 .thread-workbench-header {
   border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
   display: grid;
-  gap: 13px;
-  padding: 17px 15px 14px;
+  gap: 10px;
+  padding: 13px 13px 11px;
 }
 
 .thread-workbench-heading,
@@ -128,12 +128,12 @@
 }
 
 .thread-workbench-repository {
-  background: color-mix(in srgb, currentColor 4%, transparent);
+  background: var(--surface-soft);
   border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
   border-radius: 9px;
   gap: 9px;
   justify-content: flex-start;
-  padding: 9px;
+  padding: 8px;
 }
 
 .thread-workbench-repository > div {
@@ -174,7 +174,7 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   min-width: 0;
   overflow: hidden;
-  padding: 4px 8px 0;
+  padding: 3px 7px 0;
 }
 
 .thread-workbench-tabs button {
@@ -188,9 +188,9 @@
   font: inherit;
   gap: 2px;
   justify-items: center;
-  min-height: 48px;
+  min-height: 42px;
   min-width: 0;
-  padding: 5px 2px 6px;
+  padding: 4px 2px 5px;
 }
 
 .thread-workbench-tabs button > span {
@@ -221,11 +221,11 @@
   display: grid;
   flex: 1 1 auto;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 13px 12px;
+  padding: 11px 10px;
 }
 
 .thread-workbench-panel-body {
@@ -1053,7 +1053,7 @@
   border-top: 1px solid color-mix(in srgb, currentColor 8%, transparent);
   color: color-mix(in srgb, currentColor 42%, transparent);
   font: 8px / 1 var(--font-mono, ui-monospace, monospace);
-  min-height: 38px;
+  min-height: 32px;
   padding: 5px 10px 5px 14px;
 }
 

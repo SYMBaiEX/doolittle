@@ -3379,8 +3379,8 @@ button.chat-session-meta-pill:hover {
   flex-direction: column;
   color: var(--text);
   background: color-mix(in srgb, var(--surface) 98%, var(--bg));
-  border-left: 1px solid var(--border-strong);
-  box-shadow: -18px 0 56px color-mix(in srgb, var(--shadow) 22%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  box-shadow: -18px 0 48px color-mix(in srgb, var(--shadow) 16%, transparent);
   animation: utility-drawer-in 180ms var(--ease-out) both;
 }
 

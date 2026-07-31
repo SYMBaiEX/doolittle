@@ -179,7 +179,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 8px);
-  box-shadow: 0 18px 54px color-mix(in srgb, var(--shadow) 30%, transparent);
+  box-shadow: none;
 }
 
 .coding-grid.explorer-hidden {
