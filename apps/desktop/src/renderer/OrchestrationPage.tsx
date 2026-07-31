@@ -2102,13 +2102,6 @@ export function OrchestrationPage({
                                 92,
                               )}
                             </span>
-                            <span className="master-chip-row">
-                              <span>{asString(worker.group, "ungrouped")}</span>
-                              <span>{asString(worker.profile, "default")}</span>
-                              <span>
-                                {asString(worker.executionMode, "local")}
-                              </span>
-                            </span>
                             <span className="master-row master-row-bottom">
                               <small>
                                 {orchestrationTimingLabel({
@@ -2285,16 +2278,6 @@ export function OrchestrationPage({
                             </span>
                             <span className="master-summary">
                               {normalizeText(asString(plan.objective), 92)}
-                            </span>
-                            <span className="master-chip-row">
-                              <span>
-                                {plan.taskId ? "task linked" : "no task link"}
-                              </span>
-                              <span>
-                                {plan.workflowId
-                                  ? "workflow linked"
-                                  : "no workflow link"}
-                              </span>
                             </span>
                             <span className="master-row master-row-bottom">
                               <small>
@@ -2670,10 +2653,6 @@ export function OrchestrationPage({
                           </span>
                           <Badge tone={statusTone(status)}>{status}</Badge>
                         </span>
-                        <span className="master-chip-row">
-                          <span>{asString(workflow.kind, "generate")}</span>
-                          <span>{asArray(workflow.runIds).length} runs</span>
-                        </span>
                         <small>
                           {orchestrationTimingLabel({
                             status,
@@ -2726,10 +2705,6 @@ export function OrchestrationPage({
                             <strong>{asString(run.phase, run.kind)}</strong>
                           </span>
                           <Badge tone={statusTone(status)}>{status}</Badge>
-                        </span>
-                        <span className="master-chip-row">
-                          <span>{asString(run.kind, "run")}</span>
-                          <span>{run.taskId ? "task linked" : "detached"}</span>
                         </span>
                         <small>
                           {orchestrationTimingLabel({
