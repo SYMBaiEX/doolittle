@@ -570,11 +570,16 @@ export function App() {
     setUtilityOpen(true);
   }, [setMobileSidebarOpen]);
 
+  const toggleUtilities = useCallback(() => {
+    if (utilityOpen) closeUtilities();
+    else openUtilities();
+  }, [closeUtilities, openUtilities, utilityOpen]);
+
   const setView = useCallback(
     (next: View) => {
       setViewState(next);
       setMobileSidebarOpen(false);
-      setUtilityOpen(false);
+      if (isMobileSidebarMode) setUtilityOpen(false);
       const section = navigation.find((entry) =>
         entry.items.some((item) => item.id === next),
       );
@@ -586,7 +591,7 @@ export function App() {
       }
       window.location.hash = `/${next}`;
     },
-    [setMobileSidebarOpen],
+    [isMobileSidebarMode, setMobileSidebarOpen],
   );
 
   const openSidebarForMobile = useCallback(() => {
@@ -632,7 +637,7 @@ export function App() {
         closeUtilities();
         return;
       }
-      if (event.key !== "Tab") return;
+      if (!isMobileSidebarMode || event.key !== "Tab") return;
 
       const focusable = collectSidebarFocusables(utilityRef.current);
       const first = focusable.at(0);
@@ -649,7 +654,7 @@ export function App() {
         first.focus();
       }
     },
-    [closeUtilities, utilityOpen],
+    [closeUtilities, isMobileSidebarMode, utilityOpen],
   );
 
   const createConversation = useCallback(() => {
@@ -1391,12 +1396,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!utilityOpen) return;
+    if (!utilityOpen || !isMobileSidebarMode) return;
     requestAnimationFrame(() => {
       const [first] = collectSidebarFocusables(utilityRef.current);
       (first || utilityRef.current)?.focus();
     });
-  }, [utilityOpen]);
+  }, [isMobileSidebarMode, utilityOpen]);
 
   useEffect(() => {
     const sidebar = sidebarRef.current;
@@ -2167,7 +2172,9 @@ export function App() {
 
   return (
     <main
-      className={`desktop-shell ${navCollapsed ? "nav-collapsed" : ""}`}
+      className={`desktop-shell ${navCollapsed ? "nav-collapsed" : ""}${
+        utilityOpen ? " utility-open" : ""
+      }`}
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
@@ -2207,64 +2214,6 @@ export function App() {
         projects={projectCards}
         unscopedChatCount={unscopedChatCount}
       />
-      {utilityOpen ? (
-        <div className="utility-layer">
-          <button
-            aria-label="Close tools and settings"
-            className="utility-layer-dismiss"
-            onClick={closeUtilities}
-            type="button"
-          />
-          <aside
-            aria-label="Tools and settings"
-            aria-modal="true"
-            className="utility-drawer"
-            onKeyDown={handleUtilityKeyDown}
-            ref={utilityRef}
-            role="dialog"
-            tabIndex={-1}
-          >
-            <UtilityDrawer
-              activeView={view}
-              activity={
-                <ActivityCenter
-                  active={backend.phase === "ready"}
-                  error={activityResource.error}
-                  events={activityResource.data?.events ?? []}
-                  loading={activityResource.loading}
-                  onOpenTarget={openActivityTarget}
-                  reload={activityResource.reload}
-                />
-              }
-              onClose={closeUtilities}
-              onSelect={setView}
-              onToggleSection={(sectionId) =>
-                toggleSection(sectionId as NavigationSectionId)
-              }
-              openSections={openSections}
-              sections={navigation.map((section) => ({
-                ...section,
-                items: section.items.map((item) => ({
-                  ...item,
-                  description: VIEW_DESCRIPTIONS[item.id],
-                  icon: (
-                    <Icon name={item.id === "gateway" ? "activity" : item.id} />
-                  ),
-                })),
-              }))}
-            >
-              <PanelResizeHandle
-                bounds={UTILITY_DRAWER_WIDTH}
-                className="utility-drawer-resizer"
-                direction="grow-left"
-                label="Resize tools and settings panel"
-                onResize={setUtilityDrawerWidth}
-                value={utilityDrawerWidth}
-              />
-            </UtilityDrawer>
-          </aside>
-        </div>
-      ) : null}
       <ToastRegion
         onDismiss={dismissToast}
         onPause={pauseToast}
@@ -2384,7 +2333,7 @@ export function App() {
           <button
             aria-expanded={utilityOpen}
             className="sidebar-utility-button"
-            onClick={openUtilities}
+            onClick={toggleUtilities}
             title="Open every Doolittle tool and setting"
             type="button"
           >
@@ -2488,7 +2437,7 @@ export function App() {
                 aria-label="Open tools and settings"
                 aria-expanded={utilityOpen}
                 className="window-utility-button"
-                onClick={openUtilities}
+                onClick={toggleUtilities}
                 type="button"
               >
                 Tools
@@ -2552,6 +2501,56 @@ export function App() {
           <Suspense fallback={<RouteLoadingFallback />}>{content}</Suspense>
         </div>
       </section>
+      {utilityOpen ? (
+        <div className="utility-layer">
+          <aside
+            aria-label="Tools and settings"
+            className="utility-drawer"
+            onKeyDown={handleUtilityKeyDown}
+            ref={utilityRef}
+            tabIndex={-1}
+          >
+            <UtilityDrawer
+              activeView={view}
+              activity={
+                <ActivityCenter
+                  active={backend.phase === "ready"}
+                  error={activityResource.error}
+                  events={activityResource.data?.events ?? []}
+                  loading={activityResource.loading}
+                  onOpenTarget={openActivityTarget}
+                  reload={activityResource.reload}
+                />
+              }
+              onClose={closeUtilities}
+              onSelect={setView}
+              onToggleSection={(sectionId) =>
+                toggleSection(sectionId as NavigationSectionId)
+              }
+              openSections={openSections}
+              sections={navigation.map((section) => ({
+                ...section,
+                items: section.items.map((item) => ({
+                  ...item,
+                  description: VIEW_DESCRIPTIONS[item.id],
+                  icon: (
+                    <Icon name={item.id === "gateway" ? "activity" : item.id} />
+                  ),
+                })),
+              }))}
+            >
+              <PanelResizeHandle
+                bounds={UTILITY_DRAWER_WIDTH}
+                className="utility-drawer-resizer"
+                direction="grow-left"
+                label="Resize tools and settings panel"
+                onResize={setUtilityDrawerWidth}
+                value={utilityDrawerWidth}
+              />
+            </UtilityDrawer>
+          </aside>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -3366,15 +3366,6 @@ button.chat-session-meta-pill:hover {
   inset: 0;
 }
 
-.utility-layer-dismiss {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--shadow) 48%, transparent);
-  border: 0;
-  backdrop-filter: blur(3px);
-  animation: utility-backdrop-in 140ms var(--ease-out) both;
-}
-
 .utility-drawer {
   position: absolute;
   top: 0;
@@ -4234,12 +4225,6 @@ button.chat-session-meta-pill:hover {
   font-size: 9px;
 }
 
-@keyframes utility-backdrop-in {
-  from {
-    opacity: 0;
-  }
-}
-
 @keyframes utility-drawer-in {
   from {
     opacity: 0;
@@ -4376,7 +4361,6 @@ button.chat-session-meta-pill:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .utility-layer-dismiss,
   .utility-drawer,
   .chat-mobile-conversations-dialog {
     animation: none;
