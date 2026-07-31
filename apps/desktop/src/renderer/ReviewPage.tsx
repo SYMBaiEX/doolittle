@@ -1000,509 +1000,613 @@ export function ReviewPage({
       ) : loading && items.length === 0 ? (
         <LoadingBlock label="Assembling completed work…" />
       ) : (
-        <>
-          <div className="review-workspace">
-            <aside className="review-rail">
-              <div
-                aria-label="Review filters"
-                className="review-tabs"
-                role="tablist"
-              >
-                {REVIEW_FILTERS.map(({ id, label }, index) => (
-                  <button
-                    aria-controls="review-filter-panel"
-                    aria-selected={filter === id}
-                    className={filter === id ? "selected" : ""}
-                    id={`review-filter-${id}`}
-                    key={id}
-                    onClick={() => setFilter(id)}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "ArrowRight" ||
-                        event.key === "ArrowDown"
-                      ) {
-                        event.preventDefault();
-                        selectFilterAt(
-                          event,
-                          (index + 1) % REVIEW_FILTERS.length,
-                        );
-                      } else if (
-                        event.key === "ArrowLeft" ||
-                        event.key === "ArrowUp"
-                      ) {
-                        event.preventDefault();
-                        selectFilterAt(
-                          event,
-                          (index - 1 + REVIEW_FILTERS.length) %
-                            REVIEW_FILTERS.length,
-                        );
-                      } else if (event.key === "Home") {
-                        event.preventDefault();
-                        selectFilterAt(event, 0);
-                      } else if (event.key === "End") {
-                        event.preventDefault();
-                        selectFilterAt(event, REVIEW_FILTERS.length - 1);
-                      }
-                    }}
-                    role="tab"
-                    tabIndex={filter === id ? 0 : -1}
-                    type="button"
-                  >
-                    {label}
-                    <span>
-                      {id === "all"
-                        ? items.length
-                        : items.filter((item) => item.kind === id).length}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <label className="review-search">
-                <span aria-hidden="true">⌕</span>
-                <input
-                  aria-label="Search review queue"
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search decisions and changes"
-                  ref={searchRef}
-                  type="search"
-                  value={query}
-                />
-                {query ? (
-                  <button
-                    aria-label="Clear review search"
-                    onClick={() => setQuery("")}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                ) : (
-                  <kbd>
-                    {window.doolittle.platform === "darwin" ? "⌘F" : "Ctrl F"}
-                  </kbd>
-                )}
-              </label>
-              <div
-                aria-labelledby={`review-filter-${filter}`}
-                className="review-list"
-                id="review-filter-panel"
-                role="tabpanel"
-              >
-                {visibleItems.length === 0 ? (
-                  <EmptyBlock title="No matching work">
-                    Completed agent work will appear here as it happens.
-                  </EmptyBlock>
-                ) : (
-                  visibleItems.map((item) => (
-                    <button
-                      aria-current={selected?.id === item.id}
-                      className={selected?.id === item.id ? "selected" : ""}
-                      key={item.id}
-                      onClick={() => setSelectedId(item.id)}
-                      type="button"
-                    >
-                      <span
-                        className={`review-kind-mark ${item.kind} ${
-                          item.kind === "ci" ? statusTone(item.status) : ""
-                        }`.trim()}
-                      >
-                        {item.kind === "approvals"
-                          ? "!"
-                          : item.kind === "ci"
-                            ? "✓"
-                            : item.kind === "changes"
-                              ? "±"
-                              : "↗"}
-                      </span>
-                      <span className="review-list-copy">
-                        <strong>{item.title}</strong>
-                        <small>{item.description}</small>
-                        {item.timestamp ? (
-                          <time dateTime={item.timestamp}>
-                            {displayTimestamp(item.timestamp)}
-                          </time>
-                        ) : null}
-                      </span>
-                      <Badge tone={statusTone(item.status)}>
-                        {item.status}
-                      </Badge>
-                    </button>
-                  ))
-                )}
-              </div>
-            </aside>
-
-            <section className="review-detail">
-              {!selected ? (
-                <EmptyBlock title="Nothing to inspect yet">
-                  Finish an agent task to create a reviewable work event.
+        <div className="review-workspace">
+          <aside className="review-rail">
+            <div
+              aria-label="Review filters"
+              className="review-tabs"
+              role="tablist"
+            >
+              {REVIEW_FILTERS.map(({ id, label }, index) => (
+                <button
+                  aria-controls="review-filter-panel"
+                  aria-selected={filter === id}
+                  className={filter === id ? "selected" : ""}
+                  id={`review-filter-${id}`}
+                  key={id}
+                  onClick={() => setFilter(id)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "ArrowRight" ||
+                      event.key === "ArrowDown"
+                    ) {
+                      event.preventDefault();
+                      selectFilterAt(
+                        event,
+                        (index + 1) % REVIEW_FILTERS.length,
+                      );
+                    } else if (
+                      event.key === "ArrowLeft" ||
+                      event.key === "ArrowUp"
+                    ) {
+                      event.preventDefault();
+                      selectFilterAt(
+                        event,
+                        (index - 1 + REVIEW_FILTERS.length) %
+                          REVIEW_FILTERS.length,
+                      );
+                    } else if (event.key === "Home") {
+                      event.preventDefault();
+                      selectFilterAt(event, 0);
+                    } else if (event.key === "End") {
+                      event.preventDefault();
+                      selectFilterAt(event, REVIEW_FILTERS.length - 1);
+                    }
+                  }}
+                  role="tab"
+                  tabIndex={filter === id ? 0 : -1}
+                  type="button"
+                >
+                  {label}
+                  <span>
+                    {id === "all"
+                      ? items.length
+                      : items.filter((item) => item.kind === id).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <label className="review-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                aria-label="Search review queue"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search decisions and changes"
+                ref={searchRef}
+                type="search"
+                value={query}
+              />
+              {query ? (
+                <button
+                  aria-label="Clear review search"
+                  onClick={() => setQuery("")}
+                  type="button"
+                >
+                  ×
+                </button>
+              ) : (
+                <kbd>
+                  {window.doolittle.platform === "darwin" ? "⌘F" : "Ctrl F"}
+                </kbd>
+              )}
+            </label>
+            <div
+              aria-labelledby={`review-filter-${filter}`}
+              className="review-list"
+              id="review-filter-panel"
+              role="tabpanel"
+            >
+              {visibleItems.length === 0 ? (
+                <EmptyBlock title="No matching work">
+                  Completed agent work will appear here as it happens.
                 </EmptyBlock>
               ) : (
-                <>
-                  <header className="review-detail-header">
-                    <div>
-                      <span>
-                        {selected.kind === "approvals"
-                          ? "decision required"
-                          : selected.kind === "ci"
-                            ? "verification"
-                            : selected.kind === "changes"
-                              ? "file changed"
-                              : "agent work event"}
-                      </span>
-                      <h2>{selected.title}</h2>
-                      <p>{selected.description}</p>
-                    </div>
-                    <Badge tone={statusTone(selected.status)}>
-                      {selected.status}
-                    </Badge>
-                  </header>
-
-                  {selected.kind === "approvals" ? (
-                    <div className="review-decision">
-                      <div className="review-command">
-                        <span>Requested command</span>
-                        <code>{asString(selected.raw.command)}</code>
-                      </div>
-                      <dl className="review-facts">
-                        <div>
-                          <dt>Reason</dt>
-                          <dd>
-                            {asString(selected.raw.reason, "Not provided")}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Scope</dt>
-                          <dd>
-                            {asString(selected.raw.platform, "desktop")} ·{" "}
-                            {asString(selected.raw.sessionKey, "local session")}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Requested</dt>
-                          <dd>
-                            {displayTimestamp(asString(selected.raw.createdAt))}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Expires</dt>
-                          <dd>
-                            {displayTimestamp(asString(selected.raw.expiresAt))}
-                          </dd>
-                        </div>
-                      </dl>
-                      {selected.status === "pending" ? (
-                        <div className="review-actions">
-                          <button
-                            className="primary-button"
-                            disabled={Boolean(busy)}
-                            onClick={() => void decideApproval("approve")}
-                            type="button"
-                          >
-                            {busy === "approve" ? "Approving…" : "Approve"}
-                          </button>
-                          <button
-                            className="danger-button"
-                            disabled={Boolean(busy)}
-                            onClick={() => void decideApproval("deny")}
-                            type="button"
-                          >
-                            {busy === "deny" ? "Denying…" : "Deny"}
-                          </button>
-                          <small>
-                            Approval records permission only. It does not
-                            execute a command from this screen.
-                          </small>
-                        </div>
+                visibleItems.map((item) => (
+                  <button
+                    aria-current={selected?.id === item.id}
+                    className={selected?.id === item.id ? "selected" : ""}
+                    key={item.id}
+                    onClick={() => setSelectedId(item.id)}
+                    type="button"
+                  >
+                    <span
+                      className={`review-kind-mark ${item.kind} ${
+                        item.kind === "ci" ? statusTone(item.status) : ""
+                      }`.trim()}
+                    >
+                      {item.kind === "approvals"
+                        ? "!"
+                        : item.kind === "ci"
+                          ? "✓"
+                          : item.kind === "changes"
+                            ? "±"
+                            : "↗"}
+                    </span>
+                    <span className="review-list-copy">
+                      <strong>{item.title}</strong>
+                      <small>{item.description}</small>
+                      {item.timestamp ? (
+                        <time dateTime={item.timestamp}>
+                          {displayTimestamp(item.timestamp)}
+                        </time>
                       ) : null}
-                    </div>
-                  ) : null}
+                    </span>
+                    <Badge tone={statusTone(item.status)}>{item.status}</Badge>
+                  </button>
+                ))
+              )}
+            </div>
+          </aside>
 
-                  {selected.kind === "changes" ? (
-                    <div className="review-patch">
-                      <div className="review-detail-toolbar">
-                        <span>{selected.path}</span>
+          <section className="review-detail">
+            {!selected ? (
+              <EmptyBlock title="Nothing to inspect yet">
+                Finish an agent task to create a reviewable work event.
+              </EmptyBlock>
+            ) : (
+              <>
+                <header className="review-detail-header">
+                  <div>
+                    <span>
+                      {selected.kind === "approvals"
+                        ? "decision required"
+                        : selected.kind === "ci"
+                          ? "verification"
+                          : selected.kind === "changes"
+                            ? "file changed"
+                            : "agent work event"}
+                    </span>
+                    <h2>{selected.title}</h2>
+                    <p>{selected.description}</p>
+                  </div>
+                  <Badge tone={statusTone(selected.status)}>
+                    {selected.status}
+                  </Badge>
+                </header>
+
+                {selected.kind === "approvals" ? (
+                  <div className="review-decision">
+                    <div className="review-command">
+                      <span>Requested command</span>
+                      <code>{asString(selected.raw.command)}</code>
+                    </div>
+                    <dl className="review-facts">
+                      <div>
+                        <dt>Reason</dt>
+                        <dd>{asString(selected.raw.reason, "Not provided")}</dd>
+                      </div>
+                      <div>
+                        <dt>Scope</dt>
+                        <dd>
+                          {asString(selected.raw.platform, "desktop")} ·{" "}
+                          {asString(selected.raw.sessionKey, "local session")}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Requested</dt>
+                        <dd>
+                          {displayTimestamp(asString(selected.raw.createdAt))}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Expires</dt>
+                        <dd>
+                          {displayTimestamp(asString(selected.raw.expiresAt))}
+                        </dd>
+                      </div>
+                    </dl>
+                    {selected.status === "pending" ? (
+                      <div className="review-actions">
+                        <button
+                          className="primary-button"
+                          disabled={Boolean(busy)}
+                          onClick={() => void decideApproval("approve")}
+                          type="button"
+                        >
+                          {busy === "approve" ? "Approving…" : "Approve"}
+                        </button>
+                        <button
+                          className="danger-button"
+                          disabled={Boolean(busy)}
+                          onClick={() => void decideApproval("deny")}
+                          type="button"
+                        >
+                          {busy === "deny" ? "Denying…" : "Deny"}
+                        </button>
+                        <small>
+                          Approval records permission only. It does not execute
+                          a command from this screen.
+                        </small>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {selected.kind === "changes" ? (
+                  <div className="review-patch">
+                    <div className="review-detail-toolbar">
+                      <span>{selected.path}</span>
+                      <div>
+                        <button
+                          className="text-button"
+                          onClick={() => {
+                            window.location.hash = "/code";
+                          }}
+                          type="button"
+                        >
+                          Open workspace
+                        </button>
+                        <button
+                          className="primary-button"
+                          disabled={!patch.data?.patch?.patch}
+                          onClick={() =>
+                            onSendToChat({
+                              text: [
+                                `Review and improve the change in ${selected.path}.`,
+                                `<review_context path="${selected.path}">`,
+                                (patch.data?.patch?.patch ?? "").slice(
+                                  0,
+                                  12_000,
+                                ),
+                                "</review_context>",
+                              ].join("\n"),
+                              workspacePath,
+                              projectScope,
+                            })
+                          }
+                          type="button"
+                        >
+                          Ask Doolittle
+                        </button>
+                      </div>
+                    </div>
+                    <section
+                      aria-label={`Review comments for ${selected.path}`}
+                      className="review-feedback"
+                    >
+                      <header>
+                        <span>
+                          Review notes
+                          <small>
+                            {
+                              selectedPathComments.filter(
+                                (comment) => comment.status === "open",
+                              ).length
+                            }{" "}
+                            open on this file
+                          </small>
+                        </span>
                         <div>
                           <button
                             className="text-button"
-                            onClick={() => {
-                              window.location.hash = "/code";
-                            }}
-                            type="button"
-                          >
-                            Open workspace
-                          </button>
-                          <button
-                            className="primary-button"
-                            disabled={!patch.data?.patch?.patch}
                             onClick={() =>
-                              onSendToChat({
-                                text: [
-                                  `Review and improve the change in ${selected.path}.`,
-                                  `<review_context path="${selected.path}">`,
-                                  (patch.data?.patch?.patch ?? "").slice(
-                                    0,
-                                    12_000,
-                                  ),
-                                  "</review_context>",
-                                ].join("\n"),
-                                workspacePath,
-                                projectScope,
-                              })
+                              startComment(selected.path ?? "changed file")
                             }
                             type="button"
                           >
-                            Ask Doolittle
+                            + File note
+                          </button>
+                          <button
+                            className="primary-button"
+                            disabled={openCommentCount === 0}
+                            onClick={() => void sendReviewFeedback()}
+                            type="button"
+                          >
+                            {openCommentCount > 0
+                              ? `Send ${openCommentCount} to chat`
+                              : "Send to chat"}
                           </button>
                         </div>
-                      </div>
-                      <section
-                        aria-label={`Review comments for ${selected.path}`}
-                        className="review-feedback"
-                      >
-                        <header>
-                          <span>
-                            Review notes
-                            <small>
-                              {
-                                selectedPathComments.filter(
-                                  (comment) => comment.status === "open",
-                                ).length
-                              }{" "}
-                              open on this file
-                            </small>
-                          </span>
+                      </header>
+
+                      {selectedPathComments.length > 0 ? (
+                        <ol className="review-comment-list">
+                          {selectedPathComments.map((comment) => (
+                            <li
+                              className={
+                                comment.status === "resolved" ? "resolved" : ""
+                              }
+                              key={comment.id}
+                            >
+                              <div className="review-comment-location">
+                                <span>
+                                  {comment.anchor
+                                    ? `${comment.anchor.side === "new" ? "+" : "−"} line ${comment.anchor.line}`
+                                    : "Whole file"}
+                                </span>
+                                <Badge
+                                  tone={
+                                    comment.status === "open"
+                                      ? "warn"
+                                      : "neutral"
+                                  }
+                                >
+                                  {comment.status}
+                                </Badge>
+                              </div>
+                              {comment.anchor?.preview ? (
+                                <code>{comment.anchor.preview}</code>
+                              ) : null}
+                              <p>{comment.body}</p>
+                              <div className="review-comment-actions">
+                                <button
+                                  onClick={() =>
+                                    void toggleCommentResolved(comment.id)
+                                  }
+                                  type="button"
+                                >
+                                  {comment.status === "open"
+                                    ? "Resolve"
+                                    : "Reopen"}
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    startComment(
+                                      comment.path,
+                                      comment.anchor,
+                                      comment,
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  aria-label={`Delete review note for ${comment.path}`}
+                                  className="danger"
+                                  onClick={() => void deleteComment(comment.id)}
+                                  type="button"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="review-feedback-empty">
+                          Add a file note or use the <strong>+</strong> control
+                          beside a diff line. Drafts stay local to this
+                          workspace and revision.
+                        </p>
+                      )}
+
+                      {activeCommentTarget ? (
+                        <div className="review-comment-editor">
+                          <label htmlFor="review-comment-draft">
+                            {editingCommentId
+                              ? "Edit review note"
+                              : activeCommentTarget.anchor
+                                ? `Comment on ${activeCommentTarget.anchor.side === "new" ? "+" : "−"} line ${activeCommentTarget.anchor.line}`
+                                : "Comment on this file"}
+                          </label>
+                          {activeCommentTarget.anchor?.preview ? (
+                            <code>{activeCommentTarget.anchor.preview}</code>
+                          ) : null}
+                          <textarea
+                            id="review-comment-draft"
+                            maxLength={2_000}
+                            onChange={(event) =>
+                              setCommentDraft(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (
+                                (event.metaKey || event.ctrlKey) &&
+                                event.key === "Enter"
+                              ) {
+                                event.preventDefault();
+                                void saveComment();
+                              } else if (event.key === "Escape") {
+                                cancelComment();
+                              }
+                            }}
+                            placeholder="Describe the change you want the agent to make…"
+                            ref={commentEditorRef}
+                            rows={3}
+                            value={commentDraft}
+                          />
                           <div>
+                            <small>
+                              {commentDraft.length.toLocaleString()} / 2,000 ·{" "}
+                              {window.doolittle.platform === "darwin"
+                                ? "⌘ Enter"
+                                : "Ctrl Enter"}{" "}
+                              to save
+                            </small>
                             <button
                               className="text-button"
-                              onClick={() =>
-                                startComment(selected.path ?? "changed file")
-                              }
+                              onClick={cancelComment}
                               type="button"
                             >
-                              + File note
+                              Cancel
                             </button>
                             <button
                               className="primary-button"
-                              disabled={openCommentCount === 0}
-                              onClick={() => void sendReviewFeedback()}
+                              disabled={!commentDraft.trim()}
+                              onClick={() => void saveComment()}
                               type="button"
                             >
-                              {openCommentCount > 0
-                                ? `Send ${openCommentCount} to chat`
-                                : "Send to chat"}
+                              {editingCommentId ? "Save changes" : "Save note"}
                             </button>
                           </div>
-                        </header>
-
-                        {selectedPathComments.length > 0 ? (
-                          <ol className="review-comment-list">
-                            {selectedPathComments.map((comment) => (
-                              <li
-                                className={
-                                  comment.status === "resolved"
-                                    ? "resolved"
-                                    : ""
-                                }
-                                key={comment.id}
+                        </div>
+                      ) : null}
+                    </section>
+                    {patch.loading ? (
+                      <LoadingBlock label="Preparing patch…" />
+                    ) : patch.error ? (
+                      <ErrorBlock error={patch.error} retry={patch.reload} />
+                    ) : patch.data?.patch?.patch ? (
+                      <pre>
+                        <code>
+                          {parseReviewPatchLines(patch.data.patch.patch).map(
+                            (line) => (
+                              <span
+                                className={`review-patch-line ${line.kind}`}
+                                key={line.key}
                               >
-                                <div className="review-comment-location">
-                                  <span>
-                                    {comment.anchor
-                                      ? `${comment.anchor.side === "new" ? "+" : "−"} line ${comment.anchor.line}`
-                                      : "Whole file"}
-                                  </span>
-                                  <Badge
-                                    tone={
-                                      comment.status === "open"
-                                        ? "warn"
-                                        : "neutral"
-                                    }
-                                  >
-                                    {comment.status}
-                                  </Badge>
-                                </div>
-                                {comment.anchor?.preview ? (
-                                  <code>{comment.anchor.preview}</code>
-                                ) : null}
-                                <p>{comment.body}</p>
-                                <div className="review-comment-actions">
+                                {line.anchor ? (
                                   <button
-                                    onClick={() =>
-                                      void toggleCommentResolved(comment.id)
+                                    aria-label={`Add review note on ${line.anchor.side === "new" ? "new" : "old"} line ${line.anchor.line}`}
+                                    className={
+                                      selectedPathComments.some(
+                                        (comment) =>
+                                          comment.anchor?.side ===
+                                            line.anchor?.side &&
+                                          comment.anchor?.line ===
+                                            line.anchor?.line,
+                                      )
+                                        ? "has-comment"
+                                        : ""
                                     }
-                                    type="button"
-                                  >
-                                    {comment.status === "open"
-                                      ? "Resolve"
-                                      : "Reopen"}
-                                  </button>
-                                  <button
                                     onClick={() =>
                                       startComment(
-                                        comment.path,
-                                        comment.anchor,
-                                        comment,
+                                        selected.path ?? "changed file",
+                                        line.anchor,
                                       )
                                     }
+                                    title={`Comment on ${line.anchor.side === "new" ? "+" : "−"} line ${line.anchor.line}`}
                                     type="button"
                                   >
-                                    Edit
+                                    +
                                   </button>
-                                  <button
-                                    aria-label={`Delete review note for ${comment.path}`}
-                                    className="danger"
-                                    onClick={() =>
-                                      void deleteComment(comment.id)
-                                    }
-                                    type="button"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </li>
-                            ))}
-                          </ol>
-                        ) : (
-                          <p className="review-feedback-empty">
-                            Add a file note or use the <strong>+</strong>{" "}
-                            control beside a diff line. Drafts stay local to
-                            this workspace and revision.
-                          </p>
-                        )}
+                                ) : (
+                                  <i
+                                    aria-hidden="true"
+                                    className="review-patch-gutter"
+                                  />
+                                )}
+                                {line.line || " "}
+                              </span>
+                            ),
+                          )}
+                        </code>
+                      </pre>
+                    ) : (
+                      <EmptyBlock title="No textual patch">
+                        This may be a new, binary, or metadata-only file.
+                      </EmptyBlock>
+                    )}
+                  </div>
+                ) : null}
 
-                        {activeCommentTarget ? (
-                          <div className="review-comment-editor">
-                            <label htmlFor="review-comment-draft">
-                              {editingCommentId
-                                ? "Edit review note"
-                                : activeCommentTarget.anchor
-                                  ? `Comment on ${activeCommentTarget.anchor.side === "new" ? "+" : "−"} line ${activeCommentTarget.anchor.line}`
-                                  : "Comment on this file"}
-                            </label>
-                            {activeCommentTarget.anchor?.preview ? (
-                              <code>{activeCommentTarget.anchor.preview}</code>
-                            ) : null}
-                            <textarea
-                              id="review-comment-draft"
-                              maxLength={2_000}
-                              onChange={(event) =>
-                                setCommentDraft(event.target.value)
-                              }
-                              onKeyDown={(event) => {
-                                if (
-                                  (event.metaKey || event.ctrlKey) &&
-                                  event.key === "Enter"
-                                ) {
-                                  event.preventDefault();
-                                  void saveComment();
-                                } else if (event.key === "Escape") {
-                                  cancelComment();
-                                }
-                              }}
-                              placeholder="Describe the change you want the agent to make…"
-                              ref={commentEditorRef}
-                              rows={3}
-                              value={commentDraft}
-                            />
-                            <div>
-                              <small>
-                                {commentDraft.length.toLocaleString()} / 2,000 ·{" "}
-                                {window.doolittle.platform === "darwin"
-                                  ? "⌘ Enter"
-                                  : "Ctrl Enter"}{" "}
-                                to save
-                              </small>
-                              <button
-                                className="text-button"
-                                onClick={cancelComment}
-                                type="button"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                className="primary-button"
-                                disabled={!commentDraft.trim()}
-                                onClick={() => void saveComment()}
-                                type="button"
-                              >
-                                {editingCommentId
-                                  ? "Save changes"
-                                  : "Save note"}
-                              </button>
-                            </div>
+                {selected.kind === "ci" ? (
+                  <div className="review-ci-detail">
+                    {asString(selected.raw.category) === "pull-request" ? (
+                      <>
+                        <div className="review-ci-hero">
+                          <div>
+                            <span>Pull request</span>
+                            <strong>
+                              {asString(selected.raw.headRefName, "branch")} →{" "}
+                              {asString(selected.raw.baseRefName, "base")}
+                            </strong>
                           </div>
-                        ) : null}
-                      </section>
-                      {patch.loading ? (
-                        <LoadingBlock label="Preparing patch…" />
-                      ) : patch.error ? (
-                        <ErrorBlock error={patch.error} retry={patch.reload} />
-                      ) : patch.data?.patch?.patch ? (
-                        <pre>
-                          <code>
-                            {parseReviewPatchLines(patch.data.patch.patch).map(
-                              (line) => (
-                                <span
-                                  className={`review-patch-line ${line.kind}`}
-                                  key={line.key}
-                                >
-                                  {line.anchor ? (
-                                    <button
-                                      aria-label={`Add review note on ${line.anchor.side === "new" ? "new" : "old"} line ${line.anchor.line}`}
-                                      className={
-                                        selectedPathComments.some(
-                                          (comment) =>
-                                            comment.anchor?.side ===
-                                              line.anchor?.side &&
-                                            comment.anchor?.line ===
-                                              line.anchor?.line,
-                                        )
-                                          ? "has-comment"
-                                          : ""
-                                      }
-                                      onClick={() =>
-                                        startComment(
-                                          selected.path ?? "changed file",
-                                          line.anchor,
-                                        )
-                                      }
-                                      title={`Comment on ${line.anchor.side === "new" ? "+" : "−"} line ${line.anchor.line}`}
-                                      type="button"
-                                    >
-                                      +
-                                    </button>
-                                  ) : (
+                          <a
+                            href={asString(selected.raw.url)}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            Open on GitHub ↗
+                          </a>
+                        </div>
+                        <dl className="review-facts">
+                          <div>
+                            <dt>Review</dt>
+                            <dd>
+                              {asString(
+                                selected.raw.reviewDecision,
+                                "No decision",
+                              )
+                                .toLowerCase()
+                                .replaceAll("_", " ")}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Merge state</dt>
+                            <dd>
+                              {asString(
+                                selected.raw.mergeStateStatus,
+                                "unknown",
+                              ).toLowerCase()}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Changes</dt>
+                            <dd>
+                              <span className="review-additions">
+                                +{asNumber(selected.raw.additions)}
+                              </span>{" "}
+                              <span className="review-deletions">
+                                −{asNumber(selected.raw.deletions)}
+                              </span>{" "}
+                              across {asNumber(selected.raw.changedFiles)} files
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Conversation</dt>
+                            <dd>
+                              {asNumber(selected.raw.comments)} comments ·{" "}
+                              {asNumber(selected.raw.reviews)} reviews
+                            </dd>
+                          </div>
+                        </dl>
+                        <div className="review-ci-checks">
+                          <div>
+                            <span>Checks</span>
+                            <small>{review?.checks.length ?? 0}</small>
+                          </div>
+                          {(review?.checks ?? []).length > 0 ? (
+                            <ul>
+                              {(review?.checks ?? []).map((check) => {
+                                const checkStatus = checkDisplayStatus(check);
+                                return (
+                                  <li
+                                    key={[
+                                      check.name,
+                                      check.workflow,
+                                      check.url,
+                                      check.startedAt,
+                                      check.completedAt,
+                                    ].join(":")}
+                                  >
                                     <i
+                                      className={statusTone(checkStatus)}
                                       aria-hidden="true"
-                                      className="review-patch-gutter"
                                     />
-                                  )}
-                                  {line.line || " "}
-                                </span>
-                              ),
-                            )}
-                          </code>
-                        </pre>
-                      ) : (
-                        <EmptyBlock title="No textual patch">
-                          This may be a new, binary, or metadata-only file.
-                        </EmptyBlock>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {selected.kind === "ci" ? (
-                    <div className="review-ci-detail">
-                      {asString(selected.raw.category) === "pull-request" ? (
-                        <>
-                          <div className="review-ci-hero">
-                            <div>
-                              <span>Pull request</span>
-                              <strong>
-                                {asString(selected.raw.headRefName, "branch")} →{" "}
-                                {asString(selected.raw.baseRefName, "base")}
-                              </strong>
-                            </div>
+                                    <span>
+                                      <strong>{check.name}</strong>
+                                      <small>
+                                        {check.workflow ?? "Pull request check"}
+                                      </small>
+                                    </span>
+                                    <Badge tone={statusTone(checkStatus)}>
+                                      {checkStatus}
+                                    </Badge>
+                                    {check.url ? (
+                                      <a
+                                        aria-label={`Open ${check.name} on GitHub`}
+                                        href={check.url}
+                                        rel="noreferrer"
+                                        target="_blank"
+                                      >
+                                        ↗
+                                      </a>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <EmptyBlock title="No checks reported">
+                              GitHub has not reported checks for this pull
+                              request.
+                            </EmptyBlock>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="review-ci-hero">
+                          <div>
+                            <span>
+                              {asString(selected.raw.category) === "check"
+                                ? "Check"
+                                : "Workflow run"}
+                            </span>
+                            <strong>{selected.title}</strong>
+                          </div>
+                          {asString(selected.raw.url) ? (
                             <a
                               href={asString(selected.raw.url)}
                               rel="noreferrer"
@@ -1510,227 +1614,106 @@ export function ReviewPage({
                             >
                               Open on GitHub ↗
                             </a>
+                          ) : null}
+                        </div>
+                        <dl className="review-facts">
+                          <div>
+                            <dt>Status</dt>
+                            <dd>{selected.status}</dd>
                           </div>
-                          <dl className="review-facts">
-                            <div>
-                              <dt>Review</dt>
-                              <dd>
-                                {asString(
-                                  selected.raw.reviewDecision,
-                                  "No decision",
-                                )
-                                  .toLowerCase()
-                                  .replaceAll("_", " ")}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Merge state</dt>
-                              <dd>
-                                {asString(
-                                  selected.raw.mergeStateStatus,
-                                  "unknown",
-                                ).toLowerCase()}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Changes</dt>
-                              <dd>
-                                <span className="review-additions">
-                                  +{asNumber(selected.raw.additions)}
-                                </span>{" "}
-                                <span className="review-deletions">
-                                  −{asNumber(selected.raw.deletions)}
-                                </span>{" "}
-                                across {asNumber(selected.raw.changedFiles)}{" "}
-                                files
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Conversation</dt>
-                              <dd>
-                                {asNumber(selected.raw.comments)} comments ·{" "}
-                                {asNumber(selected.raw.reviews)} reviews
-                              </dd>
-                            </div>
-                          </dl>
-                          <div className="review-ci-checks">
-                            <div>
-                              <span>Checks</span>
-                              <small>{review?.checks.length ?? 0}</small>
-                            </div>
-                            {(review?.checks ?? []).length > 0 ? (
-                              <ul>
-                                {(review?.checks ?? []).map((check) => {
-                                  const checkStatus = checkDisplayStatus(check);
-                                  return (
-                                    <li
-                                      key={[
-                                        check.name,
-                                        check.workflow,
-                                        check.url,
-                                        check.startedAt,
-                                        check.completedAt,
-                                      ].join(":")}
-                                    >
-                                      <i
-                                        className={statusTone(checkStatus)}
-                                        aria-hidden="true"
-                                      />
-                                      <span>
-                                        <strong>{check.name}</strong>
-                                        <small>
-                                          {check.workflow ??
-                                            "Pull request check"}
-                                        </small>
-                                      </span>
-                                      <Badge tone={statusTone(checkStatus)}>
-                                        {checkStatus}
-                                      </Badge>
-                                      {check.url ? (
-                                        <a
-                                          aria-label={`Open ${check.name} on GitHub`}
-                                          href={check.url}
-                                          rel="noreferrer"
-                                          target="_blank"
-                                        >
-                                          ↗
-                                        </a>
-                                      ) : null}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            ) : (
-                              <EmptyBlock title="No checks reported">
-                                GitHub has not reported checks for this pull
-                                request.
-                              </EmptyBlock>
-                            )}
+                          <div>
+                            <dt>Workflow</dt>
+                            <dd>
+                              {asString(
+                                selected.raw.workflow,
+                                asString(selected.raw.event, "GitHub Actions"),
+                              )}
+                            </dd>
                           </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="review-ci-hero">
-                            <div>
-                              <span>
-                                {asString(selected.raw.category) === "check"
-                                  ? "Check"
-                                  : "Workflow run"}
-                              </span>
-                              <strong>{selected.title}</strong>
-                            </div>
-                            {asString(selected.raw.url) ? (
-                              <a
-                                href={asString(selected.raw.url)}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                Open on GitHub ↗
-                              </a>
-                            ) : null}
+                          <div>
+                            <dt>Branch</dt>
+                            <dd>
+                              {asString(
+                                selected.raw.headBranch,
+                                review?.branch ?? "current branch",
+                              )}
+                            </dd>
                           </div>
-                          <dl className="review-facts">
-                            <div>
-                              <dt>Status</dt>
-                              <dd>{selected.status}</dd>
-                            </div>
-                            <div>
-                              <dt>Workflow</dt>
-                              <dd>
-                                {asString(
-                                  selected.raw.workflow,
+                          <div>
+                            <dt>Updated</dt>
+                            <dd>
+                              {displayTimestamp(
+                                asString(
+                                  selected.raw.completedAt,
                                   asString(
-                                    selected.raw.event,
-                                    "GitHub Actions",
+                                    selected.raw.updatedAt,
+                                    asString(selected.raw.startedAt),
                                   ),
-                                )}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Branch</dt>
-                              <dd>
-                                {asString(
-                                  selected.raw.headBranch,
-                                  review?.branch ?? "current branch",
-                                )}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Updated</dt>
-                              <dd>
-                                {displayTimestamp(
-                                  asString(
-                                    selected.raw.completedAt,
-                                    asString(
-                                      selected.raw.updatedAt,
-                                      asString(selected.raw.startedAt),
-                                    ),
-                                  ),
-                                )}
-                              </dd>
-                            </div>
-                          </dl>
-                        </>
-                      )}
-                    </div>
-                  ) : null}
+                                ),
+                              )}
+                            </dd>
+                          </div>
+                        </dl>
+                      </>
+                    )}
+                  </div>
+                ) : null}
 
-                  {selected.kind === "runs" ? (
-                    <div className="review-run">
-                      <dl className="review-facts">
-                        <div>
-                          <dt>Run</dt>
-                          <dd>{asString(selected.raw.id)}</dd>
-                        </div>
-                        <div>
-                          <dt>Workflow</dt>
-                          <dd>
-                            {asString(selected.raw.workflowId, "Standalone")}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Kind</dt>
-                          <dd>{asString(selected.raw.kind, "generation")}</dd>
-                        </div>
-                        <div>
-                          <dt>Artifacts</dt>
-                          <dd>{runArtifacts(selected.raw).length}</dd>
-                        </div>
-                      </dl>
-                      <div className="review-output">
-                        <span>Output preview</span>
-                        <pre>
-                          {asString(
-                            selected.raw.outputPreview,
-                            "No output preview was captured for this run.",
-                          )}
-                        </pre>
+                {selected.kind === "runs" ? (
+                  <div className="review-run">
+                    <dl className="review-facts">
+                      <div>
+                        <dt>Run</dt>
+                        <dd>{asString(selected.raw.id)}</dd>
                       </div>
-                      {runArtifacts(selected.raw).length > 0 ? (
-                        <div className="review-artifacts">
-                          <span>Artifacts</span>
-                          <ArtifactViewer
-                            artifacts={runArtifacts(selected.raw)}
-                            runId={asString(selected.raw.id)}
-                          />
-                        </div>
-                      ) : null}
-                      <button
-                        className="secondary-button"
-                        onClick={() => {
-                          window.location.hash = "/orchestration";
-                        }}
-                        type="button"
-                      >
-                        Open runs
-                      </button>
+                      <div>
+                        <dt>Workflow</dt>
+                        <dd>
+                          {asString(selected.raw.workflowId, "Standalone")}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Kind</dt>
+                        <dd>{asString(selected.raw.kind, "generation")}</dd>
+                      </div>
+                      <div>
+                        <dt>Artifacts</dt>
+                        <dd>{runArtifacts(selected.raw).length}</dd>
+                      </div>
+                    </dl>
+                    <div className="review-output">
+                      <span>Output preview</span>
+                      <pre>
+                        {asString(
+                          selected.raw.outputPreview,
+                          "No output preview was captured for this run.",
+                        )}
+                      </pre>
                     </div>
-                  ) : null}
-                </>
-              )}
-            </section>
-          </div>
-        </>
+                    {runArtifacts(selected.raw).length > 0 ? (
+                      <div className="review-artifacts">
+                        <span>Artifacts</span>
+                        <ArtifactViewer
+                          artifacts={runArtifacts(selected.raw)}
+                          runId={asString(selected.raw.id)}
+                        />
+                      </div>
+                    ) : null}
+                    <button
+                      className="secondary-button"
+                      onClick={() => {
+                        window.location.hash = "/orchestration";
+                      }}
+                      type="button"
+                    >
+                      Open runs
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );
