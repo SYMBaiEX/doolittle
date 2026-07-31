@@ -463,7 +463,12 @@ export function ProjectHistorySidebar({
   };
 
   return (
-    <section aria-labelledby="sidebar-projects" className="sidebar-projects">
+    <section
+      aria-labelledby="sidebar-projects"
+      className={`sidebar-projects ${
+        isChatView ? "" : "sidebar-projects--workspace"
+      }`}
+    >
       <div className="sidebar-projects__heading">
         <span id="sidebar-projects">
           Projects
@@ -498,10 +503,14 @@ export function ProjectHistorySidebar({
       >
         <span aria-hidden="true">◷</span>
         <span>
-          <strong>All conversations</strong>
-          <em>Browse recent and pinned chats</em>
+          <strong>{isChatView ? "All conversations" : "All projects"}</strong>
+          <em>
+            {isChatView
+              ? "Browse recent and pinned chats"
+              : "Change the active workspace"}
+          </em>
         </span>
-        <small>{sessions.length}</small>
+        <small>{isChatView ? sessions.length : model.projects.length}</small>
       </button>
       <div className="sidebar-projects__list">
         {model.projects.map(({ project, sessions: chats, chatCount }) => {
@@ -550,7 +559,7 @@ export function ProjectHistorySidebar({
                 </button>
                 <small className="project-rail-count">{chatCount}</small>
               </div>
-              {isExpanded ? (
+              {isChatView && isExpanded ? (
                 <div className="project-rail-chats">
                   {renderSessions(chats, project.id, chatCount)}
                 </div>
@@ -613,7 +622,7 @@ export function ProjectHistorySidebar({
                 {model.unscopedChatCount}
               </small>
             </div>
-            {expanded.has("unscoped") ? (
+            {isChatView && expanded.has("unscoped") ? (
               <div className="project-rail-chats">
                 {renderSessions(
                   model.unscopedSessions,

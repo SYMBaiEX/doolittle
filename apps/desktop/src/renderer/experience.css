@@ -14,7 +14,7 @@
   --text-caption: 12px;
   --text-body: 14px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --sidebar-width: 292px;
+  --sidebar-width: 280px;
   --sidebar-compact-width: 68px;
   --shell-shadow-md: 0 10px 28px
     color-mix(in srgb, var(--shadow) 12%, transparent);
@@ -116,10 +116,14 @@ textarea {
 
 .sidebar-quick-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px 36px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
   padding: 12px 0 9px;
   -webkit-app-region: no-drag;
+}
+
+.sidebar-quick-actions > .sidebar-new-chat-shell {
+  grid-column: 1 / -1;
 }
 
 .sidebar-quick-actions button {
@@ -136,23 +140,18 @@ textarea {
   text-align: left;
 }
 
-.sidebar-quick-actions > button:not(:first-child) {
-  grid-template-columns: 1fr;
-  min-height: 40px;
-  place-items: center;
-  padding: 0;
-  background: var(--surface-soft);
-  border-color: var(--border);
+.sidebar-quick-actions > button {
+  grid-template-columns: 16px minmax(0, 1fr);
+  min-height: 32px;
+  gap: 7px;
+  padding: 5px 8px;
+  background: transparent;
+  border-color: transparent;
 }
 
-.sidebar-quick-actions > button:not(:first-child) strong,
-.sidebar-quick-actions > button:not(:first-child) kbd {
-  display: none;
-}
-
-.sidebar-quick-actions button:first-child {
+.sidebar-quick-actions > .sidebar-new-chat-shell > button {
   color: var(--text);
-  min-height: 40px;
+  min-height: 38px;
   margin-bottom: 0;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-soft));
   border-color: color-mix(in srgb, var(--accent) 15%, var(--border));
@@ -178,7 +177,14 @@ textarea {
   white-space: nowrap;
 }
 
-.sidebar-quick-actions kbd,
+.sidebar-quick-actions kbd {
+  display: none;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+}
+
 .window-command-button kbd {
   color: var(--faint);
   font-family: var(--font-mono);
@@ -3202,7 +3208,7 @@ button.chat-session-meta-pill:hover {
 
 .sidebar-focus-nav {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 9px 0 8px;
   border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
@@ -3212,12 +3218,13 @@ button.chat-session-meta-pill:hover {
 .sidebar-focus-nav > button {
   position: relative;
   display: grid;
-  grid-template-columns: 15px minmax(0, 1fr);
+  grid-template-columns: 15px auto;
   width: 100%;
   min-height: 35px;
   align-items: center;
   gap: 7px;
-  padding: 7px 8px;
+  justify-content: center;
+  padding: 7px 5px;
   color: var(--muted);
   background: transparent;
   border: 0;

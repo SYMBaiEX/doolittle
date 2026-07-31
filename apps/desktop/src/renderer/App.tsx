@@ -2336,7 +2336,7 @@ export function App() {
             type="button"
           >
             <span aria-hidden="true">⌕</span>
-            <strong>Search and commands</strong>
+            <strong>Search</strong>
             <kbd>
               {window.doolittle.platform === "darwin" ? "⌘K" : "Ctrl K"}
             </kbd>
@@ -2348,7 +2348,7 @@ export function App() {
             type="button"
           >
             <span aria-hidden="true">◇</span>
-            <strong>Choose repository</strong>
+            <strong>Projects</strong>
             <kbd>
               {window.doolittle.platform === "darwin" ? "⌘O" : "Ctrl O"}
             </kbd>
