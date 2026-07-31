@@ -50,6 +50,7 @@ import {
   reviewRecordMatchesIdentity,
   saveReviewComments,
 } from "./review-comments";
+import { reviewWorkState } from "./review-work-state";
 import "./review.css";
 
 type ReviewFilter = "all" | "approvals" | "ci" | "changes" | "runs";
@@ -59,11 +60,11 @@ const REVIEW_FILTERS: ReadonlyArray<{
   id: ReviewFilter;
   label: string;
 }> = [
-  { id: "all", label: "All" },
-  { id: "approvals", label: "Approvals" },
-  { id: "ci", label: "PR/CI" },
-  { id: "changes", label: "Changes" },
-  { id: "runs", label: "Runs" },
+  { id: "all", label: "Activity" },
+  { id: "approvals", label: "Needs you" },
+  { id: "runs", label: "Agent runs" },
+  { id: "changes", label: "Files" },
+  { id: "ci", label: "Checks" },
 ];
 
 interface ReviewItem {
@@ -464,6 +465,14 @@ export function ReviewPage({
     },
     { passing: 0, failing: 0, pending: 0 },
   );
+  const changedFileCount = gitChanges(changes.data).length;
+  const agentRunCount = asArray(runs.data?.runs).length;
+  const workState = reviewWorkState({
+    failingChecks: checkSummary.failing,
+    pendingApprovals: pendingCount,
+    changedFiles: changedFileCount,
+    agentRuns: agentRunCount,
+  });
   const selectedPathComments = useMemo(
     () =>
       selected?.path
@@ -803,19 +812,19 @@ export function ReviewPage({
     >
       <header className="review-header">
         <div>
-          <span className="eyebrow">Human in the loop</span>
-          <h1>Review queue</h1>
+          <span className="eyebrow">Agent work</span>
+          <h1>Review what Doolittle did</h1>
           <p>
-            Decisions, workspace changes, and agent outputs—together, with the
-            evidence needed to act.
+            Inspect the outcome, changed files, verification, and decisions from
+            completed work without reconstructing the agent’s entire chat.
           </p>
         </div>
         <div className="review-header-status">
           <span>
-            <strong>{pendingCount}</strong> awaiting decision
+            <strong>{pendingCount}</strong> needs you
           </span>
           <span>
-            <strong>{items.length}</strong> total
+            <strong>{items.length}</strong> work events
           </span>
           <button
             className="secondary-button"
@@ -828,135 +837,74 @@ export function ReviewPage({
         </div>
       </header>
 
-      {review ? (
-        <section
-          aria-label="Repository pull request and checks"
-          className={`review-repository-ribbon ${review.state}`}
-        >
-          <div className="review-repository-identity">
-            <span className="review-repository-mark" aria-hidden="true">
-              ⑂
-            </span>
-            <span>
-              <strong>
-                {review.repository?.slug ??
-                  (review.local.isRepository
-                    ? "Local Git repository"
-                    : "Workspace")}
-              </strong>
-              <small>
-                {review.local.branch ?? "detached"} ·{" "}
-                {review.local.head ?? "no commit"}
-                {review.local.dirty
-                  ? ` · ${review.local.changedFiles} changed`
-                  : " · clean"}
-              </small>
-            </span>
+      <section
+        aria-label="Current agent work outcome"
+        className={`review-work-overview ${workState.tone}`}
+      >
+        <div className="review-work-outcome">
+          <i aria-hidden="true">{workState.icon}</i>
+          <span>
+            <small>Current workset</small>
+            <strong>{workState.title}</strong>
+            <p>{workState.detail}</p>
+          </span>
+        </div>
+        <dl className="review-work-metrics">
+          <div>
+            <dt>Agent runs</dt>
+            <dd>{agentRunCount}</dd>
           </div>
-          <div className="review-repository-sync">
-            <span>
-              <strong>{review.local.ahead}</strong> ahead
-            </span>
-            <span>
-              <strong>{review.local.behind}</strong> behind
-            </span>
+          <div>
+            <dt>Files changed</dt>
+            <dd>{changedFileCount}</dd>
           </div>
-          <div className="review-repository-pr">
-            {review.pullRequest ? (
-              <>
-                <span>
-                  <strong>PR #{review.pullRequest.number}</strong>
-                  <small>
-                    {review.pullRequest.isDraft
-                      ? "Draft"
-                      : review.pullRequest.reviewDecision
-                          ?.toLowerCase()
-                          .replaceAll("_", " ") || review.pullRequest.state}
-                  </small>
-                </span>
-                <a
-                  href={review.pullRequest.url}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Open PR ↗
-                </a>
-              </>
-            ) : (
-              <span>
-                <strong>PR & CI</strong>
-                <small>
-                  {review.degraded?.detail ??
-                    "No pull request for this branch."}
-                </small>
-              </span>
+          <div>
+            <dt>Checks passed</dt>
+            <dd>{checkSummary.passing}</dd>
+          </div>
+          <div className={openCommentCount ? "warn" : ""}>
+            <dt>Open notes</dt>
+            <dd>{openCommentCount}</dd>
+          </div>
+        </dl>
+        <div className="review-work-revision">
+          <small>Revision</small>
+          <strong>
+            {branchScope?.branch ?? review?.local.branch ?? "workspace"}
+          </strong>
+          <code>
+            {(branchScope?.head ?? review?.local.head ?? "working-tree").slice(
+              0,
+              12,
             )}
-          </div>
-          <div className="review-check-summary">
-            <span className="good">
-              <strong>{checkSummary.passing}</strong> passed
-            </span>
-            <span className={checkSummary.failing ? "bad" : ""}>
-              <strong>{checkSummary.failing}</strong> failed
-            </span>
-            <span className={checkSummary.pending ? "warn" : ""}>
-              <strong>{checkSummary.pending}</strong> pending
-            </span>
-          </div>
-        </section>
-      ) : repositoryReview.error ? (
-        <Notice tone="warn">
-          GitHub review is unavailable. Local changes remain reviewable.
-        </Notice>
-      ) : null}
+          </code>
+        </div>
+      </section>
 
-      <GitHubPullRequestPanel
-        active={active}
-        onRefresh={reload}
-        review={review}
-      />
-
-      <details className="review-git-controls">
+      <details className="review-evidence-drawer">
         <summary>
-          Source control · {gitChanges(changes.data).length} changes
-          {conflicts.data?.conflicts?.length
-            ? ` · ${conflicts.data.conflicts.length} conflicts`
-            : ""}
+          <span>
+            <strong>Repository evidence</strong>
+            <small>
+              {changedFileCount} changed · {checkSummary.passing} passed ·{" "}
+              {checkSummary.failing} failed
+              {review?.pullRequest ? ` · PR #${review.pullRequest.number}` : ""}
+            </small>
+          </span>
+          <i aria-hidden="true">›</i>
         </summary>
-        <GitControlPanel
-          active={active && review?.local.isRepository !== false}
-          branches={gitRecords<RepositoryBranch>(branches.data?.branches)}
-          changes={gitChanges(changes.data)}
-          conflicts={gitRecords<RepositoryConflict>(conflicts.data?.conflicts)}
-          onRefresh={reload}
-          remotes={gitRecords<RepositoryRemote>(remotes.data?.remotes)}
-          stashes={gitRecords<RepositoryStash>(stashes.data?.stashes)}
-          variant="full"
-          worktrees={gitRecords<{
-            path: string;
-            branch?: string;
-            current?: boolean;
-            prunable?: boolean;
-          }>(worktrees.data?.worktrees)}
-        />
-      </details>
-
-      {feedback ? (
-        <Notice tone={feedback.tone}>{feedback.message}</Notice>
-      ) : null}
-      {!blockingError && sourceErrors.length > 0 ? (
-        <Notice tone="warn">
-          {sourceErrors.length} review{" "}
-          {sourceErrors.length === 1 ? "source is" : "sources are"} unavailable.
-          Local evidence and every connected source remain reviewable.
-        </Notice>
-      ) : null}
-      {blockingError ? (
-        <ErrorBlock error={blockingError} retry={reload} />
-      ) : loading && items.length === 0 ? (
-        <LoadingBlock label="Assembling the review queue…" />
-      ) : (
-        <>
+        <div className="review-evidence-body">
+          {repositoryReview.error ? (
+            <Notice tone="warn">
+              GitHub review is unavailable. Local evidence remains reviewable.
+            </Notice>
+          ) : (
+            <GitHubPullRequestPanel
+              active={active}
+              onRefresh={reload}
+              review={review}
+            />
+          )}
           <section aria-label="Branch record" className="review-branch-record">
             <div className="review-branch-record-heading">
               <span className="eyebrow">Branch record</span>
@@ -985,7 +933,7 @@ export function ReviewPage({
                 <strong>{pendingCount}</strong> approvals
               </span>
               <span>
-                <strong>{runs.data?.runs?.length ?? 0}</strong> agent runs
+                <strong>{agentRunCount}</strong> agent runs
               </span>
               <span>
                 <strong>{openCommentCount}</strong> open notes
@@ -1002,15 +950,57 @@ export function ReviewPage({
                 ))
               ) : (
                 <li className="empty">
-                  <span>No branch events yet</span>
-                  <p>
-                    Review actions will be retained for this exact branch and
-                    revision.
-                  </p>
+                  <span>No review events yet</span>
+                  <p>Decisions and feedback will be retained here.</p>
                 </li>
               )}
             </ol>
           </section>
+          <details className="review-git-controls">
+            <summary>
+              Source control · {changedFileCount} changes
+              {conflicts.data?.conflicts?.length
+                ? ` · ${conflicts.data.conflicts.length} conflicts`
+                : ""}
+            </summary>
+            <GitControlPanel
+              active={active && review?.local.isRepository !== false}
+              branches={gitRecords<RepositoryBranch>(branches.data?.branches)}
+              changes={gitChanges(changes.data)}
+              conflicts={gitRecords<RepositoryConflict>(
+                conflicts.data?.conflicts,
+              )}
+              onRefresh={reload}
+              remotes={gitRecords<RepositoryRemote>(remotes.data?.remotes)}
+              stashes={gitRecords<RepositoryStash>(stashes.data?.stashes)}
+              variant="full"
+              worktrees={gitRecords<{
+                path: string;
+                branch?: string;
+                current?: boolean;
+                prunable?: boolean;
+              }>(worktrees.data?.worktrees)}
+            />
+          </details>
+        </div>
+      </details>
+
+      {feedback ? (
+        <Notice tone={feedback.tone}>{feedback.message}</Notice>
+      ) : null}
+      {!blockingError && sourceErrors.length > 0 ? (
+        <Notice tone="warn">
+          {sourceErrors.length} review{" "}
+          {sourceErrors.length === 1 ? "source is" : "sources are"} unavailable.
+          Local evidence and every connected source remain reviewable.
+        </Notice>
+      ) : null}
+      {blockingError ? (
+        <ErrorBlock error={blockingError} retry={reload} />
+      ) : loading && items.length === 0 ? (
+        <LoadingBlock label="Assembling completed work…" />
+      ) : (
+        <>
           <div className="review-workspace">
             <aside className="review-rail">
               <div
@@ -1098,8 +1088,8 @@ export function ReviewPage({
                 role="tabpanel"
               >
                 {visibleItems.length === 0 ? (
-                  <EmptyBlock title="Nothing to review">
-                    This queue is clear for the selected category.
+                  <EmptyBlock title="No matching work">
+                    Completed agent work will appear here as it happens.
                   </EmptyBlock>
                 ) : (
                   visibleItems.map((item) => (
@@ -1126,6 +1116,11 @@ export function ReviewPage({
                       <span className="review-list-copy">
                         <strong>{item.title}</strong>
                         <small>{item.description}</small>
+                        {item.timestamp ? (
+                          <time dateTime={item.timestamp}>
+                            {displayTimestamp(item.timestamp)}
+                          </time>
+                        ) : null}
                       </span>
                       <Badge tone={statusTone(item.status)}>
                         {item.status}
@@ -1138,17 +1133,21 @@ export function ReviewPage({
 
             <section className="review-detail">
               {!selected ? (
-                <EmptyBlock title="Queue clear">
-                  Agent decisions and outputs will appear here.
+                <EmptyBlock title="Nothing to inspect yet">
+                  Finish an agent task to create a reviewable work event.
                 </EmptyBlock>
               ) : (
                 <>
                   <header className="review-detail-header">
                     <div>
                       <span>
-                        {selected.kind === "ci"
-                          ? "pull request / ci"
-                          : selected.kind.slice(0, -1)}
+                        {selected.kind === "approvals"
+                          ? "decision required"
+                          : selected.kind === "ci"
+                            ? "verification"
+                            : selected.kind === "changes"
+                              ? "file changed"
+                              : "agent work event"}
                       </span>
                       <h2>{selected.title}</h2>
                       <p>{selected.description}</p>
