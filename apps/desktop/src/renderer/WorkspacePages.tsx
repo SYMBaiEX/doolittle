@@ -356,7 +356,10 @@ export function SessionsPage({
               ) : null}
             </div>
           ) : null}
-          <div className="list-scroll">
+          <section
+            aria-label="Conversations"
+            className="list-scroll session-list-scroll"
+          >
             {filtered.map((session) => (
               <button
                 className={`row-card ${
@@ -385,7 +388,7 @@ export function SessionsPage({
                 Try another search, or begin a conversation from Chat.
               </EmptyBlock>
             ) : null}
-          </div>
+          </section>
         </section>
         <section className="detail-panel">
           {!selected ? (
