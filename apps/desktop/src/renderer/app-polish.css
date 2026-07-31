@@ -1306,3 +1306,829 @@ th {
     animation: none;
   }
 }
+
+/*
+ * Whole-application workstation pass
+ *
+ * Secondary routes are operator consoles, not marketing pages. Keep their
+ * chrome compact, let the useful records own the viewport, and reserve cards
+ * for objects that are genuinely independent.
+ */
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  ) {
+  overflow: hidden;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  > .page {
+  width: 100%;
+  max-width: 1380px;
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+  padding: 16px clamp(18px, 2.4vw, 34px) 24px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .page-header {
+  min-height: 62px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 0 12px;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .page-header::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0 30px,
+    var(--line-subtle) 30px 100%
+  );
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .page-header
+  h1 {
+  margin: 3px 0 2px;
+  font-size: clamp(21px, 1.8vw, 27px);
+  font-weight: 670;
+  letter-spacing: -0.03em;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .page-header
+  p {
+  max-width: 760px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .eyebrow {
+  font-size: 8px;
+  letter-spacing: 0.13em;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .eyebrow::before {
+  width: 7px;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  :is(.primary-button, .secondary-button, .danger-button) {
+  min-height: 30px;
+  padding: 6px 9px;
+  letter-spacing: 0.055em;
+}
+
+/* Summary numbers behave like one instrument strip instead of hero cards. */
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+.metric-grid {
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--line-subtle);
+  border-radius: 4px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .metric-card {
+  min-height: 68px;
+  padding: 10px 13px;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--line-subtle);
+  border-radius: 0;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .metric-card:last-child {
+  border-right: 0;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .metric-card::before {
+  display: none;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .metric-card
+  > span {
+  font-size: 8px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .metric-card
+  strong {
+  margin: 4px 0 0;
+  font-size: 21px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .metric-card
+  small {
+  font-size: 9px;
+}
+
+/* Shared records and forms */
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+.content-card {
+  padding: 13px 14px;
+  background: var(--surface);
+  border-color: var(--line-subtle);
+  border-radius: 4px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .card-heading {
+  min-height: 29px;
+  margin-bottom: 9px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  :is(.card-heading, .settings-group-heading, .detail-toolbar)
+  h2 {
+  margin-top: 2px;
+  font-size: 14px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .content-card
+  > p {
+  margin-bottom: 11px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .status-row {
+  min-height: 40px;
+  gap: 10px;
+  padding: 8px 1px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .status-row
+  strong {
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .status-row
+  small {
+  font-size: 9px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .row-card {
+  min-height: 44px;
+  padding: 8px 9px;
+  border-radius: 2px;
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .row-card.selected {
+  border-color: transparent;
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  .badge {
+  min-height: 18px;
+  padding: 2px 5px;
+  font-size: 8px;
+}
+
+.field-grid {
+  gap: 11px 12px;
+}
+
+.field-grid label,
+.inline-form label {
+  gap: 4px;
+}
+
+.field-grid label > span {
+  font-size: 9px;
+}
+
+.form-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.filter-bar {
+  gap: 6px;
+}
+
+.filter-bar :is(input, select),
+.setting-control :is(input, select) {
+  min-height: 30px;
+}
+
+.notice {
+  min-height: 34px;
+  padding: 7px 10px 7px 13px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.empty-block,
+.loading-block {
+  min-height: 116px;
+  padding: 18px;
+}
+
+.empty-glyph {
+  width: 27px;
+  height: 27px;
+  border-radius: 3px;
+  font-size: 14px;
+}
+
+.empty-block h3 {
+  margin: 7px 0 3px;
+  font-size: 14px;
+}
+
+.empty-block p,
+.loading-block {
+  font-size: 10px;
+}
+
+.raw-data-disclosure > summary {
+  min-height: 34px;
+  padding: 7px 9px;
+  font-size: 10px;
+}
+
+/* Bounded master/detail workspaces for sessions, logs, and registries. */
+.split-workspace {
+  flex: 1 1 520px;
+  min-height: 420px;
+  border-radius: 4px;
+}
+
+.list-panel {
+  padding: 9px;
+}
+
+.detail-panel {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.list-scroll {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.table-wrap {
+  max-height: min(58vh, 620px);
+  overflow: auto;
+  border-radius: 3px;
+}
+
+/* Settings is a real two-pane preferences window. */
+.view-settings > .page-settings {
+  max-width: 1480px;
+}
+
+.page-settings .settings-layout {
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 208px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.page-settings .settings-nav {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100%;
+  padding: 4px;
+  overflow: auto;
+  background: var(--surface);
+  border-radius: 4px;
+  scrollbar-gutter: stable;
+}
+
+.page-settings .settings-nav-title {
+  min-height: 32px;
+  padding: 6px 7px;
+}
+
+.page-settings .settings-nav > button {
+  min-height: 39px;
+  padding: 6px 7px;
+  border-radius: 2px;
+}
+
+.page-settings .settings-nav > button strong {
+  font-size: 10px;
+}
+
+.page-settings .settings-nav > button small,
+.page-settings .settings-nav-note p {
+  font-size: 8px;
+}
+
+.page-settings .settings-nav-note {
+  margin: 5px 3px 2px;
+  padding: 8px 5px 3px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.page-settings .settings-content {
+  min-height: 0;
+  gap: 9px;
+}
+
+.page-settings :is(.settings-content-header, .settings-section-header) {
+  min-height: 48px;
+  padding-bottom: 9px;
+}
+
+.page-settings :is(.settings-content-header, .settings-section-header) h2 {
+  font-size: 17px;
+}
+
+.page-settings :is(.settings-content-header, .settings-section-header) p {
+  font-size: 10px;
+}
+
+.page-settings .settings-group {
+  gap: 8px;
+  padding: 12px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line-subtle);
+  border-radius: 4px;
+}
+
+.page-settings .setting-row {
+  min-height: 54px;
+  padding: 8px 0;
+}
+
+.page-settings .setting-copy {
+  gap: 2px;
+}
+
+.page-settings .setting-copy strong {
+  font-size: 10px;
+}
+
+.page-settings .setting-copy small,
+.page-settings .setting-copy code {
+  font-size: 8px;
+}
+
+.page-settings .settings-inline-choice {
+  margin-top: 6px;
+  padding: 9px 10px;
+  border-radius: 3px;
+}
+
+/* Catalog routes stay scannable without becoming a wall of tiles. */
+.view-models :is(.two-column-grid, .card-grid),
+.view-connections .card-grid,
+.view-tools .card-grid,
+.view-skills .card-grid,
+.view-plugins .card-grid,
+.view-profiles .card-grid {
+  gap: 8px;
+}
+
+.view-models :is(.provider-card, .catalog-card, .profile-card),
+.view-connections :is(.provider-card, .catalog-card, .profile-card),
+.view-tools :is(.provider-card, .catalog-card, .profile-card),
+.view-skills :is(.provider-card, .catalog-card, .profile-card),
+.view-plugins :is(.provider-card, .catalog-card, .profile-card),
+.view-profiles :is(.provider-card, .catalog-card, .profile-card) {
+  min-height: 0;
+}
+
+.provider-auth-state {
+  margin: 1px 0 9px;
+  padding: 7px 8px;
+  border-radius: 3px;
+}
+
+.provider-auth-mark {
+  box-shadow: none;
+}
+
+.view-profiles .profile-card {
+  padding-top: 47px;
+}
+
+.profile-avatar {
+  top: 11px;
+  left: 13px;
+  border-radius: 3px;
+}
+
+/* Studio routes use restrained tabs and dense evidence lists. */
+.view-container > .studio-page {
+  max-width: 1380px;
+}
+
+.studio-page :is(.memory-tabs, .media-tabs) {
+  gap: 16px;
+}
+
+.studio-page :is(.memory-tabs, .media-tabs) .text-button {
+  min-height: 34px;
+  padding: 6px 0 8px;
+  font-size: 9px;
+}
+
+.memory-match-list {
+  gap: 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.memory-match-list li {
+  gap: 5px;
+  padding: 9px 2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-subtle);
+  border-radius: 0;
+}
+
+.activity-summary-strip {
+  border-radius: 4px;
+}
+
+.activity-event-list {
+  gap: 0;
+}
+
+.activity-entry-body {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.media-panel,
+.media-tab-panel {
+  min-height: 0;
+}
+
+/* Automation, gateway, dashboard, and browser are first-class workspaces. */
+.view-automations > .automation-page {
+  max-width: 1480px;
+}
+
+.automation-page .automation-workspace {
+  min-height: 0;
+  gap: 8px;
+}
+
+.automation-page :is(.automation-jobs-panel, .automation-runs-panel) {
+  min-height: 0;
+}
+
+.automation-job-card,
+.automation-builder-step,
+.automation-trace-step {
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.view-gateway > .gateway-page {
+  max-width: 1480px;
+}
+
+.gateway-page .gateway-layout {
+  min-height: 0;
+  flex: 1 1 440px;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 310px);
+  gap: 8px;
+}
+
+.gateway-page :is(.gateway-timeline-panel, .gateway-session-panel) {
+  min-height: 0;
+  padding: 12px 13px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.gateway-filters {
+  gap: 7px;
+  padding: 9px 0;
+}
+
+.gateway-entry {
+  gap: 5px;
+  padding: 10px 0;
+}
+
+.view-dashboard .dashboard-hero {
+  gap: 18px;
+  padding: 16px;
+}
+
+.view-dashboard .dashboard-hero h2 {
+  margin: 4px 0 7px;
+  font-size: clamp(23px, 2.3vw, 31px);
+}
+
+.view-dashboard .dashboard-hero p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.view-dashboard .dashboard-inline-metrics {
+  margin-top: 15px;
+}
+
+.view-dashboard .dashboard-side-column > div {
+  min-height: 54px;
+  padding: 12px 3px;
+}
+
+.view-dashboard .dashboard-action-card {
+  padding: 10px 0;
+}
+
+.browser-page {
+  padding: 8px 10px 10px;
+}
+
+.browser-header {
+  min-height: 48px;
+}
+
+.browser-header h1 {
+  font-size: 20px;
+}
+
+.browser-header p {
+  font-size: 10px;
+}
+
+.browser-status,
+.browser-address,
+.browser-workspace {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.browser-status {
+  padding: 4px 6px 4px 8px;
+}
+
+.browser-status > i {
+  box-shadow: none;
+}
+
+.browser-address {
+  min-height: 38px;
+  background: var(--surface);
+  border-color: var(--line-subtle);
+}
+
+.browser-workspace {
+  border-color: var(--line-subtle);
+}
+
+.browser-canvas {
+  background: var(--bg);
+}
+
+.browser-placeholder > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 3px;
+  font-size: 16px;
+}
+
+:root[data-density="compact"] .browser-page {
+  gap: 5px;
+  padding: 6px 8px 8px;
+}
+
+:root[data-density="compact"] .browser-header {
+  min-height: 44px;
+}
+
+:root[data-density="compact"] .browser-address {
+  min-height: 34px;
+}
+
+:root[data-density="compact"]
+  .view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  > .page {
+  gap: 9px;
+  padding-top: 12px;
+  padding-bottom: 18px;
+}
+
+/* The tools drawer is a narrow navigation rail, not a modal microsite. */
+.utility-layer-dismiss {
+  background: color-mix(in srgb, var(--shadow) 34%, transparent);
+  backdrop-filter: none;
+}
+
+.utility-drawer {
+  box-shadow: -8px 0 28px color-mix(in srgb, var(--shadow) 14%, transparent);
+}
+
+.utility-drawer__header {
+  min-height: 52px;
+  padding: 10px 11px 7px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.utility-drawer__header h2 {
+  margin-top: 1px;
+  font-size: 14px;
+}
+
+.utility-drawer__search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.utility-drawer__search label {
+  display: none;
+}
+
+.utility-drawer__search input {
+  height: 30px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.utility-drawer__result-count {
+  right: 21px;
+  bottom: 18px;
+}
+
+.utility-drawer__activity {
+  padding: 7px 10px 0;
+}
+
+.utility-drawer__navigation {
+  gap: 0;
+  padding: 5px 6px 10px;
+}
+
+.utility-drawer__group {
+  gap: 0;
+}
+
+.utility-drawer__group-toggle {
+  min-height: 25px;
+  padding: 5px 6px 3px;
+  border-radius: 2px;
+  font-size: 8px;
+}
+
+.utility-drawer__items {
+  gap: 0;
+}
+
+.utility-drawer__items > button {
+  min-height: 36px;
+  gap: 7px;
+  padding: 5px 6px;
+  border-radius: 2px;
+}
+
+.utility-drawer__item-copy {
+  gap: 0;
+}
+
+.utility-drawer__item-copy strong {
+  font-size: 10px;
+}
+
+.utility-drawer__item-copy small {
+  font-size: 8px;
+}
+
+.utility-drawer__current {
+  font-size: 7px;
+}
+
+@media (max-width: 980px) {
+  .view-container:not(
+      .view-chat,
+      .view-code,
+      .view-review,
+      .view-orchestration,
+      .view-browser
+    )
+    > .page {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .page-settings .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .page-settings .settings-nav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 220px;
+  }
+
+  .gateway-page .gateway-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .gateway-page :is(.gateway-timeline-panel, .gateway-session-panel) {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 700px) {
+  .metric-grid,
+  .gateway-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-card:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .metric-card:nth-child(n + 3) {
+    border-top: 1px solid var(--line-subtle);
+  }
+
+  .two-column-grid,
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-span {
+    grid-column: auto;
+  }
+}
