@@ -1326,3 +1326,232 @@
     flex-direction: column;
   }
 }
+
+/* Consolidated work surface
+   One operational lifecycle: queue → agents → plans → runs → review. */
+
+.page.orchestration-page {
+  background: var(--bg);
+}
+
+.orchestration-header {
+  min-height: 60px;
+  gap: 18px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+  box-shadow: none;
+}
+
+.orchestration-header h1 {
+  margin-top: 1px;
+  font-size: 18px;
+}
+
+.orchestration-header p {
+  margin-top: 2px;
+  font-size: 10px;
+}
+
+.orchestration-header .eyebrow {
+  font-size: 8px;
+}
+
+.orchestration-header-metrics {
+  gap: 4px;
+}
+
+.orchestration-summary-chip {
+  min-width: 0;
+  min-height: 26px;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 5px;
+  box-shadow: none;
+}
+
+.orchestration-summary-chip strong {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.orchestration-summary-chip small {
+  font-size: 8px;
+}
+
+.orchestration-summary-chip.warn,
+.orchestration-summary-chip.good,
+.orchestration-summary-chip.bad {
+  border-color: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.orchestration-refresh {
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
+  font-size: 14px;
+}
+
+.orchestration-nav-row {
+  min-height: 42px;
+  padding: 0 10px;
+  background: var(--surface);
+}
+
+.orchestration-tabs {
+  gap: 0;
+}
+
+.orchestration-tabs > button {
+  min-width: 68px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+.orchestration-tabs > button > span {
+  min-width: 17px;
+  padding: 1px 4px;
+  color: var(--faint);
+  font: 700 8px var(--font-mono);
+  background: var(--surface-soft);
+  border-radius: 4px;
+}
+
+.orchestration-tabs > button.selected::after {
+  right: 10px;
+  left: 10px;
+  height: 2px;
+}
+
+.orchestration-master-detail {
+  grid-template-columns: minmax(280px, 30%) minmax(0, 1fr);
+}
+
+.orchestration-master {
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+}
+
+.orchestration-pane-heading {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 9px;
+  background: transparent;
+}
+
+.orchestration-scroll {
+  padding: 4px;
+}
+
+.orchestration-master-list {
+  gap: 2px;
+}
+
+.orchestration-master-item {
+  gap: 5px;
+  padding: 9px 10px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 5px;
+  box-shadow: none;
+  transition:
+    color 120ms var(--ease-out),
+    background 120ms var(--ease-out);
+}
+
+.orchestration-master-item:hover,
+.orchestration-master-item:focus-visible {
+  transform: none;
+  background: var(--surface-hover);
+}
+
+.orchestration-master-item.selected {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
+  border-color: transparent;
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+.orchestration-master-item.tier-running,
+.orchestration-master-item.tier-queued,
+.orchestration-master-item.tier-approval,
+.orchestration-master-item.tier-completed,
+.orchestration-master-item.tier-failed {
+  border-left-width: 0;
+}
+
+.master-summary {
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.master-chip-row {
+  gap: 4px;
+}
+
+.master-chip-row span {
+  padding: 1px 4px;
+  font-size: 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+}
+
+.orchestration-detail {
+  padding: 15px 18px 20px;
+  background: var(--bg);
+}
+
+.orchestration-detail-header {
+  gap: 14px;
+  padding-bottom: 12px;
+}
+
+.orchestration-detail-header h2 {
+  margin: 3px 0 4px;
+  font-size: clamp(18px, 1.7vw, 23px);
+}
+
+.orchestration-detail-header p {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.detail-kicker {
+  font-size: 8px;
+}
+
+.orchestration-action-deck {
+  gap: 5px;
+  padding: 8px 0;
+}
+
+.orchestration-detail-tags {
+  gap: 4px;
+  padding-top: 9px;
+}
+
+.orchestration-detail-tag {
+  min-height: 23px;
+  padding: 3px 6px;
+  font-size: 8px;
+  background: transparent;
+  border-radius: 4px;
+}
+
+.orchestration-health-strip {
+  gap: 5px;
+  padding: 6px 8px;
+}
+
+@media (width <= 900px) {
+  .orchestration-nav-row {
+    padding: 0 8px 6px;
+  }
+
+  .orchestration-tabs {
+    min-height: 38px;
+  }
+}
