@@ -1574,3 +1574,162 @@
 .coding-grid.utility-hidden .coding-editor {
   border-right: 0;
 }
+
+/* Code is a workstation, not a stack of dashboard cards. The editor owns the
+   visual center; explorer and utility panes recede into ruled surfaces. */
+.page.coding-workspace-page {
+  gap: 6px;
+  padding: 7px 9px 9px;
+}
+
+.coding-repo-header {
+  min-height: 44px;
+  gap: 12px;
+  padding: 0 1px 5px;
+}
+
+.coding-repo-mark {
+  width: 27px;
+  height: 27px;
+  border-radius: 4px;
+  box-shadow: none;
+  font-size: 10px;
+}
+
+.coding-repo-identity {
+  gap: 9px;
+}
+
+.coding-repo-identity .eyebrow {
+  display: none;
+}
+
+.coding-repo-title {
+  gap: 7px;
+}
+
+.coding-repo-title h1 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.coding-repo-title code,
+.coding-workspace-page .badge {
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 8px;
+}
+
+.coding-repo-identity p {
+  margin-top: 2px;
+  font-size: 8px;
+}
+
+.coding-repo-state {
+  gap: 11px;
+}
+
+.coding-repo-state > span {
+  font-size: 8px;
+}
+
+.coding-repo-state-value {
+  font-size: 10px;
+}
+
+.coding-layout-controls {
+  border-radius: 4px;
+}
+
+.coding-layout-controls button {
+  min-height: 23px;
+  padding: 3px 6px;
+  font-size: 8px;
+}
+
+.coding-grid {
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.coding-pane,
+.coding-editor {
+  background: var(--surface);
+}
+
+.coding-tabs,
+.coding-editor-toolbar {
+  min-height: 34px;
+  background: var(--surface);
+}
+
+.coding-tabs {
+  padding: 2px 5px 0;
+}
+
+.coding-tabs button {
+  padding: 6px 7px 7px;
+  border-radius: 0;
+  font-size: 9px;
+}
+
+.coding-tabs button.selected {
+  background: var(--surface-hover);
+}
+
+.coding-breadcrumb {
+  justify-content: flex-start;
+  padding-inline: 8px;
+  font-size: 9px;
+  text-align: left;
+}
+
+.coding-breadcrumb > small {
+  border-radius: 3px;
+}
+
+.coding-pane-body {
+  scrollbar-gutter: stable;
+}
+
+.coding-change-list,
+.coding-search-results {
+  padding: 3px 4px;
+}
+
+.coding-change-list button,
+.coding-search-results button {
+  min-height: 36px;
+  padding: 6px 7px;
+  border-radius: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.coding-change-badges i {
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 8px;
+}
+
+.coding-worktree-list {
+  gap: 0;
+  padding: 0 4px;
+}
+
+.coding-worktree-list article {
+  padding: 8px 7px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.coding-terminal-output {
+  border-radius: 0;
+}
+
+@media (max-width: 760px) {
+  .page.coding-workspace-page {
+    padding: 6px;
+  }
+}

@@ -1275,7 +1275,7 @@
   padding: 12px 15px;
 }
 
-.review-work-outcome > i {
+.review-work-outcome > :where(i) {
   display: grid;
   width: 34px;
   height: 34px;
@@ -1662,4 +1662,223 @@
 .review-page.review-page--embedded {
   gap: 7px;
   padding: 8px 10px 10px;
+}
+
+/* Review is the receipt for completed work. Keep the evidence available, but
+   let the event list and the selected outcome own the viewport. */
+.review-page {
+  background: var(--bg);
+}
+
+.review-header {
+  min-height: 54px;
+  padding: 0 1px 8px;
+}
+
+.review-header h1 {
+  font-size: 18px;
+}
+
+.review-header p {
+  font-size: 10px;
+}
+
+.review-work-overview {
+  min-height: 66px;
+  grid-template-columns: minmax(260px, 1fr) auto minmax(132px, 0.24fr);
+  border-inline: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 2px 0 var(--border-strong);
+}
+
+.review-work-overview.good {
+  box-shadow: inset 2px 0 var(--good);
+}
+
+.review-work-overview.warn {
+  box-shadow: inset 2px 0 var(--warn);
+}
+
+.review-work-overview.bad {
+  box-shadow: inset 2px 0 var(--bad);
+}
+
+.review-work-outcome {
+  gap: 9px;
+  padding: 8px 12px;
+}
+
+.review-work-outcome > :where(i) {
+  width: 25px;
+  height: 25px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.review-work-outcome span {
+  gap: 2px;
+}
+
+.review-work-outcome strong {
+  font-size: 12px;
+}
+
+.review-work-outcome p {
+  font-size: 9px;
+}
+
+.review-work-metrics {
+  border-right-color: var(--border);
+  border-left-color: var(--border);
+}
+
+.review-work-metrics > div {
+  min-width: 64px;
+  padding: 7px 9px;
+}
+
+.review-work-metrics dt {
+  font-size: 8px;
+}
+
+.review-work-metrics dd {
+  font-size: 13px;
+}
+
+.review-work-revision {
+  padding: 8px 12px;
+}
+
+.review-evidence-drawer {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.review-evidence-drawer > summary {
+  min-height: 36px;
+  padding: 7px 2px;
+}
+
+.review-evidence-body {
+  max-height: min(48vh, 500px);
+  padding: 8px 0;
+  background: var(--surface);
+}
+
+.review-workspace {
+  grid-template-columns: minmax(270px, 300px) minmax(0, 1fr);
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.review-rail {
+  background: var(--surface);
+}
+
+.review-tabs {
+  background: var(--surface);
+}
+
+.review-tabs button {
+  justify-content: flex-start;
+  min-height: 32px;
+  padding-inline: 8px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.review-search {
+  margin: 5px 6px;
+  border-radius: 3px;
+}
+
+.review-list {
+  padding: 0 4px 6px;
+}
+
+.review-list > button {
+  min-height: 52px;
+  padding: 8px 7px;
+  border-radius: 0;
+  border-bottom-color: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.review-list > button.selected {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.review-detail {
+  padding: 18px 22px 24px;
+  background: var(--bg);
+}
+
+.review-detail-header {
+  max-width: 980px;
+  padding-bottom: 12px;
+}
+
+.review-detail-header h2 {
+  font-size: clamp(18px, 1.6vw, 23px);
+}
+
+.review-decision,
+.review-ci-detail {
+  max-width: 980px;
+}
+
+.review-ci-hero,
+.review-decision,
+.review-ci-checks,
+.review-comment-thread,
+.review-command {
+  border-radius: 4px;
+}
+
+.review-page--embedded {
+  gap: 0;
+  padding: 0;
+}
+
+.review-page--embedded .review-work-overview {
+  min-height: 58px;
+  grid-template-columns: minmax(220px, 1fr) auto;
+}
+
+.review-page--embedded .review-work-metrics {
+  border-left: 0;
+}
+
+.review-page--embedded .review-work-revision {
+  display: none;
+}
+
+.review-page--embedded .review-evidence-drawer {
+  display: none;
+}
+
+.review-page--embedded .review-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+@media (width <= 860px) {
+  .review-work-overview {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .review-work-revision {
+    display: none;
+  }
+
+  .review-workspace {
+    grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
+  }
 }
