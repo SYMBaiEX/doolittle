@@ -88,7 +88,7 @@ export class DesktopErrorBoundary extends Component<
           <h1>Doolittle hit a snag.</h1>
           <p className="recovery-copy">
             Your workspace and conversations are safe. Reload the desktop or
-            return to Mission Control to continue.
+            return home to continue.
           </p>
           <div className="recovery-actions">
             <button
@@ -99,7 +99,7 @@ export class DesktopErrorBoundary extends Component<
               Reload Doolittle
             </button>
             <button type="button" onClick={this.returnHome}>
-              Open Mission Control
+              Return home
             </button>
           </div>
           <details className="recovery-details">
