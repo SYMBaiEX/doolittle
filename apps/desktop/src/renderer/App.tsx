@@ -2282,6 +2282,7 @@ export function App() {
           <button
             aria-label="Search pages and commands"
             onClick={() => setPaletteOpen(true)}
+            title="Search"
             type="button"
           >
             <span aria-hidden="true">⌕</span>
@@ -2359,6 +2360,7 @@ export function App() {
               aria-label="Open settings"
               className="sidebar-account"
               onClick={() => setView("settings")}
+              title="Settings"
               type="button"
             >
               <span>DL</span>

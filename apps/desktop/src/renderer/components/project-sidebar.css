@@ -637,6 +637,79 @@
 }
 
 .desktop-shell.nav-collapsed .sidebar-projects {
+  padding-top: 8px;
+}
+
+.desktop-shell.nav-collapsed .sidebar-projects__heading {
+  min-height: 0;
+  margin-bottom: 2px;
+  padding: 0 6px;
+}
+
+.desktop-shell.nav-collapsed .sidebar-projects__heading > span,
+.desktop-shell.nav-collapsed .sidebar-projects__heading > div {
+  display: none;
+}
+
+.desktop-shell.nav-collapsed .project-rail-all {
+  grid-template-columns: 1fr;
+  width: 42px;
+  min-height: 38px;
+  margin: 0 auto;
+  place-items: center;
+}
+
+.desktop-shell.nav-collapsed .project-rail-all > span:nth-child(2),
+.desktop-shell.nav-collapsed .project-rail-all em,
+.desktop-shell.nav-collapsed .project-rail-all small {
+  display: none;
+}
+
+.desktop-shell.nav-collapsed .project-rail-group {
+  padding: 0 3px;
+}
+
+.desktop-shell.nav-collapsed .project-rail-row {
+  grid-template-columns: 1fr;
+  place-items: center;
+  min-height: 38px;
+  padding: 0;
+}
+
+.desktop-shell.nav-collapsed .project-rail-disclosure,
+.desktop-shell.nav-collapsed .project-rail-new,
+.desktop-shell.nav-collapsed .project-rail-count,
+.desktop-shell.nav-collapsed .project-rail-chats,
+.desktop-shell.nav-collapsed .project-rail-empty,
+.desktop-shell.nav-collapsed .project-rail-more {
+  display: none;
+}
+
+.desktop-shell.nav-collapsed .project-rail-main {
+  width: 100%;
+  padding: 0;
+  place-items: center;
+}
+
+.desktop-shell.nav-collapsed .project-rail-main > span:last-child {
+  display: none;
+}
+
+.desktop-shell.nav-collapsed .project-rail-mark {
+  width: 22px;
+  height: 22px;
+}
+
+.desktop-shell.nav-collapsed .project-rail-onboarding {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 0;
+  min-height: 42px;
+  padding: 8px 4px;
+}
+
+.desktop-shell.nav-collapsed .project-rail-onboarding strong,
+.desktop-shell.nav-collapsed .project-rail-onboarding small {
   display: none;
 }
 

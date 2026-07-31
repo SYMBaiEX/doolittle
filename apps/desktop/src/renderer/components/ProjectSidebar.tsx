@@ -157,6 +157,7 @@ export function NewConversationControl({
         aria-label="New conversation"
         onClick={() => onOpenChange(!isOpen)}
         ref={triggerRef}
+        title="New conversation"
         type="button"
       >
         <span aria-hidden="true">＋</span>
@@ -499,6 +500,7 @@ export function ProjectHistorySidebar({
           activeScope === "all" ? "is-active" : ""
         }`}
         onClick={() => onSelectScope("all")}
+        title={isChatView ? "All conversations" : "All projects"}
         type="button"
       >
         <span aria-hidden="true">◷</span>

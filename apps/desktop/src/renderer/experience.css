@@ -376,7 +376,6 @@ textarea {
 }
 
 .nav-collapsed .app-brand-copy,
-.nav-collapsed .sidebar-collapse,
 .nav-collapsed .sidebar-quick-actions strong,
 .nav-collapsed .sidebar-quick-actions kbd,
 .nav-collapsed .sidebar-recents,
@@ -3152,14 +3151,18 @@ button.chat-session-meta-pill:hover {
 }
 
 .desktop-shell.nav-collapsed .sidebar-collapse {
-  position: absolute;
-  right: -17px;
-  bottom: 5px;
+  position: relative;
+  right: auto;
+  left: auto;
+  bottom: auto;
   z-index: 2;
   display: grid;
+  width: 30px;
+  height: 30px;
   color: var(--text-soft);
   background: var(--surface);
   border-color: var(--border-strong);
+  margin: 0 auto;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow) 20%, transparent);
 }
 
@@ -3278,6 +3281,132 @@ button.chat-session-meta-pill:hover {
   font-family: var(--font-mono);
   font-size: 10px;
   font-style: normal;
+}
+
+/* A collapsed sidebar is a deliberate icon rail, not a squeezed sidebar. */
+@media (min-width: 941px) {
+  .desktop-shell.nav-collapsed .app-sidebar {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .desktop-shell.nav-collapsed .app-brand {
+    min-height: 82px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 4px 0 8px;
+  }
+
+  .desktop-shell.nav-collapsed .app-brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-collapse {
+    width: 34px;
+    height: 24px;
+    margin: 0;
+    color: var(--muted);
+    background: transparent;
+    border-color: transparent;
+    border-radius: 6px;
+    box-shadow: none;
+    font-size: 14px;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-collapse:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+    border-color: transparent;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-quick-actions {
+    gap: 5px;
+    padding: 9px 0;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-quick-actions > .sidebar-new-chat-shell,
+  .desktop-shell.nav-collapsed .sidebar-quick-actions > button {
+    width: 42px;
+    margin: 0 auto;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-quick-actions button {
+    width: 42px;
+    min-height: 38px;
+    place-items: center;
+    padding: 0;
+    border-radius: 8px;
+  }
+
+  .desktop-shell.nav-collapsed
+    .sidebar-quick-actions
+    > .sidebar-new-chat-shell
+    > button {
+    min-height: 42px;
+    margin: 0;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-projects {
+    padding: 7px 0;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-projects__list {
+    padding-right: 0;
+    scrollbar-width: none;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-projects__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .desktop-shell.nav-collapsed .project-rail-all,
+  .desktop-shell.nav-collapsed .project-rail-row,
+  .desktop-shell.nav-collapsed .sidebar-focus-nav > button {
+    width: 42px;
+    min-height: 40px;
+    border-radius: 8px;
+  }
+
+  .desktop-shell.nav-collapsed .project-rail-mark,
+  .desktop-shell.nav-collapsed .project-rail-general-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-focus-nav {
+    gap: 3px;
+    padding: 8px 0;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-focus-nav .sidebar-utility-button {
+    margin-top: 5px;
+    padding-top: 0;
+    border-top-color: transparent;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-footer {
+    padding-top: 7px;
+  }
+
+  .desktop-shell.nav-collapsed .sidebar-footer-actions {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+  }
+
+  .desktop-shell.nav-collapsed
+    .sidebar-footer-actions
+    :is(.icon-button, .sidebar-account) {
+    width: 38px;
+    height: 36px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 8px;
+  }
 }
 
 .window-dragbar {
