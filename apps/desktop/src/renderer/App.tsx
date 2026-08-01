@@ -2318,19 +2318,27 @@ export function App() {
           sessions={sessions}
         />
         <nav className="sidebar-focus-nav" aria-label="Primary workspace">
-          {PRIMARY_NAV_ITEMS.map((item) => (
-            <button
-              aria-current={navigationView === item.id ? "page" : undefined}
-              className={navigationView === item.id ? "selected" : ""}
-              key={item.id}
-              onClick={() => setView(item.id)}
-              title={navCollapsed ? item.label : item.description}
-              type="button"
-            >
-              <Icon name={item.id} />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          <div aria-hidden="true" className="sidebar-dock-heading">
+            <span>Operator deck</span>
+            <i>{"//"}</i>
+          </div>
+          <fieldset className="sidebar-mode-switch">
+            <legend className="sr-only">Workspace modes</legend>
+            {PRIMARY_NAV_ITEMS.map((item) => (
+              <button
+                aria-current={navigationView === item.id ? "page" : undefined}
+                className={navigationView === item.id ? "selected" : ""}
+                key={item.id}
+                onClick={() => setView(item.id)}
+                title={item.description}
+                type="button"
+              >
+                <Icon name={item.id} />
+                <span>{item.label}</span>
+                <i aria-hidden="true" className="sidebar-mode-signal" />
+              </button>
+            ))}
+          </fieldset>
           <button
             aria-expanded={utilityOpen}
             className={`sidebar-utility-button${utilityOpen ? " is-open" : ""}`}
@@ -2338,9 +2346,14 @@ export function App() {
             title="Open every Doolittle tool and setting"
             type="button"
           >
-            <Icon name="tools" />
-            <span>Tools & settings</span>
-            <i aria-hidden="true">⌘</i>
+            <span aria-hidden="true" className="sidebar-utility-mark">
+              <Icon name="tools" />
+            </span>
+            <span className="sidebar-utility-copy">
+              <strong>Tools & settings</strong>
+              <small>Models · runtime · skills</small>
+            </span>
+            <kbd className="sidebar-utility-shortcut">⌘</kbd>
           </button>
         </nav>
         <div className="sidebar-footer">
@@ -2362,6 +2375,9 @@ export function App() {
                   {workspaceName(workspace.currentPath)}
                 </small>
               </div>
+              <i aria-hidden="true" className="sidebar-account-arrow">
+                ›
+              </i>
             </button>
             <button
               aria-label={`Use ${
