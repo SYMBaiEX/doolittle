@@ -77,13 +77,21 @@ export function UtilityDrawer<TView extends string>({
   );
   const resultCount = utilityResultCount(filteredSections);
   const filtering = query.trim().length > 0;
+  const totalTools = utilityResultCount(sections);
 
   return (
     <>
       <header className="utility-drawer__header">
-        <div>
-          <span className="eyebrow">Doolittle workspace</span>
-          <h2 id="utility-drawer-title">Tools & settings</h2>
+        <div className="utility-drawer__lockup">
+          <span aria-hidden="true" className="utility-drawer__mark">
+            <i />
+            <span>OP</span>
+          </span>
+          <div>
+            <span className="eyebrow">Operator console {"//"}</span>
+            <h2 id="utility-drawer-title">Tools & settings</h2>
+            <p>{totalTools} connected surfaces</p>
+          </div>
         </div>
         <button
           aria-label="Close tools and settings"
@@ -96,7 +104,10 @@ export function UtilityDrawer<TView extends string>({
       </header>
 
       <div className="utility-drawer__search">
-        <label htmlFor="utility-drawer-search">Find a tool</label>
+        <label htmlFor="utility-drawer-search">Find a tool or setting</label>
+        <span aria-hidden="true" className="utility-drawer__search-mark">
+          /
+        </span>
         <input
           autoComplete="off"
           id="utility-drawer-search"
@@ -130,8 +141,14 @@ export function UtilityDrawer<TView extends string>({
                   onClick={() => onToggleSection?.(section.id)}
                   type="button"
                 >
-                  <span>{section.label}</span>
-                  <span aria-hidden="true">{expanded ? "−" : "+"}</span>
+                  <span className="utility-drawer__group-name">
+                    <i aria-hidden="true" />
+                    {section.label}
+                  </span>
+                  <span className="utility-drawer__group-meta">
+                    <b>{section.items.length}</b>
+                    <i aria-hidden="true">{expanded ? "⌄" : "›"}</i>
+                  </span>
                 </button>
                 {expanded ? (
                   <div className="utility-drawer__items">
@@ -162,7 +179,8 @@ export function UtilityDrawer<TView extends string>({
                               aria-hidden="true"
                               className="utility-drawer__current"
                             >
-                              Current
+                              <i />
+                              Live
                             </span>
                           ) : null}
                         </button>

@@ -158,9 +158,14 @@ export function ActivityCenter({
       data-active={active}
     >
       <header className="activity-center__header">
-        <div>
-          <span className="eyebrow">Inbox</span>
-          <h2 id="activity-center-heading">Activity</h2>
+        <div className="activity-center__title">
+          <span aria-hidden="true" className="activity-center__pulse">
+            <i />
+          </span>
+          <div>
+            <span className="eyebrow">Signal queue {"//"}</span>
+            <h2 id="activity-center-heading">Recent activity</h2>
+          </div>
         </div>
         <button
           className="activity-center__refresh"
@@ -168,7 +173,7 @@ export function ActivityCenter({
           onClick={reload}
           type="button"
         >
-          {loading ? "Refreshing…" : "Refresh"}
+          {loading ? "Syncing…" : "Sync"}
         </button>
       </header>
 
