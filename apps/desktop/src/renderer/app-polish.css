@@ -2317,3 +2317,164 @@ th {
     animation: none;
   }
 }
+
+/* Operator surfaces share one instrument-panel language. */
+.utility-drawer {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-raised) 38%, transparent),
+      transparent 150px
+    ),
+    color-mix(in srgb, var(--surface) 98%, var(--bg));
+}
+
+.utility-drawer__header {
+  align-items: center;
+  min-height: 78px;
+  padding: 12px;
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--accent) 7%, transparent),
+      transparent 62%
+    ),
+    var(--surface-soft);
+  border-bottom-color: var(--line-subtle);
+}
+
+.utility-drawer__header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.utility-drawer__search {
+  padding: 8px 10px;
+}
+
+.utility-drawer__search input {
+  height: 32px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+
+.utility-drawer__result-count {
+  right: 19px;
+  bottom: 18px;
+}
+
+.utility-drawer__activity {
+  padding: 8px 10px 0;
+}
+
+.utility-drawer__navigation {
+  gap: 5px;
+  padding: 8px 7px 14px;
+}
+
+.utility-drawer__group {
+  gap: 1px;
+}
+
+.utility-drawer__group-toggle {
+  min-height: 28px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  font-size: 8px;
+}
+
+.utility-drawer__items {
+  gap: 1px;
+}
+
+.utility-drawer__items > button {
+  min-height: 40px;
+  gap: 8px;
+  padding: 6px 7px;
+  border-radius: 5px;
+}
+
+.utility-drawer__items > button.is-selected {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+  box-shadow:
+    inset 2px 0 var(--accent),
+    0 5px 15px rgb(0 0 0 / 8%);
+}
+
+.utility-drawer__item-copy strong {
+  font-size: 10px;
+}
+
+.utility-drawer__item-copy small {
+  font-size: 8px;
+}
+
+.utility-drawer__current {
+  font-size: 7px;
+}
+
+.thread-workbench-header {
+  gap: 8px;
+  padding: 11px 11px 9px;
+  background:
+    linear-gradient(
+      112deg,
+      color-mix(in srgb, var(--accent) 7%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface-soft) 76%, transparent);
+}
+
+.thread-workbench-repository {
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.thread-workbench-tabs {
+  gap: 2px;
+  padding: 5px 6px;
+}
+
+.thread-workbench-tabs button {
+  min-height: 43px;
+  padding: 4px 2px 5px;
+}
+
+.thread-workbench-panel {
+  gap: 7px;
+  padding: 9px;
+}
+
+.thread-workbench-panel-heading {
+  align-items: center;
+}
+
+.thread-workbench
+  :is(
+    .thread-workbench-checkpoints,
+    .thread-workbench-brief > section,
+    .thread-workbench-settings section,
+    .thread-workbench-plan-card,
+    .thread-workbench-preview,
+    .thread-workbench-command-list,
+    .thread-workbench-list
+  ) {
+  border-radius: 5px;
+}
+
+.thread-workbench
+  :is(
+    .thread-workbench-brief > section,
+    .thread-workbench-settings section,
+    .thread-workbench-plan-card
+  ) {
+  background: color-mix(in srgb, var(--surface-raised) 48%, transparent);
+  border-color: color-mix(in srgb, var(--border) 74%, transparent);
+}
+
+.thread-workbench-footer {
+  min-height: 34px;
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+  border-top-color: var(--line-subtle);
+}

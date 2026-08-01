@@ -712,9 +712,16 @@ export function ThreadWorkbenchRail({
 
       <header className="thread-workbench-header">
         <div className="thread-workbench-heading">
-          <div>
-            <span className="thread-workbench-kicker">Thread workbench</span>
-            <strong>{model.workspaceName}</strong>
+          <div className="thread-workbench-lockup">
+            <span aria-hidden="true" className="thread-workbench-mark">
+              <i />
+              <span>WB</span>
+            </span>
+            <div>
+              <span className="thread-workbench-kicker">Workbench {"//"}</span>
+              <strong>{model.workspaceName}</strong>
+              <small>Thread-bound operator surface</small>
+            </div>
           </div>
           <button
             aria-label="Close thread workbench"
@@ -754,6 +761,17 @@ export function ThreadWorkbenchRail({
                 : "workspace"}
           </Badge>
         </div>
+        <div
+          className="thread-workbench-status-strip"
+          aria-label="Workbench status"
+          role="status"
+        >
+          <span>
+            <i aria-hidden="true" /> {model.lifecycle}
+          </span>
+          <span>{model.environment}</span>
+          <span>{THREAD_WORKBENCH_TABS.length} modules</span>
+        </div>
       </header>
 
       <div
@@ -777,8 +795,11 @@ export function ThreadWorkbenchRail({
             title={TAB_LABELS[tab]}
             type="button"
           >
-            <span aria-hidden="true">{TAB_MARKS[tab]}</span>
+            <span className="thread-workbench-tab-mark" aria-hidden="true">
+              {TAB_MARKS[tab]}
+            </span>
             <small>{TAB_LABELS[tab]}</small>
+            <i aria-hidden="true" className="thread-workbench-tab-signal" />
           </button>
         ))}
       </div>
@@ -791,6 +812,12 @@ export function ThreadWorkbenchRail({
       >
         <div className="thread-workbench-panel-heading">
           <div>
+            <span className="thread-workbench-panel-kicker">
+              Module{" "}
+              {String(
+                THREAD_WORKBENCH_TABS.indexOf(model.selectedTab) + 1,
+              ).padStart(2, "0")}
+            </span>
             <span className="thread-workbench-panel-title">
               {TAB_LABELS[model.selectedTab]}
             </span>

@@ -65,8 +65,15 @@
 .thread-workbench-header {
   border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
   display: grid;
-  gap: 10px;
-  padding: 13px 13px 11px;
+  gap: 8px;
+  padding: 11px 11px 9px;
+  background:
+    linear-gradient(
+      112deg,
+      color-mix(in srgb, var(--thread-workbench-accent) 7%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface-soft) 76%, transparent);
 }
 
 .thread-workbench-heading,
@@ -86,6 +93,59 @@
   display: grid;
   gap: 3px;
   min-width: 0;
+}
+
+.thread-workbench-heading > .thread-workbench-lockup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.thread-workbench-lockup > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.thread-workbench-lockup small {
+  overflow: hidden;
+  color: color-mix(in srgb, currentColor 42%, transparent);
+  font: 8px / 1.2 var(--font-mono, ui-monospace, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-workbench-mark {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  color: var(--thread-workbench-accent);
+  background: color-mix(
+    in srgb,
+    var(--thread-workbench-accent) 9%,
+    var(--surface)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--thread-workbench-accent) 27%, var(--border));
+  border-radius: 7px;
+  font: 750 9px / 1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.06em;
+}
+
+.thread-workbench-mark i {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  background: var(--thread-workbench-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px
+    color-mix(in srgb, var(--thread-workbench-accent) 72%, transparent);
 }
 
 .thread-workbench-heading strong {
@@ -130,10 +190,50 @@
 .thread-workbench-repository {
   background: var(--surface-soft);
   border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
-  border-radius: 9px;
+  border-radius: 6px;
   gap: 9px;
   justify-content: flex-start;
   padding: 8px;
+}
+
+.thread-workbench-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 2px;
+  color: color-mix(in srgb, currentColor 42%, transparent);
+  font: 7px / 1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.thread-workbench-status-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-workbench-status-strip span:first-child {
+  color: color-mix(in srgb, currentColor 65%, transparent);
+}
+
+.thread-workbench-status-strip span:not(:last-child)::after {
+  margin-left: 3px;
+  color: color-mix(in srgb, currentColor 26%, transparent);
+  content: "/";
+}
+
+.thread-workbench-status-strip i {
+  width: 5px;
+  height: 5px;
+  background: var(--good, #6cc46e);
+  border-radius: 50%;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--good, #6cc46e) 60%, transparent);
 }
 
 .thread-workbench-repository > div {
@@ -174,26 +274,36 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   min-width: 0;
   overflow: hidden;
-  padding: 3px 7px 0;
+  gap: 2px;
+  padding: 5px 6px;
+  background: color-mix(in srgb, var(--surface-raised) 32%, transparent);
 }
 
 .thread-workbench-tabs button {
   align-items: center;
   background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 5px;
   color: color-mix(in srgb, currentColor 48%, transparent);
   cursor: pointer;
   display: grid;
   font: inherit;
-  gap: 2px;
+  gap: 3px;
   justify-items: center;
-  min-height: 42px;
+  min-height: 43px;
   min-width: 0;
   padding: 4px 2px 5px;
 }
 
-.thread-workbench-tabs button > span {
+.thread-workbench-tab-mark {
+  display: grid;
+  width: 20px;
+  height: 19px;
+  place-items: center;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 4px;
   font: 680 12px / 1 var(--font-mono, ui-monospace, monospace);
 }
 
@@ -208,24 +318,53 @@
 
 .thread-workbench-tabs button:hover,
 .thread-workbench-tabs button:focus-visible {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  border-color: color-mix(in srgb, currentColor 12%, transparent);
   color: var(--text, #f7efe5);
   outline: none;
 }
 
 .thread-workbench-tabs button[aria-selected="true"] {
-  border-bottom-color: var(--thread-workbench-accent);
+  background: color-mix(
+    in srgb,
+    var(--thread-workbench-accent) 7%,
+    var(--surface-soft)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--thread-workbench-accent) 23%,
+    var(--border)
+  );
   color: var(--thread-workbench-accent);
+}
+
+.thread-workbench-tab-signal {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  border-radius: 50%;
+}
+
+.thread-workbench-tabs
+  button[aria-selected="true"]
+  .thread-workbench-tab-signal {
+  background: var(--thread-workbench-accent);
+  box-shadow: 0 0 6px
+    color-mix(in srgb, var(--thread-workbench-accent) 72%, transparent);
 }
 
 .thread-workbench-panel {
   display: grid;
   flex: 1 1 auto;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
+  gap: 7px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 11px 10px;
+  padding: 9px;
 }
 
 .thread-workbench-panel-body {
@@ -315,10 +454,22 @@
   flex: 0 0 auto;
   gap: 10px;
   margin-bottom: 0;
+  min-height: 38px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--surface-raised) 44%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 5px;
+}
+
+.thread-workbench-panel-kicker {
+  color: var(--thread-workbench-accent);
+  font: 7px / 1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .thread-workbench-panel-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -1053,8 +1204,11 @@
   border-top: 1px solid color-mix(in srgb, currentColor 8%, transparent);
   color: color-mix(in srgb, currentColor 42%, transparent);
   font: 8px / 1 var(--font-mono, ui-monospace, monospace);
-  min-height: 32px;
-  padding: 5px 10px 5px 14px;
+  min-height: 34px;
+  padding: 5px 8px 5px 12px;
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 @keyframes thread-workbench-orbit {
