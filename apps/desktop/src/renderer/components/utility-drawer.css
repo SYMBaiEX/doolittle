@@ -73,15 +73,17 @@
 
 .utility-drawer__close {
   display: grid;
-  width: 28px;
+  width: 36px;
   height: 28px;
   place-items: center;
   color: var(--muted);
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  font-size: 18px;
+  font: 700 8px / 1 var(--font-mono);
+  letter-spacing: 0.08em;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 .utility-drawer__close:hover {

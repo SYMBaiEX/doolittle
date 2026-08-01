@@ -97,9 +97,10 @@ export function UtilityDrawer<TView extends string>({
           aria-label="Close tools and settings"
           className="utility-drawer__close"
           onClick={onClose}
+          title="Close tools and settings (Escape)"
           type="button"
         >
-          ×
+          <span aria-hidden="true">Esc</span>
         </button>
       </header>
 
