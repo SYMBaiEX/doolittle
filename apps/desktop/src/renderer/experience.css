@@ -3212,8 +3212,8 @@ button.chat-session-meta-pill:hover {
 .sidebar-focus-nav {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 9px 0 8px;
+  gap: 0;
+  padding: 10px 0 8px;
   border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
   -webkit-app-region: no-drag;
 }
@@ -3223,38 +3223,45 @@ button.chat-session-meta-pill:hover {
   display: grid;
   grid-template-columns: 15px auto;
   width: 100%;
-  min-height: 35px;
+  min-height: 36px;
   align-items: center;
   gap: 7px;
   justify-content: center;
   padding: 7px 5px;
   color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+  border: 1px solid var(--border);
+  border-right-width: 0;
+  border-radius: 0;
   text-align: left;
   font-size: 12px;
   font-weight: 590;
 }
 
+.sidebar-focus-nav > button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.sidebar-focus-nav > button:nth-child(3) {
+  border-right-width: 1px;
+  border-radius: 0 8px 8px 0;
+}
+
 .sidebar-focus-nav > button:hover {
   color: var(--text);
-  background: color-mix(in srgb, var(--surface-hover) 78%, transparent);
+  background: var(--surface-hover);
 }
 
 .sidebar-focus-nav > button.selected {
   color: var(--text);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface-soft));
+  z-index: 1;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  box-shadow: inset 0 -2px var(--accent);
 }
 
 .sidebar-focus-nav > button.selected::before {
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: -14px;
-  width: 2px;
-  content: "";
-  background: var(--accent);
+  display: none;
 }
 
 .desktop-shell .sidebar-focus-nav .icon {
@@ -3270,17 +3277,84 @@ button.chat-session-meta-pill:hover {
 .sidebar-focus-nav .sidebar-utility-button {
   grid-column: 1 / -1;
   grid-template-columns: 15px minmax(0, 1fr) auto;
-  margin-top: 4px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
-  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+  min-height: 36px;
+  justify-content: initial;
+  margin-top: 7px;
+  padding: 7px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.sidebar-focus-nav .sidebar-utility-button:hover,
+.sidebar-focus-nav .sidebar-utility-button.is-open {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+
+.sidebar-focus-nav .sidebar-utility-button.is-open .icon {
+  color: var(--accent);
 }
 
 .sidebar-focus-nav .sidebar-utility-button i {
   color: var(--faint);
+  padding: 2px 5px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   font-style: normal;
+}
+
+.sidebar-footer {
+  padding-top: 8px;
+  border-top-color: color-mix(in srgb, var(--border) 76%, transparent);
+}
+
+.sidebar-footer-actions {
+  gap: 6px;
+}
+
+.sidebar-account {
+  min-height: 43px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.sidebar-account:hover,
+.sidebar-account.selected {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+
+.sidebar-account > span {
+  width: 30px;
+  height: 30px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: 8px;
+}
+
+.sidebar-account strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sidebar-account small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.sidebar-appearance-toggle {
+  width: 34px;
+  height: 34px;
+  align-self: center;
+  border-radius: 8px;
 }
 
 /* A collapsed sidebar is a deliberate icon rail, not a squeezed sidebar. */

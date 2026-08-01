@@ -2333,7 +2333,7 @@ export function App() {
           ))}
           <button
             aria-expanded={utilityOpen}
-            className="sidebar-utility-button"
+            className={`sidebar-utility-button${utilityOpen ? " is-open" : ""}`}
             onClick={toggleUtilities}
             title="Open every Doolittle tool and setting"
             type="button"
@@ -2346,19 +2346,11 @@ export function App() {
         <div className="sidebar-footer">
           <div className="sidebar-footer-actions">
             <button
-              aria-label={`Use ${
-                resolvedAppearance === "dark" ? "light" : "dark"
-              } appearance`}
-              className="icon-button"
-              onClick={toggleAppearance}
-              title="Toggle appearance"
-              type="button"
-            >
-              {resolvedAppearance === "dark" ? "☼" : "◐"}
-            </button>
-            <button
+              aria-current={view === "settings" ? "page" : undefined}
               aria-label="Open settings"
-              className="sidebar-account"
+              className={`sidebar-account${
+                view === "settings" ? " selected" : ""
+              }`}
               onClick={() => setView("settings")}
               title="Settings"
               type="button"
@@ -2370,6 +2362,17 @@ export function App() {
                   {workspaceName(workspace.currentPath)}
                 </small>
               </div>
+            </button>
+            <button
+              aria-label={`Use ${
+                resolvedAppearance === "dark" ? "light" : "dark"
+              } appearance`}
+              className="icon-button sidebar-appearance-toggle"
+              onClick={toggleAppearance}
+              title="Toggle appearance"
+              type="button"
+            >
+              {resolvedAppearance === "dark" ? "☼" : "◐"}
             </button>
           </div>
         </div>
