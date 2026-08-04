@@ -19,6 +19,11 @@ ElizaOS 2.0 beta line.
   pre-executor, and post-planner rescue executor. Doolittle retains only
   product shell/session projection, provider readiness, and post-action
   mutation-receipt safety around the SDK-owned lifecycle.
+- Removed post-migration source debris: obsolete private barrel files,
+  superseded provider and terminal helpers, duplicate CLI job rendering,
+  retired delegation types, redundant contract aliases, and the Claude Code
+  status compatibility facade. Supported one-time user-data import paths remain
+  intact for upgrades from older Doolittle installations.
 - Split Doolittle context into official always-on core and context-routed
   workspace/operations providers. Selected-project grounding now resolves
   through the SDK session envelope.

@@ -2,13 +2,13 @@ import {
   type ClaudeCodeAuthDependencies,
   getClaudeCodeAuthDependencies,
 } from "../claude-code-support";
+import { getClaudeCodeAccountStatus as getClaudeCodeAccountStatusImpl } from "../claude-code-support/status-builders";
 import type {
   LinkedClaudeCodeCredentials,
   LinkedProviderAccountStatus,
 } from "../types";
 import { getLinkedClaudeCodeCredentials as getLinkedClaudeCodeCredentialsImpl } from "./credentials";
 import { refreshLinkedClaudeCodeCredentials as refreshLinkedClaudeCodeCredentialsImpl } from "./refresh";
-import { getClaudeCodeAccountStatus as getClaudeCodeAccountStatusImpl } from "./status";
 
 export function getClaudeCodeAccountStatus(
   homePath?: string,
