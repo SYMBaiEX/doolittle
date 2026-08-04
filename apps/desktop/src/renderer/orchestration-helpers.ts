@@ -8,6 +8,56 @@ export type OrchestrationStatusTier =
   | "failed"
   | "idle";
 
+export type TaskCapability = "coding" | "research";
+
+export function taskCapabilityLabel(
+  capabilityProfile?: string,
+  kind?: string,
+): TaskCapability {
+  return capabilityProfile?.trim().toLowerCase() === "research" ||
+    kind?.trim().toLowerCase() === "research"
+    ? "research"
+    : "coding";
+}
+
+export function taskExecutionLabel(executionMode?: string): string {
+  return executionMode?.trim().toLowerCase() === "delegated"
+    ? "delegated session"
+    : "local runtime";
+}
+
+export function taskCreatePayload(input: {
+  title: string;
+  objective: string;
+  capability: TaskCapability;
+  profile?: string;
+  framework?: string;
+  accountId?: string;
+  sessionId?: string;
+  group?: string;
+  priority?: string;
+  executionMode?: string;
+  workspaceRoot?: string;
+}): Record<string, string | undefined> {
+  const optional = (value?: string) => value?.trim() || undefined;
+  const profile = optional(input.profile) ?? input.capability;
+  return {
+    title: input.title.trim(),
+    objective: input.objective.trim(),
+    // profile is retained for older runtimes; the canonical fields drive new ones.
+    profile,
+    capabilityProfile: input.capability,
+    kind: input.capability,
+    framework: optional(input.framework),
+    accountId: optional(input.accountId),
+    sessionId: optional(input.sessionId),
+    group: optional(input.group),
+    priority: optional(input.priority),
+    executionMode: optional(input.executionMode),
+    workspaceRoot: optional(input.workspaceRoot),
+  };
+}
+
 export function scopeTasksByWorkspace<T extends { workspaceRoot?: string }>(
   tasks: T[],
   options: {

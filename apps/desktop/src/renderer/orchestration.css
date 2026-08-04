@@ -271,6 +271,14 @@
   padding-bottom: 1px;
 }
 
+.orchestration-task-routing-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .orchestration-panel {
   min-height: 0;
   flex: 1 1 auto;
@@ -1240,6 +1248,47 @@
   .orchestration-run-detail {
     grid-column: 1 / -1;
     border-top: 1px solid var(--border);
+  }
+}
+
+@media (width <= 680px) {
+  .orchestration-nav-row {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 8px;
+  }
+
+  .orchestration-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .orchestration-tabs > button {
+    min-width: max-content;
+  }
+
+  .orchestration-command-bar {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .orchestration-command-bar .primary-button,
+  .orchestration-command-bar .secondary-button {
+    flex: 1 1 auto;
+  }
+
+  .orchestration-quick-create {
+    grid-template-columns: 1fr;
+  }
+
+  .orchestration-quick-create .quick-title,
+  .orchestration-quick-create .quick-objective,
+  .orchestration-quick-create .quick-create-actions {
+    grid-column: auto;
+  }
+
+  .quick-create-actions > button {
+    flex: 1 1 auto;
   }
 }
 

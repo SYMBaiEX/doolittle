@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildNextActions,
+  summarizeAccountPool,
   summarizeDashboardValue,
   summarizeRepoStatus,
   summarizeSetupEntries,
@@ -113,5 +114,44 @@ describe("dashboard helpers", () => {
       "setup",
       "review",
     ]);
+  });
+
+  it("summarizes pooled spawned-agent accounts without treating them as chat readiness", () => {
+    expect(
+      summarizeAccountPool({
+        providers: {
+          "openai-codex": {
+            strategy: "round-robin",
+            accounts: [{ enabled: true }, { enabled: false }],
+          },
+          "anthropic-subscription": { strategy: "priority", accounts: [] },
+        },
+      }),
+    ).toEqual({
+      total: 2,
+      enabled: 1,
+      providersReady: 1,
+      strategies: ["round-robin", "priority"],
+    });
+
+    const actions = buildNextActions({
+      pendingApprovals: 0,
+      runningTasks: 0,
+      repo: {
+        branch: "main",
+        ahead: 0,
+        behind: 0,
+        dirty: false,
+        changedFiles: 0,
+        lines: [],
+      },
+      setupEntries: [],
+      sessions: [],
+      accountPool: { total: 0, enabled: 0, providersReady: 0, strategies: [] },
+    });
+    expect(actions[0]).toMatchObject({
+      id: "agent-accounts",
+      target: "providers",
+    });
   });
 });

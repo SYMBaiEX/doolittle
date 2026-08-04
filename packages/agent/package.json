@@ -9,6 +9,7 @@
     "@doolittle/contracts": "workspace:*",
     "@doolittle/logger": "workspace:*",
     "@elizaos/agent": "2.0.3-beta.7",
+    "@elizaos/app-core": "2.0.3-beta.7",
     "@elizaos/plugin-agent-orchestrator": "2.0.3-beta.7",
     "@elizaos/plugin-agent-skills": "2.0.3-beta.7",
     "@elizaos/provider-transport": "workspace:*",

@@ -1,5 +1,7 @@
+import type { AgentRuntime } from "@elizaos/core";
 import type { AppLogger } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
+import { shutdownElizaRuntime } from "@/runtime/lifecycle/shutdown";
 import { handleRuntimePromptCommand } from "./prompt-command";
 import type { EntrypointRuntimePlan } from "./runtime-control";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
@@ -42,6 +44,8 @@ export async function handleEntrypointRuntimeSurface(input: {
   bootLogs: BootLogEntry[];
   printLine?: (message: string) => void;
   pushArg?: (arg: string) => void;
+  shutdownRuntime?: typeof shutdownElizaRuntime;
+  exit?: (code: number) => void;
 }): Promise<EntrypointRuntimeSurfaceResult> {
   const printLine = input.printLine ?? console.log;
   const pushArg = input.pushArg ?? ((arg: string) => process.argv.push(arg));
@@ -54,18 +58,27 @@ export async function handleEntrypointRuntimeSurface(input: {
     printLine(`${input.context.config.agentName} gateway started.`);
   }
 
-  if (
-    await handleRuntimePromptCommand({
-      command: input.command,
-      shellIsInteractive: input.shellIsInteractive,
-      immediatePrompt: input.immediatePrompt,
-      oneShot: input.oneShot,
-      jobControlDir: input.jobControlDir,
-      context: input.context,
-      runCliPrompt: input.runCliPrompt,
-      runCliPromptWithEvents: input.runCliPromptWithEvents,
-    })
-  ) {
+  const handledPrompt = await handleRuntimePromptCommand({
+    command: input.command,
+    shellIsInteractive: input.shellIsInteractive,
+    immediatePrompt: input.immediatePrompt,
+    oneShot: input.oneShot,
+    jobControlDir: input.jobControlDir,
+    context: input.context,
+    runCliPrompt: input.runCliPrompt,
+    runCliPromptWithEvents: input.runCliPromptWithEvents,
+  });
+  if (handledPrompt) {
+    await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+      input.context.runtime as AgentRuntime,
+      "Doolittle one-shot completion",
+      { fast: true },
+    );
+    const exitCode =
+      typeof process.exitCode === "number"
+        ? process.exitCode
+        : Number(process.exitCode ?? 0);
+    (input.exit ?? process.exit)(exitCode);
     return { handled: true };
   }
 

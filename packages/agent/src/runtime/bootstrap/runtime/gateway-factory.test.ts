@@ -26,14 +26,16 @@ describe("createGatewayAccessor", () => {
     expect(markReady).toHaveBeenCalledOnce();
   });
 
-  it("rejects a parallel product-owned gateway lifecycle", () => {
-    expect(() =>
-      createGatewayAccessor({
-        services: {} as AppServices,
-        runtime: {
-          getService: () => null,
-        } as unknown as AgentRuntime,
-      }),
-    ).toThrow("Required Eliza service doolittle_gateway is unavailable.");
+  it("requires the Eliza gateway service only when the runner is requested", () => {
+    const accessor = createGatewayAccessor({
+      services: {} as AppServices,
+      runtime: {
+        getService: () => null,
+      } as unknown as AgentRuntime,
+    });
+
+    expect(() => accessor.get()).toThrow(
+      "Required Eliza service doolittle_gateway is unavailable.",
+    );
   });
 });

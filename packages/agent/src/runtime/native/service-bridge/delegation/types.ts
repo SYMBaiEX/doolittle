@@ -5,9 +5,18 @@ export interface EffectiveDelegationCreateInput {
   title: string;
   objective: string;
   metadata?: Record<string, unknown>;
+  /** Product capability selection, distinct from an execution framework. */
+  capabilityProfile?: string;
+  /** @deprecated Use capabilityProfile. Retained for command/API compatibility. */
+  profile?: string;
+  /** Explicit official orchestrator task kind. */
+  kind?: "coding" | "research";
+  /** Explicit execution framework; never inferred from capabilityProfile. */
+  framework?: string;
+  accountId?: string;
+  sessionId?: string;
   workspaceRoot?: string;
   group?: string;
-  profile?: string;
   priority?: "low" | "normal" | "high";
   labels?: string[];
   tags?: string[];

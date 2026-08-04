@@ -1,5 +1,9 @@
 import { useMemo } from "react";
-import type { RuntimeStatus, SessionsResponse } from "../shared/contracts";
+import type {
+  AccountPoolResponse,
+  RuntimeStatus,
+  SessionsResponse,
+} from "../shared/contracts";
 import {
   buildNextActions,
   countOwnershipSignals,
@@ -8,6 +12,7 @@ import {
   normalizeSessions,
   normalizeTasks,
   sessionCountSummary,
+  summarizeAccountPool,
   summarizeDashboardValue,
   summarizeRepoStatus,
   summarizeSetupEntries,
@@ -52,12 +57,14 @@ export function DashboardPage({
   onOpenReview,
   onOpenTasks,
   onOpenSetup,
+  onOpenProviders,
 }: {
   active: boolean;
   onOpenChat?: (sessionId?: string) => void;
   onOpenReview?: () => void;
   onOpenTasks?: () => void;
   onOpenSetup?: () => void;
+  onOpenProviders?: () => void;
 }) {
   const runtime = useApiResource<RuntimeStatus>(
     active ? "/runtime/status" : null,
@@ -81,6 +88,10 @@ export function DashboardPage({
   );
   const setup = useApiResource<SetupSummaryResponse>(
     active ? "/setup/summary" : null,
+    [active],
+  );
+  const accountPool = useApiResource<AccountPoolResponse>(
+    active ? "/runtime/account-pool" : null,
     [active],
   );
 
@@ -108,6 +119,10 @@ export function DashboardPage({
     () => summarizeSetupHealth(setupEntries),
     [setupEntries],
   );
+  const accountPoolSummary = useMemo(
+    () => summarizeAccountPool(accountPool.data),
+    [accountPool.data],
+  );
   const sessionSummary = useMemo(
     () => sessionCountSummary(sessions.data?.sessions),
     [sessions.data?.sessions],
@@ -120,8 +135,16 @@ export function DashboardPage({
         repo,
         setupEntries,
         sessions: sessionCards,
+        accountPool: accountPoolSummary,
       }),
-    [approvalCards.length, repo, sessionCards, setupEntries, taskCards.length],
+    [
+      accountPoolSummary,
+      approvalCards.length,
+      repo,
+      sessionCards,
+      setupEntries,
+      taskCards.length,
+    ],
   );
 
   const runtimePluginCount = countRuntimePlugins(runtime.data?.plugins);
@@ -133,6 +156,7 @@ export function DashboardPage({
     tasks.error,
     repoStatus.error,
     setup.error,
+    accountPool.error,
   ].filter(Boolean);
 
   return (
@@ -152,6 +176,7 @@ export function DashboardPage({
                 tasks.reload();
                 repoStatus.reload();
                 setup.reload();
+                accountPool.reload();
               }}
               type="button"
             >
@@ -201,6 +226,10 @@ export function DashboardPage({
           </p>
           <div className="dashboard-inline-metrics">
             <div>
+              <strong>{accountPoolSummary.enabled}</strong>
+              <span>Spawned-agent accounts</span>
+            </div>
+            <div>
               <strong>{runtime.data?.provider || "Unknown"}</strong>
               <span>Provider</span>
             </div>
@@ -231,6 +260,15 @@ export function DashboardPage({
       </section>
 
       <div className="metric-grid compact">
+        <MetricCard
+          label="Agent accounts"
+          value={compactNumber(accountPoolSummary.enabled)}
+          detail={
+            accountPool.loading
+              ? "Checking pooled accounts"
+              : `${accountPoolSummary.providersReady}/2 providers ready`
+          }
+        />
         <MetricCard
           label="Sessions"
           value={compactNumber(sessionSummary.total)}
@@ -273,7 +311,9 @@ export function DashboardPage({
                     ? onOpenTasks
                     : action.target === "setup"
                       ? onOpenSetup
-                      : () => onOpenChat?.(sessionCards[0]?.id);
+                      : action.target === "providers"
+                        ? onOpenProviders
+                        : () => onOpenChat?.(sessionCards[0]?.id);
               return (
                 <article className="dashboard-action-card" key={action.id}>
                   <header>
@@ -500,6 +540,48 @@ export function DashboardPage({
                   </div>
                 </div>
               ))}
+          </div>
+        )}
+      </section>
+
+      <section className="content-card">
+        <div className="card-heading">
+          <div>
+            <span className="eyebrow">Spawned agents</span>
+            <h2>Codex & Claude account pool</h2>
+          </div>
+          <button
+            className="text-button"
+            disabled={!onOpenProviders}
+            onClick={onOpenProviders}
+            type="button"
+          >
+            Providers &amp; accounts
+          </button>
+        </div>
+        {accountPool.loading ? (
+          <LoadingBlock />
+        ) : accountPool.error ? (
+          <ErrorBlock error={accountPool.error} retry={accountPool.reload} />
+        ) : (
+          <div className="status-row">
+            <div>
+              <strong>
+                {accountPoolSummary.enabled} enabled account
+                {accountPoolSummary.enabled === 1 ? "" : "s"}
+              </strong>
+              <small>
+                Used only for spawned build and research sessions. Your
+                conversation model remains configured separately.
+              </small>
+            </div>
+            <Badge
+              tone={accountPoolSummary.providersReady > 0 ? "good" : "warn"}
+            >
+              {accountPoolSummary.providersReady > 0
+                ? accountPoolSummary.strategies.join(" · ")
+                : "Connect accounts"}
+            </Badge>
           </div>
         )}
       </section>

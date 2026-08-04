@@ -1,0 +1,170 @@
+.provider-card {
+  min-width: 0;
+}
+
+.provider-pool,
+.provider-import-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.provider-pool-copy,
+.provider-import-form p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.provider-pool-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.provider-pool-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-right: 1px solid var(--border);
+}
+
+.provider-pool-summary > div:last-child {
+  border-right: 0;
+}
+
+.provider-pool-summary strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.provider-pool-summary span,
+.provider-pool-journey span,
+.provider-default-actions > small,
+.provider-pool-semantics {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.provider-pool-semantics {
+  display: block;
+  line-height: 1.45;
+}
+
+.provider-pool-journey {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider-pool-journey li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 10px;
+  color: var(--muted);
+  border-left: 3px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.provider-pool-journey li.current {
+  color: var(--text);
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-soft));
+}
+
+.provider-pool-journey li.complete {
+  border-left-color: var(--good);
+}
+
+.provider-pool-journey strong {
+  font-size: 0.84rem;
+}
+
+.provider-pool-journey span {
+  text-align: right;
+}
+
+.provider-pool-accounts > .content-card {
+  padding: 14px;
+  background: var(--surface-soft);
+}
+
+.provider-account-actions .form-field {
+  max-width: 7rem;
+}
+
+.provider-default-actions {
+  align-items: center;
+}
+
+.provider-default-actions > small {
+  flex-basis: 100%;
+}
+
+.provider-import-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider-import-form > div,
+.provider-import-form > small {
+  grid-column: 1 / -1;
+}
+
+.provider-import-form h3 {
+  margin: 3px 0 5px;
+}
+
+.provider-import-form > small {
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  .provider-pool-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-pool-summary > div {
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .provider-pool-summary > div:last-child {
+    border-bottom: 0;
+  }
+
+  .provider-pool-journey li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .provider-pool-journey span {
+    text-align: left;
+  }
+
+  .provider-import-form {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-import-form > * {
+    grid-column: 1;
+  }
+
+  .provider-account-actions .form-field {
+    max-width: none;
+    flex-basis: 100%;
+  }
+}

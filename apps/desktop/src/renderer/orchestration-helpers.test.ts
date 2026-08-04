@@ -4,6 +4,9 @@ import {
   orchestrationStatusTier,
   orchestrationTimingLabel,
   scopeTasksByWorkspace,
+  taskCapabilityLabel,
+  taskCreatePayload,
+  taskExecutionLabel,
 } from "./orchestration-helpers";
 
 describe("orchestration helpers", () => {
@@ -78,5 +81,34 @@ describe("orchestration helpers", () => {
         platform: "linux",
       }),
     ).toEqual(tasks);
+  });
+
+  it("builds canonical task fields while keeping the legacy profile", () => {
+    expect(
+      taskCreatePayload({
+        title: "  Research the SDK  ",
+        objective: "  Compare providers  ",
+        capability: "research",
+        framework: "claude",
+        accountId: "claude-work",
+        sessionId: "session-1",
+      }),
+    ).toMatchObject({
+      title: "Research the SDK",
+      objective: "Compare providers",
+      profile: "research",
+      capabilityProfile: "research",
+      kind: "research",
+      framework: "claude",
+      accountId: "claude-work",
+      sessionId: "session-1",
+    });
+  });
+
+  it("describes canonical task capability and execution without overclaiming", () => {
+    expect(taskCapabilityLabel("research")).toBe("research");
+    expect(taskCapabilityLabel(undefined, "coding")).toBe("coding");
+    expect(taskExecutionLabel("delegated")).toBe("delegated session");
+    expect(taskExecutionLabel()).toBe("local runtime");
   });
 });

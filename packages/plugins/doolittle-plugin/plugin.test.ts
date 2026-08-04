@@ -9,7 +9,12 @@ import {
   DOOLITTLE_SHELL_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
 } from "@doolittle/contracts";
-import { type Action, ModelType } from "@elizaos/core";
+import {
+  type Action,
+  type IAgentRuntime,
+  ModelType,
+  type ServiceClass,
+} from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { DOOLITTLE_MODEL_ROUTER_PRIORITY } from "./model-router";
 import { createDoolittlePlugin } from "./plugin";
@@ -113,5 +118,25 @@ describe("createDoolittlePlugin model ownership", () => {
         DOOLITTLE_AUTOMATION_SERVICE,
       ]),
     );
+  });
+
+  it("starts workflow dispatch before the gateway service is available", async () => {
+    const plugin = createDoolittlePlugin({
+      services: {} as never,
+      config: createConfig({ offlineBootstrapMode: true }),
+    });
+    const workflowDispatch = plugin.services?.find(
+      (service) => service.serviceType === DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+    ) as ServiceClass | undefined;
+    if (!workflowDispatch)
+      throw new Error("Missing workflow dispatch service.");
+
+    await expect(
+      workflowDispatch.start({
+        getService: () => null,
+      } as unknown as IAgentRuntime),
+    ).resolves.toMatchObject({
+      capabilityDescription: expect.any(String),
+    });
   });
 });

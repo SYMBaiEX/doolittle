@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import type {
+  AccountPoolResponse,
   RuntimeModelOption,
   RuntimeModelProvider,
   RuntimeModelsResponse,
@@ -282,11 +283,13 @@ function compactReasoningEffort(value: string | undefined): string | undefined {
 export function ComposerModelSelector({
   active,
   onOpenModelsPage,
+  onOpenProvidersPage,
   refreshRuntime,
   runtime,
 }: {
   active: boolean;
   onOpenModelsPage: () => void;
+  onOpenProvidersPage: () => void;
   refreshRuntime: () => unknown;
   runtime: RuntimeStatus | null;
 }) {
@@ -300,6 +303,10 @@ export function ComposerModelSelector({
   const searchRef = useRef<HTMLInputElement | null>(null);
   const models = useApiResource<RuntimeModelsResponse>(
     active && open ? "/runtime/models?refresh=true" : null,
+    [active, open],
+  );
+  const accountPool = useApiResource<AccountPoolResponse>(
+    active && open ? "/runtime/account-pool" : null,
     [active, open],
   );
   useDismissPopover(open, setOpen, rootRef, triggerRef);
@@ -451,7 +458,7 @@ export function ComposerModelSelector({
                               key={model.id}
                             >
                               <button
-                                disabled={Boolean(saving)}
+                                disabled={Boolean(saving) || !provider.ready}
                                 onClick={() => void applyModel(provider, model)}
                                 title={model.id}
                                 type="button"
@@ -477,7 +484,9 @@ export function ComposerModelSelector({
                                   <span>Effort</span>
                                   <select
                                     aria-label={`${model.label} reasoning effort`}
-                                    disabled={Boolean(saving)}
+                                    disabled={
+                                      Boolean(saving) || !provider.ready
+                                    }
                                     onChange={(event) =>
                                       void applyModel(
                                         provider,
@@ -517,6 +526,35 @@ export function ComposerModelSelector({
               {feedback}
             </p>
           ) : null}
+          <div className="composer-agent-pool-note">
+            <strong>Spawned-agent pool</strong>
+            <span>
+              {accountPool.loading
+                ? "Checking Codex and Claude accounts…"
+                : accountPool.error
+                  ? "Account-pool status is unavailable."
+                  : `${
+                      accountPool.data?.providers[
+                        "openai-codex"
+                      ].accounts.filter((account) => account.enabled).length ??
+                      0
+                    } Codex · ${
+                      accountPool.data?.providers[
+                        "anthropic-subscription"
+                      ].accounts.filter((account) => account.enabled).length ??
+                      0
+                    } Claude accounts are enabled for spawned build and research sessions.`}
+            </span>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenProvidersPage();
+              }}
+              type="button"
+            >
+              Providers &amp; accounts
+            </button>
+          </div>
           <footer className="composer-popover-actions">
             <button onClick={models.reload} type="button">
               <span aria-hidden="true">↻</span>

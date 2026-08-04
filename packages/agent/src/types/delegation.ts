@@ -6,6 +6,13 @@ export interface DelegationTaskRecord {
   objective: string;
   group?: string;
   profile?: string;
+  capabilityProfile?: string;
+  kind?: "coding" | "research";
+  framework?: string;
+  accountProviderId?: string;
+  accountId?: string;
+  accountLabel?: string;
+  sessionId?: string;
   priority?: "low" | "normal" | "high";
   tags?: string[];
   labels?: string[];

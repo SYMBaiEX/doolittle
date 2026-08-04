@@ -164,7 +164,40 @@ describe("ElizaOS-native post-provider seam", () => {
     ]);
   });
 
-  it("rejects a selected local file mutation without an SDK mutation receipt", async () => {
+  it("rejects a selected local file mutation whose receipt reports failure", async () => {
+    const harness = createHarness();
+    const message = "create a website file in this project";
+
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        input: { userId: "alice", message, source: "desktop" },
+        effectiveInput: { userId: "alice", message, source: "desktop" },
+        response: "Done.",
+        actionResults: [
+          {
+            success: true,
+            data: {
+              mutationAction: "WRITE_FILE",
+              mutationKind: "local-file",
+              mutation: { action: "WRITE_FILE", success: false },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(result.runFailureMessage).toContain(
+      "did not produce a verified SDK action-result mutation receipt",
+    );
+    expect(harness.finishEvents[0]?.status).toBe("error");
+  });
+
+  // Regression: ActionResults reconstructed from a stream envelope carry a
+  // synthesized `actionName` (the tool-call name) but no mutation receipt.
+  // Arming the contract from that field made every such turn fail, replacing
+  // the agent's real answer with "Native execution failed" even when the write
+  // succeeded — which read to users as "the agent cannot write code".
+  it("does not arm the mutation contract from a synthesized actionName", async () => {
     const harness = createHarness();
     const message = "create a website file in this project";
 
@@ -182,10 +215,8 @@ describe("ElizaOS-native post-provider seam", () => {
       }),
     );
 
-    expect(result.runFailureMessage).toContain(
-      "did not produce a verified SDK action-result mutation receipt",
-    );
-    expect(harness.finishEvents[0]?.status).toBe("error");
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(harness.finishEvents[0]?.status).not.toBe("error");
   });
 
   it("does not infer execution requirements from user or provider prose", async () => {

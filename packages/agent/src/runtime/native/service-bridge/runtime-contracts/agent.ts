@@ -75,6 +75,9 @@ export type NativeOrchestratorTaskStatus =
 
 export interface NativeOrchestratorTaskSession {
   sessionId: string;
+  accountProviderId: string | null;
+  accountId: string | null;
+  accountLabel: string | null;
   framework: string;
   label: string;
   workdir: string;
@@ -86,7 +89,7 @@ export interface NativeOrchestratorTaskSession {
 export interface NativeOrchestratorTaskThread {
   id: string;
   title: string;
-  kind: string;
+  kind: "coding" | "research" | string;
   status: NativeOrchestratorTaskStatus;
   priority: "low" | "normal" | "high" | "urgent";
   paused: boolean;
@@ -129,7 +132,7 @@ export interface NativeOrchestratorCreateTaskInput {
   title: string;
   goal: string;
   originalRequest?: string;
-  kind?: string;
+  kind?: "coding" | "research";
   priority?: "low" | "normal" | "high" | "urgent";
   acceptanceCriteria?: string[];
   parentTaskId?: string;

@@ -11,6 +11,7 @@ function createContext() {
     gateway: {
       start: vi.fn(async () => {}),
     },
+    runtime: {},
   } as const;
 }
 
@@ -21,6 +22,56 @@ function createLogger() {
 }
 
 describe("handleEntrypointRuntimeSurface", () => {
+  it("shuts down the runtime after a one-shot status result", async () => {
+    const context = createContext();
+    const shutdownRuntime = vi.fn(async () => {});
+    const exit = vi.fn(() => {});
+    const runCliPrompt = vi.fn(async () => ({
+      text: "status ok",
+      tone: "success" as const,
+    }));
+
+    await expect(
+      handleEntrypointRuntimeSurface({
+        command: "status",
+        shellIsInteractive: false,
+        immediatePrompt: "/status",
+        context: context as never,
+        runtimePlan: {
+          startupMode: "cli",
+          eagerDeferredHydration: false,
+          shouldUseCliSurface: true,
+          shouldUseApiSurface: false,
+          shouldUseCockpitSplash: false,
+          shouldSetCliMode: true,
+          wantsCli: true,
+          wantsApi: false,
+          shouldCaptureBootLogs: false,
+          shouldStartCli: false,
+          shouldStartApi: false,
+          shouldStartApiImmediately: false,
+        },
+        runtimeLogger: createLogger() as never,
+        runCliPrompt,
+        startServerWhenShellReady: () => {},
+        bootLogs: [],
+        shutdownRuntime,
+        exit,
+      }),
+    ).resolves.toEqual({ handled: true });
+
+    expect(runCliPrompt).toHaveBeenCalledOnce();
+    expect(shutdownRuntime).toHaveBeenCalledWith(
+      context.runtime,
+      "Doolittle one-shot completion",
+      { fast: true },
+    );
+    expect(exit).toHaveBeenCalledWith(0);
+    expect(shutdownRuntime.mock.invocationCallOrder[0]).toBeLessThan(
+      exit.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
   it("starts the gateway command before returning", async () => {
     const context = createContext();
     const runtimeLogger = createLogger();

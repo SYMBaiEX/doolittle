@@ -297,7 +297,7 @@ const navigation: Array<{
     label: "Agent",
     items: [
       { id: "models", label: "Models" },
-      { id: "connections", label: "Providers" },
+      { id: "connections", label: "Providers & accounts" },
       { id: "tools", label: "Tools" },
       { id: "skills", label: "Skills" },
       { id: "plugins", label: "Plugins" },
@@ -2016,6 +2016,7 @@ export function App() {
             onOpenReview={() => setView("review")}
             onOpenSetup={() => setView("operatorSetup")}
             onOpenTasks={() => setView("orchestration")}
+            onOpenProviders={() => setView("connections")}
           />
         );
       case "chat":
@@ -2033,6 +2034,7 @@ export function App() {
             }
             onSelect={setSelectedSession}
             onOpenModelsPage={() => setView("models")}
+            onOpenProvidersPage={() => setView("connections")}
             onOpenWorkspaceView={setView}
             onConsumeContextHandoff={consumeChatContext}
             pendingApprovals={pendingApprovals}
@@ -2155,6 +2157,7 @@ export function App() {
         return (
           <RuntimePage
             active={backend.phase === "ready" || backend.phase === "degraded"}
+            onOpenProviders={() => setView("connections")}
           />
         );
       case "compatibility":
@@ -2166,7 +2169,12 @@ export function App() {
       case "registry":
         return <RegistryPage active={backend.phase === "ready"} />;
       case "operatorSetup":
-        return <SetupPage active={backend.phase === "ready"} />;
+        return (
+          <SetupPage
+            active={backend.phase === "ready"}
+            onOpenProviders={() => setView("connections")}
+          />
+        );
     }
   })();
 

@@ -1142,10 +1142,6 @@ th {
   background: color-mix(in srgb, var(--surface-raised) 82%, var(--surface));
 }
 
-.chat-messages {
-  scrollbar-gutter: stable;
-}
-
 .chat-composer {
   background: color-mix(in srgb, var(--surface-raised) 92%, var(--surface));
   border-color: var(--border);
@@ -1198,13 +1194,6 @@ th {
   .view-container > .page {
     animation: none;
   }
-}
-
-.chat-messages {
-  padding-top: 20px;
-  padding-right: clamp(16px, 4vw, 56px);
-  padding-bottom: 14px;
-  padding-left: clamp(16px, 4vw, 56px);
 }
 
 .chat-composer {

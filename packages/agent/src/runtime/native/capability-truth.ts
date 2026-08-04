@@ -88,6 +88,74 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
       "The autocoder surface is still useful for structured planning, but it should not be documented as a production-grade autonomous code writer yet.",
     ],
   },
+  {
+    id: "orchestration.multi-account",
+    packageName: "@elizaos/app-core/account-pool",
+    headline:
+      "Claude and Codex sub-agents use Eliza's official multi-account selector bridge.",
+    summary:
+      "Doolittle stores distinct Claude and Codex subscription accounts with the Eliza SDK account store, exposes secret-free pool controls, and lets the official orchestrator select an eligible account for each coding-agent session.",
+    runtimeSurfaces: [
+      "GET /runtime/account-pool",
+      "POST /runtime/account-pool/:provider/import",
+      "POST /runtime/account-pool/:provider/strategy",
+      "POST /runtime/account-pool/:provider/select",
+      "PATCH /runtime/account-pool/:provider/:accountId",
+      "DELETE /runtime/account-pool/:provider/:accountId",
+    ],
+    requiredStatusFields: [
+      "bridgeInstalled",
+      "providerId",
+      "strategy",
+      "accounts",
+      "health",
+    ],
+    realBehavior: [
+      "Keeps multiple official credential records per provider instead of overwriting a provider singleton.",
+      "Injects only the selected subscription credential into the spawned Claude or Codex subprocess through Eliza's coding-account bridge.",
+      "Projects account health and usage without returning access or refresh tokens to the API or desktop UI.",
+    ],
+    degradedBehavior: [
+      "Leaves the official orchestrator available when no pooled account is eligible, while reporting an empty pool and bridge readiness truthfully.",
+      "Requires an existing native provider sign-in before a credential can be imported into a named pool account.",
+    ],
+    caveats: [
+      "Credential-safe tests prove storage, selection, and rotation without using live provider accounts; live quota and OAuth behavior remains an opt-in alpha smoke.",
+    ],
+  },
+  {
+    id: "research.orchestrated",
+    packageName: "@elizaos/plugin-agent-orchestrator",
+    headline:
+      "Research is an explicit task capability, not a coding framework alias.",
+    summary:
+      "Doolittle preserves research as task kind and capability metadata, keeps framework selection explicit, and combines the official task service with the SDK deep-research model and Doolittle's real file, search, patch, and terminal tools.",
+    runtimeSurfaces: [
+      "DOOLITTLE_RESEARCH",
+      "POST /delegation/tasks",
+      "POST /delegation/tasks/:id/children",
+      "POST /delegation/tasks/:id/execute",
+    ],
+    requiredStatusFields: [
+      "kind",
+      "capabilityProfile",
+      "framework",
+      "status",
+      "sessionId",
+    ],
+    realBehavior: [
+      "Maps capabilityProfile=research to an official research task while leaving providerPolicy.preferredFramework unset unless the operator chooses a framework.",
+      "Runs sourced deep research through Eliza ModelType.RESEARCH when an OpenAI research provider is configured.",
+      "Keeps coding workers on the same official orchestrator while granting them Doolittle's real workspace and terminal tool surfaces.",
+    ],
+    degradedBehavior: [
+      "Returns a clear unavailable result when no RESEARCH model is registered instead of claiming a sourced report was produced.",
+      "Keeps deterministic no-network acceptance coverage available when live provider credentials are absent.",
+    ],
+    caveats: [
+      "Live deep research requires OPENAI_API_KEY and can take several minutes; the deterministic alpha harness uses a registered fake RESEARCH handler.",
+    ],
+  },
 ];
 
 export function listNativeCapabilityTruth(): NativeCapabilityTruthRecord[] {

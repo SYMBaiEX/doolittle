@@ -116,4 +116,35 @@ describe("handleDelegationCommandRoutes", () => {
     expect(response?.status).toBe(400);
     expect(createTask).not.toHaveBeenCalled();
   });
+
+  it("passes research capability and request attribution without selecting a framework", async () => {
+    const { context, createTask } = createContext();
+    const response = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: "Research sources",
+          objective: "Find primary sources",
+          capabilityProfile: "research",
+          accountId: "account-1",
+          sessionId: "session-1",
+        }),
+      }),
+      new URL("http://localhost/delegation/tasks"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "research",
+        providerPolicy: undefined,
+        metadata: expect.objectContaining({
+          capabilityProfile: "research",
+          accountId: "account-1",
+          sessionId: "session-1",
+        }),
+      }),
+    );
+  });
 });

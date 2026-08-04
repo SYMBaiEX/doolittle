@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import type {
+  AccountPoolResponse,
   DesktopLifecycleState,
   DesktopUpdateState,
   PluginsResponse,
@@ -1803,7 +1804,13 @@ export function DocsPage({ active }: { active: boolean }) {
   );
 }
 
-export function RuntimePage({ active }: { active: boolean }) {
+export function RuntimePage({
+  active,
+  onOpenProviders,
+}: {
+  active: boolean;
+  onOpenProviders?: () => void;
+}) {
   const runtime = useApiResource<RuntimeStatus>(
     active ? "/runtime/status" : null,
     [active],
@@ -1827,6 +1834,13 @@ export function RuntimePage({ active }: { active: boolean }) {
     active ? "/gateway/runtime" : null,
     [active],
   );
+  const accountPool = useApiResource<AccountPoolResponse>(
+    active ? "/runtime/account-pool" : null,
+    [active],
+  );
+  const pooledAccounts = Object.values(
+    accountPool.data?.providers ?? {},
+  ).flatMap((provider) => provider.accounts);
 
   const catalog = asArray(plugins.data?.catalog).map(asRecord);
   const ecosystemPayload = asRecord(ecosystem.data);
@@ -1860,6 +1874,7 @@ export function RuntimePage({ active }: { active: boolean }) {
               insights.reload();
               gatewayHealth.reload();
               gatewayRuntime.reload();
+              accountPool.reload();
             }}
             type="button"
           >
@@ -1874,6 +1889,11 @@ export function RuntimePage({ active }: { active: boolean }) {
       ) : (
         <>
           <div className="metric-grid compact">
+            <MetricCard
+              label="Spawned-agent accounts"
+              value={pooledAccounts.filter((account) => account.enabled).length}
+              detail="Codex and Claude build/research sessions"
+            />
             <MetricCard
               label="Provider"
               value={asString(runtime.data?.provider, "Not set")}
@@ -1894,6 +1914,57 @@ export function RuntimePage({ active }: { active: boolean }) {
             />
           </div>
           <div className="two-column-grid">
+            <section className="content-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Spawned agents</span>
+                  <h2>Account routing</h2>
+                </div>
+                <button
+                  className="text-button"
+                  disabled={!onOpenProviders}
+                  onClick={onOpenProviders}
+                  type="button"
+                >
+                  Providers &amp; accounts
+                </button>
+              </div>
+              {accountPool.loading ? (
+                <LoadingBlock />
+              ) : accountPool.error ? (
+                <ErrorBlock
+                  error={accountPool.error}
+                  retry={accountPool.reload}
+                />
+              ) : (
+                <div className="status-row">
+                  <div>
+                    <strong>
+                      {
+                        pooledAccounts.filter((account) => account.enabled)
+                          .length
+                      }{" "}
+                      enabled account(s)
+                    </strong>
+                    <small>
+                      Pool strategy applies to spawned build and research
+                      sessions, not this runtime's default conversation model.
+                    </small>
+                  </div>
+                  <Badge
+                    tone={
+                      pooledAccounts.some((account) => account.enabled)
+                        ? "good"
+                        : "warn"
+                    }
+                  >
+                    {pooledAccounts.some((account) => account.enabled)
+                      ? "Ready"
+                      : "Connect"}
+                  </Badge>
+                </div>
+              )}
+            </section>
             <section className="content-card">
               <div className="card-heading">
                 <div>
@@ -2385,7 +2456,13 @@ export function RegistryPage({ active }: { active: boolean }) {
   );
 }
 
-export function SetupPage({ active }: { active: boolean }) {
+export function SetupPage({
+  active,
+  onOpenProviders,
+}: {
+  active: boolean;
+  onOpenProviders?: () => void;
+}) {
   const checklist = useApiResource<UnknownRecord>(
     active ? "/setup/checklist" : null,
     [active],
@@ -2394,6 +2471,13 @@ export function SetupPage({ active }: { active: boolean }) {
     active ? "/setup/summary" : null,
     [active],
   );
+  const accountPool = useApiResource<AccountPoolResponse>(
+    active ? "/runtime/account-pool" : null,
+    [active],
+  );
+  const pooledEnabled = Object.values(accountPool.data?.providers ?? {})
+    .flatMap((provider) => provider.accounts)
+    .filter((account) => account.enabled).length;
   const checklistItems = asArray(asRecord(checklist.data).checklist).map(
     asRecord,
   );
@@ -2414,6 +2498,44 @@ export function SetupPage({ active }: { active: boolean }) {
       ) : (
         <>
           <div className="two-column-grid">
+            <section className="content-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Optional for delegated work</span>
+                  <h2>Spawned-agent accounts</h2>
+                </div>
+                <button
+                  className="text-button"
+                  disabled={!onOpenProviders}
+                  onClick={onOpenProviders}
+                  type="button"
+                >
+                  Providers &amp; accounts
+                </button>
+              </div>
+              {accountPool.loading ? (
+                <LoadingBlock />
+              ) : accountPool.error ? (
+                <ErrorBlock
+                  error={accountPool.error}
+                  retry={accountPool.reload}
+                />
+              ) : (
+                <div className="status-row">
+                  <div>
+                    <strong>{pooledEnabled} enabled account(s)</strong>
+                    <small>
+                      Add Codex or Claude accounts to rotate spawned build and
+                      research sessions. This does not change the conversation
+                      model above.
+                    </small>
+                  </div>
+                  <Badge tone={pooledEnabled ? "good" : "neutral"}>
+                    {pooledEnabled ? "Available" : "Optional"}
+                  </Badge>
+                </div>
+              )}
+            </section>
             <section className="content-card">
               <div className="card-heading">
                 <div>

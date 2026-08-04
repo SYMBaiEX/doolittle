@@ -296,6 +296,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
     { exact: "/runtime/plugins" },
     { exact: "/runtime/accounts" },
+    { exact: "/runtime/account-pool" },
     { exact: "/runtime/registry", allowedQueries: ["query", "refresh"] },
     { exact: "/runtime/compatibility" },
     { exact: "/runtime/ecosystem", allowedQueries: ["refresh"] },
@@ -632,6 +633,14 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/accounts/connect" },
     { exact: "/accounts/login" },
     { exact: "/accounts/setup-token" },
+    {
+      predicate: (pathname) =>
+        matchesAccountPoolActionPath(pathname, [
+          "strategy",
+          "select",
+          "import",
+        ]),
+    },
     { exact: "/media/analyze" },
     { exact: "/media/transcribe" },
     { exact: "/media/transcribe-attachment" },
@@ -711,6 +720,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   PATCH: [
     {
+      predicate: (pathname) => matchesAccountPoolAccountPath(pathname),
+    },
+    {
       predicate: (pathname) => matchesResourcePath(pathname, "/projects"),
     },
     {
@@ -730,6 +742,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
   ],
   DELETE: [
+    {
+      predicate: (pathname) => matchesAccountPoolAccountPath(pathname),
+    },
     {
       predicate: (pathname) => matchesProjectResourcePath(pathname),
     },
@@ -858,6 +873,40 @@ function matchesResourceActionPath(
     prefixSegments.every((segment, index) => segments[index] === segment) &&
     isSafeResourceId(segments[prefixSegments.length]) &&
     actions.includes(segments[prefixSegments.length + 1] ?? "")
+  );
+}
+
+const ACCOUNT_POOL_PROVIDER_IDS = [
+  "openai-codex",
+  "anthropic-subscription",
+] as const;
+
+function matchesAccountPoolActionPath(
+  pathname: string,
+  actions: readonly string[],
+): boolean {
+  const segments = pathname.split("/");
+  return (
+    segments.length === 5 &&
+    segments[1] === "runtime" &&
+    segments[2] === "account-pool" &&
+    ACCOUNT_POOL_PROVIDER_IDS.includes(
+      segments[3] as (typeof ACCOUNT_POOL_PROVIDER_IDS)[number],
+    ) &&
+    actions.includes(segments[4] ?? "")
+  );
+}
+
+function matchesAccountPoolAccountPath(pathname: string): boolean {
+  const segments = pathname.split("/");
+  return (
+    segments.length === 5 &&
+    segments[1] === "runtime" &&
+    segments[2] === "account-pool" &&
+    ACCOUNT_POOL_PROVIDER_IDS.includes(
+      segments[3] as (typeof ACCOUNT_POOL_PROVIDER_IDS)[number],
+    ) &&
+    isSafeResourceId(segments[4])
   );
 }
 

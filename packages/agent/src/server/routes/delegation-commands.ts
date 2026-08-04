@@ -13,6 +13,11 @@ type DelegationTaskBody = {
   objective?: string;
   group?: string;
   profile?: string;
+  capabilityProfile?: string;
+  kind?: "coding" | "research";
+  framework?: string;
+  accountId?: string;
+  sessionId?: string;
   priority?: "low" | "normal" | "high";
   tags?: string[];
   labels?: string[];
@@ -52,6 +57,11 @@ function toDelegationTaskInput(
     objective: body.objective,
     group: body.group,
     profile: body.profile,
+    capabilityProfile: body.capabilityProfile,
+    kind: body.kind,
+    framework: body.framework,
+    accountId: body.accountId,
+    sessionId: body.sessionId,
     priority: body.priority,
     tags: body.tags ?? body.labels,
     labels: body.labels ?? body.tags,
@@ -151,6 +161,11 @@ export async function handleDelegationCommandRoutes(
             objective: body.objective,
             group: body.group,
             profile: body.profile,
+            capabilityProfile: body.capabilityProfile,
+            kind: body.kind,
+            framework: body.framework,
+            accountId: body.accountId,
+            sessionId: body.sessionId,
             priority: body.priority,
             tags: body.tags ?? body.labels,
             labels: body.labels ?? body.tags,

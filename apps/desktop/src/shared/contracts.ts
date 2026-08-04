@@ -327,6 +327,43 @@ export interface AccountsResponse {
   connect?: Record<string, unknown>;
 }
 
+export type AccountPoolProvider = "openai-codex" | "anthropic-subscription";
+
+export type AccountPoolStrategy =
+  | "priority"
+  | "round-robin"
+  | "least-used"
+  | "quota-aware";
+
+export interface AccountPoolAccount {
+  providerId: AccountPoolProvider;
+  accountId: string;
+  label: string;
+  source: "oauth" | "api-key";
+  enabled: boolean;
+  priority: number;
+  createdAt: number;
+  lastUsedAt?: number;
+  health: string;
+  healthDetail?: unknown;
+  usage?: unknown;
+}
+
+export interface AccountPoolProviderSnapshot {
+  strategy: AccountPoolStrategy;
+  accounts: AccountPoolAccount[];
+}
+
+export interface AccountPoolResponse {
+  bridgeInstalled: boolean;
+  providers: Record<AccountPoolProvider, AccountPoolProviderSnapshot>;
+}
+
+export interface AccountPoolDeleteResponse {
+  deleted: boolean;
+  credentialsRetained: false;
+}
+
 export type ProviderAuthProvider = "codex" | "claude-code";
 
 export type ProviderAuthPhase =
@@ -549,6 +586,7 @@ export type AllowedGetPath =
   | "/runtime/plugins"
   | "/runtime/registry"
   | "/runtime/accounts"
+  | "/runtime/account-pool"
   | "/runtime/ecosystem"
   | `/runtime/ecosystem?${string}`
   | "/sessions"
@@ -695,6 +733,9 @@ export type AllowedPostPath =
   | "/accounts/connect"
   | "/accounts/login"
   | "/accounts/setup-token"
+  | `/runtime/account-pool/${AccountPoolProvider}/strategy`
+  | `/runtime/account-pool/${AccountPoolProvider}/select`
+  | `/runtime/account-pool/${AccountPoolProvider}/import`
   | "/media/analyze"
   | "/media/transcribe"
   | "/media/transcribe-attachment"
@@ -736,10 +777,14 @@ export type AllowedPostPath =
   | `/cron/jobs/${string}/run`
   | `/cron/jobs/${string}/trigger`;
 
-export type AllowedPatchPath = `/cron/jobs/${string}` | `/projects/${string}`;
+export type AllowedPatchPath =
+  | `/cron/jobs/${string}`
+  | `/projects/${string}`
+  | `/runtime/account-pool/${AccountPoolProvider}/${string}`;
 export type AllowedDeletePath =
   | `/cron/jobs/${string}`
-  | `/projects/${string}/resources/${string}`;
+  | `/projects/${string}/resources/${string}`
+  | `/runtime/account-pool/${AccountPoolProvider}/${string}`;
 
 export interface ApiGetRequest {
   path: AllowedGetPath;

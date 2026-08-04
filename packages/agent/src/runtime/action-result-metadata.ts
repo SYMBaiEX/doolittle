@@ -82,6 +82,23 @@ export function actionResultActionName(
   return stringValue(data.actionName) ?? stringValue(data.mutationAction);
 }
 
+/**
+ * Receipt-grade action name: only `mutationAction`, which `buildActionResultData`
+ * writes alongside the full `mutation` envelope.
+ *
+ * Deliberately does NOT fall back to `data.actionName`. That field is synthesized
+ * from the tool-call name when an ActionResult is reconstructed from a stream
+ * envelope (see chat-turn/provider-streaming.ts), so it can be present on a result
+ * that carries no mutation receipt at all. Arming the execution contract from it
+ * would create an obligation that is structurally impossible to discharge.
+ */
+export function actionResultMutationActionName(
+  actionResult: ActionResult | undefined,
+): string | undefined {
+  const data = actionResult?.data;
+  return isRecord(data) ? stringValue(data.mutationAction) : undefined;
+}
+
 export function extractLocalMutationFromActionResult(
   actionResult: ActionResult | undefined,
 ): LocalMutationInput | undefined {

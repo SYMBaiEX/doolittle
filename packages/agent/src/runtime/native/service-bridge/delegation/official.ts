@@ -123,12 +123,34 @@ export function projectOfficialTask(
     objective: detail?.goal ?? task.originalRequest,
     group: metadataString(metadata, "group"),
     profile:
+      metadataString(metadata, "capabilityProfile") ??
       metadataString(metadata, "profile") ??
       detail?.providerPolicy?.preferredFramework,
     priority: task.priority === "urgent" ? "high" : task.priority,
     tags,
     labels: tags,
     metadata: stringMetadata(metadata),
+    capabilityProfile:
+      metadataString(metadata, "capabilityProfile") ??
+      metadataString(metadata, "profile"),
+    kind: task.kind === "research" ? "research" : "coding",
+    framework: detail?.providerPolicy?.preferredFramework,
+    // A session assignment is the orchestrator's authoritative attribution.
+    // Only legacy tasks with no sessions use caller-provided metadata.
+    accountProviderId:
+      latestSession?.accountProviderId ??
+      (latestSession
+        ? undefined
+        : metadataString(metadata, "accountProviderId")),
+    accountId:
+      latestSession?.accountId ??
+      (latestSession ? undefined : metadataString(metadata, "accountId")),
+    accountLabel:
+      latestSession?.accountLabel ??
+      (latestSession ? undefined : metadataString(metadata, "accountLabel")),
+    sessionId:
+      latestSession?.sessionId ??
+      (latestSession ? undefined : metadataString(metadata, "sessionId")),
     workspaceRoot:
       latestSession?.workdir ??
       task.latestWorkdir ??

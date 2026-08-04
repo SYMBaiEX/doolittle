@@ -9,15 +9,17 @@ export function createGatewayAccessor(params: {
   runtime: IAgentRuntime;
 }): { get(): GatewayRunner } {
   const { services, runtime } = params;
-  const gatewayService = requireRuntimeService<{
-    runner?: GatewayRunner;
-    ensureRunner(): GatewayRunner;
-  }>(runtime, DOOLITTLE_GATEWAY_SERVICE, ["ensureRunner"]);
-  let gatewayInstance = gatewayService.runner;
+  let gatewayInstance: GatewayRunner | undefined;
 
   return {
     get(): GatewayRunner {
       if (!gatewayInstance) {
+        const gatewayService = requireRuntimeService<{
+          runner?: GatewayRunner;
+          ensureRunner(): GatewayRunner;
+        }>(runtime, DOOLITTLE_GATEWAY_SERVICE, ["ensureRunner"]);
+        gatewayInstance = gatewayService.runner;
+        if (gatewayInstance) return gatewayInstance;
         services.startupState.markWarming(
           "gateway",
           "preparing messaging gateway",

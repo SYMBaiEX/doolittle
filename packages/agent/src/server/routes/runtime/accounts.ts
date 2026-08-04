@@ -1,5 +1,14 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { withLinkedProviderMutationLock } from "@/runtime/linked-provider-accounts";
+import {
+  deleteDoolittleAccount,
+  importCurrentDoolittleAccount,
+  isAccountPoolProvider,
+  selectDoolittleAccount,
+  setDoolittleAccountPoolStrategy,
+  snapshotDoolittleAccountPool,
+  updateDoolittleAccount,
+} from "@/runtime/native/account-pool";
 import { json } from "@/server/responses";
 import {
   activateAccount,
@@ -16,6 +25,112 @@ export async function handleRuntimeAccountRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  const accountPoolRoute = url.pathname.match(
+    /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription)(?:\/([^/]+))?$/,
+  );
+  if (request.method === "GET" && url.pathname === "/runtime/account-pool") {
+    return json(snapshotDoolittleAccountPool());
+  }
+
+  if (accountPoolRoute) {
+    const providerId = accountPoolRoute[1];
+    const accountId = accountPoolRoute[2];
+    if (!isAccountPoolProvider(providerId)) return null;
+
+    if (request.method === "POST" && accountId === "import") {
+      const body = (await request.json().catch(() => ({}))) as {
+        accountId?: unknown;
+        label?: unknown;
+      };
+      if (
+        typeof body.accountId !== "string" ||
+        typeof body.label !== "string"
+      ) {
+        return json({ error: "accountId and label are required" }, 400);
+      }
+      try {
+        const account = importCurrentDoolittleAccount(
+          providerId,
+          body.accountId,
+          body.label,
+        );
+        return account
+          ? json({ account })
+          : json({ error: "no linked native credentials are available" }, 409);
+      } catch (error) {
+        return json(
+          {
+            error:
+              error instanceof Error ? error.message : "invalid account import",
+          },
+          400,
+        );
+      }
+    }
+
+    if (request.method === "POST" && accountId === "strategy") {
+      const body = (await request.json().catch(() => ({}))) as {
+        strategy?: unknown;
+      };
+      try {
+        return json({
+          providerId,
+          strategy: setDoolittleAccountPoolStrategy(providerId, body.strategy),
+        });
+      } catch (error) {
+        return json(
+          {
+            error: error instanceof Error ? error.message : "invalid strategy",
+          },
+          400,
+        );
+      }
+    }
+
+    if (request.method === "POST" && accountId === "select") {
+      const body = (await request.json().catch(() => ({}))) as {
+        strategy?: unknown;
+        sessionKey?: unknown;
+      };
+      return json({
+        account: await selectDoolittleAccount(providerId, body),
+      });
+    }
+
+    if (request.method === "PATCH" && accountId) {
+      const body = (await request.json().catch(() => ({}))) as {
+        label?: unknown;
+        enabled?: unknown;
+        priority?: unknown;
+      };
+      try {
+        const account = await updateDoolittleAccount(
+          providerId,
+          accountId,
+          body,
+        );
+        return account
+          ? json({ account })
+          : json({ error: "account not found" }, 404);
+      } catch (error) {
+        return json(
+          {
+            error:
+              error instanceof Error ? error.message : "invalid account update",
+          },
+          400,
+        );
+      }
+    }
+
+    if (request.method === "DELETE" && accountId) {
+      const deleted = await deleteDoolittleAccount(providerId, accountId);
+      return deleted
+        ? json({ deleted: true, credentialsRetained: false })
+        : json({ error: "account not found" }, 404);
+    }
+  }
+
   if (
     request.method === "GET" &&
     (url.pathname === "/runtime/accounts" || url.pathname === "/accounts")

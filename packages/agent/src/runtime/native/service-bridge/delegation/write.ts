@@ -7,10 +7,16 @@ import type {
 } from "./types";
 
 function metadataFor(input: EffectiveDelegationCreateInput) {
+  const capabilityProfile = input.capabilityProfile ?? input.profile;
   return {
     ...(input.metadata ?? {}),
     group: input.group,
-    profile: input.profile,
+    // `profile` remains available to existing Doolittle views, while the
+    // canonical metadata makes the product capability explicit.
+    profile: capabilityProfile,
+    capabilityProfile,
+    accountId: input.accountId,
+    sessionId: input.sessionId,
     priority: input.priority,
     labels: input.labels ?? input.tags,
     tags: input.tags ?? input.labels,
@@ -19,6 +25,19 @@ function metadataFor(input: EffectiveDelegationCreateInput) {
     maxAttempts: input.maxAttempts,
     workspaceRoot: input.workspaceRoot,
   };
+}
+
+function taskKindFor(
+  input: EffectiveDelegationCreateInput,
+): "coding" | "research" {
+  if (input.kind) return input.kind;
+  return (input.capabilityProfile ?? input.profile) === "research"
+    ? "research"
+    : "coding";
+}
+
+function providerPolicyFor(input: EffectiveDelegationCreateInput) {
+  return input.framework ? { preferredFramework: input.framework } : undefined;
 }
 
 function updateProjection(
@@ -53,11 +72,9 @@ export async function createEffectiveDelegationTask(
     title: input.title,
     goal: input.objective,
     originalRequest: input.objective,
-    kind: "coding",
+    kind: taskKindFor(input),
     priority: input.priority,
-    providerPolicy: input.profile
-      ? { preferredFramework: input.profile }
-      : undefined,
+    providerPolicy: providerPolicyFor(input),
     metadata: metadataFor(input),
   });
   return updateProjection(projection, projectOfficialTask(task));
@@ -72,6 +89,11 @@ export async function spawnEffectiveDelegationChild(
     objective: string;
     group?: string;
     profile?: string;
+    capabilityProfile?: string;
+    kind?: "coding" | "research";
+    framework?: string;
+    accountId?: string;
+    sessionId?: string;
     priority?: "low" | "normal" | "high";
     tags?: string[];
     labels?: string[];
@@ -87,12 +109,10 @@ export async function spawnEffectiveDelegationChild(
     title: input.title,
     goal: input.objective,
     originalRequest: input.objective,
-    kind: "coding",
+    kind: taskKindFor(input),
     parentTaskId: parentId,
     priority: input.priority,
-    providerPolicy: input.profile
-      ? { preferredFramework: input.profile }
-      : undefined,
+    providerPolicy: providerPolicyFor(input),
     metadata: metadataFor(input),
   });
   return updateProjection(projection, projectOfficialTask(task));

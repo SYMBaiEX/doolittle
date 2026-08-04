@@ -1035,10 +1035,6 @@ button.chat-session-meta-pill:hover {
   padding: 5px 8px;
 }
 
-.chat-messages {
-  padding: 32px clamp(24px, 6vw, 76px) 24px;
-}
-
 .chat-welcome {
   width: min(100%, 720px);
 }
@@ -1101,19 +1097,14 @@ button.chat-session-meta-pill:hover {
   border-radius: var(--radius-md);
 }
 
-.chat-message {
-  width: min(100%, 760px);
-  margin-bottom: 34px;
-}
-
 .chat-message-label {
   align-items: center;
 }
 
+/* Anchors the absolutely positioned .chat-message-actions overlay below.
+   Typography for the body is owned by the canonical rule further down. */
 .chat-message-body {
   position: relative;
-  font-size: 13px;
-  line-height: 1.72;
 }
 
 .chat-message-actions {
@@ -4044,12 +4035,16 @@ button.chat-session-meta-pill:hover {
   font-size: 12px;
 }
 
+/* Canonical scroll container for the transcript. This is the single owner of
+   .chat-messages padding — the responsive overrides further down depend on no
+   later stylesheet re-declaring it unconditionally. */
 .chat-messages {
   min-height: 0;
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 24px clamp(24px, 5vw, 76px) 28px;
+  padding: 20px clamp(16px, 4vw, 56px) 14px;
+  scrollbar-gutter: stable;
   scroll-padding-bottom: 150px;
 }
 
@@ -4195,6 +4190,16 @@ button.chat-session-meta-pill:hover {
   background: var(--surface-soft);
   border: 1px solid color-mix(in srgb, var(--border-strong) 72%, var(--border));
   border-radius: 12px 4px 12px 12px;
+}
+
+/* People type prose, not Markdown: a newline in the composer is meant as a
+   line break. Markdown would fold it into a space, so preserve it — but only
+   inside the paragraph, never on the container. By this point the parser has
+   already consumed the structural blank lines, so block margins stay single
+   and this cannot reintroduce the double-gap. Agent output stays pure
+   Markdown, where a soft break correctly means a space. */
+.chat-message.user .message-content__response :where(p, li) {
+  white-space: pre-wrap;
 }
 
 .chat-message-actions {

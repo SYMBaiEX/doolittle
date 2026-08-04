@@ -409,6 +409,7 @@ export function ChatPage({
   onSelect,
   refreshRuntime,
   onOpenModelsPage,
+  onOpenProvidersPage,
   onOpenWorkspaceView,
   onConsumeContextHandoff,
   activeProject,
@@ -431,6 +432,7 @@ export function ChatPage({
   onSelect: (sessionId: string) => void;
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
+  onOpenProvidersPage: () => void;
   onOpenWorkspaceView: (view: ThreadWorkbenchFullView) => void;
   onConsumeContextHandoff: (id: string) => void;
   activeProject?: {
@@ -2323,6 +2325,7 @@ export function ChatPage({
             <ComposerModelSelector
               active={backend.phase === "ready"}
               onOpenModelsPage={onOpenModelsPage}
+              onOpenProvidersPage={onOpenProvidersPage}
               refreshRuntime={refreshRuntime}
               runtime={runtime}
             />

@@ -11,8 +11,8 @@ const routes = [
   ["chat", "Chat"],
   ["code", "Code"],
   ["browser", "Browser & preview"],
-  ["review", "Review"],
-  ["orchestration", "Tasks & agents"],
+  ["review", "Work"],
+  ["orchestration", "Work"],
   ["media", "Media studio"],
   ["automations", "Automations"],
   ["sessions", "Sessions"],
@@ -20,7 +20,7 @@ const routes = [
   ["activity", "Activity"],
   ["analytics", "Analytics"],
   ["models", "Models"],
-  ["connections", "Connections"],
+  ["connections", "Providers & accounts"],
   ["tools", "Tools"],
   ["skills", "Skills"],
   ["plugins", "Plugins"],
@@ -40,8 +40,10 @@ test.describe("Doolittle desktop navigation", () => {
   test("boots the real Electron shell and renders every application route", async ({
     browserName,
   }, testInfo) => {
+    test.setTimeout(120_000);
     expect(browserName).toBe("chromium");
     const profileDir = mkdtempSync(join(tmpdir(), "doolittle-e2e-desktop-"));
+    const researchTaskTitle = `E2E SDK research receipt ${Date.now()}`;
     const alternateWorkspace = realpathSync(
       mkdtempSync(join(tmpdir(), "doolittle-e2e-workspace-")),
     );
@@ -66,7 +68,7 @@ test.describe("Doolittle desktop navigation", () => {
 
     try {
       const page = await app.firstWindow();
-      await expect(page).toHaveTitle("Doolittle");
+      await expect(page).toHaveTitle(/Doolittle$/);
       await expect(page.locator(".window-runtime-status.ready")).toContainText(
         "Local runtime",
         { timeout: 45_000 },
@@ -231,13 +233,178 @@ test.describe("Doolittle desktop navigation", () => {
         )
         .not.toBe("280");
 
-      for (const [route, label] of routes) {
-        await page.evaluate((nextRoute) => {
-          window.location.hash = `#/${nextRoute}`;
-        }, route);
-        await expect(page.locator(".window-context strong")).toHaveText(label);
-        await expect(page.locator(".recovery-shell")).toHaveCount(0);
-      }
+      const verifyAllRoutes = async () => {
+        for (const [route, label] of routes) {
+          await page.evaluate((nextRoute) => {
+            window.location.hash = `#/${nextRoute}`;
+          }, route);
+          await expect(page.locator(".window-context strong")).toHaveText(
+            label,
+          );
+          await expect(page.locator(".recovery-shell")).toHaveCount(0);
+        }
+      };
+
+      await page.evaluate(() => {
+        window.location.hash = "#/connections";
+      });
+      await expect(
+        page.getByRole("heading", { name: "Providers & accounts" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("region", {
+          name: "Codex spawned-agent account pool",
+        }),
+      ).toContainText("Routing & accounts", { timeout: 30_000 });
+      await expect(
+        page.getByRole("region", {
+          name: "Claude Code spawned-agent account pool",
+        }),
+      ).toContainText("Routing & accounts", { timeout: 30_000 });
+      await expect(page.getByText("Bridge ready")).toHaveCount(2, {
+        timeout: 30_000,
+      });
+      await expect(page.getByText("No pooled accounts")).toHaveCount(2);
+      await expect(page.locator("body")).not.toContainText(/access[_-]?token/i);
+      await expect(page.locator("body")).not.toContainText(
+        /refresh[_-]?token/i,
+      );
+      const codexPool = page.getByRole("region", {
+        name: "Codex spawned-agent account pool",
+      });
+      await expect(codexPool.getByLabel("Routing strategy")).toHaveValue(
+        "priority",
+      );
+      await expect(
+        codexPool.getByLabel("Routing strategy").locator("option"),
+      ).toHaveCount(4);
+      const providersScreenshot = testInfo.outputPath(
+        "doolittle-providers-and-accounts.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        fullPage: true,
+        path: providersScreenshot,
+      });
+      await testInfo.attach("providers and accounts", {
+        contentType: "image/png",
+        path: providersScreenshot,
+      });
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(
+        codexPool.getByRole("button", { name: "Preview selection" }),
+      ).toBeVisible();
+      const narrowProviderLayout = await page.evaluate(() => {
+        const pool = document.querySelector(
+          '[aria-label="Codex spawned-agent account pool"]',
+        );
+        const preview = [...document.querySelectorAll("button")].find(
+          (button) => button.textContent?.trim() === "Preview selection",
+        );
+        const poolRect = pool?.getBoundingClientRect();
+        const previewRect = preview?.getBoundingClientRect();
+        return {
+          documentFits:
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth,
+          poolFits:
+            Boolean(poolRect) &&
+            (poolRect?.left ?? -1) >= 0 &&
+            (poolRect?.right ?? Number.POSITIVE_INFINITY) <= window.innerWidth,
+          previewFits:
+            Boolean(previewRect) &&
+            (previewRect?.left ?? -1) >= 0 &&
+            (previewRect?.right ?? Number.POSITIVE_INFINITY) <=
+              window.innerWidth,
+        };
+      });
+      expect(narrowProviderLayout).toEqual({
+        documentFits: true,
+        poolFits: true,
+        previewFits: true,
+      });
+      const narrowProvidersScreenshot = testInfo.outputPath(
+        "doolittle-providers-and-accounts-narrow.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        fullPage: true,
+        path: narrowProvidersScreenshot,
+      });
+      await testInfo.attach("providers and accounts narrow", {
+        contentType: "image/png",
+        path: narrowProvidersScreenshot,
+      });
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await expect(
+        page.getByText("Checking the default chat provider…"),
+      ).toHaveCount(0, { timeout: 30_000 });
+
+      await page.evaluate(() => {
+        window.location.hash = "#/orchestration";
+      });
+      await expect(
+        page.getByRole("heading", { name: "Agent work" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("tab", { name: /Build & research/ }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "New research task" }).click();
+      const taskForm = page.locator("form.orchestration-quick-create");
+      await expect(taskForm.getByLabel("Task work type")).toHaveValue(
+        "research",
+      );
+      await taskForm.getByLabel("Task framework").selectOption("codex");
+      await taskForm.getByLabel("Title").fill(researchTaskTitle);
+      await taskForm
+        .getByLabel("Objective")
+        .fill("Research the Eliza account-pool orchestration path.");
+      await taskForm.getByRole("button", { name: "Create task" }).click();
+      await expect(page.getByText("Task created.")).toBeVisible({
+        timeout: 30_000,
+      });
+      await expect(
+        page
+          .locator(".orchestration-master-item")
+          .filter({ hasText: researchTaskTitle }),
+      ).toBeVisible({ timeout: 30_000 });
+      const researchReceipt = await page.evaluate(async (taskTitle) => {
+        const result = await window.doolittle.api<{
+          tasks?: Array<{
+            title?: string;
+            capabilityProfile?: string;
+            kind?: string;
+            framework?: string;
+            workspaceRoot?: string;
+          }>;
+        }>({ path: "/delegation/tasks?limit=100" });
+        return result.tasks?.find((task) => task.title === taskTitle);
+      }, researchTaskTitle);
+      expect(researchReceipt).toMatchObject({
+        capabilityProfile: "research",
+        kind: "research",
+        framework: "codex",
+        workspaceRoot: repoRoot,
+      });
+      const taskDetail = page.locator(".orchestration-detail");
+      await expect(taskDetail).toContainText("Capability");
+      await expect(taskDetail).toContainText("research");
+      await expect(taskDetail).toContainText("codex");
+      await expect(taskDetail).toContainText("automatic account routing");
+      const researchTaskScreenshot = testInfo.outputPath(
+        "doolittle-research-task-receipt.png",
+      );
+      await page.screenshot({
+        animations: "disabled",
+        path: researchTaskScreenshot,
+      });
+      await testInfo.attach("research task receipt", {
+        contentType: "image/png",
+        path: researchTaskScreenshot,
+      });
+
+      await verifyAllRoutes();
 
       await page.evaluate(() => {
         window.location.hash = "#/skills";
@@ -266,8 +433,9 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/review";
       });
+      await page.getByRole("tab", { name: "Review" }).click();
       await expect(
-        page.locator('section[aria-label="Branch record"]'),
+        page.locator('section[aria-label="Current agent work outcome"]'),
       ).toBeVisible();
       await page.locator(".project-rail-all").click();
       await expect
@@ -300,14 +468,11 @@ test.describe("Doolittle desktop navigation", () => {
         window.location.hash = "#/memory";
       });
       await expect(
-        page.getByRole("heading", { name: "Shared memory" }),
+        page.getByRole("heading", { name: "Memory", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "Rolodex summary" }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "Operator card" }),
-      ).toBeVisible();
+        page.getByRole("tab", { name: "Shared memory" }),
+      ).toHaveAttribute("aria-selected", "true");
 
       await page.evaluate(() => {
         window.location.hash = "#/tools";
@@ -315,7 +480,9 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("heading", { name: "ACP bridge" }),
       ).toBeVisible();
-      await expect(page.locator(".acp-bridge-summary")).toBeVisible();
+      await expect(page.locator(".acp-bridge-summary")).toBeVisible({
+        timeout: 30_000,
+      });
       await expect(page.locator(".acp-bridge-summary")).toContainText(
         "Registered tools",
       );
@@ -326,7 +493,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page
           .locator(".acp-bridge-tool-list")
-          .getByText("workspace.search", { exact: true }),
+          .getByText("DOOLITTLE_WORKSPACE", { exact: true }),
       ).toBeVisible();
 
       await page.evaluate(() => {
@@ -351,7 +518,7 @@ test.describe("Doolittle desktop navigation", () => {
         overscrollBehaviorY: "contain",
       });
       await expect(
-        page.getByRole("button", { name: /^History \d+$/ }),
+        page.getByRole("button", { name: /^All conversations/ }),
       ).toBeVisible();
 
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
@@ -443,7 +610,9 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("textbox", { name: "Search models" }),
       ).toBeVisible();
-      await expect(page.getByRole("button", { name: /Ollama/ })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Providers & accounts" }),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", { name: /Refresh models/ }),
       ).toBeVisible();
@@ -482,7 +651,7 @@ test.describe("Doolittle desktop navigation", () => {
       const workbenchTree = page
         .locator("#thread-workbench")
         .getByRole("tree", { name: "Workspace files" });
-      await expect(workbenchTree).toBeVisible();
+      await expect(workbenchTree).toBeVisible({ timeout: 30_000 });
       const workbenchAppsFolder = workbenchTree.getByRole("treeitem", {
         name: "apps",
         exact: true,
@@ -544,13 +713,13 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: "Open tools and settings" })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Tools and settings" }),
+        page.getByRole("complementary", { name: "Tools and settings" }),
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Tools & settings" }),
       ).toBeVisible();
       const toolSearch = page.getByRole("searchbox", {
-        name: "Find a tool",
+        name: "Find a tool or setting",
       });
       await expect(toolSearch).toBeVisible();
       await toolSearch.fill("compatibility");

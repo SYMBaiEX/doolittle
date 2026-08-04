@@ -1,7 +1,10 @@
 import type { AppLogger } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import type { ApiServerAddress } from "@/server";
-import type { EntrypointSubcommand } from "./subcommand";
+import {
+  type EntrypointSubcommand,
+  isEntrypointAliasCommand,
+} from "./subcommand";
 
 export type ApiStartupContext = AppContext;
 
@@ -31,7 +34,8 @@ export function resolveEntrypointCommandPlan(
     command === "cockpit" ||
     command === "dev" ||
     command === "plain" ||
-    command === "exec";
+    command === "exec" ||
+    isEntrypointAliasCommand(command);
   const shouldUseApiSurface = command === "api" || command === "gateway";
 
   return {

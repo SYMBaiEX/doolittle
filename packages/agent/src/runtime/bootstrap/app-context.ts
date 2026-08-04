@@ -14,6 +14,7 @@ import type {
   AppContext,
   AppContextBuildOptions,
 } from "@/runtime/bootstrap/types";
+import { initializeDoolittleAccountPool } from "@/runtime/native/account-pool";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { createServices } from "@/services";
 
@@ -35,6 +36,7 @@ export async function buildAppContext({
     "will hydrate after the shell is interactive",
   );
   const runtimeSettings = services.settings.get();
+  initializeDoolittleAccountPool(config.dataDir);
   appendBootstrapTrace("phase:buildNativePluginAssembly:start");
   const nativePluginAssembly = await buildNativePluginAssembly(
     services,

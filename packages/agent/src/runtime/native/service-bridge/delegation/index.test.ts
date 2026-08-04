@@ -57,6 +57,7 @@ describe("official delegation service bridge", () => {
       expect.objectContaining({
         id: "task-1",
         objective: "Use official orchestration",
+        kind: "coding",
         status: "running",
         executionMode: "delegated",
       }),
@@ -66,7 +67,7 @@ describe("official delegation service bridge", () => {
     ).resolves.toMatchObject({ id: "task-1", status: "running" });
   });
 
-  it("uses the official createTask object contract", async () => {
+  it("keeps capability profile separate from an explicitly selected framework", async () => {
     const createTask = vi.fn(async () => detail());
     const service = { createTask };
 
@@ -76,7 +77,8 @@ describe("official delegation service bridge", () => {
       {
         title: "Migrate",
         objective: "Remove the local store",
-        profile: "codex",
+        capabilityProfile: "research",
+        framework: "codex",
         group: "platform",
         priority: "high",
         labels: ["orchestrator"],
@@ -88,16 +90,39 @@ describe("official delegation service bridge", () => {
       title: "Migrate",
       goal: "Remove the local store",
       originalRequest: "Remove the local store",
-      kind: "coding",
+      kind: "research",
       priority: "high",
       providerPolicy: { preferredFramework: "codex" },
       metadata: expect.objectContaining({
         group: "platform",
-        profile: "codex",
+        profile: "research",
+        capabilityProfile: "research",
         labels: ["orchestrator"],
         workspaceRoot: "/repo",
       }),
     });
+  });
+
+  it("defaults to coding and does not turn a legacy profile into a framework", async () => {
+    const createTask = vi.fn(async () => detail());
+
+    await createEffectiveDelegationTask(
+      runtimeWith({ createTask }) as never,
+      undefined,
+      {
+        title: "Compatibility task",
+        objective: "Keep existing callers working",
+        profile: "research",
+      },
+    );
+
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "research",
+        providerPolicy: undefined,
+        metadata: expect.objectContaining({ capabilityProfile: "research" }),
+      }),
+    );
   });
 
   it("returns a compatibility unavailable state for manual supervision", async () => {
@@ -129,5 +154,68 @@ describe("official delegation service bridge", () => {
     expect(
       projectOfficialTask(detail({ status: "archived" }) as never).status,
     ).toBe("cancelled");
+  });
+
+  it("projects the official coding or research kind for operator receipts", () => {
+    expect(
+      projectOfficialTask(detail({ kind: "research" }) as never).kind,
+    ).toBe("research");
+    expect(projectOfficialTask(detail({ kind: "coding" }) as never).kind).toBe(
+      "coding",
+    );
+  });
+
+  it("prefers the latest official session assignment over caller metadata", () => {
+    const projected = projectOfficialTask(
+      detail({
+        metadata: {
+          accountProviderId: "metadata-provider",
+          accountId: "metadata-account",
+          accountLabel: "metadata-label",
+          sessionId: "metadata-session",
+        },
+        sessions: [
+          {
+            sessionId: "official-session",
+            accountProviderId: "official-provider",
+            accountId: "official-account",
+            accountLabel: "Official account",
+            framework: "codex",
+            label: "Official session",
+            workdir: "/repo",
+            status: "completed",
+            completionSummary: null,
+            metadata: {},
+          },
+        ],
+      }) as never,
+    );
+
+    expect(projected).toMatchObject({
+      accountProviderId: "official-provider",
+      accountId: "official-account",
+      accountLabel: "Official account",
+      sessionId: "official-session",
+    });
+  });
+
+  it("uses legacy attribution metadata only before an official session exists", () => {
+    expect(
+      projectOfficialTask(
+        detail({
+          metadata: {
+            accountProviderId: "metadata-provider",
+            accountId: "metadata-account",
+            accountLabel: "Metadata account",
+            sessionId: "metadata-session",
+          },
+        }) as never,
+      ),
+    ).toMatchObject({
+      accountProviderId: "metadata-provider",
+      accountId: "metadata-account",
+      accountLabel: "Metadata account",
+      sessionId: "metadata-session",
+    });
   });
 });

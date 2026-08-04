@@ -27,6 +27,13 @@ export interface DashboardTaskCard {
   updatedAt?: string;
 }
 
+export interface DashboardAccountPoolSummary {
+  total: number;
+  enabled: number;
+  providersReady: number;
+  strategies: string[];
+}
+
 export interface DashboardSetupEntry {
   key: string;
   label: string;
@@ -49,7 +56,7 @@ export interface DashboardNextAction {
   title: string;
   description: string;
   tone: "good" | "warn" | "neutral";
-  target: "review" | "tasks" | "setup" | "chat";
+  target: "review" | "tasks" | "setup" | "chat" | "providers";
 }
 
 function compactListSummary(values: unknown[]): string {
@@ -250,6 +257,29 @@ export function normalizeTasks(values: unknown[]): DashboardTaskCard[] {
     .slice(0, 6);
 }
 
+export function summarizeAccountPool(
+  value: unknown,
+): DashboardAccountPoolSummary {
+  const providers = asRecord(asRecord(value).providers);
+  const snapshots = Object.values(providers).map(asRecord);
+  const accounts = snapshots.flatMap((snapshot) =>
+    asArray(snapshot.accounts).map(asRecord),
+  );
+  const strategies = snapshots
+    .map((snapshot) => asString(snapshot.strategy))
+    .filter(Boolean);
+  return {
+    total: accounts.length,
+    enabled: accounts.filter((account) => account.enabled !== false).length,
+    providersReady: snapshots.filter((snapshot) =>
+      asArray(snapshot.accounts).some(
+        (account) => asRecord(account).enabled !== false,
+      ),
+    ).length,
+    strategies,
+  };
+}
+
 export function countRuntimePlugins(
   plugins: Record<string, boolean> | undefined,
 ): number {
@@ -268,6 +298,7 @@ export function buildNextActions(input: {
   repo: DashboardRepoSnapshot;
   setupEntries: DashboardSetupEntry[];
   sessions: DashboardSessionCard[];
+  accountPool?: DashboardAccountPoolSummary;
 }): DashboardNextAction[] {
   const actions: DashboardNextAction[] = [];
   if (input.pendingApprovals > 0) {
@@ -290,6 +321,16 @@ export function buildNextActions(input: {
       } still active.`,
       tone: "neutral",
       target: "tasks",
+    });
+  }
+  if (input.accountPool && input.accountPool.providersReady === 0) {
+    actions.push({
+      id: "agent-accounts",
+      title: "Connect spawned-agent accounts",
+      description:
+        "Add a Codex or Claude account before starting pooled build or research sessions.",
+      tone: "warn",
+      target: "providers",
     });
   }
   const setupWarnings = input.setupEntries.filter(

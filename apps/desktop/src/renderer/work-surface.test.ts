@@ -7,7 +7,7 @@ describe("consolidated work surface", () => {
       { id: "tasks", label: "Queue" },
       { id: "agents", label: "Agents" },
       { id: "plans", label: "Plans" },
-      { id: "runs", label: "Runs" },
+      { id: "runs", label: "Build & research" },
       { id: "review", label: "Review" },
     ]);
   });

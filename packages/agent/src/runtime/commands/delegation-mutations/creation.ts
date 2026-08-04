@@ -19,7 +19,7 @@ export async function handleDelegationCreationMutation(
     const payload = trimmed.replace("/delegate create ", "");
     const parsed = parseDelegationSegments(payload);
     if (!parsed) {
-      return "Usage: /delegate create <title> | group:research | profile:research | priority:high | labels:browser,voice | metadata:owner=alice :: <objective>";
+      return "Usage: /delegate create <title> | group:research | profile:research | framework:codex | kind:research | priority:high | labels:browser,voice | metadata:owner=alice :: <objective>";
     }
     const labels = parseDelegationLabels(
       parsed.options.labels ?? parsed.options.tags,
@@ -32,6 +32,14 @@ export async function handleDelegationCreationMutation(
         objective: parsed.objective,
         group: parsed.options.group,
         profile: parsed.options.profile,
+        capabilityProfile: parsed.options.capabilityProfile,
+        kind:
+          parsed.options.kind === "research" || parsed.options.kind === "coding"
+            ? parsed.options.kind
+            : undefined,
+        framework: parsed.options.framework,
+        accountId: parsed.options.accountId ?? parsed.options.account,
+        sessionId: parsed.options.sessionId ?? parsed.options.session,
         priority:
           resolveDelegationPriority(parsed.options.priority) ?? "normal",
         tags: labels,
@@ -49,7 +57,7 @@ export async function handleDelegationCreationMutation(
     const payload = trimmed.replace("/delegate spawn ", "");
     const parsed = parseDelegationSpawnSegments(payload);
     if (!parsed) {
-      return "Usage: /delegate spawn <parent-id> | title:Child Task | group:research | profile:research | priority:high | labels:browser :: <objective>";
+      return "Usage: /delegate spawn <parent-id> | title:Child Task | group:research | profile:research | framework:codex | kind:research | priority:high | labels:browser :: <objective>";
     }
     const labels = parseDelegationLabels(
       parsed.options.labels ?? parsed.options.tags,
@@ -63,6 +71,14 @@ export async function handleDelegationCreationMutation(
         objective: parsed.objective,
         group: parsed.options.group,
         profile: parsed.options.profile,
+        capabilityProfile: parsed.options.capabilityProfile,
+        kind:
+          parsed.options.kind === "research" || parsed.options.kind === "coding"
+            ? parsed.options.kind
+            : undefined,
+        framework: parsed.options.framework,
+        accountId: parsed.options.accountId ?? parsed.options.account,
+        sessionId: parsed.options.sessionId ?? parsed.options.session,
         priority: resolveDelegationPriority(parsed.options.priority),
         tags: labels,
         labels,

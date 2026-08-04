@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { prepareEntrypointRuntimeBoot } from "./runtime-boot";
+import { resolveEntrypointCommandPlan } from "./runtime-control";
 
 const originalMode = process.env.DOOLITTLE_MODE;
 const originalDesktopRuntime = process.env.DOOLITTLE_DESKTOP_RUNTIME;
@@ -19,6 +20,51 @@ afterEach(() => {
 });
 
 describe("prepareEntrypointRuntimeBoot", () => {
+  it("loads the CLI prompt runner for one-shot status", async () => {
+    delete process.env.DOOLITTLE_MODE;
+    const runCliPrompt = async () => ({ text: "status ok" });
+    const context = {
+      config: { mode: "cli", host: "127.0.0.1", port: 3131 },
+      services: {
+        logger: {
+          child() {
+            return this;
+          },
+        },
+      },
+      ensureDeferredHydration: async () => {},
+      runtime: {} as never,
+      gateway: {} as never,
+    } as unknown as AppContext;
+
+    const boot = await prepareEntrypointRuntimeBoot(
+      {
+        command: "status",
+        commandPlan: resolveEntrypointCommandPlan("status"),
+        shellIsInteractive: false,
+        stdinIsTTY: false,
+        writeStderrLine() {},
+        formatTopLevelError: (error) => String(error),
+      },
+      {
+        ensureOnboarded: async () => {},
+        loadLocalRuntimeEnv: () => {},
+        importBootstrap: async () => ({
+          getAppContext: async () => context,
+        }),
+        importCli: async () =>
+          ({
+            startCli: async () => 0,
+            runCliPrompt,
+            runCliPromptWithEvents: async () => undefined,
+          }) as never,
+      },
+    );
+
+    expect(boot.runCliPrompt).toBe(runCliPrompt);
+    expect(boot.runtimePlan.shouldUseCliSurface).toBe(true);
+  });
+
   it("boots the runtime and returns the runtime controller wiring", async () => {
     delete process.env.DOOLITTLE_MODE;
     const ensureOnboardedCalls: string[] = [];

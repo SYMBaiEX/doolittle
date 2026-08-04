@@ -232,6 +232,41 @@
   border-color: var(--border);
 }
 
+.composer-agent-pool-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-soft));
+  border-top: 1px solid var(--border);
+  font-size: 9px;
+}
+
+.composer-agent-pool-note strong {
+  color: var(--text);
+}
+.composer-agent-pool-note span {
+  min-width: 0;
+}
+.composer-agent-pool-note button {
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .composer-agent-pool-note {
+    grid-template-columns: 1fr auto;
+  }
+  .composer-agent-pool-note span {
+    grid-column: 1 / -1;
+  }
+}
+
 .composer-model-selector {
   min-width: 0;
   margin-left: auto;

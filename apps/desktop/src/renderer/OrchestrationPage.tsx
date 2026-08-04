@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { AccountPoolResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { ArtifactViewer } from "./components/ArtifactViewer";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
@@ -30,6 +31,10 @@ import {
   orchestrationStatusTier,
   orchestrationTimingLabel,
   scopeTasksByWorkspace,
+  type TaskCapability,
+  taskCapabilityLabel,
+  taskCreatePayload,
+  taskExecutionLabel,
 } from "./orchestration-helpers";
 import { ReviewPage } from "./ReviewPage";
 import "./orchestration.css";
@@ -83,6 +88,13 @@ type DelegationTaskRecord = {
   notes?: string[];
   parentTaskId?: string;
   workspaceRoot?: string;
+  capabilityProfile?: string;
+  kind?: string;
+  framework?: string;
+  accountProviderId?: string;
+  accountId?: string;
+  accountLabel?: string;
+  sessionId?: string;
 };
 
 type DelegationTaskResponse = {
@@ -108,6 +120,13 @@ type WorkerRecord = {
   notesCount?: number;
   lastOutputPath?: string;
   parentTaskId?: string;
+  capabilityProfile?: string;
+  kind?: string;
+  framework?: string;
+  accountProviderId?: string;
+  accountId?: string;
+  accountLabel?: string;
+  sessionId?: string;
 };
 
 type WorkersResponse = {
@@ -172,6 +191,11 @@ type CodegenWorkflowRecord = {
   repositoryName?: string;
   taskId?: string;
   sessionId?: string;
+  capabilityProfile?: string;
+  framework?: string;
+  accountProviderId?: string;
+  accountId?: string;
+  accountLabel?: string;
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;
@@ -195,6 +219,11 @@ type CodegenRunRecord = {
   workflowId?: string;
   taskId?: string;
   sessionId?: string;
+  capabilityProfile?: string;
+  framework?: string;
+  accountProviderId?: string;
+  accountId?: string;
+  accountLabel?: string;
   parentRunId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -255,7 +284,7 @@ export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
   { id: "tasks", label: "Queue" },
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
-  { id: "runs", label: "Runs" },
+  { id: "runs", label: "Build & research" },
   { id: "review", label: "Review" },
 ];
 
@@ -460,6 +489,10 @@ export function OrchestrationPage({
     active ? "/runtime/codegen" : null,
     [active],
   );
+  const accountPoolResource = useApiResource<AccountPoolResponse>(
+    active ? "/runtime/account-pool" : null,
+    [active],
+  );
   const codegenWorkflowsResource = useApiResource<CodegenWorkflowsResponse>(
     active ? "/codegen/workflows" : null,
     [active],
@@ -534,13 +567,12 @@ export function OrchestrationPage({
   const [showChildCreate, setShowChildCreate] = useState(false);
   const [taskCreateTitle, setTaskCreateTitle] = useState("");
   const [taskCreateObjective, setTaskCreateObjective] = useState("");
-  const [taskCreateProfile, setTaskCreateProfile] = useState("");
+  const [taskCreateCapability, setTaskCreateCapability] =
+    useState<TaskCapability>("coding");
+  const [taskCreateFramework, setTaskCreateFramework] = useState("");
   const [taskCreateGroup, setTaskCreateGroup] = useState("");
   const [taskCreatePriority, setTaskCreatePriority] = useState<
     "low" | "normal" | "high" | ""
-  >("");
-  const [taskCreateExecutionMode, setTaskCreateExecutionMode] = useState<
-    "local" | "delegated" | ""
   >("");
   const [taskCreateWorkspaceRoot, setTaskCreateWorkspaceRoot] = useState("");
   const [childTitle, setChildTitle] = useState("");
@@ -569,6 +601,15 @@ export function OrchestrationPage({
 
   const [busyKeys, setBusyKeys] = useState<Record<string, boolean>>({});
   const [notices, setNotices] = useState<SurfaceNotice[]>([]);
+
+  useEffect(() => {
+    if (!workspacePath?.trim()) return;
+    setTaskCreateWorkspaceRoot((current) => current || workspacePath);
+    setCodegenProjectPath((current) => current || workspacePath);
+    setCodegenProjectName(
+      (current) => current || workspaceLabel || "workspace",
+    );
+  }, [workspaceLabel, workspacePath]);
 
   useEffect(() => {
     if (navigationIntent?.kind !== "orchestration-task" || !active) return;
@@ -695,6 +736,16 @@ export function OrchestrationPage({
   );
   const codegenAvailable = Boolean(codegenExecution.available ?? false);
   const codegenReady = Boolean(codegenExecution.ready ?? false);
+  const poolProviders = accountPoolResource.data?.providers;
+  const recommendedPooledFramework = poolProviders?.[
+    "openai-codex"
+  ]?.accounts.some((account) => account.enabled)
+    ? "codex"
+    : poolProviders?.["anthropic-subscription"]?.accounts.some(
+          (account) => account.enabled,
+        )
+      ? "claude"
+      : "";
   const workflowSummary = asRecord(codegenWorkflowsResource.data?.summary);
   const planningControl = asRecord(plansResource.data?.control);
   const supportsPlanCreate = Boolean(planningControl.supportsCreate);
@@ -771,6 +822,7 @@ export function OrchestrationPage({
     refreshDelegation();
     worktreesResource.reload();
     plansResource.reload();
+    accountPoolResource.reload();
     refreshCodegen();
   };
 
@@ -788,24 +840,23 @@ export function OrchestrationPage({
     try {
       const result = await postJson<{ task?: DelegationTaskRecord }>(
         "/delegation/tasks",
-        {
-          title: taskCreateTitle.trim(),
-          objective: taskCreateObjective.trim(),
-          profile: taskCreateProfile.trim() || undefined,
-          group: taskCreateGroup.trim() || undefined,
-          priority: taskCreatePriority || undefined,
-          executionMode: taskCreateExecutionMode || undefined,
-          workspaceRoot: taskCreateWorkspaceRoot || undefined,
-        },
+        taskCreatePayload({
+          title: taskCreateTitle,
+          objective: taskCreateObjective,
+          capability: taskCreateCapability,
+          framework: taskCreateFramework,
+          group: taskCreateGroup,
+          priority: taskCreatePriority,
+          workspaceRoot: taskCreateWorkspaceRoot,
+        }),
       );
       const nextId = asString(result.task?.id);
       if (nextId) setSelectedTaskId(nextId);
       setTaskCreateTitle("");
       setTaskCreateObjective("");
-      setTaskCreateProfile("");
+      setTaskCreateFramework("");
       setTaskCreateGroup("");
       setTaskCreatePriority("");
-      setTaskCreateExecutionMode("");
       setTaskCreateWorkspaceRoot("");
       setShowTaskCreate(false);
       publishNotice({ tone: "good", message: "Task created." });
@@ -834,6 +885,11 @@ export function OrchestrationPage({
           objective: childObjective.trim(),
           group: selectedTask.group,
           profile: selectedTask.profile,
+          capabilityProfile: selectedTask.capabilityProfile,
+          kind: selectedTask.kind,
+          framework: selectedTask.framework,
+          accountId: selectedTask.accountId,
+          sessionId: selectedTask.sessionId,
           executionMode: selectedTask.executionMode,
           workspaceRoot: childWorkspaceRoot || undefined,
         },
@@ -1183,6 +1239,13 @@ export function OrchestrationPage({
     selectTab(next.id);
   };
 
+  const openTaskCreate = (capability: TaskCapability) => {
+    setTaskCreateCapability(capability);
+    setTaskCreateFramework((current) => current || recommendedPooledFramework);
+    setTaskCreateWorkspaceRoot((current) => current || workspacePath || "");
+    setShowTaskCreate(true);
+  };
+
   const renderTaskRail = () => {
     if (tasksResource.error) {
       return (
@@ -1197,10 +1260,10 @@ export function OrchestrationPage({
             <button
               className="primary-button"
               disabled={!active}
-              onClick={() => setShowTaskCreate(true)}
+              onClick={() => openTaskCreate("coding")}
               type="button"
             >
-              New task
+              New coding task
             </button>
           }
           title={
@@ -1255,6 +1318,9 @@ export function OrchestrationPage({
                     })}
                   </small>
                   <small>{asString(task.priority, "normal")} priority</small>
+                  <small>
+                    {taskCapabilityLabel(task.capabilityProfile, task.kind)}
+                  </small>
                 </span>
               </button>
             </li>
@@ -1393,11 +1459,20 @@ export function OrchestrationPage({
               <button
                 className="primary-button"
                 type="button"
-                onClick={() => setShowTaskCreate((current) => !current)}
+                onClick={() => openTaskCreate("coding")}
                 aria-expanded={showTaskCreate}
                 disabled={!active}
               >
-                New task
+                New coding task
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => openTaskCreate("research")}
+                aria-expanded={showTaskCreate}
+                disabled={!active}
+              >
+                New research task
               </button>
             </>
           ) : null}
@@ -1454,13 +1529,31 @@ export function OrchestrationPage({
             />
           </label>
           <label>
-            <span>Profile</span>
-            <input
-              value={taskCreateProfile}
-              onChange={(event) => setTaskCreateProfile(event.target.value)}
-              placeholder="default"
+            <span>Work type</span>
+            <select
+              aria-label="Task work type"
+              value={taskCreateCapability}
+              onChange={(event) =>
+                setTaskCreateCapability(event.target.value as TaskCapability)
+              }
               disabled={!active || busyKeys["task:create"]}
-            />
+            >
+              <option value="coding">Coding</option>
+              <option value="research">Research</option>
+            </select>
+          </label>
+          <label>
+            <span>Framework</span>
+            <select
+              aria-label="Task framework"
+              value={taskCreateFramework}
+              onChange={(event) => setTaskCreateFramework(event.target.value)}
+              disabled={!active || busyKeys["task:create"]}
+            >
+              <option value="">Automatic (Eliza chooses)</option>
+              <option value="codex">Codex · uses Codex pool</option>
+              <option value="claude">Claude · uses Claude pool</option>
+            </select>
           </label>
           <label>
             <span>Group</span>
@@ -1486,22 +1579,6 @@ export function OrchestrationPage({
               <option value="low">low</option>
               <option value="normal">normal</option>
               <option value="high">high</option>
-            </select>
-          </label>
-          <label>
-            <span>Execution</span>
-            <select
-              value={taskCreateExecutionMode}
-              onChange={(event) =>
-                setTaskCreateExecutionMode(
-                  event.target.value as "" | "local" | "delegated",
-                )
-              }
-              disabled={!active || busyKeys["task:create"]}
-            >
-              <option value="">default</option>
-              <option value="local">local</option>
-              <option value="delegated">delegated</option>
             </select>
           </label>
           <label>
@@ -1545,6 +1622,25 @@ export function OrchestrationPage({
               Close
             </button>
           </div>
+          <p className="orchestration-task-routing-note">
+            Codex and Claude choose an eligible account from their provider pool
+            when this delegated session starts. Automatic may choose a different
+            installed framework. The session receipt is the authoritative
+            account attribution.
+          </p>
+          {accountPoolResource.error ? (
+            <p className="orchestration-task-routing-note" role="status">
+              Account options could not be refreshed. You can still use
+              automatic routing.
+              <button
+                className="text-button"
+                type="button"
+                onClick={accountPoolResource.reload}
+              >
+                Retry account options
+              </button>
+            </p>
+          ) : null}
         </form>
       ) : null}
 
@@ -1668,7 +1764,15 @@ export function OrchestrationPage({
                     <div>
                       <span className="detail-kicker">
                         {asString(selectedTask.group, "ungrouped")} /{" "}
-                        {asString(selectedTask.profile, "default")}
+                        {taskCapabilityLabel(
+                          selectedTask.capabilityProfile,
+                          selectedTask.kind,
+                        )}{" "}
+                        ·{" "}
+                        {asString(
+                          selectedTask.framework,
+                          selectedTask.profile || "automatic",
+                        )}
                       </span>
                       <h2>{selectedTask.title}</h2>
                       <p>{selectedTask.objective}</p>
@@ -1697,7 +1801,7 @@ export function OrchestrationPage({
                       })}
                     </DetailTag>
                     <DetailTag>
-                      {asString(selectedTask.executionMode, "local")} execution
+                      {taskExecutionLabel(selectedTask.executionMode)}
                     </DetailTag>
                     <DetailTag>
                       {asString(selectedTask.priority, "normal")} priority
@@ -1706,6 +1810,11 @@ export function OrchestrationPage({
                       {selectedTask.workerPid
                         ? `PID ${selectedTask.workerPid}`
                         : "No live worker"}
+                    </DetailTag>
+                    <DetailTag>
+                      {selectedTask.accountLabel || selectedTask.accountId
+                        ? `account ${selectedTask.accountLabel || selectedTask.accountId}`
+                        : "automatic account routing"}
                     </DetailTag>
                   </div>
 
@@ -1944,7 +2053,36 @@ export function OrchestrationPage({
                       />
                       <DetailRow
                         label="Execution"
-                        value={asString(selectedTask.executionMode, "local")}
+                        value={taskExecutionLabel(selectedTask.executionMode)}
+                      />
+                      <DetailRow
+                        label="Capability"
+                        value={taskCapabilityLabel(
+                          selectedTask.capabilityProfile,
+                          selectedTask.kind,
+                        )}
+                      />
+                      <DetailRow
+                        label="Framework"
+                        value={asString(selectedTask.framework, "automatic")}
+                      />
+                      <DetailRow
+                        label="Account provider"
+                        value={asString(
+                          selectedTask.accountProviderId,
+                          "automatic",
+                        )}
+                      />
+                      <DetailRow
+                        label="Account"
+                        value={asString(
+                          selectedTask.accountLabel,
+                          asString(selectedTask.accountId, "automatic"),
+                        )}
+                      />
+                      <DetailRow
+                        label="Session"
+                        value={asString(selectedTask.sessionId, "not assigned")}
                       />
                       <DetailRow
                         label="Execution root"
@@ -2137,7 +2275,15 @@ export function OrchestrationPage({
                     <div>
                       <span className="detail-kicker">
                         {asString(selectedWorker.group, "ungrouped")} /{" "}
-                        {asString(selectedWorker.profile, "default")}
+                        {taskCapabilityLabel(
+                          selectedWorker.capabilityProfile,
+                          selectedWorker.kind,
+                        )}{" "}
+                        ·{" "}
+                        {asString(
+                          selectedWorker.framework,
+                          selectedWorker.profile || "automatic",
+                        )}
                       </span>
                       <h2>
                         {asString(selectedWorker.title, selectedWorker.id)}
@@ -2181,6 +2327,38 @@ export function OrchestrationPage({
                   <div className="orchestration-detail-grid">
                     <dl>
                       <DetailRow label="Worker ID" value={selectedWorker.id} />
+                      <DetailRow
+                        label="Capability"
+                        value={taskCapabilityLabel(
+                          selectedWorker.capabilityProfile,
+                          selectedWorker.kind,
+                        )}
+                      />
+                      <DetailRow
+                        label="Framework"
+                        value={asString(selectedWorker.framework, "automatic")}
+                      />
+                      <DetailRow
+                        label="Account provider"
+                        value={asString(
+                          selectedWorker.accountProviderId,
+                          "automatic",
+                        )}
+                      />
+                      <DetailRow
+                        label="Account"
+                        value={asString(
+                          selectedWorker.accountLabel,
+                          asString(selectedWorker.accountId, "automatic"),
+                        )}
+                      />
+                      <DetailRow
+                        label="Session"
+                        value={asString(
+                          selectedWorker.sessionId,
+                          "not assigned",
+                        )}
+                      />
                       <DetailRow label="PID" value={selectedWorker.workerPid} />
                       <DetailRow
                         label="Mode"
@@ -2490,6 +2668,12 @@ export function OrchestrationPage({
         {activeTab === "runs" ? (
           <div className="orchestration-runs-layout">
             <aside className="orchestration-launcher">
+              {codegenRuntimeResource.error ? (
+                <ErrorBlock
+                  error={codegenRuntimeResource.error}
+                  retry={codegenRuntimeResource.reload}
+                />
+              ) : null}
               <div className="orchestration-pane-heading">
                 <span>New workflow</span>
                 <Badge
@@ -2543,7 +2727,7 @@ export function OrchestrationPage({
                         onChange={(event) =>
                           setCodegenProjectName(event.target.value)
                         }
-                        placeholder="doolittle"
+                        placeholder={workspaceLabel || "doolittle"}
                       />
                     </label>
                     {codegenMode !== "generate" ? (
@@ -2602,6 +2786,11 @@ export function OrchestrationPage({
                   {asString(codegenExecution.detail)}
                 </p>
               ) : null}
+              <p className="orchestration-task-routing-note">
+                {workspacePath
+                  ? `Project defaults come from ${compactPath(workspacePath)}. QA uses this path directly; other workflows retain the selected project name in their receipt.`
+                  : "Choose a workspace to prefill project context for build and research receipts."}
+              </p>
             </aside>
 
             <aside className="orchestration-run-browser">
@@ -2935,6 +3124,11 @@ export function OrchestrationPage({
                             ? "session linked"
                             : "session unlinked"}
                         </DetailTag>
+                        <DetailTag>
+                          {selectedRun.accountLabel || selectedRun.accountId
+                            ? `account ${selectedRun.accountLabel || selectedRun.accountId}`
+                            : "account not recorded"}
+                        </DetailTag>
                       </div>
                       <dl className="orchestration-run-facts">
                         <DetailRow label="Run ID" value={selectedRun.id} />
@@ -2945,6 +3139,34 @@ export function OrchestrationPage({
                         <DetailRow
                           label="Session"
                           value={asString(selectedRun.sessionId, "not linked")}
+                        />
+                        <DetailRow
+                          label="Capability"
+                          value={taskCapabilityLabel(
+                            selectedRun.capabilityProfile,
+                            selectedRun.kind,
+                          )}
+                        />
+                        <DetailRow
+                          label="Framework"
+                          value={asString(
+                            selectedRun.framework,
+                            "not recorded",
+                          )}
+                        />
+                        <DetailRow
+                          label="Account provider"
+                          value={asString(
+                            selectedRun.accountProviderId,
+                            "not recorded",
+                          )}
+                        />
+                        <DetailRow
+                          label="Account"
+                          value={asString(
+                            selectedRun.accountLabel,
+                            asString(selectedRun.accountId, "not recorded"),
+                          )}
                         />
                         <DetailRow
                           label="Updated"

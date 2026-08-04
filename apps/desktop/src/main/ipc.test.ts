@@ -81,6 +81,45 @@ describe("parseApiPath", () => {
     );
   });
 
+  it("allows only the declared account-pool operator surface", () => {
+    expect(parseApiPath("/runtime/account-pool", "GET")).toBe(
+      "/runtime/account-pool",
+    );
+    expect(
+      parseApiPath("/runtime/account-pool/openai-codex/strategy", "POST"),
+    ).toBe("/runtime/account-pool/openai-codex/strategy");
+    expect(
+      parseApiPath(
+        "/runtime/account-pool/anthropic-subscription/select",
+        "POST",
+      ),
+    ).toBe("/runtime/account-pool/anthropic-subscription/select");
+    expect(
+      parseApiPath("/runtime/account-pool/openai-codex/import", "POST"),
+    ).toBe("/runtime/account-pool/openai-codex/import");
+    expect(
+      parseApiPath("/runtime/account-pool/openai-codex/account-1", "PATCH"),
+    ).toBe("/runtime/account-pool/openai-codex/account-1");
+    expect(
+      parseApiPath(
+        "/runtime/account-pool/anthropic-subscription/account-1",
+        "DELETE",
+      ),
+    ).toBe("/runtime/account-pool/anthropic-subscription/account-1");
+    expect(() =>
+      parseApiPath("/runtime/account-pool/unknown/strategy", "POST"),
+    ).toThrow(/not available/);
+    expect(() =>
+      parseApiPath(
+        "/runtime/account-pool/openai-codex/account-1/extra",
+        "PATCH",
+      ),
+    ).toThrow(/not available/);
+    expect(() =>
+      parseApiPath("/runtime/account-pool/openai-codex/..%2Fsecret", "DELETE"),
+    ).toThrow(/unsafe traversal/);
+  });
+
   it("validates session query parameters", () => {
     expect(parseApiPath("/sessions?limit=40", "GET")).toBe(
       "/sessions?limit=40",

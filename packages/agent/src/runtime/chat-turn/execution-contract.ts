@@ -1,6 +1,6 @@
 import type { ActionResult } from "@elizaos/core";
 import {
-  actionResultActionName,
+  actionResultMutationActionName,
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
 
@@ -26,7 +26,10 @@ function selectedLocalMutationActions(
   actionResults: readonly ActionResult[],
 ): string[] {
   return actionResults.flatMap((result) => {
-    const actionName = actionResultActionName(result);
+    // Arm only from receipt-grade evidence. Both the obligation and its
+    // discharge must come from the same `mutation` envelope, otherwise the
+    // contract can be armed by a result that could never satisfy it.
+    const actionName = actionResultMutationActionName(result);
     return actionName && LOCAL_MUTATION_ACTIONS.has(actionName)
       ? [actionName]
       : [];

@@ -15,6 +15,22 @@ describe("resolveEntrypointCommandPlan", () => {
       shouldSetCliMode: true,
     });
   });
+
+  it.each([
+    "status",
+    "progress",
+    "tools",
+    "skills",
+    "runtime",
+  ] as const)("loads the CLI surface for the %s alias", (command) => {
+    expect(resolveEntrypointCommandPlan(command)).toMatchObject({
+      startupMode: "cli",
+      eagerDeferredHydration: false,
+      shouldUseCliSurface: true,
+      shouldUseApiSurface: false,
+      shouldSetCliMode: true,
+    });
+  });
 });
 
 describe("resolveEntrypointRuntimePlan", () => {
