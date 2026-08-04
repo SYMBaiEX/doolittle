@@ -1,5 +1,4 @@
 import type { Plugin } from "@elizaos/core";
-import { createDoolittlePlugin } from "@plugins/doolittle-plugin";
 import type { AppServices } from "../../../services";
 import type { EnvConfig } from "../../../types/runtime";
 import {
@@ -15,6 +14,7 @@ import {
 import { loadFoundationPlugins } from "./foundation";
 import { loadHotExecutionPlugins } from "./hot-execution";
 import { loadHotIdentityPlugins } from "./hot-identity";
+import { createDoolittleProductPlugin } from "./product";
 import { loadProviderPlugins } from "./providers";
 
 export interface NativePluginAssembly {
@@ -47,7 +47,7 @@ export async function buildNativePluginAssembly(
   const providers = await loadProviderPlugins(config);
   const identity = await loadHotIdentityPlugins(services);
   const execution = await loadHotExecutionPlugins(services, config);
-  const product: Plugin[] = [createDoolittlePlugin({ services, config })];
+  const product: Plugin[] = [createDoolittleProductPlugin(services, config)];
   const initial = [
     ...foundation,
     ...providers,

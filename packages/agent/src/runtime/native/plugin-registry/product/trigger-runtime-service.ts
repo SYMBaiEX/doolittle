@@ -1,17 +1,4 @@
 import {
-  type AutomationExecutionContext,
-  type AutomationExecutor,
-  type AutomationJobRecord,
-  type AutomationRunRecord,
-  type AutomationRuntimeOverrides,
-  automationTriggerMatches,
-  buildAutomationDefinition,
-  evaluateAutomationCondition,
-  normalizeAutomationAction,
-  normalizeAutomationCondition,
-  normalizeAutomationTrigger,
-} from "@doolittle/agent/plugin-api";
-import {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
 } from "@doolittle/contracts";
@@ -37,6 +24,21 @@ import {
   type Task,
   type UUID,
 } from "@elizaos/core";
+import {
+  automationTriggerMatches,
+  buildAutomationDefinition,
+  evaluateAutomationCondition,
+  normalizeAutomationAction,
+  normalizeAutomationCondition,
+  normalizeAutomationTrigger,
+} from "@/services/automation/definition";
+import type {
+  AutomationExecutionContext,
+  AutomationExecutor,
+  AutomationJobRecord,
+  AutomationRunRecord,
+  AutomationRuntimeOverrides,
+} from "@/services/automation/types";
 
 type AutomationInput = Omit<
   AutomationJobRecord,

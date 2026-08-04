@@ -26,17 +26,8 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
-      - name: Lint
-        run: nub run lint:check
-
-      - name: Typecheck
-        run: nub run typecheck
-
-      - name: Unit tests
-        run: nub run test
-
-      - name: Build
-        run: nub run build
+      - name: Check application and desktop types
+        run: nub run check
 
       - name: Playwright smoke tests
         run: nub run test:e2e

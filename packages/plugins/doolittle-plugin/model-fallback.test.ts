@@ -1,4 +1,3 @@
-import type { EnvConfig } from "@doolittle/agent/plugin-api";
 import { type IAgentRuntime, ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import {
@@ -6,17 +5,16 @@ import {
   createOfflineBootstrapEmbeddingModel,
   createOfflineBootstrapTextModel,
 } from "./model-fallback";
+import type { DoolittlePluginConfig } from "./types";
 
-function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
+function createConfig(
+  overrides: Partial<DoolittlePluginConfig> = {},
+): DoolittlePluginConfig {
   return {
     dataDir: "/tmp/doolittle-data",
     workspaceDir: "/tmp/doolittle-workspace",
-    discordBotToken: "",
-    telegramBotToken: "",
-    falApiKey: "",
-    openAiApiKey: "",
     ...overrides,
-  } as EnvConfig;
+  };
 }
 
 describe("createOfflineBootstrapTextModel", () => {

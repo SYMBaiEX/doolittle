@@ -1,4 +1,3 @@
-import type { EnvConfig } from "@doolittle/agent/plugin-api";
 import {
   type GenerateTextParams,
   type IAgentRuntime,
@@ -9,6 +8,7 @@ import {
 import { resolveModelPromptText } from "@elizaos/provider-transport";
 import { resolveSelectedModelProviderPlugin } from "./model-router";
 import { readRuntimeModelSettings } from "./runtime-settings";
+import type { DoolittlePluginConfig } from "./types";
 
 const DEFAULT_OFFLINE_EMBEDDING_DIMENSIONS = 768;
 const OLLAMA_PREFLIGHT_TIMEOUT_MS = 750;
@@ -115,7 +115,7 @@ function embeddingText(params: TextEmbeddingParams | string | null): string {
   return params?.text ?? "";
 }
 
-function embeddingDimensions(config: EnvConfig): number {
+function embeddingDimensions(config: DoolittlePluginConfig): number {
   const configured = config.elizaCloudEmbeddingDimensions;
   return typeof configured === "number" &&
     Number.isFinite(configured) &&
@@ -139,7 +139,7 @@ function hashEmbeddingText(text: string): number {
  */
 export function createDeterministicOfflineEmbedding(
   params: TextEmbeddingParams | string | null,
-  config: EnvConfig,
+  config: DoolittlePluginConfig,
 ): number[] {
   const dimensions = embeddingDimensions(config);
   const vector = new Array<number>(dimensions);
@@ -164,7 +164,9 @@ export function createDeterministicOfflineEmbedding(
  * Routes to the selected provider through the public SDK API, falling back only
  * during explicit offline bootstrap if that provider is absent or unreachable.
  */
-export function createOfflineBootstrapEmbeddingModel(config: EnvConfig) {
+export function createOfflineBootstrapEmbeddingModel(
+  config: DoolittlePluginConfig,
+) {
   return async (
     runtime: IAgentRuntime,
     params: TextEmbeddingParams | string | null,

@@ -88,6 +88,64 @@ export interface DesktopControlIpcDependencies {
   providerAuth?: ProviderAuthController;
 }
 
+export interface RegisterIpcDependencies {
+  ipcMain: IpcMain;
+  backend: BackendManager;
+  getMainWindow: () => BrowserWindow | null;
+  pickFiles: () => Promise<FileSelection>;
+  workspace: WorkspaceIpcController;
+  sensitiveActionDependencies?: SensitiveActionIpcDependencies;
+  pickChatAttachments?: () => Promise<AttachmentSelection>;
+  pickProjectFiles?: () => Promise<ProjectResourceSelection>;
+  pickProjectFolders?: () => Promise<ProjectResourceSelection>;
+  importRecordedAudio?: (
+    request: RecordedAudioImportRequest,
+  ) => AttachmentSelection["attachments"][number];
+  desktopControls?: DesktopControlIpcDependencies;
+}
+
+const IPC_HANDLER_CHANNELS = [
+  "backend:get-state",
+  "backend:retry",
+  "workspace:get-state",
+  "workspace:pick",
+  "workspace:open",
+  "workspace:switch-recent",
+  "desktop:lifecycle-state",
+  "desktop:set-background-mode",
+  "update:get-state",
+  "update:check",
+  "update:download",
+  "update:install",
+  "dialog:pick-files",
+  "dialog:pick-project-files",
+  "dialog:pick-project-folders",
+  "dialog:pick-chat-attachments",
+  "chat:import-recorded-audio",
+  "provider-auth:start",
+  "provider-auth:state",
+  "provider-auth:cancel",
+  "provider-auth:acknowledge",
+  "terminal:run-confirmed",
+  "terminal:stream-start",
+  "terminal:stream-cancel",
+  "terminal:session-start-confirmed",
+  "terminal:session-input",
+  "terminal:session-resize",
+  "terminal:session-interrupt",
+  "terminal:session-close",
+  "terminal:session-output",
+  "editor:project-context",
+  "workspace:save-confirmed",
+  "repository:create-worktree-confirmed",
+  "repository:mutate-confirmed",
+  "api:request",
+  "chat:start",
+  "chat:cancel",
+] as const;
+
+type IpcHandlerChannel = (typeof IPC_HANDLER_CHANNELS)[number];
+
 export interface DesktopBackgroundNotification {
   title: string;
   body: string;
@@ -1954,34 +2012,38 @@ async function showSensitiveActionConfirmation(
   return result.response === 0;
 }
 
-export function registerIpc(
-  ipcMain: IpcMain,
-  backend: BackendManager,
-  getMainWindow: () => BrowserWindow | null,
-  pickFiles: () => Promise<FileSelection>,
-  workspace: WorkspaceIpcController,
-  sensitiveActionDependencies: SensitiveActionIpcDependencies = {},
-  pickChatAttachments: () => Promise<AttachmentSelection> = async () => ({
-    canceled: true,
-    attachments: [],
-  }),
-  pickProjectFiles: () => Promise<ProjectResourceSelection> = async () => ({
-    canceled: true,
-    kind: "file",
-    paths: [],
-  }),
-  pickProjectFolders: () => Promise<ProjectResourceSelection> = async () => ({
-    canceled: true,
-    kind: "folder",
-    paths: [],
-  }),
-  importRecordedAudio?: (
-    request: RecordedAudioImportRequest,
-  ) => AttachmentSelection["attachments"][number],
-  desktopControls?: DesktopControlIpcDependencies,
-): () => void {
+export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
+  const {
+    ipcMain,
+    backend,
+    getMainWindow,
+    pickFiles,
+    workspace,
+    sensitiveActionDependencies = {},
+    pickChatAttachments = async () => ({ canceled: true, attachments: [] }),
+    pickProjectFiles = async () => ({
+      canceled: true,
+      kind: "file" as const,
+      paths: [],
+    }),
+    pickProjectFolders = async () => ({
+      canceled: true,
+      kind: "folder" as const,
+      paths: [],
+    }),
+    importRecordedAudio,
+    desktopControls,
+  } = dependencies;
   const activeChats = new Map<string, ActiveChat>();
   const activeTerminalRuns = new Map<string, ActiveTerminalRun>();
+  const registeredChannels = new Set<IpcHandlerChannel>();
+  const registerHandler = (
+    channel: IpcHandlerChannel,
+    handler: Parameters<IpcMain["handle"]>[1],
+  ) => {
+    ipcMain.handle(channel, handler);
+    registeredChannels.add(channel);
+  };
   let disposeDesktopControls: (() => void) | undefined;
   const confirmSensitiveAction =
     sensitiveActionDependencies.confirm ??
@@ -2049,11 +2111,11 @@ export function registerIpc(
   };
   const unsubscribeWorkspace = workspace.subscribe(emitWorkspaceState);
 
-  ipcMain.handle("backend:get-state", () => backend.getState());
-  ipcMain.handle("backend:retry", () => backend.restart());
-  ipcMain.handle("workspace:get-state", () => workspace.getState());
-  ipcMain.handle("workspace:pick", () => workspace.pickWorkspace());
-  ipcMain.handle("workspace:open", (_event, path: unknown) => {
+  registerHandler("backend:get-state", () => backend.getState());
+  registerHandler("backend:retry", () => backend.restart());
+  registerHandler("workspace:get-state", () => workspace.getState());
+  registerHandler("workspace:pick", () => workspace.pickWorkspace());
+  registerHandler("workspace:open", (_event, path: unknown) => {
     if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
       throw new Error("A valid workspace path is required.");
     }
@@ -2062,7 +2124,7 @@ export function registerIpc(
     }
     return workspace.openWorkspace(path);
   });
-  ipcMain.handle("workspace:switch-recent", (_event, path: unknown) => {
+  registerHandler("workspace:switch-recent", (_event, path: unknown) => {
     if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
       throw new Error("A valid recent workspace path is required.");
     }
@@ -2076,11 +2138,11 @@ export function registerIpc(
     };
     const unsubscribeUpdates =
       desktopControls.updates.subscribe(emitUpdateState);
-    ipcMain.handle(
+    registerHandler(
       "desktop:lifecycle-state",
       desktopControls.getLifecycleState,
     );
-    ipcMain.handle(
+    registerHandler(
       "desktop:set-background-mode",
       (_event, enabled: unknown) => {
         if (typeof enabled !== "boolean")
@@ -2088,10 +2150,12 @@ export function registerIpc(
         return desktopControls.setKeepRunningInBackground(enabled);
       },
     );
-    ipcMain.handle("update:get-state", desktopControls.updates.getState);
-    ipcMain.handle("update:check", () => desktopControls.updates.check());
-    ipcMain.handle("update:download", () => desktopControls.updates.download());
-    ipcMain.handle("update:install", () => desktopControls.updates.install());
+    registerHandler("update:get-state", desktopControls.updates.getState);
+    registerHandler("update:check", () => desktopControls.updates.check());
+    registerHandler("update:download", () =>
+      desktopControls.updates.download(),
+    );
+    registerHandler("update:install", () => desktopControls.updates.install());
     const originalDispose = unsubscribeUpdates;
     // Keep the unsubscribe reachable from the shared disposer below.
     const existingDispose = disposeDesktopControls;
@@ -2100,11 +2164,11 @@ export function registerIpc(
       originalDispose();
     };
   }
-  ipcMain.handle("dialog:pick-files", pickFiles);
-  ipcMain.handle("dialog:pick-project-files", pickProjectFiles);
-  ipcMain.handle("dialog:pick-project-folders", pickProjectFolders);
-  ipcMain.handle("dialog:pick-chat-attachments", pickChatAttachments);
-  ipcMain.handle(
+  registerHandler("dialog:pick-files", pickFiles);
+  registerHandler("dialog:pick-project-files", pickProjectFiles);
+  registerHandler("dialog:pick-project-folders", pickProjectFolders);
+  registerHandler("dialog:pick-chat-attachments", pickChatAttachments);
+  registerHandler(
     "chat:import-recorded-audio",
     (_event, request: RecordedAudioImportRequest) => {
       if (!importRecordedAudio) {
@@ -2113,7 +2177,7 @@ export function registerIpc(
       return importRecordedAudio(request);
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:run-confirmed",
     async (
       _event: IpcMainInvokeEvent,
@@ -2153,7 +2217,7 @@ export function registerIpc(
       };
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:stream-start",
     async (event: IpcMainInvokeEvent, unsafeRequest: TerminalStreamRequest) => {
       const request = validateTerminalStreamRequest(unsafeRequest);
@@ -2281,7 +2345,7 @@ export function registerIpc(
       }
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:stream-cancel",
     (event: IpcMainInvokeEvent, requestId: string) => {
       const validated = validateTerminalRequestId(requestId);
@@ -2289,7 +2353,7 @@ export function registerIpc(
       active?.controller.abort();
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:session-start-confirmed",
     async (
       _event: IpcMainInvokeEvent,
@@ -2319,7 +2383,7 @@ export function registerIpc(
       };
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:session-input",
     async (
       _event: IpcMainInvokeEvent,
@@ -2334,7 +2398,7 @@ export function registerIpc(
       return isRecord(payload) ? payload.session : undefined;
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:session-resize",
     async (
       _event: IpcMainInvokeEvent,
@@ -2349,7 +2413,7 @@ export function registerIpc(
       return isRecord(payload) ? payload.session : undefined;
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:session-interrupt",
     async (_event: IpcMainInvokeEvent, unsafeSessionId: string) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
@@ -2361,7 +2425,7 @@ export function registerIpc(
       return isRecord(payload) ? payload.session : undefined;
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:session-close",
     async (_event: IpcMainInvokeEvent, unsafeSessionId: string) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
@@ -2373,7 +2437,7 @@ export function registerIpc(
       return isRecord(payload) ? payload.session : undefined;
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "terminal:session-output",
     async (
       _event: IpcMainInvokeEvent,
@@ -2395,7 +2459,7 @@ export function registerIpc(
       );
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "provider-auth:start",
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
@@ -2406,7 +2470,7 @@ export function registerIpc(
       );
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "provider-auth:state",
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
@@ -2417,7 +2481,7 @@ export function registerIpc(
       );
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "provider-auth:cancel",
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
@@ -2428,7 +2492,7 @@ export function registerIpc(
       );
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "provider-auth:acknowledge",
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
@@ -2439,14 +2503,14 @@ export function registerIpc(
       );
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "editor:project-context",
     (
       _event: IpcMainInvokeEvent,
       request: EditorProjectContextRequest,
     ): EditorProjectContextResult => resolveEditorProjectContext(request),
   );
-  ipcMain.handle(
+  registerHandler(
     "workspace:save-confirmed",
     async (
       _event: IpcMainInvokeEvent,
@@ -2493,7 +2557,7 @@ export function registerIpc(
       return { status: "saved", path: savedPath };
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "repository:create-worktree-confirmed",
     async (
       _event: IpcMainInvokeEvent,
@@ -2557,7 +2621,7 @@ export function registerIpc(
       };
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "repository:mutate-confirmed",
     async (
       _event: IpcMainInvokeEvent,
@@ -2612,7 +2676,7 @@ export function registerIpc(
       return { status: "completed", result: validatedResult };
     },
   );
-  ipcMain.handle(
+  registerHandler(
     "api:request",
     async (_event: IpcMainInvokeEvent, request: ApiRequest) => {
       const method = request.method ?? "GET";
@@ -2660,7 +2724,7 @@ export function registerIpc(
     },
   );
 
-  ipcMain.handle("chat:start", async (event, request: ChatRequest) => {
+  registerHandler("chat:start", async (event, request: ChatRequest) => {
     assertChatRequest(request);
     const state = backend.getState();
     if (state.phase !== "ready" || !state.url) {
@@ -2764,7 +2828,7 @@ export function registerIpc(
     }
   });
 
-  ipcMain.handle("chat:cancel", async (event, requestId: string) => {
+  registerHandler("chat:cancel", async (event, requestId: string) => {
     const active = activeChats.get(chatKey(event, requestId));
     if (!active) return;
     const state = backend.getState();
@@ -2810,42 +2874,8 @@ export function registerIpc(
       active.controller.abort();
     }
     activeTerminalRuns.clear();
-    ipcMain.removeHandler("backend:get-state");
-    ipcMain.removeHandler("backend:retry");
-    ipcMain.removeHandler("workspace:get-state");
-    ipcMain.removeHandler("workspace:pick");
-    ipcMain.removeHandler("workspace:open");
-    ipcMain.removeHandler("workspace:switch-recent");
-    ipcMain.removeHandler("desktop:lifecycle-state");
-    ipcMain.removeHandler("desktop:set-background-mode");
-    ipcMain.removeHandler("update:get-state");
-    ipcMain.removeHandler("update:check");
-    ipcMain.removeHandler("update:download");
-    ipcMain.removeHandler("update:install");
-    ipcMain.removeHandler("dialog:pick-files");
-    ipcMain.removeHandler("dialog:pick-project-files");
-    ipcMain.removeHandler("dialog:pick-project-folders");
-    ipcMain.removeHandler("dialog:pick-chat-attachments");
-    ipcMain.removeHandler("chat:import-recorded-audio");
-    ipcMain.removeHandler("provider-auth:start");
-    ipcMain.removeHandler("provider-auth:state");
-    ipcMain.removeHandler("provider-auth:cancel");
-    ipcMain.removeHandler("provider-auth:acknowledge");
-    ipcMain.removeHandler("terminal:run-confirmed");
-    ipcMain.removeHandler("terminal:stream-start");
-    ipcMain.removeHandler("terminal:stream-cancel");
-    ipcMain.removeHandler("terminal:session-start-confirmed");
-    ipcMain.removeHandler("terminal:session-input");
-    ipcMain.removeHandler("terminal:session-resize");
-    ipcMain.removeHandler("terminal:session-interrupt");
-    ipcMain.removeHandler("terminal:session-close");
-    ipcMain.removeHandler("terminal:session-output");
-    ipcMain.removeHandler("editor:project-context");
-    ipcMain.removeHandler("workspace:save-confirmed");
-    ipcMain.removeHandler("repository:create-worktree-confirmed");
-    ipcMain.removeHandler("repository:mutate-confirmed");
-    ipcMain.removeHandler("api:request");
-    ipcMain.removeHandler("chat:start");
-    ipcMain.removeHandler("chat:cancel");
+    for (const channel of registeredChannels) {
+      ipcMain.removeHandler(channel);
+    }
   };
 }

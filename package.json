@@ -69,7 +69,7 @@
     "check:docs-truth": "nub scripts/sync-doc-truth.ts --check",
     "check:local-links": "nub scripts/check-local-links.ts",
     "check:acceptance": "nub run check:repo-hygiene && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth && nub run check:local-links",
-    "check": "nub run lint:check && nub run typecheck && nub run test && nub run build",
+    "check": "nub run lint:check && nub run typecheck && nub run desktop:typecheck && nub run test && nub run build",
     "publish:codex:dry-run": "nub run publish:providers -- --provider codex",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
     "publish:devin:dry-run": "nub run publish:providers -- --provider devin",

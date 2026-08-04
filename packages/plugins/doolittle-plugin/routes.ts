@@ -1,5 +1,9 @@
 import type { IAgentRuntime, Route } from "@elizaos/core";
-import type { DoolittlePluginDependencies } from "./types";
+
+interface DoolittleRuntimeRouteDependencies {
+  services: { workspace: { root(): string } };
+  config: { agentName?: string; mode?: string };
+}
 
 function readFeatureMap(runtime: IAgentRuntime): unknown[] {
   const configured = runtime.character.settings?.featureMap;
@@ -16,7 +20,7 @@ function readFeatureMap(runtime: IAgentRuntime): unknown[] {
 export function createDoolittleRuntimeRoutes({
   services,
   config,
-}: DoolittlePluginDependencies): Route[] {
+}: DoolittleRuntimeRouteDependencies): Route[] {
   return [
     {
       type: "GET",

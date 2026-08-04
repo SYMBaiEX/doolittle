@@ -35,28 +35,30 @@ Run `nub run lint` to auto-fix formatting before committing.
 - `packages/plugins/*` — vendored provider plugins + the consolidated
   `doolittle-plugin`.
 - `packages/{acp,contracts,logger,characters,skills}` — supporting workspaces.
-- Runtime is ElizaOS 2.0 **beta**; `@elizaos/autonomous` is on `alpha.85` and is
-  imported only via its subpaths.
+- Runtime is the aligned ElizaOS 2.0 beta train declared by the root
+  `elizaSdk` contract and exact dependency overrides.
 
 ## Extension recipes
 
-The plugin surface only imports Doolittle internals through one seam:
-`@doolittle/agent/plugin-api`.
+Application composition belongs to `packages/agent`; reusable plugin facets
+must depend on SDK or `@doolittle/contracts` types and accept host services
+through explicit ports. Plugins must not import the application that hosts
+them.
 
 ### Add an action
 
 1. Implement `createMyAction(services): Action` in `packages/agent/src/actions/`.
-2. Re-export it from `packages/agent/src/plugin-api.ts`.
-3. Register it in the assembly's `actions` array
-   (`packages/plugins/doolittle-plugin/assembly.ts`).
-4. Add a unit test next to the action.
+2. Register it in the product plugin's `actions` array
+   (`packages/agent/src/runtime/native/plugin-registry/product/index.ts`).
+3. Add a unit test next to the action and product-composition coverage when the
+   registered surface changes.
 
 ### Add a provider (prompt context)
 
 1. Implement `createMyProvider(services): Provider` in
    `packages/agent/src/providers/`.
-2. Re-export it from `plugin-api.ts`.
-3. Add it to the `providers` array in `assembly.ts`.
+2. Add it to the `providers` array in
+   `packages/agent/src/runtime/native/plugin-registry/product/index.ts`.
 
 ### Add a model provider
 

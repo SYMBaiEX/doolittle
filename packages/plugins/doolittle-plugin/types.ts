@@ -1,8 +1,8 @@
-import type { AppServices, EnvConfig } from "@doolittle/agent/plugin-api";
-
-export interface DoolittlePluginDependencies {
-  services: AppServices;
-  config: EnvConfig;
+export interface DoolittlePluginConfig {
+  dataDir: string;
+  workspaceDir: string;
+  offlineBootstrapMode?: boolean;
+  elizaCloudEmbeddingDimensions?: number;
 }
 
 export interface RuntimeModelSettings {

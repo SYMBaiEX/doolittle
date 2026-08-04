@@ -16,6 +16,7 @@ import {
   extractLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
 import { formatError } from "@/runtime/bootstrap/recovery/error-format";
+import { resolveRunTerminalWriter } from "@/runtime/chat-turn/post-provider/types";
 import type { AppServices } from "@/services";
 import type { ToolProgressMode } from "@/types/runtime";
 
@@ -166,6 +167,18 @@ export function eventActionResult(
   return undefined;
 }
 
+function eventRunId(payload: RuntimePayload): string | undefined {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "runId" in payload &&
+    typeof payload.runId === "string"
+  ) {
+    return payload.runId;
+  }
+  return undefined;
+}
+
 function contentActionResultName(content: object): string | undefined {
   const actionResult =
     (content as { actionResult?: unknown; result?: unknown }).actionResult ??
@@ -254,6 +267,17 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
       async (payload) => {
         const roomId = eventRoomId(payload);
         if (!roomId) {
+          return;
+        }
+        const activeRun = services.runController.getByRoomId(roomId);
+        // The SDK emits RUN_ENDED before post-provider validates the action
+        // contract. Match provenance to the tracked run instead of depending
+        // on event timing, so chat retains one authoritative terminal writer.
+        if (
+          activeRun &&
+          resolveRunTerminalWriter(activeRun.source) === "post-provider" &&
+          (!eventRunId(payload) || activeRun.runId === eventRunId(payload))
+        ) {
           return;
         }
         const status =

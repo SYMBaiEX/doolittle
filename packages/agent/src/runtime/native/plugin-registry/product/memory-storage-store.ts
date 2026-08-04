@@ -1,10 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import {
-  NodeSessionDatabase,
-  type SessionDatabase,
-} from "@doolittle/agent/services/session/database";
 import type {
   JsonValue,
   LongTermMemory,
@@ -12,6 +8,10 @@ import type {
   SessionSummary,
   UUID,
 } from "@elizaos/core";
+import {
+  NodeSessionDatabase,
+  type SessionDatabase,
+} from "@/services/session/database";
 
 interface LongTermMemoryRow {
   id: string;

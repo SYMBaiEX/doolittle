@@ -7,6 +7,15 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import type {
+  WorkspaceDirectoryResult,
+  WorkspaceFileSearchInput,
+  WorkspaceFileSearchMatch,
+  WorkspaceFileSearchResult,
+  WorkspacePatchResult,
+  WorkspaceReadLinesResult,
+  WorkspaceWriteResult,
+} from "@doolittle/contracts";
 import { resolveWorkspaceServicePath } from "./path";
 import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
@@ -16,53 +25,21 @@ const MAX_READ_LIMIT = 2_000;
 const MAX_SEARCH_RESULTS = 100;
 const MAX_SEARCH_FILE_BYTES = 1_000_000;
 
-export interface WorkspaceReadLinesResult {
-  path: string;
-  offset: number;
-  end: number;
-  total: number;
-  lines: Array<{ number: number; text: string }>;
-}
-
-export interface WorkspaceWriteResult {
-  path: string;
-  bytes: number;
-}
-
-export interface WorkspaceDirectoryResult {
-  path: string;
-  existed: boolean;
-}
-
 export interface WorkspacePatchPlan {
   path: string;
   content: string;
   replacements: number;
 }
 
-export interface WorkspacePatchResult extends WorkspaceWriteResult {
-  replacements: number;
-}
-
-export interface WorkspaceFileSearchInput {
-  pattern: string;
-  path?: string;
-  target?: "content" | "files";
-  limit?: number;
-}
-
-export interface WorkspaceFileSearchMatch {
-  path: string;
-  line?: number;
-  text?: string;
-}
-
-export interface WorkspaceFileSearchResult {
-  root: string;
-  pattern: string;
-  target: "content" | "files";
-  matches: WorkspaceFileSearchMatch[];
-}
+export type {
+  WorkspaceDirectoryResult,
+  WorkspaceFileSearchInput,
+  WorkspaceFileSearchMatch,
+  WorkspaceFileSearchResult,
+  WorkspacePatchResult,
+  WorkspaceReadLinesResult,
+  WorkspaceWriteResult,
+} from "@doolittle/contracts";
 
 export function readWorkspaceLines(
   workspaceDir: string,

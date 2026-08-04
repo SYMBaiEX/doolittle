@@ -2,6 +2,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { ELIZA_WORKSPACE_COMPATIBILITY } from "./eliza-workspace-compatibility";
 
 type PackageJson = {
   name?: string;
@@ -15,6 +16,7 @@ type PackageJson = {
   optionalDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   overrides?: Record<string, string>;
+  exports?: string | Record<string, unknown>;
 };
 
 const ROOT = process.cwd();
@@ -67,9 +69,55 @@ const packagePaths = [
 const mismatches: string[] = [];
 const externalPackages = new Set<string>();
 const installedPackages = new Set<string>();
+const compatibilityByPath = new Map(
+  ELIZA_WORKSPACE_COMPATIBILITY.map((entry) => [entry.packagePath, entry]),
+);
+
+for (const entry of ELIZA_WORKSPACE_COMPATIBILITY) {
+  if (entry.upstreamVersion !== expectedVersion) {
+    mismatches.push(
+      `${entry.packagePath} compatibility registry upstreamVersion=${entry.upstreamVersion}`,
+    );
+  }
+}
 
 for (const path of packagePaths) {
   const manifest = readPackageJson(path);
+  const relativePath = relative(ROOT, path);
+  const compatibility = compatibilityByPath.get(relativePath);
+
+  if (
+    manifest.name &&
+    isOfficialElizaPackage(manifest.name) &&
+    path !== rootPackagePath
+  ) {
+    const allowedVersion = compatibility?.allowedVersion ?? expectedVersion;
+    if (manifest.version !== allowedVersion) {
+      mismatches.push(
+        `${relativePath} package version=${manifest.version ?? "unknown"}; expected ${allowedVersion}`,
+      );
+    }
+    if (compatibility && manifest.name !== compatibility.packageName) {
+      mismatches.push(
+        `${relativePath} package name=${manifest.name}; expected ${compatibility.packageName}`,
+      );
+    }
+  }
+
+  if (compatibility) {
+    const packageExports =
+      typeof manifest.exports === "string"
+        ? { ".": manifest.exports }
+        : (manifest.exports ?? {});
+    for (const requiredExport of compatibility.requiredExports) {
+      if (!Object.hasOwn(packageExports, requiredExport)) {
+        mismatches.push(
+          `${relativePath} is missing required compatibility export ${requiredExport}`,
+        );
+      }
+    }
+  }
+
   for (const [section, dependencies] of Object.entries({
     dependencies: manifest.dependencies,
     devDependencies: manifest.devDependencies,
@@ -122,5 +170,5 @@ if (mismatches.length > 0) {
 }
 
 console.log(
-  `ElizaOS SDK aligned: ${externalPackages.size} official packages on ${channel}@${expectedVersion}.`,
+  `ElizaOS SDK aligned: ${externalPackages.size} official packages on ${channel}@${expectedVersion}; ${ELIZA_WORKSPACE_COMPATIBILITY.length} workspace compatibility boundaries declared.`,
 );

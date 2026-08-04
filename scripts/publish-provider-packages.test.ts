@@ -3,12 +3,13 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { delimiter, join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
 const SCRIPT_PATH = join(
   process.cwd(),
@@ -22,95 +23,55 @@ const NUB_PATH = join(
   process.platform === "win32" ? "nub.cmd" : "nub",
 );
 
-function buildPackageRoot(options: {
-  codexDependencies?: string;
-  claudeDependencies?: string;
-}): { root: string; binDir: string } {
+function buildPackageRoot(dependencies: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-publish-"));
-  const plugins = join(root, "packages", "plugins");
-  const pluginCodex = join(plugins, "plugin-codex");
-  const pluginClaude = join(plugins, "plugin-claude-code");
-  const binDir = join(root, "node_modules", ".bin");
-  const npmPath = join(root, "tmp-bin");
-
-  mkdirSync(pluginCodex, { recursive: true });
-  mkdirSync(pluginClaude, { recursive: true });
-  mkdirSync(binDir, { recursive: true });
-  mkdirSync(npmPath, { recursive: true });
-
+  const packagePath = join(root, "packages", "plugins", "plugin-codex");
+  const sourcePath = join(packagePath, "src");
+  mkdirSync(sourcePath, { recursive: true });
   writeFileSync(
-    join(pluginCodex, "package.json"),
+    join(packagePath, "package.json"),
     JSON.stringify(
       {
         name: "@doolittle/plugin-codex",
         version: "0.0.1",
-        dependencies: parseDependencies(options?.codexDependencies),
+        type: "module",
+        dependencies,
+        exports: {
+          ".": "./src/index.ts",
+        },
+        files: ["src/**/*.ts", "!src/**/*.test.ts", "README.md"],
       },
       null,
       2,
     ),
     "utf8",
   );
-
+  writeFileSync(join(packagePath, "README.md"), "# Fixture\n", "utf8");
   writeFileSync(
-    join(pluginClaude, "package.json"),
-    JSON.stringify(
-      {
-        name: "@doolittle/plugin-claude-code",
-        version: "0.0.1",
-        dependencies: parseDependencies(options?.claudeDependencies),
-      },
-      null,
-      2,
-    ),
+    join(sourcePath, "index.ts"),
+    "export const fixture = true;\n",
     "utf8",
   );
-
-  return { root, binDir: npmPath };
-}
-
-function parseDependencies(value = "{}"): Record<string, string> {
-  return JSON.parse(value) as Record<string, string>;
-}
-
-function createFakeNpm(
-  binDir: string,
-  exitCode: number,
-  includeOutput: string,
-): void {
-  const scriptPath = join(binDir, "npm");
-  const script = `#!/usr/bin/env sh
-if [ "$1" = "publish" ]; then
-  echo "${includeOutput}" "publish " "$@" >/dev/stderr
-else
-  echo "${includeOutput}" "pack " "$@" >/dev/stderr
-fi
-exit ${exitCode}
-`;
-  writeFileSync(scriptPath, script, "utf8");
-  chmodSync(scriptPath, 0o755);
+  return root;
 }
 
 function runPublish(
   cwd: string,
-  binDir: string,
   args: string[],
-): {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-} {
+  pathPrefix?: string,
+): { status: number | null; stdout: string; stderr: string } {
   const environment = { ...process.env };
   delete environment.NODE_OPTIONS;
   const result = spawnSync(NUB_PATH, [SCRIPT_PATH, ...args], {
     cwd,
     env: {
       ...environment,
-      PATH: `${binDir}:${process.env.PATH}`,
+      PATH: pathPrefix
+        ? `${pathPrefix}${delimiter}${process.env.PATH}`
+        : process.env.PATH,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
-
   return {
     status: result.status,
     stdout: result.stdout.toString(),
@@ -118,88 +79,102 @@ function runPublish(
   };
 }
 
-let fixtureRoot = "";
+function createFailingNpm(root: string): string {
+  const binPath = join(root, "bin");
+  mkdirSync(binPath, { recursive: true });
+  const scriptPath = join(
+    binPath,
+    process.platform === "win32" ? "npm.cmd" : "npm",
+  );
+  writeFileSync(
+    scriptPath,
+    process.platform === "win32"
+      ? "@echo off\necho pack-failed 1>&2\nexit /b 3\n"
+      : "#!/usr/bin/env sh\necho pack-failed >&2\nexit 3\n",
+    "utf8",
+  );
+  if (process.platform !== "win32") {
+    chmodSync(scriptPath, 0o755);
+  }
+  return binPath;
+}
 
-beforeEach(() => {
-  fixtureRoot = "";
-});
+const roots: string[] = [];
 
 afterEach(() => {
-  if (fixtureRoot) {
-    rmSync(fixtureRoot, { recursive: true, force: true });
+  for (const root of roots.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
 describe("publish-provider-packages", () => {
-  it("marks standalone dependency plugins as npm-publish in dry-run", () => {
-    const { root, binDir } = buildPackageRoot({});
-    fixtureRoot = root;
-    createFakeNpm(binDir, 0, "ok");
+  it("keeps the workspace manifest source-resolvable while packing dist artifacts", () => {
+    const root = buildPackageRoot();
+    roots.push(root);
 
-    const result = runPublish(root, binDir, ["--provider", "codex", "--json"]);
+    const result = runPublish(root, ["--provider", "codex", "--json"]);
     expect(result.status).toBe(0);
 
-    const payload = JSON.parse(result.stdout.trim());
+    const payload = JSON.parse(result.stdout) as {
+      results: Array<{
+        ok: boolean;
+        command: string;
+        detail: string;
+        output?: string;
+      }>;
+    };
     expect(payload.results).toHaveLength(1);
-    expect(payload.results[0].provider).toBe("codex");
-    expect(payload.results[0].recommendedFlow).toBe("npm-publish");
-    expect(payload.results[0].ok).toBe(true);
-    expect(payload.results[0].command).toContain("npm pack --dry-run");
+    expect(payload.results[0]).toMatchObject({
+      ok: true,
+      detail:
+        "Built dist JavaScript and declarations, then imported the packed artifact.",
+    });
+    expect(payload.results[0].command).toContain("npm pack --json");
+    expect(payload.results[0].output).toContain('"path": "dist/index.js"');
+
+    const manifest = JSON.parse(
+      readFileSync(
+        join(root, "packages", "plugins", "plugin-codex", "package.json"),
+        "utf8",
+      ),
+    ) as { exports: { ".": string }; files: string[] };
+    expect(manifest.exports["."]).toBe("./src/index.ts");
+    expect(manifest.files).toContain("src/**/*.ts");
   });
 
-  it("chooses monorepo release when workspace dependency is present", () => {
-    const { root, binDir } = buildPackageRoot({
-      codexDependencies: JSON.stringify({
-        "@doolittle/shared": "workspace:*",
-      }),
-    });
-    fixtureRoot = root;
-    createFakeNpm(binDir, 0, "ok");
+  it("fails before publish when packaging cannot produce an artifact", () => {
+    const root = buildPackageRoot();
+    roots.push(root);
+    const binPath = createFailingNpm(root);
 
-    const result = runPublish(root, binDir, ["--provider", "codex", "--json"]);
-    expect(result.status).toBe(0);
+    const result = runPublish(
+      root,
+      ["--provider", "codex", "--publish", "--tag", "rc", "--json"],
+      binPath,
+    );
+    expect(result.status).toBe(1);
 
-    const payload = JSON.parse(result.stdout.trim());
-    expect(payload.results[0].recommendedFlow).toBe("eliza-monorepo-release");
+    const payload = JSON.parse(result.stdout) as {
+      results: Array<{ ok: boolean; command: string; output?: string }>;
+    };
+    expect(payload.results[0].ok).toBe(false);
+    expect(payload.results[0].command).toContain("npm pack");
+    expect(payload.results[0].output).toContain("pack-failed");
   });
 
-  it("forwards publish and otp args through the npm command", () => {
-    const { root, binDir } = buildPackageRoot({
-      codexDependencies: "{}",
-    });
-    fixtureRoot = root;
-    createFakeNpm(binDir, 0, "ok");
+  it("rejects workspace dependencies before staging a standalone package", () => {
+    const root = buildPackageRoot({ "@doolittle/private": "workspace:*" });
+    roots.push(root);
 
-    const result = runPublish(root, binDir, [
-      "--provider",
-      "codex",
-      "--publish",
-      "--otp",
-      "777",
-      "--tag",
-      "rc",
-      "--json",
-    ]);
-
-    expect(result.status).toBe(0);
-
-    const payload = JSON.parse(result.stdout.trim());
-    expect(payload.results[0].command).toBe("npm publish --tag rc --otp 777");
-  });
-
-  it("fails if the npm command fails", () => {
-    const { root, binDir } = buildPackageRoot({
-      codexDependencies: "{}",
-    });
-    fixtureRoot = root;
-    createFakeNpm(binDir, 3, "publish fail");
-
-    const result = runPublish(root, binDir, [
-      "--provider",
-      "codex",
-      "--publish",
-    ]);
+    const result = runPublish(root, ["--provider", "codex", "--json"]);
 
     expect(result.status).toBe(1);
+    const payload = JSON.parse(result.stdout) as {
+      results: Array<{ ok: boolean; detail: string }>;
+    };
+    expect(payload.results[0]).toMatchObject({ ok: false });
+    expect(payload.results[0].detail).toContain(
+      "cannot be published standalone",
+    );
   });
 });

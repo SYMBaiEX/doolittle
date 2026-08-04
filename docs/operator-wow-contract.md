@@ -233,7 +233,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `memory-learning-skills`
 - Outcome: Doolittle gets better with use by recalling durable preferences, finding past sessions, and proposing approved skills for repeated workflows.
-- Doolittle surfaces: `packages/plugins/doolittle-plugin/memory-storage-service.ts`, `packages/agent/src/runtime/native/service-bridge/autonomous-skills.ts`, `packages/skills`, `docs/skills-hub.md`
+- Doolittle surfaces: `packages/agent/src/runtime/native/plugin-registry/product/memory-storage-service.ts`, `packages/agent/src/runtime/native/service-bridge/autonomous-skills.ts`, `packages/skills`, `docs/skills-hub.md`
 
 ### Reference Signals
 
@@ -258,7 +258,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The response distinguishes memory from live facts.
 - Verification:
   - Add a memory persistence test that writes, restarts the memory runtime, and retrieves the preference.
-  - Run `nub run test packages/plugins/doolittle-plugin/memory-storage-service.test.ts`.
+  - Run `nub run test packages/agent/src/runtime/native/plugin-registry/product/memory-storage-service.test.ts`.
 
 #### memory-learning-skills.skill-proposal
 
@@ -284,7 +284,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Add a cross-session durable memory recall test.
 - Owner surface: `memory`
-- Files: `packages/plugins/doolittle-plugin/memory-storage-service.ts`, `packages/plugins/doolittle-plugin/memory-storage-service.test.ts`, `docs/operator-loop.md`
+- Files: `packages/agent/src/runtime/native/plugin-registry/product/memory-storage-service.ts`, `packages/agent/src/runtime/native/plugin-registry/product/memory-storage-service.test.ts`, `docs/operator-loop.md`
 - Definition of done:
   - A saved preference survives runtime recreation.
   - Recall metadata says where the memory came from.
@@ -304,7 +304,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `gateway-everywhere-presence`
 - Outcome: Doolittle can be reached from trusted messaging channels and keeps delivery, threads, attachments, and recovery visible.
-- Doolittle surfaces: `packages/agent/src/gateway/runner/index.ts`, `packages/agent/src/gateway/platforms`, `packages/plugins/doolittle-plugin/gateway-service.ts`, `packages/agent/src/server.ts`
+- Doolittle surfaces: `packages/agent/src/gateway/runner/index.ts`, `packages/agent/src/gateway/platforms`, `packages/agent/src/runtime/native/plugin-registry/product/gateway-service.ts`, `packages/agent/src/server.ts`
 
 ### Reference Signals
 
@@ -375,7 +375,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `automation-and-daily-tasks`
 - Outcome: Doolittle can run scheduled work, short follow-ups, standing orders, and daily briefings with observable delivery.
-- Doolittle surfaces: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/agent/src/server.ts`, `packages/agent/src/services/gateway-session-service/index.ts`, `docs/operator-loop.md`
+- Doolittle surfaces: `packages/agent/src/runtime/native/plugin-registry/product/scheduler-service.ts`, `packages/agent/src/server.ts`, `packages/agent/src/services/gateway-session-service/index.ts`, `docs/operator-loop.md`
 
 ### Reference Signals
 
@@ -400,7 +400,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Delivery result is recorded in gateway history.
 - Verification:
   - Add scheduler tests for due job execution and delivery recording.
-  - Run `nub run test packages/plugins/doolittle-plugin/trigger-runtime-service.test.ts packages/agent/src/gateway`.
+  - Run `nub run test packages/agent/src/runtime/native/plugin-registry/product/trigger-runtime-service.test.ts packages/agent/src/gateway`.
 
 #### automation-and-daily-tasks.short-followup
 
@@ -426,7 +426,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Define and test scheduled task lifecycle fields.
 - Owner surface: `scheduler service`
-- Files: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/plugins/doolittle-plugin/trigger-runtime-service.test.ts`, `docs/operator-loop.md`
+- Files: `packages/agent/src/runtime/native/plugin-registry/product/scheduler-service.ts`, `packages/agent/src/runtime/native/plugin-registry/product/trigger-runtime-service.test.ts`, `docs/operator-loop.md`
 - Definition of done:
   - Jobs expose id, schedule, nextRun, lastRun, status, target, and lastDelivery.
   - Due jobs run bounded turns and record delivery outcomes.
@@ -436,7 +436,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Add short follow-up and thread heartbeat semantics.
 - Owner surface: `scheduler and gateway session`
-- Files: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/agent/src/services/gateway-session-service/index.ts`, `packages/agent/src/runtime/chat.ts`
+- Files: `packages/agent/src/runtime/native/plugin-registry/product/scheduler-service.ts`, `packages/agent/src/services/gateway-session-service/index.ts`, `packages/agent/src/runtime/chat.ts`
 - Definition of done:
   - Short follow-ups are attached to the current session route by default.
   - Heartbeat entries can be canceled before firing.

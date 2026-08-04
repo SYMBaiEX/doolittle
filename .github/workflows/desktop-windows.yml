@@ -31,10 +31,13 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
-      - name: Verify desktop
+      - name: Check application and acceptance contracts
         run: |
-          nub run desktop:typecheck
-          nub run desktop:test
+          nub run check
+          nub run check:acceptance
+
+      - name: Verify desktop
+        run: nub run desktop:test
 
       - name: Require signing credentials for tagged releases
         if: startsWith(github.ref, 'refs/tags/')

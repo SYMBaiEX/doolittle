@@ -1,31 +1,8 @@
-export interface LocalCodebaseMatch {
-  path: string;
-  exactBasenameMatch: boolean;
-}
-
-export interface LocalProjectTarget {
-  path: string;
-  kind: "directory" | "file";
-}
-
-export interface LocalProjectInspection {
-  name: string;
-  path: string;
-  type: string;
-  packageName?: string;
-  packageManager?: string;
-  workspacePatterns: string[];
-  scripts: string[];
-  keyFolders: string[];
-  notableFiles?: string[];
-  git: {
-    available: boolean;
-    status?: string;
-    recentCommit?: string;
-  };
-  topEntries: string[];
-  readmePreview?: string;
-}
+export type {
+  LocalCodebaseMatch,
+  LocalProjectInspection,
+  LocalProjectTarget,
+} from "@doolittle/contracts";
 
 export interface PackageJsonSummary {
   packageName?: string;

@@ -33,6 +33,10 @@ const FORBIDDEN_IMPORT_PATTERNS: Array<{
     pattern: /from\s+["'](?:\.\.\/)+(?:packages\/)?agent\/src\/.+["']/u,
     reason: "imports agent source through a relative path",
   },
+  {
+    pattern: /from\s+["']@doolittle\/agent(?:\/.+)?["']/u,
+    reason: "imports the host application from a reusable plugin",
+  },
 ];
 
 const DUPLICATE_TEXT_MODEL_REGISTRATION_PATTERN =

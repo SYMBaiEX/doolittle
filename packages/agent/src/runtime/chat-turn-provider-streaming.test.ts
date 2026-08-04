@@ -127,12 +127,11 @@ describe("chat turn provider streaming", () => {
     await state.onStreamChunk('{"type":"evaluation","decision":"FINISH"}');
 
     expect(state.getResponse()).toBe("");
-    expect(state.getActionResults()).toEqual([
+    expect(state.getSdkStreamToolResultTelemetry()).toEqual([
       {
+        source: "sdk-stream-envelope",
+        actionName: "WEB_SEARCH",
         success: true,
-        userFacingText: "Current result",
-        verifiedUserFacing: true,
-        data: { actionName: "WEB_SEARCH" },
       },
     ]);
     expect(progress).toEqual([]);

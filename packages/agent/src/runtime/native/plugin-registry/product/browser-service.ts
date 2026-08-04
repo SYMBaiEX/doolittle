@@ -1,4 +1,3 @@
-import type { AppServices } from "@doolittle/agent/plugin-api";
 import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
@@ -6,6 +5,7 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
+import type { AppServices } from "@/services";
 
 export function createBrowserRuntimeService(
   services: AppServices,

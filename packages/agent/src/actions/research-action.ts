@@ -34,6 +34,12 @@ export interface DoolittleResearchRun {
   responseId?: string;
 }
 
+export interface DoolittleResearchActionData {
+  actionName: "DOOLITTLE_RESEARCH";
+  responseId?: string;
+  sources: DoolittleResearchSource[];
+}
+
 export type DoolittleResearchRuntime = Pick<
   IAgentRuntime,
   "getModel" | "useModel"
@@ -195,6 +201,11 @@ export function createResearchAction(): Action {
           text: report,
           userFacingText: report,
           verifiedUserFacing: true,
+          data: {
+            actionName: "DOOLITTLE_RESEARCH",
+            responseId: research.responseId,
+            sources: research.sources,
+          } satisfies DoolittleResearchActionData,
         };
       } catch (error) {
         const failure = `Deep research failed: ${

@@ -23,6 +23,7 @@ function createBoundaryFixture(options: {
   includeRawTelegramTransport?: boolean;
   includeShadowSkillCatalog?: boolean;
   includeManualRuntimeShutdown?: boolean;
+  includeHostApplicationImport?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -86,9 +87,11 @@ function createBoundaryFixture(options: {
 
   writeFileSync(
     join(packagesDir, "plugins", "plugin-dummy", "index.ts"),
-    options.includeDuplicatedModelRegistrations
-      ? "export const plugin = { models: { [ModelType.TEXT_LARGE]: handler } };\n"
-      : 'export const plugin = "ok";\n',
+    options.includeHostApplicationImport
+      ? 'import type { AppServices } from "@doolittle/agent/services";\nexport type Host = AppServices;\n'
+      : options.includeDuplicatedModelRegistrations
+        ? "export const plugin = { models: { [ModelType.TEXT_LARGE]: handler } };\n"
+        : 'export const plugin = "ok";\n',
     "utf8",
   );
 
@@ -188,6 +191,17 @@ describe("check-plugin-boundaries", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       "redeclares the shared Eliza text model surface",
+    );
+    expect(result.stderr).toContain("plugin-dummy/index.ts");
+  });
+
+  it("rejects reusable plugins that import the host application", () => {
+    fixture = createBoundaryFixture({ includeHostApplicationImport: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "imports the host application from a reusable plugin",
     );
     expect(result.stderr).toContain("plugin-dummy/index.ts");
   });

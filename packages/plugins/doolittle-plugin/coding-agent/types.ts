@@ -1,4 +1,8 @@
 import type {
+  CodingIteration,
+  ConnectorType,
+  HumanFeedback,
+  InteractionMode,
   LocalCodebaseMatch,
   LocalProjectInspection,
   LocalProjectTarget,
@@ -8,12 +12,18 @@ import type {
   WorkspacePatchResult,
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
-} from "@doolittle/agent/plugin-api";
-import type {
-  CodingIteration,
-  ConnectorType,
-  HumanFeedback,
-  InteractionMode,
+} from "@doolittle/contracts";
+
+export type {
+  LocalCodebaseMatch,
+  LocalProjectInspection,
+  LocalProjectTarget,
+  WorkspaceDirectoryResult,
+  WorkspaceFileSearchInput,
+  WorkspaceFileSearchResult,
+  WorkspacePatchResult,
+  WorkspaceReadLinesResult,
+  WorkspaceWriteResult,
 } from "@doolittle/contracts";
 
 export interface WorkspaceServiceLike {

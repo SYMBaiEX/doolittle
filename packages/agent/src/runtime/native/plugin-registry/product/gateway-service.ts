@@ -1,4 +1,3 @@
-import { GatewayRunner } from "@doolittle/agent/plugin-api";
 import { DOOLITTLE_GATEWAY_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
@@ -6,18 +5,22 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
-import type { DoolittlePluginDependencies } from "./types";
+import { GatewayRunner } from "@/gateway/runner";
+import type { AppServices } from "@/services";
+import type { EnvConfig } from "@/types/runtime";
 
+/** Adapts the agent-owned gateway runner to Eliza's service lifecycle. */
 export function createGatewayRuntimeService({
   config,
   services,
-}: DoolittlePluginDependencies): ServiceClass {
+}: {
+  config: EnvConfig;
+  services: AppServices;
+}): ServiceClass {
   class GatewayRuntimeService extends ElizaService {
     static serviceType = DOOLITTLE_GATEWAY_SERVICE;
-
     capabilityDescription =
       "Manages the Doolittle gateway lifecycle and platform routing.";
-
     runner?: GatewayRunner;
 
     // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.

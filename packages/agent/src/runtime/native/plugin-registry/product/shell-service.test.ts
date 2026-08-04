@@ -1,7 +1,7 @@
-import type { AppServices } from "@doolittle/agent/plugin-api";
 import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime, Service, ServiceClass } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import type { AppServices } from "@/services";
 import { createShellRuntimeService } from "./shell-service";
 
 describe("createShellRuntimeService", () => {

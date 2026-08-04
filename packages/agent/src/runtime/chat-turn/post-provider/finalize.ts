@@ -20,6 +20,7 @@ import type {
   PostProviderFinalResult,
   PostProviderSettingsSnapshot,
 } from "./types";
+import { resolveRunTerminalWriter } from "./types";
 
 export function buildPostProviderFinalResponse(input: {
   effectiveInput: ChatTurnRequest;
@@ -140,11 +141,15 @@ export async function finalizePostProviderTurn(input: {
     },
   });
 
-  input.context.services.runController.finishTurn(
-    input.turn.sessionId,
-    input.runFailureMessage ? "error" : "complete",
-    input.runFailureMessage,
-  );
+  if (
+    resolveRunTerminalWriter(input.turn.connectionSource) === "post-provider"
+  ) {
+    input.context.services.runController.finishTurn(
+      input.turn.sessionId,
+      input.runFailureMessage ? "error" : "complete",
+      input.runFailureMessage,
+    );
+  }
   input.scheduleProfileObservation();
 
   return {

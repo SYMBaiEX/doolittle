@@ -123,78 +123,78 @@ const AnalyticsPage = lazy(() =>
   })),
 );
 const ActivityPage = lazy(() =>
-  import("./StudioPages").then((module) => ({
+  import("./ActivityPage").then((module) => ({
     default: module.ActivityPage,
   })),
 );
 const MediaPage = lazy(() =>
-  import("./StudioPages").then((module) => ({ default: module.MediaPage })),
+  import("./MediaPage").then((module) => ({ default: module.MediaPage })),
 );
 const MemoryPage = lazy(() =>
-  import("./StudioPages").then((module) => ({ default: module.MemoryPage })),
+  import("./MemoryPage").then((module) => ({ default: module.MemoryPage })),
 );
 const ModelsPage = lazy(() =>
-  import("./AgentPages").then((module) => ({ default: module.ModelsPage })),
+  import("./ModelsPage").then((module) => ({ default: module.ModelsPage })),
 );
 const ConnectionsPage = lazy(() =>
-  import("./AgentPages").then((module) => ({
+  import("./ConnectionsPage").then((module) => ({
     default: module.ConnectionsPage,
   })),
 );
 const ToolsPage = lazy(() =>
-  import("./AgentPages").then((module) => ({ default: module.ToolsPage })),
+  import("./ToolsPage").then((module) => ({ default: module.ToolsPage })),
 );
 const SkillsPage = lazy(() =>
-  import("./AgentPages").then((module) => ({ default: module.SkillsPage })),
+  import("./SkillsPage").then((module) => ({ default: module.SkillsPage })),
 );
 const PluginsPage = lazy(() =>
-  import("./AgentPages").then((module) => ({ default: module.PluginsPage })),
+  import("./PluginsPage").then((module) => ({ default: module.PluginsPage })),
 );
 const ProfilesPage = lazy(() =>
-  import("./AgentPages").then((module) => ({ default: module.ProfilesPage })),
+  import("./ProfilesPage").then((module) => ({ default: module.ProfilesPage })),
 );
 const AutomationsPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./AutomationsPage").then((module) => ({
     default: module.AutomationsPage,
   })),
 );
 const LogsPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./LogsPage").then((module) => ({
     default: module.LogsPage,
   })),
 );
 const SettingsPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./SettingsPage").then((module) => ({
     default: module.SettingsPage,
   })),
 );
 const KeysPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./KeysPage").then((module) => ({
     default: module.KeysPage,
   })),
 );
 const DocsPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./DocsPage").then((module) => ({
     default: module.DocsPage,
   })),
 );
 const RuntimePage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./RuntimePage").then((module) => ({
     default: module.RuntimePage,
   })),
 );
 const CompatibilityPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./CompatibilityPage").then((module) => ({
     default: module.CompatibilityPage,
   })),
 );
 const RegistryPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./RegistryPage").then((module) => ({
     default: module.RegistryPage,
   })),
 );
 const SetupPage = lazy(() =>
-  import("./ManagementPages").then((module) => ({
+  import("./SetupPage").then((module) => ({
     default: module.SetupPage,
   })),
 );

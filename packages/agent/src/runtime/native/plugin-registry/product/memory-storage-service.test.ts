@@ -1,7 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SessionService } from "@doolittle/agent/services/session/service";
 import {
   type IAgentRuntime,
   LongTermMemoryCategory,
@@ -9,6 +8,7 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
+import { SessionService } from "@/services/session/service";
 import { createMemoryStorageService } from "./memory-storage-service";
 
 const agentId = "00000000-0000-4000-8000-000000000001" as UUID;
@@ -24,7 +24,7 @@ async function createProvider(root: string): Promise<MemoryStorageProvider> {
   } as IAgentRuntime)) as unknown as MemoryStorageProvider;
 }
 
-describe("Eliza memory storage plugin service", () => {
+describe("Eliza product memory storage service", () => {
   it("persists the official long-term memory contract across runtime recreation", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-memory-storage-"));
     try {

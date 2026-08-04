@@ -586,12 +586,12 @@ app.whenReady().then(async () => {
   });
   installApplicationMenu();
   installTray();
-  disposeIpc = registerIpc(
+  disposeIpc = registerIpc({
     ipcMain,
     backend,
-    () => mainWindow,
+    getMainWindow: () => mainWindow,
     pickFiles,
-    {
+    workspace: {
       getState: () =>
         workspaceState?.getState() ?? { currentPath: "", recentPaths: [] },
       pickWorkspace,
@@ -600,12 +600,13 @@ app.whenReady().then(async () => {
       subscribe: (listener) =>
         workspaceState?.subscribe(listener) ?? (() => undefined),
     },
-    { notify: showBackgroundNotification },
-    () => pickChatAttachments(runtimeDataDir),
+    sensitiveActionDependencies: { notify: showBackgroundNotification },
+    pickChatAttachments: () => pickChatAttachments(runtimeDataDir),
     pickProjectFiles,
     pickProjectFolders,
-    (request) => importRecordedAudio(request, runtimeDataDir),
-    {
+    importRecordedAudio: (request) =>
+      importRecordedAudio(request, runtimeDataDir),
+    desktopControls: {
       getLifecycleState: () =>
         desktopPreferences?.getState() ?? { keepRunningInBackground: false },
       setKeepRunningInBackground: (enabled) =>
@@ -615,7 +616,7 @@ app.whenReady().then(async () => {
       updates,
       providerAuth,
     },
-  );
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
   });

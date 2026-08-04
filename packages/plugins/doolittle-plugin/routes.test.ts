@@ -1,4 +1,3 @@
-import type { AppServices, EnvConfig } from "@doolittle/agent/plugin-api";
 import type { RouteHandlerContext } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { createDoolittleRuntimeRoutes } from "./routes";
@@ -11,11 +10,11 @@ describe("createDoolittleRuntimeRoutes", () => {
         workspace: {
           root: () => workspaceDir,
         },
-      } as AppServices,
+      },
       config: {
         agentName: "Doolittle Test",
         mode: "api",
-      } as EnvConfig,
+      },
     });
     const health = routes.find((route) => route.path === "/health");
 
@@ -42,8 +41,8 @@ describe("createDoolittleRuntimeRoutes", () => {
 
   it("publishes the feature map from the canonical Eliza character settings", async () => {
     const routes = createDoolittleRuntimeRoutes({
-      services: {} as AppServices,
-      config: {} as EnvConfig,
+      services: { workspace: { root: () => "" } },
+      config: {},
     });
     const features = routes.find((route) => route.path === "/features");
     const result = await features?.routeHandler?.({

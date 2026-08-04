@@ -102,6 +102,14 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
     expect(result?.success).toBe(true);
     expect(result?.verifiedUserFacing).toBe(true);
     expect(result?.userFacingText).toBe(delivered);
+    expect(result?.data).toEqual({
+      actionName: "DOOLITTLE_RESEARCH",
+      responseId: "resp_1",
+      sources: [
+        { title: "Paper A", url: "https://a.example/x" },
+        { title: "Paper B", url: "https://b.example/y" },
+      ],
+    });
     expect(delivered).toContain("RAG combines retrieval with generation.");
     expect(delivered).toContain("Sources:");
     expect(delivered).toContain("https://a.example/x");

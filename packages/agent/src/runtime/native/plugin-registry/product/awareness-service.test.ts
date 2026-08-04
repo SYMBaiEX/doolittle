@@ -1,7 +1,7 @@
-import type { AppServices } from "@doolittle/agent/plugin-api";
 import { DOOLITTLE_AWARENESS_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime, Service, ServiceClass } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import type { AppServices } from "@/services";
 import { createAwarenessRuntimeService } from "./awareness-service";
 
 describe("createAwarenessRuntimeService", () => {

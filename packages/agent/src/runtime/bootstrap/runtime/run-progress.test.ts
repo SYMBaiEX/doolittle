@@ -121,6 +121,38 @@ describe("run progress helpers", () => {
     expect(updateRuntimeWaiting).toHaveBeenCalledWith("room-1");
   });
 
+  it("reserves chat terminal receipts for post-provider while preserving autonomous RUN_ENDED completion", async () => {
+    const finishRuntimeRun = vi.fn();
+    const services = {
+      runController: {
+        getByRoomId: (roomId: string) =>
+          roomId === "chat-room"
+            ? { runId: "chat-run", source: "desktop" }
+            : { runId: "automation-run", source: "automation" },
+        finishRuntimeRun,
+      },
+    } as never;
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.RUN_ENDED]?.[0]?.({
+      roomId: "chat-room",
+      runId: "chat-run",
+      status: "completed",
+    } as never);
+    await events[EventType.RUN_ENDED]?.[0]?.({
+      roomId: "automation-room",
+      runId: "automation-run",
+      status: "completed",
+    } as never);
+
+    expect(finishRuntimeRun).toHaveBeenCalledTimes(1);
+    expect(finishRuntimeRun).toHaveBeenCalledWith(
+      "automation-room",
+      "complete",
+      undefined,
+    );
+  });
+
   it("projects native action events according to the active run's progress mode", async () => {
     const noteRuntimeActionStarted = vi.fn();
     const noteRuntimeActionCompleted = vi.fn();

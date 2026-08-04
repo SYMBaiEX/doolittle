@@ -5,7 +5,11 @@ import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 
 function createContext(overrides?: {
-  onHandleMessage?: () => Promise<unknown>;
+  onHandleMessage?: (handlers: {
+    onContent: (content: unknown) => Promise<unknown>;
+    onStreamChunk?: (chunk: string) => Promise<void>;
+  }) => Promise<unknown>;
+  getActionResults?: () => unknown[];
   captureNotice?: (notice: string) => void;
   trajectoryLogger?: unknown;
   sdkEmitsMessageSent?: boolean;
@@ -34,13 +38,17 @@ function createContext(overrides?: {
           _runtime: unknown,
           _memory: unknown,
           onContent: (content: unknown) => Promise<unknown>,
+          options?: { onStreamChunk?: (chunk: string) => Promise<void> },
         ) => {
           await onContent({ text: "provider response" } as never);
           if (overrides?.sdkEmitsMessageSent) {
             emittedEvents.push("MESSAGE_SENT");
           }
           if (overrides?.onHandleMessage) {
-            return overrides.onHandleMessage();
+            return overrides.onHandleMessage({
+              onContent,
+              onStreamChunk: options?.onStreamChunk,
+            });
           }
           return {
             responseMessages: [
@@ -54,6 +62,7 @@ function createContext(overrides?: {
           };
         },
       },
+      getActionResults: overrides?.getActionResults,
     },
   } as unknown as AgentExecutionContext;
 
@@ -132,6 +141,113 @@ describe("chat turn provider handler", () => {
     expect(result.runFailureMessage).toBeUndefined();
     expect(emittedEvents).toEqual(["MESSAGE_SENT"]);
     expect(streamState.getResponse()).toBe("response message");
+  });
+
+  it("uses returned SDK action results instead of the persisted runtime ledger", async () => {
+    const runtimeResult = {
+      success: true,
+      data: { actionName: "RUNTIME_ACTION" },
+    };
+    const sdkResult = {
+      success: true,
+      data: { actionName: "SDK_ACTION" },
+    };
+    const { context } = createContext({
+      getActionResults: () => [runtimeResult],
+      onHandleMessage: async () => ({
+        responseContent: { text: "Terminal response." },
+        responseMessages: [],
+        state: { data: { actionResults: [sdkResult] } },
+      }),
+    });
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: () => ({
+        kind: "append",
+        emittedText: "",
+        nextText: "",
+      }),
+      extractCompatTextContent: () => "",
+    });
+
+    const result = await executeProviderMessageTurn({
+      context,
+      memory: {
+        id: "memory-sdk-results" as UUID,
+        roomId: "room-sdk-results" as UUID,
+        entityId: "entity-sdk-results" as UUID,
+        content: {
+          text: "run action",
+          source: "cli",
+          channelType: ChannelType.DM,
+        },
+      } as Memory,
+      streamState,
+      messagePolicy: { useMultiStep: true, maxIterations: 3 },
+      abortSignal: undefined,
+      settingsDuring: createTurnSettings(),
+      connectionSource: "cli",
+      roomId: "room-sdk-results",
+      buildProviderFailureMessage: () => "fatal",
+    });
+
+    expect(result.actionResults).toEqual([sdkResult]);
+  });
+
+  it("treats parsed stream tool results as telemetry, not durable action results", async () => {
+    const runtimeResult = {
+      success: true,
+      data: { actionName: "RUNTIME_ACTION" },
+    };
+    const { context } = createContext({
+      getActionResults: () => [runtimeResult],
+      onHandleMessage: async ({ onStreamChunk }) => {
+        await onStreamChunk?.(
+          '{"type":"tool_result","toolCall":{"name":"STREAM_ACTION"},"result":{"success":true}}',
+        );
+        return {
+          responseContent: { text: "Terminal response." },
+          responseMessages: [],
+        };
+      },
+    });
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: () => ({
+        kind: "append",
+        emittedText: "",
+        nextText: "",
+      }),
+      extractCompatTextContent: () => "",
+    });
+
+    const result = await executeProviderMessageTurn({
+      context,
+      memory: {
+        id: "memory-stream-results" as UUID,
+        roomId: "room-stream-results" as UUID,
+        entityId: "entity-stream-results" as UUID,
+        content: {
+          text: "run action",
+          source: "cli",
+          channelType: ChannelType.DM,
+        },
+      } as Memory,
+      streamState,
+      messagePolicy: { useMultiStep: true, maxIterations: 3 },
+      abortSignal: undefined,
+      settingsDuring: createTurnSettings(),
+      connectionSource: "cli",
+      roomId: "room-stream-results",
+      buildProviderFailureMessage: () => "fatal",
+    });
+
+    expect(result.actionResults).toEqual([runtimeResult]);
+    expect(streamState.getSdkStreamToolResultTelemetry()).toEqual([
+      {
+        source: "sdk-stream-envelope",
+        actionName: "STREAM_ACTION",
+        success: true,
+      },
+    ]);
   });
 
   it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {

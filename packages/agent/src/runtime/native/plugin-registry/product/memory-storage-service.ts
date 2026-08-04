@@ -1,4 +1,3 @@
-import type { AppServices } from "@doolittle/agent/plugin-api";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -9,7 +8,8 @@ import {
   type SessionSummary,
   type UUID,
 } from "@elizaos/core";
-import { ElizaMemoryStorageStore } from "./memory-storage/store";
+import type { SessionService } from "@/services/session/service";
+import { ElizaMemoryStorageStore } from "./memory-storage-store";
 
 /**
  * Implements ElizaOS's official advanced-memory storage contract.
@@ -18,7 +18,7 @@ import { ElizaMemoryStorageStore } from "./memory-storage/store";
  * product query projection used by searchSessions.
  */
 export function createMemoryStorageService(
-  sessions: AppServices["sessions"],
+  sessions: Pick<SessionService, "search">,
   dataDir: string,
 ) {
   class DoolittleMemoryStorageService

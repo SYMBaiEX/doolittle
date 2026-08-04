@@ -1,10 +1,13 @@
+import { EventType } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import { createRunProgressEvents } from "@/runtime/bootstrap/runtime/run-progress";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runPostProviderTurn } from "./chat-turn/post-provider";
 
 function createHarness(observedActionCount = 0) {
   const storedMessages: string[] = [];
   const finishEvents: Array<{ status: string; message?: string }> = [];
+  const trajectoryEvents: unknown[] = [];
   const context = {
     runtime: {},
     services: {
@@ -21,11 +24,14 @@ function createHarness(observedActionCount = 0) {
         storeMessage: (message: { text: string }) =>
           storedMessages.push(message.text),
       },
+      trajectories: {
+        recordEvent: (event: unknown) => trajectoryEvents.push(event),
+      },
     },
     config: {},
   } as unknown as AgentExecutionContext;
 
-  return { context, finishEvents, storedMessages };
+  return { context, finishEvents, storedMessages, trajectoryEvents };
 }
 
 function createInput(
@@ -161,6 +167,92 @@ describe("ElizaOS-native post-provider seam", () => {
         status: "error",
         message: "The native planner could not complete this turn.",
       },
+    ]);
+  });
+
+  it("leaves autonomous terminal receipts to native RUN_ENDED", async () => {
+    const harness = createHarness();
+
+    await runPostProviderTurn(
+      createInput(harness.context, {
+        input: {
+          userId: "alice",
+          message: "Run the scheduled task",
+          source: "automation",
+        },
+        effectiveInput: {
+          userId: "alice",
+          message: "Run the scheduled task",
+          source: "automation",
+        },
+        turn: {
+          ...createInput(harness.context).turn,
+          connectionSource: "automation",
+        },
+      }),
+    );
+
+    expect(harness.finishEvents).toEqual([]);
+  });
+
+  it("defers a chat RUN_ENDED receipt until the post-provider contract failure is finalized", async () => {
+    const harness = createHarness();
+    const nativeFinishRuntimeRun = vi.fn();
+    const events = createRunProgressEvents({
+      runController: {
+        getByRoomId: () => ({ runId: "run-1", source: "desktop" }),
+        finishRuntimeRun: nativeFinishRuntimeRun,
+      },
+    } as never);
+
+    await events[EventType.RUN_ENDED]?.[0]?.({
+      roomId: "room-1",
+      runId: "run-1",
+      status: "completed",
+    } as never);
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        response: "Done.",
+        actionResults: [
+          {
+            success: true,
+            data: {
+              mutationAction: "WRITE_FILE",
+              mutationKind: "local-file",
+              mutation: { action: "WRITE_FILE", success: false },
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(nativeFinishRuntimeRun).not.toHaveBeenCalled();
+    expect(harness.finishEvents).toEqual([
+      { status: "error", message: result.runFailureMessage },
+    ]);
+    expect(harness.trajectoryEvents).toEqual([
+      expect.objectContaining({
+        category: "turn",
+        event: "turn.failed",
+        sessionId: "session-1",
+        runId: "run-1",
+        roomId: "room-1",
+        source: "desktop",
+        provider: "openai",
+        model: "gpt-4.1",
+        metadata: expect.objectContaining({
+          response: result.response,
+          observedActionCount: 1,
+          actionResults: expect.arrayContaining([
+            expect.objectContaining({ success: true }),
+          ]),
+          localMutations: expect.arrayContaining([
+            expect.objectContaining({ action: "WRITE_FILE", success: false }),
+          ]),
+          usedFallback: false,
+          runFailureMessage: result.runFailureMessage,
+        }),
+      }),
     ]);
   });
 

@@ -594,14 +594,14 @@ Doolittle ships with a large service graph, but it no longer blocks the shell on
 | Run controller and observed progress | [`run-controller-service/index.ts`](./packages/agent/src/services/run-controller-service/index.ts) | `/mode`, `/progress`, automatic live run state |
 | Trajectory evaluation projection | [`trajectory/service/index.ts`](./packages/agent/src/services/trajectory/service/index.ts) | `/trajectories export`, `/trajectories bundle`, `/trajectories analyze`, `/trajectories evaluate`, `/trajectories replay` |
 | Planning boards | [`doolittle-plugin/planning`](./packages/plugins/doolittle-plugin/planning/) | `/planning` flows |
-| Scheduling and automation | Native Eliza Trigger Tasks through [`trigger-runtime-service.ts`](./packages/plugins/doolittle-plugin/trigger-runtime-service.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
+| Scheduling and automation | Native Eliza Trigger Tasks through [`trigger-runtime-service.ts`](./packages/agent/src/runtime/native/plugin-registry/product/trigger-runtime-service.ts) | `/cron list`, `/cron create every 2h \| name:deploy-review :: summarize logs` |
 
 ### Reaches the outside world
 
 | Capability | Implementation | CLI |
 |---|---|---|
 | Browser (Lightpanda) | [`web/service.ts`](./packages/agent/src/services/web/service.ts) | `/browser fetch`, `/browser inspect`, `/browser snapshot`, `/browser screenshot`, `/browser capture`, `/browser analyze`, `/browser compare` |
-| MCP bridge | [`mcp-service.ts`](./packages/plugins/doolittle-plugin/mcp-service.ts) | `/mcp status`, `/mcp tools`, `/mcp cached`, `/mcp invoke`, `/mcp call` |
+| MCP bridge | [`mcp-service.ts`](./packages/agent/src/runtime/native/plugin-registry/product/mcp-service.ts) | `/mcp status`, `/mcp tools`, `/mcp cached`, `/mcp invoke`, `/mcp call` |
 | ACP registry | [`acp/service.ts`](./packages/agent/src/services/acp/service.ts) | `/acp status`, `/acp registry`, `/acp publish`, `/acp tools`, `/acp call` |
 | Delivery routing | [`delivery-service.ts`](./packages/agent/src/services/delivery-service.ts) | Via gateway — Telegram, Discord, Slack, WhatsApp, Signal, Matrix, email, SMS |
 | Media processing | [`media/service.ts`](./packages/agent/src/services/media/service.ts) | `/media transcript`, `/media caption`, `/media analyze`, `/media voice`, `/media vision`, `/media generate`, `/media speak` |

@@ -206,9 +206,6 @@ export async function executeProviderMessageTurn(
         responseMessages = messageResult?.responseMessages ?? [];
         actionResults = actionResultsFromState(messageResult?.state);
         if (actionResults.length === 0) {
-          actionResults = input.streamState.getActionResults();
-        }
-        if (actionResults.length === 0) {
           actionResults =
             input.context.runtime.getActionResults?.(messageId) ?? [];
         }

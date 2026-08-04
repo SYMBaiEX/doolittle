@@ -1,10 +1,10 @@
-import type { AutomationExecutor } from "@doolittle/agent/plugin-api";
 import {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
 } from "@doolittle/contracts";
 import type { IAgentRuntime, ServiceClass, Task, UUID } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import type { AutomationExecutor } from "@/services/automation/types";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 
 function createHarness(
@@ -47,7 +47,7 @@ function createHarness(
   return { runtime, serviceClass, tasks };
 }
 
-describe("Eliza trigger runtime adapter", () => {
+describe("Eliza product trigger runtime adapter", () => {
   it("persists the complete automation definition in the SDK trigger task", async () => {
     const harness = createHarness();
     const service = (await harness

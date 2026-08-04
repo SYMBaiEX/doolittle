@@ -1,6 +1,5 @@
 import { ModelType, type Plugin } from "@elizaos/core";
 import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
-import { createDoolittlePluginSurface } from "./assembly";
 import {
   createOfflineBootstrapEmbeddingModel,
   createOfflineBootstrapTextModel,
@@ -9,14 +8,19 @@ import {
   createSelectedProviderTextModels,
   DOOLITTLE_MODEL_ROUTER_PRIORITY,
 } from "./model-router";
-import type { DoolittlePluginDependencies } from "./types";
+import type { DoolittlePluginConfig } from "./types";
 
-export function createDoolittlePlugin({
-  services,
-  config,
-}: DoolittlePluginDependencies): Plugin {
-  const plugin = createDoolittlePluginSurface({ services, config });
-
+/**
+ * Applies the plugin-owned model handlers to an application-composed surface.
+ *
+ * The agent owns the application actions, providers, routes, and lifecycle
+ * adapters. Keeping that composition outside this package prevents this
+ * vendored plugin from depending on the application that hosts it.
+ */
+export function createDoolittlePlugin(
+  plugin: Plugin,
+  config: DoolittlePluginConfig,
+): Plugin {
   if (config.offlineBootstrapMode) {
     plugin.models = {
       [ModelType.TEXT_EMBEDDING]: createOfflineBootstrapEmbeddingModel(config),

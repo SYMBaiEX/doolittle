@@ -828,12 +828,16 @@ describe("sensitive desktop actions", () => {
       string,
       (event: unknown, request: unknown) => unknown
     >();
+    const removedChannels: string[] = [];
     const ipcMain = {
       handle: (
         channel: string,
         handler: (event: unknown, request: unknown) => unknown,
       ) => handlers.set(channel, handler),
-      removeHandler: (channel: string) => handlers.delete(channel),
+      removeHandler: (channel: string) => {
+        removedChannels.push(channel);
+        handlers.delete(channel);
+      },
     } as unknown as IpcMain;
     const backend = {
       getState: () => ({
@@ -843,12 +847,12 @@ describe("sensitive desktop actions", () => {
       }),
       subscribe: () => () => undefined,
     } as unknown as BackendManager;
-    const dispose = registerIpc(
+    const dispose = registerIpc({
       ipcMain,
       backend,
-      () => null,
-      async () => ({ canceled: true, paths: [] }),
-      {
+      getMainWindow: () => null,
+      pickFiles: async () => ({ canceled: true, paths: [] }),
+      workspace: {
         getState: () => ({ currentPath: "/workspace", recentPaths: [] }),
         pickWorkspace: async () => ({
           canceled: true,
@@ -860,7 +864,7 @@ describe("sensitive desktop actions", () => {
         }),
         subscribe: () => () => undefined,
       },
-      {
+      sensitiveActionDependencies: {
         confirm: async (request) => {
           confirmations.push(request);
           return typeof options.confirmed === "function"
@@ -870,9 +874,19 @@ describe("sensitive desktop actions", () => {
         fetch: options.fetch,
         notify: options.notify,
       },
-    );
-    return { handlers, confirmations, dispose };
+    });
+    return { handlers, removedChannels, confirmations, dispose };
   }
+
+  it("disposes exactly the handlers it registers", () => {
+    const harness = createHarness({ confirmed: true });
+    const registeredChannels = [...harness.handlers.keys()].sort();
+
+    harness.dispose();
+
+    expect(harness.removedChannels.sort()).toEqual(registeredChannels);
+    expect(harness.handlers.size).toBe(0);
+  });
 
   it("strictly validates commands and workspace save requests", () => {
     expect(validateDesktopCommandRequest({ command: "  bun test  " })).toEqual({
