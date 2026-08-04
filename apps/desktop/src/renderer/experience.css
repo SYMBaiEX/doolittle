@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/style/noDescendingSpecificity: This interaction layer intentionally reapplies shared selectors across shell states. */
 /* Doolittle Desktop interaction layer.
  * Keeps the foundational page styles in styles.css and owns the native shell,
  * command surface, conversation workspace, and operator studios added later.

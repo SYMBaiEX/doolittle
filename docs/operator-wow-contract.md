@@ -115,7 +115,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - The command deck includes retry, undo, compress, usage, insights, and model controls once implemented.
 - Verification:
   - Add command parser tests for each slash command and expected route.
-  - Run `nub run test packages/agent/src/runtime/chat.test.ts packages/agent/src/cli/tui-renderers.test.ts`.
+  - Run `nub run test packages/agent/src/runtime/chat-smoke.test.ts packages/agent/src/cli/tui-renderers.test.ts`.
 
 #### terminal-operator-loop.interrupt-and-resume
 
@@ -151,7 +151,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Make stop, steering, and resume transitions visible and test-backed.
 - Owner surface: `run controller`
-- Files: `packages/agent/src/runtime/chat-turn`, `packages/agent/src/runtime/run-controller`, `packages/agent/src/cli/tui-renderers.test.ts`
+- Files: `packages/agent/src/runtime/chat-turn`, `packages/agent/src/services/run-controller`, `packages/agent/src/cli/tui-renderers.test.ts`
 - Definition of done:
   - Active runs expose id, state, active tool, and last progress timestamp.
   - Stopping a run records an explicit terminal state in the transcript.
@@ -213,7 +213,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Create a deterministic coding fixture harness.
 - Owner surface: `coding agent`
-- Files: `packages/plugins/doolittle-plugin/coding-agent/runtime.ts`, `packages/plugins/doolittle-plugin/coding-agent/service.ts`, `packages/plugins/doolittle-plugin/coding-agent/index.test.ts`
+- Files: `packages/plugins/doolittle-plugin/coding-agent/runtime.ts`, `packages/plugins/doolittle-plugin/coding-agent/service.ts`, `packages/plugins/doolittle-plugin/coding-agent/runtime.test.ts`
 - Definition of done:
   - The fixture starts with a known failing test and ends with a known passing test.
   - The service reports search, patch, and verification events separately.
@@ -223,7 +223,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Add PR-style review fixtures that enforce findings-first output.
 - Owner surface: `coding agent review`
-- Files: `packages/plugins/doolittle-plugin/coding-agent/runtime.ts`, `packages/plugins/doolittle-plugin/coding-agent/index.test.ts`, `docs/operator-loop.md`
+- Files: `packages/plugins/doolittle-plugin/coding-agent/runtime.ts`, `packages/plugins/doolittle-plugin/coding-agent/runtime.test.ts`, `docs/operator-loop.md`
 - Definition of done:
   - A buggy fixture produces one finding with a file and line.
   - A clean fixture produces an explicit no-findings response.
@@ -304,7 +304,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `gateway-everywhere-presence`
 - Outcome: Doolittle can be reached from trusted messaging channels and keeps delivery, threads, attachments, and recovery visible.
-- Doolittle surfaces: `packages/agent/src/gateway/runner/gateway-runner.ts`, `packages/agent/src/gateway/platforms`, `packages/plugins/doolittle-plugin/gateway-service.ts`, `packages/agent/src/server.ts`
+- Doolittle surfaces: `packages/agent/src/gateway/runner/index.ts`, `packages/agent/src/gateway/platforms`, `packages/plugins/doolittle-plugin/gateway-service.ts`, `packages/agent/src/server.ts`
 
 ### Reference Signals
 
@@ -355,7 +355,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Tighten daemon-grade reconnect and replay semantics.
 - Owner surface: `gateway runner`
-- Files: `packages/agent/src/gateway/runner/gateway-runner.ts`, `packages/agent/src/gateway/gateway-supervision-flow.test.ts`, `docs/native-experience-ledger.md`
+- Files: `packages/agent/src/gateway/runner/index.ts`, `packages/agent/src/gateway/gateway-supervision-flow.test.ts`, `docs/native-experience-ledger.md`
 - Definition of done:
   - Restart scenarios preserve or explicitly fail queued work.
   - Replay entries include platform, target, idempotency key, and delivery state.
@@ -375,7 +375,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `automation-and-daily-tasks`
 - Outcome: Doolittle can run scheduled work, short follow-ups, standing orders, and daily briefings with observable delivery.
-- Doolittle surfaces: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/agent/src/server.ts`, `packages/agent/src/services/gateway-session-service.ts`, `docs/operator-loop.md`
+- Doolittle surfaces: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/agent/src/server.ts`, `packages/agent/src/services/gateway-session-service/index.ts`, `docs/operator-loop.md`
 
 ### Reference Signals
 
@@ -400,7 +400,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
   - Delivery result is recorded in gateway history.
 - Verification:
   - Add scheduler tests for due job execution and delivery recording.
-  - Run `nub run test packages/plugins/doolittle-plugin/scheduler-service.test.ts packages/agent/src/gateway`.
+  - Run `nub run test packages/plugins/doolittle-plugin/trigger-runtime-service.test.ts packages/agent/src/gateway`.
 
 #### automation-and-daily-tasks.short-followup
 
@@ -426,7 +426,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Define and test scheduled task lifecycle fields.
 - Owner surface: `scheduler service`
-- Files: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/plugins/doolittle-plugin/scheduler-service.test.ts`, `docs/operator-loop.md`
+- Files: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/plugins/doolittle-plugin/trigger-runtime-service.test.ts`, `docs/operator-loop.md`
 - Definition of done:
   - Jobs expose id, schedule, nextRun, lastRun, status, target, and lastDelivery.
   - Due jobs run bounded turns and record delivery outcomes.
@@ -436,7 +436,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Add short follow-up and thread heartbeat semantics.
 - Owner surface: `scheduler and gateway session`
-- Files: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/agent/src/services/gateway-session-service.ts`, `packages/agent/src/runtime/chat.ts`
+- Files: `packages/plugins/doolittle-plugin/scheduler-service.ts`, `packages/agent/src/services/gateway-session-service/index.ts`, `packages/agent/src/runtime/chat.ts`
 - Definition of done:
   - Short follow-ups are attached to the current session route by default.
   - Heartbeat entries can be canceled before firing.
@@ -517,7 +517,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Runtime ID: `observability-safety-proof`
 - Outcome: Doolittle shows what it did, why it was allowed, what changed, what failed, and what remains risky.
-- Doolittle surfaces: `packages/agent/src/services/diagnostics`, `packages/agent/src/services/operator/runtime-summary`, `packages/agent/src/runtime/native/service-bridge/tool-policy.ts`, `scripts/check-repo-hygiene.ts`
+- Doolittle surfaces: `packages/agent/src/services/diagnostics`, `packages/agent/src/services/operator/runtime-summary`, `packages/agent/src/runtime/native/service-bridge/service-resolution/tool-inventory.ts`, `scripts/check-repo-hygiene.ts`
 
 ### Reference Signals
 
@@ -578,7 +578,7 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Title: Add security posture findings to doctor output.
 - Owner surface: `diagnostics`
-- Files: `packages/agent/src/services/diagnostics`, `packages/agent/src/runtime/native/service-bridge/tool-policy.ts`, `docs/operator-loop.md`
+- Files: `packages/agent/src/services/diagnostics`, `packages/agent/src/runtime/native/service-bridge/service-resolution/tool-inventory.ts`, `docs/operator-loop.md`
 - Definition of done:
   - Doctor flags open gateway auth, broad exec policy, and shared channel exposure.
   - Each finding includes severity, config path, and a concrete remediation.

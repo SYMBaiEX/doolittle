@@ -78,7 +78,7 @@ export function createWorkspaceAction(): Action {
         {
           name: "{{agentName}}",
           content: {
-            text: "packages/agent/src/runtime/native/account-auth.ts",
+            text: "packages/agent/src/runtime/native/account-auth/index.ts",
             actions: ["DOOLITTLE_WORKSPACE"],
           },
         },

@@ -39,12 +39,3 @@ export interface CodexLiveGenerateParams {
   prompt: string;
   maxTokens?: number;
 }
-
-export interface RuntimeModelSettings {
-  provider?: string;
-  model?: string;
-  baseUrl?: string;
-  temperature?: number;
-  maxTokens?: number;
-  reasoningEffort?: string;
-}

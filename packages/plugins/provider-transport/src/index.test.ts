@@ -1,14 +1,55 @@
-import { type GenerateTextParams, ModelType } from "@elizaos/core";
+import {
+  type GenerateTextParams,
+  type IAgentRuntime,
+  ModelType,
+} from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import {
   createElizaTextGenerationModelHandlers,
   createProviderHttpError,
   ELIZA_TEXT_GENERATION_MODEL_TYPES,
+  getRuntimeModelSettings,
+  getRuntimeProvider,
   isElizaTextGenerationModelType,
   normalizeProviderTransportError,
   ProviderTransportError,
   resolveModelPromptText,
 } from "./index";
+
+describe("provider runtime settings", () => {
+  it("reads shared provider and model overrides from the runtime envelope", () => {
+    const runtime = {
+      getSetting: () =>
+        JSON.stringify({
+          model: {
+            provider: "codex",
+            model: "gpt-5.6-codex",
+            maxTokens: 8_192,
+            reasoningEffort: "high",
+          },
+        }),
+    } as unknown as IAgentRuntime;
+
+    expect(getRuntimeProvider(runtime)).toBe("codex");
+    expect(getRuntimeModelSettings(runtime)).toEqual({
+      provider: "codex",
+      model: "gpt-5.6-codex",
+      maxTokens: 8_192,
+      reasoningEffort: "high",
+    });
+  });
+
+  it("fails closed for missing or malformed runtime settings", () => {
+    const malformed = {
+      getSetting: () => "not-json",
+    } as unknown as IAgentRuntime;
+
+    expect(getRuntimeProvider(undefined)).toBeUndefined();
+    expect(getRuntimeModelSettings(undefined)).toEqual({});
+    expect(getRuntimeProvider(malformed)).toBeUndefined();
+    expect(getRuntimeModelSettings(malformed)).toEqual({});
+  });
+});
 
 describe("provider transport failures", () => {
   it("exposes structured HTTP failures for host recovery UX", () => {

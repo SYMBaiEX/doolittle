@@ -1,10 +1,10 @@
 import { join } from "node:path";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
+import { nextId, nowIso } from "../record-utils";
 import { DEFAULT_TEMPLATES } from "./constants";
 import { normalizeMetadata, resolveTemplateId } from "./normalization";
 import { ensureStoreInitialized, readStore, writeStore } from "./storage";
 import type { FormsStore, StoredFormRecord } from "./types";
-import { nextId, nowIso } from "./utils";
 
 export const createFormsService = (storageRoot: string) => {
   class FormsService extends ElizaService {

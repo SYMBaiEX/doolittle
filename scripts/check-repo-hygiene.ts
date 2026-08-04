@@ -1,6 +1,6 @@
 #!/usr/bin/env nub
 
-import { spawnSync } from "node:child_process";
+import { listGitTrackedFiles } from "./git-tracked-files";
 
 const FORBIDDEN_TRACKED_PATTERNS: Array<{
   pattern: RegExp;
@@ -33,6 +33,7 @@ const FORBIDDEN_TRACKED_PATTERNS: Array<{
 ];
 
 const RETIRED_MIGRATION_ARTIFACTS = new Set([
+  "agent-chat-turn-tscheck.json",
   "packages/agent/src/cli/jobs/render.ts",
   "packages/agent/src/gateway/read/index.ts",
   "packages/agent/src/gateway/state/index.ts",
@@ -55,25 +56,8 @@ const RETIRED_MIGRATION_ARTIFACTS = new Set([
   "scripts/bootstrap/wizard-screen/index.ts",
 ]);
 
-function gitLsFiles(): string[] {
-  const result = spawnSync("git", ["ls-files"], {
-    cwd: process.cwd(),
-    encoding: "utf8",
-  });
-
-  if (result.status !== 0) {
-    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n");
-    throw new Error(`git ls-files failed.\n${detail}`.trim());
-  }
-
-  return result.stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 function main(): void {
-  const trackedFiles = gitLsFiles();
+  const trackedFiles = listGitTrackedFiles();
   const failures = trackedFiles.flatMap((path) =>
     FORBIDDEN_TRACKED_PATTERNS.filter(({ pattern }) => pattern.test(path)).map(
       ({ reason }) => `${path} (${reason})`,

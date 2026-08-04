@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/style/noDescendingSpecificity: This ordered finish layer intentionally reapplies base rules after density and state variants. */
 /*
  * Shared desktop finish layer.
  *
@@ -725,7 +726,6 @@ button.chat-context-compact:focus-visible {
     font-size: 0;
   }
 
-  /* biome-ignore lint/style/noDescendingSpecificity: restore the workbench glyph after hiding its text label */
   .chat-workbench-toggle > span {
     font-size: 10px;
   }

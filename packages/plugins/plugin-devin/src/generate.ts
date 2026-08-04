@@ -1,5 +1,7 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
 import {
+  getRuntimeModelSettings,
+  getRuntimeProvider,
   normalizeProviderTransportError,
   ProviderTransportError,
   resolveModelPromptText,
@@ -10,10 +12,6 @@ import {
   DEFAULT_DEVIN_TIMEOUT_MS,
   invokeDevinCliPrint,
 } from "./cli";
-import {
-  getRuntimeModelSettings,
-  getRuntimeProvider,
-} from "./runtime-settings";
 import type { DevinPluginOptions } from "./types";
 
 export async function runDevinTextGeneration(

@@ -5,6 +5,7 @@ import {
   type StoredPlanRecord,
 } from "@doolittle/contracts";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
+import { nextId, nowIso } from "../record-utils";
 import {
   normalizeMetadata,
   normalizeStatus,
@@ -13,7 +14,6 @@ import {
 } from "./normalization";
 import { ensureStoreInitialized, readStore, writeStore } from "./storage";
 import type { PlanningStore } from "./types";
-import { nextId, nowIso } from "./utils";
 
 export type PlanApprovalResult =
   | { kind: "approved"; plan: StoredPlanRecord }

@@ -154,7 +154,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add command parser tests for each slash command and expected route.",
-          "Run `nub run test packages/agent/src/runtime/chat.test.ts packages/agent/src/cli/tui-renderers.test.ts`.",
+          "Run `nub run test packages/agent/src/runtime/chat-smoke.test.ts packages/agent/src/cli/tui-renderers.test.ts`.",
         ],
         currentStatus: "partial",
       },
@@ -204,7 +204,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ownerSurface: "run controller",
         files: [
           "packages/agent/src/runtime/chat-turn",
-          "packages/agent/src/runtime/run-controller",
+          "packages/agent/src/services/run-controller",
           "packages/agent/src/cli/tui-renderers.test.ts",
         ],
         definitionOfDone: [
@@ -281,7 +281,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         files: [
           "packages/plugins/doolittle-plugin/coding-agent/runtime.ts",
           "packages/plugins/doolittle-plugin/coding-agent/service.ts",
-          "packages/plugins/doolittle-plugin/coding-agent/index.test.ts",
+          "packages/plugins/doolittle-plugin/coding-agent/runtime.test.ts",
         ],
         definitionOfDone: [
           "The fixture starts with a known failing test and ends with a known passing test.",
@@ -296,7 +296,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ownerSurface: "coding agent review",
         files: [
           "packages/plugins/doolittle-plugin/coding-agent/runtime.ts",
-          "packages/plugins/doolittle-plugin/coding-agent/index.test.ts",
+          "packages/plugins/doolittle-plugin/coding-agent/runtime.test.ts",
           "docs/operator-loop.md",
         ],
         definitionOfDone: [
@@ -411,7 +411,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
       "Doolittle should keep transport UX and security policy in the harness, not inside the model prompt.",
     ],
     doolittleSurfaces: [
-      "packages/agent/src/gateway/runner/gateway-runner.ts",
+      "packages/agent/src/gateway/runner/index.ts",
       "packages/agent/src/gateway/platforms",
       "packages/plugins/doolittle-plugin/gateway-service.ts",
       "packages/agent/src/server.ts",
@@ -460,7 +460,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         title: "Tighten daemon-grade reconnect and replay semantics.",
         ownerSurface: "gateway runner",
         files: [
-          "packages/agent/src/gateway/runner/gateway-runner.ts",
+          "packages/agent/src/gateway/runner/index.ts",
           "packages/agent/src/gateway/gateway-supervision-flow.test.ts",
           "docs/native-experience-ledger.md",
         ],
@@ -503,7 +503,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     doolittleSurfaces: [
       "packages/plugins/doolittle-plugin/scheduler-service.ts",
       "packages/agent/src/server.ts",
-      "packages/agent/src/services/gateway-session-service.ts",
+      "packages/agent/src/services/gateway-session-service/index.ts",
       "docs/operator-loop.md",
     ],
     acceptanceScenarios: [
@@ -519,7 +519,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ],
         verification: [
           "Add scheduler tests for due job execution and delivery recording.",
-          "Run `nub run test packages/plugins/doolittle-plugin/scheduler-service.test.ts packages/agent/src/gateway`.",
+          "Run `nub run test packages/plugins/doolittle-plugin/trigger-runtime-service.test.ts packages/agent/src/gateway`.",
         ],
         currentStatus: "missing",
       },
@@ -551,7 +551,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ownerSurface: "scheduler service",
         files: [
           "packages/plugins/doolittle-plugin/scheduler-service.ts",
-          "packages/plugins/doolittle-plugin/scheduler-service.test.ts",
+          "packages/plugins/doolittle-plugin/trigger-runtime-service.test.ts",
           "docs/operator-loop.md",
         ],
         definitionOfDone: [
@@ -566,7 +566,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ownerSurface: "scheduler and gateway session",
         files: [
           "packages/plugins/doolittle-plugin/scheduler-service.ts",
-          "packages/agent/src/services/gateway-session-service.ts",
+          "packages/agent/src/services/gateway-session-service/index.ts",
           "packages/agent/src/runtime/chat.ts",
         ],
         definitionOfDone: [
@@ -683,7 +683,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
     doolittleSurfaces: [
       "packages/agent/src/services/diagnostics",
       "packages/agent/src/services/operator/runtime-summary",
-      "packages/agent/src/runtime/native/service-bridge/tool-policy.ts",
+      "packages/agent/src/runtime/native/service-bridge/service-resolution/tool-inventory.ts",
       "scripts/check-repo-hygiene.ts",
     ],
     acceptanceScenarios: [
@@ -746,7 +746,7 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         ownerSurface: "diagnostics",
         files: [
           "packages/agent/src/services/diagnostics",
-          "packages/agent/src/runtime/native/service-bridge/tool-policy.ts",
+          "packages/agent/src/runtime/native/service-bridge/service-resolution/tool-inventory.ts",
           "docs/operator-loop.md",
         ],
         definitionOfDone: [

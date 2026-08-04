@@ -9,7 +9,13 @@ attachments and tool selection when the destination transport cannot accept
 them natively.
 
 ```ts
-import { resolveModelPromptText } from "@elizaos/provider-transport";
+import {
+  getRuntimeModelSettings,
+  getRuntimeProvider,
+  resolveModelPromptText,
+} from "@elizaos/provider-transport";
 
 const prompt = resolveModelPromptText(params);
+const provider = getRuntimeProvider(runtime);
+const model = getRuntimeModelSettings(runtime);
 ```

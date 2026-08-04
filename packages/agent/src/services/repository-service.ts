@@ -41,8 +41,8 @@ import {
 import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,
-  workspaceRelativePath,
 } from "./workspace-service/path";
+import { workspaceRelativePath } from "./workspace-service/path-format";
 
 export interface RepositoryChange {
   path: string;

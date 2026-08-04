@@ -24,6 +24,11 @@ ElizaOS 2.0 beta line.
   retired delegation types, redundant contract aliases, and the Claude Code
   status compatibility facade. Supported one-time user-data import paths remain
   intact for upgrades from older Doolittle installations.
+- Completed a repository-wide migration cleanup: removed the stale chat-turn
+  tscheck fixture, consolidated provider settings, plugin record IDs, and
+  autocoder workflow lifecycle helpers, repaired source/documentation paths,
+  declared application-owned runtime dependencies, and added guards for local
+  documentation links and contract paths.
 - Split Doolittle context into official always-on core and context-routed
   workspace/operations providers. Selected-project grounding now resolves
   through the SDK session envelope.

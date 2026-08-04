@@ -1,4 +1,4 @@
-import { workspaceRelativePath } from "./path";
+import { workspaceRelativePath } from "./path-format";
 
 export type WorkspacePathDisposition = "visible" | "noise" | "sensitive";
 

@@ -1,6 +1,8 @@
 import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
 import {
   createProviderHttpError,
+  getRuntimeModelSettings,
+  getRuntimeProvider,
   normalizeProviderTransportError,
   ProviderTransportError,
   resolveModelPromptText,
@@ -17,10 +19,6 @@ import {
   DEFAULT_ANTHROPIC_BASE_URL,
   OAUTH_ONLY_BETAS,
 } from "./constants";
-import {
-  getRuntimeModelSettings,
-  getRuntimeProvider,
-} from "./runtime-settings";
 import type { ClaudeCodePluginOptions } from "./types";
 
 const CLAUDE_REASONING_EFFORTS = new Set([

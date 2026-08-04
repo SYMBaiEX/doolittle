@@ -1,7 +1,7 @@
 import { lstatSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { WorkspaceEntry } from "@/types";
-import { workspaceRelativePath } from "./path";
+import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
 
 export function listWorkspaceTree(

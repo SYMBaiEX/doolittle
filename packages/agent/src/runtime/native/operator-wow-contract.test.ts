@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   listOperatorWowAcceptanceScenarios,
@@ -64,5 +66,34 @@ describe("operator wow contract", () => {
       partialScenarios: 11,
       missingScenarios: 5,
     });
+  });
+
+  it("keeps every repository path anchored to a live file or directory", () => {
+    const pillars = listOperatorWowContract();
+    const inlinePathPattern = /\b(?:packages|docs|scripts)\/[A-Za-z0-9_./-]+/gu;
+    const declaredPaths = pillars.flatMap((pillar) => [
+      ...pillar.doolittleSurfaces.flatMap(
+        (line) => line.match(inlinePathPattern) ?? [],
+      ),
+      ...pillar.nextImplementationTasks.flatMap((task) => [
+        ...task.files,
+        ...task.definitionOfDone.flatMap(
+          (line) => line.match(inlinePathPattern) ?? [],
+        ),
+      ]),
+      ...pillar.acceptanceScenarios.flatMap((scenario) =>
+        scenario.verification.flatMap(
+          (line) => line.match(inlinePathPattern) ?? [],
+        ),
+      ),
+    ]);
+    const missing = [...new Set(declaredPaths)].filter(
+      (path) => !existsSync(resolve(process.cwd(), path)),
+    );
+
+    expect(
+      missing,
+      "operator contract contains stale repository paths",
+    ).toEqual([]);
   });
 });

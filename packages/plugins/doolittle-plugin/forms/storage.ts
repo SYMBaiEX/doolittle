@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { StoredFormRecord } from "@doolittle/contracts";
+import { nowIso } from "../record-utils";
 import { normalizeMetadata } from "./normalization";
 import type { FormsStore } from "./types";
-import { nowIso } from "./utils";
 
 const FILE_ENCODING = "utf8";
 

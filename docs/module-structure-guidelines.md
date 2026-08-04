@@ -38,7 +38,7 @@ This repo is converging on a folder-first layout with thin entrypoints.
   - `services/media/formatters/index.ts`
   - `services/terminal/terminal-service-cloud-backends.ts`
 - keep moved modules on their canonical folder paths:
-  - `gateway/runner/gateway-runner.ts`
+  - `gateway/runner/index.ts`
 - hybrid ownership for the same domain
   - avoid keeping both `services/foo-service.ts` and `services/foo/*` as competing homes for new logic
 - generic helper dumping grounds

@@ -1,4 +1,8 @@
 import { type IAgentRuntime, ModelType } from "@elizaos/core";
+import {
+  getRuntimeModelSettings,
+  getRuntimeProvider,
+} from "@elizaos/provider-transport";
 import { resolveCloudApiBaseUrl } from "@elizaos/shared/elizacloud/base-url";
 import {
   DEFAULT_ELIZA_CLOUD_BASE_URL,
@@ -7,51 +11,7 @@ import {
   DEFAULT_ELIZA_CLOUD_SMALL_MODEL,
 } from "./constants";
 
-interface RuntimeModelSettings {
-  model?: string;
-  baseUrl?: string;
-  temperature?: number;
-  maxTokens?: number;
-}
-
-export function getRuntimeProvider(
-  runtime: IAgentRuntime | undefined,
-): string | undefined {
-  try {
-    const raw = runtime?.getSetting("runtimeSettings");
-    if (typeof raw !== "string") {
-      return undefined;
-    }
-    const parsed = JSON.parse(raw) as {
-      model?: { provider?: string };
-    };
-    return parsed.model?.provider;
-  } catch {
-    return undefined;
-  }
-}
-
-export function getRuntimeModelSettings(
-  runtime: IAgentRuntime | undefined,
-): RuntimeModelSettings {
-  try {
-    const raw = runtime?.getSetting("runtimeSettings");
-    if (typeof raw !== "string") {
-      return {};
-    }
-    const parsed = JSON.parse(raw) as {
-      model?: {
-        model?: string;
-        baseUrl?: string;
-        temperature?: number;
-        maxTokens?: number;
-      };
-    };
-    return parsed.model ?? {};
-  } catch {
-    return {};
-  }
-}
+export { getRuntimeModelSettings, getRuntimeProvider };
 
 export function getRuntimeStringSetting(
   runtime: IAgentRuntime | undefined,

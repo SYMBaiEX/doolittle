@@ -1,12 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { StoredPlanRecord } from "@doolittle/contracts";
+import { nowIso } from "../record-utils";
 import {
   normalizeMetadata,
   normalizeStatus,
   normalizeSteps,
 } from "./normalization";
 import type { PlanningStore } from "./types";
-import { nowIso } from "./utils";
 
 const FILE_ENCODING = "utf8";
 

@@ -1,5 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, join, normalize, relative, resolve, sep } from "node:path";
+import { workspaceRelativePath } from "./path-format";
 import { assertWorkspacePathIsSafe } from "./policy";
 
 export function resolveWorkspacePath(
@@ -22,10 +23,6 @@ export function resolveWorkspacePath(
   }
 
   return resolvedPath;
-}
-
-export function workspaceRelativePath(candidate: string): string {
-  return candidate.replaceAll("\\", "/");
 }
 
 export function workspaceDirname(path: string): string {

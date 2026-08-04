@@ -1,9 +1,8 @@
 import {
-  addEffectiveDelegationNote,
-  cancelEffectiveDelegationTask,
-  completeEffectiveDelegationTask,
-  createEffectiveDelegationTask,
-} from "@/runtime/native/service-bridge/delegation";
+  completeLinkedAutocoderWorkflow,
+  createLinkedAutocoderWorkflow,
+  failLinkedAutocoderWorkflow,
+} from "@/services/autocoder-workflow-context";
 import type { AgentExecutionContext } from "../chat";
 
 function currentCliSessionId(context: AgentExecutionContext): string {
@@ -25,45 +24,10 @@ export async function createAutocoderWorkflow(
   },
 ) {
   const sessionId = currentCliSessionId(context);
-  const task = await createEffectiveDelegationTask(
-    context.runtime,
-    context.services.delegationProjection,
-    {
-      title: input.title,
-      objective: input.objective,
-      group: "autocoder",
-      profile: "native",
-      priority: "normal",
-      labels: ["autocoder", input.kind],
-      metadata: {
-        kind: input.kind,
-        sessionId,
-        projectName: input.projectName ?? "",
-        repositoryName: input.repositoryName ?? "",
-      },
-      executionMode: "local",
-    },
-  );
-  const workflow = context.services.autocoderPipeline.startWorkflow({
-    title: input.title,
-    objective: input.objective,
-    kind: input.kind,
-    projectName: input.projectName,
-    repositoryName: input.repositoryName,
+  return createLinkedAutocoderWorkflow(context, {
+    ...input,
     sessionId,
-    taskId: task.id,
   });
-  await addEffectiveDelegationNote(
-    context.runtime,
-    context.services.delegationProjection,
-    task.id,
-    `system: attached autocoder workflow ${workflow.id}`,
-  );
-  return {
-    sessionId,
-    taskId: task.id,
-    workflowId: workflow.id,
-  };
 }
 
 export async function completeAutocoderWorkflow(
@@ -72,12 +36,7 @@ export async function completeAutocoderWorkflow(
   workflowId: string,
   note: string,
 ): Promise<void> {
-  await completeEffectiveDelegationTask(
-    context.runtime,
-    context.services.delegationProjection,
-    taskId,
-    `${note} workflow=${workflowId}`,
-  );
+  await completeLinkedAutocoderWorkflow(context, taskId, workflowId, note);
 }
 
 export async function failAutocoderWorkflow(
@@ -86,11 +45,5 @@ export async function failAutocoderWorkflow(
   workflowId: string,
   error: unknown,
 ): Promise<void> {
-  const message = error instanceof Error ? error.message : String(error);
-  await cancelEffectiveDelegationTask(
-    context.runtime,
-    context.services.delegationProjection,
-    taskId,
-    `${message} workflow=${workflowId}`,
-  );
+  await failLinkedAutocoderWorkflow(context, taskId, workflowId, error);
 }

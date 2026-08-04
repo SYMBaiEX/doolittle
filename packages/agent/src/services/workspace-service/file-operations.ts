@@ -7,7 +7,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { resolveWorkspaceServicePath, workspaceRelativePath } from "./path";
+import { resolveWorkspaceServicePath } from "./path";
+import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
 
 const DEFAULT_READ_LIMIT = 500;
