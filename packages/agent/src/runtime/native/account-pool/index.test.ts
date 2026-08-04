@@ -1,6 +1,7 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadAccount, saveAccount } from "@elizaos/agent/auth/account-storage";
 import { listProviderAccounts } from "@elizaos/agent/auth/credentials";
 import {
   __resetDefaultAccountPoolForTests,
@@ -104,6 +105,7 @@ describe.sequential("Doolittle official account pool adapter", () => {
       persistProviderCredentials("codex", {
         accessToken: "codex-access-token",
         refreshToken: "codex-refresh-token",
+        idToken: "codex-id-token",
         accountId: "chatgpt-account",
       });
       persistProviderCredentials("claude-code", {
@@ -113,6 +115,13 @@ describe.sequential("Doolittle official account pool adapter", () => {
 
       expect(importLegacyDoolittleAccounts()).toBe(2);
       expect(importLegacyDoolittleAccounts()).toBe(0);
+      expect(
+        loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials,
+      ).toMatchObject({
+        access: "codex-access-token",
+        refresh: "codex-refresh-token",
+        idToken: "codex-id-token",
+      });
       expect(
         importCurrentDoolittleAccount(
           "openai-codex",
@@ -127,6 +136,28 @@ describe.sequential("Doolittle official account pool adapter", () => {
           "Work Claude",
         ),
       ).toMatchObject({ accountId: "work-claude" });
+      persistProviderCredentials("codex", {
+        accessToken: "updated-codex-access-token",
+        refreshToken: "updated-codex-refresh-token",
+        idToken: "updated-codex-id-token",
+        accountId: "chatgpt-account",
+      });
+      expect(
+        importCurrentDoolittleAccount(
+          "openai-codex",
+          "work-codex",
+          "Attempted rename",
+        ),
+      ).toMatchObject({ accountId: "work-codex", label: "Work Codex" });
+      expect(loadAccount("openai-codex", "work-codex")).toMatchObject({
+        label: "Work Codex",
+        organizationId: "chatgpt-account",
+        credentials: {
+          access: "updated-codex-access-token",
+          refresh: "updated-codex-refresh-token",
+          idToken: "updated-codex-id-token",
+        },
+      });
       initializeDoolittleAccountPool(process.env.DOOLITTLE_DATA_DIR);
       setDoolittleAccountPoolStrategy("openai-codex", "round-robin");
       const bridge = (
@@ -135,9 +166,32 @@ describe.sequential("Doolittle official account pool adapter", () => {
           { select(agentType: string): Promise<unknown> }
         >
       )[Symbol.for("eliza.account-pool.coding-agent.v1")];
-      expect(await bridge.select("codex")).toMatchObject({
+      const selectedCodex = (await bridge.select("codex")) as {
+        accountId: string;
+        strategy: string;
+        envPatch: { CODEX_HOME: string };
+      };
+      expect(selectedCodex).toMatchObject({
         accountId: "doolittle-legacy-codex",
         strategy: "round-robin",
+      });
+      expect(selectedCodex.envPatch.CODEX_HOME).toBe(
+        join(
+          process.env.DOOLITTLE_DATA_DIR as string,
+          "auth",
+          "_codex-home",
+          "doolittle-legacy-codex",
+        ),
+      );
+      expect(
+        JSON.parse(
+          readFileSync(
+            join(selectedCodex.envPatch.CODEX_HOME, "auth.json"),
+            "utf8",
+          ),
+        ),
+      ).toMatchObject({
+        tokens: { id_token: "codex-id-token" },
       });
       expect(await bridge.select("codex")).toMatchObject({
         accountId: "work-codex",
@@ -158,5 +212,164 @@ describe.sequential("Doolittle official account pool adapter", () => {
       expect(
         listProviderAccounts("openai-codex").map((account) => account.id),
       ).toEqual(["doolittle-legacy-codex"]);
+    }));
+
+  it("imports numeric Claude expiration strings with their original refresh deadline", async () =>
+    await withIsolatedAccountPool(() => {
+      const expiresAt = Date.now() - 60_000;
+      persistProviderCredentials("claude-code", {
+        accessToken: "claude-access-token",
+        refreshToken: "claude-refresh-token",
+        expiresAt: String(expiresAt),
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(1);
+      const record = loadAccount(
+        "anthropic-subscription",
+        "doolittle-legacy-claude-code",
+      );
+      expect(record?.credentials.expires).toBe(expiresAt);
+      expect(Number.isFinite(record?.credentials.expires)).toBe(true);
+      expect(record?.credentials.expires).toBeLessThan(Date.now());
+    }));
+
+  it("falls back to ISO Claude expiration values", async () =>
+    await withIsolatedAccountPool(() => {
+      const expiresAt = "2030-01-02T03:04:05.000Z";
+      persistProviderCredentials("claude-code", {
+        accessToken: "claude-access-token",
+        refreshToken: "claude-refresh-token",
+        expiresAt,
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(1);
+      expect(
+        loadAccount("anthropic-subscription", "doolittle-legacy-claude-code")
+          ?.credentials.expires,
+      ).toBe(Date.parse(expiresAt));
+    }));
+
+  it("forces refresh for missing Claude expiry when a refresh token exists", async () =>
+    await withIsolatedAccountPool(() => {
+      persistProviderCredentials("claude-code", {
+        accessToken: "claude-access-token",
+        refreshToken: "claude-refresh-token",
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(1);
+      expect(
+        loadAccount("anthropic-subscription", "doolittle-legacy-claude-code")
+          ?.credentials.expires,
+      ).toBe(0);
+    }));
+
+  it("forces refresh for malformed Claude expiry when a refresh token exists", async () =>
+    await withIsolatedAccountPool(() => {
+      persistProviderCredentials("claude-code", {
+        accessToken: "claude-access-token",
+        refreshToken: "claude-refresh-token",
+        expiresAt: "not-an-expiry",
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(1);
+      expect(
+        loadAccount("anthropic-subscription", "doolittle-legacy-claude-code")
+          ?.credentials.expires,
+      ).toBe(0);
+    }));
+
+  it("uses a conservative fallback for non-refreshable Claude credentials", async () =>
+    await withIsolatedAccountPool(() => {
+      persistProviderCredentials("claude-code", {
+        accessToken: "claude-access-token",
+        expiresAt: "not-an-expiry",
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(1);
+      expect(
+        loadAccount("anthropic-subscription", "doolittle-legacy-claude-code")
+          ?.credentials.expires,
+      ).toBe(Number.MAX_SAFE_INTEGER);
+    }));
+
+  it("repairs matching known legacy credentials after upgrade", async () =>
+    await withIsolatedAccountPool(() => {
+      const claudeExpiresAt = Date.now() + 3_600_000;
+      persistProviderCredentials("codex", {
+        accessToken: "codex-access-token",
+        refreshToken: "codex-refresh-token",
+        idToken: "codex-id-token",
+      });
+      persistProviderCredentials("claude-code", {
+        accessToken: "claude-access-token",
+        refreshToken: "claude-refresh-token",
+        expiresAt: String(claudeExpiresAt),
+      });
+      expect(importLegacyDoolittleAccounts()).toBe(2);
+
+      const codex = loadAccount("openai-codex", "doolittle-legacy-codex");
+      const claude = loadAccount(
+        "anthropic-subscription",
+        "doolittle-legacy-claude-code",
+      );
+      if (!codex || !claude)
+        throw new Error("legacy accounts were not imported");
+      saveAccount({
+        ...codex,
+        credentials: { ...codex.credentials, idToken: undefined },
+      });
+      saveAccount({
+        ...claude,
+        credentials: {
+          ...claude.credentials,
+          expires: Number.MAX_SAFE_INTEGER,
+        },
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(2);
+      expect(
+        loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials
+          .idToken,
+      ).toBe("codex-id-token");
+      expect(
+        loadAccount("anthropic-subscription", "doolittle-legacy-claude-code")
+          ?.credentials.expires,
+      ).toBe(claudeExpiresAt);
+    }));
+
+  it("does not repair known legacy records when singleton credentials do not match", async () =>
+    await withIsolatedAccountPool(() => {
+      persistProviderCredentials("codex", {
+        accessToken: "current-access-token",
+        refreshToken: "current-refresh-token",
+        idToken: "current-id-token",
+      });
+      saveAccount({
+        id: "doolittle-legacy-codex",
+        providerId: "openai-codex",
+        label: "Imported Codex account",
+        source: "oauth",
+        credentials: {
+          access: "other-access-token",
+          refresh: "other-refresh-token",
+          expires: Number.MAX_SAFE_INTEGER,
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      });
+
+      expect(importLegacyDoolittleAccounts()).toBe(0);
+      expect(
+        loadAccount("openai-codex", "doolittle-legacy-codex"),
+      ).toMatchObject({
+        credentials: {
+          access: "other-access-token",
+          refresh: "other-refresh-token",
+        },
+      });
+      expect(
+        loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials
+          .idToken,
+      ).toBeUndefined();
     }));
 });

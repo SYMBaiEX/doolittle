@@ -106,6 +106,7 @@ describe.sequential("account-auth store helpers", () => {
     persistProviderCredentials("codex", {
       accessToken: "codex-access-token",
       refreshToken: "codex-refresh-token",
+      idToken: "codex-id-token",
       authMode: "chatgpt",
       lastRefresh: "2026-04-11T12:00:00.000Z",
       source: "fixture",
@@ -114,6 +115,7 @@ describe.sequential("account-auth store helpers", () => {
     expect(getStoredCodexCredentials()).toEqual({
       accessToken: "codex-access-token",
       refreshToken: "codex-refresh-token",
+      idToken: "codex-id-token",
       authMode: "chatgpt",
       lastRefresh: "2026-04-11T12:00:00.000Z",
       source: "eliza-auth-store",

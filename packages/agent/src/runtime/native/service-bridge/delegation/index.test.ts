@@ -1,6 +1,9 @@
+import { ModelType } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import {
   createEffectiveDelegationTask,
+  executeEffectiveDelegationTask,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   OrchestratorTaskServiceUnavailableError,
@@ -165,6 +168,34 @@ describe("official delegation service bridge", () => {
     );
   });
 
+  it("projects sessionless Eliza research as an inline local execution", () => {
+    expect(
+      projectOfficialTask(
+        detail({
+          kind: "research",
+          status: "done",
+          sessionCount: 0,
+          activeSessionCount: 0,
+          latestSessionId: null,
+          sessions: [],
+          metadata: {
+            capabilityProfile: "research",
+            researchRun: {
+              status: "completed",
+              startedAt: "2026-07-28T00:00:30.000Z",
+            },
+          },
+        }) as never,
+      ),
+    ).toMatchObject({
+      executionMode: "local",
+      workerMode: "inline",
+      attempts: 1,
+      startedAt: "2026-07-28T00:00:30.000Z",
+      sessionId: undefined,
+    });
+  });
+
   it("prefers the latest official session assignment over caller metadata", () => {
     const projected = projectOfficialTask(
       detail({
@@ -216,6 +247,185 @@ describe("official delegation service bridge", () => {
       accountId: "metadata-account",
       accountLabel: "Metadata account",
       sessionId: "metadata-session",
+    });
+  });
+
+  it("executes research through the RESEARCH model without an ACP coding session", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Research sources",
+      goal: "Find primary sources",
+      kind: "research",
+      metadata: { preserved: "value" },
+    });
+    const spawn = vi.spyOn(official.service, "spawnAgentForTask");
+    const update = vi.spyOn(official.service, "updateTask");
+    const validate = vi.spyOn(official.service, "validateTask");
+    const useModel = vi.fn(async (modelType: unknown) => {
+      expect(modelType).toBe(ModelType.RESEARCH);
+      await official.service.updateTask(created.id, {
+        metadata: { operatorNote: "added while researching" },
+      });
+      return {
+        id: "research-response-1",
+        text: "Primary sources confirm the behavior.",
+        annotations: [
+          { url: "https://example.test/source", title: "Primary source" },
+          { url: "https://example.test/source", title: "Duplicate source" },
+        ],
+      };
+    });
+    const runtime = {
+      ...official.runtime,
+      getModel: (modelType: unknown) =>
+        modelType === ModelType.RESEARCH
+          ? () => Promise.resolve({})
+          : undefined,
+      useModel,
+    };
+
+    await expect(
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    ).resolves.toMatchObject({ id: created.id, status: "completed" });
+
+    expect(useModel).toHaveBeenCalledWith(
+      ModelType.RESEARCH,
+      expect.objectContaining({ tools: [{ type: "web_search_preview" }] }),
+    );
+    expect(spawn).not.toHaveBeenCalled();
+    expect(update).toHaveBeenNthCalledWith(
+      1,
+      created.id,
+      expect.objectContaining({
+        status: "active",
+        metadata: expect.objectContaining({
+          researchRun: expect.objectContaining({ status: "active" }),
+        }),
+      }),
+    );
+    expect(update).toHaveBeenNthCalledWith(
+      3,
+      created.id,
+      expect.objectContaining({
+        status: "validating",
+        metadata: expect.objectContaining({
+          researchRun: expect.objectContaining({ status: "completed" }),
+        }),
+      }),
+    );
+    expect(validate).toHaveBeenCalledWith(
+      created.id,
+      expect.objectContaining({
+        verifier: "doolittle-research-executor",
+        humanOverride: false,
+        evidence: expect.stringContaining("https://example.test/source"),
+      }),
+    );
+    const durable = await official.service.getTask(created.id);
+    expect(durable?.metadata).toMatchObject({
+      preserved: "value",
+      operatorNote: "added while researching",
+      researchRun: {
+        status: "completed",
+        responseId: "research-response-1",
+        sources: [{ url: "https://example.test/source" }],
+      },
+    });
+    expect(durable?.messages).toEqual([
+      expect.objectContaining({
+        senderKind: "system",
+        content: expect.stringContaining("Starting"),
+      }),
+      expect.objectContaining({
+        senderKind: "sub_agent",
+        content: expect.stringContaining("Sources:"),
+      }),
+    ]);
+  });
+
+  it("records an unavailable research provider as failed without falsely completing the task", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Research unavailable",
+      goal: "Find sources",
+      metadata: { capabilityProfile: "research" },
+    });
+    const spawn = vi.spyOn(official.service, "spawnAgentForTask");
+    const validate = vi.spyOn(official.service, "validateTask");
+    const runtime = {
+      ...official.runtime,
+      getModel: () => undefined,
+      useModel: vi.fn(),
+    };
+
+    await expect(
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    ).resolves.toMatchObject({ id: created.id, status: "failed" });
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(validate).not.toHaveBeenCalled();
+    const durable = await official.service.getTask(created.id);
+    expect(durable).toMatchObject({
+      status: "failed",
+      closedAt: expect.any(String),
+    });
+    expect(durable?.metadata).toMatchObject({
+      researchRun: { status: "failed" },
+    });
+    expect(durable?.messages.at(-1)).toMatchObject({
+      senderKind: "system",
+      content: expect.stringContaining("no RESEARCH model"),
+    });
+  });
+
+  it("does not claim citations when research returns no sources", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Research without citations",
+      goal: "Summarize a configured source",
+      kind: "research",
+    });
+    const validate = vi.spyOn(official.service, "validateTask");
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel: vi.fn(async () => ({
+        id: "research-response-empty",
+        text: "Summary.",
+      })),
+    };
+
+    await executeEffectiveDelegationTask(
+      runtime as never,
+      undefined,
+      created.id,
+    );
+
+    expect(validate).toHaveBeenCalledWith(
+      created.id,
+      expect.objectContaining({ summary: "Doolittle research completed." }),
+    );
+  });
+
+  it("continues to spawn ACP coding sessions for coding tasks", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Implement a feature",
+      goal: "Edit source code",
+      kind: "coding",
+    });
+    const spawn = vi.spyOn(official.service, "spawnAgentForTask");
+    const runtime = { ...official.runtime };
+
+    await executeEffectiveDelegationTask(
+      runtime as never,
+      undefined,
+      created.id,
+    );
+
+    expect(spawn).toHaveBeenCalledWith(created.id, {
+      workdir: undefined,
+      framework: undefined,
     });
   });
 });

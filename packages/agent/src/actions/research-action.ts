@@ -23,6 +23,22 @@ const RESEARCH_PROMPT_CONTRACT = [
   "Answer the research question directly before adding supporting detail.",
 ].join("\n");
 
+export interface DoolittleResearchSource {
+  title: string;
+  url: string;
+}
+
+export interface DoolittleResearchRun {
+  report: string;
+  sources: DoolittleResearchSource[];
+  responseId?: string;
+}
+
+export type DoolittleResearchRuntime = Pick<
+  IAgentRuntime,
+  "getModel" | "useModel"
+>;
+
 function messageText(message: Memory): string {
   return typeof message.content === "string"
     ? message.content
@@ -60,16 +76,26 @@ function resolveResearchQuestion(
   return parseResearchQuestion(messageText(message));
 }
 
-function renderSources(annotations: ResearchAnnotation[]): string {
+function sourcesFromAnnotations(
+  annotations: ResearchAnnotation[],
+): DoolittleResearchSource[] {
   const seen = new Set<string>();
-  const lines: string[] = [];
+  const sources: DoolittleResearchSource[] = [];
   for (const annotation of annotations) {
     if (!annotation.url || seen.has(annotation.url)) {
       continue;
     }
     seen.add(annotation.url);
-    lines.push(`- ${annotation.title || annotation.url} (${annotation.url})`);
+    sources.push({
+      title: annotation.title || annotation.url,
+      url: annotation.url,
+    });
   }
+  return sources;
+}
+
+function renderSources(sources: DoolittleResearchSource[]): string {
+  const lines = sources.map((source) => `- ${source.title} (${source.url})`);
   return lines.length > 0 ? `\n\nSources:\n${lines.join("\n")}` : "";
 }
 
@@ -90,6 +116,34 @@ function buildResearchInput(question: string, conversationId?: string): string {
   });
   promptCacheMetrics.recordPlan(prompt.stats);
   return prompt.prompt;
+}
+
+/**
+ * Executes Doolittle's single research contract for both user actions and
+ * durable orchestrator tasks. Callers retain responsibility for presenting or
+ * recording failures in their own interaction model.
+ */
+export async function runDoolittleResearch(
+  runtime: DoolittleResearchRuntime,
+  question: string,
+  conversationId?: string,
+): Promise<DoolittleResearchRun> {
+  if (!runtime.getModel(ModelType.RESEARCH)) {
+    throw new Error(
+      "Deep research is unavailable: no RESEARCH model is registered. Set OPENAI_API_KEY and enable the OpenAI provider to use deep research.",
+    );
+  }
+
+  const result = await runtime.useModel(ModelType.RESEARCH, {
+    input: buildResearchInput(question, conversationId),
+    tools: [{ type: "web_search_preview" }],
+  });
+  const sources = sourcesFromAnnotations(result.annotations ?? []);
+  return {
+    report: `${result.text}${renderSources(sources)}`,
+    sources,
+    responseId: result.id,
+  };
 }
 
 /**
@@ -128,23 +182,13 @@ export function createResearchAction(): Action {
         return { success: false, text: usage, userFacingText: usage };
       }
 
-      if (!runtime.getModel(ModelType.RESEARCH)) {
-        const unavailable =
-          "Deep research is unavailable: no RESEARCH model is registered. Set OPENAI_API_KEY and enable the OpenAI provider to use `/research`.";
-        await callback?.({ text: unavailable, source: "research-action" });
-        return {
-          success: false,
-          text: unavailable,
-          userFacingText: unavailable,
-        };
-      }
-
       try {
-        const result = await runtime.useModel(ModelType.RESEARCH, {
-          input: buildResearchInput(question, message.roomId),
-          tools: [{ type: "web_search_preview" }],
-        });
-        const report = `${result.text}${renderSources(result.annotations ?? [])}`;
+        const research = await runDoolittleResearch(
+          runtime,
+          question,
+          message.roomId,
+        );
+        const report = research.report;
         await callback?.({ text: report, source: "research-action" });
         return {
           success: true,

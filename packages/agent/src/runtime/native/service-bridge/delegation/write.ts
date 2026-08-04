@@ -1,3 +1,8 @@
+import { randomUUID } from "node:crypto";
+import {
+  type DoolittleResearchRuntime,
+  runDoolittleResearch,
+} from "@/actions/research-action";
 import type { DelegationOrchestrationMode } from "@/types/runtime";
 import type { RuntimeLike } from "../runtime";
 import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
@@ -46,6 +51,21 @@ function updateProjection(
 ) {
   projection?.upsertProjection(task);
   return task;
+}
+
+function isResearchTask(detail: {
+  kind: string;
+  metadata: Record<string, unknown>;
+}) {
+  return (
+    detail.kind === "research" ||
+    detail.metadata.capabilityProfile === "research" ||
+    detail.metadata.profile === "research"
+  );
+}
+
+function researchRunId() {
+  return `research-${randomUUID()}`;
 }
 
 export async function retryEffectiveDelegationTask(
@@ -180,6 +200,108 @@ export async function executeEffectiveDelegationTask(
   const service = requireOfficialOrchestrator(runtime);
   const detail = await service.getTask(id);
   if (!detail) return null;
+
+  if (isResearchTask(detail)) {
+    const startedAt = new Date().toISOString();
+    const runId = researchRunId();
+    // beta.7 has no typed external-execution primitive. Record the
+    // sessionless research run through the durable task lifecycle instead of
+    // pretending that an ACP coding session executed it.
+    await service.updateTask(id, {
+      status: "active",
+      metadata: {
+        ...detail.metadata,
+        researchRun: { runId, status: "active", startedAt },
+      },
+    });
+    await service.addMessage(id, {
+      content: `Starting Doolittle research run ${runId}.`,
+      senderKind: "system",
+      direction: "system",
+    });
+
+    try {
+      const researchRuntime = runtime as RuntimeLike &
+        Partial<DoolittleResearchRuntime>;
+      if (
+        typeof researchRuntime.getModel !== "function" ||
+        typeof researchRuntime.useModel !== "function"
+      ) {
+        throw new Error(
+          "Deep research is unavailable: the runtime has no RESEARCH model provider.",
+        );
+      }
+      const research = await runDoolittleResearch(
+        researchRuntime as DoolittleResearchRuntime,
+        detail.goal,
+        id,
+      );
+      const completedAt = new Date().toISOString();
+      const receipt = {
+        runId,
+        status: "completed",
+        startedAt,
+        completedAt,
+        responseId: research.responseId,
+        sources: research.sources,
+      };
+      await service.addMessage(id, {
+        content: research.report,
+        senderKind: "sub_agent",
+        direction: "stdout",
+      });
+      const latest = await service.getTask(id);
+      await service.updateTask(id, {
+        status: "validating",
+        metadata: {
+          ...detail.metadata,
+          ...latest?.metadata,
+          researchRun: receipt,
+        },
+      });
+      const validated = await service.validateTask(id, {
+        passed: true,
+        summary:
+          research.sources.length > 0
+            ? "Doolittle research completed with cited sources."
+            : "Doolittle research completed.",
+        evidence: research.report,
+        verifier: "doolittle-research-executor",
+        humanOverride: false,
+      });
+      return validated
+        ? updateProjection(projection, projectOfficialTask(validated))
+        : null;
+    } catch (error) {
+      const failedAt = new Date().toISOString();
+      const failure = error instanceof Error ? error.message : String(error);
+      await service.addMessage(id, {
+        content: `Doolittle research failed: ${failure}`,
+        senderKind: "system",
+        direction: "stderr",
+      });
+      const latest = await service.getTask(id);
+      const failed = await service.updateTask(id, {
+        status: "failed",
+        closedAt: failedAt,
+        metadata: {
+          ...detail.metadata,
+          ...latest?.metadata,
+          researchRun: {
+            runId,
+            status: "failed",
+            startedAt,
+            failedAt,
+            error: failure,
+          },
+        },
+      });
+      return failed
+        ? updateProjection(projection, projectOfficialTask(failed))
+        : null;
+    }
+  }
+
   const workspaceRoot =
     typeof detail.metadata.workspaceRoot === "string"
       ? detail.metadata.workspaceRoot

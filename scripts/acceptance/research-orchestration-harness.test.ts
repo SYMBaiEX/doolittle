@@ -1,21 +1,18 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  type IAgentRuntime,
-  ModelType,
-  type ResearchResult,
-} from "@elizaos/core";
+import { ModelType, type ResearchResult } from "@elizaos/core";
 import { createCodingAgentServiceClass } from "@plugins/doolittle-plugin/coding-agent/service";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createResearchAction } from "@/actions/research-action";
 import {
   createEffectiveDelegationTask,
+  executeEffectiveDelegationTask,
   spawnEffectiveDelegationChild,
 } from "@/runtime/native/service-bridge/delegation";
 import type { RuntimeSettings } from "@/services/settings/runtime-settings";
 import { TerminalService } from "@/services/terminal/service";
 import { WorkspaceService } from "@/services/workspace-service";
+import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 
 const temporaryDirectories: string[] = [];
 
@@ -169,10 +166,16 @@ describe("research orchestration alpha harness", () => {
     );
   });
 
-  it("runs the actual research action with a fake RESEARCH model, sources, and failure", async () => {
-    const action = createResearchAction();
-    const callbacks: string[] = [];
+  it("executes an official research task through the durable research executor", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Research primary sources",
+      goal: "What does the primary source say?",
+      kind: "research",
+    });
+    const spawn = vi.spyOn(official.service, "spawnAgentForTask");
     const runtime = {
+      ...official.runtime,
       getModel: (modelType: unknown) =>
         modelType === ModelType.RESEARCH
           ? () => Promise.resolve({})
@@ -198,41 +201,35 @@ describe("research orchestration alpha harness", () => {
           ],
         } as ResearchResult;
       }),
-    } as unknown as IAgentRuntime;
+    };
 
-    const success = await action.handler(
-      runtime,
-      {
-        content: { text: "/research What does the primary source say?" },
-        roomId: "research-alpha",
-      } as never,
+    const success = await executeEffectiveDelegationTask(
+      runtime as never,
       undefined,
-      undefined,
-      async (content) => {
-        callbacks.push(content.text ?? "");
-        return [];
-      },
+      created.id,
     );
-    expect(success).toMatchObject({ success: true, verifiedUserFacing: true });
-    expect(success?.text).toContain("Sources:");
-    expect(success?.text).toContain("https://example.test/primary");
+    expect(success).toMatchObject({ status: "completed" });
+    expect(spawn).not.toHaveBeenCalled();
+    expect(runtime.useModel).toHaveBeenCalledWith(
+      ModelType.RESEARCH,
+      expect.anything(),
+    );
+    const durable = await official.service.getTask(created.id);
+    expect(durable?.messages.at(-1)?.content).toContain("Sources:");
+    expect(durable?.messages.at(-1)?.content).toContain(
+      "https://example.test/primary",
+    );
     expect(
-      success?.text?.match(/https:\/\/example\.test\/primary/g)?.length,
+      durable?.messages
+        .at(-1)
+        ?.content.match(/https:\/\/example\.test\/primary/g)?.length,
     ).toBe(1);
-    expect(callbacks).toEqual([success?.text]);
-
-    const failure = await action.handler(
-      {
-        getModel: () => () => Promise.resolve({}),
-        useModel: async () => {
-          throw new Error("fixture research failure");
-        },
-      } as unknown as IAgentRuntime,
-      { content: { text: "/research failure case" } } as never,
-      undefined,
-    );
-    expect(failure).toMatchObject({ success: false });
-    expect(failure?.text).toContain("fixture research failure");
+    expect(durable?.metadata).toMatchObject({
+      researchRun: {
+        status: "completed",
+        sources: [{ url: "https://example.test/primary" }],
+      },
+    });
   });
 
   it("uses the real coding-agent service over a temp workspace and records a safe command receipt", async () => {

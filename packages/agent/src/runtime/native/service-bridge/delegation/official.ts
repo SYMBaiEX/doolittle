@@ -80,6 +80,16 @@ function metadataStrings(
   return strings.length ? strings : undefined;
 }
 
+function metadataRecord(
+  metadata: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | undefined {
+  const value = metadata[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 export function projectOfficialStatus(
   status: NativeOrchestratorTaskStatus,
   paused = false,
@@ -116,6 +126,9 @@ export function projectOfficialTask(
   const activeSession = sessions.find(
     (session) => !TERMINAL_SESSION_STATUSES.has(session.status),
   );
+  const researchRun = metadataRecord(metadata, "researchRun");
+  const hasSessionlessResearchRun =
+    task.kind === "research" && sessions.length === 0 && Boolean(researchRun);
 
   return {
     id: task.id,
@@ -157,17 +170,27 @@ export function projectOfficialTask(
       metadataString(metadata, "workspaceRoot"),
     parentTaskId: detail?.parentTaskId ?? undefined,
     status: projectOfficialStatus(task.status, task.paused),
-    executionMode: "delegated",
-    workerMode: task.sessionCount > 0 ? "process" : undefined,
+    executionMode: hasSessionlessResearchRun ? "local" : "delegated",
+    workerMode: hasSessionlessResearchRun
+      ? "inline"
+      : task.sessionCount > 0
+        ? "process"
+        : undefined,
     attempts:
       typeof metadata.autoVerifyAttempts === "number"
         ? metadata.autoVerifyAttempts
-        : task.sessionCount,
+        : hasSessionlessResearchRun
+          ? 1
+          : task.sessionCount,
     maxAttempts:
       typeof metadata.maxAttempts === "number"
         ? metadata.maxAttempts
         : undefined,
-    startedAt: activeSession ? task.updatedAt : undefined,
+    startedAt: activeSession
+      ? task.updatedAt
+      : researchRun
+        ? metadataString(researchRun, "startedAt")
+        : undefined,
     notes,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,

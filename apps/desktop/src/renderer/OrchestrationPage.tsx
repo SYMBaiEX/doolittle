@@ -35,6 +35,7 @@ import {
   taskCapabilityLabel,
   taskCreatePayload,
   taskExecutionLabel,
+  taskSpawnPayload,
 } from "./orchestration-helpers";
 import { ReviewPage } from "./ReviewPage";
 import "./orchestration.css";
@@ -880,19 +881,17 @@ export function OrchestrationPage({
     try {
       const result = await postJson<{ task?: DelegationTaskRecord }>(
         `/delegation/tasks/${safeResourceId(selectedTask.id)}/spawn`,
-        {
-          title: childTitle.trim() || "Child task",
-          objective: childObjective.trim(),
+        taskSpawnPayload({
+          title: childTitle || "Child task",
+          objective: childObjective,
           group: selectedTask.group,
           profile: selectedTask.profile,
           capabilityProfile: selectedTask.capabilityProfile,
           kind: selectedTask.kind,
           framework: selectedTask.framework,
-          accountId: selectedTask.accountId,
-          sessionId: selectedTask.sessionId,
           executionMode: selectedTask.executionMode,
-          workspaceRoot: childWorkspaceRoot || undefined,
-        },
+          workspaceRoot: childWorkspaceRoot,
+        }),
       );
       setChildTitle("");
       setChildObjective("");

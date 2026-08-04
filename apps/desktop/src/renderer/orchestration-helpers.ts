@@ -58,6 +58,32 @@ export function taskCreatePayload(input: {
   };
 }
 
+/** Build a child-task spawn payload without copying receipt attribution fields. */
+export function taskSpawnPayload(input: {
+  title: string;
+  objective: string;
+  group?: string;
+  profile?: string;
+  capabilityProfile?: string;
+  kind?: string;
+  framework?: string;
+  executionMode?: string;
+  workspaceRoot?: string;
+}): Record<string, string | undefined> {
+  const optional = (value?: string) => value?.trim() || undefined;
+  return {
+    title: input.title.trim() || "Child task",
+    objective: input.objective.trim(),
+    group: optional(input.group),
+    profile: optional(input.profile),
+    capabilityProfile: optional(input.capabilityProfile),
+    kind: optional(input.kind),
+    framework: optional(input.framework),
+    executionMode: optional(input.executionMode),
+    workspaceRoot: optional(input.workspaceRoot),
+  };
+}
+
 export function scopeTasksByWorkspace<T extends { workspaceRoot?: string }>(
   tasks: T[],
   options: {

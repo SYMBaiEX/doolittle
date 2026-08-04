@@ -22,6 +22,7 @@ export interface CodexCliStoreRecord {
   payload?: unknown;
   accessToken?: string;
   refreshToken?: string;
+  idToken?: string;
   accountId?: string;
   authMode?: string;
   lastRefresh?: string;
@@ -69,6 +70,7 @@ export function readCodexCliStore(
     authFilePresent: existsSync(authPath),
     payload,
     ...readTokenPair(tokens, "access_token", "refresh_token"),
+    idToken: readTokenField(tokens, "id_token"),
     accountId: readTokenField(tokens, "account_id"),
     authMode: readTokenField(payload, "auth_mode"),
     lastRefresh: readTokenField(payload, "last_refresh"),
@@ -85,6 +87,7 @@ export function getCodexCliCredentials(
   return {
     accessToken: store.accessToken,
     refreshToken: store.refreshToken,
+    idToken: store.idToken,
     accountId: store.accountId,
     authMode: store.authMode,
     lastRefresh: store.lastRefresh,

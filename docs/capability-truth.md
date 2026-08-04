@@ -100,21 +100,23 @@ Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 - Runtime ID: `research.orchestrated`
 - Headline: Research is an explicit task capability, not a coding framework alias.
-- Summary: Doolittle preserves research as task kind and capability metadata, keeps framework selection explicit, and combines the official task service with the SDK deep-research model and Doolittle's real file, search, patch, and terminal tools.
+- Summary: Doolittle executes official research tasks through the shared Eliza RESEARCH model path, while coding tasks continue through ACP workers with Doolittle's file, search, patch, and terminal tools.
 - Runtime surfaces: `DOOLITTLE_RESEARCH`, `POST /delegation/tasks`, `POST /delegation/tasks/:id/children`, `POST /delegation/tasks/:id/execute`
-- Required status fields: `kind`, `capabilityProfile`, `framework`, `status`, `sessionId`
+- Required status fields: `kind`, `capabilityProfile`, `framework`, `status`, `executionMode`, `researchRun`
 
 ### Real Behavior
 
 - Maps capabilityProfile=research to an official research task while leaving providerPolicy.preferredFramework unset unless the operator chooses a framework.
-- Runs sourced deep research through Eliza ModelType.RESEARCH when an OpenAI research provider is configured.
+- Executes research tasks directly through Eliza ModelType.RESEARCH, records a sessionless durable research receipt, and validates real model output without a human override.
+- Does not mislabel an ACP coding session as deep research; coding tasks retain the official ACP spawn path.
 - Keeps coding workers on the same official orchestrator while granting them Doolittle's real workspace and terminal tool surfaces.
 
 ### Degraded Behavior
 
-- Returns a clear unavailable result when no RESEARCH model is registered instead of claiming a sourced report was produced.
+- Records a failed research receipt and clear unavailable result when no RESEARCH model is registered instead of claiming a sourced report was produced.
 - Keeps deterministic no-network acceptance coverage available when live provider credentials are absent.
 
 ### Caveats
 
 - Live deep research requires OPENAI_API_KEY and can take several minutes; the deterministic alpha harness uses a registered fake RESEARCH handler.
+- ElizaOS beta.7 has no typed non-ACP execution primitive, so Doolittle records the external research lifecycle through the official task service's durable update, message, and validation methods.

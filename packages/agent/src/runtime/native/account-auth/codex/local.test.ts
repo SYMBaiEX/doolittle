@@ -43,6 +43,7 @@ describe.sequential("codex local auth helpers", () => {
         tokens: {
           access_token: " access-token ",
           refresh_token: " refresh-token ",
+          id_token: " id-token ",
           account_id: " account-123 ",
           extra_token_field: "keep-me",
         },
@@ -58,6 +59,7 @@ describe.sequential("codex local auth helpers", () => {
         authFilePresent: true,
         accessToken: "access-token",
         refreshToken: "refresh-token",
+        idToken: "id-token",
         accountId: "account-123",
         authMode: "chatgpt",
         lastRefresh: "2026-03-21T12:00:00.000Z",
@@ -66,6 +68,7 @@ describe.sequential("codex local auth helpers", () => {
     expect(getCodexCliCredentials(store)).toEqual({
       accessToken: "access-token",
       refreshToken: "refresh-token",
+      idToken: "id-token",
       accountId: "account-123",
       authMode: "chatgpt",
       lastRefresh: "2026-03-21T12:00:00.000Z",

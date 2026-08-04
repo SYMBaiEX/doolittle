@@ -51,6 +51,7 @@ describe.sequential("linked provider account auth snapshot", () => {
             tokens: {
               access_token: "access",
               refresh_token: "refresh",
+              id_token: "id-token",
             },
           }),
           "utf8",
@@ -66,6 +67,11 @@ describe.sequential("linked provider account auth snapshot", () => {
         const advice = mod.getLinkedProviderConnectAdvice("codex", home);
         expect(advice.ready).toBe(true);
         expect(advice.preferredAction).toBe("use");
+        expect(mod.getLinkedCodexCredentials(home)?.idToken).toBe("id-token");
+        expect(
+          mod.__accountAuthTestOnly.readProviderAuthStore().providers.codex
+            ?.idToken,
+        ).toBe("id-token");
       });
     } finally {
       vi.unstubAllEnvs();

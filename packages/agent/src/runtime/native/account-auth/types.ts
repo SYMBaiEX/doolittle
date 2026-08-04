@@ -39,6 +39,7 @@ export interface LinkedProviderConnectAdvice {
 export interface LinkedCodexCredentials {
   accessToken?: string;
   refreshToken?: string;
+  idToken?: string;
   accountId?: string;
   authMode?: string;
   lastRefresh?: string;

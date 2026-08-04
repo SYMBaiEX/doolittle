@@ -7,6 +7,7 @@ import {
   taskCapabilityLabel,
   taskCreatePayload,
   taskExecutionLabel,
+  taskSpawnPayload,
 } from "./orchestration-helpers";
 
 describe("orchestration helpers", () => {
@@ -110,5 +111,37 @@ describe("orchestration helpers", () => {
     expect(taskCapabilityLabel(undefined, "coding")).toBe("coding");
     expect(taskExecutionLabel("delegated")).toBe("delegated session");
     expect(taskExecutionLabel()).toBe("local runtime");
+  });
+
+  it("does not attribute spawned child tasks to the parent receipt", () => {
+    const payload = taskSpawnPayload({
+      title: "  Child task ",
+      objective: "  Implement the fix ",
+      group: " group-a ",
+      profile: " coding ",
+      capabilityProfile: " coding ",
+      kind: " coding ",
+      framework: " claude ",
+      executionMode: " delegated ",
+      workspaceRoot: " /repo/project ",
+    });
+
+    expect(payload).toEqual({
+      title: "Child task",
+      objective: "Implement the fix",
+      group: "group-a",
+      profile: "coding",
+      capabilityProfile: "coding",
+      kind: "coding",
+      framework: "claude",
+      executionMode: "delegated",
+      workspaceRoot: "/repo/project",
+    });
+    expect(payload).not.toHaveProperty("accountId");
+    expect(payload).not.toHaveProperty("sessionId");
+
+    expect(
+      taskSpawnPayload({ title: "   ", objective: "Objective" }).title,
+    ).toBe("Child task");
   });
 });
