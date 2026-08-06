@@ -1,9 +1,6 @@
+import * as processExecution from "@/services/process-execution";
 import type { TerminalCommandRecord } from "@/types/execution";
-import {
-  LOCAL_SHELL,
-  normalizeBackendError,
-  runCommandStreaming,
-} from "../../execution/subprocess";
+import { LOCAL_SHELL, normalizeBackendError } from "../../execution/subprocess";
 import {
   previewWithBackend,
   resolveConfiguredBackend,
@@ -15,6 +12,8 @@ import type {
   TerminalCommandUpdateEvent,
   TerminalServiceCommandOrchestratorOptions,
 } from "./types";
+
+const ROUTER_TIMEOUT_MARKER = "[shell-router] command timed out";
 
 export class TerminalServiceCommandOrchestrator {
   constructor(
@@ -95,15 +94,27 @@ export class TerminalServiceCommandOrchestrator {
       workspaceDir,
     });
     const startedAt = new Date().toISOString();
-    const result = normalizeBackendError(
-      await runCommandStreaming([LOCAL_SHELL, "-lc", safeCommand], {
+    const processResult = await processExecution.runTextProcess(
+      LOCAL_SHELL,
+      ["-lc", safeCommand],
+      {
         cwd: workspaceDir,
         timeoutMs: effectiveTimeoutMs,
         onStdout: callbacks?.onStdout,
         onStderr: callbacks?.onStderr,
         abortSignal,
-      }),
+        toolName: "doolittle.terminal.streaming-local",
+      },
     );
+    const result = normalizeBackendError({
+      exitCode: processResult.exitCode,
+      stdout: processResult.stdout.trim(),
+      stderr: processResult.stderr.trim(),
+      timedOut:
+        processResult.exitCode === 124 &&
+        processResult.stderr.includes(ROUTER_TIMEOUT_MARKER),
+      durationMs: processResult.durationMs,
+    });
 
     return persistAndNotifyCommand({
       command: safeCommand,

@@ -153,6 +153,20 @@ describe("GatewayPairingProjection", () => {
     );
   });
 
+  it("preserves the unavailable-service error when the official resolver returns null", async () => {
+    const projection = new GatewayPairingProjection(["telegram"]);
+    projection.bindRuntime({
+      async getServiceLoadPromise() {},
+      getService() {
+        return null;
+      },
+    } as unknown as IAgentRuntime);
+
+    await expect(projection.listPending()).rejects.toThrow(
+      "Eliza PairingService is not available.",
+    );
+  });
+
   it("imports the legacy JSON store once while preserving its source data", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-pairing-migration-"));
     const legacyFile = join(root, "pairing.json");

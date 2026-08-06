@@ -1,7 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as processExecution from "@/services/process-execution";
 import type {
   ExecutionBackendName,
   ExecutionBackendPreview,
@@ -323,6 +324,67 @@ describe("command orchestrator", () => {
       expect(updates).toHaveLength(1);
       expect(updates[0]?.backend).toBe("local");
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("routes local streaming through the shell router adapter", async () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-terminal-orchestrator-router-"),
+    );
+    const historyStore = new TerminalCommandHistoryStore(
+      join(root, "terminal-history.json"),
+    );
+    const settings = makeSettings();
+    const controller = new AbortController();
+    const onStdout = vi.fn();
+    const onStderr = vi.fn();
+    const runTextProcess = vi
+      .spyOn(processExecution, "runTextProcess")
+      .mockResolvedValue({
+        exitCode: 0,
+        stdout: "router-ok",
+        stderr: "",
+        durationMs: 3,
+        sandbox: "docker",
+      });
+    const orchestrator = new TerminalServiceCommandOrchestrator({
+      workspaceDir: root,
+      getSettings: () => settings,
+      backends: new Map([
+        ["local", createFakeBackend({ name: "local", mode: "local" })],
+      ]),
+      historyStore,
+    });
+
+    try {
+      const record = await orchestrator.runStreamingLocal(
+        "printf router-ok",
+        { onStdout, onStderr },
+        1_234,
+        controller.signal,
+      );
+
+      expect(runTextProcess).toHaveBeenCalledWith(
+        "/bin/zsh",
+        ["-lc", "printf router-ok"],
+        {
+          cwd: root,
+          timeoutMs: 1_234,
+          onStdout,
+          onStderr,
+          abortSignal: controller.signal,
+          toolName: "doolittle.terminal.streaming-local",
+        },
+      );
+      expect(record).toMatchObject({
+        backend: "local",
+        stdout: "router-ok",
+        exitCode: 0,
+      });
+      expect(historyStore.read().commands).toHaveLength(1);
+    } finally {
+      runTextProcess.mockRestore();
       rmSync(root, { recursive: true, force: true });
     }
   });

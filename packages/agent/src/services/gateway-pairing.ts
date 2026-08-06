@@ -1,6 +1,7 @@
 import {
   checkPairingAllowed,
-  PairingService as ElizaPairingService,
+  type PairingService as ElizaPairingService,
+  getPairingService,
   type IAgentRuntime,
   type PairingRequest,
 } from "@elizaos/core";
@@ -121,10 +122,7 @@ export class GatewayPairingProjection {
 
   private async service(): Promise<ElizaPairingService> {
     const runtime = this.requireRuntime();
-    await runtime.getServiceLoadPromise(ElizaPairingService.serviceType);
-    const service = runtime.getService<ElizaPairingService>(
-      ElizaPairingService.serviceType,
-    );
+    const service = await getPairingService(runtime);
     if (!service) {
       throw new Error("Eliza PairingService is not available.");
     }

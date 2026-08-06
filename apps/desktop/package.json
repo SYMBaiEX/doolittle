@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@doolittle/contracts": "workspace:*",
+    "@elizaos/agent": "2.0.3-beta.7",
     "@xterm/addon-fit": "0.10.0",
     "@xterm/xterm": "5.5.0",
     "electron-updater": "^6.7.3",

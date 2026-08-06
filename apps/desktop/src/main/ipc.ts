@@ -20,6 +20,7 @@ import type {
   InteractiveTerminalStartResult,
   ProjectResourceSelection,
   ProviderAuthProvider,
+  ProviderAuthStartOptions,
   RecordedAudioImportRequest,
   RepositoryMutationDesktopResult,
   RepositoryMutationRequest,
@@ -124,6 +125,7 @@ const IPC_HANDLER_CHANNELS = [
   "chat:import-recorded-audio",
   "provider-auth:start",
   "provider-auth:state",
+  "provider-auth:submit-code",
   "provider-auth:cancel",
   "provider-auth:acknowledge",
   "terminal:run-confirmed",
@@ -2065,6 +2067,30 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     if (provider === "codex" || provider === "claude-code") return provider;
     throw new Error("Provider sign in is only available for Codex and Claude.");
   };
+  const validateProviderAuthStartOptions = (
+    value: unknown,
+  ): ProviderAuthStartOptions => {
+    if (value === undefined) return {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Provider sign-in options must be an object.");
+    }
+    const options = value as Record<string, unknown>;
+    if (
+      options.accountId !== undefined &&
+      typeof options.accountId !== "string"
+    ) {
+      throw new Error("Provider account ID must be a string.");
+    }
+    if (options.label !== undefined && typeof options.label !== "string") {
+      throw new Error("Provider account label must be a string.");
+    }
+    return {
+      ...(typeof options.accountId === "string"
+        ? { accountId: options.accountId }
+        : {}),
+      ...(typeof options.label === "string" ? { label: options.label } : {}),
+    };
+  };
   const requestInteractiveTerminal = async (
     path:
       | "/terminal/session/start"
@@ -2461,12 +2487,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   );
   registerHandler(
     "provider-auth:start",
-    (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
+    (
+      _event: IpcMainInvokeEvent,
+      unsafeProvider: unknown,
+      unsafeOptions: unknown,
+    ) => {
       if (!desktopControls?.providerAuth) {
         throw new Error("Provider sign in is unavailable in this build.");
       }
       return desktopControls.providerAuth.start(
         validateProviderAuthProvider(unsafeProvider),
+        validateProviderAuthStartOptions(unsafeOptions),
       );
     },
   );
@@ -2477,6 +2508,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("Provider sign in is unavailable in this build.");
       }
       return desktopControls.providerAuth.getState(
+        validateProviderAuthProvider(unsafeProvider),
+      );
+    },
+  );
+  registerHandler(
+    "provider-auth:submit-code",
+    (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
+      if (!desktopControls?.providerAuth) {
+        throw new Error("Provider sign in is unavailable in this build.");
+      }
+      return desktopControls.providerAuth.submitCodeFromClipboard(
         validateProviderAuthProvider(unsafeProvider),
       );
     },

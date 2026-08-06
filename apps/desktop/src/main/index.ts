@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   Menu,
@@ -550,6 +551,10 @@ app.whenReady().then(async () => {
           findRepoRoot([app.getAppPath(), process.cwd(), __dirname]),
       );
   const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
+  // Eliza's OAuth/account-storage helpers resolve their state root from
+  // ELIZA_HOME. Bind the desktop main process to the same private data root
+  // passed to the backend so newly saved accounts appear in the live pool.
+  process.env.ELIZA_HOME ??= runtimeDataDir;
   ensureDesktopRuntimeState(
     runtimeDataDir,
     sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,
@@ -583,6 +588,7 @@ app.whenReady().then(async () => {
   mainWindow = createWindow();
   const providerAuth = new ProviderAuthController({
     openExternal: (url) => shell.openExternal(url),
+    readClipboardText: () => clipboard.readText(),
   });
   installApplicationMenu();
   installTray();

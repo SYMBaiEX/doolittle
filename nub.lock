@@ -157,6 +157,9 @@ importers:
       '@doolittle/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@elizaos/agent':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(38848ba2a61ead8453d6f119026c50a1)
       '@xterm/addon-fit':
         specifier: 0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)

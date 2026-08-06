@@ -1,117 +1,227 @@
-import type { ChildProcess } from "node:child_process";
-import { EventEmitter } from "node:events";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { delimiter, resolve } from "node:path";
-import { PassThrough } from "node:stream";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type {
+  FlowState,
+  OAuthFlowHandle,
+} from "@elizaos/agent/auth/oauth-flow";
+import { describe, expect, it, vi } from "vitest";
 import {
-  isTrustedProviderAuthUrl,
   ProviderAuthController,
-  providerAuthUrls,
-  resolveProviderAuthExecutable,
+  type ProviderAuthFlowDependencies,
+  providerAuthExecutableCandidates,
 } from "./provider-auth";
 
-const temporaryDirectories: string[] = [];
-
-afterEach(() => {
-  for (const directory of temporaryDirectories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-function executableDirectory(name: string): string {
-  const directory = mkdtempSync(resolve(tmpdir(), "doolittle-auth-"));
-  temporaryDirectories.push(directory);
-  const executable = resolve(directory, name);
-  writeFileSync(executable, "#!/bin/sh\n");
-  chmodSync(executable, 0o755);
-  return directory;
+function pendingCompletion(): OAuthFlowHandle["completion"] {
+  return new Promise(() => undefined);
 }
 
-function mockChildProcess(): ChildProcess {
-  const child = new EventEmitter() as ChildProcess;
-  Object.assign(child, {
-    stdout: new PassThrough(),
-    stderr: new PassThrough(),
-    kill: vi.fn(() => true),
+function flowState(
+  sessionId: string,
+  providerId: "anthropic-subscription" | "openai-codex",
+  status: FlowState["status"],
+  needsCodeSubmission = providerId === "anthropic-subscription",
+): FlowState {
+  return {
+    sessionId,
+    providerId,
+    status,
+    needsCodeSubmission,
+    startedAt: Date.parse("2026-08-05T12:00:00.000Z"),
+  };
+}
+
+function createFlows() {
+  const listeners = new Map<string, (state: FlowState) => void>();
+  const handles = {
+    codex: {
+      sessionId: "codex-flow",
+      authUrl: "https://auth.openai.com/oauth/authorize?state=secret",
+      needsCodeSubmission: false,
+      completion: pendingCompletion(),
+      submitCode: vi.fn(),
+      cancel: vi.fn(),
+    },
+    claude: {
+      sessionId: "claude-flow",
+      authUrl: "https://claude.ai/oauth/authorize?state=secret",
+      needsCodeSubmission: true,
+      completion: pendingCompletion(),
+      submitCode: vi.fn(),
+      cancel: vi.fn(),
+    },
+  } satisfies Record<string, OAuthFlowHandle>;
+  const startCodex = vi.fn(async () => handles.codex);
+  const startAnthropic = vi.fn(async () => handles.claude);
+  const cancel = vi.fn((sessionId: string) => {
+    const providerId =
+      sessionId === handles.codex.sessionId
+        ? "openai-codex"
+        : "anthropic-subscription";
+    listeners.get(sessionId)?.(flowState(sessionId, providerId, "cancelled"));
+    return true;
   });
-  return child;
+  const submitCode = vi.fn(() => true);
+  const subscribe = vi.fn(
+    (sessionId: string, listener: (state: FlowState) => void) => {
+      listeners.set(sessionId, listener);
+      const providerId =
+        sessionId === handles.codex.sessionId
+          ? "openai-codex"
+          : "anthropic-subscription";
+      listener(flowState(sessionId, providerId, "pending"));
+      return () => listeners.delete(sessionId);
+    },
+  );
+  const flows: ProviderAuthFlowDependencies = {
+    startCodex,
+    startAnthropic,
+    subscribe,
+    cancel,
+    submitCode,
+  };
+
+  return {
+    flows,
+    handles,
+    listeners,
+    startCodex,
+    startAnthropic,
+    cancel,
+    submitCode,
+  };
 }
 
 describe("provider auth", () => {
-  it("resolves provider CLIs from a bounded desktop PATH", () => {
-    const directory = executableDirectory("codex");
+  it("returns bounded provider CLI candidates for coding-agent launches", () => {
     expect(
-      resolveProviderAuthExecutable("codex", {
-        environment: { PATH: directory },
+      providerAuthExecutableCandidates("codex", {
+        environment: { PATH: "/custom/bin" },
         platform: "darwin",
-        homeDirectory: "/missing",
+        homeDirectory: "/users/doolittle",
       }),
-    ).toBe(resolve(directory, "codex"));
-    expect(delimiter).toBeTruthy();
+    ).toEqual([
+      "/custom/bin/codex",
+      "/users/doolittle/.local/bin/codex",
+      "/users/doolittle/.npm-global/bin/codex",
+      "/users/doolittle/.bun/bin/codex",
+      "/opt/homebrew/bin/codex",
+      "/usr/local/bin/codex",
+      "/usr/bin/codex",
+    ]);
   });
 
-  it("only accepts official provider login destinations", () => {
-    expect(
-      isTrustedProviderAuthUrl(
-        "codex",
-        "https://auth.openai.com/oauth/authorize",
-      ),
-    ).toBe(true);
-    expect(
-      isTrustedProviderAuthUrl(
-        "claude-code",
-        "https://claude.ai/oauth/authorize",
-      ),
-    ).toBe(true);
-    expect(
-      isTrustedProviderAuthUrl("codex", "https://openai.com.attacker.test"),
-    ).toBe(false);
-    expect(
-      providerAuthUrls(
-        "codex",
-        "Open https://auth.openai.com/oauth/authorize?state=opaque).",
-      ),
-    ).toEqual(["https://auth.openai.com/oauth/authorize?state=opaque"]);
-  });
-
-  it("opens the official browser URL without exposing it in renderer state", async () => {
-    const directory = executableDirectory("codex");
-    const child = mockChildProcess();
+  it("uses Eliza's Codex OAuth flow without exposing its URL", async () => {
+    const fixture = createFlows();
     const openExternal = vi.fn(async () => undefined);
     const controller = new ProviderAuthController({
-      environment: { PATH: directory },
-      platform: "darwin",
-      homeDirectory: directory,
       openExternal,
-      spawn: () => child,
-      now: () => new Date("2026-07-28T12:00:00.000Z"),
+      readClipboardText: () => "",
+      flows: fixture.flows,
+      now: () => new Date("2026-08-05T12:00:00.000Z"),
     });
 
-    expect(controller.start("codex").phase).toBe("launching");
-    child.emit("spawn");
-    child.stdout?.emit(
-      "data",
-      Buffer.from(
-        "Continue in your browser: https://auth.openai.com/oauth/authorize?state=secret\n",
-      ),
-    );
-    await Promise.resolve();
+    const state = await controller.start("codex", {
+      accountId: "research-account",
+      label: "Research Codex",
+    });
 
-    expect(openExternal).toHaveBeenCalledWith(
-      "https://auth.openai.com/oauth/authorize?state=secret",
-    );
-    expect(controller.getState("codex")).toMatchObject({
+    expect(fixture.startCodex).toHaveBeenCalledWith({
+      accountId: "research-account",
+      label: "Research Codex",
+    });
+    expect(openExternal).toHaveBeenCalledWith(fixture.handles.codex.authUrl);
+    expect(state).toMatchObject({
       phase: "waiting",
       browserOpened: true,
+      needsCodeSubmission: false,
+      codeSubmitted: false,
     });
-    expect(JSON.stringify(controller.getState("codex"))).not.toContain(
-      "state=secret",
-    );
+    expect(JSON.stringify(state)).not.toContain("state=secret");
 
-    child.emit("exit", 0, null);
+    fixture.listeners.get(fixture.handles.codex.sessionId)?.(
+      flowState("codex-flow", "openai-codex", "success", false),
+    );
     expect(controller.getState("codex").phase).toBe("succeeded");
     expect(controller.acknowledge("codex").phase).toBe("idle");
+  });
+
+  it("submits Claude's copied code directly to the Eliza flow", async () => {
+    const fixture = createFlows();
+    const controller = new ProviderAuthController({
+      openExternal: async () => undefined,
+      readClipboardText: () => "authorization-code#authorization-state",
+      flows: fixture.flows,
+    });
+
+    const waiting = await controller.start("claude-code");
+    expect(fixture.startAnthropic).toHaveBeenCalledWith({
+      label: "Claude desktop account",
+    });
+    expect(waiting).toMatchObject({
+      phase: "waiting",
+      needsCodeSubmission: true,
+      codeSubmitted: false,
+    });
+
+    const submitted = controller.submitCodeFromClipboard("claude-code");
+    expect(fixture.submitCode).toHaveBeenCalledWith(
+      fixture.handles.claude.sessionId,
+      "authorization-code#authorization-state",
+    );
+    expect(submitted).toMatchObject({
+      phase: "waiting",
+      codeSubmitted: true,
+    });
+    expect(JSON.stringify(submitted)).not.toContain("authorization-code");
+  });
+
+  it("rejects malformed Claude clipboard values", async () => {
+    const fixture = createFlows();
+    const controller = new ProviderAuthController({
+      openExternal: async () => undefined,
+      readClipboardText: () => "missing-state",
+      flows: fixture.flows,
+    });
+    await controller.start("claude-code");
+
+    expect(() => controller.submitCodeFromClipboard("claude-code")).toThrow(
+      /code#state/,
+    );
+    expect(fixture.submitCode).not.toHaveBeenCalled();
+  });
+
+  it("cancels active authentication through Eliza", async () => {
+    const fixture = createFlows();
+    const controller = new ProviderAuthController({
+      openExternal: async () => undefined,
+      readClipboardText: () => "",
+      flows: fixture.flows,
+    });
+    await controller.start("codex");
+
+    expect(controller.cancel("codex").phase).toBe("cancelled");
+    expect(fixture.cancel).toHaveBeenCalledWith(
+      fixture.handles.codex.sessionId,
+      "Cancelled in Doolittle",
+    );
+  });
+
+  it("preserves cancellation when SDK startup later rejects", async () => {
+    const fixture = createFlows();
+    let rejectStart: ((reason: Error) => void) | undefined;
+    fixture.flows.startCodex = () =>
+      new Promise((_resolve, reject) => {
+        rejectStart = reject;
+      });
+    const controller = new ProviderAuthController({
+      openExternal: async () => undefined,
+      readClipboardText: () => "",
+      flows: fixture.flows,
+    });
+
+    const starting = controller.start("codex");
+    expect(controller.cancel("codex").phase).toBe("cancelled");
+    rejectStart?.(new Error("SDK startup failed after cancellation"));
+
+    await expect(starting).resolves.toMatchObject({ phase: "cancelled" });
+    expect(controller.getState("codex").phase).toBe("cancelled");
   });
 });

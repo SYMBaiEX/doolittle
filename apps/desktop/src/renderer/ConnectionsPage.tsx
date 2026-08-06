@@ -138,28 +138,6 @@ export function ConnectionsPage({
     setAuthStates((current) => ({ ...current, [state.provider]: state }));
   }, []);
 
-  const importAccount = useCallback(
-    async (provider: ProviderAuthProvider) => {
-      const poolProvider = accountPoolProviderFor(provider);
-      const draft = accountImports[poolProvider];
-      const accountId = draft?.accountId.trim() || `${provider}-${Date.now()}`;
-      const label = draft?.label.trim() || `${titleCase(provider)} account`;
-      const result = await desktopRequest<{ account?: AccountPoolAccount }>(
-        `/runtime/account-pool/${poolProvider}/import`,
-        "POST",
-        { accountId, label },
-      );
-      if (result.account) {
-        setFeedback(`${result.account.label} was added to the account pool.`);
-        setAccountImports((current) =>
-          clearAccountImportDraft(current, poolProvider),
-        );
-      }
-      accountPool.reload();
-    },
-    [accountImports, accountPool.reload],
-  );
-
   const finishAccountSignIn = useCallback(
     async (provider: ProviderAuthProvider) => {
       if (completedAuth.current.has(provider)) return;
@@ -176,7 +154,11 @@ export function ConnectionsPage({
           asString(result.detail) ||
             `${titleCase(provider)} is signed in and ready to use.`,
         );
-        await importAccount(provider);
+        const poolProvider = accountPoolProviderFor(provider);
+        setAccountImports((current) =>
+          clearAccountImportDraft(current, poolProvider),
+        );
+        accountPool.reload();
         setAuthState(await window.doolittle.acknowledgeProviderAuth(provider));
         resource.reload();
       } catch (error) {
@@ -186,7 +168,7 @@ export function ConnectionsPage({
         setBusy("");
       }
     },
-    [importAccount, resource.reload, setAuthState],
+    [accountPool.reload, resource.reload, setAuthState],
   );
 
   useEffect(() => {
@@ -243,13 +225,29 @@ export function ConnectionsPage({
     setBusy(`${provider}:sign-in`);
     setFeedback("");
     try {
-      const state = await window.doolittle.startProviderAuth(provider);
+      const draft = accountImports[accountPoolProviderFor(provider)];
+      const state = await window.doolittle.startProviderAuth(provider, {
+        accountId: draft?.accountId.trim() || undefined,
+        label: draft?.label.trim() || undefined,
+      });
       setAuthState(state);
       if (state.phase === "succeeded") {
         await finishAccountSignIn(provider);
       } else if (state.phase === "failed") {
         setFeedback(state.message);
       }
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const submitAccountSignInCode = async (provider: ProviderAuthProvider) => {
+    setBusy(`${provider}:submit-code`);
+    setFeedback("");
+    try {
+      setAuthState(await window.doolittle.submitProviderAuthCode(provider));
     } catch (error) {
       setFeedback(errorMessage(error));
     } finally {
@@ -849,6 +847,25 @@ export function ConnectionsPage({
                   </button>
                 ) : null}
               </div>
+              {authProvider &&
+              signingIn &&
+              authState?.needsCodeSubmission &&
+              !authState.codeSubmitted ? (
+                <div className="stack-list provider-import-form">
+                  <button
+                    className="primary-button"
+                    onClick={() => void submitAccountSignInCode(authProvider)}
+                    disabled={Boolean(busy)}
+                    type="button"
+                  >
+                    Use copied code
+                  </button>
+                  <small>
+                    Copy the complete code#state value from Claude first. It is
+                    read once from the clipboard and never returned to this UI.
+                  </small>
+                </div>
+              ) : null}
               {authProvider && provider.poolProvider ? (
                 <div className="stack-list provider-import-form">
                   <div>
@@ -859,8 +876,9 @@ export function ConnectionsPage({
                         : "Prepare the first account"}
                     </h3>
                     <p>
-                      Enter an optional ID and label, then use the official
-                      sign-in flow. The credential stays outside Doolittle.
+                      Enter an optional ID and label, then use Eliza&apos;s
+                      official provider sign-in flow. Credentials are saved in
+                      the private local account store and never returned here.
                     </p>
                   </div>
                   <label className="form-field">
@@ -899,8 +917,8 @@ export function ConnectionsPage({
                     />
                   </label>
                   <small>
-                    Use Sign in again to add the linked native sign-in under
-                    this ID. The account pool never exposes credentials.
+                    Use Sign in again to create another Eliza-managed account
+                    under this ID. The account pool never exposes credentials.
                   </small>
                 </div>
               ) : null}

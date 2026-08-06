@@ -366,6 +366,11 @@ export interface AccountPoolDeleteResponse {
 
 export type ProviderAuthProvider = "codex" | "claude-code";
 
+export interface ProviderAuthStartOptions {
+  accountId?: string;
+  label?: string;
+}
+
 export type ProviderAuthPhase =
   | "idle"
   | "launching"
@@ -379,6 +384,8 @@ export interface ProviderAuthState {
   phase: ProviderAuthPhase;
   message: string;
   browserOpened: boolean;
+  needsCodeSubmission: boolean;
+  codeSubmitted: boolean;
   startedAt?: string;
   updatedAt: string;
 }
@@ -1291,8 +1298,14 @@ export interface DoolittleDesktopBridge {
   importRecordedAudio(
     request: RecordedAudioImportRequest,
   ): Promise<ManagedAttachmentDescriptor>;
-  startProviderAuth(provider: ProviderAuthProvider): Promise<ProviderAuthState>;
+  startProviderAuth(
+    provider: ProviderAuthProvider,
+    options?: ProviderAuthStartOptions,
+  ): Promise<ProviderAuthState>;
   getProviderAuthState(
+    provider: ProviderAuthProvider,
+  ): Promise<ProviderAuthState>;
+  submitProviderAuthCode(
     provider: ProviderAuthProvider,
   ): Promise<ProviderAuthState>;
   cancelProviderAuth(

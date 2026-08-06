@@ -1,56 +1,85 @@
-import {
-  type ChildProcess,
-  spawn as nodeSpawn,
-  type SpawnOptions,
-} from "node:child_process";
-import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, resolve } from "node:path";
 import type {
+  FlowState,
+  OAuthFlowHandle,
+} from "@elizaos/agent/auth/oauth-flow";
+import type {
   ProviderAuthProvider,
+  ProviderAuthStartOptions,
   ProviderAuthState,
 } from "../shared/contracts";
 
-const AUTH_URL_PATTERN = /https:\/\/[^\s<>"']+/giu;
-const AUTH_TIMEOUT_MS = 10 * 60 * 1_000;
+const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/u;
+const MAX_AUTH_CODE_LENGTH = 8_192;
 
 const PROVIDERS = {
   codex: {
     executable: "codex",
-    args: ["login"],
     label: "Codex",
   },
   "claude-code": {
     executable: "claude",
-    args: ["auth", "login", "--claudeai"],
     label: "Claude",
   },
 } as const;
 
-type SpawnProcess = (
-  command: string,
-  args: readonly string[],
-  options: SpawnOptions,
-) => ChildProcess;
+type StartProviderFlow = (options: {
+  label: string;
+  accountId?: string;
+}) => Promise<OAuthFlowHandle>;
+
+export interface ProviderAuthFlowDependencies {
+  startCodex: StartProviderFlow;
+  startAnthropic: StartProviderFlow;
+  subscribe: (
+    sessionId: string,
+    listener: (state: FlowState) => void,
+  ) => () => void;
+  cancel: (sessionId: string, reason?: string) => boolean;
+  submitCode: (sessionId: string, code: string) => boolean;
+}
 
 export interface ProviderAuthControllerDependencies {
-  spawn?: SpawnProcess;
   openExternal: (url: string) => Promise<unknown>;
+  readClipboardText: () => string;
   now?: () => Date;
-  environment?: NodeJS.ProcessEnv;
-  platform?: NodeJS.Platform;
-  homeDirectory?: string;
+  flows?: ProviderAuthFlowDependencies;
 }
 
 interface ActiveProviderAuth {
-  child: ChildProcess;
-  timeout: ReturnType<typeof setTimeout>;
+  sessionId: string;
+  needsCodeSubmission: boolean;
+  flows: ProviderAuthFlowDependencies;
+  unsubscribe: () => void;
+}
+
+let officialProviderAuthFlows:
+  | Promise<ProviderAuthFlowDependencies>
+  | undefined;
+
+function loadOfficialProviderAuthFlows(): Promise<ProviderAuthFlowDependencies> {
+  officialProviderAuthFlows ??= import("@elizaos/agent/auth/oauth-flow").then(
+    (module) => ({
+      startCodex: module.startCodexOAuthFlow,
+      startAnthropic: module.startAnthropicOAuthFlow,
+      subscribe: module.subscribeFlow,
+      cancel: module.cancelFlow,
+      submitCode: module.submitFlowCode,
+    }),
+  );
+  return officialProviderAuthFlows;
 }
 
 function executableName(name: string, platform: NodeJS.Platform): string {
   return platform === "win32" ? `${name}.exe` : name;
 }
 
+/**
+ * Provider subprocess discovery remains shared with the backend because
+ * Codex/Claude coding agents still launch their official CLIs after the SDK
+ * OAuth flow has persisted credentials for the selected account.
+ */
 export function providerAuthExecutableCandidates(
   provider: ProviderAuthProvider,
   options: {
@@ -100,65 +129,47 @@ export function providerAuthExecutableCandidates(
   ];
 }
 
-export function resolveProviderAuthExecutable(
+function normalizedStartOptions(
   provider: ProviderAuthProvider,
-  options: {
-    environment?: NodeJS.ProcessEnv;
-    platform?: NodeJS.Platform;
-    homeDirectory?: string;
-  } = {},
-): string | null {
-  return (
-    providerAuthExecutableCandidates(provider, options).find((candidate) =>
-      existsSync(candidate),
-    ) ?? null
-  );
-}
-
-export function isTrustedProviderAuthUrl(
-  provider: ProviderAuthProvider,
-  value: string,
-): boolean {
-  try {
-    const hostname = new URL(value).hostname.toLowerCase();
-    const trusted =
-      provider === "codex"
-        ? ["openai.com", "chatgpt.com"]
-        : ["claude.ai", "anthropic.com"];
-    return trusted.some(
-      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+  options: ProviderAuthStartOptions = {},
+): { label: string; accountId?: string } {
+  const accountId = options.accountId?.trim();
+  const label =
+    options.label?.trim() || `${PROVIDERS[provider].label} desktop account`;
+  if (accountId && !ACCOUNT_ID_PATTERN.test(accountId)) {
+    throw new Error(
+      "Account ID must contain 1 to 120 letters, numbers, dots, underscores, or hyphens.",
     );
-  } catch {
-    return false;
   }
+  if (label.length > 120) {
+    throw new Error("Account label must contain at most 120 characters.");
+  }
+  return { label, ...(accountId ? { accountId } : {}) };
 }
 
-export function providerAuthUrls(
-  provider: ProviderAuthProvider,
-  output: string,
-): string[] {
-  return [...output.matchAll(AUTH_URL_PATTERN)]
-    .map(([url]) => url.replace(/[),.;]+$/u, ""))
-    .filter((url) => isTrustedProviderAuthUrl(provider, url));
+function isAnthropicCode(value: string): boolean {
+  if (!value || value.length > MAX_AUTH_CODE_LENGTH) return false;
+  const separator = value.indexOf("#");
+  return separator > 0 && separator < value.length - 1;
 }
 
 export class ProviderAuthController {
-  private readonly spawn: SpawnProcess;
   private readonly openExternal: (url: string) => Promise<unknown>;
+  private readonly readClipboardText: () => string;
   private readonly now: () => Date;
-  private readonly environment: NodeJS.ProcessEnv;
-  private readonly platform: NodeJS.Platform;
-  private readonly homeDirectory: string;
+  private readonly loadFlows: () => Promise<ProviderAuthFlowDependencies>;
   private readonly active = new Map<ProviderAuthProvider, ActiveProviderAuth>();
   private readonly states = new Map<ProviderAuthProvider, ProviderAuthState>();
+  private readonly starting = new Set<ProviderAuthProvider>();
 
   constructor(dependencies: ProviderAuthControllerDependencies) {
-    this.spawn = dependencies.spawn ?? nodeSpawn;
     this.openExternal = dependencies.openExternal;
+    this.readClipboardText = dependencies.readClipboardText;
     this.now = dependencies.now ?? (() => new Date());
-    this.environment = dependencies.environment ?? process.env;
-    this.platform = dependencies.platform ?? process.platform;
-    this.homeDirectory = dependencies.homeDirectory ?? homedir();
+    const injectedFlows = dependencies.flows;
+    this.loadFlows = injectedFlows
+      ? async () => injectedFlows
+      : loadOfficialProviderAuthFlows;
   }
 
   getState(provider: ProviderAuthProvider): ProviderAuthState {
@@ -168,119 +179,130 @@ export class ProviderAuthController {
         phase: "idle",
         message: `${PROVIDERS[provider].label} is ready to sign in.`,
         browserOpened: false,
+        needsCodeSubmission: false,
+        codeSubmitted: false,
         updatedAt: this.now().toISOString(),
       }
     );
   }
 
-  start(provider: ProviderAuthProvider): ProviderAuthState {
-    if (this.active.has(provider)) return this.getState(provider);
-
-    const executable = resolveProviderAuthExecutable(provider, {
-      environment: this.environment,
-      platform: this.platform,
-      homeDirectory: this.homeDirectory,
-    });
-    if (!executable) {
-      return this.update(provider, {
-        phase: "failed",
-        message: `${PROVIDERS[provider].label} CLI is not installed or could not be found.`,
-        browserOpened: false,
-      });
+  async start(
+    provider: ProviderAuthProvider,
+    options: ProviderAuthStartOptions = {},
+  ): Promise<ProviderAuthState> {
+    if (this.active.has(provider) || this.starting.has(provider)) {
+      return this.getState(provider);
     }
 
-    const startedAt = this.now().toISOString();
+    const flowOptions = normalizedStartOptions(provider, options);
+    this.starting.add(provider);
     this.update(provider, {
       phase: "launching",
       message: `Starting ${PROVIDERS[provider].label} sign in…`,
       browserOpened: false,
-      startedAt,
+      needsCodeSubmission: false,
+      codeSubmitted: false,
+      startedAt: this.now().toISOString(),
     });
 
-    const child = this.spawn(executable, PROVIDERS[provider].args, {
-      cwd: this.homeDirectory,
-      env: {
-        ...this.environment,
-        PATH: providerAuthExecutableCandidates(provider, {
-          environment: this.environment,
-          platform: this.platform,
-          homeDirectory: this.homeDirectory,
-        })
-          .map((candidate) => resolve(candidate, ".."))
-          .concat((this.environment.PATH ?? "").split(delimiter))
-          .filter(Boolean)
-          .join(delimiter),
-      },
-      shell: this.platform === "win32" && executable.endsWith(".cmd"),
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: false,
-    });
+    try {
+      const flows = await this.loadFlows();
+      if (this.getState(provider).phase === "cancelled") {
+        return this.getState(provider);
+      }
+      const startFlow =
+        provider === "codex" ? flows.startCodex : flows.startAnthropic;
+      const handle = await startFlow(flowOptions);
+      void handle.completion.catch(() => undefined);
 
-    const timeout = setTimeout(() => {
-      child.kill();
-      this.active.delete(provider);
-      this.update(provider, {
-        phase: "failed",
-        message: `${PROVIDERS[provider].label} sign in timed out. Please try again.`,
-      });
-    }, AUTH_TIMEOUT_MS);
-    this.active.set(provider, { child, timeout });
+      if (this.getState(provider).phase === "cancelled") {
+        handle.cancel("Cancelled in Doolittle");
+        return this.getState(provider);
+      }
 
-    let browserOpened = false;
-    let outputTail = "";
-    const consume = (chunk: Buffer | string) => {
-      if (browserOpened) return;
-      outputTail = `${outputTail}${chunk.toString()}`.slice(-8_192);
-      const url = providerAuthUrls(provider, outputTail)[0];
-      if (!url) return;
-      browserOpened = true;
-      void this.openExternal(url).catch(() => undefined);
-      this.update(provider, {
-        phase: "waiting",
-        message: `Finish signing in to ${PROVIDERS[provider].label} in your browser.`,
-        browserOpened: true,
-      });
-    };
-    child.stdout?.on("data", consume);
-    child.stderr?.on("data", consume);
-    child.once("spawn", () => {
-      this.update(provider, {
-        phase: "waiting",
-        message: `Finish signing in to ${PROVIDERS[provider].label} in your browser.`,
-      });
-    });
-    child.once("error", () => {
-      this.finish(provider, {
+      const active: ActiveProviderAuth = {
+        sessionId: handle.sessionId,
+        needsCodeSubmission: handle.needsCodeSubmission,
+        flows,
+        unsubscribe: () => undefined,
+      };
+      this.active.set(provider, active);
+      const unsubscribe = flows.subscribe(handle.sessionId, (state) =>
+        this.applyFlowState(provider, state),
+      );
+      active.unsubscribe = unsubscribe;
+      if (!this.active.has(provider)) unsubscribe();
+      if (!this.active.has(provider)) return this.getState(provider);
+
+      try {
+        await this.openExternal(handle.authUrl);
+      } catch {
+        flows.cancel(
+          handle.sessionId,
+          "Doolittle could not open the authorization page.",
+        );
+        return this.finish(provider, {
+          phase: "failed",
+          message: `${PROVIDERS[provider].label} sign in could not open the authorization page.`,
+        });
+      }
+
+      if (this.active.has(provider)) {
+        this.update(provider, {
+          phase: "waiting",
+          message: handle.needsCodeSubmission
+            ? `Finish signing in to ${PROVIDERS[provider].label}, copy the returned code, then choose Use copied code.`
+            : `Finish signing in to ${PROVIDERS[provider].label} in your browser.`,
+          browserOpened: true,
+          needsCodeSubmission: handle.needsCodeSubmission,
+          codeSubmitted: false,
+        });
+      }
+      return this.getState(provider);
+    } catch {
+      if (this.getState(provider).phase === "cancelled") {
+        return this.getState(provider);
+      }
+      return this.finish(provider, {
         phase: "failed",
         message: `${PROVIDERS[provider].label} sign in could not be started.`,
       });
-    });
-    child.once("exit", (code, signal) => {
-      if (!this.active.has(provider)) return;
-      if (code === 0) {
-        this.finish(provider, {
-          phase: "succeeded",
-          message: `${PROVIDERS[provider].label} sign in completed.`,
-        });
-        return;
-      }
-      this.finish(provider, {
-        phase: signal ? "cancelled" : "failed",
-        message: signal
-          ? `${PROVIDERS[provider].label} sign in was cancelled.`
-          : `${PROVIDERS[provider].label} sign in exited before completing.`,
-      });
-    });
+    } finally {
+      this.starting.delete(provider);
+    }
+  }
 
-    return this.getState(provider);
+  submitCodeFromClipboard(provider: ProviderAuthProvider): ProviderAuthState {
+    const active = this.active.get(provider);
+    if (!active?.needsCodeSubmission) {
+      throw new Error(
+        `${PROVIDERS[provider].label} is not waiting for an authorization code.`,
+      );
+    }
+    const code = this.readClipboardText().trim();
+    if (!isAnthropicCode(code)) {
+      throw new Error(
+        "Copy the complete Claude authorization value in code#state format, then try again.",
+      );
+    }
+    if (!active.flows.submitCode(active.sessionId, code)) {
+      throw new Error("The Claude authorization flow is no longer active.");
+    }
+    return this.update(provider, {
+      phase: "waiting",
+      message: `Verifying ${PROVIDERS[provider].label} authorization…`,
+      codeSubmitted: true,
+    });
   }
 
   cancel(provider: ProviderAuthProvider): ProviderAuthState {
     const active = this.active.get(provider);
-    if (!active) return this.getState(provider);
-    this.active.delete(provider);
-    clearTimeout(active.timeout);
-    active.child.kill();
+    if (active) {
+      active.flows.cancel(active.sessionId, "Cancelled in Doolittle");
+      active.unsubscribe();
+      this.active.delete(provider);
+    }
+    if (!active && !this.starting.has(provider)) return this.getState(provider);
     return this.update(provider, {
       phase: "cancelled",
       message: `${PROVIDERS[provider].label} sign in was cancelled.`,
@@ -296,12 +318,48 @@ export class ProviderAuthController {
       phase: "idle",
       message: `${PROVIDERS[provider].label} is ready to sign in.`,
       browserOpened: false,
+      needsCodeSubmission: false,
+      codeSubmitted: false,
       startedAt: undefined,
     });
   }
 
   dispose(): void {
-    for (const provider of this.active.keys()) this.cancel(provider);
+    for (const provider of new Set([
+      ...this.active.keys(),
+      ...this.starting.keys(),
+    ])) {
+      this.cancel(provider);
+    }
+  }
+
+  private applyFlowState(
+    provider: ProviderAuthProvider,
+    state: FlowState,
+  ): void {
+    switch (state.status) {
+      case "success":
+        this.finish(provider, {
+          phase: "succeeded",
+          message: `${PROVIDERS[provider].label} sign in completed and the account was saved by Eliza.`,
+        });
+        return;
+      case "error":
+      case "timeout":
+        this.finish(provider, {
+          phase: "failed",
+          message: `${PROVIDERS[provider].label} sign in failed. Please try again.`,
+        });
+        return;
+      case "cancelled":
+        this.finish(provider, {
+          phase: "cancelled",
+          message: `${PROVIDERS[provider].label} sign in was cancelled.`,
+        });
+        return;
+      case "pending":
+        return;
+    }
   }
 
   private finish(
@@ -309,7 +367,7 @@ export class ProviderAuthController {
     changes: Partial<ProviderAuthState>,
   ): ProviderAuthState {
     const active = this.active.get(provider);
-    if (active) clearTimeout(active.timeout);
+    active?.unsubscribe();
     this.active.delete(provider);
     return this.update(provider, changes);
   }
